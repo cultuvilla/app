@@ -23,15 +23,27 @@ env:
 - tapOn:
     id: 'news-title'
 - inputText: ${output.newsTitle}
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'news-category'
 - tapOn:
     id: 'news-category'
 - tapOn:
     id: 'news-category-fiesta'
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'news-form-primary'
 - tapOn:
     id: 'news-form-primary'
 - tapOn:
     id: 'news-block-text-0'
 - inputText: 'Contenido creado desde Maestro.'
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'news-form-primary'
 - tapOn:
     id: 'news-form-primary'
 - tapOn:
@@ -57,6 +69,10 @@ env:
     id: 'news-title'
 - eraseText: 80
 - inputText: ${output.editedTitle}
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'news-form-primary'
 - tapOn:
     id: 'news-form-primary'
 - tapOn:

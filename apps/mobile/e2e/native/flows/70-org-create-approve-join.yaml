@@ -30,15 +30,9 @@ env:
     id: 'org-name-input'
 - inputText: ${output.orgName}
 - runFlow:
-    when:
-      notVisible:
-        id: 'org-submit'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'org-submit'
-          direction: DOWN
-          timeout: 20000
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'org-submit'
 - tapOn:
     id: 'org-submit'
 - runScript:

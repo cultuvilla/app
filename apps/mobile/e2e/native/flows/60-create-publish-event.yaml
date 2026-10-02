@@ -31,6 +31,10 @@ env:
 - tapOn:
     id: 'event-title'
 - inputText: ${output.eventTitle}
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'event-form-primary'
 - tapOn:
     id: 'event-form-primary'
 
