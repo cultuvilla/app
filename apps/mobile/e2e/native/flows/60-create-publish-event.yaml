@@ -1,0 +1,84 @@
+# An organizer creates an event through the 4-step wizard and it publishes.
+#
+# Only the native driver can prove the location step: it asks for the OS
+# location permission and reads a real GPS fix. `setLocation` gives the AVD a
+# fix, and the permission dialog is answered like a user would.
+#
+# The title is stamped so a re-run never matches a leftover event.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-admin@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- setLocation:
+    latitude: 39.4699
+    longitude: -0.3763
+- evalScript: ${output.eventTitle = 'Evento nativo ' + Date.now()}
+- openLink: 'cultuvilla://crear/evento'
+
+# Step 1 — basics. The admin is a member of the seeded village, so the form
+# renders and the village auto-selects to it.
+- extendedWaitUntil:
+    visible:
+      id: 'event-title'
+    timeout: 45000
+- tapOn:
+    id: 'event-title'
+- inputText: ${output.eventTitle}
+- tapOn:
+    id: 'event-form-primary'
+
+# Step 2 — when & where. The start date defaults to now (rounded up), so only
+# the location is left.
+- tapOn:
+    id: 'event-location'
+- runFlow: ../subflows/allow-location.yaml
+- tapOn:
+    id: 'location-use-mine'
+- runFlow: ../subflows/allow-location.yaml
+# `location-confirm` stays disabled until the fix resolves, and a tap on a
+# disabled button reports COMPLETED while doing nothing — so tap until the
+# picker actually closes rather than once.
+- repeat:
+    times: 10
+    while:
+      visible:
+        id: 'location-confirm'
+    commands:
+      - tapOn:
+          id: 'location-confirm'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- tapOn:
+    id: 'event-form-primary'
+
+# Step 3 — details are optional.
+- tapOn:
+    id: 'event-form-primary'
+# Step 4 — sign-up questions are optional; submit.
+- tapOn:
+    id: 'event-form-primary'
+
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.eventTitle}
+      FIELD2: status
+      VALUE2: published
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${output.id}'
+      FIELD: municipalityId
+      EXPECT: ${VILLAGE_ID}
+- assertTrue: ${output.ok == 'true'}

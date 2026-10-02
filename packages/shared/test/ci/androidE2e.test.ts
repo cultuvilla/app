@@ -203,7 +203,7 @@ describe('native flow suite', () => {
   // unpredictably against the rest and break that pairing.
   it('keeps every flow numerically ordered', () => {
     for (const flow of flows) expect(flow).toMatch(/^\d{2}-/);
-    expect(flows.length).toBeGreaterThanOrEqual(8);
+    expect(flows.length).toBeGreaterThanOrEqual(15);
   });
 
   // The substrate's whole point (docs/decisions/e2e-testing-substrate.md): the

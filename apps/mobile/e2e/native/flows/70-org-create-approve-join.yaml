@@ -1,0 +1,95 @@
+# Three actors: a villager proposes a peña (pending), the village admin approves
+# it from the Buzón, and a third user joins it. Each hop is asserted on
+# Firestore.
+#
+# Joining is instant self-service for an `open` org (the default): the FAB
+# writes the joiner's own member doc, gated by rules (AGENTS.md).
+#
+# Each actor switch is the login subflow, whose `clearState` is the sign-out.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  VILLAGE_SLUG: altozano-de-prueba
+  JOINER_UID: e2e-joiner
+---
+- evalScript: ${output.orgName = 'Peña nativa ' + Date.now()}
+
+# ── The villager proposes the peña. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidades'
+- extendedWaitUntil:
+    visible:
+      id: 'org-name-input'
+    timeout: 45000
+- tapOn:
+    id: 'org-name-input'
+- inputText: ${output.orgName}
+- runFlow:
+    when:
+      notVisible:
+        id: 'org-submit'
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'org-submit'
+          direction: DOWN
+          timeout: 20000
+- tapOn:
+    id: 'org-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: organizations
+      FIELD: name
+      VALUE: ${output.orgName}
+      FIELD2: status
+      VALUE2: pending
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.orgId = output.id}
+
+# ── The village admin approves it from the Buzón's actionable section. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-admin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://buzon'
+- extendedWaitUntil:
+    visible:
+      id: 'approve-org-${output.orgId}'
+    timeout: 45000
+- tapOn:
+    id: 'approve-org-${output.orgId}'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      FIELD: status
+      EXPECT: approved
+- assertTrue: ${output.ok == 'true'}
+
+# ── A third user joins from the org detail screen. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-joiner@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${output.orgId}'
+- extendedWaitUntil:
+    visible:
+      id: 'join-org-fab'
+    timeout: 45000
+- tapOn:
+    id: 'join-org-fab'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}/members/${JOINER_UID}'
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}

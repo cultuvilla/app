@@ -1,0 +1,63 @@
+# A member asks to be the Embajador of an organizer-less village; the super
+# admin approves it from the Buzón. The requester's phone is pre-seeded, so the
+# phone-gated submit passes without driving the field.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-solana
+  REQUESTER_UID: e2e-user
+---
+# ── The requester. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://descubrir/organizar/${VILLAGE_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'organize-submit'
+    timeout: 45000
+- tapOn:
+    id: 'organize-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: organizerRequests
+      FIELD: municipalityId
+      VALUE: ${VILLAGE_ID}
+      FIELD2: userId
+      VALUE2: ${REQUESTER_UID}
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.requestId = output.id}
+
+# ── The super admin approves it. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-superadmin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://buzon'
+- extendedWaitUntil:
+    visible:
+      id: 'approve-organizer-${output.requestId}'
+    timeout: 45000
+- tapOn:
+    id: 'approve-organizer-${output.requestId}'
+
+# The request is approved and the requester is now an admin of the village.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizerRequests/${output.requestId}'
+      FIELD: status
+      EXPECT: approved
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/members/${REQUESTER_UID}'
+      FIELD: role
+      EXPECT: admin
+- assertTrue: ${output.ok == 'true'}

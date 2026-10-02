@@ -1,5 +1,4 @@
-# Native anonymous deep-link smoke — the mirror of the web
-# apps/mobile/e2e/flows/deep-link-event.spec.ts. It proves the whole native
+# Native anonymous deep-link smoke. It proves the whole native
 # substrate boots end to end — standalone APK + emulator-connect (via 10.0.2.2)
 # + seeded data + deep-link routing — before any interaction, so a failure here
 # localises setup problems fast.
@@ -15,7 +14,7 @@
 #
 # The event id/title below mirror scripts/data/seed-fixtures/e2e/fixtures.mjs
 # (`event.docId` / `event.title`). Maestro YAML can't import JS — keep them in
-# sync by hand, as apps/mobile/e2e/lib/fixtures.ts already does for the web side.
+# sync by hand.
 #
 # `appId` is the dev build's Android package (app.config.ts bundleIdPerEnv.dev),
 # the only env allowed to arm the emulator bypass.
@@ -26,12 +25,11 @@ appId: com.cultuvilla.app.dev
 - extendedWaitUntil:
     visible: 'Fiesta de Prueba E2E'
     timeout: 90000
-# Anonymous visitor gets the guest sign-up CTA (same assertion as the web smoke).
+# Anonymous visitor gets the guest sign-up CTA.
 #
 # Scroll to it first. The CTA sits below the fold on a pixel_5 once the
 # full-bleed hero, title, date/location cards, organisers and village have had
-# their say — the web viewport is taller, which is why the Playwright mirror of
-# this flow asserts it directly and passes. Guarded by `when: notVisible` so a
+# their say. Guarded by `when: notVisible` so a
 # future layout that does fit it on screen doesn't start scrolling past it.
 - runFlow:
     when:

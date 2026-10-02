@@ -1,7 +1,4 @@
-# The inverse of 20, and the one flow that exercises a NATIVE Alert.alert
-# confirmation — the web driver only ever sees the window.confirm fallback
-# (react-native-web ships Alert.alert as a no-op; see the mobile-web-compat
-# skill), so this dialog has never been executed by a test until now.
+# The inverse of 20, confirmed through a native Alert.alert.
 #
 # Self-healing rather than order-dependent: it registers first if the persona
 # is not already signed up. scripts/run-android-e2e.mjs does run the flows in

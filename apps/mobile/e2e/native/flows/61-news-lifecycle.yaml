@@ -1,0 +1,88 @@
+# A village admin creates, edits and deletes a news post. The delete
+# confirmation is a native Alert.alert.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-admin@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- evalScript: ${output.newsTitle = 'Noticia nativa ' + Date.now()}
+- evalScript: ${output.editedTitle = output.newsTitle + ' editada'}
+
+# ── Create ──
+- openLink: 'cultuvilla://crear/noticia?villageId=${VILLAGE_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'news-title'
+    timeout: 45000
+- tapOn:
+    id: 'news-title'
+- inputText: ${output.newsTitle}
+- tapOn:
+    id: 'news-category'
+- tapOn:
+    id: 'news-category-fiesta'
+- tapOn:
+    id: 'news-form-primary'
+- tapOn:
+    id: 'news-block-text-0'
+- inputText: 'Contenido creado desde Maestro.'
+- tapOn:
+    id: 'news-form-primary'
+- tapOn:
+    id: 'news-form-primary'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: news
+      FIELD: title
+      VALUE: ${output.newsTitle}
+      FIELD2: status
+      VALUE2: active
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.newsId = output.id}
+
+# ── Edit the title ──
+- openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
+- extendedWaitUntil:
+    visible: ${output.newsTitle}
+    timeout: 45000
+- tapOn:
+    id: 'news-title'
+- eraseText: 80
+- inputText: ${output.editedTitle}
+- tapOn:
+    id: 'news-form-primary'
+- tapOn:
+    id: 'news-form-primary'
+- tapOn:
+    id: 'news-form-primary'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'news/${output.newsId}'
+      FIELD: title
+      EXPECT: ${output.editedTitle}
+- assertTrue: ${output.ok == 'true'}
+
+# ── Delete ── a hard delete through the cascading callable.
+- openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
+- extendedWaitUntil:
+    visible: ${output.editedTitle}
+    timeout: 45000
+- tapOn:
+    id: 'news-delete'
+# Native Alert button: common.delete, upper-cased by the Material dialog.
+- tapOn: 'ELIMINAR'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'news/${output.newsId}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}

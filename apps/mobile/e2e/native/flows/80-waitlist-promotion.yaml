@@ -1,0 +1,86 @@
+# A full event waitlists a sign-up; when the organizer removes a confirmed
+# attendee, the waitlisted one is promoted. The promotion is a Cloud Function
+# trigger, so the strong assertion is the registration flipping to `confirmed`.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  EVENT_ID: e2e-event-aforo
+  PERSON_ID: e2e-person-user
+  SEEDED_REG_ID: e2e-reg-admin-confirmed
+---
+# ── The attendee signs up to the full event and is waitlisted. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'register-fab'
+    timeout: 45000
+- tapOn:
+    id: 'register-fab'
+- tapOn:
+    id: 'attendee-row-${PERSON_ID}'
+- tapOn:
+    id: 'attendee-confirm'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: personId
+      VALUE: ${PERSON_ID}
+      FIELD2: status
+      VALUE2: waitlisted
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+
+# ── The organizer removes the seeded confirmed attendee. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-admin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}'
+# The attendee list sits below the hero and the info cards.
+- scrollUntilVisible:
+    element:
+      id: 'attendees-edit-toggle'
+    direction: DOWN
+    timeout: 45000
+# The trash icons only exist once the "Editar" toggle is on.
+- tapOn:
+    id: 'attendees-edit-toggle'
+- runFlow:
+    when:
+      notVisible:
+        id: 'remove-attendee-${SEEDED_REG_ID}'
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'remove-attendee-${SEEDED_REG_ID}'
+          direction: DOWN
+          timeout: 20000
+- tapOn:
+    id: 'remove-attendee-${SEEDED_REG_ID}'
+# Native Alert button: event.removeAttendeeConfirm, upper-cased by Material.
+- tapOn: 'QUITAR'
+
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${SEEDED_REG_ID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: personId
+      VALUE: ${PERSON_ID}
+      FIELD2: status
+      VALUE2: confirmed
+      MIN: '1'
+      TIMEOUT_MS: '45000'
+- assertTrue: ${output.ok == 'true'}
