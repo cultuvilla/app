@@ -48,7 +48,8 @@
       "unknown": "Algo salió mal al cargar el contenido.",
       "retryLater": "Inténtalo de nuevo más tarde.",
       "retry": "Reintentar"
-    }
+    },
+    "offline": "Sin conexión — mostrando datos guardados"
   },
   "auth": {
     "signIn": "Iniciar sesión",

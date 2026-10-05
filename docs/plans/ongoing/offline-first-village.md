@@ -3,7 +3,7 @@
 **Priority:** high — the main reason the app feels slow
 **Landed:** dev
 **Gate:** none
-**Next:** clear the local cache on sign-out and add the offline banner (both product decisions below), before the next store build
+**Next:** mis-inscripciones and the remaining list screens onto watchers; then layer 3 (village sync)
 
 ## Goal
 
@@ -75,10 +75,14 @@ live sync; the JS SDK on RN just cannot use it.
 - Plain document writes queue offline (Firestore does it). Callables
   (registration, joins, approvals) need the server: offline they show
   "Sin conexión" — capacity and authority cannot be decided offline.
-- Sign-out clears the local cache (`clearPersistence`): it holds member-only
-  data, and a cache read is not checked against the security rules.
+- Sign-out clears the local cache: it holds member-only data, and a cache
+  read is not checked against the security rules. Built
+  (`lib/auth/clearLocalCache.ts`): terminate, clear, then restart the JS app —
+  terminate kills every mounted listener and the native emulator wiring, so a
+  restart is the only clean way back.
 - Offline state is a quiet banner ("Sin conexión — mostrando datos guardados"),
-  never a blocking screen.
+  never a blocking screen. Built (`OfflineBanner`, NetInfo): shown only when
+  NetInfo is certain the phone is offline.
 
 ## Risks
 
