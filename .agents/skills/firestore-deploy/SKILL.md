@@ -1,9 +1,9 @@
 ---
 name: firestore-deploy
-description: Safely deploy Firestore rules, indexes, or Cloud Functions to the cultuvilla development Firebase project. Use when the user asks to deploy any of these. Refuses beta/prod deploys (CI handles those, or the user must insist explicitly) and refuses the `deploy:all:*` umbrella scripts by default.
+description: Safely deploy Firestore rules, indexes, or Cloud Functions to the cultuvilla dev or beta Firebase projects. Use when the user asks to deploy any of these, or work needs a deploy. Dev and beta are agent-runnable (AGENTS.md § Approval); refuses prod deploys (CI handles those, or the user must approve that specific run) and the `deploy:all:*` umbrella scripts by default.
 ---
 
-# Firestore deploy (development only by default)
+# Firestore deploy (dev and beta; prod is the user's)
 
 Cultuvilla has three Firebase projects:
 
@@ -13,7 +13,9 @@ Cultuvilla has three Firebase projects:
 | beta | `cultuvilla-beta` | `pnpm deploy:*:beta` |
 | prod | `cultuvilla-prod` | `pnpm deploy:*:prod` |
 
-This skill targets `:dev` only. Beta and prod deploys either come from CI on merge, or require explicit user insistence (see below).
+Dev and beta are non-production: per AGENTS.md § Approval an agent deploys there without asking when its work needs it. Prod deploys come from CI on promotion, or need the user's explicit go for that specific run.
+
+**Beta is the backend of the Cultuvilla Beta app real testers use**, and CI redeploys it from the `beta` branch on every promotion. So a manual beta deploy is for verifying something before it is promoted — ship from a checkout whose deployed files are `beta`'s plus your change, never a stale branch that would roll back what beta already runs — and the next promotion deploy supersedes it.
 
 ## Per-repo Firebase account (avoids `login:use` swap)
 
@@ -31,9 +33,9 @@ If a deploy fails with `Error: ... HTTP Error: 403, The caller does not have per
 
 ## Hard refusals
 
-Refuse and explain unless the user explicitly insists in this conversation:
+Refuse and explain unless the user explicitly approves that specific run in this conversation:
 
-- Any deploy to beta or prod: `pnpm deploy:rules:beta`, `pnpm deploy:firestore:prod`, `pnpm deploy:functions:beta`, etc.
+- Any deploy to prod: `pnpm deploy:firestore:prod`, `pnpm deploy:functions:prod`, etc.
 - Any `deploy:all:*` script (`deploy:all:dev`, `deploy:all:beta`, `deploy:all:prod`) — they deploy rules + indexes + functions + storage simultaneously; one bad commit lands everywhere at once. Prefer the narrowest script.
 - Raw `firebase deploy --project <id>` bypassing the alias system.
 
@@ -47,7 +49,7 @@ If the user insists, repeat back what will be deployed and to which env, then re
    firebase use
    ```
 
-   If it prints `beta` or `prod`, stop and ask the user to confirm dev; only proceed once `firebase use dev` is active.
+   If it prints `prod`, stop: switch to the env you meant (`firebase use dev` / `firebase use beta`) before going on.
 
 2. **Show the diff** of the file(s) being deployed so unrelated changes don't ship silently:
 

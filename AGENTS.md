@@ -339,7 +339,7 @@ Only add a compatibility layer when the user explicitly asks for one (e.g. when 
 
 Reads route through a **strict** Zod converter ([makeConverter](packages/shared/src/firebase/converters/makeConverter.ts) → `schema.parse`), so a doc missing a newly-added field makes the converter *throw* and crashes whatever screen reads that collection. When a feature adds or tightens a model field, backfill the existing dev docs (`villa-events`) in the same change — don't leave the field optional just to tolerate stale data (that's a retrocompat shim; see above).
 
-- **Dev backfill is autonomous — no confirmation needed.** Dev (`villa-events`) is safe to mutate; an agent implementing a feature may write and run the backfill script directly. Beta/prod stay off-limits (CI / explicit user instruction only — see `firebase-admin-dev` skill).
+- **Dev and beta backfills are autonomous — no confirmation needed** (see *Approval*). Dev (`villa-events`) and beta (`cultuvilla-beta`) are non-production; an agent may write and run the backfill there directly — dry run first, `--confirm` on beta. Prod stays the user's (CI on promotion, or their explicit go for a specific run).
 - Write the backfill as a one-off, idempotent `scripts/backfill-<thing>.mjs` **registered on the harness** (mirror `scripts/backfill-municipality-namelower.mjs`): only patch docs missing the field, set the same default the model builder uses, and give it `phase: 'pre-deploy'` so the promotion to beta/prod blocks until it has run there. See *Backfills* above.
 - Verify with **`pnpm check:dev-conformance`** ([scripts/check-dev-conformance.mjs](scripts/check-dev-conformance.mjs)) — it walks every dev collection through its converter and reports nonconforming docs. Run it before and after the backfill. It needs credentials, so it is **not** part of the `pnpm check` CI gate; run it manually against dev after schema changes.
 - **Beta/prod are gated automatically, twice.** Every `develop → beta` and `beta → main` deploy runs, *before* any `firebase deploy` and against the target env's live data (via the WIF service account): the **conformance gate** (this same check — does the stored data parse under the shipped converters?) and the **backfill gate** (`pnpm backfills:verify` — has every `pre-deploy` backfill actually run here?). Either one failing blocks the whole promotion instead of shipping a converter crash. See the "Conformance gate" and "Backfill gate" steps in [.github/workflows/deploy-firebase.yml](.github/workflows/deploy-firebase.yml); the wiring is locked in by [conformanceGate.test.ts](packages/shared/test/ci/conformanceGate.test.ts) and [backfillGate.test.ts](packages/shared/test/ci/backfillGate.test.ts). So the practical rule is: backfill the target env before promoting, or the promotion's deploy will block.
@@ -668,24 +668,62 @@ reviewer. All daily work targets `develop`. See
 10. **Merge with a merge commit, not squash or rebase.** Use `gh pr merge <n> --merge`. Squashing would collapse the carefully-scoped commits in the PR (e.g. "feature" + "test for feature") into one, which makes `git bisect` and `git blame` worse. Rebase-merging hides the PR boundary entirely. A merge commit preserves both.
 11. **If you broke a rule in this file deliberately**, update this file in the same PR.
 
+## Approval — what agents start without asking
+
+**`ready/` means approved, not planned.** A plan reaches `ready/` because someone with the authority said *yes, this should exist* — the user, or the standing policy below — and that decision is what the stage records. The File Structure and Tasks are written by the agent that starts the work, against the code of that day: a decision holds for months, while plan facts rot in weeks. **Approve early, plan late.**
+
+**Priority orders the queue; it never gates it.** An approved `low` plan is worked when nothing ranked above it is waiting.
+
+Two shared skills run on this policy: **`advance-plans`** builds the approved pool in parallel — `ongoing/`, then `ready/`, then pre-approved ideas straight from `ideas/` — and **`review-ideas`** verifies ideas against the code and asks the user for the yeses (tagging the pre-approved ones `Pre-Approved: <slug>` so the builder finds them).
+
+**The line is subjectivity** (decided 2026-10-05, adopting ordago's policy). The user's consent is for what is a matter of judgement they hold — product, business, taste — and not for engineering the agents and the tests can verify. So the default for objective work is *do it and report it*, and a new gate needs a subjective reason.
+
+**Free — no approval at all:** read-only investigation and audits (prod reads included), and writing or updating plans.
+
+**Pre-approved — an agent may take these from `ideas/` to merged without asking:**
+- fixing a defect whose correct behaviour is not in dispute — a crash, a leak, a wrong result, code that breaks its own docs or tests — unless the fix changes a product rule;
+- debt and refactors that change nothing observable (below);
+- internal instrumentation and tooling no user sees — telemetry, log severity, diagnostics, scripts;
+- test and CI health — flakes, missing coverage, a broken lane;
+- docs, plans and comments that contradict the code;
+- consolidating duplicates into one source of truth — where the copies disagree, only if the surviving behaviour is the documented or tested one;
+- a data migration or backfill that follows from an architectural benefit — a reshaped read model, a dead field, a consolidation. One that implements a product or business decision inherits that decision's yes instead;
+- running dev (`villa-events`) and beta (`cultuvilla-beta`) data operations and deploys — backfills, repairs, rules, indexes, functions — dry run and backup first, logged with counts. **Beta is not a sandbox:** it is the backend of the *Cultuvilla Beta* app real testers run, so a beta write is held to a prod-grade dry run. Production (`cultuvilla-prod`) stays the user's.
+
+**Needs the user's yes:** anything a user can see or do differently; a product rule (a limit, a permission, who may do what); anything that adds running cost; removing something a user or any supported client version can reach; a new external service or account. **Unsure which class → it needs a yes.**
+
+What the words mean:
+- **Differently** — what a user is shown or allowed changes. The same result, faster or more reliably, does not count: a crash that stops happening is a fix, not a change. A stored shape changing underneath the same experience is engineering — a migration, pre-approved above when it follows from an architectural benefit.
+- **Observable / stored data** — any Firestore or Storage field or collection added, removed or reshaped, and any analytics event name or attribute a dashboard reads.
+- **Running cost** — a new recurring cost line: a deployed function or trigger, a Cloud resource, a quota, a paid service, a CI job. Marginal reads or bytes per request do not count.
+
+Three rules settle the edges. **A yes written into a plan counts** ("Decided 2026-10-05 (user)") — move that plan to `ready/` when you see it. **A plan's own `Gate` or "do not start until" outranks pre-approval.** **A plan that mixes classes** may land its pre-approved part alone only if that part is useful without the rest; otherwise the whole plan waits for the yes. Pre-approval covers *starting* the work, never merging past a hard stop (Autonomy contract).
+
+**The classifier enforces this for unattended agents.** [.agents/auto-mode.json](.agents/auto-mode.json) restates this section and the Autonomy contract for Claude Code's auto-mode classifier; each person running agents installs it with `pnpm agent:auto-mode --write` (it never reads a repo's own settings). Change both in the same commit — the file is this policy restated, never a looser one.
+
 ## Autonomy contract
 
 **The user is a decider, not a merge gate.** A change should cost them two messages: their request, and one decision. The `ship-a-feature` skill owns the procedure — front-load every business and technical question into ONE message with a recommended pick on each, take `go` as "all your picks", then implement and land without check-ins.
 
 - **`ship-a-feature` and `managing-plans-lifecycle` are shared, not local.** `ship-a-feature` is a symlink into the `.agents/_shared` submodule; `managing-plans-lifecycle` is vendored from agent-plans (see `.agents/README.md`). The [agent-skills](https://github.com/alvaro-francisco-gil/agent-skills) submodule is consumed by several repos. **Do not edit them to fix something about this repo** — they carry procedure only. Every Cultuvilla-specific value lives here and in `.agents/land.config.json`. Run `git submodule update --init` after cloning, or the skills are empty.
-- **Merge bar: CI green. The agent merges to `develop` itself** — the user is not the gate, on an explicit decision (2026-08-22). Say plainly what that costs: no `ai-review` reviewer is wired here yet, so **nothing reads the diff but the test suite**. This is a weaker bar than ordago's, not an equal one. It is bounded rather than unbounded: the hard-stop list below still never self-merges, the vacuous-green guard still refuses to read "no run dispatched" as "tests passed", and `develop` is not a release branch — a bad merge is caught before it reaches `beta`.
+- **Merge bar: CI green. The agent merges to `develop` itself** — the user is not the gate, on an explicit decision (2026-08-22). Say plainly what that costs: no `ai-review` reviewer is wired here yet, so **nothing reads the diff but the test suite**. This is a weaker bar than ordago's, not an equal one. It is bounded rather than unbounded: the hard stops below still never self-merge, the vacuous-green guard still refuses to read "no run dispatched" as "tests passed", and `develop` is not a release branch — a bad merge is caught before it reaches `beta`.
 - **Restore the review requirement the day the reviewer works here.** Set `requireApprovingReview: true` in `land.config.json` — leaving it false past that point keeps the weaker bar for nothing.
 - **Reviews reach this repo by poll, and cannot reach it any other way.** ordago gets an immediate trigger from a `request-review` job that calls homelab's reusable workflow. That is impossible here: **this repo is public and homelab is private**, and a public repo cannot call a private repo's reusable workflow. GitHub resolves the callee when it *creates* the run, before evaluating any job-level `if` — so such a job is not inert-until-enabled, it fails the entire workflow to load and takes every other job down with it. Don't add one back; it was tried on 2026-08-22 and run `32594475090` completed with zero jobs. This repo is already registered in homelab's `personal/agent-review.yml`, so the 15-minute poll backstop is the path. The cost is latency, not capability.
 - **"No CI ran" is never "CI passed".** `ci.yml` has no `paths:` filter, so every PR here does dispatch a run — `land.config.json` records that as `ciPaths: ["**"]`. If a path filter is ever added, that value must change with it.
 - **Rebase only when the base moved *into* your diff** — path intersection, or a `packages/shared/**` / lockfile / rules move. `pr:land` decides; don't pre-emptively rebase.
-- **Hard-stop list — these never self-merge, however green:** `firestore.rules`, `storage.rules`, `firestore.indexes.json`, `scripts/backfill*`, `packages/shared/src/firebase/converters/**`, and **any PR targeting `beta`/`main`**. "Green" answers *did the tests pass*, not *is the blast radius acceptable*.
+- **Hard stops — what still goes to the user, and why so little does.** The user's consent covers what is *subjective* (*Approval*), not engineering an agent and the tests can judge. Nothing merged to `develop` reaches beta or prod by itself: rules, indexes and `autoApply` backfills get there only through a promotion PR the user merges. So since 2026-10-05 the `hardStop` path list in `.agents/land.config.json` is **empty**: rules, indexes, converters and backfill scripts merge on CI green like any other code. Say plainly what that costs here: with no reviewer wired, **CI is the only thing that reads a rules or converter change before it auto-deploys to dev** — `test:rules` and the conformance gates are the bar.
+  - **ENFORCED — `pr:land` exits `30` and hands the PR to the user:** a `Breaking-Client:` git trailer (it walls installed store clients — a product call; see *Versioning & releases*), and **any PR targeting `beta`/`main`** (a promotion), which `pr:land` cannot land since it only reads PRs based on `develop`.
+  - **NOT ENFORCED — agent discipline:** a callable signature or stored-shape **tightening** an installed client would break on is breaking — declare it with `Breaking-Client:` or make it non-breaking. **Production writes and deploys** — `--env=prod`, `pnpm deploy:*:prod`, the *Run Backfill* / *Set App Version* workflows against prod — need the user's explicit go for that specific run.
 - **A red lane is not automatically your bug.** Read the log before changing code.
 
-**Parallel batches.** One leader session can run several workers at once with the
-shared `orchestrate` skill (pick a batch with the user, then dispatch), or
-`advance-ongoing-plans` (drain `docs/plans/ongoing/` with no `go`). Fleet facts —
-session names, `maxWorkers`, worktree setup — live in
-[.agents/orchestrate.config.json](.agents/orchestrate.config.json). Each worker
+**Parallel batches.** One leader session runs several workers at once with the shared
+`orchestrate` skill (an ad-hoc batch: pick with the user, then dispatch), or
+`advance-plans` (build every approved plan with no `go`, until nothing agents can move is
+left); `review-ideas` checks `ideas/` against the code and asks for yeses. Workers are
+admitted by `pnpm agent:capacity` (RAM and emulator suites — never a fixed count),
+launched by `pnpm agent:dispatch` into the `cultuvilla-fleet` tmux session, and land with
+`scripts/pr-land-bg.sh`. Fleet facts — session names, capacity limits, worktree setup —
+live in [.agents/orchestrate.config.json](.agents/orchestrate.config.json). Each worker
 inherits this whole contract, the hard-stop list included. In a worktree, run
 **`source scripts/agent-env.sh`** once before any emulator test: it installs
 dependencies and writes a gitignored `firebase.agent.json` that moves this worktree's
