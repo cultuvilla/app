@@ -21,12 +21,6 @@
     "firestore.rules"
   ],
 
-  "_hardStop": "Never self-merges, however green. Mirrors the Autonomy contract section of AGENTS.md.",
-  "hardStop": [
-    { "pattern": "^firestore\\.rules$", "why": "Firestore security rules" },
-    { "pattern": "^storage\\.rules$", "why": "Storage security rules" },
-    { "pattern": "^firestore\\.indexes\\.json$", "why": "Firestore indexes (needs deploy)" },
-    { "pattern": "^scripts/backfill", "why": "data backfill or migration" },
-    { "pattern": "^packages/shared/src/firebase/converters/", "why": "stored-shape converter" }
-  ]
+  "_hardStop": "File paths that never self-merge. EMPTY by the user's decision of 2026-10-05 (AGENTS.md, Approval and Autonomy contract): consent covers what is subjective, so rules, indexes, converters and backfill scripts merge on CI green like any other code — none of them reaches beta or prod from develop; they get there only through a promotion PR the user merges. What still exits 30 is the Breaking-Client: trailer (hardStopTrailerSource's default) and any PR not based on develop. Add a pattern only for a path whose merge alone, with no promotion in between, changes something users or production data see.",
+  "hardStop": []
 }
