@@ -12,7 +12,6 @@ env:
       EMAIL: ${EMAIL}
       PASSWORD: ${PASSWORD}
 - evalScript: ${output.newsTitle = 'Noticia nativa ' + Date.now()}
-- evalScript: ${output.editedTitle = output.newsTitle + ' editada'}
 
 # ── Create ──
 - openLink: 'cultuvilla://crear/noticia?villageId=${VILLAGE_ID}'
@@ -60,7 +59,9 @@ env:
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.newsId = output.id}
 
-# ── Edit the title ──
+# ── Edit: change the category ──
+# A picker, not the title: `eraseText` deletes only left of the cursor, and a
+# centre-tap lands the cursor mid-title, so retyping a title is not repeatable.
 # Leave the "publicado" confirmation the way a user does: re-opening the same
 # route with new params reuses the mounted screen, success state included. The
 # backend write lands before the confirmation renders, so wait for it.
@@ -73,9 +74,9 @@ env:
     visible: ${output.newsTitle}
     timeout: 45000
 - tapOn:
-    id: 'news-title'
-- eraseText: 80
-- inputText: ${output.editedTitle}
+    id: 'news-category'
+- tapOn:
+    id: 'news-category-tradicion'
 - runFlow:
     file: ../subflows/reveal.yaml
     env:
@@ -90,8 +91,8 @@ env:
     file: ../scripts/docField.js
     env:
       DOC_PATH: 'news/${output.newsId}'
-      FIELD: title
-      EXPECT: ${output.editedTitle}
+      FIELD: category
+      EXPECT: tradicion
 - assertTrue: ${output.ok == 'true'}
 
 # ── Delete ── a hard delete through the cascading callable.
@@ -104,7 +105,7 @@ env:
 - tapOn: 'Volver'
 - openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
 - extendedWaitUntil:
-    visible: ${output.editedTitle}
+    visible: ${output.newsTitle}
     timeout: 45000
 - tapOn:
     id: 'news-delete'
