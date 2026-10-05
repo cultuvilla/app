@@ -1,6 +1,5 @@
 # Village self-join — a direct, approval-free client write gated purely by
-# firestore.rules (a user may add only themselves). Mirrors the web
-# apps/mobile/e2e/flows/village-join.spec.ts. The membership doc is the strong
+# firestore.rules (a user may add only themselves). The membership doc is the strong
 # assertion; the UI flip to the member-only action is the corroboration.
 appId: com.cultuvilla.app.dev
 env:

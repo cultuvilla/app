@@ -1,6 +1,5 @@
 # A freshly-authenticated account with no profile is diverted to complete-profile
-# by the AuthGate, and completes the three-step person form. Mirrors the web
-# apps/mobile/e2e/flows/onboarding-profile.spec.ts.
+# by the AuthGate, and completes the three-step person form.
 #
 # High value natively and nowhere else: this is the app's only multi-step form
 # with native pickers, and the step gating (terms acceptance, required birthday)

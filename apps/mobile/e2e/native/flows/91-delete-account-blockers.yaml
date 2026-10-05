@@ -1,0 +1,20 @@
+# The sole admin of a village and of an org is told to hand both over before
+# deleting their account. Read-only: nothing is deleted.
+#
+# Copy: settings.deleteAccount.blockerIntro / blockerVillage / blockerOrg.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-admin@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://ajustes/eliminar-cuenta'
+- extendedWaitUntil:
+    visible: 'Antes de eliminar tu cuenta, debes nombrar a otra persona en:'
+    timeout: 45000
+- assertVisible: 'Pueblo de Altozano de Prueba.*'
+- assertVisible: 'Grupo de Ayuntamiento de Altozano.*'

@@ -118,10 +118,9 @@ weeks later.
 - [x] `app:web:build`, `check-web-compat`, `check-web-export`, the Playwright
       suite (`test:e2e:web`) and its CI job
 - [x] The `mobile-web-compat` skill
-- [ ] Port the product flows only Playwright covered to Maestro: create and
-      publish an event, news lifecycle, org create → approve → join, organizer
-      request approval, waitlist promotion, content soft-hide, delete-account
-      blockers, register a family member
+- [x] Port the product flows only Playwright covered to Maestro (flows
+      `60`–`91`; register a family member was already `21`). Onboarding stays
+      uncovered while `50` is quarantined — re-run it on the native SDK.
 
 ## Phase 5 — web sign-up decision
 

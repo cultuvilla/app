@@ -1,5 +1,4 @@
-# The canonical native journey, mirroring the web
-# apps/mobile/e2e/flows/register-to-event.spec.ts: sign in, open the seeded event,
+# The canonical native journey: sign in, open the seeded event,
 # sign yourself up through the attendee sheet.
 #
 # The STRONG assertion is the backend effect read straight off the Firestore
