@@ -31,7 +31,7 @@ export function initFirebase(_config: unknown, options: InitFirebaseOptions = {}
   const app = getApp();
   // No settings call: the native SDKs keep Firestore's persistent on-device
   // cache on by default — the reason the app runs on them
-  // (docs/plans/ready/offline-first-village.md) — and a settings call ahead of
+  // (docs/plans/ongoing/offline-first-village.md) — and a settings call ahead of
   // the emulator wiring is an ordering hazard in the E2E build.
   state = {
     app,

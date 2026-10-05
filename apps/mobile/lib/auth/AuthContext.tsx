@@ -33,6 +33,7 @@ import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberSer
 import * as listenerManager from '@cultuvilla/shared/services/listenerManager';
 import type { UserData } from '@cultuvilla/shared/models/user';
 import { isE2EEmulatorHost, parseE2ELoginLink } from './e2eLoginLink';
+import { clearLocalCacheAndRestart } from './clearLocalCache';
 import {
   GoogleSignin,
   statusCodes,
@@ -571,6 +572,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async (): Promise<void> => {
     await teardownSession();
     await fbSignOut(getAuth());
+    await clearLocalCacheAndRestart();
   };
 
   // Signing in with the wrong address used to be a one-way door: AuthGate

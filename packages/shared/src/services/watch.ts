@@ -9,7 +9,7 @@ import {
  * Live reads. On the native SDK a listener answers from the on-device cache
  * first and then from the server, so a screen built on these paints at once —
  * offline included — and stays current without reloading on focus
- * (docs/plans/ready/offline-first-village.md).
+ * (docs/plans/ongoing/offline-first-village.md).
  *
  * Each `watch*` service function returns an `Unwatch`; callers own it.
  */

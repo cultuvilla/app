@@ -7,6 +7,7 @@
 //     Use `firebaseErrorCode()` from ./errors to compare codes.
 export {
   addDoc,
+  clearIndexedDbPersistence,
   collection,
   collectionGroup,
   // test-login: allowed — a re-export for firebaseInit.ts, which owns the wiring.
@@ -27,6 +28,7 @@ export {
   serverTimestamp,
   setDoc,
   startAfter,
+  terminate,
   Timestamp,
   updateDoc,
   where,
