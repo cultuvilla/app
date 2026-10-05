@@ -61,6 +61,13 @@ env:
 - evalScript: ${output.newsId = output.id}
 
 # ── Edit the title ──
+# Leave the "publicado" confirmation the way a user does: re-opening the same
+# route with new params reuses the mounted screen, success state included.
+- runFlow:
+    when:
+      visible: 'Volver'
+    commands:
+      - tapOn: 'Volver'
 - openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
 - extendedWaitUntil:
     visible: ${output.newsTitle}
@@ -88,6 +95,13 @@ env:
 - assertTrue: ${output.ok == 'true'}
 
 # ── Delete ── a hard delete through the cascading callable.
+# Leave the "publicado" confirmation the way a user does: re-opening the same
+# route with new params reuses the mounted screen, success state included.
+- runFlow:
+    when:
+      visible: 'Volver'
+    commands:
+      - tapOn: 'Volver'
 - openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
 - extendedWaitUntil:
     visible: ${output.editedTitle}
