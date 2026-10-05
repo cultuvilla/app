@@ -62,12 +62,12 @@ env:
 
 # ── Edit the title ──
 # Leave the "publicado" confirmation the way a user does: re-opening the same
-# route with new params reuses the mounted screen, success state included.
-- runFlow:
-    when:
-      visible: 'Volver'
-    commands:
-      - tapOn: 'Volver'
+# route with new params reuses the mounted screen, success state included. The
+# backend write lands before the confirmation renders, so wait for it.
+- extendedWaitUntil:
+    visible: 'Volver'
+    timeout: 15000
+- tapOn: 'Volver'
 - openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
 - extendedWaitUntil:
     visible: ${output.newsTitle}
@@ -96,12 +96,12 @@ env:
 
 # ── Delete ── a hard delete through the cascading callable.
 # Leave the "publicado" confirmation the way a user does: re-opening the same
-# route with new params reuses the mounted screen, success state included.
-- runFlow:
-    when:
-      visible: 'Volver'
-    commands:
-      - tapOn: 'Volver'
+# route with new params reuses the mounted screen, success state included. The
+# backend write lands before the confirmation renders, so wait for it.
+- extendedWaitUntil:
+    visible: 'Volver'
+    timeout: 15000
+- tapOn: 'Volver'
 - openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
 - extendedWaitUntil:
     visible: ${output.editedTitle}
