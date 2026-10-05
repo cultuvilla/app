@@ -60,6 +60,9 @@ jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
 }));
 
 import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { clearLocalCacheAndRestart } from '../clearLocalCache';
+
+jest.mock('../clearLocalCache', () => ({ clearLocalCacheAndRestart: jest.fn(async () => undefined) }));
 
 jest.mock('@cultuvilla/shared/services/userService', () => ({
   getUserProfile: jest.fn().mockResolvedValue({ activeMunicipalityId: 'm1' }),
@@ -383,5 +386,19 @@ describe('signOut', () => {
     const [unregisterOrder] = (unregisterPushForSignOut as jest.Mock).mock.invocationCallOrder;
     const [signOutOrder] = (fbSignOut as jest.Mock).mock.invocationCallOrder;
     expect(unregisterOrder).toBeLessThan(signOutOrder ?? -1);
+  });
+
+  // Member-only data must not outlive the session in the on-device cache.
+  it('clears the local cache only after auth has signed out', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile).not.toBeNull());
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    const [signOutOrder] = (fbSignOut as jest.Mock).mock.invocationCallOrder;
+    const [clearOrder] = (clearLocalCacheAndRestart as jest.Mock).mock.invocationCallOrder;
+    expect(signOutOrder).toBeLessThan(clearOrder ?? -1);
   });
 });

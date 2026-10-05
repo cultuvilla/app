@@ -4,6 +4,15 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+- Signing out wipes the app's on-device data cache and restarts the app, so
+  member-only data (private events, censo answers) never stays on a shared
+  phone after the session ends.
+- A quiet "Sin conexión — mostrando datos guardados" pill shows while the
+  phone is offline; the app keeps working from what it has saved.
+- Event, place, barrio, cartel, history, word, news and group pages update
+  live and open instantly on a revisit; a deleted item shows "no encontrado"
+  instead of a stale page, and an event that does not exist no longer spins
+  forever.
 - The village home is live: it paints from the on-device cache at once (offline
   too) and updates as the village changes, instead of reloading every time
   you return to it.
