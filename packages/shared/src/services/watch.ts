@@ -24,6 +24,23 @@ function asError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err));
 }
 
+/**
+ * Reading a snapshot runs the strict converter, which throws on a doc that does
+ * not match its schema. Thrown inside the SDK's snapshot callback, that error
+ * reaches no caller — the screen just stops rendering. Route it to `onError`,
+ * so the screen shows its error state for that section instead.
+ */
+function readOrReport<R>(read: () => R, onNext: (value: R) => void, onError: WatchError): void {
+  let value: R;
+  try {
+    value = read();
+  } catch (err: unknown) {
+    onError(asError(err));
+    return;
+  }
+  onNext(value);
+}
+
 export function watchQuery<T>(
   q: Query<T>,
   onNext: (rows: (T & { id: string })[]) => void,
@@ -32,7 +49,7 @@ export function watchQuery<T>(
   return onSnapshot(
     q,
     (snap) => {
-      onNext(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      readOrReport(() => snap.docs.map((d) => ({ id: d.id, ...d.data() })), onNext, onError);
     },
     (err: unknown) => {
       onError(asError(err));
@@ -48,8 +65,14 @@ export function watchDoc<T>(
   return onSnapshot(
     ref,
     (snap) => {
-      const data = snap.data();
-      onNext(data === undefined ? null : { id: snap.id, ...data });
+      readOrReport(
+        () => {
+          const data = snap.data();
+          return data === undefined ? null : { id: snap.id, ...data };
+        },
+        onNext,
+        onError,
+      );
     },
     (err: unknown) => {
       onError(asError(err));
