@@ -1493,10 +1493,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // villageWrapped — the post-fiestas summary, one doc per village + year +
-    // block. Function-owned end to end: it is computed, rendered and published
-    // by Cloud Functions, and released or binned through
-    // respondToVillageWrapped, never by a client write.
+    // villageWrapped — the post-fiestas summary, one doc per village + year,
+    // covering every fiesta block of that year. Function-owned end to end: it
+    // is computed, rendered and published by Cloud Functions, and released or
+    // binned through respondToVillageWrapped, never by a client write.
     //
     // A published Wrapped reads publicly because the images it points at are
     // made to be forwarded — a recipient who is not a member, or not signed in,
