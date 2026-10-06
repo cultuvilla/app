@@ -1,0 +1,149 @@
+name: Announce when live
+
+# Announces a production release to installed apps only once the stores serve
+# it. Each platform's `config/appVersion.latest` moves the first tick its store
+# has the version; once BOTH do, a breaking release raises `minSupported` and
+# its held backend (functions + rules) is dispatched. The release is recorded
+# at `_admin/announce/pending/prod` by the prod deploy (deploy-firebase.yml).
+# See docs/decisions/announce-when-live-poller.md.
+#
+# Two legs, because of where credentials live. A schedule always runs on the
+# default branch (develop), and the `production` environment — which holds the
+# WIF variables for prod — admits only `main`. So the scheduled run only
+# dispatches this same workflow on `main`, and that run does the work.
+#
+# Fails safe: a store that cannot be asked (missing secret, API error) counts
+# as not live, with a warning, and the next tick asks again. Nothing is
+# announced on a guess.
+#
+# Locked by packages/shared/test/ci/announceWhenLive.test.ts.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Ask the stores and print the plan, write nothing
+        type: boolean
+        default: false
+
+concurrency:
+  group: announce-when-live-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  kick:
+    name: Dispatch the poll on main
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Until this workflow reaches main there is nothing to dispatch there;
+          # that is the normal state between landing on develop and a promotion.
+          if ! gh api "repos/${REPO}/contents/.github/workflows/announce-when-live.yml?ref=main" --silent 2>/dev/null; then
+            echo "announce-when-live.yml is not on main yet — nothing to poll."
+            exit 0
+          fi
+          gh workflow run announce-when-live.yml --repo "${REPO}" --ref main
+
+  poll:
+    name: Poll the stores (prod)
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      actions: write # dispatch deploy-prod.yml for a held backend
+      contents: read
+      id-token: write # Workload Identity Federation
+    steps:
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      # The cheap exit: one REST read, no checkout or install. Almost every tick
+      # ends here, since a release is pending only between a promotion and both
+      # stores going live. An unexpected answer is not "nothing pending" — fall
+      # through and let the full poll find out.
+      - name: Anything pending?
+        id: pending
+        env:
+          PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        # A failure here must not kill the step silently: gcloud's stderr stays
+        # visible, and any failure only means "could not tell" → full poll.
+        run: |
+          status=unknown
+          if gcloud auth login --cred-file="${GOOGLE_APPLICATION_CREDENTIALS}" --quiet >/dev/null \
+            && token=$(gcloud auth print-access-token); then
+            status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${token}" \
+              "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/_admin/announce/pending/prod") || status=unknown
+          else
+            echo "::warning::gcloud could not authenticate for the cheap pending check (see above); running the full poll."
+          fi
+          if [ "${status}" = "404" ]; then
+            echo "Nothing pending."
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+          else
+            [ "${status}" = "200" ] || echo "::warning::Pending check answered HTTP ${status}; running the full poll to be sure."
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: ${{ steps.pending.outputs.pending == 'true' }}
+
+      - uses: pnpm/action-setup@v6
+        if: ${{ steps.pending.outputs.pending == 'true' }}
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v5
+        if: ${{ steps.pending.outputs.pending == 'true' }}
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: ${{ steps.pending.outputs.pending == 'true' }}
+        run: pnpm install --frozen-lockfile
+
+      # Missing store secrets are not an error here: the script reports that
+      # store as not live and warns, so the release simply waits.
+      - name: Ask the stores; announce what is live
+        id: poll
+        if: ${{ steps.pending.outputs.pending == 'true' }}
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+          APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
+        run: node scripts/release-announce.mjs poll --env=prod ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      # The wall was written in the step above, before this: a wall without its
+      # backend is safe (old clients are told to update), the reverse is not.
+      # The pending doc is NOT cleared here: `gh workflow run` only means the
+      # dispatch was accepted. The deploy clears it itself once it succeeds;
+      # one that has not done so within DEPLOY_RETRY_HOURS is dispatched again.
+      - name: Deploy the held backend
+        if: ${{ steps.poll.outputs.deploy_sha != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.poll.outputs.deploy_sha }}
+        run: |
+          gh workflow run deploy-prod.yml --repo "${REPO}" --ref main -f backend_sha="${SHA}"
+          echo "- Held backend dispatched: deploy-prod.yml @ \`${SHA}\`" >> "$GITHUB_STEP_SUMMARY"

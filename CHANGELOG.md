@@ -18,6 +18,14 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
   listeners: they open instantly from the on-device cache (offline too) and
   update on their own, instead of reloading every time you return to them. The
   bell's unread badge moves as soon as a notification lands or is read.
+- Release tooling, announce when live: the in-app "hay una actualización" nudge
+  now moves to a new version only once its store actually serves it, per
+  platform — checked every 30 minutes against Google Play and App Store Connect
+  (`announce-when-live.yml`). `APP_STORE_VERSIONS` is gone; `config/appVersion`
+  is the one record of what each store serves. A release carrying a
+  `Breaking-Client:` change holds its Cloud Functions and rules (and the
+  production OTA) until both stores serve it, then raises `minSupported` to it
+  and ships the backend — no manual "Set App Version" for declared breaks.
 - Release tooling: `pnpm release:cut` cuts a release in one command (bump on develop, `release/X.Y.Z` with main merged, PR into beta with the migration checklist); the `beta → main` PR opens itself once beta's deploy and store builds are green; `version-gate.yml` now also checks the release PR's source branch and title.
 
 ## v1.6.0 — 2026-10-06

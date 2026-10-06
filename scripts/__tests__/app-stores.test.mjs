@@ -1,13 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import {
-  APP_STORES_PATH,
-  currentStoreUrl,
-  currentStoreVersion,
-  storeUrlFrom,
-  storeVersionFrom,
-} from '../lib/app-stores.mjs';
+import { APP_STORES_PATH, currentStoreUrl, storeFieldFrom, storeUrlFrom } from '../lib/app-stores.mjs';
 
 const src = [
   'export const APP_STORES: { ios: string; android: string } = {',
@@ -15,9 +9,9 @@ const src = [
   "  android: '', // https://play.google.com/store/apps/details?id=com.cultuvilla.app",
   '};',
   '',
-  'export const APP_STORE_VERSIONS: { ios: string; android: string } = {',
-  "  ios: '1.2.2', // live since 2026-09-18",
-  "  android: '', // no public listing yet",
+  'export const OTHER: { ios: string; android: string } = {',
+  "  ios: 'not-a-url',",
+  "  android: 'not-a-url',",
   '};',
 ].join('\n');
 
@@ -34,20 +28,17 @@ describe('storeUrlFrom', () => {
   // so a matcher scanning from the name forward could read `string` as the URL.
   it('does not match the key inside the type annotation', () => {
     assert.notEqual(storeUrlFrom(src, 'ios'), 'string');
-    assert.notEqual(storeVersionFrom(src, 'android'), 'string');
   });
 
-  // Both objects are keyed by ios/android, so an unscoped matcher would return
-  // the URL when asked for the version, or the reverse — an answer that looks
-  // like an answer. Each lookup is bound to its own object literal.
-  it('does not leak between the two objects', () => {
-    assert.equal(storeVersionFrom(src, 'ios'), '1.2.2');
+  // Another object keyed by ios/android must never be read in APP_STORES' place.
+  it('does not leak between objects', () => {
+    assert.equal(storeFieldFrom(src, 'OTHER', 'ios'), 'not-a-url');
     assert.equal(storeUrlFrom(src, 'ios'), 'https://apps.apple.com/es/app/cultuvilla/id6804756586');
   });
 
-  it('throws when the object is gone, rather than reporting "not shipped"', () => {
+  it('throws when the object or key is gone, rather than reporting "no listing"', () => {
     assert.throws(() => storeUrlFrom('const x: { ios: string } = {};', 'ios'), /APP_STORES not found/);
-    assert.throws(() => storeVersionFrom(src, 'windows'), /APP_STORE_VERSIONS.windows/);
+    assert.throws(() => storeUrlFrom(src, 'windows'), /APP_STORES.windows/);
   });
 });
 
@@ -59,28 +50,12 @@ describe('the real appStores.ts', () => {
   it('is read as it is written', () => {
     for (const key of ['ios', 'android']) {
       assert.ok(source.includes(`${key}: '${currentStoreUrl(key)}'`), `${key} URL misread`);
-      assert.ok(source.includes(`${key}: '${currentStoreVersion(key)}'`), `${key} version misread`);
     }
   });
 
-  // A URL with no version would announce `latest: 0.0.0` for a platform that
-  // has a live listing (nobody is ever nudged); a version with no URL would
-  // announce an update the web build offers no way to get. They are two halves
-  // of one fact — "this listing is live" — and must move together.
-  it('declares a URL and a version together, or neither', () => {
-    for (const key of ['ios', 'android']) {
-      assert.equal(
-        Boolean(currentStoreUrl(key)),
-        Boolean(currentStoreVersion(key)),
-        `APP_STORES.${key} and APP_STORE_VERSIONS.${key} disagree about whether ${key} is published`,
-      );
-    }
-  });
-
-  it('declares published versions as MAJOR.MINOR.PATCH', () => {
-    for (const key of ['ios', 'android']) {
-      const version = currentStoreVersion(key);
-      if (version) assert.match(version, /^\d+\.\d+\.\d+$/, `${key} version is not semver`);
-    }
+  // The served version moved to config/appVersion, written by the announce
+  // poller. A hand-edited copy here is the stale second source it replaced.
+  it('declares no store version', () => {
+    assert.doesNotMatch(source, /APP_STORE_VERSIONS/);
   });
 });
