@@ -176,7 +176,7 @@ No confirmation needed — dev is safe to mutate. Verify a sample doc in the con
 too; `check:dev-conformance` catches converter breakage, not a wrong value.
 
 **Beta / prod** — you do *not* run these, and there is no ordering decision to make
-by hand. Mark the CHANGELOG entry with a `**Migration:**` line naming the script:
+by hand. Mark the change's `changelog.d/` entry with a `**Migration:**` line naming the script:
 
 ```markdown
 **Migration:** existing `<collection>/` docs are backfilled with `<field>` by
@@ -222,7 +222,7 @@ Add a paragraph to [`docs/architecture/denormalized-read-models.md`](../../../do
 - [ ] Early-return on unchanged source fields.
 - [ ] Rules updated to forbid client writes to the denormalized fields.
 - [ ] Backfill script created and run against dev **after** deploying the trigger, verified with `pnpm check:dev-conformance` + a sample doc.
-- [ ] `**Migration:**` marker in the CHANGELOG entry naming the script, so beta/prod inherit the backfill at promotion time.
+- [ ] `**Migration:**` marker in the `changelog.d/` entry naming the script, so beta/prod inherit the backfill at promotion time.
 - [ ] Integration test that mutates source → asserts target updates.
 - [ ] `_services-map.md` and `docs/architecture/denormalized-read-models.md` updated.
 
