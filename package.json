@@ -25,7 +25,7 @@
     "agent:auto-mode": "node scripts/agent-auto-mode.js",
     "app:start": "pnpm --filter cultuvilla-mobile start",
     "app:start:tunnel": "pnpm --filter cultuvilla-mobile start:tunnel",
-    "app:start:lan": "pnpm --filter cultuvilla-mobile start:lan",
+    "app:start:lan": "bash scripts/app-start-lan.sh",
     "app:android": "pnpm --filter cultuvilla-mobile android",
     "app:ios": "pnpm --filter cultuvilla-mobile ios",
     "app:test": "pnpm --filter cultuvilla-mobile test",
