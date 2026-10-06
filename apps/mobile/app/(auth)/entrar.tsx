@@ -122,6 +122,8 @@ export default function LoginScreen() {
     try {
       await signInWithDevAccount(devEmail);
     } catch (e) {
+      // Not sent to reportAuthError: a dev-account failure is a local .env or
+      // seed problem, not a production auth signal worth an error report.
       setError(authErrorMessage(e, t('auth.error.unknown')));
     } finally {
       setDevLoadingEmail(null);

@@ -4,6 +4,8 @@ import { signInWithEmailAndPassword } from '@cultuvilla/shared/firebase/sdk/auth
 import { AuthProvider } from '../AuthContext';
 import { useAuth } from '../useAuth';
 
+declare const globalThis: { __DEV__?: boolean } & typeof global;
+
 const VECINO = 'demo-vecino@cultuvilla.dev';
 const ADMIN = 'demo-admin@cultuvilla.dev';
 
@@ -68,6 +70,10 @@ describe('dev login accounts', () => {
     extra['devLogin'] = { emails: [VECINO, ADMIN], password: 'pw' };
   });
 
+  afterEach(() => {
+    globalThis.__DEV__ = true;
+  });
+
   // The app used to sign itself into the dev account on every launch, which
   // fought the user: "Cerrar sesión" was undone by the reload that follows it.
   it('never signs in on its own at launch', async () => {
@@ -102,6 +108,25 @@ describe('dev login accounts', () => {
     extra['devLogin'] = null;
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
     await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.devAccounts).toEqual([]);
+  });
+
+  // The second wall: even if extra.devLogin leaked into a release bundle, a
+  // non-__DEV__ build must offer nothing.
+  it('offers no accounts outside a __DEV__ build, even with the config present', async () => {
+    globalThis.__DEV__ = false;
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    expect(result.current.devAccounts).toEqual([]);
+    await expect(result.current.signInWithDevAccount(VECINO)).rejects.toThrow();
+    expect(signInWithEmailAndPassword).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['no emails', { emails: [], password: 'pw' }],
+    ['no password', { emails: [VECINO], password: '' }],
+  ])('offers no accounts for a partial config (%s)', (_, cfg) => {
+    extra['devLogin'] = cfg;
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
     expect(result.current.devAccounts).toEqual([]);
   });
 });

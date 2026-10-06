@@ -112,3 +112,59 @@ describe('universal link paths', () => {
     }
   });
 });
+
+// The dev login buttons carry a real password in `extra`, which ships in every
+// bundle's manifest. This gate is what keeps it out of beta/prod builds.
+describe('dev login gate', () => {
+  type DevLogin = { emails: string[]; password: string } | null;
+  const VARS = ['APP_ENV', 'DEV_LOGIN_EMAILS', 'DEV_LOGIN_PASSWORD'] as const;
+
+  const loadDevLogin = (vars: Partial<Record<(typeof VARS)[number], string>>): DevLogin => {
+    const prev = Object.fromEntries(VARS.map((k) => [k, process.env[k]]));
+    for (const k of VARS) {
+      const v = vars[k];
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    let devLogin: DevLogin = null;
+    try {
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const loaded = require('../app.config').default as typeof config;
+        devLogin = (loaded.extra?.['devLogin'] ?? null) as DevLogin;
+      });
+    } finally {
+      for (const k of VARS) {
+        if (prev[k] === undefined) delete process.env[k];
+        else process.env[k] = prev[k];
+      }
+    }
+    return devLogin;
+  };
+
+  const BOTH = { DEV_LOGIN_EMAILS: 'a@x.dev', DEV_LOGIN_PASSWORD: 'pw' };
+
+  it.each(['beta', 'prod'])('never carries dev credentials into a %s bundle', (env) => {
+    expect(loadDevLogin({ APP_ENV: env, ...BOTH })).toBeNull();
+  });
+
+  it('wires the accounts into a dev bundle', () => {
+    expect(loadDevLogin({ APP_ENV: 'dev', ...BOTH })).toEqual({ emails: ['a@x.dev'], password: 'pw' });
+  });
+
+  it.each([
+    ['emails', { DEV_LOGIN_EMAILS: 'a@x.dev' }],
+    ['password', { DEV_LOGIN_PASSWORD: 'pw' }],
+  ])('stays off in dev when only the %s are set', (_, vars) => {
+    expect(loadDevLogin({ APP_ENV: 'dev', ...vars })).toBeNull();
+  });
+
+  it('tolerates whitespace and a trailing comma in the email list', () => {
+    const devLogin = loadDevLogin({
+      APP_ENV: 'dev',
+      DEV_LOGIN_EMAILS: ' a@x.dev, b@x.dev,',
+      DEV_LOGIN_PASSWORD: 'pw',
+    });
+    expect(devLogin?.emails).toEqual(['a@x.dev', 'b@x.dev']);
+  });
+});
