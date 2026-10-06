@@ -3,14 +3,12 @@
 **Priority:** high — unblocks offline-first, the main app-speed fix
 **Landed:** dev
 **Gate:** none
-**Next:** promote to beta and run the phase 3 `curl` checks there; meanwhile start the offline-first plan (its gate is now open)
-**Due:** 2027-04-30
+**Next:** promote to beta and run the phase 3 `curl` checks there, then the same on prod
 
 The decision and the data behind it are in
 [web-is-a-read-site.md](../../decisions/web-is-a-read-site.md). This plan tracks
 the work until the Expo web export is gone and the read site serves every
-public route in prod. `Due` is the deadline for the web sign-up decision
-(phase 5), which must land before the 2027 fiesta season.
+public route in prod.
 
 Replaces *app-first-transition* (which assumed web stays a full app) and the
 *native-firebase-sdk-migration* idea (now [offline-first-village.md](../ready/offline-first-village.md)).
@@ -124,12 +122,10 @@ weeks later.
 
 ## Phase 5 — web sign-up decision
 
-With one autumn of native data: of visitors arriving from a shared event link
-on a phone, how many installed and registered? Decide whether the read site
-gets a server-side sign-up flow, record it in the decision doc. **By
-2027-04-30.**
+Decided 2026-10-06 (user): **no web sign-up.** The event page's CTA opens the
+app, or the store when it is not installed. Recorded in the decision doc.
 
 ## Retire when
 
-The read site serves every public route on prod, the Expo web export is
-deleted, and phase 5 is recorded. Then delete this plan.
+The read site serves every public route on prod (curl checks, a WhatsApp
+preview, Search Console). Then delete this plan.
