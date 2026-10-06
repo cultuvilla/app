@@ -102,6 +102,7 @@ toggle USB debugging or *Revoke USB debugging authorizations*.
 - Native config changes (new Expo plugin, native module install). The app needs a clean prebuild + reinstall first — use the `expo-native-rebuild` skill, then come back here to run.
 - iOS-only repros. This skill is Android/WSL specific.
 - Headless test runs (unit tests, rules tests, emulator tests). Use `pnpm test`, `pnpm test:rules`, `pnpm test:integration` — those don't need a device.
+- The Maestro E2E suite (`pnpm test:e2e:android`). It does use the AVD, but it needs a release APK and Linux-side adb rather than this Metro/dev-client loop. Follow [apps/mobile/e2e/native/README.md](../../../apps/mobile/e2e/native/README.md) § "Under WSL2": the `-a` adb server launched as a Windows process, a forwarder for port 5037, `EMULATOR_BIND_HOST=0.0.0.0`, the CI-pinned Maestro, and `E2E_ANDROID_DEVICE=emulator-5554` whenever a phone is also attached.
 
 ## Gotchas
 
