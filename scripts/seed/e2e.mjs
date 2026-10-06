@@ -24,6 +24,7 @@ import {
   buildRegistrationData,
   buildLocationData,
   buildPlaceData,
+  buildCommentData,
 } from '@cultuvilla/shared/models';
 import {
   E2E_PASSWORD,
@@ -35,6 +36,8 @@ import {
   approvalOrg,
   event,
   capacityEvent,
+  groupEvent,
+  otherUserComment,
   dependentPerson,
   place,
 } from '../data/seed-fixtures/e2e/fixtures.mjs';
@@ -330,6 +333,48 @@ async function run() {
     );
 
   await db
+    .collection('events')
+    .doc(groupEvent.docId)
+    .set(
+      buildEventData({
+        title: groupEvent.title,
+        description: groupEvent.description,
+        startDate: new Date(Date.now() + groupEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Merendero, ${village.name}`,
+        }),
+        maxAttendees: groupEvent.maxAttendees,
+        signupGroupSize: groupEvent.signupGroupSize,
+        telephoneRequired: false,
+        status: groupEvent.status,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [org.docId],
+        createdBy: users.admin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('comments')
+    .doc(otherUserComment.docId)
+    .set(
+      buildCommentData({
+        entityKind: otherUserComment.entityKind,
+        entityId: otherUserComment.entityId,
+        municipalityId: village.docId,
+        authorUserId: users.admin.uid,
+        body: otherUserComment.body,
+        createdAt: new Date(),
+      }),
+      { merge: true },
+    );
+
+  await db
     .collection('municipalities')
     .doc(village.docId)
     .collection('places')
@@ -351,7 +396,8 @@ async function run() {
       `village=${village.docId} organizerless=${organizerlessVillage.docId} ` +
       `joinVillage=${joinVillage.docId} org=${org.docId} approvalOrg=${approvalOrg.docId} ` +
       `event=${event.docId} ` +
-      `capacityEvent=${capacityEvent.docId})`,
+      `capacityEvent=${capacityEvent.docId} groupEvent=${groupEvent.docId} ` +
+      `comment=${otherUserComment.docId})`,
   );
 }
 

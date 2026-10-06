@@ -141,6 +141,28 @@ export const capacityEvent = {
   seededRegistrationId: 'e2e-reg-admin-confirmed',
 };
 
+// A group event: a sign-up books seats for several people, and a seat left open
+// gets a claim link (flow 23). No other seeded event allows groups.
+export const groupEvent = {
+  docId: 'e2e-event-grupo',
+  title: 'Comida en Grupo E2E',
+  description: 'Evento con plazas por grupo, para el flujo de reclamar una plaza.',
+  startOffsetDays: 9,
+  maxAttendees: 50,
+  signupGroupSize: 2,
+  status: 'published',
+};
+
+// A comment by someone other than the viewer, for the report + block flow
+// (flow 41). It sits on the capacity event, not on the fiesta: flow 40 asserts
+// the fiesta's commentCount, which a seeded comment would satisfy on its own.
+export const otherUserComment = {
+  docId: 'e2e-comment-admin',
+  entityKind: 'event',
+  entityId: 'e2e-event-aforo',
+  body: 'Comentario de otra persona E2E',
+};
+
 export const dependentPerson = {
   docId: 'e2e-person-dependent',
   givenName: 'Lucía',
