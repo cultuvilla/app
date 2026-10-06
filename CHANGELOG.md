@@ -7,12 +7,15 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 - Fix: the home feed showed no private events at all to someone who also
   belongs to an open group (every ayuntamiento is open). The private events of
   their approval peñas and asociaciones now appear.
-- "Ser embajador de Cultuvilla": the request screen opens with a preview of
-  your own Embajador carnet for that pueblo — your photo, name, the
-  "Embajador/Embajadora de Cultuvilla en {pueblo}" title and its escudo — with
-  a link to add a photo if you have none.
-- Embajadores now wear a small Cultuvilla seal on their photo: on the village
-  home, in the members list and on their profile.
+- "Ser embajador de Cultuvilla": the request screen opens with your own
+  "Acreditación de Cultuvilla" carnet for that pueblo — your photo, name,
+  "Embajador/Embajadora de {pueblo}" and its escudo — and explains the role in
+  short points.
+- Embajadores now wear a small Cultuvilla seal on their photo, in the members
+  list and on their profile. In the members list the seal replaces the
+  "Embajador" label, and the village home no longer shows an Embajador card.
+  On the profile, the title is a soft "Embajador/Embajadora en {pueblo}" line
+  under the name instead of a solid orange pill.
 - Creating an event: the location is marked as mandatory (red asterisk), and
   the Preguntas step only appears once "Añadir un formulario" is switched on
   in Detalles. An event that already has questions opens with it on, and it

@@ -12,7 +12,6 @@ import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityP
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import { iconSizes } from '@cultuvilla/shared/design-system';
 import { villageTitle } from '@cultuvilla/shared/models/municipality';
-import type { Sex } from '@cultuvilla/shared/models/core/SexModel';
 import { VStack, HStack, Text, Avatar, Pressable, BottomSheet, Button } from '../primitives';
 import { VillageTitleBadge } from './VillageTitleBadge';
 import { showConfirm, showAlert } from '../../lib/dialogs';
@@ -64,7 +63,6 @@ export function MembersList({
   const { t } = useT();
   const [rows, setRows] = useState<MemberRow[] | null>(null);
   const [organizerId, setOrganizerId] = useState<string | null>(null);
-  const [organizerSex, setOrganizerSex] = useState<Sex | null>(null);
   const [selected, setSelected] = useState<MemberRow | null>(null);
   const [censoConfigured, setCensoConfigured] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
@@ -94,7 +92,6 @@ export function MembersList({
       });
       if (!cancelled) {
         setOrganizerId(municipality?.community?.organizerId ?? null);
-        setOrganizerSex(municipality?.community?.organizerSex ?? null);
         setCensoConfigured(profileFields.length > 0);
         setRows(rows);
       }
@@ -202,11 +199,10 @@ export function MembersList({
           <Text testID="member-name" numberOfLines={1}>
             {m.displayName}
           </Text>
-          <VillageTitleBadge
-            title={titleOf(m)}
-            sex={organizerSex}
-            testID={`member-title-${m.personId}`}
-          />
+          {/* The Embajador is told apart by the seal on the avatar alone. */}
+          {titleOf(m) === 'team' ? (
+            <VillageTitleBadge title="team" testID={`member-title-${m.personId}`} />
+          ) : null}
         </VStack>
         {canOpenProfile(m) ? null : (
           <Ionicons

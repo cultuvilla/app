@@ -150,8 +150,8 @@ without joining the persons collection.
 
 The account doc holds private contact fields and is readable only by its owner
 (and app admins). Everything the app shows about *another* account — its name
-and active village — comes from this projection instead: a comment author, the
-Embajador card, an org's member list, `/usuario/{uid}`.
+and active village — comes from this projection instead: a comment author, an
+org's member list, `/usuario/{uid}`.
 
 - **Source of truth:** `users/{uid}.displayName` (itself projected from the
   linked person, see below) and `users/{uid}.activeMunicipalityId`.

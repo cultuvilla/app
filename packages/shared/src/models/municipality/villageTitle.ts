@@ -30,8 +30,8 @@ export function villageTitle(input: {
  */
 export function ambassadorTitleKey(
   sex: Sex | null,
-  variant: 'short' | 'full' = 'short',
+  variant: 'short' | 'inVillage' = 'short',
 ): string {
-  const base = variant === 'full' ? 'ambassador.fullTitle' : 'ambassador.title';
+  const base = variant === 'inVillage' ? 'ambassador.inVillage' : 'ambassador.title';
   return sex === 'female' ? `${base}Female` : base;
 }
