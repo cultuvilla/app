@@ -19,6 +19,14 @@ All three wait until the prod backend deploy (*Deploy prod*'s `deploy / …` job
 is green. A bundle that calls a callable prod has not deployed yet — or that the
 conformance or backfill gate blocked — is a broken app, not an early one.
 
+**A breaking release is the exception.** A breaking release has a
+`Breaking-Client:` trailer since the previous release tag. Its deploy holds the
+functions and rules until both stores serve the release, and holding them still
+counts as green. So the store jobs ship as usual. The production OTA is skipped,
+because it would run the new bundle against the old backend. The announce
+poller then raises the wall and ships the held backend. See
+[announce-when-live-poller.md](announce-when-live-poller.md).
+
 `mobile-release.yml` and *App Store release* stay as the manual escape hatches:
 testing tracks, rebuilds, resubmits, releasing or pausing a phased rollout.
 

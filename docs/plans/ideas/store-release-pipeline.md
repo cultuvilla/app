@@ -60,12 +60,11 @@ approves) should fall back to the Play package URL, as today. Re-seed prod
 `storeUrl` through **Set App Version**.
 
 ### 2. Announce only what the store carries
-The deploy stops raising `latest` blindly. Cheapest version, no poller: when
-writing `latest`, use the **lower of** `app.config.ts` and the version the store
-publicly serves (iTunes lookup for iOS; Play Developer API for Android, whose
-service account already exists). The next deploy after a store release raises it.
-A poller like ordago's is only worth adding if waiting for the next deploy proves
-too slow — and if it is added, its gate runs somewhere that doesn't bill per tick.
+**Done (2026-10-06)** — a poller after all: `announce-when-live.yml` moves each
+platform's `latest` once its store serves the release, and raises the wall for a
+breaking one. This repo is public, so its Actions minutes are free; each idle
+tick also stops after a single Firestore read. See
+[announce-when-live-poller.md](../../decisions/announce-when-live-poller.md).
 
 ### 3. Promotion PR triggers, explicit checkout
 Adopt ordago's trigger: `pull_request: closed` + merged + head is the expected
@@ -115,5 +114,5 @@ the OTA channels.
 ## Open questions
 
 - Staged rollout percentage for Play production (ordago: none; Play supports it).
-- Should a `block` (raised `minSupported`) also wait for store liveness? It must —
+- ~~Should a `block` (raised `minSupported`) also wait for store liveness?~~ Yes, and it does (announce-when-live) —
   blocking users on a version they cannot install is worse than the nudge.

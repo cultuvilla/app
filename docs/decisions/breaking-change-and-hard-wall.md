@@ -81,16 +81,17 @@ any longer explanation in the commit body or the PR description.
 
 | Trailer | Meaning | Effect |
 |---|---|---|
-| `Breaking-Client: <reason>` | This change strands installed clients older than this release. | Satisfies both CI guards. `pr:land` exits `30` and hands the PR to the user, because walling the fleet is a product call. At release, `minSupported` is raised to the release carrying the fix. |
+| `Breaking-Client: <reason>` | This change strands installed clients older than this release. | Satisfies both CI guards. `pr:land` exits `30` and hands the PR to the user, because walling the fleet is a product call. At release, the backend is held and `minSupported` is raised to the release once both stores serve it. |
 | `Breaking-Client-Exempt: <reason>` | CI sees something that looks breaking, but it provably strands nobody. Examples: the callable's last call site shipped below the live `minSupported`; the field is still always written (the expand step); the doc is rewritten whole on every deploy. | Satisfies both CI guards. Never moves the wall and never hard-stops. |
 
 The reason must be evidence, not confidence. For example: *"last called in
 1.1.0 (git log -S); prod minSupported is 1.2.0"*. **If you cannot name the
 version, use `Breaking-Client:`.**
 
-Automatic `minSupported` rollup from `Breaking-Client:` trailers at release time
-is being built in a sibling PR. Until it lands, raising the wall is the manual
-step described under *How the wall is set*.
+At release time the trailers are rolled up automatically (see *How the wall is
+set*): one `Breaking-Client:` since the previous release tag makes the whole
+release breaking, which holds its backend and raises the wall once both stores
+serve it.
 
 ## The CI guards
 
@@ -139,14 +140,30 @@ changes.
 (`appConfigService`, `resolveVersionGate`), and anything older is blocked until
 it updates.
 
-- It is never raised as a side effect. The deploy's *Announce the shipped version* step
-  preserves the stored value when `min_supported` is blank.
-- When a release carries a `Breaking-Client:` change, raise it to that release's
-  version with **Actions → Set App Version** (`set-app-version.yml`), once the
-  stores actually serve that version. The write is refused above what the store
-  serves, because a wall with no downloadable build behind it blocks everyone with
-  nowhere to go.
-- Raising it in prod is the user's decision for that specific run.
+It is raised automatically for a breaking production release, by
+[announce-when-live](announce-when-live-poller.md). Adding the trailer is the
+decision (and `pr:land` hands that PR to the user); everything after it is
+mechanical:
 
-See *Versioning & releases* in `AGENTS.md` for `latest`, `APP_STORE_VERSIONS`
-and the deploy-time announce.
+1. **At the prod deploy**, `scripts/lib/breaking-rollup.mjs` reads every
+   non-merge commit since the previous `vX.Y.Z` tag. Any `Breaking-Client:`
+   trailer makes the release breaking; `Breaking-Client-Exempt:` never does.
+   A breaking release still on its way to the stores **holds its functions and
+   rules**, while indexes and hosting deploy. `[auto-deploy]` in the merge
+   commit overrides the hold.
+2. **The announce poller** asks Play and App Store Connect every 30 minutes.
+   Once **both** serve the release, it raises `minSupported` to its version,
+   then dispatches the held backend pinned to the release commit. Wall first:
+   a wall without its backend only tells old clients to update, while a
+   backend without its wall breaks them silently.
+
+The ceiling still holds: a wall above what the store serves is refused,
+because it would block everyone with nowhere to go. The poller raises the wall
+only after it has written `latest` as that same version on both platforms.
+
+The deploy never moves the wall: its *Refresh config/appVersion* step preserves
+the stored value. **Actions → Set App Version** (`set-app-version.yml`) stays
+for a wall the trailers did not declare. A prod run there is the user's
+decision for that specific run.
+
+See *Versioning & releases* in `AGENTS.md` for `latest` and the announce poller.

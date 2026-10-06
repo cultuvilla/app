@@ -15,7 +15,8 @@ open items below, then retiring this plan.
 - **Play closed test completed** (12 testers × 14 days).
 - **Play production approved**: 1.1.0, submitted 2026-09-08, public by
   2026-09-28 (<https://play.google.com/store/apps/details?id=com.cultuvilla.app>).
-  `APP_STORES.android` + `APP_STORE_VERSIONS.android` filled in;
+  `APP_STORES.android` filled in (what each store serves now lives in
+  `config/appVersion`, written by the announce poller);
   `pnpm check:store-claims` 20 pass, 0 fail.
 - **Play freeze lifted** 2026-09-28 (`PLAY_SUBMIT_PAUSED` deleted): every
   `beta` merge again submits Android to the closed track, iOS to TestFlight.
