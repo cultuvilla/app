@@ -120,6 +120,10 @@ export function OrgMembersList({
     );
   };
 
+  // The caller hides the roster for an empty org; this covers removing the
+  // last member from inside the list.
+  if (rows && rows.length === 0) return null;
+
   return (
     <VStack gap={2}>
       <DetailSectionHeading
@@ -135,71 +139,65 @@ export function OrgMembersList({
       >
         {t('organization.members')}
       </DetailSectionHeading>
-      {rows && rows.length === 0 ? (
-        <Text tone="muted" variant="bodySm">
-          {t('organization.membersEmpty')}
-        </Text>
-      ) : (
-        (rows ?? []).map((r) => {
-          const actionable = editing && isActionable(r);
-          const pending = pendingUserId === r.id;
-          return (
-            <HStack key={r.id} gap={3} align="center" className="py-2">
-              <Pressable
-                testID={`org-member-profile-${r.id}`}
-                onPress={() => router.push(userHref(r.userId))}
-                accessibilityRole="button"
-                accessibilityLabel={r.name}
-                className="flex-1 flex-row items-center gap-3"
-              >
-                <Avatar uri={r.photoURL} size={36} initials={r.name.slice(0, 1).toUpperCase()} />
-                <Text numberOfLines={1} className="flex-1">
-                  {r.name}
+      {(rows ?? []).map((r) => {
+        const actionable = editing && isActionable(r);
+        const pending = pendingUserId === r.id;
+        return (
+          <HStack key={r.id} gap={3} align="center" className="py-2">
+            <Pressable
+              testID={`org-member-profile-${r.id}`}
+              onPress={() => router.push(userHref(r.userId))}
+              accessibilityRole="button"
+              accessibilityLabel={r.name}
+              className="flex-1 flex-row items-center gap-3"
+            >
+              <Avatar uri={r.photoURL} size={36} initials={r.name.slice(0, 1).toUpperCase()} />
+              <Text numberOfLines={1} className="flex-1">
+                {r.name}
+              </Text>
+              {r.role === 'admin' ? (
+                <Text tone="muted" variant="bodySm">
+                  {t('organization.adminBadge')}
                 </Text>
-                {r.role === 'admin' ? (
-                  <Text tone="muted" variant="bodySm">
-                    {t('organization.adminBadge')}
-                  </Text>
-                ) : null}
-              </Pressable>
-              {actionable ? (
-                pending ? (
-                  <ActivityIndicator size="small" />
-                ) : (
-                  <>
-                    <Pressable
-                      testID={`org-member-row-${r.id}`}
-                      disabled={pendingUserId != null}
-                      onPress={() => changeRole(r)}
-                      accessibilityLabel={t(
-                        r.role === 'admin'
-                          ? 'organization.membersList.demote'
-                          : 'organization.membersList.promote',
-                      )}
-                      hitSlop={8}
-                    >
-                      <Ionicons
-                        name={r.role === 'admin' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
-                        size={iconSizes.sm}
-                        color="#9ca3af"
-                      />
-                    </Pressable>
-                    <Pressable
-                      testID={`org-member-remove-${r.id}`}
-                      disabled={pendingUserId != null}
-                      onPress={() => removeMember(r)}
-                      accessibilityLabel={t('organization.membersList.remove')}
-                      hitSlop={8}
-                    >
-                      <Ionicons name="trash-outline" size={iconSizes.sm} color="#9ca3af" />
-                    </Pressable>
-                  </>
-                )
               ) : null}
-            </HStack>
-          );
-        })
-      )}
+            </Pressable>
+            {actionable ? (
+              pending ? (
+                <ActivityIndicator size="small" />
+              ) : (
+                <>
+                  <Pressable
+                    testID={`org-member-row-${r.id}`}
+                    disabled={pendingUserId != null}
+                    onPress={() => changeRole(r)}
+                    accessibilityLabel={t(
+                      r.role === 'admin'
+                        ? 'organization.membersList.demote'
+                        : 'organization.membersList.promote',
+                    )}
+                    hitSlop={8}
+                  >
+                    <Ionicons
+                      name={r.role === 'admin' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
+                      size={iconSizes.sm}
+                      color="#9ca3af"
+                    />
+                  </Pressable>
+                  <Pressable
+                    testID={`org-member-remove-${r.id}`}
+                    disabled={pendingUserId != null}
+                    onPress={() => removeMember(r)}
+                    accessibilityLabel={t('organization.membersList.remove')}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="trash-outline" size={iconSizes.sm} color="#9ca3af" />
+                  </Pressable>
+                </>
+              )
+            ) : null}
+          </HStack>
+        );
+      })}
     </VStack>
   );
 }

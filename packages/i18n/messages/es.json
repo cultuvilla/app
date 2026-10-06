@@ -982,7 +982,6 @@
     "privacy": "Privacidad",
     "membersPublicLabel": "Los miembros del grupo son visibles para el pueblo",
     "membersPrivateHint": "Solo los miembros del grupo verán quién forma parte.",
-    "membersEmpty": "Este grupo aún no tiene miembros.",
     "adminBadge": "Admin",
     "membersList": {
       "promote": "Hacer administrador",
