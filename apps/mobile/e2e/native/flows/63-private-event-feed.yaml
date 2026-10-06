@@ -1,0 +1,24 @@
+# A peña member sees the peña's private event on the home feed.
+#
+# The feed opens one private-events query per org the viewer belongs to, and
+# the rules refuse that query outright for an OPEN org (only approval-org
+# members may read private events). The seeded admin is in both an open org and
+# the approval peña: before the fix, the refused query blanked the whole private
+# half of the feed, so this event never appeared.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-admin@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  EVENT_TITLE: 'Cena Privada E2E'
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- tapOn: 'Explora'
+# The feed can open on its Artículos half; the label renders upper-cased.
+- tapOn: '(?i)eventos'
+- scrollUntilVisible:
+    element: ${EVENT_TITLE}
+    timeout: 45000

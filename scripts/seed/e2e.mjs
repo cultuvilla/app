@@ -37,6 +37,7 @@ import {
   event,
   capacityEvent,
   groupEvent,
+  privateEvent,
   otherUserComment,
   dependentPerson,
   place,
@@ -360,6 +361,34 @@ async function run() {
     );
 
   await db
+    .collection('events')
+    .doc(privateEvent.docId)
+    .set(
+      buildEventData({
+        title: privateEvent.title,
+        description: privateEvent.description,
+        startDate: new Date(Date.now() + privateEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Local de la peña, ${village.name}`,
+        }),
+        maxAttendees: privateEvent.maxAttendees,
+        telephoneRequired: false,
+        status: privateEvent.status,
+        visibility: 'organization',
+        visibilityOrgId: approvalOrg.docId,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [approvalOrg.docId],
+        createdBy: users.admin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
+  await db
     .collection('comments')
     .doc(otherUserComment.docId)
     .set(
@@ -397,6 +426,7 @@ async function run() {
       `joinVillage=${joinVillage.docId} org=${org.docId} approvalOrg=${approvalOrg.docId} ` +
       `event=${event.docId} ` +
       `capacityEvent=${capacityEvent.docId} groupEvent=${groupEvent.docId} ` +
+      `privateEvent=${privateEvent.docId} ` +
       `comment=${otherUserComment.docId})`,
   );
 }

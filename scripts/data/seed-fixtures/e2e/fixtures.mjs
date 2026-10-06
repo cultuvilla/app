@@ -163,6 +163,18 @@ export const otherUserComment = {
   body: 'Comentario de otra persona E2E',
 };
 
+// Visible only to members of the approval peña (flow 63). Its readers are
+// also in the open ayuntamiento org, the combination that once hid every
+// private event from the home feed.
+export const privateEvent = {
+  docId: 'e2e-event-privado',
+  title: 'Cena Privada E2E',
+  description: 'Evento solo para socios de la peña, para el feed privado.',
+  startOffsetDays: 10,
+  maxAttendees: 30,
+  status: 'published',
+};
+
 export const dependentPerson = {
   docId: 'e2e-person-dependent',
   givenName: 'Lucía',
