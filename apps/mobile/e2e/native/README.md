@@ -185,6 +185,7 @@ comments; this is the index.
 | The first tap with the soft keyboard up | Reports COMPLETED, but only closed the keyboard; the button's handler never ran (the login screen's "Enviar código"). | `repeat: while: notVisible: <next step>` around the tap. |
 | A flow that changes device state | Airplane mode or a global doc (`config/appVersion`) outlives the flow — and the app's `clearState` — so every later flow fails for a reason it cannot see. | Undo it in `onFlowComplete`, and add the doc to `LEFTOVER_DOCS` in `run-android-e2e.mjs`: before each flow the runner turns airplane mode off and deletes those docs, since `onFlowComplete` never runs when Maestro itself dies. |
 | The OTP send cap | `sendAuthOtpCode` allows 5 sends per address per 15 minutes, and a capped send still answers `ok` without writing a new code — so a flow re-run against the same emulator reads a stale code and passes or fails on its 10-minute expiry, not on the login screen. | Re-run `11-otp-login` on a fresh `pnpm test:e2e:android`, not repeatedly against one emulator. |
+| `scrollUntilVisible` stops at the first visible pixel | On a short screen a field ends up on the bottom edge against the tab bar; the tap focuses nothing and `inputText` arrives as raw key events into an unfocused window (on CI it tore the activity down). | `centerElement: true` before tapping an input. |
 | Text selectors match the WHOLE string | `Apuntado` misses "Apuntado (1)"; `Perfil` matches both the tab and the screen header. | Use a regex (`Apuntad.*`) or a `testID`. |
 
 ## Adding a flow

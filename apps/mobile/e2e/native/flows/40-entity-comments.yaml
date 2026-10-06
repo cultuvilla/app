@@ -21,10 +21,16 @@ env:
 # EntityComments renders below the hero image, the body and the organiser row,
 # so on a phone-sized screen it starts off the fold, and Maestro does not
 # scroll implicitly.
+#
+# Centre it, don't stop at the first pixel of it. On a short screen (CI's
+# pixel_5) "visible" left the field on the bottom edge, against the tab bar;
+# the tap then focused nothing, Maestro typed the comment as raw key events
+# into an unfocused window, and the activity was torn down mid-word.
 - scrollUntilVisible:
     element:
       id: 'comment-input'
     direction: DOWN
+    centerElement: true
     timeout: 45000
 - tapOn:
     id: 'comment-input'
