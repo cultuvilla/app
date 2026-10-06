@@ -45,10 +45,6 @@ yarn-error.*
 .vercel
 .env*.local
 
-# playwright e2e artifacts
-/test-results
-/playwright-report
-
 # Play service account key, materialized by the release workflows (and by a
 # local `eas submit`). Never commit it — it grants publish rights to the app.
 google-play-service-account.json

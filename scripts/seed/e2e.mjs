@@ -32,6 +32,7 @@ import {
   joinVillage,
   organizerlessVillage,
   org,
+  approvalOrg,
   event,
   capacityEvent,
   dependentPerson,
@@ -41,7 +42,7 @@ import {
 if (!EMULATOR) {
   console.error(
     '[seed:e2e] Emulator env not detected. Set FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST\n' +
-      '           (the web-e2e CI job does this) — this seeder never targets the real project.',
+      '           (scripts/run-tests-with-emulators.mjs does this) — this seeder never targets the real project.',
   );
   process.exit(1);
 }
@@ -225,6 +226,33 @@ async function run() {
     .doc(users.admin.uid)
     .set(buildOrgMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
 
+  // Approved peña that admits members by request. Its only member is its admin,
+  // who resolves the joiner's request in the org-join-request flow.
+  await db
+    .collection('organizations')
+    .doc(approvalOrg.docId)
+    .set(
+      buildOrganizationData({
+        name: approvalOrg.name,
+        type: approvalOrg.type,
+        description: approvalOrg.description,
+        municipalityId: village.docId,
+        villageSlug: village.slug,
+        requestedBy: users.admin.uid,
+        status: 'approved',
+        reviewedBy: users.admin.uid,
+        reviewedAt: new Date(),
+        joinPolicy: 'approval',
+      }),
+      { merge: true },
+    );
+  await db
+    .collection('organizations')
+    .doc(approvalOrg.docId)
+    .collection('members')
+    .doc(users.admin.uid)
+    .set(buildOrgMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
+
   // Upcoming published event in the village
   const startDate = new Date(Date.now() + event.startOffsetDays * DAY_MS);
   await db
@@ -321,7 +349,8 @@ async function run() {
     `[seed:e2e] seeded emulator (users=${users.admin.uid},${users.attendee.uid},` +
       `${users.superAdmin.uid},${users.joiner.uid},${users.fresh.uid} ` +
       `village=${village.docId} organizerless=${organizerlessVillage.docId} ` +
-      `joinVillage=${joinVillage.docId} org=${org.docId} event=${event.docId} ` +
+      `joinVillage=${joinVillage.docId} org=${org.docId} approvalOrg=${approvalOrg.docId} ` +
+      `event=${event.docId} ` +
       `capacityEvent=${capacityEvent.docId})`,
   );
 }

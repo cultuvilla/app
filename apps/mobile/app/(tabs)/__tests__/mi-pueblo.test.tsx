@@ -65,11 +65,9 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => {
   };
 });
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  getOrgMemberCount: jest.fn().mockResolvedValue(0),
   getUserOrgIds: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getBarrioResidentCount: jest.fn().mockResolvedValue(0),
   getPersonByUserId: jest.fn().mockResolvedValue(null),
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
