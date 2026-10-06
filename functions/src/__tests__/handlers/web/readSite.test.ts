@@ -174,6 +174,9 @@ describe('readSite', () => {
     expect(await get('/descarga', IPHONE)).toEqual({ kind: 'redirect', location: APP_STORES.ios, permanent: false });
     const { body } = await html('/descarga');
     expect(body).toContain(APP_STORES.android);
+    // The desktop picker must not be cached at the edge, or the next phone gets it.
+    expect(await get('/descarga', null)).toMatchObject({ kind: 'page', deviceDependent: true });
+    expect(await get('/matabuena', null)).not.toHaveProperty('deviceDependent');
   });
 
   it('renders a published Wrapped as its cards, cover first', async () => {
