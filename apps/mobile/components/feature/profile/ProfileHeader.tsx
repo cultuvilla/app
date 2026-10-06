@@ -10,6 +10,8 @@ export interface ProfileHeaderProps {
   subtitle?: string | null;
   uploading?: boolean;
   onPressAvatar?: () => void;
+  /** Holds a pueblo's Embajador title — stamps the Cultuvilla seal on the photo. */
+  ambassador?: boolean;
 }
 
 export function ProfileHeader({
@@ -18,6 +20,7 @@ export function ProfileHeader({
   subtitle,
   uploading,
   onPressAvatar,
+  ambassador = false,
 }: ProfileHeaderProps) {
   const displayName = person ? buildDisplayName(person) : fallbackName;
   const shortName = person ? buildShortName(person) : fallbackName;
@@ -31,6 +34,7 @@ export function ProfileHeader({
           size={88}
           initials={initials}
           onPress={onPressAvatar}
+          ambassador={ambassador}
         />
         {uploading ? (
           <View className="absolute inset-0 items-center justify-center bg-surface/60 rounded-full">

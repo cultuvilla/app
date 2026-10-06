@@ -1274,7 +1274,12 @@
   "organize": {
     "title": "Ser embajador de Cultuvilla",
     "explainer": "Los embajadores de Cultuvilla son la cara de su pueblo en la app. Cuidan su información, dan la bienvenida a los vecinos, moderan lo que se publica y ayudan a que grupos, lugares y fiestas estén al día. Es un papel público: tu nombre y tu foto aparecerán en la página del pueblo. Revisamos cada solicitud personalmente.",
-    "submit": "Enviar solicitud"
+    "submit": "Enviar solicitud",
+    "carnet": {
+      "preview": "Así te verán los vecinos",
+      "header": "Cultuvilla · Embajadores",
+      "addPhoto": "Añade una foto a tu perfil"
+    }
   },
   "editInfo": {
     "title": "Editar información",

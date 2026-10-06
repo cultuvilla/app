@@ -136,6 +136,14 @@ test('shows the Embajadora title, the team badge, and nothing for a vecino', asy
   expect(screen.queryByTestId('member-title-pv')).toBeNull();
 });
 
+test('stamps the Cultuvilla seal on the Embajador alone', async () => {
+  seedAmbassadorVillage();
+  render(<MembersList villageId="m1" />);
+
+  await waitFor(() => expect(screen.getByText('Embajadora')).toBeTruthy());
+  expect(screen.getAllByTestId('avatar-ambassador-seal')).toHaveLength(1);
+});
+
 test('the Embajador can hand the title to a member', async () => {
   seedAmbassadorVillage();
   render(<MembersList villageId="m1" canManage currentUserId="amb" />);

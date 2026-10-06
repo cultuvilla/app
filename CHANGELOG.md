@@ -4,6 +4,12 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+- "Ser embajador de Cultuvilla": the request screen opens with a preview of
+  your own Embajador carnet for that pueblo — your photo, name, the
+  "Embajador/Embajadora de Cultuvilla en {pueblo}" title and its escudo — with
+  a link to add a photo if you have none.
+- Embajadores now wear a small Cultuvilla seal on their photo: on the village
+  home, in the members list and on their profile.
 - Creating an event: the location is marked as mandatory (red asterisk), and
   the Preguntas step only appears once "Añadir un formulario" is switched on
   in Detalles. An event that already has questions opens with it on, and it
