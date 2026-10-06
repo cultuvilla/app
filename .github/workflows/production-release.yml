@@ -26,6 +26,9 @@ name: Production release
 #   repo var STORE_RELEASE_PAUSED=true         no binaries, either store
 #   repo var PLAY_SUBMIT_PAUSED=true           no Android (same switch as beta)
 #   repo var PROD_OTA_PAUSED=true              no production OTA
+#   [skip-deploy] in the merge commit message  nothing at all: the backend for
+#                                              this commit was not deployed, so
+#                                              no client may ship against it
 #
 # Deliberately NOT scoped to the `production` GitHub environment: credentials
 # are repo-level, exactly as in beta-build-and-submit.yml, and the jobs never
@@ -79,8 +82,22 @@ jobs:
           previous=$(version_of "${base}")
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
+          # package.json decides whether binaries ship; appstore-release.mjs reads
+          # app.config.ts to pick the iOS build. If they disagree, Android and iOS
+          # would release different versions — refuse instead.
+          config_version=$(sed -nE "s/^  version: '([^']+)',$/\1/p" apps/mobile/app.config.ts)
+          if [ "${config_version}" != "${version}" ]; then
+            echo "::error::apps/mobile/app.config.ts says ${config_version} but package.json says ${version} — nothing ships. Make them agree (pnpm release:cut writes both)."
+            exit 1
+          fi
+
+          skip_deploy=false
+          [[ "${COMMIT_MESSAGE}" == *"[skip-deploy]"* ]] && skip_deploy=true
+
           store=false
-          if [ "${version}" = "${previous}" ]; then
+          if [ "${skip_deploy}" = "true" ]; then
+            reason="[skip-deploy]: the prod backend for this commit was not deployed"
+          elif [ "${version}" = "${previous}" ]; then
             reason="version unchanged (${version})"
           elif [[ "${COMMIT_MESSAGE}" == *"[skip-store]"* ]]; then
             reason="[skip-store] in the commit message"
@@ -95,7 +112,9 @@ jobs:
           # Same paths mobile-ota.yml ignores on beta: they cannot change the bundle.
           bundle_changes=$(git diff --name-only "${base}" HEAD | grep -Ev '^(docs/|\.github/)|\.md$' || true)
           ota=false
-          if [ -z "${bundle_changes}" ]; then
+          if [ "${skip_deploy}" = "true" ]; then
+            ota_reason="[skip-deploy]: the prod backend for this commit was not deployed"
+          elif [ -z "${bundle_changes}" ]; then
             ota_reason="only docs/.github changes"
           elif [[ "${COMMIT_MESSAGE}" == *"[skip-ota]"* ]]; then
             ota_reason="[skip-ota] in the commit message"
@@ -122,7 +141,7 @@ jobs:
     needs: plan
     if: ${{ needs.plan.outputs.ota == 'true' || needs.plan.outputs.store == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - name: Wait for Deploy prod on this commit
         env:
@@ -133,15 +152,26 @@ jobs:
           # deploy-firebase.yml. Other jobs in Deploy prod (tagging, store
           # announcements) must not, or a job waiting on a store review would
           # hold back the very submission it is waiting for.
-          for attempt in $(seq 1 110); do
-            run_id=$(gh api "repos/${REPO}/actions/runs?head_sha=${GITHUB_SHA}&event=push&branch=main&per_page=100" \
-              --jq '[.workflow_runs[] | select(.name == "Deploy prod")] | max_by(.id) | .id // empty')
-            if [ -n "${run_id}" ]; then
-              jobs=$(gh api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
-                --jq '[.jobs[] | select(.name | startswith("deploy / "))] | map({name, status, conclusion})')
+          #
+          # A failed API call is no information, not a verdict: `|| true` keeps
+          # one 5xx from failing a production release; the loop just looks again.
+          # Only `success` counts — a skipped backend job is not a deployed one
+          # ([skip-deploy] is handled in `plan`, so reaching it here is an error).
+          for attempt in $(seq 1 120); do
+            run=$(gh api "repos/${REPO}/actions/runs?head_sha=${GITHUB_SHA}&event=push&branch=main&per_page=100" \
+              --jq '[.workflow_runs[] | select(.name == "Deploy prod")] | max_by(.id) // empty | {id, status}') || run=""
+            run_id=$(jq -r '.id // empty' <<<"${run}" 2>/dev/null) || run_id=""
+            if [ -n "${run_id}" ] \
+              && jobs=$(gh api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
+                --jq '[.jobs[] | select(.name | startswith("deploy / "))] | map({name, status, conclusion})'); then
               echo "${jobs}"
-              if [ "$(jq 'length' <<<"${jobs}")" -gt 0 ] && [ "$(jq 'all(.status == "completed")' <<<"${jobs}")" = "true" ]; then
-                if [ "$(jq 'all(.conclusion == "success" or .conclusion == "skipped")' <<<"${jobs}")" = "true" ]; then
+              count=$(jq 'length' <<<"${jobs}")
+              if [ "${count}" = "0" ] && [ "$(jq -r '.status' <<<"${run}")" = "completed" ]; then
+                echo "::error::Deploy prod (run ${run_id}) finished without a backend deploy job — nothing ships."
+                exit 1
+              fi
+              if [ "${count}" -gt 0 ] && [ "$(jq 'all(.status == "completed")' <<<"${jobs}")" = "true" ]; then
+                if [ "$(jq 'all(.conclusion == "success")' <<<"${jobs}")" = "true" ]; then
                   echo "Prod backend deploy is green (run ${run_id})."
                   exit 0
                 fi

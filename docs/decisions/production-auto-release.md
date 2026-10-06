@@ -31,6 +31,7 @@ testing tracks, rebuilds, resubmits, releasing or pausing a phased rollout.
 | repo var `STORE_RELEASE_PAUSED=true` | no binaries, either store, until unset |
 | repo var `PLAY_SUBMIT_PAUSED=true` | no Android, beta app included (the existing Play freeze) |
 | repo var `PROD_OTA_PAUSED=true` | no production OTA until unset |
+| `[skip-deploy]` in the merge commit | nothing ships: the backend for that commit was not deployed |
 
 Never disable the workflow to pause one platform: disabling
 `beta-build-and-submit` during the 2026-09 Play review silently froze iOS too.
@@ -70,6 +71,20 @@ Both are locked by [otaUpdates.test.ts](../../packages/shared/test/ci/otaUpdates
 production OTA.** The first release built after it is the first one updates can
 reach. Before relying on OTA for an older binary, check it with
 `eas fingerprint:compare --build-id <id> --environment production`.
+
+## Rollout shape
+
+iOS submits with a 7-day phased release (`appstore-release.mjs` default), which
+App Store Connect advances by itself. Android submits with the production
+profile's `releaseStatus: completed` — 100% at once. A Play staged rollout
+(`inProgress` + `rollout`) was considered and left out: Play never advances one
+by itself, so every release would stop at the first percentage until a human
+raised it, which is the manual step this decision removes. Halting a bad Play
+release stays a Play Console action; a JS-only fix reaches it by OTA.
+
+Before anything ships, the `plan` job refuses a commit whose
+`apps/mobile/package.json` and `app.config.ts` versions disagree — otherwise
+Android would build one version while the iOS submit picked another.
 
 ## What it costs
 

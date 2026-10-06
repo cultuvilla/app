@@ -17,8 +17,10 @@ const appConfig = readFileSync(resolve(repoRoot, 'apps/mobile/app.config.ts'), '
 const workflowsDir = resolve(repoRoot, '.github/workflows');
 const otaWorkflow = readFileSync(resolve(workflowsDir, 'mobile-ota.yml'), 'utf8');
 const prodReleaseWorkflow = readFileSync(resolve(workflowsDir, 'production-release.yml'), 'utf8');
-// Resolve from the app, where @expo/fingerprint and the config actually live.
+// Resolve from the app, where the config lives — and @expo/fingerprint through
+// `expo`, which declares it, so the test does not lean on pnpm hoisting.
 const appRequire = createRequire(resolve(repoRoot, 'apps/mobile/package.json'));
+const expoRequire = createRequire(appRequire.resolve('expo/package.json'));
 const easJson = JSON.parse(
   readFileSync(resolve(repoRoot, 'apps/mobile/eas.json'), 'utf8'),
 ) as { build: Record<string, { channel?: string } | undefined> };
@@ -93,7 +95,7 @@ describe('OTA update wiring', () => {
 // hash the marketing `version`, which every promotion bumps, and CI patched the
 // fingerprinted eas.json before `eas build` uploaded the project.
 describe('fingerprint survives a release', () => {
-  const fingerprint = appRequire('@expo/fingerprint') as { SourceSkips: Record<string, number> };
+  const fingerprint = expoRequire('@expo/fingerprint') as { SourceSkips: Record<string, number> };
   const config = appRequire('./fingerprint.config.js') as { sourceSkips: string[] };
 
   it('skips the app versions', () => {

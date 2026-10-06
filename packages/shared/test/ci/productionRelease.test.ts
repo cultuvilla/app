@@ -11,6 +11,10 @@ import { resolve } from 'node:path';
 const repoRoot = resolve(__dirname, '../../../..');
 const wf = readFileSync(resolve(repoRoot, '.github/workflows/production-release.yml'), 'utf8');
 const deployProd = readFileSync(resolve(repoRoot, '.github/workflows/deploy-prod.yml'), 'utf8');
+const appConfig = readFileSync(resolve(repoRoot, 'apps/mobile/app.config.ts'), 'utf8');
+const mobilePackage = JSON.parse(
+  readFileSync(resolve(repoRoot, 'apps/mobile/package.json'), 'utf8'),
+) as { version: string };
 
 function job(name: string): string {
   const start = wf.indexOf(`\n  ${name}:\n`);
@@ -40,6 +44,26 @@ describe('production-release workflow', () => {
     expect(plan).toContain('github.event.before');
     expect(plan).toContain('apps/mobile/package.json');
     expect(plan).toMatch(/if \[ "\$\{version\}" = "\$\{previous\}" \]/);
+  });
+
+  // The plan decides on package.json; the iOS submit picks its build by
+  // app.config.ts. If they ever disagree, Android and iOS release different
+  // versions — so the workflow refuses, and this keeps the repo from getting there.
+  it('reads the same version the iOS submit will use', () => {
+    const configVersion = /^ {2}version: '([^']+)',$/m.exec(appConfig)?.[1];
+    expect(configVersion).toBe(mobilePackage.version);
+    expect(job('plan')).toContain('apps/mobile/app.config.ts');
+    expect(job('plan')).toMatch(/if \[ "\$\{config_version\}" != "\$\{version\}" \]/);
+  });
+
+  // [skip-deploy] means the prod backend for this commit was never deployed, so
+  // no client may ship against it — and the backend wait would otherwise poll a
+  // job that never runs.
+  it('ships nothing on a [skip-deploy] merge, and never counts a skipped deploy as green', () => {
+    expect(job('plan')).toContain('[skip-deploy]');
+    const backend = job('backend');
+    expect(backend).toContain('all(.conclusion == "success")');
+    expect(backend).not.toContain('"skipped"');
   });
 
   it('honours every kill-switch', () => {
