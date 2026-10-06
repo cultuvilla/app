@@ -3,7 +3,7 @@
 // only the Resend secret and the `resend` package itself are mocked so no
 // network send happens.
 
-import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } from 'vitest';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
@@ -130,5 +130,29 @@ describe('sendAuthSignInEmail (callable)', () => {
     });
     expect(other.ok).toBe(true);
     expect(sendMock).toHaveBeenCalledTimes(6);
+  });
+
+  describe('under the Functions emulator', () => {
+    beforeEach(() => {
+      vi.stubEnv('FUNCTIONS_EMULATOR', 'true');
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('generates the link but never calls Resend', async () => {
+      const result = await callSend({
+        email: 'frank@example.com',
+        continueUrl: 'https://villa-events.web.app/finish',
+      });
+      expect(result.ok).toBe(true);
+      expect(sendMock).not.toHaveBeenCalled();
+    });
+
+    it('still validates the request', async () => {
+      await expect(
+        callSend({ email: 'not-an-email', continueUrl: 'https://villa-events.web.app/finish' }),
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+    });
   });
 });
