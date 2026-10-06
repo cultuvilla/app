@@ -87,6 +87,7 @@ function getGoogleSignInConfig(): GoogleSignInExtra | null {
 // completes) — used only by changeEmail/completeReauth, the one flow that
 // still uses a real email link (see getEmailLinkContinueUrl below).
 const PENDING_REAUTH_KEY = 'cultuvilla.pendingReauth';
+const DEV_AUTOLOGIN_SKIP_KEY = 'cultuvilla.devAutoLoginSkip';
 const AUTH_EMAIL_LANGUAGE = 'es';
 
 function getLocalizedAuth(): ReturnType<typeof getAuth> {
@@ -243,13 +244,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // out", sign into the configured test account. Attempt-once-per-session so a
   // manual signOut() lets you exercise the guest flow without being yanked
   // straight back in — reload the app to re-trigger.
+  //
+  // signOut() itself reloads the JS app (clearLocalCacheAndRestart), which
+  // resets the ref, so it also leaves a marker in AsyncStorage that the very
+  // next launch consumes instead of signing in.
   const devAutoLoginAttempted = useRef(false);
   useEffect(() => {
     if (loading || user || devAutoLoginAttempted.current) return;
     const cfg = getDevAutoLogin();
     if (!cfg) return;
     devAutoLoginAttempted.current = true;
-    void signInWithEmailAndPassword(getAuth(), cfg.email, cfg.password).catch((e) => {
+    void (async () => {
+      if (await AsyncStorage.getItem(DEV_AUTOLOGIN_SKIP_KEY)) {
+        await AsyncStorage.removeItem(DEV_AUTOLOGIN_SKIP_KEY);
+        return;
+      }
+      await signInWithEmailAndPassword(getAuth(), cfg.email, cfg.password);
+    })().catch((e) => {
       console.warn('[dev-autologin] sign-in failed:', e instanceof Error ? e.message : e);
     });
   }, [loading, user]);
@@ -580,6 +591,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async (): Promise<void> => {
     await teardownSession();
+    if (getDevAutoLogin()) await AsyncStorage.setItem(DEV_AUTOLOGIN_SKIP_KEY, '1');
     await fbSignOut(getAuth());
     await clearLocalCacheAndRestart();
   };
