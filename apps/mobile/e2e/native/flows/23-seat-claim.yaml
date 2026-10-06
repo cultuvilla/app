@@ -56,7 +56,9 @@ env:
       FIELD: createdBy
       VALUE: ${BOOKER_UID}
       # Unspent only: tokens from an earlier run on the same emulator stay
-      # behind, and the list comes back in (random) doc-id order.
+      # behind, and the list comes back in (random) doc-id order. A run that
+      # died between booking and claiming still leaves an unspent token, so
+      # this is exact only on a fresh emulator — as every suite run is.
       FIELD2: consumedBy
       VALUE2: 'null'
       MIN: '1'

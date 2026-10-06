@@ -21,6 +21,7 @@ onFlowComplete:
       file: ../scripts/deleteDoc.js
       env:
         DOC_PATH: 'users/${VIEWER_UID}/blockedUsers/${AUTHOR_UID}'
+  - assertTrue: ${output.status == '200'}
 ---
 - runFlow:
     file: ../subflows/login.yaml

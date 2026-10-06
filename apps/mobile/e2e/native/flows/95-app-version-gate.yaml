@@ -17,6 +17,7 @@ onFlowComplete:
       file: ../scripts/deleteDoc.js
       env:
         DOC_PATH: config/appVersion
+  - assertTrue: ${output.status == '200'}
 ---
 # Nudge: a newer version exists, the installed one is still supported.
 - runScript:

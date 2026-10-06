@@ -62,6 +62,27 @@ const flow = arg('flow') ?? process.env.E2E_NATIVE_FLOW;
 
 const DEVICE_WAIT_MS = 60_000;
 
+// Backend state a flow creates and must undo, and that nothing else heals: the
+// seed never writes these docs, so re-seeding leaves them. A flow undoes its
+// own in `onFlowComplete`, but that never runs when the Maestro process dies.
+// A leftover update wall (95) would block the whole app; a leftover block (41)
+// would hide the admin's comments from the attendee.
+const LEFTOVER_DOCS = ['config/appVersion', 'users/e2e-user/blockedUsers/e2e-admin'];
+
+async function deleteLeftoverDocs() {
+  const host = process.env.FIRESTORE_EMULATOR_HOST;
+  if (!host) return;
+  const project = process.env.E2E_FIREBASE_PROJECT || process.env.GCLOUD_PROJECT || 'cultuvilla-test';
+  for (const doc of LEFTOVER_DOCS) {
+    const url = `http://${host}/v1/projects/${project}/databases/(default)/documents/${doc}`;
+    const res = await fetch(url, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } });
+    if (!res.ok) {
+      console.error(`[android-e2e] could not reset ${doc}: HTTP ${res.status}; stopping the run.`);
+      process.exit(1);
+    }
+  }
+}
+
 function run(cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, ...opts });
   if (res.error) {
@@ -164,6 +185,7 @@ for (const name of flows) {
   // that left it on (45-offline-cached-village) would fail every flow after it
   // for a reason none of them can see, so every flow starts online.
   run(ADB, ['-s', device, 'shell', 'cmd', 'connectivity', 'airplane-mode', 'disable']);
+  await deleteLeftoverDocs();
   // Leaving airplane mode can drop the emulator's adb transport for a moment;
   // a flow started inside that window dies on "device offline" in seconds.
   // Bounded: a device that never comes back must fail the run by name, not

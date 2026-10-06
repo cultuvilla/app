@@ -10,7 +10,7 @@
 //
 // env:
 //   DOC_PATH   required — path under /documents, e.g. "events/e2e-event-fiesta"
-//   FIELD      optional — field to read (scalar); dotted for maps, `*` = first key
+//   FIELD      optional — field to read (scalar); dotted for maps, `*` = the only key
 //   EXPECT     optional — "present" | "absent" | "<literal>" | ">=<n>"
 //   TIMEOUT_MS optional — default 20000
 // output:
@@ -40,7 +40,8 @@ function scalar(v) {
 
 // A dotted FIELD walks into map fields; a `*` segment takes the map's first
 // key, for maps keyed by generated ids (registration answers are keyed by a
-// random signup-field id the flow cannot know).
+// random signup-field id the flow cannot know). Only for a single-entry map:
+// with two keys, which one is "first" is not defined.
 function walk(fields, path) {
   var v = fields[path[0]];
   for (var i = 1; i < path.length; i++) {

@@ -196,6 +196,18 @@ describe('flows start from a clean device', () => {
     expect(loop).toMatch(/'airplane-mode',\s*'disable'/);
   });
 
+  it('deletes backend state a flow leaves behind before every flow', () => {
+    expect(loop).toMatch(/await deleteLeftoverDocs\(\)/);
+    expect(runner).toMatch(/'config\/appVersion'/);
+  });
+
+  // 95 writes an update wall and removes it only on the way out, so any flow
+  // sorted after it would run behind the wall.
+  it('runs the version-gate flow last', () => {
+    const flows = readdirSync(flowsDir).filter((f) => f.endsWith('.yaml')).sort();
+    expect(flows.at(-1)).toBe('95-app-version-gate.yaml');
+  });
+
   it('waits for the device before every flow, bounded so a dead AVD fails by name', () => {
     expect(loop).toMatch(/'wait-for-device'\]/);
     expect(loop).toMatch(/timeout:\s*DEVICE_WAIT_MS/);
