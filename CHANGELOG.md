@@ -4,6 +4,16 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.6.0 — 2026-10-06
+
+<!-- store-notes -->
+- **La app abre al instante y funciona sin conexión**: tu pueblo, sus eventos y noticias se guardan en el móvil y se actualizan solos.
+- **Embajadores de Cultuvilla**: cada pueblo tiene su Embajador o Embajadora, visible en su página.
+- **Grupos con admisión**: un grupo puede pedir aprobación para unirse.
+- El resumen de las fiestas ya es de todo el pueblo.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
 - Signing out wipes the app's on-device data cache and restarts the app, so
   member-only data (private events, censo answers) never stays on a shared
   phone after the session ends.
