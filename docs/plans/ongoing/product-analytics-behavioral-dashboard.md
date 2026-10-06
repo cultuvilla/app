@@ -14,6 +14,7 @@ Phase 1 full-engagement instrumentation merged to `develop` (PR #150, merge `295
 
 ## Next steps
 
+0. **Before prod, on beta:** the `develop → beta` promotion builds Cultuvilla Beta (Android) and TestFlight with native analytics, reporting to `cultuvilla-beta`'s GA4 property. Open a beta build and watch GA4 Realtime/DebugView there, and confirm in GA4 Admin → BigQuery links on prod that the **Android and iOS streams** are selected for export — the iOS app was registered on 2026-10-02, after the export link was made, and a link only exports the streams ticked on it.
 1. **Verify native data once the store build ships.** In `cultuvilla-prod.analytics_546204987`, filter `platform IN ('ANDROID','IOS')` and check that `user_pseudo_id` is non-null and that `first_open` is not equal to every session start. Native event names use underscores (`content_detail_viewed`), web used dots — join with `REPLACE(event_name, '.', '_')`.
 2. Confirm the Phase 1 events in GA4 DebugView on one Android and one iOS build (this replaces the never-run web smoke).
 3. Phase 2, on native data.
@@ -27,7 +28,7 @@ Since 2026-08-01, 100% of exported events (all `platform = WEB`) had a null `use
 - Native analytics grants consent at boot (`apps/mobile/lib/observability/configure.ts` — `observability.setConsent({ analytics: true })`, covered by the Terms/Privacy Policy accepted at registration) and forwards to `@react-native-firebase/analytics` via `setAnalyticsCollectionEnabled`. Native events should carry a pseudo id; step 1 above proves it.
 - The `measurementId` question is moot on native: the config comes from the per-env `google-services.json` / `GoogleService-Info.plist`.
 
-**Consequence for the read site:** with no web analytics, share-link visits are only visible in `readSite` request logs. Phase 5 of [app-only-transition.md](app-only-transition.md) needs that number (web share-link visits vs. native `first_open`), so a log-based metric on `readSite` belongs in Phase 3 here.
+**Consequence for the read site:** with no web analytics, share-link visits are only visible in `readSite` request logs. The web sign-up question that once needed that number is decided (no web sign-up, 2026-10-06), but share-link reach is still the top of the install funnel, so a log-based metric on `readSite` belongs in Phase 3 here.
 
 ## Handoff
 
@@ -139,11 +140,8 @@ events fire on the web build.
 - **Log-based metrics** on key callables (error rate, p95 latency, success ratio)
   derived from the structured Cloud Logging the server logger already emits.
 - **A `readSite` visits metric** (page kind, entity kind, phone vs. desktop UA) —
-  the only web measurement left once the Expo web export is gone, and the input
-  app-only-transition phase 5 needs.
-- **A `readSite` visits metric** (page kind, entity kind, phone vs. desktop UA) —
-  the only web measurement left once the Expo web export is gone, and the input
-  app-only-transition phase 5 needs.
+  the only web measurement left once the Expo web export is gone: how many
+  people reach a shared link, against native `first_open`.
 - **Cloud Monitoring dashboard** for prod health.
 - **Alert policies** (email/Slack) on error-rate spikes and latency regressions —
   graduating the foundation's "alerting is manual for now" into alerts-as-code.
