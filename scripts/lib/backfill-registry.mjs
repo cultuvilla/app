@@ -58,6 +58,17 @@ export function isBackfillScriptPath(relPath) {
   return slash > 0 && SCAN_DIRS.includes(dir) && name.endsWith('.mjs') && !INFRA_FILES.has(name);
 }
 
+/**
+ * A scanned script that should be on the harness: in scripts/ by its name, and
+ * everything in scripts/backfill/ — names there drop the `backfill-` prefix
+ * the directory already says.
+ */
+export function looksLikeBackfill(relPath) {
+  if (!isBackfillScriptPath(relPath)) return false;
+  const p = String(relPath).replace(/\\/g, '/');
+  return p.startsWith('scripts/backfill/') || /(backfill|migrate|cleanup)/i.test(p.slice(p.lastIndexOf('/') + 1));
+}
+
 /** `_admin/backfills/markers/{id}` — 4 segments, so it is a DOCUMENT path.
  *  An odd segment count is a COLLECTION and `db.doc()` throws at runtime. */
 export function markerPath(id) {
