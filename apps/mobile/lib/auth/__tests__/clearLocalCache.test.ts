@@ -11,8 +11,12 @@ jest.mock('@cultuvilla/shared/firebase/sdk/firestore', () => ({
   clearIndexedDbPersistence: jest.fn(async () => undefined),
 }));
 jest.mock('expo-updates', () => ({ reloadAsync: jest.fn(async () => undefined) }));
+jest.mock('../../intro/introSkip', () => ({
+  skipIntroOnNextLaunch: jest.fn(async () => void mockOrder.push('skip-intro')),
+}));
 
-const order: string[] = [];
+const mockOrder: string[] = [];
+const order = mockOrder;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -25,7 +29,7 @@ beforeEach(() => {
 describe('clearLocalCacheAndRestart', () => {
   it('terminates Firestore before clearing its cache, then restarts', async () => {
     await clearLocalCacheAndRestart();
-    expect(order).toEqual(['terminate', 'clear', 'reload']);
+    expect(order).toEqual(['terminate', 'clear', 'skip-intro', 'reload']);
     expect(clearIndexedDbPersistence).toHaveBeenCalledWith({ db: true });
   });
 
