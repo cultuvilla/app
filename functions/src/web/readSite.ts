@@ -5,6 +5,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { webOriginForProject } from '@cultuvilla/shared/utils';
 import { renderDocument } from './document';
 import { handle } from './handler';
+import { READ_SITE_VISIT_MESSAGE, visitFields } from './visit';
 
 /**
  * The public web: a server-rendered, read-only Cultuvilla for the anonymous
@@ -18,12 +19,19 @@ export const readSite = onRequest(
   { region: 'europe-west1', cors: false, maxInstances: 20, memory: '256MiB', timeoutSeconds: 30 },
   async (req, res) => {
     const url = new URL(req.originalUrl, 'https://localhost');
+    const userAgent = req.get('user-agent') ?? null;
+    // Hosting caches 200s at the edge for an hour, so this counts origin
+    // renders — a lower bound on visits, not the visit count itself.
+    const logVisit = (status: number): void => {
+      logger.info(READ_SITE_VISIT_MESSAGE, visitFields(url.pathname, userAgent, status));
+    };
     try {
       const out = await handle(
-        { pathname: url.pathname, userAgent: req.get('user-agent') ?? null },
+        { pathname: url.pathname, userAgent },
         { db: getFirestore(), bucket: getStorage().bucket().name, now: new Date() },
       );
       if (out.kind === 'redirect') {
+        logVisit(out.permanent ? 301 : 302);
         res
           .status(out.permanent ? 301 : 302)
           .set('Location', out.permanent ? `${out.location}${url.search}` : out.location)
@@ -33,6 +41,7 @@ export const readSite = onRequest(
         return;
       }
       const status = out.page.status ?? 200;
+      logVisit(status);
       // Canonical names the project's public origin, never the host this request
       // arrived on — prod answers on two hosts and each would claim the page.
       const canonical = `${webOriginForProject(process.env['GCLOUD_PROJECT'])}${out.path}`;
@@ -49,6 +58,7 @@ export const readSite = onRequest(
         err: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
       });
+      logVisit(500);
       res.status(500).set('Content-Type', 'text/plain; charset=utf-8').set('Cache-Control', 'no-store').send('Error interno');
     }
   },
