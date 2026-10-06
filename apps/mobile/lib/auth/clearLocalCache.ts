@@ -3,6 +3,7 @@ import * as Updates from 'expo-updates';
 import { getDb } from '@cultuvilla/shared/firebase';
 import { observability } from '@cultuvilla/shared';
 import { clearIndexedDbPersistence, terminate } from '@cultuvilla/shared/firebase/sdk/firestore';
+import { skipIntroOnNextLaunch } from '../intro/introSkip';
 
 declare const __DEV__: boolean;
 
@@ -40,6 +41,9 @@ export async function clearLocalCacheAndRestart(): Promise<void> {
   } catch (error) {
     observability.captureError(error, { handler: 'clearLocalCacheAndRestart' });
   }
+  await skipIntroOnNextLaunch().catch((error: unknown) => {
+    observability.captureError(error, { handler: 'clearLocalCacheAndRestart' });
+  });
   if (__DEV__) {
     DevSettings.reload();
     return;

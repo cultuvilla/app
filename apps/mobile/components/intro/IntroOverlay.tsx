@@ -5,6 +5,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 import { observability } from '@cultuvilla/shared';
 import { colors } from '@cultuvilla/shared/design-system';
 import { useT } from '../../lib/i18n';
+import { consumeIntroSkip } from '../../lib/intro/introSkip';
 
 // Regenerate from the animator's export with scripts/prepare-intro-lottie.mjs.
 const ANIMATION = require('../../assets/intro/cultuvilla-intro.json');
@@ -24,7 +25,7 @@ type Phase = 'starting' | 'playing' | 'leaving' | 'gone';
  * Full-screen startup intro, shown once per cold start over the app while it
  * loads. It leaves when the animation has finished AND the app is ready, when
  * tapped, or after INTRO_MAX_MS — whichever comes first. Skipped entirely for
- * users with Reduce Motion on.
+ * users with Reduce Motion on, and on the restart that follows a sign-out.
  */
 export function IntroOverlay({ appReady }: { appReady: boolean }) {
   const { t } = useT();
@@ -40,9 +41,12 @@ export function IntroOverlay({ appReady }: { appReady: boolean }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const reduceMotion = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
+      const [reduceMotion, skip] = await Promise.all([
+        AccessibilityInfo.isReduceMotionEnabled().catch(() => false),
+        consumeIntroSkip(),
+      ]);
       if (cancelled) return;
-      if (reduceMotion) {
+      if (reduceMotion || skip) {
         setPhase('gone');
         return;
       }
