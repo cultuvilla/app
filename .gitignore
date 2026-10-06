@@ -53,3 +53,6 @@ scripts/data/.settlements-cache/
 firebase.emulator-bind.json
 # Per-worktree emulator config written by scripts/agent-env.sh (the slot's ports)
 firebase.agent.json
+# Placeholder secrets for the Functions emulator, written per run by
+# scripts/run-tests-with-emulators.mjs (and a developer's own overrides)
+functions/.secret.local

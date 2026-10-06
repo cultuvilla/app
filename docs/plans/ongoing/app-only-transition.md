@@ -117,8 +117,8 @@ weeks later.
       suite (`test:e2e:web`) and its CI job
 - [x] The `mobile-web-compat` skill
 - [x] Port the product flows only Playwright covered to Maestro (flows
-      `60`–`91`; register a family member was already `21`). Onboarding stays
-      uncovered while `50` is quarantined — re-run it on the native SDK.
+      `60`–`91`; register a family member was already `21`). Onboarding is
+      covered again: `50` passes on the native SDK and left quarantine on 2026-10-06.
 
 ## Phase 5 — web sign-up decision
 

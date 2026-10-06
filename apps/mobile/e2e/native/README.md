@@ -27,7 +27,7 @@ branch without waiting for a promotion PR.
 | `22-unregister-from-event` | A real native `Alert.alert` confirmation. |
 | `30-village-join` | A rules-gated direct client write, and the UI flip that follows it. |
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
-| `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. **Quarantined — see below.** |
+| `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. |
 | `60-create-publish-event` | The 4-step event wizard, including the OS location permission and a real GPS fix (`setLocation`). |
 | `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
 | `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
@@ -49,19 +49,11 @@ run** by the gate, each with the reason. Every run prints what it held out, twic
 reads as "everything passed", which is worse than a red lane. `--flow <name>`
 still runs a quarantined flow, so chasing one needs no edit.
 
-Currently held out: **`50-onboarding-complete-profile`**. The profile submit
-hung on the Firestore JS SDK's cleartext connection to `10.0.2.2` — logcat
-shows `unexpected end of stream on http://10.0.2.2:8080`, and a Firestore write
-promise never settles when the connection drops, so "Crear perfil" spins
-forever. It reproduced on both runs that reached the submit.
-
-With the Playwright suite gone, **onboarding has no end-to-end coverage** while
-this flow is held out — only the jest tests of the person form. What fails is
-the emulator transport, which no real client uses (real clients talk to
-Firestore over TLS, not cleartext to an AVD host alias), so it is not a release
-blocker; it is still the first quarantine to lift. The finding predates the
-move to `@react-native-firebase`, whose transport is different: re-run it with
-`--flow 50-onboarding-complete-profile.yaml` before trying anything else.
+Currently held out: **nothing**. `50-onboarding-complete-profile` was held out
+while the app talked to the emulators through the Firestore JS SDK, whose
+cleartext connection to `10.0.2.2` dropped mid-write and left "Crear perfil"
+spinning. On `@react-native-firebase` (the native SDK) it passes, and it was
+put back in the gate on 2026-10-06.
 
 ## Backend assertions from Maestro
 

@@ -9,8 +9,8 @@ const uuidCjs = require.resolve('uuid', { paths: [path.dirname(require.resolve('
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
-  // Playwright specs under e2e/ use @playwright/test's runner, not jest — jest
-  // must not try to execute them (it would fail parsing test.describe/expect).
+  // e2e/ holds the Maestro suite (YAML flows plus host-side helper scripts that
+  // Maestro runs) — it runs on a device via `pnpm test:e2e:android`, not jest.
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/'],
   // jest-expo render suites are heavy (~12-15s each) and run in parallel; the
   // default 5000ms per-test limit is too tight under CI contention and flakes

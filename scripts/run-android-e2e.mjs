@@ -130,16 +130,8 @@ if (apk) {
 // suite that silently shrank reads as "everything passed", which is worse than
 // a red lane. `--flow` still runs a quarantined flow explicitly, so chasing one
 // needs no edit here.
-const QUARANTINED = new Map([
-  [
-    '50-onboarding-complete-profile.yaml',
-    "profile submit hung on the Firestore JS SDK's cleartext connection to " +
-      '10.0.2.2 (logcat: "unexpected end of stream on http://10.0.2.2:8080"). A ' +
-      'Firestore write promise never settles when the connection drops, so the ' +
-      'button spins forever. Onboarding has no other E2E coverage while this is ' +
-      'held out. Re-run it with --flow on @react-native-firebase before anything else.',
-  ],
-]);
+// Shape: [['NN-name.yaml', 'reason, long enough to act on'], ...].
+const QUARANTINED = new Map([]);
 
 mkdirSync(REPORT_DIR, { recursive: true });
 const discovered = readdirSync(FLOWS_DIR)

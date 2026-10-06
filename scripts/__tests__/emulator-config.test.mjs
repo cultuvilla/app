@@ -9,7 +9,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { emulatorHostEnv, emulatorPorts, resolveEmulatorConfig } from '../lib/emulator-config.mjs';
+import {
+  declaredSecrets,
+  emulatorHostEnv,
+  emulatorPorts,
+  ensureEmulatorSecrets,
+  resolveEmulatorConfig,
+} from '../lib/emulator-config.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -62,4 +68,42 @@ test('the test processes are pointed at the same ports the emulators bind', () =
 test('a config missing an emulator port is an error, not a silent default', () => {
   // A default here would be 8080 — exactly the shared port the slot exists to avoid.
   assert.throws(() => emulatorPorts({ emulators: { auth: { port: 1 } } }), /no port for "firestore"/);
+});
+
+// Without a .secret.local the Functions emulator asks Secret Manager for every
+// declared secret on each invocation and logs "Failed to authenticate, have you
+// run firebase login?" wherever there is no login — every CI run.
+test('every secret the functions declare gets an emulator placeholder', () => {
+  const declared = declaredSecrets(path.join(REPO_ROOT, 'functions', 'src'));
+  assert.ok(declared.includes('RESEND_API_KEY'));
+  assert.ok(declared.includes('APNS_AUTH_KEY'));
+
+  const fnsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'emulator-secrets-'));
+  try {
+    fs.mkdirSync(path.join(fnsDir, 'src', 'auth'), { recursive: true });
+    fs.mkdirSync(path.join(fnsDir, 'src', '__tests__'), { recursive: true });
+    fs.writeFileSync(path.join(fnsDir, 'src', 'auth', 'secret.ts'), "export const A = defineSecret('A_KEY');\n");
+    fs.writeFileSync(path.join(fnsDir, 'src', '__tests__', 'x.ts'), "defineSecret('TEST_ONLY');\n");
+
+    const written = ensureEmulatorSecrets(fnsDir);
+    assert.equal(written, path.join(fnsDir, '.secret.local'));
+    const body = fs.readFileSync(written, 'utf8');
+    // Non-empty: the emulator treats an empty value as missing and asks anyway.
+    assert.match(body, /^A_KEY=\S+$/m);
+    assert.doesNotMatch(body, /TEST_ONLY/);
+  } finally {
+    fs.rmSync(fnsDir, { recursive: true, force: true });
+  }
+});
+
+test("a developer's own .secret.local is never overwritten", () => {
+  const fnsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'emulator-secrets-'));
+  try {
+    fs.mkdirSync(path.join(fnsDir, 'src'));
+    fs.writeFileSync(path.join(fnsDir, '.secret.local'), 'RESEND_API_KEY=re_real\n');
+    assert.equal(ensureEmulatorSecrets(fnsDir), null);
+    assert.equal(fs.readFileSync(path.join(fnsDir, '.secret.local'), 'utf8'), 'RESEND_API_KEY=re_real\n');
+  } finally {
+    fs.rmSync(fnsDir, { recursive: true, force: true });
+  }
 });

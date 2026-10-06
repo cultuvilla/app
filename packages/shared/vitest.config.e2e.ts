@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { E2E_INCLUDE } from './vitest.suites';
 
 const RETRY = Number.parseInt(process.env.VITEST_RETRY_COUNT ?? '0', 10);
 
@@ -9,7 +10,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/e2e/**/*.test.ts'],
+    include: E2E_INCLUDE,
     retry: Number.isFinite(RETRY) && RETRY > 0 ? RETRY : 0,
     setupFiles: ['test/setup/e2e.setup.ts'],
     testTimeout: 30_000,
