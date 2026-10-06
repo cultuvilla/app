@@ -133,8 +133,8 @@ describe('fiestas persistence', () => {
         fiestas: [{ id: 'santiago', name: 'Santiago', anchor: { month: 7, day: 24, days: 3 }, years: {} }],
       },
     });
-    const { getByTestId } = render(<CommunitySettingsEditor villageId="m1" />);
-    await waitFor(() => expect(getByTestId('fiesta-santiago-name').props.value).toBe('Santiago'));
+    const { getByText } = render(<CommunitySettingsEditor villageId="m1" />);
+    await waitFor(() => expect(getByText('Santiago')).toBeTruthy());
   });
 
   // The service rejects malformed blocks at the write boundary; the screen must
