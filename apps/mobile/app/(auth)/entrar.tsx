@@ -6,6 +6,7 @@ import {
   AppleButton,
   AuthCard,
   AuthHeader,
+  DevLoginButtons,
   GoogleButton,
   OrDivider,
 } from '../../components/auth';
@@ -17,7 +18,14 @@ import { useT } from '../../lib/i18n';
 type Step = 'email' | 'code';
 
 export default function LoginScreen() {
-  const { sendOtpCode, verifyOtpCode, signInWithGoogle, signInWithApple } = useAuth();
+  const {
+    sendOtpCode,
+    verifyOtpCode,
+    signInWithGoogle,
+    signInWithApple,
+    devAccounts,
+    signInWithDevAccount,
+  } = useAuth();
   const { t } = useT();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
@@ -28,6 +36,7 @@ export default function LoginScreen() {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [devLoadingEmail, setDevLoadingEmail] = useState<string | null>(null);
 
   async function onSendCode() {
     setError(null);
@@ -107,6 +116,20 @@ export default function LoginScreen() {
     }
   }
 
+  async function onDevAccount(devEmail: string) {
+    setError(null);
+    setDevLoadingEmail(devEmail);
+    try {
+      await signInWithDevAccount(devEmail);
+    } catch (e) {
+      // Not sent to reportAuthError: a dev-account failure is a local .env or
+      // seed problem, not a production auth signal worth an error report.
+      setError(authErrorMessage(e, t('auth.error.unknown')));
+    } finally {
+      setDevLoadingEmail(null);
+    }
+  }
+
   if (step === 'code') {
     return (
       <AuthCard>
@@ -168,6 +191,11 @@ export default function LoginScreen() {
             testID="login-apple-button"
           />
         )}
+        <DevLoginButtons
+          accounts={devAccounts}
+          onSelect={onDevAccount}
+          loadingEmail={devLoadingEmail}
+        />
       </VStack>
     </AuthCard>
   );

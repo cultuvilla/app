@@ -58,21 +58,20 @@ interface GoogleSignInExtra {
   iosClientId: string;
 }
 
-interface DevAutoLogin {
-  email: string;
+interface DevLogin {
+  emails: string[];
   password: string;
 }
 
-// Dev-only convenience: skip the email-link round-trip on the emulator by
-// signing straight into a seeded test account. app.config.ts only populates
-// `extra.devAutoLogin` for `dev` builds when DEV_AUTOLOGIN_EMAIL/PASSWORD are
-// set; the __DEV__ guard is a second backstop so this is impossible in a
-// production bundle.
-function getDevAutoLogin(): DevAutoLogin | null {
+// Dev-only convenience: one-tap sign-in to seeded test accounts from the login
+// screen. app.config.ts only populates `extra.devLogin` for `dev` builds when
+// DEV_LOGIN_EMAILS/PASSWORD are set; the __DEV__ guard is a second backstop so
+// this is impossible in a production bundle.
+function getDevLogin(): DevLogin | null {
   if (!__DEV__) return null;
-  const extra = Constants.expoConfig?.extra as { devAutoLogin?: DevAutoLogin | null } | undefined;
-  const cfg = extra?.devAutoLogin;
-  if (!cfg?.email || !cfg?.password) return null;
+  const extra = Constants.expoConfig?.extra as { devLogin?: DevLogin | null } | undefined;
+  const cfg = extra?.devLogin;
+  if (!cfg?.emails?.length || !cfg.password) return null;
   return cfg;
 }
 
@@ -87,7 +86,6 @@ function getGoogleSignInConfig(): GoogleSignInExtra | null {
 // completes) — used only by changeEmail/completeReauth, the one flow that
 // still uses a real email link (see getEmailLinkContinueUrl below).
 const PENDING_REAUTH_KEY = 'cultuvilla.pendingReauth';
-const DEV_AUTOLOGIN_SKIP_KEY = 'cultuvilla.devAutoLoginSkip';
 const AUTH_EMAIL_LANGUAGE = 'es';
 
 function getLocalizedAuth(): ReturnType<typeof getAuth> {
@@ -209,6 +207,9 @@ export interface AuthContextValue {
    * implementation for why an abandoned sign-up must not be left behind.
    */
   abandonSignUp: () => Promise<void>;
+  /** Seeded accounts the login screen offers one-tap sign-in to. Empty outside dev builds. */
+  devAccounts: string[];
+  signInWithDevAccount: (email: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -239,37 +240,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!u) setProfileChecked(true);
     });
   }, []);
-
-  // Dev auto sign-in: once the initial auth state has resolved to "signed
-  // out", sign into the configured test account. Attempt-once-per-session so a
-  // manual signOut() lets you exercise the guest flow without being yanked
-  // straight back in — reload the app to re-trigger.
-  //
-  // teardownSession() claims the attempt, so a sign-out never feeds the
-  // auth-state flip back into an auto sign-in. signOut() then reloads the JS
-  // app (clearLocalCacheAndRestart), which resets the ref, so it also leaves a
-  // marker in AsyncStorage that only the next launch consumes.
-  const devAutoLoginAttempted = useRef(false);
-  useEffect(() => {
-    if (loading || user || devAutoLoginAttempted.current) return;
-    const cfg = getDevAutoLogin();
-    if (!cfg) return;
-    devAutoLoginAttempted.current = true;
-    void (async () => {
-      try {
-        if (await AsyncStorage.getItem(DEV_AUTOLOGIN_SKIP_KEY)) {
-          await AsyncStorage.removeItem(DEV_AUTOLOGIN_SKIP_KEY);
-          return;
-        }
-      } catch (e) {
-        console.warn('[dev-autologin] skip marker unreadable:', e instanceof Error ? e.message : e);
-        return;
-      }
-      await signInWithEmailAndPassword(getAuth(), cfg.email, cfg.password).catch((e) => {
-        console.warn('[dev-autologin] sign-in failed:', e instanceof Error ? e.message : e);
-      });
-    })();
-  }, [loading, user]);
 
   useEffect(() => {
     if (googleConfigured.current) return;
@@ -576,7 +546,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canChangeEmail = isEmailOnlyAccount(user);
 
   const teardownSession = async (): Promise<void> => {
-    devAutoLoginAttempted.current = true;
     // This device's push row first, while the user can still delete it — the
     // rules are owner-only, and a shared phone must stop receiving the previous
     // account's pushes the moment it signs out.
@@ -596,9 +565,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.removeItem(PENDING_REAUTH_KEY);
   };
 
+  const devLogin = getDevLogin();
+  const devAccounts = devLogin?.emails ?? [];
+
+  const signInWithDevAccount = async (email: string): Promise<void> => {
+    if (!devLogin || !devLogin.emails.includes(email)) {
+      throw new Error(`[dev-login] ${email} is not a configured dev account`);
+    }
+    await signInWithEmailAndPassword(getAuth(), email, devLogin.password);
+  };
+
   const signOut = async (): Promise<void> => {
     await teardownSession();
-    if (getDevAutoLogin()) await AsyncStorage.setItem(DEV_AUTOLOGIN_SKIP_KEY, '1');
     await fbSignOut(getAuth());
     await clearLocalCacheAndRestart();
   };
@@ -653,6 +631,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canChangeEmail,
         signOut,
         abandonSignUp,
+        devAccounts,
+        signInWithDevAccount,
       }}
     >
       {children}

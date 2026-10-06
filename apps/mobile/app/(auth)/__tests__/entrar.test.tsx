@@ -13,6 +13,7 @@ const mockSendOtpCode = jest.fn();
 const mockVerifyOtpCode = jest.fn();
 const mockSignInWithGoogle = jest.fn();
 const mockSignInWithApple = jest.fn();
+const mockSignInWithDevAccount = jest.fn();
 
 const mockUseAuth = jest.fn();
 jest.mock('../../../lib/auth/useAuth', () => ({
@@ -26,6 +27,8 @@ beforeEach(() => {
     verifyOtpCode: mockVerifyOtpCode,
     signInWithGoogle: mockSignInWithGoogle,
     signInWithApple: mockSignInWithApple,
+    devAccounts: [],
+    signInWithDevAccount: mockSignInWithDevAccount,
   });
 });
 
@@ -214,5 +217,49 @@ describe('<LoginScreen>', () => {
     fireEvent.press(getByTestId('login-apple-button'));
 
     await waitFor(() => expect(mockSignInWithApple).toHaveBeenCalledTimes(1));
+  });
+
+  describe('dev login buttons', () => {
+    it('are absent when the build carries no dev accounts', () => {
+      const { queryByTestId } = render(<LoginScreen />);
+      expect(queryByTestId('login-dev-account-demo-vecino@cultuvilla.dev')).toBeNull();
+    });
+
+    it('sign into the tapped account', async () => {
+      mockSignInWithDevAccount.mockResolvedValue(undefined);
+      mockUseAuth.mockReturnValue({
+        ...mockUseAuth(),
+        devAccounts: ['demo-vecino@cultuvilla.dev', 'demo-admin@cultuvilla.dev'],
+      });
+      const { getByTestId } = render(<LoginScreen />);
+
+      fireEvent.press(getByTestId('login-dev-account-demo-admin@cultuvilla.dev'));
+
+      await waitFor(() =>
+        expect(mockSignInWithDevAccount).toHaveBeenCalledWith('demo-admin@cultuvilla.dev'),
+      );
+    });
+
+    it('shows the error and frees the button when the sign-in fails', async () => {
+      let reject: (e: Error) => void = () => {};
+      mockSignInWithDevAccount.mockReturnValue(
+        new Promise((_, r) => {
+          reject = r;
+        }),
+      );
+      mockUseAuth.mockReturnValue({
+        ...mockUseAuth(),
+        devAccounts: ['demo-vecino@cultuvilla.dev'],
+      });
+      const id = 'login-dev-account-demo-vecino@cultuvilla.dev';
+      const { getByTestId, findByText, findByTestId, queryByTestId } = render(<LoginScreen />);
+
+      fireEvent.press(getByTestId(id));
+      await findByTestId(`${id}-spinner`);
+
+      reject(new Error('wrong password'));
+      await findByText('wrong password');
+      expect(queryByTestId(`${id}-spinner`)).toBeNull();
+    });
   });
 });

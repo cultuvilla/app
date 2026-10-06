@@ -60,15 +60,15 @@ When the change adds new native code (not just JS-side config), a new dev-client
 
 ```bash
 cd apps/mobile
-DEV_AUTOLOGIN_EMAIL= DEV_AUTOLOGIN_PASSWORD= eas build --profile development --platform android
+DEV_LOGIN_EMAILS= DEV_LOGIN_PASSWORD= eas build --profile development --platform android
 # or --platform ios, or --platform all
 ```
 
-**Blank the two `DEV_AUTOLOGIN_*` vars.** They live in the local `.env` and feed
-`extra.devAutoLogin` in `app.config.ts`, but not the EAS `development` environment.
+**Blank the two `DEV_LOGIN_*` vars.** They live in the local `.env` and feed
+`extra.devLogin` in `app.config.ts`, but not the EAS `development` environment.
 `runtimeVersion` is `fingerprint`, so the differing config fails the build in
 *Configure expo-updates* with "Runtime version mismatch". The dev client still gets
-auto-login at runtime from Metro's manifest.
+the dev login buttons at runtime from Metro's manifest.
 
 After the build completes, install the new binary on the device/emulator before launching the JS bundle:
 
