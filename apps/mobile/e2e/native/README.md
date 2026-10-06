@@ -144,9 +144,11 @@ Three more traps, all hit on a full local run (2026-10-06):
   `Device emulator-5554 is not connected` even though `adb devices` lists it. A
   phone stuck `offline` after the adb server restarts is enough. Re-authorise
   or unplug it, and pin `E2E_ANDROID_DEVICE=emulator-5554`.
-- **Run the Maestro version CI runs.** CI installs the latest release on every
-  run. Maestro 2.4 rejects non-ASCII `inputText` (`Unicode not supported: Peña…`
-  in flow 70), and 2.11 accepts it. Point `MAESTRO_BIN` at a current install.
+- **Run the Maestro version CI runs** — `MAESTRO_VERSION` in
+  [android-e2e.yml](../../../../.github/workflows/android-e2e.yml). Maestro 2.4
+  rejects non-ASCII `inputText` (`Unicode not supported: Peña…` in flow 70).
+  Install the pinned one with `MAESTRO_VERSION=<v> curl -Ls https://get.maestro.mobile.dev | bash`
+  (it needs `unzip`), or point `MAESTRO_BIN` at it.
 
 ## Maestro traps this suite already paid for
 
