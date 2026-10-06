@@ -74,10 +74,12 @@ jobs:
     if: needs.gate.outputs.run == 'true'
     # Expo SDK 56 needs Xcode 26.4+, which the macOS 26 image carries.
     runs-on: macos-26
-    # Pods + a cold Release Xcode build is the long pole (~35 min), then a
-    # Simulator boot and 15 flows. Generous on purpose, as for Android: timing
-    # out mid-suite tells you nothing.
-    timeout-minutes: 120
+    # A cold Release Xcode build (~35 min), ~15 min of setup (emulators, seed,
+    # deep-link trust), then ~22 flows at ~3 min each — Maestro restarts its
+    # XCTest driver for every flow, ~1 min apiece on iOS. 120 min cut run 8
+    # off four flows short. Generous on purpose, as for Android: timing out
+    # mid-suite tells you nothing.
+    timeout-minutes: 180
 
     steps:
       - name: Checkout
@@ -170,8 +172,10 @@ jobs:
           E2E_NATIVE_FLOW: ${{ inputs.flows }}
         run: pnpm test:e2e:ios
 
+      # always(), not !cancelled(): a timeout cancels the job, and the
+      # screenshots of a run that timed out are exactly the ones needed.
       - name: Upload Maestro artifacts
-        if: ${{ !cancelled() }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: maestro-artifacts-ios

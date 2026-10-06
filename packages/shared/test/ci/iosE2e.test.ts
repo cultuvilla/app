@@ -43,6 +43,13 @@ describe('ios-e2e workflow gating', () => {
     }
   });
 
+  // Run 8 timed out mid-suite and the upload, gated on !cancelled(), was
+  // skipped: the failures it had already seen left no screenshot behind.
+  it('uploads the Maestro artifacts even from a cancelled or timed-out job', () => {
+    const step = workflow.slice(workflow.indexOf('- name: Upload Maestro artifacts'));
+    expect(step).toMatch(/^\s*- name: Upload Maestro artifacts\s*\n\s*if: \$\{\{ always\(\) \}\}/);
+  });
+
   it('drives the suite through the same entrypoint a developer uses', () => {
     expect(workflow).toContain('run: pnpm test:e2e:ios');
     expect(rootPkg.scripts['test:e2e:ios']).toContain('run-tests-with-emulators.mjs');
