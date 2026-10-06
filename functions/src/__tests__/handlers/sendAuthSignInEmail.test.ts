@@ -3,7 +3,7 @@
 // only the Resend secret and the `resend` package itself are mocked so no
 // network send happens.
 
-import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi, type MockInstance } from 'vitest';
 import functionsTestFactory from 'firebase-functions-test';
 import { logger } from 'firebase-functions/v2';
 import { resetEmulators } from '../helpers/firestoreEmulator';
@@ -134,7 +134,7 @@ describe('sendAuthSignInEmail (callable)', () => {
   });
 
   describe('under the Functions emulator', () => {
-    let info: ReturnType<typeof vi.spyOn<typeof logger, 'info'>>;
+    let info: MockInstance<typeof logger.info>;
     beforeEach(() => {
       vi.stubEnv('FUNCTIONS_EMULATOR', 'true');
       info = vi.spyOn(logger, 'info');
