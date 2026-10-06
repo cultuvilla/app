@@ -9,9 +9,9 @@ That rule is satisfied now, and the arrangement it forced had become the problem
 
 | Surface | Package | Firebase project | Distribution |
 |---|---|---|---|
-| Play **Cultuvilla** (`internal` / `closed` / `production`) | `com.cultuvilla.app` | `cultuvilla-prod` | explicit `mobile-release` dispatch only |
+| Play **Cultuvilla** (`internal` / `closed` / `production`) | `com.cultuvilla.app` | `cultuvilla-prod` | `production` on a version-bumping merge to `main` ([production-auto-release](production-auto-release.md)); other tracks by `mobile-release` dispatch |
 | Play **Cultuvilla Beta** (`internal`) | `com.cultuvilla.app.beta` | `cultuvilla-beta` | every merge to `beta` (`beta-build-and-submit`) + OTA channel `beta` |
-| iOS App Store / TestFlight | `com.cultuvilla.app` | `cultuvilla-prod` | TestFlight on every merge to `beta`; App Store by dispatch |
+| iOS App Store / TestFlight | `com.cultuvilla.app` | `cultuvilla-prod` | TestFlight on every merge to `beta`; App Store review on the merge to `main` |
 | `preview-dev` APK / dev client | `com.cultuvilla.app.dev` | `villa-events` | sideload only — **never submitted** |
 
 So on Android a tester has **Cultuvilla**, **Cultuvilla Beta** and (for us) **Dev**
