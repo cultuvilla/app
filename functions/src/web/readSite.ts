@@ -14,6 +14,11 @@ import { handle } from './handler';
  * Cache-Control: 10 min in the browser, 1 hour at the Hosting edge, so a busy
  * share link costs one render an hour, not one per visitor.
  */
+export function cacheControlFor(status: number, deviceDependent: boolean): string {
+  if (deviceDependent) return 'private, no-store';
+  return status === 200 ? 'public, max-age=600, s-maxage=3600' : 'public, max-age=60, s-maxage=300';
+}
+
 export const readSite = onRequest(
   { region: 'europe-west1', cors: false, maxInstances: 20, memory: '256MiB', timeoutSeconds: 30 },
   async (req, res) => {
@@ -39,8 +44,10 @@ export const readSite = onRequest(
       res
         .status(status)
         .set('Content-Type', 'text/html; charset=utf-8')
-        // A 404 caches briefly: the doc may exist a minute from now.
-        .set('Cache-Control', status === 200 ? 'public, max-age=600, s-maxage=3600' : 'public, max-age=60, s-maxage=300')
+        // A 404 caches briefly: the doc may exist a minute from now. A device-dependent
+        // page never caches at the edge: Hosting ignores Vary: User-Agent, so a desktop's
+        // /descarga picker would be served to the next phone that scans the printed QR.
+        .set('Cache-Control', cacheControlFor(status, out.deviceDependent === true))
         .send(renderDocument(out.page, { canonical, appPath: out.path }));
     } catch (err) {
       logger.error('readSite failed', {

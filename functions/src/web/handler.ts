@@ -54,7 +54,8 @@ export interface WebRequest {
 }
 
 export type WebResponse =
-  | { kind: 'page'; page: Page; path: string }
+  /** `deviceDependent`: the answer differs by User-Agent, so the edge must not share it. */
+  | { kind: 'page'; page: Page; path: string; deviceDependent?: true }
   /** Permanent for canonical paths, temporary for the UA-dependent store hand-off. */
   | { kind: 'redirect'; location: string; permanent: boolean };
 
@@ -165,7 +166,9 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
       // The printed /descarga QR: a phone goes straight to its store.
       const platform = resolveStorePlatform(req.userAgent, 0);
       const store = platform ? APP_STORES[platform] : '';
-      return store ? { kind: 'redirect', location: store, permanent: false } : page(downloadPage(), path);
+      return store
+        ? { kind: 'redirect', location: store, permanent: false }
+        : { kind: 'page', page: downloadPage(), path, deviceDependent: true };
     }
     case 'legal':
       return page(legalPage(route.page), path);
