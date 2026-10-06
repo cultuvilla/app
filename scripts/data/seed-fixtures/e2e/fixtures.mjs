@@ -2,9 +2,9 @@
  * Deterministic E2E fixtures for the Firebase emulator.
  *
  * Consumed by `scripts/seed/e2e.mjs`, which builds converter-valid docs via the
- * shared model builders (so these can't drift from schema — D5). The Playwright
- * suite mirrors the handful of identifiers it needs in
- * `apps/mobile/e2e/lib/fixtures.ts`; THIS file is the source of truth.
+ * shared model builders (so these can't drift from schema — D5). The Maestro
+ * flows under `apps/mobile/e2e/native/flows/` hard-code the handful of
+ * identifiers they need (YAML can't import JS); THIS file is the source of truth.
  *
  * Small, stable, assertion-friendly on purpose — never the demo_1 showcase set.
  * IDs are fixed (not dataset-namespaced) because this set owns the emulator.
@@ -46,8 +46,9 @@ export const users = {
     firstSurname: 'Admin',
     appAdmin: true,
   },
-  // Onboarded villager who is NOT a member of any org — requests to join a peña
-  // in the org-create-approve-join flow.
+  // Onboarded villager who is NOT a member of any org — joins an open peña in
+  // the org-create-approve-join flow and asks to join `approvalOrg` in the
+  // org-join-request flow.
   joiner: {
     uid: 'e2e-joiner',
     email: 'e2e-joiner@cultuvilla.test',
@@ -109,6 +110,16 @@ export const org = {
   name: 'Ayuntamiento de Altozano',
   type: 'ayuntamiento',
   description: 'Organización de prueba para los tests E2E.',
+};
+
+// A peña whose members are admitted by approval (`joinPolicy: 'approval'`).
+// The org-join-request flow asks to join it as `users.joiner`; `users.admin` is
+// its org admin and resolves the request from the Buzón.
+export const approvalOrg = {
+  docId: 'e2e-org-pena-cerrada',
+  name: 'Peña Cerrada E2E',
+  type: 'peña',
+  description: 'Peña con admisión por solicitud, para el flujo de unión con aprobación.',
 };
 
 export const event = {
