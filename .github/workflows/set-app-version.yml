@@ -28,7 +28,7 @@ on:
           - beta
           - prod
       latest:
-        description: 'latest version, both platforms (blank = whatever each store serves, per APP_STORE_VERSIONS)'
+        description: 'latest version, both platforms (blank = PRESERVE what is stored; the announce poller sets it once a store serves a release)'
         required: false
         type: string
       min_supported:

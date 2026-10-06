@@ -16,6 +16,13 @@ name: Production release
 #            was built and tested when the same version merged to beta, so
 #            production ships exactly what testers ran. Android waits for it.
 #
+# A BREAKING release (a `Breaking-Client:` trailer since the previous release
+# tag) is deployed with its functions and rules held until both stores serve
+# it. Its deploy is still green, so the store jobs run; the OTA is skipped, and
+# announce-when-live.yml ships the backend and raises the wall once the stores
+# are live. `[auto-deploy]` in the merge commit deploys it immediately instead.
+# See docs/decisions/announce-when-live-poller.md.
+#
 # The store jobs run only when apps/mobile/package.json's version differs from
 # the previous main tip, so a re-deploy or a hotfix merge without a bump never
 # builds a binary.
@@ -174,14 +181,24 @@ jobs:
   # Ship nothing to users until the backend they will talk to is live. A
   # bundle calling a callable the prod deploy has not shipped yet — or that a
   # conformance/backfill gate blocked — is a broken app, not an early one.
+  #
+  # A BREAKING release's deploy is green with its functions and rules held
+  # (deploy-firebase.yml's release plan; docs/decisions/announce-when-live-poller.md).
+  # That must not deadlock the stores — the held backend waits for exactly
+  # these binaries to go live — so the store jobs still run. The OTA does not:
+  # it would put the new bundle on installed binaries against the old backend,
+  # and every one of them is walled anyway the moment the held backend ships.
   backend:
     name: Wait for the prod backend deploy
     needs: plan
     if: ${{ needs.plan.outputs.ota == 'true' || needs.plan.outputs.store == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 75
+    outputs:
+      held: ${{ steps.wait.outputs.held }}
     steps:
       - name: Wait for Deploy prod on this commit
+        id: wait
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -201,7 +218,7 @@ jobs:
             run_id=$(jq -r '.id // empty' <<<"${run}" 2>/dev/null) || run_id=""
             if [ -n "${run_id}" ] \
               && jobs=$(gh api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
-                --jq '[.jobs[] | select(.name | startswith("deploy / "))] | map({name, status, conclusion})'); then
+                --jq '[.jobs[] | select(.name | startswith("deploy / "))] | map({name, status, conclusion, held: ([.steps[]? | select(.name == "Deploy Cloud Functions") | .conclusion] | any(. == "skipped"))})'); then
               echo "${jobs}"
               count=$(jq 'length' <<<"${jobs}")
               if [ "${count}" = "0" ] && [ "$(jq -r '.status' <<<"${run}")" = "completed" ]; then
@@ -210,7 +227,13 @@ jobs:
               fi
               if [ "${count}" -gt 0 ] && [ "$(jq 'all(.status == "completed")' <<<"${jobs}")" = "true" ]; then
                 if [ "$(jq 'all(.conclusion == "success")' <<<"${jobs}")" = "true" ]; then
-                  echo "Prod backend deploy is green (run ${run_id})."
+                  held=$(jq 'any(.held)' <<<"${jobs}")
+                  echo "held=${held}" >> "$GITHUB_OUTPUT"
+                  if [ "${held}" = "true" ]; then
+                    echo "::notice::Prod deploy is green with the backend HELD (breaking release, run ${run_id}): the stores ship, the production OTA does not. The backend ships when both stores serve this version."
+                  else
+                    echo "Prod backend deploy is green (run ${run_id})."
+                  fi
                   exit 0
                 fi
                 echo "::error::The prod backend deploy failed (run ${run_id}) — nothing ships. Fix it and re-run this workflow."
@@ -225,7 +248,7 @@ jobs:
   ota:
     name: Production OTA
     needs: [plan, backend]
-    if: ${{ needs.plan.outputs.ota == 'true' }}
+    if: ${{ needs.plan.outputs.ota == 'true' && needs.backend.outputs.held != 'true' }}
     uses: ./.github/workflows/mobile-ota.yml
     with:
       channel: production
@@ -248,6 +271,8 @@ jobs:
     # a runner timeout cancels only the wait, never the build or its
     # server-side auto-submit, so a short limit just hides the outcome.
     timeout-minutes: 150
+    outputs:
+      version_code: ${{ steps.built.outputs.version_code }}
     steps:
       - uses: actions/checkout@v5
 
@@ -306,6 +331,22 @@ jobs:
             --wait \
             --auto-submit-with-profile production
 
+      # The poller matches the Play release by this versionCode. Best effort:
+      # without it the poller falls back to the release name, so a failure here
+      # warns instead of failing a release that already shipped.
+      - name: Read the built versionCode
+        id: built
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          code=$(eas build:version:get --platform android --profile production --json --non-interactive 2>/dev/null \
+            | jq -r '.versionCode // .android.versionCode // empty' 2>/dev/null) || code=""
+          if [ -z "${code}" ]; then
+            echo "::warning::Could not read the Android versionCode; the announce poller will match the Play release by name."
+          fi
+          echo "version_code=${code}" >> "$GITHUB_OUTPUT"
+
       - name: Remove the key
         if: always()
         run: rm -f apps/mobile/google-play-service-account.json
@@ -324,6 +365,47 @@ jobs:
         run: |
           echo "::warning::PLAY_SUBMIT_PAUSED=true was set after this run planned Android: Android did not ship. Once Play is unfrozen, re-run this workflow run or dispatch mobile-release (platform android, track production)."
           echo "- Android: **false** — PLAY_SUBMIT_PAUSED=true was set mid-run; Android did not ship" >> "$GITHUB_STEP_SUMMARY"
+
+  # Hands the versionCode to the announce poller (_admin/announce/pending/prod).
+  # The one job here with an environment: it writes prod Firestore through WIF,
+  # whose variables live on `production`, and it runs only on main.
+  record-android-build:
+    name: Record the Android build for the announce poller
+    needs: android
+    if: ${{ needs.android.outputs.version_code != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Record the versionCode
+        env:
+          VERSION_CODE: ${{ needs.android.outputs.version_code }}
+        run: |
+          version=$(node -p "require('./apps/mobile/package.json').version")
+          node scripts/release-announce.mjs record-android --env=prod --version="${version}" --version-code="${VERSION_CODE}"
 
   ios:
     name: iOS submit TestFlight build -> App Store review

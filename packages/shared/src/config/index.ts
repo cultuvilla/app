@@ -5,4 +5,4 @@ export {
   type AppEnv,
   type FirebaseWebConfig,
 } from './environments';
-export { APP_STORES, APP_STORE_VERSIONS, APP_STORE_ID, APP_SCHEME } from './appStores';
+export { APP_STORES, APP_STORE_ID, APP_SCHEME } from './appStores';

@@ -32,9 +32,16 @@ describe('production-release workflow', () => {
   });
 
   // The Production environment's branch policy is about deploys; naming it here
-  // would also make every secret lookup depend on it.
-  it('does not scope itself to a GitHub environment', () => {
-    expect(wf).not.toMatch(/^\s*environment:/m);
+  // would also make every secret lookup depend on it. The one exception writes
+  // prod Firestore (the announce poller's Android versionCode), and WIF's
+  // variables live on that environment.
+  it('scopes no store or OTA job to a GitHub environment', () => {
+    const scoped = [...wf.matchAll(/^\s*environment:\s*(\S+)/gm)];
+    expect(scoped.map((m) => m[1])).toEqual(['production']);
+    expect(job('record-android-build')).toContain('environment: production');
+    for (const name of ['plan', 'backend', 'ota', 'android', 'ios']) {
+      expect(job(name)).not.toMatch(/^\s*environment:/m);
+    }
   });
 
   // A re-deploy, or a hotfix merge without a bump, must never build a binary.
@@ -76,7 +83,10 @@ describe('production-release workflow', () => {
     expect(job('plan')).toContain('[skip-deploy]');
     const backend = job('backend');
     expect(backend).toContain('all(.conclusion == "success")');
-    expect(backend).not.toContain('"skipped"');
+    // A skipped deploy JOB is not green. (A skipped functions STEP inside a
+    // green job is the held backend — announceWhenLive.test.ts.)
+    expect(backend).not.toMatch(/\.conclusion == "skipped"|conclusion == \\"skipped\\"/);
+    expect(backend).not.toMatch(/all\(\.conclusion == "success" or/);
   });
 
   it('honours every kill-switch', () => {
