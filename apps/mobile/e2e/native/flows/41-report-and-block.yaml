@@ -1,0 +1,111 @@
+# Report a comment, block its author, then unblock them from settings.
+#
+# Reporting and blocking are what an app with user-generated content must offer
+# to pass App Review, so a regression here is a store risk, not only a bug.
+# Both are plain client writes behind rules; this proves the whole tap path and
+# that blocking hides the author's comments from the viewer.
+#
+# The seeded comment is on the capacity event (see fixtures.mjs on why). A
+# block outlives the flow, so it is removed on the way out even on failure.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-user@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VIEWER_UID: e2e-user
+  AUTHOR_UID: e2e-admin
+  COMMENT_ID: e2e-comment-admin
+  COMMENT_BODY: 'Comentario de otra persona E2E'
+  EVENT_ID: e2e-event-aforo
+onFlowComplete:
+  - runScript:
+      file: ../scripts/deleteDoc.js
+      env:
+        DOC_PATH: 'users/${VIEWER_UID}/blockedUsers/${AUTHOR_UID}'
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'register-fab'
+    timeout: 45000
+- scrollUntilVisible:
+    element:
+      id: 'comment-report-${COMMENT_ID}'
+    timeout: 20000
+- assertVisible: ${COMMENT_BODY}
+
+# Report.
+- tapOn:
+    id: 'comment-report-${COMMENT_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'report-reason-spam'
+    timeout: 10000
+- tapOn:
+    id: 'report-reason-spam'
+- extendedWaitUntil:
+    visible: 'Gracias.*'
+    timeout: 15000
+- tapOn:
+    id: 'report-sheet-close'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: contentReports
+      FIELD: targetId
+      VALUE: ${COMMENT_ID}
+      FIELD2: reporterUserId
+      VALUE2: ${VIEWER_UID}
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+
+# Block: the author's comment disappears for the viewer.
+- tapOn:
+    id: 'comment-report-${COMMENT_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'report-block-user'
+    timeout: 10000
+- tapOn:
+    id: 'report-block-user'
+- extendedWaitUntil:
+    visible: 'Persona bloqueada.*'
+    timeout: 15000
+- tapOn:
+    id: 'report-sheet-close'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'users/${VIEWER_UID}/blockedUsers/${AUTHOR_UID}'
+      FIELD: blockedUserId
+      EXPECT: ${AUTHOR_UID}
+- assertTrue: ${output.ok == 'true'}
+- assertNotVisible: ${COMMENT_BODY}
+
+# Unblock from settings, and the comment is back.
+- openLink: 'cultuvilla://ajustes/bloqueados'
+- extendedWaitUntil:
+    visible:
+      id: 'unblock-${AUTHOR_UID}'
+    timeout: 30000
+- tapOn:
+    id: 'unblock-${AUTHOR_UID}'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'users/${VIEWER_UID}/blockedUsers/${AUTHOR_UID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+- openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'register-fab'
+    timeout: 45000
+- scrollUntilVisible:
+    element:
+      id: 'comment-report-${COMMENT_ID}'
+    timeout: 20000

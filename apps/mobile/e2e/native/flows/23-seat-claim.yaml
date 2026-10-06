@@ -1,0 +1,109 @@
+# A shared seat-claim link: one user books a group with a seat left open, and
+# a second user opens that seat's link and takes it.
+#
+# The link is the only way the plaza/[token] screen is ever reached, and it is
+# shared through the OS share sheet, which Maestro cannot read. The token is
+# the doc id under `events/{id}/seatTokens`, so the flow reads it from there,
+# exactly as the link would carry it.
+#
+# Uses the seeded group event (signupGroupSize 2). The token is single-use,
+# but each run books a fresh one.
+appId: com.cultuvilla.app.dev
+env:
+  BOOKER_EMAIL: e2e-user@cultuvilla.test
+  BOOKER_UID: e2e-user
+  CLAIMER_EMAIL: e2e-joiner@cultuvilla.test
+  CLAIMER_UID: e2e-joiner
+  CLAIMER_PERSON_ID: e2e-person-joiner
+  PASSWORD: e2e-cultuvilla-pw
+  EVENT_ID: e2e-event-grupo
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${BOOKER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'register-fab'
+    timeout: 45000
+- tapOn:
+    id: 'register-fab'
+# The booker's own persona is pre-ticked; leave the second seat open.
+- extendedWaitUntil:
+    visible:
+      id: 'group-open-seat-0'
+    timeout: 15000
+- tapOn:
+    id: 'group-open-seat-0'
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'group-confirm'
+- tapOn:
+    id: 'group-confirm'
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'group-summary'
+    timeout: 30000
+
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/seatTokens'
+      FIELD: createdBy
+      VALUE: ${BOOKER_UID}
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.token = output.id}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/seatTokens/${output.token}'
+      FIELD: registrationId
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.regId = output.value}
+
+# The claimer opens the link and takes the seat.
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${CLAIMER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}/plaza/${output.token}'
+- extendedWaitUntil:
+    visible:
+      id: 'claim-confirm'
+    timeout: 45000
+- tapOn:
+    id: 'claim-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'claim-success'
+    timeout: 30000
+
+# The open-seat registration was handed over, and the token is spent.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.regId}'
+      FIELD: personId
+      EXPECT: ${CLAIMER_PERSON_ID}
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.regId}'
+      FIELD: isOpenSeat
+      EXPECT: 'false'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/seatTokens/${output.token}'
+      FIELD: consumedBy
+      EXPECT: ${CLAIMER_UID}
+- assertTrue: ${output.ok == 'true'}

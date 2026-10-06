@@ -1,0 +1,66 @@
+# The force-update gate, both halves: a nudge the user can dismiss, then a wall
+# they cannot.
+#
+# The gate reads `config/appVersion` once, at launch, and fails OPEN on any
+# missing or malformed doc. Unit tests cover the decision; only a device proves
+# the wiring — that the doc is read, the modal mounts over the app, and
+# hardware BACK cannot escape the wall.
+#
+# Versions are deliberately extreme (99.0.0 / 0.0.0) so no release bump of the
+# APK's own version can change the outcome.
+#
+# Runs LAST and deletes the doc on the way out: the doc is global, and a
+# leftover wall would sit over every flow after it.
+appId: com.cultuvilla.app.dev
+onFlowComplete:
+  - runScript:
+      file: ../scripts/deleteDoc.js
+      env:
+        DOC_PATH: config/appVersion
+---
+# Nudge: a newer version exists, the installed one is still supported.
+- runScript:
+    file: ../scripts/appVersionConfig.js
+    env:
+      MIN_SUPPORTED: 0.0.0
+      LATEST: 99.0.0
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: config/appVersion
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}
+# The gate checks only at launch, and the nudge's cooldown lives in
+# AsyncStorage, so a clean launch is what makes it fire.
+- clearState
+- openLink: 'cultuvilla://perfil'
+- extendedWaitUntil:
+    visible:
+      id: 'app-update-modal'
+    timeout: 90000
+- assertVisible: 'Nueva actualización disponible'
+- tapOn:
+    id: 'app-update-dismiss'
+- assertNotVisible:
+    id: 'app-update-modal'
+
+# Wall: the installed version is below the minimum.
+- runScript:
+    file: ../scripts/appVersionConfig.js
+    env:
+      MIN_SUPPORTED: 99.0.0
+      LATEST: 99.0.0
+- clearState
+- openLink: 'cultuvilla://perfil'
+- extendedWaitUntil:
+    visible:
+      id: 'app-update-modal'
+    timeout: 90000
+- assertVisible: 'Actualización necesaria'
+# No way out: no dismiss, and BACK is swallowed. The CTA is not tapped — it
+# leaves for the Play Store.
+- assertNotVisible:
+    id: 'app-update-dismiss'
+- pressKey: back
+- assertVisible:
+    id: 'app-update-modal'
