@@ -37,10 +37,7 @@ import {
   type VocabularyTermWithId,
 } from '@cultuvilla/shared/services/vocabularyService';
 import { pickWordOfTheDay } from '@cultuvilla/shared/utils/wordOfTheDay';
-import {
-  eventEndBoundary,
-  isStartDayOver,
-} from '@cultuvilla/shared/models/event/EventDataModel';
+import { upcomingThenPast } from '@cultuvilla/shared/models/event/EventDataModel';
 import type { MunicipalityData } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
 import type { BarrioData, PlaceData } from '@cultuvilla/shared/models/municipality';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization';
@@ -216,14 +213,10 @@ export function useVillageHome(municipalityId: string | null) {
   return useMemo<VillageHomeState & { reload: () => Promise<void> }>(() => {
     if (!id) return { ...EMPTY, reload: chrome.reload };
 
-    // Upcoming first (soonest first), then past (most recent first), split on
-    // the end boundary so a multi-day event still running counts as upcoming.
-    const allEvents = [...(publicEvents.data ?? NO_ROWS), ...(privateEvents.data ?? NO_ROWS)].sort(
-      (a, b) => a.startDate.getTime() - b.startDate.getTime(),
+    const events = upcomingThenPast(
+      [...(publicEvents.data ?? NO_ROWS), ...(privateEvents.data ?? NO_ROWS)],
+      new Date(),
     );
-    const now = new Date();
-    const isPast = (e: EventData) => isStartDayOver(eventEndBoundary(e), now);
-    const events = [...allEvents.filter((e) => !isPast(e)), ...allEvents.filter(isPast).reverse()];
 
     return {
       coreLoading: core.status === 'loading',

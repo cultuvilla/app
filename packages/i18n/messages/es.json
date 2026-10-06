@@ -958,6 +958,7 @@
     "editTitle": "Editar grupo",
     "description": "Descripción",
     "membersCount": "{count} miembros",
+    "events": "Eventos",
     "join": "Unirme a este grupo",
     "joinPeña": "Unirme a esta peña",
     "signInToJoin": "Inicia sesión para unirte",

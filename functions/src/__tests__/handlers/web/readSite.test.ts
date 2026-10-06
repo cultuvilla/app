@@ -50,6 +50,11 @@ async function seed(): Promise<void> {
   await d.doc('events/e1').set({ ...event, title: 'Verbena', description: 'Música y baile', status: 'published' });
   await d.doc('events/e2').set({ ...event, title: 'Cena de la peña', status: 'published', visibility: 'private', visibilityOrgId: 'o1' });
   await d.doc('events/e3').set({ ...event, title: 'Borrador secreto', status: 'draft' });
+  const byPena = { ...event, organizerOrgIds: ['o1'] };
+  await d.doc('events/e4').set({ ...byPena, title: 'Comida de la peña', status: 'completed', startDate: ts('2026-06-20T14:00:00Z'), endDate: null });
+  await d.doc('events/e5').set({ ...byPena, title: 'Merienda suspendida', status: 'cancelled' });
+  await d.doc('events/e6').set({ ...byPena, title: 'Cena privada', status: 'published', visibility: 'organization', visibilityOrgId: 'o1' });
+  await d.doc('events/e7').set({ ...byPena, title: 'Excursión de otoño', status: 'published', startDate: ts('2026-10-10T08:00:00Z'), endDate: null });
   await d.doc('news/n1').set({
     municipalityId: 'm1',
     title: 'Programa de fiestas',
@@ -155,6 +160,17 @@ describe('readSite', () => {
   it('renders news blocks with mentions linked to the mentioned page', async () => {
     const { body } = await html('/matabuena/noticia/programa-de-fiestas_n1');
     expect(body).toContain('<a href="/matabuena/entidad/pena-el-toro_o1">Peña El Toro</a>');
+  });
+
+  it("lists an org's public events, never its cancelled or private ones", async () => {
+    const { body } = await html('/matabuena/entidad/pena-el-toro_o1');
+    expect(body).toContain('<h2>Eventos</h2>');
+    expect(body).toContain('Comida de la peña');
+    // Upcoming first, then past — the app's order, not start order.
+    expect(body.indexOf('Excursión de otoño')).toBeLessThan(body.indexOf('Comida de la peña'));
+    for (const hidden of ['Merienda suspendida', 'Cena privada', 'Verbena']) {
+      expect(body).not.toContain(hidden);
+    }
   });
 
   it('keeps an org invite out of the index', async () => {

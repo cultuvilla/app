@@ -8,6 +8,7 @@ import {
   isStartDayOver,
   isGroupSignupEvent,
   MAX_SIGNUP_GROUP_SIZE,
+  upcomingThenPast,
 } from '../../../src/models/event/EventDataModel';
 
 const validEvent = {
@@ -317,5 +318,35 @@ describe('signupGroupSize', () => {
     for (const size of [0, MAX_SIGNUP_GROUP_SIZE + 1, 2.5]) {
       expect(() => EventDataSchema.parse({ ...stored, signupGroupSize: size })).toThrow();
     }
+  });
+});
+
+describe('upcomingThenPast', () => {
+  const now = new Date('2026-08-10T12:00:00Z');
+  const ev = (id: string, start: string, end: string | null = null) => ({
+    id,
+    startDate: new Date(start),
+    endDate: end ? new Date(end) : null,
+  });
+
+  it('lists upcoming soonest first, then past most recent first', () => {
+    const ordered = upcomingThenPast(
+      [
+        ev('past-old', '2025-07-01T18:00:00Z'),
+        ev('next-month', '2026-09-01T18:00:00Z'),
+        ev('past-recent', '2026-08-01T18:00:00Z'),
+        ev('tomorrow', '2026-08-11T18:00:00Z'),
+      ],
+      now,
+    );
+    expect(ordered.map((e) => e.id)).toEqual(['tomorrow', 'next-month', 'past-recent', 'past-old']);
+  });
+
+  it('counts a multi-day event still running as upcoming', () => {
+    const ordered = upcomingThenPast(
+      [ev('done', '2026-08-01T18:00:00Z'), ev('fiestas', '2026-08-05T18:00:00Z', '2026-08-15T18:00:00Z')],
+      now,
+    );
+    expect(ordered.map((e) => e.id)).toEqual(['fiestas', 'done']);
   });
 });

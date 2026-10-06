@@ -15,6 +15,7 @@ import { useRegisterGate } from '../../../../lib/auth/RegisterGateContext';
 import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
 import { EntityComments } from '../../../../components/feature/EntityComments';
 import { OrgMembersList } from '../../../../components/feature/OrgMembersList';
+import { OrgEventsSection } from '../../../../components/feature/OrgEventsSection';
 import { useShareDeepLink } from '../../../../lib/deeplink/useShareDeepLink';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import { watchOrganization } from '@cultuvilla/shared/services/organizationService';
@@ -232,6 +233,8 @@ export default function OrgDetailScreen() {
               ))}
             </VStack>
           ) : null}
+          {/* Rules let only an approval org's members read its private events. */}
+          <OrgEventsSection orgId={org.id} includePrivate={isMember && org.joinPolicy === 'approval'} />
           {canManage && org.joinPolicy === 'approval' ? (
             <OrgJoinRequests orgId={org.id} onResolved={refresh} />
           ) : null}

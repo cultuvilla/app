@@ -16,6 +16,7 @@ import {
   loadHistoryEntry,
   loadNews,
   loadOrg,
+  loadOrgEventCards,
   loadPlace,
   loadPoster,
   loadSection,
@@ -120,7 +121,9 @@ async function entity(
       if (!o || !v) return notFound(path);
       const target = { id: o.id, title: o.name, villageSlug: v.slug };
       const wanted = invite ? orgJoinPath(target) : entityPath('organization', target);
-      return canonical(path, wanted, () => orgPage(v, o, wanted, invite));
+      // A stale slug only redirects, so it never pays for the events query.
+      const events = path === wanted ? await loadOrgEventCards(db, o.id, v.slug, deps.now) : [];
+      return canonical(path, wanted, () => orgPage(v, o, wanted, invite, events));
     }
     case 'festivalPoster': {
       const p = await loadPoster(db, route.id);

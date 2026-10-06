@@ -20,6 +20,7 @@ import { buildEventData, type EventDataInput } from '../../src/models/event/Even
 import { buildNewsPostData } from '../../src/models/news/NewsPostDataModel';
 import {
   watchEventsByMunicipality,
+  watchEventsByOrganization,
   watchPrivateEventsByMunicipality,
 } from '../../src/services/eventService';
 import { updateNewsPost, watchHomeFeed, watchNewsPost } from '../../src/services/newsService';
@@ -119,6 +120,69 @@ describe('watchEventsByMunicipality (the pueblo tab, anonymous)', () => {
       await asSeeder((db) => updateDoc(doc(db, 'events', `${M}-draft`), { status: 'published' }));
       // Ordered by start date: the newly published one starts sooner.
       expect(titles(await latestMatching(emissions, (e) => e.length === 2))).toEqual(['Borrador', 'Verbena']);
+    } finally {
+      unwatch();
+    }
+  });
+});
+
+describe('watchEventsByOrganization (an org detail screen)', () => {
+  async function seedOrgEvents(M: string, ORG: string): Promise<void> {
+    const byOrg = { organizerOrgIds: [ORG] };
+    await asSeeder(async (db) => {
+      await setDoc(doc(db, `organizations/${ORG}`), { name: ORG, municipalityId: M, joinPolicy: 'approval' });
+      await setDoc(doc(db, `organizations/${ORG}/members/socio`), { userId: 'socio', role: 'member', joinedAt: new Date() });
+      await setDoc(doc(db, 'events', `${ORG}-fiesta`), eventData(M, 'Fiesta', 4, byOrg));
+      await setDoc(doc(db, 'events', `${ORG}-matanza`), eventData(M, 'Matanza', -30, { ...byOrg, status: 'completed' }));
+      await setDoc(doc(db, 'events', `${ORG}-suspendida`), eventData(M, 'Suspendida', 2, { ...byOrg, status: 'cancelled' }));
+      await setDoc(
+        doc(db, 'events', `${ORG}-cena`),
+        eventData(M, 'Cena de socios', 1, { ...byOrg, visibility: 'organization', visibilityOrgId: ORG }),
+      );
+      await setDoc(doc(db, 'events', `${ORG}-ajena`), eventData(M, 'Ajena', 3));
+    });
+  }
+
+  it('shows an anonymous visitor the public published and completed events only', async () => {
+    const M = uniq('m');
+    const ORG = uniq('org');
+    await seedOrgEvents(M, ORG);
+    vi.spyOn(firebaseModule, 'getDb').mockReturnValue(asAnon(getEnv()));
+
+    const emissions: { title: string }[][] = [];
+    const unwatch = watchEventsByOrganization(ORG, { includePrivate: false }, (e) => emissions.push(e), failOnError);
+    try {
+      expect(titles(await latestMatching(emissions, () => true))).toEqual(['Matanza', 'Fiesta']);
+    } finally {
+      unwatch();
+    }
+  });
+
+  it("adds the private events for a member of the approval org", async () => {
+    const M = uniq('m');
+    const ORG = uniq('org');
+    await seedOrgEvents(M, ORG);
+    vi.spyOn(firebaseModule, 'getDb').mockReturnValue(asUser(getEnv(), 'socio'));
+
+    const emissions: { title: string }[][] = [];
+    const unwatch = watchEventsByOrganization(ORG, { includePrivate: true }, (e) => emissions.push(e), failOnError);
+    try {
+      expect(titles(await latestMatching(emissions, () => true))).toEqual(['Matanza', 'Cena de socios', 'Fiesta']);
+    } finally {
+      unwatch();
+    }
+  });
+
+  it('keeps the public events for a non-member whose private half is refused', async () => {
+    const M = uniq('m');
+    const ORG = uniq('org');
+    await seedOrgEvents(M, ORG);
+    vi.spyOn(firebaseModule, 'getDb').mockReturnValue(asUser(getEnv(), 'outsider'));
+
+    const emissions: { title: string }[][] = [];
+    const unwatch = watchEventsByOrganization(ORG, { includePrivate: true }, (e) => emissions.push(e), failOnError);
+    try {
+      expect(titles(await latestMatching(emissions, () => true))).toEqual(['Matanza', 'Fiesta']);
     } finally {
       unwatch();
     }
