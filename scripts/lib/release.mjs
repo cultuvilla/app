@@ -58,6 +58,43 @@ export function proposeBump(commits) {
   return bump;
 }
 
+/** commitlint's config-conventional caps every body and footer line at this. */
+export const COMMIT_LINE_MAX = 100;
+const BREAKING_KEY = 'Breaking-Client';
+
+/**
+ * The `Breaking-Client: <reason>` trailer line for `release:cut --breaking`.
+ * One line, at most COMMIT_LINE_MAX characters, so commitlint accepts it and
+ * breaking-rollup.mjs reads the whole reason back.
+ */
+export function breakingTrailer(reason) {
+  const r = String(reason ?? '').trim();
+  if (!r) throw new Error('--breaking needs a reason: --breaking="<what older installed clients would hit>"');
+  if (/[\r\n]/.test(r)) throw new Error('--breaking takes a one-line reason');
+  const line = `${BREAKING_KEY}: ${r}`;
+  if (line.length > COMMIT_LINE_MAX) {
+    const room = COMMIT_LINE_MAX - `${BREAKING_KEY}: `.length;
+    throw new Error(`--breaking reason is ${r.length} characters; keep it to ${room} so the trailer line fits ${COMMIT_LINE_MAX}.`);
+  }
+  return line;
+}
+
+/**
+ * The message of the commit `release:cut` makes on develop, or null for none.
+ *
+ *   bump commit            `X.Y.Z` — the bare version commitlint exempts —
+ *                          plus the trailer when the release is breaking
+ *   no bump (develop is    nothing, unless the release is breaking: then an
+ *   already at X.Y.Z)      empty `chore(release): declare X.Y.Z breaking`
+ *                          carries the trailer, since the rollup reads only
+ *                          commits between the previous release tag and this one
+ */
+export function releaseCommitMessage({ version, bumped, breaking }) {
+  const trailer = breaking ? breakingTrailer(breaking) : null;
+  if (bumped) return trailer ? `${version}\n\n${trailer}` : version;
+  return trailer ? `chore(release): declare ${version} breaking\n\n${trailer}` : null;
+}
+
 /** Replace the single top-level `version:` in an app.config.ts source. */
 export function setAppConfigVersion(source, version) {
   extractVersion(source); // throws when absent or ambiguous
@@ -148,12 +185,18 @@ export function migrationChecklist(migrations) {
 }
 
 /** Body of the `release/X.Y.Z → beta` PR. */
-export function releasePrBody({ version, previous, section, migrations }) {
+export function releasePrBody({ version, previous, section, migrations, breaking = null }) {
   return [
     `Release **${version}** → beta (beta is on ${previous}). Opened by \`pnpm release:cut\`.`,
     '',
     `This branch is \`develop\` at the version-bump commit plus a merge of \`main\`, so it is up to date with beta's base. Merging builds the beta store apps and deploys \`cultuvilla-beta\`; once both are green, the \`beta → main\` PR opens itself.`,
     '',
+    ...(breaking
+      ? [
+          `**Breaking for installed clients:** ${breaking}. Declared by \`release:cut --breaking\`: on prod the backend is held until both stores serve ${version}, then \`minSupported\` rises to ${version}.`,
+          '',
+        ]
+      : []),
     '## Data migrations',
     '',
     migrationChecklist(migrations),

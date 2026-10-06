@@ -63,17 +63,33 @@ does the work:
 1. **A cheap exit.** One Firestore REST read. With nothing pending (almost every
    tick), it stops before any checkout or install.
 2. **Ask each store** about the pending version:
-   - **Android** is live when the Play `production` track's release holding the
-     recorded `versionCode` has been `completed` at full rollout for **48
-     hours** (`ANDROID_SOAK_HOURS`), counted from the first tick that saw it.
-     Play omits `userFraction` at 100%. Without a recorded code, the release
-     name is the fallback: Play names a release after the bundle's
-     `versionName`, and EAS sets no name of its own.
-     The soak exists because this signal is **optimistic**. eas.json submits
-     with `releaseStatus: completed`, so the track reads `completed` as soon as
-     EAS submits, while Google's review may still be pending. No API exposes
-     Play's review state. The soak covers a normal review, which takes hours
-     and rarely more than two days, but it is a heuristic, not proof.
+   - **Android** is live when two Play Developer API answers agree about the
+     `production` release holding the recorded `versionCode`:
+     1. Its **release lifecycle** (`applications.tracks.releases.list`) is
+        `RELEASE_LIFECYCLE_STATE_PUBLISHED`. This is Google's review state, and
+        the only API that exposes it. `DRAFT`, `NOT_SENT_FOR_REVIEW`,
+        `IN_REVIEW` and `APPROVED_NOT_PUBLISHED` are simply not live yet.
+        `NOT_APPROVED` is not live either, and every tick warns and puts
+        "Google Play rejected vX.Y.Z" in the run summary until someone fixes
+        it in the Play Console. An unknown state is not live, with a warning.
+     2. Its **rollout** on the edits API's track is `completed` at full
+        rollout (Play omits `userFraction` at 100%). PUBLISHED alone also
+        covers a staged or halted rollout, which not every user can install.
+        The edits track alone is not enough either: eas.json submits with
+        `releaseStatus: completed`, so it reads `completed` while Google is
+        still reviewing.
+
+     Without a recorded code, the release name is the fallback: Play names a
+     release after the bundle's `versionName`, and EAS sets no name of its
+     own. The rollout is then looked up by the versionCode the lifecycle
+     matched. A recorded code that matches nothing is "not on the track yet",
+     never a name match, which could be another build of the same version.
+     Both calls use the `androidpublisher` scope.
+
+     Until 2026-10-06 the poller had only the edits track and stood in for
+     the review with a 48-hour soak after the first `completed` sighting. That
+     was a heuristic, and a review longer than the soak would have announced a
+     build nobody could install. The lifecycle endpoint replaced it.
    - **iOS** is live when the App Store version with that marketing version is
      `READY_FOR_SALE` (or `READY_FOR_DISTRIBUTION`, the newer name). A phased
      release counts, because anyone can download it from the listing.
@@ -146,13 +162,13 @@ the moment the held backend ships anyway.
 
 ## Trade-offs, stated
 
-- **The two stores' liveness signals are not equally strong.** App Store
-  `READY_FOR_SALE` proves the build is downloadable. Play `completed` does not
-  (see above), so Android liveness is completed-plus-soak. The wall needs both
-  stores, which narrows the risk further, since App Review usually takes longer
-  than Play's review. Even so, a Play review longer than 48 hours could still
-  move `android.latest` (and, once iOS is live, the wall) ahead of what Android
-  users can install. If that ever happens, correct it with "Set App Version".
+- **Both stores now answer from their review state.** App Store
+  `READY_FOR_SALE` and Play `PUBLISHED` at full rollout both mean a user can
+  download the build. What remains is propagation: Play can take a little while
+  after publishing to serve the update on every device. A user who opens the
+  app in that window is nudged towards an update the store shows a moment
+  later. If a store ever disagrees with what was announced, correct it with
+  "Set App Version".
 
 - **New binaries talk to the old backend while held.** That includes App
   Review's reviewer. Expand → migrate → contract keeps this safe: the release

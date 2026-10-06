@@ -7,8 +7,9 @@
 
 import { resolveAppVersionConfig } from './app-version-config.mjs';
 import {
-  androidSoaked,
+  decideAndroidLive,
   interpretIosVersions,
+  interpretPlayLifecycle,
   interpretPlayTrack,
   nextPending,
   pendingDocPath,
@@ -52,9 +53,9 @@ export async function findIosVersion(request, { ascAppId, version }) {
  * a corrupt secret throws while the client is constructed, and that must cost
  * one warning, not a red run every 30 minutes.
  *
- * Android also has to soak (see ANDROID_SOAK_HOURS): the first tick that sees
- * the release completed returns `androidCompletedSeenAt` for the caller to
- * keep, and Android counts as live only once that is old enough.
+ * Android is live once Play's release lifecycle says PUBLISHED and the edits
+ * API shows it at full rollout (`decideAndroidLive`). A rejected release
+ * (NOT_APPROVED) warns every tick and sets `detail.androidRejected`.
  */
 export async function checkStores({
   pending,
@@ -64,7 +65,6 @@ export async function checkStores({
   packageName,
   track,
   warn = () => {},
-  now = Date.now(),
 }) {
   const live = { ios: false, android: false };
   const detail = {};
@@ -79,18 +79,27 @@ export async function checkStores({
         warn('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set — cannot confirm Android is live; treating it as not live.');
         detail.android = 'no Play credentials';
       } else {
-        const r = interpretPlayTrack(await play.getTrack(packageName, track), {
+        const lifecycle = interpretPlayLifecycle(await play.listReleases(packageName, track), {
           versionCode: pending.androidVersionCode,
           version: pending.version,
         });
-        detail.android = r.found
-          ? `${track} release ${r.status} at ${Math.round(r.userFraction * 100)}% (matched by ${r.via})`
-          : `not on the ${track} track yet (looked up by ${r.via})`;
-        if (r.live) {
-          const seenAt = pending.androidCompletedSeenAt ?? new Date(now).toISOString();
-          detail.androidCompletedSeenAt = seenAt;
-          live.android = androidSoaked({ seenAt, now });
-          if (!live.android) detail.android += `, soaking since ${seenAt} (Play reports completed before review ends)`;
+        // The rollout is only worth an edit once Google has published the
+        // release; it is looked up by the same versionCode the lifecycle
+        // matched, so a name fallback cannot pick a different build here.
+        const rollout = lifecycle.published
+          ? interpretPlayTrack(await play.getTrack(packageName, track), {
+              versionCode: pending.androidVersionCode || lifecycle.versionCodes[0],
+              version: pending.version,
+            })
+          : null;
+        const r = decideAndroidLive({ lifecycle, rollout, track });
+        live.android = r.live;
+        detail.android = r.detail;
+        if (r.rejected) {
+          detail.androidRejected = true;
+          warn(`Google Play REJECTED v${pending.version} (${track}, NOT_APPROVED) — fix it in the Play Console; Android stays unannounced${pending.holdBackend ? ' and the backend held' : ''} until a release is published.`);
+        } else if (r.unknown) {
+          warn(`${r.detail} — treating Android as not live.`);
         }
       }
     } catch (err) {
@@ -166,7 +175,7 @@ export async function recordAndroidBuild(db, { env, version, versionCode }) {
  */
 export async function applyTick(
   db,
-  { env, version, live, iosBuildNumber, androidCompletedSeenAt, dryRun = false, now = Date.now() },
+  { env, version, live, iosBuildNumber, dryRun = false, now = Date.now() },
 ) {
   const nowIso = new Date(now).toISOString();
   const pendingRef = db.doc(pendingDocPath(env));
@@ -198,7 +207,6 @@ export async function applyTick(
         ...pending,
         announced: plan.announced,
         ...(iosBuildNumber ? { iosBuildNumber } : {}),
-        ...(androidCompletedSeenAt && !pending.androidCompletedSeenAt ? { androidCompletedSeenAt } : {}),
         ...(plan.deploySha ? { deployRequestedAt: nowIso } : {}),
         updatedAt: nowIso,
       });
