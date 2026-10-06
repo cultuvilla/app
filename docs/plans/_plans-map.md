@@ -4,7 +4,7 @@
      Edit the `**Priority:** / **Landed:** / **Gate:** / **Next:**` block at the top of
      the plan itself, and let CI regenerate this file on the base branch. -->
 
-Current cycle **v1.5.0** (cut 2026-09-29)
+Current cycle **v1.6.0** (cut 2026-10-06)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
@@ -14,12 +14,12 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 27 cycles ago \* | — |
-| [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) ⚠️ | low | dev | 6 cycles ago \* | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
-| [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | this cycle \* | promote `develop → beta` (a `release/X.Y.Z` branch; the maintainer merges the PR) |
+| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 28 cycles ago \* | — |
+| [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) ⚠️ | low | dev | 7 cycles ago \* | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
+| [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | 1 cycle ago \* | promote `develop → beta` (a `release/X.Y.Z` branch; the maintainer merges the PR) |
+| [offline-first-village](ongoing/offline-first-village.md) | high | dev | 1 cycle ago | mis-inscripciones and the remaining list screens onto watchers; then layer 3 (village sync) |
+| [store-release](ongoing/store-release.md) | low | prod | 1 cycle ago \* | check Error Reporting for iOS `surface: auth` failures since 1.0.0 went live; if none, retire this plan into one decision doc |
 | [app-only-transition](ongoing/app-only-transition.md) | high | dev | this cycle | promote to beta and run the phase 3 `curl` checks there, then the same on prod |
-| [offline-first-village](ongoing/offline-first-village.md) | high | dev | this cycle | mis-inscripciones and the remaining list screens onto watchers; then layer 3 (village sync) |
-| [store-release](ongoing/store-release.md) | low | prod | this cycle \* | check Error Reporting for iOS `surface: auth` failures since 1.0.0 went live; if none, retire this plan into one decision doc |
 
 ## Soaking
 
@@ -29,13 +29,13 @@ _None._
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [existing-signup-emails-rollout](ongoing/existing-signup-emails-rollout.md) ⚠️ | low | prod | 15 cycles ago \* | run the retroactive signup emails on prod (and on beta, still undecided)? | grant the prod runner access to `RESEND_API_KEY`, dry-run prod, review the recipient list, apply |
+| [existing-signup-emails-rollout](ongoing/existing-signup-emails-rollout.md) ⚠️ | low | prod | 16 cycles ago \* | run the retroactive signup emails on prod (and on beta, still undecided)? | grant the prod runner access to `RESEND_API_KEY`, dry-run prod, review the recipient list, apply |
 
 ## Blocked
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle \* | the Apple developer Account Holder must create the APNs key (.p8 + Key ID) — see *Blocker: the APNs key* | load the real APNs key into `APNS_AUTH_KEY` on `cultuvilla-prod`, redeploy the push functions, and verify delivery on an iPhone |
+| [device-notifications](ongoing/device-notifications.md) | high | prod | 1 cycle ago \* | the Apple developer Account Holder must create the APNs key (.p8 + Key ID) — see *Blocker: the APNs key* | load the real APNs key into `APNS_AUTH_KEY` on `cultuvilla-prod`, redeploy the push functions, and verify delivery on an iPhone |
 | [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | native analytics must reach users in a store build — phase 1 of [app-only-transition.md](app-only-transition.md) | once that build is out, confirm in prod BigQuery that native events arrive with a non-null `user_pseudo_id`, then start Phase 2 on native data |
 
 ## How `Advanced` is derived
