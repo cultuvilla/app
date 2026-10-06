@@ -28,6 +28,7 @@ import {
   type EventStatus,
 } from '../models/event/EventDataModel';
 import {
+  forbiddenAsEmpty,
   watchDoc,
   watchDocsByIds,
   watchMerged,
@@ -140,7 +141,11 @@ function inMunicipalityByStart(municipalityId: string, events: EventWithId[]): E
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 }
 
-/** One listener per org (rules do not filter a list); merged as the get does. */
+/**
+ * One listener per org (rules do not filter a list); merged as the get does.
+ * An org whose private events the rules refuse (an open one) contributes
+ * nothing rather than blanking every other org's — see watchPrivateUpcomingFeed.
+ */
 export function watchPrivateEventsByMunicipality(
   municipalityId: string,
   orgIds: string[],
@@ -149,7 +154,11 @@ export function watchPrivateEventsByMunicipality(
   onError: WatchError,
 ): Unwatch {
   return watchMerged<EventWithId>(
-    orgIds.map((orgId) => (next, error) => watchQuery(orgPrivateEventsQuery(orgId, status), next, error)),
+    orgIds.map((orgId) =>
+      forbiddenAsEmpty<EventWithId>('events:watchPrivateEventsByMunicipality', (next, error) =>
+        watchQuery(orgPrivateEventsQuery(orgId, status), next, error),
+      ),
+    ),
     (rows) => inMunicipalityByStart(municipalityId, rows),
     onNext,
     onError,

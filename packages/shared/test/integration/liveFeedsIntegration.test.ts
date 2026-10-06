@@ -4,7 +4,16 @@
 // screen just never paints — so these pin that each feed's query is one the
 // viewer may hold open, and that it follows the data on its own.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { doc, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+  type Firestore,
+} from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
 import { asAnon, asUser, seed } from '../helpers/roles';
 import { buildEventData, type EventDataInput } from '../../src/models/event/EventDataModel';
@@ -15,6 +24,7 @@ import {
 } from '../../src/services/eventService';
 import { updateNewsPost, watchHomeFeed, watchNewsPost } from '../../src/services/newsService';
 import * as firebaseModule from '../../src/firebase';
+import { firebaseErrorCode } from '../../src/firebase/sdk/errors';
 
 const getEnv = useRulesTestEnv();
 
@@ -167,7 +177,11 @@ describe('watchPrivateEventsByMunicipality (an org member’s private calendar)'
     }
   });
 
-  it('reports a refused listener as an error rather than an empty list for a non-member', async () => {
+  // The rules REFUSE a non-member's query rather than filtering it — that is the
+  // security property, and it still holds. What the watcher does with the
+  // refusal is the product's choice: an org whose private events the viewer
+  // cannot read contributes nothing, so it cannot blank the other orgs'.
+  it('answers a refused org with no events — the rules still refuse the query itself', async () => {
     const M = uniq('m');
     const ORG = uniq('org');
     await seedOrgs(M, [ORG], 'socio');
@@ -177,15 +191,22 @@ describe('watchPrivateEventsByMunicipality (an org member’s private calendar)'
         eventData(M, 'Cena', 5, { visibility: 'organization', visibilityOrgId: ORG }),
       ),
     );
-    vi.spyOn(firebaseModule, 'getDb').mockReturnValue(asUser(getEnv(), 'outsider'));
+    const outsider = asUser(getEnv(), 'outsider');
+    vi.spyOn(firebaseModule, 'getDb').mockReturnValue(outsider);
 
-    const onNext = vi.fn();
-    const errors: Error[] = [];
-    const unwatch = watchPrivateEventsByMunicipality(M, [ORG], 'published', onNext, (e) => errors.push(e));
+    const refusal = await getDocs(query(collection(outsider, 'events'), where('visibilityOrgId', '==', ORG))).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(firebaseErrorCode(refusal)).toBe('permission-denied');
+
+    const emissions: unknown[][] = [];
+    const onError = vi.fn();
+    const unwatch = watchPrivateEventsByMunicipality(M, [ORG], 'published', (rows) => emissions.push(rows), onError);
     try {
-      const error = await latestMatching(errors, () => true);
-      expect(String((error as { code?: string }).code)).toMatch(/permission-denied/);
-      expect(onNext).not.toHaveBeenCalled();
+      const latest = await latestMatching(emissions, () => true);
+      expect(latest).toEqual([]);
+      expect(onError).not.toHaveBeenCalled();
     } finally {
       unwatch();
     }

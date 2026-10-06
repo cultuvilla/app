@@ -3,12 +3,14 @@ import type { DocumentReference, Query } from '../../src/firebase/sdk/firestore'
 import {
   watchCount,
   watchDoc,
+  forbiddenAsEmpty,
   watchDocsByIds,
   watchMerged,
   watchQuery,
   type Unwatch,
   type WatchError,
 } from '../../src/services/watch';
+import { observability } from '../../src/services/observability/observabilityService';
 
 type SnapshotCallback = (snap: unknown) => void;
 const snapshots = vi.hoisted(() => ({ next: undefined as ((snap: unknown) => void) | undefined }));
@@ -150,5 +152,51 @@ describe('watchDocsByIds', () => {
     const d = docs();
     watchDocsByIds(['a', 'b'], d.watchOne, vi.fn(), vi.fn())();
     expect(d.closed.sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('forbiddenAsEmpty', () => {
+  function failingPart(code: string): Part {
+    return (_onNext, onError) => {
+      onError(Object.assign(new Error(code), { code }));
+      return () => undefined;
+    };
+  }
+
+  it('answers a rules refusal with no rows, so the rest of a merge still emits', () => {
+    const allowed = part();
+    const onNext = vi.fn();
+    const onError = vi.fn();
+    watchMerged(
+      [forbiddenAsEmpty('test', failingPart('firestore/permission-denied')), forbiddenAsEmpty('test', allowed.part)],
+      sortAsc,
+      onNext,
+      onError,
+    );
+
+    allowed.emit([2, 1]);
+    expect(onNext).toHaveBeenLastCalledWith([1, 2]);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('accepts the JS SDK code too, which has no service prefix', () => {
+    const onNext = vi.fn();
+    forbiddenAsEmpty('test', failingPart('permission-denied'))(onNext, vi.fn());
+    expect(onNext).toHaveBeenCalledWith([]);
+  });
+
+  it('logs the refusal with its operation, so a rules regression stays findable', () => {
+    const info = vi.spyOn(observability.logger, 'info');
+    forbiddenAsEmpty('feed:test', failingPart('firestore/permission-denied'))(vi.fn(), vi.fn());
+    expect(info).toHaveBeenCalledWith(expect.any(String), { operation: 'feed:test' });
+    info.mockRestore();
+  });
+
+  it('still fails on any other error', () => {
+    const onNext = vi.fn();
+    const onError = vi.fn();
+    forbiddenAsEmpty('test', failingPart('firestore/unavailable'))(onNext, onError);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onNext).not.toHaveBeenCalled();
   });
 });

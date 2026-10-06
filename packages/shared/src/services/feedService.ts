@@ -12,7 +12,7 @@ import { getDb } from '../firebase';
 import { eventsCollection } from '../firebase/refs/client';
 import type { EventData } from '../models/event/EventDataModel';
 import type { LatLng } from '../models/core/LocationDataModel';
-import { watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
+import { forbiddenAsEmpty, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export interface FeedPage {
   events: (EventData & { id: string })[];
@@ -108,13 +108,23 @@ export function watchUpcomingFeed(
   return watchQuery(upcomingFeedQuery(pageSize, null), onNext, onError);
 }
 
+/**
+ * Private events of every org the viewer belongs to. Only members of an
+ * `approval` org may read its private events, so the rules refuse the query
+ * for an open org outright; that org contributes nothing rather than blanking
+ * the private events of every other org (docs/decisions/org-join-policy.md).
+ */
 export function watchPrivateUpcomingFeed(
   orgIds: string[],
   onNext: (events: (EventData & { id: string })[]) => void,
   onError: WatchError,
 ): Unwatch {
   return watchMerged<EventData & { id: string }>(
-    orgIds.map((orgId) => (next, error) => watchQuery(orgUpcomingQuery(orgId), next, error)),
+    orgIds.map((orgId) =>
+      forbiddenAsEmpty<EventData & { id: string }>('feed:watchPrivateUpcomingFeed', (next, error) =>
+        watchQuery(orgUpcomingQuery(orgId), next, error),
+      ),
+    ),
     byEndBoundary,
     onNext,
     onError,

@@ -5,6 +5,8 @@ import {
   type QueryDocumentSnapshot,
   type Unsubscribe,
 } from '../firebase/sdk/firestore';
+import { firebaseErrorCode } from '../firebase/sdk/errors';
+import { observability } from './observability/observabilityService';
 
 /**
  * Live reads. On the native SDK a listener answers from the on-device cache
@@ -102,6 +104,32 @@ export function watchDoc<T>(
       onError(asError(err));
     },
   );
+}
+
+/**
+ * A part that answers "no rows" when the rules refuse it, instead of failing.
+ *
+ * For a `watchMerged` part whose query the viewer may simply not be entitled
+ * to: rules do not filter a list, they reject the whole query, so a refusal
+ * means "nothing here you can read" — and because `watchMerged` waits for every
+ * part, one refused part would otherwise blank the whole merge. Any other error
+ * still fails.
+ *
+ * The refusal is still logged, at info: it is the expected answer for some
+ * parts (an open org's private events), so it must not page anyone, but a
+ * rules regression that starts refusing every part has to stay findable.
+ */
+export function forbiddenAsEmpty<T>(
+  operation: string,
+  part: (onNext: (rows: T[]) => void, onError: WatchError) => Unwatch,
+): (onNext: (rows: T[]) => void, onError: WatchError) => Unwatch {
+  return (onNext, onError) =>
+    part(onNext, (error) => {
+      if (firebaseErrorCode(error) === 'permission-denied') {
+        observability.logger.info('watch part refused by rules; answered empty', { operation });
+        onNext([]);
+      } else onError(error);
+    });
 }
 
 /**

@@ -35,6 +35,7 @@ branch without waiting for a promotion PR.
 | `60-create-publish-event` | The event wizard (3 steps; Preguntas appears only with sign-ups on *and* the form toggle on), including the OS location permission and a real GPS fix (`setLocation`). |
 | `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
 | `62-event-signup-questions` | The wizard with the form on: a Preguntas step, then an attendee answers it; the answer lands in `registrationPrivate`. |
+| `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
 | `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
 | `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
 | `72-org-join-request` | Joining an `approval` peña: a join request, admitted by the org admin from the Buzón (callable). |
