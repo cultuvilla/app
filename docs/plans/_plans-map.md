@@ -8,7 +8,7 @@ Current cycle **v1.6.0** (cut 2026-10-06)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · existing-signup-emails-rollout · firestore-index-hygiene
+> **Not advanced in 2+ cycles:** app-check-rollout · firestore-index-hygiene
 
 ## Actionable now
 
@@ -27,9 +27,7 @@ _None._
 
 ## Waiting on you
 
-| Plan | Pri | Landed | Advanced | Waiting on | Next |
-|---|---|---|---|---|---|
-| [existing-signup-emails-rollout](ongoing/existing-signup-emails-rollout.md) ⚠️ | low | prod | 16 cycles ago \* | run the retroactive signup emails on prod (and on beta, still undecided)? | grant the prod runner access to `RESEND_API_KEY`, dry-run prod, review the recipient list, apply |
+_None._
 
 ## Blocked
 
