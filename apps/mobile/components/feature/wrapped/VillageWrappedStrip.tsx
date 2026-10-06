@@ -10,8 +10,8 @@ import { wrappedHref } from '../../../lib/navigation/routes';
 import { withFirestoreErrorLog } from '../../../lib/firestoreErrorLog';
 import { useT } from '../../../lib/i18n';
 
-/** A full-width banner, flatter than the village map so it reads as a button. */
-const BUTTON_ASPECT = 4;
+/** A full-width banner, a little flatter than the village map. */
+const BUTTON_ASPECT = 3;
 
 // Drawn once and bundled: a festive illustration, not a preview of the cards,
 // so the button costs no download and looks the same for every village.

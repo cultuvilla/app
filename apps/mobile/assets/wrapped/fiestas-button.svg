@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 125" preserveAspectRatio="xMidYMid slice">
-  <rect width="500" height="125" fill="#bb5d3a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 167" preserveAspectRatio="xMidYMid slice">
+  <rect width="500" height="167" fill="#bb5d3a"/>
   <!-- Bunting -->
   <path d="M-10 6 Q 125 40 260 10 T 520 14" fill="none" stroke="#f9f0e8" stroke-width="2" opacity="0.8"/>
   <g stroke="none">
@@ -18,7 +18,7 @@
   </g>
   <!-- Fireworks -->
   <g stroke="#f9f0e8" stroke-width="3" stroke-linecap="round" fill="none">
-    <g transform="translate(410 72)">
+    <g transform="translate(410 92)">
       <line x1="0" y1="-14" x2="0" y2="-34"/>
       <line x1="0" y1="14" x2="0" y2="34"/>
       <line x1="-14" y1="0" x2="-34" y2="0"/>
@@ -30,7 +30,7 @@
     </g>
   </g>
   <g stroke="#dcab93" stroke-width="2.5" stroke-linecap="round" fill="none">
-    <g transform="translate(462 98)">
+    <g transform="translate(462 130)">
       <line x1="0" y1="-9" x2="0" y2="-21"/>
       <line x1="0" y1="9" x2="0" y2="21"/>
       <line x1="-9" y1="0" x2="-21" y2="0"/>
@@ -40,7 +40,7 @@
       <line x1="-7" y1="-7" x2="-15" y2="-15"/>
       <line x1="7" y1="7" x2="15" y2="15"/>
     </g>
-    <g transform="translate(350 100)">
+    <g transform="translate(350 132)">
       <line x1="0" y1="-7" x2="0" y2="-16"/>
       <line x1="0" y1="7" x2="0" y2="16"/>
       <line x1="-7" y1="0" x2="-16" y2="0"/>
@@ -49,13 +49,13 @@
   </g>
   <!-- Confetti -->
   <g>
-    <circle cx="300" cy="70" r="3.5" fill="#f9f0e8"/>
-    <circle cx="330" cy="104" r="3" fill="#566047"/>
-    <circle cx="476" cy="58" r="3.5" fill="#d08f70"/>
-    <circle cx="380" cy="56" r="2.5" fill="#dcab93"/>
-    <circle cx="440" cy="116" r="3" fill="#f9f0e8"/>
-    <rect x="300" y="96" width="7" height="3" rx="1" transform="rotate(30 303 98)" fill="#f9f0e8"/>
-    <rect x="482" y="84" width="7" height="3" rx="1" transform="rotate(-25 486 86)" fill="#566047"/>
-    <rect x="372" y="84" width="7" height="3" rx="1" transform="rotate(60 375 86)" fill="#f9f0e8"/>
+    <circle cx="300" cy="84" r="3.5" fill="#f9f0e8"/>
+    <circle cx="330" cy="130" r="3" fill="#566047"/>
+    <circle cx="476" cy="70" r="3.5" fill="#d08f70"/>
+    <circle cx="380" cy="64" r="2.5" fill="#dcab93"/>
+    <circle cx="440" cy="156" r="3" fill="#f9f0e8"/>
+    <rect x="300" y="118" width="7" height="3" rx="1" transform="rotate(30 303 120)" fill="#f9f0e8"/>
+    <rect x="482" y="100" width="7" height="3" rx="1" transform="rotate(-25 486 102)" fill="#566047"/>
+    <rect x="372" y="104" width="7" height="3" rx="1" transform="rotate(60 375 106)" fill="#f9f0e8"/>
   </g>
 </svg>
