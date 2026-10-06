@@ -108,7 +108,10 @@ describe('production-release workflow', () => {
     expect(plan).toContain('echo "android=${android}" >> "$GITHUB_OUTPUT"');
     expect(plan.indexOf('android="${store}"')).toBeGreaterThan(storeOut);
     expect(plan).toMatch(/::warning::PLAY_SUBMIT_PAUSED=true/);
-    expect(plan).toContain('echo "- Android: **${android}**');
+    // The plan's line is a plan: the freeze is re-read later, so it must not
+    // read as an outcome.
+    expect(plan).toContain('echo "- Android (planned): **${android}**');
+    expect(plan).not.toContain('echo "- Android: **');
     // Warn only when binaries would ship at all, or every hotfix push cries wolf.
     expect(plan).toContain('if [ "${store}" = "true" ] && [ "${PLAY_SUBMIT_PAUSED}" = "true" ]; then');
     // …and the freeze is read again when the job starts, up to two hours later,
@@ -116,6 +119,18 @@ describe('production-release workflow', () => {
     expect(job('android')).toContain(
       "if: ${{ needs.plan.outputs.android == 'true' && vars.PLAY_SUBMIT_PAUSED != 'true' }}",
     );
+    // A freeze flipped mid-run skips Android after the plan promised it, so
+    // `play-freeze` warns and corrects the summary on that run. It must survive
+    // the skipped job it reports on (`!cancelled()`), and fire only when the
+    // plan said Android ships and the job then did not run.
+    const freeze = job('play-freeze');
+    expect(freeze).toMatch(/needs:\s*\[plan, android\]/);
+    expect(freeze).toContain(
+      "if: ${{ !cancelled() && needs.plan.outputs.android == 'true' && needs.android.result == 'skipped' && vars.PLAY_SUBMIT_PAUSED == 'true' }}",
+    );
+    expect(freeze).toMatch(/::warning::PLAY_SUBMIT_PAUSED=true/);
+    expect(freeze).toContain('- Android: **false**');
+    expect(freeze).toContain('>> "$GITHUB_STEP_SUMMARY"');
     // A Play freeze must not freeze the App Store (the 2026-09-14 lesson): iOS
     // keys off `store`, never off the Play-aware `android` output.
     expect(job('ios')).not.toContain('PLAY_SUBMIT_PAUSED');

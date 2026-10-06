@@ -164,7 +164,9 @@ jobs:
           {
             echo "### Production release plan"
             echo "- Store binaries: **${store}** — ${reason}"
-            echo "- Android: **${android}** — ${android_reason}"
+            # A plan, not an outcome: the Play freeze is read again when the
+            # android job starts, and `play-freeze` reports it if that skips it.
+            echo "- Android (planned): **${android}** — ${android_reason}"
             echo "- Production OTA: **${ota}** — ${ota_reason}"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "store=${store} (${reason}); android=${android} (${android_reason}); ota=${ota} (${ota_reason})"
@@ -307,6 +309,21 @@ jobs:
       - name: Remove the key
         if: always()
         run: rm -f apps/mobile/google-play-service-account.json
+
+  # PLAY_SUBMIT_PAUSED flipped after `plan`: the android job skips correctly,
+  # but the plan summary already said Android ships. Correct it on the run
+  # itself — store switches are one-shot per version, so a silent skip here
+  # leaves the stores split with nobody told.
+  play-freeze:
+    name: Report a Play freeze set mid-run
+    needs: [plan, android]
+    if: ${{ !cancelled() && needs.plan.outputs.android == 'true' && needs.android.result == 'skipped' && vars.PLAY_SUBMIT_PAUSED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warn that Android did not ship
+        run: |
+          echo "::warning::PLAY_SUBMIT_PAUSED=true was set after this run planned Android: Android did not ship. Once Play is unfrozen, re-run this workflow run or dispatch mobile-release (platform android, track production)."
+          echo "- Android: **false** — PLAY_SUBMIT_PAUSED=true was set mid-run; Android did not ship" >> "$GITHUB_STEP_SUMMARY"
 
   ios:
     name: iOS submit TestFlight build -> App Store review
