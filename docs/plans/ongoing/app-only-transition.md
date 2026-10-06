@@ -11,7 +11,7 @@ the work until the Expo web export is gone and the read site serves every
 public route in prod.
 
 Replaces *app-first-transition* (which assumed web stays a full app) and the
-*native-firebase-sdk-migration* idea (now [offline-first-village.md](../ready/offline-first-village.md)).
+*native-firebase-sdk-migration* idea (now [offline-first-village.md](offline-first-village.md)).
 
 ## Phases
 
