@@ -165,24 +165,47 @@ export function watchPrivateEventsByMunicipality(
   );
 }
 
-/**
- * The org detail screen's event list. `includePrivate` must be true only when
- * the caller is a member of `organizationId` (or an app admin) — a non-member
- * asking for the private rows does not get a shorter list, they get a
- * permission-denied that empties the whole section.
- */
-export async function getEventsByOrganization(
-  organizationId: string,
-  { includePrivate = false }: { includePrivate?: boolean } = {},
-): Promise<EventWithId[]> {
-  const q = query(
+const LISTED_STATUSES: EventStatus[] = ['published', 'completed'];
+
+function organizationPublicEventsQuery(organizationId: string) {
+  return query(
     eventsCollection(getDb()),
     where('organizerOrgIds', 'array-contains', organizationId),
-    ...(includePrivate ? [] : [publicOnly()]),
+    publicOnly(),
     orderBy('startDate', 'asc'),
   );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * The events an organization has organized, for its detail screen: published
+ * and completed, never cancelled, in start order.
+ *
+ * The private half is its own query pinned on `visibilityOrgId` (rules do not
+ * filter a list), asked only when `includePrivate` — a vetted member. A refusal
+ * there answers empty rather than costing the public half.
+ */
+export function watchEventsByOrganization(
+  organizationId: string,
+  { includePrivate }: { includePrivate: boolean },
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  const publicPart = (next: (rows: EventWithId[]) => void, error: WatchError) =>
+    watchQuery(organizationPublicEventsQuery(organizationId), next, error);
+  const privatePart = forbiddenAsEmpty<EventWithId>('events:watchEventsByOrganization', (next, error) =>
+    watchQuery(orgPrivateEventsQuery(organizationId, LISTED_STATUSES), next, error),
+  );
+  return watchMerged<EventWithId>(
+    includePrivate ? [publicPart, privatePart] : [publicPart],
+    // Status is filtered here rather than in the public query, which would
+    // otherwise need a status + array-contains composite index.
+    (rows) =>
+      rows
+        .filter((e) => LISTED_STATUSES.includes(e.status))
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime()),
+    onNext,
+    onError,
+  );
 }
 
 export async function createEvent(input: Omit<EventDataInput, 'villageSlug'>): Promise<string> {

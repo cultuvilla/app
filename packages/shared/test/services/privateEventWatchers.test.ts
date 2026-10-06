@@ -25,7 +25,11 @@ vi.mock('../../src/firebase/sdk/firestore', () => ({
 }));
 
 import { watchPrivateUpcomingFeed } from '../../src/services/feedService';
-import { watchPrivateEventsByMunicipality } from '../../src/services/eventService';
+import { where } from '../../src/firebase/sdk/firestore';
+import {
+  watchEventsByOrganization,
+  watchPrivateEventsByMunicipality,
+} from '../../src/services/eventService';
 
 const refused = Object.assign(new Error('denied'), { code: 'firestore/permission-denied' });
 
@@ -35,6 +39,7 @@ function snapshot(rows: Record<string, unknown>[]) {
 
 beforeEach(() => {
   listeners.length = 0;
+  vi.mocked(where).mockClear();
 });
 
 describe('watchPrivateUpcomingFeed', () => {
@@ -75,5 +80,51 @@ describe('watchPrivateEventsByMunicipality', () => {
 
     expect(onError).not.toHaveBeenCalled();
     expect(onNext).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'cena' })]);
+  });
+});
+
+describe('watchEventsByOrganization', () => {
+  const at = (iso: string) => new Date(iso);
+
+  it('asks a non-member only for public events, with no private query', () => {
+    const onNext = vi.fn();
+    watchEventsByOrganization('org', { includePrivate: false }, onNext, vi.fn());
+
+    expect(listeners).toHaveLength(1);
+    expect(where).toHaveBeenCalledWith('organizerOrgIds', 'array-contains', 'org');
+    expect(where).toHaveBeenCalledWith('visibility', '==', 'public');
+    expect(where).not.toHaveBeenCalledWith('visibilityOrgId', '==', 'org');
+  });
+
+  it('merges a vetted member\'s private events, drops cancelled ones and sorts by start', () => {
+    const onNext = vi.fn();
+    watchEventsByOrganization('org', { includePrivate: true }, onNext, vi.fn());
+
+    expect(listeners).toHaveLength(2);
+    expect(where).toHaveBeenCalledWith('visibilityOrgId', '==', 'org');
+    listeners[0].next(
+      snapshot([
+        { id: 'fiesta', status: 'published', startDate: at('2030-08-01') },
+        { id: 'suspendida', status: 'cancelled', startDate: at('2030-01-01') },
+      ]),
+    );
+    listeners[1].next(snapshot([{ id: 'cena', status: 'completed', startDate: at('2029-12-01') }]));
+
+    expect(onNext).toHaveBeenLastCalledWith([
+      expect.objectContaining({ id: 'cena' }),
+      expect.objectContaining({ id: 'fiesta' }),
+    ]);
+  });
+
+  it('keeps the public events when the rules refuse the private half', () => {
+    const onNext = vi.fn();
+    const onError = vi.fn();
+    watchEventsByOrganization('org', { includePrivate: true }, onNext, onError);
+
+    listeners[0].next(snapshot([{ id: 'fiesta', status: 'published', startDate: at('2030-08-01') }]));
+    listeners[1].error(refused);
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(onNext).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'fiesta' })]);
   });
 });

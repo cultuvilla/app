@@ -35,7 +35,6 @@ vi.mock('firebase/firestore', async () => {
 import { getDocs, onSnapshot, where, orderBy } from 'firebase/firestore';
 import {
   getEventsByOrganizer,
-  getEventsByOrganization,
   watchEventsByOrganizer,
 } from '../../src/services/eventService';
 
@@ -94,20 +93,5 @@ describe('watchEventsByOrganizer', () => {
     expect(where).toHaveBeenCalledWith('organizerUserIds', 'array-contains', 'uid-1');
     expect(orderBy).toHaveBeenCalledWith('createdAt', 'desc');
     expect(ids).toEqual(['e-published']);
-  });
-});
-
-describe('getEventsByOrganization', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('queries organizerOrgIds array-contains ordered by startDate asc', async () => {
-    vi.mocked(getDocs).mockResolvedValue({ docs: [] } as any);
-
-    await getEventsByOrganization('org-1');
-
-    expect(where).toHaveBeenCalledWith('organizerOrgIds', 'array-contains', 'org-1');
-    expect(orderBy).toHaveBeenCalledWith('startDate', 'asc');
   });
 });
