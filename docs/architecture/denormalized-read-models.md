@@ -146,6 +146,25 @@ without joining the persons collection.
   person delete — the user's name is still a useful last-known value; an
   explicit account flow can clear it later if needed.
 
+### `publicProfiles/{uid}` ← `users/{uid}`
+
+The account doc holds private contact fields and is readable only by its owner
+(and app admins). Everything the app shows about *another* account — its name
+and active village — comes from this projection instead: a comment author, the
+Embajador card, an org's member list, `/usuario/{uid}`.
+
+- **Source of truth:** `users/{uid}.displayName` (itself projected from the
+  linked person, see below) and `users/{uid}.activeMunicipalityId`.
+- **Trigger:** [functions/src/users/syncPublicProfile.ts](../../functions/src/users/syncPublicProfile.ts).
+  Fires `onDocumentWritten` on `users/{uid}`, writes exactly those two fields,
+  short-circuits when they are unchanged, and deletes the row with the account.
+- **Rules:** single-doc `get` is public; `list` and every client write are
+  denied. A listable projection would be an account directory.
+- **Backfill:** [scripts/backfill-public-profiles.mjs](../../scripts/backfill-public-profiles.mjs)
+  (registered, `pre-deploy`, auto-applied). Reconciles rows and deletes orphans.
+- **Adding a field:** only if anyone, signed out included, may read it. Contact
+  details never belong here.
+
 ### `commentCount` ← `comments/`
 
 Every comment-capable kind (event, organization, festivalPoster, place, barrio,
@@ -368,6 +387,32 @@ entities — `events`, `news`, `organizations`, `festivalPosters`,
   assigns the slugs, then [scripts/backfill-village-slug-denorm.mjs](../../scripts/backfill-village-slug-denorm.mjs)
   (which `dependsOn` it) copies them onto the entities. Both are registered,
   `pre-deploy`, and `autoApply` on every env.
+
+### `community.organizerSex` ← the Embajador's `persons/{personId}.sex`
+
+The pueblo's Embajador title is gendered — "Embajador" or "Embajadora" — and
+every viewer, including the anonymous web reader, has to be able to say which.
+The Embajador's person doc is often private, so the municipality carries a copy
+of that one person's `sex` next to the pointer it describes
+(`community.organizerId`). See
+[docs/decisions/embajador-title.md](../decisions/embajador-title.md).
+
+- **Why not on `users/{uid}`:** the user doc is public, so that copy would expose
+  every user's sex. On the municipality it exposes only the one person whose
+  public title reveals it anyway.
+- **Writers:** the functions that move the pointer —
+  `respondToOrganizerRequest` (approval) and `transferVillageAmbassador` (hand-over)
+  read the new Embajador's person in the same transaction; `deleteAccount` nulls
+  both fields together.
+- **Trigger:** [functions/src/users/syncPersonDenormalization.ts](../../functions/src/users/syncPersonDenormalization.ts)
+  re-projects it onto every municipality whose `community.organizerId` is the
+  user when their person's `sex` changes.
+- **Rules:** diff-locked with the pointer in `organizerIdUnchanged`
+  (`firestore.rules`) — a village admin may edit the community but not either
+  field.
+- **Backfill:** [scripts/backfill-community-organizer-sex.mjs](../../scripts/backfill-community-organizer-sex.mjs)
+  — registered, `pre-deploy`, `autoApply` on every env, and doubles as the repair
+  tool if the copy ever drifts.
 
 ## Adding a new denormalized field — checklist
 

@@ -18,6 +18,7 @@ export const OBSERVABILITY_EVENTS = {
   ORG_JOIN_SUCCESS: 'org.join.success',
   ORG_JOIN_ERROR: 'org.join.error',
   APP_EXCEPTION: 'app.exception.thrown',
+  APP_LINK_OPENED: 'app.link.opened',
 } as const;
 
 export type ObservabilityEventName =

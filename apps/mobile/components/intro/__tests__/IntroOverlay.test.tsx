@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import { colors } from '@cultuvilla/shared/design-system';
 import { IntroOverlay, INTRO_MAX_MS } from '../IntroOverlay';
-import { IntroOverlay as WebIntroOverlay } from '../IntroOverlay.web';
 
 // The Lottie stub hands its callbacks to the test, which plays the role of the
 // native player deciding when the animation ends.
@@ -115,9 +114,4 @@ it('is skipped entirely, silently, when Reduce Motion is on', async () => {
   await mount(false);
   expect(screen.queryByTestId('intro-overlay')).toBeNull();
   expect(mockPlayer.play).not.toHaveBeenCalled();
-});
-
-it('renders nothing on web', () => {
-  render(<WebIntroOverlay appReady={false} />);
-  expect(screen.toJSON()).toBeNull();
 });

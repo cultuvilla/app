@@ -93,6 +93,8 @@ async function collectUrls(origin: string): Promise<Fetched> {
     .get();
   let newsCount = 0;
   for (const doc of news.docs) {
+    // Hidden posts stay readable to members, and the read site 404s them.
+    if (doc.get('status') !== 'active') continue;
     const villageSlug = stringField(doc.get('villageSlug'));
     if (!villageSlug) continue;
     newsCount += 1;

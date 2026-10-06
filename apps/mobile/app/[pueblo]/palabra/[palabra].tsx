@@ -17,13 +17,14 @@ import { OtherVillagesSaying } from '../../../components/feature/vocabulary/Othe
 import { EntityContributors } from '../../../components/feature/EntityContributors';
 import { ReportSheet, type ReportTarget } from '../../../components/feature/ReportSheet';
 import { useT } from '../../../lib/i18n';
+import { useWatch } from '../../../lib/hooks/useWatch';
 import { useAuth } from '../../../lib/auth/useAuth';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import {
   deleteVocabularyDefinition,
   deleteVocabularyTerm,
-  getVocabularyDefinitions,
-  getVocabularyTerm,
+  watchVocabularyDefinitions,
+  watchVocabularyTerm,
   type VocabularyDefinitionWithId,
   type VocabularyTermWithId,
 } from '@cultuvilla/shared/services/vocabularyService';
@@ -54,30 +55,20 @@ function VocabularyTermScreen() {
   const { user } = useAuth();
   const { canManage, isMember } = useEntityCapabilities(villageId);
 
-  const [term, setTerm] = useState<VocabularyTermWithId | null>(null);
-  const [definitions, setDefinitions] = useState<VocabularyDefinitionWithId[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
-
-  const load = useCallback(async () => {
-    if (!termId) return;
-    try {
-      const [loadedTerm, loadedDefinitions] = await Promise.all([
-        getVocabularyTerm(termId),
-        getVocabularyDefinitions(termId),
-      ]);
-      setTerm(loadedTerm);
-      setDefinitions(loadedDefinitions);
-    } finally {
-      setLoading(false);
-    }
-  }, [termId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
+  const termWatch = useWatch<VocabularyTermWithId | null>(
+    'vocabularyTerm:watchVocabularyTerm',
+    termId || null,
+    (next, error) => watchVocabularyTerm(termId, next, error),
   );
+  const definitionsWatch = useWatch<VocabularyDefinitionWithId[]>(
+    'vocabularyTerm:watchVocabularyDefinitions',
+    termId || null,
+    (next, error) => watchVocabularyDefinitions(termId, next, error),
+  );
+  const loading = termWatch.status === 'loading' || definitionsWatch.status === 'loading';
+  const term = loading ? null : (termWatch.data ?? null);
+  const definitions = definitionsWatch.data ?? [];
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -92,14 +83,13 @@ function VocabularyTermScreen() {
 
   async function removeDefinition(definitionId: string) {
     await deleteVocabularyDefinition(definitionId);
-    await load();
   }
 
   /**
    * Removing the last meaning leaves an empty headword, which is not a word the
    * pueblo has any record of — so the author's delete takes the term with it.
    * Firestore rules permit that only at `definitionCount === 0`, and the count
-   * is trigger-owned, so the reload above is what makes this reachable.
+   * is trigger-owned, so the live term listener is what makes this reachable.
    */
   async function removeTerm() {
     if (!term) return;

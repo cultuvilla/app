@@ -1,4 +1,4 @@
-import { getDocs, query, where, orderBy } from 'firebase/firestore';
+import { getDocs, query, where, orderBy } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { membershipEventsCollection } from '../firebase/refs/client';
 import type { MembershipEventData } from '../models/membership/MembershipEventDataModel';

@@ -42,17 +42,14 @@
     "moreInfo": "Más información",
     "photo": "Foto",
     "and": "y",
-    "carousel": {
-      "prev": "Anterior",
-      "next": "Siguiente"
-    },
     "error": {
       "network": "Parece que no hay conexión. Comprueba tu internet.",
       "data": "No pudimos mostrar este contenido.",
       "unknown": "Algo salió mal al cargar el contenido.",
       "retryLater": "Inténtalo de nuevo más tarde.",
       "retry": "Reintentar"
-    }
+    },
+    "offline": "Sin conexión — mostrando datos guardados"
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -93,13 +90,13 @@
     "title": "Administración",
     "profileEntry": "Administración",
     "hub": {
-      "organizerRequests": "Solicitudes de administrador",
+      "organizerRequests": "Solicitudes de embajador",
       "organizerRequestsHint": "Revisar pendientes",
       "reports": "Denuncias",
       "reportsHint": "Contenido denunciado por las personas usuarias"
     },
     "organizerRequests": {
-      "title": "Solicitudes de administrador",
+      "title": "Solicitudes de embajador",
       "empty": "No hay solicitudes pendientes",
       "approve": "Aprobar",
       "reject": "Rechazar"
@@ -259,7 +256,6 @@
     "villages": {
       "empty": "Aún no perteneces a ningún pueblo",
       "activeBadge": "Activo",
-      "adminBadge": "Administrador",
       "memberBadge": "Miembro"
     }
   },
@@ -413,14 +409,20 @@
       "censoComplete": "Censo completo",
       "censoPending": "Censo pendiente",
       "empty": "Aún no hay personas registradas.",
-      "manageRole": "Gestionar rol",
-      "promote": "Hacer administrador",
-      "demote": "Quitar administrador",
-      "confirmPromoteTitle": "Hacer administrador",
-      "confirmPromoteBody": "¿Dar permisos de administrador a {name}? Podrá editar el pueblo y gestionar a otros miembros.",
-      "confirmDemoteTitle": "Quitar administrador",
-      "confirmDemoteBody": "¿Retirar los permisos de administrador a {name}?",
-      "roleChangeError": "No se pudo cambiar el rol. Inténtalo de nuevo."
+      "manageRole": "Gestionar",
+      "promote": "Añadir al equipo",
+      "demote": "Quitar del equipo",
+      "confirmPromoteTitle": "Añadir al equipo del pueblo",
+      "confirmPromoteBody": "¿Añadir a {name} al equipo del pueblo? Podrá editar el pueblo y gestionar a otros miembros.",
+      "confirmDemoteTitle": "Quitar del equipo del pueblo",
+      "confirmDemoteBody": "¿Quitar a {name} del equipo del pueblo?",
+      "roleChangeError": "No se pudo cambiar el rol. Inténtalo de nuevo.",
+      "close": "Cerrar",
+      "transfer": "Ceder el título de embajador",
+      "confirmTransferTitle": "Ceder el título de embajador",
+      "confirmTransferBody": "{name} pasará a ser la cara del pueblo en Cultuvilla. Tú seguirás en el equipo del pueblo.",
+      "confirmTransfer": "Ceder título",
+      "transferError": "No se pudo ceder el título. Inténtalo de nuevo."
     },
     "events": {
       "label": "Eventos",
@@ -442,8 +444,8 @@
     "organizations": "Grupos",
     "members": "Miembros",
     "admin": {
-      "open": "Administrar pueblo",
-      "title": "Administración del pueblo",
+      "open": "Panel del pueblo",
+      "title": "Panel del pueblo",
       "hub": {
         "barrios": "Barrios",
         "localidades": "Localidades",
@@ -540,8 +542,8 @@
       "button": "Iniciar este pueblo"
     },
     "noOrganizer": {
-      "body": "Este pueblo todavía no tiene administrador.",
-      "cta": "Administrar este pueblo",
+      "body": "Este pueblo aún no tiene embajador. Si lo quieres y lo conoces bien, puedes ser su cara en Cultuvilla.",
+      "cta": "Quiero ser embajador",
       "pending": "Solicitud pendiente"
     },
     "hub": {
@@ -624,7 +626,7 @@
       "discardMessage": "No se publicará. Podrás generarlo de nuevo cuando quieras.",
       "noFiestas": "Para crear el resumen, primero añade las fiestas del pueblo con su nombre y su mes.",
       "goFiestas": "Añadir fiestas",
-      "draftAutoPublish": "Nadie lo ha visto aún fuera de los administradores. Si no lo publicas ni lo descartas, se publicará solo en tres días.",
+      "draftAutoPublish": "Nadie lo ha visto aún fuera del equipo del pueblo. Si no lo publicas ni lo descartas, se publicará solo en tres días.",
       "draftHeldBack": "Tiene poca actividad, así que no se publicará solo: decide tú si merece la pena.",
       "status": {
         "draft": "Borrador",
@@ -653,6 +655,24 @@
         "people": "Todo el pueblo",
         "organizers": "Quién lo hizo posible",
         "posters": "Carteles"
+      },
+      "preview": "Ver como lo verá el pueblo",
+      "viewer": {
+        "title": "Fiestas {year} · {name}",
+        "next": "Siguiente imagen",
+        "close": "Cerrar el resumen",
+        "shareCard": "Compartir esta imagen",
+        "shareLink": "Compartir el resumen",
+        "shareName": "las Fiestas {year} de {name}",
+        "shareFailed": "No se ha podido compartir la imagen. Inténtalo de nuevo.",
+        "openVillage": "Ver el pueblo",
+        "replay": "Volver a verlo",
+        "closingBody": "Compártelo con quien estuvo y con quien no pudo venir.",
+        "missing": "Este resumen no existe o todavía no se ha publicado."
+      },
+      "banner": {
+        "title": "Ya está el resumen de Fiestas {year}",
+        "body": "Lo que se hizo, en números y en fotos."
       }
     }
   },
@@ -846,7 +866,7 @@
     },
     "eligibility": {
       "body": "Para crear un evento necesitas pertenecer a un grupo de este pueblo.",
-      "requestOrganizer": "Solicitar administrar este pueblo",
+      "requestOrganizer": "Quiero ser embajador de este pueblo",
       "browseOrgs": "Ver grupos"
     },
     "signupGroupSize": "Inscripción por grupos",
@@ -928,7 +948,8 @@
       "waitlisted": "En espera",
       "waitlistedMany": "En espera ×{count}",
       "waitlistedCount": "En espera ×{count}"
-    }
+    },
+    "privateToOrgNeedsApproval": "Solo los grupos en los que unirse requiere aprobación pueden tener eventos privados. Cámbialo en los ajustes del grupo."
   },
   "organization": {
     "title": "Grupo",
@@ -972,6 +993,23 @@
       "confirmRemoveBody": "¿Eliminar a {name} del grupo?",
       "roleChangeError": "No se pudo cambiar el rol. Inténtalo de nuevo.",
       "removeError": "No se pudo eliminar al miembro. Inténtalo de nuevo."
+    },
+    "requestToJoin": "Solicitar unirme",
+    "requestPending": "Solicitud enviada",
+    "cancelRequestTitle": "Retirar solicitud",
+    "cancelRequestBody": "¿Quieres retirar tu solicitud para unirte a {name}?",
+    "joinPolicy": {
+      "label": "Unirse requiere aprobación",
+      "approvalHint": "Quien quiera unirse lo solicita y un administrador del grupo lo acepta. Solo los grupos así pueden tener eventos privados.",
+      "openHint": "Cualquiera puede unirse al momento.",
+      "switchToOpenTitle": "Abrir el grupo",
+      "switchToOpenBody": "Cualquiera podrá unirse sin aprobación, y los eventos privados del grupo dejarán de verse hasta que vuelvas a exigir aprobación."
+    },
+    "joinRequests": {
+      "title": "Solicitudes para unirse",
+      "wantsToJoin": "quiere unirse",
+      "approve": "Aceptar",
+      "reject": "Rechazar"
     }
   },
   "partialDate": {
@@ -1195,43 +1233,45 @@
     "activity": "Actividad",
     "empty": "No tienes nada nuevo",
     "tab": {
-      "organizer": "Administrador",
-      "org": "Grupos"
+      "organizer": "Embajadores",
+      "org": "Grupos",
+      "orgJoin": "Solicitudes para unirse"
     },
     "approve": "Aprobar",
     "reject": "Rechazar",
-    "wantsToAdminister": "quiere administrar",
+    "wantsToAdminister": "quiere ser embajador de",
     "motivation": "Motivo",
     "orgRow": "{org} ({type})",
     "pendingSent": {
-      "organizer": "Quieres administrar {name}",
+      "organizer": "Quieres ser embajador de {name}",
       "org": "Quieres crear {name}",
-      "waiting": "Esperando aprobación"
+      "waiting": "Esperando aprobación",
+      "orgJoin": "Quieres unirte a {name}"
     }
   },
   "requests": {
     "organizer": {
-      "title": "Solicitar ser administrador",
+      "title": "Quiero ser embajador",
       "descriptionLabel": "Descripción del pueblo",
       "descriptionPlaceholder": "Cuenta algo sobre tu pueblo…",
-      "motivationLabel": "¿Por qué quieres administrar este pueblo?",
+      "motivationLabel": "¿Por qué quieres ser embajador de este pueblo?",
       "submit": "Enviar solicitud",
       "submitted": "Solicitud enviada"
     }
   },
   "start": {
     "title": "Iniciar pueblo",
-    "explainer": "Iniciar el pueblo lo activa para que cualquier vecino pueda unirse. Serás su primer miembro y podrás añadir su información. No te convierte en administrador.",
+    "explainer": "Iniciar el pueblo lo activa para que cualquier vecino pueda unirse. Serás su primer miembro y podrás añadir su información. No te convierte en embajador.",
     "escudoAdd": "Añadir escudo (opcional)",
     "escudoSelected": "Escudo seleccionado",
-    "organizeIntro": "Si además quieres supervisar la creación de elementos representativos de tu pueblo, como asociaciones, lugares o barrios, solicita ser administrador.",
-    "organizeToggle": "Quiero administrar este pueblo",
+    "organizeIntro": "¿Quieres ir más allá? Los embajadores de Cultuvilla son la cara de su pueblo: cuidan su información, acogen a los vecinos y dan vida a sus grupos, lugares y fiestas.",
+    "organizeToggle": "Quiero ser embajador de este pueblo",
     "phoneLabel": "Teléfono de contacto",
     "submit": "Iniciar pueblo"
   },
   "organize": {
-    "title": "Administrar este pueblo",
-    "explainer": "El administrador gestiona el censo, modera los artículos, mantiene lugares y grupos, y edita o cancela eventos del pueblo. La solicitud requiere aprobación.",
+    "title": "Ser embajador de Cultuvilla",
+    "explainer": "Los embajadores de Cultuvilla son la cara de su pueblo en la app. Cuidan su información, dan la bienvenida a los vecinos, moderan lo que se publica y ayudan a que grupos, lugares y fiestas estén al día. Es un papel público: tu nombre y tu foto aparecerán en la página del pueblo. Revisamos cada solicitud personalmente.",
     "submit": "Enviar solicitud"
   },
   "editInfo": {
@@ -1332,7 +1372,7 @@
   },
   "report": {
     "title": "Denunciar",
-    "subtitle": "Cuéntanos qué pasa con este contenido. Lo revisarán los administradores del pueblo.",
+    "subtitle": "Cuéntanos qué pasa con este contenido. Lo revisará el equipo del pueblo.",
     "sent": "Gracias. Hemos recibido tu denuncia y la revisaremos.",
     "close": "Cerrar",
     "reason": {
@@ -1347,12 +1387,6 @@
     "blockUser": "Bloquear a esta persona",
     "blockHint": "No volverás a ver sus comentarios.",
     "blockDone": "Persona bloqueada. Ya no verás sus comentarios."
-  },
-  "descarga": {
-    "tagline": "La agenda de tu pueblo, en tu bolsillo.",
-    "getOnAppStore": "Descargar en el App Store",
-    "getOnPlayStore": "Descargar en Google Play",
-    "continueOnWeb": "Seguir en la web"
   },
   "smartBanner": {
     "title": "Cultuvilla en tu móvil",
@@ -1391,6 +1425,9 @@
       },
       "user": {
         "view": "Mira el perfil de {name} en Cultuvilla: {url}"
+      },
+      "wrapped": {
+        "view": "Mira cómo fueron {name} en Cultuvilla: {url}"
       }
     },
     "shareViewLabel": "Compartir"
@@ -1442,8 +1479,8 @@
       "warning": "Esta acción es irreversible. Tus datos personales se eliminarán permanentemente, aunque tu contenido publicado se mantendrá bajo un usuario anónimo.",
       "confirmPrompt": "Escribe ELIMINAR para confirmar",
       "confirmWord": "ELIMINAR",
-      "blockerIntro": "Antes de eliminar tu cuenta, debes ceder los permisos de administrador en:",
-      "blockerVillage": "Pueblo de {name} — eres el único administrador",
+      "blockerIntro": "Antes de eliminar tu cuenta, debes nombrar a otra persona en:",
+      "blockerVillage": "Pueblo de {name} — eres la única persona en su equipo",
       "blockerOrg": "Grupo de {name} — eres el único administrador",
       "submit": "Eliminar mi cuenta",
       "success": "Tu cuenta ha sido eliminada",
@@ -1474,5 +1511,21 @@
   },
   "intro": {
     "skip": "Saltar la introducción"
+  },
+  "ambassador": {
+    "title": "Embajador",
+    "titleFemale": "Embajadora",
+    "fullTitle": "Embajador de Cultuvilla en {village}",
+    "fullTitleFemale": "Embajadora de Cultuvilla en {village}",
+    "team": "Equipo del pueblo",
+    "sectionTitle": "Embajador del pueblo",
+    "sectionTitleFemale": "Embajadora del pueblo",
+    "welcome": {
+      "title": "¡Ya eres {title} de Cultuvilla en {village}!",
+      "body": "Desde hoy eres la cara de tu pueblo en Cultuvilla. Tu nombre aparece en la página del pueblo y en tu perfil. Gracias por dar un paso al frente.",
+      "share": "Compartir la noticia",
+      "dismiss": "Empezar",
+      "close": "Cerrar"
+    }
   }
 }

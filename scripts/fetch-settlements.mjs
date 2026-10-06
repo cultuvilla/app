@@ -58,7 +58,7 @@ const MUNI_PATH = path.join(__dirname, 'data', 'municipalities-es.json');
 const OUT_PATH = path.join(__dirname, 'data', 'settlements-es.json');
 const CACHE_DIR = path.join(__dirname, 'data', '.settlements-cache');
 const USER_AGENT =
-  'cultuvilla-settlement-fetcher/0.1 (https://github.com/alvaro-francisco-gil/cultuvilla)';
+  'cultuvilla-settlement-fetcher/0.1 (https://github.com/cultuvilla/app)';
 const ENDPOINT = 'https://overpass-api.de/api/interpreter';
 
 const args = process.argv.slice(2);

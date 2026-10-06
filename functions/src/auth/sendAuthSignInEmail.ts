@@ -4,7 +4,7 @@ import { logger } from 'firebase-functions/v2';
 import { getAuth } from 'firebase-admin/auth';
 import { Resend } from 'resend';
 import { RESEND_API_KEY } from './secret';
-import { bucketIdFor, checkRateLimit } from './rateLimit';
+import { bucketIdFor, callerIpOf, checkSendRateLimits } from './rateLimit';
 import {
   renderAuthEmailHtml,
   renderAuthEmailText,
@@ -25,6 +25,7 @@ interface SendAuthSignInEmailResult {
 /** Core logic, separated from the onCall envelope so it is unit-testable. */
 export async function runSendAuthSignInEmail(
   data: SendAuthSignInEmailData | undefined,
+  callerIp: string | null = null,
 ): Promise<SendAuthSignInEmailResult> {
   const email = data?.email;
   const continueUrl = data?.continueUrl;
@@ -39,12 +40,10 @@ export async function runSendAuthSignInEmail(
   const trimmedEmail = email.trim();
   const bucketId = bucketIdFor(trimmedEmail.toLowerCase());
 
-  const allowed = await checkRateLimit(bucketId);
+  const allowed = await checkSendRateLimits(bucketId, callerIp);
   if (!allowed) {
     // Generic response on purpose — never let a caller distinguish
     // "rate-limited" from "sent" (docs/plans/ideas/branded-auth-email-delivery.md).
-    // TODO: this only rate-limits by email hash; per-IP limiting is an open
-    // question in the plan and out of scope for this first cut.
     logger.warn('auth email rate limited', { handler, bucketId, reason: 'window-exceeded' });
     return { ok: true };
   }
@@ -108,6 +107,6 @@ export const sendAuthSignInEmail = onCall<
   async (request) => {
     // Unauthenticated by design: this is the entry point that lets a signed-out
     // user request a sign-in link in the first place.
-    return runSendAuthSignInEmail(request.data);
+    return runSendAuthSignInEmail(request.data, callerIpOf(request.rawRequest));
   },
 );

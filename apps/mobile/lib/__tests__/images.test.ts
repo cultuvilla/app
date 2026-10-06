@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { pickImageAsBlob } from '../images';
 import { pickAndCropSquare } from '../imageCrop';
@@ -12,7 +11,6 @@ jest.mock('expo-image-picker', () => ({
 // focused on the plain (non-square) library path and the square→cropper routing.
 jest.mock('../imageCrop', () => ({
   pickAndCropSquare: jest.fn(),
-  CropperHost: () => null,
 }));
 
 const launch = ImagePicker.launchImageLibraryAsync as jest.Mock;
@@ -99,16 +97,4 @@ describe('pickImageAsBlob', () => {
     expect(result?.filename).toMatch(/^upload-\d+\.jpg$/);
   });
 
-  it('on web reads the asset via the browser fetch', async () => {
-    jest.replaceProperty(Platform, 'OS', 'web');
-    launch.mockResolvedValue({ canceled: false, assets: [ASSET] });
-    const fetchSpy = jest
-      .spyOn(global, 'fetch' as never)
-      .mockResolvedValue({ blob: async () => FAKE_BLOB } as never);
-
-    const result = await pickImageAsBlob();
-
-    expect(fetchSpy).toHaveBeenCalledWith(ASSET.uri);
-    expect(result?.blob).toBe(FAKE_BLOB);
-  });
 });

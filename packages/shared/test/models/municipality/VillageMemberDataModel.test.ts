@@ -8,7 +8,7 @@ const validMember = {
   userId: 'u-1',
   role: 'user' as const,
   joinedAt: new Date('2026-01-01T00:00:00Z'),
-  profileAnswers: { barrio: 'Centro', householdSize: 4 },
+  profileAnswers: {},
   profileCompletedAt: null,
 };
 
@@ -20,6 +20,14 @@ describe('VillageMemberDataSchema', () => {
   it('rejects an unknown role', () => {
     expect(() =>
       VillageMemberDataSchema.parse({ ...validMember, role: 'moderator' }),
+    ).toThrow();
+  });
+
+  // Census answers are private and live in censoAnswers/; a member doc that
+  // still carries them must fail loudly rather than be read as public data.
+  it('rejects census answers on the member doc', () => {
+    expect(() =>
+      VillageMemberDataSchema.parse({ ...validMember, profileAnswers: { barrio: 'Centro' } }),
     ).toThrow();
   });
 
@@ -46,7 +54,6 @@ describe('buildVillageMemberData', () => {
       userId: 'u-1',
       role: 'admin',
       joinedAt: t,
-      profileAnswers: { barrio: 'Centro' },
       profileCompletedAt: t,
     });
     expect(m.role).toBe('admin');

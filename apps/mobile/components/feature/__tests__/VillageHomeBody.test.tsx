@@ -53,6 +53,19 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   deletePlace: jest.fn(),
   deleteBarrio: jest.fn(),
 }));
+const mockGetPublicProfile = jest.fn();
+jest.mock('@cultuvilla/shared/services/userService', () => ({
+  getPublicProfile: (...a: unknown[]) => mockGetPublicProfile(...a),
+}));
+jest.mock('@cultuvilla/shared/services/personService', () => ({
+  getPersonByUserId: jest.fn().mockResolvedValue(null),
+}));
+let mockWelcomeSeen = true;
+const mockMarkWelcomeSeen = jest.fn(async (..._a: unknown[]) => undefined);
+jest.mock('../../../lib/village/ambassadorWelcome', () => ({
+  hasSeenAmbassadorWelcome: async () => mockWelcomeSeen,
+  markAmbassadorWelcomeSeen: (...a: unknown[]) => mockMarkWelcomeSeen(...a),
+}));
 // Real Spanish catalog so we can assert on the visible strings.
 jest.mock('../../../lib/i18n', () => {
   const { getMessages } = jest.requireActual('@cultuvilla/i18n');
@@ -116,6 +129,55 @@ beforeEach(() => {
   mockRequireAuth.mockClear();
   mockUser = { uid: 'u1' };
   mockIsAppAdmin = false;
+  mockWelcomeSeen = true;
+  mockMarkWelcomeSeen.mockClear();
+  mockGetPublicProfile.mockReset();
+  mockGetPublicProfile.mockResolvedValue({ id: 'amb', displayName: 'Ana Pérez' });
+});
+
+const withAmbassador = (sex: 'male' | 'female' | null): VillageHomeState => ({
+  ...base,
+  village: {
+    ...village,
+    community: { organizerId: 'amb', organizerSex: sex, description: null },
+  } as unknown as VillageHomeState['village'],
+});
+
+describe('VillageHomeBody — Embajador', () => {
+  it('invites a vecino to become Embajador when the pueblo has none', () => {
+    const { getByText } = render(<VillageHomeBody data={base} reload={jest.fn()} />);
+    expect(getByText('Quiero ser embajador')).toBeTruthy();
+  });
+
+  it('shows the Embajadora by name on the village home', async () => {
+    const { findByText, getByText } = render(
+      <VillageHomeBody data={withAmbassador('female')} reload={jest.fn()} />,
+    );
+    expect(await findByText('Ana Pérez')).toBeTruthy();
+    expect(getByText('Embajadora del pueblo')).toBeTruthy();
+    expect(getByText('Embajadora')).toBeTruthy();
+    expect(mockGetPublicProfile).toHaveBeenCalledWith('amb');
+  });
+
+  it('welcomes a new Embajador once, then remembers it', async () => {
+    mockUser = { uid: 'amb' };
+    mockWelcomeSeen = false;
+    const { findByTestId, getByTestId } = render(
+      <VillageHomeBody data={withAmbassador('male')} reload={jest.fn()} />,
+    );
+    expect(await findByTestId('ambassador-welcome-sheet')).toBeTruthy();
+    fireEvent.press(getByTestId('ambassador-welcome-dismiss'));
+    expect(mockMarkWelcomeSeen).toHaveBeenCalledWith('m1', 'amb');
+  });
+
+  it('does not welcome anyone who is not the Embajador', async () => {
+    mockWelcomeSeen = false;
+    const { findByText, queryByTestId } = render(
+      <VillageHomeBody data={withAmbassador('male')} reload={jest.fn()} />,
+    );
+    await findByText('Ana Pérez');
+    expect(queryByTestId('ambassador-welcome-dismiss')).toBeNull();
+  });
 });
 
 describe('VillageHomeBody', () => {

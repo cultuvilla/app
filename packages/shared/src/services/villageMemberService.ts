@@ -6,8 +6,8 @@ import {
   where,
   query,
   writeBatch,
-} from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+} from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   municipalityMembersCollection,
@@ -182,6 +182,22 @@ export async function setVillageMemberRole(
     { ok: true }
   >(getFirebaseFunctions(), 'changeVillageMemberRole');
   await fn({ municipalityId, targetUserId: userId, role });
+}
+
+/**
+ * Hand the pueblo's single Embajador title to another member — a thin wrapper
+ * over the audited `transferVillageAmbassador` callable. Only the current
+ * Embajador (or an app admin) may call it; the target becomes admin if needed.
+ */
+export async function transferVillageAmbassador(
+  municipalityId: string,
+  targetUserId: string,
+): Promise<void> {
+  const fn = httpsCallable<
+    { municipalityId: string; targetUserId: string },
+    { ok: true }
+  >(getFirebaseFunctions(), 'transferVillageAmbassador');
+  await fn({ municipalityId, targetUserId });
 }
 
 export interface UserMembership {

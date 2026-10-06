@@ -1,9 +1,10 @@
 // packages/shared/src/services/inboxService.ts
 import { getMyOrganizerRequests } from './organizerRequestService';
 import { getMyOrganizations } from './organizationService';
+import { getMyPendingOrgJoinRequests } from './orgJoinRequestService';
 import type { NotificationData } from '../models/notification/NotificationDataModel';
 
-export type PendingRequestType = 'organizer' | 'org';
+export type PendingRequestType = 'organizer' | 'org' | 'orgJoin';
 
 export type ActivityItem =
   | { kind: 'notification'; id: string; notification: NotificationData & { id: string } }
@@ -51,15 +52,16 @@ export function buildActivityFeed(
 }
 
 /**
- * Fetches the user's own pending "sent" requests across the three request
- * types, filtered to status 'pending'. Labels use only fields already present
- * on the request doc — no extra name-resolution reads (municipality/org name
- * lookup is left to the screen, which already hydrates those for display).
+ * Fetches the user's own pending "sent" requests across the request types.
+ * Labels use only fields already present on the request doc — no extra
+ * name-resolution reads (the screen resolves ids to names): a municipalityId
+ * for `organizer`, the org name for `org`, the orgId for `orgJoin`.
  */
 export async function getMyPendingRequests(uid: string): Promise<PendingSentRequest[]> {
-  const [organizerRequests, organizations] = await Promise.all([
+  const [organizerRequests, organizations, joinRequests] = await Promise.all([
     getMyOrganizerRequests(uid),
     getMyOrganizations(uid),
+    getMyPendingOrgJoinRequests(uid),
   ]);
 
   const pendingOrganizer: PendingSentRequest[] = organizerRequests
@@ -80,5 +82,13 @@ export async function getMyPendingRequests(uid: string): Promise<PendingSentRequ
       createdAt: r.createdAt,
     }));
 
-  return [...pendingOrganizer, ...pendingOrg];
+  // A join request exists only while pending — resolving it deletes it.
+  const pendingJoin: PendingSentRequest[] = joinRequests.map((r) => ({
+    requestType: 'orgJoin' as const,
+    id: `${r.orgId}_${r.userId}`,
+    label: r.orgId,
+    createdAt: r.createdAt,
+  }));
+
+  return [...pendingOrganizer, ...pendingOrg, ...pendingJoin];
 }

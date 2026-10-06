@@ -4,6 +4,7 @@ import NewEventScreen from '../evento';
 import { pickImageAsBlob } from '../../../lib/images';
 import { createEvent, updateEvent, getEvent } from '@cultuvilla/shared/services/eventService';
 import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
+import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { showConfirm } from '../../../lib/dialogs';
 
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -45,6 +46,9 @@ jest.mock('@cultuvilla/shared/models/municipality', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/feedService', () => ({
   haversineKm: () => 0,
+}));
+jest.mock('@cultuvilla/shared/services/organizationService', () => ({
+  getOrganization: jest.fn().mockResolvedValue({ id: 'org-1', joinPolicy: 'approval' }),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
   createEvent: jest.fn().mockResolvedValue('e-1'),
@@ -681,12 +685,12 @@ describe('NewEventScreen — private events', () => {
   // test can put the event in the one-org state the privacy switch needs.
   async function submitNewEvent(
     utils: ReturnType<typeof render>,
-    onFirstStep?: (u: ReturnType<typeof render>) => void,
+    onFirstStep?: (u: ReturnType<typeof render>) => void | Promise<void>,
   ) {
     const { getByText, getByLabelText, getByTestId } = utils;
     await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());
     fireEvent.changeText(getByLabelText('event.title'), 'Fiesta');
-    onFirstStep?.(utils);
+    await onFirstStep?.(utils);
     fireEvent.press(getByText('common.stepper.next'));
     await waitFor(() => expect(getByTestId('startDate')).toBeTruthy());
     fireEvent.press(getByTestId('startDate'));
@@ -698,6 +702,26 @@ describe('NewEventScreen — private events', () => {
     fireEvent.press(getByTestId('event-form-primary'));
     await waitFor(() => expect(createEvent).toHaveBeenCalled());
   }
+
+  // The switch only turns on once the org's join policy has loaded.
+  async function pickApprovalOrg(u: ReturnType<typeof render>) {
+    fireEvent.press(u.getByTestId('pick-one-org'));
+    await waitFor(() => expect(getOrganization).toHaveBeenCalledWith('org-1'));
+    await waitFor(() => expect(u.getByTestId('private-to-org')).toBeEnabled());
+  }
+
+  it('cannot make an event private to an open org, and says why', async () => {
+    jest.mocked(getOrganization).mockResolvedValueOnce({ id: 'org-1', joinPolicy: 'open' } as never);
+    await submitNewEvent(render(<NewEventScreen />), async (u) => {
+      fireEvent.press(u.getByTestId('pick-one-org'));
+      await waitFor(() => expect(u.getByText('event.privateToOrgNeedsApproval')).toBeTruthy());
+      fireEvent.press(u.getByTestId('private-to-org'));
+    });
+    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
+      visibility: 'public',
+      visibilityOrgId: null,
+    });
+  });
 
   it('offers the switch only when exactly one org organizes the event', async () => {
     const { getByLabelText, getByTestId, queryByTestId } = render(<NewEventScreen />);
@@ -721,8 +745,8 @@ describe('NewEventScreen — private events', () => {
   });
 
   it('creates an event restricted to the organizing org when the switch is on', async () => {
-    await submitNewEvent(render(<NewEventScreen />), (u) => {
-      fireEvent.press(u.getByTestId('pick-one-org'));
+    await submitNewEvent(render(<NewEventScreen />), async (u) => {
+      await pickApprovalOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
     });
     expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
@@ -735,8 +759,8 @@ describe('NewEventScreen — private events', () => {
   // withholds it, and the address bar, history and copied links would not.
   it('opens a new private event at a URL without its title', async () => {
     const { router } = jest.requireMock('expo-router') as { router: { replace: jest.Mock } };
-    await submitNewEvent(render(<NewEventScreen />), (u) => {
-      fireEvent.press(u.getByTestId('pick-one-org'));
+    await submitNewEvent(render(<NewEventScreen />), async (u) => {
+      await pickApprovalOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
     });
     await waitFor(() => expect(router.replace).toHaveBeenCalled());
@@ -757,8 +781,8 @@ describe('NewEventScreen — private events', () => {
   // adding a second one — and a private event with two orgs has no single
   // membership to gate on, so the submit path has to drop it.
   it('falls back to public when a second org joins after the switch was set', async () => {
-    await submitNewEvent(render(<NewEventScreen />), (u) => {
-      fireEvent.press(u.getByTestId('pick-one-org'));
+    await submitNewEvent(render(<NewEventScreen />), async (u) => {
+      await pickApprovalOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
       fireEvent.press(u.getByTestId('pick-two-orgs'));
     });

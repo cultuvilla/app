@@ -48,6 +48,7 @@ async function seedMunicipality(municipalityId: string, organizerId: string | nu
       community: {
         description: 'Nuestro pueblo',
         organizerId,
+        organizerSex: null,
         profileForm: null,
         activatedAt: new Date(),
       },
@@ -119,6 +120,15 @@ describe('firestore.rules — authority-field locks', () => {
       await assertFails(
         updateDoc(doc(db, `municipalities/${VILLAGE}`), {
           'community.organizerId': ADMIN,
+        }),
+      );
+    });
+
+    it('rejects a village admin rewriting the Embajador title gender', async () => {
+      const db = asUser(getEnv(), ADMIN);
+      await assertFails(
+        updateDoc(doc(db, `municipalities/${VILLAGE}`), {
+          'community.organizerSex': 'female',
         }),
       );
     });

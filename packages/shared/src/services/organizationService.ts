@@ -13,8 +13,8 @@ import {
   serverTimestamp,
   type UpdateData,
   type DocumentData,
-} from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+} from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   organizationsCollection,
@@ -25,6 +25,7 @@ import type {
   OrganizationDataInput,
   OrganizationStatus,
 } from '../models/organization/OrganizationDataModel';
+import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export async function getPendingOrganizations(): Promise<(OrganizationData & { id: string })[]> {
   const q = query(
@@ -53,25 +54,40 @@ export async function getOrganization(orgId: string): Promise<(OrganizationData 
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export async function getOrganizationsByMunicipality(
-  municipalityId: string,
-  status?: OrganizationStatus,
-): Promise<(OrganizationData & { id: string })[]> {
+export function watchOrganization(
+  orgId: string,
+  onNext: (org: (OrganizationData & { id: string }) | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(organizationDoc(getDb(), orgId), onNext, onError);
+}
+
+function municipalityOrganizationsQuery(municipalityId: string, status?: OrganizationStatus) {
   const ref = organizationsCollection(getDb());
-  const q = status
+  return status
     ? query(
         ref,
         where('municipalityId', '==', municipalityId),
         where('status', '==', status),
         orderBy('name', 'asc'),
       )
-    : query(
-        ref,
-        where('municipalityId', '==', municipalityId),
-        orderBy('name', 'asc'),
-      );
-  const snap = await getDocs(q);
+    : query(ref, where('municipalityId', '==', municipalityId), orderBy('name', 'asc'));
+}
+
+export async function getOrganizationsByMunicipality(
+  municipalityId: string,
+  status?: OrganizationStatus,
+): Promise<(OrganizationData & { id: string })[]> {
+  const snap = await getDocs(municipalityOrganizationsQuery(municipalityId, status));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchOrganizationsByMunicipality(
+  municipalityId: string,
+  onNext: (orgs: (OrganizationData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(municipalityOrganizationsQuery(municipalityId), onNext, onError);
 }
 
 /** Mint an organization doc id up front, so images can be uploaded to its
@@ -121,6 +137,7 @@ export async function requestOrganization(
     readCount: 0,
     memberCount: 0,
     membersPublic: input.membersPublic ?? true,
+    joinPolicy: input.joinPolicy ?? 'open',
   };
   await setDoc(newRef, data);
   return newRef.id;

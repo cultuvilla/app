@@ -1,51 +1,59 @@
 ---
 name: parallel-agent-workflow
-description: STUB — inactive until `apps/mobile/` exists and per-slot Metro/emulator infrastructure is wired up. Future skill for parallel agents running Metro, Firebase emulators, and Android emulators concurrently inside `.claude/worktrees/`. The current cultuvilla worktree workflow (web + backend tasks only, no Metro, no AVD) does NOT need this skill.
+description: Use whenever an agent works inside a worktree under `.claude/worktrees/` and will run Firebase emulator tests (`pnpm test`, `test:rules`, `test:integration`, `test:functions`), especially when other agents may be doing the same — an orchestrated batch, or any second session. Covers the per-worktree emulator slot (`scripts/agent-env.sh`), the machine's concurrency ceiling, and teardown. Per-slot Metro and Android emulators are NOT built here.
 ---
 
 # Parallel agent workflow
 
-> **STATUS: STUB.** Cultuvilla's current parallel-agent setup is worktrees-only — no per-slot Metro, no isolated Firebase emulators, no Android emulator orchestration. The repo's existing `.claude/worktrees/` workflow (documented in [AGENTS.md](../../../AGENTS.md) "Development workflow" step 1) is sufficient for web + backend work. This skill activates when the mobile app lands and per-slot infrastructure is built.
+Several agents can work in this repo at once, each in its own worktree. Code is
+isolated by git; **emulators are not**, unless the worktree holds a slot. Without
+one, every emulator suite binds `firebase.json`'s ports (8080, 9099, 5001, 9199),
+and a second suite on the machine evicts the first or talks to its emulators. The
+symptom is failing tests, never "port in use" — so don't debug a red emulator run
+in a worktree before checking this.
 
-## When this will apply (once mobile + per-slot infra land)
+## The procedure
 
-When an agent works inside `.claude/worktrees/<branch>/` AND needs to start long-running services (Metro, Firebase emulators, Android emulator) without colliding with the user's main checkout or other parallel agents.
+1. **Once per worktree, before any emulator test:**
 
-## Pipeline shape (template — fill in once infra exists)
+   ```bash
+   source scripts/agent-env.sh
+   ```
 
-```
-cd into worktree
-pnpm agent:slot-up . [--with-device]    ← env + Metro + emulators (+ device)
-# … make code changes, tests, open commit …
-# (user runs `pnpm agent:slot-down <N> [--with-worktree] [--with-avd]` after review)
-```
+   It allocates a slot (a block of 100 ports from 20000 up, in the machine-wide
+   registry `~/.agents/slots.json`), initialises the `.agents/_shared` submodule,
+   runs the install steps from `.agents/orchestrate.config.json` (pnpm + the
+   separate `functions/` npm install), and writes `firebase.agent.json` — the
+   repo's `firebase.json` with every emulator moved into the slot. Report the slot
+   number it prints.
 
-## TODO — fill in before activating
+   If `scripts/agent-env.sh` itself is missing, the submodule is empty (git does
+   not populate it in new worktrees): run `git submodule update --init` first.
 
-- [ ] Decide on a port-slot scheme — typically: slot N gets `5000 + N*100` for emulators, `8081 + N*10` for Metro, etc.
-- [ ] Add `scripts/agent-env.sh` (or equivalent) that exports `$CULTUVILLA_AGENT_SLOT`, port env vars, and a tmux session name.
-- [ ] Add a `firebase.agent.json` config that swaps emulator ports per slot.
-- [ ] Add `pnpm agent:slot-up` / `pnpm agent:slot-down` / `pnpm agent:status` scripts.
-- [ ] Document the tmux session naming convention: `cultuvilla-slot-<N>` with `metro`, `emulators`, `device` windows.
-- [ ] (Mobile-specific) Add Android emulator orchestration: AVD cloning, port forwarding for WSL → Windows host if relevant, RAM-budget guard.
-- [ ] Document the "decide: device or no device?" decision table — backend-only tasks skip the device.
-- [ ] Document the review-handoff block to paste in commit/PR bodies.
-- [ ] Remove the **STUB STATUS** banner.
+2. **Run tests normally.** `scripts/run-tests-with-emulators.mjs` starts from
+   `firebase.agent.json` whenever it exists and points the tests at its ports, so
+   every `pnpm test*` script is slot-aware with no flags. The slot lives in that
+   file, not in an exported variable, so it survives across separate shell
+   commands.
 
-## Hard rules (template — adapt to cultuvilla)
+3. **Mind the machine ceiling.** At most `maxConcurrentEmulatorSuites` (in
+   `.agents/orchestrate.config.json`) emulator suites run at once on this host.
+   Prefer targeted unit tests locally and let the PR's CI run the full gate, as
+   the Development workflow already asks of worktrees.
 
-Once active, the rules should mirror ordago's:
+4. **Don't tear down your own slot.** Freeing it is the leader's (or the user's)
+   job when the worktree is reaped:
 
-1. **Source `scripts/agent-env.sh` first.** Confirm slot variable is non-zero.
-2. **Use `firebase.agent.json` for emulators.** Never the default `firebase.json` from a worktree.
-3. **Run services inside the slot's tmux session.**
-4. **In the commit body, include the review-handoff block.**
-5. **Do NOT tear down yourself** — leaves state alive for user review. User runs `pnpm agent:slot-down`.
+   ```bash
+   (cd .claude/worktrees/<name> && source scripts/agent-env.sh --clean)
+   git worktree remove --force .claude/worktrees/<name>
+   ```
 
-## When this skill applies
+## Not covered
 
-When `apps/mobile/` exists, per-slot scripts are in place, and the agent needs to run Metro or emulators in parallel. For web + backend work, the current worktree workflow is sufficient — do NOT invoke this skill.
-
-## Reference
-
-Template adapted from `ordago-apps/.claude/skills/parallel-agent-workflow/SKILL.md`. The ordago version is mature; cultuvilla's variant will need port slot numbers, RAM budgets, and tmux session names tuned to this machine.
+- **Per-slot Metro and Android emulators.** A worker cannot run its own Metro
+  or AVD; UI work that needs a device goes to the user's main checkout (see the
+  `drive-android-avd` skill). `pnpm test:e2e:android` still uses the default
+  ports.
+- **The main checkout** never holds a slot: `agent-env.sh` is a no-op there, and
+  everything uses `firebase.json`'s ports as before.

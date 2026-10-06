@@ -12,7 +12,7 @@ The companion skill `guardrail-enforcement` answers "where should a guardrail li
 ## When to invoke
 
 - A user asks: "audit eventService", "scan event-creation for missing checks", "make sure org approval is enforced server-side."
-- Reviewing a PR that adds writes to a sensitive collection (`villages/`, `events/`, `persons/`, `orgMembers/`, `organizations/`, `inviteTokens/`).
+- Reviewing a PR that adds writes to a sensitive collection (`villages/`, `events/`, `persons/`, `orgMembers/`, `organizations/`).
 - Sweeping a feature area before shipping.
 
 ## Procedure

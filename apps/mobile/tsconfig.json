@@ -5,6 +5,7 @@
     "noUncheckedIndexedAccess": true,
     "paths": {
       "@/*": ["./*"],
+      "@cultuvilla/shared": ["../../packages/shared/src"],
       "@cultuvilla/shared/*": ["../../packages/shared/src/*"]
     }
   },

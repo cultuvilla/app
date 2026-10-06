@@ -29,7 +29,7 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: jest.fn(),
+  getPublicProfile: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
   getPersonByUserId: jest.fn(),
@@ -54,6 +54,7 @@ jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   getMunicipality: jest.fn().mockResolvedValue(null),
+  getVillagesWhereAmbassador: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadUserPhoto: jest.fn(),
@@ -71,7 +72,7 @@ jest.mock('../../../lib/i18n', () => ({
   useT: () => ({ locale: 'es', t: (k: string) => k }),
 }));
 
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 import {
   getPersonByUserId,
   getPersonsByCreator,
@@ -86,7 +87,7 @@ function permissionDenied() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (getUserProfile as jest.Mock).mockResolvedValue({
+  (getPublicProfile as jest.Mock).mockResolvedValue({
     id: VIEWED,
     email: 'l@v.test',
     displayName: 'Lucía Vecina',

@@ -1,17 +1,17 @@
 # OTP login E2E coverage
 
+**Priority:** low
+**Gate:** blocked:no native (Maestro) E2E driver to write the spec against yet
+**Next:** write the login spec once the native (Maestro) driver is the target — see *Why the spec is deferred*
+
 **Goal:** Cover the login screen (`apps/mobile/app/(auth)/login.tsx`) end to end. It is
 the only screen no test ever opens — every existing spec starts already signed in.
 
-## Status
+## Done
 
-- **Updated:** 2026-08-18
-- **Stage:** deferred — waiting on the native driver. The backend half is done.
-- **Done:** `sendAuthOtpCode` now completes under the Functions emulator (writes the
-  plaintext code to the doc instead of emailing it), so the flow is exercisable
-  locally by any driver, and by hand against a dev client.
-- **Next:** write the actual spec once the native (Maestro) driver is the target —
-  see *Why the spec is deferred*.
+The backend half: `sendAuthOtpCode` now completes under the Functions emulator (writes
+the plaintext code to the doc instead of emailing it), so the flow is exercisable
+locally by any driver, and by hand against a dev client.
 
 ## Context
 

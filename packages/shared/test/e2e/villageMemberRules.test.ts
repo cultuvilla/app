@@ -165,13 +165,37 @@ describe('firestore.rules — member doc no longer carries barrioId', () => {
     );
   });
 
-  it('owner CAN still update their censo profile fields', async () => {
+  it('owner CAN mark their censo complete on the membership', async () => {
     await seedAliceMember();
     const db = asUser(getEnv(), ALICE);
     await assertSucceeds(
+      updateDoc(doc(db, 'municipalities/mActive/members/alice'), { profileCompletedAt: NOW }),
+    );
+  });
+
+  // Census answers live in censoAnswers/, never on the public member doc.
+  it('owner CANNOT write census answers onto the membership', async () => {
+    await seedAliceMember();
+    const db = asUser(getEnv(), ALICE);
+    await assertFails(
       updateDoc(doc(db, 'municipalities/mActive/members/alice'), {
         profileAnswers: { q1: 'a' },
-        profileCompletedAt: NOW,
+      }),
+    );
+  });
+
+  it('a self-join CANNOT carry census answers on the membership', async () => {
+    await seed(getEnv(), async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'municipalities/mActive'), {
+        name: 'Activo',
+        communityActive: true,
+      });
+    });
+    const db = asUser(getEnv(), ALICE);
+    await assertFails(
+      setDoc(doc(db, 'municipalities/mActive/members/alice'), {
+        ...memberDocData(),
+        profileAnswers: { q1: 'a' },
       }),
     );
   });

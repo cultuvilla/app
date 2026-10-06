@@ -8,12 +8,15 @@ import { municipalityConverterAdmin } from '../converters/municipalityConverter.
 import { barrioConverterAdmin } from '../converters/barrioConverter.admin';
 import { placeConverterAdmin } from '../converters/placeConverter.admin';
 import { villageMemberConverterAdmin } from '../converters/villageMemberConverter.admin';
-import { inviteTokenConverterAdmin } from '../converters/inviteTokenConverter.admin';
+import { censoAnswersConverterAdmin } from '../converters/censoAnswersConverter.admin';
+import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
 import { organizationConverterAdmin } from '../converters/organizationConverter.admin';
 import { orgMemberConverterAdmin } from '../converters/orgMemberConverter.admin';
+import { orgJoinRequestConverterAdmin } from '../converters/orgJoinRequestConverter.admin';
 import { organizerRequestConverterAdmin } from '../converters/organizerRequestConverter.admin';
 import { personConverterAdmin } from '../converters/personConverter.admin';
 import { userConverterAdmin } from '../converters/userConverter.admin';
+import { publicProfileConverterAdmin } from '../converters/publicProfileConverter.admin';
 import { notificationConverterAdmin } from '../converters/notificationConverter.admin';
 import { deviceTokenConverterAdmin } from '../converters/deviceTokenConverter.admin';
 import { notificationPrefsConverterAdmin } from '../converters/notificationPrefsConverter.admin';
@@ -92,14 +95,14 @@ export const municipalityPlaceDoc = (db: Firestore, municipalityId: string, plac
 export const municipalityMembersCollection = (db: Firestore, municipalityId: string) =>
   db.collection('municipalities').doc(municipalityId).collection('members').withConverter(villageMemberConverterAdmin);
 
+export const censoAnswersCollection = (db: Firestore) =>
+  db.collection('censoAnswers').withConverter(censoAnswersConverterAdmin);
+
+export const censoAnswersDoc = (db: Firestore, municipalityId: string, userId: string) =>
+  db.collection('censoAnswers').doc(censoAnswersId(municipalityId, userId)).withConverter(censoAnswersConverterAdmin);
+
 export const municipalityMemberDoc = (db: Firestore, municipalityId: string, memberId: string) =>
   db.collection('municipalities').doc(municipalityId).collection('members').doc(memberId).withConverter(villageMemberConverterAdmin);
-
-export const municipalityInviteTokensCollection = (db: Firestore, municipalityId: string) =>
-  db.collection('municipalities').doc(municipalityId).collection('inviteTokens').withConverter(inviteTokenConverterAdmin);
-
-export const municipalityInviteTokenDoc = (db: Firestore, municipalityId: string, tokenId: string) =>
-  db.collection('municipalities').doc(municipalityId).collection('inviteTokens').doc(tokenId).withConverter(inviteTokenConverterAdmin);
 
 export const municipalityPeopleCollection = (db: Firestore) =>
   db.collection('municipalityPeople').withConverter(municipalityPersonConverterAdmin);
@@ -120,6 +123,12 @@ export const organizationMembersCollection = (db: Firestore, organizationId: str
 
 export const organizationMemberDoc = (db: Firestore, organizationId: string, memberId: string) =>
   db.collection('organizations').doc(organizationId).collection('members').doc(memberId).withConverter(orgMemberConverterAdmin);
+
+export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);
+
+export const organizationJoinRequestDoc = (db: Firestore, organizationId: string, userId: string) =>
+  db.collection('organizations').doc(organizationId).collection('joinRequests').doc(userId).withConverter(orgJoinRequestConverterAdmin);
 
 // ── Organizer requests ───────────────────────────────────────────────────
 
@@ -144,6 +153,12 @@ export const usersCollection = (db: Firestore) =>
 
 export const userDoc = (db: Firestore, userId: string) =>
   db.collection('users').doc(userId).withConverter(userConverterAdmin);
+
+export const publicProfilesCollection = (db: Firestore) =>
+  db.collection('publicProfiles').withConverter(publicProfileConverterAdmin);
+
+export const publicProfileDoc = (db: Firestore, userId: string) =>
+  db.collection('publicProfiles').doc(userId).withConverter(publicProfileConverterAdmin);
 
 export const userNotificationsCollection = (db: Firestore, userId: string) =>
   db.collection('users').doc(userId).collection('notifications').withConverter(notificationConverterAdmin);

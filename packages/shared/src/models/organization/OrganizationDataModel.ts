@@ -19,6 +19,14 @@ export const PROPOSABLE_ORGANIZATION_TYPES: readonly OrganizationType[] = [
   'otros',
 ] as const;
 
+/**
+ * How people become members. `open`: anyone joins instantly (self-service).
+ * `approval`: people ask, and an org admin admits them — the only kind of org
+ * whose membership is vetted, so the only kind that may hold private events.
+ */
+export const OrgJoinPolicySchema = z.enum(['open', 'approval']);
+export type OrgJoinPolicy = z.infer<typeof OrgJoinPolicySchema>;
+
 export const OrganizationStatusSchema = ReviewStatusSchema;
 export type OrganizationStatus = ReviewStatus;
 
@@ -49,6 +57,9 @@ export const OrganizationDataSchema = z.object({
   // included); when true, it is shown to everyone. Display preference, not a
   // security boundary — member identities are world-readable. Default true.
   membersPublic: z.boolean(),
+  // Defaults to `open` because installed binaries still create orgs without it
+  // (the rules accept that too); existing docs are backfilled explicitly.
+  joinPolicy: OrgJoinPolicySchema.default('open'),
   // status + reviewedBy + reviewedAt
   ...reviewDecisionFields,
 });
@@ -70,6 +81,7 @@ export interface OrganizationDataInput {
   createdAt?: Date;
   reviewedAt?: Date | null;
   membersPublic?: boolean;
+  joinPolicy?: OrgJoinPolicy;
 }
 
 export function buildOrganizationData(input: OrganizationDataInput): OrganizationData {
@@ -89,6 +101,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     readCount: 0,
     memberCount: 0,
     membersPublic: input.membersPublic ?? true,
+    joinPolicy: input.joinPolicy ?? 'open',
   };
 }
 

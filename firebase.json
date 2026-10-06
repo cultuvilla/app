@@ -22,7 +22,7 @@
   ],
   "hosting": [
     {
-      "public": "apps/mobile/dist",
+      "public": "web/dist",
       "ignore": [
         "firebase.json",
         "**/.DS_Store",
@@ -42,28 +42,6 @@
       ],
       "rewrites": [
         {
-          "source": "/@(admin|ajustes|buzon|completar-perfil|crear|descarga|descubrir|entrar|legal|mi-pueblo|mis-inscripciones|mis-pueblos|perfil|persona|usuario)",
-          "destination": "/index.html"
-        },
-        {
-          "source": "/@(admin|ajustes|buzon|completar-perfil|crear|descarga|descubrir|entrar|legal|mi-pueblo|mis-inscripciones|mis-pueblos|perfil|persona|usuario)/**",
-          "destination": "/index.html"
-        },
-        {
-          "source": "/*/@(evento|noticia|entidad)/*",
-          "function": {
-            "functionId": "ogRenderer",
-            "region": "europe-west1"
-          }
-        },
-        {
-          "source": "/*/entidad/*/unirse",
-          "function": {
-            "functionId": "ogRenderer",
-            "region": "europe-west1"
-          }
-        },
-        {
           "source": "/sitemap.xml",
           "function": {
             "functionId": "sitemap",
@@ -71,42 +49,29 @@
           }
         },
         {
-          "source": "/*",
+          "source": "**",
           "function": {
-            "functionId": "ogRenderer",
+            "functionId": "readSite",
             "region": "europe-west1"
           }
-        },
-        {
-          "source": "**",
-          "destination": "/index.html"
         }
       ],
       "headers": [
         {
-          "source": "**",
+          "source": "/brand/**",
           "headers": [
             {
               "key": "Cache-Control",
-              "value": "no-cache, no-store, must-revalidate"
+              "value": "public, max-age=86400"
             }
           ]
         },
         {
-          "source": "/_expo/static/**",
+          "source": "/@(robots.txt|.well-known/**)",
           "headers": [
             {
               "key": "Cache-Control",
-              "value": "public, max-age=31536000, immutable"
-            }
-          ]
-        },
-        {
-          "source": "/assets/**",
-          "headers": [
-            {
-              "key": "Cache-Control",
-              "value": "public, max-age=31536000, immutable"
+              "value": "no-cache"
             }
           ]
         },
@@ -121,31 +86,6 @@
         }
       ],
       "target": "app"
-    },
-    {
-      "target": "panel",
-      "public": "apps/panel/dist",
-      "ignore": [
-        "firebase.json",
-        "**/.DS_Store"
-      ],
-      "rewrites": [
-        {
-          "source": "**",
-          "destination": "/index.html"
-        }
-      ],
-      "headers": [
-        {
-          "source": "**",
-          "headers": [
-            {
-              "key": "X-Robots-Tag",
-              "value": "noindex, nofollow"
-            }
-          ]
-        }
-      ]
     }
   ],
   "emulators": {

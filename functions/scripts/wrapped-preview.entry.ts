@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { gatherWrappedInputs } from '../src/wrapped/gatherInputs';
-import { composeWrapped } from '../src/wrapped/composeWrapped';
+import { cardLink, composeWrapped } from '../src/wrapped/composeWrapped';
 import { madridDayRange, madridYear } from '@cultuvilla/shared/models';
 
 /**
@@ -47,7 +47,9 @@ async function main(): Promise<void> {
   const t0 = Date.now();
   const gathered = await gatherWrappedInputs(db, municipalityId, range);
   const t1 = Date.now();
-  const { aggregate, images } = await composeWrapped(gathered, { blocks, year: madridYear(range.start) });
+  const year = madridYear(range.start);
+  const link = cardLink(projectId, gathered.villageSlug, year);
+  const { aggregate, images } = await composeWrapped(gathered, { blocks, year, link });
   const t2 = Date.now();
 
   mkdirSync(out, { recursive: true });

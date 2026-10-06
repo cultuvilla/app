@@ -1,4 +1,4 @@
-# Android native Firebase config (push only)
+# Native Firebase config
 
 `expo-notifications` mints the Android FCM token from the native
 `google-services.json`. One file per environment:
@@ -29,5 +29,25 @@ still builds; that build simply never registers for push.
 [googleServices.test.ts](../../../packages/shared/test/ci/googleServices.test.ts)
 fails CI if a file is ever swapped for another env's.
 
-iOS has no counterpart on purpose: its tokens are raw APNs tokens sent to APNs
-directly. See [docs/plans/ongoing/device-notifications.md](../../../docs/plans/ongoing/device-notifications.md).
+Android uses it for push and for native analytics (`@react-native-firebase`).
+
+## iOS — `GoogleService-Info.plist` (analytics only)
+
+iOS push does not need it — its tokens are raw APNs tokens sent to APNs
+directly (see [device-notifications.md](../../../docs/plans/ongoing/device-notifications.md)).
+`@react-native-firebase/app` does, for native analytics. Its config plugin
+throws at prebuild without the file, so `app.config.ts` wires the plugin only
+when `<env>/GoogleService-Info.plist` exists; without it the iOS build still
+works and analytics is a no-op.
+
+Each env needs an iOS app registered in its Firebase project, with the
+bundle id from `bundleIdPerEnv` (`com.cultuvilla.app.dev`,
+`com.cultuvilla.app.beta`, `com.cultuvilla.app`), then:
+
+```bash
+firebase apps:create IOS "Cultuvilla iOS" --bundle-id <bundleId> --project <project> --account cultuvilla.app@gmail.com
+firebase apps:sdkconfig IOS <appId> --project <project> --account cultuvilla.app@gmail.com \
+  --out apps/mobile/google-services/<env>/GoogleService-Info.plist
+```
+
+iOS beta (TestFlight) builds the `production` profile, so it uses the prod plist.

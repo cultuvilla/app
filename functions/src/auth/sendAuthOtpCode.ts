@@ -5,7 +5,7 @@ import { logger } from 'firebase-functions/v2';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { Resend } from 'resend';
 import { RESEND_API_KEY } from './secret';
-import { bucketIdFor, checkRateLimit } from './rateLimit';
+import { bucketIdFor, callerIpOf, checkSendRateLimits } from './rateLimit';
 import { reviewOtpCodeFor } from './reviewAccess';
 import { renderAuthOtpEmailHtml, renderAuthOtpEmailText, AUTH_OTP_EMAIL_SUBJECT_PREFIX } from './authEmailTemplate';
 
@@ -43,6 +43,7 @@ function isFunctionsEmulator(): boolean {
 /** Core logic, separated from the onCall envelope so it is unit-testable. */
 export async function runSendAuthOtpCode(
   data: SendAuthOtpCodeData | undefined,
+  callerIp: string | null = null,
 ): Promise<SendAuthOtpCodeResult> {
   const email = data?.email;
 
@@ -53,7 +54,7 @@ export async function runSendAuthOtpCode(
   const trimmedEmail = email.trim();
   const bucketId = bucketIdFor(trimmedEmail.toLowerCase());
 
-  const allowed = await checkRateLimit(bucketId);
+  const allowed = await checkSendRateLimits(bucketId, callerIp);
   if (!allowed) {
     // Generic response on purpose — never let a caller distinguish
     // "rate-limited" from "sent".
@@ -141,6 +142,6 @@ export const sendAuthOtpCode = onCall<SendAuthOtpCodeData, Promise<SendAuthOtpCo
   async (request) => {
     // Unauthenticated by design: this is the entry point that lets a signed-out
     // user request a sign-in code in the first place.
-    return runSendAuthOtpCode(request.data);
+    return runSendAuthOtpCode(request.data, callerIpOf(request.rawRequest));
   },
 );

@@ -1,29 +1,16 @@
 # Native E2E (Maestro on Android)
 
-The native half of the E2E substrate described in
-[docs/decisions/e2e-testing-substrate.md](../../../../docs/decisions/e2e-testing-substrate.md).
-Same seeded fixtures, same "assert on Firestore emulator state, not on the view
-hierarchy" discipline as the web (Playwright) suite — **only the driver differs**.
-
-## Why it exists next to the web suite
-
-The web suite runs the same React tree through react-native-web, so it proves the
-product logic. It cannot prove the *platform*. Everything in this list is shipped
-to users and invisible to Playwright:
-
-- native app boot and the Expo Router **deep-link intent** path,
-- **AsyncStorage** auth persistence (web uses IndexedDB),
-- the native Firebase SDK,
-- RN `Modal`, bottom sheets, `FlatList` pickers and the **soft keyboard**,
-- **`Alert.alert`** — react-native-web ships it as a *no-op*, so the web driver
-  has never once executed a confirmation dialog (see the `mobile-web-compat`
-  skill). `22-unregister-from-event` is the first test that does.
+The app's end-to-end suite, described in
+[docs/decisions/e2e-testing-substrate.md](../../../../docs/decisions/e2e-testing-substrate.md):
+seeded fixtures, assertions on Firestore emulator state rather than the view
+hierarchy, Maestro driving the real Android build. It is the only E2E suite —
+the Playwright web suite went with the Expo web build
+(docs/decisions/web-is-a-read-site.md).
 
 ## In CI
 
 [.github/workflows/android-e2e.yml](../../../../.github/workflows/android-e2e.yml)
-runs the whole suite on an AVD, gated to the **beta/main release paths** exactly
-like `web-e2e` — a Gradle build plus an emulator boot is far too slow for
+runs the whole suite on an AVD, gated to the **beta/main release paths** — a Gradle build plus an emulator boot is far too slow for
 day-to-day `develop` PRs, and `beta` is the release candidate, the last point
 where a native-only regression can be caught before it becomes a store binary.
 `workflow_dispatch` is enabled so a native regression can be chased from any
@@ -41,6 +28,13 @@ branch without waiting for a promotion PR.
 | `30-village-join` | A rules-gated direct client write, and the UI flip that follows it. |
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. **Quarantined — see below.** |
+| `60-create-publish-event` | The 4-step event wizard, including the OS location permission and a real GPS fix (`setLocation`). |
+| `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
+| `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
+| `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
+| `80-waitlist-promotion` | A full event waitlists a sign-up; removing a confirmed attendee promotes it (trigger). |
+| `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
+| `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
 
 Filename order is load-bearing: `22` unregisters what `20` registered. Every flow
 still starts from `clearState: true`, so one failure never cascades into a bogus
@@ -56,24 +50,23 @@ reads as "everything passed", which is worse than a red lane. `--flow <name>`
 still runs a quarantined flow, so chasing one needs no edit.
 
 Currently held out: **`50-onboarding-complete-profile`**. The profile submit
-hangs on the native SDK's cleartext Firestore connection to `10.0.2.2` — logcat
+hung on the Firestore JS SDK's cleartext connection to `10.0.2.2` — logcat
 shows `unexpected end of stream on http://10.0.2.2:8080`, and a Firestore write
 promise never settles when the connection drops, so "Crear perfil" spins
 forever. It reproduced on both runs that reached the submit.
 
-The product path is **not** uncovered: [`../flows/onboarding-profile.spec.ts`](../flows/onboarding-profile.spec.ts)
-is the exact mirror — the same three `person-form-primary` clicks and the same
-`personId` assertion, against the same Firestore emulator — and it passes. What
-is unverified is the native emulator transport, which no real client uses (real
-clients talk to Firestore over TLS, not cleartext to an AVD host alias). That is
-why this is a quarantine and not a release blocker; it is still worth fixing, and
-`experimentalForceLongPolling` for the emulator is the first thing to try.
+With the Playwright suite gone, **onboarding has no end-to-end coverage** while
+this flow is held out — only the jest tests of the person form. What fails is
+the emulator transport, which no real client uses (real clients talk to
+Firestore over TLS, not cleartext to an AVD host alias), so it is not a release
+blocker; it is still the first quarantine to lift. The finding predates the
+move to `@react-native-firebase`, whose transport is different: re-run it with
+`--flow 50-onboarding-complete-profile.yaml` before trying anything else.
 
 ## Backend assertions from Maestro
 
 `scripts/docField.js` and `scripts/queryCollection.js` read the Firestore
-emulator's REST API and poll until the expected state appears — the native mirror
-of [../lib/emulatorState.ts](../lib/emulatorState.ts), including the
+emulator's REST API and poll until the expected state appears, using the
 `Authorization: Bearer owner` rules-bypass (without it, a read of a rule-protected
 collection returns empty and the assertion fails against a backend that is
 actually correct).
@@ -163,9 +156,10 @@ comments; this is the index.
 
 ## Adding a flow
 
-Mirror an existing web flow rather than inventing a divergent native-only
-journey, give the file the next numeric prefix, and make the **strong** assertion
-against Firestore state via `runScript`. Any id or title referenced in YAML must
-stay in sync with `scripts/data/seed-fixtures/e2e/fixtures.mjs` by hand — Maestro
-YAML cannot import JS, exactly as [../lib/fixtures.ts](../lib/fixtures.ts) already
-does for the web side.
+Give the file the next numeric prefix and make the **strong** assertion against
+Firestore state via `runScript` (`queryCollection.js` returns the first match's
+`id`, for a flow that must navigate to a server-generated doc). Stamp any title
+it creates with `Date.now()` so a re-run never matches a leftover. Any id or
+title referenced in YAML must stay in sync with
+`scripts/data/seed-fixtures/e2e/fixtures.mjs` by hand — Maestro YAML cannot
+import JS.

@@ -1,6 +1,6 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { Firestore, Transaction } from 'firebase-admin/firestore';
-import { organizationMemberDoc } from '@cultuvilla/shared/firebase/refs/admin';
+import { organizationDoc, organizationMemberDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { isPrivateEvent } from '@cultuvilla/shared/models';
 import type { EventData } from '@cultuvilla/shared/models';
 
@@ -26,8 +26,15 @@ export async function assertMayJoinEvent(
   if (event.organizerUserIds.includes(userId)) return;
   const orgId = event.visibilityOrgId;
   if (orgId === null) return;
-  const memberSnap = await tx.get(organizationMemberDoc(db, orgId, userId));
-  if (!memberSnap.exists) {
+  // Only an `approval` org's membership is vetted; anyone can join an open one.
+  // Mirrors isVettedOrgMember in firestore.rules. Read raw: a converter parse
+  // of the whole org would fail this gate on unrelated schema drift.
+  const [orgSnap, memberSnap] = await Promise.all([
+    tx.get(db.doc(organizationDoc(db, orgId).path)),
+    tx.get(organizationMemberDoc(db, orgId, userId)),
+  ]);
+  const vetted = orgSnap.get('joinPolicy') === 'approval';
+  if (!vetted || !memberSnap.exists) {
     throw new HttpsError(
       'permission-denied',
       'Este evento es privado: solo pueden apuntarse los miembros de la organización.',

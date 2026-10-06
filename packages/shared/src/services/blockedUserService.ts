@@ -1,4 +1,4 @@
-import { deleteDoc, getDocs, setDoc } from 'firebase/firestore';
+import { deleteDoc, getDocs, setDoc } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { userBlockedUsersCollection, userBlockedUserDoc } from '../firebase/refs/client';
 import { buildBlockedUserData } from '../models/user/BlockedUserDataModel';

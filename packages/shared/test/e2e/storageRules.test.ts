@@ -1,14 +1,9 @@
-// Storage Rules e2e test for /municipalities/{municipalityId}/images/{imageId}.
+// Storage Rules e2e test. Every client-writable image path is gated on the
+// same authority as the Firestore doc it illustrates (village membership, org
+// or village admin, news author), read cross-service via `firestore.get`.
 //
-// Regression: village admins upload community cover images via
-// `uploadMunicipalityImage`, which writes to
-// `municipalities/{id}/images/{id}`. storage.rules had no match for that
-// path, so the default-deny rejected every upload with a Storage permission
-// error (see apps/mobile/app/village/[villageId]/admin/community.tsx).
-//
-// Uses @firebase/rules-unit-testing to mount the live storage.rules file
-// against the storage emulator and execute uploads under different auth
-// contexts. The returned storage() instance works with the v9 modular API.
+// Uses @firebase/rules-unit-testing to mount the live storage.rules and
+// firestore.rules against the storage + firestore emulators.
 import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import {
   initializeTestEnvironment,
@@ -16,7 +11,13 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { ref, uploadBytes, deleteObject, type FirebaseStorage } from 'firebase/storage';
+import {
+  ref,
+  uploadBytes,
+  deleteObject,
+  getMetadata,
+  type FirebaseStorage,
+} from 'firebase/storage';
 import { doc, setDoc, type Firestore } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -24,177 +25,202 @@ import { resolve } from 'node:path';
 let env: RulesTestEnvironment;
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47]); // "‰PNG" magic bytes
+const IMAGE = { contentType: 'image/png' };
+
+const ACTIVE = 'm1';
+const DORMANT = 'm2';
+const VILLAGER = 'villager';
+const VADMIN = 'vadmin';
+const OUTSIDER = 'outsider';
+const ORG_ADMIN = 'orgadmin';
+const APP_ADMIN = 'sadmin';
 
 beforeAll(async () => {
   const rules = readFileSync(resolve(__dirname, '../../../../storage.rules'), 'utf8');
   const firestoreRules = readFileSync(resolve(__dirname, '../../../../firestore.rules'), 'utf8');
   env = await initializeTestEnvironment({
     projectId: process.env.TEST_PROJECT_ID || 'cultuvilla-rules-test',
-    storage: { rules, host: '127.0.0.1', port: 9199 },
-    // The persons/{personId}/photos rule does a `firestore.get` on the person
-    // doc, so the firestore emulator must be running and seeded.
-    firestore: { rules: firestoreRules, host: '127.0.0.1', port: 8080 },
+    // Host and port come from FIREBASE_STORAGE_EMULATOR_HOST / FIRESTORE_EMULATOR_HOST,
+    // which the harness sets to the worktree's slot when it has one.
+    storage: { rules },
+    firestore: { rules: firestoreRules },
   });
 });
 
 beforeEach(async () => {
   await env.clearStorage();
   await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore() as unknown as Firestore;
+    await setDoc(doc(db, `municipalities/${ACTIVE}`), { communityActive: true });
+    await setDoc(doc(db, `municipalities/${DORMANT}`), { communityActive: false });
+    await setDoc(doc(db, `municipalities/${ACTIVE}/members/${VILLAGER}`), { role: 'user' });
+    await setDoc(doc(db, `municipalities/${ACTIVE}/members/${VADMIN}`), { role: 'admin' });
+    await setDoc(doc(db, `admins/${APP_ADMIN}`), { createdAt: new Date() });
+    await setDoc(doc(db, 'organizations/o1'), { municipalityId: ACTIVE });
+    await setDoc(doc(db, `organizations/o1/members/${ORG_ADMIN}`), { role: 'admin' });
+    await setDoc(doc(db, `organizations/o1/members/${VILLAGER}`), { role: 'member' });
+    await setDoc(doc(db, 'news/n1'), {
+      municipalityId: ACTIVE,
+      createdBy: VILLAGER,
+      organizerUserIds: [VILLAGER],
+    });
+  });
 });
 
 afterAll(async () => {
   await env.cleanup();
 });
 
-describe('storage.rules — /municipalities/{municipalityId}/images/{imageId}', () => {
-  it('an authenticated user can upload a community image', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await assertSucceeds(
-      uploadBytes(ref(alice, 'municipalities/m1/images/cover.png'), PNG, {
-        contentType: 'image/png',
-      }),
-    );
-  });
+const as = (uid: string) => env.authenticatedContext(uid).storage() as unknown as FirebaseStorage;
+const anon = () => env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
+const upload = (storage: FirebaseStorage, path: string) => uploadBytes(ref(storage, path), PNG, IMAGE);
 
-  it('an unauthenticated user cannot upload a community image', async () => {
-    const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
-    await assertFails(
-      uploadBytes(ref(anon, 'municipalities/m1/images/cover.png'), PNG, {
-        contentType: 'image/png',
-      }),
-    );
-  });
-
-  it('a non-image upload is rejected', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await assertFails(
-      uploadBytes(ref(alice, 'municipalities/m1/images/notes.txt'), PNG, {
-        contentType: 'text/plain',
-      }),
-    );
-  });
-});
-
-describe('storage.rules — org / place / barrio images', () => {
+describe('storage.rules — village-scoped images need membership of that village', () => {
   const paths = {
-    organization: 'organizations/o1/image/cover.png',
-    place: 'municipalities/m1/places/p1/image/cover.png',
-    barrio: 'municipalities/m1/barrios/b1/image/cover.png',
+    'community cover': `municipalities/${ACTIVE}/images/cover.png`,
+    event: `municipalities/${ACTIVE}/events/e1/image/cover.png`,
+    place: `municipalities/${ACTIVE}/places/p1/image/cover.png`,
+    barrio: `municipalities/${ACTIVE}/barrios/b1/image/cover.png`,
+    'festival poster': `festivalPosters/${ACTIVE}/f1/poster.png`,
+    'history entry': `historyEntries/${ACTIVE}/h1/photo.png`,
   };
 
   for (const [label, path] of Object.entries(paths)) {
-    it(`an authenticated user can upload a ${label} image`, async () => {
-      const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-      await assertSucceeds(uploadBytes(ref(alice, path), PNG, { contentType: 'image/png' }));
+    it(`a villager can upload a ${label} image`, async () => {
+      await assertSucceeds(upload(as(VILLAGER), path));
     });
 
-    it(`an unauthenticated user cannot upload a ${label} image`, async () => {
-      const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
-      await assertFails(uploadBytes(ref(anon, path), PNG, { contentType: 'image/png' }));
+    it(`an app admin can upload a ${label} image`, async () => {
+      await assertSucceeds(upload(as(APP_ADMIN), path));
+    });
+
+    it(`a signed-in outsider cannot upload a ${label} image`, async () => {
+      await assertFails(upload(as(OUTSIDER), path));
+    });
+
+    it(`a signed-out visitor cannot upload a ${label} image`, async () => {
+      await assertFails(upload(anon(), path));
     });
 
     it(`a non-image ${label} upload is rejected`, async () => {
-      const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
       await assertFails(
-        uploadBytes(ref(alice, path.replace('cover.png', 'notes.txt')), PNG, {
+        uploadBytes(ref(as(VILLAGER), path.replace('.png', '.txt')), PNG, {
           contentType: 'text/plain',
         }),
       );
     });
+
+    it(`anyone can read a ${label} image`, async () => {
+      await upload(as(VILLAGER), path);
+      await assertSucceeds(getMetadata(ref(anon(), path)));
+    });
   }
+
+  // "Empezar un pueblo" uploads the escudo before startVillage seats the
+  // requester, so a dormant village accepts a signed-in upload.
+  it('any signed-in user can upload a cover for a village not yet activated', async () => {
+    await assertSucceeds(upload(as(OUTSIDER), `municipalities/${DORMANT}/images/escudo.png`));
+  });
+});
+
+describe('storage.rules — organization images follow the org edit authority', () => {
+  const path = 'organizations/o1/image/cover.png';
+
+  it('an org admin can upload', async () => {
+    await assertSucceeds(upload(as(ORG_ADMIN), path));
+  });
+
+  it("an admin of the org's village can upload", async () => {
+    await assertSucceeds(upload(as(VADMIN), path));
+  });
+
+  it('an app admin can upload', async () => {
+    await assertSucceeds(upload(as(APP_ADMIN), path));
+  });
+
+  it('a plain org member cannot upload', async () => {
+    await assertFails(upload(as(VILLAGER), path));
+  });
+
+  it('an outsider cannot upload', async () => {
+    await assertFails(upload(as(OUTSIDER), path));
+  });
+});
+
+describe('storage.rules — news images follow the news edit authority', () => {
+  const path = 'news/n1/images/pic.png';
+
+  it('the author can upload and delete', async () => {
+    await assertSucceeds(upload(as(VILLAGER), path));
+    await assertSucceeds(deleteObject(ref(as(VILLAGER), path)));
+  });
+
+  it("an admin of the article's village can upload", async () => {
+    await assertSucceeds(upload(as(VADMIN), path));
+  });
+
+  it('an outsider can neither upload nor delete', async () => {
+    await assertFails(upload(as(OUTSIDER), path));
+    await upload(as(VILLAGER), path);
+    await assertFails(deleteObject(ref(as(OUTSIDER), path)));
+  });
+
+  it('nobody can upload for an article that does not exist', async () => {
+    await assertFails(upload(as(VILLAGER), 'news/missing/images/pic.png'));
+  });
+
+  it('anyone can read a news image', async () => {
+    await upload(as(VILLAGER), path);
+    await assertSucceeds(getMetadata(ref(anon(), path)));
+  });
 });
 
 describe('storage.rules — /persons/{personId}/photos/{imageId}', () => {
-  // Regression: a self-person can be created by a seed/migration (so its
-  // `createdBy` is the seed's uid) while its `userId` is the real account that
-  // owns it. The Firestore /persons update rule already lets the linked account
-  // owner (userId == auth.uid) edit the doc, but the storage write/delete rule
-  // only checked `createdBy == auth.uid`, so the owner could not upload their
-  // own photo — FirebaseError storage/unauthorized on `persons/.../photos/...`.
   async function seedPerson(
     personId: string,
-    overrides: { createdBy: string; userId: string | null },
+    fields: { createdBy: string; userId: string | null; isPublic: boolean },
   ) {
     await env.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore() as unknown as Firestore;
-      await setDoc(doc(db, `persons/${personId}`), {
-        createdBy: overrides.createdBy,
-        userId: overrides.userId,
-      });
+      await setDoc(doc(db, `persons/${personId}`), fields);
     });
   }
 
-  it('the linked account owner can upload their own person photo', async () => {
-    // Seed case: created by the seed, owned by alice's real account.
-    await seedPerson('p-self', { createdBy: 'seed', userId: 'alice' });
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await assertSucceeds(
-      uploadBytes(ref(alice, 'persons/p-self/photos/photo.png'), PNG, {
-        contentType: 'image/png',
-      }),
-    );
+  async function seedPhoto(path: string) {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage() as unknown as FirebaseStorage, path), PNG, IMAGE);
+    });
+  }
+
+  // A self-person created by a seed/migration has `createdBy` = the seed and
+  // `userId` = the real owner; the owner must still manage their photo.
+  it('the linked account owner can upload and delete their own person photo', async () => {
+    await seedPerson('p-self', { createdBy: 'seed', userId: 'alice', isPublic: true });
+    await assertSucceeds(upload(as('alice'), 'persons/p-self/photos/photo.png'));
+    await assertSucceeds(deleteObject(ref(as('alice'), 'persons/p-self/photos/photo.png')));
   });
 
   it('the creator can upload when no account is linked', async () => {
-    await seedPerson('p-own', { createdBy: 'alice', userId: null });
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await assertSucceeds(
-      uploadBytes(ref(alice, 'persons/p-own/photos/photo.png'), PNG, {
-        contentType: 'image/png',
-      }),
-    );
+    await seedPerson('p-own', { createdBy: 'alice', userId: null, isPublic: false });
+    await assertSucceeds(upload(as('alice'), 'persons/p-own/photos/photo.png'));
   });
 
   it('a user who is neither owner nor creator cannot upload', async () => {
-    await seedPerson('p-self', { createdBy: 'seed', userId: 'alice' });
-    const bob = env.authenticatedContext('bob').storage() as unknown as FirebaseStorage;
-    await assertFails(
-      uploadBytes(ref(bob, 'persons/p-self/photos/photo.png'), PNG, {
-        contentType: 'image/png',
-      }),
-    );
+    await seedPerson('p-self', { createdBy: 'seed', userId: 'alice', isPublic: true });
+    await assertFails(upload(as('bob'), 'persons/p-self/photos/photo.png'));
   });
 
-  it('the linked account owner can delete their own person photo', async () => {
-    await seedPerson('p-self', { createdBy: 'seed', userId: 'alice' });
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await uploadBytes(ref(alice, 'persons/p-self/photos/photo.png'), PNG, {
-      contentType: 'image/png',
-    });
-    await assertSucceeds(deleteObject(ref(alice, 'persons/p-self/photos/photo.png')));
-  });
-});
-
-describe('storage.rules — /news/{postId}/images/{imageId}', () => {
-  // The news doc is created milliseconds before its images upload, so a
-  // cross-service firestore.get in the storage rule races the just-committed
-  // write and denies with a 403. Mirror the event/org/place image rules: gate
-  // on auth + size + content-type only (path keyed by post id); the authoring
-  // guard lives on the news doc write in firestore.rules. No doc seed needed.
-  it('an authenticated user can upload a news image', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await assertSucceeds(
-      uploadBytes(ref(alice, 'news/n1/images/pic.png'), PNG, { contentType: 'image/png' }),
-    );
+  it("a public persona's photo is readable by any signed-in user", async () => {
+    await seedPerson('p-pub', { createdBy: 'alice', userId: null, isPublic: true });
+    await seedPhoto('persons/p-pub/photos/photo.png');
+    await assertSucceeds(getMetadata(ref(as('bob'), 'persons/p-pub/photos/photo.png')));
   });
 
-  it('an unauthenticated user cannot upload a news image', async () => {
-    const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
-    await assertFails(
-      uploadBytes(ref(anon, 'news/n1/images/pic.png'), PNG, { contentType: 'image/png' }),
-    );
-  });
-
-  it('a non-image news upload is rejected', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await assertFails(
-      uploadBytes(ref(alice, 'news/n1/images/notes.txt'), PNG, { contentType: 'text/plain' }),
-    );
-  });
-
-  it('an authenticated user can delete a news image', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await uploadBytes(ref(alice, 'news/n1/images/pic.png'), PNG, { contentType: 'image/png' });
-    await assertSucceeds(deleteObject(ref(alice, 'news/n1/images/pic.png')));
+  it("a private persona's photo is readable only by whoever manages it", async () => {
+    await seedPerson('p-priv', { createdBy: 'alice', userId: null, isPublic: false });
+    await seedPhoto('persons/p-priv/photos/photo.png');
+    await assertFails(getMetadata(ref(as('bob'), 'persons/p-priv/photos/photo.png')));
+    await assertSucceeds(getMetadata(ref(as('alice'), 'persons/p-priv/photos/photo.png')));
   });
 });

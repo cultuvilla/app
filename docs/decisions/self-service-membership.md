@@ -50,7 +50,7 @@ Three independent layers replace the single "organize" act:
   organizer-gated in the current rules.
 - Predicates rules can't express (member AND no-organizer-yet) live in the
   `updateVillageInfo` callable; the simple self-join guard lives in rules.
-- **Joining an organization (peña/asociación) is also instant self-service** —
-  a direct client write of `organizations/{orgId}/members/{uid}` (role `member`),
-  mirroring village join (see the request taxonomy in `AGENTS.md`). The earlier
-  `organizationJoinRequest` approve-flow has been removed.
+- **Joining an organization (peña/asociación) is instant self-service when the
+  org is `open`** — a direct client write of `organizations/{orgId}/members/{uid}`
+  (role `member`), mirroring village join. An org may instead require approval;
+  see [org-join-policy.md](./org-join-policy.md).

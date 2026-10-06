@@ -159,7 +159,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       # Backend first, so schema/permissions land before code that relies on
-      # them and before hosting rewrites resolve the ogRenderer function.
+      # them and before hosting rewrites resolve the readSite function.
       - name: Deploy Firestore & Storage rules
         run: firebase deploy --only firestore:rules,storage --project ${{ inputs.firebase_alias }} --non-interactive
 
@@ -181,20 +181,11 @@ jobs:
           fi
           echo "OK — USE_FIREBASE_EMULATOR is unset; deployed bundle excludes the E2E bypass."
 
-      - name: Build web bundle
-        run: |
-          node apps/mobile/scripts/copy-well-known.mjs ${{ inputs.firebase_alias }}
-          node apps/mobile/scripts/write-robots.mjs ${{ inputs.firebase_alias }}
-          pnpm app:web:build
-
-      # Reject the deploy if a native-only module leaked into the web bundle
-      # (calls TurboModuleRegistry.getEnforcing -> crashes the app on load),
-      # if the document head lost lang="es" / the App Store tag, or if this
-      # env's robots.txt would let a staging site be indexed (--env).
-      # Runs before hosting deploy so a broken bundle never reaches Firebase.
-      # See .agents/skills/mobile-web-compat/SKILL.md.
-      - name: Check web export
-        run: pnpm app:check-web-export --env=${{ inputs.firebase_alias }}
+      # Hosting serves only static files — brand images, this env's deep-link
+      # identities and robots.txt — and rewrites every page to the `readSite`
+      # function deployed above (docs/decisions/web-is-a-read-site.md).
+      - name: Assemble static web files
+        run: node scripts/build-web-static.mjs ${{ inputs.firebase_alias }}
 
       # `hosting:app` and not `hosting` — the internal founders' panel is a second
       # hosting target that exists on dev only. A bare `--only hosting` would try

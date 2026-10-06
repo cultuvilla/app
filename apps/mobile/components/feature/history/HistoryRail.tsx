@@ -6,7 +6,6 @@ import { formatHistoryEntryYears } from '@cultuvilla/shared/utils';
 import type { HistoryEntryWithId } from '@cultuvilla/shared/services/historyService';
 import { Pressable, Text, VStack } from '../../primitives';
 import { RemoteImage } from '../../primitives/RemoteImage';
-import { HorizontalScrollRow } from '../HorizontalScrollRow';
 import { SectionHeader } from '../VillageSections';
 import { historyEntryHref, villageSectionHref } from '../../../lib/navigation/routes';
 import { useT } from '../../../lib/i18n';
@@ -40,83 +39,78 @@ export function HistoryRail({
         actionLabel={t('village.home.seeAll')}
         onAction={() => router.push(villageSectionHref(villageSlug, 'historia'))}
       />
-      <HorizontalScrollRow>
-        {(scrollRef) => (
-          <ScrollView
-            ref={scrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: spacing[4], gap: spacing[4] }}
-          >
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                top: RAIL_TOP,
-                height: 2,
-                backgroundColor: palette.peach,
-              }}
-            />
-            {entries.map((entry) => {
-              const cover = entry.images[0]?.url ?? null;
-              return (
-                <Pressable
-                  key={entry.id}
-                  onPress={() =>
-                    router.push(historyEntryHref({ id: entry.id, title: entry.title, villageSlug }))
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel={entry.title}
-                  testID={`home-history-${entry.id}`}
-                  style={{ width: CARD_W }}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: spacing[4], gap: spacing[4] }}
+      >
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: RAIL_TOP,
+            height: 2,
+            backgroundColor: palette.peach,
+          }}
+        />
+        {entries.map((entry) => {
+          const cover = entry.images[0]?.url ?? null;
+          return (
+            <Pressable
+              key={entry.id}
+              onPress={() =>
+                router.push(historyEntryHref({ id: entry.id, title: entry.title, villageSlug }))
+              }
+              accessibilityRole="button"
+              accessibilityLabel={entry.title}
+              testID={`home-history-${entry.id}`}
+              style={{ width: CARD_W }}
+            >
+              <Text variant="bodySm" className="font-bold text-accent">
+                {formatHistoryEntryYears(entry)}
+              </Text>
+              <View
+                style={{
+                  width: DOT,
+                  height: DOT,
+                  borderRadius: DOT / 2,
+                  marginTop: 5,
+                  marginBottom: spacing[3],
+                  backgroundColor: palette.terracotta,
+                  borderWidth: 2,
+                  borderColor: palette.cream,
+                }}
+              />
+              {cover ? (
+                <View className="rounded-xl overflow-hidden" style={{ height: MEDIA_H }}>
+                  <RemoteImage uri={cover} variant="card" style={{ width: CARD_W, height: MEDIA_H }} />
+                </View>
+              ) : entry.body.text ? (
+                <View
+                  className="rounded-xl bg-surface-elevated border border-subtle overflow-hidden"
+                  style={{ height: MEDIA_H, padding: spacing[3] }}
                 >
-                  <Text variant="bodySm" className="font-bold text-accent">
-                    {formatHistoryEntryYears(entry)}
+                  <Text variant="bodySm" className="text-on-subtle" numberOfLines={4}>
+                    {entry.body.text}
                   </Text>
-                  <View
-                    style={{
-                      width: DOT,
-                      height: DOT,
-                      borderRadius: DOT / 2,
-                      marginTop: 5,
-                      marginBottom: spacing[3],
-                      backgroundColor: palette.terracotta,
-                      borderWidth: 2,
-                      borderColor: palette.cream,
-                    }}
-                  />
-                  {cover ? (
-                    <View className="rounded-xl overflow-hidden" style={{ height: MEDIA_H }}>
-                      <RemoteImage uri={cover} variant="card" style={{ width: CARD_W, height: MEDIA_H }} />
-                    </View>
-                  ) : entry.body.text ? (
-                    <View
-                      className="rounded-xl bg-surface-elevated border border-subtle overflow-hidden"
-                      style={{ height: MEDIA_H, padding: spacing[3] }}
-                    >
-                      <Text variant="bodySm" className="text-on-subtle" numberOfLines={4}>
-                        {entry.body.text}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View
-                      className="rounded-xl bg-subtle items-center justify-center"
-                      style={{ height: MEDIA_H }}
-                    >
-                      <Ionicons name="time-outline" size={iconSizes.lg} color={palette.cream} />
-                    </View>
-                  )}
-                  <Text className="font-bold" numberOfLines={2} style={{ marginTop: spacing[2] }}>
-                    {entry.title}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
-      </HorizontalScrollRow>
+                </View>
+              ) : (
+                <View
+                  className="rounded-xl bg-subtle items-center justify-center"
+                  style={{ height: MEDIA_H }}
+                >
+                  <Ionicons name="time-outline" size={iconSizes.lg} color={palette.cream} />
+                </View>
+              )}
+              <Text className="font-bold" numberOfLines={2} style={{ marginTop: spacing[2] }}>
+                {entry.title}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </VStack>
   );
 }

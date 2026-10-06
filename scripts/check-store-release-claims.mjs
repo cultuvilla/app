@@ -97,7 +97,7 @@ if (!account) {
 
 // ── App-signing fingerprints ──────────────────────────────────────────────
 console.log('\nAndroid signing / Google Sign-In');
-const assetlinksPath = resolve(ROOT, 'apps/mobile/public/.well-known/prod/assetlinks.json');
+const assetlinksPath = resolve(ROOT, 'web/well-known/prod/assetlinks.json');
 let committed = null;
 try {
   const entries = JSON.parse(readFileSync(assetlinksPath, 'utf8'));

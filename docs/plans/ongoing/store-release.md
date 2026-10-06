@@ -1,45 +1,53 @@
 # Store release runbook — Google Play and App Store
 
+**Priority:** low
+**Landed:** prod
+**Gate:** none
+**Next:** check Error Reporting for iOS `surface: auth` failures since 1.0.0 went live; if none, retire this plan into one decision doc
+
 **Goal:** Cultuvilla public on both stores. **Done** — what remains is the
 open items below, then retiring this plan.
 
-## Status
+## Done
 
-- **Updated:** 2026-09-28
-- **Stage:** both stores live; retiring.
-- **Branch:** n/a.
-- **Done:**
-  - **iOS 1.0.0 live** on the App Store since 2026-09-04 (175 territories, free):
-    <https://apps.apple.com/app/cultuvilla/id6804756586>. `APP_STORES.ios` filled in.
-  - **Play closed test completed** (12 testers × 14 days).
-  - **Play production approved**: 1.1.0, submitted 2026-09-08, public by
-    2026-09-28 (<https://play.google.com/store/apps/details?id=com.cultuvilla.app>).
-    `APP_STORES.android` + `APP_STORE_VERSIONS.android` filled in;
-    `pnpm check:store-claims` 20 pass, 0 fail.
-  - **Play freeze lifted** 2026-09-28 (`PLAY_SUBMIT_PAUSED` deleted): every
-    `beta` merge again submits Android to the closed track, iOS to TestFlight.
-  - AGENTS.md *Versioning & releases* updated.
-- **Next:**
-  1. Retire this plan. Keep one decision doc for the lesson below: *what sinks a
-     release is server-side config no test in the repo can see.* Delete the rest.
-- **Blockers:** none.
-- **Open, before retiring:**
-  - **Sign in with Apple in TestFlight** (see *El rechazo de 1.0.0*). The logging
-    that was the next step shipped in `55589f4a` (2026-09-03, `reportAuthError`),
-    but nobody recorded what it caught. Check Error Reporting for `surface: auth`
-    failures on iOS. If there are none since 1.0.0 went live, close this.
-  - **iOS Safari install banner.** The `apple-itunes-app` tag this doc says Safari
-    draws its banner from never shipped: `+html.tsx` is ignored with
-    `web.output: 'single'`. So iOS Safari visitors may get no install offer at
-    all. Tracked, with evidence, in
-    [app-first-transition.md](app-first-transition.md) (Next #2), not here.
-- **Handoff:** this doc describes state that lives **outside the repo** and
-  drifts silently. Run `pnpm check:store-claims` before trusting any line of it.
-  Before 2026-09-11 (PR #331) that check never read `APP_STORES` correctly and
-  reported both platforms as empty. Release-pipeline follow-ups (the
-  `beta-build-and-submit` dispatch guard, four failed `mobile-release` runs on
-  26–28 Aug, announcing a version only once it is live in the store) moved to
-  [store-release-pipeline.md](../ideas/store-release-pipeline.md).
+- **iOS 1.0.0 live** on the App Store since 2026-09-04 (175 territories, free):
+  <https://apps.apple.com/app/cultuvilla/id6804756586>. `APP_STORES.ios` filled in.
+- **Play closed test completed** (12 testers × 14 days).
+- **Play production approved**: 1.1.0, submitted 2026-09-08, public by
+  2026-09-28 (<https://play.google.com/store/apps/details?id=com.cultuvilla.app>).
+  `APP_STORES.android` + `APP_STORE_VERSIONS.android` filled in;
+  `pnpm check:store-claims` 20 pass, 0 fail.
+- **Play freeze lifted** 2026-09-28 (`PLAY_SUBMIT_PAUSED` deleted): every
+  `beta` merge again submits Android to the closed track, iOS to TestFlight.
+- AGENTS.md *Versioning & releases* updated.
+
+## Next steps
+
+1. Retire this plan. Keep one decision doc for the lesson below: *what sinks a
+   release is server-side config no test in the repo can see.* Delete the rest.
+
+## Open, before retiring
+
+- **Sign in with Apple in TestFlight** (see *El rechazo de 1.0.0*). The logging
+  that was the next step shipped in `55589f4a` (2026-09-03, `reportAuthError`),
+  but nobody recorded what it caught. Check Error Reporting for `surface: auth`
+  failures on iOS. If there are none since 1.0.0 went live, close this.
+- **iOS Safari install banner.** The `apple-itunes-app` tag this doc says Safari
+  draws its banner from never shipped: `+html.tsx` is ignored with
+  `web.output: 'single'`. So iOS Safari visitors may get no install offer at
+  all. The fix shipped on dev in #336 and reaches prod with the next
+  promotion; the read site carries the tag from then on — see
+  [app-only-transition.md](app-only-transition.md) phase 2.
+
+## Handoff
+
+This doc describes state that lives **outside the repo** and
+drifts silently. Run `pnpm check:store-claims` before trusting any line of it.
+Before 2026-09-11 (PR #331) that check never read `APP_STORES` correctly and
+reported both platforms as empty. Release-pipeline follow-ups (the
+`beta-build-and-submit` dispatch guard, four failed `mobile-release` runs on
+26–28 Aug, announcing a version only once it is live in the store) moved to
+[store-release-pipeline.md](../ideas/store-release-pipeline.md).
 
 ## Rollout status
 
@@ -202,9 +210,9 @@ which the rule does not gate — see
 | Fact | Where you get it | Where it goes |
 |---|---|---|
 | Play service account JSON | GCP → service account key, then Play Console → Users and permissions → invite `play-publisher@cultuvilla-prod.iam.gserviceaccount.com` with the app permissions below | repo secret `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` |
-| App signing key SHA-256 | Play Console → **Protected with Play → Play Store protection → Play app signing** | committed into `apps/mobile/public/.well-known/{env}/assetlinks.json` |
+| App signing key SHA-256 | Play Console → **Protected with Play → Play Store protection → Play app signing** | committed into `web/well-known/{env}/assetlinks.json` |
 | App signing key SHA-1 | same screen | **new Android OAuth client** in the `cultuvilla-prod` GCP project |
-| Apple Team ID | Apple Developer → Membership | committed into `apps/mobile/public/.well-known/{env}/apple-app-site-association` **and** `apps/mobile/eas.json` (`submit.production.ios.appleTeamId`) |
+| Apple Team ID | Apple Developer → Membership | committed into `web/well-known/{env}/apple-app-site-association` **and** `apps/mobile/eas.json` (`submit.production.ios.appleTeamId`) |
 | App Store Connect app id | App Store Connect → App Information | repo var `ASC_APP_ID` |
 | ASC API Key `.p8` file | App Store Connect → Users and Access → Integrations → App Store Connect API | repo secret `APPLE_ASC_API_KEY_P8` |
 | ASC API Key ID | same screen | repo var `APPLE_ASC_KEY_ID` |
@@ -214,13 +222,12 @@ Three access facts that are not obvious from the table:
 
 - **Testing-track and production release are separate Play permissions.**
   Under *Users and permissions → play-publisher@… → App permissions →
-  Cultuvilla*, the account has **Release apps to testing tracks** — closed-track
-  submits from `beta` succeed — but production also needs **Release to
-  production, exclude devices, and use Play App Signing**. Without it the build
-  succeeds and `eas submit` fails with *"The service account is missing the
-  necessary permissions"*: the 1.0.0 (`33186967970`) and 1.4.1 (`36420081592`)
-  production runs both did, so no production release has yet reached Play
-  through CI.
+  Cultuvilla*, production needs **Release to production, exclude devices, and
+  use Play App Signing** on top of **Release apps to testing tracks**. Without
+  it the build succeeds and `eas submit` fails with *"The service account is
+  missing the necessary permissions"* — the 1.0.0, 1.4.1 and first 1.5.0 runs
+  did. Granted 2026-09-29; 1.5.0 (`36545683742`) was the first production
+  release to reach Play through CI.
 
 - `cultuvilla-prod` **has no parent organization**, so the org-wide
   `iam.disableServiceAccountKeyCreation` never applied to it; only
@@ -242,7 +249,7 @@ working perfectly on every locally-installed one. Registering the SHA-1 in
 Firebase creates that client automatically.
 
 The **SHA-256** from the same screen belongs in
-`apps/mobile/public/.well-known/prod/assetlinks.json`, which is already filled
+`web/well-known/prod/assetlinks.json`, which is already filled
 in — that is what makes a shared `https://cultuvilla.es/event/...` link open the
 app instead of the browser. `dev` and `beta` still carry placeholders; fill each
 one when that build is first distributed.
@@ -267,10 +274,10 @@ Google/Apple and no loose credential works.
   map 1:1 to the Play tracks `internal` / `alpha` / `production`.
 - `.github/workflows/mobile-release.yml` — the manual build+submit entry point.
 - `.github/workflows/appstore-release.yml` — App Store Connect status / release / submit.
-- `apps/mobile/lib/appStores.ts` — the store URLs every download offer derives from.
-- `apps/mobile/public/.well-known/{env}/` — the deep-link association files,
+- `packages/shared/src/config/appStores.ts` — the store URLs every download offer derives from.
+- `web/well-known/{env}/` — the deep-link association files,
   signing identities committed; copied into place at hosting-deploy time by
-  `apps/mobile/scripts/copy-well-known.mjs`.
+  `scripts/build-web-static.mjs`.
 
 ## Build gotchas proven the hard way
 

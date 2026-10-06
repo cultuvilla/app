@@ -48,12 +48,6 @@ User → village admin approval.
 - **Function:** [functions/src/respondToJoinRequest.ts](../../functions/src/respondToJoinRequest.ts) — admin approves (creates `members/{uid}` with role `user`) or rejects; requester is notified.
 - **Collections:** `municipalities/{id}/joinRequests`, `municipalities/{id}/members`
 
-### 3b. Invite token
-
-Admin generates a token; user accepts.
-
-- **Function:** [functions/src/acceptInvite.ts](../../functions/src/acceptInvite.ts) validates `municipalities/{id}/inviteTokens/{tokenId}`, creates `users/{uid}` if needed, creates membership, increments `usageCount`.
-
 ### 3c. Organize an inactive village
 
 User → app admin approval; activates a dormant municipality.

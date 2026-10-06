@@ -1,6 +1,6 @@
 import { createRef } from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { Platform, type ScrollView } from 'react-native';
+import { Alert, type ScrollView } from 'react-native';
 import { EntityComments } from './EntityComments';
 import { DetailScrollProvider } from '../../lib/keyboard/DetailScrollContext';
 import {
@@ -12,7 +12,7 @@ import {
 import { createContentReport } from '@cultuvilla/shared/services/contentReportService';
 import { blockUser, getBlockedUserIds } from '@cultuvilla/shared/services/blockedUserService';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 
 jest.mock('@cultuvilla/shared/services/commentsService', () => ({
   addComment: jest.fn(),
@@ -31,7 +31,7 @@ jest.mock('@cultuvilla/shared/services/personService', () => ({
   getPersonByUserId: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: jest.fn(),
+  getPublicProfile: jest.fn(),
 }));
 let mockUser: { uid: string; email: string; displayName: string | null } | null = {
   uid: 'uid-1',
@@ -83,7 +83,7 @@ jest.mock('expo-router', () => ({
 const { router: mockRouter } = jest.requireMock('expo-router');
 
 const getPersonByUserIdMock = getPersonByUserId as jest.Mock;
-const getUserProfileMock = getUserProfile as jest.Mock;
+const getPublicProfileMock = getPublicProfile as jest.Mock;
 const getCommentsMock = getComments as jest.Mock;
 const addCommentMock = addComment as jest.Mock;
 const deleteCommentMock = deleteComment as jest.Mock;
@@ -108,7 +108,7 @@ describe('<EntityComments>', () => {
       firstSurname: 'Gil',
       secondSurname: null,
     });
-    getUserProfileMock.mockResolvedValue(null);
+    getPublicProfileMock.mockResolvedValue(null);
     getBlockedUserIdsMock.mockResolvedValue([]);
   });
 
@@ -158,7 +158,7 @@ describe('<EntityComments>', () => {
 
   it('uses the public user display name while a new author persona is unavailable', async () => {
     getPersonByUserIdMock.mockResolvedValue(null);
-    getUserProfileMock.mockResolvedValue({ id: 'uid-2', displayName: 'Bea Ruiz' });
+    getPublicProfileMock.mockResolvedValue({ id: 'uid-2', displayName: 'Bea Ruiz' });
     getCommentsMock.mockResolvedValue([
       {
         id: 'c-1',
@@ -189,7 +189,7 @@ describe('<EntityComments>', () => {
       }
       return { givenName: 'Ana', middleNames: [], firstSurname: 'Gil', secondSurname: null };
     });
-    getUserProfileMock.mockImplementation(async (uid: string) =>
+    getPublicProfileMock.mockImplementation(async (uid: string) =>
       uid === 'uid-3' ? { id: uid, displayName: 'Bea Ruiz' } : null,
     );
     getCommentsMock.mockResolvedValue([
@@ -313,14 +313,9 @@ describe('<EntityComments>', () => {
         createdAt: new Date(),
       },
     ]);
-    Platform.OS = 'web';
-    // jsdom isn't loaded in this jest env, so window has no confirm to spy on —
-    // install the mock directly (mirrors DeleteHeaderButton.test.tsx).
-    const confirm = jest.fn<boolean, [string?]>().mockReturnValue(true);
-    (globalThis as unknown as { window: { confirm: typeof confirm } }).window = {
-      ...(globalThis as unknown as { window?: object }).window,
-      confirm,
-    } as never;
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      buttons?.find((b) => b.style === 'destructive')?.onPress?.();
+    });
 
     const { findByText, findByLabelText, queryByText } = render(<EntityComments {...BASE_PROPS} />);
     await findByText(/Mi comentario/);
@@ -331,8 +326,7 @@ describe('<EntityComments>', () => {
 
     await waitFor(() => expect(deleteCommentMock).toHaveBeenCalledWith('c-1'));
     expect(queryByText(/Mi comentario/)).toBeNull();
-
-    Platform.OS = 'ios';
+    alert.mockRestore();
   });
 
   it('shows the sign-in prompt instead of the compose input when signed out', async () => {

@@ -11,6 +11,8 @@ import type { VillageMemberData } from '@cultuvilla/shared';
 import { notifyOrganizerRequestResolved } from '../helpers/notifyRequests';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
 import { readResidenceTarget, upsertResidenceLink, type ResidenceTarget } from './residenceProjection';
+import { readOwnSex } from './ambassador';
+import type { Sex } from '@cultuvilla/shared';
 
 const db = getFirestore();
 
@@ -48,6 +50,7 @@ export const respondToOrganizerRequest = onCall<
     let requesterUid = '';
     let municipalityId = '';
     let municipalityName = '';
+    let requesterSex: Sex | null = null;
 
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(reqRef);
@@ -75,7 +78,7 @@ export const respondToOrganizerRequest = onCall<
           throw new HttpsError('failed-precondition', 'El pueblo aún no está iniciado.');
         }
         if (muniData.community?.organizerId != null) {
-          throw new HttpsError('already-exists', 'Este pueblo ya tiene organizador.');
+          throw new HttpsError('already-exists', 'Este pueblo ya tiene embajador.');
         }
       }
       municipalityName = muniData?.name ?? municipalityId;
@@ -88,6 +91,9 @@ export const respondToOrganizerRequest = onCall<
       if (decision === 'approved' && !memberSnap.exists) {
         residenceTarget = await readResidenceTarget(tx, db, requesterUid);
       }
+      if (decision === 'approved') {
+        requesterSex = await readOwnSex(tx, db, requesterUid);
+      }
 
       // tx.update bypasses the converter — FieldValue.serverTimestamp() is fine.
       tx.update(reqRef, {
@@ -99,7 +105,12 @@ export const respondToOrganizerRequest = onCall<
       if (decision === 'approved') {
         // Set the organizer on the existing community (dotted path preserves the
         // description/profileForm/activatedAt seeded at start time).
-        tx.update(muniRef, { 'community.organizerId': requesterUid });
+        // Untyped ref: UpdateData can't express a dotted path into a nullable
+        // nested field, so a null organizerSex fails to typecheck otherwise.
+        tx.update(muniRef.withConverter(null), {
+          'community.organizerId': requesterUid,
+          'community.organizerSex': requesterSex,
+        });
         const priorRole = memberSnap.exists ? (memberSnap.data()?.role ?? null) : null;
         if (memberSnap.exists) {
           // Already a member (joined or started the village) → promote to admin.
@@ -144,6 +155,7 @@ export const respondToOrganizerRequest = onCall<
         municipalityId,
         municipalityName,
         requesterUid,
+        requesterSex,
         decision,
       });
     }

@@ -24,7 +24,7 @@ const rootPkg = JSON.parse(read('package.json')) as { scripts: Record<string, st
 const flowsDir = resolve(repoRoot, 'apps/mobile/e2e/native/flows');
 
 describe('android-e2e workflow gating', () => {
-  // Same gate as web-e2e: a Gradle build plus an AVD boot is far too slow for
+  // Release paths only: a Gradle build plus an AVD boot is far too slow for
   // day-to-day develop PRs, and beta is the release candidate — the last point
   // where a native-only regression can be caught before it is a store binary.
   it('runs on the beta/main release paths only', () => {
@@ -203,7 +203,7 @@ describe('native flow suite', () => {
   // unpredictably against the rest and break that pairing.
   it('keeps every flow numerically ordered', () => {
     for (const flow of flows) expect(flow).toMatch(/^\d{2}-/);
-    expect(flows.length).toBeGreaterThanOrEqual(8);
+    expect(flows.length).toBeGreaterThanOrEqual(15);
   });
 
   // The substrate's whole point (docs/decisions/e2e-testing-substrate.md): the

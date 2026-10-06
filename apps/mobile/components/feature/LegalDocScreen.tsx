@@ -2,7 +2,7 @@ import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Text, VStack } from '../primitives';
 import { ScreenHeader } from '../layout/ScreenHeader';
-import type { LegalDoc } from '../../lib/legal/content';
+import type { LegalDoc } from '@cultuvilla/shared/legal';
 
 function Paragraph({ text }: { text: string }) {
   const isBullet = text.startsWith('•');

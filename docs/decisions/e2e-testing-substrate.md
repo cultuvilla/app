@@ -1,5 +1,12 @@
 # E2E testing substrate (web Playwright + native Maestro)
 
+> **2026-10-02:** the web half is gone. The Expo web build was retired when the
+> web became a server-rendered read site
+> ([web-is-a-read-site.md](web-is-a-read-site.md)), and its Playwright suite
+> with it. Maestro on Android is the E2E suite; the read site is covered by
+> emulator tests in `functions/src/__tests__/handlers/web/`. What follows is the
+> original rationale, still true for the native half.
+
 ## Context
 
 Unit and emulator *rules* tests existed, but nothing exercised a real navigation

@@ -15,7 +15,7 @@ import {
   doc,
   type UpdateData,
   type DocumentData,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import {
   eventsCollection,
@@ -28,6 +28,7 @@ import {
   type EventDataInput,
   type EventStatus,
 } from '../models/event/EventDataModel';
+import { watchDoc, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 
 type EventWithId = EventData & { id: string };
 
@@ -47,29 +48,51 @@ export async function getEvent(eventId: string): Promise<(EventData & { id: stri
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export async function getEventsByMunicipality(
-  municipalityId: string,
-  status?: EventStatus | EventStatus[],
-): Promise<(EventData & { id: string })[]> {
-  const ref = eventsCollection(getDb());
-  // A status array becomes an `in` filter (e.g. the pueblo tab wants
-  // 'published' + 'completed' so past events survive the completion job);
-  // a single status stays an equality filter. Both reuse the
-  // municipalityId + status + startDate composite index.
-  const statusConstraint = Array.isArray(status)
+export function watchEvent(
+  eventId: string,
+  onNext: (event: (EventData & { id: string }) | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(eventDoc(getDb(), eventId), onNext, onError);
+}
+
+// A status array becomes an `in` filter (e.g. the pueblo tab wants
+// 'published' + 'completed' so past events survive the completion job);
+// a single status stays an equality filter. Both reuse the
+// municipalityId + status + startDate composite index.
+function statusConstraints(status?: EventStatus | EventStatus[]) {
+  return Array.isArray(status)
     ? [where('status', 'in', status)]
     : status
       ? [where('status', '==', status)]
       : [];
-  const q = query(
-    ref,
+}
+
+function municipalityEventsQuery(municipalityId: string, status?: EventStatus | EventStatus[]) {
+  return query(
+    eventsCollection(getDb()),
     where('municipalityId', '==', municipalityId),
     publicOnly(),
-    ...statusConstraint,
+    ...statusConstraints(status),
     orderBy('startDate', 'asc'),
   );
-  const snap = await getDocs(q);
+}
+
+export async function getEventsByMunicipality(
+  municipalityId: string,
+  status?: EventStatus | EventStatus[],
+): Promise<(EventData & { id: string })[]> {
+  const snap = await getDocs(municipalityEventsQuery(municipalityId, status));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchEventsByMunicipality(
+  municipalityId: string,
+  status: EventStatus | EventStatus[] | undefined,
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(municipalityEventsQuery(municipalityId, status), onNext, onError);
 }
 
 /**
@@ -87,28 +110,44 @@ export async function getPrivateEventsByMunicipality(
   status?: EventStatus | EventStatus[],
 ): Promise<EventWithId[]> {
   if (orgIds.length === 0) return [];
-  const statusConstraint = Array.isArray(status)
-    ? [where('status', 'in', status)]
-    : status
-      ? [where('status', '==', status)]
-      : [];
   const pages = await Promise.all(
     orgIds.map(async (orgId) => {
-      const snap = await getDocs(
-        query(
-          eventsCollection(getDb()),
-          where('visibilityOrgId', '==', orgId),
-          ...statusConstraint,
-          orderBy('startDate', 'asc'),
-        ),
-      );
+      const snap = await getDocs(orgPrivateEventsQuery(orgId, status));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     }),
   );
-  return pages
-    .flat()
+  return inMunicipalityByStart(municipalityId, pages.flat());
+}
+
+function orgPrivateEventsQuery(orgId: string, status?: EventStatus | EventStatus[]) {
+  return query(
+    eventsCollection(getDb()),
+    where('visibilityOrgId', '==', orgId),
+    ...statusConstraints(status),
+    orderBy('startDate', 'asc'),
+  );
+}
+
+function inMunicipalityByStart(municipalityId: string, events: EventWithId[]): EventWithId[] {
+  return events
     .filter((e) => e.municipalityId === municipalityId)
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+}
+
+/** One listener per org (rules do not filter a list); merged as the get does. */
+export function watchPrivateEventsByMunicipality(
+  municipalityId: string,
+  orgIds: string[],
+  status: EventStatus | EventStatus[] | undefined,
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchMerged<EventWithId>(
+    orgIds.map((orgId) => (next, error) => watchQuery(orgPrivateEventsQuery(orgId, status), next, error)),
+    (rows) => inMunicipalityByStart(municipalityId, rows),
+    onNext,
+    onError,
+  );
 }
 
 /**

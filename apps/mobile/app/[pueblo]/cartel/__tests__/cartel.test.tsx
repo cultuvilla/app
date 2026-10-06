@@ -1,4 +1,5 @@
 import { render, waitFor } from '@testing-library/react-native';
+import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../../test/watchers';
 import FestivalPosterDetailScreen from '../[cartel]';
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -7,7 +8,6 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ pueblo: 'villa', cartel: 'fiestas-2026_p1' }),
-  useFocusEffect: (cb: () => void) => cb(),
   router: { back: jest.fn(), canGoBack: () => true, replace: jest.fn() },
 }));
 jest.mock('../../../../lib/navigation/VillageRouteGate');
@@ -16,7 +16,7 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/festivalPosterService', () => ({
-  getFestivalPoster: jest.fn().mockResolvedValue({ id: 'p1', municipalityId: 'm1', villageSlug: 'villa', proposedBy: 'creator', title: 'Fiestas 2026', year: 2026, images: ['https://example.com/a.jpg', 'https://example.com/b.jpg'], startsAt: null, endsAt: null, contributorUserIds: ['u1'], contributorOrgIds: ['o1'], status: 'active' }),
+  watchFestivalPoster: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('poster'),
 }));
 jest.mock('@cultuvilla/shared/utils', () => ({
   ...jest.requireActual('@cultuvilla/shared/utils'),
@@ -30,6 +30,9 @@ jest.mock('../../../../components/feature/EntityContributors', () => ({ EntityCo
 jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
 
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
+import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
+
+const POSTER = { id: 'p1', municipalityId: 'm1', villageSlug: 'villa', proposedBy: 'creator', title: 'Fiestas 2026', year: 2026, images: ['https://example.com/a.jpg', 'https://example.com/b.jpg'], startsAt: null, endsAt: null, contributorUserIds: ['u1'], contributorOrgIds: ['o1'], status: 'active' };
 
 function mockCaps(canEdit: boolean, uid: string | null) {
   (useEntityCapabilities as jest.Mock).mockReturnValue({
@@ -43,7 +46,11 @@ function mockCaps(canEdit: boolean, uid: string | null) {
 }
 
 describe('FestivalPosterDetailScreen', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetWatchers();
+    setWatched('poster', POSTER);
+  });
 
   it('renders the poster title once loaded', async () => {
     mockCaps(false, null);
@@ -62,5 +69,24 @@ describe('FestivalPosterDetailScreen', () => {
     const { getByText, queryByLabelText } = render(<FestivalPosterDetailScreen />);
     await waitFor(() => getByText('Fiestas 2026'));
     expect(queryByLabelText('common.edit')).toBeNull();
+  });
+
+  it('shows an update the moment the listener delivers it, with no reload', async () => {
+    mockCaps(false, null);
+    const { getByText, findByText } = render(<FestivalPosterDetailScreen />);
+    await waitFor(() => getByText('Fiestas 2026'));
+    emitWatched('poster', { ...POSTER, title: 'Fiestas de San Roque' });
+    expect(await findByText('Fiestas de San Roque')).toBeTruthy();
+    expect(watchersOf('poster')).toHaveLength(1);
+    expect(watchersOf('poster')[0]?.args).toEqual(['p1']);
+    expect(recordEntityView).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the not-found state once the poster is gone', async () => {
+    mockCaps(false, null);
+    const { getByText, findByText } = render(<FestivalPosterDetailScreen />);
+    await waitFor(() => getByText('Fiestas 2026'));
+    emitWatched('poster', null);
+    expect(await findByText('common.notFound')).toBeTruthy();
   });
 });

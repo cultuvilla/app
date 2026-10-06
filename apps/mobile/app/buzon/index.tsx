@@ -34,6 +34,17 @@ import { getMunicipality } from '@cultuvilla/shared/services/municipalityService
 import { getNotifications, markAllAsRead } from '@cultuvilla/shared/services/notificationService';
 import { isOpenableNotification, openNotification } from '../../lib/notifications/openNotification';
 import { getMyPendingRequests, buildActivityFeed } from '@cultuvilla/shared/services/inboxService';
+import {
+  getPendingOrgJoinRequests,
+  respondToOrgJoinRequest,
+  type OrgJoinDecision,
+} from '@cultuvilla/shared/services/orgJoinRequestService';
+import { getOrganization } from '@cultuvilla/shared/services/organizationService';
+import type { OrgJoinRequestData } from '@cultuvilla/shared/models/organization/OrgJoinRequestDataModel';
+import {
+  OrgJoinRequestRow,
+  resolveRequester,
+} from '../../components/feature/OrgJoinRequests';
 import type { ActivityItem } from '@cultuvilla/shared/services/inboxService';
 import type { OrganizerRequestData } from '@cultuvilla/shared/models/municipality/OrganizerRequestDataModel';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
@@ -44,11 +55,13 @@ type OrgRow = OrganizationData & { id: string };
 export default function InboxScreen() {
   const { t } = useT();
   const { user } = useAuth();
-  const { loading, isSuperAdmin, adminVillageIds, canApprove } = useApproverStatus();
+  const { loading, isSuperAdmin, adminVillageIds, adminOrgIds, canApprove } = useApproverStatus();
 
   // ─── Actionable ("Necesita tu acción") state ────────────────────────────────
   const [organizerRows, setOrganizerRows] = useState<OrganizerRow[]>([]);
   const [orgRows, setOrgRows] = useState<OrgRow[]>([]);
+  const [joinRows, setJoinRows] = useState<OrgJoinRequestData[]>([]);
+  const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [dataLoading, setDataLoading] = useState(false);
 
   // ─── Activity feed state ────────────────────────────────────────────────────
@@ -67,6 +80,16 @@ export default function InboxScreen() {
 
   // Error modal state
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const resolveOrgNames = useCallback(async (orgIds: string[]) => {
+    const resolved = await Promise.all(
+      [...new Set(orgIds)].map(async (oid) => {
+        const org = await getOrganization(oid).catch(() => null);
+        return [oid, org?.name ?? oid] as const;
+      }),
+    );
+    if (resolved.length > 0) setOrgNames((prev) => ({ ...prev, ...Object.fromEntries(resolved) }));
+  }, []);
 
   // ─── Actionable load ─────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -105,10 +128,34 @@ export default function InboxScreen() {
         );
       }
 
+      let fetchedJoinRows: OrgJoinRequestData[] = [];
+      if (adminOrgIds.length > 0) {
+        // Per org, and each one allowed to fail on its own: one org's denied
+        // read must not hide every other org's requests.
+        promises.push(
+          Promise.all(
+            adminOrgIds.map((oid) => getPendingOrgJoinRequests(oid).catch(() => [])),
+          ).then((perOrg) => {
+            fetchedJoinRows = perOrg.flat();
+          }),
+        );
+      }
+
       await Promise.all(promises);
 
       setOrganizerRows(fetchedOrganizerRows);
       setOrgRows(fetchedOrgRows);
+      setJoinRows(fetchedJoinRows);
+
+      const joinRequesters = await Promise.all(
+        fetchedJoinRows
+          .filter((r) => !requesterByUid[r.userId])
+          .map(async (r) => [r.userId, await resolveRequester(r.userId, r.userId)] as const),
+      );
+      if (joinRequesters.length > 0) {
+        setRequesterByUid((prev) => ({ ...prev, ...Object.fromEntries(joinRequesters) }));
+      }
+      await resolveOrgNames(fetchedJoinRows.map((r) => r.orgId));
 
       // Resolve organizer-request requesters (name + photo)
       const requesterFetches = fetchedOrganizerRows.map(async (r) => {
@@ -155,7 +202,7 @@ export default function InboxScreen() {
     } finally {
       setDataLoading(false);
     }
-  }, [loading, canApprove, isSuperAdmin, adminVillageIds]);
+  }, [loading, canApprove, isSuperAdmin, adminVillageIds, adminOrgIds]);
 
   useEffect(() => {
     void loadData();
@@ -183,10 +230,13 @@ export default function InboxScreen() {
         // label is a municipalityId; org's label is already the org name —
         // see inboxService.getMyPendingRequests).
         const newMunicipalityIds = new Set<string>();
+        const joinOrgIds: string[] = [];
         for (const item of feed) {
           if (item.kind !== 'pending-sent') continue;
           if (item.requestType === 'organizer') newMunicipalityIds.add(item.label);
+          if (item.requestType === 'orgJoin') joinOrgIds.push(item.label);
         }
+        await resolveOrgNames(joinOrgIds);
 
         const resolvedMunicipalities = await Promise.all(
           [...newMunicipalityIds].map(async (mid) => {
@@ -218,7 +268,7 @@ export default function InboxScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, resolveOrgNames]);
 
   // ─── Actionable decision handlers ────────────────────────────────────────────
   async function handleOrganizerDecide(row: OrganizerRow, decision: 'approved' | 'rejected') {
@@ -251,8 +301,23 @@ export default function InboxScreen() {
     }
   }
 
+  async function handleJoinDecide(row: OrgJoinRequestData, decision: OrgJoinDecision) {
+    const key = `join-${row.orgId}-${row.userId}`;
+    setBusyKey(key);
+    try {
+      await respondToOrgJoinRequest(row.orgId, row.userId, decision);
+      setJoinRows((prev) =>
+        prev.filter((r) => !(r.orgId === row.orgId && r.userId === row.userId)),
+      );
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   // ─── Render: actionable section ──────────────────────────────────────────────
-  const hasActionable = organizerRows.length > 0 || orgRows.length > 0;
+  const hasActionable = organizerRows.length > 0 || orgRows.length > 0 || joinRows.length > 0;
 
   function renderActionable() {
     if (dataLoading) {
@@ -348,6 +413,23 @@ export default function InboxScreen() {
           </VStack>
         )}
 
+        {/* Join requests for approval orgs this user administers */}
+        {joinRows.length > 0 && (
+          <VStack gap={2}>
+            <Text variant="h3">{t('inbox.tab.orgJoin')}</Text>
+            {joinRows.map((row) => (
+              <OrgJoinRequestRow
+                key={`${row.orgId}-${row.userId}`}
+                request={row}
+                requester={requesterByUid[row.userId] ?? { name: row.userId, photoURL: null }}
+                subtitle={orgNames[row.orgId] ?? row.orgId}
+                busy={busyKey === `join-${row.orgId}-${row.userId}`}
+                onDecide={(decision) => void handleJoinDecide(row, decision)}
+              />
+            ))}
+          </VStack>
+        )}
+
         {/* Org-creation section */}
         {orgRows.length > 0 && (
           <VStack gap={2}>
@@ -396,6 +478,9 @@ export default function InboxScreen() {
       return t('inbox.pendingSent.organizer', {
         name: municipalityNames[item.label] ?? item.label,
       });
+    }
+    if (item.requestType === 'orgJoin') {
+      return t('inbox.pendingSent.orgJoin', { name: orgNames[item.label] ?? item.label });
     }
     return t('inbox.pendingSent.org', { name: item.label });
   }

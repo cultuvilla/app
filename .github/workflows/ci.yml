@@ -86,19 +86,6 @@ jobs:
       - name: Lint backfill registry coverage (warn only)
         run: pnpm backfills:lint
 
-      # Structural check on the business-opportunity registry under project/.
-      # Fails on a malformed record (bad enum, id/filename drift, duplicate id);
-      # a lapsed deadline is only warned about, since time passing is not a
-      # commit anyone can be asked to fix.
-      - name: Verify opportunity registry
-        run: pnpm opportunities:verify
-
-      # The dashboard renders a snapshot generated from project/**. Committed so
-      # the app build never has to run the generator, and checked here so it
-      # cannot drift from the Markdown it came from.
-      - name: Check business snapshot is current
-        run: pnpm business:snapshot:check
-
       - name: Test (unit — shared, mobile, functions)
         run: pnpm test:unit
 

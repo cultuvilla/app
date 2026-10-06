@@ -7,21 +7,25 @@ import {
   getDocs,
   Timestamp,
   type QueryDocumentSnapshot,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { eventsCollection } from '../firebase/refs/client';
 import type { EventData } from '../models/event/EventDataModel';
 import type { LatLng } from '../models/core/LocationDataModel';
+import { watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export interface FeedPage {
   events: (EventData & { id: string })[];
   cursor: QueryDocumentSnapshot<EventData> | null;
 }
 
-export async function getUpcomingFeed(
-  pageSize: number = 20,
-  cursor: QueryDocumentSnapshot<EventData> | null = null,
-): Promise<FeedPage> {
+function startOfToday(): Date {
+  const day = new Date();
+  day.setHours(0, 0, 0, 0);
+  return day;
+}
+
+function upcomingFeedQuery(pageSize: number, cursor: QueryDocumentSnapshot<EventData> | null) {
   const ref = eventsCollection(getDb());
   // Range on `endBoundary` (endDate ?? startDate), not `startDate`: an event
   // stays in the feed for the whole of its (last) day, so one that started
@@ -29,8 +33,6 @@ export async function getUpcomingFeed(
   // the start of today, not `now` — completeExpiredEvents flips genuinely-past
   // events to `completed`, so the status filter drops them. Firestore requires
   // the first orderBy to match the inequality field, hence orderBy(endBoundary).
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
   const baseConstraints = [
     where('status', '==', 'published'),
     // Rules do not filter a list — an unpinned query either leaks the private
@@ -38,15 +40,20 @@ export async function getUpcomingFeed(
     // Private ones reach the feed through getPrivateUpcomingFeed, one org at a
     // time.
     where('visibility', '==', 'public'),
-    where('endBoundary', '>=', Timestamp.fromDate(startOfToday)),
+    where('endBoundary', '>=', Timestamp.fromDate(startOfToday())),
     orderBy('endBoundary', 'asc'),
     firestoreLimit(pageSize),
   ];
-  const q = cursor
+  return cursor
     ? query(ref, ...baseConstraints, startAfter(cursor))
     : query(ref, ...baseConstraints);
+}
 
-  const snap = await getDocs(q);
+export async function getUpcomingFeed(
+  pageSize: number = 20,
+  cursor: QueryDocumentSnapshot<EventData> | null = null,
+): Promise<FeedPage> {
+  const snap = await getDocs(upcomingFeedQuery(pageSize, cursor));
   const events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   const lastDoc = snap.docs.length > 0 ? (snap.docs[snap.docs.length - 1] ?? null) : null;
   return { events, cursor: lastDoc };
@@ -66,23 +73,52 @@ export async function getPrivateUpcomingFeed(
   orgIds: string[],
 ): Promise<(EventData & { id: string })[]> {
   if (orgIds.length === 0) return [];
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
   const pages = await Promise.all(
     orgIds.map(async (orgId) => {
-      const snap = await getDocs(
-        query(
-          eventsCollection(getDb()),
-          where('visibilityOrgId', '==', orgId),
-          where('status', '==', 'published'),
-          where('endBoundary', '>=', Timestamp.fromDate(startOfToday)),
-          orderBy('endBoundary', 'asc'),
-        ),
-      );
+      const snap = await getDocs(orgUpcomingQuery(orgId));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     }),
   );
-  return pages.flat().sort((a, b) => a.endBoundary.getTime() - b.endBoundary.getTime());
+  return byEndBoundary(pages.flat());
+}
+
+function orgUpcomingQuery(orgId: string) {
+  return query(
+    eventsCollection(getDb()),
+    where('visibilityOrgId', '==', orgId),
+    where('status', '==', 'published'),
+    where('endBoundary', '>=', Timestamp.fromDate(startOfToday())),
+    orderBy('endBoundary', 'asc'),
+  );
+}
+
+function byEndBoundary(events: (EventData & { id: string })[]) {
+  return [...events].sort((a, b) => a.endBoundary.getTime() - b.endBoundary.getTime());
+}
+
+/**
+ * The feed's first page, live. The day boundary is fixed when the listener
+ * opens, so a caller should key the subscription by date to roll it over.
+ */
+export function watchUpcomingFeed(
+  pageSize: number,
+  onNext: (events: (EventData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(upcomingFeedQuery(pageSize, null), onNext, onError);
+}
+
+export function watchPrivateUpcomingFeed(
+  orgIds: string[],
+  onNext: (events: (EventData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchMerged<EventData & { id: string }>(
+    orgIds.map((orgId) => (next, error) => watchQuery(orgUpcomingQuery(orgId), next, error)),
+    byEndBoundary,
+    onNext,
+    onError,
+  );
 }
 
 const EARTH_RADIUS_KM = 6371;

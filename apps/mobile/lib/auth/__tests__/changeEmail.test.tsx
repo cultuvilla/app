@@ -39,7 +39,7 @@ jest.mock('@cultuvilla/shared/services/authEmailService', () => ({
   sendAuthSignInEmail: (...args: unknown[]) => mockSendAuthSignInEmail(...args),
 }));
 
-jest.mock('firebase/auth', () => ({
+jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
   onAuthStateChanged: (_auth: unknown, cb: (u: unknown) => void) => {
     cb(mockCurrentUser);
     return () => {};

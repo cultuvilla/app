@@ -11,7 +11,7 @@ import {
   writeBatch,
   getCountFromServer,
   updateDoc,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import {
   userNotificationsCollection,

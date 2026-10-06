@@ -9,14 +9,14 @@ import { resolve } from 'node:path';
 // or the bundle fails to resolve `resend` and `satori` and the deploy dies in
 // predeploy.
 //
-// This is not hypothetical: deploy-panel.yml shipped without the step and every
-// panel deploy failed at the callable, leaving the panel serving the previous
-// snapshot while the workflow's own hosting step had already been skipped.
+// This is not hypothetical: the old deploy-panel.yml shipped without the step and
+// every panel deploy failed at the callable, leaving the panel serving the
+// previous snapshot. A new workflow that deploys functions belongs in this list.
 
 const repoRoot = resolve(__dirname, '../../../..');
 const read = (path: string): string => readFileSync(resolve(repoRoot, path), 'utf-8');
 
-const WORKFLOWS = ['.github/workflows/deploy-firebase.yml', '.github/workflows/deploy-panel.yml'];
+const WORKFLOWS = ['.github/workflows/deploy-firebase.yml'];
 
 const runnable = (yaml: string): string =>
   yaml

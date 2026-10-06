@@ -1,5 +1,5 @@
 // packages/shared/src/services/moderationService.ts
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getFirebaseFunctions } from '../firebase';
 import type { ModeratedCollection } from '../models/moderation/ModerationEventDataModel';
 

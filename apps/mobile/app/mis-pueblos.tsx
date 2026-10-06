@@ -19,9 +19,16 @@ import {
 } from '@cultuvilla/shared/services/villageMemberService';
 import { setActiveMunicipality } from '@cultuvilla/shared/services/userService';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
-import { escudoThumbDisplayUrl } from '@cultuvilla/shared/models/municipality';
+import { escudoThumbDisplayUrl, villageTitle } from '@cultuvilla/shared/models/municipality';
+import type { Sex } from '@cultuvilla/shared/models/core/SexModel';
+import { VillageTitleBadge } from '../components/feature/VillageTitleBadge';
 
-type Row = UserMembership & { name: string; escudoThumbUrl: string | null };
+type Row = UserMembership & {
+  name: string;
+  escudoThumbUrl: string | null;
+  organizerId: string | null;
+  organizerSex: Sex | null;
+};
 
 export default function MyVillagesScreen() {
   const { user, profile, refreshProfile } = useAuth();
@@ -43,6 +50,8 @@ export default function MyVillagesScreen() {
             ...m,
             name: muni?.name ?? m.municipalityId,
             escudoThumbUrl: muni ? escudoThumbDisplayUrl(muni) : null,
+            organizerId: muni?.community?.organizerId ?? null,
+            organizerSex: muni?.community?.organizerSex ?? null,
           };
         }),
       );
@@ -94,7 +103,9 @@ export default function MyVillagesScreen() {
           }
           renderItem={({ item }) => {
             const isActive = item.municipalityId === activeId;
-            const isAdmin = item.role === 'admin';
+            const title = user
+              ? villageTitle({ userId: user.uid, role: item.role, organizerId: item.organizerId })
+              : 'member';
             const isBusy = switchingId === item.municipalityId;
             return (
               <Pressable
@@ -109,9 +120,13 @@ export default function MyVillagesScreen() {
                 <View className="flex-1 ml-3">
                   <VStack gap={1}>
                     <Text className="font-semibold">{item.name}</Text>
-                    <Text tone="muted" variant="caption">
-                      {isAdmin ? t('me.villages.adminBadge') : t('me.villages.memberBadge')}
-                    </Text>
+                    {title === 'member' ? (
+                      <Text tone="muted" variant="caption">
+                        {t('me.villages.memberBadge')}
+                      </Text>
+                    ) : (
+                      <VillageTitleBadge title={title} sex={item.organizerSex} />
+                    )}
                   </VStack>
                 </View>
                 {isBusy ? (

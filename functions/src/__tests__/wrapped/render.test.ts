@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import sharp from 'sharp';
-import { composeWrapped, CARD_FORMATS, formatDateRange } from '../../wrapped/composeWrapped';
+import { composeWrapped, CARD_FORMATS, cardLink, formatDateRange } from '../../wrapped/composeWrapped';
 import type { GatheredWrapped } from '../../wrapped/gatherInputs';
 import { fitFontSize } from '../../wrapped/render/layout';
-import { averagePerEvent } from '../../wrapped/render/cards';
+import { averagePerEvent, coverCard, statsCard, type CardContext } from '../../wrapped/render/cards';
+import type { SatoriChild } from '../../wrapped/render/h';
 
 /**
  * Renders real cards end to end — Satori layout, embedded fonts, sharp
@@ -17,6 +18,7 @@ const WINDOW = { start: new Date('2026-08-14T00:00:00+02:00'), end: new Date('20
 function gathered(): GatheredWrapped {
   return {
     villageName: 'Matabuena',
+    villageSlug: 'matabuena',
     escudoUrl: null,
     people: [
       { personId: 'p1', displayName: 'Lucía Sánchez Baeza', photoURL: null },
@@ -113,6 +115,36 @@ describe('composeWrapped', () => {
     expect(aggregate.stats.uniquePersonCount).toBe(2);
     expect(aggregate.stats.censoParticipantCount).toBe(1);
   }, 60_000);
+});
+
+/** Every string drawn by a card tree — Satori turns text into paths, so the tree is where text is still readable. */
+function textsOf(node: SatoriChild | SatoriChild[] | undefined): string[] {
+  if (node == null) return [];
+  if (Array.isArray(node)) return node.flatMap(textsOf);
+  if (typeof node === 'string' || typeof node === 'number') return [String(node)];
+  return textsOf(node.props.children);
+}
+
+describe('card link', () => {
+  // A card shared on its own — a WhatsApp status, an Instagram story — has no
+  // link attached, so the card has to carry its own way back.
+  const ctx: CardContext = { villageName: 'Matabuena', year: 2026, blocks: [], link: 'cultuvilla.es/matabuena/fiestas/2026' };
+  const stats = { eventCount: 2, confirmedCount: 3, waitlistedCount: 0, uniquePersonCount: 2, uniqueAccountCount: 1, commentCount: 0, censoCount: 3, censoParticipantCount: 1, posterCount: 0 };
+
+  it('prints the Wrapped address on the cover and on every framed card', () => {
+    expect(textsOf(coverCard(ctx, null))).toContain(ctx.link);
+    expect(textsOf(statsCard(ctx, stats, null))).toContain(ctx.link);
+  });
+
+  it('prints nothing when there is no address to give', () => {
+    expect(textsOf(statsCard({ ...ctx, link: null }, stats, null)).join(' ')).not.toContain('cultuvilla.es');
+  });
+
+  it('names the public host of each project, without the scheme', () => {
+    expect(cardLink('cultuvilla-prod', 'matabuena', 2026)).toBe('cultuvilla.es/matabuena/fiestas/2026');
+    expect(cardLink('villa-events', 'matabuena', 2026)).toBe('villa-events.web.app/matabuena/fiestas/2026');
+    expect(cardLink('cultuvilla-prod', null, 2026)).toBeNull();
+  });
 });
 
 describe('averagePerEvent', () => {

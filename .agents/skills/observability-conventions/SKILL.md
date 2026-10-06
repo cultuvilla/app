@@ -30,12 +30,17 @@ Every event name is `<domain>.<action>.<outcome>` — e.g.
   `village.join.error`, `event.signup.success`, `event.signup.error`,
   `org.create.success`, `org.create.error`, `content.detail.viewed`,
   `search.query.submitted`, `search.result.selected`, `org.invite.shared`,
-  `org.join.success`, `org.join.error`, `app.exception.thrown`.
+  `org.join.success`, `org.join.error`, `app.exception.thrown`,
+  `app.link.opened`.
 - Reuse `<domain>` and `<action>` segments that already exist before minting
   new ones (`village`, `event`, `org`, `onboarding` are the current domains).
   If a new domain or action is genuinely needed, that's fine — just don't
   invent a fourth spelling of "success" (`ok`, `done`, `complete` — pick the
   one already in use: `success`).
+- **Native sends `_` where web sends `.`.** GA4's native SDKs reject dotted
+  names, so `apps/mobile/lib/observability/analytics.ts` maps
+  `event.signup.success` → `event_signup_success`. Keep one catalogue; join the
+  platforms in BigQuery with `REPLACE(event_name, '.', '_')`.
 - A PR that adds a `trackEvent` call without a matching new/reused
   `OBSERVABILITY_EVENTS` entry should be blocked in review.
 

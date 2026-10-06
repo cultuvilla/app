@@ -39,13 +39,19 @@ import { HistoryRail } from './history/HistoryRail';
 import { WordOfTheDayCard } from './vocabulary/WordOfTheDayCard';
 import { LocationMap } from './LocationMap';
 import { JoinVillageModal } from './JoinVillageModal';
+import { VillageAmbassadorCard } from './VillageAmbassadorCard';
+import { VillageWrappedBanner } from './wrapped/VillageWrappedBanner';
+import { AmbassadorWelcomeSheet } from './AmbassadorWelcomeSheet';
+import {
+  hasSeenAmbassadorWelcome,
+  markAmbassadorWelcomeSeen,
+} from '../../lib/village/ambassadorWelcome';
 import { StatsRow } from './StatsRow';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
 import { useIsAppAdmin } from '../../lib/auth/useIsAppAdmin';
 import { useShareDeepLink } from '../../lib/deeplink/useShareDeepLink';
 import { useT } from '../../lib/i18n';
-import { dismissSeoShell } from '../../lib/seoShell';
 import { usePush } from '../../lib/push/PushProvider';
 import { isProposalVisible } from '../../lib/proposals';
 import { joinVillage } from '@cultuvilla/shared/services/villageMemberService';
@@ -83,16 +89,29 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
   const [joining, setJoining] = useState(false);
   const [pendingJoin, setPendingJoin] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
 
   const { coreLoading, coreError, village } = data;
+  const uid = user?.uid ?? null;
+  const villageIdForWelcome = village?.id ?? null;
+  const isAmbassador = uid != null && village?.community?.organizerId === uid;
 
-  // Village is not an entity (it opens a ScreenHeader, not EntityDetailScaffold),
-  // so it needs its own hand-over from the server-rendered block. This body is
-  // shared by /village/[villageId] and the village tab, which is where a cold
-  // entry to a shared village link actually lands after its redirect.
+  // First visit after becoming Embajador: say it out loud, once per device.
   useEffect(() => {
-    if (!coreLoading) dismissSeoShell();
-  }, [coreLoading]);
+    if (!isAmbassador || !uid || !villageIdForWelcome) return;
+    let cancelled = false;
+    void hasSeenAmbassadorWelcome(villageIdForWelcome, uid).then((seen) => {
+      if (!cancelled && !seen) setWelcomeOpen(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAmbassador, uid, villageIdForWelcome]);
+
+  const closeWelcome = () => {
+    setWelcomeOpen(false);
+    if (uid && villageIdForWelcome) void markAmbassadorWelcomeSeen(villageIdForWelcome, uid);
+  };
 
   if (coreLoading) {
     return (
@@ -288,6 +307,9 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           />
         </HStack>
 
+        {/* ── The latest fiestas Wrapped, while it is recent ────── */}
+        <VillageWrappedBanner municipalityId={village.id} villageSlug={villageSlug} />
+
         {/* ── No organizer yet (wiki phase) ─────────────────────── */}
         {noOrganizer ? (
           <VStack gap={2} className="px-4 pt-2">
@@ -309,6 +331,15 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               {t('village.noOrganizer.body')}
             </Text>
           </VStack>
+        ) : null}
+
+        {/* ── The pueblo's Embajador, by name and face ─────────── */}
+        {village.community?.organizerId ? (
+          <VillageAmbassadorCard
+            organizerId={village.community.organizerId}
+            organizerSex={village.community.organizerSex}
+            viewerUid={uid}
+          />
         ) : null}
 
         {/* ── Ubicación: the map rectangle when coordinates are set. When
@@ -532,6 +563,16 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
         villageId={village.id}
         villageSlug={villageSlug}
         canManage={canManage}
+      />
+      <AmbassadorWelcomeSheet
+        visible={welcomeOpen}
+        villageName={village.name}
+        sex={village.community?.organizerSex ?? null}
+        onShare={() => {
+          closeWelcome();
+          void share(getVillageViewLink(villageSlug), village.name);
+        }}
+        onClose={closeWelcome}
       />
     </>
   );

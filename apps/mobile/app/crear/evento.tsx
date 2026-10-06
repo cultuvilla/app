@@ -22,6 +22,7 @@ import { withFirestoreErrorLog } from '../../lib/firestoreErrorLog';
 import { showConfirm } from '../../lib/dialogs';
 import { pickImageAsBlob } from '../../lib/images';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
+import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { escudoThumbDisplayUrl } from '@cultuvilla/shared/models/municipality';
 import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberService';
 import { haversineKm } from '@cultuvilla/shared/services/feedService';
@@ -224,6 +225,27 @@ export default function NewEventScreen() {
   // at a URL that spells out its title.
   const visibilityOrgId =
     privateToOrg && organizerOrgIds.length === 1 ? (organizerOrgIds[0] ?? null) : null;
+
+  // Only an org whose members are admitted by approval may hold a private
+  // event (the rules refuse the rest). Loaded for the single organizing org,
+  // the only case the switch is offered in.
+  const soleOrgId = organizerOrgIds.length === 1 ? (organizerOrgIds[0] ?? null) : null;
+  const [soleOrgRequiresApproval, setSoleOrgRequiresApproval] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!soleOrgId) return;
+    let cancelled = false;
+    setSoleOrgRequiresApproval(null);
+    void getOrganization(soleOrgId)
+      .then((org) => {
+        if (!cancelled) setSoleOrgRequiresApproval(org?.joinPolicy === 'approval');
+      })
+      .catch(() => {
+        if (!cancelled) setSoleOrgRequiresApproval(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [soleOrgId]);
 
   useEffect(() => {
     // Only auto-seed the creator when composing a new event. In edit mode the
@@ -613,13 +635,23 @@ export default function NewEventScreen() {
               name the single group whose membership is the guest list, and a
               two-org event has no such group. */}
           {organizerOrgIds.length === 1 ? (
-            <ToggleField
-              label={t('event.privateToOrg')}
-              help={t('event.privateToOrgHint')}
-              value={privateToOrg}
-              onValueChange={setPrivateToOrg}
-              testID="private-to-org"
-            />
+            <VStack gap={1}>
+              <ToggleField
+                label={t('event.privateToOrg')}
+                help={t('event.privateToOrgHint')}
+                value={privateToOrg}
+                onValueChange={setPrivateToOrg}
+                // An already-private event can always be opened up; only
+                // making one private needs an approval org.
+                disabled={!privateToOrg && soleOrgRequiresApproval !== true}
+                testID="private-to-org"
+              />
+              {!privateToOrg && soleOrgRequiresApproval === false ? (
+                <Text tone="muted" variant="caption">
+                  {t('event.privateToOrgNeedsApproval')}
+                </Text>
+              ) : null}
+            </VStack>
           ) : null}
         </>,
       ),

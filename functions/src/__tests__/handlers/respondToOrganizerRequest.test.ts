@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { buildPersonData } from '@cultuvilla/shared/models';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { respondToOrganizerRequest } from '../../village/respondToOrganizerRequest';
 
@@ -43,7 +44,7 @@ async function seedMunicipality(opts: {
       // null (started, no organizer yet).
       community: opts.communityActive
         ? {
-            organizerId: opts.organizerId ?? null,
+            organizerId: opts.organizerId ?? null, organizerSex: null,
             description: 'Mi pueblo',
             profileForm: null,
             fiestas: [],
@@ -176,7 +177,7 @@ describe('respondToOrganizerRequest (callable)', () => {
     });
     await expect(
       callRespond({ uid: APP_ADMIN_ID, data: { requestId, decision: 'approved' } }),
-    ).rejects.toThrow(/ya tiene organizador|already-exists/i);
+    ).rejects.toThrow(/ya tiene embajador|already-exists/i);
   });
 
   it('approves: sets the organizer on the active community and promotes the existing member to admin', async () => {
@@ -202,6 +203,8 @@ describe('respondToOrganizerRequest (callable)', () => {
     const muniDoc = await admin.firestore().doc(`municipalities/${MUNICIPALITY_ID}`).get();
     expect(muniDoc.data()?.communityActive).toBe(true);
     expect(muniDoc.data()?.community?.organizerId).toBe(REQUESTER_ID);
+    // No person doc: the title falls back to the masculine form.
+    expect(muniDoc.data()?.community?.organizerSex).toBeNull();
     // Existing community info is preserved (not overwritten by the grant).
     expect(muniDoc.data()?.community?.description).toBe('Mi pueblo');
 
@@ -247,6 +250,27 @@ describe('respondToOrganizerRequest (callable)', () => {
     const events = await admin.firestore().collection('membershipEvents').get();
     const actions = events.docs.map((d) => d.data().action).sort();
     expect(actions).toEqual(['added', 'organizer_set']);
+  });
+
+  it('approves: denormalizes the requester sex so the title reads Embajadora', async () => {
+    await seedAppAdmin(APP_ADMIN_ID);
+    await seedMunicipality({ communityActive: true, organizerId: null });
+    await admin
+      .firestore()
+      .doc(`persons/p-${REQUESTER_ID}`)
+      .set(buildPersonData({ givenName: 'Alicia', userId: REQUESTER_ID, createdBy: REQUESTER_ID, sex: 'female' }));
+    const requestId = await seedOrganizerRequest({
+      userId: REQUESTER_ID,
+      municipalityId: MUNICIPALITY_ID,
+      status: 'pending',
+    });
+
+    await callRespond({ uid: APP_ADMIN_ID, data: { requestId, decision: 'approved' } });
+
+    const muniDoc = await admin.firestore().doc(`municipalities/${MUNICIPALITY_ID}`).get();
+    expect(muniDoc.data()?.community?.organizerSex).toBe('female');
+    const notifs = await admin.firestore().collection(`users/${REQUESTER_ID}/notifications`).get();
+    expect(notifs.docs[0].data().title).toBe('¡Ya eres Embajadora de Cultuvilla!');
   });
 
   it('rejects: sets status to rejected, leaves municipality untouched, notifies requester', async () => {

@@ -56,7 +56,7 @@ const bundleIdPerEnv: Record<Env, string> = {
 };
 
 // Each env's deep-link host MUST be a Firebase Hosting domain of that env's
-// project (where the ogRenderer rewrites live). dev = villa-events project,
+// project (where the readSite rewrites live). dev = villa-events project,
 // beta = cultuvilla-beta, prod = cultuvilla-prod. Prod uses the brand custom
 // domain cultuvilla.es (attached to the cultuvilla-prod site) so shared links
 // carry the brand, not the *.web.app default. The old villa-events-*.web.app
@@ -112,10 +112,23 @@ const googleSignInPerEnv: Record<Env, GoogleSignInConfig> = {
 // google-services/ like the .well-known signing identities: it carries no
 // secret, and a value in git is reviewable and identical for a local prebuild.
 // Only wired when present, so a checkout without it still builds — minus push.
-const googleServicesFile = `./google-services/${env}/google-services.json`;
+// The native E2E build points the native SDKs at the emulators' test project
+// (scripts/build-android-e2e-apk.mjs); honoured only in that emulator build.
+const googleServicesFile =
+  process.env['USE_FIREBASE_EMULATOR'] === '1' && process.env['E2E_GOOGLE_SERVICES_FILE']
+    ? process.env['E2E_GOOGLE_SERVICES_FILE']
+    : `./google-services/${env}/google-services.json`;
 // Resolved against this file, not the cwd: tests and CI evaluate the config
 // from the repo root as well as from apps/mobile.
 const hasGoogleServicesFile = existsSync(resolve(__dirname, googleServicesFile));
+
+// iOS native Firebase config, read by @react-native-firebase/app (analytics).
+// Its config plugin throws at prebuild without the file, so the plugin is only
+// wired when this env has one — a build without it still runs, with native
+// analytics as a no-op. Android needs nothing extra: it initialises from the
+// google-services.json above. Same committed-per-env rule (no secret inside).
+const iosGoogleServicesFile = `./google-services/${env}/GoogleService-Info.plist`;
+const hasIosGoogleServicesFile = existsSync(resolve(__dirname, iosGoogleServicesFile));
 
 const firebaseConfigPerEnv: Record<Env, FirebaseOptions> = {
   dev: {
@@ -152,7 +165,7 @@ const config: ExpoConfig = {
   // the shell would silently build one repo into the other's EAS project; owner
   // + projectId in the file make the routing per-repo by construction.
   owner: 'cultuvilla.app',
-  version: '1.5.0',
+  version: '1.6.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
 
@@ -180,6 +193,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'light',
   ios: {
     bundleIdentifier: bundleIdPerEnv[env],
+    ...(hasIosGoogleServicesFile ? { googleServicesFile: iosGoogleServicesFile } : {}),
     supportsTablet: true,
     associatedDomains: [`applinks:${deepLinkHostPerEnv[env]}`],
     infoPlist: {
@@ -270,6 +284,16 @@ const config: ExpoConfig = {
     },
   },
   plugins: [
+    // `disableSPM`: RNFirebase resolves the Firebase iOS SDK through Swift
+    // Package Manager by default, and SPM + the static linkage below aborts
+    // `pod install` ("SPM + static linkage is not supported" — each pod would
+    // embed its own Firebase copy). CocoaPods keeps a single copy.
+    ...(hasIosGoogleServicesFile
+      ? [['@react-native-firebase/app', { ios: { disableSPM: true } }] as [string, object]]
+      : []),
+    // RNFirebase's pods are Swift and need static framework linkage. Always on,
+    // not gated with the plist: the pods are autolinked either way.
+    ['expo-build-properties', { ios: { useFrameworks: 'static' } }],
     'expo-router',
     'expo-image',
     [

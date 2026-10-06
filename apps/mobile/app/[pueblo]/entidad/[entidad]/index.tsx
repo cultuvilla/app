@@ -9,6 +9,7 @@ import { EntityDetailScaffold } from '../../../../components/feature/EntityDetai
 import type { EntityDetailAction } from '../../../../components/feature/EntityDetailHeader';
 import { ENTITY_FALLBACK_ICON } from '../../../../lib/entities/registry';
 import { useT } from '../../../../lib/i18n';
+import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { useRegisterGate } from '../../../../lib/auth/RegisterGateContext';
 import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
@@ -16,9 +17,16 @@ import { EntityComments } from '../../../../components/feature/EntityComments';
 import { OrgMembersList } from '../../../../components/feature/OrgMembersList';
 import { useShareDeepLink } from '../../../../lib/deeplink/useShareDeepLink';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
+import { watchOrganization } from '@cultuvilla/shared/services/organizationService';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import { isOrgMember, addOrgMember, getOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
+import {
+  cancelOrgJoinRequest,
+  hasPendingOrgJoinRequest,
+  requestToJoinOrganization,
+} from '@cultuvilla/shared/services/orgJoinRequestService';
+import { OrgJoinRequests } from '../../../../components/feature/OrgJoinRequests';
+import { showConfirm } from '../../../../lib/dialogs';
 import { getOrgViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { entityRefHref, orgEditHref } from '../../../../lib/navigation/routes';
@@ -36,22 +44,39 @@ export default function OrgDetailScreen() {
   const gate = useRegisterGate();
   const share = useShareDeepLink();
   const insets = useSafeAreaInsets();
-  const [org, setOrg] = useState<Org | null>(null);
+  const { data: org = null, status } = useWatch<Org | null>(
+    'orgDetail:watchOrganization',
+    orgId || null,
+    (next, error) => watchOrganization(orgId, next, error),
+  );
   const [membersCount, setMembersCount] = useState<number | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
-  const [loading, setLoading] = useState(true);
+  const [membershipLoaded, setMembershipLoaded] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [requested, setRequested] = useState(false);
   const { canManage } = useOrgCapabilities(orgId as string, org?.municipalityId);
+  // Until the viewer's membership is known, a member would see the join FAB flash.
+  const loading = status === 'loading' || (org !== null && !membershipLoaded);
+  // Keyed on these rather than `org`, so a snapshot that changes something else
+  // (the view counter, say) does not refetch the membership.
+  const orgExists = org !== null;
+  const joinPolicy = org?.joinPolicy;
 
   const refresh = useCallback(async () => {
-    if (!orgId) return;
-    const o = await getOrganization(orgId as string);
-    setOrg(o);
+    if (!orgId || !orgExists) return;
     const members = await getOrgMembers(orgId as string);
     setMembersCount(members.length);
-    if (user) setIsMember(await isOrgMember(orgId as string, user.uid));
-    setLoading(false);
-  }, [orgId, user]);
+    if (user) {
+      const member = await isOrgMember(orgId as string, user.uid);
+      setIsMember(member);
+      setRequested(
+        !member && joinPolicy === 'approval'
+          ? await hasPendingOrgJoinRequest(orgId as string, user.uid)
+          : false,
+      );
+    }
+    setMembershipLoaded(true);
+  }, [orgId, user, orgExists, joinPolicy]);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,10 +100,26 @@ export default function OrgDetailScreen() {
       return;
     }
     if (!orgId || !org) return;
+    if (requested) {
+      showConfirm(
+        t('organization.cancelRequestTitle'),
+        t('organization.cancelRequestBody', { name: org.name }),
+        () => {
+          void cancelOrgJoinRequest(orgId as string, user.uid).then(refresh);
+        },
+      );
+      return;
+    }
     setJoining(true);
     let succeeded = false;
     try {
-      await addOrgMember(orgId as string, user.uid);
+      // An `approval` org takes a request its admins resolve; an open one is
+      // joined on the spot.
+      if (org.joinPolicy === 'approval') {
+        await requestToJoinOrganization(orgId as string, org.municipalityId, user.uid);
+      } else {
+        await addOrgMember(orgId as string, user.uid);
+      }
       succeeded = true;
       observability.trackEvent(OBSERVABILITY_EVENTS.ORG_JOIN_SUCCESS, {
         municipalityId: org.municipalityId,
@@ -96,7 +137,7 @@ export default function OrgDetailScreen() {
     } finally {
       setJoining(false);
     }
-  }, [user, orgId, org, arrivedViaInvite, refresh, gate, t]);
+  }, [user, orgId, org, requested, arrivedViaInvite, refresh, gate, t]);
 
   const actions: EntityDetailAction[] = org
     ? [
@@ -121,9 +162,13 @@ export default function OrgDetailScreen() {
         },
       ]
     : [];
-  const joinLabel = user
-    ? t(org?.type === 'peña' ? 'organization.joinPeña' : 'organization.join')
-    : t('organization.signInToJoin');
+  const joinLabel = !user
+    ? t('organization.signInToJoin')
+    : requested
+      ? t('organization.requestPending')
+      : org?.joinPolicy === 'approval'
+        ? t('organization.requestToJoin')
+        : t(org?.type === 'peña' ? 'organization.joinPeña' : 'organization.join');
 
   return (
     <EntityDetailScaffold
@@ -155,7 +200,7 @@ export default function OrgDetailScreen() {
                 paddingVertical: 10,
                 paddingHorizontal: 22,
                 borderRadius: 999,
-                backgroundColor: '#bb5d3a',
+                backgroundColor: requested ? '#8a7a70' : '#bb5d3a',
                 opacity: joining ? 0.7 : 1,
                 elevation: 6,
                 shadowColor: '#000',
@@ -166,7 +211,7 @@ export default function OrgDetailScreen() {
             >
               {joining ? (
                 <ActivityIndicator color="#f9f0e8" style={{ marginRight: 8 }} />
-              ) : (
+              ) : requested ? null : (
                 <RNText style={{ color: '#f9f0e8', fontSize: 18, lineHeight: 22, marginRight: 8 }}>+</RNText>
               )}
               <RNText style={{ color: '#f9f0e8', fontSize: 16, fontWeight: '700' }}>
@@ -186,6 +231,9 @@ export default function OrgDetailScreen() {
                 <NaturalImage key={uri} uri={uri} />
               ))}
             </VStack>
+          ) : null}
+          {canManage && org.joinPolicy === 'approval' ? (
+            <OrgJoinRequests orgId={org.id} onResolved={refresh} />
           ) : null}
           <Text tone="muted">{t('organization.membersCount', { count: membersCount ?? 0 })}</Text>
           {canViewOrgRoster({ membersPublic: org.membersPublic, isMember }) ? (

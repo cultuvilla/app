@@ -1,6 +1,7 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import BarrioDetailScreen from '../[barrio]';
+import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../../test/watchers';
 import { getMunicipalityPeopleByBarrio } from '@cultuvilla/shared/services/municipalityPersonService';
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -9,7 +10,10 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ pueblo: 'villa', barrio: 'centro_b1' }),
-  useFocusEffect: (cb: () => void) => cb(),
+  useFocusEffect: (cb: () => void) => {
+    const React = require('react');
+    React.useEffect(() => cb(), [cb]);
+  },
   router: { back: jest.fn(), push: jest.fn(), canGoBack: () => true, replace: jest.fn() },
 }));
 jest.mock('../../../../lib/navigation/VillageRouteGate');
@@ -23,15 +27,7 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getBarrio: jest.fn().mockResolvedValue({
-    id: 'b1',
-    name: 'Centro',
-    images: [],
-    municipalityId: 'm1',
-    villageSlug: 'villa',
-    proposedBy: 'creator',
-    status: 'active',
-  }),
+  watchBarrio: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('barrio'),
 }));
 jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({ getBarrioViewLink: () => 'https://x' }));
 jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
@@ -39,6 +35,16 @@ jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
 }));
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
 jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
+
+const BARRIO = {
+  id: 'b1',
+  name: 'Centro',
+  images: [],
+  municipalityId: 'm1',
+  villageSlug: 'villa',
+  proposedBy: 'creator',
+  status: 'active',
+};
 
 type Row = Awaited<ReturnType<typeof getMunicipalityPeopleByBarrio>>[number];
 
@@ -72,6 +78,8 @@ function mockCaps(opts: { canEdit?: boolean; uid?: string | null } = {}) {
 describe('BarrioDetailScreen', () => {
   beforeEach(() => {
     mockCaps();
+    resetWatchers();
+    setWatched('barrio', BARRIO);
     jest.mocked(getMunicipalityPeopleByBarrio).mockReset();
     jest.mocked(getMunicipalityPeopleByBarrio).mockResolvedValue([]);
     jest.mocked(router.push).mockClear();
@@ -124,5 +132,16 @@ describe('BarrioDetailScreen', () => {
 
     fireEvent.press(await findByRole('button', { name: 'p3' }));
     expect(router.push).toHaveBeenCalledWith('/usuario/u9');
+  });
+
+  it('renames the barrio live, without refetching its residents', async () => {
+    const { getByText, findByText } = render(<BarrioDetailScreen />);
+    await waitFor(() => getByText('Centro'));
+    await waitFor(() => expect(getMunicipalityPeopleByBarrio).toHaveBeenCalledTimes(1));
+    emitWatched('barrio', { ...BARRIO, name: 'Barrio Alto' });
+    expect(await findByText('Barrio Alto')).toBeTruthy();
+    expect(watchersOf('barrio')).toHaveLength(1);
+    expect(watchersOf('barrio')[0]?.args).toEqual(['m1', 'b1']);
+    expect(getMunicipalityPeopleByBarrio).toHaveBeenCalledTimes(1);
   });
 });

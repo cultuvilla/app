@@ -1,19 +1,19 @@
 import { resolveCommentAuthor } from '../comments/commentAuthors';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 
 jest.mock('@cultuvilla/shared/services/personService', () => ({
   getPersonByUserId: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: jest.fn(),
+  getPublicProfile: jest.fn(),
 }));
 jest.mock('../firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, op: () => Promise<unknown>) => op(),
 }));
 
 const getPersonByUserIdMock = getPersonByUserId as jest.Mock;
-const getUserProfileMock = getUserProfile as jest.Mock;
+const getPublicProfileMock = getPublicProfile as jest.Mock;
 
 const LABELS = { deleted: 'Usuario eliminado', fallback: 'Usuario' };
 
@@ -30,12 +30,12 @@ describe('resolveCommentAuthor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getPersonByUserIdMock.mockResolvedValue(null);
-    getUserProfileMock.mockResolvedValue(null);
+    getPublicProfileMock.mockResolvedValue(null);
   });
 
   it('prefers the live person name and photo', async () => {
     getPersonByUserIdMock.mockResolvedValue(PERSON);
-    getUserProfileMock.mockResolvedValue({ id: 'uid-2', displayName: 'Nombre viejo' });
+    getPublicProfileMock.mockResolvedValue({ id: 'uid-2', displayName: 'Nombre viejo' });
 
     expect(await resolveCommentAuthor('uid-2', LABELS)).toEqual({
       name: 'Ana Gil',
@@ -51,7 +51,7 @@ describe('resolveCommentAuthor', () => {
         code: 'permission-denied',
       }),
     );
-    getUserProfileMock.mockResolvedValue({ id: 'uid-2', displayName: 'Bea Ruiz' });
+    getPublicProfileMock.mockResolvedValue({ id: 'uid-2', displayName: 'Bea Ruiz' });
 
     expect(await resolveCommentAuthor('uid-2', LABELS)).toEqual({
       name: 'Bea Ruiz',
@@ -61,7 +61,7 @@ describe('resolveCommentAuthor', () => {
 
   it('keeps the person name and photo when only the user profile read fails', async () => {
     getPersonByUserIdMock.mockResolvedValue(PERSON);
-    getUserProfileMock.mockRejectedValue(new Error('offline'));
+    getPublicProfileMock.mockRejectedValue(new Error('offline'));
 
     expect(await resolveCommentAuthor('uid-2', LABELS)).toEqual({
       name: 'Ana Gil',
@@ -76,20 +76,20 @@ describe('resolveCommentAuthor', () => {
       firstSurname: '',
       photoURL: null,
     });
-    getUserProfileMock.mockResolvedValue({ id: 'uid-2', displayName: 'Bea Ruiz' });
+    getPublicProfileMock.mockResolvedValue({ id: 'uid-2', displayName: 'Bea Ruiz' });
 
     expect((await resolveCommentAuthor('uid-2', LABELS)).name).toBe('Bea Ruiz');
   });
 
   it('ignores a blank denormalized display name', async () => {
-    getUserProfileMock.mockResolvedValue({ id: 'uid-2', displayName: '  ' });
+    getPublicProfileMock.mockResolvedValue({ id: 'uid-2', displayName: '  ' });
 
     expect((await resolveCommentAuthor('uid-2', LABELS)).name).toBe('Usuario');
   });
 
   it('never rejects, even when both sources fail', async () => {
     getPersonByUserIdMock.mockRejectedValue(new Error('boom'));
-    getUserProfileMock.mockRejectedValue(new Error('boom'));
+    getPublicProfileMock.mockRejectedValue(new Error('boom'));
 
     expect(await resolveCommentAuthor('uid-2', LABELS)).toEqual({
       name: 'Usuario',
@@ -103,6 +103,6 @@ describe('resolveCommentAuthor', () => {
       photoURL: null,
     });
     expect(getPersonByUserIdMock).not.toHaveBeenCalled();
-    expect(getUserProfileMock).not.toHaveBeenCalled();
+    expect(getPublicProfileMock).not.toHaveBeenCalled();
   });
 });

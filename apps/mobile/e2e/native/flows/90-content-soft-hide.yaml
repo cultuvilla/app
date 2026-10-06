@@ -1,0 +1,31 @@
+# A village admin deletes a place from its edit screen, which soft-hides it
+# (status `hidden`) rather than deleting the doc.
+#
+# Numbered late on purpose: it hides the seeded place for the rest of the run.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-admin@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  PLACE_ID: e2e-place-plaza
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://altozano-de-prueba/lugar/_${PLACE_ID}/editar'
+- extendedWaitUntil:
+    visible: 'Plaza E2E Visible'
+    timeout: 45000
+- tapOn:
+    id: 'place-delete'
+# Native Alert button: common.delete, upper-cased by the Material dialog.
+- tapOn: 'ELIMINAR'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${PLACE_ID}'
+      FIELD: status
+      EXPECT: hidden
+- assertTrue: ${output.ok == 'true'}

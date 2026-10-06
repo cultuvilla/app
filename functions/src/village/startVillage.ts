@@ -79,6 +79,7 @@ export const startVillage = onCall<StartVillageData, Promise<StartVillageResult>
         community: {
           description: (description ?? '').trim(),
           organizerId: null,
+          organizerSex: null,
           profileForm: null,
           fiestas: [],
           activatedAt: FieldValue.serverTimestamp(),

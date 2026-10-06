@@ -16,7 +16,7 @@ import {
   removeOrgMember,
 } from '@cultuvilla/shared/services/orgMemberService';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 import { buildNameWithNickname } from '@cultuvilla/shared/models/person';
 import type { OrgMemberData } from '@cultuvilla/shared/models/organization/OrgMemberDataModel';
 import { iconSizes } from '@cultuvilla/shared/design-system';
@@ -65,7 +65,7 @@ export function OrgMembersList({
           const name = buildNameWithNickname(person).trim();
           return { ...m, name: name || m.userId, photoURL: person.photoURL ?? null };
         }
-        const user = await getUserProfile(m.userId).catch(() => null);
+        const user = await getPublicProfile(m.userId).catch(() => null);
         return { ...m, name: user?.displayName || m.userId, photoURL: null };
       }),
     );

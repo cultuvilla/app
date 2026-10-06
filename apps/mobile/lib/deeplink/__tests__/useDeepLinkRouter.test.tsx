@@ -1,5 +1,4 @@
 import { render, waitFor } from '@testing-library/react-native';
-import { Platform } from 'react-native';
 
 const mockGetInitialURL = jest.fn();
 const mockAddEventListener = jest.fn();
@@ -17,6 +16,12 @@ jest.mock('expo-linking', () => ({
 
 jest.mock('expo-router', () => ({
   router: { replace: (path: string) => mockReplace(path) },
+}));
+
+const mockTrackEvent = jest.fn();
+jest.mock('@cultuvilla/shared', () => ({
+  ...jest.requireActual('@cultuvilla/shared'),
+  observability: { trackEvent: (...args: unknown[]) => mockTrackEvent(...args) },
 }));
 
 jest.mock('expo-constants', () => ({
@@ -37,6 +42,39 @@ describe('useDeepLinkRouter', () => {
     mockAddEventListener.mockReset();
     mockRemove.mockReset();
     mockReplace.mockReset();
+    mockTrackEvent.mockReset();
+  });
+
+  it('records a cold-start link open with what it points at', async () => {
+    mockGetInitialURL.mockResolvedValueOnce('https://example.test.app/villa/evento/fiesta_evt_1');
+    render(<Probe />);
+    await waitFor(() =>
+      expect(mockTrackEvent).toHaveBeenCalledWith('app.link.opened', {
+        entityKind: 'event',
+        viaInvite: false,
+        surface: 'cold_start',
+      }),
+    );
+  });
+
+  it('records a link opened while running, flagging invites', async () => {
+    mockGetInitialURL.mockResolvedValueOnce(null);
+    render(<Probe />);
+    await waitFor(() => expect(mockAddEventListener).toHaveBeenCalled());
+    const handler = mockAddEventListener.mock.calls[0][1] as (e: { url: string }) => void;
+    handler({ url: 'https://example.test.app/villa/entidad/pena_org_5/unirse' });
+    expect(mockTrackEvent).toHaveBeenCalledWith('app.link.opened', {
+      entityKind: 'organization',
+      viaInvite: true,
+      surface: 'running',
+    });
+  });
+
+  it('does not record a link it does not route', async () => {
+    mockGetInitialURL.mockResolvedValueOnce('https://example.test.app/villa/unknown/x');
+    render(<Probe />);
+    await waitFor(() => expect(mockAddEventListener).toHaveBeenCalled());
+    expect(mockTrackEvent).not.toHaveBeenCalled();
   });
 
   it('routes the initial URL when present (event)', async () => {
@@ -116,17 +154,6 @@ describe('useDeepLinkRouter', () => {
     await waitFor(() =>
       expect(mockReplace).toHaveBeenCalledWith('/villa/entidad/pena_org_5/unirse'),
     );
-  });
-
-  it('is a no-op on web (expo-router owns web routing)', async () => {
-    const web = jest.replaceProperty(Platform, 'OS', 'web');
-    mockGetInitialURL.mockResolvedValueOnce('https://example.test.app/villa/entidad/pena_org_5/unirse');
-    render(<Probe />);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(mockGetInitialURL).not.toHaveBeenCalled();
-    expect(mockAddEventListener).not.toHaveBeenCalled();
-    expect(mockReplace).not.toHaveBeenCalled();
-    web.restore();
   });
 
   it('unsubscribes on unmount', async () => {

@@ -4,7 +4,7 @@ import { Text } from '../primitives';
 import { useT } from '../../lib/i18n';
 import { CensoForm } from './CensoForm';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
-import { getVillageMember } from '@cultuvilla/shared/services/villageMemberService';
+import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
 import type { ProfileFormField, ProfileAnswers } from '@cultuvilla/shared/models/municipality/CensoTypes';
 import { useEntityOptions } from './censo/useEntityOptions';
 
@@ -32,12 +32,12 @@ export function CensoAnswers({
     async function load() {
       try {
         setError(null);
-        const [municipality, member] = await Promise.all([
+        const [municipality, answers] = await Promise.all([
           getMunicipality(villageId),
-          getVillageMember(villageId, userId),
+          getMyCensoAnswers(villageId, userId),
         ]);
         setSchema(municipality?.community?.profileForm?.fields ?? []);
-        setInitialAnswers(member?.profileAnswers ?? {});
+        setInitialAnswers(answers);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'unknown');
       } finally {

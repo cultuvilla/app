@@ -12,14 +12,33 @@ jest.mock('@cultuvilla/shared', () => ({
   observability: { track: jest.fn() },
   OBSERVABILITY_EVENTS: {},
 }));
-jest.mock('@cultuvilla/shared/services/feedService', () => ({
-  getUpcomingFeed: jest.fn().mockResolvedValue([]),
-  getPrivateUpcomingFeed: jest.fn().mockResolvedValue([]),
-  haversineKm: jest.fn().mockReturnValue(0),
-}));
-jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  getAllVillagesFeed: jest.fn().mockResolvedValue([]),
-}));
+/**
+ * The screen watches the feeds; each `watch*` mock answers once with what its
+ * `get*` twin resolves, so a test sets data on the familiar `get*` mock.
+ */
+function mockWatchFrom(get: (...args: unknown[]) => unknown, pick = (v: unknown) => v) {
+  return (...args: unknown[]) => {
+    const onError = args.pop() as (e: unknown) => void;
+    const onNext = args.pop() as (v: unknown) => void;
+    Promise.resolve(get(...args)).then((v) => onNext(pick(v)), onError);
+    return () => undefined;
+  };
+}
+jest.mock('@cultuvilla/shared/services/feedService', () => {
+  const getUpcomingFeed = jest.fn().mockResolvedValue({ events: [] });
+  const getPrivateUpcomingFeed = jest.fn().mockResolvedValue([]);
+  return {
+    getUpcomingFeed,
+    getPrivateUpcomingFeed,
+    watchUpcomingFeed: mockWatchFrom(getUpcomingFeed, (page) => (page as { events: unknown[] }).events),
+    watchPrivateUpcomingFeed: mockWatchFrom(getPrivateUpcomingFeed),
+    haversineKm: jest.fn().mockReturnValue(0),
+  };
+});
+jest.mock('@cultuvilla/shared/services/newsService', () => {
+  const getAllVillagesFeed = jest.fn().mockResolvedValue([]);
+  return { getAllVillagesFeed, watchAllVillagesFeed: mockWatchFrom(getAllVillagesFeed) };
+});
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   getActiveCommunities: jest.fn().mockResolvedValue([]),
 }));
@@ -53,6 +72,7 @@ jest.mock('../../../lib/auth/RegisterGateContext', () => ({
 }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
+  reportFirestoreError: jest.fn(),
 }));
 jest.mock('../../../components/layout/AppHeader', () => ({
   AppHeader: () => null,

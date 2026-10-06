@@ -6,7 +6,7 @@ jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
   getVillageMembers: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: jest.fn(),
+  getPublicProfile: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
   getMunicipalityPeople: jest.fn(),
@@ -16,12 +16,12 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => ({
 }));
 
 import { getVillageMembers } from '@cultuvilla/shared/services/villageMemberService';
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
 import { getOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 
 const mockGetVillageMembers = getVillageMembers as jest.Mock;
-const mockGetUserProfile = getUserProfile as jest.Mock;
+const mockGetPublicProfile = getPublicProfile as jest.Mock;
 const mockGetMunicipalityPeople = getMunicipalityPeople as jest.Mock;
 const mockGetOrganizationsByMunicipality = getOrganizationsByMunicipality as jest.Mock;
 
@@ -70,7 +70,7 @@ function defaultMocks() {
       photoURL: null,
     },
   ]);
-  mockGetUserProfile.mockImplementation(async (uid: string) => ({
+  mockGetPublicProfile.mockImplementation(async (uid: string) => ({
     displayName: `Fallback ${uid}`,
     photoURL: null,
   }));
@@ -273,7 +273,7 @@ describe('<OrganizerPicker>', () => {
     });
     expect(mockGetVillageMembers).toHaveBeenCalledTimes(1);
     // Every member is covered by the directory, so no per-member fallback read.
-    expect(mockGetUserProfile).not.toHaveBeenCalled();
+    expect(mockGetPublicProfile).not.toHaveBeenCalled();
   });
 
   describe('search', () => {

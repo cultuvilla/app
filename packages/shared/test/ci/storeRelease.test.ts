@@ -196,7 +196,7 @@ describe('prod deep-link association files', () => {
   // are committed rather than substituted at deploy time. What can silently
   // break is drift: if these stop naming the same app the submit profiles push
   // to, a shared link stops opening the app with no error message anywhere.
-  const wellKnown = resolve(repoRoot, 'apps/mobile/public/.well-known/prod');
+  const wellKnown = resolve(repoRoot, 'web/well-known/prod');
   const [assetLink] = JSON.parse(
     readFileSync(resolve(wellKnown, 'assetlinks.json'), 'utf-8'),
   ) as AssetLinks[];

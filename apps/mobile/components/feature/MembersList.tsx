@@ -6,11 +6,15 @@ import { router } from 'expo-router';
 import {
   getVillageMembers,
   setVillageMemberRole,
+  transferVillageAmbassador,
 } from '@cultuvilla/shared/services/villageMemberService';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import { iconSizes } from '@cultuvilla/shared/design-system';
-import { VStack, HStack, Text, Avatar, Pressable } from '../primitives';
+import { villageTitle } from '@cultuvilla/shared/models/municipality';
+import type { Sex } from '@cultuvilla/shared/models/core/SexModel';
+import { VStack, HStack, Text, Avatar, Pressable, BottomSheet, Button } from '../primitives';
+import { VillageTitleBadge } from './VillageTitleBadge';
 import { showConfirm, showAlert } from '../../lib/dialogs';
 import { useT } from '../../lib/i18n';
 
@@ -37,24 +41,31 @@ const initialsOf = (name: string) =>
  * municipalityPeople read model covers account holders and dependent personas
  * and arrives already alphabetized by its function-owned sort key.
  *
- * When `canManage`, admins/app-admins can promote a member to admin or demote
- * an admin back to member by tapping the row — routed through the audited
- * `setVillageMemberRole` callable. Two rows are never actionable: your own
- * (avoids self-lockout) and the founding organizer's demote path (the callable
- * rejects it; hiding it here just avoids a dead-end tap).
+ * Every row carries its public title: the pueblo's one Embajador and the
+ * "Equipo del pueblo" (every other admin).
+ *
+ * When `canManage`, a row opens an actions sheet: add to / remove from the team
+ * (the audited `setVillageMemberRole` callable) and — for the Embajador or an
+ * app admin — hand over the Embajador title (`transferVillageAmbassador`). Two
+ * rows are never actionable: your own (avoids self-lockout) and the
+ * Embajador's (the callable refuses to demote them; the title moves first).
  */
 export function MembersList({
   villageId,
   canManage = false,
+  isAppAdmin = false,
   currentUserId = null,
 }: {
   villageId: string;
   canManage?: boolean;
+  isAppAdmin?: boolean;
   currentUserId?: string | null;
 }) {
   const { t } = useT();
   const [rows, setRows] = useState<MemberRow[] | null>(null);
   const [organizerId, setOrganizerId] = useState<string | null>(null);
+  const [organizerSex, setOrganizerSex] = useState<Sex | null>(null);
+  const [selected, setSelected] = useState<MemberRow | null>(null);
   const [censoConfigured, setCensoConfigured] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -83,6 +94,7 @@ export function MembersList({
       });
       if (!cancelled) {
         setOrganizerId(municipality?.community?.organizerId ?? null);
+        setOrganizerSex(municipality?.community?.organizerSex ?? null);
         setCensoConfigured(profileFields.length > 0);
         setRows(rows);
       }
@@ -92,7 +104,10 @@ export function MembersList({
     };
   }, [villageId, refreshKey]);
 
+  const canTransfer = isAppAdmin || (currentUserId != null && currentUserId === organizerId);
+
   const changeRole = (m: MemberRow) => {
+    setSelected(null);
     const nextRole = m.role === 'admin' ? 'user' : 'admin';
     const promoting = nextRole === 'admin';
     showConfirm(
@@ -113,8 +128,29 @@ export function MembersList({
     );
   };
 
-  // Self is never actionable (self-lockout); the founding organizer can't be
-  // demoted, so their (admin) row isn't actionable either.
+  const transfer = (m: MemberRow) => {
+    setSelected(null);
+    showConfirm(
+      t('village.membersList.confirmTransferTitle'),
+      t('village.membersList.confirmTransferBody', { name: m.displayName }),
+      () => {
+        setPendingUserId(m.userId);
+        transferVillageAmbassador(villageId, m.userId)
+          .then(() => setRefreshKey((k) => k + 1))
+          .catch((e: unknown) => {
+            showAlert(e instanceof Error && e.message ? e.message : t('village.membersList.transferError'));
+          })
+          .finally(() => setPendingUserId(null));
+      },
+      { confirmText: t('village.membersList.confirmTransfer') },
+    );
+  };
+
+  const titleOf = (m: MemberRow) =>
+    villageTitle({ userId: m.userId, role: m.role, organizerId });
+
+  // Self is never actionable (self-lockout); the Embajador can't be demoted
+  // (the title moves first), so their row isn't actionable either.
   const isActionable = (m: MemberRow) =>
     canManage &&
     m.userId.length > 0 &&
@@ -157,10 +193,15 @@ export function MembersList({
       >
         <HStack gap={2} className="items-center pr-2">
         <Avatar uri={m.photoURL} size={32} initials={initialsOf(m.displayName)} />
-        <VStack className="flex-1">
+        <VStack gap={1} className="flex-1">
           <Text testID="member-name" numberOfLines={1}>
             {m.displayName}
           </Text>
+          <VillageTitleBadge
+            title={titleOf(m)}
+            sex={organizerSex}
+            testID={`member-title-${m.personId}`}
+          />
         </VStack>
         {canOpenProfile(m) ? null : (
           <Ionicons
@@ -199,7 +240,7 @@ export function MembersList({
           <Pressable
             testID={`member-row-${m.userId}`}
             disabled={pendingUserId != null}
-            onPress={() => changeRole(m)}
+            onPress={() => setSelected(m)}
             accessibilityLabel={t('village.membersList.manageRole')}
             hitSlop={8}
           >
@@ -236,6 +277,35 @@ export function MembersList({
           );
         })}
       </VStack>
+      <BottomSheet
+        visible={selected !== null}
+        onClose={() => setSelected(null)}
+        title={selected?.displayName}
+        closeLabel={t('village.membersList.close')}
+        testID="member-actions-sheet"
+      >
+        {selected ? (
+          <VStack gap={2} className="pb-2">
+            <Button
+              fullWidth
+              variant="secondary"
+              onPress={() => changeRole(selected)}
+              testID="member-action-team"
+            >
+              {t(selected.role === 'admin' ? 'village.membersList.demote' : 'village.membersList.promote')}
+            </Button>
+            {canTransfer ? (
+              <Button
+                fullWidth
+                onPress={() => transfer(selected)}
+                testID="member-action-transfer"
+              >
+                {t('village.membersList.transfer')}
+              </Button>
+            ) : null}
+          </VStack>
+        ) : null}
+      </BottomSheet>
     </ScrollView>
   );
 }

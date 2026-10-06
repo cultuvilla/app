@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { adminDoc, municipalityMemberDoc, villageWrappedDoc } from '@cultuvilla/shared/firebase/refs/admin';
+import { announceWrappedPublished } from './wrappedNotifications';
 
 const db = getFirestore();
 
@@ -59,5 +60,15 @@ export const respondToVillageWrapped = onCall<
   await ref.set({ ...wrapped, status, autoPublishAt: null });
 
   logger.info('village wrapped resolved', { handler, wrappedId, status, decidedBy: auth.uid });
+
+  if (status === 'published') {
+    try {
+      await announceWrappedPublished(db, wrapped, wrappedId);
+    } catch (error) {
+      // Published is published: the admin's decision stands even if the
+      // members' heads-up could not be written.
+      logger.error('village wrapped announcement failed', { handler, wrappedId, error: String(error) });
+    }
+  }
   return { status };
 });

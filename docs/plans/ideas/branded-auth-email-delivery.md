@@ -1,5 +1,7 @@
 # Branded authentication email delivery
 
+**Priority:** medium
+
 ## Goal
 
 Replace Firebase's built-in passwordless email with a Cultuvilla-owned Spanish

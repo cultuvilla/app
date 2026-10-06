@@ -25,7 +25,7 @@ export const NOT_PUBLISHED = '0.0.0';
  * Where a walled client is sent to update. The same across envs — one published
  * app per store.
  *
- * iOS is READ from `apps/mobile/lib/appStores.ts` rather than restated here. A
+ * iOS is READ from `packages/shared/src/config/appStores.ts` rather than restated here. A
  * second copy is exactly how the pre-launch placeholder `id000000000` survived
  * into the published 1.x line: every force-updated user would have been sent to
  * a dead App Store page.

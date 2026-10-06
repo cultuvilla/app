@@ -1,5 +1,10 @@
 # Firestore index hygiene — remove orphaned indexes
 
+**Priority:** low
+**Landed:** dev
+**Gate:** none
+**Next:** run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file
+
 **Goal:** make each environment's live composite indexes match `firestore.indexes.json`
 exactly, and stop orphans from building up again.
 
@@ -9,33 +14,35 @@ collection keeps paying to maintain it. The deploy log is the only symptom: *"th
 are N indexes defined in your project that are not present in your firestore indexes
 file"*.
 
-## Status
+## Done
 
-- **Updated:** 2026-09-11
-- **Stage:** dev cleaned and verified. Beta and prod wait on the next promotion.
-- **Branch:** n/a — this is a deploy task; no code change is needed.
-- **Done:**
-  - Audited all three envs against their branch's `firestore.indexes.json`
-    (dev ↔ `develop`, beta/prod ↔ `main`).
-  - **Dev: 11 orphans deleted** with a `--force` index deploy from `origin/develop`
-    at `ab0e7d1d`. Re-verified afterwards: 51 live = 51 declared, 0 orphans, 0 missing.
-- **Next:**
-  1. After the next `develop → beta` promotion deploys green, run the beta cleanup
-     below and re-verify.
-  2. After the `beta → main` promotion deploys green, do the same on prod.
-  3. Decide whether CI should deploy indexes with `--force` (see *Stop the drift*).
-     Once that's decided and beta/prod are clean, retire this plan.
-- **Blockers:** none. The cleanup is gated on the promotions on purpose — see
-  *Why not now*.
-- **Handoff:**
-  - A `--force` deploy is a beta/prod deploy, so it needs Álvaro's explicit go (the
-    `firestore-deploy` skill refuses beta/prod by default).
-  - Always deploy from a clean checkout of the branch that env runs. `--force` deletes
-    whatever that file doesn't declare, so a stale local file deletes live indexes.
-    This nearly happened on 2026-09-11: the local `develop` predated two index
-    additions.
-  - Reading indexes needs the pinned account:
-    `--account cultuvilla.app@gmail.com` (the default ADC gets a 403).
+- Audited all three envs against their branch's `firestore.indexes.json`
+  (dev ↔ `develop`, beta/prod ↔ `main`).
+- **Dev: 11 orphans deleted** with a `--force` index deploy from `origin/develop`
+  at `ab0e7d1d`. Re-verified afterwards: 51 live = 51 declared, 0 orphans, 0 missing.
+
+## Next steps
+
+1. After the next `develop → beta` promotion deploys green, run the beta cleanup
+   below and re-verify.
+2. After the `beta → main` promotion deploys green, do the same on prod.
+3. Decide whether CI should deploy indexes with `--force` (see *Stop the drift*).
+   Once that's decided and beta/prod are clean, retire this plan.
+
+## Why the cleanup waits
+
+No technical blocker. The cleanup is gated on the promotions on purpose — see *Why not now*.
+
+## Handoff
+
+- A `--force` deploy is a beta/prod deploy, so it needs Álvaro's explicit go (the
+  `firestore-deploy` skill refuses beta/prod by default).
+- Always deploy from a clean checkout of the branch that env runs. `--force` deletes
+  whatever that file doesn't declare, so a stale local file deletes live indexes.
+  This nearly happened on 2026-09-11: the local `develop` predated two index
+  additions.
+- Reading indexes needs the pinned account:
+  `--account cultuvilla.app@gmail.com` (the default ADC gets a 403).
 
 ## Rollout status
 

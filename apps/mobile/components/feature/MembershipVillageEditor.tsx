@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   VStack,
@@ -117,11 +117,6 @@ export function MembershipVillageEditor({ userId }: MembershipVillageEditorProps
   }
 
   function confirmLeave(municipalityId: string) {
-    // Alert.alert is a no-op on RN-Web, so branch to window.confirm there.
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('profile.personForm.leaveVillageMessage'))) void doLeave(municipalityId);
-      return;
-    }
     Alert.alert(
       t('profile.personForm.leaveVillageTitle'),
       t('profile.personForm.leaveVillageMessage'),

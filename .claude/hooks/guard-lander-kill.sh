@@ -1,0 +1,1 @@
+../../.agents/_shared/hooks/guard-lander-kill.sh

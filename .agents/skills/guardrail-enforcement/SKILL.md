@@ -125,7 +125,7 @@ if (event.status !== 'open') {
 
 ## Existing patterns in cultuvilla
 
-- **[`functions/src/acceptInvite.ts`](../../../functions/src/acceptInvite.ts)** — derives uid from `request.auth`, validates token, atomically writes village-member doc.
+- **[`functions/src/organizations/changeOrgMemberRole.ts`](../../../functions/src/organizations/changeOrgMemberRole.ts)** — derives the caller from `request.auth`, checks org/app-admin authority, and writes the role change plus its audit record in one transaction.
 - **[`functions/src/onOccupationProposalApproved.ts`](../../../functions/src/onOccupationProposalApproved.ts)** — trigger that fan-outs an approved occupation onto persons; admin-only collection.
 - **[`functions/src/syncVillageDenormalization.ts`](../../../functions/src/syncVillageDenormalization.ts)** — trigger; not a callable but enforces that denormalized fields are written only by the trigger (rules forbid client writes).
 

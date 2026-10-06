@@ -1,15 +1,18 @@
 # Existing signup emails — retroactive send rollout
 
-## Status
+**Priority:** low
+**Landed:** prod
+**Gate:** decision:run the retroactive signup emails on prod (and on beta, still undecided)?
+**Next:** grant the prod runner access to `RESEND_API_KEY`, dry-run prod, review the recipient list, apply
 
-- **Updated:** 2026-08-18
-- **Stage:** shipped and run on dev; beta undecided; prod pending
-- **Merged:** PR #217 (`existing-signup-emails` backfill + template move to
-  `@cultuvilla/shared/email`)
-- **Next:** grant the prod runner access to `RESEND_API_KEY`, dry-run prod,
-  review the recipient list, apply.
-- **Blockers:** none technical — the prod run is a deliberate product decision,
-  not a pending task someone forgot to code.
+## Done
+
+Shipped and run on dev. Merged: PR #217 (`existing-signup-emails` backfill + template move to
+`@cultuvilla/shared/email`)
+
+## Handoff
+
+No technical blocker — the prod run is a deliberate product decision, not a pending task someone forgot to code.
 
 ## Rollout status
 

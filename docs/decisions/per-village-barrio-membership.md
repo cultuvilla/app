@@ -51,7 +51,7 @@ for everyone, account or not. There is no `member.barrioId`. Writes:
   so they use the admin SDK:
   - **Admin removes a member** → the `syncMemberBarrioToResidence` trigger
     (`onDocumentDeleted`, delete-only) removes the ex-member's residence link.
-  - **Server-side member creation** (`acceptInvite`, `startVillage`,
+  - **Server-side member creation** (`startVillage`,
     `respondToOrganizerRequest`) projects the whole-village residence link in the
     same transaction, via the shared `functions/src/village/residenceProjection.ts`
     helper.

@@ -175,7 +175,7 @@ Then edit the relevant slice files and rerun Ralph.
 ## When NOT to use Ralph
 
 - Anything touching `firestore.rules`, `firestore.indexes.json`, `functions/**`, `apps/mobile/app.config.ts`, `eas.json`, native iOS/Android code, or release artifacts. Those are HITL by construction. (See the `guardrail-enforcement` and `firestore-deploy` skills for the human procedures.)
-- Anything where visual judgment matters on mobile — Ralph can't drive an emulator (the `parallel-agent-workflow` skill is still a stub). For mobile UI work, write the slice but mark it HITL.
+- Anything where visual judgment matters on mobile — Ralph can't drive an emulator (`parallel-agent-workflow` isolates Firebase emulators per worktree, but there is no per-slot Metro or AVD). For mobile UI work, write the slice but mark it HITL.
 - Trust-sensitive state (organizer-role grants, admin actions, data migrations). See `guardrail-enforcement`.
 - Anything where the PRD/slice is itself fuzzy. Garbage in → garbage commits. Sharpen the PRD first (use `superpowers:writing-plans`).
 
@@ -183,4 +183,4 @@ Then edit the relevant slice files and rerun Ralph.
 
 - A `prd-to-slices` skill that converts a proposal under `docs/plans/ideas/` into a directory of slice files under `implementation-queue/<plan-slug>/` with `type`, `blocked_by`, `allowed_paths`, and `feedback_loop` filled in. Currently the user authors slice files by hand.
 - Hook up cultuvilla's CI workflow (`.github/workflows/check.yml`) to the PR Ralph opens — currently `pnpm check` runs locally only.
-- When `apps/mobile/` gets per-slot Metro infrastructure (the `parallel-agent-workflow` skill is currently a stub), revisit running Ralph against mobile slices.
+- When per-slot Metro/AVD infrastructure exists (`parallel-agent-workflow` covers Firebase emulators only), revisit running Ralph against mobile slices.

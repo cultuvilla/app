@@ -20,6 +20,7 @@ interface PersonShape {
   middleNames: string[];
   firstSurname: string;
   secondSurname: string;
+  sex?: 'male' | 'female' | 'other' | null;
 }
 
 function person(overrides: Partial<PersonShape> = {}): PersonShape {
@@ -135,5 +136,41 @@ describe('syncPersonDenormalization', () => {
 
     const userDoc = await admin.firestore().doc(`users/${USER_ID}`).get();
     expect(userDoc.get('displayName')).toBe('Ana García López');
+  });
+
+  describe('Embajador title (community.organizerSex)', () => {
+    async function seedVillage(id: string, organizerId: string | null, organizerSex: string | null) {
+      await admin.firestore().doc(`municipalities/${id}`).set({
+        name: id,
+        community: { organizerId, organizerSex, description: '', profileForm: null, fiestas: [], activatedAt: new Date() },
+      });
+    }
+    async function organizerSex(id: string): Promise<unknown> {
+      const snap = await admin.firestore().doc(`municipalities/${id}`).get();
+      return snap.get('community.organizerSex');
+    }
+
+    it('propagates a sex change to every pueblo where the user is Embajador', async () => {
+      await seedUser('Ana García López');
+      await seedVillage('m1', USER_ID, 'male');
+      await seedVillage('m2', USER_ID, null);
+      await seedVillage('m3', 'someone-else', 'male');
+
+      await fireTrigger(person({ sex: 'male' }), person({ sex: 'female' }));
+
+      expect(await organizerSex('m1')).toBe('female');
+      expect(await organizerSex('m2')).toBe('female');
+      expect(await organizerSex('m3')).toBe('male');
+    });
+
+    it('does not touch pueblos when sex is unchanged', async () => {
+      await seedUser('Ana García López');
+      await seedVillage('m1', USER_ID, 'male');
+
+      await fireTrigger(person({ sex: 'female' }), person({ sex: 'female', secondSurname: 'Pérez' }));
+
+      // Stale value left alone: no sex change means no fan-out.
+      expect(await organizerSex('m1')).toBe('male');
+    });
   });
 });

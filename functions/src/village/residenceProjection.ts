@@ -14,8 +14,7 @@ export interface ResidenceTarget {
  * reads before writes). Returns null when the user has no linked person — then
  * there is nothing to project onto.
  *
- * Server-side membership creations (acceptInvite, startVillage, organizer
- * approval) can't rely on a Firestore trigger to project residence anymore: the
+ * Server-side membership creations (startVillage, organizer approval) can't rely on a Firestore trigger to project residence anymore: the
  * syncMemberBarrioToResidence trigger is delete-only. Each such path pairs this
  * read with `upsertResidenceLink` below so a seeded member still shows up in
  * `getPersonsByBarrio`.

@@ -43,7 +43,7 @@ async function seedMunicipality(organizerId: string | null): Promise<void> {
       escudoThumbUrl: null,
       escudoManualUrl: null,
       communityActive: true,
-      community: { organizerId, description: 'Mi pueblo', profileForm: null, activatedAt: now, fiestas: [] },
+      community: { organizerId, organizerSex: null, description: 'Mi pueblo', profileForm: null, activatedAt: now, fiestas: [] },
     });
 }
 
@@ -267,6 +267,7 @@ describe('deleteAccount (callable)', () => {
     // Dangling organizer pointer nulled.
     const muniSnap = await db().doc(`municipalities/${MUNICIPALITY_ID}`).get();
     expect(muniSnap.data()?.community?.organizerId).toBeNull();
+    expect(muniSnap.data()?.community?.organizerSex).toBeNull();
 
     // A 'removed' membership event was written.
     const eventsSnap = await db()
@@ -287,7 +288,7 @@ describe('deleteAccount (callable)', () => {
     await seedUserDoc(USER_ID);
     await seedAuthUser(USER_ID);
 
-    await expect(callDelete(USER_ID)).rejects.toThrow(/failed-precondition|administrador|único/i);
+    await expect(callDelete(USER_ID)).rejects.toThrow(/failed-precondition|única persona/i);
 
     // Nothing deleted.
     expect((await db().doc(`persons/person-${USER_ID}`).get()).exists).toBe(true);

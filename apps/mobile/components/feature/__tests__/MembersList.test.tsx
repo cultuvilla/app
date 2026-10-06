@@ -1,14 +1,21 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { MembersList } from '../MembersList';
 
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockPush(...a) } }));
 
 const mockGetVillageMembers = jest.fn();
 const mockSetVillageMemberRole = jest.fn();
+const mockTransferVillageAmbassador = jest.fn();
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
   getVillageMembers: (...a: unknown[]) => mockGetVillageMembers(...a),
   setVillageMemberRole: (...a: unknown[]) => mockSetVillageMemberRole(...a),
+  transferVillageAmbassador: (...a: unknown[]) => mockTransferVillageAmbassador(...a),
 }));
 
 const mockGetMunicipalityPeople = jest.fn();
@@ -37,6 +44,9 @@ jest.mock('../../../lib/i18n', () => ({
     'village.membersList.censoComplete': 'Censo completo',
     'village.membersList.censoPending': 'Censo pendiente',
     'village.membersList.empty': 'Aún no hay personas registradas.',
+    'ambassador.title': 'Embajador',
+    'ambassador.titleFemale': 'Embajadora',
+    'ambassador.team': 'Equipo del pueblo',
   }[key] ?? key) }),
 }));
 
@@ -58,6 +68,8 @@ beforeEach(() => {
   ]);
   mockGetMunicipality.mockResolvedValue({ id: 'm1', community: { organizerId: null, profileForm: null } });
   mockSetVillageMemberRole.mockResolvedValue(undefined);
+  mockTransferVillageAmbassador.mockReset();
+  mockTransferVillageAmbassador.mockResolvedValue(undefined);
 });
 
 test('renders account and dependent personas in the directory order', async () => {
@@ -91,7 +103,61 @@ test('only an account member is actionable for an admin', async () => {
   await waitFor(() => expect(screen.getByTestId('member-row-user1')).toBeTruthy());
   expect(screen.queryByTestId('member-row-')).toBeNull();
   fireEvent.press(screen.getByTestId('member-row-user1'));
+  fireEvent.press(screen.getByTestId('member-action-team'));
   expect(mockSetVillageMemberRole).toHaveBeenCalledWith('m1', 'user1', 'admin');
+});
+
+const ambassadorPeople = [
+  { id: 'm1_pa', personId: 'pa', municipalityId: 'm1', displayName: 'Ana Embajadora', sortName: 'ana', photoURL: null, userId: 'amb', isPublic: true, barrioId: null },
+  { id: 'm1_pt', personId: 'pt', municipalityId: 'm1', displayName: 'Tomás Equipo', sortName: 'tomas', photoURL: null, userId: 'team', isPublic: true, barrioId: null },
+  { id: 'm1_pv', personId: 'pv', municipalityId: 'm1', displayName: 'Vera Vecina', sortName: 'vera', photoURL: null, userId: 'vec', isPublic: true, barrioId: null },
+];
+
+function seedAmbassadorVillage() {
+  mockGetMunicipalityPeople.mockResolvedValue(ambassadorPeople);
+  mockGetVillageMembers.mockResolvedValue([
+    { userId: 'amb', role: 'admin', profileCompletedAt: null },
+    { userId: 'team', role: 'admin', profileCompletedAt: null },
+    { userId: 'vec', role: 'user', profileCompletedAt: null },
+  ]);
+  mockGetMunicipality.mockResolvedValue({
+    id: 'm1',
+    community: { organizerId: 'amb', organizerSex: 'female', profileForm: null },
+  });
+}
+
+test('shows the Embajadora title, the team badge, and nothing for a vecino', async () => {
+  seedAmbassadorVillage();
+  render(<MembersList villageId="m1" />);
+
+  await waitFor(() => expect(screen.getByText('Embajadora')).toBeTruthy());
+  expect(screen.getByTestId('member-title-pt')).toBeTruthy();
+  expect(screen.getByText('Equipo del pueblo')).toBeTruthy();
+  expect(screen.queryByTestId('member-title-pv')).toBeNull();
+});
+
+test('the Embajador can hand the title to a member', async () => {
+  seedAmbassadorVillage();
+  render(<MembersList villageId="m1" canManage currentUserId="amb" />);
+
+  await waitFor(() => expect(screen.getByTestId('member-row-vec')).toBeTruthy());
+  // Their own row is never actionable.
+  expect(screen.queryByTestId('member-row-amb')).toBeNull();
+  fireEvent.press(screen.getByTestId('member-row-vec'));
+  fireEvent.press(screen.getByTestId('member-action-transfer'));
+  expect(mockTransferVillageAmbassador).toHaveBeenCalledWith('m1', 'vec');
+});
+
+test('a team admin manages the team but cannot move the title', async () => {
+  seedAmbassadorVillage();
+  render(<MembersList villageId="m1" canManage currentUserId="team" />);
+
+  await waitFor(() => expect(screen.getByTestId('member-row-vec')).toBeTruthy());
+  // The Embajador's row is not actionable for anyone.
+  expect(screen.queryByTestId('member-row-amb')).toBeNull();
+  fireEvent.press(screen.getByTestId('member-row-vec'));
+  expect(screen.getByTestId('member-action-team')).toBeTruthy();
+  expect(screen.queryByTestId('member-action-transfer')).toBeNull();
 });
 
 test('opens the linked user profile from the name or avatar area', async () => {

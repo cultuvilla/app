@@ -1,5 +1,5 @@
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 import { buildDisplayName } from '@cultuvilla/shared/models/person/PersonDataModel';
 import { DELETED_USER_UID } from '@cultuvilla/shared/models/user';
 import { withFirestoreErrorLog } from '../firestoreErrorLog';
@@ -24,8 +24,9 @@ export type CommentAuthorLabels = {
  *   matching that query denies the whole query — for the viewer, not for the
  *   author — so this lookup returning nothing says nothing about whether a name
  *   exists.
- * - `users/{uid}` is world-readable and carries `displayName`, projected from
- *   the same person doc by `syncPersonDenormalization`. That is the dependable
+ * - `publicProfiles/{uid}` is world-readable and carries `displayName`,
+ *   projected from the same person doc (via `users/{uid}`, which is owner-only
+ *   since it holds contact fields). That is the dependable
  *   name source; the person lookup only adds the avatar and the freshest name.
  *
  * Letting either failure escape used to cost the *whole batch* its names (one
@@ -42,7 +43,7 @@ export async function resolveCommentAuthor(
     withFirestoreErrorLog('comments:getPersonByUserId', () => getPersonByUserId(uid)).catch(
       () => null,
     ),
-    withFirestoreErrorLog('comments:getUserProfile', () => getUserProfile(uid)).catch(() => null),
+    withFirestoreErrorLog('comments:getPublicProfile', () => getPublicProfile(uid)).catch(() => null),
   ]);
 
   // A person whose name fields are all blank must not win over the projection —

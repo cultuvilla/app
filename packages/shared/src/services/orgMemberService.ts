@@ -1,6 +1,6 @@
 // packages/shared/src/services/orgMemberService.ts
-import { collectionGroup, getDoc, getDocs, query, setDoc, deleteDoc, where } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { collectionGroup, getDoc, getDocs, query, setDoc, deleteDoc, where } from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   organizationMembersCollection,

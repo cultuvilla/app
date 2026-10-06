@@ -13,8 +13,8 @@ import {
   startAfter,
   serverTimestamp,
   Timestamp,
-} from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+} from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import { newsCollection, newsDoc } from '../firebase/refs/client';
 import {
@@ -25,6 +25,7 @@ import {
   type NewsPostStatus,
   type NewsBlock,
 } from '../models/news/NewsPostDataModel';
+import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
 
 // ────── input types ──────
 export interface CreateNewsPostInput {
@@ -104,6 +105,14 @@ export async function getNewsPost(
   const snap = await getDoc(newsDoc(getDb(), id));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() };
+}
+
+export function watchNewsPost(
+  id: string,
+  onNext: (post: (NewsPostData & { id: string }) | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(newsDoc(getDb(), id), onNext, onError);
 }
 
 export async function getNewsPostsByMunicipality(
@@ -188,11 +197,12 @@ export async function deleteNewsPost(postId: string): Promise<void> {
 }
 
 // ────── feed queries ──────
-export async function getHomeFeed(
+function homeFeedQuery(
   homeMunicipalityId: string,
-  options: { limit?: number; afterPublishedAt?: Date } = {},
-): Promise<(NewsPostData & { id: string })[]> {
-  const constraints = [
+  options: { limit?: number; afterPublishedAt?: Date },
+) {
+  return query(
+    newsCollection(getDb()),
     where('municipalityId', '==', homeMunicipalityId),
     where('status', '==', 'active'),
     orderBy('publishedAt', 'desc'),
@@ -200,26 +210,53 @@ export async function getHomeFeed(
       ? [startAfter(Timestamp.fromDate(options.afterPublishedAt))]
       : []),
     ...(options.limit ? [fsLimit(options.limit)] : []),
-  ];
-  const snap = await getDocs(query(newsCollection(getDb()), ...constraints));
+  );
+}
+
+export async function getHomeFeed(
+  homeMunicipalityId: string,
+  options: { limit?: number; afterPublishedAt?: Date } = {},
+): Promise<(NewsPostData & { id: string })[]> {
+  const snap = await getDocs(homeFeedQuery(homeMunicipalityId, options));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchHomeFeed(
+  homeMunicipalityId: string,
+  options: { limit?: number },
+  onNext: (posts: (NewsPostData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(homeFeedQuery(homeMunicipalityId, options), onNext, onError);
 }
 
 // Cross-village feed: every active post regardless of municipality. Backs the
 // Explora "all villages" view; callers narrow by village client-side.
-export async function getAllVillagesFeed(
-  options: { limit?: number; afterPublishedAt?: Date } = {},
-): Promise<(NewsPostData & { id: string })[]> {
-  const constraints = [
+function allVillagesFeedQuery(options: { limit?: number; afterPublishedAt?: Date }) {
+  return query(
+    newsCollection(getDb()),
     where('status', '==', 'active'),
     orderBy('publishedAt', 'desc'),
     ...(options.afterPublishedAt
       ? [startAfter(Timestamp.fromDate(options.afterPublishedAt))]
       : []),
     ...(options.limit ? [fsLimit(options.limit)] : []),
-  ];
-  const snap = await getDocs(query(newsCollection(getDb()), ...constraints));
+  );
+}
+
+export async function getAllVillagesFeed(
+  options: { limit?: number; afterPublishedAt?: Date } = {},
+): Promise<(NewsPostData & { id: string })[]> {
+  const snap = await getDocs(allVillagesFeedQuery(options));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchAllVillagesFeed(
+  options: { limit?: number },
+  onNext: (posts: (NewsPostData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(allVillagesFeedQuery(options), onNext, onError);
 }
 
 export async function getOtherVillagesFeed(

@@ -1,36 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from './auth/useAuth';
 import { useMyOrgIds } from './orgs/useMyOrgIds';
 import { withFirestoreErrorLog } from './firestoreErrorLog';
+import { useWatch, type WatchStatus } from './hooks/useWatch';
 import {
-  getMunicipality,
-  getBarrios,
-  getPlaces,
+  watchBarrios,
+  watchMunicipality,
+  watchPlaces,
 } from '@cultuvilla/shared/services/municipalityService';
 import {
   isVillageAdmin,
   getVillageMembers,
 } from '@cultuvilla/shared/services/villageMemberService';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
-import { getOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
+import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
+import { watchOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 import { getMyOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
 import {
-  getEventsByMunicipality,
-  getPrivateEventsByMunicipality,
+  watchEventsByMunicipality,
+  watchPrivateEventsByMunicipality,
 } from '@cultuvilla/shared/services/eventService';
-import { getHomeFeed } from '@cultuvilla/shared/services/newsService';
+import { watchHomeFeed } from '@cultuvilla/shared/services/newsService';
 import {
-  getFestivalPosters,
+  watchFestivalPosters,
   type FestivalPosterWithId,
 } from '@cultuvilla/shared/services/festivalPosterService';
 import {
-  getHistoryEntries,
+  watchHistoryEntries,
   type HistoryEntryWithId,
 } from '@cultuvilla/shared/services/historyService';
 import {
-  getVocabularyDefinitions,
-  getVocabularyTerms,
+  watchVocabularyDefinitions,
+  watchVocabularyTerms,
   type VocabularyDefinitionWithId,
   type VocabularyTermWithId,
 } from '@cultuvilla/shared/services/vocabularyService';
@@ -128,302 +130,201 @@ const EMPTY: VillageHomeState = {
   sectionStatus: ALL_LOADING,
 };
 
+/** The per-user part of the village home: membership, admin rights, requests. */
+interface Chrome {
+  villageAdmin: boolean;
+  isMember: boolean;
+  peopleCount: number | null;
+  pendingOrganizerRequest: boolean;
+  myCensoAnswers: ProfileAnswers;
+}
+
+const NO_CHROME: Chrome = {
+  villageAdmin: false,
+  isMember: false,
+  peopleCount: null,
+  pendingOrganizerRequest: false,
+  myCensoAnswers: {},
+};
+
+const LISTED_STATUSES: ['published', 'completed'] = ['published', 'completed'];
+const NEWS_LIMIT = { limit: 10 };
+const NO_ROWS: never[] = [];
+
+function sectionStatus(...statuses: WatchStatus[]): SectionStatus {
+  if (statuses.includes('error')) return 'error';
+  return statuses.includes('loading') ? 'loading' : 'ready';
+}
+
 /**
- * Loads everything the village home (pueblo tab + pushed detail) needs for one
- * municipality and re-runs on focus. Presentation lives in <VillageHomeBody>;
- * this hook is the single place village-home data is fetched.
+ * Everything the village home (pueblo tab + pushed detail) shows for one
+ * municipality. Presentation lives in <VillageHomeBody>; this hook is the single
+ * place village-home data is read.
  *
- * Only the village doc is essential: it gates the whole tab. Every other piece
- * (each scroll + the membership/admin chrome) loads independently so one slow
- * or failing fetch shows a skeleton / hides its own row instead of blanking the
- * tab. A run counter drops writes from a superseded reload (focus re-fire or a
- * municipality switch) so stale flows never land on the current village.
+ * The village doc and every scroll are live listeners (`watch*`): on the native
+ * SDK they answer from the on-device cache first, so a revisited village paints
+ * at once — offline too — and stays current without reloading on focus. Each
+ * scroll is its own listener, so one that fails shows its own error row and
+ * never blanks the tab. Only the village doc is essential.
+ *
+ * The per-user chrome (membership, admin rights, requests, censo answers) is a
+ * one-shot read refreshed on focus and by `reload`: it changes when the user
+ * acts, not when the village does.
  */
 export function useVillageHome(municipalityId: string | null) {
   const { user } = useAuth();
-  // The viewer's orgs decide which private events this village can show. The
-  // array identity is stable between renders, so it is safe in `reload`'s deps
-  // — and being in them is what makes the section refill once the lookup lands.
+  // The viewer's orgs decide which private events this village can show.
   const { orgIds } = useMyOrgIds();
-  // Depend on the stable uid primitive, not the `user` object — the AuthContext
-  // value can be a fresh object per render; keying `reload` off `uid` keeps it
-  // stable so the focus/mount effects don't re-fire in a loop.
   const uid = user?.uid ?? null;
-  const [state, setState] = useState<VillageHomeState>({
-    ...EMPTY,
-    coreLoading: !!municipalityId,
-  });
+  const id = municipalityId;
+
+  const core = useWatch<(MunicipalityData & { id: string }) | null>('villageHome:watchMunicipality', id, id ? (next, error) => watchMunicipality(id, next, error) : null);
+  const publicEvents = useWatch<(EventData & { id: string })[]>(
+    'villageHome:watchEvents',
+    id,
+    id ? (next, error) => watchEventsByMunicipality(id, LISTED_STATUSES, next, error) : null,
+  );
+  // Rules do not filter a list, so the private half is one listener per org of
+  // the viewer's; losing it must not empty the section.
+  const orgKey = orgIds.join(',');
+  const privateEvents = useWatch<(EventData & { id: string })[]>(
+    'villageHome:watchPrivateEvents',
+    id ? `${id}|${orgKey}` : null,
+    id ? (next, error) => watchPrivateEventsByMunicipality(id, orgIds, LISTED_STATUSES, next, error) : null,
+  );
+  const news = useWatch<(NewsPostData & { id: string })[]>('villageHome:watchNews', id, id ? (next, error) => watchHomeFeed(id, NEWS_LIMIT, next, error) : null);
+  const posters = useWatch<FestivalPosterWithId[]>('villageHome:watchFestivalPosters', id, id ? (next, error) => watchFestivalPosters(id, next, error) : null);
+  const places = useWatch<(PlaceData & { id: string })[]>('villageHome:watchPlaces', id, id ? (next, error) => watchPlaces(id, next, error) : null);
+  const barrios = useWatch<(BarrioData & { id: string })[]>('villageHome:watchBarrios', id, id ? (next, error) => watchBarrios(id, next, error) : null);
+  const orgs = useWatch<(OrganizationData & { id: string })[]>('villageHome:watchOrganizations', id, id ? (next, error) => watchOrganizationsByMunicipality(id, next, error) : null);
+  const history = useWatch<HistoryEntryWithId[]>('villageHome:watchHistoryEntries', id, id ? (next, error) => watchHistoryEntries(id, next, error) : null);
+  const terms = useWatch<VocabularyTermWithId[]>('villageHome:watchVocabularyTerms', id, id ? (next, error) => watchVocabularyTerms(id, next, error) : null);
+
+  // One word a day, so its meanings are watched only once the terms are in.
+  const todaysTerm = useMemo(
+    () => (id && terms.data ? pickWordOfTheDay(terms.data, id, new Date()) : null),
+    [id, terms.data],
+  );
+  const definitions = useWatch<VocabularyDefinitionWithId[]>(
+    'villageHome:watchVocabularyDefinitions',
+    todaysTerm?.id ?? null,
+    todaysTerm ? (next, error) => watchVocabularyDefinitions(todaysTerm.id, next, error) : null,
+  );
+
+  const chrome = useChrome(id, uid);
+
+  return useMemo<VillageHomeState & { reload: () => Promise<void> }>(() => {
+    if (!id) return { ...EMPTY, reload: chrome.reload };
+
+    // Upcoming first (soonest first), then past (most recent first), split on
+    // the end boundary so a multi-day event still running counts as upcoming.
+    const allEvents = [...(publicEvents.data ?? NO_ROWS), ...(privateEvents.data ?? NO_ROWS)].sort(
+      (a, b) => a.startDate.getTime() - b.startDate.getTime(),
+    );
+    const now = new Date();
+    const isPast = (e: EventData) => isStartDayOver(eventEndBoundary(e), now);
+    const events = [...allEvents.filter((e) => !isPast(e)), ...allEvents.filter(isPast).reverse()];
+
+    return {
+      coreLoading: core.status === 'loading',
+      coreError: core.error?.message ?? null,
+      village: core.data ?? null,
+      ...chrome.value,
+      events,
+      news: news.data ?? NO_ROWS,
+      festivalPosters: posters.data ?? NO_ROWS,
+      places: places.data ?? NO_ROWS,
+      // Populated barrios and the biggest orgs first; both counts are
+      // denormalized onto each doc, so this sorts in memory with no extra reads.
+      barrios: [...(barrios.data ?? NO_ROWS)].sort(
+        (a, b) => b.residentCount - a.residentCount || a.name.localeCompare(b.name),
+      ),
+      organizations: [...(orgs.data ?? NO_ROWS)].sort(
+        (a, b) => b.memberCount - a.memberCount || a.name.localeCompare(b.name),
+      ),
+      // The service returns newest first; the home timeline reads left to right.
+      history: [...(history.data ?? NO_ROWS)].reverse(),
+      wordOfTheDay: todaysTerm ? { term: todaysTerm, definition: definitions.data?.[0] ?? null } : null,
+      vocabularyCount: terms.data?.length ?? 0,
+      sectionStatus: {
+        // A failed private half degrades to public events only.
+        events: sectionStatus(publicEvents.status, privateEvents.status === 'error' ? 'ready' : privateEvents.status),
+        news: sectionStatus(news.status),
+        festivalPosters: sectionStatus(posters.status),
+        places: sectionStatus(places.status),
+        barrios: sectionStatus(barrios.status),
+        organizations: sectionStatus(orgs.status),
+        history: sectionStatus(history.status),
+        vocabulary: sectionStatus(terms.status, todaysTerm ? definitions.status : 'ready'),
+      },
+      reload: chrome.reload,
+    };
+  }, [id, core, publicEvents, privateEvents, news, posters, places, barrios, orgs, history, terms, todaysTerm, definitions, chrome]);
+}
+
+function useChrome(municipalityId: string | null, uid: string | null) {
+  const [value, setValue] = useState<Chrome>(NO_CHROME);
+  // Only the latest load may commit: a focus re-fire or a village switch
+  // supersedes a load still in flight.
   const runId = useRef(0);
-  // The municipalityId whose data currently lives in `state`. Lets `reload`
-  // tell a fresh load (first mount / village switch) from a background refresh
-  // of the same village.
-  const loadedId = useRef<string | null>(null);
 
   const reload = useCallback(async () => {
-    if (!municipalityId) {
-      runId.current += 1;
-      loadedId.current = null;
-      setState({ ...EMPTY });
-      return;
-    }
     const myRun = (runId.current += 1);
-    // Only the latest reload may commit; a superseded flow no-ops. Guards both
-    // the focus re-fire and a municipality switch mid-flight.
-    const commit = (updater: (prev: VillageHomeState) => VillageHomeState) =>
-      setState((prev) => (runId.current === myRun ? updater(prev) : prev));
-
-    // A fresh load (first mount or a switch to a different village) blanks to a
-    // spinner + section skeletons. A background refresh of the SAME village must
-    // NOT blank: the village tab lives under Tabs and stays mounted across a
-    // push into an entity detail, and expo-router re-runs reload on focus when
-    // you pop back. Resetting to the spinner here would unmount <VillageHomeBody>'s
-    // ScrollView and every horizontal row, throwing away the user's scroll
-    // position. Keeping the loaded content mounted and swapping data in place as
-    // each fetch resolves lets React Native preserve both axes' scroll offsets.
-    const isRefresh = loadedId.current === municipalityId;
-    if (!isRefresh) {
-      setState({ ...EMPTY, coreLoading: true, sectionStatus: { ...ALL_LOADING } });
-    }
-
-    let village: (MunicipalityData & { id: string }) | null;
-    try {
-      village = await withFirestoreErrorLog('villageHome:getMunicipality', () =>
-        getMunicipality(municipalityId),
-      );
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      commit((s) => ({ ...s, coreLoading: false, coreError: msg }));
+    if (!municipalityId) {
+      setValue(NO_CHROME);
       return;
     }
-    commit((s) => ({ ...s, coreLoading: false, coreError: null, village }));
-    if (runId.current === myRun) loadedId.current = municipalityId;
-
-    const markSection = (key: VillageSectionKey, status: SectionStatus) =>
-      commit((s) => ({ ...s, sectionStatus: { ...s.sectionStatus, [key]: status } }));
-
-    const loadChrome = async () => {
-      // The people directory is fetched on its own, NOT inside the Promise.all
-      // below. Its rows go through a strict converter, so one doc that predates
-      // a schema field throws — and sharing a Promise.all would take membership,
-      // admin rights and censo answers down with the count, silently rendering
-      // the village as if you weren't a member. Losing just the stat is the
-      // acceptable failure; losing your membership is not.
-      const peopleCount = await withFirestoreErrorLog(
-        'villageHome:getMunicipalityPeople',
-        () => getMunicipalityPeople(municipalityId),
-      )
-        .then((people) => people.length)
-        .catch(() => null);
-
-      try {
-        const [isAdmin, myReqs, members] = await Promise.all([
-          uid
-            ? withFirestoreErrorLog('villageHome:isVillageAdmin', () =>
-                isVillageAdmin(municipalityId, uid),
-              )
-            : Promise.resolve(false),
-          uid
-            ? withFirestoreErrorLog('villageHome:getMyOrganizerRequests', () =>
-                getMyOrganizerRequests(uid),
-              )
-            : Promise.resolve([]),
-          withFirestoreErrorLog('villageHome:getVillageMembers', () =>
-            getVillageMembers(municipalityId),
-          ),
-        ]);
-        commit((s) => ({
-          ...s,
-          villageAdmin: isAdmin,
-          isMember: uid != null && members.some((m) => m.userId === uid),
-          peopleCount,
-          pendingOrganizerRequest: myReqs.some(
-            (r) => r.municipalityId === municipalityId && r.status === 'pending',
-          ),
-          myCensoAnswers:
-            (uid != null ? members.find((m) => m.userId === uid)?.profileAnswers : undefined) ?? {},
-        }));
-      } catch {
-        // Chrome degrades silently to the non-member view; the error is already
-        // logged by withFirestoreErrorLog and must not take down the tab.
-        commit((s) => ({ ...s, peopleCount }));
-      }
+    const commit = (next: Chrome) => {
+      if (runId.current === myRun) setValue(next);
     };
+    // The people directory is fetched on its own, NOT inside the Promise.all
+    // below. Its rows go through a strict converter, so one doc that predates a
+    // schema field throws — and sharing a Promise.all would take membership,
+    // admin rights and censo answers down with the count, silently rendering the
+    // village as if you weren't a member. Losing just the stat is acceptable.
+    const peopleCount = await withFirestoreErrorLog('villageHome:getMunicipalityPeople', () =>
+      getMunicipalityPeople(municipalityId),
+    )
+      .then((people) => people.length)
+      .catch(() => null);
+    try {
+      const [isAdmin, myReqs, members] = await Promise.all([
+        uid
+          ? withFirestoreErrorLog('villageHome:isVillageAdmin', () => isVillageAdmin(municipalityId, uid))
+          : Promise.resolve(false),
+        uid
+          ? withFirestoreErrorLog('villageHome:getMyOrganizerRequests', () => getMyOrganizerRequests(uid))
+          : Promise.resolve([]),
+        withFirestoreErrorLog('villageHome:getVillageMembers', () => getVillageMembers(municipalityId)),
+      ]);
+      const isMember = uid != null && members.some((m) => m.userId === uid);
+      // Answers are private (censoAnswers/), so only a member's own are fetched.
+      const myCensoAnswers =
+        uid != null && isMember
+          ? await withFirestoreErrorLog('villageHome:getMyCensoAnswers', () =>
+              getMyCensoAnswers(municipalityId, uid),
+            ).catch(() => ({}))
+          : {};
+      commit({
+        villageAdmin: isAdmin,
+        isMember,
+        peopleCount,
+        pendingOrganizerRequest: myReqs.some(
+          (r) => r.municipalityId === municipalityId && r.status === 'pending',
+        ),
+        myCensoAnswers,
+      });
+    } catch {
+      // Chrome degrades silently to the non-member view; the error is already
+      // logged by withFirestoreErrorLog and must not take down the tab.
+      commit({ ...NO_CHROME, peopleCount });
+    }
+  }, [municipalityId, uid]);
 
-    const loadEvents = async () => {
-      try {
-        // published + completed so past events survive the hourly completion job;
-        // cancelled is excluded by the query.
-        // Public and private are separate queries: Firestore rules do not
-        // filter a list, so each query has to ask only for rows the viewer may
-        // read — public ones here, and the private half one org at a time.
-        // Losing the private half must not empty the section.
-        const [publicEvts, privateEvts] = await Promise.all([
-          withFirestoreErrorLog('villageHome:getEvents', () =>
-            getEventsByMunicipality(municipalityId, ['published', 'completed']),
-          ),
-          withFirestoreErrorLog('villageHome:getPrivateEvents', () =>
-            getPrivateEventsByMunicipality(municipalityId, orgIds, [
-              'published',
-              'completed',
-            ]),
-          ).catch(() => []),
-        ]);
-        const evts = [...publicEvts, ...privateEvts].sort(
-          (a, b) => a.startDate.getTime() - b.startDate.getTime(),
-        );
-        // Split on the end boundary, not startDate, so a multi-day event still
-        // running counts as upcoming. Upcoming first (soonest first), then past
-        // (most recent first). evts arrives sorted ascending by startDate.
-        const now = new Date();
-        const isPast = (e: EventData) => isStartDayOver(eventEndBoundary(e), now);
-        const upcoming = evts.filter((e) => !isPast(e));
-        const past = evts.filter(isPast).reverse();
-        commit((s) => ({
-          ...s,
-          events: [...upcoming, ...past],
-          sectionStatus: { ...s.sectionStatus, events: 'ready' },
-        }));
-      } catch {
-        markSection('events', 'error');
-      }
-    };
-
-    const loadNews = async () => {
-      try {
-        const nws = await withFirestoreErrorLog('villageHome:getNews', () =>
-          getHomeFeed(municipalityId, { limit: 10 }),
-        );
-        commit((s) => ({
-          ...s,
-          news: nws,
-          sectionStatus: { ...s.sectionStatus, news: 'ready' },
-        }));
-      } catch {
-        markSection('news', 'error');
-      }
-    };
-
-    const loadPosters = async () => {
-      try {
-        const posters = await withFirestoreErrorLog('villageHome:getFestivalPosters', () =>
-          getFestivalPosters(municipalityId),
-        );
-        commit((s) => ({
-          ...s,
-          festivalPosters: posters,
-          sectionStatus: { ...s.sectionStatus, festivalPosters: 'ready' },
-        }));
-      } catch {
-        markSection('festivalPosters', 'error');
-      }
-    };
-
-    const loadPlaces = async () => {
-      try {
-        const plc = await withFirestoreErrorLog('villageHome:getPlaces', () =>
-          getPlaces(municipalityId),
-        );
-        commit((s) => ({
-          ...s,
-          places: plc,
-          sectionStatus: { ...s.sectionStatus, places: 'ready' },
-        }));
-      } catch {
-        markSection('places', 'error');
-      }
-    };
-
-    const loadBarrios = async () => {
-      try {
-        const bar = await withFirestoreErrorLog('villageHome:getBarrios', () =>
-          getBarrios(municipalityId),
-        );
-        // Populated barrios first; the denormalized residentCount rides on each
-        // doc, so this sorts in-memory with no extra reads and no reshuffle.
-        const sorted = [...bar].sort(
-          (a, b) => b.residentCount - a.residentCount || a.name.localeCompare(b.name),
-        );
-        commit((s) => ({
-          ...s,
-          barrios: sorted,
-          sectionStatus: { ...s.sectionStatus, barrios: 'ready' },
-        }));
-      } catch {
-        markSection('barrios', 'error');
-      }
-    };
-
-    const loadOrgs = async () => {
-      try {
-        const orgs = await withFirestoreErrorLog('villageHome:getOrganizations', () =>
-          getOrganizationsByMunicipality(municipalityId),
-        );
-        // Biggest orgs first; the denormalized memberCount rides on each doc, so
-        // this sorts in-memory with no extra reads and no reshuffle.
-        const sorted = [...orgs].sort(
-          (a, b) => b.memberCount - a.memberCount || a.name.localeCompare(b.name),
-        );
-        commit((s) => ({
-          ...s,
-          organizations: sorted,
-          sectionStatus: { ...s.sectionStatus, organizations: 'ready' },
-        }));
-      } catch {
-        markSection('organizations', 'error');
-      }
-    };
-
-    const loadHistory = async () => {
-      try {
-        const entries = await withFirestoreErrorLog('villageHome:getHistoryEntries', () =>
-          getHistoryEntries(municipalityId),
-        );
-        commit((s) => ({
-          ...s,
-          history: [...entries].reverse(),
-          sectionStatus: { ...s.sectionStatus, history: 'ready' },
-        }));
-      } catch {
-        markSection('history', 'error');
-      }
-    };
-
-    const loadVocabulary = async () => {
-      try {
-        const terms = await withFirestoreErrorLog('villageHome:getVocabularyTerms', () =>
-          getVocabularyTerms(municipalityId),
-        );
-        const pick = pickWordOfTheDay(terms, municipalityId, new Date());
-        const definitions = pick
-          ? await withFirestoreErrorLog('villageHome:getVocabularyDefinitions', () =>
-              getVocabularyDefinitions(pick.id),
-            )
-          : [];
-        commit((s) => ({
-          ...s,
-          wordOfTheDay: pick ? { term: pick, definition: definitions[0] ?? null } : null,
-          vocabularyCount: terms.length,
-          sectionStatus: { ...s.sectionStatus, vocabulary: 'ready' },
-        }));
-      } catch {
-        markSection('vocabulary', 'error');
-      }
-    };
-
-    await Promise.allSettled([
-      loadChrome(),
-      loadEvents(),
-      loadNews(),
-      loadPosters(),
-      loadPlaces(),
-      loadBarrios(),
-      loadOrgs(),
-      loadHistory(),
-      loadVocabulary(),
-    ]);
-  }, [municipalityId, uid, orgIds]);
-
+  // A village switch starts from the non-member view rather than showing the
+  // previous village's membership while the new one loads.
   useEffect(() => {
+    setValue(NO_CHROME);
     void reload();
   }, [reload]);
 
@@ -433,5 +334,5 @@ export function useVillageHome(municipalityId: string | null) {
     }, [reload]),
   );
 
-  return { ...state, reload };
+  return useMemo(() => ({ value, reload }), [value, reload]);
 }

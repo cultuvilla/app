@@ -16,8 +16,8 @@ interface ResidenceLink {
  * rule only lets a user edit their own), so this cleanup has to run server-side.
  *
  * Barrio residency otherwise lives ONLY in `persons.municipalityLinks`, written
- * directly by the owner (join / change-barrio client batches) and by
- * `acceptInvite` for the invited party. This delete trigger is the single
+ * directly by the owner (join / change-barrio client batches) and by the
+ * server-side membership creations. This delete trigger is the single
  * remaining server-privileged write — the create/upsert projection it used to do
  * is gone.
  *

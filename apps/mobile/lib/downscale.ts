@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 /**
@@ -62,21 +61,17 @@ function extensionFor(contentType: string): string {
 /**
  * Resize + re-encode a picked asset for upload.
  *
- * WebP everywhere it is available: both native platforms encode it in SDK 56
- * (Android via `Bitmap.CompressFormat.WEBP`, iOS via SDWebImageWebPCoder) and
- * it is roughly 25–35% smaller than JPEG at equal quality. The web build stays
- * on JPEG because the web manipulator goes through `canvas.toDataURL`, which
- * silently falls back to PNG — *larger* than the input — where WebP encoding is
- * unsupported.
+ * WebP: both platforms encode it in SDK 56 (Android via
+ * `Bitmap.CompressFormat.WEBP`, iOS via SDWebImageWebPCoder) and it is roughly
+ * 25–35% smaller than JPEG at equal quality.
  *
  * A manipulator failure is never fatal: an exotic input (some HEIC variants,
  * a corrupt EXIF block) falls back to uploading the asset untouched. A large
  * upload beats a failed one.
  */
 export async function downscaleForUpload(input: DownscaleInput): Promise<DownscaleResult> {
-  const format =
-    Platform.OS === 'web' ? ImageManipulator.SaveFormat.JPEG : ImageManipulator.SaveFormat.WEBP;
-  const contentType = format === ImageManipulator.SaveFormat.WEBP ? 'image/webp' : 'image/jpeg';
+  const format = ImageManipulator.SaveFormat.WEBP;
+  const contentType = 'image/webp';
 
   try {
     const out = await ImageManipulator.manipulateAsync(

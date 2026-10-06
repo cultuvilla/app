@@ -1,9 +1,8 @@
 // Maestro runScript — read ONE Firestore-emulator document and poll a field
 // until it matches, then publish the result to `output`.
 //
-// This is the native half of the shared substrate: the same "assert on backend
-// state, not on the DOM" discipline as apps/mobile/e2e/lib/emulatorState.ts,
-// expressed in Maestro's JS runtime. Only the driver differs.
+// The suite's "assert on backend state, not on the screen" discipline,
+// expressed in Maestro's JS runtime.
 //
 // Runs on the HOST (the Maestro CLI machine), not on the device — so the
 // emulator is at 127.0.0.1 here even though the app inside the AVD reaches it

@@ -16,7 +16,7 @@ import {
 } from '../primitives';
 import { useT } from '../../lib/i18n';
 import { pickImageAsBlob } from '../../lib/images';
-import type { Sex } from '@cultuvilla/shared/models/person';
+import type { Sex } from '@cultuvilla/shared/models/core';
 import type { UploadableImage } from '@cultuvilla/shared/services/imageService';
 import {
   OCCUPATION_CATALOG,

@@ -1,24 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-// @firebase/auth exports `getReactNativePersistence` only via the "react-native"
-// export condition in its package.json. On native, Metro resolves it at
-// runtime; on web, the symbol is undefined and calling it throws. The branch
-// in bootstrapFirebase() ensures we never reach the call on web.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error -- getReactNativePersistence is in the RN bundle but absent from auth-public.d.ts
-import { initializeAuth, getReactNativePersistence } from '@firebase/auth';
 import type { FirebaseOptions } from 'firebase/app';
 import Constants from 'expo-constants';
-import {
-  browserLocalPersistence,
-  browserPopupRedirectResolver,
-  connectAuthEmulator,
-  inMemoryPersistence,
-  indexedDBLocalPersistence,
-} from 'firebase/auth';
-import { connectFirestoreEmulator } from 'firebase/firestore';
-import { connectFunctionsEmulator } from 'firebase/functions';
-import { connectStorageEmulator } from 'firebase/storage';
+import { connectAuthEmulator } from '@cultuvilla/shared/firebase/sdk/auth';
+import { connectFirestoreEmulator } from '@cultuvilla/shared/firebase/sdk/firestore';
+import { connectFunctionsEmulator } from '@cultuvilla/shared/firebase/sdk/functions';
+import { connectStorageEmulator } from '@cultuvilla/shared/firebase/sdk/storage';
+import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
 import {
   initFirebase,
   getAuth,
@@ -26,7 +12,6 @@ import {
   getFirebaseFunctions,
   getFirebaseStorage,
 } from '@cultuvilla/shared/firebase';
-import { FirebaseError } from '@firebase/util';
 import { initMobileAppCheck } from './appCheck';
 
 declare const __DEV__: boolean;
@@ -40,19 +25,18 @@ function installUnhandledFirestoreDenyHook(): void {
   if (typeof target.addEventListener !== 'function') return;
   target.addEventListener('unhandledrejection', (event: { reason?: unknown }) => {
     const reason = (event as { reason?: unknown }).reason;
-    if (reason instanceof FirebaseError && reason.code === 'permission-denied') {
-      console.warn(
-        `[firestore-deny:unhandled] code=${reason.code} stack=${reason.stack ?? '<no stack>'}`,
-      );
+    if (firebaseErrorCode(reason) === 'permission-denied') {
+      const stack = reason instanceof Error ? reason.stack : undefined;
+      console.warn(`[firestore-deny:unhandled] stack=${stack ?? '<no stack>'}`);
     }
   });
 }
 
 /**
- * Read the per-environment FirebaseOptions that app.config.ts wrote into
- * `extra.firebaseConfig`. Falls back to an empty object so the call still
- * proceeds (Firebase will throw a runtime error, which is the right behaviour
- * during development when .env is not set up).
+ * The per-environment FirebaseOptions app.config.ts wrote into
+ * `extra.firebaseConfig`. The native SDK reads the bundled
+ * google-services.json / GoogleService-Info.plist instead; this is passed so
+ * `initFirebase` keeps one signature across SDKs.
  */
 function getFirebaseOptions(): FirebaseOptions {
   const cfg = Constants.expoConfig?.extra?.firebaseConfig as FirebaseOptions | undefined;
@@ -69,7 +53,7 @@ function getFirebaseOptions(): FirebaseOptions {
  * E2E only — point the client SDK at the local Firebase emulators.
  *
  * Gated by the build-time `USE_FIREBASE_EMULATOR` flag (surfaced as
- * `extra.useEmulator`), which is set ONLY in the web-e2e CI job and never in a
+ * `extra.useEmulator`), which is set ONLY in the android-e2e CI job and never in a
  * deploy workflow. This is one half of the fail-closed fixture-login design:
  * the SAME flag also enables the test-login seam in AuthContext, so a fixture
  * session can only be minted while the app talks to `127.0.0.1` emulators. A
@@ -82,11 +66,10 @@ function connectEmulatorsIfEnabled(): void {
   if (emulatorsConnected) return;
   if (Constants.expoConfig?.extra?.useEmulator !== true) return;
   emulatorsConnected = true;
-  // Web (Playwright) reaches the emulators on loopback. A native dev-client on an
-  // Android AVD can't — `127.0.0.1` there is the device itself, so it must use the
-  // host alias `10.0.2.2`. EXPO_PUBLIC_EMULATOR_HOST (baked in at build time) lets
-  // the native groundwork flow override it; it defaults to loopback so the web
-  // build and the fail-closed guarantee are unchanged.
+  // An Android AVD reaches the host's emulators through `10.0.2.2`, not loopback
+  // (`127.0.0.1` is the device itself); EXPO_PUBLIC_EMULATOR_HOST is baked in at
+  // build time by the E2E build. Loopback stays the default, which keeps the
+  // fail-closed guarantee: no deployed build has an emulator to reach.
   const host = process.env.EXPO_PUBLIC_EMULATOR_HOST ?? '127.0.0.1';
   connectAuthEmulator(getAuth(), `http://${host}:9099`, { disableWarnings: true });
   connectFirestoreEmulator(getDb(), host, 8080);
@@ -95,36 +78,13 @@ function connectEmulatorsIfEnabled(): void {
 }
 
 /**
- * Initialise Firebase with explicit, platform-appropriate auth persistence.
+ * Initialise the native Firebase SDKs. Auth persists natively and Firestore
+ * keeps its on-device cache (see `initFirebase`).
  *
- * Idempotent — `initFirebase` returns early if already initialised, and the
- * module-level guard prevents the options object from being rebuilt on every
- * hot-reload.
+ * Idempotent — `initFirebase` returns early if already initialised.
  */
 export function bootstrapFirebase(): void {
-  const config = getFirebaseOptions();
-  if (Platform.OS === 'web') {
-    // Pin the persistence chain explicitly rather than relying on
-    // firebase/auth's environment auto-detection (plain getAuth(app)): the
-    // default silently downgrades to session/in-memory persistence in
-    // storage-restricted contexts (Safari private browsing, in-app browsers
-    // like WhatsApp/Instagram webviews), which signs users out on every
-    // visit and forces them back through the email-link round-trip.
-    initFirebase(config, {
-      customizeAuth: (app) =>
-        initializeAuth(app, {
-          persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence],
-          popupRedirectResolver: browserPopupRedirectResolver,
-        }),
-    });
-  } else {
-    initFirebase(config, {
-      customizeAuth: (app) =>
-        initializeAuth(app, {
-          persistence: getReactNativePersistence(AsyncStorage),
-        }),
-    });
-  }
+  initFirebase(getFirebaseOptions());
   // Must run before any service issues a read/write; connect*Emulator throws
   // once the SDK has been used against production hosts.
   connectEmulatorsIfEnabled();

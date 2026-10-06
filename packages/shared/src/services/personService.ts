@@ -9,7 +9,7 @@ import {
   where,
   orderBy,
   limit,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { personsCollection, personDoc } from '../firebase/refs/client';
 import {

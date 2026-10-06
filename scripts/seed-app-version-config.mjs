@@ -12,7 +12,7 @@
  *   --env      target environment (default: dev).
  *   --latest   latest version, for BOTH platforms. Omit it: each platform then
  *              gets the version its own store actually serves, declared in
- *              `apps/mobile/lib/appStores.ts` (`APP_STORE_VERSIONS`). It is
+ *              `packages/shared/src/config/appStores.ts` (`APP_STORE_VERSIONS`). It is
  *              deliberately NOT the app.config.ts version — that is what a
  *              promotion deploys to the backend and the web, while a store
  *              binary moves only by an explicit `mobile-release` dispatch, so

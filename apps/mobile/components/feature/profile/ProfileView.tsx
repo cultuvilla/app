@@ -21,6 +21,7 @@ import { ManagedEventsScroll } from './ManagedEventsScroll';
 import { VillagesScroll } from './VillagesScroll';
 import { CreatedNewsScroll } from './CreatedNewsScroll';
 import { useProfileData } from '../../../lib/profile/useProfileData';
+import { AmbassadorBadges } from '../AmbassadorBadges';
 
 export interface ProfileViewProps {
   uid: string;
@@ -92,6 +93,7 @@ export function ProfileView({
         uploading={isSelf ? uploading : false}
         onPressAvatar={isSelf ? onChangePhoto : undefined}
       />
+      <AmbassadorBadges uid={uid} />
 
       <View className="px-4 pt-4 pb-4">
         <ProfileStatsRow

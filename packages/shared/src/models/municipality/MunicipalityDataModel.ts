@@ -4,6 +4,7 @@ import { visibilityFields, defaultVisibility } from '../core/VisibilityModel';
 import { contributorFields } from '../core/ContributorsModel';
 import { VillageProfileFormSchema } from './CensoTypes';
 import { FiestaBlockSchema } from './FiestaBlockModel';
+import { SexSchema, type Sex } from '../core/SexModel';
 
 /**
  * A municipality is the canonical Spanish administrative unit (INE-coded).
@@ -21,6 +22,12 @@ export const VillageCommunitySchema = z.object({
    * "started" by a villager but nobody has been granted the organizer role yet —
    * during that window any member can edit the basic info (wiki phase). */
   organizerId: z.string().nullable(),
+  /** Denormalized from the organizer's own person doc so every viewer can say
+   *  "Embajador" or "Embajadora" — persons are often private, and copying `sex`
+   *  onto the public user doc would expose it for everyone, not just the one
+   *  person whose title reveals it anyway. Kept in sync by the functions that
+   *  move `organizerId` and by syncPersonDenormalization. */
+  organizerSex: SexSchema.nullable(),
   profileForm: VillageProfileFormSchema.nullable(),
   /** When this village's fiestas are — one block per distinct celebration.
    *  Empty until an admin declares them; a village with none never gets a
@@ -273,6 +280,7 @@ export function buildMunicipalityData(input: MunicipalityDataInput): Municipalit
 export interface ActivateCommunityInput {
   description: string;
   organizerId?: string | null;
+  organizerSex?: Sex | null;
   coordinates?: LatLng | null;
 }
 
@@ -280,6 +288,7 @@ export function buildVillageCommunity(input: ActivateCommunityInput): VillageCom
   return {
     description: input.description,
     organizerId: input.organizerId ?? null,
+    organizerSex: input.organizerSex ?? null,
     profileForm: null,
     fiestas: [],
     activatedAt: new Date(),

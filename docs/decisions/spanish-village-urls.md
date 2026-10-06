@@ -49,7 +49,7 @@ title is edited, and nothing reads it — `parseEntityRef` takes everything afte
 the **first** `_`. Slugs only ever contain `[a-z0-9-]`, while ids may contain
 `-` (seed ids do), so `_` is the one separator that always splits unambiguously.
 
-The share-preview server (`ogRenderer`) answers any stale form — an edited
+The read site (`readSite`, which replaced the share-preview server `ogRenderer`) answers any stale form — an edited
 title, a wrong pueblo — with a **301 to the canonical path**, so each doc has
 exactly one URL to rank. A well-formed path to nothing — an unknown pueblo, a
 deleted event — is a **404 with `noindex`**, still serving the SPA shell so the
@@ -90,9 +90,9 @@ the doc before navigating. Everything else passes the entity it already has.
 
 ### Hosting and native links
 
-- Hosting rewrites the app's top-level routes to the SPA first, then sends every
-  remaining one-segment path (a pueblo) and the shareable entity paths to
-  `ogRenderer`. `packages/shared/test/ci/villageUrls.test.ts` fails if the route
+- Hosting sends every page to the read site (`readSite`), whose router
+  (`functions/src/web/routes.ts`) answers reserved segments with the app
+  hand-off and everything else as a pueblo or entity. `packages/shared/test/ci/villageUrls.test.ts` fails if the route
   files, the reserved list and the rewrites disagree.
 - Because a URL can start with any slug, the apps claim the **whole host**:
   Android intent filters take every path (Android cannot exclude), and the iOS

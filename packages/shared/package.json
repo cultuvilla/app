@@ -15,6 +15,30 @@
       "types": "./dist/firebase/refs/admin.d.ts",
       "default": "./dist/firebase/refs/admin.js"
     },
+    "./firebase/sdk/firestore": {
+      "types": "./dist/firebase/sdk/firestore.d.ts",
+      "react-native": "./dist/firebase/sdk/firestore.native.js",
+      "default": "./dist/firebase/sdk/firestore.js"
+    },
+    "./firebase/sdk/auth": {
+      "types": "./dist/firebase/sdk/auth.d.ts",
+      "react-native": "./dist/firebase/sdk/auth.native.js",
+      "default": "./dist/firebase/sdk/auth.js"
+    },
+    "./firebase/sdk/functions": {
+      "types": "./dist/firebase/sdk/functions.d.ts",
+      "react-native": "./dist/firebase/sdk/functions.native.js",
+      "default": "./dist/firebase/sdk/functions.js"
+    },
+    "./firebase/sdk/storage": {
+      "types": "./dist/firebase/sdk/storage.d.ts",
+      "react-native": "./dist/firebase/sdk/storage.native.js",
+      "default": "./dist/firebase/sdk/storage.js"
+    },
+    "./firebase/sdk/errors": {
+      "types": "./dist/firebase/sdk/errors.d.ts",
+      "default": "./dist/firebase/sdk/errors.js"
+    },
     "./models": {
       "types": "./dist/models/index.d.ts",
       "default": "./dist/models/index.js"
@@ -22,6 +46,14 @@
     "./utils": {
       "types": "./dist/utils/index.d.ts",
       "default": "./dist/utils/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "default": "./dist/config/index.js"
+    },
+    "./legal": {
+      "types": "./dist/legal/index.d.ts",
+      "default": "./dist/legal/index.js"
     },
     "./email": {
       "types": "./dist/email/index.d.ts",
@@ -57,11 +89,31 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
+    "@react-native-firebase/app": "^26.4.0",
+    "@react-native-firebase/auth": "^26.4.0",
+    "@react-native-firebase/firestore": "^26.4.0",
+    "@react-native-firebase/functions": "^26.4.0",
+    "@react-native-firebase/storage": "^26.4.0",
     "firebase": "^11.0.0",
     "firebase-admin": "^13.0.0",
     "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
+    "@react-native-firebase/app": {
+      "optional": true
+    },
+    "@react-native-firebase/auth": {
+      "optional": true
+    },
+    "@react-native-firebase/firestore": {
+      "optional": true
+    },
+    "@react-native-firebase/functions": {
+      "optional": true
+    },
+    "@react-native-firebase/storage": {
+      "optional": true
+    },
     "firebase": {
       "optional": true
     },
@@ -74,9 +126,15 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
+    "@react-native-firebase/app": "^26.4.0",
+    "@react-native-firebase/auth": "^26.4.0",
+    "@react-native-firebase/firestore": "^26.4.0",
+    "@react-native-firebase/functions": "^26.4.0",
+    "@react-native-firebase/storage": "^26.4.0",
     "@types/react": "^19.0.0",
     "firebase": "^11.0.0",
     "react": "^19.1.0",
+    "react-native": "0.85.3",
     "typescript": "~5.8.3",
     "vitest": "^4.0.15"
   }

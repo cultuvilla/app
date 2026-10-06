@@ -30,6 +30,17 @@ describe('app.config EAS identity', () => {
   });
 });
 
+describe('native Firebase on iOS', () => {
+  // SPM + static frameworks aborts `pod install`; the first iOS build after the
+  // native SDKs landed failed exactly there. Both settings must hold together.
+  it('links static frameworks with Firebase resolved through CocoaPods, not SPM', () => {
+    const plugins = (config.plugins ?? []) as (string | [string, unknown])[];
+    const options = (name: string) => plugins.find((p) => Array.isArray(p) && p[0] === name)?.[1];
+    expect(options('expo-build-properties')).toMatchObject({ ios: { useFrameworks: 'static' } });
+    expect(options('@react-native-firebase/app')).toEqual({ ios: { disableSPM: true } });
+  });
+});
+
 describe('apple-app-site-association', () => {
   const envs = ['dev', 'beta', 'prod'] as const;
   const bundleIdPerEnv = {
@@ -39,7 +50,7 @@ describe('apple-app-site-association', () => {
   } as const;
 
   it.each(envs)('carries the real Apple Team ID for %s', (env) => {
-    const path = join(__dirname, '..', 'public', '.well-known', env, 'apple-app-site-association');
+    const path = join(__dirname, '..', '..', '..', 'web', 'well-known', env, 'apple-app-site-association');
     const aasa = JSON.parse(readFileSync(path, 'utf8'));
 
     const appIDs = aasa.applinks.details.map((d: { appID: string }) => d.appID);
@@ -95,7 +106,7 @@ describe('universal link paths', () => {
   // binary can route, pinned in packages/shared/test/ci/storeRelease.test.ts.
   it('claims every path except sign-in, since URLs start with the pueblo slug', () => {
     for (const env of ['dev', 'beta'] as const) {
-      const path = join(__dirname, '..', 'public', '.well-known', env, 'apple-app-site-association');
+      const path = join(__dirname, '..', '..', '..', 'web', 'well-known', env, 'apple-app-site-association');
       const aasa = JSON.parse(readFileSync(path, 'utf8'));
       expect(aasa.applinks.details[0].paths).toEqual(['NOT /entrar', 'NOT /entrar/*', '*']);
     }

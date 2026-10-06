@@ -1,5 +1,12 @@
 # Open Graph previews via a Hosting-edge Cloud Function
 
+> **Superseded 2026-10-02 by [web-is-a-read-site.md](web-is-a-read-site.md).**
+> The read site (`readSite`, `functions/src/web/`) renders every public page
+> with its own OG tags and JSON-LD, so there is no SPA shell to inject into and
+> `ogRenderer` is deleted. What still holds from below: previews are
+> best-effort raw reads, one canonical URL per doc, and private content is
+> withheld from the anonymous reader.
+
 > **Paths superseded** by [spanish-village-urls](spanish-village-urls.md): the renderer now
 > serves `/<pueblo>` and `/<pueblo>/{evento,noticia,entidad}/<ref>` (+ `/unirse`), looks
 > villages up by slug, and 301s a stale title or pueblo to the canonical path.

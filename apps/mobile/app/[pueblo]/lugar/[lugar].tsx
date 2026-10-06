@@ -23,11 +23,12 @@ import { DetailSectionHeading } from '../../../components/feature/DetailSectionH
 import { EntityComments } from '../../../components/feature/EntityComments';
 import { EntityContributors } from '../../../components/feature/EntityContributors';
 import { useT } from '../../../lib/i18n';
+import { useWatch } from '../../../lib/hooks/useWatch';
 import { useShareDeepLink } from '../../../lib/deeplink/useShareDeepLink';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { showAlert } from '../../../lib/dialogs';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
-import { getPlace } from '@cultuvilla/shared/services/municipalityService';
+import { watchPlace } from '@cultuvilla/shared/services/municipalityService';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import { getPlaceViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { getPersonsByBurialPlace, updatePerson } from '@cultuvilla/shared/services/personService';
@@ -62,32 +63,29 @@ function PlaceDetailScreen() {
   const placeId = parseEntityRef(lugarRef ?? '') ?? '';
   const { t } = useT();
   const share = useShareDeepLink();
-  const [place, setPlace] = useState<Place | null>(null);
-  const [buried, setBuried] = useState<Person[]>([]);
+  const { data: place = null, status } = useWatch<Place | null>(
+    'placeDetail:watchPlace',
+    villageId && placeId ? `${villageId}/${placeId}` : null,
+    (next, error) => watchPlace(villageId, placeId, next, error),
+  );
+  const loading = status === 'loading';
+  const [buried, setBuried] = useState<Person[] | null>(null);
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [editingDeathDate, setEditingDeathDate] = useState<PartialDate | null>(null);
   const [savingBurial, setSavingBurial] = useState(false);
-  const [loading, setLoading] = useState(true);
   const { canManage, canEdit, uid } = useEntityCapabilities(villageId);
   const insets = useSafeAreaInsets();
+  const isCemetery = place?.kind === 'cemetery';
 
-  const load = useCallback(async () => {
-    if (!villageId || !placeId) return;
-    try {
-      const p = await getPlace(villageId, placeId);
-      setPlace(p);
-      if (p?.kind === 'cemetery') {
-        setBuried(await getPersonsByBurialPlace(placeId, uid));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [villageId, placeId, uid]);
+  const loadBuried = useCallback(async () => {
+    if (!isCemetery) return;
+    setBuried(await getPersonsByBurialPlace(placeId, uid));
+  }, [isCemetery, placeId, uid]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
-    }, [load]),
+      void loadBuried();
+    }, [loadBuried]),
   );
 
   useEffect(() => {
@@ -118,7 +116,7 @@ function PlaceDetailScreen() {
         },
       ]
     : [];
-  const sortedBuried = sortBuriedByDeathDate(buried);
+  const sortedBuried = sortBuriedByDeathDate(buried ?? []);
 
   function canEditPerson(person: Person): boolean {
     return uid != null && (person.userId === uid || (person.userId == null && person.createdBy === uid));
@@ -136,7 +134,7 @@ function PlaceDetailScreen() {
     try {
       await updatePerson(editingPerson.id, { deathDate: editingDeathDate });
       setEditingPerson(null);
-      await load();
+      await loadBuried();
     } catch (e) {
       showAlert(e instanceof Error ? e.message : 'error', buildDisplayName(editingPerson));
     } finally {
@@ -150,7 +148,7 @@ function PlaceDetailScreen() {
     try {
       await updatePerson(editingPerson.id, { burialPlace: null });
       setEditingPerson(null);
-      await load();
+      await loadBuried();
     } catch (e) {
       showAlert(e instanceof Error ? e.message : 'error', buildDisplayName(editingPerson));
     } finally {
@@ -167,7 +165,7 @@ function PlaceDetailScreen() {
         fallbackIcon={ENTITY_FALLBACK_ICON.place}
         actions={actions}
         title={place?.name}
-        onRefresh={load}
+        onRefresh={isCemetery ? loadBuried : undefined}
       >
         {place ? (
           <>
@@ -196,7 +194,7 @@ function PlaceDetailScreen() {
             {place.kind === 'cemetery' ? (
               <VStack gap={3}>
                 <DetailSectionHeading>{t('village.placeDetail.buried')}</DetailSectionHeading>
-                {buried.length === 0 ? (
+                {!buried ? null : buried.length === 0 ? (
                   <Text tone="muted" variant="bodySm">
                     {t('village.placeDetail.buriedEmpty')}
                   </Text>
@@ -277,8 +275,8 @@ function PlaceDetailScreen() {
           municipalityId={place.municipalityId}
           placeId={place.id}
           userId={uid}
-          buriedHereIds={buried.map((p) => p.id)}
-          onChanged={load}
+          buriedHereIds={(buried ?? []).map((p) => p.id)}
+          onChanged={loadBuried}
         />
       ) : null}
       <Modal

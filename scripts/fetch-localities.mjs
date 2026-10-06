@@ -42,7 +42,7 @@ import path from 'node:path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = path.join(__dirname, 'data', 'municipalities-es.json');
 const USER_AGENT =
-  'cultuvilla-municipality-fetcher/0.1 (https://github.com/alvaro-francisco-gil/cultuvilla)';
+  'cultuvilla-municipality-fetcher/0.1 (https://github.com/cultuvilla/app)';
 
 const DRY_RUN = process.argv.slice(2).includes('--dry-run');
 

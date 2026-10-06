@@ -1,4 +1,4 @@
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getFirebaseFunctions } from '../firebase';
 
 /**

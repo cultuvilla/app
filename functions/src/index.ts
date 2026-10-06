@@ -13,14 +13,15 @@ export { onEventUpdated } from './events/notificationTriggers';
 export { sendEventReminders } from './events/eventReminders';
 
 // Village (memberships, organizer requests, invites, denormalization)
-export { acceptInvite } from './village/acceptInvite';
 export { startVillage } from './village/startVillage';
 export { updateVillageInfo } from './village/updateVillageInfo';
 export { requestOrganizeVillage } from './village/requestOrganizeVillage';
 export { respondToOrganizerRequest } from './village/respondToOrganizerRequest';
 export { changeVillageMemberRole } from './village/changeVillageMemberRole';
+export { transferVillageAmbassador } from './village/transferVillageAmbassador';
 export { syncVillageDenormalization } from './village/syncVillageDenormalization';
 export { syncMemberBarrioToResidence } from './village/syncMemberBarrioToResidence';
+export { purgeMemberCensoAnswers } from './village/purgeMemberCensoAnswers';
 export { syncBarrioResidentCount } from './village/syncBarrioResidentCount';
 export { syncPlaceBurialCount } from './village/syncPlaceBurialCount';
 export { syncMunicipalityPeople } from './village/syncMunicipalityPeople';
@@ -29,6 +30,8 @@ export { syncMunicipalityPeople } from './village/syncMunicipalityPeople';
 export { requestAyuntamiento } from './organizations/requestAyuntamiento';
 export { approveOrganization } from './organizations/approveOrganization';
 export { changeOrgMemberRole } from './organizations/changeOrgMemberRole';
+export { respondToOrgJoinRequest } from './organizations/respondToOrgJoinRequest';
+export { onOrgJoinRequestCreated } from './organizations/onOrgJoinRequestCreated';
 export { syncOrgMemberCount } from './organizations/syncOrgMemberCount';
 export { onOrganizationUpdated } from './organizations/notificationTriggers';
 
@@ -52,6 +55,7 @@ export { updateCenso } from './census/updateCenso';
 
 // Users (profile + persona denormalization)
 export { syncPersonDenormalization } from './users/syncPersonDenormalization';
+export { syncPublicProfile } from './users/syncPublicProfile';
 
 // Account (deletion lifecycle)
 export { checkAccountDeletable } from './account/checkAccountDeletable';
@@ -70,8 +74,8 @@ export { syncVocabularyWordIndex } from './vocabulary/syncVocabularyWordIndex';
 export { recordEntityView } from './interaction/recordEntityView';
 
 // Share-link Open Graph preview renderer (HTTPS function behind a Hosting rewrite).
-export { ogRenderer } from './og/render';
 export { sitemap } from './seo/sitemap';
+export { readSite } from './web/readSite';
 
 // Maps (Google Static Maps proxy + geocoding — key stays server-side)
 export { staticMap } from './maps/staticMap';

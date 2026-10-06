@@ -53,3 +53,25 @@ describe('Android google-services.json', () => {
     }
   });
 });
+
+// iOS native analytics (@react-native-firebase/app) reads
+// <env>/GoogleService-Info.plist. A swapped file fails the same silent way:
+// events land in another env's GA4 property, or nowhere.
+function plistValue(env: keyof typeof EXPECTED, key: string): string | null {
+  const file = resolve(dir, env, 'GoogleService-Info.plist');
+  if (!existsSync(file)) return null;
+  const match = readFileSync(file, 'utf8').match(
+    new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`),
+  );
+  return match ? match[1] : null;
+}
+
+describe('iOS GoogleService-Info.plist', () => {
+  it.each(Object.keys(EXPECTED) as (keyof typeof EXPECTED)[])(
+    'exists for %s and belongs to its own Firebase project and bundle id',
+    (env) => {
+      expect(plistValue(env, 'PROJECT_ID')).toBe(EXPECTED[env].projectId);
+      expect(plistValue(env, 'BUNDLE_ID')).toBe(EXPECTED[env].packageName);
+    },
+  );
+});

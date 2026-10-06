@@ -4,6 +4,103 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.6.0 — 2026-10-06
+
+<!-- store-notes -->
+- **La app abre al instante y funciona sin conexión**: tu pueblo, sus eventos y noticias se guardan en el móvil y se actualizan solos.
+- **Embajadores de Cultuvilla**: cada pueblo tiene su Embajador o Embajadora, visible en su página.
+- **Grupos con admisión**: un grupo puede pedir aprobación para unirse.
+- El resumen de las fiestas ya es de todo el pueblo.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
+- Signing out wipes the app's on-device data cache and restarts the app, so
+  member-only data (private events, censo answers) never stays on a shared
+  phone after the session ends.
+- A quiet "Sin conexión — mostrando datos guardados" pill shows while the
+  phone is offline; the app keeps working from what it has saved.
+- Event, place, barrio, cartel, history, word, news and group pages update
+  live and open instantly on a revisit; a deleted item shows "no encontrado"
+  instead of a stale page, and an event that does not exist no longer spins
+  forever.
+- The village home is live: it paints from the on-device cache at once (offline
+  too) and updates as the village changes, instead of reloading every time
+  you return to it.
+- The app runs the native Firebase SDKs (`@react-native-firebase/*`) instead of
+  the JS SDK: Firestore keeps a persistent on-device cache, the groundwork for
+  opening offline. Services are unchanged; they reach Firebase through an SDK
+  seam in `packages/shared`. Native code: ships in the next store build.
+- The app no longer builds for the web: the Expo web export, its web-only
+  code paths, `react-native-web` and the Playwright web E2E suite are gone. The
+  web is the read site; the Android Maestro suite is the end-to-end gate.
+- New server-rendered read site (`readSite` function): every public page of a
+  pueblo — events, news, peñas, places, barrios, carteles, history and
+  vocabulary — readable without the app, with share previews and structured
+  data; every action hands over to the app.
+- The web is now the read site: Hosting serves its static files (`web/`) and
+  sends every page to `readSite`. The Expo web app is no longer deployed, and
+  the share-preview function `ogRenderer` is gone. Account and creation screens
+  on the web answer with an "open the app" page.
+- The sitemap no longer lists hidden news posts.
+- The fiestas Wrapped is now for the whole pueblo, not just its admins. Once
+  published it opens as a story (tap to move between cards, hold to pause) at
+  `/<pueblo>/fiestas/<año>`, a link that previews in WhatsApp with its cover
+  card and opens without an account. Each card can be shared as an image from
+  the app, straight to WhatsApp status or Instagram stories, and every card
+  now prints its own address. Every village member gets a notification when it
+  is published, and the village home shows it for two months afterwards. The
+  admin review screen previews it in the same story viewer, and a January
+  reminder about December's fiestas now opens last year's Wrapped.
+
+- The iOS and Android apps report the same usage analytics as the web
+  (Google Analytics for Firebase), plus an `app.link.opened` event when a
+  shared link opens the installed app. Native code: ships in the next store
+  build, not over OTA.
+- Remove the retired village invite-token flow: the `acceptInvite` callable,
+  `inviteTokenService` and the invite-token model. Nothing in the app has used
+  them since the admin screen was retired in v0.10.0; the rules now deny the
+  collection outright.
+- Sign-in emails (code and link) are also rate-limited per caller IP, across
+  addresses, on top of the existing per-address limit.
+- Tighten `users` read access to the account owner (and app admins). Names and
+  active villages of other accounts are now read from a new `publicProfiles/{uid}`
+  projection, kept in sync by the `syncPublicProfile` trigger. **Migration:**
+  `publicProfiles` is seeded by `scripts/backfill-public-profiles.mjs`
+  (pre-deploy, autoApply on every env).
+- Bind `users.email` to the verified auth email on account creation (client
+  writes and the `acceptInvite` callable), and limit listing a village's invite
+  tokens to its admins.
+- Census answers move from the village membership doc to a private
+  `censoAnswers/{municipalityId}_{uid}` doc, readable by the villager, the
+  village's admins and app admins; they are deleted when the membership ends.
+  **Migration:** existing answers are moved by
+  `scripts/backfill-censo-answers-private.mjs` (pre-deploy, autoApply on
+  beta/prod; run it on dev at merge).
+- **Grupos con admisión.** Un grupo puede exigir aprobación para unirse: quien
+  quiera entrar lo solicita y un administrador lo acepta o rechaza desde la
+  página del grupo o el Buzón, con aviso a ambos. Solo los grupos con admisión
+  pueden tener eventos privados; si un grupo vuelve a ser abierto, sus eventos
+  privados dejan de verse hasta que vuelva a exigir aprobación. **Migration:**
+  `organizations.joinPolicy` se rellena con
+  `scripts/backfill-org-join-policy.mjs` (pre-deploy, autoApply en beta/prod;
+  en dev hay que lanzarlo al fusionar): los grupos con eventos privados pasan a
+  `approval`, el resto a `open`.
+- Image uploads are checked against the same authority as the content they
+  illustrate (village membership, org or village admin, news author), and a
+  private persona's photo is readable only by whoever manages it.
+- **Embajadores de Cultuvilla.** Quien cuida de un pueblo ya no es su
+  «administrador»: es su **Embajador** o **Embajadora de Cultuvilla** (según el
+  sexo de su perfil). Hay uno por pueblo y es un título público: aparece con nombre
+  y foto en la página del pueblo, como insignia en su perfil y en la lista de
+  vecinos, y al recibirlo se muestra una bienvenida con opción de compartirlo. El
+  resto de responsables pasan a ser el **Equipo del pueblo**, con los mismos
+  permisos. El Embajador puede **ceder el título** a otro vecino desde la lista de
+  personas. **Migration:** `community.organizerSex` se rellena con
+  `scripts/backfill-community-organizer-sex.mjs` (pre-deploy, autoApply en cada
+  entorno).
+- The business registry (`project/`), the founders' panel (`apps/panel`), their scripts, research skills and scout agents moved to the private [cultuvilla/business](https://github.com/cultuvilla/business) repo, history included. `getBusinessSnapshot` now serves the snapshot that repo publishes to `_admin/businessSnapshot` instead of a JSON bundled into functions, so the daily-stale `business:snapshot:check` gate is gone from this repo's CI.
+- `/descarga` (the printed QR) now sends an iPhone/iPad straight to the App Store and an Android device straight to Google Play, with no picker page in between. Desktop still sees the picker.
+
 ## v1.5.0 — 2026-09-29
 
 <!-- store-notes -->

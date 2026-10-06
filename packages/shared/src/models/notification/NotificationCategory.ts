@@ -34,12 +34,16 @@ export const NOTIFICATION_CATEGORY: Record<NotificationType, NotificationCategor
   // and nothing is lost by muting it: an unanswered Wrapped publishes itself.
   // Not worth breaking quiet hours for, so not `mine`.
   village_wrapped_reminder: 'village',
+  village_wrapped_published: 'village',
 
   org_approved: 'social',
   org_rejected: 'social',
   organizer_request_created: 'social',
   organizer_request_approved: 'social',
   organizer_request_rejected: 'social',
+  org_join_request_created: 'social',
+  org_join_request_approved: 'social',
+  org_join_request_rejected: 'social',
   comment_reply: 'social',
 };
 
