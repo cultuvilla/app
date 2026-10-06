@@ -94,7 +94,12 @@ export function WrappedStoryViewer({
             testID="wrapped-story-tap"
             accessibilityRole="button"
             accessibilityLabel={t('village.wrapped.viewer.next')}
-            onPress={(e) => setState((s) => step(s, tapDirection(e.nativeEvent.locationX, width), count))}
+            onPress={(e) => {
+              // Read now: RN releases the event once this handler returns,
+              // before the updater runs.
+              const direction = tapDirection(e.nativeEvent.locationX, width);
+              setState((s) => step(s, direction, count));
+            }}
             onLongPress={() => setPaused(true)}
             onPressOut={() => setPaused(false)}
             delayLongPress={200}

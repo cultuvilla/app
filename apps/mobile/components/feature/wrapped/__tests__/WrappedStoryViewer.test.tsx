@@ -27,6 +27,25 @@ describe('WrappedStoryViewer', () => {
   });
   afterEach(() => jest.useRealTimers());
 
+  it('reads where a tap landed before React Native releases the event', () => {
+    const { getByTestId, UNSAFE_root } = renderViewer();
+    const pressable = UNSAFE_root.findAll(
+      (n) => n.props.testID === 'wrapped-story-tap' && typeof n.props.onPress === 'function',
+    )[0];
+    // RN nulls a press event's nativeEvent once the handler returns. React
+    // runs a queued updater later — two taps in one batch force the queue —
+    // so the position must be read inside the handler.
+    type Tap = { nativeEvent: { locationX: number } | null };
+    const taps: Tap[] = [{ nativeEvent: { locationX: 10_000 } }, { nativeEvent: { locationX: 10_000 } }];
+    act(() => {
+      for (const tap of taps) {
+        (pressable.props as { onPress: (e: unknown) => void }).onPress(tap);
+        tap.nativeEvent = null;
+      }
+    });
+    expect(getByTestId('wrapped-story-closing')).toBeTruthy();
+  });
+
   it('pages through the cards by tapping, then lands on the closing screen', () => {
     const { getByTestId, queryByTestId } = renderViewer();
     expect(getByTestId('wrapped-story-card-cover')).toBeTruthy();
