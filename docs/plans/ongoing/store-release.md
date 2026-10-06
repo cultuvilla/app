@@ -114,7 +114,7 @@ publicación.
 | publicar una versión aprobada | `release` + `apply` |
 | mandar un build a revisión | `submit` + `build_number` + `apply` |
 | pausar un despliegue que va mal | `phased` + `state: pause` + `apply` |
-| que un build nuevo se mande solo | `mobile-release` con `submitForReview` |
+| que una versión nueva vaya a revisión | nada: el merge `beta → main` lo hace (`production-release.yml`); a mano, `submit` sin `build_number` |
 
 Las versiones se crean con **`releaseType: AFTER_APPROVAL`**: la aprobación
 publica sola y nadie pulsa un botón. El seguro es el **phased release de 7
@@ -276,7 +276,8 @@ Google/Apple and no loose credential works.
 
 - `apps/mobile/eas.json` — `submit.internal` / `submit.closed` / `submit.production`
   map 1:1 to the Play tracks `internal` / `alpha` / `production`.
-- `.github/workflows/mobile-release.yml` — the manual build+submit entry point.
+- `.github/workflows/production-release.yml` — the automatic production release on a version-bumping merge to `main` (Android build → Play production, iOS TestFlight build → App Review, OTA → `production`). See `docs/decisions/production-auto-release.md`.
+- `.github/workflows/mobile-release.yml` — the manual build+submit escape hatch.
 - `.github/workflows/appstore-release.yml` — App Store Connect status / release / submit.
 - `packages/shared/src/config/appStores.ts` — the store URLs every download offer derives from.
 - `web/well-known/{env}/` — the deep-link association files,

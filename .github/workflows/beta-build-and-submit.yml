@@ -152,10 +152,28 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # eas.json's ascApiKeyPath points at this file (relative to apps/mobile).
-      # Gitignored, materialised here, never persisted. ascApiKeyId/ascApiKeyIssuerId
-      # aren't secret but don't exist until the key is created in App Store
-      # Connect, so eas.json can't commit real values — patched in at runtime.
+      # --json pins the exact build this run made. Asking EAS afterwards for "the
+      # latest finished build" could pick up a concurrent manual build instead,
+      # and hand testers (or App Review) a binary this run never produced.
+      - name: Build iOS archive
+        id: ios_build
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --profile production --platform ios --non-interactive --wait --json > ios-build.json
+          node -e '
+            const [b] = JSON.parse(require("fs").readFileSync("ios-build.json", "utf8"));
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `id=${b.id}\nbuild_number=${b.appBuildVersion}\n`);
+          '
+
+      # After the build, never before: eas.json is a fingerprint source, and
+      # `eas build` uploads the project as it stands. Patching the ASC ids in
+      # first gave every store binary a runtime version no clean checkout of
+      # its commit reproduces, so no OTA update could ever reach it.
+      # ascApiKeyPath points at the .p8 (relative to apps/mobile), gitignored
+      # and never persisted; ascApiKeyId/ascApiKeyIssuerId only identify the
+      # key and live in repo vars rather than in the committed eas.json.
       - name: Write App Store Connect API key
         env:
           APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
@@ -171,21 +189,6 @@ jobs:
             eas.submit.production.ios.ascApiKeyIssuerId = process.env.APPLE_ASC_ISSUER_ID;
             fs.writeFileSync(path, JSON.stringify(eas, null, 2) + '\n');
           "
-
-      # --json pins the exact build this run made. Asking EAS afterwards for "the
-      # latest finished build" could pick up a concurrent manual build instead,
-      # and hand testers (or App Review) a binary this run never produced.
-      - name: Build iOS archive
-        id: ios_build
-        working-directory: apps/mobile
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          eas build --profile production --platform ios --non-interactive --wait --json > ios-build.json
-          node -e '
-            const [b] = JSON.parse(require("fs").readFileSync("ios-build.json", "utf8"));
-            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `id=${b.id}\nbuild_number=${b.appBuildVersion}\n`);
-          '
 
       - name: Submit to App Store Connect
         working-directory: apps/mobile

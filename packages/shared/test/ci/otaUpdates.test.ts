@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 
 // OTA updates exist so a JS-only fix reaches apps that are ALREADY INSTALLED.
@@ -13,7 +14,13 @@ import { resolve } from 'node:path';
 
 const repoRoot = resolve(__dirname, '../../../..');
 const appConfig = readFileSync(resolve(repoRoot, 'apps/mobile/app.config.ts'), 'utf8');
-const otaWorkflow = readFileSync(resolve(repoRoot, '.github/workflows/mobile-ota.yml'), 'utf8');
+const workflowsDir = resolve(repoRoot, '.github/workflows');
+const otaWorkflow = readFileSync(resolve(workflowsDir, 'mobile-ota.yml'), 'utf8');
+const prodReleaseWorkflow = readFileSync(resolve(workflowsDir, 'production-release.yml'), 'utf8');
+// Resolve from the app, where the config lives — and @expo/fingerprint through
+// `expo`, which declares it, so the test does not lean on pnpm hoisting.
+const appRequire = createRequire(resolve(repoRoot, 'apps/mobile/package.json'));
+const expoRequire = createRequire(appRequire.resolve('expo/package.json'));
 const easJson = JSON.parse(
   readFileSync(resolve(repoRoot, 'apps/mobile/eas.json'), 'utf8'),
 ) as { build: Record<string, { channel?: string } | undefined> };
@@ -52,12 +59,80 @@ describe('OTA update wiring', () => {
   // empty Firebase config — every update up to 1.4.1 did exactly that.
   it('loads the EAS environment matching the channel it publishes to', () => {
     expect(otaWorkflow).toContain(
-      "--environment \"${{ github.event.inputs.channel == 'production' && 'production' || 'preview' }}\"",
+      "--environment \"${{ inputs.channel == 'production' && 'production' || 'preview' }}\"",
     );
   });
 
-  it('publishes automatically on beta only, never on main', () => {
-    expect(otaWorkflow).toMatch(/branches:\s*\[beta\]/);
+  it('loads the channel from inputs, so a workflow_call caller can choose it', () => {
+    expect(otaWorkflow).toMatch(/workflow_call:\s*\n\s*inputs:\s*\n\s*channel:/);
+    expect(otaWorkflow).not.toContain('github.event.inputs.channel');
+  });
+
+  it('publishes on its own push trigger for beta only', () => {
+    expect(otaWorkflow).toMatch(/push:\s*\n\s*branches:\s*\[beta\]/);
     expect(otaWorkflow).not.toMatch(/branches:\s*\[[^\]]*main/);
+  });
+
+  // Production went automatic on 2026-10-06 (docs/decisions/production-auto-release.md):
+  // a push to main publishes to `production` through this same workflow, after
+  // the prod backend deploy is green.
+  it('publishes to production on a push to main, after the backend deploy', () => {
+    expect(prodReleaseWorkflow).toMatch(/on:\s*\n\s*push:\s*\n\s*branches:\s*\[main\]/);
+    const ota = prodReleaseWorkflow.slice(prodReleaseWorkflow.indexOf('\n  ota:'));
+    expect(ota).toMatch(/needs:\s*\[plan, backend\]/);
+    expect(ota).toContain('uses: ./.github/workflows/mobile-ota.yml');
+    expect(ota).toMatch(/with:\s*\n\s*channel: production/);
+  });
+
+  // One filter, two spellings: beta's `paths-ignore` and main's grep. If either
+  // changes alone, the channels start disagreeing about what is "bundle code".
+  it('skips the production OTA on exactly the paths beta ignores', () => {
+    const pathsIgnore = /paths-ignore:\s*\n((?:\s*- '[^']+'\s*\n)+)/.exec(otaWorkflow)?.[1] ?? '';
+    const ignored = [...pathsIgnore.matchAll(/- '([^']+)'/g)].map((m) => m[1]).sort();
+    expect(ignored).toEqual(['**/*.md', '.github/**', 'docs/**']);
+    expect(prodReleaseWorkflow).toContain("grep -Ev '^(docs/|\\.github/)|\\.md$'");
+  });
+});
+
+// The fingerprint IS the runtime version: an update reaches a binary only when
+// both hash identically. Two things used to make that impossible for any update
+// published from a release commit (measured 2026-09-15): the default sourceSkips
+// hash the marketing `version`, which every promotion bumps, and CI patched the
+// fingerprinted eas.json before `eas build` uploaded the project.
+describe('fingerprint survives a release', () => {
+  const fingerprint = expoRequire('@expo/fingerprint') as { SourceSkips: Record<string, number> };
+  const config = appRequire('./fingerprint.config.js') as { sourceSkips: string[] };
+
+  it('skips the app versions', () => {
+    expect(config.sourceSkips).toContain('ExpoConfigVersions');
+  });
+
+  // Overriding sourceSkips replaces the library default rather than extending it.
+  it('keeps the library default skip', () => {
+    expect(config.sourceSkips).toContain('PackageJsonAndroidAndIosScriptsIfNotContainRun');
+  });
+
+  // @expo/fingerprint drops an unknown name without a word, which would put the
+  // version back into the hash silently after a rename upstream.
+  it('names only skips the installed @expo/fingerprint knows', () => {
+    for (const name of config.sourceSkips) {
+      expect(typeof fingerprint.SourceSkips[name], `unknown SourceSkips "${name}"`).toBe('number');
+    }
+  });
+
+  // Every job that edits apps/mobile/eas.json must do it after its `eas build`
+  // has uploaded the project, so the build hashes the committed file.
+  const workflows = readdirSync(workflowsDir).filter((f) => f.endsWith('.yml'));
+  it.each(workflows)('%s never edits eas.json before eas build', (file) => {
+    const source = readFileSync(resolve(workflowsDir, file), 'utf8');
+    const jobs = source.split(/\n {2}(?=[\w-]+:\s*\n)/);
+    for (const job of jobs) {
+      // Any mention of the file by its repo path is a write: steps run from the
+      // repo root, and nothing else in a workflow has reason to name it.
+      const write = job.indexOf('apps/mobile/eas.json');
+      const build = job.indexOf('eas build');
+      if (write === -1 || build === -1) continue;
+      expect(build, `${file}: eas.json is touched before eas build`).toBeLessThan(write);
+    }
   });
 });
