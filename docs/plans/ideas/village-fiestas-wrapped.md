@@ -31,5 +31,5 @@ one sign-up) should be tuned against the first season with several villages.
 ## Past years on the village page
 
 `/<pueblo>/fiestas/<año>` already resolves for any year, but the village home
-only shows the newest published Wrapped (the map-shaped strip). A "Fiestas de otros años"
+only shows the newest published Wrapped (the map-shaped button). A "Fiestas de otros años"
 list belongs there once a village has more than one year.

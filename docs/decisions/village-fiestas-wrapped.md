@@ -70,8 +70,9 @@ a missed run delays publication instead of skipping it.
   a deterministic id, so the hourly job cannot repeat it. The Wrapped belongs to
   the pueblo, and publication is when it is most worth forwarding.
 - **The village home shows the newest published Wrapped for good** (decided
-  2026-10-07, user), as a strip of its cards in the same slot shape as the
-  village map. It used to be a banner that left after 60 days; a pueblo's last
+  2026-10-07, user), as a button in the same slot shape as the village map: a
+  bundled festive SVG and "Resumen Fiestas {año}", not a preview of the
+  cards, which cost a download per visit and read as clutter. It used to be a banner that left after 60 days; a pueblo's last
   fiestas are a showcase, not news, and a newer year replaces them.
 - **Admins are invited on the village home once there has been movement**
   (`fiestaMovement`, decided 2026-10-07, user). The admin still makes it — the

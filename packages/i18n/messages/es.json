@@ -670,7 +670,7 @@
         "missing": "Este resumen no existe o todavía no se ha publicado."
       },
       "strip": {
-        "label": "Resumen de Fiestas {year}"
+        "label": "Resumen Fiestas {year}"
       },
       "prompt": {
         "title": "¿Hacemos el resumen de Fiestas {year}?",

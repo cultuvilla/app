@@ -29,9 +29,10 @@ describe('WrappedStoryViewer', () => {
 
   it('reads where a tap landed before React Native releases the event', () => {
     const { getByTestId, UNSAFE_root } = renderViewer();
-    const pressable = UNSAFE_root.findAll(
+    const [pressable] = UNSAFE_root.findAll(
       (n) => n.props.testID === 'wrapped-story-tap' && typeof n.props.onPress === 'function',
-    )[0];
+    );
+    if (!pressable) throw new Error('no tap target');
     // RN nulls a press event's nativeEvent once the handler returns. React
     // runs a queued updater later — two taps in one batch force the queue —
     // so the position must be read inside the handler.
