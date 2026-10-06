@@ -55,6 +55,15 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   deletePlace: jest.fn(),
   deleteBarrio: jest.fn(),
 }));
+// The prompt's own behaviour is covered in WrappedPrompt.test; here only who gets it.
+jest.mock('../wrapped/WrappedPrompt', () => {
+  const { Text } = jest.requireActual('react-native');
+  return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
+});
+const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
+  getPublishedVillageWrapped: (...a: unknown[]) => mockGetPublishedVillageWrapped(...a),
+}));
 let mockWelcomeSeen = true;
 const mockMarkWelcomeSeen = jest.fn(async (..._a: unknown[]) => undefined);
 jest.mock('../../../lib/village/ambassadorWelcome', () => ({
@@ -552,5 +561,37 @@ describe('subdivision sections', () => {
     expect(getByText('Parroquias')).toBeTruthy();
     expect(getByText('Aldeas')).toBeTruthy();
     expect(getAllByText('Lugares').length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('VillageHomeBody — resumen de fiestas', () => {
+  it('invites only the village admins to make the resumen', () => {
+    const member = render(<VillageHomeBody data={base} reload={jest.fn()} />);
+    expect(member.queryByTestId('wrapped-prompt')).toBeNull();
+    const admin = render(<VillageHomeBody data={{ ...base, villageAdmin: true }} reload={jest.fn()} />);
+    expect(admin.getByTestId('wrapped-prompt')).toBeTruthy();
+  });
+
+  it('invites an app admin too', () => {
+    mockIsAppAdmin = true;
+    const { getByTestId } = render(<VillageHomeBody data={base} reload={jest.fn()} />);
+    expect(getByTestId('wrapped-prompt')).toBeTruthy();
+  });
+
+  it('waits for the events before judging the movement', () => {
+    const { queryByTestId } = render(
+      <VillageHomeBody
+        data={{ ...base, villageAdmin: true, sectionStatus: { ...base.sectionStatus, events: 'loading' } }}
+        reload={jest.fn()}
+      />,
+    );
+    expect(queryByTestId('wrapped-prompt')).toBeNull();
+  });
+
+  it('shows the published resumen to everyone', async () => {
+    mockGetPublishedVillageWrapped.mockResolvedValueOnce([{ id: 'm1_2026', year: 2026, images: { cover: 'https://x/c.png' } }]);
+    const { findByTestId } = render(<VillageHomeBody data={{ ...base, isMember: false }} reload={jest.fn()} />);
+    fireEvent.press(await findByTestId('village-wrapped-strip'));
+    expect(router.push).toHaveBeenCalledWith('/anaya/fiestas/2026');
   });
 });

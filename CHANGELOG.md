@@ -13,6 +13,11 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 - Explora opens on Eventos again: the toggle shows «Eventos» before
   «Artículos», matching the village home.
+- Resumen de fiestas: when a pueblo has had movement (events with people
+  signed up or commenting), its admins see an invitation on the village screen
+  to generate the resumen. From the draft they can already download or share
+  the cover. Once published, the resumen shows on the village screen as a strip
+  of its images, shaped like the map, and stays there until next year's.
 - Fix: on Android the keyboard covered the field being typed in on most forms
   (editing a pueblo, creating events and news, personas, vocabulary, sign-up
   sheets…). Every screen and bottom sheet now lifts its content above the

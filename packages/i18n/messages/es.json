@@ -655,6 +655,7 @@
         "posters": "Carteles"
       },
       "preview": "Ver como lo verá el pueblo",
+      "shareCover": "Descargar o compartir la portada",
       "viewer": {
         "title": "Fiestas {year} · {name}",
         "next": "Siguiente imagen",
@@ -668,9 +669,16 @@
         "closingBody": "Compártelo con quien estuvo y con quien no pudo venir.",
         "missing": "Este resumen no existe o todavía no se ha publicado."
       },
-      "banner": {
-        "title": "Ya está el resumen de Fiestas {year}",
-        "body": "Lo que se hizo, en números y en fotos."
+      "strip": {
+        "label": "Resumen de Fiestas {year}"
+      },
+      "prompt": {
+        "title": "¿Hacemos el resumen de Fiestas {year}?",
+        "body": "Ha habido movimiento en el pueblo: {events} eventos con gente apuntada y comentando. Conviértelo en un resumen con fotos y números para compartir.",
+        "create": "Generar resumen",
+        "draftTitle": "El resumen de Fiestas {year} está listo",
+        "draftBody": "Revísalo, descarga la portada o compártela, y publícalo para que aparezca en el pueblo.",
+        "review": "Revisar resumen"
       }
     }
   },
