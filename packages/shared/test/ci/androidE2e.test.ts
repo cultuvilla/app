@@ -81,6 +81,15 @@ describe('android-e2e workflow gating', () => {
   // One emulator boot for the whole suite: the AVD action's `script:` runs the
   // very command a developer runs locally, so a green CI run and a green local
   // run mean the same thing.
+  it('drives the suite through the same entrypoint a developer uses', () => {
+    expect(workflow).toContain('script: pnpm test:e2e:android');
+    expect(rootPkg.scripts['test:e2e:android']).toContain('run-tests-with-emulators.mjs');
+    expect(rootPkg.scripts['test:e2e:android']).toContain('pnpm seed:e2e');
+    expect(rootPkg.scripts['test:e2e:android']).toContain('run-android-e2e.mjs');
+  });
+
+  // A floating Maestro let a release alone turn the suite red; 2.4 rejected the
+  // non-ASCII inputText flow 70 types. The pin is checked, not just declared.
   it('pins the Maestro version instead of installing whatever is latest', () => {
     const step = workflow.slice(workflow.indexOf('- name: Install Maestro'));
     const install = step.slice(0, step.indexOf('- name:', 1));
@@ -92,13 +101,6 @@ describe('android-e2e workflow gating', () => {
     const install = step.slice(0, step.indexOf('- name:', 1));
     expect(install).toMatch(/maestro"? --version/);
     expect(install).toMatch(/!= "\$MAESTRO_VERSION"/);
-  });
-
-  it('drives the suite through the same entrypoint a developer uses', () => {
-    expect(workflow).toContain('script: pnpm test:e2e:android');
-    expect(rootPkg.scripts['test:e2e:android']).toContain('run-tests-with-emulators.mjs');
-    expect(rootPkg.scripts['test:e2e:android']).toContain('pnpm seed:e2e');
-    expect(rootPkg.scripts['test:e2e:android']).toContain('run-android-e2e.mjs');
   });
 });
 

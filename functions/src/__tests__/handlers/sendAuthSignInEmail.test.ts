@@ -134,15 +134,17 @@ describe('sendAuthSignInEmail (callable)', () => {
   });
 
   describe('under the Functions emulator', () => {
+    let info: ReturnType<typeof vi.spyOn<typeof logger, 'info'>>;
     beforeEach(() => {
       vi.stubEnv('FUNCTIONS_EMULATOR', 'true');
+      info = vi.spyOn(logger, 'info');
     });
     afterEach(() => {
       vi.unstubAllEnvs();
+      info.mockRestore();
     });
 
     it('logs the generated link instead of calling Resend', async () => {
-      const info = vi.spyOn(logger, 'info');
       const result = await callSend({
         email: 'frank@example.com',
         continueUrl: 'https://villa-events.web.app/finish',
@@ -151,7 +153,6 @@ describe('sendAuthSignInEmail (callable)', () => {
       expect(sendMock).not.toHaveBeenCalled();
       const issued = info.mock.calls.find(([msg]) => msg === 'auth sign-in link issued (emulator, not emailed)');
       expect(issued?.[1]).toMatchObject({ actionUrl: expect.stringMatching(/oobCode=/) });
-      info.mockRestore();
     });
 
     it('still validates the request', async () => {
