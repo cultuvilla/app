@@ -1,16 +1,17 @@
-# Answer Android's runtime location-permission dialog when it is up.
+# Answer the OS location-permission dialog (Android's or iOS's) when it is up.
 #
 # `clearState` revokes runtime permissions, so the first location request in a
 # flow raises the dialog; a later one in the same flow does not. Optional on
-# both steps for that reason. The pattern covers an English and a Spanish AVD.
+# both steps for that reason. The pattern covers English and Spanish
+# devices on both platforms.
 appId: com.cultuvilla.app.dev
 ---
 - extendedWaitUntil:
-    visible: '(?i)(while using the app|mientras se usa la aplicación|mientras la app está en uso)'
+    visible: '(?i)(while using the app|allow while using app|mientras se usa la aplicación|mientras la app está en uso|permitir al usar la app)'
     timeout: 5000
     optional: true
 - runFlow:
     when:
-      visible: '(?i)(while using the app|mientras se usa la aplicación|mientras la app está en uso)'
+      visible: '(?i)(while using the app|allow while using app|mientras se usa la aplicación|mientras la app está en uso|permitir al usar la app)'
     commands:
-      - tapOn: '(?i)(while using the app|mientras se usa la aplicación|mientras la app está en uso)'
+      - tapOn: '(?i)(while using the app|allow while using app|mientras se usa la aplicación|mientras la app está en uso|permitir al usar la app)'

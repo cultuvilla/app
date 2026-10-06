@@ -21,7 +21,7 @@ env:
     env:
       EMAIL: ${EMAIL}
       PASSWORD: ${PASSWORD}
-- tapOn: 'Explora'
+- tapOn: 'Explora(,.*)?'
 # The feed can open on its Artículos half; the label renders upper-cased.
 - tapOn: '(?i)eventos'
 - scrollUntilVisible:

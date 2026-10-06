@@ -19,7 +19,7 @@ env:
 # A concrete route, never the bare scheme (README § traps).
 - openLink: 'cultuvilla://perfil'
 - extendedWaitUntil:
-    visible: 'Explora'
+    visible: 'Explora(,.*)?'
     timeout: 90000
 - openLink: 'cultuvilla://entrar'
 - extendedWaitUntil:

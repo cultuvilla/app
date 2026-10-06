@@ -20,8 +20,14 @@ env:
     timeout: 45000
 - tapOn:
     id: 'place-delete'
-# Native Alert button: common.delete, upper-cased by the Material dialog.
-- tapOn: 'ELIMINAR'
+# Native Alert button: common.delete (upper-cased by Android's Material dialog).
+# Maestro's text match ignores case, and the alert's TITLE is also "Eliminar" —
+# as is the trash icon's label behind it — so a bare text tap can land on any
+# of them (it did on iOS: the alert stayed up). The button is the one to the
+# right of Cancelar on both platforms.
+- tapOn:
+    text: 'Eliminar'
+    rightOf: 'Cancelar'
 - runScript:
     file: ../scripts/docField.js
     env:

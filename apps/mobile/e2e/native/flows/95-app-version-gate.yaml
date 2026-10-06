@@ -59,9 +59,13 @@ onFlowComplete:
     timeout: 90000
 - assertVisible: 'Actualización necesaria'
 # No way out: no dismiss, and BACK is swallowed. The CTA is not tapped — it
-# leaves for the Play Store.
+# leaves for the store. iOS has no BACK key, so only the dismiss check applies.
 - assertNotVisible:
     id: 'app-update-dismiss'
-- pressKey: back
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: back
 - assertVisible:
     id: 'app-update-modal'

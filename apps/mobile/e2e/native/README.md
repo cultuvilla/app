@@ -1,9 +1,10 @@
-# Native E2E (Maestro on Android)
+# Native E2E (Maestro on Android and iOS)
 
 The app's end-to-end suite, described in
 [docs/decisions/e2e-testing-substrate.md](../../../../docs/decisions/e2e-testing-substrate.md):
 seeded fixtures, assertions on Firestore emulator state rather than the view
-hierarchy, Maestro driving the real Android build. It is the only E2E suite —
+hierarchy, Maestro driving the real Android and iOS builds. **One set of flows
+serves both platforms** — see [iOS](#ios) for the little that differs. It is the only E2E suite —
 the Playwright web suite went with the Expo web build
 (docs/decisions/web-is-a-read-site.md).
 
@@ -15,6 +16,12 @@ day-to-day `develop` PRs, and `beta` is the release candidate, the last point
 where a native-only regression can be caught before it becomes a store binary.
 `workflow_dispatch` is enabled so a native regression can be chased from any
 branch without waiting for a promotion PR.
+
+[.github/workflows/ios-e2e.yml](../../../../.github/workflows/ios-e2e.yml) runs
+the same suite on an iOS Simulator, on a macOS runner (free: the repo is
+public). Same release-path gating, plus one trigger Android lacks: a `develop`
+PR that touches the iOS harness or anything under `e2e/native/` runs it too,
+because macOS is the only place it can run at all.
 
 ## The flows
 
@@ -50,13 +57,32 @@ still starts from `clearState: true`, so one failure never cascades into a bogus
 second one. [../../../../packages/shared/test/ci/androidE2e.test.ts](../../../../packages/shared/test/ci/androidE2e.test.ts)
 fails the build if a flow is added without a numeric prefix.
 
+## Running only some flows
+
+Both platforms take a comma-separated selection — numeric prefixes, names or
+filenames: `20,22`, `20-register-to-event`, `61-news-lifecycle.yaml`. It runs in
+**filename order** whatever order you typed (a pair like 20 → 22 still works),
+runs a quarantined flow if you name it, and fails fast on a name that matches
+nothing rather than passing on zero flows. Mind the pairs: `22` alone has
+nothing to unregister — select `20,22`.
+
+| Where | How |
+|---|---|
+| Locally | `E2E_NATIVE_FLOW=20,22 pnpm test:e2e:android` (or `:ios`), or `--flow 20,22` on the runner script |
+| CI, from a terminal | `pnpm e2e:ci:android -f flows=20,22 --ref <branch>` / `pnpm e2e:ci:ios -f flows=20,22 --ref <branch>` |
+| CI, from GitHub | Actions → `android-e2e` / `ios-e2e` → *Run workflow* → fill **flows** |
+
+On CI the build still dominates (~15 min Android, ~35 min iOS), so a targeted
+run saves the suite's ~20 minutes, not the build's. Empty **flows** = the whole
+suite, as on every non-dispatch event.
+
 ## Quarantine
 
 `scripts/run-android-e2e.mjs` holds a `QUARANTINED` map of flows that are **not
 run** by the gate, each with the reason. Every run prints what it held out, twice
 — once up front and once in the summary — because a suite that quietly shrank
-reads as "everything passed", which is worse than a red lane. `--flow <name>`
-still runs a quarantined flow, so chasing one needs no edit.
+reads as "everything passed", which is worse than a red lane. Naming a flow
+in a [selection](#running-only-some-flows) still runs a quarantined flow, so chasing one needs no edit.
 
 Currently held out: **nothing**. `50-onboarding-complete-profile` was held out
 while the app talked to the emulators through the Firestore JS SDK, whose
@@ -126,10 +152,11 @@ E2E_ANDROID_APK=apps/mobile/android/app/build/outputs/apk/release/app-release.ap
   pnpm test:e2e:android
 ```
 
-One flow at a time, against whatever build is already installed:
+Some flows only, against whatever build is already installed — see
+[Running only some flows](#running-only-some-flows):
 
 ```bash
-node scripts/run-android-e2e.mjs --flow 20-register-to-event.yaml
+node scripts/run-android-e2e.mjs --flow 20,22
 ```
 
 ### Under WSL2
@@ -198,3 +225,45 @@ it creates with `Date.now()` so a re-run never matches a leftover. Any id or
 title referenced in YAML must stay in sync with
 `scripts/data/seed-fixtures/e2e/fixtures.mjs` by hand — Maestro YAML cannot
 import JS.
+
+## iOS
+
+The same flows, run by [scripts/run-ios-e2e.mjs](../../../../scripts/run-ios-e2e.mjs)
+against a Simulator build from
+[scripts/build-ios-e2e-app.mjs](../../../../scripts/build-ios-e2e-app.mjs). The
+ordered loop and the quarantine announcement are shared with Android
+([scripts/lib/maestro-suite.mjs](../../../../scripts/lib/maestro-suite.mjs)), as
+is the emulator-armed build env
+([scripts/lib/e2e-build-env.mjs](../../../../scripts/lib/e2e-build-env.mjs)), so
+"green" means the same thing on both. Each platform keeps its own quarantine:
+a flow can fail on one transport and pass on the other.
+
+What differs, and where:
+
+| Difference | Handled in |
+|---|---|
+| The Simulator shares the Mac's network, so the app reaches the emulators on `127.0.0.1` — no `10.0.2.2` alias. ATS still governs that HTTP, so the build sets `NSAllowsLocalNetworking` in the generated `ios/` tree only. | `build-ios-e2e-app.mjs` |
+| The native SDK reads its project from `GoogleService-Info.plist`; the build writes a copy re-pointed at the test project. | `lib/e2e-build-env.mjs` + `app.config.ts` |
+| iOS asks "Open in …?" the first time a custom-scheme link targets the app. Accepting is permanent per Simulator, so the runner answers it once before the suite, and the flows' `openLink` stays the same on both platforms. | `ios/trust-deep-links.yaml` |
+| No BACK key: `subflows/reveal.yaml` presses it only under `platform: Android` and uses `hideKeyboard` on iOS, where it is a real dismissal. | `subflows/reveal.yaml` |
+| The location prompt reads "Allow While Using App". | `subflows/allow-location.yaml` |
+| `clearState` wipes the app's files but **not the keychain**, where Firebase Auth keeps the session — so a flow inherited the previous one's user. The runner resets the Simulator keychain before every flow. | `run-ios-e2e.mjs` |
+| A Pressable is an accessibility element, and on iOS it hides its descendants: a sheet whose backdrop/catcher Pressables were accessible exposed its whole card as ONE element, so no testID inside it existed for XCUITest (or VoiceOver). Both wrappers are `accessible={false}`, enforced by `pressCatcherAccessibility.test.ts`. | the sheets |
+| Entitlements: the unsigned Simulator build needs `application-identifier` for Firebase Auth's keychain, linked into a `__TEXT,__entitlements` section the way Xcode does it — never into the signature, which the Mac kernel then refuses to launch. | `build-ios-e2e-app.mjs` |
+| A tab's accessibility label is `Explora, tab, 1 of 3`, and Maestro matches the whole string — so a bare `'Explora'` never matches on iOS. Tab labels are matched as `'Explora(,.*)?'`. | `subflows/login*.yaml` |
+
+**iOS quarantine** (reasons in `run-ios-e2e.mjs`): `45-offline-cached-village`
+(airplane mode is Android-only in Maestro) and `50-onboarding-complete-profile`
+(keyboard choreography tuned to the AVD).
+
+Writing a flow: anything platform-specific goes in a `runFlow: when: platform:`
+branch, preferably in a subflow. `iosE2e.test.ts` fails the build on an
+unguarded `pressKey: back`.
+
+Locally (macOS + Xcode 26.4+ only):
+
+```bash
+pnpm app:ios:e2e-app                                  # prints the .app path last
+E2E_IOS_APP=<that path> pnpm test:e2e:ios             # emulators + seed + suite
+node scripts/run-ios-e2e.mjs --flow 20-register-to-event.yaml   # one flow
+```
