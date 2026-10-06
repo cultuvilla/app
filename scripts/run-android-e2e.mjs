@@ -158,6 +158,13 @@ for (const name of skipped) {
 const failed = [];
 for (const name of flows) {
   console.log(`\n[android-e2e] ─── ${name} ───`);
+  // Airplane mode outlives a flow, and even a crashed Maestro process. A flow
+  // that left it on (45-offline-cached-village) would fail every flow after it
+  // for a reason none of them can see, so every flow starts online.
+  run(ADB, ['-s', device, 'shell', 'cmd', 'connectivity', 'airplane-mode', 'disable']);
+  // Leaving airplane mode can drop the emulator's adb transport for a moment;
+  // a flow started inside that window dies on "device offline" in seconds.
+  run(ADB, ['-s', device, 'wait-for-device']);
   const status = run(
     MAESTRO,
     [
