@@ -266,17 +266,18 @@ const config: ExpoConfig = {
     // fails closed even if this flag somehow leaked. The check:no-test-login-leak
     // grep gate blocks the flag/seam symbols from escaping their allowlisted files.
     useEmulator: process.env['USE_FIREBASE_EMULATOR'] === '1',
-    // Dev-only auto sign-in: when DEV_AUTOLOGIN_EMAIL/PASSWORD are set in a
-    // `dev` build, the app signs straight into that account on launch instead
-    // of the email-link round-trip. Gated to env === 'dev' here AND behind
+    // Dev-only login buttons: when DEV_LOGIN_EMAILS (comma-separated) and
+    // DEV_LOGIN_PASSWORD are set in a `dev` build, the login screen offers a
+    // one-tap sign-in to each account. Gated to env === 'dev' here AND behind
     // __DEV__ in AuthContext, so the creds never reach a beta/prod bundle.
-    devAutoLogin:
-      env === 'dev' &&
-      process.env['DEV_AUTOLOGIN_EMAIL'] &&
-      process.env['DEV_AUTOLOGIN_PASSWORD']
+    devLogin:
+      env === 'dev' && process.env['DEV_LOGIN_EMAILS'] && process.env['DEV_LOGIN_PASSWORD']
         ? {
-            email: process.env['DEV_AUTOLOGIN_EMAIL'],
-            password: process.env['DEV_AUTOLOGIN_PASSWORD'],
+            emails: process.env['DEV_LOGIN_EMAILS']
+              .split(',')
+              .map((e: string) => e.trim())
+              .filter(Boolean),
+            password: process.env['DEV_LOGIN_PASSWORD'],
           }
         : null,
     eas: {
