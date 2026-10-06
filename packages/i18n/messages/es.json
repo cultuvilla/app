@@ -1528,11 +1528,9 @@
   "ambassador": {
     "title": "Embajador",
     "titleFemale": "Embajadora",
-    "fullTitle": "Embajador de Cultuvilla en {village}",
-    "fullTitleFemale": "Embajadora de Cultuvilla en {village}",
+    "inVillage": "Embajador en {village}",
+    "inVillageFemale": "Embajadora en {village}",
     "team": "Equipo del pueblo",
-    "sectionTitle": "Embajador del pueblo",
-    "sectionTitleFemale": "Embajadora del pueblo",
     "welcome": {
       "title": "¡Ya eres {title} de Cultuvilla en {village}!",
       "body": "Desde hoy eres la cara de tu pueblo en Cultuvilla. Tu nombre aparece en la página del pueblo y en tu perfil. Gracias por dar un paso al frente.",

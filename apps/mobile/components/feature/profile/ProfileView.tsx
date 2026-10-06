@@ -21,7 +21,6 @@ import { ManagedEventsScroll } from './ManagedEventsScroll';
 import { VillagesScroll } from './VillagesScroll';
 import { CreatedNewsScroll } from './CreatedNewsScroll';
 import { useProfileData } from '../../../lib/profile/useProfileData';
-import { AmbassadorBadges } from '../AmbassadorBadges';
 import { useAmbassadorVillages } from '../../../lib/hooks/useAmbassadorVillages';
 
 export interface ProfileViewProps {
@@ -93,9 +92,8 @@ export function ProfileView({
         subtitle={activeVillageName}
         uploading={isSelf ? uploading : false}
         onPressAvatar={isSelf ? onChangePhoto : undefined}
-        ambassador={ambassadorVillages.length > 0}
+        ambassadorOf={ambassadorVillages}
       />
-      <AmbassadorBadges villages={ambassadorVillages} />
 
       <View className="px-4 pt-4 pb-4">
         <ProfileStatsRow

@@ -53,13 +53,6 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   deletePlace: jest.fn(),
   deleteBarrio: jest.fn(),
 }));
-const mockGetPublicProfile = jest.fn();
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getPublicProfile: (...a: unknown[]) => mockGetPublicProfile(...a),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn().mockResolvedValue(null),
-}));
 let mockWelcomeSeen = true;
 const mockMarkWelcomeSeen = jest.fn(async (..._a: unknown[]) => undefined);
 jest.mock('../../../lib/village/ambassadorWelcome', () => ({
@@ -131,8 +124,6 @@ beforeEach(() => {
   mockIsAppAdmin = false;
   mockWelcomeSeen = true;
   mockMarkWelcomeSeen.mockClear();
-  mockGetPublicProfile.mockReset();
-  mockGetPublicProfile.mockResolvedValue({ id: 'amb', displayName: 'Ana Pérez' });
 });
 
 const withAmbassador = (sex: 'male' | 'female' | null): VillageHomeState => ({
@@ -149,14 +140,12 @@ describe('VillageHomeBody — Embajador', () => {
     expect(getByText('Quiero ser embajador')).toBeTruthy();
   });
 
-  it('shows the Embajadora by name on the village home', async () => {
-    const { findByText, getByText } = render(
+  it('carries no Embajador card on the village home', () => {
+    const { queryByText } = render(
       <VillageHomeBody data={withAmbassador('female')} reload={jest.fn()} />,
     );
-    expect(await findByText('Ana Pérez')).toBeTruthy();
-    expect(getByText('Embajadora del pueblo')).toBeTruthy();
-    expect(getByText('Embajadora')).toBeTruthy();
-    expect(mockGetPublicProfile).toHaveBeenCalledWith('amb');
+    expect(queryByText('Embajadora')).toBeNull();
+    expect(queryByText('Quiero ser embajador')).toBeNull();
   });
 
   it('welcomes a new Embajador once, then remembers it', async () => {
@@ -172,11 +161,10 @@ describe('VillageHomeBody — Embajador', () => {
 
   it('does not welcome anyone who is not the Embajador', async () => {
     mockWelcomeSeen = false;
-    const { findByText, queryByTestId } = render(
+    const { queryByTestId } = render(
       <VillageHomeBody data={withAmbassador('male')} reload={jest.fn()} />,
     );
-    await findByText('Ana Pérez');
-    expect(queryByTestId('ambassador-welcome-dismiss')).toBeNull();
+    await waitFor(() => expect(queryByTestId('ambassador-welcome-dismiss')).toBeNull());
   });
 });
 

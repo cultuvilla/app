@@ -10,9 +10,6 @@ export interface VillageTitleBadgeProps {
   title: VillageTitle;
   /** The Embajador's `community.organizerSex` — picks Embajador/Embajadora. */
   sex?: Sex | null;
-  /** With a village name, the Embajador badge reads the full
-   *  "Embajador de Cultuvilla en {village}". */
-  village?: string;
   testID?: string;
 }
 
@@ -21,7 +18,7 @@ export interface VillageTitleBadgeProps {
  * ribbon — the title is meant to be worn — while the team gets a quiet one.
  * Plain members render nothing: being a vecino needs no badge.
  */
-export function VillageTitleBadge({ title, sex = null, village, testID }: VillageTitleBadgeProps) {
+export function VillageTitleBadge({ title, sex = null, testID }: VillageTitleBadgeProps) {
   const { t } = useT();
   if (title === 'member') return null;
 
@@ -35,9 +32,7 @@ export function VillageTitleBadge({ title, sex = null, village, testID }: Villag
     );
   }
 
-  const label = village
-    ? t(ambassadorTitleKey(sex, 'full'), { village })
-    : t(ambassadorTitleKey(sex));
+  const label = t(ambassadorTitleKey(sex));
   return (
     <HStack
       testID={testID}

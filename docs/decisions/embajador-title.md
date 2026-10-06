@@ -42,15 +42,19 @@ pueblos* was the only place it appeared.
    stuck, because `changeVillageMemberRole` refuses to demote the pointer's
    holder.
 5. **The title is visible where it counts:**
-   - a card on the village home, open to everyone including the anonymous web
-     reader;
-   - a badge on the Embajador's profile;
-   - title badges in the members list;
+   - a soft "Embajador/Embajadora en {pueblo}" line under the name on their
+     profile;
+   - a small Cultuvilla seal on the Embajador's photo — in the members list
+     (where it is the only mark: the team keeps its badge) and on the profile;
    - a one-time "¡Ya eres Embajador!" sheet with a share button;
    - a gendered approval notification.
 
-   The request screen tells the applicant that the role is public before they
-   apply.
+   The request screen shows the applicant their own carnet — face, name, title
+   and escudo — so they see that the role is public before they apply.
+
+   The village home no longer carries a card for the Embajador (removed
+   2026-10-06, user's call): the pueblo's page is about the pueblo, and the
+   seal already marks the Embajador wherever their face appears.
 
 ## Not done, on purpose
 

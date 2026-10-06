@@ -39,7 +39,6 @@ import { HistoryRail } from './history/HistoryRail';
 import { WordOfTheDayCard } from './vocabulary/WordOfTheDayCard';
 import { LocationMap } from './LocationMap';
 import { JoinVillageModal } from './JoinVillageModal';
-import { VillageAmbassadorCard } from './VillageAmbassadorCard';
 import { VillageWrappedBanner } from './wrapped/VillageWrappedBanner';
 import { AmbassadorWelcomeSheet } from './AmbassadorWelcomeSheet';
 import {
@@ -331,15 +330,6 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               {t('village.noOrganizer.body')}
             </Text>
           </VStack>
-        ) : null}
-
-        {/* ── The pueblo's Embajador, by name and face ─────────── */}
-        {village.community?.organizerId ? (
-          <VillageAmbassadorCard
-            organizerId={village.community.organizerId}
-            organizerSex={village.community.organizerSex}
-            viewerUid={uid}
-          />
         ) : null}
 
         {/* ── Ubicación: the map rectangle when coordinates are set. When
