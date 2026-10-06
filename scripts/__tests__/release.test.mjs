@@ -1,12 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import {
+  breakingTrailer,
   bumpVersion,
+  COMMIT_LINE_MAX,
   compareVersions,
   extractMigrations,
   migrationChecklist,
   promotionPrBody,
   proposeBump,
+  releaseCommitMessage,
   releasePrBody,
   releasePrProblems,
   setAppConfigVersion,
@@ -16,6 +20,10 @@ import {
   versionSection,
 } from '../lib/release.mjs';
 import { parseArgs, planCut } from '../release-cut.mjs';
+import { rollupBreaking } from '../lib/breaking-rollup.mjs';
+
+const commitlintExempt = (message) =>
+  createRequire(import.meta.url)('../../commitlint.config.cjs').ignores.some((ignore) => ignore(message));
 
 const c = (subject, body = '') => ({ subject, body });
 
@@ -145,7 +153,7 @@ describe('release:cut', () => {
   });
 
   it('parses overrides', () => {
-    assert.deepEqual(parseArgs(['--dry-run', '--bump=minor']), { dryRun: true, bump: 'minor', version: null });
+    assert.deepEqual(parseArgs(['--dry-run', '--bump=minor']), { dryRun: true, bump: 'minor', version: null, breaking: null });
     assert.equal(parseArgs(['--version=2.0.0']).version, '2.0.0');
     assert.throws(() => parseArgs(['--bump=huge']), /--bump/);
     assert.throws(() => parseArgs(['--bump=minor', '--version=2.0.0']), /not both/);
@@ -201,5 +209,72 @@ describe('release:cut', () => {
         }),
       /nothing to release/,
     );
+  });
+});
+
+describe('release:cut --breaking', () => {
+  const files = (version) => ({
+    appConfig: `export default {\n  version: '${version}',\n};\n`,
+    packageJson: `{\n  "version": "${version}"\n}\n`,
+  });
+  const KEY = 'Breaking-' + 'Client';
+
+  it('parses a reason and refuses a missing, multi-line or over-long one', () => {
+    assert.equal(parseArgs(['--breaking= drops the v1 callable ']).breaking, 'drops the v1 callable');
+    assert.throws(() => parseArgs(['--breaking']), /needs a reason/);
+    assert.throws(() => parseArgs(['--breaking=']), /needs a reason/);
+    assert.throws(() => parseArgs(['--breaking=a\nb']), /one-line/);
+    const room = COMMIT_LINE_MAX - `${KEY}: `.length;
+    assert.equal(breakingTrailer('x'.repeat(room)).length, COMMIT_LINE_MAX);
+    assert.throws(() => parseArgs([`--breaking=${'x'.repeat(room + 1)}`]), new RegExp(`keep it to ${room}`));
+  });
+
+  it('puts the trailer on the bump commit, where the rollup reads it', () => {
+    const plan = planCut({
+      develop: { ...files('1.5.0'), changelog: CHANGELOG },
+      betaVersion: '1.5.0',
+      commits: [c('feat(x): y')],
+      date: '2026-10-06',
+      args: { bump: null, version: null, breaking: 'drops the v1 callable' },
+    });
+    assert.equal(plan.commitMessage, `1.6.0\n\n${KEY}: drops the v1 callable`);
+    assert.deepEqual(rollupBreaking([plan.commitMessage], '1.6.0'), {
+      breaking: true,
+      reasons: ['drops the v1 callable'],
+      minSupported: '1.6.0',
+    });
+    assert.match(releasePrBody(plan), /Breaking for installed clients:\*\* drops the v1 callable/);
+  });
+
+  it('keeps a plain bump commit as the bare version', () => {
+    const plan = planCut({
+      develop: { ...files('1.5.0'), changelog: CHANGELOG },
+      betaVersion: '1.5.0',
+      commits: [c('fix: z')],
+      date: 'd',
+      args: { bump: null, version: null },
+    });
+    assert.equal(plan.commitMessage, '1.5.1');
+    assert.equal(rollupBreaking([plan.commitMessage], '1.5.1').breaking, false);
+    assert.doesNotMatch(releasePrBody(plan), /Breaking for installed clients/);
+  });
+
+  // develop already carries the version, so there is no bump commit to carry
+  // the trailer: an empty commit does, inside the rollup's tag range.
+  it('declares an already-bumped release breaking with an empty commit', () => {
+    const stamped = stampChangelog(CHANGELOG, '1.6.0', '2026-10-05');
+    const base = { develop: { ...files('1.6.0'), changelog: stamped }, betaVersion: '1.5.0', commits: [c('1.6.0')], date: 'd' };
+    assert.equal(planCut({ ...base, args: { bump: null, version: null } }).commitMessage, null);
+    const plan = planCut({ ...base, args: { bump: null, version: null, breaking: 'tightens the event rules' } });
+    assert.equal(plan.needsBumpCommit, false);
+    assert.equal(plan.commitMessage, `chore(release): declare 1.6.0 breaking\n\n${KEY}: tightens the event rules`);
+    assert.equal(rollupBreaking([plan.commitMessage], '1.6.0').breaking, true);
+  });
+
+  it('commitlint exempts the bare bump with or without the trailer, and nothing else', () => {
+    assert.equal(commitlintExempt('1.6.0'), true);
+    assert.equal(commitlintExempt(releaseCommitMessage({ version: '1.6.0', bumped: true, breaking: 'x'.repeat(83) })), true);
+    assert.equal(commitlintExempt('1.6.0\n\nsome body'), false);
+    assert.equal(commitlintExempt('feat: 1.6.0'), false);
   });
 });

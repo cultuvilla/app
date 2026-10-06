@@ -18,7 +18,13 @@
  * never leaves develop. When develop already carries a version newer than beta
  * (its bump landed earlier) the cut skips step 2 and releases that version.
  *
- *   pnpm release:cut [--dry-run] [--bump=patch|minor|major | --version=X.Y.Z]
+ * `--breaking="<reason>"` declares the release breaking for installed clients:
+ * the bump commit carries a `Breaking-Client: <reason>` trailer, which
+ * breaking-rollup.mjs reads on the prod deploy to hold the backend and raise
+ * the wall. With no bump to make, an empty `chore(release): declare X.Y.Z
+ * breaking` commit carries it instead.
+ *
+ *   pnpm release:cut [--dry-run] [--bump=patch|minor|major | --version=X.Y.Z] [--breaking="<reason>"]
  */
 
 import { execFileSync } from 'node:child_process';
@@ -28,12 +34,14 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { extractVersion } from './lib/app-version.mjs';
 import {
+  breakingTrailer,
   bumpVersion,
   compareVersions,
   extractMigrations,
   hasVersionSection,
   parseSemver,
   proposeBump,
+  releaseCommitMessage,
   releasePrBody,
   setAppConfigVersion,
   setPackageJsonVersion,
@@ -48,11 +56,12 @@ const PATHS = {
 };
 
 export function parseArgs(argv) {
-  const args = { dryRun: false, bump: null, version: null };
+  const args = { dryRun: false, bump: null, version: null, breaking: null };
   for (const arg of argv) {
     if (arg === '--dry-run') args.dryRun = true;
     else if (arg.startsWith('--bump=')) args.bump = arg.slice('--bump='.length);
     else if (arg.startsWith('--version=')) args.version = arg.slice('--version='.length);
+    else if (arg === '--breaking' || arg.startsWith('--breaking=')) args.breaking = arg.slice('--breaking='.length);
     else throw new Error(`Unknown argument "${arg}"`);
   }
   if (args.bump && !['patch', 'minor', 'major'].includes(args.bump)) {
@@ -60,6 +69,10 @@ export function parseArgs(argv) {
   }
   if (args.bump && args.version) throw new Error('Pass --bump or --version, not both');
   if (args.version) parseSemver(args.version);
+  if (args.breaking !== null) {
+    breakingTrailer(args.breaking);
+    args.breaking = args.breaking.trim();
+  }
   return args;
 }
 
@@ -71,10 +84,11 @@ export function parseArgs(argv) {
  *   betaVersion: string,
  *   commits: { subject: string, body?: string }[],
  *   date: string,
- *   args: { bump: string | null, version: string | null },
+ *   args: { bump: string | null, version: string | null, breaking?: string | null },
  * }} input
  */
 export function planCut({ develop, betaVersion, commits, date, args }) {
+  const breaking = args.breaking ?? null;
   const developVersion = extractVersion(develop.appConfig);
 
   if (compareVersions(developVersion, betaVersion) > 0) {
@@ -92,6 +106,8 @@ export function planCut({ develop, betaVersion, commits, date, args }) {
       previous: betaVersion,
       bump: null,
       needsBumpCommit: false,
+      commitMessage: releaseCommitMessage({ version: developVersion, bumped: false, breaking }),
+      breaking,
       files: null,
       section,
       migrations: extractMigrations(section),
@@ -115,6 +131,8 @@ export function planCut({ develop, betaVersion, commits, date, args }) {
     previous: betaVersion,
     bump: args.version ? null : bump,
     needsBumpCommit: true,
+    commitMessage: releaseCommitMessage({ version, bumped: true, breaking }),
+    breaking,
     files: {
       appConfig: setAppConfigVersion(develop.appConfig, version),
       packageJson: setPackageJsonVersion(develop.packageJson, version),
@@ -178,8 +196,11 @@ function main() {
   console.log(
     plan.needsBumpCommit
       ? `  bump: ${plan.bump ?? 'explicit --version'} — commit "${plan.version}" on develop (${Object.values(PATHS).join(', ')})`
-      : `  develop already carries ${plan.version}; no bump commit`,
+      : plan.commitMessage
+        ? `  develop already carries ${plan.version}; an empty commit on develop declares it breaking`
+        : `  develop already carries ${plan.version}; no bump commit`,
   );
+  if (plan.breaking) console.log(`  breaking: trailer "${breakingTrailer(plan.breaking)}"`);
   console.log(`  branch: ${branch} = develop + merge of origin/main`);
   console.log(`  PR: ${branch} → beta, titled "${plan.version}"`);
   console.log(`  migrations: ${plan.migrations.length}`);
@@ -201,11 +222,15 @@ function main() {
       // --no-verify: the hooks need this checkout's node_modules, which a
       // throwaway worktree lacks. The bare version is exactly what commitlint
       // exempts, and the files are generated above.
-      inTree(['commit', '--no-verify', '-m', plan.version]);
+      inTree(['commit', '--no-verify', '-m', plan.commitMessage]);
+    } else if (plan.commitMessage) {
+      inTree(['commit', '--allow-empty', '--no-verify', '-m', plan.commitMessage]);
+    }
+    if (plan.commitMessage) {
       // A plain push refuses a non-fast-forward, so a develop that moved since
       // the fetch stops the cut instead of being overwritten.
       inTree(['push', 'origin', 'HEAD:refs/heads/develop']);
-      console.log(`Pushed ${plan.version} to develop.`);
+      console.log(`Pushed "${plan.commitMessage.split('\n')[0]}" to develop.`);
     }
 
     inTree(['checkout', '-b', branch]);
@@ -241,8 +266,8 @@ function main() {
     }
   }
 
-  // Bring the checkout this ran from up to the bump commit.
-  if (plan.needsBumpCommit) git(['merge', '--ff-only', '--quiet', 'origin/develop']);
+  // Bring the checkout this ran from up to the commit the cut made.
+  if (plan.commitMessage) git(['merge', '--ff-only', '--quiet', 'origin/develop']);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

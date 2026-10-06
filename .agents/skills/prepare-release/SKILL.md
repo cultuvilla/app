@@ -34,6 +34,25 @@ If develop is already at a version newer than beta with its CHANGELOG stamped (a
 
 `release:cut` proposes it from the conventional commits since beta: any breaking change (`type!:` or a `BREAKING CHANGE:` footer) → **major**, any `feat` → **minor**, otherwise **patch**. Override with `--bump=patch|minor|major` or `--version=X.Y.Z` when the user named one. A MAJOR is a redesign or a breaking migration — confirm it with the user rather than letting a stray `!` decide.
 
+## 2b. Is the release breaking for installed clients?
+
+A production release is **breaking** when any non-merge commit since the previous `vX.Y.Z` tag carries a `Breaking-Client:` trailer ([breaking-rollup.mjs](../../../scripts/lib/breaking-rollup.mjs)). On prod that holds Cloud Functions and rules until both stores serve the version, then raises `minSupported` to it (AGENTS.md → _Versioning & releases_). This is about installed binaries, not about semver: it does not by itself make the bump a MAJOR.
+
+Check the range for anything an older installed client would hit and that no commit has declared yet:
+
+```bash
+git log --format='%h %s%n%b' "$(git describe --tags --abbrev=0 --match 'v*' origin/main)"..origin/develop --no-merges | grep -n 'Breaking-Client' || echo "nothing declared"
+git diff --stat "$(git describe --tags --abbrev=0 --match 'v*' origin/main)"..origin/develop -- firestore.rules storage.rules functions/src/index.ts packages/shared/src/models
+```
+
+Declare it at the cut when the range carries a **rules change, a callable signature or removal, or a stored-shape change** that older installed clients would hit, and no commit carries the trailer already:
+
+```bash
+pnpm release:cut --breaking="drops the v1 joinVillage callable"
+```
+
+The reason must be one line, at most 83 characters (the trailer line stays within commitlint's 100). The bump commit becomes `X.Y.Z` plus that trailer. When develop already carries the version (no bump commit), the cut makes an empty `chore(release): declare X.Y.Z breaking` commit on develop to carry it instead. The release PR body says the release is declared breaking. If unsure whether a change strands old clients, ask the user: the wall is a product call.
+
 ## 3. Write the store notes
 
 `release:cut` refuses an `[Unreleased]` without them — the App Store "What's New" is user-facing copy, not something a script invents. Add a short es-ES block (≤500 chars, no internals) at the top of `[Unreleased]`, and land it on develop like any CHANGELOG edit (Direct mode):
@@ -59,7 +78,7 @@ From the base checkout, on an up-to-date, clean `develop`:
 
 ```bash
 pnpm release:cut --dry-run      # version, branch, PR body — writes nothing
-pnpm release:cut                # [--bump=… | --version=…]
+pnpm release:cut                # [--bump=… | --version=…] [--breaking="<reason>"]
 ```
 
 It refuses a dirty tree, a branch other than develop, or a local develop that differs from `origin/develop`. It works in a throwaway worktree, so the checkout never leaves develop (it fast-forwards it to the bump commit at the end). If `main` conflicts with the release branch, it stops and says so — resolve on `release/X.Y.Z` by hand and push.
