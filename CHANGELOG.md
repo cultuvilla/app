@@ -28,6 +28,9 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
   opens its page, which invites you to join; joining brings it to Cultuvilla in
   the same tap. The separate start form, with its escudo upload and "quiero ser
   embajador" toggle, is gone — the Embajador request stays on the village home.
+- Fix: on Android the startup intro played no sound while the phone was on
+  vibrate, even with media volume up. Media volume now decides; iPhone still
+  follows its silent switch.
 - Fix: the home feed showed no private events at all to someone who also
   belongs to an open group (every ayuntamiento is open). The private events of
   their approval peñas and asociaciones now appear.

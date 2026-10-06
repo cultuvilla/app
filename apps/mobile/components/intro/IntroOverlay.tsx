@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { observability } from '@cultuvilla/shared';
@@ -51,8 +51,14 @@ export function IntroOverlay({ appReady }: { appReady: boolean }) {
         return;
       }
       try {
-        // Respect the silent switch, and never stop the user's own music.
-        await setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
+        // iOS: respect the silent switch. Android has none — expo-audio maps
+        // `false` to "skip play() unless the ringer is NORMAL", which silenced
+        // phones on vibrate with media volume up, so media volume decides
+        // there. Never stop the user's own music.
+        await setAudioModeAsync({
+          playsInSilentMode: Platform.OS === 'android',
+          interruptionMode: 'mixWithOthers',
+        });
         if (cancelled) return;
         player.current = createAudioPlayer(SOUND);
         player.current.play();
