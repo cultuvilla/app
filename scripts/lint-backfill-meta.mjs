@@ -19,12 +19,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SENTINEL, SENTINEL_RE, loadBackfills } from './lib/backfill-harness.mjs';
+import { loadBackfills } from './lib/backfill-harness.mjs';
+import { INFRA_FILES as EXCLUDE, SCAN_DIRS as SCAN_DIRS_REL, SENTINEL, SENTINEL_RE } from './lib/backfill-registry.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SCAN_DIRS = [path.join(REPO_ROOT, 'scripts'), path.join(REPO_ROOT, 'scripts/backfill')];
+const SCAN_DIRS = SCAN_DIRS_REL.map((dir) => path.join(REPO_ROOT, dir));
 const LOOKS_LIKE_BACKFILL = /(backfill|migrate|cleanup)/i;
-const EXCLUDE = new Set(['backfills-cli.mjs', 'lint-backfill-meta.mjs']);
 
 const uncovered = [];
 for (const dir of SCAN_DIRS) {

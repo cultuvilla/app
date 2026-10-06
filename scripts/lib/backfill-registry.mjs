@@ -36,6 +36,28 @@ export const KINDS = ['backfill', 'cleanup', 'migration', 'audit'];
 export const PHASES = ['pre-deploy', 'post-deploy', 'none'];
 export const ENVS = ['dev', 'beta', 'prod'];
 
+// Discovery — what the harness scans, as data. Kept here rather than in the
+// harness because the PR-time schema guard runs with no node_modules and must
+// look where the registry looks without importing firebase-admin.
+
+/** Repo-relative directories scanned (non-recursively) for registered backfills. */
+export const SCAN_DIRS = ['scripts', 'scripts/backfill'];
+
+/** Registry tooling — contains the sentinel in prose/regex, is not a backfill. */
+export const INFRA_FILES = new Set(['backfills-cli.mjs', 'lint-backfill-meta.mjs']);
+
+export const SENTINEL = 'runBackfill({ meta, run })';
+export const SENTINEL_RE = /runBackfill\(\{\s*meta,\s*run\s*\}\)/;
+
+/** A repo-relative path discovery would consider: a direct `.mjs` child of a scanned dir, not tooling. */
+export function isBackfillScriptPath(relPath) {
+  const p = String(relPath).replace(/\\/g, '/');
+  const slash = p.lastIndexOf('/');
+  const dir = p.slice(0, slash);
+  const name = p.slice(slash + 1);
+  return slash > 0 && SCAN_DIRS.includes(dir) && name.endsWith('.mjs') && !INFRA_FILES.has(name);
+}
+
 /** `_admin/backfills/markers/{id}` — 4 segments, so it is a DOCUMENT path.
  *  An odd segment count is a COLLECTION and `db.doc()` throws at runtime. */
 export function markerPath(id) {
