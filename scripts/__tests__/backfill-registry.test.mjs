@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ENVS,
   findMissingMarkers,
+  looksLikeBackfill,
   markerPath,
   selectAutoApplicable,
   selectPostDeploy,
@@ -215,5 +216,23 @@ describe('findMissingMarkers', () => {
 
   it('returns nothing for an empty selection', async () => {
     assert.deepEqual(await findMissingMarkers([], 'dev', getMarker), []);
+  });
+});
+
+describe('looksLikeBackfill', () => {
+  it('reads a direct child of scripts/ as a backfill by its name', () => {
+    assert.equal(looksLikeBackfill('scripts/backfill-x.mjs'), true);
+    assert.equal(looksLikeBackfill('scripts/migrate-x.mjs'), true);
+    assert.equal(looksLikeBackfill('scripts/seed-x.mjs'), false);
+  });
+
+  it('reads every script in scripts/backfill/ as a backfill, whatever its name', () => {
+    assert.equal(looksLikeBackfill('scripts/backfill/delete-cover-images.mjs'), true);
+    assert.equal(looksLikeBackfill('scripts/backfill/thing-b.mjs'), true);
+  });
+
+  it('never reads registry tooling or an unscanned path as a backfill', () => {
+    assert.equal(looksLikeBackfill('scripts/lint-backfill-meta.mjs'), false);
+    assert.equal(looksLikeBackfill('scripts/lib/backfill.mjs'), false);
   });
 });

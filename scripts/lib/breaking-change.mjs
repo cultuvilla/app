@@ -8,6 +8,9 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { SENTINEL_RE, isBackfillScriptPath } from './backfill-registry.mjs';
+
+export { isBackfillScriptPath };
 
 // ---------------------------------------------------------------------------
 // Trailers
@@ -154,47 +157,114 @@ function expressionEnd(lines, n) {
   return i;
 }
 
-const DECLARATION_START = /^\s*(export\s+)?(const|let|function)\s+[A-Za-z_$]/;
+const DECLARATION_START = /^\s*(export\s+)?(const|let|function)\s+([A-Za-z_$][\w$]*)/;
+
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Zod fields declared in `source` that start on one of `lineNumbers`
- * (1-based), with their full expression — a field may span lines
- * (`foo: z\n  .string()\n  .optional(),`).
- *
- * Fields nested inside another changed span are dropped: the keys of a nested
- * object added or removed whole are that field's business (an optional
- * `stats: z.object({ n: z.number() }).optional()` adds no required field,
- * however required `n` is inside it), and the keys of a schema constant added
- * or removed whole only matter through the field that references it.
+ * The expression with every bracketed argument emptied: `z.object({ n: z.number().optional() })`
+ * → `z.object()`. A field's own optionality lives on its top-level chain; a
+ * nested key's `.optional()` says nothing about the field that contains it.
  */
-export function fieldsStartingOn(source, lineNumbers) {
+function topLevelChain(expr) {
+  let depth = 0;
+  let out = '';
+  for (const ch of expr) {
+    if (')]}'.includes(ch)) depth--;
+    if (depth === 0) out += ch;
+    if ('([{'.includes(ch)) depth++;
+  }
+  return out;
+}
+
+// A module-level declaration: the scope a field name is looked up in. Schemas,
+// TS interfaces and mappers in one file reuse key names freely (`community`,
+// `address`, `name`), so a lookup across the whole file mistakes one schema's
+// key for another's.
+const TOP_DECLARATION = /^(?:export\s+)?(?:const|let|function|interface|type)\s+([A-Za-z_$][\w$]*)/;
+
+/** Name of the module-level declaration whose span holds line `n`, or null. */
+function scopeOf(lines, n) {
+  for (let k = n; k >= 1; k--) {
+    const m = lines[k - 1].match(TOP_DECLARATION);
+    if (m) return expressionEnd(lines, k) >= n ? m[1] : null;
+  }
+  return null;
+}
+
+/** Lines of the module-level declaration `scope` in `source`, or null when it has none. */
+function scopeLines(source, scope) {
   const lines = String(source).split('\n');
-  const fields = [];
-  const containers = [];
+  const k = lines.findIndex((l) => l.match(TOP_DECLARATION)?.[1] === scope);
+  return k < 0 ? null : lines.slice(k, expressionEnd(lines, k + 1));
+}
+
+/**
+ * A field (or quoted key) `name` is declared in `source` within the
+ * declaration `scope` — or anywhere in the file when the field sits outside
+ * every declaration (`scope` null).
+ */
+function declaredInScope(source, name, scope) {
+  if (scope === null) return declaredIn(source, name);
+  const lines = scopeLines(source, scope);
+  return lines !== null && declaredIn(lines.join('\n'), name);
+}
+
+/**
+ * The fields (`name: z…`) and declarations (`export const X = …`) that START on
+ * one of `lineNumbers` (1-based), each with its full span — a field may run
+ * over several lines (`foo: z\n  .string()\n  .optional(),`) — and the
+ * module-level declaration it sits in (`scope`). `whole` is true when the block
+ * exists on this side only: every line of its span changed AND its name is not
+ * declared in the same scope of `otherSource`. The name check is what keeps an
+ * edited block whose every line also changed (a commented declaration line
+ * with all its fields replaced) from reading as one added or removed whole.
+ */
+function spansStartingOn(source, lineNumbers, otherSource) {
+  const lines = String(source).split('\n');
+  const changed = new Set(lineNumbers);
+  const spans = [];
   for (const n of lineNumbers) {
     const first = lines[n - 1];
     if (first === undefined) continue;
-    if (DECLARATION_START.test(first)) {
-      containers.push({ start: n, end: expressionEnd(lines, n) });
-      continue;
-    }
-    const m = first.match(FIELD_START);
-    if (!m) continue;
+    const decl = first.match(DECLARATION_START);
+    const field = decl ? null : first.match(FIELD_START);
+    if (!decl && !field) continue;
     const end = expressionEnd(lines, n);
-    const expr = lines.slice(n - 1, end).join('\n');
-    const name = m[1].replace(/^['"]|['"]$/g, '');
-    const body = expr.slice(expr.indexOf(':') + 1).replace(/\s+/g, '').replace(/,$/, '');
-    fields.push({
-      name,
-      expr: body,
-      optional: OPTIONALISH.test(body),
-      nullable: /\.nullable\(\)/.test(body),
-      start: n,
-      end,
-    });
+    const name = decl ? decl[3] : field[1].replace(/^['"]|['"]$/g, '');
+    const scope = decl ? null : scopeOf(lines, n);
+    let whole = !(decl ? declarationIn(otherSource, name) : declaredInScope(otherSource, name, scope));
+    for (let k = n; k <= end && whole; k++) whole = changed.has(k);
+    const span = { kind: decl ? 'declaration' : 'field', name, scope, start: n, end, whole };
+    if (field) {
+      const expr = lines.slice(n - 1, end).join('\n');
+      span.expr = expr.slice(expr.indexOf(':') + 1).replace(/\s+/g, '').replace(/,$/, '');
+      const chain = topLevelChain(span.expr);
+      span.optional = OPTIONALISH.test(chain);
+      span.nullable = /\.nullable\(\)/.test(chain);
+    }
+    spans.push(span);
   }
-  const spans = [...fields, ...containers];
-  return fields.filter((f) => !spans.some((o) => o !== f && o.start < f.start && o.end >= f.start));
+  return spans;
+}
+
+const insideAWholeSpan = (spans, s) => spans.some((o) => o !== s && o.whole && o.start < s.start && o.end >= s.start);
+
+/**
+ * Zod fields declared in `source` that start on one of `lineNumbers`.
+ *
+ * Fields nested inside a block added or removed WHOLE are dropped: the keys of
+ * a nested object added whole are that field's business (an optional
+ * `stats: z.object({ n: z.number() }).optional()` adds no required field,
+ * however required `n` is inside it), and the keys of a schema constant added
+ * whole only matter through the field that references it. A block whose first
+ * line was merely edited (a comment, a rename) hides nothing.
+ */
+export function fieldsStartingOn(source, lineNumbers, otherSource) {
+  const spans = spansStartingOn(source, lineNumbers, otherSource);
+  return spans
+    .filter((s) => s.kind === 'field' && !insideAWholeSpan(spans, s))
+    .map(({ name, scope, expr, optional, nullable, start, end }) => ({ name, scope, expr, optional, nullable, start, end }));
 }
 
 /** Hunk line numbers from `git diff -U0` output: { removed: [...], added: [...] }. */
@@ -209,33 +279,63 @@ export function changedLineNumbers(diffText) {
   return { removed, added };
 }
 
+/** A field (or a quoted key) named `name` is declared somewhere in `source`. */
+function declaredIn(source, name) {
+  return new RegExp(`^\\s*(['"]?)${escapeRegExp(name)}\\1\\s*:`, 'm').test(String(source));
+}
+
+/** A `const`/`let`/`function` named `name` is declared somewhere in `source`. */
+function declarationIn(source, name) {
+  return new RegExp(`^\\s*(export\\s+)?(const|let|function)\\s+${escapeRegExp(name)}\\b`, 'm').test(String(source));
+}
+
+/**
+ * `.strict()` calls on the changed lines of one side, minus those inside a
+ * block that exists only on this side (a new strict sub-schema, a new optional
+ * strict nested object): such a block constrains no doc that already exists,
+ * and a new REQUIRED one is caught as a new required field anyway.
+ */
+function strictCallsOnChangedLines(source, lineNumbers, otherSource) {
+  const lines = String(source).split('\n');
+  const onlyHere = spansStartingOn(source, lineNumbers, otherSource).filter((s) => s.whole);
+  let count = 0;
+  for (const n of lineNumbers) {
+    if (onlyHere.some((s) => s.start <= n && s.end >= n)) continue;
+    count += (String(lines[n - 1] ?? '').replace(/\/\/.*$/, '').match(/\.strict\(\)/g) ?? []).length;
+  }
+  return count;
+}
+
 /**
  * Classify a stored-schema file's change. Field identity is the field NAME
- * within the file, so a field that only moved or was reformatted cancels out.
+ * within its module-level declaration, so a field that was reformatted or moved
+ * inside its schema cancels out, while one moved to another schema is a
+ * removal there and an addition here.
  *
  *   tightened — the new code reads old docs more strictly: a new required
  *               field, a field that lost `.optional()`/`.nullish()`/`.default()`,
- *               lost `.nullable()`, or `.strict()` appeared. Old docs make the
- *               new converter throw → needs a pre-deploy backfill.
+ *               lost `.nullable()`, or `.strict()` appeared on an existing
+ *               schema. Old docs make the new converter throw → needs a
+ *               pre-deploy backfill.
  *   loosened  — installed clients read new docs more strictly than new code
  *               writes them: a required field removed or made optional/nullable.
  *               No backfill helps an old binary → needs a trailer.
  */
 export function classifySchemaChange({ before, after, diff }) {
   const { removed, added } = changedLineNumbers(diff);
-  const oldFields = new Map(fieldsStartingOn(before, removed).map((f) => [f.name, f]));
-  const newFields = new Map(fieldsStartingOn(after, added).map((f) => [f.name, f]));
+  const key = (f) => `${f.scope ?? ''}\0${f.name}`;
+  const oldFields = new Map(fieldsStartingOn(before, removed, after).map((f) => [key(f), f]));
+  const newFields = new Map(fieldsStartingOn(after, added, before).map((f) => [key(f), f]));
+
   // A field whose declaration is unchanged-but-elsewhere in the other version
   // (the diff split its lines unevenly) must not read as added/removed.
-  const declaredIn = (source, name) =>
-    new RegExp(`^\\s*(['"]?)${name.replace(/[$]/g, '\\$')}\\1\\s*:`, 'm').test(String(source));
-
   const tightened = [];
   const loosened = [];
-  for (const [name, nf] of newFields) {
-    const of = oldFields.get(name);
+  for (const [k, nf] of newFields) {
+    const { name } = nf;
+    const of = oldFields.get(k);
     if (!of) {
-      if (!nf.optional && !declaredIn(before, name)) tightened.push(`${name}: new required field`);
+      if (!nf.optional && !declaredInScope(before, name, nf.scope)) tightened.push(`${name}: new required field`);
       continue;
     }
     if (of.expr === nf.expr) continue;
@@ -244,20 +344,25 @@ export function classifySchemaChange({ before, after, diff }) {
     else if (!of.optional && nf.optional) loosened.push(`${name}: became optional`);
     else if (!of.nullable && nf.nullable && !of.optional) loosened.push(`${name}: became nullable`);
   }
-  for (const [name, of] of oldFields) {
-    if (newFields.has(name) || declaredIn(after, name)) continue;
-    if (!of.optional) loosened.push(`${name}: required field removed`);
+  for (const [k, of] of oldFields) {
+    if (newFields.has(k) || declaredInScope(after, of.name, of.scope)) continue;
+    if (!of.optional) loosened.push(`${of.name}: required field removed`);
   }
-  const strictBefore = (String(before).match(/\.strict\(\)/g) ?? []).length;
-  const strictAfter = (String(after).match(/\.strict\(\)/g) ?? []).length;
-  if (strictAfter > strictBefore) tightened.push('.strict() added: unknown keys now throw');
+  if (strictCallsOnChangedLines(after, added, before) > strictCallsOnChangedLines(before, removed, after)) {
+    tightened.push('.strict() added: unknown keys now throw');
+  }
   return { tightened, loosened };
 }
 
-/** A registered backfill that gates the deploy: exports `meta` with phase pre-deploy. */
+/**
+ * A registered backfill that gates the deploy: on the harness (the sentinel
+ * discovery imports by) and exporting `meta` with phase pre-deploy. A script
+ * off the harness is invisible to the deploy's backfill gate, so it cannot
+ * stand in for one.
+ */
 export function isPreDeployBackfill(source) {
   const s = String(source);
-  return /export\s+const\s+meta\b/.test(s) && /phase:\s*['"]pre-deploy['"]/.test(s);
+  return SENTINEL_RE.test(s) && /export\s+const\s+meta\b/.test(s) && /phase:\s*['"]pre-deploy['"]/.test(s);
 }
 
 // ---------------------------------------------------------------------------

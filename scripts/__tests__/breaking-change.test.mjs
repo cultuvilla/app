@@ -14,6 +14,7 @@ import {
   classifySchemaChange,
   clientReachableNames,
   definitionKind,
+  isBackfillScriptPath,
   isPreDeployBackfill,
   isStoredSchemaFile,
   parseBreakingTrailers,
@@ -92,9 +93,22 @@ describe('stored schema scope', () => {
   });
 
   it('recognises a registered pre-deploy backfill only', () => {
-    assert.equal(isPreDeployBackfill("export const meta = { id: 'x', phase: 'pre-deploy' };"), true);
-    assert.equal(isPreDeployBackfill("export const meta = { id: 'x', phase: 'post-deploy' };"), false);
+    assert.equal(isPreDeployBackfill(backfillSource('pre-deploy')), true);
+    assert.equal(isPreDeployBackfill(backfillSource('post-deploy')), false);
     assert.equal(isPreDeployBackfill("const phase = 'pre-deploy';"), false);
+  });
+
+  it('a pre-deploy meta off the harness is not registered, so the deploy gate never sees it', () => {
+    assert.equal(isPreDeployBackfill("export const meta = { id: 'x', phase: 'pre-deploy' };"), false);
+  });
+
+  it('looks for backfills where the registry discovers them', () => {
+    assert.equal(isBackfillScriptPath('scripts/backfill-x.mjs'), true);
+    assert.equal(isBackfillScriptPath('scripts/backfill/x.mjs'), true);
+    assert.equal(isBackfillScriptPath('scripts/lib/x.mjs'), false);
+    assert.equal(isBackfillScriptPath('scripts/backfill/nested/x.mjs'), false);
+    assert.equal(isBackfillScriptPath('scripts/lint-backfill-meta.mjs'), false);
+    assert.equal(isBackfillScriptPath('other/backfill-x.mjs'), false);
   });
 });
 
@@ -113,6 +127,9 @@ function diffOf(before, after) {
     rmSync(dir, { recursive: true, force: true });
   }
 }
+
+const backfillSource = (phase) =>
+  `export const meta = { id: 'thing-b', phase: '${phase}' };\nexport async function run() {}\nif (isMain(import.meta.url)) await runBackfill({ meta, run });\n`;
 
 const schema = (fields) => `import { z } from 'zod';\n\nexport const XSchema = z.object({\n${fields.map((f) => `  ${f},`).join('\n')}\n});\n`;
 const classify = (beforeFields, afterFields) => {
@@ -184,6 +201,115 @@ describe('classifySchemaChange', () => {
     const before = schema(['a: z.object({})']);
     const after = schema(['a: z.object({}).strict()']);
     assert.ok(classifySchemaChange({ before, after, diff: diffOf(before, after) }).tightened.includes('.strict() added: unknown keys now throw'));
+  });
+
+  it('an edited declaration line does not hide the field changes inside it', () => {
+    const before = schema(['a: z.string()']);
+    const after = schema(['a: z.string()', 'b: z.number()']).replace('z.object({', 'z.object({ // things');
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: ['b: new required field'],
+      loosened: [],
+    });
+  });
+
+  it('an edited declaration line does not hide a field removed inside it', () => {
+    const before = schema(['a: z.string()', 'b: z.number()']);
+    const after = schema(['a: z.string()']).replace('z.object({', 'z.object({ // things');
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }).loosened, ['b: required field removed']);
+  });
+
+  it('an edited nested-object line does not hide a required key added inside it', () => {
+    const nested = (keys) => `stats: z.object({\n${keys.map((k) => `    ${k},`).join('\n')}\n  })`;
+    const before = schema(['a: z.string()', nested(['n: z.number()'])]);
+    const after = schema(['a: z.string()', nested(['n: z.number()', 'm: z.number()'])]).replace('stats: z.object({', 'stats: z.object({ // counters');
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }).tightened, ['m: new required field']);
+  });
+
+  // A key name reused by ANOTHER schema of the same file must not stop a block
+  // that really is new (or gone) in THIS schema from reading as whole.
+  const other = `\nexport const OtherSchema = z.object({\n  meta: z.object({\n    x: z.string(),\n  }),\n});\n`;
+  const nestedMeta = 'meta: z\n    .object({\n      n: z.number(),\n    })';
+
+  it('a new optional nested object whose key another schema also uses is an expand, not a break', () => {
+    const before = schema(['a: z.string()']) + other;
+    const after = schema(['a: z.string()', `${nestedMeta}\n    .optional()`]) + other;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), { tightened: [], loosened: [] });
+  });
+
+  it('a new required nested object whose key another schema also uses is reported by its own name', () => {
+    const before = schema(['a: z.string()']) + other;
+    const after = schema(['a: z.string()', nestedMeta]) + other;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: ['meta: new required field'],
+      loosened: [],
+    });
+  });
+
+  it('a removed nested object whose key another schema also uses is reported by its own name, not its keys', () => {
+    const before = schema(['a: z.string()', nestedMeta]) + other;
+    const after = schema(['a: z.string()']) + other;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: [],
+      loosened: ['meta: required field removed'],
+    });
+    const optBefore = schema(['a: z.string()', `${nestedMeta}\n    .optional()`]) + other;
+    assert.deepEqual(classifySchemaChange({ before: optBefore, after, diff: diffOf(optBefore, after) }), { tightened: [], loosened: [] });
+  });
+
+  it('a field moved from one schema to another is a removal there and an addition here', () => {
+    const before = `${schema(['a: z.string()', 'b: z.number()'])}\nexport const YSchema = z.object({\n  c: z.string(),\n});\n`;
+    const after = `${schema(['a: z.string()'])}\nexport const YSchema = z.object({\n  c: z.string(),\n  b: z.number(),\n});\n`;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: ['b: new required field'],
+      loosened: ['b: required field removed'],
+    });
+  });
+
+  it('an edited declaration whose every field changed is not read as added whole', () => {
+    const before = schema(['a: z.string()']);
+    const after = schema(['b: z.number()']).replace('z.object({', 'z.object({ // things');
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: ['b: new required field'],
+      loosened: ['a: required field removed'],
+    });
+  });
+
+  it('an edited nested object whose only key changed is not read as added whole', () => {
+    const before = schema(['a: z.string()', 'stats: z.object({\n    n: z.number().optional(),\n  })']);
+    const after = schema(['a: z.string()', 'stats: z.object({ // counters\n    n: z.number(),\n  })']);
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }).tightened, ['n: no longer optional']);
+  });
+
+  it("a nested key's .optional() does not make the field containing it optional", () => {
+    const nested = 'stats: z.object({\n    n: z.number().optional(),\n  })';
+    assert.deepEqual(classify(['a: z.string()', nested], ['a: z.string()']).loosened, ['stats: required field removed']);
+    assert.deepEqual(classify(['a: z.string()'], ['a: z.string()', nested]).tightened, ['stats: new required field']);
+  });
+
+  it('a new strict sub-schema is not a tightening of the existing ones', () => {
+    const before = schema(['a: z.string()']);
+    const after = `${before}\nexport const SubSchema = z\n  .object({\n    n: z.number(),\n  })\n  .strict();\n`;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }).tightened, []);
+  });
+
+  it('a new optional strict nested object is an expand, not a break', () => {
+    const before = schema(['a: z.string()']);
+    const after = schema(['a: z.string()', 'meta: z\n    .object({\n      n: z.number(),\n    })\n    .strict()\n    .optional()']);
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), { tightened: [], loosened: [] });
+  });
+
+  it('.strict() on an unchanged line elsewhere is not counted against this change', () => {
+    const before = `${schema(['a: z.string()'])}\nexport const S = z.object({}).strict();\n`;
+    const after = `${schema(['a: z.string()', 'b: z.string().optional()'])}\nexport const S = z.object({}).strict();\n`;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }).tightened, []);
+  });
+
+  it('a quoted key carrying regex specials is read, not thrown on', () => {
+    assert.deepEqual(classify(['a: z.string()'], ['a: z.string()', "'a[b': z.number()", "'c(d)+': z.number().optional()"]), {
+      tightened: ['a[b: new required field'],
+      loosened: [],
+    });
+    assert.deepEqual(classify(['a: z.string()', "'x.y': z.number()"], ['a: z.string()']).loosened, ['x.y: required field removed']);
   });
 
   it('the keys of a whole new schema constant only count through the field that uses it', () => {
@@ -360,17 +486,35 @@ describe('check-schema-change', () => {
   it('passes it when a pre-deploy backfill ships in the same PR', () => {
     const r = baseRepo();
     write(r, MODEL, schema(['a: z.string()', 'b: z.number()']));
-    write(r, 'scripts/backfill-thing-b.mjs', "export const meta = { id: 'thing-b', phase: 'pre-deploy' };\n");
+    write(r, 'scripts/backfill-thing-b.mjs', backfillSource('pre-deploy'));
     commit(r, 'feat: b');
     const { code, out } = run(r, 'check-schema-change.mjs');
     assert.equal(code, 0, out);
     assert.match(out, /backfill-thing-b/);
   });
 
+  it('a pre-deploy backfill under scripts/backfill/ counts too — the registry scans it', () => {
+    const r = baseRepo();
+    write(r, MODEL, schema(['a: z.string()', 'b: z.number()']));
+    write(r, 'scripts/backfill/thing-b.mjs', backfillSource('pre-deploy'));
+    commit(r, 'feat: b');
+    const { code, out } = run(r, 'check-schema-change.mjs');
+    assert.equal(code, 0, out);
+    assert.match(out, /scripts\/backfill\/thing-b\.mjs/);
+  });
+
+  it('a pre-deploy backfill deeper than the registry scans does not count', () => {
+    const r = baseRepo();
+    write(r, MODEL, schema(['a: z.string()', 'b: z.number()']));
+    write(r, 'scripts/lib/thing-b.mjs', backfillSource('pre-deploy'));
+    commit(r, 'feat: b');
+    assert.equal(run(r, 'check-schema-change.mjs').code, 1);
+  });
+
   it('a post-deploy backfill does not satisfy a tightening', () => {
     const r = baseRepo();
     write(r, MODEL, schema(['a: z.string()', 'b: z.number()']));
-    write(r, 'scripts/backfill-thing-b.mjs', "export const meta = { id: 'thing-b', phase: 'post-deploy' };\n");
+    write(r, 'scripts/backfill-thing-b.mjs', backfillSource('post-deploy'));
     commit(r, 'feat: b');
     assert.equal(run(r, 'check-schema-change.mjs').code, 1);
   });
@@ -388,7 +532,7 @@ describe('check-schema-change', () => {
     commit(r, 'base');
     git(r, 'branch', 'base-ref');
     write(r, MODEL, schema(['a: z.string()']));
-    write(r, 'scripts/backfill-thing-b.mjs', "export const meta = { id: 'thing-b', phase: 'pre-deploy' };\n");
+    write(r, 'scripts/backfill-thing-b.mjs', backfillSource('pre-deploy'));
     commit(r, 'refactor: drop b');
     const { code, out } = run(r, 'check-schema-change.mjs');
     assert.equal(code, 1, out);

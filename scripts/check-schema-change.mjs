@@ -9,11 +9,13 @@
  *
  *   TIGHTENED — new code reads old docs more strictly. A new required field,
  *     a field that lost `.optional()` / `.nullish()` / `.default()` /
- *     `.nullable()`, or a new `.strict()`. Every existing doc without it makes
- *     the new converter throw, so a registered `pre-deploy` backfill must be
- *     added or changed in the same PR (any scripts/*.mjs that exports `meta`
- *     with `phase: 'pre-deploy'`). The deploy's backfill gate then refuses to
- *     ship the code to an env the backfill has not run on.
+ *     `.nullable()`, or a new `.strict()` on an existing schema. Every existing
+ *     doc without it makes the new converter throw, so a registered
+ *     `pre-deploy` backfill must be added or changed in the same PR: a script
+ *     the registry discovers (a direct child of scripts/ or scripts/backfill/,
+ *     on the harness) whose `meta` has `phase: 'pre-deploy'`. The deploy's
+ *     backfill gate then refuses to ship the code to an env the backfill has
+ *     not run on.
  *
  *   LOOSENED — installed clients read new docs more strictly than the new code
  *     writes them. A required field removed, or made optional / nullable: once
@@ -35,8 +37,9 @@
  *     lines. Spreads (`...Base.shape`), `.extend({…})` passed in a variable,
  *     `.merge()`, `.pick()`/`.omit()` and changes inside a referenced schema
  *     (an enum gaining a value) are NOT seen.
- *   - Field identity is the name within the file. A name declared in another
- *     schema of the same file can mask an added or removed field.
+ *   - Field identity is the name within its module-level declaration
+ *     (`export const XSchema = …`). The same key nested at two depths of ONE
+ *     schema can still mask an added or removed field.
  *   - Narrowing a type (`z.string()` → `z.enum([...])`, a new `.min()`) and
  *     WIDENING an enum (old clients throw on the new value) are not detected.
  *   - "Backfill in the diff" is not checked against the field — any changed
@@ -51,6 +54,7 @@ import {
   classifySchemaChange,
   commitMessagesInRange,
   git,
+  isBackfillScriptPath,
   isPreDeployBackfill,
   isStoredSchemaFile,
   judge,
@@ -85,7 +89,7 @@ export function analyse(mergeBase, head, cwd) {
     loosened.push(...r.loosened.map((x) => `${f.path} ${x}`));
   }
   const backfills = files
-    .filter((f) => (f.status === 'A' || f.status === 'M' || f.status === 'R') && /^scripts\/[^/]+\.mjs$/.test(f.path))
+    .filter((f) => (f.status === 'A' || f.status === 'M' || f.status === 'R') && isBackfillScriptPath(f.path))
     .filter((f) => isPreDeployBackfill(showAt(head, f.path, cwd) ?? ''))
     .map((f) => f.path);
   return { tightened, loosened, backfills };
