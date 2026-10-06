@@ -127,12 +127,14 @@ export function RosterExportButton(props: RosterExportButtonProps) {
         onRequestClose={() => setOpen(false)}
       >
         <Pressable
+          accessible={false}
           onPress={() => setOpen(false)}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
           className="items-center justify-center px-8"
         >
           {/* Inner press-catcher: taps inside the card must not dismiss. */}
           <Pressable
+            accessible={false}
             onPress={() => {}}
             className="w-full max-w-md rounded-lg border border-subtle bg-surface-elevated p-5"
           >

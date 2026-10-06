@@ -336,12 +336,13 @@ export function EventAttendees({
         onRequestClose={() => setCallTarget(null)}
       >
         <Pressable
+          accessible={false}
           onPress={() => setCallTarget(null)}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
           className="items-center justify-center px-8"
         >
           {/* Inner press-catcher: taps inside the card must not dismiss. */}
-          <Pressable onPress={() => {}} className="w-full rounded-lg bg-surface-elevated p-5 border border-subtle">
+          <Pressable accessible={false} onPress={() => {}} className="w-full rounded-lg bg-surface-elevated p-5 border border-subtle">
             {callTarget ? (
               <VStack gap={3}>
                 <Text variant="h3">{callTarget.name}</Text>

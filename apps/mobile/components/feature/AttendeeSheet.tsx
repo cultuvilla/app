@@ -204,6 +204,7 @@ export function AttendeeSheet({
     >
       <KeyboardAvoider>
         <RNPressable
+          accessible={false}
           onPress={() => {
             if (!busy) onClose();
           }}
@@ -214,6 +215,7 @@ export function AttendeeSheet({
               by the safe-area inset so the confirm button clears the home
               indicator / nav bar. */}
           <RNPressable
+            accessible={false}
             onPress={() => {}}
             className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
             style={{ paddingBottom: insets.bottom + 20, maxHeight: windowHeight * 0.9 }}

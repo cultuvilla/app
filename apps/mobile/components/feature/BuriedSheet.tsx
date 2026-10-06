@@ -70,6 +70,7 @@ export function BuriedSheet({
       }}
     >
       <RNPressable
+        accessible={false}
         onPress={() => {
           if (!busy) onClose();
         }}
@@ -77,6 +78,7 @@ export function BuriedSheet({
         className="justify-end"
       >
         <RNPressable
+          accessible={false}
           onPress={() => {}}
           className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
           style={{ paddingBottom: insets.bottom + 20 }}

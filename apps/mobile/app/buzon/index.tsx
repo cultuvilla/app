@@ -344,8 +344,12 @@ export default function InboxScreen() {
               const requester = requesterByUid[row.userId];
               const name = requester?.name ?? row.userId;
               return (
+                // Not an accessibility element: on iOS one would swallow the
+                // Aprobar/Rechazar buttons inside it, leaving VoiceOver users
+                // (and XCUITest) unable to act on the request.
                 <Pressable
                   key={row.id}
+                  accessible={false}
                   onPress={() => router.push(userHref(row.userId))}
                   className="bg-surface border border-subtle rounded-xl p-3"
                 >

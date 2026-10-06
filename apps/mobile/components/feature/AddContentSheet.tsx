@@ -74,6 +74,7 @@ export function AddContentSheet({ visible, onClose, villageId, villageSlug, canM
       {/* absoluteFillObject (not flex-1): RN-Web collapses a flex-1 Modal child to
           zero height, leaving no tappable backdrop to dismiss the sheet. */}
       <RNPressable
+        accessible={false}
         onPress={onClose}
         style={[
           StyleSheet.absoluteFill,
@@ -81,6 +82,7 @@ export function AddContentSheet({ visible, onClose, villageId, villageSlug, canM
         ]}
       >
         <RNPressable
+          accessible={false}
           onPress={() => {}}
           className="bg-surface-elevated border-t border-subtle"
           style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: insets.bottom + 12 }}

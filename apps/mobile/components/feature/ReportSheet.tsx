@@ -115,6 +115,7 @@ export function ReportSheet({
       {/* absoluteFill (not flex-1): RN-Web collapses a flex-1 Modal child to
           zero height, cropping the sheet. Mirrors TypeSheet. */}
       <RNPressable
+        accessible={false}
         onPress={close}
         style={[
           StyleSheet.absoluteFill,
@@ -122,6 +123,7 @@ export function ReportSheet({
         ]}
       >
         <RNPressable
+          accessible={false}
           onPress={() => {}}
           className="bg-surface rounded-t-2xl overflow-hidden"
           style={{ maxHeight: SHEET_MAX_HEIGHT }}

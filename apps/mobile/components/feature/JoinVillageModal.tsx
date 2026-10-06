@@ -47,6 +47,7 @@ export function JoinVillageModal({ municipality, busy = false, onCancel, onConfi
       }}
     >
       <Pressable
+        accessible={false}
         onPress={() => {
           if (!busy) onCancel();
         }}
@@ -55,6 +56,7 @@ export function JoinVillageModal({ municipality, busy = false, onCancel, onConfi
       >
         {/* Inner press-catcher: taps inside the card must not dismiss. */}
         <Pressable
+          accessible={false}
           onPress={() => {}}
           className="w-full rounded-lg bg-surface-elevated p-5 border border-subtle"
         >
