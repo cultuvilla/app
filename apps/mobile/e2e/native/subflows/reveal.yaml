@@ -7,14 +7,13 @@
 # only while TARGET is hidden — the one case where a keyboard is what hides it.
 # If it is still hidden after that, it is genuinely below the fold: scroll.
 #
-# iOS has no BACK key, and Maestro's iOS `hideKeyboard` is no substitute: it
-# failed outright on one form ("Couldn't hide the keyboard") and on another its
-# gesture landed on the photo field and opened the picker. Instead the iOS
-# branch taps the form's blank left margin: the form scroll views use
-# keyboardShouldPersistTaps="handled", so a tap on non-touchable content just
-# dismisses the keyboard. It runs unconditionally — Maestro's iOS visibility
-# ignores occlusion, so a button under the keyboard reads as visible and a
-# `notVisible` guard would never fire — and is a no-op with no keyboard up.
+# iOS gets no dismissal step at all. It has no BACK key; Maestro's iOS
+# `hideKeyboard` failed on one form and opened the photo picker on another; and
+# a tap on blank margin is a tap on a bottom sheet's BACKDROP, which closes the
+# sheet whose confirm button this subflow was asked to reveal (flows 23 and 62).
+# None is needed: Screen, BottomSheet and the sign-up sheets wrap their content
+# in KeyboardAvoider, so it sits above the keyboard and the scroll below
+# reaches it.
 appId: com.cultuvilla.app.dev
 ---
 - runFlow:
@@ -24,14 +23,6 @@ appId: com.cultuvilla.app.dev
         id: ${TARGET}
     commands:
       - pressKey: back
-      - waitForAnimationToEnd:
-          timeout: 2000
-- runFlow:
-    when:
-      platform: iOS
-    commands:
-      - tapOn:
-          point: '2%,30%'
       - waitForAnimationToEnd:
           timeout: 2000
 - runFlow:
