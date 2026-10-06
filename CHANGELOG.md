@@ -11,6 +11,8 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 - **Fiestas del pueblo** en tarjetas, y el teclado ya no tapa los campos al escribir.
 <!-- /store-notes -->
 
+- Explora opens on Eventos again: the toggle shows «Eventos» before
+  «Artículos», matching the village home.
 - Fix: on Android the keyboard covered the field being typed in on most forms
   (editing a pueblo, creating events and news, personas, vocabulary, sign-up
   sheets…). Every screen and bottom sheet now lifts its content above the
