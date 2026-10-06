@@ -21,6 +21,7 @@ export const DEFAULT_SOAK_HOURS = 2;
 const SKIP_TOKENS = ['[skip-deploy]', '[skip-store]', '[skip-ota]'];
 const VERSION_TITLE = /^\d+\.\d+\.\d+$/;
 const HOUR_MS = 60 * 60 * 1000;
+const MERGE_READY_STATES = ['CLEAN', 'HAS_HOOKS'];
 
 export function soakHours(raw) {
   if (raw === undefined || raw === null || String(raw).trim() === '') return DEFAULT_SOAK_HOURS;
@@ -36,7 +37,9 @@ function latestRun(runs, name) {
 function runState(run) {
   if (!run) return 'missing';
   if (run.status !== 'completed') return 'running';
-  return run.conclusion === 'success' ? 'success' : `failed (${run.conclusion})`;
+  if (run.conclusion === 'success') return 'success';
+  // A [skip-deploy] push concludes `skipped`: not a failure, but not deployed either.
+  return run.conclusion === 'skipped' ? 'skipped' : `failed (${run.conclusion})`;
 }
 
 /** Latest check per name across check runs and commit statuses → 'pass' | 'pending' | 'fail'. */
@@ -54,10 +57,12 @@ export function checkState(checks, name) {
 /**
  * @param {object} input
  * @param {{number:number,title:string,headRefName:string,baseRefName:string,headRefOid:string,
- *   isCrossRepository:boolean,isDraft:boolean,labels:{name:string}[],mergeable:string}|null} input.pr
+ *   isCrossRepository:boolean,isDraft:boolean,labels:{name:string}[],mergeable:string,
+ *   mergeStateStatus:string}|null} input.pr
+ * @param {string} input.headVersion        apps/mobile/package.json version at the head SHA
  * @param {string} input.betaHead           SHA of beta's tip
  * @param {object[]} input.runs             push runs on beta for betaHead: {id,name,status,conclusion,updated_at}
- * @param {string[]} input.requiredChecks   main's required status-check contexts
+ * @param {string[]} input.requiredChecks   main's required status-check contexts (branch protection + rulesets)
  * @param {object[]} input.checks           check runs {id,name,status,conclusion} + statuses {name,state} on the head SHA
  * @param {string} input.now                ISO time
  * @param {string|number} [input.soakHours] AUTO_PROMOTE_SOAK_HOURS
@@ -77,6 +82,10 @@ export function decideAutoMerge(input) {
   }
   if (!VERSION_TITLE.test(pr.title)) {
     blockers.push(`title "${pr.title}" is not a bare X.Y.Z version (not the auto-opened release PR)`);
+  } else if (pr.title !== input.headVersion) {
+    // open-pr refreshes title and body on every beta push; a stale title means
+    // that refresh failed and the PR still describes the previous release.
+    blockers.push(`title "${pr.title}" is not the head's version ${input.headVersion} (the PR was not refreshed)`);
   }
   if (SKIP_TOKENS.some((t) => pr.title.includes(t))) {
     blockers.push('title carries a [skip-…] token, which would land in the merge commit');
@@ -89,6 +98,11 @@ export function decideAutoMerge(input) {
     blockers.push(`PR head ${pr.headRefOid.slice(0, 7)} is not beta's tip ${String(input.betaHead).slice(0, 7)}`);
   }
   if (pr.mergeable !== 'MERGEABLE') blockers.push(`PR is not mergeable (${pr.mergeable})`);
+  // MERGEABLE only means conflict-free; BLOCKED / BEHIND / UNSTABLE mean branch
+  // protection would refuse the merge, or a check failed and deserves a human.
+  if (!MERGE_READY_STATES.includes(pr.mergeStateStatus)) {
+    blockers.push(`PR merge state is ${pr.mergeStateStatus}, not CLEAN`);
+  }
 
   const runs = input.runs ?? [];
   const deploy = latestRun(runs, 'Deploy beta');
@@ -104,18 +118,23 @@ export function decideAutoMerge(input) {
 
   // An empty list means the protection could not be read, not that nothing is
   // required: merging blind would skip the CI gate.
-  if ((input.requiredChecks ?? []).length === 0) blockers.push("main's required status checks could not be read");
+  if ((input.requiredChecks ?? []).length === 0) {
+    blockers.push("no required status checks found for main (neither branch protection nor a ruleset): merging would skip CI");
+  }
   for (const name of input.requiredChecks ?? []) {
     const state = checkState(input.checks ?? [], name);
     if (state !== 'pass') blockers.push(`required check "${name}": ${state}`);
   }
 
+  // The soak is tester time, so it starts when the later of the backend deploy
+  // and the beta binaries finished. A re-run restarts it, which errs safe.
   const hours = soakHours(input.soakHours);
   if (deployState === 'success') {
-    const soakEnds = Date.parse(deploy.updated_at) + hours * HOUR_MS;
+    const finished = [deploy, build].filter((r) => runState(r) === 'success').map((r) => Date.parse(r.updated_at));
+    const soakEnds = Math.max(...finished) + hours * HOUR_MS;
     const now = Date.parse(input.now);
     if (now < soakEnds) {
-      blockers.push(`soaking on beta until ${new Date(soakEnds).toISOString()} (${hours}h after Deploy beta)`);
+      blockers.push(`soaking on beta until ${new Date(soakEnds).toISOString()} (${hours}h after the beta deploy and builds)`);
     }
   }
 

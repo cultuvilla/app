@@ -97,8 +97,21 @@ describe('promote-to-main auto-merge', () => {
     expect(e2e).toMatch(/push:\s*\n\s*branches: \[beta, main\]/);
   });
 
+  // A failed open-pr can leave the PR titled and described as the last release.
+  it('does not run after open-pr failed, and checks the title is the head version', () => {
+    expect(autoMerge).toContain("needs.open-pr.result != 'failure'");
+    expect(autoMerge).toContain('apps/mobile/package.json?ref=$sha');
+    expect(decider).toContain('input.headVersion');
+  });
+
+  it('waits on branch protection via mergeStateStatus', () => {
+    expect(autoMerge).toContain('mergeStateStatus');
+    expect(decider).toContain("MERGE_READY_STATES = ['CLEAN', 'HAS_HOOKS']");
+  });
+
   it("checks main's required status checks on the head SHA", () => {
     expect(autoMerge).toContain('.protection.required_status_checks.contexts');
+    expect(autoMerge).toContain('rules/branches/main');
     expect(autoMerge).toContain('/check-runs');
   });
 });

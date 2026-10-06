@@ -43,13 +43,21 @@ hour and whenever `android-e2e` finishes on beta. It merges when **all** hold
 ([auto-promote-main.mjs](../../scripts/auto-promote-main.mjs) decides):
 
 - the PR is the auto-opened one — base `main`, head `beta` of this repo, titled
-  with the bare `X.Y.Z`, not a draft, mergeable, and its head is beta's tip;
+  with the bare `X.Y.Z` that is the head's `apps/mobile/package.json` version
+  (so a failed refresh cannot ship under the previous release's title and
+  checklist), not a draft, its head is beta's tip, and its merge state is
+  `CLEAN` (no conflict, not behind, nothing in branch protection refusing it);
 - *Deploy beta* is green on that commit, *beta-build-and-submit* is green or
   absent (docs-only push), and the `android-e2e` push run on beta is green;
 - every required status check of `main`'s branch protection is green on the head;
 - it has no `hold` label;
-- `AUTO_PROMOTE_SOAK_HOURS` (repo variable, default 2) have passed since *Deploy
-  beta* finished — time for testers on the Beta app and TestFlight to hit it.
+- `AUTO_PROMOTE_SOAK_HOURS` (repo variable, default 2) have passed since the
+  later of *Deploy beta* and *beta-build-and-submit* finished — time for testers
+  on the Beta app and TestFlight to hit it. A re-run restarts the clock.
+
+`auto-merge` does not run after a failed `open-pr`. Required checks are read
+from both the classic protection and any ruleset on `main`; finding none makes
+it wait rather than merge without CI.
 
 With `AUTO_MERGE_TO_MAIN` unset the job only writes "would merge" or the list of
 what it waits on to the run summary, so the evaluation can be watched before it

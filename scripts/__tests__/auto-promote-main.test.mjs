@@ -17,7 +17,9 @@ function green(overrides = {}) {
       isDraft: false,
       labels: [],
       mergeable: 'MERGEABLE',
+      mergeStateStatus: 'CLEAN',
     },
+    headVersion: '1.6.0',
     betaHead: SHA,
     runs: [
       { id: 1, name: 'Deploy beta', status: 'completed', conclusion: 'success', updated_at: DEPLOYED },
@@ -110,7 +112,7 @@ describe('decideAutoMerge', () => {
   });
 
   it('waits when main\'s required checks could not be read', () => {
-    assert.match(decideAutoMerge(green({ requiredChecks: [] })).blockers.join(' '), /could not be read/);
+    assert.match(decideAutoMerge(green({ requiredChecks: [] })).blockers.join(' '), /no required status checks/);
   });
 
   it('only touches the auto-opened release PR at beta\'s tip', () => {
@@ -124,6 +126,36 @@ describe('decideAutoMerge', () => {
 
   it('refuses a title carrying a [skip-…] token', () => {
     assert.equal(decideAutoMerge(withPr({ title: '1.6.0 [skip-ota]' })).action, 'wait');
+  });
+
+  it('waits when the title is a previous release (open-pr failed to refresh it)', () => {
+    const d = decideAutoMerge(green({ headVersion: '1.7.0' }));
+    assert.equal(d.action, 'wait');
+    assert.match(d.blockers.join(' '), /not the head's version 1\.7\.0/);
+  });
+
+  it('waits unless the merge state is CLEAN (protection, behind, failing checks)', () => {
+    for (const state of ['BLOCKED', 'BEHIND', 'UNSTABLE', 'DIRTY', 'UNKNOWN']) {
+      assert.equal(decideAutoMerge(withPr({ mergeStateStatus: state })).action, 'wait', state);
+    }
+    assert.equal(decideAutoMerge(withPr({ mergeStateStatus: 'HAS_HOOKS' })).action, 'merge');
+  });
+
+  it('starts the soak when the later of the deploy and the beta builds finished', () => {
+    const lateBuild = withRun('beta-build-and-submit', { updated_at: '2026-10-07T11:00:00Z' });
+    assert.equal(decideAutoMerge({ ...lateBuild, now: '2026-10-07T12:30:00Z' }).action, 'wait');
+    assert.equal(decideAutoMerge({ ...lateBuild, now: '2026-10-07T13:00:00Z' }).action, 'merge');
+  });
+
+  it('reports a [skip-deploy] beta push as skipped, and waits', () => {
+    const d = decideAutoMerge(withRun('Deploy beta', { conclusion: 'skipped' }));
+    assert.equal(d.action, 'wait');
+    assert.ok(d.blockers.includes('Deploy beta: skipped'));
+  });
+
+  it('tolerates absent labels and runs', () => {
+    assert.equal(decideAutoMerge(withPr({ labels: undefined })).action, 'merge');
+    assert.match(decideAutoMerge(green({ runs: undefined })).blockers.join(' '), /Deploy beta: missing/);
   });
 });
 
@@ -145,5 +177,12 @@ describe('checkState', () => {
     assert.equal(checkState([{ name: 'x', state: 'error' }], 'x'), 'fail');
     assert.equal(checkState([{ id: 1, name: 'x', status: 'queued', conclusion: null }], 'x'), 'pending');
     assert.equal(checkState([], 'x'), 'missing');
+  });
+
+  // Matches branch protection: a skipped or neutral required check satisfies it.
+  it('counts skipped and neutral check runs as passing', () => {
+    assert.equal(checkState([{ id: 1, name: 'x', status: 'completed', conclusion: 'skipped' }], 'x'), 'pass');
+    assert.equal(checkState([{ id: 1, name: 'x', status: 'completed', conclusion: 'neutral' }], 'x'), 'pass');
+    assert.equal(checkState([{ id: 1, name: 'x', status: 'completed', conclusion: 'cancelled' }], 'x'), 'fail');
   });
 });
