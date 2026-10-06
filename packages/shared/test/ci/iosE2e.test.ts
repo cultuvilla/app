@@ -33,7 +33,7 @@ describe('ios-e2e workflow gating', () => {
     expect(workflow).not.toMatch(/^\s*paths:/m);
     expect(workflow).toMatch(/needs: gate/);
     expect(workflow).toMatch(/if: needs\.gate\.outputs\.run == 'true'/);
-    const gate = workflow.slice(workflow.indexOf('  gate:'), workflow.indexOf('  ios-e2e:'));
+    const gate = workflow.slice(workflow.indexOf('  gate:'), workflow.indexOf('  build:'));
     for (const path of [
       'scripts/(run-ios-e2e|build-ios-e2e-app)',
       'scripts/lib/(maestro-suite|e2e-build-env)',
@@ -48,6 +48,22 @@ describe('ios-e2e workflow gating', () => {
   it('uploads the Maestro artifacts even from a cancelled or timed-out job', () => {
     const step = workflow.slice(workflow.indexOf('- name: Upload Maestro artifacts'));
     expect(step).toMatch(/^\s*- name: Upload Maestro artifacts\s*\n\s*if: \$\{\{ always\(\) \}\}/);
+  });
+
+  // One build, shared: the build is the slowest step and identical for every
+  // shard, so it must not run per machine.
+  it('builds the app once and shards the suite across machines', () => {
+    const build = workflow.slice(workflow.indexOf('  build:'), workflow.indexOf('  suite:'));
+    const suite = workflow.slice(workflow.indexOf('  suite:'));
+    expect(build).toContain('node scripts/build-ios-e2e-app.mjs');
+    expect(build).toContain('name: ios-e2e-app');
+    expect(suite).not.toContain('build-ios-e2e-app');
+    expect(suite).toMatch(/needs: build/);
+    expect(suite).toMatch(/fail-fast: false/);
+    const shards = /shard: \[([\d, ]+)\]/.exec(suite)?.[1].split(',').map(Number) ?? [];
+    expect(shards.length).toBeGreaterThan(1);
+    expect(suite).toContain(`E2E_SHARD: \${{ matrix.shard }}/${String(shards.length)}`);
+    expect(suite).toContain('name: ios-e2e-app');
   });
 
   it('drives the suite through the same entrypoint a developer uses', () => {

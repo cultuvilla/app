@@ -86,6 +86,7 @@ export function run(label, cmd, args, opts = {}) {
  * so chasing one needs no edit.
  *
  * `flow` optionally narrows the run to some flows — see `selectFlows`.
+ * `shard` (`i/N`) runs this machine's slice of them — see `shardFlows`.
  * `beforeEachFlow` runs before every flow: platform-specific state that
  * Maestro's `clearState` does not reach. Leftover backend docs are reset for
  * every platform here.
@@ -98,30 +99,10 @@ export async function runMaestroSuite({
   reportDir,
   env = MAESTRO_ENV,
   beforeEachFlow = () => {},
+  shard = process.env.E2E_SHARD,
 }) {
   mkdirSync(reportDir, { recursive: true });
-  const discovered = readdirSync(FLOWS_DIR)
-    .filter((f) => f.endsWith('.yaml'))
-    .sort();
-
-  // An entry that no longer matches a file is a stale quarantine — fail rather
-  // than let it rot into a line nobody can act on.
-  for (const name of quarantined.keys()) {
-    if (!discovered.includes(name)) {
-      console.error(`[${label}] quarantine names a flow that does not exist: ${name}`);
-      process.exit(1);
-    }
-  }
-
-  const selection = flow ? selectFlows(discovered, flow) : null;
-  if (selection?.unknown.length) {
-    console.error(`[${label}] no flow matches: ${selection.unknown.join(', ')}`);
-    console.error(`[${label}] available: ${discovered.join(', ')}`);
-    process.exit(1);
-  }
-  const skipped = selection ? [] : discovered.filter((f) => quarantined.has(f));
-  const flows = selection ? selection.flows : discovered.filter((f) => !quarantined.has(f));
-  if (selection) console.log(`[${label}] running a selection: ${flows.join(', ')}`);
+  const { flows, skipped } = planFlows({ label, quarantined, flow, shard });
 
   for (const name of skipped) {
     console.warn(`\n[${label}] !! QUARANTINED, NOT RUN: ${name}`);
@@ -166,6 +147,40 @@ export async function runMaestroSuite({
 }
 
 /**
+ * Which flows this run executes, and which quarantined ones it holds out —
+ * after the selection (`flow`) and this machine's shard. Exits on a stale
+ * quarantine entry or a selection naming no flow. Exported so a runner can
+ * skip its device setup when its shard has nothing to run.
+ */
+export function planFlows({ label, quarantined, flow, shard = process.env.E2E_SHARD }) {
+  const discovered = readdirSync(FLOWS_DIR)
+    .filter((f) => f.endsWith('.yaml'))
+    .sort();
+
+  // An entry that no longer matches a file is a stale quarantine — fail rather
+  // than let it rot into a line nobody can act on.
+  for (const name of quarantined.keys()) {
+    if (!discovered.includes(name)) {
+      console.error(`[${label}] quarantine names a flow that does not exist: ${name}`);
+      process.exit(1);
+    }
+  }
+
+  const selection = flow ? selectFlows(discovered, flow) : null;
+  if (selection?.unknown.length) {
+    console.error(`[${label}] no flow matches: ${selection.unknown.join(', ')}`);
+    console.error(`[${label}] available: ${discovered.join(', ')}`);
+    process.exit(1);
+  }
+  const skipped = selection ? [] : discovered.filter((f) => quarantined.has(f));
+  const selected = selection ? selection.flows : discovered.filter((f) => !quarantined.has(f));
+  if (selection) console.log(`[${label}] running a selection: ${selected.join(', ')}`);
+  const flows = shard ? shardFlows(selected, shard) : selected;
+  if (shard) console.log(`[${label}] shard ${shard}: ${flows.join(', ') || '(no flows)'}`);
+  return { flows, skipped };
+}
+
+/**
  * Resolve a comma-separated selection (`20,22` / `20-register-to-event` /
  * `20-register-to-event.yaml`) against the discovered flow files. Returned in
  * FILENAME order whatever order it was typed in, since the suite's pairs depend
@@ -188,4 +203,38 @@ export function selectFlows(discovered, selection) {
     for (const m of matches) picked.add(m);
   }
   return { flows: discovered.filter((f) => picked.has(f)), unknown };
+}
+
+/**
+ * This machine's slice of `flows` for `shard` = `i/N` (1-based), so N machines
+ * can each run part of the suite against their own emulators and seed.
+ *
+ * Flows travel in GROUPS that share a tens digit, never alone: within a group
+ * order is load-bearing (22 unregisters what 20 registered; 95 must run after
+ * every other 9x flow), while each shard starts from a fresh seed, so a group
+ * split across machines would lose its earlier half. Groups go largest-first to
+ * the least-loaded shard (lowest index on a tie) — deterministic, so a shard
+ * always means the same flows for the same suite.
+ */
+export function shardFlows(flows, shard) {
+  const match = /^(\d+)\/(\d+)$/.exec(String(shard).trim());
+  const index = Number(match?.[1]);
+  const total = Number(match?.[2]);
+  if (!match || total < 1 || index < 1 || index > total) {
+    throw new Error(`E2E_SHARD must be i/N with 1 <= i <= N, got "${shard}"`);
+  }
+  const groups = new Map();
+  for (const flow of flows) {
+    const key = flow.charAt(0);
+    groups.set(key, [...(groups.get(key) ?? []), flow]);
+  }
+  const loads = Array.from({ length: total }, () => []);
+  const ordered = [...groups.entries()].sort(
+    ([ka, a], [kb, b]) => b.length - a.length || ka.localeCompare(kb),
+  );
+  for (const [, group] of ordered) {
+    const lightest = loads.reduce((best, load, i) => (load.length < loads[best].length ? i : best), 0);
+    loads[lightest].push(...group);
+  }
+  return [...loads[index - 1]].sort();
 }

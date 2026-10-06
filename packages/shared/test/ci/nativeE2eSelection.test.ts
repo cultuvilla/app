@@ -17,9 +17,12 @@ interface Selection {
   flows: string[];
   unknown: string[];
 }
-const { selectFlows } = (await import(
+const { selectFlows, shardFlows } = (await import(
   pathToFileURL(resolve(repoRoot, 'scripts/lib/maestro-suite.mjs')).href
-)) as { selectFlows: (discovered: string[], selection: string) => Selection };
+)) as {
+  selectFlows: (discovered: string[], selection: string) => Selection;
+  shardFlows: (flows: string[], shard: string) => string[];
+};
 
 describe('selectFlows', () => {
   it('takes numeric prefixes, names and filenames alike', () => {
@@ -67,5 +70,45 @@ describe.each(['android', 'ios'])('%s-e2e flow selection on CI', (platform) => {
 
   it('has a one-line dispatch shortcut', () => {
     expect(pkg.scripts[`e2e:ci:${platform}`]).toBe(`gh workflow run ${platform}-e2e.yml`);
+  });
+});
+
+describe('shardFlows', () => {
+  const shards = (n: number) =>
+    Array.from({ length: n }, (_, i) => shardFlows(discovered, `${String(i + 1)}/${String(n)}`));
+
+  it('covers every flow exactly once across the shards', () => {
+    for (const n of [1, 2, 4]) {
+      const all = shards(n).flat().sort();
+      expect(all).toEqual(discovered);
+    }
+  });
+
+  // Each shard starts from a fresh seed, so a split group would lose its earlier
+  // half: 22 would find nothing of 20's to unregister.
+  it('never splits a tens-group across shards', () => {
+    const four = shards(4);
+    for (const shard of four) {
+      for (const other of four) {
+        if (shard === other) continue;
+        const groups = new Set(shard.map((f) => f.charAt(0)));
+        expect(other.some((f) => groups.has(f.charAt(0)))).toBe(false);
+      }
+    }
+  });
+
+  it('keeps filename order within a shard, and is deterministic', () => {
+    for (const shard of shards(4)) expect(shard).toEqual([...shard].sort());
+    expect(shards(4)).toEqual(shards(4));
+  });
+
+  it('balances the load', () => {
+    const sizes = shards(4).map((s) => s.length);
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(4);
+  });
+
+  it('rejects a malformed shard', () => {
+    expect(() => shardFlows(discovered, '5/4')).toThrow(/E2E_SHARD/);
+    expect(() => shardFlows(discovered, 'two')).toThrow(/E2E_SHARD/);
   });
 });

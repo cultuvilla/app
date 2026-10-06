@@ -30,7 +30,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { MAESTRO, MAESTRO_ENV, ROOT, SUITE_DIR, arg, run, runMaestroSuite } from './lib/maestro-suite.mjs';
+import { MAESTRO, MAESTRO_ENV, ROOT, SUITE_DIR, arg, planFlows, run, runMaestroSuite } from './lib/maestro-suite.mjs';
 
 const LABEL = 'ios-e2e';
 
@@ -75,6 +75,35 @@ const newerFirst = (a, b) => {
   }
   return 0;
 };
+
+// Flows held OUT of the gate on iOS, with the reason each one is out — see
+//    scripts/lib/maestro-suite.mjs for why a quarantine is announced rather
+//    than silent. Separate from Android's: a flow can fail on one platform's
+//    transport and pass on the other's.
+const QUARANTINED = new Map([
+  [
+    '50-onboarding-complete-profile.yaml',
+    'its keyboard choreography is tuned to the Android AVD (swipe endpoints as ' +
+      'percentages of a pixel_5, no hideKeyboard). On the iOS Simulator the step-1 ' +
+      '"Siguiente" tap left the form on step 1 with the keyboard up, so birthday-year ' +
+      '(step 2) never appeared (first full iOS run, 2026-10-06). Android still runs ' +
+      'it. Chase with `pnpm e2e:ci:ios -f flows=50`.',
+  ],
+  [
+    '45-offline-cached-village.yaml',
+    "drives the device offline with Maestro's setAirplaneMode, which is " +
+      'Android-only: a Simulator shares the Mac\'s network and has no airplane ' +
+      'mode to toggle. Offline rendering on iOS needs a different lever (e.g. ' +
+      'stopping the emulators mid-flow) before this can run here.',
+  ],
+]);
+
+// A shard (or a dispatched selection) can leave this machine nothing to run;
+// then there is no point booting, installing and trusting deep links for it.
+if (!bootOnly && planFlows({ label: LABEL, quarantined: QUARANTINED, flow }).flows.length === 0) {
+  console.log(`[${LABEL}] nothing to run on this machine`);
+  process.exit(0);
+}
 
 // 1. A booted Simulator, before anything else — a missing one otherwise
 //    surfaces as an opaque Maestro timeout minutes later.
@@ -133,27 +162,6 @@ if (trusted !== 0) {
   process.exit(1);
 }
 
-// 4. Flows held OUT of the gate on iOS, with the reason each one is out — see
-//    scripts/lib/maestro-suite.mjs for why a quarantine is announced rather
-//    than silent. Separate from Android's: a flow can fail on one platform's
-//    transport and pass on the other's.
-const QUARANTINED = new Map([
-  [
-    '50-onboarding-complete-profile.yaml',
-    'its keyboard choreography is tuned to the Android AVD (swipe endpoints as ' +
-      'percentages of a pixel_5, no hideKeyboard). On the iOS Simulator the step-1 ' +
-      '"Siguiente" tap left the form on step 1 with the keyboard up, so birthday-year ' +
-      '(step 2) never appeared (first full iOS run, 2026-10-06). Android still runs ' +
-      'it. Chase with `pnpm e2e:ci:ios -f flows=50`.',
-  ],
-  [
-    '45-offline-cached-village.yaml',
-    "drives the device offline with Maestro's setAirplaneMode, which is " +
-      'Android-only: a Simulator shares the Mac\'s network and has no airplane ' +
-      'mode to toggle. Offline rendering on iOS needs a different lever (e.g. ' +
-      'stopping the emulators mid-flow) before this can run here.',
-  ],
-]);
 
 // Maestro's `clearState` on iOS wipes the app's container but NOT the keychain,
 // where Firebase Auth keeps the signed-in user — so each flow inherited the last
