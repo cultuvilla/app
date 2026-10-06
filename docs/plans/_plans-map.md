@@ -8,14 +8,13 @@ Current cycle **v1.5.0** (cut 2026-09-29)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · existing-signup-emails-rollout · product-analytics-behavioral-dashboard · firestore-index-hygiene
+> **Not advanced in 2+ cycles:** app-check-rollout · existing-signup-emails-rollout · firestore-index-hygiene
 
 ## Actionable now
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 27 cycles ago \* | — |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) ⚠️ | high | prod | 6 cycles ago \* | explain why every exported GA4 event has `user_pseudo_id = NULL` — check the consent wiring in `packages/shared/src/services/observability/` against a real consented session |
 | [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) ⚠️ | low | dev | 6 cycles ago \* | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
 | [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | this cycle \* | promote `develop → beta` (a `release/X.Y.Z` branch; the maintainer merges the PR) |
 | [app-only-transition](ongoing/app-only-transition.md) | high | dev | this cycle | promote to beta and run the phase 3 `curl` checks there, then the same on prod |
@@ -37,6 +36,7 @@ _None._
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
 | [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle \* | the Apple developer Account Holder must create the APNs key (.p8 + Key ID) — see *Blocker: the APNs key* | load the real APNs key into `APNS_AUTH_KEY` on `cultuvilla-prod`, redeploy the push functions, and verify delivery on an iPhone |
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | native analytics must reach users in a store build — phase 1 of [app-only-transition.md](app-only-transition.md) | once that build is out, confirm in prod BigQuery that native events arrive with a non-null `user_pseudo_id`, then start Phase 2 on native data |
 
 ## How `Advanced` is derived
 
