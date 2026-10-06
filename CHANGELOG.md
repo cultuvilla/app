@@ -4,6 +4,9 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+- Fix: the home feed showed no private events at all to someone who also
+  belongs to an open group (every ayuntamiento is open). The private events of
+  their approval peñas and asociaciones now appear again.
 - "Ser embajador de Cultuvilla": the request screen opens with a preview of
   your own Embajador carnet for that pueblo — your photo, name, the
   "Embajador/Embajadora de Cultuvilla en {pueblo}" title and its escudo — with

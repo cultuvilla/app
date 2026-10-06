@@ -5,6 +5,7 @@ import {
   type QueryDocumentSnapshot,
   type Unsubscribe,
 } from '../firebase/sdk/firestore';
+import { firebaseErrorCode } from '../firebase/sdk/errors';
 
 /**
  * Live reads. On the native SDK a listener answers from the on-device cache
@@ -102,6 +103,25 @@ export function watchDoc<T>(
       onError(asError(err));
     },
   );
+}
+
+/**
+ * A part that answers "no rows" when the rules refuse it, instead of failing.
+ *
+ * For a `watchMerged` part whose query the viewer may simply not be entitled
+ * to: rules do not filter a list, they reject the whole query, so a refusal
+ * means "nothing here you can read" — and because `watchMerged` waits for every
+ * part, one refused part would otherwise blank the whole merge. Any other error
+ * still fails.
+ */
+export function forbiddenAsEmpty<T>(
+  part: (onNext: (rows: T[]) => void, onError: WatchError) => Unwatch,
+): (onNext: (rows: T[]) => void, onError: WatchError) => Unwatch {
+  return (onNext, onError) =>
+    part(onNext, (error) => {
+      if (firebaseErrorCode(error) === 'permission-denied') onNext([]);
+      else onError(error);
+    });
 }
 
 /**
