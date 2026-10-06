@@ -59,12 +59,19 @@ env:
           id: 'location-confirm'
       - waitForAnimationToEnd:
           timeout: 3000
+# `repeat` exits quietly when `times` runs out, so name the picker if it stuck.
+- assertNotVisible:
+    id: 'location-confirm'
 - tapOn:
     id: 'event-form-primary'
 
 # Step 3 — details are optional, and submit. The Preguntas step exists only
-# once "Añadir un formulario" (`form-enabled`) is switched on, which it is not
-# by default, so Detalles is the last step.
+# with in-app sign-ups on AND "Añadir un formulario" (`form-enabled`) switched
+# on; the form is off by default, so Detalles is the last step. Pin that the
+# wizard got here: a tap on a disabled step-2 button reports COMPLETED, and the
+# failure would otherwise surface as a missing event doc.
+- assertVisible:
+    id: 'signup-enabled'
 - runFlow:
     file: ../subflows/reveal.yaml
     env:

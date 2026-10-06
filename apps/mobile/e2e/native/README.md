@@ -28,7 +28,7 @@ branch without waiting for a promotion PR.
 | `30-village-join` | A rules-gated direct client write, and the UI flip that follows it. |
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. |
-| `60-create-publish-event` | The event wizard (3 steps; Preguntas appears only with the form toggle on), including the OS location permission and a real GPS fix (`setLocation`). |
+| `60-create-publish-event` | The event wizard (3 steps; Preguntas appears only with sign-ups on *and* the form toggle on), including the OS location permission and a real GPS fix (`setLocation`). |
 | `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
 | `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
 | `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
