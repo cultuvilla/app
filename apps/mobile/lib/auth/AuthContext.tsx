@@ -245,9 +245,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // manual signOut() lets you exercise the guest flow without being yanked
   // straight back in — reload the app to re-trigger.
   //
-  // signOut() itself reloads the JS app (clearLocalCacheAndRestart), which
-  // resets the ref, so it also leaves a marker in AsyncStorage that the very
-  // next launch consumes instead of signing in.
+  // teardownSession() claims the attempt, so a sign-out never feeds the
+  // auth-state flip back into an auto sign-in. signOut() then reloads the JS
+  // app (clearLocalCacheAndRestart), which resets the ref, so it also leaves a
+  // marker in AsyncStorage that only the next launch consumes.
   const devAutoLoginAttempted = useRef(false);
   useEffect(() => {
     if (loading || user || devAutoLoginAttempted.current) return;
@@ -255,14 +256,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!cfg) return;
     devAutoLoginAttempted.current = true;
     void (async () => {
-      if (await AsyncStorage.getItem(DEV_AUTOLOGIN_SKIP_KEY)) {
-        await AsyncStorage.removeItem(DEV_AUTOLOGIN_SKIP_KEY);
+      try {
+        if (await AsyncStorage.getItem(DEV_AUTOLOGIN_SKIP_KEY)) {
+          await AsyncStorage.removeItem(DEV_AUTOLOGIN_SKIP_KEY);
+          return;
+        }
+      } catch (e) {
+        console.warn('[dev-autologin] skip marker unreadable:', e instanceof Error ? e.message : e);
         return;
       }
-      await signInWithEmailAndPassword(getAuth(), cfg.email, cfg.password);
-    })().catch((e) => {
-      console.warn('[dev-autologin] sign-in failed:', e instanceof Error ? e.message : e);
-    });
+      await signInWithEmailAndPassword(getAuth(), cfg.email, cfg.password).catch((e) => {
+        console.warn('[dev-autologin] sign-in failed:', e instanceof Error ? e.message : e);
+      });
+    })();
   }, [loading, user]);
 
   useEffect(() => {
@@ -570,6 +576,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canChangeEmail = isEmailOnlyAccount(user);
 
   const teardownSession = async (): Promise<void> => {
+    devAutoLoginAttempted.current = true;
     // This device's push row first, while the user can still delete it — the
     // rules are owner-only, and a shared phone must stop receiving the previous
     // account's pushes the moment it signs out.
