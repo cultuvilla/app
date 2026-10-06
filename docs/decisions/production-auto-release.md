@@ -6,8 +6,9 @@ explicit dispatch after the merge.
 
 ## The decision
 
-Merging the `beta → main` promotion PR is the one human gate. Everything after
-it is mechanical, in [production-release.yml](../../.github/workflows/production-release.yml):
+Merging the `beta → main` promotion PR is the one human gate — until the user
+hands that merge to CI too (see [The merge itself](#the-merge-itself-opt-in)).
+Everything after it is mechanical, in [production-release.yml](../../.github/workflows/production-release.yml):
 
 | What | When | How |
 |---|---|---|
@@ -29,6 +30,46 @@ poller then raises the wall and ships the held backend. See
 
 `mobile-release.yml` and *App Store release* stay as the manual escape hatches:
 testing tracks, rebuilds, resubmits, releasing or pausing a phased rollout.
+
+## The merge itself (opt-in)
+
+**Approved 2026-10-07 (user): "beta → main fully automatic"** — built, but
+**off until the user sets the repo variable `AUTO_MERGE_TO_MAIN=true`**. Turning
+it on is the user's decision, never an agent's.
+
+[promote-to-main.yml](../../.github/workflows/promote-to-main.yml) opens the
+`beta → main` PR (job `open-pr`) and its `auto-merge` job re-evaluates it every
+hour and whenever `android-e2e` finishes on beta. It merges when **all** hold
+([auto-promote-main.mjs](../../scripts/auto-promote-main.mjs) decides):
+
+- the PR is the auto-opened one — base `main`, head `beta` of this repo, titled
+  with the bare `X.Y.Z`, not a draft, mergeable, and its head is beta's tip;
+- *Deploy beta* is green on that commit, *beta-build-and-submit* is green or
+  absent (docs-only push), and the `android-e2e` push run on beta is green;
+- every required status check of `main`'s branch protection is green on the head;
+- it has no `hold` label;
+- `AUTO_PROMOTE_SOAK_HOURS` (repo variable, default 2) have passed since *Deploy
+  beta* finished — time for testers on the Beta app and TestFlight to hit it.
+
+With `AUTO_MERGE_TO_MAIN` unset the job only writes "would merge" or the list of
+what it waits on to the run summary, so the evaluation can be watched before it
+is trusted.
+
+**The merge uses `RELEASE_PR_TOKEN`, never `GITHUB_TOKEN`.** A push made with
+`GITHUB_TOKEN` triggers no workflows, so *Deploy prod* and *Production release*
+would never run and `main` would silently diverge from prod. Without the secret
+the job warns and never merges. The token needs `contents:write` and
+`pull-requests:write`.
+
+**The merge commit message is GitHub's default** (`Merge pull request #N from
+…/beta`, body = the PR title, a bare version), so no `[skip-deploy]`,
+`[skip-store]` or `[skip-ota]` can land by accident. A title carrying one blocks
+the merge.
+
+**Stop one release** with the `hold` label on the PR; removing it resumes on the
+next hourly tick. **Stop all of them** by unsetting `AUTO_MERGE_TO_MAIN`. A
+breaking release (`Breaking-Client:` trailer) is not excluded: its deploy holds
+the backend by itself as described above.
 
 ## Kill-switches
 

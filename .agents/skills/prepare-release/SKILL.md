@@ -91,6 +91,6 @@ A `**Migration:**` note names a backfill (AGENTS.md → _Backfills_). Registered
 
 ## 6. After the merges
 
-- **beta → main opens itself** once the beta deploy and the beta store builds for the merge are green (`promote-to-main.yml`), titled `X.Y.Z` with the same checklist and links to the runs. The user merges it.
+- **beta → main opens itself** once the beta deploy and the beta store builds for the merge are green (`promote-to-main.yml`), titled `X.Y.Z` with the same checklist and links to the runs. The user merges it — unless they have set the repo variable `AUTO_MERGE_TO_MAIN=true`, in which case `promote-to-main.yml` merges it itself once android-e2e, main's required checks and the soak are green (a `hold` label stops it). Agents never merge it.
 - **The deploy and the store poller announce the version** (`config/appVersion.latest`) — never seed it by hand.
 - **The `vX.Y.Z` tag is created by CI** once prod's deploy is green — never tag by hand.
