@@ -41,13 +41,22 @@ scripts/avd-dev.sh denies 60 | tee /tmp/denies.log
 
 ## Physical phone (USB or wireless)
 
-The same chain drives a real phone — skip `boot`, the rest is identical. `adb reverse`
-makes the phone's `localhost:8081` reach Metro in WSL, so **don't use `--lan`**: WSL2
-runs in NAT mode, and the IP Metro advertises (a Docker bridge like `172.20.0.1`, or
-the WSL `eth0`) is unreachable from the phone.
+**Easiest: scan the QR.** `pnpm app:start:lan` advertises the Windows host's LAN IP
+(`REACT_NATIVE_PACKAGER_HOSTNAME`, same recipe as ordago-apps), so the dev client on any
+phone on the same Wi-Fi reaches Metro with no adb at all. Plain `expo start --lan` does
+not work here: WSL2 runs in NAT mode and Metro would advertise a Docker bridge
+(`172.20.0.1`) or the WSL `eth0`. It relies on two one-time Windows settings, both
+already present on this machine: a portproxy `0.0.0.0:8081 → <WSL eth0>:8081` and an
+inbound firewall rule for 8081. The WSL IP can change after a reboot — if the QR stops
+connecting, compare `netsh interface portproxy show v4tov4` with `ip -4 addr show eth0`
+and re-point the rule (elevated PowerShell).
+
+**Over adb** (USB or wireless debugging) the same chain as the AVD works — skip `boot`.
+`adb reverse` makes the phone's `localhost:8081` reach Metro, so plain `app:start` is
+enough:
 
 ```bash
-pnpm app:start                # plain, no --lan
+pnpm app:start
 scripts/avd-dev.sh reverse
 scripts/avd-dev.sh open
 ```

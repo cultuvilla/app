@@ -25,7 +25,7 @@
     "agent:auto-mode": "node scripts/agent-auto-mode.js",
     "app:start": "pnpm --filter cultuvilla-mobile start",
     "app:start:tunnel": "pnpm --filter cultuvilla-mobile start:tunnel",
-    "app:start:lan": "pnpm --filter cultuvilla-mobile start:lan",
+    "app:start:lan": "REACT_NATIVE_PACKAGER_HOSTNAME=$(powershell.exe -Command \"\\$g=Get-NetIPConfiguration | Where-Object {\\$_.IPv4DefaultGateway -ne \\$null -and \\$_.NetAdapter.Status -eq 'Up'} | Sort-Object {\\$_.IPv4DefaultGateway.RouteMetric} | Select-Object -First 1; @(\\$g.IPv4Address.IPAddress)[0]\" | tr -d '\\r') pnpm --filter cultuvilla-mobile start",
     "app:android": "pnpm --filter cultuvilla-mobile android",
     "app:ios": "pnpm --filter cultuvilla-mobile ios",
     "app:test": "pnpm --filter cultuvilla-mobile test",
