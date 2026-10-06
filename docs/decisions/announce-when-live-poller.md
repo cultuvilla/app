@@ -175,8 +175,12 @@ the moment the held backend ships anyway.
 - [scripts/lib/announce-store.mjs](../../scripts/lib/announce-store.mjs): the
   Firestore and store-API halves.
 - [scripts/lib/play.mjs](../../scripts/lib/play.mjs): the read-only Play client.
-- [scripts/release-announce.mjs](../../scripts/release-announce.mjs): the CLI the
-  workflows call.
-- Unit tests in `scripts/__tests__/{breaking-rollup,announce}.test.mjs`. The
+- [scripts/lib/announce-cli.mjs](../../scripts/lib/announce-cli.mjs): the
+  commands and the step outputs the workflows branch on (`hold_backend`,
+  `deploy_sha`), behind an injected context.
+- [scripts/release-announce.mjs](../../scripts/release-announce.mjs): the entry
+  point the workflows call, which binds that context to Firestore and the
+  stores.
+- Unit tests in `scripts/__tests__/{breaking-rollup,announce,announce-cli}.test.mjs`. The
   workflow wiring is locked by
   [announceWhenLive.test.ts](../../packages/shared/test/ci/announceWhenLive.test.ts).

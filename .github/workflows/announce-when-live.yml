@@ -83,11 +83,17 @@ jobs:
         id: pending
         env:
           PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        # A failure here must not kill the step silently: gcloud's stderr stays
+        # visible, and any failure only means "could not tell" → full poll.
         run: |
-          gcloud auth login --cred-file="${GOOGLE_APPLICATION_CREDENTIALS}" --quiet >/dev/null 2>&1
-          token=$(gcloud auth print-access-token)
-          status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${token}" \
-            "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/_admin/announce/pending/prod")
+          status=unknown
+          if gcloud auth login --cred-file="${GOOGLE_APPLICATION_CREDENTIALS}" --quiet >/dev/null \
+            && token=$(gcloud auth print-access-token); then
+            status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${token}" \
+              "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/_admin/announce/pending/prod") || status=unknown
+          else
+            echo "::warning::gcloud could not authenticate for the cheap pending check (see above); running the full poll."
+          fi
           if [ "${status}" = "404" ]; then
             echo "Nothing pending."
             echo "pending=false" >> "$GITHUB_OUTPUT"

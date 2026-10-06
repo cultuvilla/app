@@ -5,7 +5,6 @@
  * and writes.
  */
 
-import { listVersions } from './appstore-flows.mjs';
 import { resolveAppVersionConfig } from './app-version-config.mjs';
 import {
   androidSoaked,
@@ -18,6 +17,30 @@ import {
 } from './announce.mjs';
 
 export const CONFIG_DOC = 'config/appVersion';
+
+/**
+ * The App Store version with exactly this version string, with its build
+ * number. Filtered server-side rather than scanning a page of recent versions:
+ * ASC promises no ordering for that list, so a version outside the page would
+ * read as "not found" forever and hold a backend indefinitely.
+ */
+export async function findIosVersion(request, { ascAppId, version }) {
+  const data = await request(
+    'GET',
+    `/apps/${ascAppId}/appStoreVersions?filter[platform]=IOS&filter[versionString]=${encodeURIComponent(version)}&include=build&limit=5`,
+  );
+  const buildById = new Map(
+    (data?.included ?? []).filter((i) => i.type === 'builds').map((b) => [b.id, b.attributes?.version]),
+  );
+  return (data?.data ?? []).map((v) => {
+    const ref = v.relationships?.build?.data;
+    return {
+      versionString: v.attributes?.versionString ?? null,
+      appStoreState: v.attributes?.appStoreState ?? v.attributes?.appVersionState ?? null,
+      buildNumber: ref ? (buildById.get(ref.id) ?? null) : null,
+    };
+  });
+}
 
 /**
  * Which stores serve `pending.version` right now. Fails safe in every
@@ -86,7 +109,7 @@ export async function checkStores({
         warn('App Store Connect credentials or ASC_APP_ID missing — cannot confirm iOS is live; treating it as not live.');
         detail.ios = 'no ASC credentials';
       } else {
-        const r = interpretIosVersions(await listVersions(ascRequest, { ascAppId, limit: 20 }), pending.version);
+        const r = interpretIosVersions(await findIosVersion(ascRequest, { ascAppId, version: pending.version }), pending.version);
         live.ios = r.live;
         detail.ios = r.found ? `${r.state} (build ${r.buildNumber ?? '?'})` : 'no App Store version yet';
         if (r.live && r.buildNumber) detail.iosBuildNumber = String(r.buildNumber);

@@ -259,7 +259,8 @@ describe('checkStores — fails safe', () => {
   const target = { packageName: 'com.cultuvilla.app', track: 'production' };
   const fakeAsc = (versions) => async (method, path) => {
     assert.equal(method, 'GET');
-    assert.match(path, /^\/apps\/app1\/appStoreVersions/);
+    // Filtered by version server-side: ASC promises no order for a page of versions.
+    assert.match(path, /^\/apps\/app1\/appStoreVersions\?.*filter\[versionString\]=1\.6\.0/);
     return {
       data: versions.map((v, i) => ({ id: `v${i}`, attributes: { versionString: v.versionString, appStoreState: v.state }, relationships: { build: { data: { id: `b${i}` } } } })),
       included: versions.map((v, i) => ({ type: 'builds', id: `b${i}`, attributes: { version: v.build } })),
