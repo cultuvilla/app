@@ -1,3 +1,7 @@
+# Changelog entries are `changelog.d/` fragments now (see its README), so
+# feature PRs no longer edit CHANGELOG.md. `union` stays as a backstop for the
+# rare hand edit: GitHub's PR merge ignores it, but a local rebase/merge uses it.
+#
 # Two branches appending their own bullets under `## [Unreleased]` is the
 # single most common conflict in this repo, and it is never a real one — the
 # sides touch adjacent lines, not the same one. `union` keeps both.

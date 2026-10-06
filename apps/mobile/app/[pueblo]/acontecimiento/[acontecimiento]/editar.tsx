@@ -2,7 +2,7 @@ import { entityRefHref, villageSectionHref } from '../../../../lib/navigation/ro
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { useVillageRoute, withVillageRoute } from '../../../../lib/navigation/VillageRouteGate';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '../../../../components/primitives/Screen';
 import { Text } from '../../../../components/primitives/Text';
@@ -87,7 +87,7 @@ function EditHistoryEntryScreen() {
           ) : undefined
         }
       />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ flex: 1 }}>
         <HistoryEntryForm
           municipalityId={villageId}
           entryId={entryId}
@@ -97,7 +97,7 @@ function EditHistoryEntryScreen() {
             router.back();
           }}
         />
-      </KeyboardAvoidingView>
+      </View>
     </Screen>
   );
 }

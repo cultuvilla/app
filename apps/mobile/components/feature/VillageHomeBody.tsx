@@ -2,7 +2,6 @@ import {
   barrioHref,
   orgHref,
   discoverOrganizeHref,
-  discoverStartHref,
   eventHref,
   festivalPosterHref,
   newsHref,
@@ -24,7 +23,10 @@ import {
   ErrorState,
 } from '../primitives';
 import { Section, EntityCard } from './VillageSections';
-import type { BarrioKind } from '@cultuvilla/shared/models/municipality';
+import type { BarrioKind, FiestaBlock } from '@cultuvilla/shared/models/municipality';
+
+/** Stable, so the Wrapped prompt's movement check is not redone every render. */
+const NO_FIESTAS: FiestaBlock[] = [];
 
 // Order is the order they render. The seat sorts first inside its own section
 // (the seed does that), so the municipal centre leads the list a villager reads.
@@ -39,8 +41,8 @@ import { HistoryRail } from './history/HistoryRail';
 import { WordOfTheDayCard } from './vocabulary/WordOfTheDayCard';
 import { LocationMap } from './LocationMap';
 import { JoinVillageModal } from './JoinVillageModal';
-import { VillageAmbassadorCard } from './VillageAmbassadorCard';
-import { VillageWrappedBanner } from './wrapped/VillageWrappedBanner';
+import { VillageWrappedStrip } from './wrapped/VillageWrappedStrip';
+import { WrappedPrompt } from './wrapped/WrappedPrompt';
 import { AmbassadorWelcomeSheet } from './AmbassadorWelcomeSheet';
 import {
   hasSeenAmbassadorWelcome,
@@ -54,7 +56,10 @@ import { useShareDeepLink } from '../../lib/deeplink/useShareDeepLink';
 import { useT } from '../../lib/i18n';
 import { usePush } from '../../lib/push/PushProvider';
 import { isProposalVisible } from '../../lib/proposals';
-import { joinVillage } from '@cultuvilla/shared/services/villageMemberService';
+import {
+  ensureVillageMembership,
+  joinVillage,
+} from '@cultuvilla/shared/services/villageMemberService';
 import { getVillageViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { MAP_ZOOM_DEFAULT } from '@cultuvilla/shared/services/mapsService';
 import { newsImageDownloadURL } from '@cultuvilla/shared/services/imageService';
@@ -131,8 +136,25 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
     );
   }
 
-  // Dormant municipality: offer the self-service "start this village" flow.
+  // Dormant municipality: no community yet, so there is nothing to show but an
+  // invitation. Joining starts it (ensureVillageMembership); a guest goes through
+  // the register gate, whose onboarding join takes the same path.
   if (!village.communityActive) {
+    const joinDormant = async () => {
+      if (!user) {
+        gate.requireAuth(villageHref(village.slug), t('guest.village'), village.id);
+        return;
+      }
+      setJoining(true);
+      try {
+        await ensureVillageMembership(village.id, user.uid);
+        offerPush('village_join', { villageName: village.name });
+        await refreshProfile();
+        await reload();
+      } finally {
+        setJoining(false);
+      }
+    };
     return (
       <View className="flex-1 items-center justify-center px-8">
         <VStack gap={2} className="items-center">
@@ -149,15 +171,16 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           <Text tone="muted" variant="bodySm">
             {village.province}
           </Text>
-          <Text className="text-center mt-4">{t('village.notRegistered.body')}</Text>
-          <Text variant="h3" className="text-center mt-2">
-            {t('village.notRegistered.cta')}
+          <Text className="text-center mt-4">
+            {t('village.notRegistered.body', { name: village.name })}
           </Text>
           <Button
             className="mt-4"
-            onPress={() => router.push(discoverStartHref(village.id))}
+            onPress={() => void joinDormant()}
+            loading={joining}
+            testID="village-join-dormant"
           >
-            {t('village.notRegistered.button')}
+            {user ? t('village.join') : t('village.signInToJoin')}
           </Button>
         </VStack>
       </View>
@@ -307,8 +330,16 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           />
         </HStack>
 
-        {/* ── The latest fiestas Wrapped, while it is recent ────── */}
-        <VillageWrappedBanner municipalityId={village.id} villageSlug={villageSlug} />
+        {/* ── Admins: an invitation to sum up the fiestas, once the village
+            has had movement worth summing up ─────────────────────── */}
+        {canManage && sectionStatus.events === 'ready' ? (
+          <WrappedPrompt
+            municipalityId={village.id}
+            villageSlug={villageSlug}
+            events={events}
+            fiestas={village.community?.fiestas ?? NO_FIESTAS}
+          />
+        ) : null}
 
         {/* ── No organizer yet (wiki phase) ─────────────────────── */}
         {noOrganizer ? (
@@ -331,15 +362,6 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               {t('village.noOrganizer.body')}
             </Text>
           </VStack>
-        ) : null}
-
-        {/* ── The pueblo's Embajador, by name and face ─────────── */}
-        {village.community?.organizerId ? (
-          <VillageAmbassadorCard
-            organizerId={village.community.organizerId}
-            organizerSex={village.community.organizerSex}
-            viewerUid={uid}
-          />
         ) : null}
 
         {/* ── Ubicación: the map rectangle when coordinates are set. When
@@ -541,6 +563,9 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             ) : null}
           </HStack>
         ) : null}
+
+        {/* ── The latest published fiestas Wrapped, closing the page ── */}
+        <VillageWrappedStrip municipalityId={village.id} villageSlug={villageSlug} />
       </ScrollView>
       <JoinVillageModal
         municipality={

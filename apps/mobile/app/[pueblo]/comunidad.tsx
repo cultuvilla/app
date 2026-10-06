@@ -1,7 +1,7 @@
 import { villageHref, villageSectionHref } from '../../lib/navigation/routes';
 import { useVillageRoute, withVillageRoute } from '../../lib/navigation/VillageRouteGate';
 import { Redirect, router } from 'expo-router';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Button } from '../../components/primitives';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
@@ -37,10 +37,7 @@ function CommunityScreen() {
   return (
     <Screen padded={false} bottomInset={false} topInset={false}>
       <ScreenHeader accent title={t('village.edit.title')} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={{ flex: 1 }}>
         <View className="flex-1">
           <CommunitySettingsEditor villageId={villageId} />
         </View>
@@ -57,7 +54,7 @@ function CommunityScreen() {
             {t('common.done')}
           </Button>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Screen>
   );
 }

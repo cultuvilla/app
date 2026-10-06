@@ -2,8 +2,11 @@ import {
   onSnapshot,
   type DocumentReference,
   type Query,
+  type QueryDocumentSnapshot,
   type Unsubscribe,
 } from '../firebase/sdk/firestore';
+import { firebaseErrorCode } from '../firebase/sdk/errors';
+import { observability } from './observability/observabilityService';
 
 /**
  * Live reads. On the native SDK a listener answers from the on-device cache
@@ -41,20 +44,43 @@ function readOrReport<R>(read: () => R, onNext: (value: R) => void, onError: Wat
   onNext(value);
 }
 
-export function watchQuery<T>(
+/**
+ * A query read through `read`, for results that need more than each doc's data
+ * — a parent path, a count. `read` sees the raw snapshots, so a doc it does not
+ * call `data()` on is never parsed.
+ */
+export function watchQueryWith<T, R>(
   q: Query<T>,
-  onNext: (rows: (T & { id: string })[]) => void,
+  read: (docs: QueryDocumentSnapshot<T>[]) => R,
+  onNext: (value: R) => void,
   onError: WatchError,
 ): Unwatch {
   return onSnapshot(
     q,
     (snap) => {
-      readOrReport(() => snap.docs.map((d) => ({ id: d.id, ...d.data() })), onNext, onError);
+      readOrReport(() => read(snap.docs), onNext, onError);
     },
     (err: unknown) => {
       onError(asError(err));
     },
   );
+}
+
+export function watchQuery<T>(
+  q: Query<T>,
+  onNext: (rows: (T & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQueryWith(q, (docs) => docs.map((d) => ({ id: d.id, ...d.data() })), onNext, onError);
+}
+
+/**
+ * How many docs match — the cache-friendly stand-in for `getCountFromServer`,
+ * which cannot answer offline. Counts snapshots without parsing them, so for
+ * small result sets only (a user's unread notifications), never a collection.
+ */
+export function watchCount<T>(q: Query<T>, onNext: (count: number) => void, onError: WatchError): Unwatch {
+  return watchQueryWith(q, (docs) => docs.length, onNext, onError);
 }
 
 export function watchDoc<T>(
@@ -78,6 +104,32 @@ export function watchDoc<T>(
       onError(asError(err));
     },
   );
+}
+
+/**
+ * A part that answers "no rows" when the rules refuse it, instead of failing.
+ *
+ * For a `watchMerged` part whose query the viewer may simply not be entitled
+ * to: rules do not filter a list, they reject the whole query, so a refusal
+ * means "nothing here you can read" — and because `watchMerged` waits for every
+ * part, one refused part would otherwise blank the whole merge. Any other error
+ * still fails.
+ *
+ * The refusal is still logged, at info: it is the expected answer for some
+ * parts (an open org's private events), so it must not page anyone, but a
+ * rules regression that starts refusing every part has to stay findable.
+ */
+export function forbiddenAsEmpty<T>(
+  operation: string,
+  part: (onNext: (rows: T[]) => void, onError: WatchError) => Unwatch,
+): (onNext: (rows: T[]) => void, onError: WatchError) => Unwatch {
+  return (onNext, onError) =>
+    part(onNext, (error) => {
+      if (firebaseErrorCode(error) === 'permission-denied') {
+        observability.logger.info('watch part refused by rules; answered empty', { operation });
+        onNext([]);
+      } else onError(error);
+    });
 }
 
 /**
@@ -108,4 +160,34 @@ export function watchMerged<T>(
   return () => {
     for (const unwatch of unwatches) unwatch();
   };
+}
+
+/**
+ * Several docs by id as one list, in the order given, missing docs dropped —
+ * one listener per id, emitted once all have answered.
+ */
+export function watchDocsByIds<T>(
+  ids: string[],
+  watchOne: (id: string, onNext: (row: T | null) => void, onError: WatchError) => Unwatch,
+  onNext: (rows: T[]) => void,
+  onError: WatchError,
+): Unwatch {
+  const parts = ids.map(
+    (id, index) => (next: (rows: { index: number; row: T }[]) => void, error: WatchError) =>
+      watchOne(
+        id,
+        (row) => {
+          next(row === null ? [] : [{ index, row }]);
+        },
+        error,
+      ),
+  );
+  return watchMerged(
+    parts,
+    (rows) => [...rows].sort((a, b) => a.index - b.index),
+    (rows) => {
+      onNext(rows.map((r) => r.row));
+    },
+    onError,
+  );
 }

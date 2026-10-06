@@ -2,18 +2,23 @@
   "baseBranch": "develop",
   "protectedBranches": ["beta", "main"],
 
-  "_requireApprovingReview": "FALSE on an explicit decision (2026-08-22): the agent merges to develop here on green CI alone, without waiting for a review. Name it for what it is — this is a WEAKER bar than requiring one, not an equivalent one, because nothing reads the diff but the test suite. What keeps it defensible is that the rest of this file still bites: the hardStop list never self-merges however green, and the vacuous-green guard refuses to read 'no run dispatched' as 'tests passed'. develop is also not a release branch here, so a bad merge is caught before beta.",
-  "_requireApprovingReview_flipBack": "Set this back to TRUE the moment the ai-review reviewer starts posting on this repo. That path runs through github-review's poll backstop, NOT through a request-review job in ci.yml: this repo is PUBLIC and homelab is PRIVATE, and a public repo cannot call a private repo's reusable workflow. GitHub resolves the callee when it creates the run, before any job-level `if`, so such a job is not merely inert — it fails the whole workflow to load, taking every other job with it. (Tried on 2026-08-22; run 32594475090 completed with zero jobs.) What remains is the homelab-side registry entry in personal/agent-review.yml, which this repo already has, plus the controller config on the host. The cost is latency, not capability: reviews arrive within a poll interval rather than immediately.",
+  "_requireApprovingReview": "TRUE since 2026-10-06, the day the reviewer first worked here (powerreviewer reviewed #469). Before that it was false by an explicit decision of 2026-08-22, which merged on green CI alone — a weaker bar, since nothing read the diff but the test suite. A review reaches this repo ONLY by homelab's poll backstop (personal/agent-review.yml), not by a request-review job in ci.yml: this repo is PUBLIC and homelab is PRIVATE, and a public repo cannot call a private repo's reusable workflow — GitHub resolves the callee when it creates the run, before any job-level `if`, so such a job fails the whole workflow to load (tried 2026-08-22; run 32594475090 completed with zero jobs). Two consequences: a review arrives within a poll interval (~15 min) rather than immediately, and the poll only picks up PRs carrying the reviewLabel. pr:land adds that label when it opens the PR; a PR opened with bare `gh pr create` and no label is never reviewed and would wait here until reviewTimeoutMs (#436–#468 went unreviewed that way).",
   "reviewLabel": "ai-review",
-  "requireApprovingReview": false,
-  "maxReviewRounds": 5,
-  "_reviewTimeoutMs": "Only consulted while requireApprovingReview is true; kept short so the flip back does not also mean a 20-minute idle.",
-  "reviewTimeoutMs": 120000,
+  "requireApprovingReview": true,
+
+  "_maxReviewRounds": "A round is a REQUEST_CHANGES review — approvals spend none, and a round is spent the moment the verdict lands (decide.js reviewSpent). TWO since 2026-10-07 (user: one review is enough): the agent fixes the first review's findings, and the second verdict — approve or not — ends the conversation, so the PR lands on CI green. 1 would land the first REQUEST_CHANGES unfixed. Each extra round cost a ~15-min poll plus the reviewer's run (30–40 min); on 2026-10-06 the third round added ~30–40 min to each of #492–#494.",
+  "maxReviewRounds": 2,
+
+  "_roundsExhausted": "\"merge\" — the cap ENDS the review conversation and the PR lands on CI green alone; nothing is left to ask the user, so an agent must not stop to report that the rounds ran out. Narrow on purpose: red CI still exits 10, and a Breaking-Client: trailer still exits 30 however many rounds were spent. \"handoff\" (the shared default) makes the cap open a human conversation instead.",
+  "roundsExhausted": "merge",
+
+  "_reviewTimeoutMs": "40 min per head: one ~15-min poll interval, plus the reviewer's own agentic run, plus a missed poll's slack. Shorter would exit 30 on a review that was merely on its way; the timeout is reset by every new head, so a fix push after REQUEST_CHANGES gets the full window again.",
+  "reviewTimeoutMs": 2400000,
 
   "_ciPaths": "ci.yml has NO paths: filter — it runs on every push and PR to develop/beta/main. '**' says that directly; enumerating top-level directories would silently stop being true the moment one is added.",
   "ciPaths": ["**"],
 
-  "_sharedBlastRadius": "A base move here forces a rebase even with no direct file overlap.",
+  "_sharedBlastRadius": "DORMANT while develop requires a merge queue (docs/decisions/merge-queue.md): pr:land detects the queue and never rebases for staleness. These paths apply only if the queue is switched off, when a base move here forces a rebase even with no direct file overlap.",
   "sharedBlastRadius": [
     "packages/shared/",
     "pnpm-lock.yaml",
@@ -21,6 +26,6 @@
     "firestore.rules"
   ],
 
-  "_hardStop": "File paths that never self-merge. EMPTY by the user's decision of 2026-10-05 (AGENTS.md, Approval and Autonomy contract): consent covers what is subjective, so rules, indexes, converters and backfill scripts merge on CI green like any other code — none of them reaches beta or prod from develop; they get there only through a promotion PR the user merges. What still exits 30 is the Breaking-Client: trailer (hardStopTrailerSource's default) and any PR not based on develop. Add a pattern only for a path whose merge alone, with no promotion in between, changes something users or production data see.",
+  "_hardStop": "File paths that never self-merge. EMPTY by the user's decision of 2026-10-05 (AGENTS.md, Approval and Autonomy contract): consent covers what is subjective, so rules, indexes, converters and backfill scripts merge on CI green + ai-review like any other code — none of them reaches beta or prod from develop; they get there only through a promotion PR the user merges. What still exits 30 is the Breaking-Client: trailer (hardStopTrailerSource's default) and any PR not based on develop. Add a pattern only for a path whose merge alone, with no promotion in between, changes something users or production data see.",
   "hardStop": []
 }

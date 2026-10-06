@@ -46,7 +46,7 @@ function VillageHome() {
   const onBack = coldEntry && id ? () => router.replace(myVillageHref(id)) : undefined;
 
   return (
-    <Screen padded={false} topInset={false}>
+    <Screen padded={false}>
       <ScreenHeader title={home.village?.name} onBack={onBack} />
       <VillageHomeBody data={home} reload={home.reload} />
     </Screen>

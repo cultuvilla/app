@@ -126,13 +126,15 @@ function seedAmbassadorVillage() {
   });
 }
 
-test('shows the Embajadora title, the team badge, and nothing for a vecino', async () => {
+test('marks the Embajador with the seal alone, the team with its badge, a vecino with nothing', async () => {
   seedAmbassadorVillage();
   render(<MembersList villageId="m1" />);
 
-  await waitFor(() => expect(screen.getByText('Embajadora')).toBeTruthy());
+  await waitFor(() => expect(screen.getByText('Equipo del pueblo')).toBeTruthy());
+  expect(screen.getAllByTestId('avatar-ambassador-seal')).toHaveLength(1);
+  expect(screen.queryByText('Embajadora')).toBeNull();
+  expect(screen.queryByTestId('member-title-pa')).toBeNull();
   expect(screen.getByTestId('member-title-pt')).toBeTruthy();
-  expect(screen.getByText('Equipo del pueblo')).toBeTruthy();
   expect(screen.queryByTestId('member-title-pv')).toBeNull();
 });
 

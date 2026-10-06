@@ -1,4 +1,5 @@
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { ensureVillageMembership } from '@cultuvilla/shared/services/villageMemberService';
 import VillageTabScreen from '../mi-pueblo';
 import { getMunicipality, getBarrios, getPlaces } from '@cultuvilla/shared/services/municipalityService';
 import { getMyOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
@@ -51,6 +52,7 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => {
   };
 });
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
+  ensureVillageMembership: jest.fn().mockResolvedValue(undefined),
   isVillageAdmin: jest.fn().mockResolvedValue(false),
   getVillageMembers: jest.fn().mockResolvedValue([]),
 }));
@@ -65,11 +67,9 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => {
   };
 });
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  getOrgMemberCount: jest.fn().mockResolvedValue(0),
   getUserOrgIds: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getBarrioResidentCount: jest.fn().mockResolvedValue(0),
   getPersonByUserId: jest.fn().mockResolvedValue(null),
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
@@ -123,6 +123,7 @@ jest.mock('../../../lib/auth/useAuth', () => ({
     user: { uid: 'uid-1' },
     profile: { activeMunicipalityId: 'mun1' },
     profileChecked: true,
+    refreshProfile: jest.fn().mockResolvedValue(undefined),
   }),
 }));
 jest.mock('../../../lib/auth/useIsAppAdmin', () => ({
@@ -158,9 +159,7 @@ jest.mock('../../../lib/i18n', () => ({
         'village.hub.organizations': 'Organizaciones',
         'village.hub.censo': 'Censo',
         'village.hub.news': 'Anuncios',
-        'village.notRegistered.body': 'Este pueblo todavía no está activo en Cultuvilla.',
-        'village.notRegistered.cta': '¿Quieres iniciarlo?',
-        'village.notRegistered.button': 'Iniciar este pueblo',
+        'village.notRegistered.body': 'Aún no hay vecinos en Cultuvilla.',
         'village.noOrganizer.body': 'Este pueblo todavía no tiene administrador.',
         'village.noOrganizer.cta': 'Administrar este pueblo',
         'village.noOrganizer.pending': 'Tu solicitud de administrador está pendiente de revisión',
@@ -217,17 +216,23 @@ describe('VillageTabScreen', () => {
     // Active community renders the redesigned village page (hero + sections);
     // neither the start CTA nor the no-organizer banner must appear.
     expect(await findByText('Sotos de Mayorga', undefined, { timeout: 5000 })).toBeTruthy();
-    expect(queryByText('Iniciar este pueblo')).toBeNull();
+    expect(queryByText('Aún no hay vecinos en Cultuvilla.')).toBeNull();
     expect(queryByText('Administrar este pueblo')).toBeNull();
   });
 
-  it('shows the "start this village" CTA when the community is inactive', async () => {
+  it('invites a viewer to join a dormant village, with no separate start step', async () => {
     (getMunicipality as jest.Mock).mockResolvedValue(inactiveMuni);
     (getMyOrganizerRequests as jest.Mock).mockResolvedValue([]);
-    const { findByText, queryByText } = render(<VillageTabScreen />);
-    expect(await findByText('Iniciar este pueblo')).toBeTruthy();
-    // "Organizaciones" only renders on the active village page, not the CTA.
+    const { findByText, queryByText, getByTestId } = render(<VillageTabScreen />);
+    expect(await findByText('Aún no hay vecinos en Cultuvilla.')).toBeTruthy();
+    // "Organizaciones" only renders on the active village page, not the invitation.
     expect(queryByText('Organizaciones')).toBeNull();
+
+    // Joining starts the village in the same tap: ensureVillageMembership runs
+    // startVillage for a dormant municipality.
+    fireEvent.press(getByTestId('village-join-dormant'));
+    await waitFor(() => expect(ensureVillageMembership).toHaveBeenCalledWith('mun1', 'uid-1'));
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('shows the organize CTA when active but with no organizer and no pending request', async () => {

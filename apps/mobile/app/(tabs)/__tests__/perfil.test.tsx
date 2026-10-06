@@ -1,5 +1,6 @@
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import ProfileScreen from '../perfil';
+import { resetWatchers, setWatched, watchersOf } from '../../../test/watchers';
 
 // Regression: changing the profile photo failed with FirebaseError
 // storage/unauthorized on `persons/<id>/photos/<id>.jpeg`. The screen uploaded
@@ -23,8 +24,8 @@ const SELF_PERSON = {
 const PICKED_IMAGE = { blob: {}, filename: 'pic.jpg', contentType: 'image/jpeg' };
 
 jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn(),
-  getPersonsByCreator: jest.fn().mockResolvedValue([]),
+  watchPersonByUserId: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('person'),
+  watchPersonsByCreator: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('personas'),
   updatePerson: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
@@ -32,25 +33,22 @@ jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadPersonImage: jest.fn().mockResolvedValue('https://photo.test/new.jpg'),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  getEventsByOrganizer: jest.fn().mockResolvedValue([]),
+  watchEventsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('events'),
 }));
 jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  getNewsPostsByOrganizer: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/registrationService', () => ({
-  getUserRegistrationsAcrossEvents: jest.fn().mockResolvedValue([]),
+  watchNewsPostsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('news'),
 }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganizationsByMunicipality: jest.fn().mockResolvedValue([]),
+  watchOrganizationsByMunicipality: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('villageOrgs'),
 }));
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  getOrgMembershipsByUserInMunicipality: jest.fn().mockResolvedValue([]),
+  watchOrgMembershipsByUser: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('orgMemberships'),
 }));
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: jest.fn().mockResolvedValue([]),
+  watchUserMemberships: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('memberships'),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: jest.fn().mockResolvedValue(null),
+  watchMunicipalitiesByIds: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('municipalities'),
   getVillagesWhereAmbassador: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
@@ -64,10 +62,9 @@ jest.mock('../../../lib/images', () => ({
 }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
+  reportFirestoreError: jest.fn(),
 }));
-// Stable references: ProfileScreen's `load` is a useCallback keyed on `user`
-// and `activeMunicipalityId`, so returning fresh objects each render would
-// retrigger its effect in an infinite loop.
+// Stable references for the auth context.
 const mockUser = { uid: 'uid-1', email: 'a@b.test', displayName: null };
 const mockProfile: { activeMunicipalityId: string | null } = { activeMunicipalityId: null };
 const mockRefreshProfile = jest.fn().mockResolvedValue(undefined);
@@ -150,40 +147,49 @@ jest.mock('../../../components/feature/profile/ProfileHeader', () => {
   };
 });
 
+function answerEmpty() {
+  resetWatchers();
+  setWatched('person', null);
+  for (const name of ['personas', 'events', 'news', 'villageOrgs', 'orgMemberships', 'memberships', 'municipalities']) {
+    setWatched(name, []);
+  }
+}
+
 describe('ProfileScreen — mis pueblos', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    answerEmpty();
+  });
 
-  it('loads the user memberships on mount', async () => {
-    const personService = require('@cultuvilla/shared/services/personService');
-    const villageMemberService = require('@cultuvilla/shared/services/villageMemberService');
-    (personService.getPersonByUserId as jest.Mock).mockResolvedValue(null);
-
+  it('watches the user memberships on mount', async () => {
     render(<ProfileScreen />);
 
     await waitFor(() => {
-      expect(villageMemberService.getUserMemberships).toHaveBeenCalledWith('uid-1');
+      expect(watchersOf('memberships')[0]?.args).toEqual(['uid-1']);
     });
   });
 });
 
 describe('ProfileScreen — eventos gestionados', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    answerEmpty();
+  });
 
-  it('loads the events created by the user on mount', async () => {
-    const personService = require('@cultuvilla/shared/services/personService');
-    const eventService = require('@cultuvilla/shared/services/eventService');
-    (personService.getPersonByUserId as jest.Mock).mockResolvedValue(null);
-
+  it('watches the events created by the user on mount', async () => {
     render(<ProfileScreen />);
 
     await waitFor(() => {
-      expect(eventService.getEventsByOrganizer).toHaveBeenCalledWith('uid-1');
+      expect(watchersOf('events')[0]?.args).toEqual(['uid-1']);
     });
   });
 });
 
 describe('ProfileScreen — Grupos & Peñas', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    answerEmpty();
+  });
   afterEach(() => {
     mockProfile.activeMunicipalityId = null;
   });
@@ -193,14 +199,8 @@ describe('ProfileScreen — Grupos & Peñas', () => {
     memberships: { orgId: string; role: 'admin' | 'member' }[],
   ) {
     mockProfile.activeMunicipalityId = 'mun-1';
-    const personService = require('@cultuvilla/shared/services/personService');
-    const orgService = require('@cultuvilla/shared/services/organizationService');
-    const orgMemberService = require('@cultuvilla/shared/services/orgMemberService');
-    (personService.getPersonByUserId as jest.Mock).mockResolvedValue(null);
-    (orgService.getOrganizationsByMunicipality as jest.Mock).mockResolvedValue(orgs);
-    (orgMemberService.getOrgMembershipsByUserInMunicipality as jest.Mock).mockResolvedValue(
-      memberships,
-    );
+    setWatched('villageOrgs', orgs.map((o) => ({ commentCount: 0, ...o })));
+    setWatched('orgMemberships', memberships);
   }
 
   it('shows each section title only when the user belongs to that kind of org', async () => {
@@ -236,12 +236,11 @@ describe('ProfileScreen — Grupos & Peñas', () => {
 
   it('hides both sections when the user belongs to no orgs', async () => {
     seedActiveMunicipalityWith([], []);
-    const orgMemberService = require('@cultuvilla/shared/services/orgMemberService');
     const { queryByText } = render(<ProfileScreen />);
-    // Wait for the membership lookup (the last step of load) so the
-    // conditional render has settled before asserting the sections are gone.
+    // Wait for the membership listener so the conditional render has settled
+    // before asserting the sections are gone.
     await waitFor(() => {
-      expect(orgMemberService.getOrgMembershipsByUserInMunicipality).toHaveBeenCalled();
+      expect(watchersOf('orgMemberships')).toHaveLength(1);
     });
     expect(queryByText('profile.gruposSection.title')).toBeNull();
     expect(queryByText('profile.peñasSection.title')).toBeNull();
@@ -291,21 +290,24 @@ describe('ProfileScreen — Grupos & Peñas', () => {
 });
 
 describe('ProfileScreen — change photo', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    answerEmpty();
+  });
 
   it('uploads to the user-scoped path and persists photoURL on the person', async () => {
     const personService = require('@cultuvilla/shared/services/personService');
     const imageService = require('@cultuvilla/shared/services/imageService');
     const images = require('../../../lib/images');
-    (personService.getPersonByUserId as jest.Mock).mockResolvedValue(SELF_PERSON);
+    setWatched('person', SELF_PERSON);
     (images.pickImageAsBlob as jest.Mock).mockResolvedValue(PICKED_IMAGE);
 
     const { getByTestId } = render(<ProfileScreen />);
 
-    // Wait for the initial load to populate selfPerson. The self variant passes
-    // the viewer uid so the owner's own private persona still resolves.
+    // The self variant passes the viewer uid so the owner's own private
+    // persona still resolves.
     await waitFor(() => {
-      expect(personService.getPersonByUserId).toHaveBeenCalledWith('uid-1', 'uid-1');
+      expect(watchersOf('person')[0]?.args).toEqual(['uid-1', 'uid-1']);
     });
 
     await act(async () => {

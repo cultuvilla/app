@@ -4,22 +4,23 @@
      Edit the `**Priority:** / **Landed:** / **Gate:** / **Next:**` block at the top of
      the plan itself, and let CI regenerate this file on the base branch. -->
 
-Current cycle **v1.5.0** (cut 2026-09-29)
+Current cycle **v1.6.0** (cut 2026-10-06)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · existing-signup-emails-rollout · firestore-index-hygiene
+> **Not advanced in 2+ cycles:** app-check-rollout
 
 ## Actionable now
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 27 cycles ago \* | — |
-| [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) ⚠️ | low | dev | 6 cycles ago \* | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
-| [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | this cycle \* | promote `develop → beta` (a `release/X.Y.Z` branch; the maintainer merges the PR) |
+| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 28 cycles ago \* | — |
 | [app-only-transition](ongoing/app-only-transition.md) | high | dev | this cycle | promote to beta and run the phase 3 `curl` checks there, then the same on prod |
-| [offline-first-village](ongoing/offline-first-village.md) | high | dev | this cycle | mis-inscripciones and the remaining list screens onto watchers; then layer 3 (village sync) |
-| [store-release](ongoing/store-release.md) | low | prod | this cycle \* | check Error Reporting for iOS `surface: auth` failures since 1.0.0 went live; if none, retire this plan into one decision doc |
+| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | verify delivery on a real iPhone (step 2) — the key is loaded and bound on prod since 2026-10-05 |
+| [offline-first-village](ongoing/offline-first-village.md) | high | dev | this cycle | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2 |
+| [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) | low | dev | this cycle | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
+| [store-release](ongoing/store-release.md) | low | prod | this cycle | once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc |
 
 ## Soaking
 
@@ -27,16 +28,13 @@ _None._
 
 ## Waiting on you
 
-| Plan | Pri | Landed | Advanced | Waiting on | Next |
-|---|---|---|---|---|---|
-| [existing-signup-emails-rollout](ongoing/existing-signup-emails-rollout.md) ⚠️ | low | prod | 15 cycles ago \* | run the retroactive signup emails on prod (and on beta, still undecided)? | grant the prod runner access to `RESEND_API_KEY`, dry-run prod, review the recipient list, apply |
+_None._
 
 ## Blocked
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle \* | the Apple developer Account Holder must create the APNs key (.p8 + Key ID) — see *Blocker: the APNs key* | load the real APNs key into `APNS_AUTH_KEY` on `cultuvilla-prod`, redeploy the push functions, and verify delivery on an iPhone |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | native analytics must reach users in a store build — phase 1 of [app-only-transition.md](app-only-transition.md) | once that build is out, confirm in prod BigQuery that native events arrive with a non-null `user_pseudo_id`, then start Phase 2 on native data |
+| [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | this cycle | 1.6.0 must be live on BOTH stores before `beta → main` (decision 2026-10-06) | smoke-test on beta (step 2) while 1.6.0 is in store review |
 
 ## How `Advanced` is derived
 
@@ -46,8 +44,6 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
-| `fd0455d2` | 2026-10-02 | 7 | docs(plans): record how far each ongoing plan has landed |
-| `4a67156a` | 2026-10-02 | 7 | docs(decisions): make the app the product and the web a read site |
 | `78b72653` | 2026-09-30 | 18 | docs(plans): migrate to agent-plans v2 (Priority/Gate/Next block), vendor v2.0.1 |
 
 ## Ideas

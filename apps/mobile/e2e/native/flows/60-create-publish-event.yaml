@@ -1,4 +1,4 @@
-# An organizer creates an event through the 4-step wizard and it publishes.
+# An organizer creates an event through the 3-step wizard and it publishes.
 #
 # Only the native driver can prove the location step: it asks for the OS
 # location permission and reads a real GPS fix. `setLocation` gives the AVD a
@@ -59,13 +59,23 @@ env:
           id: 'location-confirm'
       - waitForAnimationToEnd:
           timeout: 3000
+# `repeat` exits quietly when `times` runs out, so name the picker if it stuck.
+- assertNotVisible:
+    id: 'location-confirm'
 - tapOn:
     id: 'event-form-primary'
 
-# Step 3 — details are optional.
-- tapOn:
-    id: 'event-form-primary'
-# Step 4 — sign-up questions are optional; submit.
+# Step 3 — details are optional, and submit. The Preguntas step exists only
+# with in-app sign-ups on AND "Añadir un formulario" (`form-enabled`) switched
+# on; the form is off by default, so Detalles is the last step. Pin that the
+# wizard got here: a tap on a disabled step-2 button reports COMPLETED, and the
+# failure would otherwise surface as a missing event doc.
+- assertVisible:
+    id: 'signup-enabled'
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'event-form-primary'
 - tapOn:
     id: 'event-form-primary'
 

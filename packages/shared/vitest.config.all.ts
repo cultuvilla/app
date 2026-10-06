@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { ALL_INCLUDE, TEST_ENV } from './vitest.suites';
 
 // Runs every test category in @cultuvilla/shared under a single vitest
 // invocation. Intended for orchestration by scripts/run-tests-with-emulators.mjs
@@ -10,32 +11,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    // Same module-load env as the unit config so files that import
-    // packages/shared/src/firebase.ts at module load don't blow up.
-    env: {
-      NEXT_PUBLIC_APP_ENV: 'dev',
-      NEXT_PUBLIC_FIREBASE_API_KEY_DEV: 'AIzaSyTEST_DUMMY_PLACEHOLDER_KEY_0000000',
-      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_DEV: 'test.example.com',
-      NEXT_PUBLIC_FIREBASE_PROJECT_ID_DEV: 'test-project',
-      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_DEV: 'test.appspot.com',
-      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_DEV: '0',
-      NEXT_PUBLIC_FIREBASE_APP_ID_DEV: 'test-app-id',
-    },
-    include: [
-      'test/config/**/*.test.ts',
-      'test/models/**/*.test.ts',
-      'test/services/**/*.test.ts',
-      'test/firebase/**/*.test.ts',
-      'test/eslint/**/*.test.ts',
-      'test/export/**/*.test.ts',
-      'test/design-system/**/*.test.ts',
-      'test/email/**/*.test.ts',
-      'test/utils/**/*.test.ts',
-      'test/wrapped/**/*.test.ts',
-      'test/validation/**/*.test.ts',
-      'test/integration/**/*.test.ts',
-      'test/e2e/**/*.test.ts',
-    ],
+    env: TEST_ENV,
+    include: ALL_INCLUDE,
     setupFiles: [
       'test/setup/integration.setup.ts',
       'test/setup/e2e.setup.ts',

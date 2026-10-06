@@ -254,7 +254,7 @@ export function newsPage(v: Village, n: NewsView, appPath: string): Page {
   };
 }
 
-export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean): Page {
+export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean, events: Card[]): Page {
   const kind = label(ORG_TYPE, o.type) ?? 'Entidad';
   const facts = [kind, o.memberCount ? `${String(o.memberCount)} miembros` : null].filter(Boolean).join(' · ');
   return {
@@ -266,7 +266,7 @@ export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean
       noindex: invite,
       jsonLd: invite ? null : { '@type': 'Organization', name: o.name, ...(o.description ? { description: excerpt(o.description, 300) } : {}) },
     },
-    body: html`${backTo(v)}${invite ? html`<div class="notice"><strong>Te han invitado a unirte a ${o.name}.</strong></div>` : null}${img(o.images[0] ?? null, o.name, 'hero')}<h1>${o.name}</h1><p class="meta">${facts}</p>${paragraphs(o.description)}${o.images.slice(1).map((u) => html`<p>${img(u, o.name)}</p>`)}${appCta(appPath, invite ? 'Únete desde la app' : `Sigue a ${o.name} en la app`)}`,
+    body: html`${backTo(v)}${invite ? html`<div class="notice"><strong>Te han invitado a unirte a ${o.name}.</strong></div>` : null}${img(o.images[0] ?? null, o.name, 'hero')}<h1>${o.name}</h1><p class="meta">${facts}</p>${paragraphs(o.description)}${o.images.slice(1).map((u) => html`<p>${img(u, o.name)}</p>`)}${section('Eventos', events)}${appCta(appPath, invite ? 'Únete desde la app' : `Sigue a ${o.name} en la app`)}`,
   };
 }
 

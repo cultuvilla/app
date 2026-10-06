@@ -7,9 +7,9 @@ import {
   orderBy,
   where,
   collectionGroup,
-  getCountFromServer,
   limit as fsLimit,
   serverTimestamp,
+  type QueryDocumentSnapshot,
 } from '../firebase/sdk/firestore';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
@@ -31,6 +31,7 @@ import {
 import type { RegistrationEventData } from '../models/event/RegistrationEventDataModel';
 import type { SignupAnswers } from '../models/event/SignupFieldModel';
 import { PartialDateSchema, type PartialDate } from '../models/person/PersonDataModel';
+import { watchQueryWith, type Unwatch, type WatchError } from './watch';
 
 export interface RegisterInput {
   personId: string;
@@ -106,17 +107,6 @@ export async function getRegistrationEvents(
   const q = query(eventRegistrationEventsCollection(getDb(), eventId), orderBy('at', 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-
-export async function getConfirmedCount(eventId: string): Promise<number> {
-  const q = query(eventRegistrationsCollection(getDb(), eventId), where('status', '==', 'confirmed'));
-  const snap = await getCountFromServer(q);
-  return snap.data().count;
-}
-
-export async function getTotalCount(eventId: string): Promise<number> {
-  const snap = await getCountFromServer(eventRegistrationsCollection(getDb(), eventId));
-  return snap.data().count;
 }
 
 export async function getUserRegistrations(
@@ -337,25 +327,44 @@ export async function getRegistrationPrivate(
  * upcoming events, so an unbounded read grows the bill for data nothing
  * renders. Omit it to read the whole history.
  */
-export async function getUserRegistrationsAcrossEvents(
-  userId: string,
-  max?: number,
-): Promise<(RegistrationData & { id: string; eventPath: string })[]> {
+export type UserRegistration = RegistrationData & { id: string; eventPath: string };
+
+function userRegistrationsQuery(userId: string, max?: number) {
   // collectionGroup doesn't carry the per-collection converter from the ref
   // factory, so we attach it explicitly here.
   const cg = collectionGroup(getDb(), 'registrations').withConverter(registrationConverterClient);
-  const q = query(
+  return query(
     cg,
     where('userId', '==', userId),
     orderBy('registeredAt', 'desc'),
     ...(max != null ? [fsLimit(max)] : []),
   );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const pathSegments = d.ref.path.split('/');
-    const eventPath = pathSegments.slice(0, 2).join('/');
-    return { id: d.id, ...d.data(), eventPath };
-  });
+}
+
+function userRegistrationRow(d: QueryDocumentSnapshot<RegistrationData>): UserRegistration {
+  const eventPath = d.ref.path.split('/').slice(0, 2).join('/');
+  return { id: d.id, ...d.data(), eventPath };
+}
+
+export async function getUserRegistrationsAcrossEvents(
+  userId: string,
+  max?: number,
+): Promise<UserRegistration[]> {
+  const snap = await getDocs(userRegistrationsQuery(userId, max));
+  return snap.docs.map(userRegistrationRow);
+}
+
+export function watchUserRegistrationsAcrossEvents(
+  userId: string,
+  onNext: (registrations: UserRegistration[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQueryWith(
+    userRegistrationsQuery(userId),
+    (docs) => docs.map(userRegistrationRow),
+    onNext,
+    onError,
+  );
 }
 
 /**

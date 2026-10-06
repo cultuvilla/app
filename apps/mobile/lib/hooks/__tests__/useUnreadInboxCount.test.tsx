@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { useUnreadInboxCount } from '../useUnreadInboxCount';
+import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../test/watchers';
 
 const mockUseAuth = jest.fn();
 jest.mock('../../auth/useAuth', () => ({
@@ -11,10 +12,12 @@ jest.mock('../../auth/useApproverStatus', () => ({
   useApproverStatus: () => mockUseApproverStatus(),
 }));
 
-const mockGetUnreadCount = jest.fn();
 jest.mock('@cultuvilla/shared/services/notificationService', () => ({
-  getUnreadCount: (uid: string) => mockGetUnreadCount(uid),
+  watchUnreadCount: jest
+    .requireActual<typeof import('../../../test/watchers')>('../../../test/watchers')
+    .mockWatcher('unread'),
 }));
+jest.mock('../../firestoreErrorLog', () => ({ reportFirestoreError: jest.fn() }));
 
 const mockGetPendingOrganizerRequests = jest.fn();
 jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
@@ -38,9 +41,10 @@ const NOT_APPROVER = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  resetWatchers();
   mockUseAuth.mockReturnValue({ user: { uid: 'u1' } });
   mockUseApproverStatus.mockReturnValue(NOT_APPROVER);
-  mockGetUnreadCount.mockResolvedValue(0);
+  setWatched('unread', 0);
   mockGetPendingOrganizerRequests.mockResolvedValue([]);
   mockGetPendingOrganizations.mockResolvedValue([]);
   mockGetOrganizationsByMunicipality.mockResolvedValue([]);
@@ -51,11 +55,11 @@ describe('useUnreadInboxCount', () => {
     mockUseAuth.mockReturnValue({ user: null });
     const { result } = renderHook(() => useUnreadInboxCount());
     await waitFor(() => expect(result.current.count).toBe(0));
-    expect(mockGetUnreadCount).not.toHaveBeenCalled();
+    expect(watchersOf('unread')).toHaveLength(0);
   });
 
   it('non-approver: count is just unread notifications', async () => {
-    mockGetUnreadCount.mockResolvedValue(3);
+    setWatched('unread', 3);
     const { result } = renderHook(() => useUnreadInboxCount());
     await waitFor(() => expect(result.current.count).toBe(3));
     expect(mockGetPendingOrganizerRequests).not.toHaveBeenCalled();
@@ -63,7 +67,7 @@ describe('useUnreadInboxCount', () => {
   });
 
   it('super admin: sums unread + all pending-actionable rows', async () => {
-    mockGetUnreadCount.mockResolvedValue(2);
+    setWatched('unread', 2);
     mockUseApproverStatus.mockReturnValue({
       loading: false,
       isSuperAdmin: true,
@@ -78,7 +82,7 @@ describe('useUnreadInboxCount', () => {
   });
 
   it('village admin: sums unread + pending orgs across admin villages', async () => {
-    mockGetUnreadCount.mockResolvedValue(1);
+    setWatched('unread', 1);
     mockUseApproverStatus.mockReturnValue({
       loading: false,
       isSuperAdmin: false,
@@ -96,8 +100,19 @@ describe('useUnreadInboxCount', () => {
   });
 
   it('service failure: falls back to count 0 rather than throwing', async () => {
-    mockGetUnreadCount.mockRejectedValue(new Error('network error'));
+    setWatched('unread', new Error('network error'));
     const { result } = renderHook(() => useUnreadInboxCount());
     await waitFor(() => expect(result.current.count).toBe(0));
+  });
+
+  // The badge follows the listener: a notification read in the Buzón (or a new
+  // one landing) moves the count without the header refreshing.
+  it('moves with the unread listener, with no refresh', async () => {
+    setWatched('unread', 3);
+    const { result } = renderHook(() => useUnreadInboxCount());
+    await waitFor(() => expect(result.current.count).toBe(3));
+    emitWatched('unread', 1);
+    await waitFor(() => expect(result.current.count).toBe(1));
+    expect(watchersOf('unread')).toHaveLength(1);
   });
 });

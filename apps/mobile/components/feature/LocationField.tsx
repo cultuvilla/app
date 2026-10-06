@@ -36,6 +36,7 @@ export function LocationField({
   onChange,
   onClear,
   label,
+  required,
 }: {
   value: LatLng | null;
   displayName: string;
@@ -45,6 +46,7 @@ export function LocationField({
    *  grows a clear button. Omit where the location is mandatory (events). */
   onClear?: () => void;
   label?: string;
+  required?: boolean;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -133,7 +135,7 @@ export function LocationField({
 
   return (
     <View>
-      <FieldLabel>{label ?? t('event.location')}</FieldLabel>
+      <FieldLabel required={required}>{label ?? t('event.location')}</FieldLabel>
       <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={styles.trigger} testID="event-location">
 
         <View style={styles.triggerInner}>

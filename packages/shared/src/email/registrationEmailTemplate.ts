@@ -1,10 +1,8 @@
 import { entityPath, type EntityLinkTarget } from '../utils/urls';
 /**
  * Branded HTML/text templates for the event-registration confirmation email,
- * sent via Resend. Lives in the shared package because two callers render it:
- * the `registerToEvent` / waitlist-promotion Cloud Functions, and the
- * `existing-signup-emails` backfill script, which runs outside the functions
- * bundle. Same constraints as the auth templates
+ * sent via Resend by the `registerToEvent`, waitlist-promotion and cancellation
+ * Cloud Functions. Same constraints as the auth templates
  * (functions/src/auth/authEmailTemplate.ts): hand-written table-based HTML with
  * inline styles, no external CSS/JS, so it survives Gmail/Outlook/Apple Mail's
  * markup stripping.
@@ -54,9 +52,6 @@ export type RegistrationEmailKind = RegistrationEmailContent['kind'];
  * 'registration' — the user just signed up. 'waitlist_promotion' — a slot
  * freed up and they moved off the waitlist; same layout, different lead so
  * the reader knows why they got a second email about the same event.
- * 'existing_registration' — a retroactive send to someone who signed up
- * before the confirmation email existed; framed as a reminder, because
- * "Inscripción confirmada" would read as a duplicate weeks after the fact.
  * 'cancellation' / 'removed' — the seat is gone, either because the reader
  * cancelled it or because an organizer (or the group's owner) did. Two kinds
  * rather than one because "has anulado" is a receipt and "te han dado de
@@ -69,7 +64,7 @@ export type RegistrationEmailKind = RegistrationEmailContent['kind'];
  */
 export type RegistrationEmailContent =
   | (RegistrationEmailBase & {
-      kind: 'registration' | 'waitlist_promotion' | 'existing_registration';
+      kind: 'registration' | 'waitlist_promotion';
       attendees: RegistrationEmailAttendee[];
       confirmedCount: number;
       /** null when the event has no capacity limit. */
@@ -105,14 +100,12 @@ export function eventWebUrl(event: EntityLinkTarget, projectId: string | undefin
 
 export const REGISTRATION_EMAIL_SUBJECT_PREFIX = 'Inscripción confirmada';
 export const PROMOTION_EMAIL_SUBJECT_PREFIX = '¡Plaza confirmada!';
-export const REMINDER_EMAIL_SUBJECT_PREFIX = 'Recordatorio de inscripción';
 export const CANCELLATION_EMAIL_SUBJECT_PREFIX = 'Inscripción cancelada';
 export const REMOVAL_EMAIL_SUBJECT_PREFIX = 'Te han dado de baja';
 
 const SUBJECT_PREFIXES: Record<RegistrationEmailKind, string> = {
   registration: REGISTRATION_EMAIL_SUBJECT_PREFIX,
   waitlist_promotion: PROMOTION_EMAIL_SUBJECT_PREFIX,
-  existing_registration: REMINDER_EMAIL_SUBJECT_PREFIX,
   cancellation: CANCELLATION_EMAIL_SUBJECT_PREFIX,
   removed: REMOVAL_EMAIL_SUBJECT_PREFIX,
 };
@@ -124,7 +117,6 @@ export function registrationEmailSubject(content: RegistrationEmailContent): str
 const LEAD_LINES: Record<RegistrationEmailKind, string | null> = {
   registration: null,
   waitlist_promotion: 'Se ha liberado una plaza y ya tienes sitio en este evento.',
-  existing_registration: 'Te recordamos que estás apuntado a este evento.',
   cancellation: 'Has anulado tu inscripción en este evento.',
   removed: 'La organización te ha dado de baja de este evento.',
 };

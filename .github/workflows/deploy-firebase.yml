@@ -16,6 +16,19 @@ on:
         description: .firebaserc project alias (dev | beta | prod)
         required: true
         type: string
+      ref:
+        description: Commit to deploy (blank = the triggering commit). Set by a held-backend deploy.
+        required: false
+        type: string
+        default: ""
+      held_backend:
+        description: >-
+          This run deploys a backend an earlier prod deploy held back
+          (dispatched by announce-when-live.yml once both stores serve the
+          release). Deploys everything and records nothing.
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -33,8 +46,29 @@ jobs:
       id-token: write # required for Workload Identity Federation
 
     steps:
+      # Prod needs the full history and tags: the release plan below rolls up
+      # `Breaking-Client:` trailers since the previous release tag.
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: ${{ inputs.firebase_alias == 'prod' && '0' || '1' }}
+
+      # An explicit `ref` arrives from a workflow_dispatch input, and
+      # actions/checkout will fetch ANY commit the remote has — an unmerged
+      # branch included. The environment's branch rule guards the workflow ref,
+      # not this one, so without this check a dispatch could ship unreviewed
+      # functions and rules. Only code already on main may deploy.
+      - name: Refuse a ref that is not on main
+        if: ${{ inputs.ref != '' }}
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/main; then
+            echo "::error::${REF} is not an ancestor of main — refusing to deploy it."
+            exit 1
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -129,6 +163,25 @@ jobs:
       - name: Signing gate — runtime SA can mint custom tokens
         run: node scripts/check-custom-token-signing.mjs --env ${{ inputs.firebase_alias }}
 
+      # Release plan — prod only, and not on the run that deploys a held
+      # backend. A breaking release (a `Breaking-Client:` trailer since the
+      # previous release tag, or a still-held earlier one) keeps its functions
+      # and rules back until both stores serve the binary that copes with them:
+      # until then the wall cannot be raised, so an installed client the new
+      # backend no longer supports would just break, with no screen saying why.
+      # announce-when-live.yml raises the wall and dispatches the held backend
+      # (deploy-prod.yml, pinned to the release commit) when the stores are live.
+      # Indexes and hosting still deploy: additive indexes harm no client, and
+      # the read site is not an installed binary. `[auto-deploy]` in the merge
+      # commit overrides the hold. Beta and dev never hold.
+      # See docs/decisions/announce-when-live-poller.md.
+      - name: Release plan — hold a breaking backend until the stores serve it
+        id: release
+        if: ${{ inputs.firebase_alias == 'prod' && !inputs.held_backend }}
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: node scripts/release-announce.mjs plan --env=prod
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools@14
 
@@ -161,12 +214,16 @@ jobs:
       # Backend first, so schema/permissions land before code that relies on
       # them and before hosting rewrites resolve the readSite function.
       - name: Deploy Firestore & Storage rules
+        if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: firebase deploy --only firestore:rules,storage --project ${{ inputs.firebase_alias }} --non-interactive
 
       - name: Deploy Firestore indexes
         run: firebase deploy --only firestore:indexes --project ${{ inputs.firebase_alias }} --non-interactive
 
+      # production-release.yml reads this step's conclusion: `skipped` means the
+      # backend is held, and it then holds the production OTA too. Rename both.
       - name: Deploy Cloud Functions
+        if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: firebase deploy --only functions --project ${{ inputs.firebase_alias }} --non-interactive --force
 
       # Belt-and-suspenders (fixture-login security model, Option 1C): a deployed
@@ -194,21 +251,28 @@ jobs:
       - name: Deploy Hosting
         run: firebase deploy --only hosting:app --project ${{ inputs.firebase_alias }} --non-interactive
 
-      # `config/appVersion.latest` is what the in-app update nudge compares the
-      # installed build against — and it is a Firestore document, so unlike
-      # everything above it does NOT ship with the deploy. Leaving it to a
-      # manual dispatch is exactly what let beta sit on 0.27.0 while 0.28.0,
-      # 0.29.0 and 0.30.0 all shipped: three releases whose testers were never
-      # told a new build existed, which is most of the point of a closed track.
-      #
-      # LAST, deliberately: announcing a version that then failed to deploy
-      # would point clients at a build that is not there.
-      #
-      # Both omitted flags are the safe defaults, and they are what makes this
-      # safe to automate: no `--latest` resolves to this branch's app.config.ts
-      # version, and no `--min` PRESERVES the stored `minSupported`. So this can
-      # raise the announcement but can NEVER move the force-update wall — that
-      # stays a deliberate "Set App Version" dispatch, because walling off
-      # clients is a product decision and must never be a side effect of a merge.
-      - name: Announce the shipped version to clients
+      # Hand the release to the announce poller (prod). After hosting, so a
+      # release whose deploy failed is never recorded. Records the hold the plan
+      # step decided, which is what this run actually did.
+      - name: Record the release for the announce poller
+        if: ${{ inputs.firebase_alias == 'prod' && !inputs.held_backend }}
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: node scripts/release-announce.mjs record --env=prod --hold=${{ steps.release.outputs.hold_backend }}
+
+      # A held backend just shipped — tell the poller only now, on success. If
+      # any step above failed, the pending doc stays and the poller dispatches
+      # this deploy again after DEPLOY_RETRY_HOURS.
+      - name: Finish the held release
+        if: ${{ inputs.firebase_alias == 'prod' && inputs.held_backend }}
+        run: node scripts/release-announce.mjs finish --env=prod --sha="$(git rev-parse HEAD)"
+
+      # Keeps `config/appVersion` well-formed on every env (store URLs, both
+      # platforms present) WITHOUT moving anything a client reacts to. Both
+      # omitted flags preserve what is stored: `latest` is written only by the
+      # announce poller once a store serves the release, and `minSupported` only
+      # by the poller (a breaking release, once live) or a deliberate "Set App
+      # Version" dispatch. A deploy announcing its own version is what told
+      # every iOS user on 1.2.2 to update to a 1.3.0 no store had.
+      - name: Refresh config/appVersion, preserving latest and the wall
         run: node scripts/seed-app-version-config.mjs --env=${{ inputs.firebase_alias }} --confirm

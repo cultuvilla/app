@@ -1,0 +1,221 @@
+name: Open beta → main PR
+
+# Once a push to beta is fully green — the cultuvilla-beta deploy AND the beta
+# store builds — open (or refresh) the `beta → main` promotion PR, titled with
+# the bare version, carrying the CHANGELOG section, its migration checklist and
+# links to those runs (job `open-pr`).
+#
+# Each of the two workflows fires this on completion; whichever finishes second
+# finds both green and opens the PR. beta-build-and-submit skips docs-only
+# pushes (paths-ignore), so a missing build run counts as "nothing to wait for".
+#
+# Job `auto-merge` then merges that PR itself — but ONLY while the repo variable
+# AUTO_MERGE_TO_MAIN is 'true'. That switch is the user's: production is their
+# call, and with it unset (the default) the job only reports "would merge" or
+# what it is waiting on. It merges when the PR is the auto-opened release PR at
+# beta's tip; Deploy beta, beta-build-and-submit and android-e2e are green on
+# that commit; main's required checks are green on it; it has no `hold` label;
+# and AUTO_PROMOTE_SOAK_HOURS (default 2) have passed since Deploy beta finished.
+# scripts/auto-promote-main.mjs decides. The soak means "later", so an hourly
+# schedule re-evaluates; android-e2e completing re-evaluates too.
+#
+# Token: RELEASE_PR_TOKEN (a fine-grained PAT or GitHub App token with
+# pull-requests:write, plus contents:write to merge) when set, else GITHUB_TOKEN
+# for opening the PR. The default token cannot create a PR while the repo
+# setting "Allow GitHub Actions to create and approve pull requests" is off, and
+# a PR it creates triggers no `pull_request` runs. That second part is harmless
+# here: the PR's head is beta's tip, whose `push` runs of CI and Android E2E
+# already report the required checks on that SHA.
+# The MERGE never falls back to GITHUB_TOKEN: a push made with it triggers no
+# workflows, so Deploy prod and Production release would never run.
+on:
+  workflow_run:
+    workflows: ["Deploy beta", "beta-build-and-submit", "android-e2e"]
+    types: [completed]
+    branches: [beta]
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+  checks: read
+  statuses: read
+
+concurrency:
+  group: promote-to-main
+  cancel-in-progress: false
+
+jobs:
+  open-pr:
+    if: >-
+      github.event_name == 'workflow_run'
+      && github.event.workflow_run.name != 'android-e2e'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for both beta workflows
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          beta_head=$(gh api "repos/$REPO/git/ref/heads/beta" --jq .object.sha)
+          if [ "$beta_head" != "$SHA" ]; then
+            echo "beta has moved on to $beta_head; the newer push will open the PR."
+            echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$(gh api "repos/$REPO/compare/main...$SHA" --jq .ahead_by)" = "0" ]; then
+            echo "beta has nothing main lacks."
+            echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          runs=$(gh api "repos/$REPO/actions/runs?head_sha=$SHA&event=push&branch=beta&per_page=100" --jq '
+            [.workflow_runs[] | select(.name == "Deploy beta" or .name == "beta-build-and-submit")]
+            | group_by(.name) | map(max_by(.id))
+            | map({name, url: .html_url, status, conclusion})')
+          echo "$runs"
+          ready=$(jq -r '
+            (map(select(.name == "Deploy beta" and .conclusion == "success")) | length == 1)
+            and (map(select(.name == "beta-build-and-submit" and .conclusion != "success")) | length == 0)' <<<"$runs")
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          { echo "runs<<EOF"; jq -c . <<<"$runs"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
+      # The scripts come from this workflow's own ref (the default branch,
+      # develop — workflow_run always runs there); the data comes from beta.
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.ready == 'true'
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: beta-src
+
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Open or update the promotion PR
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          RUNS_JSON: ${{ steps.gate.outputs.runs }}
+        run: |
+          version=$(node scripts/release-promotion-body.mjs beta-src --version)
+          node scripts/release-promotion-body.mjs beta-src > "$RUNNER_TEMP/body.md"
+          existing=$(gh pr list --base main --head beta --state open --json url --jq '.[0].url // ""')
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "$version" --body-file "$RUNNER_TEMP/body.md"
+            echo "Updated $existing" >> "$GITHUB_STEP_SUMMARY"
+          elif url=$(gh pr create --base main --head beta --title "$version" --body-file "$RUNNER_TEMP/body.md"); then
+            echo "Opened $url" >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### Could not open the beta → main PR"
+              echo "Add a \`RELEASE_PR_TOKEN\` secret (PAT with pull-requests:write), or enable"
+              echo "Settings → Actions → *Allow GitHub Actions to create and approve pull requests*. Meanwhile:"
+              echo '```'
+              echo "gh pr create --base main --head beta --title $version --body-file <body>"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Could not create the beta → main PR — see the run summary."
+            exit 1
+          fi
+
+  auto-merge:
+    needs: open-pr
+    # A failed open-pr may have left the PR describing the previous release.
+    if: ${{ !cancelled() && needs.open-pr.result != 'failure' }}
+    runs-on: ubuntu-latest
+    env:
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Find the beta → main PR
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          number=$(gh pr list --repo "$REPO" --base main --head beta --state open --json number --jq '.[0].number // ""')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          [ -n "$number" ] || echo "No open beta → main PR; nothing to merge." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v5
+        if: steps.find.outputs.number != ''
+      - uses: actions/setup-node@v5
+        if: steps.find.outputs.number != ''
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Gather the facts
+        if: steps.find.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ steps.find.outputs.number }}
+          AUTO_MERGE_TO_MAIN: ${{ vars.AUTO_MERGE_TO_MAIN }}
+          AUTO_PROMOTE_SOAK_HOURS: ${{ vars.AUTO_PROMOTE_SOAK_HOURS }}
+          HAS_RELEASE_PR_TOKEN: ${{ secrets.RELEASE_PR_TOKEN != '' }}
+        run: |
+          pr=$(gh pr view "$NUMBER" --repo "$REPO" \
+            --json number,title,baseRefName,headRefName,headRefOid,isCrossRepository,isDraft,labels,mergeable,mergeStateStatus)
+          sha=$(jq -r .headRefOid <<<"$pr")
+          head_version=$(gh api "repos/$REPO/contents/apps/mobile/package.json?ref=$sha" --jq .content | base64 -d | jq -r .version)
+          beta_head=$(gh api "repos/$REPO/git/ref/heads/beta" --jq .object.sha)
+          runs=$(gh api "repos/$REPO/actions/runs?head_sha=$sha&event=push&branch=beta&per_page=100" \
+            --jq '[.workflow_runs[] | {id, name, status, conclusion, updated_at}]')
+          # main uses classic protection today; a ruleset would show up only here.
+          classic=$(gh api "repos/$REPO/branches/main" --jq '.protection.required_status_checks.contexts // []')
+          rulesets=$(gh api "repos/$REPO/rules/branches/main" \
+            --jq '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context]')
+          required=$(jq -n --argjson a "$classic" --argjson b "$rulesets" '$a + $b | unique')
+          check_runs=$(gh api --paginate "repos/$REPO/commits/$sha/check-runs?per_page=100" \
+            --jq '.check_runs[] | {id, name, status, conclusion}' | jq -s .)
+          statuses=$(gh api "repos/$REPO/commits/$sha/status" --jq '[.statuses[] | {id, name: .context, state}]')
+          enabled=false; [ "$AUTO_MERGE_TO_MAIN" = 'true' ] && enabled=true
+          jq -n \
+            --argjson pr "$pr" --arg headVersion "$head_version" --arg betaHead "$beta_head" --argjson runs "$runs" \
+            --argjson requiredChecks "$required" --argjson checkRuns "$check_runs" --argjson statuses "$statuses" \
+            --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg soakHours "$AUTO_PROMOTE_SOAK_HOURS" \
+            --argjson enabled "$enabled" --argjson hasToken "$HAS_RELEASE_PR_TOKEN" \
+            '{pr: $pr, headVersion: $headVersion, betaHead: $betaHead, runs: $runs, requiredChecks: $requiredChecks,
+              checks: ($checkRuns + $statuses), now: $now, soakHours: $soakHours,
+              enabled: $enabled, hasToken: $hasToken}' > "$RUNNER_TEMP/input.json"
+
+      - name: Decide
+        id: decide
+        if: steps.find.outputs.number != ''
+        env:
+          HAS_RELEASE_PR_TOKEN: ${{ secrets.RELEASE_PR_TOKEN != '' }}
+        run: |
+          decision=$(node scripts/auto-promote-main.mjs "$RUNNER_TEMP/input.json")
+          jq . <<<"$decision"
+          action=$(jq -r .action <<<"$decision")
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+          echo "sha=$(jq -r .sha <<<"$decision")" >> "$GITHUB_OUTPUT"
+          {
+            echo "### beta → main PR #$(jq -r .pr <<<"$decision"): $action"
+            jq -r '.blockers[] | "- waiting on: \(.)"' <<<"$decision"
+            jq -r '.notes[] | "- \(.)"' <<<"$decision"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$HAS_RELEASE_PR_TOKEN" != 'true' ]; then
+            echo "::warning::RELEASE_PR_TOKEN is not set, so the beta → main PR is never merged automatically (a GITHUB_TOKEN merge would run no Deploy prod)."
+          fi
+
+      # GH_TOKEN is RELEASE_PR_TOKEN and nothing else: a merge pushed with
+      # GITHUB_TOKEN triggers no workflow, so production would never deploy.
+      # No --subject/--body: GitHub's default merge message ("Merge pull request
+      # #N from …/beta" + the bare-version title) carries no [skip-…] token.
+      - name: Merge the promotion PR
+        if: steps.decide.outputs.action == 'merge'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
+          NUMBER: ${{ steps.find.outputs.number }}
+          SHA: ${{ steps.decide.outputs.sha }}
+        run: |
+          gh pr merge "$NUMBER" --repo "$REPO" --merge --match-head-commit "$SHA"
+          echo "Merged #$NUMBER ($SHA) into main." >> "$GITHUB_STEP_SUMMARY"

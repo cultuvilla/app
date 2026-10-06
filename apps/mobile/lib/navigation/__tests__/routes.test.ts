@@ -7,7 +7,6 @@ import {
   createNewsHref,
   defineWordHref,
   discoverOrganizeHref,
-  discoverStartHref,
   entityRefHref,
   eventHref,
   festivalPosterEditHref,
@@ -109,7 +108,6 @@ const built: [string, string][] = [
   ['createEventHref', createEventHref({ villageId: 'm1' })],
   ['createNewsHref', createNewsHref({ newsId: 'n1' })],
   ['discoverOrganizeHref', discoverOrganizeHref('m1')],
-  ['discoverStartHref', discoverStartHref('m1')],
   ['entityRefHref', entityRefHref('event', 'villa', '_e1')],
 ];
 

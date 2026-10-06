@@ -15,6 +15,7 @@ import { useRegisterGate } from '../../../../lib/auth/RegisterGateContext';
 import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
 import { EntityComments } from '../../../../components/feature/EntityComments';
 import { OrgMembersList } from '../../../../components/feature/OrgMembersList';
+import { OrgEventsSection } from '../../../../components/feature/OrgEventsSection';
 import { useShareDeepLink } from '../../../../lib/deeplink/useShareDeepLink';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import { watchOrganization } from '@cultuvilla/shared/services/organizationService';
@@ -61,6 +62,8 @@ export default function OrgDetailScreen() {
   // (the view counter, say) does not refetch the membership.
   const orgExists = org !== null;
   const joinPolicy = org?.joinPolicy;
+  // An empty group shows neither the count nor the roster heading.
+  const hasMembers = (membersCount ?? 0) > 0;
 
   const refresh = useCallback(async () => {
     if (!orgId || !orgExists) return;
@@ -232,11 +235,15 @@ export default function OrgDetailScreen() {
               ))}
             </VStack>
           ) : null}
+          {/* Rules let only an approval org's members read its private events. */}
+          <OrgEventsSection orgId={org.id} includePrivate={isMember && org.joinPolicy === 'approval'} />
           {canManage && org.joinPolicy === 'approval' ? (
             <OrgJoinRequests orgId={org.id} onResolved={refresh} />
           ) : null}
-          <Text tone="muted">{t('organization.membersCount', { count: membersCount ?? 0 })}</Text>
-          {canViewOrgRoster({ membersPublic: org.membersPublic, isMember }) ? (
+          {hasMembers ? (
+            <Text tone="muted">{t('organization.membersCount', { count: membersCount ?? 0 })}</Text>
+          ) : null}
+          {hasMembers && canViewOrgRoster({ membersPublic: org.membersPublic, isMember }) ? (
             // Remount (re-fetch) when membership changes, so joining a public org
             // immediately shows yourself in the roster — the component self-fetches
             // once on mount and has no other refresh trigger.

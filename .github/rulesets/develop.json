@@ -1,0 +1,35 @@
+{
+  "name": "develop: merge queue",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["refs/heads/develop"], "exclude": [] } },
+  "bypass_actors": [
+    { "actor_type": "RepositoryRole", "actor_id": 5, "bypass_mode": "always" },
+    { "actor_type": "DeployKey", "bypass_mode": "always" }
+  ],
+  "rules": [
+    {
+      "type": "merge_queue",
+      "parameters": {
+        "merge_method": "MERGE",
+        "grouping_strategy": "ALLGREEN",
+        "max_entries_to_build": 5,
+        "min_entries_to_merge": 1,
+        "max_entries_to_merge": 5,
+        "min_entries_to_merge_wait_minutes": 0,
+        "check_response_timeout_minutes": 30
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          { "context": "Lint, typecheck, unit, build", "integration_id": 15368 },
+          { "context": "Emulator tests (integration + rules + functions)", "integration_id": 15368 }
+        ]
+      }
+    }
+  ]
+}

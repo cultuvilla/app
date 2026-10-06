@@ -27,12 +27,27 @@ describe('android-e2e workflow gating', () => {
   // Release paths only: a Gradle build plus an AVD boot is far too slow for
   // day-to-day develop PRs, and beta is the release candidate — the last point
   // where a native-only regression can be caught before it is a store binary.
-  it('runs on the beta/main release paths only', () => {
+  it('gates PRs and pushes on the beta/main release paths only', () => {
     const triggers = workflow.slice(workflow.indexOf('on:'), workflow.indexOf('permissions:'));
     expect(triggers).toMatch(/pull_request:\s*\n\s*branches:\s*\[beta, main\]/);
     expect(triggers).toMatch(/push:\s*\n\s*branches:\s*\[beta, main\]/);
     // Only the comment may mention develop; no `branches:` list may.
     expect(triggers).not.toMatch(/branches:.*develop/);
+  });
+
+  // A nightly on develop (the default branch, which is what `schedule:` runs)
+  // catches a native regression the morning after it merged, not at promotion.
+  it('runs nightly on develop', () => {
+    const triggers = workflow.slice(workflow.indexOf('on:'), workflow.indexOf('permissions:'));
+    expect(triggers).toMatch(/schedule:\s*\n\s*- cron: '\d+ \d+ \* \* \*'/);
+  });
+
+  // A manual dispatch on develop shares the nightly's ref; under a plain
+  // per-ref group with cancel-in-progress it would kill the day's only run.
+  it('never lets another run cancel the nightly', () => {
+    const concurrency = workflow.slice(workflow.indexOf('concurrency:'), workflow.indexOf('jobs:'));
+    expect(concurrency).toMatch(/group:.*github\.event_name == 'schedule' && 'nightly'/);
+    expect(concurrency).toMatch(/cancel-in-progress:[\s\S]*github\.event_name != 'schedule'/);
   });
 
   // Without the udev rule the AVD falls back to software emulation and the suite
@@ -71,6 +86,21 @@ describe('android-e2e workflow gating', () => {
     expect(rootPkg.scripts['test:e2e:android']).toContain('run-tests-with-emulators.mjs');
     expect(rootPkg.scripts['test:e2e:android']).toContain('pnpm seed:e2e');
     expect(rootPkg.scripts['test:e2e:android']).toContain('run-android-e2e.mjs');
+  });
+
+  // A floating Maestro let a release alone turn the suite red; 2.4 rejected the
+  // non-ASCII inputText flow 70 types. The pin is checked, not just declared.
+  it('pins the Maestro version instead of installing whatever is latest', () => {
+    const step = workflow.slice(workflow.indexOf('- name: Install Maestro'));
+    const install = step.slice(0, step.indexOf('- name:', 1));
+    expect(install).toMatch(/MAESTRO_VERSION:\s*['"]?\d+\.\d+\.\d+/);
+  });
+
+  it('fails the install step when the installed Maestro is not the pinned one', () => {
+    const step = workflow.slice(workflow.indexOf('- name: Install Maestro'));
+    const install = step.slice(0, step.indexOf('- name:', 1));
+    expect(install).toMatch(/maestro"? --version/);
+    expect(install).toMatch(/!= "\$MAESTRO_VERSION"/);
   });
 });
 
@@ -153,6 +183,35 @@ describe('quarantine', () => {
 
   it('still lets --flow run a quarantined flow explicitly', () => {
     expect(runner).toMatch(/flow \? \[flow\]/);
+  });
+});
+
+describe('flows start from a clean device', () => {
+  // A flow that switches airplane mode on (45-offline-cached-village) would
+  // otherwise fail every flow after it — even after a Maestro crash, which
+  // skips the flow's own onFlowComplete cleanup.
+  const loop = runner.slice(runner.indexOf('for (const name of flows)'));
+
+  it('switches airplane mode off before every flow', () => {
+    expect(loop).toMatch(/'airplane-mode',\s*'disable'/);
+  });
+
+  it('deletes backend state a flow leaves behind before every flow', () => {
+    expect(loop).toMatch(/await deleteLeftoverDocs\(\)/);
+    expect(runner).toMatch(/'config\/appVersion'/);
+  });
+
+  // 95 writes an update wall and removes it only on the way out, so any flow
+  // sorted after it would run behind the wall.
+  it('runs the version-gate flow last', () => {
+    const flows = readdirSync(flowsDir).filter((f) => f.endsWith('.yaml')).sort();
+    expect(flows.at(-1)).toBe('95-app-version-gate.yaml');
+  });
+
+  it('waits for the device before every flow, bounded so a dead AVD fails by name', () => {
+    expect(loop).toMatch(/'wait-for-device'\]/);
+    expect(loop).toMatch(/timeout:\s*DEVICE_WAIT_MS/);
+    expect(loop).toMatch(/process\.exit\(1\)/);
   });
 });
 

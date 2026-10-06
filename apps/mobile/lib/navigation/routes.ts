@@ -132,9 +132,6 @@ export function createNewsHref(params: { villageId?: string; newsId?: string } =
 export const discoverOrganizeHref = (municipalityId: string): HrefPath =>
   href(`/descubrir/organizar/${municipalityId}`);
 
-export const discoverStartHref = (municipalityId: string): HrefPath =>
-  href(`/descubrir/empezar/${municipalityId}`);
-
 function orgTarget(org: { id: string; name: string; villageSlug: string }): EntityLinkTarget {
   return { id: org.id, title: org.name, villageSlug: org.villageSlug };
 }

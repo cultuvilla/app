@@ -4,6 +4,72 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.7.0 — 2026-10-06
+
+<!-- store-notes -->
+- **Más rápida y sin conexión**: tu pueblo, sus eventos y noticias, tu perfil y tus inscripciones se abren al instante y se actualizan solos.
+- **Embajadores de Cultuvilla**: cada pueblo tiene su Embajador o Embajadora, con su sello y su acreditación.
+- **Grupos con admisión**: un grupo puede pedir aprobación para unirse, y sus eventos privados llegan a tu inicio.
+- **Fiestas del pueblo** en tarjetas, y el teclado ya no tapa los campos al escribir.
+<!-- /store-notes -->
+
+- Explora opens on Eventos again: the toggle shows «Eventos» before
+  «Artículos», matching the village home.
+- Resumen de fiestas: when a pueblo has had movement (events with people
+  signed up or commenting), its admins see an invitation on the village screen
+  to generate the resumen. From the draft they can already download or share
+  the cover. Once published, the resumen shows at the end of the village screen
+  as a festive "Resumen Fiestas {año}" banner button, until next year's.
+- Fix: uploading any image (carteles de fiestas, event and news photos,
+  escudos, avatars…) failed in the app with "bytes cannot be null".
+- Fix: on Android the keyboard covered the field being typed in on most forms
+  (editing a pueblo, creating events and news, personas, vocabulary, sign-up
+  sheets…). Every screen and bottom sheet now lifts its content above the
+  keyboard, on iOS and Android alike.
+- Fix: the fiesta name fields in "Fiestas del pueblo" rendered narrow and
+  without the usual text style. The section's help text is also shorter.
+- "Fiestas del pueblo": saved fiestas now show as cards with their name and
+  month; tap the pencil to change one. A new fiesta opens ready to pick its month.
+- A group's page (peña, asociación, ayuntamiento) now lists the events it has
+  organized, upcoming first and then past, in the app and on the web. Members of
+  an approval group also see its private events there.
+- No more "Iniciar pueblo" step. Tapping a pueblo that nobody has joined yet
+  opens its page, which invites you to join; joining brings it to Cultuvilla in
+  the same tap. The separate start form, with its escudo upload and "quiero ser
+  embajador" toggle, is gone — the Embajador request stays on the village home.
+- Fix: on Android the startup intro played no sound while the phone was on
+  vibrate, even with media volume up. Media volume now decides; iPhone still
+  follows its silent switch.
+- Fix: the home feed showed no private events at all to someone who also
+  belongs to an open group (every ayuntamiento is open). The private events of
+  their approval peñas and asociaciones now appear.
+- "Ser embajador de Cultuvilla": the request screen opens with your own
+  "Acreditación de Cultuvilla" carnet for that pueblo — your photo, name,
+  "Embajador/Embajadora de {pueblo}" and its escudo — and explains the role in
+  short points.
+- Embajadores now wear a small Cultuvilla seal on their photo, in the members
+  list and on their profile. In the members list the seal replaces the
+  "Embajador" label, and the village home no longer shows an Embajador card.
+  On the profile, the title is a soft "Embajador/Embajadora en {pueblo}" line
+  under the name instead of a solid orange pill.
+- Creating an event: the location is marked as mandatory (red asterisk), and
+  the Preguntas step only appears once "Añadir un formulario" is switched on
+  in Detalles. An event that already has questions opens with it on, and it
+  can't be switched off once those questions have answers.
+- History, vocabulary, Mis inscripciones and the profile now read through live
+  listeners: they open instantly from the on-device cache (offline too) and
+  update on their own, instead of reloading every time you return to them. The
+  bell's unread badge moves as soon as a notification lands or is read.
+- Release tooling, announce when live: the in-app "hay una actualización" nudge
+  now moves to a new version only once its store actually serves it, per
+  platform — checked every 30 minutes against Google Play and App Store Connect
+  (`announce-when-live.yml`). `APP_STORE_VERSIONS` is gone; `config/appVersion`
+  is the one record of what each store serves. A release carrying a
+  `Breaking-Client:` change holds its Cloud Functions and rules (and the
+  production OTA) until both stores serve it, then raises `minSupported` to it
+  and ships the backend — no manual "Set App Version" for declared breaks.
+- Release tooling: `pnpm release:cut` cuts a release in one command (bump on develop, `release/X.Y.Z` with main merged, PR into beta with the migration checklist); the `beta → main` PR opens itself once beta's deploy and store builds are green; `version-gate.yml` now also checks the release PR's source branch and title.
+
 ## v1.6.0 — 2026-10-06
 
 <!-- store-notes -->

@@ -1,10 +1,12 @@
 name: mobile-release
 
 # Builds the store binaries on EAS and hands them to Google Play / App Store
-# Connect. Manual-only on purpose: the Play track a build lands on is a release
-# decision (a closed test that has to run 14 days is not the same event as a
-# production rollout), so it stays an explicit choice rather than a side effect
-# of merging to main.
+# Connect, on demand. The routine production release is automatic —
+# production-release.yml builds Android and submits iOS on every
+# version-bumping merge to main (docs/decisions/production-auto-release.md).
+# This workflow is the manual escape hatch: a testing track (a closed test that
+# has to run 14 days is not the same event as a production rollout), a rebuild,
+# or a resubmit of a build Play rejected.
 #
 # Every track builds from the SAME `production` EAS profile — prod Firebase,
 # package com.cultuvilla.app. Play's closed-testing requirement is per package
@@ -195,12 +197,26 @@ jobs:
             exit 1
           fi
 
-      # eas.json points ascApiKeyPath at ./apple-asc-api-key.p8 (relative to
-      # apps/mobile). Gitignored via the repo-wide *api-key*.p8 rule; materialised
-      # here from the secret and never persisted. ascApiKeyId/ascApiKeyIssuerId are
-      # not secret (they only identify which key), but they don't exist until the
-      # key is created in App Store Connect, so eas.json can't commit real values —
-      # patched into the submit profile at runtime instead.
+      # --json pins the exact build this run made. Asking EAS afterwards for "the
+      # latest finished build" could pick up a concurrent manual build instead,
+      # and hand testers (or App Review) a binary this run never produced.
+      - name: Build iOS archive
+        id: ios_build
+        working-directory: apps/mobile
+        run: |
+          eas build --profile production --platform ios --non-interactive --wait --json > ios-build.json
+          node -e '
+            const [b] = JSON.parse(require("fs").readFileSync("ios-build.json", "utf8"));
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `id=${b.id}\nbuild_number=${b.appBuildVersion}\n`);
+          '
+
+      # After the build, never before: eas.json is a fingerprint source, and
+      # `eas build` uploads the project as it stands. Patching the ASC ids in
+      # first gave every store binary a runtime version no clean checkout of
+      # its commit reproduces, so no OTA update could ever reach it.
+      # ascApiKeyPath points at the .p8 (relative to apps/mobile), gitignored
+      # and never persisted; ascApiKeyId/ascApiKeyIssuerId only identify the
+      # key and live in repo vars rather than in the committed eas.json.
       - name: Write App Store Connect API key
         if: ${{ inputs.submit }}
         env:
@@ -221,19 +237,6 @@ jobs:
             eas.submit.production.ios.ascApiKeyIssuerId = process.env.APPLE_ASC_ISSUER_ID;
             fs.writeFileSync(path, JSON.stringify(eas, null, 2) + '\n');
           "
-
-      # --json pins the exact build this run made. Asking EAS afterwards for "the
-      # latest finished build" could pick up a concurrent manual build instead,
-      # and hand testers (or App Review) a binary this run never produced.
-      - name: Build iOS archive
-        id: ios_build
-        working-directory: apps/mobile
-        run: |
-          eas build --profile production --platform ios --non-interactive --wait --json > ios-build.json
-          node -e '
-            const [b] = JSON.parse(require("fs").readFileSync("ios-build.json", "utf8"));
-            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `id=${b.id}\nbuild_number=${b.appBuildVersion}\n`);
-          '
 
       - name: Submit to App Store Connect
         if: ${{ inputs.submit }}

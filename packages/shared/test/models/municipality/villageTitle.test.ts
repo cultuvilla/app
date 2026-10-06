@@ -36,8 +36,8 @@ describe('ambassadorTitleKey', () => {
     expect(ambassadorTitleKey(null)).toBe('ambassador.title');
   });
 
-  it('offers the full-title variant', () => {
-    expect(ambassadorTitleKey('female', 'full')).toBe('ambassador.fullTitleFemale');
-    expect(ambassadorTitleKey(null, 'full')).toBe('ambassador.fullTitle');
+  it('offers the in-village variant', () => {
+    expect(ambassadorTitleKey('female', 'inVillage')).toBe('ambassador.inVillageFemale');
+    expect(ambassadorTitleKey(null, 'inVillage')).toBe('ambassador.inVillage');
   });
 });

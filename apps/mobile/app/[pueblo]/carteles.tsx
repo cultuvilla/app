@@ -1,6 +1,5 @@
 import { useVillageRoute, withVillageRoute } from '../../lib/navigation/VillageRouteGate';
-import { Platform } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '../../components/primitives';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
@@ -14,9 +13,9 @@ function FestivalPostersScreen() {
     <Screen padded={false} bottomInset={false}>
       <ScreenHeader title={t('village.festivalPosters.add')} />
       {villageId ? (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={{ flex: 1 }}>
           <FestivalPostersManager villageId={villageId} onCreated={() => router.back()} />
-        </KeyboardAvoidingView>
+        </View>
       ) : null}
     </Screen>
   );

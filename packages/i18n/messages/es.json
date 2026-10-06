@@ -537,9 +537,7 @@
       "manual": "Escudo subido por el pueblo"
     },
     "notRegistered": {
-      "body": "Este pueblo todavía no está activo en Cultuvilla. Puedes iniciarlo: se activará para que cualquiera pueda unirse y tú serás su primer vecino.",
-      "cta": "¿Quieres iniciarlo?",
-      "button": "Iniciar este pueblo"
+      "body": "Aún no hay vecinos de {name} en Cultuvilla. Únete y sé el primero."
     },
     "noOrganizer": {
       "body": "Este pueblo aún no tiene embajador. Si lo quieres y lo conoces bien, puedes ser su cara en Cultuvilla.",
@@ -599,7 +597,7 @@
     },
     "fiestas": {
       "title": "Fiestas del pueblo",
-      "help": "Pon el nombre de cada fiesta y el mes en que se celebra. Puedes añadir varias: unas en julio y otras en agosto, por ejemplo. Las fechas exactas de cada año se eligen al crear el resumen de fiestas.",
+      "help": "Pon el nombre de cada fiesta y el mes en que se celebra.",
       "namePlaceholder": "Nombre (p. ej. Fiestas de agosto)",
       "add": "Añadir",
       "remove": "Quitar estas fiestas",
@@ -657,6 +655,7 @@
         "posters": "Carteles"
       },
       "preview": "Ver como lo verá el pueblo",
+      "shareCover": "Descargar o compartir la portada",
       "viewer": {
         "title": "Fiestas {year} · {name}",
         "next": "Siguiente imagen",
@@ -670,9 +669,16 @@
         "closingBody": "Compártelo con quien estuvo y con quien no pudo venir.",
         "missing": "Este resumen no existe o todavía no se ha publicado."
       },
-      "banner": {
-        "title": "Ya está el resumen de Fiestas {year}",
-        "body": "Lo que se hizo, en números y en fotos."
+      "strip": {
+        "label": "Resumen Fiestas {year}"
+      },
+      "prompt": {
+        "title": "¿Hacemos el resumen de Fiestas {year}?",
+        "body": "Ha habido movimiento en el pueblo: {events} eventos con gente apuntada y comentando. Conviértelo en un resumen con fotos y números para compartir.",
+        "create": "Generar resumen",
+        "draftTitle": "El resumen de Fiestas {year} está listo",
+        "draftBody": "Revísalo, descarga la portada o compártela, y publícalo para que aparezca en el pueblo.",
+        "review": "Revisar resumen"
       }
     }
   },
@@ -754,6 +760,8 @@
     "privateNotice": "Este evento es privado: solo lo ven los miembros de la organización.",
     "signupEnabled": "Inscripciones por la app",
     "signupEnabledHint": "Desactívalo si el evento es de entrada libre o si las inscripciones se hacen por otro sitio.",
+    "formEnabled": "Añadir un formulario",
+    "formEnabledHint": "Actívalo para hacer preguntas a quien se apunte (talla de camiseta, alergias…). Las preguntas se configuran en el siguiente paso.",
     "signupDisableTitle": "Desactivar las inscripciones",
     "signupDisableBody": "Se {count, plural, one {eliminará la inscripción que ya hay} other {eliminarán las # inscripciones que ya hay}} y se avisará a quienes se apuntaron. Esta acción no se puede deshacer.",
     "signupDisableConfirm": "Desactivar y eliminar",
@@ -956,6 +964,7 @@
     "editTitle": "Editar grupo",
     "description": "Descripción",
     "membersCount": "{count} miembros",
+    "events": "Eventos",
     "join": "Unirme a este grupo",
     "joinPeña": "Unirme a esta peña",
     "signInToJoin": "Inicia sesión para unirte",
@@ -979,7 +988,6 @@
     "privacy": "Privacidad",
     "membersPublicLabel": "Los miembros del grupo son visibles para el pueblo",
     "membersPrivateHint": "Solo los miembros del grupo verán quién forma parte.",
-    "membersEmpty": "Este grupo aún no tiene miembros.",
     "adminBadge": "Admin",
     "membersList": {
       "promote": "Hacer administrador",
@@ -1259,20 +1267,22 @@
       "submitted": "Solicitud enviada"
     }
   },
-  "start": {
-    "title": "Iniciar pueblo",
-    "explainer": "Iniciar el pueblo lo activa para que cualquier vecino pueda unirse. Serás su primer miembro y podrás añadir su información. No te convierte en embajador.",
-    "escudoAdd": "Añadir escudo (opcional)",
-    "escudoSelected": "Escudo seleccionado",
-    "organizeIntro": "¿Quieres ir más allá? Los embajadores de Cultuvilla son la cara de su pueblo: cuidan su información, acogen a los vecinos y dan vida a sus grupos, lugares y fiestas.",
-    "organizeToggle": "Quiero ser embajador de este pueblo",
-    "phoneLabel": "Teléfono de contacto",
-    "submit": "Iniciar pueblo"
-  },
   "organize": {
     "title": "Ser embajador de Cultuvilla",
-    "explainer": "Los embajadores de Cultuvilla son la cara de su pueblo en la app. Cuidan su información, dan la bienvenida a los vecinos, moderan lo que se publica y ayudan a que grupos, lugares y fiestas estén al día. Es un papel público: tu nombre y tu foto aparecerán en la página del pueblo. Revisamos cada solicitud personalmente.",
-    "submit": "Enviar solicitud"
+    "intro": "Como embajador de Cultuvilla, eres la cara de tu pueblo en la app:",
+    "points": {
+      "info": "Cuidas su información y moderas lo que se publica.",
+      "welcome": "Das la bienvenida a los vecinos.",
+      "upToDate": "Ayudas a que grupos, lugares y fiestas estén al día.",
+      "public": "Tendrás la insignia de Cultuvilla en tu perfil."
+    },
+    "phoneLabel": "Teléfono de contacto",
+    "submit": "Enviar solicitud",
+    "carnet": {
+      "header": "Acreditación de Cultuvilla",
+      "title": "Embajador de {village}",
+      "titleFemale": "Embajadora de {village}"
+    }
   },
   "editInfo": {
     "title": "Editar información",
@@ -1515,11 +1525,9 @@
   "ambassador": {
     "title": "Embajador",
     "titleFemale": "Embajadora",
-    "fullTitle": "Embajador de Cultuvilla en {village}",
-    "fullTitleFemale": "Embajadora de Cultuvilla en {village}",
+    "inVillage": "Embajador en {village}",
+    "inVillageFemale": "Embajadora en {village}",
     "team": "Equipo del pueblo",
-    "sectionTitle": "Embajador del pueblo",
-    "sectionTitleFemale": "Embajadora del pueblo",
     "welcome": {
       "title": "¡Ya eres {title} de Cultuvilla en {village}!",
       "body": "Desde hoy eres la cara de tu pueblo en Cultuvilla. Tu nombre aparece en la página del pueblo y en tu perfil. Gracias por dar un paso al frente.",

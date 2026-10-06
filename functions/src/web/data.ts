@@ -514,6 +514,26 @@ async function listEvents(db: Firestore, m: string): Promise<EventView[]> {
   return snap.docs.map((d) => toEvent(d.id, d.data()));
 }
 
+const HOME_LIMIT = 12;
+
+/**
+ * An organization's public events as cards, in the app's order. Status is
+ * filtered in memory: the query rides the visibility + organizerOrgIds +
+ * startDate index, and a status filter would need another.
+ */
+export async function loadOrgEventCards(db: Firestore, orgId: string, villageSlug: string, now: Date): Promise<Card[]> {
+  const snap = await db
+    .collection('events')
+    .where('visibility', '==', 'public')
+    .where('organizerOrgIds', 'array-contains', orgId)
+    .orderBy('startDate', 'asc')
+    .get();
+  const events = snap.docs
+    .filter((d) => LISTED_EVENT_STATUSES.includes(str(d.get('status')) ?? ''))
+    .map((d) => toEvent(d.id, d.data()));
+  return orderEvents(events, now).slice(0, HOME_LIMIT).map((e) => eventCard(e, villageSlug));
+}
+
 async function listNews(db: Firestore, bucket: string, m: string, limit: number): Promise<NewsView[]> {
   const snap = await byMunicipality(db, 'news', m)
     .where('status', '==', 'active')
@@ -572,8 +592,6 @@ export interface VillageHome {
   history: Card[];
   word: { term: TermView; definition: DefinitionView | null; href: string } | null;
 }
-
-const HOME_LIMIT = 12;
 
 export async function loadVillageHome(db: Firestore, bucket: string, v: Village, now: Date): Promise<VillageHome> {
   const [events, news, posters, orgs, places, barrios, history, terms] = await Promise.all([

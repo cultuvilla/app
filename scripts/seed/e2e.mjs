@@ -24,6 +24,7 @@ import {
   buildRegistrationData,
   buildLocationData,
   buildPlaceData,
+  buildCommentData,
 } from '@cultuvilla/shared/models';
 import {
   E2E_PASSWORD,
@@ -32,8 +33,12 @@ import {
   joinVillage,
   organizerlessVillage,
   org,
+  approvalOrg,
   event,
   capacityEvent,
+  groupEvent,
+  privateEvent,
+  otherUserComment,
   dependentPerson,
   place,
 } from '../data/seed-fixtures/e2e/fixtures.mjs';
@@ -41,7 +46,7 @@ import {
 if (!EMULATOR) {
   console.error(
     '[seed:e2e] Emulator env not detected. Set FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST\n' +
-      '           (the web-e2e CI job does this) — this seeder never targets the real project.',
+      '           (scripts/run-tests-with-emulators.mjs does this) — this seeder never targets the real project.',
   );
   process.exit(1);
 }
@@ -225,6 +230,33 @@ async function run() {
     .doc(users.admin.uid)
     .set(buildOrgMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
 
+  // Approved peña that admits members by request. Its only member is its admin,
+  // who resolves the joiner's request in the org-join-request flow.
+  await db
+    .collection('organizations')
+    .doc(approvalOrg.docId)
+    .set(
+      buildOrganizationData({
+        name: approvalOrg.name,
+        type: approvalOrg.type,
+        description: approvalOrg.description,
+        municipalityId: village.docId,
+        villageSlug: village.slug,
+        requestedBy: users.admin.uid,
+        status: 'approved',
+        reviewedBy: users.admin.uid,
+        reviewedAt: new Date(),
+        joinPolicy: 'approval',
+      }),
+      { merge: true },
+    );
+  await db
+    .collection('organizations')
+    .doc(approvalOrg.docId)
+    .collection('members')
+    .doc(users.admin.uid)
+    .set(buildOrgMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
+
   // Upcoming published event in the village
   const startDate = new Date(Date.now() + event.startOffsetDays * DAY_MS);
   await db
@@ -302,6 +334,78 @@ async function run() {
     );
 
   await db
+    .collection('events')
+    .doc(groupEvent.docId)
+    .set(
+      buildEventData({
+        title: groupEvent.title,
+        description: groupEvent.description,
+        startDate: new Date(Date.now() + groupEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Merendero, ${village.name}`,
+        }),
+        maxAttendees: groupEvent.maxAttendees,
+        signupGroupSize: groupEvent.signupGroupSize,
+        telephoneRequired: false,
+        status: groupEvent.status,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [org.docId],
+        createdBy: users.admin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('events')
+    .doc(privateEvent.docId)
+    .set(
+      buildEventData({
+        title: privateEvent.title,
+        description: privateEvent.description,
+        startDate: new Date(Date.now() + privateEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Local de la peña, ${village.name}`,
+        }),
+        maxAttendees: privateEvent.maxAttendees,
+        telephoneRequired: false,
+        status: privateEvent.status,
+        visibility: 'organization',
+        visibilityOrgId: approvalOrg.docId,
+        // Not the admin: an organizer may read the event by that rule alone,
+        // and flow 63 must prove the peña-member read path.
+        organizerUserIds: [users.superAdmin.uid],
+        organizerOrgIds: [approvalOrg.docId],
+        createdBy: users.superAdmin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('comments')
+    .doc(otherUserComment.docId)
+    .set(
+      buildCommentData({
+        entityKind: otherUserComment.entityKind,
+        entityId: otherUserComment.entityId,
+        municipalityId: village.docId,
+        authorUserId: users.admin.uid,
+        body: otherUserComment.body,
+        createdAt: new Date(),
+      }),
+      { merge: true },
+    );
+
+  await db
     .collection('municipalities')
     .doc(village.docId)
     .collection('places')
@@ -321,8 +425,11 @@ async function run() {
     `[seed:e2e] seeded emulator (users=${users.admin.uid},${users.attendee.uid},` +
       `${users.superAdmin.uid},${users.joiner.uid},${users.fresh.uid} ` +
       `village=${village.docId} organizerless=${organizerlessVillage.docId} ` +
-      `joinVillage=${joinVillage.docId} org=${org.docId} event=${event.docId} ` +
-      `capacityEvent=${capacityEvent.docId})`,
+      `joinVillage=${joinVillage.docId} org=${org.docId} approvalOrg=${approvalOrg.docId} ` +
+      `event=${event.docId} ` +
+      `capacityEvent=${capacityEvent.docId} groupEvent=${groupEvent.docId} ` +
+      `privateEvent=${privateEvent.docId} ` +
+      `comment=${otherUserComment.docId})`,
   );
 }
 

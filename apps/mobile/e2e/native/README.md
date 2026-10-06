@@ -22,19 +22,28 @@ branch without waiting for a promotion PR.
 |---|---|
 | `00-anonymous-deep-link` | The substrate boots: APK + emulator-connect + seed + deep-link routing, before any interaction. |
 | `10-login-and-profile` | The native fixture-login seam, then auth → `users/{uid}` → `persons/{id}` → rendered. |
+| `11-otp-login` | The real login screen: email → 6-digit code (read from the emulator's `authOtpCodes` doc) → signed in. Every other flow uses the fixture seam. |
 | `20-register-to-event` | Sign-up through the attendee sheet; registration doc **and** the trigger-maintained `confirmedCount`. |
 | `21-register-family-member` | The multi-persona model — signing up a dependent. |
 | `22-unregister-from-event` | A real native `Alert.alert` confirmation. |
+| `23-seat-claim` | A group booking leaves a seat open; a second user opens its claim link (`…/plaza/<token>`) and takes it. |
 | `30-village-join` | A rules-gated direct client write, and the UI flip that follows it. |
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
-| `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. **Quarantined — see below.** |
-| `60-create-publish-event` | The 4-step event wizard, including the OS location permission and a real GPS fix (`setLocation`). |
+| `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
+| `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
+| `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. |
+| `60-create-publish-event` | The event wizard (3 steps; Preguntas appears only with sign-ups on *and* the form toggle on), including the OS location permission and a real GPS fix (`setLocation`). |
 | `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
+| `62-event-signup-questions` | The wizard with the form on: a Preguntas step, then an attendee answers it; the answer lands in `registrationPrivate`. |
+| `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
 | `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
 | `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
+| `72-org-join-request` | Joining an `approval` peña: a join request, admitted by the org admin from the Buzón (callable). |
+| `73-org-invite-link` | An org invite link (`…/unirse`) opens the org with the invitation banner; joining an open org is instant. |
 | `80-waitlist-promotion` | A full event waitlists a sign-up; removing a confirmed attendee promotes it (trigger). |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
+| `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |
 
 Filename order is load-bearing: `22` unregisters what `20` registered. Every flow
 still starts from `clearState: true`, so one failure never cascades into a bogus
@@ -49,19 +58,11 @@ run** by the gate, each with the reason. Every run prints what it held out, twic
 reads as "everything passed", which is worse than a red lane. `--flow <name>`
 still runs a quarantined flow, so chasing one needs no edit.
 
-Currently held out: **`50-onboarding-complete-profile`**. The profile submit
-hung on the Firestore JS SDK's cleartext connection to `10.0.2.2` — logcat
-shows `unexpected end of stream on http://10.0.2.2:8080`, and a Firestore write
-promise never settles when the connection drops, so "Crear perfil" spins
-forever. It reproduced on both runs that reached the submit.
-
-With the Playwright suite gone, **onboarding has no end-to-end coverage** while
-this flow is held out — only the jest tests of the person form. What fails is
-the emulator transport, which no real client uses (real clients talk to
-Firestore over TLS, not cleartext to an AVD host alias), so it is not a release
-blocker; it is still the first quarantine to lift. The finding predates the
-move to `@react-native-firebase`, whose transport is different: re-run it with
-`--flow 50-onboarding-complete-profile.yaml` before trying anything else.
+Currently held out: **nothing**. `50-onboarding-complete-profile` was held out
+while the app talked to the emulators through the Firestore JS SDK, whose
+cleartext connection to `10.0.2.2` dropped mid-write and left "Crear perfil"
+spinning. On `@react-native-firebase` (the native SDK) it passes, and it was
+put back in the gate on 2026-10-06.
 
 ## Backend assertions from Maestro
 
@@ -73,6 +74,17 @@ actually correct).
 
 They run on the **host**, not on the device, so they use `127.0.0.1` even though
 the app inside the AVD reaches the same emulator at `10.0.2.2`.
+
+`docField.js` reads one scalar; a dotted `FIELD` walks into maps, and a `*`
+segment takes a map's first key (for maps keyed by generated ids, such as
+registration answers). Three scripts write, for state a flow must set up or
+undo — `clearState` resets the app, never Firestore, so anything a flow leaves
+behind is seen by every flow after it:
+
+- `setField.js` — one string field, leaving the rest of the doc as it is;
+- `appVersionConfig.js` — the whole `config/appVersion` doc, in the strict
+  shape its converter needs (a doc missing a field makes the gate fail open);
+- `deleteDoc.js` — for `onFlowComplete` cleanup, which runs even when the flow fails.
 
 ## The login seam
 
@@ -139,6 +151,25 @@ costs two extra steps:
 Neither applies on a Linux runner, where the AVD and the emulators share one
 loopback — which is why CI leaves both unset and exposes nothing.
 
+Three more traps, all hit on a full local run (2026-10-06):
+
+- **Launch the `-a` adb server as a Windows process**, e.g.
+  `powershell.exe -Command "Start-Process -WindowStyle Hidden -FilePath <sdk>\platform-tools\adb.exe -ArgumentList '-a','-P','5037','nodaemon','server'"`.
+  Started from a WSL shell, it died mid-suite, every transport dropped at once,
+  and the next flow failed with `Network closed` / `EOFException`. That looks like
+  a broken flow, but it isn't one.
+- **Any `offline` device hides every device from Maestro.** Its adb library
+  (dadb) throws on the first transport it cannot open, and Maestro then reports
+  `Device emulator-5554 is not connected` even though `adb devices` lists it. A
+  phone stuck `offline` after the adb server restarts is enough. Re-authorise
+  or unplug it, and pin `E2E_ANDROID_DEVICE=emulator-5554`.
+- **Run the Maestro version CI runs** — `MAESTRO_VERSION` in
+  [android-e2e.yml](../../../../.github/workflows/android-e2e.yml). Maestro 2.4
+  rejects non-ASCII `inputText` (`Unicode not supported: Peña…` in flow 70).
+  Install the pinned one with `curl -Ls https://get.maestro.mobile.dev | MAESTRO_VERSION=<v> bash`
+  (the variable must reach `bash`, not `curl`)
+  (it needs `unzip`), or point `MAESTRO_BIN` at it.
+
 ## Maestro traps this suite already paid for
 
 Every one of these cost real debugging time. They are encoded in the flows with
@@ -152,6 +183,10 @@ comments; this is the index.
 | A centre-tap lands on the wrong child | Tapping a consent row opens the legal screen instead of ticking the box; tapping an icon-sized adornment reports COMPLETED while the handler never fires. | Target the inner element (`accept-terms-box`), or trigger the same handler another way (`pressKey: Enter` on an input with `onSubmitEditing`). |
 | The bare `cultuvilla://` | The app never starts. expo-dev-client is a plain dependency, so its launcher activity exists even in the release APK and claims the schemeless link. | Always name a route. |
 | An intent to a cold-starting app | Silently dropped — the JS listener has not mounted yet. | Launch first, wait for the tab bar, then send the link. |
+| The first tap with the soft keyboard up | Reports COMPLETED, but only closed the keyboard; the button's handler never ran (the login screen's "Enviar código"). | `repeat: while: notVisible: <next step>` around the tap. |
+| A flow that changes device state | Airplane mode or a global doc (`config/appVersion`) outlives the flow — and the app's `clearState` — so every later flow fails for a reason it cannot see. | Undo it in `onFlowComplete`, and add the doc to `LEFTOVER_DOCS` in `run-android-e2e.mjs`: before each flow the runner turns airplane mode off and deletes those docs, since `onFlowComplete` never runs when Maestro itself dies. |
+| The OTP send cap | `sendAuthOtpCode` allows 5 sends per address per 15 minutes, and a capped send still answers `ok` without writing a new code — so a flow re-run against the same emulator reads a stale code and passes or fails on its 10-minute expiry, not on the login screen. | Re-run `11-otp-login` on a fresh `pnpm test:e2e:android`, not repeatedly against one emulator. |
+| A floating button over the bottom band | `RegisterFab` sits outside the scroll view over the screen's bottom band, so a field that `scrollUntilVisible` leaves near the bottom edge can have its centre under the FAB: the tap focuses nothing, and `inputText` arrives as raw key events into an unfocused window (on CI it tore the activity down). | Scroll to the end of the content (explicit `swipe`s) before tapping a field that is last on the page — the content's bottom padding lifts it clear. |
 | Text selectors match the WHOLE string | `Apuntado` misses "Apuntado (1)"; `Perfil` matches both the tab and the screen header. | Use a regex (`Apuntad.*`) or a `testID`. |
 
 ## Adding a flow

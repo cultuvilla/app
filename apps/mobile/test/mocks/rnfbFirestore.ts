@@ -34,7 +34,6 @@ export const collectionGroup = jest.fn(() => ({ withConverter: () => ({}) }));
 export const connectFirestoreEmulator = jest.fn();
 export const deleteDoc = jest.fn();
 export const doc = jest.fn(() => ({ withConverter: () => ({}) }));
-export const getCountFromServer = jest.fn();
 export const getDoc = jest.fn();
 export const getDocs = jest.fn();
 export const getDocsFromCache = jest.fn();

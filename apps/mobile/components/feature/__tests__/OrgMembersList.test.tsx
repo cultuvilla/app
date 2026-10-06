@@ -255,3 +255,12 @@ test('surfaces an error if removal fails', async () => {
 
   await waitFor(() => expect(mockShowAlert).toHaveBeenCalledWith('No autorizado.'));
 });
+
+test('an org with no members renders nothing, not even the heading', async () => {
+  mockGetOrgMembers.mockResolvedValue([]);
+
+  const { toJSON } = render(<OrgMembersList orgId="o1" canManage currentUserId="admin1" />);
+
+  await waitFor(() => expect(mockGetOrgMembers).toHaveBeenCalled());
+  await waitFor(() => expect(toJSON()).toBeNull());
+});

@@ -76,7 +76,7 @@ function inDatePreset(d: Date, preset: DatePreset): boolean {
 // so reordering the feed is a one-line edit here. TABS[0] is what the screen
 // opens on.
 // `as const` keeps this a tuple so TABS[0] is a known tab, not `FeedTab | undefined`.
-const TABS = ['noticias', 'eventos'] as const satisfies readonly FeedTab[];
+const TABS = ['eventos', 'noticias'] as const satisfies readonly FeedTab[];
 
 const TAB_LABEL_KEY: Record<FeedTab, string> = {
   eventos: 'feed.tab.events',

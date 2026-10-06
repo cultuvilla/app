@@ -58,21 +58,20 @@ interface GoogleSignInExtra {
   iosClientId: string;
 }
 
-interface DevAutoLogin {
-  email: string;
+interface DevLogin {
+  emails: string[];
   password: string;
 }
 
-// Dev-only convenience: skip the email-link round-trip on the emulator by
-// signing straight into a seeded test account. app.config.ts only populates
-// `extra.devAutoLogin` for `dev` builds when DEV_AUTOLOGIN_EMAIL/PASSWORD are
-// set; the __DEV__ guard is a second backstop so this is impossible in a
-// production bundle.
-function getDevAutoLogin(): DevAutoLogin | null {
+// Dev-only convenience: one-tap sign-in to seeded test accounts from the login
+// screen. app.config.ts only populates `extra.devLogin` for `dev` builds when
+// DEV_LOGIN_EMAILS/PASSWORD are set; the __DEV__ guard is a second backstop so
+// this is impossible in a production bundle.
+function getDevLogin(): DevLogin | null {
   if (!__DEV__) return null;
-  const extra = Constants.expoConfig?.extra as { devAutoLogin?: DevAutoLogin | null } | undefined;
-  const cfg = extra?.devAutoLogin;
-  if (!cfg?.email || !cfg?.password) return null;
+  const extra = Constants.expoConfig?.extra as { devLogin?: DevLogin | null } | undefined;
+  const cfg = extra?.devLogin;
+  if (!cfg?.emails?.length || !cfg.password) return null;
   return cfg;
 }
 
@@ -208,9 +207,22 @@ export interface AuthContextValue {
    * implementation for why an abandoned sign-up must not be left behind.
    */
   abandonSignUp: () => Promise<void>;
+  /** Seeded accounts the login screen offers one-tap sign-in to. Empty outside dev builds. */
+  devAccounts: string[];
+  signInWithDevAccount: (email: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
+
+// Prod logs (iOS 1.4.1–1.5.0) show the cancelled Apple sheet reaching JS with
+// no `code` at all, only expo-apple-authentication's RequestCanceledException
+// reason, so the code check alone let every cancel through as an error.
+const APPLE_CANCELLED_MESSAGE = 'The user canceled the authorization attempt';
+
+function isAppleCancellation(err: unknown): boolean {
+  const { code, message } = (err ?? {}) as { code?: unknown; message?: unknown };
+  return code === 'ERR_REQUEST_CANCELED' || message === APPLE_CANCELLED_MESSAGE;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -228,21 +240,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!u) setProfileChecked(true);
     });
   }, []);
-
-  // Dev auto sign-in: once the initial auth state has resolved to "signed
-  // out", sign into the configured test account. Attempt-once-per-session so a
-  // manual signOut() lets you exercise the guest flow without being yanked
-  // straight back in — reload the app to re-trigger.
-  const devAutoLoginAttempted = useRef(false);
-  useEffect(() => {
-    if (loading || user || devAutoLoginAttempted.current) return;
-    const cfg = getDevAutoLogin();
-    if (!cfg) return;
-    devAutoLoginAttempted.current = true;
-    void signInWithEmailAndPassword(getAuth(), cfg.email, cfg.password).catch((e) => {
-      console.warn('[dev-autologin] sign-in failed:', e instanceof Error ? e.message : e);
-    });
-  }, [loading, user]);
 
   useEffect(() => {
     if (googleConfigured.current) return;
@@ -437,8 +434,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nonce: hashedNonce,
       });
     } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      if (code === 'ERR_REQUEST_CANCELED') {
+      if (isAppleCancellation(err)) {
         // Carries a code so reportAuthError can tell "changed their mind"
         // apart from "the native flow broke" — the message alone cannot.
         const cancelled = new Error('Apple sign-in was cancelled') as Error & { code?: string };
@@ -569,6 +565,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.removeItem(PENDING_REAUTH_KEY);
   };
 
+  const devLogin = getDevLogin();
+  const devAccounts = devLogin?.emails ?? [];
+
+  const signInWithDevAccount = async (email: string): Promise<void> => {
+    if (!devLogin || !devLogin.emails.includes(email)) {
+      throw new Error(`[dev-login] ${email} is not a configured dev account`);
+    }
+    await signInWithEmailAndPassword(getAuth(), email, devLogin.password);
+  };
+
   const signOut = async (): Promise<void> => {
     await teardownSession();
     await fbSignOut(getAuth());
@@ -625,6 +631,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canChangeEmail,
         signOut,
         abandonSignUp,
+        devAccounts,
+        signInWithDevAccount,
       }}
     >
       {children}

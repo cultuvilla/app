@@ -9,6 +9,7 @@ import {
 import { orgMemberConverterClient } from '../firebase/converters/orgMemberConverter.client';
 import type { OrgMemberData } from '../models/organization/OrgMemberDataModel';
 import { buildOrgMemberData, type OrgMemberRole } from '../models/organization/OrgMemberDataModel';
+import { watchDoc, watchDocsByIds, type Unwatch, type WatchError } from './watch';
 
 export async function getOrgMembers(orgId: string): Promise<(OrgMemberData & { id: string })[]> {
   const snap = await getDocs(organizationMembersCollection(getDb(), orgId));
@@ -92,6 +93,31 @@ export async function getOrgMembershipsByUserInMunicipality(
   // future server-side filtering; not used in the body yet.
   void municipalityId;
   return checks.filter((m): m is UserOrgMembership => m !== null);
+}
+
+/**
+ * Live twin of `getOrgMembershipsByUserInMunicipality`: the same per-org member
+ * docs, one listener each, so a join or a role change shows without a reload.
+ */
+export function watchOrgMembershipsByUser(
+  userId: string,
+  orgIdsCandidate: string[],
+  onNext: (memberships: UserOrgMembership[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDocsByIds<UserOrgMembership>(
+    orgIdsCandidate,
+    (orgId, next, error) =>
+      watchDoc(
+        organizationMemberDoc(getDb(), orgId, userId),
+        (member) => {
+          next(member ? { orgId, role: member.role } : null);
+        },
+        error,
+      ),
+    onNext,
+    onError,
+  );
 }
 
 /**

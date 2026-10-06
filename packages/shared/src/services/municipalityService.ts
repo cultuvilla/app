@@ -44,7 +44,7 @@ import {
   buildBarrioData,
   buildPlaceData,
 } from '../models/municipality/MunicipalityDataModel';
-import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
+import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
 
 // ── Municipality CRUD ────────────────────────────────────────────────────
 
@@ -68,6 +68,15 @@ export function watchMunicipality(
     },
     onError,
   );
+}
+
+/** Several municipalities by id, in the order given; an unknown id is dropped. */
+export function watchMunicipalitiesByIds(
+  ids: string[],
+  onNext: (municipalities: (MunicipalityData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDocsByIds(ids, watchMunicipality, onNext, onError);
 }
 
 // ── Slugs ────────────────────────────────────────────────────────────────

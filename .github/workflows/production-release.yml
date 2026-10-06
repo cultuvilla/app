@@ -1,0 +1,454 @@
+name: Production release
+
+# Merging the `beta -> main` promotion PR ships production — no second dispatch.
+# The user decided this on 2026-10-06 for fast iteration: the human gate is that
+# merge, and everything after it is mechanical. See
+# docs/decisions/production-auto-release.md.
+#
+# On every push to main, once the prod backend deploy (Deploy prod) is green:
+#   ota      JS bundle -> EAS Update channel `production` (mobile-ota.yml), so a
+#            JS-only change reaches binaries already installed. Skipped when the
+#            push only touches docs/, *.md or .github/.
+#   android  builds com.cultuvilla.app (EAS `production` profile) and submits it
+#            to the Play `production` track.
+#   ios      submits the newest TestFlight build of the app.config version for
+#            App Store review (scripts/appstore-release.mjs submit). That binary
+#            was built and tested when the same version merged to beta, so
+#            production ships exactly what testers ran. Android waits for it.
+#
+# A BREAKING release (a `Breaking-Client:` trailer since the previous release
+# tag) is deployed with its functions and rules held until both stores serve
+# it. Its deploy is still green, so the store jobs run; the OTA is skipped, and
+# announce-when-live.yml ships the backend and raises the wall once the stores
+# are live. `[auto-deploy]` in the merge commit deploys it immediately instead.
+# See docs/decisions/announce-when-live-poller.md.
+#
+# The store jobs run only when apps/mobile/package.json's version differs from
+# the previous main tip, so a re-deploy or a hotfix merge without a bump never
+# builds a binary.
+#
+# Kill-switches (no need to disable the workflow — that silently froze iOS once):
+#   [skip-store] in the merge commit message   no binaries this push
+#   [skip-ota]   in the merge commit message   no OTA this push
+#   repo var STORE_RELEASE_PAUSED=true         no binaries, either store
+#   repo var PLAY_SUBMIT_PAUSED=true           no Android (same switch as beta);
+#                                              iOS ships alone, and the run warns
+#   repo var PROD_OTA_PAUSED=true              no production OTA
+#   [skip-deploy] in the merge commit message  nothing at all: the backend for
+#                                              this commit was not deployed, so
+#                                              no client may ship against it
+#
+# The store switches are one-shot per version: binaries ship only on the push
+# that changes it, so unsetting one later does not resume that release — re-run
+# the run instead. The OTA switches self-heal: the next bundle-changing push to
+# main publishes everything since.
+#
+# Deliberately NOT scoped to the `production` GitHub environment: credentials
+# are repo-level, exactly as in beta-build-and-submit.yml, and the jobs never
+# deploy anything the environment guards. Kept out of deploy-prod.yml so the
+# backend deploy and the store side fail and re-run independently.
+#
+# Locked by packages/shared/test/ci/productionRelease.test.ts.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  plan:
+    name: Decide what ships
+    runs-on: ubuntu-latest
+    outputs:
+      ota: ${{ steps.plan.outputs.ota }}
+      store: ${{ steps.plan.outputs.store }}
+      android: ${{ steps.plan.outputs.android }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compare with the previous main tip
+        id: plan
+        env:
+          BEFORE: ${{ github.event.before }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          STORE_RELEASE_PAUSED: ${{ vars.STORE_RELEASE_PAUSED }}
+          PROD_OTA_PAUSED: ${{ vars.PROD_OTA_PAUSED }}
+          PLAY_SUBMIT_PAUSED: ${{ vars.PLAY_SUBMIT_PAUSED }}
+        run: |
+          # The previous main tip. `before` is all zeros on a branch creation;
+          # fall back to the first parent, which for a promotion merge is main.
+          if [ -n "${BEFORE}" ] && ! [[ "${BEFORE}" =~ ^0+$ ]] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            base="${BEFORE}"
+          else
+            base=$(git rev-parse HEAD^1)
+          fi
+          version_of() { git show "$1:apps/mobile/package.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))'; }
+          version=$(version_of HEAD)
+          previous=$(version_of "${base}")
+
+          skip_deploy=false
+          [[ "${COMMIT_MESSAGE}" == *"[skip-deploy]"* ]] && skip_deploy=true
+
+          store=false
+          if [ "${skip_deploy}" = "true" ]; then
+            reason="[skip-deploy]: the prod backend for this commit was not deployed"
+          elif [ "${version}" = "${previous}" ]; then
+            reason="version unchanged (${version})"
+          elif [[ "${COMMIT_MESSAGE}" == *"[skip-store]"* ]]; then
+            reason="[skip-store] in the commit message"
+          elif [ "${STORE_RELEASE_PAUSED}" = "true" ]; then
+            reason="STORE_RELEASE_PAUSED=true"
+          else
+            store=true
+            reason="${previous} -> ${version}"
+          fi
+
+          # Preconditions the store jobs would otherwise discover only after a
+          # release started — and a fix commit does not bump the version, so
+          # the release would never re-run. Checked only when binaries would
+          # ship, so a kill-switch still lands a fix on main cleanly.
+          if [ "${store}" = "true" ]; then
+            # package.json decides here; appstore-release.mjs picks the iOS
+            # build by app.config.ts. Disagreeing, the stores would get
+            # different versions.
+            config_version=$(sed -nE "s/^  version: '([^']+)',$/\1/p" apps/mobile/app.config.ts)
+            if [ "${config_version}" != "${version}" ]; then
+              echo "::error::apps/mobile/app.config.ts says ${config_version} but package.json says ${version} — nothing ships. Make them agree (pnpm release:cut writes both)."
+              exit 1
+            fi
+            # The iOS submit takes its "What's New" from this section and throws without it.
+            if ! VERSION="${version}" node --input-type=module -e '
+              import { readFileSync } from "node:fs";
+              import { extractReleaseNotes } from "./scripts/lib/changelog-notes.mjs";
+              extractReleaseNotes(readFileSync("CHANGELOG.md", "utf8"), process.env.VERSION);
+            '; then
+              echo "::error::CHANGELOG.md has no usable '## v${version}' section — nothing ships."
+              exit 1
+            fi
+          fi
+          echo "store=${store}" >> "$GITHUB_OUTPUT"
+
+          # The Play freeze stops Android only — iOS still ships, as on beta.
+          # That splits the stores for this version, and since store switches are
+          # one-shot per version (a later push does not re-try them), say so
+          # loudly on the run that did it rather than skip a job in silence.
+          android="${store}"
+          android_reason="${reason}"
+          if [ "${store}" = "true" ] && [ "${PLAY_SUBMIT_PAUSED}" = "true" ]; then
+            android=false
+            android_reason="PLAY_SUBMIT_PAUSED=true — iOS ships ${version} alone"
+            echo "::warning::PLAY_SUBMIT_PAUSED=true: iOS ships ${version} and Android does not. Once Play is unfrozen, re-run this workflow run or dispatch mobile-release (platform android, track production)."
+          fi
+          echo "android=${android}" >> "$GITHUB_OUTPUT"
+
+          # Same paths mobile-ota.yml ignores on beta: they cannot change the bundle.
+          changed=$(git diff --name-only "${base}" HEAD)
+          bundle_changes=$(grep -Ev '^(docs/|\.github/)|\.md$' <<<"${changed}" || true)
+          ota=false
+          if [ "${skip_deploy}" = "true" ]; then
+            ota_reason="[skip-deploy]: the prod backend for this commit was not deployed"
+          elif [ -z "${bundle_changes}" ]; then
+            ota_reason="only docs/.github changes"
+          elif [[ "${COMMIT_MESSAGE}" == *"[skip-ota]"* ]]; then
+            ota_reason="[skip-ota] in the commit message"
+          elif [ "${PROD_OTA_PAUSED}" = "true" ]; then
+            ota_reason="PROD_OTA_PAUSED=true"
+          else
+            ota=true
+            ota_reason="bundle sources changed since ${base::7}"
+          fi
+          echo "ota=${ota}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Production release plan"
+            echo "- Store binaries: **${store}** — ${reason}"
+            # A plan, not an outcome: the Play freeze is read again when the
+            # android job starts, and `play-freeze` reports it if that skips it.
+            echo "- Android (planned): **${android}** — ${android_reason}"
+            echo "- Production OTA: **${ota}** — ${ota_reason}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "store=${store} (${reason}); android=${android} (${android_reason}); ota=${ota} (${ota_reason})"
+
+  # Ship nothing to users until the backend they will talk to is live. A
+  # bundle calling a callable the prod deploy has not shipped yet — or that a
+  # conformance/backfill gate blocked — is a broken app, not an early one.
+  #
+  # A BREAKING release's deploy is green with its functions and rules held
+  # (deploy-firebase.yml's release plan; docs/decisions/announce-when-live-poller.md).
+  # That must not deadlock the stores — the held backend waits for exactly
+  # these binaries to go live — so the store jobs still run. The OTA does not:
+  # it would put the new bundle on installed binaries against the old backend,
+  # and every one of them is walled anyway the moment the held backend ships.
+  backend:
+    name: Wait for the prod backend deploy
+    needs: plan
+    if: ${{ needs.plan.outputs.ota == 'true' || needs.plan.outputs.store == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    outputs:
+      held: ${{ steps.wait.outputs.held }}
+    steps:
+      - name: Wait for Deploy prod on this commit
+        id: wait
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Only the backend job(s) gate this — `deploy / …`, the reusable
+          # deploy-firebase.yml. Other jobs in Deploy prod (tagging, store
+          # announcements) must not, or a job waiting on a store review would
+          # hold back the very submission it is waiting for.
+          #
+          # A failed API call is no information, not a verdict: `|| true` keeps
+          # one 5xx from failing a production release; the loop just looks again.
+          # Only `success` counts — a skipped backend job is not a deployed one
+          # ([skip-deploy] is handled in `plan`, so reaching it here is an error).
+          for attempt in $(seq 1 120); do
+            run=$(gh api "repos/${REPO}/actions/runs?head_sha=${GITHUB_SHA}&event=push&branch=main&per_page=100" \
+              --jq '[.workflow_runs[] | select(.name == "Deploy prod")] | max_by(.id) // empty | {id, status}') || run=""
+            run_id=$(jq -r '.id // empty' <<<"${run}" 2>/dev/null) || run_id=""
+            if [ -n "${run_id}" ] \
+              && jobs=$(gh api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
+                --jq '[.jobs[] | select(.name | startswith("deploy / "))] | map({name, status, conclusion, held: ([.steps[]? | select(.name == "Deploy Cloud Functions") | .conclusion] | any(. == "skipped"))})'); then
+              echo "${jobs}"
+              count=$(jq 'length' <<<"${jobs}")
+              if [ "${count}" = "0" ] && [ "$(jq -r '.status' <<<"${run}")" = "completed" ]; then
+                echo "::error::Deploy prod (run ${run_id}) finished without a backend deploy job — nothing ships."
+                exit 1
+              fi
+              if [ "${count}" -gt 0 ] && [ "$(jq 'all(.status == "completed")' <<<"${jobs}")" = "true" ]; then
+                if [ "$(jq 'all(.conclusion == "success")' <<<"${jobs}")" = "true" ]; then
+                  held=$(jq 'any(.held)' <<<"${jobs}")
+                  echo "held=${held}" >> "$GITHUB_OUTPUT"
+                  if [ "${held}" = "true" ]; then
+                    echo "::notice::Prod deploy is green with the backend HELD (breaking release, run ${run_id}): the stores ship, the production OTA does not. The backend ships when both stores serve this version."
+                  else
+                    echo "Prod backend deploy is green (run ${run_id})."
+                  fi
+                  exit 0
+                fi
+                echo "::error::The prod backend deploy failed (run ${run_id}) — nothing ships. Fix it and re-run this workflow."
+                exit 1
+              fi
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for Deploy prod on ${GITHUB_SHA}."
+          exit 1
+
+  ota:
+    name: Production OTA
+    needs: [plan, backend]
+    if: ${{ needs.plan.outputs.ota == 'true' && needs.backend.outputs.held != 'true' }}
+    uses: ./.github/workflows/mobile-ota.yml
+    with:
+      channel: production
+    secrets:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  # After iOS, not beside it: Play gets a 100% release only the Play Console can
+  # halt, while the iOS submit is the job that checks a processed TestFlight
+  # build of this version exists. If iOS cannot ship, Android does not either,
+  # and the two stores stay on one version.
+  android:
+    name: Android production build + submit -> Play production
+    needs: [plan, backend, ios]
+    # Checked again here, not only in `plan`: this job starts up to two hours
+    # after the plan (behind `backend` and `ios`), and flipping the Play freeze
+    # mid-run is exactly what AGENTS.md tells an operator to do.
+    if: ${{ needs.plan.outputs.android == 'true' && vars.PLAY_SUBMIT_PAUSED != 'true' }}
+    runs-on: ubuntu-latest
+    # The EAS free-tier queue alone has exceeded an hour (1.4.1, 2026-09-28):
+    # a runner timeout cancels only the wait, never the build or its
+    # server-side auto-submit, so a short limit just hides the outcome.
+    timeout-minutes: 150
+    outputs:
+      version_code: ${{ steps.built.outputs.version_code }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # Fail before the build queue, not 40 minutes into it.
+      - name: Require store credentials
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          missing=0
+          if [ -z "${EXPO_TOKEN}" ]; then
+            echo "::error::EXPO_TOKEN is not set."
+            missing=1
+          fi
+          if [ -z "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}" ]; then
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set — see docs/plans/ongoing/store-release.md."
+            missing=1
+          fi
+          [ "$missing" = "0" ]
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # EAS uploads the working tree as-is and the app resolves
+      # @cultuvilla/shared through its gitignored dist/.
+      - name: Build shared package
+        run: pnpm shared:build
+
+      - uses: expo/expo-github-action@v9
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # eas.json's submit profiles point at this path; gitignored, never persisted.
+      # Not a fingerprint source, so writing it before the build is safe.
+      - name: Materialize the Play service account key
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: printf '%s' "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}" > apps/mobile/google-play-service-account.json
+
+      - name: Build and submit
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --profile production \
+            --platform android \
+            --non-interactive \
+            --wait \
+            --auto-submit-with-profile production
+
+      # The poller matches the Play release by this versionCode. Best effort:
+      # without it the poller falls back to the release name, so a failure here
+      # warns instead of failing a release that already shipped.
+      - name: Read the built versionCode
+        id: built
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          code=$(eas build:version:get --platform android --profile production --json --non-interactive 2>/dev/null \
+            | jq -r '.versionCode // .android.versionCode // empty' 2>/dev/null) || code=""
+          if [ -z "${code}" ]; then
+            echo "::warning::Could not read the Android versionCode; the announce poller will match the Play release by name."
+          fi
+          echo "version_code=${code}" >> "$GITHUB_OUTPUT"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f apps/mobile/google-play-service-account.json
+
+  # PLAY_SUBMIT_PAUSED flipped after `plan`: the android job skips correctly,
+  # but the plan summary already said Android ships. Correct it on the run
+  # itself — store switches are one-shot per version, so a silent skip here
+  # leaves the stores split with nobody told.
+  play-freeze:
+    name: Report a Play freeze set mid-run
+    needs: [plan, android]
+    if: ${{ !cancelled() && needs.plan.outputs.android == 'true' && needs.android.result == 'skipped' && vars.PLAY_SUBMIT_PAUSED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warn that Android did not ship
+        run: |
+          echo "::warning::PLAY_SUBMIT_PAUSED=true was set after this run planned Android: Android did not ship. Once Play is unfrozen, re-run this workflow run or dispatch mobile-release (platform android, track production)."
+          echo "- Android: **false** — PLAY_SUBMIT_PAUSED=true was set mid-run; Android did not ship" >> "$GITHUB_STEP_SUMMARY"
+
+  # Hands the versionCode to the announce poller (_admin/announce/pending/prod).
+  # The one job here with an environment: it writes prod Firestore through WIF,
+  # whose variables live on `production`, and it runs only on main.
+  record-android-build:
+    name: Record the Android build for the announce poller
+    needs: android
+    if: ${{ needs.android.outputs.version_code != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Record the versionCode
+        env:
+          VERSION_CODE: ${{ needs.android.outputs.version_code }}
+        run: |
+          version=$(node -p "require('./apps/mobile/package.json').version")
+          node scripts/release-announce.mjs record-android --env=prod --version="${version}" --version-code="${VERSION_CODE}"
+
+  ios:
+    name: iOS submit TestFlight build -> App Store review
+    needs: [plan, backend]
+    if: ${{ needs.plan.outputs.store == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      # setup-node reads `packageManager` and expects pnpm; nothing here installs.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Require App Store Connect credentials
+        env:
+          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+          APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
+        run: |
+          missing=()
+          [ -z "${ASC_APP_ID}" ] && missing+=("ASC_APP_ID")
+          [ -z "${APPLE_ASC_KEY_ID}" ] && missing+=("APPLE_ASC_KEY_ID")
+          [ -z "${APPLE_ASC_ISSUER_ID}" ] && missing+=("APPLE_ASC_ISSUER_ID")
+          [ -z "${APPLE_ASC_API_KEY_P8}" ] && missing+=("APPLE_ASC_API_KEY_P8")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing: ${missing[*]} — see docs/plans/ongoing/store-release.md."
+            exit 1
+          fi
+
+      # No build number: the newest TestFlight build of the app.config version,
+      # i.e. the one beta-build-and-submit made when this version merged to beta.
+      # Idempotent — a version already submitted or live is a no-op.
+      - name: Submit for App Store review
+        env:
+          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+          APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
+        run: node scripts/appstore-release.mjs submit --apply

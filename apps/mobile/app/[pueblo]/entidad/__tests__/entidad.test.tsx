@@ -51,6 +51,10 @@ jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   }),
 }));
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
+const mockOrgEventsSection = jest.fn((_props: { orgId: string; includePrivate: boolean }) => null);
+jest.mock('../../../../components/feature/OrgEventsSection', () => ({
+  OrgEventsSection: (props: { orgId: string; includePrivate: boolean }) => mockOrgEventsSection(props),
+}));
 jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
 
 const OPEN_ORG = {
@@ -89,6 +93,24 @@ describe('OrgDetailScreen', () => {
     expect(getOrgMembers).toHaveBeenCalledTimes(1);
   });
 
+  it("lists the org's events, public only for a non-member", async () => {
+    const { getByText } = render(<OrgDetailScreen />);
+    await waitFor(() => getByText('Peña La Unión'));
+    expect(mockOrgEventsSection).toHaveBeenLastCalledWith({ orgId: 'o1', includePrivate: false });
+  });
+
+  it('never asks a member of an open org for private events, which the rules refuse', async () => {
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    try {
+      const { getByText } = render(<OrgDetailScreen />);
+      await waitFor(() => getByText('Peña La Unión'));
+      await waitFor(() => expect(isOrgMember).toHaveBeenCalled());
+      expect(mockOrgEventsSection).not.toHaveBeenCalledWith({ orgId: 'o1', includePrivate: true });
+    } finally {
+      (isOrgMember as jest.Mock).mockResolvedValue(false);
+    }
+  });
+
   it('shows the not-found state once the org is gone', async () => {
     const { getByText, findByText } = render(<OrgDetailScreen />);
     await waitFor(() => getByText('Peña La Unión'));
@@ -123,6 +145,19 @@ describe('OrgDetailScreen — join policy', () => {
 
     await waitFor(() => expect(requestToJoinOrganization).toHaveBeenCalledWith('o1', 'm1', 'u2'));
     expect(addOrgMember).not.toHaveBeenCalled();
+  });
+
+  it("shows a member of an approval org its private events too", async () => {
+    setWatched('org', approvalOrg);
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    try {
+      render(<OrgDetailScreen />);
+      await waitFor(() =>
+        expect(mockOrgEventsSection).toHaveBeenLastCalledWith({ orgId: 'o1', includePrivate: true }),
+      );
+    } finally {
+      (isOrgMember as jest.Mock).mockResolvedValue(false);
+    }
   });
 
   it('shows a request already sent as pending', async () => {

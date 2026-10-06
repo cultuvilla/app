@@ -42,6 +42,7 @@ describe('FiestasEditor', () => {
   it('removes a block', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(<Harness initial={[agosto]} onChange={onChange} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
     fireEvent.press(getByTestId('fiesta-remove-agosto'));
     expect(onChange).toHaveBeenCalledWith([]);
   });
@@ -51,6 +52,7 @@ describe('FiestasEditor', () => {
   it('never persists an empty name while typing', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(<Harness initial={[agosto]} onChange={onChange} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
     fireEvent.changeText(getByTestId('fiesta-agosto-name'), '');
     expect(onChange).not.toHaveBeenCalled();
   });
@@ -58,6 +60,7 @@ describe('FiestasEditor', () => {
   it('reverts to the saved name when the field is left empty', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(<Harness initial={[agosto]} onChange={onChange} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
     const input = getByTestId('fiesta-agosto-name');
     fireEvent.changeText(input, '');
     fireEvent(input, 'blur');
@@ -68,6 +71,7 @@ describe('FiestasEditor', () => {
   it('commits a renamed block on blur, trimmed', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(<Harness initial={[agosto]} onChange={onChange} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
     const input = getByTestId('fiesta-agosto-name');
     fireEvent.changeText(input, '  Fiestas grandes  ');
     fireEvent(input, 'blur');
@@ -77,6 +81,7 @@ describe('FiestasEditor', () => {
   it('keeps the id stable across a rename', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(<Harness initial={[agosto]} onChange={onChange} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
     const input = getByTestId('fiesta-agosto-name');
     fireEvent.changeText(input, 'Otro nombre');
     fireEvent(input, 'blur');
@@ -94,13 +99,49 @@ describe('FiestasEditor', () => {
   it('sets the month', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(<Harness initial={[agosto]} onChange={onChange} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
     fireEvent.press(getByTestId('fiesta-agosto-month-7'));
     expect(onChange.mock.calls[0][0]).toEqual([{ ...agosto, month: 7 }]);
   });
 
   it('marks the selected month', () => {
     const { getByTestId } = render(<Harness initial={[agosto]} onChange={jest.fn()} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
     expect(getByTestId('fiesta-agosto-month-8').props.accessibilityState).toMatchObject({ selected: true });
     expect(getByTestId('fiesta-agosto-month-7').props.accessibilityState).toMatchObject({ selected: false });
+  });
+
+  it('shows a saved fiesta as a card, not as editable fields', () => {
+    const { getByText, queryByTestId } = render(<Harness initial={[agosto]} onChange={jest.fn()} />);
+    expect(getByText('Fiestas de agosto')).toBeTruthy();
+    expect(getByText('Agosto')).toBeTruthy();
+    expect(queryByTestId('fiesta-agosto-name')).toBeNull();
+    expect(queryByTestId('fiesta-agosto-month-8')).toBeNull();
+  });
+
+  it('opens a fiesta for editing from its edit button and closes it with Listo', () => {
+    const onChange = jest.fn();
+    const { getByTestId, queryByTestId } = render(<Harness initial={[agosto]} onChange={onChange} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
+    fireEvent.changeText(getByTestId('fiesta-agosto-name'), 'Fiestas grandes');
+    fireEvent.press(getByTestId('fiesta-agosto-done'));
+    expect(onChange.mock.calls[0][0][0].name).toBe('Fiestas grandes');
+    expect(queryByTestId('fiesta-agosto-name')).toBeNull();
+  });
+
+  it('opens a newly added fiesta so its month can be picked', () => {
+    const { getByTestId } = render(<Harness initial={[]} onChange={jest.fn()} />);
+    fireEvent.changeText(getByTestId('fiesta-new-name'), 'Carmen');
+    fireEvent.press(getByTestId('fiesta-add'));
+    expect(getByTestId('fiesta-carmen-month-8')).toBeTruthy();
+  });
+
+  it('edits one fiesta at a time', () => {
+    const carmen: FiestaBlock = { id: 'carmen', name: 'Carmen', month: 7 };
+    const { getByTestId, queryByTestId } = render(<Harness initial={[agosto, carmen]} onChange={jest.fn()} />);
+    fireEvent.press(getByTestId('fiesta-edit-agosto'));
+    fireEvent.press(getByTestId('fiesta-edit-carmen'));
+    expect(queryByTestId('fiesta-agosto-name')).toBeNull();
+    expect(getByTestId('fiesta-carmen-name')).toBeTruthy();
   });
 });

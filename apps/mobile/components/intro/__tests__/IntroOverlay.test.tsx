@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
 import { colors } from '@cultuvilla/shared/design-system';
 import { IntroOverlay, INTRO_MAX_MS } from '../IntroOverlay';
 
@@ -27,12 +27,18 @@ jest.mock('expo-audio', () => ({
 jest.mock('@cultuvilla/shared', () => ({ observability: { captureError: jest.fn() } }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ t: (k: string) => k }) }));
 
+let mockSkipIntro = false;
+jest.mock('../../../lib/intro/introSkip', () => ({
+  consumeIntroSkip: async () => mockSkipIntro,
+}));
+
 let mockReduceMotion = false;
 
 beforeEach(() => {
   jest.useFakeTimers();
   mockLottieProps = null;
   mockReduceMotion = false;
+  mockSkipIntro = false;
   jest.clearAllMocks();
   jest
     .spyOn(AccessibilityInfo, 'isReduceMotionEnabled')
@@ -59,11 +65,31 @@ async function finishFade() {
 it('plays the animation and the sound', async () => {
   await mount(false);
   expect(screen.getByTestId('intro-lottie')).toBeTruthy();
-  expect(mockSetAudioMode).toHaveBeenCalledWith({
-    playsInSilentMode: false,
-    interruptionMode: 'mixWithOthers',
-  });
   expect(mockPlayer.play).toHaveBeenCalled();
+});
+
+describe.each([
+  // iOS has a silent switch, and the intro honours it.
+  ['ios', false],
+  // Android has none: expo-audio would skip play() whenever the ringer is on
+  // vibrate, even with media volume up. Media volume decides instead.
+  ['android', true],
+] as const)('on %s', (os, playsInSilentMode) => {
+  const originalOS = Platform.OS;
+  beforeEach(() => {
+    Platform.OS = os;
+  });
+  afterEach(() => {
+    Platform.OS = originalOS;
+  });
+
+  it(`sets playsInSilentMode to ${playsInSilentMode}`, async () => {
+    await mount(false);
+    expect(mockSetAudioMode).toHaveBeenCalledWith({
+      playsInSilentMode,
+      interruptionMode: 'mixWithOthers',
+    });
+  });
 });
 
 it('is painted on the app surface, so the fade into the app has no colour jump', async () => {
@@ -111,6 +137,15 @@ it('gives up after the maximum wait even if the app never becomes ready', async 
 
 it('is skipped entirely, silently, when Reduce Motion is on', async () => {
   mockReduceMotion = true;
+  await mount(false);
+  expect(screen.queryByTestId('intro-overlay')).toBeNull();
+  expect(mockPlayer.play).not.toHaveBeenCalled();
+});
+
+// Sign-out restarts the app to wipe the on-device cache; replaying the intro
+// on that restart made signing out feel like reinstalling the app.
+it('is skipped entirely on the restart that follows a sign-out', async () => {
+  mockSkipIntro = true;
   await mount(false);
   expect(screen.queryByTestId('intro-overlay')).toBeNull();
   expect(mockPlayer.play).not.toHaveBeenCalled();

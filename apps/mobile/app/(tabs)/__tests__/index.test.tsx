@@ -1,8 +1,9 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import FeedScreen from '../index';
 import {
   getPrivateUpcomingFeed,
   getUpcomingFeed,
+  watchUpcomingFeed,
 } from '@cultuvilla/shared/services/feedService';
 import { getAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
 import { buildEventData } from '@cultuvilla/shared/models/event/EventDataModel';
@@ -30,7 +31,9 @@ jest.mock('@cultuvilla/shared/services/feedService', () => {
   return {
     getUpcomingFeed,
     getPrivateUpcomingFeed,
-    watchUpcomingFeed: mockWatchFrom(getUpcomingFeed, (page) => (page as { events: unknown[] }).events),
+    watchUpcomingFeed: jest.fn(
+      mockWatchFrom(getUpcomingFeed, (page) => (page as { events: unknown[] }).events),
+    ),
     watchPrivateUpcomingFeed: mockWatchFrom(getPrivateUpcomingFeed),
     haversineKm: jest.fn().mockReturnValue(0),
   };
@@ -133,26 +136,21 @@ describe('FeedScreen tab order', () => {
     (getAllVillagesFeed as jest.Mock).mockResolvedValue([post]);
   });
 
-  it('shows Artículos before Eventos in the toggle', async () => {
+  it('shows Eventos before Artículos in the toggle', async () => {
     const { findAllByText } = render(<FeedScreen />);
     const labels = (await findAllByText(/^(Artículos|Eventos)$/)).map((n) => n.props.children);
-    expect(labels).toEqual(['Artículos', 'Eventos']);
+    expect(labels).toEqual(['Eventos', 'Artículos']);
   });
 
-  it('opens on the Artículos feed', async () => {
-    const { findByText } = render(<FeedScreen />);
-    // The news feed only loads when its tab is the active one, so its content
-    // appearing without any interaction proves Artículos is the landing tab.
-    expect(await findByText('Corte de agua', undefined, { timeout: 5000 })).toBeTruthy();
+  it('opens on the Eventos feed', async () => {
+    const { findByText, queryByText } = render(<FeedScreen />);
+    // The news feed only loads once its tab is active. So the event card showing
+    // up with no interaction, while the article card is still absent, proves
+    // Eventos is the landing tab.
+    expect(await findByText('Verbena', undefined, { timeout: 5000 })).toBeTruthy();
+    expect(queryByText('Corte de agua')).toBeNull();
   });
 });
-
-// Artículos is the landing tab, so suites about event cards switch to Eventos first.
-async function renderOnEventsTab() {
-  const utils = render(<FeedScreen />);
-  fireEvent.press(await utils.findByText('Eventos'));
-  return utils;
-}
 
 // The ribbon's own states are covered by EventCard.test.tsx; what this pins is
 // the wiring — the feed asks the registrations context about each event it
@@ -167,13 +165,13 @@ describe('FeedScreen sign-up ribbon', () => {
 
   it('marks an event the viewer is signed up for', async () => {
     mockRibbonFor.mockReturnValue({ kind: 'confirmed', count: 1 });
-    const { findByText } = await renderOnEventsTab();
+    const { findByText } = render(<FeedScreen />);
     expect(await findByText('Apuntado', undefined, { timeout: 5000 })).toBeTruthy();
     expect(mockRibbonFor).toHaveBeenCalledWith('event1');
   });
 
   it('leaves an event the viewer has no registrations on unmarked', async () => {
-    const { findByText, queryByText } = await renderOnEventsTab();
+    const { findByText, queryByText } = render(<FeedScreen />);
     await findByText('Verbena', undefined, { timeout: 5000 });
     expect(queryByText('Apuntado')).toBeNull();
   });
@@ -201,7 +199,7 @@ describe('FeedScreen private events', () => {
     (getUpcomingFeed as jest.Mock).mockResolvedValue({ events: [event] });
     (getPrivateUpcomingFeed as jest.Mock).mockResolvedValue([privateEvent]);
 
-    const { findByText } = await renderOnEventsTab();
+    const { findByText } = render(<FeedScreen />);
     expect(await findByText('Verbena', undefined, { timeout: 5000 })).toBeTruthy();
     expect(await findByText('Cena de la peña', undefined, { timeout: 5000 })).toBeTruthy();
   });
@@ -210,7 +208,68 @@ describe('FeedScreen private events', () => {
     (getUpcomingFeed as jest.Mock).mockResolvedValue({ events: [event] });
     (getPrivateUpcomingFeed as jest.Mock).mockRejectedValue(new Error('permission-denied'));
 
-    const { findByText } = await renderOnEventsTab();
+    const { findByText } = render(<FeedScreen />);
     expect(await findByText('Verbena', undefined, { timeout: 5000 })).toBeTruthy();
+  });
+});
+
+// The feed is a live listener (offline-first, docs/plans/ongoing/offline-first-village.md):
+// it paints whatever the listener delivers, with no refetch on focus, and a
+// failed listener is re-opened by the error state's retry.
+describe('FeedScreen live listener', () => {
+  type Listener = { next: (v: unknown) => void; fail: (e: Error) => void; closed: boolean };
+  let listeners: Listener[];
+  const defaultWatch = (watchUpcomingFeed as jest.Mock).getMockImplementation();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRibbonFor.mockReturnValue(null);
+    (getAllVillagesFeed as jest.Mock).mockResolvedValue([]);
+    (getPrivateUpcomingFeed as jest.Mock).mockResolvedValue([]);
+    listeners = [];
+    (watchUpcomingFeed as jest.Mock).mockImplementation(
+      (_size: number, next: Listener['next'], fail: Listener['fail']) => {
+        const listener: Listener = { next, fail, closed: false };
+        listeners.push(listener);
+        return () => {
+          listener.closed = true;
+        };
+      },
+    );
+  });
+
+  afterEach(() => {
+    (watchUpcomingFeed as jest.Mock).mockImplementation(defaultWatch);
+  });
+
+  const current = (): Listener => {
+    const live = listeners.filter((l) => !l.closed);
+    if (live.length !== 1) throw new Error(`expected one open listener, found ${String(live.length)}`);
+    return live[0] as Listener;
+  };
+
+  it('shows an event the listener pushes, with no second query', async () => {
+    const { findByText, queryByText } = render(<FeedScreen />);
+    act(() => current().next([event]));
+    expect(await findByText('Verbena')).toBeTruthy();
+
+    act(() => current().next([event, { ...event, id: 'event2', title: 'Romería' }]));
+    expect(await findByText('Romería')).toBeTruthy();
+    act(() => current().next([{ ...event, id: 'event2', title: 'Romería' }]));
+    expect(queryByText('Verbena')).toBeNull();
+
+    expect(getUpcomingFeed).not.toHaveBeenCalled();
+    expect(watchUpcomingFeed).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-opens a failed listener from the error state and recovers', async () => {
+    const { findByText } = render(<FeedScreen />);
+    act(() => current().fail(new Error('unavailable')));
+    fireEvent.press(await findByText('common.error.retry'));
+
+    expect(listeners).toHaveLength(2);
+    expect(listeners[0]?.closed).toBe(true);
+    act(() => current().next([event]));
+    expect(await findByText('Verbena')).toBeTruthy();
   });
 });

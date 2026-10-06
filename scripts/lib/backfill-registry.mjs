@@ -10,12 +10,17 @@
  * not. The registry makes "has this run in env X?" a machine-checkable fact
  * (a marker doc) instead of a CHANGELOG sentence a human has to remember.
  *
- * WHY `phase` AND NOT A VERSION GATE: Órdago gates backfills on a semver
- * release because it ships store binaries it cannot force-upgrade, so it needs
- * expand/migrate/contract windows. Cultuvilla is web-first and deploys on merge
- * — the fleet upgrades on refresh. The axis that actually matters here is
- * ORDERING AROUND THE DEPLOY, because the strict Zod converters make it
- * bidirectional:
+ * WHY `phase` AND NOT A VERSION GATE: the backend deploys on every merge, so
+ * the axis this registry enforces is ORDERING AROUND THE DEPLOY. Installed
+ * store binaries are a second, slower reader — they lag the backend by weeks
+ * and cannot be force-upgraded on our schedule — and they are protected NOT by
+ * a version gate here but by expand → migrate → contract plus the hard wall
+ * (`config/appVersion.minSupported`): a field old binaries require keeps being
+ * written until the wall passes them, and only the contract commit carries a
+ * `Breaking-Client:` trailer. See docs/decisions/breaking-change-and-hard-wall.md
+ * and scripts/check-schema-change.mjs, which fails a PR whose stored schema
+ * got stricter without a pre-deploy backfill here. The strict Zod converters
+ * make deploy ordering bidirectional:
  *
  *   pre-deploy  — the new code cannot read the old data. Adding a required
  *                 field is this: the converter throws on any doc missing it, so
@@ -30,6 +35,39 @@
 export const KINDS = ['backfill', 'cleanup', 'migration', 'audit'];
 export const PHASES = ['pre-deploy', 'post-deploy', 'none'];
 export const ENVS = ['dev', 'beta', 'prod'];
+
+// Discovery — what the harness scans, as data. Kept here rather than in the
+// harness because the PR-time schema guard runs with no node_modules and must
+// look where the registry looks without importing firebase-admin.
+
+/** Repo-relative directories scanned (non-recursively) for registered backfills. */
+export const SCAN_DIRS = ['scripts', 'scripts/backfill'];
+
+/** Registry tooling — contains the sentinel in prose/regex, is not a backfill. */
+export const INFRA_FILES = new Set(['backfills-cli.mjs', 'lint-backfill-meta.mjs']);
+
+export const SENTINEL = 'runBackfill({ meta, run })';
+export const SENTINEL_RE = /runBackfill\(\{\s*meta,\s*run\s*\}\)/;
+
+/** A repo-relative path discovery would consider: a direct `.mjs` child of a scanned dir, not tooling. */
+export function isBackfillScriptPath(relPath) {
+  const p = String(relPath).replace(/\\/g, '/');
+  const slash = p.lastIndexOf('/');
+  const dir = p.slice(0, slash);
+  const name = p.slice(slash + 1);
+  return slash > 0 && SCAN_DIRS.includes(dir) && name.endsWith('.mjs') && !INFRA_FILES.has(name);
+}
+
+/**
+ * A scanned script that should be on the harness: in scripts/ by its name, and
+ * everything in scripts/backfill/ — names there drop the `backfill-` prefix
+ * the directory already says.
+ */
+export function looksLikeBackfill(relPath) {
+  if (!isBackfillScriptPath(relPath)) return false;
+  const p = String(relPath).replace(/\\/g, '/');
+  return p.startsWith('scripts/backfill/') || /(backfill|migrate|cleanup)/i.test(p.slice(p.lastIndexOf('/') + 1));
+}
 
 /** `_admin/backfills/markers/{id}` — 4 segments, so it is a DOCUMENT path.
  *  An odd segment count is a COLLECTION and `db.doc()` throws at runtime. */

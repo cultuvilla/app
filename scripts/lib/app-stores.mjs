@@ -1,7 +1,10 @@
 /**
- * Reads the store facts out of `packages/shared/src/config/appStores.ts` — the single
- * source of truth for where the native apps live and what version each store
- * serves — so a Node script can check them without a TypeScript toolchain.
+ * Reads the store URLs out of `packages/shared/src/config/appStores.ts` — the
+ * single source of truth for where the native apps live — so a Node script can
+ * check them without a TypeScript toolchain.
+ *
+ * What version each store serves is not in that file: it lives in
+ * `config/appVersion`, written by the announce poller once a store says so.
  */
 
 import { readFileSync } from 'node:fs';
@@ -15,11 +18,9 @@ export const APP_STORES_PATH = path.join(REPO_ROOT, 'packages/shared/src/config/
 /**
  * The body of one `export const <name> = { ... };` literal.
  *
- * The file holds several objects keyed by `ios`/`android`, so a matcher that
- * scanned the whole source would return whichever came first — silently
- * reporting a URL as a version, or vice versa. Bound the search to the named
- * object, and throw when it is absent rather than returning something that
- * reads like an answer.
+ * Bound to the named object, so another `{ ios, android }` object added to the
+ * file can never be read in its place; throws when the name is absent rather
+ * than returning something that reads like an answer.
  *
  * `[^=]*` skips the type annotation (`: { ios: string; android: string }`),
  * which contains no `=`.
@@ -32,8 +33,8 @@ export function objectLiteralBody(source, name) {
 
 /**
  * One platform's field from one object. Returns `''` for a declared-but-empty
- * value ("nothing published yet"); throws when the key is missing entirely,
- * because those two are not the same fact and only one of them is expected.
+ * value ("no listing yet"); throws when the key is missing entirely, because
+ * those two are not the same fact and only one of them is expected.
  */
 export function storeFieldFrom(source, name, key) {
   const match = new RegExp(`^\\s*${key}:\\s*'([^']*)'`, 'm').exec(objectLiteralBody(source, name));
@@ -46,19 +47,6 @@ export function storeUrlFrom(source, key) {
   return storeFieldFrom(source, 'APP_STORES', key);
 }
 
-/** The version that store serves, or `''` when nothing is published there. */
-export function storeVersionFrom(source, key) {
-  return storeFieldFrom(source, 'APP_STORE_VERSIONS', key);
-}
-
-function readSource() {
-  return readFileSync(APP_STORES_PATH, 'utf8');
-}
-
 export function currentStoreUrl(key) {
-  return storeUrlFrom(readSource(), key);
-}
-
-export function currentStoreVersion(key) {
-  return storeVersionFrom(readSource(), key);
+  return storeUrlFrom(readFileSync(APP_STORES_PATH, 'utf8'), key);
 }

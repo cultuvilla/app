@@ -27,7 +27,7 @@ import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { emulatorHostEnv, emulatorPorts, resolveEmulatorConfig } from './lib/emulator-config.mjs';
+import { emulatorHostEnv, emulatorPorts, ensureEmulatorSecrets, resolveEmulatorConfig } from './lib/emulator-config.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -133,6 +133,15 @@ if (BIND_HOST) {
   process.on('exit', () => { try { rmSync(generated); } catch { /* best effort */ } });
   configArgs = ['--config', path.basename(generated)];
   console.log(`[emulators] binding to ${BIND_HOST} via ${path.basename(generated)}`);
+}
+
+// Placeholder secrets so the Functions emulator never asks Secret Manager —
+// see ensureEmulatorSecrets. Only the run that wrote the file removes it.
+if (ONLY.split(',').map((s) => s.trim()).includes('functions')) {
+  const secretsFile = ensureEmulatorSecrets(path.join(ROOT, 'functions'));
+  if (secretsFile) {
+    process.on('exit', () => { try { rmSync(secretsFile); } catch { /* best effort */ } });
+  }
 }
 
 console.log(`[emulators] starting (project=${TEST_PROJECT_ID}, only=${ONLY})`);

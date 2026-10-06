@@ -21,11 +21,28 @@ env:
 # EntityComments renders below the hero image, the body and the organiser row,
 # so on a phone-sized screen it starts off the fold, and Maestro does not
 # scroll implicitly.
+#
+# Then scroll to the END of the content before tapping. The register FAB is
+# absolutely positioned over the bottom band of the screen, outside the scroll
+# view, so wherever `scrollUntilVisible` happens to stop, the composer's centre
+# — where `tapOn` aims — can sit under the FAB. On CI's short pixel_5 it did:
+# the tap focused nothing, Maestro typed the comment as raw key events into an
+# unfocused window, and the activity was torn down mid-word. The composer is
+# the last thing on the page, and the content's bottom padding (pb-24) is what
+# lifts it clear of the FAB, so only the end of the scroll is a safe spot.
+# Explicit swipes: a bounded, deterministic "scroll to the end".
 - scrollUntilVisible:
     element:
       id: 'comment-input'
     direction: DOWN
     timeout: 45000
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          start: 50%, 60%
+          end: 50%, 25%
+          duration: 300
 - tapOn:
     id: 'comment-input'
 - inputText: ${output.body}
