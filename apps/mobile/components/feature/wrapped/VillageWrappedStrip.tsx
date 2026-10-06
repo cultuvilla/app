@@ -5,6 +5,7 @@ import { WRAPPED_CARDS } from '@cultuvilla/shared/models';
 import { getPublishedVillageWrapped, type VillageWrapped } from '@cultuvilla/shared/services/villageWrappedService';
 import { Pressable, Text } from '../../primitives';
 import { wrappedHref } from '../../../lib/navigation/routes';
+import { withFirestoreErrorLog } from '../../../lib/firestoreErrorLog';
 import { useT } from '../../../lib/i18n';
 
 /** Same slot shape as the village map (`LocationMap`), so the two read as one family. */
@@ -28,12 +29,13 @@ export function VillageWrappedStrip({ municipalityId, villageSlug }: { municipal
 
   useEffect(() => {
     let cancelled = false;
-    getPublishedVillageWrapped(municipalityId)
+    withFirestoreErrorLog('villageHome:getPublishedVillageWrapped', () => getPublishedVillageWrapped(municipalityId))
       .then((published) => {
         if (!cancelled) setWrapped(published[0] ?? null);
       })
       .catch(() => {
-        // Decoration on the village home: a failed read hides the strip.
+        // Decoration on the village home: a failed read hides the strip
+        // (a denial is already reported by withFirestoreErrorLog).
       });
     return () => {
       cancelled = true;

@@ -1,5 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { madridYear } from '@cultuvilla/shared/models';
 import { WrappedPrompt } from '../WrappedPrompt';
 import { getVillageWrappedForYear } from '@cultuvilla/shared/services/villageWrappedService';
 
@@ -21,7 +22,7 @@ function recentEvent(daysAgo: number) {
 }
 
 const LIVELY = [recentEvent(3), recentEvent(4)];
-const YEAR = new Date(Date.now() - 3 * DAY).getFullYear();
+const YEAR = madridYear(new Date(Date.now() - 3 * DAY));
 
 beforeEach(() => jest.clearAllMocks());
 

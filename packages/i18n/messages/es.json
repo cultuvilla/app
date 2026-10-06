@@ -674,7 +674,7 @@
       },
       "prompt": {
         "title": "¿Hacemos el resumen de Fiestas {year}?",
-        "body": "Ha habido movimiento en el pueblo: {events} eventos y {signups} inscripciones. Conviértelo en un resumen con fotos y números para compartir.",
+        "body": "Ha habido movimiento en el pueblo: {events} eventos con gente apuntada y comentando. Conviértelo en un resumen con fotos y números para compartir.",
         "create": "Generar resumen",
         "draftTitle": "El resumen de Fiestas {year} está listo",
         "draftBody": "Revísalo, descarga la portada o compártela, y publícalo para que aparezca en el pueblo.",

@@ -78,7 +78,9 @@ a missed run delays publication instead of skipping it.
   dates and the decision stay theirs — but a reminder notification a month
   later was too easy to miss. Movement is at least 2 public, not-cancelled
   events in the last 60 days (inside the declared fiestas months, once there
-  are any) and at least 10 sign-ups plus comments on them. It is computed from
+  are any) and at least 10 sign-ups plus comments on them, once two days have
+  passed since the last of them — fiestas run day after day, so a gap is the
+  sign they are over. It is computed from
   the events the home already holds, so it costs no reads; the counters it uses
   (`confirmedCount`, lifetime `commentCount`) are fine for a threshold and never
   for a published figure. The invitation leads to the create screen, which asks

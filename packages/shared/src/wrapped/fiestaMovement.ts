@@ -6,6 +6,12 @@ export const MOVEMENT_WINDOW_DAYS = 60;
 export const MOVEMENT_MIN_EVENTS = 2;
 /** Sign-ups plus comments across the counted events. */
 export const MOVEMENT_MIN_INTERACTIONS = 10;
+/**
+ * Quiet days after the last counted event before inviting a Wrapped. Fiestas
+ * run day after day, so a gap is the sign they are over — inviting on day
+ * three would sum up half the fiestas.
+ */
+export const MOVEMENT_SETTLE_DAYS = 2;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,7 +32,8 @@ export interface FiestaMovement {
  * reads: events that happened in the last `MOVEMENT_WINDOW_DAYS` (within the
  * declared fiestas months, once there are any), and the people who responded
  * to them. Both halves matter — events alone are a calendar, not movement.
- * The counts follow the Wrapped's own rules: public, not cancelled.
+ * The counts follow the Wrapped's own rules: public, not cancelled. Nothing
+ * is offered while events are still happening (`MOVEMENT_SETTLE_DAYS`).
  *
  * `confirmedCount` counts registrations, not distinct personas, and
  * `commentCount` is lifetime — fine for a threshold, never for a published
@@ -56,6 +63,8 @@ export function fiestaMovement(
   const signupCount = counted.reduce((sum, e) => sum + e.confirmedCount, 0);
   const commentCount = counted.reduce((sum, e) => sum + e.commentCount, 0);
 
+  const latest = Math.max(...counted.map((e) => e.startDate.getTime()));
+  if (now.getTime() - latest < MOVEMENT_SETTLE_DAYS * DAY_MS) return null;
   if (counted.length < MOVEMENT_MIN_EVENTS) return null;
   if (signupCount + commentCount < MOVEMENT_MIN_INTERACTIONS) return null;
   return { year, eventCount: counted.length, signupCount, commentCount };

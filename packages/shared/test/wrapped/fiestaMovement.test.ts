@@ -53,6 +53,12 @@ describe('fiestaMovement', () => {
     expect(fiestaMovement([...ignored, event('2026-08-15')], [], NOW)).toBeNull();
   });
 
+  it('waits until the events have settled before inviting', () => {
+    const fiestas = [event('2026-09-05'), event('2026-09-06')];
+    expect(fiestaMovement([...fiestas, event('2026-09-09')], [], NOW)).toBeNull();
+    expect(fiestaMovement(fiestas, [], NOW)).not.toBeNull();
+  });
+
   it('counts only the fiestas months once the village has declared them', () => {
     const september = [event('2026-09-01'), event('2026-09-02')];
     expect(fiestaMovement(september, AUGUST, NOW)).toBeNull();
@@ -60,7 +66,7 @@ describe('fiestaMovement', () => {
   });
 
   it('names the year of the latest fiestas and counts only that year', () => {
-    const january = at('2027-01-10');
+    const january = at('2027-01-12');
     const movement = fiestaMovement(
       [event('2026-12-27'), event('2026-12-28'), event('2027-01-06'), event('2027-01-07')],
       [],

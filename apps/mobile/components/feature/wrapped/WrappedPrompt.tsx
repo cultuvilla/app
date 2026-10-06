@@ -7,6 +7,7 @@ import { getVillageWrappedForYear, type VillageWrapped } from '@cultuvilla/share
 import { fiestaMovement, type MovementEvent } from '@cultuvilla/shared/wrapped';
 import { Button, HStack, Text, VStack } from '../../primitives';
 import { villageSectionHref } from '../../../lib/navigation/routes';
+import { withFirestoreErrorLog } from '../../../lib/firestoreErrorLog';
 import { useT } from '../../../lib/i18n';
 
 type Props = {
@@ -36,12 +37,13 @@ export function WrappedPrompt({ municipalityId, villageSlug, events, fiestas }: 
     if (year === null) return;
     let cancelled = false;
     setExisting(undefined);
-    getVillageWrappedForYear(municipalityId, year)
+    withFirestoreErrorLog('villageHome:getVillageWrappedForYear', () => getVillageWrappedForYear(municipalityId, year))
       .then((w) => {
         if (!cancelled) setExisting(w);
       })
       .catch(() => {
-        // An invitation, not a feature: a failed read keeps it hidden.
+        // An invitation, not a feature: a failed read keeps it hidden
+        // (a denial is already reported by withFirestoreErrorLog).
       });
     return () => {
       cancelled = true;
@@ -64,10 +66,7 @@ export function WrappedPrompt({ municipalityId, villageSlug, events, fiestas }: 
       <Text variant="bodySm" tone="muted">
         {draft
           ? t('village.wrapped.prompt.draftBody')
-          : t('village.wrapped.prompt.body', {
-              events: String(movement.eventCount),
-              signups: String(movement.signupCount),
-            })}
+          : t('village.wrapped.prompt.body', { events: String(movement.eventCount) })}
       </Text>
       <Button
         onPress={() => router.push(villageSectionHref(villageSlug, 'resumen', `year=${yearText}`))}
