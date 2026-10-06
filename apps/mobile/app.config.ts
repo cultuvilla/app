@@ -165,7 +165,7 @@ const config: ExpoConfig = {
   // the shell would silently build one repo into the other's EAS project; owner
   // + projectId in the file make the routing per-repo by construction.
   owner: 'cultuvilla.app',
-  version: '1.6.0',
+  version: '1.7.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
 

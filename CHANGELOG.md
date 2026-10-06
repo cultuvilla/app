@@ -4,6 +4,8 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.7.0 — 2026-10-06
+
 <!-- store-notes -->
 - **Más rápida y sin conexión**: tu pueblo, sus eventos y noticias, tu perfil y tus inscripciones se abren al instante y se actualizan solos.
 - **Embajadores de Cultuvilla**: cada pueblo tiene su Embajador o Embajadora, con su sello y su acreditación.
