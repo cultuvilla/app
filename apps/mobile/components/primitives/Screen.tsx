@@ -1,6 +1,7 @@
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { ScrollView, View } from 'react-native';
 import type { ReactNode } from 'react';
+import { KeyboardAvoider } from './KeyboardAvoider';
 
 export type ScreenProps = {
   children: ReactNode;
@@ -21,7 +22,9 @@ export type ScreenProps = {
 };
 
 // Page-level wrapper. Sets the surface background, safe-area insets, and
-// optional scroll/padding that keep content clear of OS chrome.
+// optional scroll/padding that keep content clear of OS chrome. Every screen
+// also avoids the keyboard here, so a form never needs its own
+// KeyboardAvoidingView — nesting one would pad twice.
 // Mirrors the prop API of apps/web/components/primitives/Screen.tsx while
 // adding mobile-specific padded + scroll conveniences.
 // testID is placed on the inner content container so callers can assert
@@ -49,13 +52,17 @@ export function Screen({
   if (bottomInset) edges.push('bottom');
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={edges}>
-      <Inner
-        className={scroll ? scrollClass : viewClass}
-        testID={testID}
-        {...(scroll ? { contentContainerClassName: scrollContentClass } : {})}
-      >
-        {children}
-      </Inner>
+      <KeyboardAvoider>
+        <Inner
+          className={scroll ? scrollClass : viewClass}
+          testID={testID}
+          {...(scroll
+            ? { contentContainerClassName: scrollContentClass, keyboardShouldPersistTaps: 'handled' as const }
+            : {})}
+        >
+          {children}
+        </Inner>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

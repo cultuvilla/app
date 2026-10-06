@@ -2,8 +2,6 @@ import { eventHref } from '../../lib/navigation/routes';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   View,
 } from 'react-native';
@@ -927,7 +925,7 @@ export default function NewEventScreen() {
           ) : undefined
         }
       />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ flex: 1 }}>
         <Stepper
           steps={steps}
           onComplete={handleComplete}
@@ -936,7 +934,7 @@ export default function NewEventScreen() {
           allStepsReachable={editMode}
           primaryTestID="event-form-primary"
         />
-      </KeyboardAvoidingView>
+      </View>
     </Screen>
   );
 }

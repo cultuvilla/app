@@ -62,4 +62,16 @@ describe('<Input>', () => {
     fireEvent.scroll(getByTestId('field'), { nativeEvent: { contentOffset: { x: 0, y: 120 } } });
     expect(flatStyle(getByTestId('input-scroll-hint').props.style).top).toBe(8 + 60);
   });
+
+  // Regression: a caller's `className="flex-1"` used to land on the TextInput,
+  // replacing its text style and leaving the bordered box unstretched — the
+  // fiesta name field rendered as a narrow, unstyled sliver.
+  it('lays out the whole field with className, never the TextInput', () => {
+    const { getByTestId, toJSON } = render(
+      <Input value="" onChangeText={() => {}} className="flex-1" testID="field" />,
+    );
+    expect(getByTestId('field').props.className).toMatch(/text-body/);
+    expect(getByTestId('field').props.className).not.toMatch(/(^| )flex-1 .*flex-1/);
+    expect((toJSON() as { props: { className?: string } }).props.className).toMatch(/(^| )flex-1( |$)/);
+  });
 });

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Button,
@@ -425,7 +425,7 @@ export function PersonForm({
   ];
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <View style={{ flex: 1 }}>
       <Stepper
         steps={steps}
         onComplete={handleSubmit}
@@ -435,6 +435,6 @@ export function PersonForm({
         allStepsReachable={editing}
         primaryTestID="person-form-primary"
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }

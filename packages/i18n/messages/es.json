@@ -599,7 +599,7 @@
     },
     "fiestas": {
       "title": "Fiestas del pueblo",
-      "help": "Pon el nombre de cada fiesta y el mes en que se celebra. Puedes añadir varias: unas en julio y otras en agosto, por ejemplo. Las fechas exactas de cada año se eligen al crear el resumen de fiestas.",
+      "help": "Pon el nombre de cada fiesta y el mes en que se celebra.",
       "namePlaceholder": "Nombre (p. ej. Fiestas de agosto)",
       "add": "Añadir",
       "remove": "Quitar estas fiestas",
