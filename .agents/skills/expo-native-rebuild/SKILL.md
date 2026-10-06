@@ -59,11 +59,29 @@ pnpm --filter cultuvilla-mobile exec expo prebuild --platform ios --clean
 When the change adds new native code (not just JS-side config), a new dev-client build is required:
 
 ```bash
-eas build --profile dev --platform android
+cd apps/mobile
+DEV_AUTOLOGIN_EMAIL= DEV_AUTOLOGIN_PASSWORD= eas build --profile development --platform android
 # or --platform ios, or --platform all
 ```
 
-After the build completes, install the new binary on the device/emulator before launching the JS bundle.
+**Blank the two `DEV_AUTOLOGIN_*` vars.** They live in the local `.env` and feed
+`extra.devAutoLogin` in `app.config.ts`, but not the EAS `development` environment.
+`runtimeVersion` is `fingerprint`, so the differing config fails the build in
+*Configure expo-updates* with "Runtime version mismatch". The dev client still gets
+auto-login at runtime from Metro's manifest.
+
+After the build completes, install the new binary on the device/emulator before launching the JS bundle:
+
+```bash
+ADB=/mnt/c/Users/alvar/AppData/Local/Android/Sdk/platform-tools/adb.exe
+curl -sL -o /mnt/c/Users/alvar/AppData/Local/Temp/cultuvilla-dev.apk <artifact .apk url>
+$ADB install -r 'C:\Users\alvar\AppData\Local\Temp\cultuvilla-dev.apk'   # adb.exe needs a Windows path
+```
+
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` means the installed `com.cultuvilla.app.dev` was
+signed by another key (a local `expo run:android` build). `adb uninstall` it first —
+that wipes its local data, sign-in included. EAS-built dev clients share one
+EAS-managed keystore (created 2026-10-06), so they update over each other.
 
 ### Step 3 — Local rebuild (optional, for faster iteration)
 
