@@ -100,6 +100,13 @@ describe('production-release workflow', () => {
     // The Play freeze is decided in `plan`, so a release iOS ships alone is
     // reported (summary + warning) on the run that split the stores.
     expect(plan).toContain('PLAY_SUBMIT_PAUSED: ${{ vars.PLAY_SUBMIT_PAUSED }}');
+    // Android inherits every store decision ([skip-deploy], [skip-store],
+    // STORE_RELEASE_PAUSED, an unchanged version) and only then the Play
+    // freeze; a dropped output would skip Android on every release, silently.
+    expect(plan).toContain('android: ${{ steps.plan.outputs.android }}');
+    expect(plan).toMatch(/^\s*android="\$\{store\}"$/m);
+    expect(plan).toContain('echo "android=${android}" >> "$GITHUB_OUTPUT"');
+    expect(plan.indexOf('android="${store}"')).toBeGreaterThan(storeOut);
     expect(plan).toMatch(/::warning::PLAY_SUBMIT_PAUSED=true/);
     expect(plan).toContain('echo "- Android: **${android}**');
     expect(job('android')).toContain("if: ${{ needs.plan.outputs.android == 'true' }}");

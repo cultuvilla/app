@@ -26,12 +26,15 @@ name: Production release
 #   repo var STORE_RELEASE_PAUSED=true         no binaries, either store
 #   repo var PLAY_SUBMIT_PAUSED=true           no Android (same switch as beta);
 #                                              iOS ships alone, and the run warns
-# Each is one-shot per version: unsetting it later does not resume the release
-# (binaries ship only on the version-changing push). Re-run that run instead.
 #   repo var PROD_OTA_PAUSED=true              no production OTA
 #   [skip-deploy] in the merge commit message  nothing at all: the backend for
 #                                              this commit was not deployed, so
 #                                              no client may ship against it
+#
+# The store switches are one-shot per version: binaries ship only on the push
+# that changes it, so unsetting one later does not resume that release — re-run
+# the run instead. The OTA switches self-heal: the next bundle-changing push to
+# main publishes everything since.
 #
 # Deliberately NOT scoped to the `production` GitHub environment: credentials
 # are repo-level, exactly as in beta-build-and-submit.yml, and the jobs never
@@ -128,11 +131,11 @@ jobs:
           echo "store=${store}" >> "$GITHUB_OUTPUT"
 
           # The Play freeze stops Android only — iOS still ships, as on beta.
-          # That splits the stores for this version, and since every switch is
-          # one-shot per version (a later push does not re-try it), say so loudly
-          # on the run that did it rather than skip a job in silence.
+          # That splits the stores for this version, and since store switches are
+          # one-shot per version (a later push does not re-try them), say so
+          # loudly on the run that did it rather than skip a job in silence.
           android="${store}"
-          android_reason="with iOS"
+          android_reason="${reason}"
           if [ "${store}" = "true" ] && [ "${PLAY_SUBMIT_PAUSED}" = "true" ]; then
             android=false
             android_reason="PLAY_SUBMIT_PAUSED=true — iOS ships ${version} alone"
@@ -164,7 +167,7 @@ jobs:
             echo "- Android: **${android}** — ${android_reason}"
             echo "- Production OTA: **${ota}** — ${ota_reason}"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "store=${store} (${reason}); ota=${ota} (${ota_reason})"
+          echo "store=${store} (${reason}); android=${android} (${android_reason}); ota=${ota} (${ota_reason})"
 
   # Ship nothing to users until the backend they will talk to is live. A
   # bundle calling a callable the prod deploy has not shipped yet — or that a

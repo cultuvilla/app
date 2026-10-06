@@ -33,12 +33,17 @@ testing tracks, rebuilds, resubmits, releasing or pausing a phased rollout.
 | repo var `PROD_OTA_PAUSED=true` | no production OTA while set |
 | `[skip-deploy]` in the merge commit | nothing ships: the backend for that commit was not deployed |
 
-**Every switch is one-shot per version.** Unsetting a variable does not resume
-a release it suppressed. Binaries ship only on the push that changes the
-version, so a later push to `main` never retries them. To ship a suppressed
-release, re-run that workflow run once the switch is off, or ship it by hand:
-*App Store release* → `submit`, `mobile-release` (track `production`), or a
-`mobile-ota` dispatch to `production`.
+**The store switches are one-shot per version.** Unsetting
+`STORE_RELEASE_PAUSED` or `PLAY_SUBMIT_PAUSED` does not resume a release it
+suppressed. Binaries ship only on the push that changes the version, so a later
+push to `main` never retries them. To ship a suppressed release, re-run that
+workflow run once the switch is off, or ship it by hand: *App Store release* →
+`submit`, or `mobile-release` (track `production`).
+
+**The OTA switches recover on their own.** OTA does not depend on the version.
+After `PROD_OTA_PAUSED` is unset, or after a `[skip-ota]` merge, the next push to
+`main` that changes the bundle publishes everything since. To publish sooner,
+dispatch `mobile-ota` to `production`.
 
 Never disable the workflow to pause one platform: disabling
 `beta-build-and-submit` during the 2026-09 Play review silently froze iOS too.
