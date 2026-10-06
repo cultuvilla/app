@@ -754,6 +754,8 @@
     "privateNotice": "Este evento es privado: solo lo ven los miembros de la organización.",
     "signupEnabled": "Inscripciones por la app",
     "signupEnabledHint": "Desactívalo si el evento es de entrada libre o si las inscripciones se hacen por otro sitio.",
+    "formEnabled": "Añadir un formulario",
+    "formEnabledHint": "Actívalo para hacer preguntas a quien se apunte (talla de camiseta, alergias…). Las preguntas se configuran en el siguiente paso.",
     "signupDisableTitle": "Desactivar las inscripciones",
     "signupDisableBody": "Se {count, plural, one {eliminará la inscripción que ya hay} other {eliminarán las # inscripciones que ya hay}} y se avisará a quienes se apuntaron. Esta acción no se puede deshacer.",
     "signupDisableConfirm": "Desactivar y eliminar",

@@ -4,6 +4,10 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+- Creating an event: the location is marked as mandatory (red asterisk), and
+  the Preguntas step only appears once "Añadir un formulario" is switched on
+  in Detalles. An event that already has questions opens with it on, and it
+  can't be switched off once those questions have answers.
 - History, vocabulary, Mis inscripciones and the profile now read through live
   listeners: they open instantly from the on-device cache (offline too) and
   update on their own, instead of reloading every time you return to them. The
