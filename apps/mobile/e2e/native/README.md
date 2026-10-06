@@ -132,6 +132,22 @@ costs two extra steps:
 Neither applies on a Linux runner, where the AVD and the emulators share one
 loopback — which is why CI leaves both unset and exposes nothing.
 
+Three more traps, all hit on a full local run (2026-10-06):
+
+- **Launch the `-a` adb server as a Windows process**, e.g.
+  `powershell.exe -Command "Start-Process -WindowStyle Hidden -FilePath <sdk>\platform-tools\adb.exe -ArgumentList '-a','-P','5037','nodaemon','server'"`.
+  Started from a WSL shell, it died mid-suite, every transport dropped at once,
+  and the next flow failed with `Network closed` / `EOFException`. That looks like
+  a broken flow, but it isn't one.
+- **Any `offline` device hides every device from Maestro.** Its adb library
+  (dadb) throws on the first transport it cannot open, and Maestro then reports
+  `Device emulator-5554 is not connected` even though `adb devices` lists it. A
+  phone stuck `offline` after the adb server restarts is enough. Re-authorise
+  or unplug it, and pin `E2E_ANDROID_DEVICE=emulator-5554`.
+- **Run the Maestro version CI runs.** CI installs the latest release on every
+  run. Maestro 2.4 rejects non-ASCII `inputText` (`Unicode not supported: Peña…`
+  in flow 70), and 2.11 accepts it. Point `MAESTRO_BIN` at a current install.
+
 ## Maestro traps this suite already paid for
 
 Every one of these cost real debugging time. They are encoded in the flows with
