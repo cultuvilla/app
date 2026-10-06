@@ -4,6 +4,13 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+<!-- store-notes -->
+- **Más rápida y sin conexión**: tu pueblo, sus eventos y noticias, tu perfil y tus inscripciones se abren al instante y se actualizan solos.
+- **Embajadores de Cultuvilla**: cada pueblo tiene su Embajador o Embajadora, con su sello y su acreditación.
+- **Grupos con admisión**: un grupo puede pedir aprobación para unirse, y sus eventos privados llegan a tu inicio.
+- **Fiestas del pueblo** en tarjetas, y el teclado ya no tapa los campos al escribir.
+<!-- /store-notes -->
+
 - Fix: on Android the keyboard covered the field being typed in on most forms
   (editing a pueblo, creating events and news, personas, vocabulary, sign-up
   sheets…). Every screen and bottom sheet now lifts its content above the
