@@ -4,6 +4,7 @@ import { logger } from 'firebase-functions/v2';
 import { getAuth } from 'firebase-admin/auth';
 import { Resend } from 'resend';
 import { RESEND_API_KEY } from './secret';
+import { isFunctionsEmulator } from '../shared/runtime';
 import { bucketIdFor, callerIpOf, checkSendRateLimits } from './rateLimit';
 import {
   renderAuthEmailHtml,
@@ -61,6 +62,14 @@ export async function runSendAuthSignInEmail(
       error: err instanceof Error ? err.message : String(err),
     });
     throw new HttpsError('internal', 'No se pudo generar el enlace de acceso. Inténtalo de nuevo.');
+  }
+
+  // Locally there is no Resend key and no mailbox, so a send can only fail (or,
+  // with the placeholder secret the test runner writes, reach Resend with a fake
+  // key). Log the link instead, so the flow stays completable by hand.
+  if (isFunctionsEmulator()) {
+    logger.info('auth sign-in link issued (emulator, not emailed)', { handler, bucketId, actionUrl });
+    return { ok: true };
   }
 
   const timestamp = new Date().toISOString();

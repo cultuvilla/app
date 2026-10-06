@@ -155,9 +155,22 @@ jobs:
       - name: Build E2E APK (emulator mode)
         run: node scripts/build-android-e2e-apk.mjs
 
+      # Pinned: the installer otherwise fetches the latest release on every run,
+      # so a Maestro release alone could turn the suite red with no change here.
+      # Version drift has bitten before: 2.4 rejects non-ASCII `inputText`, which
+      # flow 70 types ("Peña…"). Bump deliberately and run the suite on the branch.
       - name: Install Maestro
+        env:
+          MAESTRO_VERSION: 2.11.0
         run: |
           curl -Ls "https://get.maestro.mobile.dev" | bash
+          # The installer silently falls back to latest if it ignores the
+          # variable, so prove the pin took instead of trusting it.
+          installed="$("$HOME/.maestro/bin/maestro" --version | tail -n1)"
+          if [ "$installed" != "$MAESTRO_VERSION" ]; then
+            echo "::error::Maestro $installed installed, but $MAESTRO_VERSION is pinned."
+            exit 1
+          fi
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
       # One boot of everything: the action brings up the AVD, then the script
