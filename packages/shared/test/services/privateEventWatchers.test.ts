@@ -96,7 +96,7 @@ describe('watchEventsByOrganization', () => {
     expect(where).not.toHaveBeenCalledWith('visibilityOrgId', '==', 'org');
   });
 
-  it('merges a vetted member\'s private events, drops cancelled ones and sorts by start', () => {
+  it('merges a vetted member\'s private events, keeps only the org\'s own, drops cancelled and sorts by start', () => {
     const onNext = vi.fn();
     watchEventsByOrganization('org', { includePrivate: true }, onNext, vi.fn());
 
@@ -104,11 +104,17 @@ describe('watchEventsByOrganization', () => {
     expect(where).toHaveBeenCalledWith('visibilityOrgId', '==', 'org');
     listeners[0].next(
       snapshot([
-        { id: 'fiesta', status: 'published', startDate: at('2030-08-01') },
-        { id: 'suspendida', status: 'cancelled', startDate: at('2030-01-01') },
+        { id: 'fiesta', status: 'published', startDate: at('2030-08-01'), organizerOrgIds: ['org'] },
+        { id: 'suspendida', status: 'cancelled', startDate: at('2030-01-01'), organizerOrgIds: ['org'] },
       ]),
     );
-    listeners[1].next(snapshot([{ id: 'cena', status: 'completed', startDate: at('2029-12-01') }]));
+    listeners[1].next(
+      snapshot([
+        { id: 'cena', status: 'completed', startDate: at('2029-12-01'), organizerOrgIds: ['org'] },
+        // Restricted to this org's members, but organized by someone else.
+        { id: 'ajena', status: 'published', startDate: at('2030-02-01'), organizerOrgIds: ['otra'] },
+      ]),
+    );
 
     expect(onNext).toHaveBeenLastCalledWith([
       expect.objectContaining({ id: 'cena' }),
@@ -121,7 +127,9 @@ describe('watchEventsByOrganization', () => {
     const onError = vi.fn();
     watchEventsByOrganization('org', { includePrivate: true }, onNext, onError);
 
-    listeners[0].next(snapshot([{ id: 'fiesta', status: 'published', startDate: at('2030-08-01') }]));
+    listeners[0].next(
+      snapshot([{ id: 'fiesta', status: 'published', startDate: at('2030-08-01'), organizerOrgIds: ['org'] }]),
+    );
     listeners[1].error(refused);
 
     expect(onError).not.toHaveBeenCalled();

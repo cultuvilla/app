@@ -201,7 +201,9 @@ export function watchEventsByOrganization(
     // otherwise need a status + array-contains composite index.
     (rows) =>
       rows
-        .filter((e) => LISTED_STATUSES.includes(e.status))
+        // A private event names its org in visibilityOrgId, but nothing in the
+        // rules makes that org one of its organizers.
+        .filter((e) => e.organizerOrgIds.includes(organizationId) && LISTED_STATUSES.includes(e.status))
         .sort((a, b) => a.startDate.getTime() - b.startDate.getTime()),
     onNext,
     onError,
