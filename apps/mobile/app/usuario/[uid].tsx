@@ -39,7 +39,7 @@ export default function UserProfileScreen() {
   if (!uid) return null;
 
   return (
-    <Screen padded={false} topInset={false} bottomInset={false}>
+    <Screen padded={false}>
       <ScreenHeader title={headerName || t('userProfile.title')} />
       {loading ? (
         <View className="flex-1 items-center justify-center"><ActivityIndicator /></View>

@@ -42,7 +42,7 @@ function VillageMembersScreen() {
 
   if (loading || isMember === null) {
     return (
-      <Screen padded={false} topInset={false}>
+      <Screen padded={false}>
         <ScreenHeader title={t('village.villagers.title')} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
@@ -55,7 +55,7 @@ function VillageMembersScreen() {
   if (!isMember && !canManage) return <Redirect href={villageHref(villageSlug)} />;
 
   return (
-    <Screen padded={false} topInset={false}>
+    <Screen padded={false}>
       <ScreenHeader title={t('village.villagers.title')} />
       <MembersList
         villageId={villageId}
