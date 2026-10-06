@@ -17,9 +17,9 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 28 cycles ago \* | — |
 | [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) ⚠️ | low | dev | 7 cycles ago \* | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
 | [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | 1 cycle ago \* | promote `develop → beta` (a `release/X.Y.Z` branch; the maintainer merges the PR) |
-| [offline-first-village](ongoing/offline-first-village.md) | high | dev | 1 cycle ago | mis-inscripciones and the remaining list screens onto watchers; then layer 3 (village sync) |
 | [app-only-transition](ongoing/app-only-transition.md) | high | dev | this cycle | promote to beta and run the phase 3 `curl` checks there, then the same on prod |
 | [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | verify delivery on a real iPhone (step 2) — the key is loaded and bound on prod since 2026-10-05 |
+| [offline-first-village](ongoing/offline-first-village.md) | high | dev | this cycle | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
 | [store-release](ongoing/store-release.md) | low | prod | this cycle | once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc |
 
 ## Soaking
