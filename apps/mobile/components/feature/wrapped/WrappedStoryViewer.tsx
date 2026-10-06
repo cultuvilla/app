@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { Image, Pressable as RNPressable, Text as RNText, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { iconSizes, typography } from '@cultuvilla/shared/design-system';
@@ -82,6 +83,18 @@ export function WrappedStoryViewer({
     <View style={styles.root} testID="wrapped-story">
       {current ? (
         <>
+          {/* A phone is taller than a 9:16 card, so the card leaves bands above
+              and below it. Fill them with the card itself, blurred and dimmed,
+              so the colours carry to the edges instead of ending in black. */}
+          <ExpoImage
+            source={{ uri: current.url }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            blurRadius={40}
+            transition={0}
+            accessible={false}
+          />
+          <View style={[StyleSheet.absoluteFill, styles.backdropDim]} />
           <Image
             source={{ uri: current.url }}
             accessibilityLabel={t(`village.wrapped.card.${current.card}`)}
@@ -171,6 +184,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000000' },
   title: { ...typography.h2, color: '#ffffff' },
   dim: { ...typography.body, color: 'rgba(255,255,255,0.75)', marginBottom: 8 },
+  backdropDim: { backgroundColor: 'rgba(0,0,0,0.35)' },
   top: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 12 },
   bars: { flexDirection: 'row', gap: 4 },
   bar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)', overflow: 'hidden' },
