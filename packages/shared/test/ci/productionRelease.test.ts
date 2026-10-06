@@ -109,9 +109,17 @@ describe('production-release workflow', () => {
     expect(plan.indexOf('android="${store}"')).toBeGreaterThan(storeOut);
     expect(plan).toMatch(/::warning::PLAY_SUBMIT_PAUSED=true/);
     expect(plan).toContain('echo "- Android: **${android}**');
-    expect(job('android')).toContain("if: ${{ needs.plan.outputs.android == 'true' }}");
-    // A Play freeze must not freeze the App Store (the 2026-09-14 lesson).
+    // Warn only when binaries would ship at all, or every hotfix push cries wolf.
+    expect(plan).toContain('if [ "${store}" = "true" ] && [ "${PLAY_SUBMIT_PAUSED}" = "true" ]; then');
+    // …and the freeze is read again when the job starts, up to two hours later,
+    // so flipping it mid-run still holds Play.
+    expect(job('android')).toContain(
+      "if: ${{ needs.plan.outputs.android == 'true' && vars.PLAY_SUBMIT_PAUSED != 'true' }}",
+    );
+    // A Play freeze must not freeze the App Store (the 2026-09-14 lesson): iOS
+    // keys off `store`, never off the Play-aware `android` output.
     expect(job('ios')).not.toContain('PLAY_SUBMIT_PAUSED');
+    expect(job('ios')).toContain("if: ${{ needs.plan.outputs.store == 'true' }}");
   });
 
   // An app talking to a callable the prod deploy has not shipped — or that a

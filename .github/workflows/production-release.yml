@@ -237,7 +237,10 @@ jobs:
   android:
     name: Android production build + submit -> Play production
     needs: [plan, backend, ios]
-    if: ${{ needs.plan.outputs.android == 'true' }}
+    # Checked again here, not only in `plan`: this job starts up to two hours
+    # after the plan (behind `backend` and `ios`), and flipping the Play freeze
+    # mid-run is exactly what AGENTS.md tells an operator to do.
+    if: ${{ needs.plan.outputs.android == 'true' && vars.PLAY_SUBMIT_PAUSED != 'true' }}
     runs-on: ubuntu-latest
     # The EAS free-tier queue alone has exceeded an hour (1.4.1, 2026-09-28):
     # a runner timeout cancels only the wait, never the build or its
