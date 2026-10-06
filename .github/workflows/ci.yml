@@ -156,10 +156,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # setup-node@v5 turns on a pnpm cache by itself when package.json names a
+      # packageManager, and fails without pnpm installed. Nothing is installed here.
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: 22
+          package-manager-cache: false
 
       # The checkout is `refs/pull/N/merge` at depth 1 with no origin/<base>,
       # so there is no merge-base until one is fetched — and without one the
