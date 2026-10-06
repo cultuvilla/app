@@ -1,7 +1,8 @@
 name: Deploy prod
 
-# Merges to main deploy backend + hosting to cultuvilla-prod, behind the
-# `production` GitHub Environment (manual approval required).
+# Merges to main (beta → main promotions) deploy backend + hosting to
+# cultuvilla-prod automatically — no approval step since 2026-07-16. The
+# `production` GitHub Environment only restricts which branch may deploy.
 # Skip a deploy by putting [skip-deploy] in the merge commit message.
 on:
   push:
