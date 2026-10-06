@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { INTEGRATION_INCLUDE } from './vitest.suites';
 
 const RETRY = Number.parseInt(process.env.VITEST_RETRY_COUNT ?? '0', 10);
 
@@ -9,7 +10,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/integration/**/*.test.ts'],
+    include: INTEGRATION_INCLUDE,
     retry: Number.isFinite(RETRY) && RETRY > 0 ? RETRY : 0,
     setupFiles: ['test/setup/integration.setup.ts'],
     testTimeout: 30_000,
