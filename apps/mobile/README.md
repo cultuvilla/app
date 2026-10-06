@@ -27,8 +27,8 @@ From the repo root:
 | Command | When |
 |---|---|
 | `pnpm app:start` | Default. Works when your dev machine and phone are on the same Wi-Fi and the LAN allows direct connections. |
-| `pnpm app:start:tunnel` | **Use this on WSL2.** Routes through Expo's ngrok-style tunnel so the phone reaches Metro without LAN routing. Slower bundle, but reliable. |
-| `pnpm app:start:lan` | Force LAN mode (skip auto-detection). |
+| `pnpm app:start:tunnel` | When the phone is not on your network. Routes through Expo's ngrok-style tunnel. Slower bundle. |
+| `pnpm app:start:lan` | **Use this on WSL2.** Advertises the Windows host's LAN IP so the phone can scan the QR on the same Wi-Fi (needs the Windows portproxy for 8081 — see the `drive-android-avd` skill). Off WSL it is plain `expo start --lan`. |
 | `pnpm app:android` / `pnpm app:ios` | Auto-open on a connected emulator / simulator. |
 
 ### 3. Connect from your phone
