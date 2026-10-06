@@ -63,6 +63,17 @@ describe('OTA update wiring', () => {
     );
   });
 
+  // app.config.ts falls back to `dev` for any APP_ENV outside dev|beta|prod, so
+  // passing the channel name `production` through would point every production
+  // update at the dev Firebase project, on a green run. Now that production
+  // publishes on every merge to main, the mapping is pinned.
+  it('maps the production channel to APP_ENV=prod, never the channel name', () => {
+    expect(otaWorkflow).toContain(
+      "APP_ENV: ${{ inputs.channel == 'production' && 'prod' || (inputs.channel || 'beta') }}",
+    );
+    expect(appConfig).toContain("type Env = 'dev' | 'beta' | 'prod';");
+  });
+
   it('loads the channel from inputs, so a workflow_call caller can choose it', () => {
     expect(otaWorkflow).toMatch(/workflow_call:\s*\n\s*inputs:\s*\n\s*channel:/);
     expect(otaWorkflow).not.toContain('github.event.inputs.channel');
