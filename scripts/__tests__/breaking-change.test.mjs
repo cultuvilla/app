@@ -225,6 +225,27 @@ describe('classifySchemaChange', () => {
     assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }).tightened, ['m: new required field']);
   });
 
+  it('an edited declaration whose every field changed is not read as added whole', () => {
+    const before = schema(['a: z.string()']);
+    const after = schema(['b: z.number()']).replace('z.object({', 'z.object({ // things');
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: ['b: new required field'],
+      loosened: ['a: required field removed'],
+    });
+  });
+
+  it('an edited nested object whose only key changed is not read as added whole', () => {
+    const before = schema(['a: z.string()', 'stats: z.object({\n    n: z.number().optional(),\n  })']);
+    const after = schema(['a: z.string()', 'stats: z.object({ // counters\n    n: z.number(),\n  })']);
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }).tightened, ['n: no longer optional']);
+  });
+
+  it("a nested key's .optional() does not make the field containing it optional", () => {
+    const nested = 'stats: z.object({\n    n: z.number().optional(),\n  })';
+    assert.deepEqual(classify(['a: z.string()', nested], ['a: z.string()']).loosened, ['stats: required field removed']);
+    assert.deepEqual(classify(['a: z.string()'], ['a: z.string()', nested]).tightened, ['stats: new required field']);
+  });
+
   it('a new strict sub-schema is not a tightening of the existing ones', () => {
     const before = schema(['a: z.string()']);
     const after = `${before}\nexport const SubSchema = z\n  .object({\n    n: z.number(),\n  })\n  .strict();\n`;

@@ -159,21 +159,34 @@ function expressionEnd(lines, n) {
 
 const DECLARATION_START = /^\s*(export\s+)?(const|let|function)\s+([A-Za-z_$][\w$]*)/;
 
-// A line with nothing but closing brackets and punctuation. git's diff may
-// slide a new block's closing `});` onto an identical unchanged one, so such a
-// line never decides whether a block is new as a whole.
-const TRIVIAL_LINE = /^\s*[)\]}]*[)\]};,]*\s*$/;
-
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * The expression with every bracketed argument emptied: `z.object({ n: z.number().optional() })`
+ * → `z.object()`. A field's own optionality lives on its top-level chain; a
+ * nested key's `.optional()` says nothing about the field that contains it.
+ */
+function topLevelChain(expr) {
+  let depth = 0;
+  let out = '';
+  for (const ch of expr) {
+    if (')]}'.includes(ch)) depth--;
+    if (depth === 0) out += ch;
+    if ('([{'.includes(ch)) depth++;
+  }
+  return out;
+}
 
 /**
  * The fields (`name: z…`) and declarations (`export const X = …`) that START on
  * one of `lineNumbers` (1-based), each with its full span — a field may run
  * over several lines (`foo: z\n  .string()\n  .optional(),`). `whole` is true
- * when every line of the span changed: the block was added or removed in full,
- * not merely edited.
+ * when the block exists on this side only: every line of its span changed AND
+ * its name is not declared in `otherSource`. The name check is what keeps an
+ * edited block whose every line also changed (a commented declaration line
+ * with all its fields replaced) from reading as one added or removed whole.
  */
-function spansStartingOn(source, lineNumbers) {
+function spansStartingOn(source, lineNumbers, otherSource) {
   const lines = String(source).split('\n');
   const changed = new Set(lineNumbers);
   const spans = [];
@@ -184,14 +197,16 @@ function spansStartingOn(source, lineNumbers) {
     const field = decl ? null : first.match(FIELD_START);
     if (!decl && !field) continue;
     const end = expressionEnd(lines, n);
-    let whole = true;
-    for (let k = n; k <= end && whole; k++) whole = changed.has(k) || TRIVIAL_LINE.test(lines[k - 1]);
-    const span = { kind: decl ? 'declaration' : 'field', name: decl ? decl[3] : field[1].replace(/^['"]|['"]$/g, ''), start: n, end, whole };
+    const name = decl ? decl[3] : field[1].replace(/^['"]|['"]$/g, '');
+    let whole = !(decl ? declarationIn(otherSource, name) : declaredIn(otherSource, name));
+    for (let k = n; k <= end && whole; k++) whole = changed.has(k);
+    const span = { kind: decl ? 'declaration' : 'field', name, start: n, end, whole };
     if (field) {
       const expr = lines.slice(n - 1, end).join('\n');
       span.expr = expr.slice(expr.indexOf(':') + 1).replace(/\s+/g, '').replace(/,$/, '');
-      span.optional = OPTIONALISH.test(span.expr);
-      span.nullable = /\.nullable\(\)/.test(span.expr);
+      const chain = topLevelChain(span.expr);
+      span.optional = OPTIONALISH.test(chain);
+      span.nullable = /\.nullable\(\)/.test(chain);
     }
     spans.push(span);
   }
@@ -210,8 +225,8 @@ const insideAWholeSpan = (spans, s) => spans.some((o) => o !== s && o.whole && o
  * whole only matter through the field that references it. A block whose first
  * line was merely edited (a comment, a rename) hides nothing.
  */
-export function fieldsStartingOn(source, lineNumbers) {
-  const spans = spansStartingOn(source, lineNumbers);
+export function fieldsStartingOn(source, lineNumbers, otherSource) {
+  const spans = spansStartingOn(source, lineNumbers, otherSource);
   return spans
     .filter((s) => s.kind === 'field' && !insideAWholeSpan(spans, s))
     .map(({ name, expr, optional, nullable, start, end }) => ({ name, expr, optional, nullable, start, end }));
@@ -247,10 +262,7 @@ function declarationIn(source, name) {
  */
 function strictCallsOnChangedLines(source, lineNumbers, otherSource) {
   const lines = String(source).split('\n');
-  const spans = spansStartingOn(source, lineNumbers);
-  const onlyHere = spans.filter(
-    (s) => s.whole && !(s.kind === 'declaration' ? declarationIn(otherSource, s.name) : declaredIn(otherSource, s.name)),
-  );
+  const onlyHere = spansStartingOn(source, lineNumbers, otherSource).filter((s) => s.whole);
   let count = 0;
   for (const n of lineNumbers) {
     if (onlyHere.some((s) => s.start <= n && s.end >= n)) continue;
@@ -274,8 +286,8 @@ function strictCallsOnChangedLines(source, lineNumbers, otherSource) {
  */
 export function classifySchemaChange({ before, after, diff }) {
   const { removed, added } = changedLineNumbers(diff);
-  const oldFields = new Map(fieldsStartingOn(before, removed).map((f) => [f.name, f]));
-  const newFields = new Map(fieldsStartingOn(after, added).map((f) => [f.name, f]));
+  const oldFields = new Map(fieldsStartingOn(before, removed, after).map((f) => [f.name, f]));
+  const newFields = new Map(fieldsStartingOn(after, added, before).map((f) => [f.name, f]));
 
   // A field whose declaration is unchanged-but-elsewhere in the other version
   // (the diff split its lines unevenly) must not read as added/removed.
