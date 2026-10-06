@@ -42,4 +42,24 @@ describe('<Input>', () => {
     expect(radius).toBeGreaterThan(0);
     expect(radius).toBeLessThan(typography.body.lineHeight * 2);
   });
+
+  it('shows a scroll hint only once the text outgrows the field', () => {
+    const { getByTestId, queryByTestId } = render(
+      <Input value="" onChangeText={() => {}} testID="field" pill autoGrow />
+    );
+    const grow = (height: number) =>
+      fireEvent(getByTestId('field'), 'contentSizeChange', { nativeEvent: { contentSize: { height } } });
+
+    grow(96);
+    expect(queryByTestId('input-scroll-hint')).toBeNull();
+
+    grow(240);
+    const hint = getByTestId('input-scroll-hint');
+    // Half the content visible → a bar half the field's height, at the top.
+    expect(flatStyle(hint.props.style).height).toBe(60);
+    expect(flatStyle(hint.props.style).top).toBe(8);
+
+    fireEvent.scroll(getByTestId('field'), { nativeEvent: { contentOffset: { x: 0, y: 120 } } });
+    expect(flatStyle(getByTestId('input-scroll-hint').props.style).top).toBe(8 + 60);
+  });
 });
