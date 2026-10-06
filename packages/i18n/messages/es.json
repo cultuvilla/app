@@ -537,9 +537,7 @@
       "manual": "Escudo subido por el pueblo"
     },
     "notRegistered": {
-      "body": "Este pueblo todavía no está activo en Cultuvilla. Puedes iniciarlo: se activará para que cualquiera pueda unirse y tú serás su primer vecino.",
-      "cta": "¿Quieres iniciarlo?",
-      "button": "Iniciar este pueblo"
+      "body": "Aún no hay vecinos de {name} en Cultuvilla. Únete y sé el primero."
     },
     "noOrganizer": {
       "body": "Este pueblo aún no tiene embajador. Si lo quieres y lo conoces bien, puedes ser su cara en Cultuvilla.",
@@ -1261,16 +1259,6 @@
       "submitted": "Solicitud enviada"
     }
   },
-  "start": {
-    "title": "Iniciar pueblo",
-    "explainer": "Iniciar el pueblo lo activa para que cualquier vecino pueda unirse. Serás su primer miembro y podrás añadir su información. No te convierte en embajador.",
-    "escudoAdd": "Añadir escudo (opcional)",
-    "escudoSelected": "Escudo seleccionado",
-    "organizeIntro": "¿Quieres ir más allá? Los embajadores de Cultuvilla son la cara de su pueblo: cuidan su información, acogen a los vecinos y dan vida a sus grupos, lugares y fiestas.",
-    "organizeToggle": "Quiero ser embajador de este pueblo",
-    "phoneLabel": "Teléfono de contacto",
-    "submit": "Iniciar pueblo"
-  },
   "organize": {
     "title": "Ser embajador de Cultuvilla",
     "intro": "Como embajador de Cultuvilla, eres la cara de tu pueblo en la app:",
@@ -1280,6 +1268,7 @@
       "upToDate": "Ayudas a que grupos, lugares y fiestas estén al día.",
       "public": "Tendrás la insignia de Cultuvilla en tu perfil."
     },
+    "phoneLabel": "Teléfono de contacto",
     "submit": "Enviar solicitud",
     "carnet": {
       "header": "Acreditación de Cultuvilla",

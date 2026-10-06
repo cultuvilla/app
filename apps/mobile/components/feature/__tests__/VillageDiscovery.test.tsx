@@ -97,11 +97,11 @@ it('opens an active village detail on tap', async () => {
   expect(mockPush).toHaveBeenCalledWith('/anaya');
 });
 
-it('routes a dormant municipality to the start flow', async () => {
+it('opens a dormant municipality on its village home, like an active one', async () => {
   const { getByText } = render(<VillageDiscovery />);
   await waitFor(() => expect(getByText('Bernuy')).toBeTruthy(), SEARCH_WAIT);
   fireEvent.press(getByText('Bernuy'));
-  expect(mockPush).toHaveBeenCalledWith('/descubrir/empezar/m2');
+  expect(mockPush).toHaveBeenCalledWith('/bernuy');
 });
 
 it('fires VILLAGE_JOIN_SUCCESS after confirming a join', async () => {

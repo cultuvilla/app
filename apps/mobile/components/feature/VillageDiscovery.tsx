@@ -1,4 +1,4 @@
-import { discoverStartHref, routes, villageHref } from '../../lib/navigation/routes';
+import { routes, villageHref } from '../../lib/navigation/routes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ActivityIndicator, View, TextInput } from 'react-native';
 import { router, type Href } from 'expo-router';
@@ -165,8 +165,8 @@ export function VillageDiscovery() {
     if (search.trim().length >= 2) {
       observability.trackEvent(OBSERVABILITY_EVENTS.SEARCH_RESULT_SELECTED, { surface: 'village_discovery' });
     }
-    // Active villages → the rich village home; dormant municipalities → the "start" flow.
-    router.push(m.communityActive ? villageHref(m.slug) : discoverStartHref(m.id));
+    // Dormant municipalities open the same village home, which offers to join.
+    router.push(villageHref(m.slug));
   };
 
   const onPressJoin = (m: Muni) => {

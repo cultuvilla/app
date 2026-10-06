@@ -36,7 +36,7 @@ export function useOrganizerPhone(profileTelephone?: string | null) {
   const isValid = isValidPhoneNumber(phone, country.dialCode);
 
   const fieldProps: PhoneFieldProps = {
-    label: t('start.phoneLabel'),
+    label: t('organize.phoneLabel'),
     placeholder: t('event.register.phonePlaceholder'),
     searchPlaceholder: t('event.register.phoneSearch'),
     noResultsLabel: t('event.register.phoneNoResults'),

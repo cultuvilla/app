@@ -2,7 +2,6 @@ import {
   barrioHref,
   orgHref,
   discoverOrganizeHref,
-  discoverStartHref,
   eventHref,
   festivalPosterHref,
   newsHref,
@@ -53,7 +52,10 @@ import { useShareDeepLink } from '../../lib/deeplink/useShareDeepLink';
 import { useT } from '../../lib/i18n';
 import { usePush } from '../../lib/push/PushProvider';
 import { isProposalVisible } from '../../lib/proposals';
-import { joinVillage } from '@cultuvilla/shared/services/villageMemberService';
+import {
+  ensureVillageMembership,
+  joinVillage,
+} from '@cultuvilla/shared/services/villageMemberService';
 import { getVillageViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { MAP_ZOOM_DEFAULT } from '@cultuvilla/shared/services/mapsService';
 import { newsImageDownloadURL } from '@cultuvilla/shared/services/imageService';
@@ -130,8 +132,25 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
     );
   }
 
-  // Dormant municipality: offer the self-service "start this village" flow.
+  // Dormant municipality: no community yet, so there is nothing to show but an
+  // invitation. Joining starts it (ensureVillageMembership); a guest goes through
+  // the register gate, whose onboarding join takes the same path.
   if (!village.communityActive) {
+    const joinDormant = async () => {
+      if (!user) {
+        gate.requireAuth(villageHref(village.slug), t('guest.village'), village.id);
+        return;
+      }
+      setJoining(true);
+      try {
+        await ensureVillageMembership(village.id, user.uid);
+        offerPush('village_join', { villageName: village.name });
+        await refreshProfile();
+        await reload();
+      } finally {
+        setJoining(false);
+      }
+    };
     return (
       <View className="flex-1 items-center justify-center px-8">
         <VStack gap={2} className="items-center">
@@ -148,15 +167,16 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           <Text tone="muted" variant="bodySm">
             {village.province}
           </Text>
-          <Text className="text-center mt-4">{t('village.notRegistered.body')}</Text>
-          <Text variant="h3" className="text-center mt-2">
-            {t('village.notRegistered.cta')}
+          <Text className="text-center mt-4">
+            {t('village.notRegistered.body', { name: village.name })}
           </Text>
           <Button
             className="mt-4"
-            onPress={() => router.push(discoverStartHref(village.id))}
+            onPress={() => void joinDormant()}
+            loading={joining}
+            testID="village-join-dormant"
           >
-            {t('village.notRegistered.button')}
+            {user ? t('village.join') : t('village.signInToJoin')}
           </Button>
         </VStack>
       </View>

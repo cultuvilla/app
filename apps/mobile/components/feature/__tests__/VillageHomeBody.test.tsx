@@ -43,8 +43,10 @@ jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getVillageViewLink: jest.fn().mockReturnValue('https://example.test'),
 }));
 const mockJoinVillage = jest.fn(async (..._a: unknown[]) => undefined);
+const mockEnsureVillageMembership = jest.fn(async (..._a: unknown[]) => undefined);
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
   joinVillage: (...a: unknown[]) => mockJoinVillage(...a),
+  ensureVillageMembership: (...a: unknown[]) => mockEnsureVillageMembership(...a),
 }));
 // JoinVillageModal's barrio picker fetches approved barrios; none here, so the
 // picker hides itself and the modal shows only escudo + name + confirm.
@@ -118,6 +120,7 @@ const base: VillageHomeState = {
 
 beforeEach(() => {
   mockJoinVillage.mockClear();
+  mockEnsureVillageMembership.mockClear();
   mockRefreshProfile.mockClear();
   mockRequireAuth.mockClear();
   mockUser = { uid: 'u1' };
@@ -207,13 +210,31 @@ describe('VillageHomeBody', () => {
     expect(mockRequireAuth).toHaveBeenCalledWith('/anaya', expect.any(String), 'm1');
   });
 
-  it('renders the start-village notice when the community is dormant', () => {
+  describe('dormant village (no separate start step)', () => {
     const dormant = {
       ...base,
       village: { ...village, communityActive: false } as VillageHomeState['village'],
     };
-    const { getByText } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
-    expect(getByText('Iniciar este pueblo')).toBeTruthy();
+
+    it('joining a dormant village starts it in the same tap', async () => {
+      const reload = jest.fn();
+      const { getByText, getByTestId } = render(<VillageHomeBody data={dormant} reload={reload} />);
+      expect(getByText(/Únete y sé el primero/)).toBeTruthy();
+      fireEvent.press(getByTestId('village-join-dormant'));
+      await waitFor(() => expect(reload).toHaveBeenCalled());
+      expect(mockEnsureVillageMembership).toHaveBeenCalledWith('m1', 'u1');
+      expect(mockOfferPush).toHaveBeenCalledWith('village_join', { villageName: 'Anaya' });
+      expect(mockRefreshProfile).toHaveBeenCalled();
+      expect(router.push).not.toHaveBeenCalled();
+    });
+
+    it('sends a guest through the register gate instead of joining', () => {
+      mockUser = null;
+      const { getByTestId } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
+      fireEvent.press(getByTestId('village-join-dormant'));
+      expect(mockRequireAuth).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'm1');
+      expect(mockEnsureVillageMembership).not.toHaveBeenCalled();
+    });
   });
 
   it('non-admin member sees "Añadir contenido" + "Compartir pueblo" (no Editar)', () => {
