@@ -18,7 +18,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [app-only-transition](ongoing/app-only-transition.md) | high | dev | this cycle | promote to beta and run the phase 3 `curl` checks there, then the same on prod |
 | [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | verify delivery on a real iPhone (step 2) — the key is loaded and bound on prod since 2026-10-05 |
 | [offline-first-village](ongoing/offline-first-village.md) | high | dev | this cycle | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | build Phase 3 (log-based metrics, prod health dashboard, error-rate alert); confirm native BigQuery rows once 1.6.0 ships, then Phase 2 |
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2 |
 | [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) | low | dev | this cycle | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
 | [store-release](ongoing/store-release.md) | low | prod | this cycle | once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc |
 
