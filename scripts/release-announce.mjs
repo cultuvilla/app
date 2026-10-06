@@ -13,8 +13,9 @@
  *   poll    --env=prod [--dry-run]     announce-when-live.yml, every 30 min:
  *                                      ask the stores, move `latest`, raise the
  *                                      wall, emit deploy_sha for a held backend
- *   finish  --env=prod --sha=<sha>     announce-when-live.yml, after dispatching
- *                                      the held deploy: clear the pending doc
+ *   finish  --env=prod --sha=<sha>     deploy-firebase.yml, at the end of a
+ *                                      SUCCESSFUL held-backend deploy: finish the
+ *                                      release (never on mere dispatch)
  *
  * Writes go to the env's Firestore through initAdminForEnv (WIF in CI). Only
  * prod has a pending release; every command is a no-op elsewhere.
@@ -28,12 +29,20 @@ import admin from 'firebase-admin';
 import { initAdminForEnv } from './lib/env-credentials.mjs';
 import { currentAppVersion } from './lib/app-version.mjs';
 import { breakingSinceLastRelease } from './lib/breaking-rollup.mjs';
-import { ageInDays, decideBackendHold, pendingDocPath, STALE_DAYS } from './lib/announce.mjs';
+import {
+  ageInDays,
+  decideBackendHold,
+  DEPLOY_RETRY_HOURS,
+  parseHoldFlag,
+  pendingDocPath,
+  playTargetFrom,
+  STALE_DAYS,
+} from './lib/announce.mjs';
 import {
   applyTick,
   checkStores,
   CONFIG_DOC,
-  finishAfterDispatch,
+  finishHeldDeploy,
   recordAndroidBuild,
   recordRelease,
 } from './lib/announce-store.mjs';
@@ -63,12 +72,8 @@ const summary = (line) => {
 const log = (m) => console.log(`[announce] ${m}`);
 const warn = (m) => console.log(`::warning::[announce] ${m}`);
 
-/** Where the production Android build lands — eas.json is the one place that says. */
 function playTarget() {
-  const eas = JSON.parse(readFileSync(path.join(ROOT, 'apps/mobile/eas.json'), 'utf8'));
-  const android = eas.submit?.production?.android ?? {};
-  if (!android.applicationId || !android.track) throw new Error('eas.json submit.production.android needs applicationId and track');
-  return { packageName: android.applicationId, track: android.track };
+  return playTargetFrom(JSON.parse(readFileSync(path.join(ROOT, 'apps/mobile/eas.json'), 'utf8')));
 }
 
 async function readDoc(db, p) {
@@ -106,7 +111,7 @@ async function cmdPlan(db, env) {
 async function cmdRecord(db, env, args) {
   const { version, decision } = await decide(db, env);
   // The plan step decided what this deploy did; record that, not a re-decision.
-  const hold = args.hold === 'true';
+  const hold = parseHoldFlag(args.hold);
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   const result = await recordRelease(db, { env, version, sha, decision: { ...decision, hold } });
   if (result.outcome === 'not-in-flight') log(`v${version} is already what both stores serve — nothing to announce.`);
@@ -135,8 +140,8 @@ async function cmdPoll(db, env, args) {
   const { packageName, track } = playTarget();
   const { live, detail } = await checkStores({
     pending,
-    play: makePlayClient(),
-    ascRequest: makeAscRequest(),
+    makePlay: () => makePlayClient(),
+    makeAsc: () => makeAscRequest(),
     ascAppId: process.env.ASC_APP_ID,
     packageName,
     track,
@@ -149,6 +154,7 @@ async function cmdPoll(db, env, args) {
     version: pending.version,
     live,
     iosBuildNumber: detail.iosBuildNumber,
+    androidCompletedSeenAt: detail.androidCompletedSeenAt,
     dryRun: args['dry-run'] === true,
   });
   if (result.outcome === 'gone' || result.outcome === 'superseded') {
@@ -160,8 +166,11 @@ async function cmdPoll(db, env, args) {
   if (plan.newlyLive.length) summary(`- Announced v${pending.version} on **${plan.newlyLive.join(' + ')}**`);
   if (plan.config?.minSupported) summary(`- Wall: minSupported → **${plan.config.minSupported}** (${(pending.reasons ?? []).join('; ')})`);
   if (plan.waitingOn.length) log(`still waiting on: ${plan.waitingOn.join(', ')}`);
+  if (plan.awaitingDeploy) log(`held backend dispatched at ${pending.deployRequestedAt}; waiting for that deploy to succeed.`);
   if (plan.deploySha && result.outcome !== 'dry-run') {
-    log(`both stores live — dispatching the held backend at ${plan.deploySha}.`);
+    if (plan.retry) {
+      warn(`the held backend dispatched at ${pending.deployRequestedAt} has not deployed within ${DEPLOY_RETRY_HOURS}h — check that Deploy prod run; dispatching again.`);
+    } else log(`both stores live — dispatching the held backend at ${plan.deploySha}.`);
     output('deploy_sha', plan.deploySha);
   }
   if (plan.clear) log(`v${pending.version} is live everywhere — pending cleared.`);
@@ -169,9 +178,10 @@ async function cmdPoll(db, env, args) {
 
 async function cmdFinish(db, env, args) {
   if (!args.sha) throw new Error('finish needs --sha');
-  const result = await finishAfterDispatch(db, { env, sha: args.sha });
-  if (result.outcome === 'done') log('held deploy dispatched — pending cleared.');
-  else warn(`pending not cleared (${result.outcome}); the next tick re-evaluates it.`);
+  const result = await finishHeldDeploy(db, { env, sha: args.sha });
+  if (result.outcome === 'done') log('held backend deployed — release finished, pending cleared.');
+  else if (result.outcome === 'released-early') log('held backend deployed before both stores serve the release — the announce still waits for them.');
+  else log(`no held release at ${args.sha} (${result.outcome}) — nothing to finish.`);
 }
 
 async function main() {

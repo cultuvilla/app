@@ -5,20 +5,28 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
+  ANDROID_SOAK_HOURS,
+  androidSoaked,
   announcedVersion,
   decideBackendHold,
+  DEPLOY_RETRY_HOURS,
   interpretIosVersions,
   interpretPlayTrack,
   nextPending,
+  parseHoldFlag,
   pendingDocPath,
   planTick,
+  playTargetFrom,
 } from '../lib/announce.mjs';
 import {
   applyTick,
   checkStores,
   CONFIG_DOC,
-  finishAfterDispatch,
+  finishHeldDeploy,
   recordAndroidBuild,
   recordRelease,
 } from '../lib/announce-store.mjs';
@@ -258,16 +266,48 @@ describe('checkStores — fails safe', () => {
     };
   };
 
-  it('reports both live when both stores say so', async () => {
-    const play = { getTrack: async () => ({ releases: [{ versionCodes: ['42'], status: 'completed' }] }) };
-    const r = await checkStores({ pending, play, ascRequest: fakeAsc([{ versionString: '1.6.0', state: 'READY_FOR_SALE', build: '7' }]), ascAppId: 'app1', ...target });
+  const NOW = Date.parse('2026-10-10T00:00:00Z');
+  const completedPlay = () => ({ getTrack: async () => ({ releases: [{ versionCodes: ['42'], status: 'completed' }] }) });
+  const onSale = () => fakeAsc([{ versionString: '1.6.0', state: 'READY_FOR_SALE', build: '7' }]);
+
+  it('reports both live when both stores say so and Play has soaked', async () => {
+    const soaked = { ...pending, androidCompletedSeenAt: new Date(NOW - (ANDROID_SOAK_HOURS + 1) * 3_600_000).toISOString() };
+    const r = await checkStores({ pending: soaked, makePlay: completedPlay, makeAsc: onSale, ascAppId: 'app1', ...target, now: NOW });
     assert.deepEqual(r.live, { ios: true, android: true });
     assert.equal(r.detail.iosBuildNumber, '7');
   });
 
+  // Play reports `completed` the moment EAS submits, before Google's review
+  // ends, so a first sighting starts a soak instead of counting as live.
+  it('does not trust a freshly completed Play release; it records when it first saw it', async () => {
+    const r = await checkStores({ pending, makePlay: completedPlay, makeAsc: onSale, ascAppId: 'app1', ...target, now: NOW });
+    assert.equal(r.live.android, false);
+    assert.equal(r.detail.androidCompletedSeenAt, new Date(NOW).toISOString());
+    const early = { ...pending, androidCompletedSeenAt: new Date(NOW - 3_600_000).toISOString() };
+    const again = await checkStores({ pending: early, makePlay: completedPlay, makeAsc: onSale, ascAppId: 'app1', ...target, now: NOW });
+    assert.equal(again.live.android, false);
+    assert.equal(again.detail.androidCompletedSeenAt, early.androidCompletedSeenAt, 'keeps the first sighting');
+  });
+
   it('treats missing credentials as not live, and warns', async () => {
     const warnings = [];
-    const r = await checkStores({ pending, play: null, ascRequest: null, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
+    const r = await checkStores({ pending, makePlay: () => null, makeAsc: () => null, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
+    assert.deepEqual(r.live, { ios: false, android: false });
+    assert.equal(warnings.length, 2);
+  });
+
+  // A corrupt secret throws while the client is BUILT; that must cost a
+  // warning, not a red run every 30 minutes.
+  it('treats malformed credentials as not live, and warns', async () => {
+    const warnings = [];
+    const r = await checkStores({
+      pending,
+      makePlay: () => makePlayClient({ serviceAccountJson: '{not json' }),
+      makeAsc: () => { throw new Error('bad .p8'); },
+      ascAppId: 'app1',
+      ...target,
+      warn: (m) => warnings.push(m),
+    });
     assert.deepEqual(r.live, { ios: false, android: false });
     assert.equal(warnings.length, 2);
   });
@@ -275,14 +315,45 @@ describe('checkStores — fails safe', () => {
   it('treats an API error as not live, and warns', async () => {
     const warnings = [];
     const failing = async () => { throw new Error('503'); };
-    const r = await checkStores({ pending, play: { getTrack: failing }, ascRequest: failing, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
+    const r = await checkStores({ pending, makePlay: () => ({ getTrack: failing }), makeAsc: () => failing, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
     assert.deepEqual(r.live, { ios: false, android: false });
     assert.equal(warnings.length, 2);
   });
 
   it('does not ask a store about a platform already announced', async () => {
-    const r = await checkStores({ pending: { ...pending, announced: { ios: true, android: true } }, play: null, ascRequest: null, ...target });
+    const boom = () => { throw new Error('should not be called'); };
+    const r = await checkStores({ pending: { ...pending, announced: { ios: true, android: true } }, makePlay: boom, makeAsc: boom, ...target });
     assert.deepEqual(r.live, { ios: true, android: true });
+  });
+});
+
+describe('androidSoaked', () => {
+  it('needs ANDROID_SOAK_HOURS since the first sighting', () => {
+    const now = Date.parse('2026-10-10T00:00:00Z');
+    assert.equal(androidSoaked({ seenAt: null, now }), false);
+    assert.equal(androidSoaked({ seenAt: new Date(now - 3_600_000).toISOString(), now }), false);
+    assert.equal(androidSoaked({ seenAt: new Date(now - ANDROID_SOAK_HOURS * 3_600_000).toISOString(), now }), true);
+  });
+});
+
+describe('parseHoldFlag', () => {
+  // The plan step's output crosses into the record step as a string; a lenient
+  // parse would record a held release as unheld and its backend would never ship.
+  it('round-trips exactly what the plan step writes, and refuses anything else', () => {
+    assert.equal(parseHoldFlag('true'), true);
+    assert.equal(parseHoldFlag('false'), false);
+    for (const bad of ['', 'True', '1', undefined, 'yes']) assert.throws(() => parseHoldFlag(bad), /--hold must be/);
+  });
+});
+
+describe('playTargetFrom', () => {
+  it('reads the production Play target from the real eas.json', () => {
+    const eas = JSON.parse(readFileSync(path.resolve(fileURLToPath(import.meta.url), '../../../apps/mobile/eas.json'), 'utf8'));
+    assert.deepEqual(playTargetFrom(eas), { packageName: 'com.cultuvilla.app', track: 'production' });
+  });
+
+  it('throws when the target is missing, rather than polling nothing', () => {
+    assert.throws(() => playTargetFrom({ submit: {} }), /applicationId and track/);
   });
 });
 
@@ -290,7 +361,7 @@ describe('pending lifecycle (fake Firestore)', () => {
   const env = 'prod';
   const P = pendingDocPath(env);
 
-  it('goes recorded → one platform → both live → wall + backend dispatched → cleared', async () => {
+  it('goes recorded → one platform → both live → wall + backend dispatched → deployed → cleared', async () => {
     const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0') });
     const decision = decideBackendHold({ env, version: '1.6.0', config: config('1.5.0', '1.5.0'), rollup: BREAKING, pending: null });
 
@@ -306,20 +377,49 @@ describe('pending lifecycle (fake Firestore)', () => {
     assert.equal(db.docs.get(CONFIG_DOC).android.latest, '1.5.0');
     assert.equal(db.docs.get(CONFIG_DOC).ios.minSupported, '0.0.0');
 
-    r = await applyTick(db, { env, version: '1.6.0', live: { ios: true, android: true } });
+    const t0 = Date.parse('2026-10-08T00:00:00Z');
+    r = await applyTick(db, { env, version: '1.6.0', live: { ios: true, android: true }, now: t0 });
     assert.equal(r.outcome, 'deploy');
     assert.equal(r.plan.deploySha, 'aaa');
     assert.deepEqual(db.docs.get(CONFIG_DOC).android, { latest: '1.6.0', minSupported: '1.6.0' });
     assert.equal(db.docs.get(CONFIG_DOC).ios.minSupported, '1.6.0');
-    assert.ok(db.docs.has(P), 'kept until the dispatch is confirmed');
+    assert.ok(db.docs.has(P), 'kept until the deploy itself succeeds');
 
-    // A failed dispatch leaves the doc, so the next tick asks for it again.
-    r = await applyTick(db, { env, version: '1.6.0', live: { ios: true, android: true } });
+    // Dispatched, not yet deployed: the next tick waits rather than re-dispatching…
+    r = await applyTick(db, { env, version: '1.6.0', live: { ios: true, android: true }, now: t0 + 3_600_000 });
+    assert.equal(r.outcome, 'awaiting-deploy');
+    assert.equal(r.plan.deploySha, null);
+
+    // …and a deploy that never finished (failed a gate) is dispatched again.
+    r = await applyTick(db, { env, version: '1.6.0', live: { ios: true, android: true }, now: t0 + (DEPLOY_RETRY_HOURS + 1) * 3_600_000 });
     assert.equal(r.plan.deploySha, 'aaa');
+    assert.equal(r.plan.retry, true);
 
-    assert.equal((await finishAfterDispatch(db, { env, sha: 'other' })).outcome, 'changed');
-    assert.equal((await finishAfterDispatch(db, { env, sha: 'aaa' })).outcome, 'done');
+    assert.equal((await finishHeldDeploy(db, { env, sha: 'other' })).outcome, 'other-sha');
+    assert.ok(db.docs.has(P));
+    assert.equal((await finishHeldDeploy(db, { env, sha: 'aaa' })).outcome, 'done');
     assert.ok(!db.docs.has(P));
+  });
+
+  // Dispatching Deploy prod by hand releases a held backend early; the
+  // announce still waits for the stores.
+  it('keeps announcing after a held backend is released early by hand', async () => {
+    const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0') });
+    const decision = decideBackendHold({ env, version: '1.6.0', config: config('1.5.0', '1.5.0'), rollup: BREAKING, pending: null });
+    await recordRelease(db, { env, version: '1.6.0', sha: 'aaa', decision });
+    assert.equal((await finishHeldDeploy(db, { env, sha: 'aaa' })).outcome, 'released-early');
+    assert.equal(db.docs.get(P).holdBackend, false);
+    const r = await applyTick(db, { env, version: '1.6.0', live: { ios: true, android: true } });
+    assert.equal(r.outcome, 'done');
+    assert.equal(r.plan.deploySha, null);
+    assert.equal(db.docs.get(CONFIG_DOC).ios.minSupported, '1.6.0', 'the wall still rises');
+  });
+
+  it('keeps the first Play sighting across ticks', async () => {
+    const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0'), [P]: { version: '1.6.0', announced: { ios: false, android: false } } });
+    await applyTick(db, { env, version: '1.6.0', live: { ios: false, android: false }, androidCompletedSeenAt: '2026-10-06T00:00:00.000Z' });
+    await applyTick(db, { env, version: '1.6.0', live: { ios: false, android: false }, androidCompletedSeenAt: '2026-10-07T00:00:00.000Z' });
+    assert.equal(db.docs.get(P).androidCompletedSeenAt, '2026-10-06T00:00:00.000Z');
   });
 
   it('clears a non-breaking release as soon as both stores serve it', async () => {

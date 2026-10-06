@@ -64,10 +64,16 @@ does the work:
    tick), it stops before any checkout or install.
 2. **Ask each store** about the pending version:
    - **Android** is live when the Play `production` track's release holding the
-     recorded `versionCode` is `completed` at full rollout. Play omits
-     `userFraction` at 100%. Without a recorded code, the release name is the
-     fallback: Play names a release after the bundle's `versionName`, and EAS
-     sets no name of its own.
+     recorded `versionCode` has been `completed` at full rollout for **48
+     hours** (`ANDROID_SOAK_HOURS`), counted from the first tick that saw it.
+     Play omits `userFraction` at 100%. Without a recorded code, the release
+     name is the fallback: Play names a release after the bundle's
+     `versionName`, and EAS sets no name of its own.
+     The soak exists because this signal is **optimistic**. eas.json submits
+     with `releaseStatus: completed`, so the track reads `completed` as soon as
+     EAS submits, while Google's review may still be pending. No API exposes
+     Play's review state. The soak covers a normal review, which takes hours
+     and rarely more than two days, but it is a heuristic, not proof.
    - **iOS** is live when the App Store version with that marketing version is
      `READY_FOR_SALE` (or `READY_FOR_DISTRIBUTION`, the newer name). A phased
      release counts, because anyone can download it from the listing.
@@ -80,9 +86,13 @@ does the work:
      platforms, the wall can never exceed what the stores serve.
    - A **held backend** is dispatched: `deploy-prod.yml` with `backend_sha`, run
      on `main` and checking out the pinned commit.
-   - The pending doc is cleared.
+   - The pending doc is cleared, but for a held release only by that deploy's
+     own last step, once it has **succeeded**. `gh workflow run` only proves
+     the dispatch was accepted. A deploy that fails a gate leaves the doc in
+     place, and the poller dispatches it again after 6 hours
+     (`DEPLOY_RETRY_HOURS`), with a warning.
 
-**It fails safe.** A store it cannot ask (missing secret, API error, unknown
+**It fails safe.** A store it cannot ask (missing or malformed secret, API error, unknown
 answer) counts as **not live**, with a warning, and the next tick asks again.
 After 7 days each tick warns that the build looks stuck in review. Nothing is
 ever announced on a guess, and nothing gives up silently.
@@ -114,7 +124,15 @@ explanation.
 | a later push while a held release is still pending | **held too** (sticky), since it contains those commits |
 
 To release a held backend early, dispatch *Deploy prod* on `main` with that
-`backend_sha`.
+`backend_sha`. The release is still announced, and the wall still raised, once
+the stores serve it.
+
+**Only code already on `main` can be deployed this way.** `actions/checkout`
+will fetch any commit the remote has, and the `production` environment's
+branch rule guards only the workflow ref, not the commit checked out. So
+deploy-firebase.yml refuses an explicit `ref` that is not an ancestor of
+`origin/main`, before anything else runs. Without that check, a dispatch would
+be a way to ship unreviewed functions and rules to prod.
 
 ### No deadlock with production-release.yml
 
@@ -127,6 +145,14 @@ binaries talking to the old backend, and every one of those binaries is walled
 the moment the held backend ships anyway.
 
 ## Trade-offs, stated
+
+- **The two stores' liveness signals are not equally strong.** App Store
+  `READY_FOR_SALE` proves the build is downloadable. Play `completed` does not
+  (see above), so Android liveness is completed-plus-soak. The wall needs both
+  stores, which narrows the risk further, since App Review usually takes longer
+  than Play's review. Even so, a Play review longer than 48 hours could still
+  move `android.latest` (and, once iOS is live, the wall) ahead of what Android
+  users can install. If that ever happens, correct it with "Set App Version".
 
 - **New binaries talk to the old backend while held.** That includes App
   Review's reviewer. Expand → migrate → contract keeps this safe: the release

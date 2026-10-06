@@ -159,6 +159,29 @@ describe('the announce poller', () => {
     expect(dispatch).toContain("if: ${{ steps.poll.outputs.deploy_sha != '' }}");
     expect(dispatch).toContain('--ref main -f backend_sha="${SHA}"');
     expect(poller.indexOf('release-announce.mjs poll')).toBeLessThan(poller.indexOf('gh workflow run deploy-prod.yml'));
-    expect(poller.indexOf('gh workflow run deploy-prod.yml')).toBeLessThan(poller.indexOf('release-announce.mjs finish'));
+  });
+
+  // `gh workflow run` only means the dispatch was accepted. Clearing the
+  // pending doc there would forget a held backend whose deploy then failed.
+  it('never finishes a release on dispatch — the deploy does, on success', () => {
+    expect(poller).not.toContain('release-announce.mjs finish');
+    const finish = step(deploy, 'release-announce.mjs finish');
+    expect(finish).toContain("if: ${{ inputs.firebase_alias == 'prod' && inputs.held_backend }}");
+    expect(deploy.indexOf('release-announce.mjs finish')).toBeGreaterThan(deploy.indexOf('run: firebase deploy --only hosting'));
+    expect(deploy.indexOf('release-announce.mjs finish')).toBeGreaterThan(deploy.indexOf('run: firebase deploy --only functions'));
+  });
+});
+
+describe('a dispatched ref must already be on main', () => {
+  // actions/checkout fetches any commit the remote has; the environment's
+  // branch rule guards only the workflow ref.
+  it('refuses a ref that is not an ancestor of main, before anything runs', () => {
+    const guard = step(deploy, 'git merge-base --is-ancestor');
+    expect(guard).toContain("if: ${{ inputs.ref != '' }}");
+    expect(guard).toContain('git fetch --no-tags origin main');
+    expect(guard).toMatch(/exit 1/);
+    const guardPos = deploy.indexOf('git merge-base --is-ancestor');
+    expect(guardPos).toBeLessThan(deploy.indexOf('pnpm install --frozen-lockfile'));
+    expect(guardPos).toBeLessThan(deploy.search(/^\s*run: firebase deploy/m));
   });
 });

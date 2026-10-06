@@ -129,6 +129,9 @@ jobs:
 
       # The wall was written in the step above, before this: a wall without its
       # backend is safe (old clients are told to update), the reverse is not.
+      # The pending doc is NOT cleared here: `gh workflow run` only means the
+      # dispatch was accepted. The deploy clears it itself once it succeeds;
+      # one that has not done so within DEPLOY_RETRY_HOURS is dispatched again.
       - name: Deploy the held backend
         if: ${{ steps.poll.outputs.deploy_sha != '' }}
         env:
@@ -138,4 +141,3 @@ jobs:
         run: |
           gh workflow run deploy-prod.yml --repo "${REPO}" --ref main -f backend_sha="${SHA}"
           echo "- Held backend dispatched: deploy-prod.yml @ \`${SHA}\`" >> "$GITHUB_STEP_SUMMARY"
-          node scripts/release-announce.mjs finish --env=prod --sha="${SHA}"

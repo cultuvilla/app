@@ -35,6 +35,52 @@ export const STALE_DAYS = 7;
 /** App Store states in which anyone can download the version. */
 export const IOS_LIVE_STATES = new Set(['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION']);
 
+/**
+ * How long a Play release must have read `completed` before it counts as live.
+ *
+ * The Play Developer API is OPTIMISTIC: eas.json submits production with
+ * `releaseStatus: completed`, so the track reports `completed` the moment EAS
+ * submits — while Google's review may still be pending — and no API exposes
+ * review state. Unlike App Store `READY_FOR_SALE`, it cannot by itself prove a
+ * user can download the build. A soak from the first tick that saw it bounds
+ * that: Play review of an established app takes hours, rarely past two days.
+ * It is still a heuristic, which is why the wall also waits for iOS.
+ */
+export const ANDROID_SOAK_HOURS = 48;
+
+/** A held backend whose dispatched deploy has not cleared the pending doc is retried after this. */
+export const DEPLOY_RETRY_HOURS = 6;
+
+/**
+ * Has a completed Play release soaked long enough to count as live?
+ * `seenAt` is when a tick first saw it completed (null: this tick is the first).
+ */
+export function androidSoaked({ seenAt, now = Date.now() }) {
+  const at = Date.parse(seenAt ?? '');
+  return Number.isFinite(at) && now - at >= ANDROID_SOAK_HOURS * 3_600_000;
+}
+
+/**
+ * The `--hold` flag the deploy hands from its plan step to its record step.
+ * Strict on purpose: reading anything but `true` as "not held" would record a
+ * held release as unheld, and its backend would then never be dispatched —
+ * silently. An unexpected value fails the deploy instead.
+ */
+export function parseHoldFlag(value) {
+  if (value === 'true' || value === true) return true;
+  if (value === 'false' || value === false) return false;
+  throw new Error(`--hold must be "true" or "false", got ${JSON.stringify(value)}`);
+}
+
+/** Where production Android builds land, from eas.json — the one place that says. */
+export function playTargetFrom(easJson) {
+  const android = easJson?.submit?.production?.android ?? {};
+  if (!android.applicationId || !android.track) {
+    throw new Error('eas.json submit.production.android needs applicationId and track');
+  }
+  return { packageName: android.applicationId, track: android.track };
+}
+
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
 const maxVersion = (a, b) => {
@@ -153,11 +199,13 @@ export function nextPending(existing, { version, sha, breaking, reasons, hold, n
  * Returns:
  *   config      { latestFor, minSupported } to write to config/appVersion, or null
  *   announced   the pending doc's next `announced`
- *   deploySha   the held backend to dispatch now, or null
- *   clear       delete the pending doc (done, nothing left to dispatch)
+ *   deploySha   the held backend to dispatch now, or null (also null while a
+ *               dispatched deploy is still within DEPLOY_RETRY_HOURS)
+ *   clear       delete the pending doc (live everywhere, no backend held). A
+ *               held release is cleared by its own deploy, on success only.
  *   waitingOn   platforms still not live
  */
-export function planTick(pending, { live, stored }) {
+export function planTick(pending, { live, stored, now = Date.now() }) {
   const version = pending.version;
   const before = pending.announced ?? { ios: false, android: false };
   const newlyLive = PLATFORMS.filter((p) => live?.[p] && !before[p]);
@@ -174,14 +222,23 @@ export function planTick(pending, { live, stored }) {
   }
 
   const writes = Object.keys(latestFor).length > 0 || minSupported !== undefined;
-  const deploySha = bothLive && pending.holdBackend ? pending.backendSha ?? pending.releaseSha ?? null : null;
+
+  // The held deploy clears the pending doc itself when it succeeds. Until then
+  // the doc stays, and a dispatch that has not cleared it in DEPLOY_RETRY_HOURS
+  // (rejected, or failed a gate) is dispatched again rather than forgotten.
+  const requestedAt = Date.parse(pending.deployRequestedAt ?? '');
+  const awaitingDeploy = Number.isFinite(requestedAt) && now - requestedAt < DEPLOY_RETRY_HOURS * 3_600_000;
+  const held = bothLive && Boolean(pending.holdBackend);
+  const deploySha = held && !awaitingDeploy ? pending.backendSha ?? pending.releaseSha ?? null : null;
 
   return {
     config: writes ? { latestFor, minSupported } : null,
     announced,
     newlyLive,
     deploySha,
-    clear: bothLive && !deploySha,
+    retry: Boolean(deploySha && Number.isFinite(requestedAt)),
+    awaitingDeploy: held && awaitingDeploy,
+    clear: bothLive && !pending.holdBackend,
     waitingOn: PLATFORMS.filter((p) => !announced[p]),
   };
 }

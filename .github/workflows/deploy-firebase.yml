@@ -54,6 +54,22 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-depth: ${{ inputs.firebase_alias == 'prod' && '0' || '1' }}
 
+      # An explicit `ref` arrives from a workflow_dispatch input, and
+      # actions/checkout will fetch ANY commit the remote has — an unmerged
+      # branch included. The environment's branch rule guards the workflow ref,
+      # not this one, so without this check a dispatch could ship unreviewed
+      # functions and rules. Only code already on main may deploy.
+      - name: Refuse a ref that is not on main
+        if: ${{ inputs.ref != '' }}
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/main; then
+            echo "::error::${REF} is not an ancestor of main — refusing to deploy it."
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
@@ -243,6 +259,13 @@ jobs:
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: node scripts/release-announce.mjs record --env=prod --hold=${{ steps.release.outputs.hold_backend }}
+
+      # A held backend just shipped — tell the poller only now, on success. If
+      # any step above failed, the pending doc stays and the poller dispatches
+      # this deploy again after DEPLOY_RETRY_HOURS.
+      - name: Finish the held release
+        if: ${{ inputs.firebase_alias == 'prod' && inputs.held_backend }}
+        run: node scripts/release-announce.mjs finish --env=prod --sha="$(git rev-parse HEAD)"
 
       # Keeps `config/appVersion` well-formed on every env (store URLs, both
       # platforms present) WITHOUT moving anything a client reacts to. Both
