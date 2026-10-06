@@ -14,7 +14,6 @@ export {
   connectFirestoreEmulator,
   deleteDoc,
   doc,
-  getCountFromServer,
   getDoc,
   getDocs,
   getDocsFromCache,

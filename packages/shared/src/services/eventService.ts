@@ -11,7 +11,6 @@ import {
   where,
   serverTimestamp,
   Timestamp,
-  getCountFromServer,
   doc,
   type UpdateData,
   type DocumentData,
@@ -28,7 +27,14 @@ import {
   type EventDataInput,
   type EventStatus,
 } from '../models/event/EventDataModel';
-import { watchDoc, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
+import {
+  watchDoc,
+  watchDocsByIds,
+  watchMerged,
+  watchQuery,
+  type Unwatch,
+  type WatchError,
+} from './watch';
 
 type EventWithId = EventData & { id: string };
 
@@ -212,25 +218,45 @@ export async function deleteEvent(eventId: string): Promise<void> {
   await deleteDoc(eventDoc(getDb(), eventId));
 }
 
-export async function getEventsByOrganizer(
-  userId: string,
-): Promise<(EventData & { id: string })[]> {
-  const q = query(
+function organizerEventsQuery(userId: string) {
+  return query(
     eventsCollection(getDb()),
     where('organizerUserIds', 'array-contains', userId),
     orderBy('createdAt', 'desc'),
   );
-  const snap = await getDocs(q);
-  // A "deleted" event is soft-cancelled (status -> 'cancelled'); the profile's
-  // managed-events list must not resurface it. Filtered here rather than in the
-  // query to avoid a status+array-contains composite index.
-  return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((e) => e.status !== 'cancelled');
 }
 
-export async function getEventCountByOrganizer(userId: string): Promise<number> {
-  const q = query(eventsCollection(getDb()), where('organizerUserIds', 'array-contains', userId));
-  const snap = await getCountFromServer(q);
-  return snap.data().count;
+// A "deleted" event is soft-cancelled (status -> 'cancelled'); the profile's
+// managed-events list must not resurface it. Filtered here rather than in the
+// query to avoid a status+array-contains composite index.
+const notCancelled = (rows: EventWithId[]) => rows.filter((e) => e.status !== 'cancelled');
+
+export async function getEventsByOrganizer(
+  userId: string,
+): Promise<(EventData & { id: string })[]> {
+  const snap = await getDocs(organizerEventsQuery(userId));
+  return notCancelled(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+}
+
+export function watchEventsByOrganizer(
+  userId: string,
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    organizerEventsQuery(userId),
+    (rows) => {
+      onNext(notCancelled(rows));
+    },
+    onError,
+  );
+}
+
+/** Several events by id, in the order given; an id with no event is dropped. */
+export function watchEventsByIds(
+  eventIds: string[],
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDocsByIds(eventIds, watchEvent, onNext, onError);
 }

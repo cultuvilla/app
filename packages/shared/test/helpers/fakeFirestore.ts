@@ -142,21 +142,54 @@ export function createFakeFirestoreModule() {
     return { _type: 'startAfter', cursor: _cursor };
   }
 
-  function query(colRef: { _col: string }, ...constraints: unknown[]) {
-    return { _col: colRef._col, _constraints: constraints };
+  // A collection group matches every collection with that id, at any depth.
+  function collectionGroup(_db: unknown, collectionId: string) {
+    const ref: Record<string, unknown> = { _col: collectionId, _group: true };
+    ref['withConverter'] = () => ref;
+    return ref as { _col: string; _group: true; withConverter: () => unknown };
+  }
+
+  function query(colRef: { _col: string; _group?: boolean }, ...constraints: unknown[]) {
+    return { _col: colRef._col, _group: colRef._group, _constraints: constraints };
+  }
+
+  // `ref.parent.parent` walks up the path like the real SDK, so services that
+  // tell nested collections apart by their parent path run unchanged.
+  function pathRef(segments: string[]): Record<string, unknown> {
+    const parentCol = segments.length > 1 ? segments.slice(0, -1) : null;
+    return {
+      id: segments[segments.length - 1],
+      path: segments.join('/'),
+      parent: parentCol
+        ? {
+            id: parentCol[parentCol.length - 1],
+            path: parentCol.join('/'),
+            parent: parentCol.length > 1 ? pathRef(parentCol.slice(0, -1)) : null,
+          }
+        : null,
+    };
+  }
+
+  function inCollection(path: string, q: { _col: string; _group?: boolean }): boolean {
+    if (!q._group) return path.startsWith(`${q._col}/`) && !path.slice(q._col.length + 1).includes('/');
+    const segments = path.split('/');
+    return segments.length >= 2 && segments[segments.length - 2] === q._col;
   }
 
   // The real SDK's getDocs takes a Query OR a bare CollectionReference; the
   // fake must too, or a service that reads a whole collection unfiltered
   // (blockedUserService) explodes on a missing _constraints.
-  async function getDocs(q: { _col: string; _constraints?: unknown[] }) {
+  async function getDocs(q: { _col: string; _group?: boolean; _constraints?: unknown[] }) {
+    return runQuery(q);
+  }
+
+  function runQuery(q: { _col: string; _group?: boolean; _constraints?: unknown[] }) {
     const constraints = q._constraints ?? [];
-    const colPrefix = `${q._col}/`;
     let docs = Object.entries(store)
-      .filter(([id]) => id.startsWith(colPrefix))
-      .map(([id, data]) => {
-        const docId = id.slice(colPrefix.length);
-        return { id: docId, data: () => data };
+      .filter(([path]) => inCollection(path, q))
+      .map(([path, data]) => {
+        const ref = pathRef(path.split('/'));
+        return { id: ref['id'] as string, ref, data: () => data };
       });
 
     for (const c of constraints) {
@@ -183,13 +216,25 @@ export function createFakeFirestoreModule() {
     return { docs };
   }
 
-  async function getCountFromServer(q: { _col: string; _constraints: unknown[] }) {
-    const { docs } = await getDocs(q);
-    return { data: () => ({ count: docs.length }) };
+  // Answers once with the store as it is now — enough to test what a `watch*`
+  // function queries and how it shapes the rows. Live updates are covered by
+  // the emulator integration tests.
+  function onSnapshot(
+    target: { _col: string; _id?: string; id?: string; _group?: boolean; _constraints?: unknown[] },
+    onNext: (snap: unknown) => void,
+  ) {
+    if (typeof target._id === 'string' && typeof target.id === 'string') {
+      onNext(makeDocSnap(target._col, target.id));
+    } else {
+      onNext(runQuery(target));
+    }
+    return () => undefined;
   }
 
   return {
     collection,
+    collectionGroup,
+    onSnapshot,
     doc,
     getDoc,
     setDoc,
@@ -197,7 +242,6 @@ export function createFakeFirestoreModule() {
     deleteDoc,
     query,
     getDocs,
-    getCountFromServer,
     where,
     orderBy,
     limit,
