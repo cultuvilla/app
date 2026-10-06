@@ -99,6 +99,18 @@ describe('OrgDetailScreen', () => {
     expect(mockOrgEventsSection).toHaveBeenLastCalledWith({ orgId: 'o1', includePrivate: false });
   });
 
+  it('never asks a member of an open org for private events, which the rules refuse', async () => {
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    try {
+      const { getByText } = render(<OrgDetailScreen />);
+      await waitFor(() => getByText('Peña La Unión'));
+      await waitFor(() => expect(isOrgMember).toHaveBeenCalled());
+      expect(mockOrgEventsSection).not.toHaveBeenCalledWith({ orgId: 'o1', includePrivate: true });
+    } finally {
+      (isOrgMember as jest.Mock).mockResolvedValue(false);
+    }
+  });
+
   it('shows the not-found state once the org is gone', async () => {
     const { getByText, findByText } = render(<OrgDetailScreen />);
     await waitFor(() => getByText('Peña La Unión'));
