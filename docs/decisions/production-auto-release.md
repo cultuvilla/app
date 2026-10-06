@@ -28,13 +28,29 @@ testing tracks, rebuilds, resubmits, releasing or pausing a phased rollout.
 |---|---|
 | `[skip-store]` in the merge commit | no binaries for this push |
 | `[skip-ota]` in the merge commit | no OTA for this push |
-| repo var `STORE_RELEASE_PAUSED=true` | no binaries, either store, until unset |
-| repo var `PLAY_SUBMIT_PAUSED=true` | no Android, beta app included (the existing Play freeze) |
-| repo var `PROD_OTA_PAUSED=true` | no production OTA until unset |
+| repo var `STORE_RELEASE_PAUSED=true` | no binaries, either store, while set |
+| repo var `PLAY_SUBMIT_PAUSED=true` | no Android, beta app included (the existing Play freeze). iOS still ships, so the run warns that the stores split |
+| repo var `PROD_OTA_PAUSED=true` | no production OTA while set |
 | `[skip-deploy]` in the merge commit | nothing ships: the backend for that commit was not deployed |
+
+**Every switch is one-shot per version.** Unsetting a variable does not resume
+a release it suppressed. Binaries ship only on the push that changes the
+version, so a later push to `main` never retries them. To ship a suppressed
+release, re-run that workflow run once the switch is off, or ship it by hand:
+*App Store release* → `submit`, `mobile-release` (track `production`), or a
+`mobile-ota` dispatch to `production`.
 
 Never disable the workflow to pause one platform: disabling
 `beta-build-and-submit` during the 2026-09 Play review silently froze iOS too.
+
+**Prerequisite for the OTA:** the EAS channel `production` must point at the
+branch `production`, because `mobile-ota.yml` publishes with
+`--branch production`. Confirm this once with `eas channel:view production`.
+
+**iOS and Android come from different commits of the same version.** iOS ships
+the TestFlight binary built from `beta`. Android builds from the `main` merge
+commit. The two trees match unless a conflict was resolved during the
+promotion, and `main` accepts only merges from `beta`, which keeps that rare.
 
 ## Why only on a version change
 

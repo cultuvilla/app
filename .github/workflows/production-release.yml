@@ -24,7 +24,10 @@ name: Production release
 #   [skip-store] in the merge commit message   no binaries this push
 #   [skip-ota]   in the merge commit message   no OTA this push
 #   repo var STORE_RELEASE_PAUSED=true         no binaries, either store
-#   repo var PLAY_SUBMIT_PAUSED=true           no Android (same switch as beta)
+#   repo var PLAY_SUBMIT_PAUSED=true           no Android (same switch as beta);
+#                                              iOS ships alone, and the run warns
+# Each is one-shot per version: unsetting it later does not resume the release
+# (binaries ship only on the version-changing push). Re-run that run instead.
 #   repo var PROD_OTA_PAUSED=true              no production OTA
 #   [skip-deploy] in the merge commit message  nothing at all: the backend for
 #                                              this commit was not deployed, so
@@ -56,6 +59,7 @@ jobs:
     outputs:
       ota: ${{ steps.plan.outputs.ota }}
       store: ${{ steps.plan.outputs.store }}
+      android: ${{ steps.plan.outputs.android }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -68,6 +72,7 @@ jobs:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           STORE_RELEASE_PAUSED: ${{ vars.STORE_RELEASE_PAUSED }}
           PROD_OTA_PAUSED: ${{ vars.PROD_OTA_PAUSED }}
+          PLAY_SUBMIT_PAUSED: ${{ vars.PLAY_SUBMIT_PAUSED }}
         run: |
           # The previous main tip. `before` is all zeros on a branch creation;
           # fall back to the first parent, which for a promotion merge is main.
@@ -122,6 +127,19 @@ jobs:
           fi
           echo "store=${store}" >> "$GITHUB_OUTPUT"
 
+          # The Play freeze stops Android only — iOS still ships, as on beta.
+          # That splits the stores for this version, and since every switch is
+          # one-shot per version (a later push does not re-try it), say so loudly
+          # on the run that did it rather than skip a job in silence.
+          android="${store}"
+          android_reason="with iOS"
+          if [ "${store}" = "true" ] && [ "${PLAY_SUBMIT_PAUSED}" = "true" ]; then
+            android=false
+            android_reason="PLAY_SUBMIT_PAUSED=true — iOS ships ${version} alone"
+            echo "::warning::PLAY_SUBMIT_PAUSED=true: iOS ships ${version} and Android does not. Once Play is unfrozen, re-run this workflow run or dispatch mobile-release (platform android, track production)."
+          fi
+          echo "android=${android}" >> "$GITHUB_OUTPUT"
+
           # Same paths mobile-ota.yml ignores on beta: they cannot change the bundle.
           changed=$(git diff --name-only "${base}" HEAD)
           bundle_changes=$(grep -Ev '^(docs/|\.github/)|\.md$' <<<"${changed}" || true)
@@ -143,6 +161,7 @@ jobs:
           {
             echo "### Production release plan"
             echo "- Store binaries: **${store}** — ${reason}"
+            echo "- Android: **${android}** — ${android_reason}"
             echo "- Production OTA: **${ota}** — ${ota_reason}"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "store=${store} (${reason}); ota=${ota} (${ota_reason})"
@@ -215,7 +234,7 @@ jobs:
   android:
     name: Android production build + submit -> Play production
     needs: [plan, backend, ios]
-    if: ${{ needs.plan.outputs.store == 'true' && vars.PLAY_SUBMIT_PAUSED != 'true' }}
+    if: ${{ needs.plan.outputs.android == 'true' }}
     runs-on: ubuntu-latest
     # The EAS free-tier queue alone has exceeded an hour (1.4.1, 2026-09-28):
     # a runner timeout cancels only the wait, never the build or its
