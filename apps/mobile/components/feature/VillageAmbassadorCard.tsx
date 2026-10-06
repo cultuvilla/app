@@ -67,7 +67,7 @@ export function VillageAmbassadorCard({
         className="rounded-md border border-subtle bg-surface-elevated p-3"
       >
         <HStack gap={3} className="items-center">
-          <Avatar uri={face.photoURL ?? undefined} size={48} initials={initials} />
+          <Avatar uri={face.photoURL ?? undefined} size={48} initials={initials} ambassador />
           <VStack gap={1} className="flex-1">
             <Text className="font-semibold" numberOfLines={1}>
               {face.name}

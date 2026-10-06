@@ -192,7 +192,12 @@ export function MembersList({
         className="flex-1"
       >
         <HStack gap={2} className="items-center pr-2">
-        <Avatar uri={m.photoURL} size={32} initials={initialsOf(m.displayName)} />
+        <Avatar
+          uri={m.photoURL}
+          size={32}
+          initials={initialsOf(m.displayName)}
+          ambassador={titleOf(m) === 'ambassador'}
+        />
         <VStack gap={1} className="flex-1">
           <Text testID="member-name" numberOfLines={1}>
             {m.displayName}
