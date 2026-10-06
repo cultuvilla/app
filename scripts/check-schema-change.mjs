@@ -37,8 +37,9 @@
  *     lines. Spreads (`...Base.shape`), `.extend({…})` passed in a variable,
  *     `.merge()`, `.pick()`/`.omit()` and changes inside a referenced schema
  *     (an enum gaining a value) are NOT seen.
- *   - Field identity is the name within the file. A name declared in another
- *     schema of the same file can mask an added or removed field.
+ *   - Field identity is the name within its module-level declaration
+ *     (`export const XSchema = …`). The same key nested at two depths of ONE
+ *     schema can still mask an added or removed field.
  *   - Narrowing a type (`z.string()` → `z.enum([...])`, a new `.min()`) and
  *     WIDENING an enum (old clients throw on the new value) are not detected.
  *   - "Backfill in the diff" is not checked against the field — any changed

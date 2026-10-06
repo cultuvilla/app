@@ -225,6 +225,46 @@ describe('classifySchemaChange', () => {
     assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }).tightened, ['m: new required field']);
   });
 
+  // A key name reused by ANOTHER schema of the same file must not stop a block
+  // that really is new (or gone) in THIS schema from reading as whole.
+  const other = `\nexport const OtherSchema = z.object({\n  meta: z.object({\n    x: z.string(),\n  }),\n});\n`;
+  const nestedMeta = 'meta: z\n    .object({\n      n: z.number(),\n    })';
+
+  it('a new optional nested object whose key another schema also uses is an expand, not a break', () => {
+    const before = schema(['a: z.string()']) + other;
+    const after = schema(['a: z.string()', `${nestedMeta}\n    .optional()`]) + other;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), { tightened: [], loosened: [] });
+  });
+
+  it('a new required nested object whose key another schema also uses is reported by its own name', () => {
+    const before = schema(['a: z.string()']) + other;
+    const after = schema(['a: z.string()', nestedMeta]) + other;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: ['meta: new required field'],
+      loosened: [],
+    });
+  });
+
+  it('a removed nested object whose key another schema also uses is reported by its own name, not its keys', () => {
+    const before = schema(['a: z.string()', nestedMeta]) + other;
+    const after = schema(['a: z.string()']) + other;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: [],
+      loosened: ['meta: required field removed'],
+    });
+    const optBefore = schema(['a: z.string()', `${nestedMeta}\n    .optional()`]) + other;
+    assert.deepEqual(classifySchemaChange({ before: optBefore, after, diff: diffOf(optBefore, after) }), { tightened: [], loosened: [] });
+  });
+
+  it('a field moved from one schema to another is a removal there and an addition here', () => {
+    const before = `${schema(['a: z.string()', 'b: z.number()'])}\nexport const YSchema = z.object({\n  c: z.string(),\n});\n`;
+    const after = `${schema(['a: z.string()'])}\nexport const YSchema = z.object({\n  c: z.string(),\n  b: z.number(),\n});\n`;
+    assert.deepEqual(classifySchemaChange({ before, after, diff: diffOf(before, after) }), {
+      tightened: ['b: new required field'],
+      loosened: ['b: required field removed'],
+    });
+  });
+
   it('an edited declaration whose every field changed is not read as added whole', () => {
     const before = schema(['a: z.string()']);
     const after = schema(['b: z.number()']).replace('z.object({', 'z.object({ // things');
