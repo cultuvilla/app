@@ -3,7 +3,7 @@
 **Priority:** low
 **Landed:** prod
 **Gate:** none
-**Next:** check Error Reporting for iOS `surface: auth` failures since 1.0.0 went live; if none, retire this plan into one decision doc
+**Next:** once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc
 
 **Goal:** Cultuvilla public on both stores. **Done** — what remains is the
 open items below, then retiring this plan.
@@ -28,10 +28,14 @@ open items below, then retiring this plan.
 
 ## Open, before retiring
 
-- **Sign in with Apple in TestFlight** (see *El rechazo de 1.0.0*). The logging
-  that was the next step shipped in `55589f4a` (2026-09-03, `reportAuthError`),
-  but nobody recorded what it caught. Check Error Reporting for `surface: auth`
-  failures on iOS. If there are none since 1.0.0 went live, close this.
+- ✅ **Sign in with Apple** — checked 2026-10-06 against prod Cloud Logging
+  (`jsonPayload.surface="auth"`, since 2026-09-04): 12 Apple entries, of which
+  4 are people cancelling the sheet (logged because the cancel reaches JS with
+  no `code`; fixed by matching the message too) and 8 are
+  `The authorization attempt failed for an unknown reason` — 4 attempts, each
+  retried once, spread over 1.2.2, 1.4.1 and 1.5.0. That is
+  `ASAuthorizationError.unknown`, typically a phone not signed into an Apple ID;
+  a broken entitlement or Services ID would fail every attempt. Not a defect.
 - **iOS Safari install banner.** The `apple-itunes-app` tag this doc says Safari
   draws its banner from never shipped: `+html.tsx` is ignored with
   `web.output: 'single'`. So iOS Safari visitors may get no install offer at
