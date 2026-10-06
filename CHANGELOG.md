@@ -16,9 +16,8 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 - Resumen de fiestas: when a pueblo has had movement (events with people
   signed up or commenting), its admins see an invitation on the village screen
   to generate the resumen. From the draft they can already download or share
-  the cover. Once published, the resumen shows on the village screen as a
-  festive "Resumen Fiestas {año}" button, shaped like the map, and stays there
-  until next year's.
+  the cover. Once published, the resumen shows at the end of the village screen
+  as a festive "Resumen Fiestas {año}" banner button, until next year's.
 - Fix: on Android the keyboard covered the field being typed in on most forms
   (editing a pueblo, creating events and news, personas, vocabulary, sign-up
   sheets…). Every screen and bottom sheet now lifts its content above the

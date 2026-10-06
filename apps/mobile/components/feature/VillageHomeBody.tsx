@@ -377,9 +377,6 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           </View>
         ) : null}
 
-        {/* ── The latest published fiestas Wrapped, in the map's slot shape ── */}
-        <VillageWrappedStrip municipalityId={village.id} villageSlug={villageSlug} />
-
         {/* ── Eventos ──────────────────────────────────────────── */}
         <Section
           title={t('village.events.label')}
@@ -566,6 +563,9 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             ) : null}
           </HStack>
         ) : null}
+
+        {/* ── The latest published fiestas Wrapped, closing the page ── */}
+        <VillageWrappedStrip municipalityId={village.id} villageSlug={villageSlug} />
       </ScrollView>
       <JoinVillageModal
         municipality={
