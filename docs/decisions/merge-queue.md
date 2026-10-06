@@ -29,7 +29,9 @@ land, one PR after another, with single PRs running CI four times.
   enqueues instead of rebasing or merging, retries once after a removal (a flaky
   emulator lane), and exits `10` on a second removal of the same head.
 - **Bypass:** repository admins (direct Docs-mode pushes, `pnpm release:cut`'s
-  version bump) and GitHub Actions (`plans-map.yml` commits the regenerated map).
+  version bump) and deploy keys. A repo ruleset cannot name GitHub Actions as a
+  bypass actor, so `plans-map.yml` pushes the regenerated map with a write
+  deploy key (secret `PLANS_MAP_DEPLOY_KEY`) instead of `GITHUB_TOKEN`.
 
 ## Why not ordago's local integration check
 
