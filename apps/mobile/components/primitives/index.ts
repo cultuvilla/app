@@ -1,4 +1,6 @@
 export * from './Screen';
+export { KeyboardAvoider } from './KeyboardAvoider';
+export type { KeyboardAvoiderProps } from './KeyboardAvoider';
 export * from './HStack';
 export * from './VStack';
 export * from './Text';

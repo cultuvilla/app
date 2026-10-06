@@ -102,6 +102,9 @@ export type InputProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText'
   autoGrow?: boolean;
   /** Ceiling for `autoGrow`, in px. Past it the field scrolls instead of growing. */
   maxAutoGrowHeight?: number;
+  /** Lays out the whole field (label, box, error) — e.g. `flex-1` in a row. It
+   * never reaches the TextInput, whose own classes carry the text style. */
+  className?: string;
 };
 
 // Controlled text input. `onChangeText` (vs `onChange`) keeps the API aligned
@@ -119,6 +122,7 @@ export function Input({
   autoGrow = false,
   maxAutoGrowHeight = AUTO_GROW_MAX_HEIGHT,
   onScroll,
+  className,
   ...rest
 }: InputProps) {
   // RN does not resize a multiline field to fit its text, so the height is
@@ -152,7 +156,7 @@ export function Input({
   };
   const heightStyle = autoGrow ? { height: grownHeight } : null;
   return (
-    <VStack gap={1}>
+    <VStack gap={1} className={className}>
       {label && <FieldLabel>{label}</FieldLabel>}
       <View
         className={`flex-row ${autoGrow ? 'items-end' : 'items-center'} border ${

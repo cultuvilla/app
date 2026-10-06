@@ -1,7 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   RefreshControl,
   ScrollView,
   View,
@@ -86,36 +85,31 @@ export function EntityDetailScaffold({
         </View>
       ) : (
         <>
-          {/* Android is edge-to-edge (Expo SDK 54+), so the window no longer
-              resizes for the keyboard and `adjustResize` is not an option:
-              without this the keyboard covers the comment composer on both
-              platforms. `padding` shrinks the scroll area instead, and the
-              composer scrolls itself into view via DetailScrollProvider. */}
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-            <View style={{ flex: 1 }}>
-              <ScrollView
-                ref={scrollRef}
-                contentContainerClassName={scrollContentClassName}
-                keyboardShouldPersistTaps="handled"
-                refreshControl={
-                  onRefresh ? (
-                    <RefreshControl refreshing={nativeRefreshing} onRefresh={runRefresh} />
-                  ) : undefined
-                }
-              >
-                <DetailHeroImage
-                  imageUri={imageUri}
-                  fallbackImageUri={fallbackImageUri}
-                  fallbackIcon={fallbackIcon}
-                  accessibilityLabel={title}
-                />
-                <VStack gap={3} className="p-4">
-                  {title ? <Text variant="h1">{title}</Text> : null}
-                  <DetailScrollProvider scrollRef={scrollRef}>{children}</DetailScrollProvider>
-                </VStack>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
+          {/* Screen avoids the keyboard; the composer scrolls itself into
+              view via DetailScrollProvider. */}
+          <View style={{ flex: 1 }}>
+            <ScrollView
+              ref={scrollRef}
+              contentContainerClassName={scrollContentClassName}
+              keyboardShouldPersistTaps="handled"
+              refreshControl={
+                onRefresh ? (
+                  <RefreshControl refreshing={nativeRefreshing} onRefresh={runRefresh} />
+                ) : undefined
+              }
+            >
+              <DetailHeroImage
+                imageUri={imageUri}
+                fallbackImageUri={fallbackImageUri}
+                fallbackIcon={fallbackIcon}
+                accessibilityLabel={title}
+              />
+              <VStack gap={3} className="p-4">
+                {title ? <Text variant="h1">{title}</Text> : null}
+                <DetailScrollProvider scrollRef={scrollRef}>{children}</DetailScrollProvider>
+              </VStack>
+            </ScrollView>
+          </View>
           {fab}
         </>
       )}

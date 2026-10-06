@@ -60,7 +60,7 @@ describe('EntityDetailScaffold', () => {
   });
 
   // Android is edge-to-edge, so the window no longer resizes for the keyboard:
-  // without the KeyboardAvoidingView the composer at the bottom of a detail
+  // without the KeyboardAvoidingView (Screen owns it) the composer at the bottom of a detail
   // screen is covered by the keyboard the moment it is focused.
   it('keeps the body clear of the keyboard and lets taps through while it is open', () => {
     const { UNSAFE_getByType } = render(

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../primitives/Button';
+import { KeyboardAvoider } from '../primitives/KeyboardAvoider';
 import { Text } from '../primitives/Text';
 import { VStack } from '../primitives/VStack';
 import { HStack } from '../primitives/HStack';
@@ -201,127 +202,129 @@ export function AttendeeSheet({
         if (!busy) onClose();
       }}
     >
-      <RNPressable
-        onPress={() => {
-          if (!busy) onClose();
-        }}
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        className="justify-end"
-      >
-        {/* Inner catcher: taps inside the card must not dismiss. Pad the bottom
-            by the safe-area inset so the confirm button clears the home
-            indicator / nav bar. */}
+      <KeyboardAvoider>
         <RNPressable
-          onPress={() => {}}
-          className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
-          style={{ paddingBottom: insets.bottom + 20, maxHeight: windowHeight * 0.9 }}
+          onPress={() => {
+            if (!busy) onClose();
+          }}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          className="justify-end"
         >
-          <VStack gap={3} className="shrink">
-            <Text variant="h3">{t('event.register.attendeesTitle')}</Text>
+          {/* Inner catcher: taps inside the card must not dismiss. Pad the bottom
+              by the safe-area inset so the confirm button clears the home
+              indicator / nav bar. */}
+          <RNPressable
+            onPress={() => {}}
+            className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
+            style={{ paddingBottom: insets.bottom + 20, maxHeight: windowHeight * 0.9 }}
+          >
+            <VStack gap={3} className="shrink">
+              <Text variant="h3">{t('event.register.attendeesTitle')}</Text>
 
-            <ScrollView ref={listRef} style={{ flexShrink: 1 }} testID="attendee-list">
-              <VStack gap={2}>
-                {attendees.map((a) => {
-                  const isSelected = selected.has(a.id);
-                  // Fields are asked per attendee, so the group hangs off this
-                  // persona's row and only while they are newly ticked.
-                  const showFields =
-                    isSelected && !registeredIds.has(a.id) && signupFields.length > 0;
-                  return (
-                    <View
-                      key={a.id}
-                      testID={`attendee-row-wrap-${a.id}`}
-                      onLayout={(e) => {
-                        rowOffsets.current[a.id] = e.nativeEvent.layout.y;
-                      }}
-                    >
-                    <RNPressable
-                      testID={`attendee-row-${a.id}`}
-                      onPress={() => toggle(a.id)}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: isSelected }}
-                      className={`flex-row items-center justify-between rounded-lg border p-3 ${
-                        isSelected ? 'border-accent bg-surface' : 'border-subtle'
-                      }`}
-                    >
-                      <HStack gap={3} className="items-center flex-1">
-                        <Text style={{ fontSize: 18 }}>{isSelected ? '☑' : '☐'}</Text>
-                        <Text className="flex-1">{a.name}</Text>
-                      </HStack>
-                      {a.status ? (
-                        <Text tone={a.status === 'waitlisted' ? 'muted' : 'success'} variant="caption">
-                          {a.status === 'waitlisted'
-                            ? t('event.register.waitlisted')
-                            : t('event.register.signedUp')}
-                        </Text>
+              <ScrollView ref={listRef} style={{ flexShrink: 1 }} testID="attendee-list">
+                <VStack gap={2}>
+                  {attendees.map((a) => {
+                    const isSelected = selected.has(a.id);
+                    // Fields are asked per attendee, so the group hangs off this
+                    // persona's row and only while they are newly ticked.
+                    const showFields =
+                      isSelected && !registeredIds.has(a.id) && signupFields.length > 0;
+                    return (
+                      <View
+                        key={a.id}
+                        testID={`attendee-row-wrap-${a.id}`}
+                        onLayout={(e) => {
+                          rowOffsets.current[a.id] = e.nativeEvent.layout.y;
+                        }}
+                      >
+                      <RNPressable
+                        testID={`attendee-row-${a.id}`}
+                        onPress={() => toggle(a.id)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: isSelected }}
+                        className={`flex-row items-center justify-between rounded-lg border p-3 ${
+                          isSelected ? 'border-accent bg-surface' : 'border-subtle'
+                        }`}
+                      >
+                        <HStack gap={3} className="items-center flex-1">
+                          <Text style={{ fontSize: 18 }}>{isSelected ? '☑' : '☐'}</Text>
+                          <Text className="flex-1">{a.name}</Text>
+                        </HStack>
+                        {a.status ? (
+                          <Text tone={a.status === 'waitlisted' ? 'muted' : 'success'} variant="caption">
+                            {a.status === 'waitlisted'
+                              ? t('event.register.waitlisted')
+                              : t('event.register.signedUp')}
+                          </Text>
+                        ) : null}
+                      </RNPressable>
+                      {showFields ? (
+                        <SignupAnswerFields
+                          fields={signupFields}
+                          values={answers[a.id] ?? {}}
+                          onChange={(fieldId, value) =>
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [a.id]: { ...prev[a.id], [fieldId]: value },
+                            }))
+                          }
+                          invalidIds={confirmAttempted ? invalidIdsFor(a.id) : []}
+                          testIDPrefix={`attendee-answer-${a.id}`}
+                        />
                       ) : null}
-                    </RNPressable>
-                    {showFields ? (
-                      <SignupAnswerFields
-                        fields={signupFields}
-                        values={answers[a.id] ?? {}}
-                        onChange={(fieldId, value) =>
-                          setAnswers((prev) => ({
-                            ...prev,
-                            [a.id]: { ...prev[a.id], [fieldId]: value },
-                          }))
-                        }
-                        invalidIds={confirmAttempted ? invalidIdsFor(a.id) : []}
-                        testIDPrefix={`attendee-answer-${a.id}`}
-                      />
-                    ) : null}
-                    </View>
-                  );
-                })}
+                      </View>
+                    );
+                  })}
 
-                {/* Same rectangle shape as a persona row, but a dashed outline
-                    and a + to read as "add another". */}
-                <RNPressable
-                  onPress={onCreateNew}
-                  testID="attendee-create"
-                  accessibilityRole="button"
-                  accessibilityLabel={t('event.register.createPersona')}
-                  className="flex-row items-center rounded-lg border border-dashed border-subtle p-3"
-                >
-                  <HStack gap={3} className="items-center flex-1">
-                    <Text tone="muted" style={{ fontSize: 18 }}>
-                      ＋
-                    </Text>
-                    <Text tone="muted" className="flex-1">
-                      {t('event.register.createPersona')}
-                    </Text>
-                  </HStack>
-                </RNPressable>
-              </VStack>
-            </ScrollView>
+                  {/* Same rectangle shape as a persona row, but a dashed outline
+                      and a + to read as "add another". */}
+                  <RNPressable
+                    onPress={onCreateNew}
+                    testID="attendee-create"
+                    accessibilityRole="button"
+                    accessibilityLabel={t('event.register.createPersona')}
+                    className="flex-row items-center rounded-lg border border-dashed border-subtle p-3"
+                  >
+                    <HStack gap={3} className="items-center flex-1">
+                      <Text tone="muted" style={{ fontSize: 18 }}>
+                        ＋
+                      </Text>
+                      <Text tone="muted" className="flex-1">
+                        {t('event.register.createPersona')}
+                      </Text>
+                    </HStack>
+                  </RNPressable>
+                </VStack>
+              </ScrollView>
 
-            {needsPhone ? (
-              <PhoneField
-                label={t('event.register.phoneTitle')}
-                value={phone}
-                onChangeText={setPhone}
-                country={phoneCountry}
-                onCountryChange={setPhoneCountry}
-                placeholder={t('event.register.phonePlaceholder')}
-                searchPlaceholder={t('event.register.phoneSearch')}
-                noResultsLabel={t('event.register.phoneNoResults')}
-                error={phoneError ? t('event.register.phoneInvalid') : undefined}
-                testID="attendee-phone"
-              />
-            ) : null}
+              {needsPhone ? (
+                <PhoneField
+                  label={t('event.register.phoneTitle')}
+                  value={phone}
+                  onChangeText={setPhone}
+                  country={phoneCountry}
+                  onCountryChange={setPhoneCountry}
+                  placeholder={t('event.register.phonePlaceholder')}
+                  searchPlaceholder={t('event.register.phoneSearch')}
+                  noResultsLabel={t('event.register.phoneNoResults')}
+                  error={phoneError ? t('event.register.phoneInvalid') : undefined}
+                  testID="attendee-phone"
+                />
+              ) : null}
 
-            <Button
-              onPress={handleConfirm}
-              loading={busy}
-              disabled={!canConfirm}
-              fullWidth
-              testID="attendee-confirm"
-            >
-              {t('event.register.confirm')}
-            </Button>
-          </VStack>
+              <Button
+                onPress={handleConfirm}
+                loading={busy}
+                disabled={!canConfirm}
+                fullWidth
+                testID="attendee-confirm"
+              >
+                {t('event.register.confirm')}
+              </Button>
+            </VStack>
+          </RNPressable>
         </RNPressable>
-      </RNPressable>
+      </KeyboardAvoider>
     </Modal>
   );
 }

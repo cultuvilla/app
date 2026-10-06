@@ -1,7 +1,7 @@
 import { getVillageSlug } from '@cultuvilla/shared/services/municipalityService';
 import { newsHref } from '../../lib/navigation/routes';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@cultuvilla/shared/design-system';
@@ -508,7 +508,7 @@ export default function NewNewsScreen() {
           ) : undefined
         }
       />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ flex: 1 }}>
         <Stepper
           steps={steps}
           onComplete={() => void submit()}
@@ -517,7 +517,7 @@ export default function NewNewsScreen() {
           allStepsReachable={editMode}
           primaryTestID="news-form-primary"
         />
-      </KeyboardAvoidingView>
+      </View>
     </Screen>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Platform, KeyboardAvoidingView, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { iconSizes, colors } from '@cultuvilla/shared/design-system';
@@ -113,10 +113,7 @@ function VocabularyTermScreen() {
           ) : null
         }
       />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 96 }}>
           {!term ? (
             <Text tone="muted">{loading ? '' : t('village.vocabulary.notFound')}</Text>
@@ -219,7 +216,7 @@ function VocabularyTermScreen() {
             </>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
       {term && isMember ? (
         <Fab
           label={t('village.vocabulary.addDefinition')}
