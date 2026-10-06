@@ -2,8 +2,10 @@
 
 **Priority:** high
 **Landed:** prod
-**Gate:** blocked:native analytics must reach users in a store build — phase 1 of [app-only-transition.md](app-only-transition.md)
-**Next:** once that build is out, confirm in prod BigQuery that native events arrive with a non-null `user_pseudo_id`, then start Phase 2 on native data
+**Gate:** none
+**Next:** build Phase 3 (log-based metrics, prod health dashboard, error-rate alert); confirm native BigQuery rows once 1.6.0 ships, then Phase 2
+
+Decided 2026-10-06 (user): Phase 2 (Firestore→BigQuery extension + Looker Studio) and Phase 3 (Cloud Monitoring dashboard + alert policies) are approved, including their running cost. BigQuery export stays **prod-only** (no beta).
 
 Builds directly on the shipped
 [observability foundation](../../decisions/observability-foundation.md).
@@ -154,8 +156,7 @@ modeling, session replay, distributed tracing, a bespoke dashboard *service*
 
 ## Open questions
 
-- Beta: enable BigQuery export there too, or prod-only? (Leaning prod-only for the
-  real signal; dev optional for plumbing validation.)
+- ~~Beta export~~ — decided 2026-10-06: prod-only.
 - Streaming vs daily-only export (leaning daily + streaming; revisit if cost shows).
 - When to enrich `OBSERVABILITY_EVENTS` with per-event metadata + generate the
   dictionary (Phase 2, once the dashboard reveals which fields matter).

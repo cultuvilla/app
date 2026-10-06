@@ -2,8 +2,8 @@
 
 **Priority:** high
 **Landed:** dev
-**Gate:** none
-**Next:** promote `develop → beta` (a `release/X.Y.Z` branch; the maintainer merges the PR)
+**Gate:** blocked:1.6.0 must be live on BOTH stores before `beta → main` (decision 2026-10-06)
+**Next:** smoke-test on beta (step 2) while 1.6.0 is in store review
 
 **Goal:** get the access-control changes merged on 2026-09-30 (#436–#442) from dev
 to production, with no crash for clients that are already installed.
@@ -29,12 +29,12 @@ to production, with no crash for clients that are already installed.
    - request to join an approval-only org, then approve the request;
    - save census answers;
    - upload an image to a village, an org and a persona.
-3. **Promote `beta → main`.**
-4. **Right after the prod deploy, dispatch the production OTA** (`mobile-ota.yml`) from the exact commit the production binaries were built from. Installed binaries still read `users/{uid}` directly on `/usuario`, so that screen fails until the update reaches them. Verify the fingerprint with `fingerprint:compare` before publishing.
-5. **Decide on `minSupported`.** Whether to raise `config/appVersion.minSupported` for binaries that the OTA cannot reach, such as the iOS 1.0.0 build that predates `expo-updates`.
+3. **Ship 1.6.0 to both stores, then promote `beta → main`.** Decided 2026-10-06 (user): no prod promotion until the 1.6.0 binaries are live on the App Store and Google Play, then update `APP_STORE_VERSIONS`.
+4. **In the same release, raise `config/appVersion.minSupported` to `1.6.0`** (Actions → *Set App Version*). Decided 2026-10-06 (user). Why an OTA cannot replace it: every installed binary (iOS 1.2.x–1.5.0, Android 1.1.0–1.5.0) reads `users/{uid}` on `/usuario`, which the new rules deny, and 1.6.0's JS cannot reach them over the air — it adds native modules, so its fingerprint differs and EAS refuses the update to older binaries. The gate refuses a `minSupported` above what the stores serve, which is the other reason the store release comes first.
+5. ~~Decide on `minSupported`~~ — decided, see 4.
 6. **GitHub alerts:**
    - Close the three secret-scanning alerts for the Firebase Android keys in `apps/mobile/google-services/*/google-services.json`, which are public by design. Optionally restrict the prod key to the Android app first.
-   - Triage the Dependabot backlog, runtime dependencies first.
+   - Triage the Dependabot backlog, runtime dependencies first. Functions runtime critical/high done in #473 (2026-10-06); 8 moderate remain behind a firebase-admin 14 major; the pnpm lockfile (mostly build tooling) is next.
 7. When 1–6 are done, distil anything durable into `docs/decisions/` and delete this plan.
 
 ## Handoff
