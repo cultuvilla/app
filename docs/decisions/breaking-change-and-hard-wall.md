@@ -74,7 +74,10 @@ cannot upgrade is a reader we do not control.
 
 Declarations are git trailers on the commit that makes the change, so they are
 reviewed in the PR diff. They are line-anchored, so keep each one on a single
-line.
+line — and short: commitlint (`@commitlint/config-conventional`) caps footer
+lines at 100 characters, so the whole line, key included, must fit. The
+`Breaking-Client-Exempt: ` key alone takes 24, leaving ~75 for the reason; put
+any longer explanation in the commit body or the PR description.
 
 | Trailer | Meaning | Effect |
 |---|---|---|
