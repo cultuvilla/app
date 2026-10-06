@@ -6,15 +6,19 @@ import {
   type TextInputContentSizeChangeEventData,
   type TextInputProps,
 } from 'react-native';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, spacing, typography } from '@cultuvilla/shared/design-system';
 import { Text } from './Text';
 import { FieldLabel } from './FieldLabel';
 import { VStack } from './VStack';
 
 /** One line of body text — the composer's resting height. */
-const AUTO_GROW_MIN_HEIGHT = 20;
-/** ~6 lines: enough to read a long comment whole without eating the screen. */
-const AUTO_GROW_MAX_HEIGHT = 120;
+const AUTO_GROW_MIN_HEIGHT = typography.body.lineHeight;
+/** 5 lines: enough to read a long comment whole without eating the screen. */
+const AUTO_GROW_MAX_HEIGHT = typography.body.lineHeight * 5;
+/** Half a one-line pill (line + the wrapper's py-2), so it reads as a capsule at
+ * rest. `rounded-full` would turn a grown, multi-line field into a stadium whose
+ * curved ends cut across the text. */
+const PILL_RADIUS = (typography.body.lineHeight + spacing[2] * 2) / 2;
 
 export type InputProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText'> & {
   value: string;
@@ -71,8 +75,9 @@ export function Input({
       {label && <FieldLabel>{label}</FieldLabel>}
       <View
         className={`flex-row ${autoGrow ? 'items-end' : 'items-center'} border ${
-          pill ? 'rounded-full px-4 gap-2 py-2' : `rounded-md px-3 bg-surface ${dense ? 'py-1' : 'py-2'}`
+          pill ? 'px-4 gap-2 py-2' : `rounded-md px-3 bg-surface ${dense ? 'py-1' : 'py-2'}`
         } ${error ? 'border-danger' : pill ? 'border-accent' : 'border-subtle'}`}
+        style={pill ? { borderRadius: PILL_RADIUS } : undefined}
       >
         <TextInput
           ref={inputRef}

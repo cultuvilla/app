@@ -510,13 +510,16 @@ export function EntityComments({
             </HStack>
           ) : null}
           {/* end-aligned so the avatar and send arrow stay level with the last
-              line as the field grows. */}
+              line as the field grows; mb-1 centres the 32px avatar on the
+              one-line pill (~40px) instead of hugging its bottom edge. */}
           <HStack gap={2} align="end">
-            <Avatar
-              uri={me?.photoURL ?? null}
-              size={32}
-              initials={initialsOf(me?.name)}
-            />
+            <View className="mb-1">
+              <Avatar
+                uri={me?.photoURL ?? null}
+                size={32}
+                initials={initialsOf(me?.name)}
+              />
+            </View>
             <View className="flex-1">
               <Input
                 inputRef={inputRef}
