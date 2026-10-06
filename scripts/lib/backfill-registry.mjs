@@ -10,12 +10,17 @@
  * not. The registry makes "has this run in env X?" a machine-checkable fact
  * (a marker doc) instead of a CHANGELOG sentence a human has to remember.
  *
- * WHY `phase` AND NOT A VERSION GATE: Órdago gates backfills on a semver
- * release because it ships store binaries it cannot force-upgrade, so it needs
- * expand/migrate/contract windows. Cultuvilla is web-first and deploys on merge
- * — the fleet upgrades on refresh. The axis that actually matters here is
- * ORDERING AROUND THE DEPLOY, because the strict Zod converters make it
- * bidirectional:
+ * WHY `phase` AND NOT A VERSION GATE: the backend deploys on every merge, so
+ * the axis this registry enforces is ORDERING AROUND THE DEPLOY. Installed
+ * store binaries are a second, slower reader — they lag the backend by weeks
+ * and cannot be force-upgraded on our schedule — and they are protected NOT by
+ * a version gate here but by expand → migrate → contract plus the hard wall
+ * (`config/appVersion.minSupported`): a field old binaries require keeps being
+ * written until the wall passes them, and only the contract commit carries a
+ * `Breaking-Client:` trailer. See docs/decisions/breaking-change-and-hard-wall.md
+ * and scripts/check-schema-change.mjs, which fails a PR whose stored schema
+ * got stricter without a pre-deploy backfill here. The strict Zod converters
+ * make deploy ordering bidirectional:
  *
  *   pre-deploy  — the new code cannot read the old data. Adding a required
  *                 field is this: the converter throws on any doc missing it, so
