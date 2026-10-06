@@ -5,7 +5,8 @@
  *   1. Proposes the bump from the conventional commits on develop since beta
  *      (fix → patch, feat → minor, `!` / BREAKING CHANGE → major).
  *   2. Commits the bump on top of origin/develop — app.config.ts, package.json
- *      and the CHANGELOG stamp — with the bare `X.Y.Z` message commitlint
+ *      and the CHANGELOG stamp, which folds in and deletes every changelog.d/
+ *      fragment — with the bare `X.Y.Z` message commitlint
  *      exempts, and pushes it to develop. develop's version is therefore always
  *      the latest cut, with no second PR to land.
  *   3. Branches `release/X.Y.Z` from that commit and merges origin/main into it:
@@ -38,7 +39,9 @@ import {
   bumpVersion,
   compareVersions,
   extractMigrations,
+  FRAGMENTS_DIR,
   hasVersionSection,
+  isFragmentPath,
   parseSemver,
   proposeBump,
   releaseCommitMessage,
@@ -80,7 +83,10 @@ export function parseArgs(argv) {
  * Decide what the cut releases and produce the new file contents. Pure.
  *
  * @param {{
- *   develop: { appConfig: string, packageJson: string, changelog: string },
+ *   develop: {
+ *     appConfig: string, packageJson: string, changelog: string,
+ *     fragments?: { path: string, content: string }[],
+ *   },
  *   betaVersion: string,
  *   commits: { subject: string, body?: string }[],
  *   date: string,
@@ -109,6 +115,7 @@ export function planCut({ develop, betaVersion, commits, date, args }) {
       commitMessage: releaseCommitMessage({ version: developVersion, bumped: false, breaking }),
       breaking,
       files: null,
+      fragments: [],
       section,
       migrations: extractMigrations(section),
     };
@@ -124,7 +131,8 @@ export function planCut({ develop, betaVersion, commits, date, args }) {
     throw new Error(`The release version must be greater than beta's ${betaVersion}, not ${version}.`);
   }
 
-  const changelog = stampChangelog(develop.changelog, version, date);
+  const fragments = develop.fragments ?? [];
+  const changelog = stampChangelog(develop.changelog, version, date, fragments);
   const section = versionSection(changelog, version);
   return {
     version,
@@ -138,6 +146,7 @@ export function planCut({ develop, betaVersion, commits, date, args }) {
       packageJson: setPackageJsonVersion(develop.packageJson, version),
       changelog,
     },
+    fragments: fragments.map((f) => f.path),
     section,
     migrations: extractMigrations(section),
   };
@@ -174,6 +183,13 @@ function show(rev, file) {
   return git(['show', `${rev}:${file}`]) + '\n';
 }
 
+function fragmentsAt(rev) {
+  return git(['ls-tree', '--name-only', rev, `${FRAGMENTS_DIR}/`])
+    .split('\n')
+    .filter(isFragmentPath)
+    .map((file) => ({ path: file, content: show(rev, file) }));
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   preflight();
@@ -183,6 +199,7 @@ function main() {
       appConfig: show('origin/develop', PATHS.appConfig),
       packageJson: show('origin/develop', PATHS.packageJson),
       changelog: show('origin/develop', PATHS.changelog),
+      fragments: fragmentsAt('origin/develop'),
     },
     betaVersion: extractVersion(show('origin/beta', PATHS.appConfig)),
     commits: commitsSinceBeta(),
@@ -203,6 +220,7 @@ function main() {
   if (plan.breaking) console.log(`  breaking: trailer "${breakingTrailer(plan.breaking)}"`);
   console.log(`  branch: ${branch} = develop + merge of origin/main`);
   console.log(`  PR: ${branch} → beta, titled "${plan.version}"`);
+  if (plan.needsBumpCommit) console.log(`  fragments folded in and deleted: ${plan.fragments.length}`);
   console.log(`  migrations: ${plan.migrations.length}`);
 
   if (args.dryRun) {
@@ -219,6 +237,7 @@ function main() {
     if (plan.needsBumpCommit) {
       for (const [key, file] of Object.entries(PATHS)) writeFileSync(path.join(dir, file), plan.files[key]);
       inTree(['add', ...Object.values(PATHS)]);
+      if (plan.fragments.length) inTree(['rm', '--quiet', ...plan.fragments]);
       // --no-verify: the hooks need this checkout's node_modules, which a
       // throwaway worktree lacks. The bare version is exactly what commitlint
       // exempts, and the files are generated above.

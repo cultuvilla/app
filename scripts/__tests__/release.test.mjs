@@ -7,6 +7,7 @@ import {
   COMMIT_LINE_MAX,
   compareVersions,
   extractMigrations,
+  isFragmentPath,
   migrationChecklist,
   promotionPrBody,
   proposeBump,
@@ -93,7 +94,7 @@ describe('stampChangelog', () => {
 
   it('refuses an empty [Unreleased]', () => {
     const empty = stampChangelog(CHANGELOG, '1.6.0', '2026-10-06');
-    assert.throws(() => stampChangelog(empty, '1.7.0', '2026-10-07'), /is empty/);
+    assert.throws(() => stampChangelog(empty, '1.7.0', '2026-10-07'), /both empty/);
   });
 
   it('refuses a release without store notes', () => {
@@ -103,6 +104,37 @@ describe('stampChangelog', () => {
 
   it('refuses a version that is already stamped', () => {
     assert.throws(() => stampChangelog(CHANGELOG, '1.5.0', '2026-10-06'), /already has/);
+  });
+});
+
+describe('changelog fragments', () => {
+  const fragments = [
+    { path: 'changelog.d/zz-later.md', content: '- Zeta entry.\n' },
+    { path: 'changelog.d/aa-first.md', content: '- Alpha entry. **Migration:** run `scripts/backfill-x.mjs`.\n' },
+  ];
+
+  it('folds every fragment into the stamped section, in filename order', () => {
+    const section = versionSection(stampChangelog(CHANGELOG, '1.6.0', '2026-10-06', fragments), '1.6.0');
+    assert.match(section, /<!-- \/store-notes -->[\s\S]*Fixed another thing\.\n\n- Alpha entry\.[\s\S]*\n- Zeta entry\.$/);
+    assert.equal(extractMigrations(section).length, 2);
+  });
+
+  it('stamps a release whose entries are all fragments', () => {
+    const notesOnly = CHANGELOG.replace(/\n- Added a thing[\s\S]*Fixed another thing\.\n/, '');
+    const section = versionSection(stampChangelog(notesOnly, '1.6.0', '2026-10-06', fragments), '1.6.0');
+    assert.match(section, /<!-- \/store-notes -->\n\n- Alpha entry\./);
+  });
+
+  it('still refuses a release with fragments but no store notes', () => {
+    const noNotes = CHANGELOG.replace(/<!-- store-notes -->[\s\S]*<!-- \/store-notes -->\n/, '');
+    assert.throws(() => stampChangelog(noNotes, '1.6.0', '2026-10-06', fragments), /store-notes/);
+  });
+
+  it('treats only changelog.d/*.md, minus the README, as fragments', () => {
+    assert.equal(isFragmentPath('changelog.d/intro-sound.md'), true);
+    assert.equal(isFragmentPath('changelog.d/README.md'), false);
+    assert.equal(isFragmentPath('changelog.d/notes.txt'), false);
+    assert.equal(isFragmentPath('docs/changelog.d/x.md'), false);
   });
 });
 
@@ -174,6 +206,22 @@ describe('release:cut', () => {
     assert.match(plan.files.packageJson, /"version": "1\.6\.0"/);
     assert.match(plan.files.changelog, /## v1\.6\.0 — 2026-10-06/);
     assert.equal(plan.migrations.length, 1);
+  });
+
+  it('stamps the fragments and lists them for deletion in the bump commit', () => {
+    const plan = planCut({
+      develop: {
+        ...files('1.5.0'),
+        changelog: CHANGELOG,
+        fragments: [{ path: 'changelog.d/x.md', content: '- From a fragment.\n' }],
+      },
+      betaVersion: '1.5.0',
+      commits: [c('fix: z')],
+      date: '2026-10-06',
+      args: { bump: null, version: null },
+    });
+    assert.match(plan.section, /- From a fragment\.$/);
+    assert.deepEqual(plan.fragments, ['changelog.d/x.md']);
   });
 
   it('honours --version and --bump', () => {

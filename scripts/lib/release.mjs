@@ -6,6 +6,7 @@
  * Policy lives in AGENTS.md → "Versioning & releases".
  */
 
+import path from 'node:path';
 import { extractVersion } from './app-version.mjs';
 
 export const RELEASE_BRANCH = /^release\/(\d+\.\d+\.\d+)$/;
@@ -121,19 +122,42 @@ export function hasVersionSection(changelog, version) {
   return new RegExp(`^## v${version.replace(/\./g, '\\.')}\\b`, 'm').test(changelog);
 }
 
+/** Where pending entries live: one file per PR, so two PRs never touch the same lines. */
+export const FRAGMENTS_DIR = 'changelog.d';
+
+/** A fragment is any `changelog.d/*.md` except the directory's own README. */
+export function isFragmentPath(file) {
+  return (
+    file.startsWith(`${FRAGMENTS_DIR}/`) &&
+    file.endsWith('.md') &&
+    path.posix.basename(file).toLowerCase() !== 'readme.md'
+  );
+}
+
 /**
- * Move `[Unreleased]` under `## vX.Y.Z — date` and reopen an empty `[Unreleased]`.
- * Refuses an empty section, a missing store-notes block (the App Store "What's
+ * Move `[Unreleased]` plus every `changelog.d/` fragment under `## vX.Y.Z — date`
+ * and reopen an empty `[Unreleased]`. Fragments follow the hand-written body
+ * (the store notes) in filename order, so the stamp is reproducible.
+ * Refuses an empty release, a missing store-notes block (the App Store "What's
  * New" is written by a person, so the cut will not invent one) and a version
  * that is already stamped.
+ *
+ * @param {{ path: string, content: string }[]} [fragments]
  */
-export function stampChangelog(changelog, version, date) {
+export function stampChangelog(changelog, version, date, fragments = []) {
   if (hasVersionSection(changelog, version)) {
     throw new Error(`CHANGELOG.md already has a "## v${version}" section`);
   }
   const body = unreleasedBody(changelog);
-  if (!body.trim()) {
-    throw new Error('CHANGELOG.md [Unreleased] is empty — there are no release notes to stamp.');
+  const entries = [...fragments]
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map((f) => f.content.trim())
+    .filter(Boolean);
+  const merged = [body.trim(), entries.join('\n')].filter(Boolean).join('\n\n');
+  if (!merged) {
+    throw new Error(
+      `CHANGELOG.md [Unreleased] and ${FRAGMENTS_DIR}/ are both empty — there are no release notes to stamp.`,
+    );
   }
   if (!/<!--\s*store-notes\s*-->[\s\S]*?\S[\s\S]*?<!--\s*\/store-notes\s*-->/.test(body)) {
     throw new Error(
@@ -144,7 +168,7 @@ export function stampChangelog(changelog, version, date) {
   const m = UNRELEASED.exec(changelog);
   const head = changelog.slice(0, m.index);
   const tail = changelog.slice(m.index + m[0].length + body.length);
-  return `${head}## [Unreleased]\n\n## v${version} — ${date}\n\n${body.trim()}\n\n${tail}`;
+  return `${head}## [Unreleased]\n\n## v${version} — ${date}\n\n${merged}\n\n${tail}`;
 }
 
 /** The body of `## vX.Y.Z …`, up to the next `## ` heading. */

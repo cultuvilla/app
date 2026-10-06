@@ -26,7 +26,7 @@ beta push → Deploy beta + beta-build-and-submit green ──▶ promote-to-mai
 
 - `git fetch origin && git log --oneline origin/beta..origin/develop --no-merges` — what this release carries.
 - `git show origin/beta:apps/mobile/app.config.ts | grep version:` — what beta is on.
-- Read the `[Unreleased]` section of `CHANGELOG.md` — it becomes the release notes.
+- Read the `[Unreleased]` section of `CHANGELOG.md` and every `changelog.d/*.md` fragment — together they become the release notes (`ls changelog.d/`; the README is not a fragment).
 
 If develop is already at a version newer than beta with its CHANGELOG stamped (a bump landed earlier), `release:cut` releases that version and skips the bump — go to step 4.
 
@@ -67,10 +67,11 @@ The reason must be one line, at most 83 characters (the trailer line stays withi
 
 <!-- /store-notes -->
 
-- …the accumulated entries…
 ```
 
-`extractReleaseNotes` (`scripts/lib/changelog-notes.mjs`) uses only this block; without it the whole section would ship as a wall of internal notes. If `[Unreleased]` has no entries at all, ask the user what this release is.
+The accumulated entries are the `changelog.d/` fragments; the cut appends them below this block and deletes them.
+
+`extractReleaseNotes` (`scripts/lib/changelog-notes.mjs`) uses only this block; without it the whole section would ship as a wall of internal notes. If there are no fragments and `[Unreleased]` has no entries, ask the user what this release is.
 
 ## 4. Cut
 
