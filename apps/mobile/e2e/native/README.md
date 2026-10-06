@@ -147,7 +147,8 @@ Three more traps, all hit on a full local run (2026-10-06):
 - **Run the Maestro version CI runs** — `MAESTRO_VERSION` in
   [android-e2e.yml](../../../../.github/workflows/android-e2e.yml). Maestro 2.4
   rejects non-ASCII `inputText` (`Unicode not supported: Peña…` in flow 70).
-  Install the pinned one with `MAESTRO_VERSION=<v> curl -Ls https://get.maestro.mobile.dev | bash`
+  Install the pinned one with `curl -Ls https://get.maestro.mobile.dev | MAESTRO_VERSION=<v> bash`
+  (the variable must reach `bash`, not `curl`)
   (it needs `unzip`), or point `MAESTRO_BIN` at it.
 
 ## Maestro traps this suite already paid for

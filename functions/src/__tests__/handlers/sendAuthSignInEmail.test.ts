@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } from 'vitest';
 import functionsTestFactory from 'firebase-functions-test';
+import { logger } from 'firebase-functions/v2';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { ipBucketIdFor, IP_RATE_LIMIT_MAX_SENDS } from '../../auth/rateLimit';
@@ -140,13 +141,17 @@ describe('sendAuthSignInEmail (callable)', () => {
       vi.unstubAllEnvs();
     });
 
-    it('generates the link but never calls Resend', async () => {
+    it('logs the generated link instead of calling Resend', async () => {
+      const info = vi.spyOn(logger, 'info');
       const result = await callSend({
         email: 'frank@example.com',
         continueUrl: 'https://villa-events.web.app/finish',
       });
       expect(result.ok).toBe(true);
       expect(sendMock).not.toHaveBeenCalled();
+      const issued = info.mock.calls.find(([msg]) => msg === 'auth sign-in link issued (emulator, not emailed)');
+      expect(issued?.[1]).toMatchObject({ actionUrl: expect.stringMatching(/oobCode=/) });
+      info.mockRestore();
     });
 
     it('still validates the request', async () => {

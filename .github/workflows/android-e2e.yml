@@ -164,6 +164,13 @@ jobs:
           MAESTRO_VERSION: 2.11.0
         run: |
           curl -Ls "https://get.maestro.mobile.dev" | bash
+          # The installer silently falls back to latest if it ignores the
+          # variable, so prove the pin took instead of trusting it.
+          installed="$("$HOME/.maestro/bin/maestro" --version | tail -n1)"
+          if [ "$installed" != "$MAESTRO_VERSION" ]; then
+            echo "::error::Maestro $installed installed, but $MAESTRO_VERSION is pinned."
+            exit 1
+          fi
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
       # One boot of everything: the action brings up the AVD, then the script

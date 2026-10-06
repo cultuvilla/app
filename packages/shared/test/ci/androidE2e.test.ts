@@ -87,6 +87,13 @@ describe('android-e2e workflow gating', () => {
     expect(install).toMatch(/MAESTRO_VERSION:\s*['"]?\d+\.\d+\.\d+/);
   });
 
+  it('fails the install step when the installed Maestro is not the pinned one', () => {
+    const step = workflow.slice(workflow.indexOf('- name: Install Maestro'));
+    const install = step.slice(0, step.indexOf('- name:', 1));
+    expect(install).toMatch(/maestro"? --version/);
+    expect(install).toMatch(/!= "\$MAESTRO_VERSION"/);
+  });
+
   it('drives the suite through the same entrypoint a developer uses', () => {
     expect(workflow).toContain('script: pnpm test:e2e:android');
     expect(rootPkg.scripts['test:e2e:android']).toContain('run-tests-with-emulators.mjs');
