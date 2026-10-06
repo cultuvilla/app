@@ -9,7 +9,6 @@ import {
   where,
   limit,
   writeBatch,
-  getCountFromServer,
   updateDoc,
 } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
@@ -33,6 +32,7 @@ import {
   type NotificationPrefsDataInput,
 } from '../models/notification';
 import { observability } from './observability/observabilityService';
+import { watchCount, type Unwatch, type WatchError } from './watch';
 
 export async function getNotifications(
   userId: string,
@@ -63,10 +63,21 @@ export async function getNotifications(
   });
 }
 
-export async function getUnreadCount(userId: string): Promise<number> {
-  const q = query(userNotificationsCollection(getDb(), userId), where('read', '==', false));
-  const snap = await getCountFromServer(q);
-  return snap.data().count;
+function unreadNotificationsQuery(userId: string) {
+  return query(userNotificationsCollection(getDb(), userId), where('read', '==', false));
+}
+
+/**
+ * The bell badge's unread count, live. A listener rather than a server count:
+ * it answers from the device cache offline and moves as soon as a notification
+ * lands or is read, without the badge reloading.
+ */
+export function watchUnreadCount(
+  userId: string,
+  onNext: (count: number) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchCount(unreadNotificationsQuery(userId), onNext, onError);
 }
 
 export async function createNotification(
@@ -89,8 +100,7 @@ export async function markAsRead(userId: string, notificationId: string): Promis
 }
 
 export async function markAllAsRead(userId: string): Promise<void> {
-  const q = query(userNotificationsCollection(getDb(), userId), where('read', '==', false));
-  const snap = await getDocs(q);
+  const snap = await getDocs(unreadNotificationsQuery(userId));
   if (snap.empty) return;
   const batch = writeBatch(getDb());
   snap.docs.forEach((d) => {

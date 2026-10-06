@@ -196,7 +196,7 @@ export function useVillageHome(municipalityId: string | null) {
   const posters = useWatch<FestivalPosterWithId[]>('villageHome:watchFestivalPosters', id, id ? (next, error) => watchFestivalPosters(id, next, error) : null);
   const places = useWatch<(PlaceData & { id: string })[]>('villageHome:watchPlaces', id, id ? (next, error) => watchPlaces(id, next, error) : null);
   const barrios = useWatch<(BarrioData & { id: string })[]>('villageHome:watchBarrios', id, id ? (next, error) => watchBarrios(id, next, error) : null);
-  const orgs = useWatch<(OrganizationData & { id: string })[]>('villageHome:watchOrganizations', id, id ? (next, error) => watchOrganizationsByMunicipality(id, next, error) : null);
+  const orgs = useWatch<(OrganizationData & { id: string })[]>('villageHome:watchOrganizations', id, id ? (next, error) => watchOrganizationsByMunicipality(id, undefined, next, error) : null);
   const history = useWatch<HistoryEntryWithId[]>('villageHome:watchHistoryEntries', id, id ? (next, error) => watchHistoryEntries(id, next, error) : null);
   const terms = useWatch<VocabularyTermWithId[]>('villageHome:watchVocabularyTerms', id, id ? (next, error) => watchVocabularyTerms(id, next, error) : null);
 

@@ -3,7 +3,7 @@
 **Priority:** high — the main reason the app feels slow
 **Landed:** dev
 **Gate:** none
-**Next:** mis-inscripciones and the remaining list screens onto watchers; then layer 3 (village sync)
+**Next:** layer 3 (village sync) — warm the cache for the user's villages on launch and foreground
 
 ## Goal
 
@@ -41,7 +41,7 @@ live sync; the JS SDK on RN just cannot use it.
 - Native → store build, not OTA. Android is exercised by Maestro; iOS first
   compiles on the next build.
 
-### 2. Cache-first reads — village home, Inicio and detail screens done
+### 2. Cache-first reads — built
 
 - Services gain `watch*` twins of their `get*` reads (`services/watch.ts`:
   `watchQuery`, `watchDoc`, `watchMerged`), built from the same query builder,
@@ -54,11 +54,23 @@ live sync; the JS SDK on RN just cannot use it.
 - [x] The Inicio feeds and the eight entity detail screens read their entity
   through single-doc watchers; their focus reloads remain only for secondary,
   per-user data (residents, burials, org membership, the viewer's person).
-- [ ] Mis-inscripciones and the remaining list screens (historia,
-  vocabulario, mi-pueblo, perfil). Delete each screen's `useFocusEffect`
-  reload as it moves.
-- [ ] `getCountFromServer` call sites become cache-friendly (stored counters or
-  local counts) — a server count cannot answer offline.
+- [x] Mis-inscripciones and the remaining list screens (historia,
+  vocabulario, mi-pueblo, perfil). Their `useFocusEffect` reloads are gone.
+  Mi-pueblo already ran on `useVillageHome`. Two shapes were new:
+  - *A list keyed by another list* (registrations → their events; memberships
+    → their villages; a village's orgs → the viewer's role in each): two
+    `useWatch` calls, the second keyed by the first's ids, over
+    `watchDocsByIds` (one listener per id, emitted once all have answered).
+  - *Rows that need the doc path* (collection-group reads): `watchQueryWith`,
+    whose reader sees the raw snapshots — so a group read can drop rows of the
+    wrong parent before the converter parses them.
+- [x] `getCountFromServer` call sites become cache-friendly — a server count
+  cannot answer offline. Only one was live: the bell's unread badge, now
+  `watchCount` over the user's unread notifications (counts snapshots without
+  parsing them). The other four (`getConfirmedCount`, `getTotalCount`,
+  `getEventCountByOrganizer`, `getNewsCountByOrganizer`) had no caller and were
+  deleted; the profile's stats already count the watched lists. No stored
+  counter was needed, so `getCountFromServer` is gone from the SDK seam.
 
 ### 3. Village sync
 

@@ -4,6 +4,10 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+- History, vocabulary, Mis inscripciones and the profile now read through live
+  listeners: they open instantly from the on-device cache (offline too) and
+  update on their own, instead of reloading every time you return to them. The
+  bell's unread badge moves as soon as a notification lands or is read.
 - Release tooling: `pnpm release:cut` cuts a release in one command (bump on develop, `release/X.Y.Z` with main merged, PR into beta with the migration checklist); the `beta → main` PR opens itself once beta's deploy and store builds are green; `version-gate.yml` now also checks the release PR's source branch and title.
 
 ## v1.6.0 — 2026-10-06

@@ -84,10 +84,11 @@ export async function getOrganizationsByMunicipality(
 
 export function watchOrganizationsByMunicipality(
   municipalityId: string,
+  status: OrganizationStatus | undefined,
   onNext: (orgs: (OrganizationData & { id: string })[]) => void,
   onError: WatchError,
 ): Unwatch {
-  return watchQuery(municipalityOrganizationsQuery(municipalityId), onNext, onError);
+  return watchQuery(municipalityOrganizationsQuery(municipalityId, status), onNext, onError);
 }
 
 /** Mint an organization doc id up front, so images can be uploaded to its

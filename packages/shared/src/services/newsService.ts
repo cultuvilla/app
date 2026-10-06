@@ -3,7 +3,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  getCountFromServer,
   setDoc,
   updateDoc,
   query,
@@ -133,42 +132,59 @@ export async function getNewsPostsByMunicipality(
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export async function getNewsCountByOrganizer(userId: string): Promise<number> {
-  const q = query(newsCollection(getDb()), where('organizerUserIds', 'array-contains', userId));
-  const snap = await getCountFromServer(q);
-  return snap.data().count;
+type NewsPostWithId = NewsPostData & { id: string };
+
+/**
+ * Posts where the user is a named organizer. `activeOnly` is the form that is
+ * safe to run against ANOTHER user's uid, since the news read rule lets
+ * non-members read only active posts (the read-only "other" profile).
+ */
+function organizerNewsQuery(userId: string, activeOnly: boolean) {
+  return query(
+    newsCollection(getDb()),
+    where('organizerUserIds', 'array-contains', userId),
+    ...(activeOnly ? [where('status', '==', 'active')] : []),
+  );
+}
+
+// Sorted by createdAt desc in memory; a single user's article count is small.
+function newestCreatedFirst(posts: NewsPostWithId[], max?: number): NewsPostWithId[] {
+  const sorted = [...posts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return max ? sorted.slice(0, max) : sorted;
 }
 
 // All posts where the user is a named organizer, any status (incl. hidden)
-// — for the profile "Artículos creados" scroll. Sorted by createdAt desc in memory;
-// a single user's article count is small.
+// — for the profile "Artículos creados" scroll.
 export async function getNewsPostsByOrganizer(
   userId: string,
   options: { limit?: number } = {},
-): Promise<(NewsPostData & { id: string })[]> {
-  const q = query(newsCollection(getDb()), where('organizerUserIds', 'array-contains', userId));
-  const snap = await getDocs(q);
-  const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  return options.limit ? posts.slice(0, options.limit) : posts;
+): Promise<NewsPostWithId[]> {
+  const snap = await getDocs(organizerNewsQuery(userId, false));
+  return newestCreatedFirst(snap.docs.map((d) => ({ id: d.id, ...d.data() })), options.limit);
 }
 
-// Active-only variant of getNewsPostsByOrganizer — safe to run against
-// ANOTHER user's uid, since the news read rule allows non-members to read
-// only active posts. Used by the read-only user profile ("other" variant).
+// Active-only variant of getNewsPostsByOrganizer.
 export async function getApprovedNewsPostsByOrganizer(
   userId: string,
   options: { limit?: number } = {},
-): Promise<(NewsPostData & { id: string })[]> {
-  const q = query(
-    newsCollection(getDb()),
-    where('organizerUserIds', 'array-contains', userId),
-    where('status', '==', 'active'),
+): Promise<NewsPostWithId[]> {
+  const snap = await getDocs(organizerNewsQuery(userId, true));
+  return newestCreatedFirst(snap.docs.map((d) => ({ id: d.id, ...d.data() })), options.limit);
+}
+
+export function watchNewsPostsByOrganizer(
+  userId: string,
+  options: { activeOnly: boolean },
+  onNext: (posts: NewsPostWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    organizerNewsQuery(userId, options.activeOnly),
+    (posts) => {
+      onNext(newestCreatedFirst(posts));
+    },
+    onError,
   );
-  const snap = await getDocs(q);
-  const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  return options.limit ? posts.slice(0, options.limit) : posts;
 }
 
 export async function updateNewsPost(id: string, patch: UpdateNewsPostInput): Promise<void> {

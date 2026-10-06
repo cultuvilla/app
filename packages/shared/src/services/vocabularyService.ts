@@ -191,16 +191,27 @@ export function watchVocabularyDefinitions(
  * per-row credit, which would otherwise cost a read per headword. Same
  * whole-glossary reasoning as `getVocabularyTerms`.
  */
-export async function getVillageVocabularyDefinitions(
-  municipalityId: string,
-): Promise<VocabularyDefinitionWithId[]> {
-  const q = query(
+function villageVocabularyDefinitionsQuery(municipalityId: string) {
+  return query(
     vocabularyDefinitionsCollection(getDb()),
     where('municipalityId', '==', municipalityId),
     where('status', '==', 'active'),
   );
-  const snap = await getDocs(q);
+}
+
+export async function getVillageVocabularyDefinitions(
+  municipalityId: string,
+): Promise<VocabularyDefinitionWithId[]> {
+  const snap = await getDocs(villageVocabularyDefinitionsQuery(municipalityId));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchVillageVocabularyDefinitions(
+  municipalityId: string,
+  onNext: (definitions: VocabularyDefinitionWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(villageVocabularyDefinitionsQuery(municipalityId), onNext, onError);
 }
 
 export async function addVocabularyDefinition(

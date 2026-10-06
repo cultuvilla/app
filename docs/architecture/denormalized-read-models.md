@@ -60,7 +60,7 @@ If any of these is false, don't denormalize — query the source instead.
 ## When **not** to use it
 
 - The query is admin-only or runs once a day.
-- The field changes on every read-side event (e.g., live attendee count — use a counter document or `getCountFromServer` instead).
+- The field changes on every read-side event (e.g., live attendee count — use a counter field instead).
 - You're tempted to copy *every* field of the source. That isn't denormalization, it's duplication; you'll fight drift forever.
 - The value should stay **current** everywhere, lives on a **readable** source doc, and you never query by it (e.g. a villager's profile photo). Don't copy it — store the id and subscribe to the source. See [live references](./live-references.md) for that pattern and the full copy-vs-reference decision rule.
 
@@ -426,7 +426,7 @@ of that one person's `sex` next to the pointer it describes
 
 ## Counters vs. denormalization
 
-If the field you want to copy is a **count** (attendees, comments, likes), don't write a denormalization trigger — write a counter. Use Firestore aggregation queries (`getCountFromServer`) for low-traffic counts, or maintain a dedicated counter document for high-traffic ones (incremented in a transaction or by a function on the write trigger). Counters and denormalization look similar but the staleness profile is different.
+If the field you want to copy is a **count** (attendees, comments, likes), don't write a denormalization trigger — write a counter. Maintain a counter field (incremented in a transaction or by a function on the write trigger), or — for a small, bounded set the app already reads, like a user's unread notifications — count a live listener's rows with `watchCount`. Not an aggregation query (`getCountFromServer`) in the app: a server count cannot answer offline, and the app reads from its on-device cache (see [offline-first-village.md](../plans/ongoing/offline-first-village.md)). Counters and denormalization look similar but the staleness profile is different.
 
 ## Failure modes
 
