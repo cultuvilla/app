@@ -44,7 +44,6 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
-| `4a67156a` | 2026-10-02 | 7 | docs(decisions): make the app the product and the web a read site |
 | `78b72653` | 2026-09-30 | 18 | docs(plans): migrate to agent-plans v2 (Priority/Gate/Next block), vendor v2.0.1 |
 
 ## Ideas
