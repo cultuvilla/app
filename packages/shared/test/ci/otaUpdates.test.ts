@@ -84,7 +84,12 @@ describe('OTA update wiring', () => {
     expect(ota).toMatch(/with:\s*\n\s*channel: production/);
   });
 
-  it('skips the production OTA when a push only touches docs or workflows', () => {
+  // One filter, two spellings: beta's `paths-ignore` and main's grep. If either
+  // changes alone, the channels start disagreeing about what is "bundle code".
+  it('skips the production OTA on exactly the paths beta ignores', () => {
+    const pathsIgnore = /paths-ignore:\s*\n((?:\s*- '[^']+'\s*\n)+)/.exec(otaWorkflow)?.[1] ?? '';
+    const ignored = [...pathsIgnore.matchAll(/- '([^']+)'/g)].map((m) => m[1]).sort();
+    expect(ignored).toEqual(['**/*.md', '.github/**', 'docs/**']);
     expect(prodReleaseWorkflow).toContain("grep -Ev '^(docs/|\\.github/)|\\.md$'");
   });
 });

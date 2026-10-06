@@ -56,6 +56,19 @@ describe('production-release workflow', () => {
     expect(job('plan')).toMatch(/if \[ "\$\{config_version\}" != "\$\{version\}" \]/);
   });
 
+  // Everything the store jobs would otherwise find out only after a release
+  // began is checked in `plan`: a fix commit does not bump the version, so a
+  // half-shipped release would never re-run. Inside the store branch only, so a
+  // kill-switch still lands a fix on main without a red run.
+  it('checks store preconditions before anything ships, and only when binaries would', () => {
+    const plan = job('plan');
+    const gate = plan.indexOf('if [ "${store}" = "true" ]; then');
+    expect(gate).toBeGreaterThan(-1);
+    expect(plan.indexOf('config_version=')).toBeGreaterThan(gate);
+    expect(plan.indexOf('extractReleaseNotes(')).toBeGreaterThan(gate);
+    expect(plan).toContain('./scripts/lib/changelog-notes.mjs');
+  });
+
   // [skip-deploy] means the prod backend for this commit was never deployed, so
   // no client may ship against it — and the backend wait would otherwise poll a
   // job that never runs.
@@ -72,6 +85,18 @@ describe('production-release workflow', () => {
     expect(plan).toContain('[skip-ota]');
     expect(plan).toContain('vars.STORE_RELEASE_PAUSED');
     expect(plan).toContain('vars.PROD_OTA_PAUSED');
+    // Each switch must sit in its own decision, or a swap would make
+    // STORE_RELEASE_PAUSED stop OTAs and leave binaries shipping.
+    const storeOut = plan.indexOf('echo "store=${store}"');
+    const otaOut = plan.indexOf('echo "ota=${ota}"');
+    const storeSwitch = plan.indexOf('"${STORE_RELEASE_PAUSED}" = "true"');
+    const otaSwitch = plan.indexOf('"${PROD_OTA_PAUSED}" = "true"');
+    expect(storeSwitch).toBeGreaterThan(-1);
+    expect(storeSwitch).toBeLessThan(storeOut);
+    expect(otaSwitch).toBeGreaterThan(storeOut);
+    expect(otaSwitch).toBeLessThan(otaOut);
+    expect(plan.indexOf('[skip-store]')).toBeLessThan(storeOut);
+    expect(plan.indexOf('[skip-ota]')).toBeGreaterThan(storeOut);
     expect(job('android')).toContain("vars.PLAY_SUBMIT_PAUSED != 'true'");
     // A Play freeze must not freeze the App Store (the 2026-09-14 lesson).
     expect(job('ios')).not.toContain('PLAY_SUBMIT_PAUSED');
@@ -83,9 +108,16 @@ describe('production-release workflow', () => {
     const backend = job('backend');
     expect(backend).toContain('select(.name == "Deploy prod")');
     expect(backend).toContain('startswith("deploy / ")');
-    for (const name of ['ota', 'android', 'ios']) {
+    for (const name of ['ota', 'ios']) {
       expect(job(name)).toMatch(/needs:\s*\[plan, backend\]/);
     }
+  });
+
+  // Play gets a 100% release only the Play Console can halt; the iOS submit is
+  // what proves a processed TestFlight build of this version exists. Android
+  // waits for it, so a failed iOS release never leaves the stores split.
+  it('builds Android only after the iOS submit succeeded', () => {
+    expect(job('android')).toMatch(/needs:\s*\[plan, backend, ios\]/);
   });
 
   // The wait above keys off these names; renaming either one silently turns it
@@ -116,6 +148,8 @@ describe('production-release workflow', () => {
     const ota = job('ota');
     expect(ota).toContain('uses: ./.github/workflows/mobile-ota.yml');
     expect(ota).toMatch(/channel: production/);
-    expect(ota).toContain('secrets: inherit');
+    // Only the one secret it needs, not every repo secret.
+    expect(ota).toMatch(/secrets:\s*\n\s*EXPO_TOKEN: \$\{\{ secrets\.EXPO_TOKEN \}\}/);
+    expect(ota).not.toContain('secrets: inherit');
   });
 });

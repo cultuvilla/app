@@ -14,7 +14,7 @@ name: Production release
 #   ios      submits the newest TestFlight build of the app.config version for
 #            App Store review (scripts/appstore-release.mjs submit). That binary
 #            was built and tested when the same version merged to beta, so
-#            production ships exactly what testers ran.
+#            production ships exactly what testers ran. Android waits for it.
 #
 # The store jobs run only when apps/mobile/package.json's version differs from
 # the previous main tip, so a re-deploy or a hotfix merge without a bump never
@@ -56,7 +56,6 @@ jobs:
     outputs:
       ota: ${{ steps.plan.outputs.ota }}
       store: ${{ steps.plan.outputs.store }}
-      version: ${{ steps.plan.outputs.version }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -80,16 +79,6 @@ jobs:
           version_of() { git show "$1:apps/mobile/package.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))'; }
           version=$(version_of HEAD)
           previous=$(version_of "${base}")
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-
-          # package.json decides whether binaries ship; appstore-release.mjs reads
-          # app.config.ts to pick the iOS build. If they disagree, Android and iOS
-          # would release different versions — refuse instead.
-          config_version=$(sed -nE "s/^  version: '([^']+)',$/\1/p" apps/mobile/app.config.ts)
-          if [ "${config_version}" != "${version}" ]; then
-            echo "::error::apps/mobile/app.config.ts says ${config_version} but package.json says ${version} — nothing ships. Make them agree (pnpm release:cut writes both)."
-            exit 1
-          fi
 
           skip_deploy=false
           [[ "${COMMIT_MESSAGE}" == *"[skip-deploy]"* ]] && skip_deploy=true
@@ -107,10 +96,35 @@ jobs:
             store=true
             reason="${previous} -> ${version}"
           fi
+
+          # Preconditions the store jobs would otherwise discover only after a
+          # release started — and a fix commit does not bump the version, so
+          # the release would never re-run. Checked only when binaries would
+          # ship, so a kill-switch still lands a fix on main cleanly.
+          if [ "${store}" = "true" ]; then
+            # package.json decides here; appstore-release.mjs picks the iOS
+            # build by app.config.ts. Disagreeing, the stores would get
+            # different versions.
+            config_version=$(sed -nE "s/^  version: '([^']+)',$/\1/p" apps/mobile/app.config.ts)
+            if [ "${config_version}" != "${version}" ]; then
+              echo "::error::apps/mobile/app.config.ts says ${config_version} but package.json says ${version} — nothing ships. Make them agree (pnpm release:cut writes both)."
+              exit 1
+            fi
+            # The iOS submit takes its "What's New" from this section and throws without it.
+            if ! VERSION="${version}" node --input-type=module -e '
+              import { readFileSync } from "node:fs";
+              import { extractReleaseNotes } from "./scripts/lib/changelog-notes.mjs";
+              extractReleaseNotes(readFileSync("CHANGELOG.md", "utf8"), process.env.VERSION);
+            '; then
+              echo "::error::CHANGELOG.md has no usable '## v${version}' section — nothing ships."
+              exit 1
+            fi
+          fi
           echo "store=${store}" >> "$GITHUB_OUTPUT"
 
           # Same paths mobile-ota.yml ignores on beta: they cannot change the bundle.
-          bundle_changes=$(git diff --name-only "${base}" HEAD | grep -Ev '^(docs/|\.github/)|\.md$' || true)
+          changed=$(git diff --name-only "${base}" HEAD)
+          bundle_changes=$(grep -Ev '^(docs/|\.github/)|\.md$' <<<"${changed}" || true)
           ota=false
           if [ "${skip_deploy}" = "true" ]; then
             ota_reason="[skip-deploy]: the prod backend for this commit was not deployed"
@@ -191,11 +205,16 @@ jobs:
     uses: ./.github/workflows/mobile-ota.yml
     with:
       channel: production
-    secrets: inherit
+    secrets:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
+  # After iOS, not beside it: Play gets a 100% release only the Play Console can
+  # halt, while the iOS submit is the job that checks a processed TestFlight
+  # build of this version exists. If iOS cannot ship, Android does not either,
+  # and the two stores stay on one version.
   android:
     name: Android production build + submit -> Play production
-    needs: [plan, backend]
+    needs: [plan, backend, ios]
     if: ${{ needs.plan.outputs.store == 'true' && vars.PLAY_SUBMIT_PAUSED != 'true' }}
     runs-on: ubuntu-latest
     # The EAS free-tier queue alone has exceeded an hour (1.4.1, 2026-09-28):

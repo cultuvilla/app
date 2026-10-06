@@ -82,9 +82,15 @@ by itself, so every release would stop at the first percentage until a human
 raised it, which is the manual step this decision removes. Halting a bad Play
 release stays a Play Console action; a JS-only fix reaches it by OTA.
 
-Before anything ships, the `plan` job refuses a commit whose
-`apps/mobile/package.json` and `app.config.ts` versions disagree — otherwise
-Android would build one version while the iOS submit picked another.
+Because Android goes out at 100%, it never goes first. When binaries would ship,
+the `plan` job refuses a commit whose `apps/mobile/package.json` and
+`app.config.ts` versions disagree, or whose CHANGELOG has no `## vX.Y.Z` section
+(the iOS "What's New"). Then the `android` job waits for the `ios` submit, which
+is what proves a processed TestFlight build of the version exists. A failure in
+either place stops both stores, and the release stays whole. This matters
+because a fix commit does not bump the version, so a release that stopped halfway
+would never re-run by itself. In that case, finish it by hand with *App Store release* →
+`submit` and `mobile-release` (track `production`).
 
 ## What it costs
 
