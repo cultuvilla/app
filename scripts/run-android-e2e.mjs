@@ -60,6 +60,8 @@ function arg(name) {
 const apk = arg('apk') ?? process.env.E2E_ANDROID_APK;
 const flow = arg('flow') ?? process.env.E2E_NATIVE_FLOW;
 
+const DEVICE_WAIT_MS = 60_000;
+
 function run(cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, ...opts });
   if (res.error) {
@@ -164,7 +166,13 @@ for (const name of flows) {
   run(ADB, ['-s', device, 'shell', 'cmd', 'connectivity', 'airplane-mode', 'disable']);
   // Leaving airplane mode can drop the emulator's adb transport for a moment;
   // a flow started inside that window dies on "device offline" in seconds.
-  run(ADB, ['-s', device, 'wait-for-device']);
+  // Bounded: a device that never comes back must fail the run by name, not
+  // hang it until the CI job's timeout reports a bare "cancelled".
+  const back = spawnSync(ADB, ['-s', device, 'wait-for-device'], { stdio: 'inherit', timeout: DEVICE_WAIT_MS });
+  if (back.status !== 0) {
+    console.error(`[android-e2e] ${device} did not come back within ${DEVICE_WAIT_MS / 1000}s; stopping the run.`);
+    process.exit(1);
+  }
   const status = run(
     MAESTRO,
     [

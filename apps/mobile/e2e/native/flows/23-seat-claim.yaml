@@ -6,8 +6,8 @@
 # the doc id under `events/{id}/seatTokens`, so the flow reads it from there,
 # exactly as the link would carry it.
 #
-# Uses the seeded group event (signupGroupSize 2). The token is single-use,
-# but each run books a fresh one.
+# Uses the seeded group event (signupGroupSize 2). The token is single-use;
+# each run books a fresh one and picks it by `consumedBy` still empty.
 appId: com.cultuvilla.app.dev
 env:
   BOOKER_EMAIL: e2e-user@cultuvilla.test
@@ -55,6 +55,10 @@ env:
       COLLECTION_PATH: 'events/${EVENT_ID}/seatTokens'
       FIELD: createdBy
       VALUE: ${BOOKER_UID}
+      # Unspent only: tokens from an earlier run on the same emulator stay
+      # behind, and the list comes back in (random) doc-id order.
+      FIELD2: consumedBy
+      VALUE2: 'null'
       MIN: '1'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.token = output.id}

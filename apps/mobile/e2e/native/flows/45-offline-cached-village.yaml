@@ -34,6 +34,9 @@ onFlowComplete:
         DOC_PATH: 'events/${EVENT_ID}'
         FIELD: title
         VALUE: ${EVENT_TITLE}
+  # A silently failed restore would leave the seeded fiesta renamed for every
+  # flow after this one.
+  - assertTrue: ${output.status == '200'}
 ---
 - runFlow:
     file: ../subflows/login.yaml
