@@ -12,6 +12,9 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
   without the usual text style. The section's help text is also shorter.
 - "Fiestas del pueblo": saved fiestas now show as cards with their name and
   month; tap the pencil to change one. A new fiesta opens ready to pick its month.
+- A group's page (peña, asociación, ayuntamiento) now lists the events it has
+  organized, upcoming first and then past, in the app and on the web. Members of
+  an approval group also see its private events there.
 - Fix: the home feed showed no private events at all to someone who also
   belongs to an open group (every ayuntamiento is open). The private events of
   their approval peñas and asociaciones now appear.

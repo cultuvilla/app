@@ -1,15 +1,14 @@
 # Organization event history
 
-**Priority:** medium — an organization's page says nothing about what it does
+**Priority:** medium — an organization's page shows only what it did since joining the app
 **Gate:** none
 **Next:** decide whether a backfilled past event is an `event` with `status: 'completed'` or a separate lightweight entity
 
 ## The idea
 
-An organization's detail screen (`[pueblo]/entidad/[entidad]`) should list **the events
-it has organized** — upcoming first, then a past section going back as far as the
-organization has records. Today it shows none: the page has a description, images and
-members, and nothing about what the organization actually *does*.
+An organization's detail screen (`[pueblo]/entidad/[entidad]`) lists **the events it
+has organized** — but only those created in the app. It should go back as far as the
+organization has records.
 
 For a peña or an asociación, that list is the organization's identity. A cultural
 association in a small village is "the one that does the matanza in December, the summer
@@ -18,11 +17,10 @@ understands it only through it.
 
 ## What already exists
 
-- Events carry `organizerOrgIds`, and `getEventsByOrganization()` in
-  `packages/shared/src/services/eventService.ts` already queries by it, with the
-  private/public split handled. **No screen calls it any more** (its docstring still
-  says "the org detail screen's event list"), so half of this is already built and
-  orphaned.
+- **The list itself has shipped.** The org detail screen lists the events whose
+  `organizerOrgIds` include the org (`watchEventsByOrganization`), upcoming then
+  past, private ones for vetted members; the read site's org page lists the public
+  ones. What is left is entering the past.
 - `EventStatus` includes `completed`.
 - Carteles (`festivalPoster`) already model an image with a year-level date — the right
   shape for the poster or letter of a past activity.
