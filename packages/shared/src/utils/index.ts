@@ -37,14 +37,7 @@ export {
   variantStoragePath,
   type ImageVariant,
 } from './imageVariants';
-export {
-  isStoreBannerDismissed,
-  rendersNativeSmartBanner,
-  resolveStorePlatform,
-  STORE_BANNER_DISMISS_DAYS,
-  type StoreBannerDismissal,
-  type StorePlatform,
-} from './storeBanner';
+export { resolveStorePlatform, type StorePlatform } from './storePlatform';
 export { webOriginForProject } from './webOrigin';
 export * from './urls';
 export * from './wordOfTheDay';

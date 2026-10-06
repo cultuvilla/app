@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  isStoreBannerDismissed,
-  rendersNativeSmartBanner,
-  resolveStorePlatform,
-  STORE_BANNER_DISMISS_DAYS,
-} from '../../src/utils/storeBanner';
+import { resolveStorePlatform } from '../../src/utils/storePlatform';
 
 // Real user-agent strings. UA sniffing only stays correct if it is tested
 // against what browsers actually send, not against what we imagine they send.
@@ -94,64 +89,4 @@ describe('resolveStorePlatform', () => {
       expect(resolveStorePlatform(ua, 0)).toBeNull();
     },
   );
-});
-
-describe('rendersNativeSmartBanner', () => {
-  // Safari draws its own bar from the `apple-itunes-app` meta tag, so ours has
-  // to stand down for exactly this one browser and no other.
-  it.each([
-    ['iPhone Safari', UA.iphoneSafari],
-    ['an iPad on iOS 12', UA.ipadLegacy],
-    ['iPadOS 13+ desktop-UA Safari', UA.ipadOS13],
-    ['an iPod touch', UA.ipod],
-  ])('is true for %s', (_label, ua) => {
-    expect(rendersNativeSmartBanner(ua)).toBe(true);
-  });
-
-  // Every one of these carries a "Safari" token despite not being Safari, which
-  // is why the check keys off the vendor markers instead.
-  it.each([
-    ['iPhone Chrome (CriOS)', UA.iphoneChrome],
-    ['iPhone Firefox (FxiOS)', UA.iphoneFirefox],
-    ['the Instagram in-app browser', UA.iphoneInstagram],
-    ['the Facebook in-app browser', UA.androidFacebook],
-  ])('is false for %s', (_label, ua) => {
-    expect(rendersNativeSmartBanner(ua)).toBe(false);
-  });
-
-  it.each<[string | null | undefined]>([[null], [undefined], ['']])(
-    'is false for %s',
-    (ua) => {
-      expect(rendersNativeSmartBanner(ua)).toBe(false);
-    },
-  );
-});
-
-describe('isStoreBannerDismissed', () => {
-  const now = Date.UTC(2026, 7, 29);
-  const day = 24 * 60 * 60 * 1000;
-
-  it('is not dismissed when nothing was ever recorded', () => {
-    expect(isStoreBannerDismissed(null, now)).toBe(false);
-  });
-
-  it('stays dismissed inside the cooldown', () => {
-    expect(isStoreBannerDismissed({ dismissedAt: now - day }, now)).toBe(true);
-  });
-
-  it('reappears once the cooldown has elapsed', () => {
-    const past = now - (STORE_BANNER_DISMISS_DAYS * day + 1);
-    expect(isStoreBannerDismissed({ dismissedAt: past }, now)).toBe(false);
-  });
-
-  it('treats a garbage record as never dismissed rather than hiding forever', () => {
-    expect(isStoreBannerDismissed({ dismissedAt: Number.NaN }, now)).toBe(false);
-  });
-
-  // A clock that jumped backwards must not strand the banner as dismissed for
-  // however long the skew lasts.
-  it('treats a future timestamp as dismissed but bounded by the cooldown', () => {
-    expect(isStoreBannerDismissed({ dismissedAt: now + 5 * day }, now)).toBe(true);
-    expect(isStoreBannerDismissed({ dismissedAt: now + 400 * day }, now)).toBe(false);
-  });
 });
