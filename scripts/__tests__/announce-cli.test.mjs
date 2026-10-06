@@ -10,7 +10,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COMMANDS, parseArgs, parseBoolFlag, runCli } from '../lib/announce-cli.mjs';
-import { ANDROID_SOAK_HOURS, pendingDocPath } from '../lib/announce.mjs';
+import { PLAY_LIFECYCLE, pendingDocPath } from '../lib/announce.mjs';
 import { CONFIG_DOC } from '../lib/announce-store.mjs';
 
 const ROOT = path.resolve(fileURLToPath(import.meta.url), '../../..');
@@ -47,10 +47,11 @@ const ascOnSale = (version) => async () => ({
 function harness({ db, breaking = false, version = '1.6.0', commitMessage = '', play, asc } = {}) {
   const outputs = {};
   const warnings = [];
+  const summaries = [];
   const ctx = {
     db,
     output: (k, v) => { outputs[k] = v; },
-    summary: () => {},
+    summary: (line) => summaries.push(line),
     log: () => {},
     warn: (m) => warnings.push(m),
     appVersion: () => version,
@@ -65,7 +66,7 @@ function harness({ db, breaking = false, version = '1.6.0', commitMessage = '', 
   };
   let made = 0;
   const run = (...argv) => runCli(argv, { makeCtx: () => { made++; return ctx; }, output: ctx.output });
-  return { run, outputs, warnings, made: () => made };
+  return { run, outputs, warnings, summaries, made: () => made };
 }
 
 describe('parseArgs / parseBoolFlag', () => {
@@ -158,11 +159,14 @@ describe('poll → deploy_sha output', () => {
     releaseSha: 'sha-rel',
     backendSha: 'sha-rel',
     androidVersionCode: '42',
-    androidCompletedSeenAt: new Date(NOW - (ANDROID_SOAK_HOURS + 1) * 3_600_000).toISOString(),
     announced: { ios: false, android: false },
     recordedAt: new Date(NOW - 86_400_000).toISOString(),
   };
-  const play = { getTrack: async () => ({ releases: [{ versionCodes: ['42'], status: 'completed' }] }) };
+  const playIn = (state) => ({
+    listReleases: async () => ({ releases: [{ releaseName: '1.6.0', activeArtifacts: [{ versionCode: '42' }], releaseLifecycleState: state }] }),
+    getTrack: async () => ({ releases: [{ versionCodes: ['42'], status: 'completed' }] }),
+  });
+  const play = playIn(PLAY_LIFECYCLE.PUBLISHED);
 
   it('emits the held backend once both stores serve it, after writing the wall', async () => {
     const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0'), [P]: heldPending });
@@ -171,6 +175,26 @@ describe('poll → deploy_sha output', () => {
     assert.equal(h.outputs.deploy_sha, 'sha-rel');
     assert.equal(db.docs.get(CONFIG_DOC).ios.minSupported, '1.6.0');
     assert.ok(db.docs.has(P), 'left for the deploy to finish');
+  });
+
+  it('announces nothing while Play still reviews the release', async () => {
+    const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0'), [P]: heldPending });
+    const h = harness({ db, play: playIn(PLAY_LIFECYCLE.IN_REVIEW), asc: ascOnSale('1.6.0') });
+    await h.run('poll', '--env=prod');
+    assert.equal(h.outputs.deploy_sha, undefined);
+    assert.equal(db.docs.get(CONFIG_DOC).android.latest, '1.5.0');
+    assert.equal(db.docs.get(CONFIG_DOC).ios.latest, '1.6.0', 'iOS does not wait for Play');
+    assert.deepEqual(h.warnings, []);
+  });
+
+  it('puts a Play rejection in the run summary and warns', async () => {
+    const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0'), [P]: heldPending });
+    const h = harness({ db, play: playIn(PLAY_LIFECYCLE.NOT_APPROVED), asc: ascOnSale('1.6.0') });
+    await h.run('poll', '--env=prod');
+    assert.equal(h.outputs.deploy_sha, undefined);
+    assert.equal(db.docs.get(CONFIG_DOC).android.latest, '1.5.0');
+    assert.ok(h.summaries.some((l) => /Google Play rejected v1\.6\.0/.test(l)));
+    assert.ok(h.warnings.some((w) => /REJECTED/.test(w)));
   });
 
   it('emits nothing while a store is not live', async () => {

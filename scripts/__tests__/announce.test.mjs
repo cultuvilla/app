@@ -9,16 +9,17 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ANDROID_SOAK_HOURS,
-  androidSoaked,
   announcedVersion,
+  decideAndroidLive,
   decideBackendHold,
   DEPLOY_RETRY_HOURS,
   interpretIosVersions,
+  interpretPlayLifecycle,
   interpretPlayTrack,
   nextPending,
   parseHoldFlag,
   pendingDocPath,
+  PLAY_LIFECYCLE,
   planTick,
   playTargetFrom,
 } from '../lib/announce.mjs';
@@ -214,27 +215,95 @@ describe('interpretPlayTrack', () => {
   it('matches the recorded versionCode and requires a full rollout', () => {
     assert.deepEqual(
       { ...interpretPlayTrack(track, { versionCode: 42, version: '1.6.0' }) },
-      { found: true, live: false, status: 'inProgress', userFraction: 0.2, versionCodes: ['42'], via: 'versionCode' },
+      { found: true, fullRollout: false, status: 'inProgress', userFraction: 0.2, versionCodes: ['42'], via: 'versionCode' },
     );
   });
 
   // Play drops userFraction once a staged rollout reaches 100%.
-  it('treats a completed release with no fraction as fully live', () => {
-    assert.equal(interpretPlayTrack(track, { versionCode: '41', version: '1.5.0' }).live, true);
+  it('treats a completed release with no fraction as a full rollout', () => {
+    assert.equal(interpretPlayTrack(track, { versionCode: '41', version: '1.5.0' }).fullRollout, true);
   });
 
   it('falls back to the release name when no versionCode was recorded', () => {
     const r = interpretPlayTrack(track, { versionCode: null, version: '1.5.0' });
-    assert.equal(r.live, true);
+    assert.equal(r.fullRollout, true);
     assert.equal(r.via, 'name');
+  });
+
+  it('does not fall back to the name when a recorded versionCode matches nothing', () => {
+    assert.equal(interpretPlayTrack(track, { versionCode: '40', version: '1.5.0' }).found, false);
   });
 
   it('does not match a longer version by name', () => {
     assert.equal(interpretPlayTrack({ releases: [{ name: '1.5.01', status: 'completed' }] }, { version: '1.5.0' }).found, false);
   });
 
-  it('is not live when the version is not on the track', () => {
-    assert.deepEqual(interpretPlayTrack({ releases: [] }, { versionCode: '99', version: '9.9.9' }).live, false);
+  it('is not found when the version is not on the track', () => {
+    assert.equal(interpretPlayTrack({ releases: [] }, { versionCode: '99', version: '9.9.9' }).found, false);
+  });
+});
+
+describe('interpretPlayLifecycle', () => {
+  const list = {
+    releases: [
+      { releaseName: '1.5.0', activeArtifacts: [{ versionCode: '41' }], releaseLifecycleState: PLAY_LIFECYCLE.PUBLISHED },
+      { releaseName: '1.6.0', activeArtifacts: [{ versionCode: 42 }], releaseLifecycleState: PLAY_LIFECYCLE.IN_REVIEW },
+    ],
+  };
+
+  it('matches the recorded versionCode among the active artifacts (string or number)', () => {
+    const r = interpretPlayLifecycle(list, { versionCode: '42', version: '1.6.0' });
+    assert.deepEqual(
+      { found: r.found, published: r.published, state: r.state, versionCodes: r.versionCodes, via: r.via },
+      { found: true, published: false, state: PLAY_LIFECYCLE.IN_REVIEW, versionCodes: ['42'], via: 'versionCode' },
+    );
+  });
+
+  it('a versionCode mismatch is not found, even when a release carries the version name', () => {
+    const r = interpretPlayLifecycle(list, { versionCode: '43', version: '1.6.0' });
+    assert.equal(r.found, false);
+    assert.equal(r.published, false);
+  });
+
+  it('falls back to the release name without a recorded versionCode', () => {
+    const r = interpretPlayLifecycle(list, { versionCode: null, version: '1.5.0' });
+    assert.equal(r.published, true);
+    assert.deepEqual(r.versionCodes, ['41']);
+    assert.equal(r.via, 'name');
+  });
+
+  it('flags NOT_APPROVED as rejected and an unheard-of state as unknown', () => {
+    const one = (state) => interpretPlayLifecycle({ releases: [{ releaseName: '1.6.0', activeArtifacts: [{ versionCode: '42' }], releaseLifecycleState: state }] }, { versionCode: '42', version: '1.6.0' });
+    assert.equal(one(PLAY_LIFECYCLE.NOT_APPROVED).rejected, true);
+    assert.equal(one(PLAY_LIFECYCLE.NOT_APPROVED).published, false);
+    assert.equal(one('RELEASE_LIFECYCLE_STATE_UNSPECIFIED').known, false);
+    assert.equal(one(undefined).known, false);
+  });
+
+  it('an empty answer is not found', () => {
+    assert.equal(interpretPlayLifecycle({}, { versionCode: '42', version: '1.6.0' }).found, false);
+  });
+});
+
+describe('decideAndroidLive', () => {
+  const lifecycle = (state) => ({ found: true, published: state === PLAY_LIFECYCLE.PUBLISHED, rejected: state === PLAY_LIFECYCLE.NOT_APPROVED, known: true, state, via: 'versionCode' });
+  const rollout = (fullRollout, status = 'completed', userFraction = 1) => ({ found: true, fullRollout, status, userFraction });
+
+  it('is live only when PUBLISHED and fully rolled out', () => {
+    assert.equal(decideAndroidLive({ lifecycle: lifecycle(PLAY_LIFECYCLE.PUBLISHED), rollout: rollout(true) }).live, true);
+    assert.equal(decideAndroidLive({ lifecycle: lifecycle(PLAY_LIFECYCLE.PUBLISHED), rollout: rollout(false, 'inProgress', 0.5) }).live, false);
+    assert.equal(decideAndroidLive({ lifecycle: lifecycle(PLAY_LIFECYCLE.APPROVED_NOT_PUBLISHED), rollout: rollout(true) }).live, false);
+  });
+
+  it('a PUBLISHED release missing from the edits track is not live, and unknown', () => {
+    const r = decideAndroidLive({ lifecycle: lifecycle(PLAY_LIFECYCLE.PUBLISHED), rollout: { found: false } });
+    assert.equal(r.live, false);
+    assert.equal(r.unknown, true);
+  });
+
+  it('a rejection is reported as such', () => {
+    const r = decideAndroidLive({ lifecycle: lifecycle(PLAY_LIFECYCLE.NOT_APPROVED), rollout: null });
+    assert.deepEqual([r.live, r.rejected], [false, true]);
   });
 });
 
@@ -267,27 +336,78 @@ describe('checkStores — fails safe', () => {
     };
   };
 
-  const NOW = Date.parse('2026-10-10T00:00:00Z');
-  const completedPlay = () => ({ getTrack: async () => ({ releases: [{ versionCodes: ['42'], status: 'completed' }] }) });
+  /** A fake Play: the lifecycle of release 42, and its rollout on the edits track. */
+  const fakePlay = ({ state = PLAY_LIFECYCLE.PUBLISHED, status = 'completed', userFraction, calls = [] } = {}) => () => ({
+    listReleases: async (pkg, track) => {
+      calls.push(`list ${pkg} ${track}`);
+      return { releases: [{ releaseName: '1.6.0', track, activeArtifacts: [{ versionCode: '42' }], releaseLifecycleState: state }] };
+    },
+    getTrack: async (pkg, track) => {
+      calls.push(`track ${pkg} ${track}`);
+      return { track, releases: [{ name: '1.6.0', versionCodes: ['42'], status, ...(userFraction ? { userFraction } : {}) }] };
+    },
+  });
   const onSale = () => fakeAsc([{ versionString: '1.6.0', state: 'READY_FOR_SALE', build: '7' }]);
 
-  it('reports both live when both stores say so and Play has soaked', async () => {
-    const soaked = { ...pending, androidCompletedSeenAt: new Date(NOW - (ANDROID_SOAK_HOURS + 1) * 3_600_000).toISOString() };
-    const r = await checkStores({ pending: soaked, makePlay: completedPlay, makeAsc: onSale, ascAppId: 'app1', ...target, now: NOW });
+  it('reports both live when App Store sells it and Play has published it at full rollout', async () => {
+    const r = await checkStores({ pending, makePlay: fakePlay(), makeAsc: onSale, ascAppId: 'app1', ...target });
     assert.deepEqual(r.live, { ios: true, android: true });
     assert.equal(r.detail.iosBuildNumber, '7');
+    assert.match(r.detail.android, /PUBLISHED, completed at 100%/);
   });
 
-  // Play reports `completed` the moment EAS submits, before Google's review
-  // ends, so a first sighting starts a soak instead of counting as live.
-  it('does not trust a freshly completed Play release; it records when it first saw it', async () => {
-    const r = await checkStores({ pending, makePlay: completedPlay, makeAsc: onSale, ascAppId: 'app1', ...target, now: NOW });
+  // eas.json submits with releaseStatus: completed, so the edits track reads
+  // `completed` while Google still reviews. The lifecycle is what counts.
+  for (const state of ['DRAFT', 'NOT_SENT_FOR_REVIEW', 'IN_REVIEW', 'APPROVED_NOT_PUBLISHED']) {
+    it(`a ${state} release is not live, and is not worth a warning`, async () => {
+      const warnings = [];
+      const calls = [];
+      const r = await checkStores({ pending, makePlay: fakePlay({ state: PLAY_LIFECYCLE[state], calls }), makeAsc: onSale, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
+      assert.equal(r.live.android, false);
+      assert.match(r.detail.android, new RegExp(`${state} — not published yet`));
+      assert.deepEqual(warnings, []);
+      assert.deepEqual(calls, ['list com.cultuvilla.app production'], 'no edit is opened before Google publishes');
+    });
+  }
+
+  it('a rejected release is not live, and warns loudly', async () => {
+    const warnings = [];
+    const r = await checkStores({ pending, makePlay: fakePlay({ state: PLAY_LIFECYCLE.NOT_APPROVED }), makeAsc: onSale, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
     assert.equal(r.live.android, false);
-    assert.equal(r.detail.androidCompletedSeenAt, new Date(NOW).toISOString());
-    const early = { ...pending, androidCompletedSeenAt: new Date(NOW - 3_600_000).toISOString() };
-    const again = await checkStores({ pending: early, makePlay: completedPlay, makeAsc: onSale, ascAppId: 'app1', ...target, now: NOW });
-    assert.equal(again.live.android, false);
-    assert.equal(again.detail.androidCompletedSeenAt, early.androidCompletedSeenAt, 'keeps the first sighting');
+    assert.equal(r.detail.androidRejected, true);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /REJECTED v1\.6\.0/);
+  });
+
+  // PUBLISHED also covers a staged or halted rollout.
+  it('a published release on a partial rollout is not live', async () => {
+    const r = await checkStores({ pending, makePlay: fakePlay({ status: 'inProgress', userFraction: 0.2 }), makeAsc: onSale, ascAppId: 'app1', ...target });
+    assert.equal(r.live.android, false);
+    assert.match(r.detail.android, /inProgress at 20%/);
+  });
+
+  it('a published release that was halted is not live', async () => {
+    const r = await checkStores({ pending, makePlay: fakePlay({ status: 'halted', userFraction: 0.5 }), makeAsc: onSale, ascAppId: 'app1', ...target });
+    assert.equal(r.live.android, false);
+  });
+
+  it('a versionCode that matches no release is not live', async () => {
+    const r = await checkStores({ pending: { ...pending, androidVersionCode: '43' }, makePlay: fakePlay(), makeAsc: onSale, ascAppId: 'app1', ...target });
+    assert.equal(r.live.android, false);
+    assert.match(r.detail.android, /not on the production track yet \(looked up by versionCode\)/);
+  });
+
+  it('falls back to the release name without a recorded versionCode, then checks that build’s rollout', async () => {
+    const r = await checkStores({ pending: { ...pending, androidVersionCode: null }, makePlay: fakePlay(), makeAsc: onSale, ascAppId: 'app1', ...target });
+    assert.equal(r.live.android, true);
+    assert.match(r.detail.android, /matched by name/);
+  });
+
+  it('an unknown lifecycle state is not live, and warns', async () => {
+    const warnings = [];
+    const r = await checkStores({ pending, makePlay: fakePlay({ state: 'RELEASE_LIFECYCLE_STATE_SOMETHING_NEW' }), makeAsc: onSale, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
+    assert.equal(r.live.android, false);
+    assert.equal(warnings.length, 1);
   });
 
   it('treats missing credentials as not live, and warns', async () => {
@@ -316,7 +436,7 @@ describe('checkStores — fails safe', () => {
   it('treats an API error as not live, and warns', async () => {
     const warnings = [];
     const failing = async () => { throw new Error('503'); };
-    const r = await checkStores({ pending, makePlay: () => ({ getTrack: failing }), makeAsc: () => failing, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
+    const r = await checkStores({ pending, makePlay: () => ({ listReleases: failing, getTrack: failing }), makeAsc: () => failing, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
     assert.deepEqual(r.live, { ios: false, android: false });
     assert.equal(warnings.length, 2);
   });
@@ -325,15 +445,6 @@ describe('checkStores — fails safe', () => {
     const boom = () => { throw new Error('should not be called'); };
     const r = await checkStores({ pending: { ...pending, announced: { ios: true, android: true } }, makePlay: boom, makeAsc: boom, ...target });
     assert.deepEqual(r.live, { ios: true, android: true });
-  });
-});
-
-describe('androidSoaked', () => {
-  it('needs ANDROID_SOAK_HOURS since the first sighting', () => {
-    const now = Date.parse('2026-10-10T00:00:00Z');
-    assert.equal(androidSoaked({ seenAt: null, now }), false);
-    assert.equal(androidSoaked({ seenAt: new Date(now - 3_600_000).toISOString(), now }), false);
-    assert.equal(androidSoaked({ seenAt: new Date(now - ANDROID_SOAK_HOURS * 3_600_000).toISOString(), now }), true);
   });
 });
 
@@ -416,13 +527,6 @@ describe('pending lifecycle (fake Firestore)', () => {
     assert.equal(db.docs.get(CONFIG_DOC).ios.minSupported, '1.6.0', 'the wall still rises');
   });
 
-  it('keeps the first Play sighting across ticks', async () => {
-    const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0'), [P]: { version: '1.6.0', announced: { ios: false, android: false } } });
-    await applyTick(db, { env, version: '1.6.0', live: { ios: false, android: false }, androidCompletedSeenAt: '2026-10-06T00:00:00.000Z' });
-    await applyTick(db, { env, version: '1.6.0', live: { ios: false, android: false }, androidCompletedSeenAt: '2026-10-07T00:00:00.000Z' });
-    assert.equal(db.docs.get(P).androidCompletedSeenAt, '2026-10-06T00:00:00.000Z');
-  });
-
   it('clears a non-breaking release as soon as both stores serve it', async () => {
     const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0') });
     const decision = decideBackendHold({ env, version: '1.6.0', config: config('1.5.0', '1.5.0'), rollup: CLEAN, pending: null });
@@ -486,5 +590,27 @@ describe('makePlayClient', () => {
       'DELETE /androidpublisher/v3/applications/com.cultuvilla.app/edits/e1',
     ]);
     assert.ok(!calls.some((c) => c.includes(':commit')));
+  });
+
+  it('lists the track’s release lifecycle without opening an edit, on the androidpublisher scope', async () => {
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const sa = JSON.stringify({ client_email: 'p@x.iam.gserviceaccount.com', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) });
+    const calls = [];
+    let scope;
+    const body = { releases: [{ releaseName: '1.6.0', activeArtifacts: [{ versionCode: '42' }], releaseLifecycleState: PLAY_LIFECYCLE.IN_REVIEW }] };
+    const fetchImpl = async (url, init) => {
+      calls.push(`${init.method} ${url.replace(/^https:\/\/[^/]+/, '')}`);
+      const json = (b) => ({ ok: true, status: 200, json: async () => b, text: async () => '' });
+      if (url.includes('oauth2')) {
+        const claims = new URLSearchParams(init.body).get('assertion').split('.')[1];
+        scope = JSON.parse(Buffer.from(claims, 'base64url').toString()).scope;
+        return json({ access_token: 't' });
+      }
+      return json(body);
+    };
+    const list = await makePlayClient({ serviceAccountJson: sa, fetchImpl }).listReleases('com.cultuvilla.app', 'production');
+    assert.deepEqual(list, body);
+    assert.equal(scope, 'https://www.googleapis.com/auth/androidpublisher');
+    assert.deepEqual(calls.slice(1), ['GET /androidpublisher/v3/applications/com.cultuvilla.app/tracks/production/releases']);
   });
 });

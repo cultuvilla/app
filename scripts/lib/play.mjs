@@ -1,11 +1,18 @@
 /**
- * Read-only Google Play Developer API client: what is on a track right now?
+ * Read-only Google Play Developer API client: what is on a track right now,
+ * and where is each release in Google's review?
  *
  * Auth is the same service account EAS submits with
  * (`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, a repo secret): an RS256 JWT exchanged
- * for an access token. Reading a track needs an *edit* — Play has no
- * edit-free track endpoint — so this opens one, reads, and deletes it without
- * committing. An uncommitted edit changes nothing in the Play Console.
+ * for an access token, scope `androidpublisher` for both calls.
+ *
+ *  - `listReleases` — applications.tracks.releases.list, the release LIFECYCLE
+ *    (draft → in review → approved → published, or not approved). Edit-free.
+ *    This is the only endpoint that exposes Play's review state.
+ *  - `getTrack` — the edits API's track resource, which carries the rollout
+ *    (`status`, `userFraction`) the lifecycle does not. It needs an *edit*, so
+ *    this opens one, reads, and deletes it without committing. An uncommitted
+ *    edit changes nothing in the Play Console.
  *
  * Adapted from ordago-apps' scripts/lib/stores/play.js. `fetchImpl` is
  * injectable so the flow is testable without the network.
@@ -64,6 +71,15 @@ export function makePlayClient({ serviceAccountJson = process.env.GOOGLE_PLAY_SE
   }
 
   return {
+    /**
+     * `{ releases: [{ releaseName, track, activeArtifacts: [{ versionCode }],
+     * releaseLifecycleState }] }` — every release on the track and its review state.
+     */
+    async listReleases(packageName, track) {
+      const token = await accessToken();
+      return api(token, 'GET', `/applications/${packageName}/tracks/${track}/releases`);
+    },
+
     /** The track resource: `{ track, releases: [{ name, versionCodes, status, userFraction? }] }`. */
     async getTrack(packageName, track) {
       const token = await accessToken();

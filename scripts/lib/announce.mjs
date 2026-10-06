@@ -36,29 +36,24 @@ export const STALE_DAYS = 7;
 export const IOS_LIVE_STATES = new Set(['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION']);
 
 /**
- * How long a Play release must have read `completed` before it counts as live.
- *
- * The Play Developer API is OPTIMISTIC: eas.json submits production with
- * `releaseStatus: completed`, so the track reports `completed` the moment EAS
- * submits — while Google's review may still be pending — and no API exposes
- * review state. Unlike App Store `READY_FOR_SALE`, it cannot by itself prove a
- * user can download the build. A soak from the first tick that saw it bounds
- * that: Play review of an established app takes hours, rarely past two days.
- * It is still a heuristic, which is why the wall also waits for iOS.
+ * Play's release lifecycle (applications.tracks.releases.list) — the one API
+ * that exposes Google's review. Only PUBLISHED means users on the track can
+ * install the release, and it also covers a partial or halted rollout, which is
+ * why Android liveness additionally needs the edits API's full-rollout check
+ * (`interpretPlayTrack`).
  */
-export const ANDROID_SOAK_HOURS = 48;
+export const PLAY_LIFECYCLE = Object.freeze({
+  DRAFT: 'RELEASE_LIFECYCLE_STATE_DRAFT',
+  NOT_SENT_FOR_REVIEW: 'RELEASE_LIFECYCLE_STATE_NOT_SENT_FOR_REVIEW',
+  IN_REVIEW: 'RELEASE_LIFECYCLE_STATE_IN_REVIEW',
+  APPROVED_NOT_PUBLISHED: 'RELEASE_LIFECYCLE_STATE_APPROVED_NOT_PUBLISHED',
+  NOT_APPROVED: 'RELEASE_LIFECYCLE_STATE_NOT_APPROVED',
+  PUBLISHED: 'RELEASE_LIFECYCLE_STATE_PUBLISHED',
+});
+const KNOWN_PLAY_LIFECYCLE = new Set(Object.values(PLAY_LIFECYCLE));
 
 /** A held backend whose dispatched deploy has not cleared the pending doc is retried after this. */
 export const DEPLOY_RETRY_HOURS = 6;
-
-/**
- * Has a completed Play release soaked long enough to count as live?
- * `seenAt` is when a tick first saw it completed (null: this tick is the first).
- */
-export function androidSoaked({ seenAt, now = Date.now() }) {
-  const at = Date.parse(seenAt ?? '');
-  return Number.isFinite(at) && now - at >= ANDROID_SOAK_HOURS * 3_600_000;
-}
 
 /**
  * The `--hold` flag the deploy hands from its plan step to its record step.
@@ -251,34 +246,110 @@ export function ageInDays(pending, now = Date.now()) {
 
 // ── store answers ─────────────────────────────────────────────────────────
 
+const hasCode = (versionCode) => versionCode != null && versionCode !== '';
+
+/** Matches `version` inside a release name, but not inside a longer one (1.5.0 vs 1.5.01). */
+const versionNameRe = (version) => new RegExp(`(^|[^\\d.])${String(version).replace(/\./g, '\\.')}([^\\d.]|$)`);
+
 /**
- * Is `version` fully live on a Play track?
+ * Where is `version`'s release in Play's lifecycle? `list` is the
+ * applications.tracks.releases.list response for the production track.
  *
  * Matched by the versionCode recorded after the build when there is one. Without
  * it (the record step failed, or the release shipped by hand) the release NAME
  * is the fallback: Play names a release after the bundle's versionName unless
- * the uploader sets one, and EAS does not.
+ * the uploader sets one, and EAS does not. A recorded code that matches nothing
+ * is "not found", never a name match: that could be another build of the same
+ * version.
  *
- * Live means `completed` at full rollout. Play drops `userFraction` once a
- * staged rollout reaches 100%, so an absent fraction on a completed release is
- * full; `inProgress` (staged), `halted` and `draft` are not live.
+ *   published  users on the track can install it (full rollout still to check)
+ *   rejected   NOT_APPROVED — a human has to look
+ *   known      a state this code understands; an unknown one reads as not live
+ */
+export function interpretPlayLifecycle(list, { versionCode, version }) {
+  const releases = list?.releases ?? [];
+  const via = hasCode(versionCode) ? 'versionCode' : 'name';
+  const rel = via === 'versionCode'
+    ? releases.find((r) => (r.activeArtifacts ?? []).some((a) => String(a?.versionCode) === String(versionCode)))
+    : releases.find((r) => versionNameRe(version).test(String(r.releaseName ?? '')));
+  if (!rel) return { found: false, published: false, rejected: false, known: true, state: null, versionCodes: [], via };
+  const state = rel.releaseLifecycleState ?? null;
+  return {
+    found: true,
+    published: state === PLAY_LIFECYCLE.PUBLISHED,
+    rejected: state === PLAY_LIFECYCLE.NOT_APPROVED,
+    known: KNOWN_PLAY_LIFECYCLE.has(state),
+    state,
+    releaseName: rel.releaseName ?? null,
+    versionCodes: (rel.activeArtifacts ?? []).filter((a) => hasCode(a?.versionCode)).map((a) => String(a.versionCode)),
+    via,
+  };
+}
+
+/** `RELEASE_LIFECYCLE_STATE_IN_REVIEW` → `IN_REVIEW`, for logs. */
+export const shortPlayState = (state) => String(state ?? 'UNKNOWN').replace(/^RELEASE_LIFECYCLE_STATE_/, '');
+
+/**
+ * Is the release fully rolled out on a Play track — the edits API's view?
+ * Matched like `interpretPlayLifecycle`: by versionCode when there is one, else
+ * by name.
+ *
+ * Full rollout means `completed`. Play drops `userFraction` once a staged
+ * rollout reaches 100%, so an absent fraction on a completed release is full;
+ * `inProgress` (staged), `halted` and `draft` are not. On its own this does NOT
+ * prove the release is downloadable: eas.json submits with `releaseStatus:
+ * completed`, so the track reads `completed` while Google's review is still
+ * running. The lifecycle's PUBLISHED proves that; this adds "to everyone".
  */
 export function interpretPlayTrack(track, { versionCode, version }) {
   const releases = track?.releases ?? [];
-  const byCode = versionCode != null && versionCode !== ''
+  const via = hasCode(versionCode) ? 'versionCode' : 'name';
+  const rel = via === 'versionCode'
     ? releases.find((r) => (r.versionCodes ?? []).map(String).includes(String(versionCode)))
-    : null;
-  const nameRe = new RegExp(`(^|[^\\d.])${String(version).replace(/\./g, '\\.')}([^\\d.]|$)`);
-  const rel = byCode ?? releases.find((r) => nameRe.test(String(r.name ?? '')));
-  if (!rel) return { found: false, live: false, status: null, via: versionCode ? 'versionCode' : 'name' };
+    : releases.find((r) => versionNameRe(version).test(String(r.name ?? '')));
+  if (!rel) return { found: false, fullRollout: false, status: null, via };
   const fraction = rel.userFraction ?? 1;
   return {
     found: true,
-    live: rel.status === 'completed' && fraction >= 1,
+    fullRollout: rel.status === 'completed' && fraction >= 1,
     status: rel.status ?? null,
     userFraction: fraction,
     versionCodes: rel.versionCodes ?? [],
-    via: byCode ? 'versionCode' : 'name',
+    via,
+  };
+}
+
+/**
+ * Android is live iff Play's lifecycle says PUBLISHED and the edits API shows
+ * that release at full rollout. `lifecycle` is `interpretPlayLifecycle`'s
+ * answer; `rollout` is `interpretPlayTrack`'s, or null when it was not asked
+ * (it is only worth asking once the release is published).
+ *
+ * Returns `{ live, rejected, unknown, detail }`; `rejected` and `unknown` are
+ * for the caller to shout about, since neither fixes itself.
+ */
+export function decideAndroidLive({ lifecycle, rollout, track = 'production' }) {
+  if (!lifecycle.found) {
+    return { live: false, rejected: false, unknown: false, detail: `not on the ${track} track yet (looked up by ${lifecycle.via})` };
+  }
+  const state = shortPlayState(lifecycle.state);
+  if (lifecycle.rejected) {
+    return { live: false, rejected: true, unknown: false, detail: `${track} release ${state} — Google rejected it` };
+  }
+  if (!lifecycle.known) {
+    return { live: false, rejected: false, unknown: true, detail: `${track} release in an unknown lifecycle state ${state}` };
+  }
+  if (!lifecycle.published) {
+    return { live: false, rejected: false, unknown: false, detail: `${track} release ${state} — not published yet` };
+  }
+  if (!rollout?.found) {
+    return { live: false, rejected: false, unknown: true, detail: `${track} release PUBLISHED, but not found on the edits track` };
+  }
+  return {
+    live: rollout.fullRollout,
+    rejected: false,
+    unknown: false,
+    detail: `${track} release PUBLISHED, ${rollout.status} at ${Math.round(rollout.userFraction * 100)}% (matched by ${lifecycle.via})`,
   };
 }
 

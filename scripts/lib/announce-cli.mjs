@@ -128,16 +128,17 @@ async function cmdPoll(ctx, env, args) {
     packageName,
     track,
     warn: ctx.warn,
-    ...(ctx.now ? { now: ctx.now } : {}),
   });
   ctx.log(`android: ${detail.android} | ios: ${detail.ios}`);
+  if (detail.androidRejected) {
+    ctx.summary(`- :x: **Google Play rejected v${pending.version}** (NOT_APPROVED) — Android is not announced until a release is published. Fix it in the Play Console.`);
+  }
 
   const result = await applyTick(ctx.db, {
     env,
     version: pending.version,
     live,
     iosBuildNumber: detail.iosBuildNumber,
-    androidCompletedSeenAt: detail.androidCompletedSeenAt,
     dryRun,
     ...(ctx.now ? { now: ctx.now } : {}),
   });
