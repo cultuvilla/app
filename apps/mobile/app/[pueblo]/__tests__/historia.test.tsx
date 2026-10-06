@@ -1,14 +1,10 @@
 import { render, waitFor } from '@testing-library/react-native';
 import VillageHistoryScreen from '../historia';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
-import { getHistoryEntries } from '@cultuvilla/shared/services/historyService';
+import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../test/watchers';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ pueblo: 'villa' }),
-  useFocusEffect: (cb: () => void) => {
-    const { useEffect } = require('react');
-    useEffect(cb, [cb]);
-  },
   router: { push: jest.fn() },
 }));
 jest.mock('../../../lib/navigation/VillageRouteGate');
@@ -17,7 +13,7 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('@cultuvilla/shared/services/historyService', () => ({
-  getHistoryEntries: jest.fn(),
+  watchHistoryEntries: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('entries'),
 }));
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
@@ -26,7 +22,6 @@ jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: stri
 jest.mock('../../../components/primitives/RemoteImage', () => ({ RemoteImage: () => null }));
 
 const mockCaps = useEntityCapabilities as jest.Mock;
-const mockEntries = getHistoryEntries as jest.Mock;
 
 function entry(id: string, title: string, year: number, extra: Record<string, unknown> = {}) {
   return {
@@ -56,8 +51,9 @@ function entry(id: string, title: string, year: number, extra: Record<string, un
 
 beforeEach(() => {
   jest.clearAllMocks();
+  resetWatchers();
   mockCaps.mockReturnValue({ isMember: true, canManage: false, uid: 'u1', loading: false });
-  mockEntries.mockResolvedValue([
+  setWatched('entries', [
     entry('a', 'Guerra Civil', 1936, { end: { year: 1939, month: null, day: null } }),
     entry('b', 'Se construye la iglesia', 1500, { approximate: true }),
     entry('c', 'Asentamiento romano', -218),
@@ -94,8 +90,21 @@ describe('VillageHistoryScreen', () => {
     expect(queryByTestId('history-add-fab')).toBeNull();
   });
 
+  // A live listener: an entry added from its form shows here on return,
+  // without the timeline reloading on focus.
+  it('shows a newly added entry as the listener delivers it', async () => {
+    const { getByText } = render(<VillageHistoryScreen />);
+    await waitFor(() => expect(getByText('Guerra Civil')).toBeTruthy());
+    emitWatched('entries', [
+      entry('d', 'Llega la luz eléctrica', 1950),
+      entry('a', 'Guerra Civil', 1936, { end: { year: 1939, month: null, day: null } }),
+    ]);
+    await waitFor(() => expect(getByText('Llega la luz eléctrica')).toBeTruthy());
+    expect(watchersOf('entries')).toHaveLength(1);
+  });
+
   it('shows the empty state, with an invitation for members', async () => {
-    mockEntries.mockResolvedValue([]);
+    setWatched('entries', []);
     const { getByText } = render(<VillageHistoryScreen />);
     await waitFor(() => expect(getByText('village.history.empty')).toBeTruthy());
     expect(getByText('village.history.emptyMember')).toBeTruthy();

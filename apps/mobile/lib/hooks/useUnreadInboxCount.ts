@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useApproverStatus } from '../auth/useApproverStatus';
-import { getUnreadCount } from '@cultuvilla/shared/services/notificationService';
+import { useWatch } from './useWatch';
+import { watchUnreadCount } from '@cultuvilla/shared/services/notificationService';
 import { getPendingOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
 import {
   getPendingOrganizations,
@@ -19,18 +20,29 @@ export type UseUnreadInboxCountResult = {
  * user approves for — mirrors the role-branching in
  * apps/mobile/app/inbox/index.tsx so the badge and the Buzón screen never
  * disagree about what counts as "actionable".
+ *
+ * The unread part is a live listener, so it answers offline from the device
+ * cache and moves the moment a notification lands or is read. The pending
+ * requests stay a one-shot read that `refresh` re-runs (the header does on
+ * focus): they are an approver's, and change when someone else acts.
  */
 export function useUnreadInboxCount(): UseUnreadInboxCountResult {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const { loading: approverLoading, isSuperAdmin, adminVillageIds, canApprove } =
     useApproverStatus();
-  const [count, setCount] = useState(0);
+  const [pending, setPending] = useState(0);
   const [refreshToken, setRefreshToken] = useState(0);
+
+  const unread = useWatch<number>(
+    'inbox:watchUnreadCount',
+    uid,
+    uid ? (next, error) => watchUnreadCount(uid, next, error) : null,
+  );
 
   useEffect(() => {
     if (!uid) {
-      setCount(0);
+      setPending(0);
       return;
     }
     if (approverLoading) return;
@@ -39,8 +51,6 @@ export function useUnreadInboxCount(): UseUnreadInboxCountResult {
 
     void (async () => {
       try {
-        const unread = await getUnreadCount(uid);
-
         let pendingActionable = 0;
         if (canApprove) {
           if (isSuperAdmin) {
@@ -57,9 +67,9 @@ export function useUnreadInboxCount(): UseUnreadInboxCountResult {
           }
         }
 
-        if (!cancelled) setCount(unread + pendingActionable);
+        if (!cancelled) setPending(pendingActionable);
       } catch {
-        if (!cancelled) setCount(0);
+        if (!cancelled) setPending(0);
       }
     })();
 
@@ -70,5 +80,6 @@ export function useUnreadInboxCount(): UseUnreadInboxCountResult {
 
   const refresh = useCallback(() => setRefreshToken((t) => t + 1), []);
 
-  return { count, refresh };
+  // A failed listener counts as nothing unread rather than breaking the bell.
+  return { count: uid ? (unread.data ?? 0) + pending : 0, refresh };
 }
