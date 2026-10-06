@@ -377,9 +377,11 @@ async function run() {
         status: privateEvent.status,
         visibility: 'organization',
         visibilityOrgId: approvalOrg.docId,
-        organizerUserIds: [users.admin.uid],
+        // Not the admin: an organizer may read the event by that rule alone,
+        // and flow 63 must prove the peña-member read path.
+        organizerUserIds: [users.superAdmin.uid],
         organizerOrgIds: [approvalOrg.docId],
-        createdBy: users.admin.uid,
+        createdBy: users.superAdmin.uid,
         municipalityId: village.docId,
         villageName: village.name,
         villageSlug: village.slug,

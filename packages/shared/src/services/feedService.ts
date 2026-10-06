@@ -121,7 +121,7 @@ export function watchPrivateUpcomingFeed(
 ): Unwatch {
   return watchMerged<EventData & { id: string }>(
     orgIds.map((orgId) =>
-      forbiddenAsEmpty<EventData & { id: string }>((next, error) =>
+      forbiddenAsEmpty<EventData & { id: string }>('feed:watchPrivateUpcomingFeed', (next, error) =>
         watchQuery(orgUpcomingQuery(orgId), next, error),
       ),
     ),

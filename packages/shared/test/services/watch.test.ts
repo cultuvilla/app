@@ -10,6 +10,7 @@ import {
   type Unwatch,
   type WatchError,
 } from '../../src/services/watch';
+import { observability } from '../../src/services/observability/observabilityService';
 
 type SnapshotCallback = (snap: unknown) => void;
 const snapshots = vi.hoisted(() => ({ next: undefined as ((snap: unknown) => void) | undefined }));
@@ -167,7 +168,7 @@ describe('forbiddenAsEmpty', () => {
     const onNext = vi.fn();
     const onError = vi.fn();
     watchMerged(
-      [forbiddenAsEmpty(failingPart('firestore/permission-denied')), forbiddenAsEmpty(allowed.part)],
+      [forbiddenAsEmpty('test', failingPart('firestore/permission-denied')), forbiddenAsEmpty('test', allowed.part)],
       sortAsc,
       onNext,
       onError,
@@ -180,14 +181,21 @@ describe('forbiddenAsEmpty', () => {
 
   it('accepts the JS SDK code too, which has no service prefix', () => {
     const onNext = vi.fn();
-    forbiddenAsEmpty(failingPart('permission-denied'))(onNext, vi.fn());
+    forbiddenAsEmpty('test', failingPart('permission-denied'))(onNext, vi.fn());
     expect(onNext).toHaveBeenCalledWith([]);
+  });
+
+  it('logs the refusal with its operation, so a rules regression stays findable', () => {
+    const info = vi.spyOn(observability.logger, 'info');
+    forbiddenAsEmpty('feed:test', failingPart('firestore/permission-denied'))(vi.fn(), vi.fn());
+    expect(info).toHaveBeenCalledWith(expect.any(String), { operation: 'feed:test' });
+    info.mockRestore();
   });
 
   it('still fails on any other error', () => {
     const onNext = vi.fn();
     const onError = vi.fn();
-    forbiddenAsEmpty(failingPart('firestore/unavailable'))(onNext, onError);
+    forbiddenAsEmpty('test', failingPart('firestore/unavailable'))(onNext, onError);
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onNext).not.toHaveBeenCalled();
   });

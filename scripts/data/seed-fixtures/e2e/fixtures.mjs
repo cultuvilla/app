@@ -170,7 +170,9 @@ export const privateEvent = {
   docId: 'e2e-event-privado',
   title: 'Cena Privada E2E',
   description: 'Evento solo para socios de la peña, para el feed privado.',
-  startOffsetDays: 10,
+  // The soonest event, so it is the first card of the village home's
+  // horizontal events row — a vertical scroll cannot reach a later card.
+  startOffsetDays: 1,
   maxAttendees: 30,
   status: 'published',
 };

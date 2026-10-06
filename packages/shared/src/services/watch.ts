@@ -6,6 +6,7 @@ import {
   type Unsubscribe,
 } from '../firebase/sdk/firestore';
 import { firebaseErrorCode } from '../firebase/sdk/errors';
+import { observability } from './observability/observabilityService';
 
 /**
  * Live reads. On the native SDK a listener answers from the on-device cache
@@ -113,14 +114,21 @@ export function watchDoc<T>(
  * means "nothing here you can read" — and because `watchMerged` waits for every
  * part, one refused part would otherwise blank the whole merge. Any other error
  * still fails.
+ *
+ * The refusal is still logged, at info: it is the expected answer for some
+ * parts (an open org's private events), so it must not page anyone, but a
+ * rules regression that starts refusing every part has to stay findable.
  */
 export function forbiddenAsEmpty<T>(
+  operation: string,
   part: (onNext: (rows: T[]) => void, onError: WatchError) => Unwatch,
 ): (onNext: (rows: T[]) => void, onError: WatchError) => Unwatch {
   return (onNext, onError) =>
     part(onNext, (error) => {
-      if (firebaseErrorCode(error) === 'permission-denied') onNext([]);
-      else onError(error);
+      if (firebaseErrorCode(error) === 'permission-denied') {
+        observability.logger.info('watch part refused by rules; answered empty', { operation });
+        onNext([]);
+      } else onError(error);
     });
 }
 
