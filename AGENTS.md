@@ -453,16 +453,14 @@ pnpm backfills:test                                   # registry unit tests
   circularity `autoApply` dissolves: the deploy already runs on the right branch
   with the right credentials, so a self-applying migration never needs a
   manual dispatch at all.
-- **Seven legacy scripts** predate the registry and are not on it.
+- **Six legacy scripts** predate the registry and are not on it.
   `pnpm backfills:lint` warns about them in CI without failing. Convert
-  opportunistically; register anything new. The other ~16 were spent one-offs
+  opportunistically; register anything new. The other ~17 were spent one-offs
   and have been deleted (*Delete > deprecate*) — what survives is the set with a
   live pointer: five are the **backfill-of-record** named in
   [denormalized-read-models.md](docs/architecture/denormalized-read-models.md)
   for a read model that could still drift, and one is wired to a `package.json`
-  script. The seventh, `scripts/backfill/delete-cover-images.mjs`, is a dev-only
-  housekeeping one-off the lint could not see until it scanned every name in
-  `scripts/backfill/`; it is a candidate for deletion. Deleting those would throw away the answer to "how do I repopulate
+  script. Deleting those would throw away the answer to "how do I repopulate
   this?", so retire one only after its entry in that doc goes too.
 
 ### Plans carry a metadata block, and the map is generated

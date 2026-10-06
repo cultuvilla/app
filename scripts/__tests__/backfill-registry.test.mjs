@@ -227,7 +227,7 @@ describe('looksLikeBackfill', () => {
   });
 
   it('reads every script in scripts/backfill/ as a backfill, whatever its name', () => {
-    assert.equal(looksLikeBackfill('scripts/backfill/delete-cover-images.mjs'), true);
+    assert.equal(looksLikeBackfill('scripts/backfill/thing-a.mjs'), true);
     assert.equal(looksLikeBackfill('scripts/backfill/thing-b.mjs'), true);
   });
 
