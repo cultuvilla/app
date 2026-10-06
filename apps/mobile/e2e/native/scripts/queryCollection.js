@@ -9,6 +9,8 @@
 //   COLLECTION_PATH required — e.g. "events/e2e-event-fiesta/registrations"
 //   FIELD, VALUE    optional — keep only docs whose FIELD equals VALUE
 //   FIELD2, VALUE2  optional — and whose FIELD2 equals VALUE2
+//                   A VALUE / VALUE2 of "null" matches a null or missing
+//                   field (Maestro passes no empty-string env value through).
 //   MIN             optional — minimum matching docs (default 1)
 //   MAX             optional — maximum matching docs (default unbounded)
 //   TIMEOUT_MS      optional — default 20000
@@ -38,13 +40,15 @@ var deadline = Date.now() + timeoutMs;
 var count = 0;
 var firstId = '';
 
+function fieldIs(doc, field, expected) {
+  var v = doc.fields ? doc.fields[field] : undefined;
+  if (expected === 'null') return v === undefined || v.nullValue !== undefined;
+  return scalar(v) === expected;
+}
+
 function keep(doc) {
-  if (typeof FIELD !== 'undefined' && FIELD) {
-    if (!doc.fields || scalar(doc.fields[FIELD]) !== VALUE) return false;
-  }
-  if (typeof FIELD2 !== 'undefined' && FIELD2) {
-    if (!doc.fields || scalar(doc.fields[FIELD2]) !== VALUE2) return false;
-  }
+  if (typeof FIELD !== 'undefined' && FIELD && !fieldIs(doc, FIELD, VALUE)) return false;
+  if (typeof FIELD2 !== 'undefined' && FIELD2 && !fieldIs(doc, FIELD2, VALUE2)) return false;
   return true;
 }
 

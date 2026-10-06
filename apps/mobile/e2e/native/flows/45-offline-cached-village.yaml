@@ -1,0 +1,94 @@
+# The village keeps working with no connection: after an online visit, a cold
+# relaunch in airplane mode still paints the profile and the village from the
+# device's Firestore cache, and says it is offline. Back online, the same live
+# listeners catch up on their own.
+#
+# This is the promise of the native SDK move (docs/plans/ongoing/offline-first-village.md),
+# and nothing else in the suite exercises the persistent cache.
+#
+# The proof has to be one a server read cannot fake: the event is renamed on
+# the emulator while the device is offline. Offline, the app must still show
+# the OLD title (it can only have come from the cache); online again, the NEW
+# one must arrive without a reload. The offline banner alone would only prove
+# what the OS reports.
+#
+# The village is opened by id (mi-pueblo?villageId=) rather than by slug: the
+# slug→id lookup is an in-memory cache that a relaunch drops.
+#
+# Airplane mode and the rename both outlive the flow, so both are undone on the
+# way out even on failure (run-android-e2e.mjs also resets airplane mode before
+# every flow).
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-user@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  EVENT_ID: e2e-event-fiesta
+  EVENT_TITLE: 'Fiesta de Prueba E2E'
+  RENAMED_TITLE: 'Fiesta Renombrada E2E'
+onFlowComplete:
+  - setAirplaneMode: disabled
+  - runScript:
+      file: ../scripts/setField.js
+      env:
+        DOC_PATH: 'events/${EVENT_ID}'
+        FIELD: title
+        VALUE: ${EVENT_TITLE}
+  # A silently failed restore would leave the seeded fiesta renamed for every
+  # flow after this one.
+  - assertTrue: ${output.status == '200'}
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+# Online visit: `clearState` wiped the cache, so warm it here.
+- openLink: 'cultuvilla://mi-pueblo?villageId=${VILLAGE_ID}'
+- scrollUntilVisible:
+    element: ${EVENT_TITLE}
+    timeout: 45000
+
+- setAirplaneMode: enabled
+- extendedWaitUntil:
+    visible:
+      id: 'offline-banner'
+    timeout: 20000
+- runScript:
+    file: ../scripts/setField.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}'
+      FIELD: title
+      VALUE: ${RENAMED_TITLE}
+- assertTrue: ${output.status == '200'}
+
+# Cold relaunch, still offline. No clearState: the cache is the point.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: 'Explora'
+    timeout: 90000
+- assertVisible:
+    id: 'offline-banner'
+# The signed-in profile renders from cache — an uncached profile read would
+# have diverted to onboarding instead.
+- openLink: 'cultuvilla://perfil'
+- extendedWaitUntil:
+    visible:
+      id: 'profile-edit-action'
+    timeout: 60000
+- openLink: 'cultuvilla://mi-pueblo?villageId=${VILLAGE_ID}'
+- scrollUntilVisible:
+    element: ${EVENT_TITLE}
+    timeout: 60000
+- assertNotVisible: ${RENAMED_TITLE}
+
+# Online again: the open listener delivers the rename by itself.
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    notVisible:
+      id: 'offline-banner'
+    timeout: 60000
+- extendedWaitUntil:
+    visible: ${RENAMED_TITLE}
+    timeout: 60000

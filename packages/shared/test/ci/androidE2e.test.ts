@@ -186,6 +186,35 @@ describe('quarantine', () => {
   });
 });
 
+describe('flows start from a clean device', () => {
+  // A flow that switches airplane mode on (45-offline-cached-village) would
+  // otherwise fail every flow after it — even after a Maestro crash, which
+  // skips the flow's own onFlowComplete cleanup.
+  const loop = runner.slice(runner.indexOf('for (const name of flows)'));
+
+  it('switches airplane mode off before every flow', () => {
+    expect(loop).toMatch(/'airplane-mode',\s*'disable'/);
+  });
+
+  it('deletes backend state a flow leaves behind before every flow', () => {
+    expect(loop).toMatch(/await deleteLeftoverDocs\(\)/);
+    expect(runner).toMatch(/'config\/appVersion'/);
+  });
+
+  // 95 writes an update wall and removes it only on the way out, so any flow
+  // sorted after it would run behind the wall.
+  it('runs the version-gate flow last', () => {
+    const flows = readdirSync(flowsDir).filter((f) => f.endsWith('.yaml')).sort();
+    expect(flows.at(-1)).toBe('95-app-version-gate.yaml');
+  });
+
+  it('waits for the device before every flow, bounded so a dead AVD fails by name', () => {
+    expect(loop).toMatch(/'wait-for-device'\]/);
+    expect(loop).toMatch(/timeout:\s*DEVICE_WAIT_MS/);
+    expect(loop).toMatch(/process\.exit\(1\)/);
+  });
+});
+
 describe('gradle build headroom', () => {
   // The first real run of this job died here, and reported the wrong thing.
   // `:expo-updates:kspReleaseKotlin` exhausted the 512m metaspace that Expo's
