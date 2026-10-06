@@ -22,6 +22,10 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 - A group's page (peña, asociación, ayuntamiento) now lists the events it has
   organized, upcoming first and then past, in the app and on the web. Members of
   an approval group also see its private events there.
+- No more "Iniciar pueblo" step. Tapping a pueblo that nobody has joined yet
+  opens its page, which invites you to join; joining brings it to Cultuvilla in
+  the same tap. The separate start form, with its escudo upload and "quiero ser
+  embajador" toggle, is gone — the Embajador request stays on the village home.
 - Fix: the home feed showed no private events at all to someone who also
   belongs to an open group (every ayuntamiento is open). The private events of
   their approval peñas and asociaciones now appear.
