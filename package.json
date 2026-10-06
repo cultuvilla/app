@@ -17,6 +17,7 @@
     "functions:lint": "npm --prefix functions run lint",
     "lint": "pnpm shared:lint && pnpm functions:lint",
     "pr:land": "node scripts/pr-land.js",
+    "release:cut": "node scripts/release-cut.mjs",
     "plans:map": "node scripts/plans-map.js",
     "plans:validate": "node scripts/plans-map.js --validate",
     "agent:capacity": "node scripts/agent-capacity.js",

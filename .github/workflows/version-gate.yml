@@ -1,18 +1,22 @@
 name: Version gate (beta)
 
-# Enforces the "bump the marketing version on every develop -> beta promotion"
-# rule (AGENTS.md -> Versioning & releases). Runs ONLY on PRs whose base is beta,
-# so ordinary develop PRs are untouched. Fails unless app.config.ts `version` is
-# strictly greater than the version currently on beta.
+# Release-PR gates (AGENTS.md -> Versioning & releases). Runs ONLY on PRs whose
+# base is beta or main, so ordinary develop PRs are untouched.
+#   version-bump    beta: app.config.ts `version` strictly greater than beta's.
+#   release-source  beta <- release/<that version>; main <- beta; a release PR
+#                   is titled with the bare version (`pnpm release:cut` does all
+#                   three). Re-runs on `edited` so fixing the title clears it.
 on:
   pull_request:
-    branches: [beta]
+    branches: [beta, main]
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
 
 jobs:
   version-bump:
+    if: github.base_ref == 'beta'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -32,3 +36,27 @@ jobs:
           package-manager-cache: false
       - name: Require a version bump
         run: node scripts/check-beta-version-bump.mjs apps/mobile/app.config.ts "$RUNNER_TEMP/beta.app.config.ts"
+
+  release-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Materialize the base's app.config.ts
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          git show "origin/$BASE_REF:apps/mobile/app.config.ts" > "$RUNNER_TEMP/base.app.config.ts"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Check the source branch and title
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node scripts/check-release-pr.mjs \
+            --base="$BASE_REF" --head-ref="$HEAD_REF" --title="$PR_TITLE" \
+            --head-config=apps/mobile/app.config.ts --base-config="$RUNNER_TEMP/base.app.config.ts"
