@@ -21,8 +21,10 @@ interface Props {
 /**
  * The rendered cards with the admin's decision on a draft. Each thumbnail
  * opens the same story the village will see, so what the admin approves is
- * exactly what gets published. Sharing appears only once it is published: a
- * draft is not the admin's to forward yet.
+ * exactly what gets published. A card can be saved or shared as an image
+ * from the start — the admin may want to print the cover or send it round
+ * before deciding; the link only once published, since until then it leads
+ * nowhere.
  */
 export function WrappedReview({ wrapped, villageSlug, onPublish, onDiscard, deciding }: Props) {
   const { t } = useT();
@@ -35,6 +37,8 @@ export function WrappedReview({ wrapped, villageSlug, onPublish, onDiscard, deci
     const url = wrapped.images[card];
     return url ? [{ card, url }] : [];
   });
+  const shareCard = share.shareCard;
+  const cover = cards[0];
 
   return (
     <VStack gap={4}>
@@ -68,6 +72,17 @@ export function WrappedReview({ wrapped, villageSlug, onPublish, onDiscard, deci
         {t('village.wrapped.preview')}
       </Button>
 
+      {shareCard && cover ? (
+        <Button
+          variant="secondary"
+          onPress={() => shareCard(cover)}
+          fullWidth
+          testID="wrapped-share-cover"
+        >
+          {t('village.wrapped.shareCover')}
+        </Button>
+      ) : null}
+
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
         {cards.map(({ card, url }, i) => (
           <RNPressable key={card} onPress={() => setOpenAt(i)} accessibilityRole="button">
@@ -90,7 +105,7 @@ export function WrappedReview({ wrapped, villageSlug, onPublish, onDiscard, deci
             title={t('village.wrapped.viewer.title', { name: wrapped.villageName, year: String(wrapped.year) })}
             onClose={() => setOpenAt(null)}
             onShareLink={published ? share.shareLink : undefined}
-            onShareCard={published ? share.shareCard : undefined}
+            onShareCard={share.shareCard}
           />
         ) : null}
       </Modal>

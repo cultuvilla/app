@@ -23,7 +23,10 @@ import {
   ErrorState,
 } from '../primitives';
 import { Section, EntityCard } from './VillageSections';
-import type { BarrioKind } from '@cultuvilla/shared/models/municipality';
+import type { BarrioKind, FiestaBlock } from '@cultuvilla/shared/models/municipality';
+
+/** Stable, so the Wrapped prompt's movement check is not redone every render. */
+const NO_FIESTAS: FiestaBlock[] = [];
 
 // Order is the order they render. The seat sorts first inside its own section
 // (the seed does that), so the municipal centre leads the list a villager reads.
@@ -38,7 +41,8 @@ import { HistoryRail } from './history/HistoryRail';
 import { WordOfTheDayCard } from './vocabulary/WordOfTheDayCard';
 import { LocationMap } from './LocationMap';
 import { JoinVillageModal } from './JoinVillageModal';
-import { VillageWrappedBanner } from './wrapped/VillageWrappedBanner';
+import { VillageWrappedStrip } from './wrapped/VillageWrappedStrip';
+import { WrappedPrompt } from './wrapped/WrappedPrompt';
 import { AmbassadorWelcomeSheet } from './AmbassadorWelcomeSheet';
 import {
   hasSeenAmbassadorWelcome,
@@ -326,8 +330,16 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           />
         </HStack>
 
-        {/* ── The latest fiestas Wrapped, while it is recent ────── */}
-        <VillageWrappedBanner municipalityId={village.id} villageSlug={villageSlug} />
+        {/* ── Admins: an invitation to sum up the fiestas, once the village
+            has had movement worth summing up ─────────────────────── */}
+        {canManage && sectionStatus.events === 'ready' ? (
+          <WrappedPrompt
+            municipalityId={village.id}
+            villageSlug={villageSlug}
+            events={events}
+            fiestas={village.community?.fiestas ?? NO_FIESTAS}
+          />
+        ) : null}
 
         {/* ── No organizer yet (wiki phase) ─────────────────────── */}
         {noOrganizer ? (
@@ -364,6 +376,9 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             />
           </View>
         ) : null}
+
+        {/* ── The latest published fiestas Wrapped, in the map's slot shape ── */}
+        <VillageWrappedStrip municipalityId={village.id} villageSlug={villageSlug} />
 
         {/* ── Eventos ──────────────────────────────────────────── */}
         <Section

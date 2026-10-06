@@ -69,9 +69,24 @@ a missed run delays publication instead of skipping it.
   by an admin or by the timer. The notification is written with `create()` under
   a deterministic id, so the hourly job cannot repeat it. The Wrapped belongs to
   the pueblo, and publication is when it is most worth forwarding.
-- **The village home shows a banner for `WRAPPED_FRESH_DAYS` (60).** The window
-  starts at the end of the fiestas or the build, whichever came later. There is
-  no `publishedAt`, and the grace period is noise against a two-month window.
+- **The village home shows the newest published Wrapped for good** (decided
+  2026-10-07, user), as a strip of its cards in the same slot shape as the
+  village map. It used to be a banner that left after 60 days; a pueblo's last
+  fiestas are a showcase, not news, and a newer year replaces them.
+- **Admins are invited on the village home once there has been movement**
+  (`fiestaMovement`, decided 2026-10-07, user). The admin still makes it — the
+  dates and the decision stay theirs — but a reminder notification a month
+  later was too easy to miss. Movement is at least 2 public, not-cancelled
+  events in the last 60 days (inside the declared fiestas months, once there
+  are any) and at least 10 sign-ups plus comments on them. It is computed from
+  the events the home already holds, so it costs no reads; the counters it uses
+  (`confirmedCount`, lifetime `commentCount`) are fine for a threshold and never
+  for a published figure. The invitation leads to the create screen, which asks
+  for the fiestas first when there are none, and disappears once the year is
+  published or discarded.
+- **A card can be saved or shared as an image from the draft on.** The admin
+  may want to print the cover or send it round before publishing; only the
+  link waits for publication, since until then it leads nowhere.
 
 ## Revisit when
 
