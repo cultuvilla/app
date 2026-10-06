@@ -6,8 +6,8 @@
   "reviewLabel": "ai-review",
   "requireApprovingReview": true,
 
-  "_maxReviewRounds": "A round is a REQUEST_CHANGES review — approvals spend none. Three, mirroring ordago: every round is a paid agentic run on the homelab reviewer, and past three the marginal round stopped paying there.",
-  "maxReviewRounds": 3,
+  "_maxReviewRounds": "A round is a REQUEST_CHANGES review — approvals spend none, and a round is spent the moment the verdict lands (decide.js reviewSpent). TWO since 2026-10-07 (user: one review is enough): the agent fixes the first review's findings, and the second verdict — approve or not — ends the conversation, so the PR lands on CI green. 1 would land the first REQUEST_CHANGES unfixed. Each extra round cost a ~15-min poll plus the reviewer's run (30–40 min); on 2026-10-06 the third round added ~30–40 min to each of #492–#494.",
+  "maxReviewRounds": 2,
 
   "_roundsExhausted": "\"merge\" — the cap ENDS the review conversation and the PR lands on CI green alone; nothing is left to ask the user, so an agent must not stop to report that the rounds ran out. Narrow on purpose: red CI still exits 10, and a Breaking-Client: trailer still exits 30 however many rounds were spent. \"handoff\" (the shared default) makes the cap open a human conversation instead.",
   "roundsExhausted": "merge",
