@@ -329,6 +329,23 @@ describe('signInWithApple', () => {
     await expect(result.current.signInWithApple()).rejects.toThrow(/cancelled/);
   });
 
+  it('maps a cancel that arrives with no code, as prod iOS reports it', async () => {
+    (AppleAuthentication.signInAsync as jest.Mock).mockRejectedValueOnce(
+      new Error('The user canceled the authorization attempt'),
+    );
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await expect(result.current.signInWithApple()).rejects.toMatchObject({ code: 'auth/cancelled' });
+  });
+
+  it('passes a real Apple failure through untouched', async () => {
+    const failure = new Error('The authorization attempt failed for an unknown reason');
+    (AppleAuthentication.signInAsync as jest.Mock).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await expect(result.current.signInWithApple()).rejects.toBe(failure);
+  });
+
   it('rejects when Apple returns no identityToken', async () => {
     (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValueOnce({ identityToken: null });
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
