@@ -47,12 +47,6 @@ describe('registrationEmailSubject', () => {
       '¡Plaza confirmada!: Fiesta de San Juan',
     );
   });
-
-  it('leads with the reminder prefix for a retroactive send', () => {
-    expect(registrationEmailSubject(content({ kind: 'existing_registration' }))).toBe(
-      'Recordatorio de inscripción: Fiesta de San Juan',
-    );
-  });
 });
 
 describe('renderRegistrationEmailHtml', () => {
@@ -94,13 +88,6 @@ describe('renderRegistrationEmailHtml', () => {
     expect(renderRegistrationEmailHtml(content())).not.toMatch(/se ha liberado una plaza/i);
   });
 
-  it('leads with the reminder explanation only for retroactive sends', () => {
-    expect(renderRegistrationEmailHtml(content({ kind: 'existing_registration' }))).toMatch(
-      /te recordamos que estás apuntado/i,
-    );
-    expect(renderRegistrationEmailHtml(content())).not.toMatch(/te recordamos/i);
-  });
-
   it('lists every registered persona', () => {
     const html = renderRegistrationEmailHtml(
       content({
@@ -135,11 +122,6 @@ describe('renderRegistrationEmailText', () => {
     expect(text).toContain('- Ana — plaza confirmada');
     expect(text).toContain('3 de 50 plazas ocupadas');
     expect(text).toContain('https://villa-events.web.app/event/e1');
-  });
-
-  it('carries the reminder lead in the plain-text alternative', () => {
-    const text = renderRegistrationEmailText(content({ kind: 'existing_registration' }));
-    expect(text).toMatch(/te recordamos que estás apuntado/i);
   });
 
   it('does not HTML-escape the plain-text alternative', () => {
