@@ -8,7 +8,7 @@
  * use". The file, not an environment variable, carries the slot: agent shells do
  * not keep exported variables from one command to the next.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const AGENT_CONFIG = 'firebase.agent.json';
@@ -44,4 +44,52 @@ export function emulatorHostEnv(ports) {
     FIREBASE_STORAGE_EMULATOR_HOST: `127.0.0.1:${ports.storage}`,
     FIREBASE_FUNCTIONS_EMULATOR_HOST: `127.0.0.1:${ports.functions}`,
   };
+}
+
+/**
+ * Placeholder values for every secret the functions declare, for the Functions
+ * emulator only.
+ *
+ * Without them the emulator asks Google Cloud Secret Manager for each secret a
+ * function declares, on every invocation, and with no `firebase login` (CI, any
+ * fresh machine) every attempt logs "Failed to authenticate, have you run
+ * firebase login?" at error severity. A `.secret.local` beside the functions
+ * source short-circuits the lookup. The emulator treats an empty value as
+ * missing, hence a non-empty placeholder; nothing in the emulator may reach a
+ * real service with it (event mail is skipped there, APNs rejects the shape).
+ */
+export const SECRET_LOCAL = '.secret.local';
+export const EMULATOR_SECRET_PLACEHOLDER = 'emulator-placeholder';
+
+/** Names passed to `defineSecret('…')` anywhere under the functions source. */
+export function declaredSecrets(functionsSrcDir) {
+  const names = new Set();
+  for (const entry of readdirSync(functionsSrcDir, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
+    const file = path.join(entry.parentPath, entry.name);
+    if (file.includes(`${path.sep}__tests__${path.sep}`)) continue;
+    for (const m of readFileSync(file, 'utf8').matchAll(/defineSecret\(\s*['"]([A-Z0-9_]+)['"]/g)) {
+      names.add(m[1]);
+    }
+  }
+  return [...names].sort();
+}
+
+/**
+ * Writes `<functionsDir>/.secret.local` with a placeholder per declared secret,
+ * unless one already exists — a developer's own overrides always win.
+ * @returns {string | null} the path written, for the caller to remove; null if untouched.
+ */
+export function ensureEmulatorSecrets(functionsDir) {
+  const file = path.join(functionsDir, SECRET_LOCAL);
+  if (existsSync(file)) return null;
+  const names = declaredSecrets(path.join(functionsDir, 'src'));
+  const body = [
+    '# Written by scripts/run-tests-with-emulators.mjs for the Functions emulator;',
+    '# removed when the run ends. Placeholders only: see scripts/lib/emulator-config.mjs.',
+    ...names.map((name) => `${name}=${EMULATOR_SECRET_PLACEHOLDER}`),
+    '',
+  ].join('\n');
+  writeFileSync(file, body);
+  return file;
 }
