@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** prod
 **Gate:** none
-**Next:** build Phase 3 (log-based metrics, prod health dashboard, error-rate alert); confirm native BigQuery rows once 1.6.0 ships, then Phase 2
+**Next:** apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2
 
 Decided 2026-10-06 (user): Phase 2 (Firestore→BigQuery extension + Looker Studio) and Phase 3 (Cloud Monitoring dashboard + alert policies) are approved, including their running cost. BigQuery export stays **prod-only** (no beta).
 
@@ -20,7 +20,7 @@ Phase 1 full-engagement instrumentation merged to `develop` (PR #150, merge `295
 1. **Verify native data once the store build ships.** In `cultuvilla-prod.analytics_546204987`, filter `platform IN ('ANDROID','IOS')` and check that `user_pseudo_id` is non-null and that `first_open` is not equal to every session start. Native event names use underscores (`content_detail_viewed`), web used dots — join with `REPLACE(event_name, '.', '_')`.
 2. Confirm the Phase 1 events in GA4 DebugView on one Android and one iOS build (this replaces the never-run web smoke).
 3. Phase 2, on native data.
-4. Phase 3, independent of the rest.
+4. Phase 3 — built (alerts-as-code, `scripts/apply-monitoring.mjs` + `scripts/lib/monitoring.mjs`), applied to dev and beta 2026-10-06. Left: the prod apply (user's go), then watch a week of prod alerts and retune `THRESHOLDS` if they are noisy.
 
 ## Resolved finding: the web export carried no user identity
 
@@ -46,8 +46,8 @@ Read prod BigQuery as `cultuvilla.app@gmail.com` (the default gcloud account; it
 | Phase 0 — GA4→BigQuery export enabled | ⏳ | ⬜ | ✅ verified 2026-09-11 — daily tables since 2026-07-19 (web rows have no `user_pseudo_id` — see *Resolved finding*; native rows pending the store build) |
 | Phase 2 — Firestore→BigQuery export | ⬜ | ⬜ | ⬜ |
 | Phase 2 — Looker Studio dashboard | ⬜ | ⬜ | ⬜ |
-| Phase 3 — log-based metrics + Cloud Monitoring dashboard | ⬜ | ⬜ | ⬜ |
-| Phase 3 — alert policies | ⬜ | ⬜ | ⬜ |
+| Phase 3 — log-based metrics + Cloud Monitoring dashboard | ✅ 2026-10-06 | ✅ 2026-10-06 | ⬜ (`apply-monitoring.mjs --project=cultuvilla-prod --confirm`) |
+| Phase 3 — alert policies | ✅ created **disabled** (dev is a playground) | ✅ enabled → cultuvilla.app@gmail.com | ⬜ |
 
 Legend: ⬜ pending · ⏳ in progress · ✅ done · ⚠️ blocked (note inline) · — n/a
 
@@ -147,6 +147,21 @@ events fire on the web build.
 - **Cloud Monitoring dashboard** for prod health.
 - **Alert policies** (email/Slack) on error-rate spikes and latency regressions —
   graduating the foundation's "alerting is manual for now" into alerts-as-code.
+
+**As built (2026-10-06).** One idempotent script, `scripts/apply-monitoring.mjs`
+(dry run by default, `--confirm` writes), applies the spec in
+`scripts/lib/monitoring.mjs` to a project: three log-based counters
+(`server_errors` by `handler`, `client_errors` by platform/surface/error code/app
+version, `read_site_visits` by page/entity kind/device/platform/status), the
+`cultuvilla-ops-health` dashboard, three alert policies (server-error spike,
+client-error spike, key-callable p95 latency) and the email channel. Latency and
+the 5xx ratio come from Cloud Run's built-in `request_latencies` /
+`request_count`, not a log-based distribution. Dashboards and policies carry a
+`spec` hash label, so a re-run updates only what changed and a console edit is
+overwritten. `readSite` now logs one `readSite visit` line per response (enums
+and a status only — no path, slug or user agent). **Caveat:** Hosting caches
+200s for an hour at the edge, so the visits metric counts origin renders — a
+lower bound. Exact counts would need Hosting's Cloud Logging integration.
 
 ## Explicitly still YAGNI
 

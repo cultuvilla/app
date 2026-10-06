@@ -38,6 +38,7 @@
     "check:dev-conformance": "pnpm shared:build && node scripts/check-dev-conformance.mjs",
     "check:custom-token-signing": "node scripts/check-custom-token-signing.mjs",
     "backfills:list": "node scripts/backfills-cli.mjs list",
+    "monitoring:apply": "node scripts/apply-monitoring.mjs",
     "backfills:verify": "node scripts/backfills-cli.mjs verify",
     "backfills:run": "node scripts/backfills-cli.mjs run",
     "backfills:auto-apply": "node scripts/backfills-cli.mjs auto-apply",
