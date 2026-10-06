@@ -5,6 +5,10 @@ on:
     branches: [develop, beta, main]
   pull_request:
     branches: [develop, beta, main]
+  # develop requires a merge queue (.github/rulesets/develop.json): the queue
+  # runs this workflow on the PR stacked on develop and merges only a green
+  # result. Without this trigger the queue waits for checks that never report.
+  merge_group:
 
 permissions:
   contents: read
