@@ -53,7 +53,8 @@ async function seed(): Promise<void> {
   const byPena = { ...event, organizerOrgIds: ['o1'] };
   await d.doc('events/e4').set({ ...byPena, title: 'Comida de la peña', status: 'completed', startDate: ts('2026-06-20T14:00:00Z'), endDate: null });
   await d.doc('events/e5').set({ ...byPena, title: 'Merienda suspendida', status: 'cancelled' });
-  await d.doc('events/e6').set({ ...byPena, title: 'Cena privada', status: 'published', visibility: 'private', visibilityOrgId: 'o1' });
+  await d.doc('events/e6').set({ ...byPena, title: 'Cena privada', status: 'published', visibility: 'organization', visibilityOrgId: 'o1' });
+  await d.doc('events/e7').set({ ...byPena, title: 'Excursión de otoño', status: 'published', startDate: ts('2026-10-10T08:00:00Z'), endDate: null });
   await d.doc('news/n1').set({
     municipalityId: 'm1',
     title: 'Programa de fiestas',
@@ -165,6 +166,8 @@ describe('readSite', () => {
     const { body } = await html('/matabuena/entidad/pena-el-toro_o1');
     expect(body).toContain('<h2>Eventos</h2>');
     expect(body).toContain('Comida de la peña');
+    // Upcoming first, then past — the app's order, not start order.
+    expect(body.indexOf('Excursión de otoño')).toBeLessThan(body.indexOf('Comida de la peña'));
     for (const hidden of ['Merienda suspendida', 'Cena privada', 'Verbena']) {
       expect(body).not.toContain(hidden);
     }
