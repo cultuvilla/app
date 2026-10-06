@@ -87,9 +87,6 @@ export default function OrganizeVillageScreen() {
                 </Text>
               </HStack>
             ))}
-            <Text variant="bodySm" tone="muted">
-              {t('organize.review')}
-            </Text>
           </VStack>
           <PhoneField {...organizerPhone.fieldProps} />
           <Input
