@@ -182,6 +182,16 @@ gcloud logging read 'jsonPayload.handler="logClientError"' --project=villa-event
 
 Because they land at `ERROR` severity with a stack trace field, matching entries auto-group into Cloud Error Reporting issues (grouped by `error.name` + stack shape) — no separate instrumentation needed. Enable **Error Reporting** in the console for the project and add an **email notification** for new/spiking error groups (the design's alerting choice — see the `observability-conventions` skill for the day-to-day debugging runbook).
 
+## Cloud Monitoring — alerts as code
+
+Log-based metrics, the `cultuvilla-ops-health` dashboard, the alert policies and
+the `cultuvilla.app@gmail.com` email channel are defined in
+`scripts/lib/monitoring.mjs` and applied with
+`pnpm monitoring:apply --project=<id> [--confirm]` (dry run by default,
+idempotent). Never edit them in the console — the next apply overwrites it.
+Creating an alert on a log-based metric can return a 500 naming the Logging
+"control requests per minute" quota; the script waits and retries.
+
 ## TODO — fill in when the matching infrastructure lands
 
 - [ ] **IAM grants for service accounts.** No bespoke service accounts beyond default Firebase ones today. When custom ones are introduced, list the role grants and the `gcloud projects add-iam-policy-binding` invocation per env.
