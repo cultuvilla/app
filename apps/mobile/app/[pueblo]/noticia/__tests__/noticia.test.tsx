@@ -1,4 +1,5 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { resetWatchers, setWatched } from '../../../../test/watchers';
 import NewsDetailScreen from '../[noticia]';
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -48,12 +49,7 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => ({
   getOrganization: jest.fn().mockResolvedValue({ id: 'o1', name: 'Peña El Roble', villageSlug: 'villa' }),
 }));
 jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  getNewsPost: jest.fn().mockResolvedValue({
-    id: 'n1', title: 'Gran noticia', category: 'general', municipalityId: 'm1', villageSlug: 'villa',
-    images: [], coverImage: null, content: null, body: '',
-    organizerOrgIds: ['o1'], organizerUserIds: ['u1'],
-    createdBy: 'u9', publishedAt: null, createdAt: null, status: 'active',
-  }),
+  watchNewsPost: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('post'),
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({ newsImageDownloadURL: jest.fn() }));
 jest.mock('@cultuvilla/shared/utils', () => ({
@@ -76,8 +72,17 @@ function mockCaps(canEdit: boolean) {
   return spy;
 }
 
+const POST = {
+  id: 'n1', title: 'Gran noticia', category: 'general', municipalityId: 'm1', villageSlug: 'villa',
+  images: [], coverImage: null, content: null, body: '',
+  organizerOrgIds: ['o1'], organizerUserIds: ['u1'],
+  createdBy: 'u9', publishedAt: null, createdAt: null, status: 'active',
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
+  resetWatchers();
+  setWatched('post', POST);
   mockCaps(false);
 });
 

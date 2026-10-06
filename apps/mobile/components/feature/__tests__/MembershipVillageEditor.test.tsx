@@ -1,5 +1,5 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { MembershipVillageEditor } from '../MembershipVillageEditor';
 
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ t: (k: string) => k }) }));
@@ -43,13 +43,9 @@ beforeEach(() => {
   mockLeaveVillage.mockClear();
   mockSetActiveMunicipality.mockClear();
   mockActiveMunicipalityId = 'm1';
-  Platform.OS = 'web';
-  // jsdom isn't loaded in this jest env, so window has no confirm to spy on —
-  // install the mock directly (mirrors DeleteHeaderButton.test.tsx).
-  (globalThis as unknown as { window: { confirm: () => boolean } }).window = {
-    ...(globalThis as unknown as { window?: object }).window,
-    confirm: jest.fn().mockReturnValue(true),
-  } as never;
+  jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+    buttons?.find((b) => b.style === 'destructive')?.onPress?.();
+  });
 });
 
 it('renders one leave button per joined village', async () => {

@@ -9,8 +9,8 @@ const uuidCjs = require.resolve('uuid', { paths: [path.dirname(require.resolve('
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
-  // Playwright specs under e2e/ use @playwright/test's runner, not jest — jest
-  // must not try to execute them (it would fail parsing test.describe/expect).
+  // e2e/ holds the Maestro suite (YAML flows plus host-side helper scripts that
+  // Maestro runs) — it runs on a device via `pnpm test:e2e:android`, not jest.
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/'],
   // jest-expo render suites are heavy (~12-15s each) and run in parallel; the
   // default 5000ms per-test limit is too tight under CI contention and flakes
@@ -33,6 +33,14 @@ module.exports = {
     '^@cultuvilla/i18n$': '<rootDir>/../../packages/i18n/index',
     '^@cultuvilla/i18n/(.*)$': '<rootDir>/../../packages/i18n/$1',
     '^uuid$': uuidCjs,
+    // The native Firebase SDKs have no JS implementation under jest. Mapped
+    // here, not jest.mock'd, because packages/shared resolves them through a
+    // different pnpm path than this app and a jest.mock keys on the path.
+    '^@react-native-firebase/app$': '<rootDir>/test/mocks/rnfbApp.ts',
+    '^@react-native-firebase/auth$': '<rootDir>/test/mocks/rnfbAuth.ts',
+    '^@react-native-firebase/firestore$': '<rootDir>/test/mocks/rnfbFirestore.ts',
+    '^@react-native-firebase/functions$': '<rootDir>/test/mocks/rnfbFunctions.ts',
+    '^@react-native-firebase/storage$': '<rootDir>/test/mocks/rnfbStorage.ts',
   },
   // Report-only coverage (docs/plans/ongoing/testing-enhancement.md, D4): only
   // collected with `pnpm app:test:coverage` (jest --coverage); no gate yet.

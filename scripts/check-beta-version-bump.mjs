@@ -5,7 +5,7 @@
  * CI gate for `develop → beta` promotion PRs: fail unless the PR's marketing
  * version is strictly greater than the one currently on `beta`. Enforces the
  * "bump the version on every beta promotion" rule (see AGENTS.md → Versioning &
- * releases; the `prepare-release` skill does the bump).
+ * releases; `pnpm release:cut` does the bump).
  *
  * USAGE
  *   node scripts/check-beta-version-bump.mjs <headAppConfigPath> <betaAppConfigPath>
@@ -47,7 +47,7 @@ if (compareVersions(head, beta) <= 0) {
   console.error(
     `❌ Version must increase for a beta promotion.\n` +
       `   beta is ${beta}, this PR is ${head}.\n` +
-      `   Bump apps/mobile/app.config.ts (+ apps/mobile/package.json) — run the prepare-release skill.`,
+      `   Bump apps/mobile/app.config.ts (+ apps/mobile/package.json) — cut releases with \`pnpm release:cut\`.`,
   );
   process.exit(1);
 }

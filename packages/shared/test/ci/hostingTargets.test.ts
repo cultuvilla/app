@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-// This repo deploys one hosting target, `app` (the Expo web export, on all three
+// This repo deploys one hosting target, `app` (the read site's static files, on all three
 // envs). The dev project also hosts a second site, `cultuvilla-panel`, which the
 // private cultuvilla/business repo deploys from its own firebase.json. Naming the
 // target keeps the two repos from ever deploying over each other's site.
@@ -38,7 +38,7 @@ describe('hosting deploys name their target', () => {
   it('declares only the app target, as an array', () => {
     const config = JSON.parse(read('firebase.json')) as { hosting: { target?: string; public: string }[] };
     expect(Array.isArray(config.hosting)).toBe(true);
-    expect(config.hosting.map((h) => [h.target, h.public])).toEqual([['app', 'apps/mobile/dist']]);
+    expect(config.hosting.map((h) => [h.target, h.public])).toEqual([['app', 'web/dist']]);
   });
 
   it('maps app on all three projects, and never the business repo\'s panel site', () => {

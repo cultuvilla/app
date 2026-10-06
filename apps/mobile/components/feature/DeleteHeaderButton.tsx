@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from '../primitives/Pressable';
 import { BlockingOverlay } from '../primitives/BlockingOverlay';
@@ -51,12 +51,7 @@ export function DeleteHeaderButton({
     Promise.resolve(onConfirm()).catch(() => setDeleting(false));
   };
 
-  // Alert.alert is a no-op on RN-Web, so branch to window.confirm there.
   const run = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm(confirmMessage)) doDelete();
-      return;
-    }
     Alert.alert(confirmTitle, confirmMessage, [
       { text: cancelLabel, style: 'cancel' },
       { text: confirmLabel, style: 'destructive', onPress: doDelete },

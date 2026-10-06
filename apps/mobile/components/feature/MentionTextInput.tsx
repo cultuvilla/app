@@ -1,13 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   NativeSyntheticEvent,
-  Platform,
   Pressable,
-  StyleSheet,
   Text as RNText,
   TextInput,
   TextInputKeyPressEventData,
-  TextStyle,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,7 +30,6 @@ import {
 import { toggleMark, isRangeMarked } from '../../lib/markText';
 import { markPresentation } from '../../lib/markStyle';
 import { HEADING_LEVELS, type HeadingLevel } from '../../lib/newsHeading';
-import { tripleClickSelectAll, type SelectableField } from '../../lib/tripleClickSelectAll';
 import { LinkSheet } from './LinkSheet';
 import { LinkUrlSheet } from './LinkUrlSheet';
 import {
@@ -56,19 +52,13 @@ const MARK_BUTTON_LABEL: Record<NewsMarkType, string> = {
   strikethrough: 'S',
 };
 
-// Appended to the styled overlay so its last line still has height when the
-// text ends in a newline — keeps the overlay aligned with the input layer.
+// Appended to the caret-line measurer so its last line still has height when
+// the text ends in a newline.
 const TRAILING_ANCHOR = String.fromCodePoint(0x200b); // zero-width space
 
 // Vertical gap between the caret's line and the toolbar/link sheet anchored
 // beneath it.
 const ANCHOR_GAP = 6;
-
-// Native TextInputs accept styled <Text> children, so the input draws the
-// formatting itself and glyphs, caret and selection share one layout. RN-Web's
-// TextInput is a <textarea> that can't hold styled spans, so web keeps the
-// transparent-input-over-overlay technique.
-const STYLED_INPUT = Platform.OS !== 'web';
 
 function StyledRuns({ runs }: { runs: LinkRun[] }) {
   return (
@@ -161,20 +151,6 @@ export function MentionTextInput({
   const runs = useMemo(() => buildLinkRuns(value, mentions, links, marks), [value, mentions, links, marks]);
 
   const inputRef = useRef<TextInput>(null);
-  const onSelectionChangeRef = useRef(onSelectionChange);
-  onSelectionChangeRef.current = onSelectionChange;
-  // On web the TextInput ref is the DOM <textarea>.
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    const field = inputRef.current as unknown as (SelectableField & HTMLElement) | null;
-    if (!field) return;
-    const onClick = tripleClickSelectAll(field, (sel) => {
-      setSelection(sel);
-      onSelectionChangeRef.current?.(sel.start);
-    });
-    field.addEventListener('click', onClick);
-    return () => field.removeEventListener('click', onClick);
-  }, []);
 
   const hasSelection = selection.start !== selection.end;
   const active = !hasSelection ? activeMentionQuery(value, selection.start, mentions) : null;
@@ -243,20 +219,10 @@ export function MentionTextInput({
   return (
     <VStack gap={1}>
       <View className="border rounded-md px-3 py-2 bg-surface border-subtle">
-        {/* Auto-grow on both paths. Native: the input sits in normal flow with
-            scrolling off, so it grows line-by-line and renders the styled runs
-            as its own children. Web: the styled overlay sits in normal flow and
-            drives the box height; the transparent TextInput is layered on top
-            (absolute-fill) to own the caret and editing. The trailing zero-width
-            space keeps the overlay's final line present when the text ends in a
-            newline, so the two layers stay aligned. */}
+        {/* The input sits in normal flow with scrolling off, so it auto-grows
+            line-by-line and renders the styled runs as its own children —
+            glyphs, caret and selection share one layout. */}
         <View style={{ position: 'relative', minHeight: 80 }}>
-          {STYLED_INPUT ? null : (
-            <Text pointerEvents="none" className="text-body">
-              <StyledRuns runs={runs} />
-              {TRAILING_ANCHOR}
-            </Text>
-          )}
           {/* Mirrors the styled text up to the caret, so bold/italic widths wrap
               it exactly like the visible text. */}
           <Text
@@ -271,33 +237,19 @@ export function MentionTextInput({
           </Text>
           <TextInput
             ref={inputRef}
-            // A native input gets its text from the children below; passing
+            // The input gets its text from the children below; passing
             // `value` as well is unsupported.
-            value={STYLED_INPUT ? undefined : value}
             onChangeText={handleChangeText}
             onKeyPress={handleKeyPress}
             multiline
-            scrollEnabled={STYLED_INPUT ? false : undefined}
+            scrollEnabled={false}
             placeholder={placeholder}
             placeholderTextColor={colors.light.fg.muted}
             accessibilityLabel={placeholder}
             testID={testID}
             className="text-body"
             textAlignVertical="top"
-            // Web: the text layer is transparent (glyphs come from the overlay
-            // Text above). The CSS caret-color inherits from `color`, so a
-            // transparent color hides the caret too — force it back to the accent.
-            // Native draws the caret from `cursorColor`, independent of text color.
-            style={
-              STYLED_INPUT
-                ? { minHeight: 80, padding: 0 }
-                : [
-                    StyleSheet.absoluteFill,
-                    { color: 'transparent', padding: 0 },
-                    // caretColor is a web-only CSS property not modelled by RN's TextStyle.
-                    { caretColor: ACCENT } as unknown as TextStyle,
-                  ]
-            }
+            style={{ minHeight: 80, padding: 0 }}
             cursorColor={ACCENT}
             selectionColor={ACCENT}
             onFocus={onFocus}
@@ -307,7 +259,7 @@ export function MentionTextInput({
               onSelectionChange?.(sel.start);
             }}
           >
-            {STYLED_INPUT && value ? <StyledRuns runs={runs} /> : null}
+            {value ? <StyledRuns runs={runs} /> : null}
           </TextInput>
           {hasSelection ? (
             <View

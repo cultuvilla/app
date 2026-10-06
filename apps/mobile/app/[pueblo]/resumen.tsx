@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { madridDayKey, madridYear, type FiestaBlock } from '@cultuvilla/shared/models';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import {
@@ -23,17 +23,23 @@ import { initialWrappedForm, type WrappedFormState } from '../../lib/wrapped/wra
 import { useT } from '../../lib/i18n';
 
 /**
- * A village admin's fiestas Wrapped for the current year: create it by picking
- * the days of each fiesta and the range to count over, then review the cards
- * and publish or discard. Regenerating starts from the dates already used.
+ * A village admin's fiestas Wrapped for one year — the current one, or the
+ * `?year=` a reminder names (a January reminder is about December's fiestas,
+ * which belong to last year): create it by picking the days of each fiesta and
+ * the range to count over, then review the cards and publish or discard.
+ * Regenerating starts from the dates already used.
  */
 function WrappedScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { canManage, loading: capsLoading } = useEntityCapabilities(villageId);
   const { t } = useT();
 
+  const { year: yearParam } = useLocalSearchParams<{ year?: string }>();
   const now = new Date();
-  const year = madridYear(now);
+  const currentYear = madridYear(now);
+  // Only a past or current year: a future one has no fiestas to sum up yet.
+  const asked = typeof yearParam === 'string' && /^\d{4}$/.test(yearParam) ? Number(yearParam) : null;
+  const year = asked !== null && asked <= currentYear ? asked : currentYear;
   const today = madridDayKey(now);
 
   const [fiestas, setFiestas] = useState<FiestaBlock[] | null>(null);
@@ -110,6 +116,7 @@ function WrappedScreen() {
             <VStack gap={4}>
               <WrappedReview
                 wrapped={wrapped}
+                villageSlug={villageSlug}
                 deciding={decide.isPending}
                 onPublish={() => void decide.fire('publish')}
                 onDiscard={() =>

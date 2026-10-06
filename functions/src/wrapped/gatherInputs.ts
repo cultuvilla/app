@@ -32,6 +32,7 @@ import {
 
 export interface GatheredWrapped {
   villageName: string;
+  villageSlug: string | null;
   escudoUrl: string | null;
   inputs: WrappedInputs;
   /** Everyone in the censo, for the people wall. */
@@ -242,6 +243,7 @@ export async function gatherWrappedInputs(
 
   return {
     villageName: str(muni.name) ?? '',
+    villageSlug: str(muni.slug),
     escudoUrl: str(muni.escudoManualUrl) ?? str(muni.escudoUrl),
     people,
     posters,

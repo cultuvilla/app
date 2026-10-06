@@ -23,7 +23,7 @@ What is left was never designed as a release process, and it shows:
   is `https://apps.apple.com/app/id000000000`, from
   [app-version-config.mjs](../../../scripts/lib/app-version-config.mjs) — a
   second copy of the store URLs that nobody updated when iOS went live. The single
-  source is [appStores.ts](../../../apps/mobile/lib/appStores.ts), which
+  source is [appStores.ts](../../../packages/shared/src/config/appStores.ts), which
   [app-stores.mjs](../../../scripts/lib/app-stores.mjs) can already read from Node.
 - **`beta-build-and-submit` ships whatever ref it is dispatched from.** Its
   `workflow_dispatch` has no branch restriction, and that is how `5 (0.24.0)`

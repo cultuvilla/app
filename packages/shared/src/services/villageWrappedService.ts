@@ -1,5 +1,5 @@
-import { getDoc, getDocs, orderBy, query, where } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { getDoc, getDocs, orderBy, query, where } from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import { villageWrappedCollection, villageWrappedDoc } from '../firebase/refs/client';
 import { wrappedId, type WrappedData, type WrappedStatus } from '../models/wrapped/WrappedDataModel';
@@ -35,6 +35,24 @@ export async function getVillageWrapped(wrappedId: string): Promise<VillageWrapp
 /** A village's Wrapped for one year, whatever its status — the admin's create/review screen. */
 export async function getVillageWrappedForYear(municipalityId: string, year: number): Promise<VillageWrapped | null> {
   return getVillageWrapped(wrappedId(municipalityId, year));
+}
+
+/**
+ * A year's Wrapped as a reader may see it: published, or null.
+ *
+ * The rules deny a draft to everyone but the village admins, and to a reader a
+ * withheld draft is the same as no Wrapped at all — not an error to show them.
+ * An admin's own draft is null here too: the public link must never look
+ * published before it is.
+ */
+export async function getReadableWrapped(municipalityId: string, year: number): Promise<VillageWrapped | null> {
+  try {
+    const w = await getVillageWrappedForYear(municipalityId, year);
+    return w?.status === 'published' ? w : null;
+  } catch (error) {
+    if ((error as { code?: unknown } | null)?.code === 'permission-denied') return null;
+    throw error;
+  }
 }
 
 /**

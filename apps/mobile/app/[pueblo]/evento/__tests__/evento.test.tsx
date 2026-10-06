@@ -1,5 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import EventDetailScreen from '../[evento]';
+import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../../test/watchers';
 
 const mockPush = jest.fn();
 
@@ -35,13 +36,7 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   }),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  getEvent: jest.fn().mockResolvedValue({
-    id: 'e1', title: 'Verbena', startDate: new Date('2026-07-12T20:00:00Z'), endDate: null,
-    description: 'baile', imageURL: null, villageCoverImage: null, location: null,
-    organizerUserIds: [], organizerOrgIds: [], telephoneRequired: false,
-    municipalityId: 'm1',
-    villageSlug: 'villa', villageName: 'Villapueblo',
-  }),
+  watchEvent: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('event'),
 }));
 jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getEventLink: () => ({
@@ -53,9 +48,7 @@ jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({ getPersonByUserId: jest.fn().mockResolvedValue(null) }));
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: jest.fn().mockResolvedValue({
-    id: 'm1', name: 'Villapueblo', escudoUrl: null, escudoThumbUrl: null, escudoManualUrl: null,
-  }),
+  watchMunicipality: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('village'),
 }));
 jest.mock('@cultuvilla/shared/models/person/PersonDataModel', () => ({ buildNameWithNickname: () => 'N' }));
 jest.mock('@cultuvilla/shared/utils', () => ({
@@ -64,8 +57,23 @@ jest.mock('@cultuvilla/shared/utils', () => ({
   buildGoogleCalendarUrl: () => 'https://cal',
 }));
 
+const EVENT = {
+  id: 'e1', title: 'Verbena', startDate: new Date('2026-07-12T20:00:00Z'), endDate: null,
+  description: 'baile', imageURL: null, villageCoverImage: null, location: null,
+  organizerUserIds: [], organizerOrgIds: [], telephoneRequired: false,
+  municipalityId: 'm1',
+  villageSlug: 'villa', villageName: 'Villapueblo',
+};
+
 describe('EventDetailScreen', () => {
-  beforeEach(() => mockPush.mockClear());
+  beforeEach(() => {
+    mockPush.mockClear();
+    resetWatchers();
+    setWatched('event', EVENT);
+    setWatched('village', {
+      id: 'm1', name: 'Villapueblo', escudoUrl: null, escudoThumbUrl: null, escudoManualUrl: null,
+    });
+  });
 
   it('renders the event title and the guest CTA', async () => {
     const { getByText } = render(<EventDetailScreen />);
@@ -80,5 +88,21 @@ describe('EventDetailScreen', () => {
 
     fireEvent.press(getByLabelText('Villapueblo'));
     expect(mockPush).toHaveBeenCalledWith('/villa');
+  });
+
+  it('shows an edit to the event as soon as the listener delivers it', async () => {
+    const { getByText, findByText } = render(<EventDetailScreen />);
+    await waitFor(() => getByText('Verbena'));
+    emitWatched('event', { ...EVENT, title: 'Verbena de San Juan' });
+    expect(await findByText('Verbena de San Juan')).toBeTruthy();
+    expect(watchersOf('event')).toHaveLength(1);
+    expect(watchersOf('village')[0]?.args).toEqual(['m1']);
+  });
+
+  it('shows the not-found state for an event that does not exist', async () => {
+    setWatched('event', null);
+    const { findByText } = render(<EventDetailScreen />);
+    expect(await findByText('common.notFound')).toBeTruthy();
+    expect(watchersOf('village')).toHaveLength(0);
   });
 });

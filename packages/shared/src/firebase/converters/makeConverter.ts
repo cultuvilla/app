@@ -20,8 +20,12 @@ export function makeConverter<S extends z.ZodType>(schema: S, sdk: SdkCtors) {
       const parsed = schema.parse(model);
       return denormalize(parsed, sdk) as Record<string, unknown>;
     },
-    fromFirestore(snap: { data(): unknown }): Model {
-      const normalized = normalize(snap.data(), sdk);
+    fromFirestore(snap: { data(options?: { serverTimestamps?: 'estimate' }): unknown }): Model {
+      // A client snapshot of its own pending write — a cache-backed listener
+      // sees one the moment a doc is saved — reads `serverTimestamp()` fields
+      // as null by default, which the strict schema rejects. The local
+      // estimate is what that field will hold. Admin snapshots ignore it.
+      const normalized = normalize(snap.data({ serverTimestamps: 'estimate' }), sdk);
       return schema.parse(normalized);
     },
   };

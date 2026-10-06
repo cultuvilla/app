@@ -1,8 +1,8 @@
 import { historyEntryHref, newHistoryEntryHref } from '../../lib/navigation/routes';
 import { useVillageRoute, withVillageRoute } from '../../lib/navigation/VillageRouteGate';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ActivityIndicator, FlatList, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Screen } from '../../components/primitives/Screen';
 import { Text } from '../../components/primitives/Text';
 import { HStack } from '../../components/primitives/HStack';
@@ -13,9 +13,10 @@ import { Fab } from '../../components/primitives/Fab';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { useT } from '../../lib/i18n';
 import { useEntityCapabilities } from '../../lib/auth/useEntityCapabilities';
+import { useWatch } from '../../lib/hooks/useWatch';
 import { buildTimelineRows } from '../../lib/history/timeline';
 import {
-  getHistoryEntries,
+  watchHistoryEntries,
   type HistoryEntryWithId,
 } from '@cultuvilla/shared/services/historyService';
 import { formatHistoryEntryDate, historicalCenturyLabel } from '@cultuvilla/shared/utils';
@@ -47,25 +48,14 @@ function VillageHistoryScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { t } = useT();
   const { isMember } = useEntityCapabilities(villageId);
-  const [entries, setEntries] = useState<HistoryEntryWithId[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!villageId) return;
-    try {
-      setEntries(await getHistoryEntries(villageId));
-    } finally {
-      setLoading(false);
-    }
-  }, [villageId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
+  const { data: entries, status } = useWatch<HistoryEntryWithId[]>(
+    'history:watchHistoryEntries',
+    villageId,
+    villageId ? (next, error) => watchHistoryEntries(villageId, next, error) : null,
   );
+  const loading = status === 'loading';
 
-  const rows = useMemo(() => buildTimelineRows(entries), [entries]);
+  const rows = useMemo(() => buildTimelineRows(entries ?? []), [entries]);
 
   return (
     <Screen padded={false} bottomInset={false}>

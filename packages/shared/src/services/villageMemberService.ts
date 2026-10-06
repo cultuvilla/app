@@ -6,8 +6,9 @@ import {
   where,
   query,
   writeBatch,
-} from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+  type QueryDocumentSnapshot,
+} from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   municipalityMembersCollection,
@@ -23,6 +24,7 @@ import type {
   VillageMemberData,
   VillageMemberRole,
 } from '../models/municipality/VillageMemberDataModel';
+import { watchQueryWith, type Unwatch, type WatchError } from './watch';
 
 export async function getVillageMember(
   municipalityId: string,
@@ -207,12 +209,16 @@ export interface UserMembership {
   profileCompletedAt: Date | null;
 }
 
-export async function getUserMemberships(userId: string): Promise<UserMembership[]> {
+function userMembershipsQuery(userId: string) {
   // collectionGroup doesn't carry the per-collection converter; attach it explicitly.
   const cg = collectionGroup(getDb(), 'members').withConverter(villageMemberConverterClient);
-  const q = query(cg, where('userId', '==', userId));
-  const snap = await getDocs(q);
-  return snap.docs
+  return query(cg, where('userId', '==', userId));
+}
+
+// The group also returns organizations/{id}/members; those are dropped by path
+// BEFORE `data()`, since the village converter would reject an org member row.
+function userMembershipRows(docs: QueryDocumentSnapshot<VillageMemberData>[]): UserMembership[] {
+  return docs
     .filter((d) => d.ref.parent.parent?.parent.id === 'municipalities')
     .map((d) => {
       const data = d.data();
@@ -225,4 +231,17 @@ export async function getUserMemberships(userId: string): Promise<UserMembership
         profileCompletedAt: data.profileCompletedAt,
       };
     });
+}
+
+export async function getUserMemberships(userId: string): Promise<UserMembership[]> {
+  const snap = await getDocs(userMembershipsQuery(userId));
+  return userMembershipRows(snap.docs);
+}
+
+export function watchUserMemberships(
+  userId: string,
+  onNext: (memberships: UserMembership[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQueryWith(userMembershipsQuery(userId), userMembershipRows, onNext, onError);
 }

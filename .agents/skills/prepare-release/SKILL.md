@@ -1,113 +1,77 @@
 ---
 name: prepare-release
-description: Procedure for cutting a new beta/production release of the Cultuvilla mobile app. Bumps `apps/mobile/app.config.ts` `version` (+ mirrors `apps/mobile/package.json`), stamps the `[Unreleased]` CHANGELOG section into a dated `## vX.Y.Z` heading, and reminds you to update `config/appVersion.latest`. Never commits, tags, or pushes — hands the diff to the user. Use whenever the user says "cut a beta", "prepare release", "bump the version for beta", or wants the next version's CHANGELOG entry.
+description: Procedure for cutting a new beta/production release of the Cultuvilla mobile app with `pnpm release:cut` — writes the es-ES store notes, then one command bumps the version (develop gets the bump commit), stamps the CHANGELOG, branches `release/X.Y.Z` with main merged in, and opens the PR into beta with the migration checklist. Use whenever the user says "cut a beta", "prepare release", "bump the version for beta", "promote to beta", or wants the next version's CHANGELOG entry.
 ---
 
 # Prepare a release
 
-The version is set on the `develop → beta` promotion (beta = release candidate) and rides unchanged into `main`. This skill does the version bump + CHANGELOG stamp on `develop` (or in a worktree) so it's ready for that promotion PR. It STOPS before committing — the version is a product call.
+The version is set when develop is cut for beta (beta = release candidate) and rides unchanged into `main`. `pnpm release:cut` ([scripts/release-cut.mjs](../../../scripts/release-cut.mjs)) does the whole cut; this skill is the judgement around it.
 
-Read the **"Versioning & releases"** section of `AGENTS.md` first; it is the source of truth for the policy this skill executes.
+Read the **"Versioning & releases"** section of `AGENTS.md` first; it is the source of truth for the policy.
+
+## The flow
+
+```
+develop ──(bump commit X.Y.Z, pushed by release:cut)──┐
+                                                      └─ release/X.Y.Z (+ merge origin/main) ──PR "X.Y.Z"──▶ beta
+beta push → Deploy beta + beta-build-and-submit green ──▶ promote-to-main.yml opens PR "X.Y.Z" beta ──▶ main
+```
+
+- **develop carries the bump.** The cut pushes the bare-version commit straight to develop (it is generated, and the beta PR's CI runs the full gate on it), so develop's version is always the latest cut and no second PR has to land.
+- **The release branch merges `main`.** beta and main are `strict`, and beta → main merge commits never reach develop, so a PR straight from develop would be behind beta.
+- **CI guards it** (`version-gate.yml`): beta only takes `release/<the version it ships>`, main only takes `beta`, a release PR is titled with the bare version, and the version must exceed beta's.
+- **The user merges both PRs.** Promotion PRs are a hard stop (`pr:land` exits 30 on them).
 
 ## 1. Ground yourself
 
-- `git tag | tail -10` — recent version tags (tags live on `main` merges).
-- `git log $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD --oneline` — commits since the last tag.
-- `git diff $(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD --stat` — what areas changed.
-- Read `apps/mobile/app.config.ts` → current `version`.
-- Read the top ~30 lines of `CHANGELOG.md` (its `[Unreleased]` section is what you'll stamp).
+- `git fetch origin && git log --oneline origin/beta..origin/develop --no-merges` — what this release carries.
+- `git show origin/beta:apps/mobile/app.config.ts | grep version:` — what beta is on.
+- Read the `[Unreleased]` section of `CHANGELOG.md` — it becomes the release notes.
+
+If develop is already at a version newer than beta with its CHANGELOG stamped (a bump landed earlier), `release:cut` releases that version and skips the bump — go to step 4.
 
 ## 2. Decide the version
 
-**Pre-release (now): stay on `0.x`.** Default to a **MINOR** bump each beta cut (`0.1.0 → 0.2.0`), regardless of commit types — the minor is a running counter, not strict semver, until launch. The `1.0.0` bump happens once, at the first real store release (and takes both iOS and Android to `1.x` together — that's also what lets the App Store accept it, since it rejects `0.x` marketing versions).
+`release:cut` proposes it from the conventional commits since beta: any breaking change (`type!:` or a `BREAKING CHANGE:` footer) → **major**, any `feat` → **minor**, otherwise **patch**. Override with `--bump=patch|minor|major` or `--version=X.Y.Z` when the user named one. A MAJOR is a redesign or a breaking migration — confirm it with the user rather than letting a stray `!` decide.
 
-If the user named a version, use it. Otherwise propose the next minor and **confirm before proceeding** — the version is a product call.
+## 3. Write the store notes
 
-## 3. Bump the version
-
-- `apps/mobile/app.config.ts`: change **only** the top-level `version` string.
-- `apps/mobile/package.json`: set `version` to the same value (it mirrors app.config.ts per AGENTS.md).
-
-**Do NOT touch:**
-- `ios.buildNumber` / `android.versionCode` — EAS owns these remotely (`appVersionSource: "remote"` in `eas.json`).
-- Root `package.json` `version` — not a release artifact.
-
-## 4. Stamp the CHANGELOG
-
-`CHANGELOG.md` uses dated sections. Promote the existing `## [Unreleased]` block into a released, versioned heading and open a fresh empty `[Unreleased]`:
+`release:cut` refuses an `[Unreleased]` without them — the App Store "What's New" is user-facing copy, not something a script invents. Add a short es-ES block (≤500 chars, no internals) at the top of `[Unreleased]`, and land it on develop like any CHANGELOG edit (Direct mode):
 
 ```markdown
 ## [Unreleased]
 
-## vX.Y.Z — YYYY-MM-DD
-
-### Added
-- …(whatever was under [Unreleased])
-
-### Changed
-- …
-```
-
-Keep the entries that were already accumulated under `[Unreleased]`; just move them under the new `vX.Y.Z` heading and re-open an empty `[Unreleased]` above it. Do not invent entries — if `[Unreleased]` is empty, say so and ask the user what the release note should be.
-
-**Store notes.** Right under the new `## vX.Y.Z` heading, add a short es-ES block for the App Store "What's New" (≤500 chars, user-facing, no internals):
-
-```markdown
 <!-- store-notes -->
+
 - **Lo más visible:** una línea.
 - Correcciones y mejoras.
+
 <!-- /store-notes -->
+
+- …the accumulated entries…
 ```
 
-`extractReleaseNotes` (`scripts/lib/changelog-notes.mjs`) uses only this block when present; without it the whole section is flattened and truncated at 4000 chars, which reads as a wall of internal notes on the store.
+`extractReleaseNotes` (`scripts/lib/changelog-notes.mjs`) uses only this block; without it the whole section would ship as a wall of internal notes. If `[Unreleased]` has no entries at all, ask the user what this release is.
 
-## 5. Surface pending backfills (data migrations)
+## 4. Cut
 
-A code change deploys automatically when it reaches an env; a **backfill does not** — it's a manual script run per env. The convention is a `**Migration:**` marker inline in the CHANGELOG entry that needs one (see AGENTS.md "No retrocompat shims"). This step turns those markers into an explicit promotion checklist so a backfill can't be silently forgotten when the version rides `develop → beta → main`.
-
-Extract every `Migration:` line from the block you just stamped:
+From the base checkout, on an up-to-date, clean `develop`:
 
 ```bash
-# lines between the new "## vX.Y.Z" heading and the next "## " heading
-awk '/^## v/{n++} n==1 && /\*\*Migration:\*\*/' CHANGELOG.md
+pnpm release:cut --dry-run      # version, branch, PR body — writes nothing
+pnpm release:cut                # [--bump=… | --version=…]
 ```
 
-- **No matches** → say "No backfills needed for this release" and move on.
-- **Matches** → for each, produce a checklist item naming the script and the two env runs. Put this block in the **`develop → beta` and `beta → main` promotion PR descriptions** (not just here), because that's where a human actually runs them:
+It refuses a dirty tree, a branch other than develop, or a local develop that differs from `origin/develop`. It works in a throwaway worktree, so the checkout never leaves develop (it fast-forwards it to the bump commit at the end). If `main` conflicts with the release branch, it stops and says so — resolve on `release/X.Y.Z` by hand and push.
 
-  ```markdown
-  ## Pending backfills (run before/at promotion)
-  - [ ] beta:  `node scripts/backfill-<thing>.mjs --env=beta --confirm --apply`
-  - [ ] prod:  `node scripts/backfill-<thing>.mjs --env=prod --confirm --apply`
-  ```
+The PR body carries the CHANGELOG section and a checklist of every `**Migration:**` note in it. Add anything a human must verify on beta (native-only changes, manual checks) to the PR description.
 
-  Note in the PR whether each backfill is **crash-inducing** (a strict-converter / required-field change — the app breaks in that env until it runs; see the `promote-requires-beta-backfill` note) or **correctness-only** (stale/leftover data, non-breaking). Dev is already backfilled during development (autonomous), so it's not in the checklist.
+## 5. Data migrations
 
-## 6. Keep the gate's `latest` in step
+A `**Migration:**` note names a backfill (AGENTS.md → _Backfills_). Registered `autoApply` backfills run inside the deploy before its conformance and backfill gates, so most need nothing. For each item on the checklist, check `pnpm backfills:list`: one **not** on `autoApply` must be run via **Actions → Run Backfill** (`ref: beta`, then `ref: main`) before that promotion's deploy, or its gate blocks. Note whether each is **crash-inducing** (a strict-converter / required-field change) or correctness-only.
 
-The force-update gate reads `config/appVersion.latest`. After bumping to `vX.Y.Z`, update the target env's doc so `latest` matches (min stays `0.0.0` pre-release):
+## 6. After the merges
 
-```bash
-# dev (autonomous):
-node scripts/seed-app-version-config.mjs --env=dev --latest=X.Y.Z
-# beta/prod (explicit, needs that project's credentials):
-node scripts/seed-app-version-config.mjs --env=beta --latest=X.Y.Z --confirm
-```
-
-Pre-release this is optional (an out-of-date `latest` only means no "update available" nudge — the gate still fails open). Do it when you want the nudge to reflect the new build.
-
-## 7. STOP
-
-Do **not** commit, tag, or push. Print a summary:
-- New version
-- CHANGELOG heading line
-- Files touched
-
-Hand control to the user. When they commit, the message is the **bare version string** — commitlint has an `ignores` rule (`commitlint.config.cjs`) that exempts exactly a `X.Y.Z` header:
-
-```bash
-git add apps/mobile/app.config.ts apps/mobile/package.json CHANGELOG.md
-git commit -m "X.Y.Z"
-```
-
-The version rides `develop → beta → main` via the normal promotion PRs. **Tag `vX.Y.Z` on the `main` merge commit** (per AGENTS.md) — not here.
+- **beta → main opens itself** once the beta deploy and the beta store builds for the merge are green (`promote-to-main.yml`), titled `X.Y.Z` with the same checklist and links to the runs. The user merges it.
+- **The deploy and the store poller announce the version** (`config/appVersion.latest`) — never seed it by hand.
+- **The `vX.Y.Z` tag is created by CI** once prod's deploy is green — never tag by hand.

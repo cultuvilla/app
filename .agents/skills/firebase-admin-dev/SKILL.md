@@ -72,7 +72,7 @@ const auth = admin.auth();
 const { GeoPoint } = admin.firestore;
 ```
 
-For **seed/backfill/wipe** scripts, refuse to run against `cultuvilla-beta` / `cultuvilla-prod` without explicit user insistence; those are CI-deploy targets, not ad-hoc-script targets. Mirror the guard from [scripts/seed/lib/context.mjs](../../../scripts/seed/lib/context.mjs):
+**Seed and wipe** scripts are dev-only: demo data never belongs on beta (real testers use it) or prod. **Registered backfills and repairs** may run on beta without asking (AGENTS.md § Approval) — dry run first, then `--apply --confirm`, counts logged; prod stays the user's, per specific run. A seed or wipe script mirrors the guard from [scripts/seed/lib/context.mjs](../../../scripts/seed/lib/context.mjs):
 
 ```js
 if (projectId !== 'villa-events') {
@@ -195,7 +195,7 @@ When adding a **new** one-off script:
 ## Don'ts
 
 - Do **not** commit a service-account key. The `.gitignore` patterns are a safety net, not the primary defense.
-- Do **not** run admin scripts against beta/prod. The project-id guard catches this.
+- Do **not** run seed/wipe scripts against beta/prod (the project-id guard catches this), or any write against prod without the user's go for that run.
 - Do **not** re-declare model shapes inline — use `build*Data()` helpers.
 - Do **not** rely on Firestore queries inside wipe paths. Enumerate IDs.
 - Do **not** use `gcloud auth application-default login` to "fix" admin SDK perms — it papers over the real issue and creates a flaky setup.

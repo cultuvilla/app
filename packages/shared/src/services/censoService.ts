@@ -1,4 +1,4 @@
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getFirebaseFunctions } from '../firebase';
 import type { ProfileFormField, ProfileAnswers } from '../models/municipality/CensoTypes';
 import { isPredefinedFieldKey } from '../models/municipality/profileFieldRegistry';

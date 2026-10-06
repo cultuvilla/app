@@ -20,6 +20,21 @@ export interface CardContext {
    *  a village admin types ("Santiago", "Carmen"); dates are pre-formatted,
    *  e.g. "14 – 28 de agosto". */
   blocks: { name: string; dateRange: string }[];
+  /** Where this Wrapped lives, scheme-less (`cultuvilla.es/matabuena/fiestas/2026`).
+   *  Printed on every card: a card forwarded on its own — a WhatsApp status,
+   *  an Instagram story — carries no link, so it has to carry its own way back.
+   *  Null when the pueblo has no slug to address it by. */
+  link: string | null;
+}
+
+function signOff(ctx: CardContext, mark: SatoriNode, linkSize: number): SatoriNode {
+  if (!ctx.link) return mark;
+  return h(
+    'div',
+    { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: Math.round(linkSize * 0.4) } },
+    mark,
+    text(ctx.link, { fontSize: linkSize, color: colors.muted }),
+  );
 }
 
 const HEADER_HEIGHT = 380;
@@ -91,7 +106,7 @@ function frame(ctx: CardContext, header: { kicker: string; title: string; subtit
         text(ctx.villageName, { fontSize: 32, fontWeight: 700 }),
         text(copy.fiestasYear(ctx.year), { fontSize: 26, color: colors.muted, marginTop: 4 }),
       ),
-      brandMark(30),
+      signOff(ctx, brandMark(30), 22),
     ),
   );
 }
@@ -158,7 +173,14 @@ export function coverCard(ctx: CardContext, escudo: string | null): SatoriNode {
         ),
       ),
     ),
-    brandMark(36, { icon: COVER_BADGE }),
+    ctx.link
+      ? h(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', gap: 18 } },
+          brandMark(36, { icon: COVER_BADGE }),
+          text(ctx.link, { fontSize: 30, color: colors.inkDim }),
+        )
+      : brandMark(36, { icon: COVER_BADGE }),
   );
 }
 

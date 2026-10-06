@@ -1,8 +1,11 @@
 # Product analytics — behavioral dashboard + ops monitoring
 
-**Priority:** high — analytics pings may be sent before consent; rule that out first
+**Priority:** high
+**Landed:** prod
 **Gate:** none
-**Next:** explain why every exported GA4 event has `user_pseudo_id = NULL` — check the consent wiring in `packages/shared/src/services/observability/` against a real consented session
+**Next:** apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2
+
+Decided 2026-10-06 (user): Phase 2 (Firestore→BigQuery extension + Looker Studio) and Phase 3 (Cloud Monitoring dashboard + alert policies) are approved, including their running cost. BigQuery export stays **prod-only** (no beta).
 
 Builds directly on the shipped
 [observability foundation](../../decisions/observability-foundation.md).
@@ -13,15 +16,25 @@ Phase 1 full-engagement instrumentation merged to `develop` (PR #150, merge `295
 
 ## Next steps
 
-(1) **Explain why every exported event has `user_pseudo_id = NULL`** — see *Open finding*. (2) Decide whether to add explicit `measurementId` to `firebaseConfigPerEnv`. (3) Then Phase 2.
+0. **Before prod, on beta:** the `develop → beta` promotion builds Cultuvilla Beta (Android) and TestFlight with native analytics, reporting to `cultuvilla-beta`'s GA4 property. Open a beta build and watch GA4 Realtime/DebugView there, and confirm in GA4 Admin → BigQuery links on prod that the **Android and iOS streams** are selected for export — the iOS app was registered on 2026-10-02, after the export link was made, and a link only exports the streams ticked on it.
+1. **Verify native data once the store build ships.** In `cultuvilla-prod.analytics_546204987`, filter `platform IN ('ANDROID','IOS')` and check that `user_pseudo_id` is non-null and that `first_open` is not equal to every session start. Native event names use underscores (`content_detail_viewed`), web used dots — join with `REPLACE(event_name, '.', '_')`.
+2. Confirm the Phase 1 events in GA4 DebugView on one Android and one iOS build (this replaces the never-run web smoke).
+3. Phase 2, on native data.
+4. Phase 3 — built (alerts-as-code, `scripts/apply-monitoring.mjs` + `scripts/lib/monitoring.mjs`), applied to dev and beta 2026-10-06. Left: the prod apply (user's go), then watch a week of prod alerts and retune `THRESHOLDS` if they are noisy.
 
-## Open finding: the export carries no user identity
+## Resolved finding: the web export carried no user identity
 
-Phase 2 is blocked on this data-quality finding, not on infra. **The export carries no user identity.** Since 2026-08-01, 100% of events (all `platform = WEB`) have a null `user_pseudo_id`, and `first_visit` = `page_view` = 1,967 — every page view is somebody's "first". That is the signature of GA4 running with `analytics_storage` denied (cookieless pings), so nothing can be tied to a returning visitor: Phase 2's funnels, cohorts and retention are impossible on this data. Either the consent grant never flips `analytics_storage` to granted, or pings are sent before consent. Check the consent wiring in `packages/shared/src/services/observability/` against a real consented session. The native apps send nothing (the known web-first deferral).
+Since 2026-08-01, 100% of exported events (all `platform = WEB`) had a null `user_pseudo_id`, and `first_visit` = `page_view` = 1,967 — the signature of GA4 running with `analytics_storage` denied, so no returning visitor could be recognised. **This is no longer worth debugging** (re-checked 2026-10-06):
+
+- That data came from the Expo web export, which the app-only transition deleted on dev (phase 4). The read site (`functions/src/web/`) carries no GA4 tag at all, so prod web analytics stops entirely with the next promotion.
+- Native analytics grants consent at boot (`apps/mobile/lib/observability/configure.ts` — `observability.setConsent({ analytics: true })`, covered by the Terms/Privacy Policy accepted at registration) and forwards to `@react-native-firebase/analytics` via `setAnalyticsCollectionEnabled`. Native events should carry a pseudo id; step 1 above proves it.
+- The `measurementId` question is moot on native: the config comes from the per-env `google-services.json` / `GoogleService-Info.plist`.
+
+**Consequence for the read site:** with no web analytics, share-link visits are only visible in `readSite` request logs. The web sign-up question that once needed that number is decided (no web sign-up, 2026-10-06), but share-link reach is still the top of the install funnel, so a log-based metric on `readSite` belongs in Phase 3 here.
 
 ## Handoff
 
-Read prod BigQuery as `cultuvilla.app@gmail.com` (the default gcloud account; it can `bq query --project_id=cultuvilla-prod`). `matabuena.unida@gmail.com` lost prod access by 2026-08-21, and without access `bq ls` returns an **empty listing, not an error** — never read an empty listing as "no datasets". **Phase 2's Firestore→BigQuery export must use the same region (`eu-west`)** or cross-location joins break. **Open finding:** `measurementId` is absent from `apps/mobile/app.config.ts` `firebaseConfigPerEnv` for all envs — analytics relies on the Firebase JS SDK's runtime dynamic-config fetch (works now that GA is enabled, but worth making explicit). Dev's GA property is under a different Google account (not visible to the prod/beta account).
+Read prod BigQuery as `cultuvilla.app@gmail.com` (the default gcloud account; it can `bq query --project_id=cultuvilla-prod`). `matabuena.unida@gmail.com` lost prod access by 2026-08-21, and without access `bq ls` returns an **empty listing, not an error** — never read an empty listing as "no datasets". **Phase 2's Firestore→BigQuery export must use the same region (`eu-west`)** or cross-location joins break. Dev's GA property is under a different Google account (not visible to the prod/beta account).
 
 ## Rollout status
 
@@ -29,12 +42,12 @@ Read prod BigQuery as `cultuvilla.app@gmail.com` (the default gcloud account; it
 |---|---|---|---|
 | Prereq — Google Analytics enabled on Firebase project | ✅ | ✅ | ✅ |
 | Phase 1 — engagement instrumentation (code) | ✅ | ✅ | ✅ |
-| Phase 1 — DebugView smoke verified | ⏳ | — | — |
-| Phase 0 — GA4→BigQuery export enabled | ⏳ | ⬜ | ✅ verified 2026-09-11 — daily tables since 2026-07-19 (⚠️ no `user_pseudo_id`, see *Open finding*) |
+| Phase 1 — native DebugView smoke (Android + iOS) | ⬜ | — | — |
+| Phase 0 — GA4→BigQuery export enabled | ⏳ | ⬜ | ✅ verified 2026-09-11 — daily tables since 2026-07-19 (web rows have no `user_pseudo_id` — see *Resolved finding*; native rows pending the store build) |
 | Phase 2 — Firestore→BigQuery export | ⬜ | ⬜ | ⬜ |
 | Phase 2 — Looker Studio dashboard | ⬜ | ⬜ | ⬜ |
-| Phase 3 — log-based metrics + Cloud Monitoring dashboard | ⬜ | ⬜ | ⬜ |
-| Phase 3 — alert policies | ⬜ | ⬜ | ⬜ |
+| Phase 3 — log-based metrics + Cloud Monitoring dashboard | ✅ 2026-10-06 | ✅ 2026-10-06 | ⬜ (`apply-monitoring.mjs --project=cultuvilla-prod --confirm`) |
+| Phase 3 — alert policies | ✅ created **disabled** (dev is a playground) | ✅ enabled → cultuvilla.app@gmail.com | ⬜ |
 
 Legend: ⬜ pending · ⏳ in progress · ✅ done · ⚠️ blocked (note inline) · — n/a
 
@@ -128,9 +141,27 @@ events fire on the web build.
 
 - **Log-based metrics** on key callables (error rate, p95 latency, success ratio)
   derived from the structured Cloud Logging the server logger already emits.
+- **A `readSite` visits metric** (page kind, entity kind, phone vs. desktop UA) —
+  the only web measurement left once the Expo web export is gone: how many
+  people reach a shared link, against native `first_open`.
 - **Cloud Monitoring dashboard** for prod health.
 - **Alert policies** (email/Slack) on error-rate spikes and latency regressions —
   graduating the foundation's "alerting is manual for now" into alerts-as-code.
+
+**As built (2026-10-06).** One idempotent script, `scripts/apply-monitoring.mjs`
+(dry run by default, `--confirm` writes), applies the spec in
+`scripts/lib/monitoring.mjs` to a project: three log-based counters
+(`server_errors` by `handler`, `client_errors` by platform/surface/error code/app
+version, `read_site_visits` by page/entity kind/device/platform/status), the
+`cultuvilla-ops-health` dashboard, three alert policies (server-error spike,
+client-error spike, key-callable p95 latency) and the email channel. Latency and
+the 5xx ratio come from Cloud Run's built-in `request_latencies` /
+`request_count`, not a log-based distribution. Dashboards and policies carry a
+`spec` hash label, so a re-run updates only what changed and a console edit is
+overwritten. `readSite` now logs one `readSite visit` line per response (enums
+and a status only — no path, slug or user agent). **Caveat:** Hosting caches
+200s for an hour at the edge, so the visits metric counts origin renders — a
+lower bound. Exact counts would need Hosting's Cloud Logging integration.
 
 ## Explicitly still YAGNI
 
@@ -140,8 +171,7 @@ modeling, session replay, distributed tracing, a bespoke dashboard *service*
 
 ## Open questions
 
-- Beta: enable BigQuery export there too, or prod-only? (Leaning prod-only for the
-  real signal; dev optional for plumbing validation.)
+- ~~Beta export~~ — decided 2026-10-06: prod-only.
 - Streaming vs daily-only export (leaning daily + streaming; revisit if cost shows).
 - When to enrich `OBSERVABILITY_EVENTS` with per-event metadata + generate the
   dictionary (Phase 2, once the dashboard reveals which fields matter).

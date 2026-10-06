@@ -7,7 +7,7 @@ import {
   Timestamp,
   where,
   writeBatch,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { censoAnswersCollection, censoAnswersDoc } from '../firebase/refs/client';
 import type { ProfileAnswers, ProfileFormField } from '../models/municipality/CensoTypes';

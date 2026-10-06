@@ -12,7 +12,7 @@ without invalidating printed copies.
   Expo Router web route. The printed bytes never change; behavior
   changes only server/app-side.
 - **`/descarga` is deliberately *not* a Universal/App Link** — no
-  `apps/mobile/public/.well-known/**` entries reference it. Its job is to reach
+  `web/well-known/**` entries reference it. Its job is to reach
   the store, so it must open in the browser even where the app is installed.
 - **Phones go straight to their store, with no page in between.** On web,
   `apps/mobile/app/descarga.tsx` detects the device with the shared
@@ -38,5 +38,5 @@ without invalidating printed copies.
 
 - Don't make `/descarga` a Universal/App Link: a visitor with the app installed
   would be pulled into the app instead of the store page they scanned for.
-- The store URLs come only from `APP_STORES` in `apps/mobile/lib/appStores.ts`;
+- The store URLs come only from `APP_STORES` in `packages/shared/src/config/appStores.ts`;
   never hard-code one into the route or the QR.

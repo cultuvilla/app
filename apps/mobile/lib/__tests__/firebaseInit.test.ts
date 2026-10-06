@@ -1,85 +1,51 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 const initFirebase = jest.fn();
-const initializeAuth = jest.fn((_app: unknown, opts: unknown) => opts);
-const getReactNativePersistence = jest.fn((storage: unknown) => ({ rnPersistence: storage }));
-const indexedDBLocalPersistence = { name: 'indexedDBLocalPersistence' };
-const browserLocalPersistence = { name: 'browserLocalPersistence' };
-const inMemoryPersistence = { name: 'inMemoryPersistence' };
-const browserPopupRedirectResolver = { name: 'browserPopupRedirectResolver' };
+const connectAuthEmulator = jest.fn();
+const connectFirestoreEmulator = jest.fn();
+const connectFunctionsEmulator = jest.fn();
+const connectStorageEmulator = jest.fn();
+const handles = { auth: { auth: true }, db: { db: true }, functions: { fn: true }, storage: { st: true } };
 
-function mockModules(platformOS: 'web' | 'ios' | 'android'): void {
+function load(extra: Record<string, unknown>): () => void {
   jest.resetModules();
-  initFirebase.mockClear();
-  initializeAuth.mockClear();
-  getReactNativePersistence.mockClear();
-
-  jest.doMock('react-native', () => ({ Platform: { OS: platformOS } }));
-  jest.doMock('@react-native-async-storage/async-storage', () => ({
-    __esModule: true,
-    default: { asyncStorageMarker: true },
-  }));
-  jest.doMock('@firebase/auth', () => ({ initializeAuth, getReactNativePersistence }));
-  jest.doMock('firebase/auth', () => ({
-    indexedDBLocalPersistence,
-    browserLocalPersistence,
-    inMemoryPersistence,
-    browserPopupRedirectResolver,
-    connectAuthEmulator: jest.fn(),
-  }));
-  jest.doMock('firebase/firestore', () => ({ connectFirestoreEmulator: jest.fn() }));
-  jest.doMock('firebase/functions', () => ({ connectFunctionsEmulator: jest.fn() }));
-  jest.doMock('firebase/storage', () => ({ connectStorageEmulator: jest.fn() }));
-  jest.doMock('@firebase/util', () => ({ FirebaseError: class FirebaseError extends Error {} }));
+  for (const fn of [initFirebase, connectAuthEmulator, connectFirestoreEmulator, connectFunctionsEmulator, connectStorageEmulator]) {
+    fn.mockClear();
+  }
+  jest.doMock('@cultuvilla/shared/firebase/sdk/auth', () => ({ connectAuthEmulator }));
+  jest.doMock('@cultuvilla/shared/firebase/sdk/firestore', () => ({ connectFirestoreEmulator }));
+  jest.doMock('@cultuvilla/shared/firebase/sdk/functions', () => ({ connectFunctionsEmulator }));
+  jest.doMock('@cultuvilla/shared/firebase/sdk/storage', () => ({ connectStorageEmulator }));
   jest.doMock('../appCheck', () => ({ initMobileAppCheck: jest.fn() }));
   jest.doMock('@cultuvilla/shared/firebase', () => ({
     initFirebase,
-    getAuth: jest.fn(),
-    getDb: jest.fn(),
-    getFirebaseFunctions: jest.fn(),
-    getFirebaseStorage: jest.fn(),
+    getAuth: () => handles.auth,
+    getDb: () => handles.db,
+    getFirebaseFunctions: () => handles.functions,
+    getFirebaseStorage: () => handles.storage,
   }));
   jest.doMock('expo-constants', () => ({
     __esModule: true,
-    default: { expoConfig: { extra: { firebaseConfig: { projectId: 'test-project' } } } },
+    default: { expoConfig: { extra: { firebaseConfig: { projectId: 'test-project' }, ...extra } } },
   }));
+  return (require('../firebaseInit') as { bootstrapFirebase: () => void }).bootstrapFirebase;
 }
 
 describe('bootstrapFirebase', () => {
-  it('configures web persistence without breaking Google popup sign-in', () => {
-    mockModules('web');
-    const { bootstrapFirebase } = require('../firebaseInit');
-    bootstrapFirebase();
-
-    expect(initFirebase).toHaveBeenCalledTimes(1);
-    const { customizeAuth } = initFirebase.mock.calls[0]![1] as {
-      customizeAuth: (app: unknown) => unknown;
-    };
-    customizeAuth({});
-    expect(initializeAuth).toHaveBeenCalledWith(
-      {},
-      {
-        persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence],
-        popupRedirectResolver: browserPopupRedirectResolver,
-      },
-    );
-    expect(getReactNativePersistence).not.toHaveBeenCalled();
+  it('initialises the native SDKs with the env config and talks to real Firebase', () => {
+    load({})();
+    expect(initFirebase).toHaveBeenCalledWith({ projectId: 'test-project' });
+    expect(connectAuthEmulator).not.toHaveBeenCalled();
+    expect(connectFirestoreEmulator).not.toHaveBeenCalled();
   });
 
-  it('uses AsyncStorage-backed persistence on native', () => {
-    mockModules('ios');
-    const { bootstrapFirebase } = require('../firebaseInit');
-    bootstrapFirebase();
-
-    expect(initFirebase).toHaveBeenCalledTimes(1);
-    const { customizeAuth } = initFirebase.mock.calls[0]![1] as {
-      customizeAuth: (app: unknown) => unknown;
-    };
-    customizeAuth({});
-    expect(getReactNativePersistence).toHaveBeenCalledWith({ asyncStorageMarker: true });
-    expect(initializeAuth).toHaveBeenCalledWith(
-      {},
-      { persistence: { rnPersistence: { asyncStorageMarker: true } } },
-    );
+  it('points every SDK at the local emulators only in an E2E build', () => {
+    load({ useEmulator: true })();
+    expect(connectAuthEmulator).toHaveBeenCalledWith(handles.auth, 'http://127.0.0.1:9099', {
+      disableWarnings: true,
+    });
+    expect(connectFirestoreEmulator).toHaveBeenCalledWith(handles.db, '127.0.0.1', 8080);
+    expect(connectFunctionsEmulator).toHaveBeenCalledWith(handles.functions, '127.0.0.1', 5001);
+    expect(connectStorageEmulator).toHaveBeenCalledWith(handles.storage, '127.0.0.1', 9199);
   });
 });

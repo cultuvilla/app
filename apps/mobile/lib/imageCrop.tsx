@@ -4,14 +4,10 @@ import { uriToBlob } from './uriToBlob';
 import { downscaleForUpload } from './downscale';
 
 /**
- * Native square pick + crop (the default impl; web overrides it in
- * imageCrop.web.tsx). Uses expo-image-picker's built-in OS crop editor
+ * Square pick + crop with expo-image-picker's built-in OS crop editor
  * (`allowsEditing` + a locked 1:1 aspect) — the same approach as the sibling
  * ordago-apps repo. The native editor lets the user pinch/pan to a square before
  * returning. Returns null when the user cancels the picker or the crop step.
- *
- * (Web can't use `allowsEditing` — it's a no-op there — so it gets its own
- * react-easy-crop overlay in imageCrop.web.tsx.)
  */
 export async function pickAndCropSquare(): Promise<UploadableImage | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
@@ -35,11 +31,4 @@ export async function pickAndCropSquare(): Promise<UploadableImage | null> {
     contentType: scaled.contentType,
     previewUri: scaled.uri,
   };
-}
-
-/** Web-only crop overlay host. Native uses the OS crop editor above, so there is
- * nothing to mount here — a no-op keeps the root layout able to render
- * <CropperHost /> unconditionally across platforms. */
-export function CropperHost(): null {
-  return null;
 }

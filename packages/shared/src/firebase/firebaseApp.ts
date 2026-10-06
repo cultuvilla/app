@@ -18,7 +18,6 @@ import { getFunctions, type Functions } from 'firebase/functions';
 
 export interface InitFirebaseOptions {
   region?: string;
-  customizeAuth?: (app: FirebaseApp) => Auth;
 }
 
 interface InitializedState {
@@ -42,7 +41,7 @@ export function initFirebase(
   if (state) return state.app;
 
   const app = getApps()[0] ?? initializeApp(config);
-  const auth = options.customizeAuth ? options.customizeAuth(app) : firebaseGetAuth(app);
+  const auth = firebaseGetAuth(app);
   const db = getFirestore(app);
   const storage = getStorage(app);
   const functions = getFunctions(app, options.region ?? DEFAULT_FUNCTIONS_REGION);

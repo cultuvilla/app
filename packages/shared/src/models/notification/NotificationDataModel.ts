@@ -38,9 +38,13 @@ export const NotificationTypeSchema = z.enum([
   // places to update every time the family grows.
   'village_entity_published',
   // The month after a village's last fiestas: a nudge to its admins to pick
-  // the year's dates and create the Wrapped. It carries `municipalityId` and no
-  // entity — a Wrapped is not an EntityKind — and opens `/<pueblo>/resumen`.
+  // the year's dates and create the Wrapped. A Wrapped is not an EntityKind, so
+  // it rides in `entityId` as its `wrappedId` with `entityKind` null — the year
+  // it names is the one `/<pueblo>/resumen` opens.
   'village_wrapped_reminder',
+  // A village's Wrapped went public, by an admin or by the grace timer. Sent to
+  // every member; carries its `wrappedId` the same way and opens the viewer.
+  'village_wrapped_published',
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 
@@ -54,7 +58,8 @@ export const NotificationDataSchema = z.object({
   // null on the event/org notification types that don't carry a requester.
   requesterUid: z.string().nullable(),
   // Set on comment_reply notifications to deep-link to the commented entity;
-  // null on notification types that don't reference an entity.
+  // null on notification types that don't reference an entity. The two
+  // village_wrapped_* types set entityId alone, to the wrappedId.
   entityKind: EntityKindSchema.nullable(),
   entityId: z.string().nullable(),
   read: z.boolean(),

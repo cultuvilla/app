@@ -1,6 +1,6 @@
 import { createRef } from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { Platform, type ScrollView } from 'react-native';
+import { Alert, type ScrollView } from 'react-native';
 import { EntityComments } from './EntityComments';
 import { DetailScrollProvider } from '../../lib/keyboard/DetailScrollContext';
 import {
@@ -313,14 +313,9 @@ describe('<EntityComments>', () => {
         createdAt: new Date(),
       },
     ]);
-    Platform.OS = 'web';
-    // jsdom isn't loaded in this jest env, so window has no confirm to spy on —
-    // install the mock directly (mirrors DeleteHeaderButton.test.tsx).
-    const confirm = jest.fn<boolean, [string?]>().mockReturnValue(true);
-    (globalThis as unknown as { window: { confirm: typeof confirm } }).window = {
-      ...(globalThis as unknown as { window?: object }).window,
-      confirm,
-    } as never;
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      buttons?.find((b) => b.style === 'destructive')?.onPress?.();
+    });
 
     const { findByText, findByLabelText, queryByText } = render(<EntityComments {...BASE_PROPS} />);
     await findByText(/Mi comentario/);
@@ -331,8 +326,7 @@ describe('<EntityComments>', () => {
 
     await waitFor(() => expect(deleteCommentMock).toHaveBeenCalledWith('c-1'));
     expect(queryByText(/Mi comentario/)).toBeNull();
-
-    Platform.OS = 'ios';
+    alert.mockRestore();
   });
 
   it('shows the sign-in prompt instead of the compose input when signed out', async () => {

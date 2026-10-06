@@ -33,6 +33,21 @@ describe('makeConverter', () => {
       expect(converter.fromFirestore(snap)).toEqual({ name: 'x', createdAt: d, coords: { lat: 1, lng: 2 } });
     });
 
+    // Regression: a cache-backed listener emits the client's own pending write,
+    // whose serverTimestamp() fields read as null unless an estimate is asked
+    // for — the strict schema then threw and the saved news post went blank.
+    it('reads a pending server timestamp as its local estimate', () => {
+      const estimate = new Date('2026-10-05T09:22:30Z');
+      const snap = {
+        data: (options?: { serverTimestamps?: string }) => ({
+          name: 'x',
+          createdAt: options?.serverTimestamps === 'estimate' ? new FakeTimestamp(estimate) : null,
+          coords: null,
+        }),
+      };
+      expect(converter.fromFirestore(snap).createdAt).toEqual(estimate);
+    });
+
     it('throws when a required field is missing', () => {
       const snap = { data: () => ({ name: 'x', coords: null }) };
       expect(() => converter.fromFirestore(snap)).toThrow();

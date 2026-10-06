@@ -1,7 +1,7 @@
 import { fetchUserIdHash, __resetHashCacheForTest } from '../errorBridge';
 
 const mockCallable = jest.fn();
-jest.mock('firebase/functions', () => ({ httpsCallable: () => mockCallable }));
+jest.mock('@cultuvilla/shared/firebase/sdk/functions', () => ({ httpsCallable: () => mockCallable }));
 jest.mock('@cultuvilla/shared/firebase', () => ({ getFirebaseFunctions: () => ({}) }));
 jest.mock('@react-native-async-storage/async-storage', () => {
   const store: Record<string, string> = {};

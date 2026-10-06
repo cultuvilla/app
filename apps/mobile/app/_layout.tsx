@@ -7,7 +7,7 @@ import { bootstrapFirebase } from '../lib/firebaseInit';
 import { bootstrapObservability } from '../lib/observability/configure';
 import { ObservabilityErrorBoundary } from '../lib/observability/ObservabilityErrorBoundary';
 import { AppVersionGate } from '../components/AppVersionGate';
-import { SmartAppBanner } from '../components/SmartAppBanner';
+import { OfflineBanner } from '../components/feature/OfflineBanner';
 import { IntroHost, useMarkAppReady } from '../components/intro/IntroHost';
 import { AuthProvider } from '../lib/auth/AuthContext';
 import { CallableErrorProvider } from '../lib/callableError';
@@ -20,8 +20,6 @@ import { MyRegistrationsProvider } from '../lib/registrations/MyRegistrationsCon
 import { PushProvider } from '../lib/push/PushProvider';
 import { useDeepLinkRouter } from '../lib/deeplink/useDeepLinkRouter';
 import { useRouteTracking } from '../lib/observability/useRouteTracking';
-import { CropperHost } from '../lib/imageCrop';
-import { useSeoShellFailsafe } from '../lib/seoShell';
 import { ActivityIndicator, View } from 'react-native';
 
 bootstrapFirebase();
@@ -29,9 +27,6 @@ bootstrapObservability();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({ Fraunces_700Bold });
-  // At the root: the overlay ogRenderer injects must be released even when
-  // the app never reaches a screen that knows about it.
-  useSeoShellFailsafe();
   return (
     // I18nProvider sits above IntroHost so the intro's skip label is translated;
     // IntroHost sits above the font gate so the intro covers that wait too.
@@ -66,17 +61,8 @@ function AppTree() {
                 <MyRegistrationsProvider>
                   <PushProvider>
                     <RegisterGateProvider>
-                      {/* Web-only "get the app" bar. A flex sibling above the
-                          navigator, so it pushes the app down instead of
-                          overlaying the tab bar or a detail header. Renders
-                          nothing on native and nothing until a store URL for
-                          the visitor's platform exists (lib/appStores.ts). */}
-                      <SmartAppBanner />
                       <AuthGate />
-                      {/* Web-only image-crop overlay (no-op on native, which uses its
-                          own native cropper). Rendered above the app so it can cover
-                          any screen when pickImageAsBlob({ square }) opens it. */}
-                      <CropperHost />
+                      <OfflineBanner />
                     </RegisterGateProvider>
                   </PushProvider>
                 </MyRegistrationsProvider>

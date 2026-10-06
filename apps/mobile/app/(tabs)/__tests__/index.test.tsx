@@ -1,8 +1,9 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import FeedScreen from '../index';
 import {
   getPrivateUpcomingFeed,
   getUpcomingFeed,
+  watchUpcomingFeed,
 } from '@cultuvilla/shared/services/feedService';
 import { getAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
 import { buildEventData } from '@cultuvilla/shared/models/event/EventDataModel';
@@ -12,14 +13,35 @@ jest.mock('@cultuvilla/shared', () => ({
   observability: { track: jest.fn() },
   OBSERVABILITY_EVENTS: {},
 }));
-jest.mock('@cultuvilla/shared/services/feedService', () => ({
-  getUpcomingFeed: jest.fn().mockResolvedValue([]),
-  getPrivateUpcomingFeed: jest.fn().mockResolvedValue([]),
-  haversineKm: jest.fn().mockReturnValue(0),
-}));
-jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  getAllVillagesFeed: jest.fn().mockResolvedValue([]),
-}));
+/**
+ * The screen watches the feeds; each `watch*` mock answers once with what its
+ * `get*` twin resolves, so a test sets data on the familiar `get*` mock.
+ */
+function mockWatchFrom(get: (...args: unknown[]) => unknown, pick = (v: unknown) => v) {
+  return (...args: unknown[]) => {
+    const onError = args.pop() as (e: unknown) => void;
+    const onNext = args.pop() as (v: unknown) => void;
+    Promise.resolve(get(...args)).then((v) => onNext(pick(v)), onError);
+    return () => undefined;
+  };
+}
+jest.mock('@cultuvilla/shared/services/feedService', () => {
+  const getUpcomingFeed = jest.fn().mockResolvedValue({ events: [] });
+  const getPrivateUpcomingFeed = jest.fn().mockResolvedValue([]);
+  return {
+    getUpcomingFeed,
+    getPrivateUpcomingFeed,
+    watchUpcomingFeed: jest.fn(
+      mockWatchFrom(getUpcomingFeed, (page) => (page as { events: unknown[] }).events),
+    ),
+    watchPrivateUpcomingFeed: mockWatchFrom(getPrivateUpcomingFeed),
+    haversineKm: jest.fn().mockReturnValue(0),
+  };
+});
+jest.mock('@cultuvilla/shared/services/newsService', () => {
+  const getAllVillagesFeed = jest.fn().mockResolvedValue([]);
+  return { getAllVillagesFeed, watchAllVillagesFeed: mockWatchFrom(getAllVillagesFeed) };
+});
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   getActiveCommunities: jest.fn().mockResolvedValue([]),
 }));
@@ -53,6 +75,7 @@ jest.mock('../../../lib/auth/RegisterGateContext', () => ({
 }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
+  reportFirestoreError: jest.fn(),
 }));
 jest.mock('../../../components/layout/AppHeader', () => ({
   AppHeader: () => null,
@@ -192,5 +215,66 @@ describe('FeedScreen private events', () => {
 
     const { findByText } = await renderOnEventsTab();
     expect(await findByText('Verbena', undefined, { timeout: 5000 })).toBeTruthy();
+  });
+});
+
+// The feed is a live listener (offline-first, docs/plans/ongoing/offline-first-village.md):
+// it paints whatever the listener delivers, with no refetch on focus, and a
+// failed listener is re-opened by the error state's retry.
+describe('FeedScreen live listener', () => {
+  type Listener = { next: (v: unknown) => void; fail: (e: Error) => void; closed: boolean };
+  let listeners: Listener[];
+  const defaultWatch = (watchUpcomingFeed as jest.Mock).getMockImplementation();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRibbonFor.mockReturnValue(null);
+    (getAllVillagesFeed as jest.Mock).mockResolvedValue([]);
+    (getPrivateUpcomingFeed as jest.Mock).mockResolvedValue([]);
+    listeners = [];
+    (watchUpcomingFeed as jest.Mock).mockImplementation(
+      (_size: number, next: Listener['next'], fail: Listener['fail']) => {
+        const listener: Listener = { next, fail, closed: false };
+        listeners.push(listener);
+        return () => {
+          listener.closed = true;
+        };
+      },
+    );
+  });
+
+  afterEach(() => {
+    (watchUpcomingFeed as jest.Mock).mockImplementation(defaultWatch);
+  });
+
+  const current = (): Listener => {
+    const live = listeners.filter((l) => !l.closed);
+    if (live.length !== 1) throw new Error(`expected one open listener, found ${String(live.length)}`);
+    return live[0] as Listener;
+  };
+
+  it('shows an event the listener pushes, with no second query', async () => {
+    const { findByText, queryByText } = await renderOnEventsTab();
+    act(() => current().next([event]));
+    expect(await findByText('Verbena')).toBeTruthy();
+
+    act(() => current().next([event, { ...event, id: 'event2', title: 'Romería' }]));
+    expect(await findByText('Romería')).toBeTruthy();
+    act(() => current().next([{ ...event, id: 'event2', title: 'Romería' }]));
+    expect(queryByText('Verbena')).toBeNull();
+
+    expect(getUpcomingFeed).not.toHaveBeenCalled();
+    expect(watchUpcomingFeed).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-opens a failed listener from the error state and recovers', async () => {
+    const { findByText } = await renderOnEventsTab();
+    act(() => current().fail(new Error('unavailable')));
+    fireEvent.press(await findByText('common.error.retry'));
+
+    expect(listeners).toHaveLength(2);
+    expect(listeners[0]?.closed).toBe(true);
+    act(() => current().next([event]));
+    expect(await findByText('Verbena')).toBeTruthy();
   });
 });

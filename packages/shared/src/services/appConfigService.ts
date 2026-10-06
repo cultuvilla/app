@@ -1,4 +1,4 @@
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { appVersionConfigConverterClient } from '../firebase/converters/appVersionConfigConverter.client';
 import type { AppVersionConfig } from '../models/config';

@@ -22,8 +22,20 @@ Do not fork their instructions locally: repository-specific policy belongs in
 if you separately installed that plugin globally, disable it for this project to
 avoid exposing two copies.
 
-Existing shared skills may link into `.agents/_shared`. Run
-`git submodule update --init --recursive` after cloning and in new worktrees.
+Shared skills link into the `.agents/_shared` submodule
+([agent-skills](https://github.com/alvaro-francisco-gil/agent-skills)): `ship-a-feature`,
+`orchestrate`, `advance-plans` and `review-ideas`, plus the scripts `scripts/pr-land.js`,
+`scripts/plans-map.js`, `scripts/agent-env.sh`, `scripts/agent-capacity.js`,
+`scripts/agent-dispatch.sh`, `scripts/pr-land-bg.sh`, `scripts/ideas-review-order.js`,
+`scripts/agent-auto-mode.js` and the hook `.claude/hooks/guard-lander-kill.sh`. Their
+repo-specific values live in `land.config.json`, `orchestrate.config.json` and
+`auto-mode.json` here — never edit the submodule to fit this repo.
+
+`auto-mode.json` is the repo's policy phrased for Claude Code's auto-mode classifier,
+which never reads a repo's own settings. Install it into your user settings with
+`pnpm agent:auto-mode` (preview) and `pnpm agent:auto-mode --write`; re-run after it
+changes. It must stay a restatement of `AGENTS.md` § Approval and the Autonomy contract. Run `git submodule update --init --recursive` after cloning and in new
+worktrees; until then every one of those links dangles.
 
 References: [Claude instructions](https://code.claude.com/docs/en/memory#read-agentsmd),
 [Claude skills](https://code.claude.com/docs/en/skills),

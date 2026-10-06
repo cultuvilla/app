@@ -1,8 +1,9 @@
 # Store release runbook — Google Play and App Store
 
 **Priority:** low
+**Landed:** prod
 **Gate:** none
-**Next:** check Error Reporting for iOS `surface: auth` failures since 1.0.0 went live; if none, retire this plan into one decision doc
+**Next:** once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc
 
 **Goal:** Cultuvilla public on both stores. **Done** — what remains is the
 open items below, then retiring this plan.
@@ -27,10 +28,14 @@ open items below, then retiring this plan.
 
 ## Open, before retiring
 
-- **Sign in with Apple in TestFlight** (see *El rechazo de 1.0.0*). The logging
-  that was the next step shipped in `55589f4a` (2026-09-03, `reportAuthError`),
-  but nobody recorded what it caught. Check Error Reporting for `surface: auth`
-  failures on iOS. If there are none since 1.0.0 went live, close this.
+- ✅ **Sign in with Apple** — checked 2026-10-06 against prod Cloud Logging
+  (`jsonPayload.surface="auth"`, since 2026-09-04): 12 Apple entries, of which
+  4 are people cancelling the sheet (logged because the cancel reaches JS with
+  no `code`; fixed by matching the message too) and 8 are
+  `The authorization attempt failed for an unknown reason` — 4 attempts, each
+  retried once, spread over 1.2.2, 1.4.1 and 1.5.0. That is
+  `ASAuthorizationError.unknown`, typically a phone not signed into an Apple ID;
+  a broken entitlement or Services ID would fail every attempt. Not a defect.
 - **iOS Safari install banner.** The `apple-itunes-app` tag this doc says Safari
   draws its banner from never shipped: `+html.tsx` is ignored with
   `web.output: 'single'`. So iOS Safari visitors may get no install offer at
@@ -209,9 +214,9 @@ which the rule does not gate — see
 | Fact | Where you get it | Where it goes |
 |---|---|---|
 | Play service account JSON | GCP → service account key, then Play Console → Users and permissions → invite `play-publisher@cultuvilla-prod.iam.gserviceaccount.com` with the app permissions below | repo secret `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` |
-| App signing key SHA-256 | Play Console → **Protected with Play → Play Store protection → Play app signing** | committed into `apps/mobile/public/.well-known/{env}/assetlinks.json` |
+| App signing key SHA-256 | Play Console → **Protected with Play → Play Store protection → Play app signing** | committed into `web/well-known/{env}/assetlinks.json` |
 | App signing key SHA-1 | same screen | **new Android OAuth client** in the `cultuvilla-prod` GCP project |
-| Apple Team ID | Apple Developer → Membership | committed into `apps/mobile/public/.well-known/{env}/apple-app-site-association` **and** `apps/mobile/eas.json` (`submit.production.ios.appleTeamId`) |
+| Apple Team ID | Apple Developer → Membership | committed into `web/well-known/{env}/apple-app-site-association` **and** `apps/mobile/eas.json` (`submit.production.ios.appleTeamId`) |
 | App Store Connect app id | App Store Connect → App Information | repo var `ASC_APP_ID` |
 | ASC API Key `.p8` file | App Store Connect → Users and Access → Integrations → App Store Connect API | repo secret `APPLE_ASC_API_KEY_P8` |
 | ASC API Key ID | same screen | repo var `APPLE_ASC_KEY_ID` |
@@ -248,7 +253,7 @@ working perfectly on every locally-installed one. Registering the SHA-1 in
 Firebase creates that client automatically.
 
 The **SHA-256** from the same screen belongs in
-`apps/mobile/public/.well-known/prod/assetlinks.json`, which is already filled
+`web/well-known/prod/assetlinks.json`, which is already filled
 in — that is what makes a shared `https://cultuvilla.es/event/...` link open the
 app instead of the browser. `dev` and `beta` still carry placeholders; fill each
 one when that build is first distributed.
@@ -273,10 +278,10 @@ Google/Apple and no loose credential works.
   map 1:1 to the Play tracks `internal` / `alpha` / `production`.
 - `.github/workflows/mobile-release.yml` — the manual build+submit entry point.
 - `.github/workflows/appstore-release.yml` — App Store Connect status / release / submit.
-- `apps/mobile/lib/appStores.ts` — the store URLs every download offer derives from.
-- `apps/mobile/public/.well-known/{env}/` — the deep-link association files,
+- `packages/shared/src/config/appStores.ts` — the store URLs every download offer derives from.
+- `web/well-known/{env}/` — the deep-link association files,
   signing identities committed; copied into place at hosting-deploy time by
-  `apps/mobile/scripts/copy-well-known.mjs`.
+  `scripts/build-web-static.mjs`.
 
 ## Build gotchas proven the hard way
 

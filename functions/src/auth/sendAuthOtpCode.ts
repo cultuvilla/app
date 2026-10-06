@@ -8,6 +8,7 @@ import { RESEND_API_KEY } from './secret';
 import { bucketIdFor, callerIpOf, checkSendRateLimits } from './rateLimit';
 import { reviewOtpCodeFor } from './reviewAccess';
 import { renderAuthOtpEmailHtml, renderAuthOtpEmailText, AUTH_OTP_EMAIL_SUBJECT_PREFIX } from './authEmailTemplate';
+import { isFunctionsEmulator } from '../shared/runtime';
 
 const handler = 'sendAuthOtpCode';
 
@@ -31,13 +32,6 @@ function hashCode(code: string): string {
 
 function generateCode(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, '0');
-}
-
-// Set by the Functions emulator runtime itself — it cannot be true in deployed
-// Functions, so this is a guard by physics rather than by configuration. Read at
-// call time (not module load) so tests can toggle it.
-function isFunctionsEmulator(): boolean {
-  return process.env.FUNCTIONS_EMULATOR === 'true';
 }
 
 /** Core logic, separated from the onCall envelope so it is unit-testable. */

@@ -40,6 +40,7 @@ import { WordOfTheDayCard } from './vocabulary/WordOfTheDayCard';
 import { LocationMap } from './LocationMap';
 import { JoinVillageModal } from './JoinVillageModal';
 import { VillageAmbassadorCard } from './VillageAmbassadorCard';
+import { VillageWrappedBanner } from './wrapped/VillageWrappedBanner';
 import { AmbassadorWelcomeSheet } from './AmbassadorWelcomeSheet';
 import {
   hasSeenAmbassadorWelcome,
@@ -51,7 +52,6 @@ import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
 import { useIsAppAdmin } from '../../lib/auth/useIsAppAdmin';
 import { useShareDeepLink } from '../../lib/deeplink/useShareDeepLink';
 import { useT } from '../../lib/i18n';
-import { dismissSeoShell } from '../../lib/seoShell';
 import { usePush } from '../../lib/push/PushProvider';
 import { isProposalVisible } from '../../lib/proposals';
 import { joinVillage } from '@cultuvilla/shared/services/villageMemberService';
@@ -112,14 +112,6 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
     setWelcomeOpen(false);
     if (uid && villageIdForWelcome) void markAmbassadorWelcomeSeen(villageIdForWelcome, uid);
   };
-
-  // Village is not an entity (it opens a ScreenHeader, not EntityDetailScaffold),
-  // so it needs its own hand-over from the server-rendered block. This body is
-  // shared by /village/[villageId] and the village tab, which is where a cold
-  // entry to a shared village link actually lands after its redirect.
-  useEffect(() => {
-    if (!coreLoading) dismissSeoShell();
-  }, [coreLoading]);
 
   if (coreLoading) {
     return (
@@ -314,6 +306,9 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             onPress={() => void share(getVillageViewLink(villageSlug), village.name)}
           />
         </HStack>
+
+        {/* ── The latest fiestas Wrapped, while it is recent ────── */}
+        <VillageWrappedBanner municipalityId={village.id} villageSlug={villageSlug} />
 
         {/* ── No organizer yet (wiki phase) ─────────────────────── */}
         {noOrganizer ? (

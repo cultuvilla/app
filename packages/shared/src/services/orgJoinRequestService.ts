@@ -1,6 +1,6 @@
 // packages/shared/src/services/orgJoinRequestService.ts
-import { deleteDoc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { deleteDoc, getDoc, getDocs, query, setDoc, where } from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   joinRequestsGroup,

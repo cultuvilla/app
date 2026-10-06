@@ -1,6 +1,6 @@
 ---
 name: drive-android-avd
-description: Drive a Cultuvilla dev-client Android AVD from WSL2 — boot the emulator, expose Metro to the device, deep-link into the dev client, screenshot, and tail logcat. Use whenever the task needs to actually run the mobile app and observe its behavior (e.g. capture `[firestore-deny]` lines, verify a UI change, reproduce a runtime bug). Encodes the WSL2/Windows adb split so you don't waste time on `adb devices` showing nothing.
+description: Drive a Cultuvilla dev-client Android AVD or physical phone (USB or wireless) from WSL2 — boot the emulator, expose Metro to the device, deep-link into the dev client, screenshot, and tail logcat. Use whenever the task needs to actually run the mobile app and observe its behavior (e.g. capture `[firestore-deny]` lines, verify a UI change, reproduce a runtime bug). Encodes the WSL2/Windows adb split so you don't waste time on `adb devices` showing nothing.
 ---
 
 # Drive the Cultuvilla AVD from WSL
@@ -39,6 +39,43 @@ scripts/avd-dev.sh open
 scripts/avd-dev.sh denies 60 | tee /tmp/denies.log
 ```
 
+## Physical phone (USB or wireless)
+
+The same chain drives a real phone — skip `boot`, the rest is identical. `adb reverse`
+makes the phone's `localhost:8081` reach Metro in WSL, so **don't use `--lan`**: WSL2
+runs in NAT mode, and the IP Metro advertises (a Docker bridge like `172.20.0.1`, or
+the WSL `eth0`) is unreachable from the phone.
+
+```bash
+pnpm app:start                # plain, no --lan
+scripts/avd-dev.sh reverse
+scripts/avd-dev.sh open
+```
+
+**Wireless** is `adb reverse` over Wi-Fi debugging — no portproxy, no firewall rule.
+Phone and PC on the same Wi-Fi; Developer options → *Wireless debugging* on.
+
+```bash
+ADB=/mnt/c/Users/alvar/AppData/Local/Android/Sdk/platform-tools/adb.exe
+$ADB pair <ip>:<pair-port>    # once: "Pair device with pairing code", type the code
+$ADB connect <ip>:<port>      # every session: the port on the main Wireless debugging
+                              # screen (NOT the pairing port); it changes on each toggle
+```
+
+**More than one device attached** (phone + AVD, or the phone over USB *and* TLS)
+makes every adb call fail with `more than one device/emulator`. Close the extra one,
+or select the target: `adb.exe` is a Windows process, so the env var only reaches it
+through `WSLENV`:
+
+```bash
+export ANDROID_SERIAL=3B151FDJH000V3            # serial from `adb.exe devices`
+export WSLENV="${WSLENV:+$WSLENV:}ANDROID_SERIAL" # no /u flag — that is the Win→WSL direction only
+```
+
+**Phone stuck `offline`** (often after the screen locks mid-install): restarting the
+adb server does not fix it. Unlock, replug, accept *Allow USB debugging*; failing that,
+toggle USB debugging or *Revoke USB debugging authorizations*.
+
 ## Subcommands
 
 | Subcommand | What it does |
@@ -76,6 +113,8 @@ scripts/avd-dev.sh denies 60 | tee /tmp/denies.log
    - Hermes/Fabric is silently swallowing `console.warn`. Unlikely on RN 0.81 + Expo SDK 54, but if so widen the filter: `logs` (which includes `ReactNativeJS` generally) instead of `denies`.
 4. **The emulator is on a different Windows account.** The `EMU=` / `ADB=` paths in the script default to `/mnt/c/Users/alvar/...`. Override via env vars when running.
 5. **Snapshot save can corrupt state.** The script passes `-no-snapshot-save` so a forced kill doesn't poison the next boot.
+6. **Red screen `Unable to resolve "react-refresh/runtime"`** (or another package that is plainly installed). `metro.config.js` sets `disableHierarchicalLookup`, so Metro only sees the root and `apps/mobile` `node_modules` — it depends on pnpm's `shamefully-hoist` links. pnpm can lose a hoisted link while `node_modules/.modules.yaml` still lists it as `public`, and then `pnpm install` won't restore it. Seen 2026-10-06 (`react-refresh`, `@types/estree`, `@rolldown/pluginutils`, after the web deps were dropped). Fix with `pnpm install --force`, or recreate the missing `node_modules/<pkg>` symlink to `.pnpm/<pkg>@<ver>/node_modules/<pkg>`.
+7. **The dev-launcher error screen right after launch** with a missing native module means the installed dev client predates a native dependency — rebuild it (`expo-native-rebuild`); a JS reload can't add native code.
 
 ## Closely-related skills
 

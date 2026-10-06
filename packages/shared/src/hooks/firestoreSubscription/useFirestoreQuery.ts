@@ -16,7 +16,7 @@
 // must not be relied on for cross-component listener sharing.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { onSnapshot, type Query, type QuerySnapshot } from 'firebase/firestore';
+import { onSnapshot, type Query, type QuerySnapshot } from '../../firebase/sdk/firestore';
 
 import { subscribe } from './cache';
 

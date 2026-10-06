@@ -2,10 +2,9 @@
 /**
  * Run the native (Maestro) Android E2E suite against a booted AVD.
  *
- * The counterpart of the web suite's Playwright runner. It is deliberately NOT
- * responsible for the Firebase emulators — `pnpm test:e2e:android` wraps it in
- * scripts/run-tests-with-emulators.mjs, exactly as `test:e2e:web` wraps
- * Playwright, so both drivers share one emulator boot and one seeding step.
+ * It is deliberately NOT responsible for the Firebase emulators —
+ * `pnpm test:e2e:android` wraps it in scripts/run-tests-with-emulators.mjs,
+ * which owns the emulator boot and the seeding step.
  *
  * What it does own:
  *   1. proving a device is actually attached (a missing AVD otherwise surfaces
@@ -131,18 +130,8 @@ if (apk) {
 // suite that silently shrank reads as "everything passed", which is worse than
 // a red lane. `--flow` still runs a quarantined flow explicitly, so chasing one
 // needs no edit here.
-const QUARANTINED = new Map([
-  [
-    '50-onboarding-complete-profile.yaml',
-    "profile submit hangs on the native SDK's cleartext Firestore connection to " +
-      '10.0.2.2 (logcat: "unexpected end of stream on http://10.0.2.2:8080"). A ' +
-      'Firestore write promise never settles when the connection drops, so the ' +
-      'button spins forever. Product path is covered: e2e/flows/onboarding-profile' +
-      '.spec.ts is the exact mirror (same three person-form-primary clicks, same ' +
-      'personId assertion) against the same emulator, and it passes. What is ' +
-      'unverified is the native emulator transport, which no real client uses.',
-  ],
-]);
+// Shape: [['NN-name.yaml', 'reason, long enough to act on'], ...].
+const QUARANTINED = new Map([]);
 
 mkdirSync(REPORT_DIR, { recursive: true });
 const discovered = readdirSync(FLOWS_DIR)

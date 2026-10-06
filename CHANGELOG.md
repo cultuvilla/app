@@ -4,6 +4,64 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+- Creating an event: the location is marked as mandatory (red asterisk), and
+  the Preguntas step only appears once "Añadir un formulario" is switched on
+  in Detalles. An event that already has questions opens with it on, and it
+  can't be switched off once those questions have answers.
+- History, vocabulary, Mis inscripciones and the profile now read through live
+  listeners: they open instantly from the on-device cache (offline too) and
+  update on their own, instead of reloading every time you return to them. The
+  bell's unread badge moves as soon as a notification lands or is read.
+- Release tooling: `pnpm release:cut` cuts a release in one command (bump on develop, `release/X.Y.Z` with main merged, PR into beta with the migration checklist); the `beta → main` PR opens itself once beta's deploy and store builds are green; `version-gate.yml` now also checks the release PR's source branch and title.
+
+## v1.6.0 — 2026-10-06
+
+<!-- store-notes -->
+- **La app abre al instante y funciona sin conexión**: tu pueblo, sus eventos y noticias se guardan en el móvil y se actualizan solos.
+- **Embajadores de Cultuvilla**: cada pueblo tiene su Embajador o Embajadora, visible en su página.
+- **Grupos con admisión**: un grupo puede pedir aprobación para unirse.
+- El resumen de las fiestas ya es de todo el pueblo.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
+- Signing out wipes the app's on-device data cache and restarts the app, so
+  member-only data (private events, censo answers) never stays on a shared
+  phone after the session ends.
+- A quiet "Sin conexión — mostrando datos guardados" pill shows while the
+  phone is offline; the app keeps working from what it has saved.
+- Event, place, barrio, cartel, history, word, news and group pages update
+  live and open instantly on a revisit; a deleted item shows "no encontrado"
+  instead of a stale page, and an event that does not exist no longer spins
+  forever.
+- The village home is live: it paints from the on-device cache at once (offline
+  too) and updates as the village changes, instead of reloading every time
+  you return to it.
+- The app runs the native Firebase SDKs (`@react-native-firebase/*`) instead of
+  the JS SDK: Firestore keeps a persistent on-device cache, the groundwork for
+  opening offline. Services are unchanged; they reach Firebase through an SDK
+  seam in `packages/shared`. Native code: ships in the next store build.
+- The app no longer builds for the web: the Expo web export, its web-only
+  code paths, `react-native-web` and the Playwright web E2E suite are gone. The
+  web is the read site; the Android Maestro suite is the end-to-end gate.
+- New server-rendered read site (`readSite` function): every public page of a
+  pueblo — events, news, peñas, places, barrios, carteles, history and
+  vocabulary — readable without the app, with share previews and structured
+  data; every action hands over to the app.
+- The web is now the read site: Hosting serves its static files (`web/`) and
+  sends every page to `readSite`. The Expo web app is no longer deployed, and
+  the share-preview function `ogRenderer` is gone. Account and creation screens
+  on the web answer with an "open the app" page.
+- The sitemap no longer lists hidden news posts.
+- The fiestas Wrapped is now for the whole pueblo, not just its admins. Once
+  published it opens as a story (tap to move between cards, hold to pause) at
+  `/<pueblo>/fiestas/<año>`, a link that previews in WhatsApp with its cover
+  card and opens without an account. Each card can be shared as an image from
+  the app, straight to WhatsApp status or Instagram stories, and every card
+  now prints its own address. Every village member gets a notification when it
+  is published, and the village home shows it for two months afterwards. The
+  admin review screen previews it in the same story viewer, and a January
+  reminder about December's fiestas now opens last year's Wrapped.
+
 - The iOS and Android apps report the same usage analytics as the web
   (Google Analytics for Firebase), plus an `app.link.opened` event when a
   shared link opens the installed app. Native code: ships in the next store

@@ -1,6 +1,6 @@
-import { FirebaseError } from '@firebase/util';
-import { getAuth } from '@firebase/auth';
 import { observability } from '@cultuvilla/shared';
+import { getAuth } from '@cultuvilla/shared/firebase';
+import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
 
 declare const __DEV__: boolean;
 
@@ -24,18 +24,22 @@ export async function withFirestoreErrorLog<T>(
   try {
     return await op();
   } catch (err) {
-    if (err instanceof FirebaseError && err.code === 'permission-denied') {
-      observability.captureError(err, { operation: label });
-      if (__DEV__) {
-        let uid = 'anon';
-        try {
-          uid = getAuth().currentUser?.uid ?? 'anon';
-        } catch {
-          // Auth may not be initialised yet in odd edge cases — keep 'anon'.
-        }
-        console.warn(`[firestore-deny] label=${label} code=${err.code} uid=${uid}`);
-      }
-    }
+    reportFirestoreError(label, err);
     throw err;
+  }
+}
+
+/** The reporting half of `withFirestoreErrorLog`, for errors a listener delivers. */
+export function reportFirestoreError(label: string, err: unknown): void {
+  if (firebaseErrorCode(err) !== 'permission-denied') return;
+  observability.captureError(err, { operation: label });
+  if (__DEV__) {
+    let uid = 'anon';
+    try {
+      uid = getAuth().currentUser?.uid ?? 'anon';
+    } catch {
+      // Auth may not be initialised yet in odd edge cases — keep 'anon'.
+    }
+    console.warn(`[firestore-deny] label=${label} uid=${uid}`);
   }
 }

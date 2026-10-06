@@ -1,25 +1,24 @@
 # App-only transition — the app is the product, web is a read site
 
 **Priority:** high — unblocks offline-first, the main app-speed fix
+**Landed:** dev
 **Gate:** none
-**Next:** ship phase 1 in the next `mobile-release` and confirm events in GA4 DebugView, then start the read site (phase 2)
-**Due:** 2027-04-30
+**Next:** promote to beta and run the phase 3 `curl` checks there, then the same on prod
 
 The decision and the data behind it are in
 [web-is-a-read-site.md](../../decisions/web-is-a-read-site.md). This plan tracks
 the work until the Expo web export is gone and the read site serves every
-public route in prod. `Due` is the deadline for the web sign-up decision
-(phase 5), which must land before the 2027 fiesta season.
+public route in prod.
 
 Replaces *app-first-transition* (which assumed web stays a full app) and the
-*native-firebase-sdk-migration* idea (now [offline-first-village.md](../ready/offline-first-village.md)).
+*native-firebase-sdk-migration* idea (now [offline-first-village.md](offline-first-village.md)).
 
 ## Phases
 
 | Phase | What | Ships via |
 |---|---|---|
 | 1 | Native analytics | store build |
-| 2 | Read site (`apps/web`) | hosting + Cloud Run |
+| 2 | Read site (`readSite` function) | functions deploy |
 | 3 | Route-by-route cutover | `firebase.json` rewrites |
 | 4 | Delete the Expo web export | code removal |
 | 5 | Web sign-up decision | decision record |
@@ -53,37 +52,44 @@ answered.
 
 ## Phase 2 — the read site
 
-**Shape:** Next.js under `apps/web/`, modelled on ordago's `ordago-web`
-(Next.js on Cloud Run, Admin SDK reads on the server). Firebase Hosting stays in
-front — it keeps `cultuvilla.es`, the static `robots.txt`, `.well-known/` and
-`/descarga`, and rewrites page routes to the Cloud Run service. One service per
-env (dev / beta / prod), deployed by the existing promotion pipeline.
+**Shape:** one Cloud Function, `readSite` (`functions/src/web/`), not Next.js
+on Cloud Run — see the decision record for why. Escape-by-default templates
+(`html.ts`), a router over every URL the app emits (`routes.ts`), best-effort
+Admin SDK loaders that re-apply visibility (`data.ts`), pages (`pages.ts`).
+Firebase Hosting stays in front and rewrites page routes to it.
 
-Pages (public data only, Spanish village-first URLs from `urls.ts`):
+- [x] Village home `/<pueblo>`, and lists: carteles, lugares, entidades,
+      historia, vocabulario, barrios (the app's own screens at those paths are
+      member forms; on web they are lists)
+- [x] Details: evento, noticia, entidad, lugar, barrio, cartel, acontecimiento,
+      palabra — each with one canonical URL (stale slugs 301)
+- [x] `/<pueblo>/entidad/<ref>/unirse` → invite landing, `noindex`
+- [x] `/descarga` (phones 302 to their store), `/legal/*` (content moved to
+      `@cultuvilla/shared/legal`; account deletion is `/legal/eliminar-cuenta`)
+- [x] App-only paths (account, forms, member views) → app hand-off, `noindex`
+- [x] OG tags, JSON-LD, canonical on the project's public origin, Safari banner
+- [x] Every action → app CTA (scheme hand-off, `/descarga` fallback)
+- [x] Visibility: private events withheld (title not even in the URL), drafts,
+      hidden news, pending orgs, hidden places/barrios/carteles 404. The sitemap
+      no longer lists hidden news.
 
-- [ ] Village home `/<pueblo>` and its lists: carteles, lugares, entidades,
-      historia, vocabulario, barrios
-- [ ] Details: evento, noticia, entidad, lugar, barrio, cartel, acontecimiento,
-      palabra
-- [ ] `/<pueblo>/entidad/<id>/unirse` → landing that opens the app or the store
-- [ ] `/descarga`, `/legal/*`, `/borrar-cuenta` (Play's account-deletion URL)
-- [ ] `/sitemap.xml`, per-env `robots.txt`, canonical host, `noindex` for
-      private events and invite paths
-- [ ] OG tags + JSON-LD — port `functions/src/og/` (fetchers, `jsonLd.ts`,
-      `seoBody.ts`) rather than rewrite; it already reads best-effort, without
-      strict converters, on purpose
-- [ ] Every action button → app CTA (universal link, store fallback), plus
-      the `apple-itunes-app` meta so iOS Safari draws its install banner
-
-Tests: page-level rendering against seeded emulator data; the OG/JSON-LD
-assertions from `functions/src/__tests__/og/` move with the code.
+Tests: `functions/src/__tests__/web/` (templates, router, document, rich text)
+and `__tests__/handlers/web/` (every page and gate against the emulator).
 
 ## Phase 3 — cutover
 
-Switch `firebase.json` rewrites one route family at a time from
-`ogRenderer` / `index.html` to the read site, on dev → beta → prod. A route
-moves only once its share preview and JSON-LD are verified with `curl` on that
-env. Then delete `ogRenderer` and `sitemap` functions.
+Done in one step rather than route by route: every page now goes to the read
+site, so there is no SPA left to share routes with.
+
+- [x] `firebase.json`: `public` is `web/dist` (assembled per env by
+      `scripts/build-web-static.mjs` — brand files, this env's `.well-known`,
+      `robots.txt`); rewrites are `/sitemap.xml` → `sitemap`, `**` → `readSite`
+- [x] The deploy assembles static files instead of building the Expo export
+- [x] `ogRenderer` deleted
+- [ ] Verify per env after its deploy (`curl` with `?cb=$RANDOM`): a pueblo, an
+      event, a news post, `/descarga` from a phone UA, `/robots.txt`,
+      `/.well-known/apple-app-site-association` (JSON content type),
+      `/sitemap.xml`, and a WhatsApp preview of one event link
 
 Carry-over gotchas from the previous web setup that still apply:
 
@@ -103,21 +109,23 @@ weeks later.
 
 ## Phase 4 — delete the Expo web export
 
-- [ ] `.web.*` overrides, `Platform.OS === 'web'` branches, `seoShell`,
-      `useWebPullToRefresh`, `apps/mobile/public/index.html`
-- [ ] `app:web:build`, `check-web-compat`, `check-web-export`, the Playwright
-      web E2E (`test:e2e:web`) and its CI lane — replaced by the read site's tests
-- [ ] The `mobile-web-compat` skill and the web memories it encodes
-- [ ] AGENTS.md: drop the web sections that describe the export
+- [x] `.web.*` overrides, `Platform.OS === 'web'` branches, `seoShell`, web
+      pull-to-refresh, `SmartAppBanner`, the desktop carousel arrows,
+      `public/index.html`, the `web` block in `app.config.ts`
+- [x] `react-native-web`, `react-dom`, `react-easy-crop`, Playwright
+- [x] `app:web:build`, `check-web-compat`, `check-web-export`, the Playwright
+      suite (`test:e2e:web`) and its CI job
+- [x] The `mobile-web-compat` skill
+- [x] Port the product flows only Playwright covered to Maestro (flows
+      `60`–`91`; register a family member was already `21`). Onboarding is
+      covered again: `50` passes on the native SDK and left quarantine on 2026-10-06.
 
 ## Phase 5 — web sign-up decision
 
-With one autumn of native data: of visitors arriving from a shared event link
-on a phone, how many installed and registered? Decide whether the read site
-gets a server-side sign-up flow, record it in the decision doc. **By
-2027-04-30.**
+Decided 2026-10-06 (user): **no web sign-up.** The event page's CTA opens the
+app, or the store when it is not installed. Recorded in the decision doc.
 
 ## Retire when
 
-The read site serves every public route on prod, the Expo web export is
-deleted, and phase 5 is recorded. Then delete this plan.
+The read site serves every public route on prod (curl checks, a WhatsApp
+preview, Search Console). Then delete this plan.

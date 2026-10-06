@@ -4,9 +4,11 @@ import {
   villagePath,
   villageSectionPath,
   wordPath,
+  wrappedPath,
   type UrlEntityKind,
 } from '../../utils/urls';
 import { termSlugFromId } from '../vocabulary/VocabularyTermDataModel';
+import { yearOfWrappedId } from '../wrapped/WrappedDataModel';
 
 /**
  * Where tapping a notification should land, as an Expo Router path.
@@ -60,7 +62,15 @@ export function notificationRoute(
   if (n.type === 'org_approved' || n.type === 'org_rejected') {
     return villageSectionPath(villageSlug, 'entidades');
   }
-  if (n.type === 'village_wrapped_reminder') return villageSectionPath(villageSlug, 'resumen');
+  if (n.type === 'village_wrapped_reminder') {
+    const year = yearOfWrappedId(n.entityId);
+    const screen = villageSectionPath(villageSlug, 'resumen');
+    return year === null ? screen : `${screen}?year=${String(year)}`;
+  }
+  if (n.type === 'village_wrapped_published') {
+    const year = yearOfWrappedId(n.entityId);
+    return year === null ? villagePath(villageSlug) : wrappedPath(villageSlug, year);
+  }
   if (n.type === 'organizer_request_approved' || n.type === 'organizer_request_rejected') {
     return villagePath(villageSlug);
   }

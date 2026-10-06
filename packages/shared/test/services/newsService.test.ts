@@ -16,8 +16,8 @@ import {
   createNewsPost,
   getNewsPost,
   getNewsPostsByMunicipality,
-  getNewsCountByOrganizer,
   getNewsPostsByOrganizer,
+  watchNewsPostsByOrganizer,
   updateNewsPost,
   getHomeFeed,
   getAllVillagesFeed,
@@ -121,16 +121,6 @@ describe('newsService — Task 9: CRUD', () => {
     expect(hidden[0].id).toBe(id);
   });
 
-  it('getNewsCountByOrganizer counts posts where user is in organizerUserIds', async () => {
-    await createNewsPost({ municipalityId: 'm1', createdBy: 'u1', organizerUserIds: ['u1'], organizerOrgIds: [], title: 'A', body: 'B', category: 'fiesta' });
-    await createNewsPost({ municipalityId: 'm2', createdBy: 'u1', organizerUserIds: ['u1'], organizerOrgIds: [], title: 'C', body: 'D', category: 'otro' });
-    await createNewsPost({ municipalityId: 'm1', createdBy: 'u2', organizerUserIds: ['u2'], organizerOrgIds: [], title: 'E', body: 'F', category: 'historia' });
-
-    expect(await getNewsCountByOrganizer('u1')).toBe(2);
-    expect(await getNewsCountByOrganizer('u2')).toBe(1);
-    expect(await getNewsCountByOrganizer('nobody')).toBe(0);
-  });
-
   it('getNewsPostsByOrganizer returns posts where user is in organizerUserIds', async () => {
     await createNewsPost({ municipalityId: 'm1', createdBy: 'u1', organizerUserIds: ['u1'], organizerOrgIds: [], title: 'A', body: 'B', category: 'fiesta' });
     await createNewsPost({ municipalityId: 'm2', createdBy: 'u1', organizerUserIds: ['u1'], organizerOrgIds: [], title: 'C', body: 'D', category: 'otro' });
@@ -203,6 +193,33 @@ describe('getApprovedNewsPostsByOrganizer', () => {
     );
     const res = await getApprovedNewsPostsByOrganizer('u1');
     expect(res.map((p) => p.id)).toEqual(['n1', 'n3']);
+  });
+});
+
+describe('watchNewsPostsByOrganizer', () => {
+  beforeEach(() => {
+    resetFakeFirestore();
+    const store = fakeStore();
+    store['news/n1'] = { organizerUserIds: ['u1'], status: 'active', createdAt: new Date('2026-01-02') };
+    store['news/n2'] = { organizerUserIds: ['u1'], status: 'hidden', createdAt: new Date('2026-01-03') };
+    store['news/n3'] = { organizerUserIds: ['u1'], status: 'active', createdAt: new Date('2026-01-01') };
+    store['news/n4'] = { organizerUserIds: ['other'], status: 'active', createdAt: new Date('2026-01-04') };
+  });
+
+  function watched(activeOnly: boolean): string[] {
+    let ids: string[] = [];
+    watchNewsPostsByOrganizer('u1', { activeOnly }, (posts) => (ids = posts.map((p) => p.id)), (e) => {
+      throw e;
+    });
+    return ids;
+  }
+
+  it('emits every post the user organizes, any status, newest first', () => {
+    expect(watched(false)).toEqual(['n2', 'n1', 'n3']);
+  });
+
+  it('emits only active posts in the form safe to run on another user', () => {
+    expect(watched(true)).toEqual(['n1', 'n3']);
   });
 });
 

@@ -5,6 +5,10 @@ on:
     branches: [develop, beta, main]
   pull_request:
     branches: [develop, beta, main]
+  # develop requires a merge queue (.github/rulesets/develop.json): the queue
+  # runs this workflow on the PR stacked on develop and merges only a green
+  # result. Without this trigger the queue waits for checks that never report.
+  merge_group:
 
 permissions:
   contents: read
@@ -100,6 +104,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # `pnpm test` runs `agents:test` — the shared agent tooling's own
+          # suite lives in the .agents/_shared submodule (public), and an
+          # unpopulated submodule matches no test files.
+          submodules: true
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -141,3 +150,45 @@ jobs:
         env:
           VITEST_RETRY_COUNT: '1'
 
+
+  # Changes that strand INSTALLED store clients — a removed/renamed callable, a
+  # stored schema that got stricter (needs a pre-deploy backfill) or looser
+  # (needs a trailer). Both scripts read only git, so no install is needed.
+  # See docs/decisions/breaking-change-and-hard-wall.md.
+  breaking-changes:
+    name: Breaking-change guards (callables, stored schemas)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # setup-node@v5 turns on a pnpm cache by itself when package.json names a
+      # packageManager, and fails without pnpm installed. Nothing is installed here.
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      # The checkout is `refs/pull/N/merge` at depth 1 with no origin/<base>,
+      # so there is no merge-base until one is fetched — and without one the
+      # guards cannot isolate the branch's own commits or read their trailers.
+      - name: Fetch the merge-base with the PR base
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: scripts/ci-fetch-merge-base.sh "$BASE_REF"
+
+      # HEAD here is the PR merge commit; --no-merges in the scripts skips it,
+      # so the trailers read are the PR's own commits.
+      - name: Callable removal must be declared
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/check-callable-removal.mjs --base="origin/${BASE_REF}" --head=HEAD
+
+      - name: Stored schema change must ship its backfill or be declared
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/check-schema-change.mjs --base="origin/${BASE_REF}" --head=HEAD

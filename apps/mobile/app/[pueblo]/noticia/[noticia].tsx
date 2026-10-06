@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '../../../components/primitives/Text';
 import { HStack } from '../../../components/primitives/HStack';
@@ -11,12 +11,13 @@ import { openOwner } from '../../../lib/entities/ownerRoute';
 import { EntityComments } from '../../../components/feature/EntityComments';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { useT } from '../../../lib/i18n';
+import { useWatch } from '../../../lib/hooks/useWatch';
 import { useShareDeepLink } from '../../../lib/deeplink/useShareDeepLink';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import { getNewsLink } from '@cultuvilla/shared/services/deepLinkService';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { createNewsHref } from '../../../lib/navigation/routes';
-import { getNewsPost } from '@cultuvilla/shared/services/newsService';
+import { watchNewsPost } from '@cultuvilla/shared/services/newsService';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import { newsImageDownloadURL } from '@cultuvilla/shared/services/imageService';
 import { formatDate } from '@cultuvilla/shared/utils';
@@ -29,24 +30,14 @@ export default function NewsDetailScreen() {
   const newsId = parseEntityRef(noticia ?? '') ?? '';
   const { t } = useT();
   const share = useShareDeepLink();
-  const [post, setPost] = useState<Post | null>(null);
+  const { data: post = null, status } = useWatch<Post | null>(
+    'newsDetail:watchNewsPost',
+    newsId || null,
+    (next, error) => watchNewsPost(newsId, next, error),
+  );
+  const loading = status === 'loading';
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const { canManage, canEdit } = useEntityCapabilities(post?.municipalityId);
-
-  const load = useCallback(async () => {
-    if (!newsId) return;
-    try {
-      setPost(await getNewsPost(newsId as string));
-    } catch {
-      setPost(null);
-    }
-  }, [newsId]);
-
-  useEffect(() => {
-    setLoading(true);
-    void load().finally(() => setLoading(false));
-  }, [load]);
 
   // Resolve the cover to a download URL. Prefer the dedicated coverImage; fall
   // back to legacy images[0] for posts authored before covers existed.
@@ -109,7 +100,6 @@ export default function NewsDetailScreen() {
       fallbackIcon={ENTITY_FALLBACK_ICON.news}
       actions={actions}
       title={post?.title}
-      onRefresh={load}
     >
       {post ? (
         <>

@@ -1,6 +1,5 @@
 # Signing up a DEPENDENT persona — the multi-persona model that distinguishes
-# Cultuvilla from a generic events app. Mirrors the web
-# apps/mobile/e2e/flows/register-family-member.spec.ts.
+# Cultuvilla from a generic events app.
 appId: com.cultuvilla.app.dev
 env:
   EMAIL: e2e-user@cultuvilla.test

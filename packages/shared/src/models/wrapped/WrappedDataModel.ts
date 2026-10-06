@@ -129,3 +129,9 @@ export type WrappedData = z.infer<typeof WrappedDataSchema>;
 export function wrappedId(municipalityId: string, year: number): string {
   return `${municipalityId}_${String(year)}`;
 }
+
+/** The year inside a `wrappedId` — the last segment, since a municipality id may itself contain `_`. */
+export function yearOfWrappedId(id: string | null): number | null {
+  const match = id ? /_(\d{4})$/.exec(id) : null;
+  return match ? Number(match[1]) : null;
+}

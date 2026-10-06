@@ -7,7 +7,7 @@
 // `onRefresh` action for the `stale-state` kind.
 
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
-import { Alert, Platform, type AlertButton } from 'react-native';
+import { Alert, type AlertButton } from 'react-native';
 
 import {
   classifyCallableError,
@@ -50,22 +50,6 @@ const defaultShowCallableError: ShowCallableError = (error, options) => {
 
   const canRefresh = Boolean(options?.onRefresh) && REFRESH_KINDS.includes(classified.kind);
 
-  // react-native-web 0.21 ships Alert.alert as a no-op, so the web build falls
-  // back to window.confirm/alert. A refreshable error becomes a confirm prompt
-  // (OK -> Recargar); otherwise it's a plain info alert.
-  if (Platform.OS === 'web') {
-    if (typeof window === 'undefined') return;
-    const body = `${headline}\n\n${detail}`;
-    if (canRefresh) {
-      if (window.confirm(`${body}\n\nRecargar?`)) {
-        void options?.onRefresh?.();
-      }
-    } else {
-      window.alert(body);
-    }
-    return;
-  }
-
   const buttons: AlertButton[] = [];
   if (canRefresh) {
     buttons.push({
@@ -77,7 +61,6 @@ const defaultShowCallableError: ShowCallableError = (error, options) => {
   }
   buttons.push({ text: 'OK', style: 'default' });
 
-  // mobile-web-compat: native-only — web is handled by the Platform.OS branch above
   Alert.alert(headline, detail, buttons, { cancelable: true });
 };
 

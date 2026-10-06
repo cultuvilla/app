@@ -37,10 +37,10 @@ per-env model in [dev-beta-prod-environments](dev-beta-prod-environments.md).
   (`applinks:<host>`) and autoverified Android `intentFilters` for the
   `/event/`, `/news/`, `/village/`, `/o/` path prefixes.
 - **AASA / assetlinks served per env:** source files under
-  `apps/mobile/public/.well-known/{dev,beta,prod}/`, copied to the active
+  `web/well-known/{dev,beta,prod}/`, copied to the active
   `.well-known/` at deploy. `firebase.json` adds a `Content-Type:
   application/json` header for the extension-less `apple-app-site-association`
-  (static files are served before the catch-all `/index.html` rewrite).
+  (static files are served before the catch-all `readSite` rewrite).
 
 ## Rejected alternatives
 

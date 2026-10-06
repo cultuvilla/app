@@ -1,5 +1,6 @@
 import { aggregateWrapped, cartelHistory, type WrappedAggregate } from '@cultuvilla/shared/wrapped';
 import type { WrappedBlock, WrappedCard } from '@cultuvilla/shared/models';
+import { webOriginForProject, wrappedPath } from '@cultuvilla/shared/utils';
 import type { GatheredWrapped } from './gatherInputs';
 import {
   coverCard, eventsCard, newsCard, organizersCard, peopleCard, postersCard, statsCard,
@@ -33,6 +34,15 @@ function shortDate(d: Date): string {
   return `${String(p.day)} ${MONTHS[p.month - 1].slice(0, 3)}`;
 }
 
+/**
+ * The address printed on the cards: the project's public host and the
+ * Wrapped's path, without the scheme nobody reads off an image.
+ */
+export function cardLink(projectId: string | undefined, villageSlug: string | null, year: number): string | null {
+  if (!villageSlug) return null;
+  return `${webOriginForProject(projectId).replace(/^https?:\/\//, '')}${wrappedPath(villageSlug, year)}`;
+}
+
 /** Which encoding each card ships in — see `renderImage`. */
 export const CARD_FORMATS: Record<WrappedCard, ImageFormat> = {
   cover: 'png',
@@ -61,7 +71,7 @@ export interface ComposedWrapped {
 export async function composeWrapped(
   gathered: GatheredWrapped,
   /** The fiesta blocks shown on the cover, in date order. */
-  meta: { blocks: Pick<WrappedBlock, 'name' | 'start' | 'end'>[]; year: number },
+  meta: { blocks: Pick<WrappedBlock, 'name' | 'start' | 'end'>[]; year: number; link?: string | null },
   fetchImpl: typeof fetch = fetch,
 ): Promise<ComposedWrapped> {
   const aggregate = aggregateWrapped(gathered.inputs);
@@ -69,6 +79,7 @@ export async function composeWrapped(
     villageName: gathered.villageName,
     year: meta.year,
     blocks: meta.blocks.map((b) => ({ name: b.name, dateRange: formatDateRange(b.start, b.end) })),
+    link: meta.link ?? null,
   };
 
   const bodyWidth = CARD_WIDTH - GUTTER * 2;

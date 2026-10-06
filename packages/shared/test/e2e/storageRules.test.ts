@@ -40,8 +40,10 @@ beforeAll(async () => {
   const firestoreRules = readFileSync(resolve(__dirname, '../../../../firestore.rules'), 'utf8');
   env = await initializeTestEnvironment({
     projectId: process.env.TEST_PROJECT_ID || 'cultuvilla-rules-test',
-    storage: { rules, host: '127.0.0.1', port: 9199 },
-    firestore: { rules: firestoreRules, host: '127.0.0.1', port: 8080 },
+    // Host and port come from FIREBASE_STORAGE_EMULATOR_HOST / FIRESTORE_EMULATOR_HOST,
+    // which the harness sets to the worktree's slot when it has one.
+    storage: { rules },
+    firestore: { rules: firestoreRules },
   });
 });
 

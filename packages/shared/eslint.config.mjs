@@ -28,6 +28,28 @@ export default tseslint.config(
     },
   },
   {
+    // Client Firebase goes through the SDK seam (src/firebase/sdk/README.md):
+    // the app runs its native twins, and a direct `firebase/*` import would put
+    // the JS SDK back in the bundle — signed out, since native Auth holds the
+    // session. Type-only imports are erased, so they stay allowed.
+    files: ['src/**/*.ts'],
+    ignores: ['src/firebase/sdk/**', 'src/firebase/firebaseApp*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['firebase/*', '@firebase/*', '@react-native-firebase/*'],
+              allowTypeImports: true,
+              message: 'Import Firebase from src/firebase/sdk/* instead.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
   },
 );

@@ -3,7 +3,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  getCountFromServer,
   setDoc,
   updateDoc,
   query,
@@ -13,8 +12,8 @@ import {
   startAfter,
   serverTimestamp,
   Timestamp,
-} from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+} from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import { newsCollection, newsDoc } from '../firebase/refs/client';
 import {
@@ -25,6 +24,7 @@ import {
   type NewsPostStatus,
   type NewsBlock,
 } from '../models/news/NewsPostDataModel';
+import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
 
 // ────── input types ──────
 export interface CreateNewsPostInput {
@@ -106,6 +106,14 @@ export async function getNewsPost(
   return { id: snap.id, ...snap.data() };
 }
 
+export function watchNewsPost(
+  id: string,
+  onNext: (post: (NewsPostData & { id: string }) | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(newsDoc(getDb(), id), onNext, onError);
+}
+
 export async function getNewsPostsByMunicipality(
   municipalityId: string,
   options: { status?: NewsPostStatus; limit?: number; afterPublishedAt?: Date } = {},
@@ -124,42 +132,59 @@ export async function getNewsPostsByMunicipality(
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export async function getNewsCountByOrganizer(userId: string): Promise<number> {
-  const q = query(newsCollection(getDb()), where('organizerUserIds', 'array-contains', userId));
-  const snap = await getCountFromServer(q);
-  return snap.data().count;
+type NewsPostWithId = NewsPostData & { id: string };
+
+/**
+ * Posts where the user is a named organizer. `activeOnly` is the form that is
+ * safe to run against ANOTHER user's uid, since the news read rule lets
+ * non-members read only active posts (the read-only "other" profile).
+ */
+function organizerNewsQuery(userId: string, activeOnly: boolean) {
+  return query(
+    newsCollection(getDb()),
+    where('organizerUserIds', 'array-contains', userId),
+    ...(activeOnly ? [where('status', '==', 'active')] : []),
+  );
+}
+
+// Sorted by createdAt desc in memory; a single user's article count is small.
+function newestCreatedFirst(posts: NewsPostWithId[], max?: number): NewsPostWithId[] {
+  const sorted = [...posts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return max ? sorted.slice(0, max) : sorted;
 }
 
 // All posts where the user is a named organizer, any status (incl. hidden)
-// — for the profile "Artículos creados" scroll. Sorted by createdAt desc in memory;
-// a single user's article count is small.
+// — for the profile "Artículos creados" scroll.
 export async function getNewsPostsByOrganizer(
   userId: string,
   options: { limit?: number } = {},
-): Promise<(NewsPostData & { id: string })[]> {
-  const q = query(newsCollection(getDb()), where('organizerUserIds', 'array-contains', userId));
-  const snap = await getDocs(q);
-  const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  return options.limit ? posts.slice(0, options.limit) : posts;
+): Promise<NewsPostWithId[]> {
+  const snap = await getDocs(organizerNewsQuery(userId, false));
+  return newestCreatedFirst(snap.docs.map((d) => ({ id: d.id, ...d.data() })), options.limit);
 }
 
-// Active-only variant of getNewsPostsByOrganizer — safe to run against
-// ANOTHER user's uid, since the news read rule allows non-members to read
-// only active posts. Used by the read-only user profile ("other" variant).
+// Active-only variant of getNewsPostsByOrganizer.
 export async function getApprovedNewsPostsByOrganizer(
   userId: string,
   options: { limit?: number } = {},
-): Promise<(NewsPostData & { id: string })[]> {
-  const q = query(
-    newsCollection(getDb()),
-    where('organizerUserIds', 'array-contains', userId),
-    where('status', '==', 'active'),
+): Promise<NewsPostWithId[]> {
+  const snap = await getDocs(organizerNewsQuery(userId, true));
+  return newestCreatedFirst(snap.docs.map((d) => ({ id: d.id, ...d.data() })), options.limit);
+}
+
+export function watchNewsPostsByOrganizer(
+  userId: string,
+  options: { activeOnly: boolean },
+  onNext: (posts: NewsPostWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    organizerNewsQuery(userId, options.activeOnly),
+    (posts) => {
+      onNext(newestCreatedFirst(posts));
+    },
+    onError,
   );
-  const snap = await getDocs(q);
-  const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  return options.limit ? posts.slice(0, options.limit) : posts;
 }
 
 export async function updateNewsPost(id: string, patch: UpdateNewsPostInput): Promise<void> {
@@ -188,11 +213,12 @@ export async function deleteNewsPost(postId: string): Promise<void> {
 }
 
 // ────── feed queries ──────
-export async function getHomeFeed(
+function homeFeedQuery(
   homeMunicipalityId: string,
-  options: { limit?: number; afterPublishedAt?: Date } = {},
-): Promise<(NewsPostData & { id: string })[]> {
-  const constraints = [
+  options: { limit?: number; afterPublishedAt?: Date },
+) {
+  return query(
+    newsCollection(getDb()),
     where('municipalityId', '==', homeMunicipalityId),
     where('status', '==', 'active'),
     orderBy('publishedAt', 'desc'),
@@ -200,26 +226,53 @@ export async function getHomeFeed(
       ? [startAfter(Timestamp.fromDate(options.afterPublishedAt))]
       : []),
     ...(options.limit ? [fsLimit(options.limit)] : []),
-  ];
-  const snap = await getDocs(query(newsCollection(getDb()), ...constraints));
+  );
+}
+
+export async function getHomeFeed(
+  homeMunicipalityId: string,
+  options: { limit?: number; afterPublishedAt?: Date } = {},
+): Promise<(NewsPostData & { id: string })[]> {
+  const snap = await getDocs(homeFeedQuery(homeMunicipalityId, options));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchHomeFeed(
+  homeMunicipalityId: string,
+  options: { limit?: number },
+  onNext: (posts: (NewsPostData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(homeFeedQuery(homeMunicipalityId, options), onNext, onError);
 }
 
 // Cross-village feed: every active post regardless of municipality. Backs the
 // Explora "all villages" view; callers narrow by village client-side.
-export async function getAllVillagesFeed(
-  options: { limit?: number; afterPublishedAt?: Date } = {},
-): Promise<(NewsPostData & { id: string })[]> {
-  const constraints = [
+function allVillagesFeedQuery(options: { limit?: number; afterPublishedAt?: Date }) {
+  return query(
+    newsCollection(getDb()),
     where('status', '==', 'active'),
     orderBy('publishedAt', 'desc'),
     ...(options.afterPublishedAt
       ? [startAfter(Timestamp.fromDate(options.afterPublishedAt))]
       : []),
     ...(options.limit ? [fsLimit(options.limit)] : []),
-  ];
-  const snap = await getDocs(query(newsCollection(getDb()), ...constraints));
+  );
+}
+
+export async function getAllVillagesFeed(
+  options: { limit?: number; afterPublishedAt?: Date } = {},
+): Promise<(NewsPostData & { id: string })[]> {
+  const snap = await getDocs(allVillagesFeedQuery(options));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchAllVillagesFeed(
+  options: { limit?: number },
+  onNext: (posts: (NewsPostData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(allVillagesFeedQuery(options), onNext, onError);
 }
 
 export async function getOtherVillagesFeed(

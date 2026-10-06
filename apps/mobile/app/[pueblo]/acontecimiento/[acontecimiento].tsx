@@ -1,8 +1,8 @@
 import { historyEntryEditHref } from '../../../lib/navigation/routes';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { useVillageRoute, withVillageRoute } from '../../../lib/navigation/VillageRouteGate';
-import { useCallback, useEffect, useState } from 'react';
-import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
+import { useEffect } from 'react';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '../../../components/primitives/Text';
 import { VStack } from '../../../components/primitives/VStack';
 import { NaturalImage } from '../../../components/primitives/NaturalImage';
@@ -14,9 +14,10 @@ import { ENTITY_FALLBACK_ICON } from '../../../lib/entities/registry';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { useShareDeepLink } from '../../../lib/deeplink/useShareDeepLink';
 import { useT } from '../../../lib/i18n';
+import { useWatch } from '../../../lib/hooks/useWatch';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import {
-  getHistoryEntry,
+  watchHistoryEntry,
   type HistoryEntryWithId,
 } from '@cultuvilla/shared/services/historyService';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
@@ -30,23 +31,12 @@ function HistoryEntryDetailScreen() {
   const { t } = useT();
   const share = useShareDeepLink();
   const { canManage, canEdit } = useEntityCapabilities(villageId);
-  const [entry, setEntry] = useState<HistoryEntryWithId | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!entryId) return;
-    try {
-      setEntry(await getHistoryEntry(entryId));
-    } finally {
-      setLoading(false);
-    }
-  }, [entryId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
+  const { data: entry = null, status } = useWatch<HistoryEntryWithId | null>(
+    'historyEntryDetail:watchHistoryEntry',
+    entryId || null,
+    (next, error) => watchHistoryEntry(entryId, next, error),
   );
+  const loading = status === 'loading';
 
   useEffect(() => {
     if (!entry) return;
@@ -92,7 +82,6 @@ function HistoryEntryDetailScreen() {
       fallbackIcon={ENTITY_FALLBACK_ICON.historyEntry}
       actions={actions}
       title={entry?.title}
-      onRefresh={load}
     >
       {entry ? (
         <>

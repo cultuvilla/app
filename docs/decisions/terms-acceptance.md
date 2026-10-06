@@ -28,7 +28,7 @@ lawful basis, and — in practice — a captured acceptance. Auth is passwordles
 - **Future processors are disclosed up front.** The Privacy Policy names Google
   Analytics for Firebase + Crashlytics as processors even though they aren't wired
   yet, so adding them later doesn't force a version bump + re-prompt.
-- **The legal text lives in the repo as one content module** (`apps/mobile/lib/legal/`),
+- **The legal text lives in the repo as one content module** (`packages/shared/src/legal/`),
   transcribed verbatim from `docs/legal/*.md`, rendered by one `LegalDocScreen`
   consumed by `/legal/terms`, `/legal/privacy`, and the user-menu Legal entries.
 

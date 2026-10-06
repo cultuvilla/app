@@ -42,17 +42,14 @@
     "moreInfo": "Más información",
     "photo": "Foto",
     "and": "y",
-    "carousel": {
-      "prev": "Anterior",
-      "next": "Siguiente"
-    },
     "error": {
       "network": "Parece que no hay conexión. Comprueba tu internet.",
       "data": "No pudimos mostrar este contenido.",
       "unknown": "Algo salió mal al cargar el contenido.",
       "retryLater": "Inténtalo de nuevo más tarde.",
       "retry": "Reintentar"
-    }
+    },
+    "offline": "Sin conexión — mostrando datos guardados"
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -658,6 +655,24 @@
         "people": "Todo el pueblo",
         "organizers": "Quién lo hizo posible",
         "posters": "Carteles"
+      },
+      "preview": "Ver como lo verá el pueblo",
+      "viewer": {
+        "title": "Fiestas {year} · {name}",
+        "next": "Siguiente imagen",
+        "close": "Cerrar el resumen",
+        "shareCard": "Compartir esta imagen",
+        "shareLink": "Compartir el resumen",
+        "shareName": "las Fiestas {year} de {name}",
+        "shareFailed": "No se ha podido compartir la imagen. Inténtalo de nuevo.",
+        "openVillage": "Ver el pueblo",
+        "replay": "Volver a verlo",
+        "closingBody": "Compártelo con quien estuvo y con quien no pudo venir.",
+        "missing": "Este resumen no existe o todavía no se ha publicado."
+      },
+      "banner": {
+        "title": "Ya está el resumen de Fiestas {year}",
+        "body": "Lo que se hizo, en números y en fotos."
       }
     }
   },
@@ -739,6 +754,8 @@
     "privateNotice": "Este evento es privado: solo lo ven los miembros de la organización.",
     "signupEnabled": "Inscripciones por la app",
     "signupEnabledHint": "Desactívalo si el evento es de entrada libre o si las inscripciones se hacen por otro sitio.",
+    "formEnabled": "Añadir un formulario",
+    "formEnabledHint": "Actívalo para hacer preguntas a quien se apunte (talla de camiseta, alergias…). Las preguntas se configuran en el siguiente paso.",
     "signupDisableTitle": "Desactivar las inscripciones",
     "signupDisableBody": "Se {count, plural, one {eliminará la inscripción que ya hay} other {eliminarán las # inscripciones que ya hay}} y se avisará a quienes se apuntaron. Esta acción no se puede deshacer.",
     "signupDisableConfirm": "Desactivar y eliminar",
@@ -1373,12 +1390,6 @@
     "blockHint": "No volverás a ver sus comentarios.",
     "blockDone": "Persona bloqueada. Ya no verás sus comentarios."
   },
-  "descarga": {
-    "tagline": "La agenda de tu pueblo, en tu bolsillo.",
-    "getOnAppStore": "Descargar en el App Store",
-    "getOnPlayStore": "Descargar en Google Play",
-    "continueOnWeb": "Seguir en la web"
-  },
   "smartBanner": {
     "title": "Cultuvilla en tu móvil",
     "subtitleIos": "Descárgala gratis en el App Store",
@@ -1416,6 +1427,9 @@
       },
       "user": {
         "view": "Mira el perfil de {name} en Cultuvilla: {url}"
+      },
+      "wrapped": {
+        "view": "Mira cómo fueron {name} en Cultuvilla: {url}"
       }
     },
     "shareViewLabel": "Compartir"

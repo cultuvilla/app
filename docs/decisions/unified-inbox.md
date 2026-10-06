@@ -38,9 +38,9 @@ log at `users/{uid}/notifications`.
   (not the writer) covers **both** paths uniformly — approval is a callable,
   rejection is a client write — with one handler.
 - **Entry point + badge:** the header bell opens `/inbox`; its unread badge is
-  a per-launch query (`getUnreadCount` unread notifications + a role-branched
-  pending-actionable count), refreshed on header focus. Mark-all-read fires on
-  open (v1).
+  a live listener on the unread notifications (`watchUnreadCount`) plus a
+  role-branched pending-actionable count, the latter refreshed on header focus.
+  Mark-all-read fires on open (v1).
 
 ## Rejected alternatives
 

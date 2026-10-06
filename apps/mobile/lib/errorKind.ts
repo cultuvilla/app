@@ -1,3 +1,5 @@
+import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
+
 /**
  * Classifies a caught error into a user-facing bucket so <ErrorState> can show a
  * message the reader can act on ("check your connection") instead of a raw
@@ -12,7 +14,7 @@
  */
 export type ErrorKind = 'network' | 'data' | 'unknown';
 
-// Firestore/GRPC status codes that mean "connectivity", not "bad request".
+// Firestore/GRPC status codes (prefix-free; see firebaseErrorCode) that mean "connectivity", not "bad request".
 const NETWORK_CODES = new Set([
   'unavailable',
   'deadline-exceeded',
@@ -38,7 +40,8 @@ export function errorKind(e: unknown): ErrorKind {
   if (typeof e === 'object') {
     const err = e as { code?: unknown; name?: unknown; message?: unknown; issues?: unknown };
     if (err.name === 'ZodError' || Array.isArray(err.issues)) return 'data';
-    if (typeof err.code === 'string' && NETWORK_CODES.has(err.code)) return 'network';
+    const code = firebaseErrorCode(err);
+    if (code && NETWORK_CODES.has(code)) return 'network';
     if (typeof err.message === 'string') return fromMessage(err.message);
     return 'unknown';
   }

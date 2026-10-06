@@ -1,6 +1,7 @@
 # Firestore index hygiene — remove orphaned indexes
 
 **Priority:** low
+**Landed:** dev
 **Gate:** none
 **Next:** run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file
 
@@ -25,8 +26,7 @@ file"*.
 1. After the next `develop → beta` promotion deploys green, run the beta cleanup
    below and re-verify.
 2. After the `beta → main` promotion deploys green, do the same on prod.
-3. Decide whether CI should deploy indexes with `--force` (see *Stop the drift*).
-   Once that's decided and beta/prod are clean, retire this plan.
+3. Add `--force` to the CI index deploy and a drift-check script (decided 2026-10-06, see *Stop the drift*) — only once beta and prod are clean. Then retire this plan.
 
 ## Why the cleanup waits
 
@@ -112,7 +112,9 @@ print('orphans', len(live - repo), 'missing', len(repo - live))
 EOF
 ```
 
-## Stop the drift (decision pending)
+## Stop the drift — adopted 2026-10-06 (user)
+
+Decided: CI deploys indexes with `--force`, **after** beta and prod are both clean (steps 1–2), plus a `scripts/` drift check. The proposal as it was weighed:
 
 Proposal: add `--force` to the "Deploy Firestore indexes" step in
 [deploy-firebase.yml](../../../.github/workflows/deploy-firebase.yml), which would make

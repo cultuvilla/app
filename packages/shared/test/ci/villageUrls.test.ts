@@ -3,8 +3,8 @@
 // route. Three things must agree or a village and a screen collide:
 //   - the app's top-level route files (apps/mobile/app/*),
 //   - RESERVED_ROOT_SEGMENTS, which no slug may take,
-//   - Hosting's rewrites, which send app routes to the SPA and everything else
-//     to the share-preview server.
+//   - Hosting's rewrites, which send every page to the read site
+//     (`readSite`), which then tells app screens and pueblos apart.
 // This suite fails the moment one of them moves without the others.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -48,7 +48,16 @@ if (!appHosting) throw new Error('firebase.json has no hosting target named `app
 const rewrites = appHosting.rewrites ?? [];
 
 /** Segments Hosting serves itself (static export, generated files) — no route file. */
-const HOSTING_ONLY = new Set(['_expo', 'assets', 'index.html', 'robots.txt', 'sitemap.xml', '.well-known']);
+const HOSTING_ONLY = new Set([
+  '_expo',
+  'assets',
+  'index.html',
+  'robots.txt',
+  'sitemap.xml',
+  '.well-known',
+  'brand',
+  'favicon.ico',
+]);
 
 describe('village-first URLs', () => {
   it('reserves every top-level app route so no pueblo can take it', () => {
@@ -66,26 +75,20 @@ describe('village-first URLs', () => {
     }
   });
 
-  it('sends every app route to the SPA before the pueblo catch-all can claim it', () => {
-    const catchAll = rewrites.findIndex((r) => r.source === '/*');
-    expect(catchAll).toBeGreaterThan(-1);
-    expect(rewrites[catchAll]?.function?.functionId).toBe('ogRenderer');
+  it('sends every page to the read site, which owns the app-route/pueblo split', () => {
+    const catchAll = rewrites.findIndex((r) => r.source === '**');
+    expect(catchAll).toBe(rewrites.length - 1);
+    expect(rewrites[catchAll]?.function?.functionId).toBe('readSite');
+  });
 
-    const appRuleIndex = rewrites.findIndex(
-      (r) => r.source.startsWith('/@(') && !r.source.endsWith('/**'),
-    );
-    const appRule = rewrites[appRuleIndex] as Rewrite | undefined;
-    expect(appRule?.destination).toBe('/index.html');
-    expect(appRuleIndex).toBeLessThan(catchAll);
-
-    const listed = new Set(/^\/@\((.+)\)$/.exec(appRule?.source ?? '')?.[1]?.split('|'));
-    for (const segment of topLevelSegments(appDir)) {
-      expect(listed, `/${segment} would be routed to the share-preview server`).toContain(segment);
+  it('serves every static file the read site links to from Hosting', () => {
+    for (const file of ['brand/logo-96.png', 'brand/favicon.png', 'favicon.ico']) {
+      expect(statSync(resolve(repo, 'web/public', file)).isFile(), file).toBe(true);
     }
   });
 
   it('keeps the generated files ahead of the catch-all', () => {
-    const catchAll = rewrites.findIndex((r) => r.source === '/*');
+    const catchAll = rewrites.findIndex((r) => r.source === '**');
     const sitemap = rewrites.findIndex((r) => r.source === '/sitemap.xml');
     expect(sitemap).toBeGreaterThan(-1);
     expect(sitemap).toBeLessThan(catchAll);

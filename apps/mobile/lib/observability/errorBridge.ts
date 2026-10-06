@@ -1,4 +1,4 @@
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable } from '@cultuvilla/shared/firebase/sdk/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirebaseFunctions } from '@cultuvilla/shared/firebase';
 

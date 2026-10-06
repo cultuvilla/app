@@ -813,6 +813,16 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "pushQueue",
+      "fieldPath": "sentAt",
+      "ttl": true,
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" }
+      ]
+    },
+    {
       "collectionGroup": "members",
       "fieldPath": "userId",
       "indexes": [

@@ -1,5 +1,5 @@
 /**
- * Reads the store facts out of `apps/mobile/lib/appStores.ts` — the single
+ * Reads the store facts out of `packages/shared/src/config/appStores.ts` — the single
  * source of truth for where the native apps live and what version each store
  * serves — so a Node script can check them without a TypeScript toolchain.
  */
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-export const APP_STORES_PATH = path.join(REPO_ROOT, 'apps/mobile/lib/appStores.ts');
+export const APP_STORES_PATH = path.join(REPO_ROOT, 'packages/shared/src/config/appStores.ts');
 
 /**
  * The body of one `export const <name> = { ... };` literal.

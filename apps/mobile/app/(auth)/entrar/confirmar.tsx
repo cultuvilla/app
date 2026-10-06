@@ -1,6 +1,6 @@
 import { routes } from '../../../lib/navigation/routes';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { Text } from '../../../components/primitives';
@@ -11,10 +11,6 @@ import { useT } from '../../../lib/i18n';
 type Status = 'pending' | 'completing' | 'error' | 'reauth-done';
 
 async function readIncomingUrl(): Promise<string | null> {
-  if (Platform.OS === 'web') {
-    if (typeof window === 'undefined') return null;
-    return window.location.href;
-  }
   return Linking.getInitialURL();
 }
 

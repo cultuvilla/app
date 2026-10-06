@@ -1,5 +1,8 @@
 // packages/shared/src/firebase/refs/client.ts
-import { collection, collectionGroup, doc, type Firestore } from 'firebase/firestore';
+// Type-only and erased at runtime: gives declaration emit a portable name for
+// the JS SDK types these refs return (TS2742 through the ../sdk re-export).
+import type {} from 'firebase/firestore';
+import { collection, collectionGroup, doc, type Firestore } from '../sdk/firestore';
 import { eventConverterClient } from '../converters/eventConverter.client';
 import { registrationConverterClient } from '../converters/registrationConverter.client';
 import { municipalityConverterClient } from '../converters/municipalityConverter.client';

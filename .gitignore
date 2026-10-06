@@ -35,13 +35,8 @@ scripts/data/escudos-webp/
 scripts/data/escudos-webp-thumb/
 .firebase-account
 
-# Active deep-link well-known files are copied at deploy time by
-# apps/mobile/scripts/copy-well-known.mjs (per env), never committed.
-apps/mobile/public/.well-known/apple-app-site-association
-apps/mobile/public/.well-known/assetlinks.json
-# Written per env at deploy time by apps/mobile/scripts/write-robots.mjs — only
-# prod may be indexed, so no single committed file is right for every env.
-apps/mobile/public/robots.txt
+# web/dist is assembled per env by scripts/build-web-static.mjs (deep-link
+# identities and robots differ per env); the `dist/` rule above covers it.
 
 # Tooling worktrees
 .claire/
@@ -56,3 +51,8 @@ apps/mobile/public/robots.txt
 # settlements-es.json is what gets committed.
 scripts/data/.settlements-cache/
 firebase.emulator-bind.json
+# Per-worktree emulator config written by scripts/agent-env.sh (the slot's ports)
+firebase.agent.json
+# Placeholder secrets for the Functions emulator, written per run by
+# scripts/run-tests-with-emulators.mjs (and a developer's own overrides)
+functions/.secret.local

@@ -105,7 +105,7 @@ export function BottomSheet({
     }),
   ).current;
 
-  const dragHandlers = Platform.OS === 'web' ? {} : pan.panHandlers;
+  const dragHandlers = pan.panHandlers;
 
   if (!visible) return null;
 

@@ -4,7 +4,7 @@ import {
   setDoc,
   updateDoc,
   serverTimestamp,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { publicProfileDoc, userDoc } from '../firebase/refs/client';
 import type { PublicProfileData, UserData, UserDataInput } from '../models/user';

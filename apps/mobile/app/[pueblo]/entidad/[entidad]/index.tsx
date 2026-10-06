@@ -9,6 +9,7 @@ import { EntityDetailScaffold } from '../../../../components/feature/EntityDetai
 import type { EntityDetailAction } from '../../../../components/feature/EntityDetailHeader';
 import { ENTITY_FALLBACK_ICON } from '../../../../lib/entities/registry';
 import { useT } from '../../../../lib/i18n';
+import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { useRegisterGate } from '../../../../lib/auth/RegisterGateContext';
 import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
@@ -16,7 +17,7 @@ import { EntityComments } from '../../../../components/feature/EntityComments';
 import { OrgMembersList } from '../../../../components/feature/OrgMembersList';
 import { useShareDeepLink } from '../../../../lib/deeplink/useShareDeepLink';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
+import { watchOrganization } from '@cultuvilla/shared/services/organizationService';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import { isOrgMember, addOrgMember, getOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
 import {
@@ -43,31 +44,39 @@ export default function OrgDetailScreen() {
   const gate = useRegisterGate();
   const share = useShareDeepLink();
   const insets = useSafeAreaInsets();
-  const [org, setOrg] = useState<Org | null>(null);
+  const { data: org = null, status } = useWatch<Org | null>(
+    'orgDetail:watchOrganization',
+    orgId || null,
+    (next, error) => watchOrganization(orgId, next, error),
+  );
   const [membersCount, setMembersCount] = useState<number | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
-  const [loading, setLoading] = useState(true);
+  const [membershipLoaded, setMembershipLoaded] = useState(false);
   const [joining, setJoining] = useState(false);
   const [requested, setRequested] = useState(false);
   const { canManage } = useOrgCapabilities(orgId as string, org?.municipalityId);
+  // Until the viewer's membership is known, a member would see the join FAB flash.
+  const loading = status === 'loading' || (org !== null && !membershipLoaded);
+  // Keyed on these rather than `org`, so a snapshot that changes something else
+  // (the view counter, say) does not refetch the membership.
+  const orgExists = org !== null;
+  const joinPolicy = org?.joinPolicy;
 
   const refresh = useCallback(async () => {
-    if (!orgId) return;
-    const o = await getOrganization(orgId as string);
-    setOrg(o);
+    if (!orgId || !orgExists) return;
     const members = await getOrgMembers(orgId as string);
     setMembersCount(members.length);
     if (user) {
       const member = await isOrgMember(orgId as string, user.uid);
       setIsMember(member);
       setRequested(
-        !member && o?.joinPolicy === 'approval'
+        !member && joinPolicy === 'approval'
           ? await hasPendingOrgJoinRequest(orgId as string, user.uid)
           : false,
       );
     }
-    setLoading(false);
-  }, [orgId, user]);
+    setMembershipLoaded(true);
+  }, [orgId, user, orgExists, joinPolicy]);
 
   useFocusEffect(
     useCallback(() => {

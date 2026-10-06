@@ -191,6 +191,9 @@ export default function NewEventScreen() {
   // boolean rather than the org id itself so the switch survives the user
   // swapping which org organizes; the id is derived at submit time.
   const [privateToOrg, setPrivateToOrg] = useState(false);
+  // Off by default: most events need no questions beyond the sign-up itself,
+  // so the Preguntas step only exists once the creator asks for a form.
+  const [formEnabled, setFormEnabled] = useState(false);
   const [signupFields, setSignupFields] = useState<SignupFieldSpec[]>([]);
   const [lockedFieldCount, setLockedFieldCount] = useState(0);
   const [groupSizeLocked, setGroupSizeLocked] = useState(false);
@@ -296,6 +299,7 @@ export default function NewEventScreen() {
         setSignupInfo(ev.signupInfo ?? '');
         setAttendeesPublic(ev.attendeesVisibility !== 'organizers');
         setSignupFields(ev.signupFields ?? []);
+        setFormEnabled((ev.signupFields ?? []).length > 0);
         // Answers already collected are keyed by these ids, so once the event
         // has sign-ups the existing rows are frozen and only new ones can be
         // added. firestore.rules enforces the size half of the same invariant.
@@ -404,7 +408,9 @@ export default function NewEventScreen() {
       // Half-finished rows (no label yet, or a select with no options to pick)
       // would be unanswerable, so they never reach the event doc. Locked rows
       // are kept verbatim — dropping one would break the additive-only rule.
-      const usableSignupFields = signupFields
+      // With the form switched off the questions are dropped, which is only
+      // reachable while none are locked (the toggle is disabled otherwise).
+      const usableSignupFields = (formEnabled ? signupFields : [])
         .map((f) => ({
           ...f,
           label: f.label.trim(),
@@ -694,6 +700,7 @@ export default function NewEventScreen() {
             displayName={locationName}
             onChange={handleLocationChange}
             label={t('event.location')}
+            required
           />
           <MyVillagePicker
             label={t('event.village')}
@@ -864,14 +871,25 @@ export default function NewEventScreen() {
             onValueChange={setAttendeesPublic}
             testID="attendees-public"
           />
+          {/* Questions already answered can't be removed (they key the
+              collected answers), so the form can't be switched off under them. */}
+          <ToggleField
+            label={t('event.formEnabled')}
+            help={t('event.formEnabledHint')}
+            value={formEnabled}
+            onValueChange={setFormEnabled}
+            disabled={formEnabled && lockedFieldCount > 0}
+            testID="form-enabled"
+          />
           </>
           ) : null}
         </>,
       ),
     },
     // Custom sign-up questions are asked at sign-up time, so the step is
-    // meaningless — and its answers unreachable — with in-app sign-ups off.
-    ...(signupEnabled ? ([{
+    // meaningless — and its answers unreachable — with in-app sign-ups off,
+    // and it only appears once the creator asks for a form.
+    ...(signupEnabled && formEnabled ? ([{
       key: 'questions',
       title: t('event.stepQuestions'),
       icon: 'help-circle-outline',

@@ -1,8 +1,7 @@
 # Sign in as a seeded fixture user through the emulator-only fixture-login seam
-# (apps/mobile/lib/auth/AuthContext.tsx). The native mirror of the web suite's
-# apps/mobile/e2e/lib/fixtureLogin.ts: same single signInWithEmailAndPassword
-# primitive, same armed-only-against-an-emulator guard — only the delivery
-# differs, because Maestro drives the UI and cannot call into the app's JS.
+# (apps/mobile/lib/auth/AuthContext.tsx): one signInWithEmailAndPassword,
+# armed only against an emulator. Credentials arrive as a deep link because
+# Maestro drives the UI and cannot call into the app's JS.
 #
 # ONE query parameter, pipe-separated: `adb shell am start -d` eats an
 # unescaped `&`, so a two-parameter link would arrive without the password.

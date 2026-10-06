@@ -1,8 +1,9 @@
 # Device notifications (push) — design and rollout
 
 **Priority:** high
-**Gate:** blocked:the Apple developer Account Holder must create the APNs key (.p8 + Key ID) — see *Blocker: the APNs key*
-**Next:** load the real APNs key into `APNS_AUTH_KEY` on `cultuvilla-prod`, redeploy the push functions, and verify delivery on an iPhone
+**Landed:** prod
+**Gate:** none
+**Next:** verify delivery on a real iPhone (step 2) — the key is loaded and bound on prod since 2026-10-05
 
 ## Done
 
@@ -25,9 +26,9 @@ Merged: #337 (code), #344 (Android config). Each item below was verified from th
 
 ## Next steps
 
-In order — the first is the whole blocker:
+In order:
 
-1. **Load the real APNs key.** Ask Jaime for it (see *Blocker: the APNs key*), then:
+1. ✅ **Load the real APNs key.** Done 2026-10-05: version 2 of `APNS_AUTH_KEY` added on dev, beta and prod at 08:49 UTC, and the prod push functions (`onNotificationCreated`, `flushPushQueue`) redeployed at 08:57 bound to version 2. No iOS push has gone out since, so delivery is still unproven. For the record, how it is done:
    `printf '%s' '{"keyId":"<KEYID>","privateKey":"<.p8 contents with real newlines>"}' | gcloud secrets versions add APNS_AUTH_KEY --data-file=- --project=cultuvilla-prod`
    (repeat for `villa-events` to test on a dev build). **A new version only
    takes effect on the next deploy of the push functions** — v2 binds the
@@ -44,7 +45,7 @@ In order — the first is the whole blocker:
 4. **Play Data Safety:** declare "Device or other IDs". The Android listing is
    public since 2026-09-29, so the reason for holding off is gone.
 
-## Blocker: the APNs key
+## The APNs key (loaded 2026-10-05)
 
 - **Only Jaime can create the APNs key.** The Apple account is *Individual*,
   so Certificates, Identifiers & Profiles is Account-Holder-only and no App
@@ -69,8 +70,11 @@ In order — the first is the whole blocker:
 - `deliverPush` **returns before logging** when a user has no device, which is
   why ~1,389 flushed pushes produced only 2 delivery lines. Low log volume is
   not evidence of a broken queue.
-- **`pushQueue` docs are never deleted** — ~1,400 already. Harmless now;
-  the clean fix is a Firestore TTL policy on `sentAt`. Not yet done.
+- **Sent `pushQueue` docs expire via a TTL on `sentAt`** (declared in
+  `firestore.indexes.json`). Unsent entries keep `sentAt: null`, which TTL ignores.
+  The cost: the `create()` redelivery guard in `onNotificationCreated` loses its
+  doc once TTL deletes it (up to ~24 h after sending), so a redelivery later than
+  that could push twice. Redeliveries arrive within minutes; accepted.
 - iOS failure is silent by design: a missing key logs a warning and skips iOS,
   so nothing alerts. The log query in *Next* step 2 is the only check.
 - The whole Android/iOS behaviour split lives in one file,
@@ -83,14 +87,15 @@ In order — the first is the whole blocker:
 | Step | Dev | Beta | Prod |
 |---|---|---|---|
 | Push code deployed | ✅ | ✅ | ✅ (9 functions ACTIVE) |
-| `APNS_AUTH_KEY` secret exists | ✅ placeholder `{}` | ✅ placeholder `{}` | ✅ placeholder `{}` |
-| **Real APNs `.p8` in the secret** | ⬜ | ⬜ | ⬜ **the blocker** |
+| `APNS_AUTH_KEY` secret exists | ✅ | ✅ | ✅ |
+| Real APNs `.p8` in the secret (version 2, 2026-10-05) | ✅ | ✅ | ✅ bound by the 08:57 redeploy |
 | Android `google-services.json` | ✅ | ✅ (beta is its own Play app) | ✅ |
 | Push Notifications capability on the App ID | — | — | ✅ 2026-09-14 |
 | Time-sensitive capability + entitlement | — | — | ⬜ portal-only (Jaime) |
 | Play Data Safety declares device IDs | — | — | ⬜ |
 | Store binary carrying push | — | — | ✅ iOS 1.4.1 / Android 1.5.0 |
-| Verified delivery on a real device | ⬜ | ⬜ | ⬜ blocked on the key |
+| Verified delivery on a real device | ⬜ | ⬜ | ⬜ next step |
+| `pushQueue` TTL on `sentAt` | ✅ 2026-10-06 | ✅ 2026-10-06 | ⬜ rides the next promotion (`firestore.indexes.json`) |
 
 Legend: ⬜ pending · ⏳ in progress · ✅ done · ⚠️ blocked (note inline)
 
@@ -289,16 +294,11 @@ which failed once before it was understood.
 4. **Push never reaches installed apps over OTA.** `expo-notifications` moves
    the native fingerprint, so it ships in a store binary or not at all.
 
-Web gets no push, deliberately and without a wall — see
+Push is app-only: the web is a server-rendered read site with no accounts — see
 [web-is-a-read-site.md](../../decisions/web-is-a-read-site.md).
-The web build ships a `.web.ts` twin of the push client that never imports
-`expo-notifications`; `check-web-export` confirms no native module leaks.
 
 ## Follow-ups
 
-- **A `pushQueue` retention policy.** Entries are never deleted after sending
-  (~1,400 as of 2026-09-29). A Firestore TTL policy on `sentAt` clears them
-  without code; nothing reads a sent entry.
 - **An Android status-bar icon.** Android renders the small icon as a white
   silhouette; without a dedicated monochrome asset some devices show a grey
   square. Add `icon` to the expo-notifications plugin once one is designed.
