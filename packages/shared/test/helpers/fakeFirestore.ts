@@ -60,7 +60,8 @@ function makeDocSnap(colId: string, docId: string) {
   return {
     id: docId,
     exists: () => d !== undefined,
-    data: () => d ?? {},
+    // Like the real SDK: a missing doc has no data (undefined), not an empty object.
+    data: () => d,
     get: (f: string) => (d ?? {})[f],
   };
 }
