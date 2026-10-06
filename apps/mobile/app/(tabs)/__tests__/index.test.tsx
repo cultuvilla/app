@@ -247,16 +247,20 @@ describe('FeedScreen live listener', () => {
     (watchUpcomingFeed as jest.Mock).mockImplementation(defaultWatch);
   });
 
-  const open = () => listeners.filter((l) => !l.closed);
+  const current = (): Listener => {
+    const live = listeners.filter((l) => !l.closed);
+    if (live.length !== 1) throw new Error(`expected one open listener, found ${String(live.length)}`);
+    return live[0] as Listener;
+  };
 
   it('shows an event the listener pushes, with no second query', async () => {
     const { findByText, queryByText } = await renderOnEventsTab();
-    act(() => open()[0].next([event]));
+    act(() => current().next([event]));
     expect(await findByText('Verbena')).toBeTruthy();
 
-    act(() => open()[0].next([event, { ...event, id: 'event2', title: 'Romería' }]));
+    act(() => current().next([event, { ...event, id: 'event2', title: 'Romería' }]));
     expect(await findByText('Romería')).toBeTruthy();
-    act(() => open()[0].next([{ ...event, id: 'event2', title: 'Romería' }]));
+    act(() => current().next([{ ...event, id: 'event2', title: 'Romería' }]));
     expect(queryByText('Verbena')).toBeNull();
 
     expect(getUpcomingFeed).not.toHaveBeenCalled();
@@ -265,12 +269,12 @@ describe('FeedScreen live listener', () => {
 
   it('re-opens a failed listener from the error state and recovers', async () => {
     const { findByText } = await renderOnEventsTab();
-    act(() => open()[0].fail(new Error('unavailable')));
+    act(() => current().fail(new Error('unavailable')));
     fireEvent.press(await findByText('common.error.retry'));
 
     expect(listeners).toHaveLength(2);
-    expect(listeners[0].closed).toBe(true);
-    act(() => open()[0].next([event]));
+    expect(listeners[0]?.closed).toBe(true);
+    act(() => current().next([event]));
     expect(await findByText('Verbena')).toBeTruthy();
   });
 });
