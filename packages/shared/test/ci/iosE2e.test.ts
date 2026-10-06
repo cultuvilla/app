@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // The iOS E2E job runs the SAME Maestro flows as android-e2e on an iOS
 // Simulator. Nothing else in CI runs the app on iOS, and no developer here can
@@ -227,5 +228,31 @@ describe('shared flows run on both platforms', () => {
     const subflow = read(`${nativeDir}/subflows/allow-location.yaml`);
     expect(subflow).toMatch(/allow while using app/);
     expect(subflow).toMatch(/while using the app/);
+  });
+});
+
+// The iOS build re-points the native SDK's project by rewriting two keys of the
+// committed dev plist. A regex rewrite that silently matched nothing would
+// build an app on `villa-events` that reads an empty database and cannot sign
+// anyone in — so a missing key must throw, not pass through.
+describe('setPlistString', () => {
+  const plist = read('apps/mobile/google-services/dev/GoogleService-Info.plist');
+  let setPlistString: (plist: string, key: string, value: string) => string;
+
+  beforeAll(async () => {
+    ({ setPlistString } = (await import(
+      pathToFileURL(resolve(repoRoot, 'scripts/lib/e2e-build-env.mjs')).href
+    )) as { setPlistString: typeof setPlistString });
+  });
+
+  it('replaces only the named key', () => {
+    const out = setPlistString(plist, 'PROJECT_ID', 'cultuvilla-test');
+    expect(out).toMatch(/<key>PROJECT_ID<\/key>\s*<string>cultuvilla-test<\/string>/);
+    expect(out).toContain('<key>BUNDLE_ID</key>');
+    expect(out.replace('cultuvilla-test', '')).toBe(plist.replace(/villa-events(?=<\/string>)/, ''));
+  });
+
+  it('throws on a key the plist does not have', () => {
+    expect(() => setPlistString(plist, 'NO_SUCH_KEY', 'x')).toThrow(/NO_SUCH_KEY/);
   });
 });

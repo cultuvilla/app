@@ -346,7 +346,9 @@ export default function InboxScreen() {
               return (
                 // Not an accessibility element: on iOS one would swallow the
                 // Aprobar/Rechazar buttons inside it, leaving VoiceOver users
-                // (and XCUITest) unable to act on the request.
+                // (and XCUITest) unable to act on the request. The card's own
+                // action — open the requester's profile — stays reachable
+                // through the name, a button of its own below.
                 <Pressable
                   key={row.id}
                   accessible={false}
@@ -361,7 +363,14 @@ export default function InboxScreen() {
                         initials={name.charAt(0).toUpperCase()}
                       />
                       <VStack gap={0} className="flex-1">
-                        <Text className="font-semibold">{name}</Text>
+                        <Pressable
+                          onPress={() => router.push(userHref(row.userId))}
+                          accessibilityRole="button"
+                          accessibilityLabel={name}
+                          testID={`organizer-requester-${row.id}`}
+                        >
+                          <Text className="font-semibold">{name}</Text>
+                        </Pressable>
                         <HStack gap={1} className="items-center flex-wrap">
                           <Text tone="muted" variant="caption">
                             {t('inbox.wantsToAdminister')}

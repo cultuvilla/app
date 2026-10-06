@@ -13,8 +13,11 @@ import { join, relative } from 'path';
 // InfoTooltip is the one exception: its backdrop is labelled as the close
 // control and its card is read-only text.
 
-const COMPONENTS = join(__dirname, '..', 'components');
-const EXEMPT = new Set(['primitives/InfoTooltip.tsx']);
+const MOBILE = join(__dirname, '..');
+// Screens hand-roll sheets too (the burial editor in lugar/[lugar].tsx), so the
+// scan covers app/ as well as components/.
+const ROOTS = ['components', 'app'].map((dir) => join(MOBILE, dir));
+const EXEMPT = new Set(['components/primitives/InfoTooltip.tsx']);
 
 function tsxFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -43,14 +46,14 @@ function pressableTags(source: string): { at: number; tag: string }[] {
 }
 
 describe('modal press-catchers stay out of the accessibility tree', () => {
-  const files = tsxFiles(COMPONENTS).filter((f) => !EXEMPT.has(relative(COMPONENTS, f)));
+  const files = ROOTS.flatMap(tsxFiles).filter((f) => !EXEMPT.has(relative(MOBILE, f)));
 
   it('finds the sheets it guards', () => {
     const withCatcher = files.filter((f) => readFileSync(f, 'utf8').includes('onPress={() => {}}'));
-    expect(withCatcher.length).toBeGreaterThanOrEqual(9);
+    expect(withCatcher.length).toBeGreaterThanOrEqual(10);
   });
 
-  it.each(files.map((f) => [relative(COMPONENTS, f), f]))('%s', (_name, file) => {
+  it.each(files.map((f) => [relative(MOBILE, f), f]))('%s', (_name, file) => {
     const source = readFileSync(file, 'utf8');
     const tags = pressableTags(source);
     tags.forEach(({ tag }, i) => {
@@ -59,5 +62,26 @@ describe('modal press-catchers stay out of the accessibility tree', () => {
       const backdrop = tags[i - 1];
       expect(backdrop?.tag ?? '').toContain('accessible={false}');
     });
+  });
+});
+
+// The Buzón organizer card is a tappable card (open the requester's profile)
+// wrapping the Aprobar/Rechazar buttons — no no-op catcher, so the rule above
+// cannot see it. On iOS an accessible card swallowed both buttons; making it
+// non-accessible must not cost VoiceOver the card's own action, which moves to
+// a labelled button on the requester's name.
+describe('Buzón organizer request card', () => {
+  const source = readFileSync(join(MOBILE, 'app', 'buzon', 'index.tsx'), 'utf8');
+  const card = pressableTags(source).find(({ tag }) => tag.includes('key={row.id}'))?.tag ?? '';
+
+  it('does not swallow its Aprobar/Rechazar buttons', () => {
+    expect(card).toContain('accessible={false}');
+  });
+
+  it('keeps opening the profile reachable as a button of its own', () => {
+    const name = pressableTags(source).find(({ tag }) => tag.includes('organizer-requester-'))?.tag ?? '';
+    expect(name).toContain('accessibilityRole="button"');
+    expect(name).toContain('accessibilityLabel={name}');
+    expect(name).toContain('router.push(userHref(row.userId))');
   });
 });
