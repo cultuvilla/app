@@ -212,6 +212,16 @@ export interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Prod logs (iOS 1.4.1–1.5.0) show the cancelled Apple sheet reaching JS with
+// no `code` at all, only expo-apple-authentication's RequestCanceledException
+// reason, so the code check alone let every cancel through as an error.
+const APPLE_CANCELLED_MESSAGE = 'The user canceled the authorization attempt';
+
+function isAppleCancellation(err: unknown): boolean {
+  const { code, message } = (err ?? {}) as { code?: unknown; message?: unknown };
+  return code === 'ERR_REQUEST_CANCELED' || message === APPLE_CANCELLED_MESSAGE;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -437,8 +447,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nonce: hashedNonce,
       });
     } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      if (code === 'ERR_REQUEST_CANCELED') {
+      if (isAppleCancellation(err)) {
         // Carries a code so reportAuthError can tell "changed their mind"
         // apart from "the native flow broke" — the message alone cannot.
         const cancelled = new Error('Apple sign-in was cancelled') as Error & { code?: string };
