@@ -100,6 +100,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # `pnpm test` runs `agents:test` — the shared agent tooling's own
+          # suite lives in the .agents/_shared submodule (public), and an
+          # unpopulated submodule matches no test files.
+          submodules: true
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
