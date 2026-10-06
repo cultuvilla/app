@@ -125,20 +125,17 @@ describe('OrganizeVillageScreen carnet preview', () => {
   it('shows the applicant their own carnet for this pueblo', () => {
     mockPerson = person;
     mockMunicipality = municipality;
-    const { getByTestId, queryByTestId } = render(<OrganizeVillageScreen />);
+    const { getByTestId } = render(<OrganizeVillageScreen />);
     expect(getByTestId('organize-carnet')).toBeTruthy();
     expect(getByTestId('ambassador-carnet-name')).toHaveTextContent('Lucía Martín');
     expect(getByTestId('avatar-ambassador-seal')).toBeTruthy();
-    expect(queryByTestId('organize-carnet-add-photo')).toBeNull();
   });
 
-  it('nudges an applicant without a photo towards their profile', () => {
-    const { router } = require('expo-router');
-    mockPerson = { ...person, photoURL: null };
-    mockMunicipality = municipality;
-    const { getByTestId } = render(<OrganizeVillageScreen />);
-    fireEvent.press(getByTestId('organize-carnet-add-photo'));
-    expect(router.push).toHaveBeenCalledTimes(1);
+  it('lays the role out as points', () => {
+    const { getByText } = render(<OrganizeVillageScreen />);
+    for (const key of ['info', 'welcome', 'upToDate', 'public']) {
+      expect(getByText(`organize.points.${key}`)).toBeTruthy();
+    }
   });
 
   it('waits for the pueblo before drawing the carnet', () => {

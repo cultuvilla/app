@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Screen, VStack, Text, Input, Button, Pressable } from '../../../components/primitives';
+import { Screen, VStack, HStack, Text, Input, Button } from '../../../components/primitives';
 import { PhoneField } from '../../../components/feature/PhoneField';
 import { AmbassadorCarnet } from '../../../components/feature/AmbassadorCarnet';
 import { ScreenHeader } from '../../../components/layout/ScreenHeader';
@@ -10,16 +10,17 @@ import { useAuth } from '../../../lib/auth/useAuth';
 import { useCallable } from '../../../lib/useCallable';
 import { useOrganizerPhone } from '../../../lib/useOrganizerPhone';
 import { useWatch } from '../../../lib/hooks/useWatch';
-import { userHref } from '../../../lib/navigation/routes';
 import { requestOrganizeVillage } from '@cultuvilla/shared/services/organizerRequestService';
 import { patchUserProfile } from '@cultuvilla/shared/services/userService';
 import { watchPersonByUserId } from '@cultuvilla/shared/services/personService';
 import { watchMunicipality } from '@cultuvilla/shared/services/municipalityService';
-import { escudoThumbDisplayUrl, type MunicipalityData } from '@cultuvilla/shared/models/municipality';
+import { escudoFullUrl, type MunicipalityData } from '@cultuvilla/shared/models/municipality';
 import { buildDisplayName, type PersonData } from '@cultuvilla/shared/models/person';
 
 type PersonDoc = PersonData & { id: string };
 type MunicipalityDoc = MunicipalityData & { id: string };
+
+const EXPLAINER_POINTS = ['info', 'welcome', 'upToDate', 'public'] as const;
 
 /**
  * Request to organize an already-active village that has no organizer yet.
@@ -67,34 +68,29 @@ export default function OrganizeVillageScreen() {
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <VStack gap={4}>
           {municipality && carnetName ? (
-            <VStack gap={2}>
-              <Text variant="caption" tone="muted" className="uppercase font-semibold">
-                {t('organize.carnet.preview')}
-              </Text>
-              <AmbassadorCarnet
-                testID="organize-carnet"
-                name={carnetName}
-                photoURL={person?.photoURL ?? null}
-                sex={person?.sex ?? null}
-                villageName={municipality.name}
-                escudoUrl={escudoThumbDisplayUrl(municipality)}
-              />
-              {uid && !person?.photoURL ? (
-                <Pressable
-                  testID="organize-carnet-add-photo"
-                  onPress={() => router.push(userHref(uid))}
-                  accessibilityRole="link"
-                >
-                  <Text variant="bodySm" className="font-semibold text-accent">
-                    {t('organize.carnet.addPhoto')}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </VStack>
+            <AmbassadorCarnet
+              testID="organize-carnet"
+              name={carnetName}
+              photoURL={person?.photoURL ?? null}
+              sex={person?.sex ?? null}
+              villageName={municipality.name}
+              escudoUrl={escudoFullUrl(municipality)}
+            />
           ) : null}
-          <Text tone="muted" variant="bodySm">
-            {t('organize.explainer')}
-          </Text>
+          <VStack gap={2} testID="organize-explainer">
+            <Text variant="bodySm">{t('organize.intro')}</Text>
+            {EXPLAINER_POINTS.map((key) => (
+              <HStack key={key} gap={2} className="items-start pl-1">
+                <Text variant="bodySm">•</Text>
+                <Text variant="bodySm" className="flex-1">
+                  {t(`organize.points.${key}`)}
+                </Text>
+              </HStack>
+            ))}
+            <Text variant="bodySm" tone="muted">
+              {t('organize.review')}
+            </Text>
+          </VStack>
           <PhoneField {...organizerPhone.fieldProps} />
           <Input
             label={t('requests.organizer.motivationLabel')}

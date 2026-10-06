@@ -1,4 +1,5 @@
-import { Image, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { colors } from '@cultuvilla/shared/design-system';
 import { RemoteImage } from './RemoteImage';
 import { Pressable } from './Pressable';
@@ -79,8 +80,8 @@ function AmbassadorSeal({ avatarSize }: { avatarSize: number }) {
       <Image
         source={CULTUVILLA_MARK}
         style={{ width: seal - border * 2 - 2, height: seal - border * 2 - 2 }}
-        resizeMode="contain"
-        accessibilityIgnoresInvertColors
+        contentFit="contain"
+        testID="avatar-ambassador-mark"
       />
     </View>
   );

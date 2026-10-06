@@ -1,7 +1,7 @@
 import { View } from 'react-native';
+import { colors } from '@cultuvilla/shared/design-system';
 import type { Sex } from '@cultuvilla/shared/models/core/SexModel';
 import { Avatar, Escudo, HStack, Text, VStack } from '../primitives';
-import { VillageTitleBadge } from './VillageTitleBadge';
 import { useT } from '../../lib/i18n';
 
 export interface AmbassadorCarnetProps {
@@ -28,6 +28,7 @@ export function AmbassadorCarnet({
 }: AmbassadorCarnetProps) {
   const { t } = useT();
   const initials = (name.trim().charAt(0) || '?').toUpperCase();
+  const titleKey = sex === 'female' ? 'organize.carnet.titleFemale' : 'organize.carnet.title';
 
   return (
     <View testID={testID} className="overflow-hidden rounded-lg border border-accent bg-surface-elevated">
@@ -43,13 +44,20 @@ export function AmbassadorCarnet({
       </View>
       <HStack gap={4} className="items-center p-4">
         <Avatar uri={photoURL} size={72} initials={initials} ambassador />
-        <VStack gap={2} className="flex-1">
+        <VStack gap={1} className="flex-1">
           <Text className="font-semibold" numberOfLines={2} testID="ambassador-carnet-name">
             {name}
           </Text>
-          <VillageTitleBadge title="ambassador" sex={sex} village={villageName} />
+          <Text
+            variant="bodySm"
+            className="font-semibold"
+            style={{ color: colors.light.fg.accent }}
+            testID="ambassador-carnet-title"
+          >
+            {t(titleKey, { village: villageName })}
+          </Text>
         </VStack>
-        <Escudo url={escudoUrl} size={44} fallbackInitial={villageName} />
+        <Escudo url={escudoUrl} size={64} fallbackInitial={villageName} />
       </HStack>
     </View>
   );

@@ -21,8 +21,8 @@ describe('AmbassadorCarnet', () => {
       />,
     );
     expect(getByTestId('ambassador-carnet-name')).toHaveTextContent('Lucía Martín');
-    expect(getByText('ambassador.fullTitle:Matabuena')).toBeTruthy();
-    expect(getByTestId('avatar-ambassador-seal')).toBeTruthy();
+    expect(getByText('organize.carnet.title:Matabuena')).toBeTruthy();
+    expect(getByTestId('avatar-ambassador-mark')).toBeTruthy();
   });
 
   it('reads Embajadora for a woman', () => {
@@ -35,6 +35,6 @@ describe('AmbassadorCarnet', () => {
         escudoUrl={null}
       />,
     );
-    expect(getByText('ambassador.fullTitleFemale:Matabuena')).toBeTruthy();
+    expect(getByText('organize.carnet.titleFemale:Matabuena')).toBeTruthy();
   });
 });
