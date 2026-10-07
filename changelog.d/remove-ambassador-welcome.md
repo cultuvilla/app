@@ -1,0 +1,1 @@
+- The "¡Ya eres Embajador!" sheet that popped up on the village home is gone.

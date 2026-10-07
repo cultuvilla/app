@@ -76,10 +76,6 @@ jest.mock('@cultuvilla/shared/services/userService', () => ({
   getUserProfile: jest.fn().mockResolvedValue(null),
   getPublicProfile: jest.fn().mockResolvedValue(null),
 }));
-jest.mock('../../../lib/village/ambassadorWelcome', () => ({
-  hasSeenAmbassadorWelcome: jest.fn().mockResolvedValue(true),
-  markAmbassadorWelcomeSeen: jest.fn().mockResolvedValue(undefined),
-}));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
