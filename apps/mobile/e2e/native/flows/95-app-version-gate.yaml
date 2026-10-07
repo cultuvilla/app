@@ -40,10 +40,26 @@ onFlowComplete:
       id: 'app-update-modal'
     timeout: 90000
 - assertVisible: 'Nueva actualización disponible'
+# The dismiss tap can land while the modal is still animating in, and iOS
+# drops it (see subflows/tap-until.yaml): tap again while the modal stays.
 - tapOn:
     id: 'app-update-dismiss'
-- assertNotVisible:
-    id: 'app-update-modal'
+- extendedWaitUntil:
+    notVisible:
+      id: 'app-update-modal'
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: 'app-update-modal'
+    commands:
+      - tapOn:
+          id: 'app-update-dismiss'
+- extendedWaitUntil:
+    notVisible:
+      id: 'app-update-modal'
+    timeout: 5000
 
 # Wall: the installed version is below the minimum.
 - runScript:
