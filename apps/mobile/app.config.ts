@@ -67,6 +67,17 @@ const deepLinkHostPerEnv: Record<Env, string> = {
   prod: process.env['DEEP_LINK_HOST_PROD'] ?? 'cultuvilla.es',
 };
 
+// Google Maps SDK for Android key per env, for the draggable location picker
+// (react-native-maps; iOS draws Apple Maps and needs none). Committed like
+// google-services/: it ships inside every APK, so there is nothing to hide, and
+// each key is restricted to the Maps SDK for Android, which Google does not
+// bill. It must never be empty on Android — a MapView without a key crashes.
+const googleMapsAndroidKeyPerEnv: Record<Env, string> = {
+  dev: 'AIzaSyCmLTlhlhxtktsntvsfcxDNmHxo8ETccAM',
+  beta: 'AIzaSyCDfKbkM6WnH-e_GXlxG4eI-94QnKDISE8',
+  prod: 'AIzaSyAMBOeRHimDUL4I3BdBpAMpKS3WTgMjYAM',
+};
+
 // Firebase config is injected per-environment from .env (or EAS secrets).
 // DO NOT commit real keys — use a local .env file (gitignored) with these vars:
 //   FIREBASE_API_KEY_DEV, FIREBASE_AUTH_DOMAIN_DEV, FIREBASE_PROJECT_ID_DEV,
@@ -327,6 +338,10 @@ const config: ExpoConfig = {
           ] as [string, { iosUrlScheme: string }],
         ]
       : []),
+    [
+      'react-native-maps',
+      { androidGoogleMapsApiKey: googleMapsAndroidKeyPerEnv[env] },
+    ],
     [
       'expo-location',
       {
