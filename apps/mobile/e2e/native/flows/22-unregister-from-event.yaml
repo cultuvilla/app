@@ -50,16 +50,20 @@ env:
           id: 'attendee-row-${PERSON_ID}'
       - tapOn:
           id: 'attendee-confirm'
-      - runFlow: ../subflows/dismiss-push-soft-ask.yaml
-      - extendedWaitUntil:
-          visible: '.*Apuntad.*'
-          # This waits on state written by 21-register-family-member and then
-          # denormalised by a background trigger, so it is a cross-flow race,
-          # not a render. 20s passed on two runs and lost on the third; the rest
-          # of the suite waits 45s for exactly this kind of thing. Run on its
-          # own (a selection without 20), this is also the first call of the
-          # registration callable, whose worker boots on that call.
-          timeout: 120000
+      # Wait for "Apuntado", declining the push soft ask whenever it shows:
+      # the sheet opens only once the registration lands, and run on its own
+      # (a selection without 20) that is the registration callable's first
+      # call, whose worker boots on it. A single 10 s dismiss window missed
+      # the sheet, and it then hid the FAB for the rest of the wait. The
+      # registration itself is also a cross-flow race in the full suite: it
+      # waits on state written by 21 and denormalised by a trigger.
+      - repeat:
+          times: 12
+          while:
+            notVisible: '.*Apuntad.*'
+          commands:
+            - runFlow: ../subflows/dismiss-push-soft-ask.yaml
+      - assertVisible: '.*Apuntad.*'
 
 # Untick this persona and confirm. The sheet opens with whoever is registered
 # already ticked, so one tap is a removal.
