@@ -34,8 +34,12 @@ is already walled.
       `curl -s "https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM"`.
       Then open one `/<pueblo>/evento/…` link on an iPhone with the app installed.
       iOS caches the AASA through Apple's CDN, so allow up to a day.
-- [ ] **User, in the consoles (no API exists):** set the privacy policy URL to
-      `https://cultuvilla.es/legal/privacidad` in App Store Connect → App
-      Information, and in Play Console → Policy and programs → App content →
-      Privacy policy. The old `/legal/privacy` 301s, so nothing is broken
-      meanwhile.
+- [ ] **App Store:** set `privacyPolicyUrl` to
+      `https://cultuvilla.es/legal/privacidad` on every app-info localization.
+      The ASC API supports it (`PATCH /v1/appInfoLocalizations/{id}`), and the
+      repo already holds an ASC key. `scripts/appstore-release.mjs` has no
+      command for it yet, so add one (dispatchable through `appstore-release.yml`
+      like the others) or change it in App Store Connect → App Information.
+- [ ] **Play (user, console only):** Policy and programs → App content →
+      Privacy policy → the same URL. The Play Developer API cannot set this
+      field. The old `/legal/privacy` 301s, so nothing is broken meanwhile.
