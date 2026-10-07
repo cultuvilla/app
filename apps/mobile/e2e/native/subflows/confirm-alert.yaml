@@ -1,14 +1,13 @@
-# Tap a native Alert's confirming button — the one right of "Cancelar".
+# Tap a native Alert's confirming button: the one right of "Cancelar", below
+# the alert's message (every confirmation in the app asks "¿…?").
 #
-# Two traps, both seen on iOS:
-#  - Maestro matches text case-insensitively, and the alert's TITLE (and often
-#    an icon's label behind it) carry the same word as the button, so a bare
-#    text tap can land on any of them. `rightOf: 'Cancelar'` picks the button on
-#    both platforms (Android's Material dialog upper-cases both labels).
-#  - On iOS 26 Maestro's quick synthetic tap can highlight an alert button
-#    without activating it: the tap reports COMPLETED, the button glows, and
-#    the alert stays up — re-tapping does the same. A press-and-hold is a whole
-#    touch the button does act on, so that is the fallback while it stays up.
+# Maestro matches text case-insensitively, and the alert's TITLE and often an
+# icon behind it carry the same word as the button. `rightOf` alone is not
+# enough on iOS: the screen under an alert stays in the hierarchy there, and
+# a header icon labelled "Eliminar" in the top-right corner is right of
+# "Cancelar" too. Maestro tapped it instead of the button, so the alert never
+# went away (flows 61 and 90). `below` the message keeps the pick inside the
+# alert on both platforms.
 appId: com.cultuvilla.app.dev
 ---
 - waitForAnimationToEnd:
@@ -16,31 +15,21 @@ appId: com.cultuvilla.app.dev
 - tapOn:
     text: ${BUTTON}
     rightOf: 'Cancelar'
+    below: '¿.*'
 - waitForAnimationToEnd:
     timeout: 3000
-- repeat:
-    times: 3
-    while:
-      visible:
-        text: ${BUTTON}
-        rightOf: 'Cancelar'
-    commands:
-      - longPressOn:
-          text: ${BUTTON}
-          rightOf: 'Cancelar'
-      - waitForAnimationToEnd:
-          timeout: 3000
-# Last resort, iOS only: neither a tap nor a hold has always pressed an iOS 26
-# alert button from Maestro (the button lights up, the alert stays). Return is
-# UIKit's keyboard path to an alert's confirming action; if it does nothing the
-# flow's own backend assertion still decides, so it can hide nothing.
+# One more try if the alert is still up: under load the first tap can land
+# while the alert is still animating in.
 - runFlow:
     when:
-      platform: iOS
       visible:
         text: ${BUTTON}
         rightOf: 'Cancelar'
+        below: '¿.*'
     commands:
-      - pressKey: Enter
+      - tapOn:
+          text: ${BUTTON}
+          rightOf: 'Cancelar'
+          below: '¿.*'
       - waitForAnimationToEnd:
           timeout: 3000
