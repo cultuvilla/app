@@ -88,7 +88,7 @@ export default function OrganizeVillageScreen() {
               </HStack>
             ))}
           </VStack>
-          <PhoneField {...organizerPhone.fieldProps} />
+          <PhoneField {...organizerPhone.fieldProps} testID="organizer-phone" />
           <Input
             testID="organizer-motivation"
             label={t('requests.organizer.motivationLabel')}

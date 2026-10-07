@@ -1,7 +1,7 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // The native E2E suite was green while whole forms shipped untested: each flow
@@ -30,7 +30,7 @@ const lib = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/e2e-cover
     ids?: Map<string, SourceId>,
     refs?: Ref[],
   ) => { covered: Set<string>; uncovered: Set<string>; dangling: Ref[] };
-  controlsWithoutTestId: () => { file: string; line: number; control: string }[];
+  controlsWithoutTestId: (files?: string[], root?: string) => { file: string; line: number; control: string }[];
   readUncovered: () => Record<string, string>;
 };
 
@@ -117,5 +117,42 @@ describe('testID extraction', () => {
     const sample = new Map([['row-*', { prefix: true, files: new Set(['x']) }]]);
     const { covered: hit } = lib.coverage(sample, [{ value: 'row-${PERSON}', key: 'id', file: 'f' }]);
     expect([...hit]).toEqual(['row-*']);
+  });
+});
+
+describe('form controls without a testID', () => {
+  const root = mkdtempSync(join(tmpdir(), 'e2e-controls-'));
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+  const misses = (rel: string, source: string) => {
+    const file = join(root, rel);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, source);
+    return lib.controlsWithoutTestId([file], root).map((m) => m.control);
+  };
+
+  it('flags an input with no testID on a form surface', () => {
+    expect(misses('app/crear/a.tsx', '<Input value={v} onChangeText={set} />')).toEqual(['Input']);
+  });
+
+  // A spread may or may not carry one, and an id hidden in a hook's props is
+  // invisible to the ratchet either way.
+  it('does not take a spread as a testID', () => {
+    expect(misses('app/crear/b.tsx', '<PhoneField {...phone.fieldProps} />')).toEqual(['PhoneField']);
+  });
+
+  it('accepts an explicit testID, or a …TestIDPrefix', () => {
+    expect(misses('app/crear/c.tsx', '<Input testID="t" /><OptionsEditor testIDPrefix="q" />')).toEqual([]);
+  });
+
+  // The tag ends at the first `>` outside braces, so an arrow in a prop does not
+  // cut it off before the testID.
+  it('reads past an arrow function in an earlier prop', () => {
+    expect(misses('app/crear/d.tsx', '<Input onChangeText={(v) => set(v)} testID="t" />')).toEqual([]);
+  });
+
+  it('ignores files that are not form surfaces', () => {
+    expect(misses('components/feature/Feed.tsx', '<Input value={v} />')).toEqual([]);
   });
 });

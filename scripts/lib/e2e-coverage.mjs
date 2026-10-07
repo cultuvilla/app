@@ -181,16 +181,19 @@ function openingTag(text, start) {
   return text.slice(start);
 }
 
+// The id must be written on the element. A spread can't be trusted to carry
+// one, and an id hidden in a hook's props is invisible to the ratchet anyway.
+const NAMES_TEST_ID = /\b\w*[tT]est[Ii][Dd]\w*\s*=/;
+
 /** @returns {{ file: string, line: number, control: string }[]} */
-export function controlsWithoutTestId(files = sourceFiles()) {
+export function controlsWithoutTestId(files = sourceFiles(), root = mobileDir) {
   const misses = [];
   for (const file of files) {
-    const rel = relative(mobileDir, file);
+    const rel = relative(root, file);
     if (!FORM_SURFACES.some((re) => re.test(rel))) continue;
     const text = readFileSync(file, 'utf8');
     for (const m of text.matchAll(CONTROL)) {
-      // A spread (`{...phone.fieldProps}`) is trusted to carry it.
-      if (/\b\w*[tT]est[Ii][Dd]\s*=|\{\s*\.\.\./.test(openingTag(text, m.index))) continue;
+      if (NAMES_TEST_ID.test(openingTag(text, m.index))) continue;
       misses.push({ file: `apps/mobile/${rel}`, line: text.slice(0, m.index).split('\n').length, control: m[1] });
     }
   }
