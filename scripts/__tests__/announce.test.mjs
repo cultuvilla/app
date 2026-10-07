@@ -624,3 +624,36 @@ describe('makePlayClient', () => {
     assert.deepEqual(calls.slice(1), ['GET /androidpublisher/v3/applications/com.cultuvilla.app/tracks/production/releases']);
   });
 });
+
+describe('beta: announced and walled on Android alone, never held', () => {
+  const betaPending = {
+    version: '1.8.0',
+    breaking: true,
+    reasons: ['r'],
+    holdBackend: false,
+    platforms: ['android'],
+    announced: { ios: false, android: false },
+  };
+  const stored = { ios: { latest: '1.4.1', minSupported: '0.0.0' }, android: { latest: '1.7.1', minSupported: '0.0.0' } };
+
+  it('announces and walls once the beta app is live, and finishes without iOS', () => {
+    const plan = planTick(betaPending, { live: { android: true, ios: false }, stored });
+    assert.deepEqual(plan.config, { latestFor: { android: '1.8.0' }, minSupported: '1.8.0' });
+    assert.equal(plan.clear, true);
+    assert.deepEqual(plan.waitingOn, []);
+    assert.equal(plan.deploySha, null);
+  });
+
+  it('never moves iOS, even if a store answer says live', () => {
+    const plan = planTick(betaPending, { live: { android: false, ios: true }, stored });
+    assert.equal(plan.config, null);
+    assert.deepEqual(plan.waitingOn, ['android']);
+  });
+
+  it('never holds, but still reads the merge as breaking', () => {
+    const d = decideBackendHold({ env: 'beta', version: '1.8.0', config: stored, rollup: { breaking: true, reasons: ['r'] } });
+    assert.equal(d.hold, false);
+    assert.equal(d.breaking, true);
+    assert.equal(d.inFlight, true, 'ahead of what the beta app has announced (iOS is not counted)');
+  });
+});

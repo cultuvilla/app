@@ -64,7 +64,7 @@ async function readDoc(db, p) {
 
 async function decide(ctx, env) {
   const version = ctx.appVersion();
-  const rollup = ctx.rollup(version);
+  const rollup = ctx.rollup(version, env);
   const decision = decideBackendHold({
     env,
     version,
@@ -93,7 +93,8 @@ async function cmdRecord(ctx, env, args) {
   const { version, decision } = await decide(ctx, env);
   // The plan step decided what this deploy did; record that, not a re-decision
   // (the pending doc or config may have changed in between).
-  const hold = parseHoldFlag(args.hold);
+  // Beta has no plan step, so nothing to hand over: it never holds.
+  const hold = env === 'prod' ? parseHoldFlag(args.hold) : false;
   const result = await recordRelease(ctx.db, { env, version, sha: ctx.headSha(), decision: { ...decision, hold } });
   if (result.outcome === 'not-in-flight') ctx.log(`v${version} is already what both stores serve — nothing to announce.`);
   else ctx.log(`${result.outcome} ${pendingDocPath(env)}: ${JSON.stringify(result.doc)}`);
@@ -230,16 +231,19 @@ export const COMMANDS = {
 };
 
 /**
- * Run one invocation. `makeCtx` is called only for prod, so another env never
- * touches credentials; it still answers `hold_backend=false` for a caller that
- * branches on it.
+ * Run one invocation. `makeCtx` is called only for prod, and for beta's
+ * record and poll, so another env never touches credentials; a skipped call
+ * still answers `hold_backend=false` for a caller that branches on it.
  */
+/** Beta announces and walls too, but never holds: only these run there. */
+const BETA_COMMANDS = new Set(['record', 'poll']);
+
 export async function runCli(argv, { makeCtx, output }) {
   const args = parseArgs(argv);
   const command = args._[0];
   if (!COMMANDS[command]) throw new Error(`unknown command "${command}" — one of ${Object.keys(COMMANDS).join(', ')}`);
   const env = typeof args.env === 'string' ? args.env : '';
-  if (env !== 'prod') {
+  if (env !== 'prod' && !(env === 'beta' && BETA_COMMANDS.has(command))) {
     output('hold_backend', 'false');
     return { skipped: true, env };
   }

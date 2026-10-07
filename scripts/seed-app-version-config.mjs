@@ -85,6 +85,7 @@ async function main() {
     latest: typeof args.latest === 'string' ? args.latest : undefined,
     minSupported: typeof args.min === 'string' ? args.min : undefined,
     appVersion,
+    env,
   };
 
   if (dryRun) {

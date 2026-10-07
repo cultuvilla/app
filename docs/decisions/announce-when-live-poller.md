@@ -114,6 +114,28 @@ answer) counts as **not live**, with a warning, and the next tick asks again.
 After 7 days each tick warns that the build looks stuck in review. Nothing is
 ever announced on a guess, and nothing gives up silently.
 
+### Beta is announced too, always automatically
+
+Added 2026-10-08: until then beta's `latest` never moved, so a tester was never
+prompted to install a new beta build. Beta runs the same machinery, with three
+differences:
+
+- **Android only.** Beta's config is read by one app, Cultuvilla Beta
+  (`com.cultuvilla.app.beta`, Play **internal** track). iOS testers run the
+  production build from TestFlight, which reads prod and is announced by
+  TestFlight itself. A pending beta release records `platforms: ['android']`,
+  and beta's wall is capped by Android alone (`SERVED_PLATFORMS`).
+- **Never held.** Deploy beta ships everything at once and records the release.
+  The poller (dispatched on `beta`, under the `beta` environment) moves
+  `android.latest` once Play publishes the build, then clears.
+- **Breaking per merge.** Beta has no release tags, so a beta version is
+  breaking when its own merge brings a `Breaking-Client:` trailer
+  (`breakingInMerge`, `HEAD^1..HEAD`). Its wall then rises to that version, so
+  older beta builds are told to update to the one the backend now needs.
+
+Beta's `storeUrl.android` points at the Cultuvilla Beta listing, so the gate's
+button opens the tester's app and not the public one.
+
 ### Breaking releases hold their backend
 
 "Breaking" means a `Breaking-Client:` trailer on any non-merge commit since the

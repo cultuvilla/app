@@ -308,3 +308,44 @@ describe('ready (release:publish)', () => {
     await assert.rejects(harness({ db: fakeDb({ [P]: { ...held, holdBackend: false } }) }).run('ready', '--env=prod'), /not held/);
   });
 });
+
+describe('beta record + poll', () => {
+  const PB = pendingDocPath('beta');
+  const betaPlay = {
+    listReleases: async () => ({ releases: [{ releaseName: '1.6.0', activeArtifacts: [{ versionCode: '9' }], releaseLifecycleState: PLAY_LIFECYCLE.PUBLISHED }] }),
+    getTrack: async () => ({ releases: [{ name: '1.6.0', versionCodes: ['9'], status: 'completed' }] }),
+  };
+
+  it('records a beta release for Android alone, never held, with no plan step', async () => {
+    const db = fakeDb({ [CONFIG_DOC]: config('1.4.1', '1.5.0') });
+    const h = harness({ db, breaking: true });
+    await h.run('record', '--env=beta');
+    const doc = db.docs.get(PB);
+    assert.equal(doc.version, '1.6.0');
+    assert.equal(doc.holdBackend, false);
+    assert.equal(doc.breaking, true);
+    assert.deepEqual(doc.platforms, ['android']);
+  });
+
+  it('announces and walls the beta app once Play publishes it, without asking App Store Connect', async () => {
+    const db = fakeDb({ [CONFIG_DOC]: config('1.4.1', '1.5.0') });
+    await harness({ db, breaking: true }).run('record', '--env=beta');
+    const h = harness({ db, play: betaPlay });
+    await h.run('poll', '--env=beta');
+    const cfg = db.docs.get(CONFIG_DOC);
+    assert.equal(cfg.android.latest, '1.6.0');
+    assert.equal(cfg.android.minSupported, '1.6.0');
+    assert.equal(cfg.ios.latest, '1.4.1', 'iOS is not served from beta');
+    assert.equal(cfg.storeUrl.android, 'https://play.google.com/store/apps/details?id=com.cultuvilla.app.beta');
+    assert.equal(db.docs.has(PB), false, 'finished: nothing held on beta');
+    assert.deepEqual(h.warnings, []);
+  });
+
+  it('still skips the prod-only commands on beta', async () => {
+    for (const cmd of ['plan', 'finish', 'ready']) {
+      const h = harness({ db: fakeDb() });
+      assert.deepEqual(await h.run(cmd, '--env=beta'), { skipped: true, env: 'beta' });
+      assert.equal(h.made(), 0);
+    }
+  });
+});
