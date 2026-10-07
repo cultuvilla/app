@@ -56,5 +56,5 @@ env:
 # spec's /Apuntad/.
 - runFlow: ../subflows/dismiss-push-soft-ask.yaml
 - extendedWaitUntil:
-    visible: 'Apuntad.*'
+    visible: '.*Apuntad.*'
     timeout: 20000

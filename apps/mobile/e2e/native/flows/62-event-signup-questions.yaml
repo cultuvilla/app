@@ -104,6 +104,9 @@ env:
       FIELD2: status
       VALUE2: published
       MIN: '1'
+      # Creating the event (with its signup form) outlasted the default 20 s
+      # on the loaded macOS runner while "Crear evento" was still spinning.
+      TIMEOUT_MS: '60000'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.eventId = output.id}
 

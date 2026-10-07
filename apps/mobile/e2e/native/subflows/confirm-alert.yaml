@@ -30,3 +30,17 @@ appId: com.cultuvilla.app.dev
           rightOf: 'Cancelar'
       - waitForAnimationToEnd:
           timeout: 3000
+# Last resort, iOS only: neither a tap nor a hold has always pressed an iOS 26
+# alert button from Maestro (the button lights up, the alert stays). Return is
+# UIKit's keyboard path to an alert's confirming action; if it does nothing the
+# flow's own backend assertion still decides, so it can hide nothing.
+- runFlow:
+    when:
+      platform: iOS
+      visible:
+        text: ${BUTTON}
+        rightOf: 'Cancelar'
+    commands:
+      - pressKey: Enter
+      - waitForAnimationToEnd:
+          timeout: 3000

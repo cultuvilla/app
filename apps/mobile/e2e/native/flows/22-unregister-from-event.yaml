@@ -26,9 +26,13 @@ env:
     timeout: 45000
 
 # Precondition: be signed up. The FAB reads "Apuntarme" only while nobody is.
+# Matched anywhere in the label, not just at its start: on iOS the register
+# button's accessibility label leads with its icon glyph, so 'Apuntad.*' never
+# matched there, the flow re-registered, and unticking the already-registered
+# person raised a "Cancelar inscripción" alert it then stalled on.
 - runFlow:
     when:
-      notVisible: 'Apuntad.*'
+      notVisible: '.*Apuntad.*'
     commands:
       - tapOn:
           id: 'register-fab'
@@ -38,7 +42,7 @@ env:
           id: 'attendee-confirm'
       - runFlow: ../subflows/dismiss-push-soft-ask.yaml
       - extendedWaitUntil:
-          visible: 'Apuntad.*'
+          visible: '.*Apuntad.*'
           # This waits on state written by 21-register-family-member and then
           # denormalised by a background trigger, so it is a cross-flow race,
           # not a render. 20s passed on two runs and lost on the third; the rest

@@ -32,6 +32,17 @@ env:
     timeout: 45000
 
 - openLink: 'cultuvilla://mi-pueblo?villageId=${VILLAGE_ID}'
+# Evidence for the artifacts: the top of the village home, where the events row
+# sits.
+- extendedWaitUntil:
+    visible: '(?i)eventos'
+    timeout: 20000
+    optional: true
+- takeScreenshot: village-home-top
+# The events row is horizontal, so a card can sit partly past the right edge
+# (seen on iOS, whose screen is a little narrower): count it once a third of it
+# shows rather than demanding all of it.
 - scrollUntilVisible:
     element: '.*${EVENT_TITLE}.*'
+    visibilityPercentage: 30
     timeout: 45000
