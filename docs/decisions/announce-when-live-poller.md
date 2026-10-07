@@ -123,7 +123,12 @@ carry PR bodies that may merely describe the trailer.
 On prod, `deploy-firebase.yml`'s release plan **holds Cloud Functions and the
 Firestore + Storage rules** of a breaking, in-flight release. Indexes and
 hosting still deploy: additive indexes strand no client, and the read site is
-not an installed binary.
+not an installed binary. Hosting ships **with the functions it rewrites to**
+(`readSite`, `sitemap`, read from `firebase.json` by
+`scripts/hosting-rewrite-functions.mjs`). 1.7.1 held every function, and since
+prod had never run `readSite`, cultuvilla.es answered 404 for six hours. The
+privacy policy and account-deletion page were down with it, and Google Play
+rejected the release for exactly that (2026-10-07).
 
 When both stores are live, the poller first writes the wall and then dispatches
 the backend. That order is the safe one. A wall without its backend only tells

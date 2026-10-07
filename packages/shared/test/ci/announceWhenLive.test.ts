@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { hostingRewriteFunctions } from '../../../../scripts/hosting-rewrite-functions.mjs';
 
 // Announce-when-live (docs/decisions/announce-when-live-poller.md): a production
 // release reaches installed apps only once the stores serve it, and a breaking
@@ -32,6 +33,20 @@ function job(workflow: string, name: string): string {
 }
 
 describe('the prod deploy holds a breaking backend', () => {
+  // Hosting rewrites every page to readSite. 1.7.1 held all functions, shipped
+  // hosting, and cultuvilla.es 404'd — privacy policy included — until Google
+  // Play rejected the release for it.
+  it('still ships the functions hosting rewrites to, before hosting, when held', () => {
+    const rewrites = step(deploy, 'hosting-rewrite-functions.mjs');
+    expect(rewrites).toContain("if: ${{ steps.release.outputs.hold_backend == 'true' }}");
+    expect(deploy.indexOf('hosting-rewrite-functions.mjs')).toBeLessThan(deploy.indexOf('firebase deploy --only hosting:app'));
+  });
+
+  it('names every function firebase.json hosting rewrites to', () => {
+    const only = hostingRewriteFunctions(JSON.parse(read('firebase.json')));
+    expect(only.split(',')).toEqual(expect.arrayContaining(['functions:readSite', 'functions:sitemap']));
+  });
+
   it('plans the release on prod only, and not on the run that ships a held backend', () => {
     const plan = step(deploy, 'release-announce.mjs plan');
     expect(plan).toContain('id: release');
