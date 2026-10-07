@@ -2,7 +2,7 @@
 #
 # A tap that lands while a freshly deep-linked screen is still settling is
 # dropped on iOS: Maestro reports COMPLETED, the button never fires, and the
-# next step fails on a sheet that never opened (flows 23, 30, 62). The first
+# next step fails on a sheet that never opened (flows 22, 23, 30, 62). The first
 # wait is long so a sheet that is merely slow to load is never re-tapped: a
 # second tap on an open sheet would land on its backdrop and close it.
 appId: com.cultuvilla.app.dev

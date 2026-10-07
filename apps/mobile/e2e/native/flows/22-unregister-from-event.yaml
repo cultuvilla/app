@@ -34,8 +34,11 @@ env:
     when:
       notVisible: '.*Apuntad.*'
     commands:
-      - tapOn:
-          id: 'register-fab'
+      - runFlow:
+          file: ../subflows/tap-until.yaml
+          env:
+            TAP: 'register-fab'
+            EXPECT: 'attendee-list'
       - tapOn:
           id: 'attendee-row-${PERSON_ID}'
       - tapOn:
@@ -51,8 +54,11 @@ env:
 
 # Untick this persona and confirm. The sheet opens with whoever is registered
 # already ticked, so one tap is a removal.
-- tapOn:
-    id: 'register-fab'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
 - tapOn:
     id: 'attendee-row-${PERSON_ID}'
 - tapOn:
