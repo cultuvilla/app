@@ -24,8 +24,11 @@ env:
     visible:
       id: 'register-fab'
     timeout: 45000
-- tapOn:
-    id: 'register-fab'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
 - tapOn:
     id: 'attendee-row-${PERSON_ID}'
 - tapOn:

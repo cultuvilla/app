@@ -1,0 +1,29 @@
+# Tap ${TAP} and make sure it opened ${EXPECT}, tapping again if it did not.
+#
+# A tap that lands while a freshly deep-linked screen is still settling is
+# dropped on iOS: Maestro reports COMPLETED, the button never fires, and the
+# next step fails on a sheet that never opened (flows 23, 30, 62). The first
+# wait is long so a sheet that is merely slow to load is never re-tapped: a
+# second tap on an open sheet would land on its backdrop and close it.
+appId: com.cultuvilla.app.dev
+---
+- tapOn:
+    id: ${TAP}
+- extendedWaitUntil:
+    visible:
+      id: ${EXPECT}
+    timeout: 10000
+    optional: true
+- repeat:
+    times: 2
+    while:
+      notVisible:
+        id: ${EXPECT}
+    commands:
+      - tapOn:
+          id: ${TAP}
+      - extendedWaitUntil:
+          visible:
+            id: ${EXPECT}
+          timeout: 10000
+          optional: true

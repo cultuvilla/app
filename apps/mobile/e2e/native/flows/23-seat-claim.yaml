@@ -28,13 +28,12 @@ env:
     visible:
       id: 'register-fab'
     timeout: 45000
-- tapOn:
-    id: 'register-fab'
 # The booker's own persona is pre-ticked; leave the second seat open.
-- extendedWaitUntil:
-    visible:
-      id: 'group-open-seat-0'
-    timeout: 15000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'group-open-seat-0'
 - tapOn:
     id: 'group-open-seat-0'
 - runFlow:

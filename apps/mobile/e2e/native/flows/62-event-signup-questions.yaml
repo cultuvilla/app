@@ -121,22 +121,11 @@ env:
     visible:
       id: 'register-fab'
     timeout: 45000
-- tapOn:
-    id: 'register-fab'
-# A tap that lands while the screen is still settling is dropped (seen on iOS):
-# the sheet never opens and the row lookup fails. Ask again if it is not up.
-- extendedWaitUntil:
-    visible:
-      id: 'attendee-list'
-    timeout: 10000
-    optional: true
 - runFlow:
-    when:
-      notVisible:
-        id: 'attendee-list'
-    commands:
-      - tapOn:
-          id: 'register-fab'
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
 - tapOn:
     id: 'attendee-row-${ATTENDEE_PERSON_ID}'
 # The answer field's testID carries the generated field id, so match by prefix.
