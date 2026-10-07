@@ -22,3 +22,19 @@ export function indexKey(index: {
   fields: { fieldPath: string; order?: string; arrayConfig?: string; vectorConfig?: unknown }[];
 }): string;
 export function sha(text: string): string;
+export type Api = (url: string, init?: { method?: string; body?: string }) => Promise<Record<string, unknown>>;
+export function paged(api: Api, url: string, key: string): Promise<unknown[]>;
+export function configSnapshot(api: Api, project: string, number: number | string): Promise<Snapshot>;
+export function backendHeld(api: Api, project: string, env: string): Promise<boolean>;
+export function artifactProblems(
+  api: Api,
+  project: string,
+  options?: { held?: boolean; readFile?: (path: string) => string },
+): Promise<string[]>;
+export function checkEnv(
+  env: string,
+  scope: 'config' | 'artifacts' | 'all',
+  baseline: Baseline,
+  api: Api,
+  options?: { readFile?: (path: string) => string },
+): Promise<string[]>;

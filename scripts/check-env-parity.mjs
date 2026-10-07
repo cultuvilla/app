@@ -213,7 +213,7 @@ function client(token, project) {
   };
 }
 
-async function paged(api, url, key) {
+export async function paged(api, url, key) {
   const items = [];
   let pageToken = '';
   do {
@@ -302,7 +302,7 @@ async function liveRules(api, project, release) {
  * functions then deliberately stay at the previous release until it is
  * published (release-announce.mjs records `holdBackend` on the pending doc).
  */
-async function backendHeld(api, project, env) {
+export async function backendHeld(api, project, env) {
   try {
     const doc = await api(
       `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/_admin/announce/pending/${env}`,
@@ -315,7 +315,11 @@ async function backendHeld(api, project, env) {
 }
 
 /** Live deploy artifacts compared with this checkout; returns problem lines. */
-export async function artifactProblems(api, project, { held = false } = {}) {
+export async function artifactProblems(
+  api,
+  project,
+  { held = false, readFile = (path) => readFileSync(resolve(repoRoot, path), 'utf8') } = {},
+) {
   const problems = [];
 
   for (const [file, release] of held ? [] : [
@@ -323,7 +327,7 @@ export async function artifactProblems(api, project, { held = false } = {}) {
     ['storage.rules', `firebase.storage/${project}.firebasestorage.app`],
   ]) {
     const live = await liveRules(api, project, release);
-    const local = readFileSync(resolve(repoRoot, file), 'utf8');
+    const local = readFile(file);
     if (live !== local) problems.push(`rules: live ${file} (${sha(live)}) is not this commit's (${sha(local)})`);
   }
 
@@ -334,14 +338,14 @@ export async function artifactProblems(api, project, { held = false } = {}) {
       'indexes',
     )
   ).map((ix) => indexKey({ ...ix, collectionGroup: ix.name.split('/collectionGroups/')[1].split('/')[0] }));
-  const declared = JSON.parse(readFileSync(resolve(repoRoot, 'firestore.indexes.json'), 'utf8')).indexes.map(indexKey);
+  const declared = JSON.parse(readFile('firestore.indexes.json')).indexes.map(indexKey);
   for (const k of declared) if (!deployedIndexes.includes(k)) problems.push(`indexes: missing ${k}`);
   for (const k of deployedIndexes) if (!declared.includes(k)) problems.push(`indexes: not in firestore.indexes.json ${k}`);
 
   const deployedFns = (
     await paged(api, `https://cloudfunctions.googleapis.com/v2/projects/${project}/locations/-/functions?pageSize=200`, 'functions')
   ).map((f) => f.name.split('/').pop());
-  const exported = exportedFunctionNames(readFileSync(resolve(repoRoot, 'functions/src/index.ts'), 'utf8'));
+  const exported = exportedFunctionNames(readFile('functions/src/index.ts'));
   if (!held) {
     for (const n of exported) if (!deployedFns.includes(n)) problems.push(`functions: ${n} is exported but not deployed`);
     for (const n of deployedFns) if (!exported.includes(n)) problems.push(`functions: ${n} is deployed but not exported`);
@@ -356,9 +360,9 @@ function arg(name) {
   return process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 }
 
-async function checkEnv(env, scope, baseline, token) {
+/** Every difference between `env` and its declared state, as report lines. */
+export async function checkEnv(env, scope, baseline, api, { readFile } = {}) {
   const project = ENVS[env].project;
-  const api = client(token, project);
   const lines = [];
   if (scope !== 'artifacts') {
     const number = await projectNumber(api, project);
@@ -368,7 +372,7 @@ async function checkEnv(env, scope, baseline, token) {
   if (scope !== 'config') {
     const held = await backendHeld(api, project, env);
     if (held) console.log(`   ${env}: a release is holding its backend — rules and functions not compared`);
-    lines.push(...(await artifactProblems(api, project, { held })).map((l) => `artifacts ${l}`));
+    lines.push(...(await artifactProblems(api, project, { held, readFile })).map((l) => `artifacts ${l}`));
   }
   return lines;
 }
@@ -409,7 +413,7 @@ async function main() {
 
   let failed = false;
   for (const env of envs) {
-    const lines = await checkEnv(env, scope, baseline, token);
+    const lines = await checkEnv(env, scope, baseline, client(token, ENVS[env].project));
     console.log(`${lines.length ? '❌' : '✅'} ${env} (${ENVS[env].project}) — ${scope}`);
     for (const l of lines) console.log(`   ${l}`);
     if (lines.length) {
