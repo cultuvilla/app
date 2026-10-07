@@ -69,6 +69,12 @@ describe('ios-e2e workflow gating', () => {
     expect(suite).toContain('name: ios-e2e-app');
   });
 
+  // The 30 s default let a slow worker boot fail the app's callables outright.
+  it('gives the Functions emulator room to boot a worker on a loaded runner', () => {
+    const suite = workflow.slice(workflow.indexOf('  suite:'));
+    expect(Number(/FUNCTIONS_DISCOVERY_TIMEOUT: '(\d+)'/.exec(suite)?.[1])).toBeGreaterThan(30);
+  });
+
   it('drives the suite through the same entrypoint a developer uses', () => {
     expect(workflow).toContain('run: pnpm test:e2e:ios');
     expect(rootPkg.scripts['test:e2e:ios']).toContain('run-tests-with-emulators.mjs');

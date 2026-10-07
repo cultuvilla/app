@@ -152,6 +152,11 @@ jobs:
     # Job-level, not just on the suite step: the boot step reads them too, so a
     # shard a dispatched selection leaves empty skips its cold boot.
     env:
+      # Seconds the Functions emulator gives a new function worker to boot. The
+      # 30 s default lapsed on a 3-core runner that also hosts the Simulator:
+      # firebase-tools logged "Failed to load function." and the app's callable
+      # came back as "No hemos podido contactar con el servidor" (flows 11, 72).
+      FUNCTIONS_DISCOVERY_TIMEOUT: '120'
       E2E_SHARD: ${{ matrix.shard }}/4
       # Empty on every event but a dispatch that names flows.
       E2E_NATIVE_FLOW: ${{ inputs.flows }}
