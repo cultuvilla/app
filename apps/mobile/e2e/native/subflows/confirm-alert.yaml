@@ -5,11 +5,17 @@
 #    an icon's label behind it) carry the same word as the button, so a bare
 #    text tap can land on any of them. `rightOf: 'Cancelar'` picks the button on
 #    both platforms (Android's Material dialog upper-cases both labels).
-#  - A tap during the alert's presentation animation is swallowed: Maestro
-#    reports it COMPLETED, the button highlights, and the alert stays up. So wait
-#    for the animation, and re-tap while the button is still there.
+#  - On iOS 26 Maestro's quick synthetic tap can highlight an alert button
+#    without activating it: the tap reports COMPLETED, the button glows, and
+#    the alert stays up — re-tapping does the same. A press-and-hold is a whole
+#    touch the button does act on, so that is the fallback while it stays up.
 appId: com.cultuvilla.app.dev
 ---
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: ${BUTTON}
+    rightOf: 'Cancelar'
 - waitForAnimationToEnd:
     timeout: 3000
 - repeat:
@@ -19,7 +25,7 @@ appId: com.cultuvilla.app.dev
         text: ${BUTTON}
         rightOf: 'Cancelar'
     commands:
-      - tapOn:
+      - longPressOn:
           text: ${BUTTON}
           rightOf: 'Cancelar'
       - waitForAnimationToEnd:

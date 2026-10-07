@@ -14,8 +14,9 @@
 # onSubmitEditing, so a single-line field just blurs, and a multiline one gains
 # a newline no flow asserts on. Not `hideKeyboard` (failed outright on one form,
 # opened the photo picker on another) and not a margin tap (on a bottom sheet
-# that is the backdrop, and closes the sheet). Only while a keyboard is up — its
-# space key is the tell — since Return with no focused field errors.
+# that is the backdrop, and closes the sheet). Only while a keyboard is up —
+# UIKit's keyboard container, id `inputView`, is the tell (iOS 26 labels no
+# space key) — since Return with no focused field errors.
 appId: com.cultuvilla.app.dev
 ---
 - runFlow:
@@ -30,7 +31,8 @@ appId: com.cultuvilla.app.dev
 - runFlow:
     when:
       platform: iOS
-      visible: '(space|espacio)'
+      visible:
+        id: 'inputView'
     commands:
       - pressKey: Enter
       - waitForAnimationToEnd:

@@ -28,7 +28,19 @@ env:
     timeout: 30000
 - tapOn:
     id: 'login-email-input'
+- waitForAnimationToEnd:
+    timeout: 2000
 - inputText: ${EMAIL}
+# The iOS Simulator can drop keystrokes while the keyboard is still settling:
+# "e2e-user@…" arrived as "eer@…", so the code was issued to another address
+# and the flow waited on a document that never came. Retype until it is whole.
+- repeat:
+    times: 2
+    while:
+      notVisible: ${EMAIL}
+    commands:
+      - eraseText: 60
+      - inputText: ${EMAIL}
 # With the soft keyboard up, the first tap outside the input can be spent
 # closing it. Tap until the code step shows; a second send only overwrites
 # the code doc, which is read afterwards.

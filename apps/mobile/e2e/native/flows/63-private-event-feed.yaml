@@ -32,6 +32,15 @@ env:
     timeout: 45000
 
 - openLink: 'cultuvilla://mi-pueblo?villageId=${VILLAGE_ID}'
+# The village home lists events in a HORIZONTAL row (a FlatList), so a card past
+# the screen's right edge is never reached by scrolling down — on iOS this one
+# was. Centre a seeded card of that row, then scroll the row itself; when the
+# event is already in view (as on Android) the second scroll ends at once.
+- scrollUntilVisible:
+    element: '.*Fiesta de Prueba E2E.*'
+    centerElement: true
+    timeout: 45000
 - scrollUntilVisible:
     element: '.*${EVENT_TITLE}.*'
-    timeout: 45000
+    direction: RIGHT
+    timeout: 30000
