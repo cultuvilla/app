@@ -20,7 +20,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [store-release](ongoing/store-release.md) | low | prod | 1 cycle ago | once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc |
 | [e2e-full-feature-coverage](ready/e2e-full-feature-coverage.md) `ready` | high | — | this cycle | — |
 | [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | after 1.7.1's first full day (check the `events_20261008` table on 2026-10-09), look for `ANDROID`/`IOS` rows; if there are none, check the stream boxes on GA4 Admin → BigQuery links; in parallel, apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) |
-| [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) | low | dev | this cycle | run the `--force` index cleanup on prod from a clean `origin/main` checkout (see *Commands*; needs the user's go), then re-verify live == file |
+| [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) | low | dev | this cycle | add `--force` to the "Deploy Firestore indexes" step in `deploy-firebase.yml` plus a `scripts/` drift check (the verify snippet below), then retire this plan |
 
 ## Soaking
 
