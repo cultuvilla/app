@@ -55,7 +55,10 @@ env:
     id: 'attendee-confirm'
 # Native two-button Alert from lib/dialogs.ts showConfirm; the label is
 # event.register.cancelConfirm in packages/i18n/messages/es.json.
-- tapOn: 'SÍ, CANCELAR'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Sí, cancelar'
 
 - runScript:
     file: ../scripts/queryCollection.js

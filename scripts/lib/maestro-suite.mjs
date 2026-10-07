@@ -8,7 +8,7 @@
  * pass on the other's. Everything after that is identical, and lives here so the
  * two gates cannot drift into meaning different things by "green".
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -114,6 +114,7 @@ export async function runMaestroSuite({
 }) {
   mkdirSync(reportDir, { recursive: true });
   const { flows, skipped } = planFlows({ label, quarantined, flow, shard });
+  startPollPauseServer();
 
   for (const name of skipped) {
     console.warn(`\n[${label}] !! QUARANTINED, NOT RUN: ${name}`);
@@ -155,6 +156,18 @@ export async function runMaestroSuite({
   }
   console.log(`\n[${label}] all ${flows.length} flow(s) passed${quarantineNote}`);
   process.exit(0);
+}
+
+/**
+ * Starts scripts/lib/poll-pause-server.mjs for the flows' backend assertions to
+ * pause on between polls (see that file), and stops it when this process
+ * exits. Detached from nothing: it dies with the run.
+ */
+function startPollPauseServer() {
+  const server = spawn(process.execPath, [path.join(ROOT, 'scripts', 'lib', 'poll-pause-server.mjs')], {
+    stdio: 'ignore',
+  });
+  process.on('exit', () => server.kill());
 }
 
 /**

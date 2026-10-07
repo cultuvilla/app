@@ -126,6 +126,13 @@ emulator's REST API and poll until the expected state appears, using the
 collection returns empty and the assertion fails against a backend that is
 actually correct).
 
+They poll, and Maestro's JS runtime has no sleep, so between attempts they
+call a pause endpoint the runner serves on `127.0.0.1:9399`
+([scripts/lib/poll-pause-server.mjs](../../../../scripts/lib/poll-pause-server.mjs)).
+Polling back to back starved the 3-core macOS runner: a callable the app sent
+during a poll only began executing once the poll gave up. Without the server
+(running a flow by hand) the call fails at once and the poll is merely tight.
+
 They run on the **host**, not on the device, so they use `127.0.0.1` even though
 the app inside the AVD reaches the same emulator at `10.0.2.2`.
 

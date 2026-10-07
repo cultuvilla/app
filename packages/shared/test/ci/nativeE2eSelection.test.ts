@@ -128,3 +128,25 @@ describe('a hung Maestro call is bounded', () => {
     expect(read('scripts/run-ios-e2e.mjs')).toMatch(/timeout: MAESTRO_CALL_TIMEOUT_MS/);
   });
 });
+
+// The backend assertions poll in a loop, and Maestro's JS has no sleep. Back to
+// back, the polls starved a 3-core macOS runner: a callable the app sent during
+// a poll only began executing the second the poll gave up. Each poll now waits
+// on the runner's pause server between attempts.
+describe('backend assertions poll politely', () => {
+  const scripts = ['docField.js', 'queryCollection.js'].map((f) => [
+    f,
+    read(`apps/mobile/e2e/native/scripts/${f}`),
+  ]);
+
+  it.each(scripts)('%s pauses between polls', (_name, source) => {
+    const loop = source.slice(source.indexOf('while (true) {'));
+    expect(loop.slice(0, loop.indexOf('\n}'))).toMatch(/\n {2}pause\(\);/);
+    expect(source).toMatch(/http:\/\/127\.0\.0\.1:9399\/pause\?ms=\d+/);
+  });
+
+  it('the suite loop starts the pause server on the port the scripts call', () => {
+    expect(read('scripts/lib/maestro-suite.mjs')).toMatch(/startPollPauseServer\(\);/);
+    expect(read('scripts/lib/poll-pause-server.mjs')).toMatch(/E2E_POLL_PAUSE_PORT \|\| 9399/);
+  });
+});
