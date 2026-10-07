@@ -116,13 +116,25 @@ describe('readSite', () => {
     expect(body).not.toContain('noindex');
   });
 
-  it('draws the landing phone from Matabuena and links to /pueblos', async () => {
+  it("shows Matabuena's published fiestas summary on the landing, card by card", async () => {
     const { status, body } = await html('/');
     expect(status).toBe(200);
-    expect(body).toContain('class="phone" href="/matabuena"');
-    expect(body).toContain('Verbena');
-    expect(body).not.toContain('Cena de la peña');
+    expect(body).toContain('class="wr-track"');
+    expect(body).toContain('src="https://img.test/cover.png"');
+    expect(body).toContain('href="/matabuena/fiestas/2026"');
     expect(body).toContain('href="/pueblos"');
+  });
+
+  it("falls back to last year's summary until this year's is published, and never shows a draft", async () => {
+    const at = async (iso: string) => {
+      const out = await handle({ pathname: '/', userAgent: null }, { db: db(), bucket: 'test-bucket', now: new Date(iso) });
+      if (out.kind !== 'page') throw new Error('expected a page');
+      return renderDocument(out.page, { canonical: 'https://x/', appPath: '/' });
+    };
+    expect(await at('2027-03-01T10:00:00Z')).toContain('href="/matabuena/fiestas/2026"');
+    // 2026 itself has no summary in this probe: only the 2025 draft is left.
+    await db().doc('villageWrapped/m1_2026').delete();
+    expect(await at('2026-08-01T10:00:00Z')).not.toContain('class="wr-track"');
   });
 
   it('features Matabuena on /pueblos, with its real content and every active pueblo', async () => {

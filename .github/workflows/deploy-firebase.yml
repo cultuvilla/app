@@ -231,11 +231,16 @@ jobs:
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: firebase deploy --only firestore:rules,storage --project ${{ inputs.firebase_alias }} --non-interactive
 
+      # `--force` makes firestore.indexes.json the only source of truth: an
+      # index missing from the file (an orphan, or one made by hand in the
+      # console) is deleted. The report before it names exactly what will go,
+      # as a warning on the run. Without `--force`, removed indexes lived on
+      # forever and every write kept paying for them (8 per env on beta/prod,
+      # cleaned 2026-10-08).
+      - name: Report index drift (what --force will delete)
+        run: node scripts/check-index-drift.mjs --project=${{ inputs.firebase_alias }} --warn
+
       - name: Deploy Firestore indexes
-        # --force deletes deployed indexes the file no longer declares, so the
-        # file is the whole truth in every env. Without it, removed indexes
-        # stayed behind: in 2026-10 beta and prod carried 8 leftovers that dev
-        # did not, and dev one of its own.
         run: firebase deploy --only firestore:indexes --project ${{ inputs.firebase_alias }} --non-interactive --force
 
       # production-release.yml reads this step's conclusion: `skipped` means the

@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** prod
 **Gate:** none
-**Next:** apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2
+**Next:** after 1.7.1's first full day (check the `events_20261008` table on 2026-10-09), look for `ANDROID`/`IOS` rows; if there are none, check the stream boxes on GA4 Admin → BigQuery links; in parallel, apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go)
 
 Decided 2026-10-06 (user): Phase 2 (Firestore→BigQuery extension + Looker Studio) and Phase 3 (Cloud Monitoring dashboard + alert policies) are approved, including their running cost. BigQuery export stays **prod-only** (no beta).
 
@@ -21,6 +21,27 @@ Phase 1 full-engagement instrumentation merged to `develop` (PR #150, merge `295
 2. Confirm the Phase 1 events in GA4 DebugView on one Android and one iOS build (this replaces the never-run web smoke).
 3. Phase 2, on native data.
 4. Phase 3 — built (alerts-as-code, `scripts/apply-monitoring.mjs` + `scripts/lib/monitoring.mjs`), applied to dev and beta 2026-10-06. Left: the prod apply (user's go), then watch a week of prod alerts and retune `THRESHOLDS` if they are noisy.
+
+## Open finding: no native rows in prod BigQuery yet
+
+Checked 2026-10-08. Since 2026-09-20, `cultuvilla-prod.analytics_546204987.events_*`
+holds only `platform = WEB` rows, all from stream `15284775353`. That alone is
+not evidence of a fault: **native analytics (`99b40e65`, 2026-10-02) first
+shipped in v1.7.1**, not 1.6.0, and 1.7.1 reached the stores on 2026-10-07/08.
+The setup looks right: `analyticsDetails` maps the prod Android app to stream
+`15459386333` and the iOS app to `15939689974`, both on property `546204987`.
+
+One signal is worrying. A 1.7.1 Android client logged to prod at 17:15 UTC on
+2026-10-07, yet `events_intraday_20261007` holds 3 web rows, last written at
+06:21. Streaming export is on, so an exported Android stream should have shown
+up. Two causes fit: that stream is not ticked on the BigQuery link, or the
+device sent nothing. The GA4 Admin API needs an `analytics.readonly` scope that
+no local credential carries, so the link is a console check.
+
+Ruled out in code: `configure.ts` builds the native backend and grants consent
+at boot (`setAnalyticsCollectionEnabled(true)`). The prod `google-services.json`
+is for `cultuvilla-prod`. iOS's `IS_ANALYTICS_ENABLED=false` in the plist is a
+legacy key the current SDK ignores.
 
 ## Resolved finding: the web export carried no user identity
 
@@ -43,7 +64,7 @@ Read prod BigQuery as `cultuvilla.app@gmail.com` (the default gcloud account; it
 | Prereq — Google Analytics enabled on Firebase project | ✅ | ✅ | ✅ |
 | Phase 1 — engagement instrumentation (code) | ✅ | ✅ | ✅ |
 | Phase 1 — native DebugView smoke (Android + iOS) | ⬜ | — | — |
-| Phase 0 — GA4→BigQuery export enabled | ⏳ | ⬜ | ✅ verified 2026-09-11 — daily tables since 2026-07-19 (web rows have no `user_pseudo_id` — see *Resolved finding*; native rows pending the store build) |
+| Phase 0 — GA4→BigQuery export enabled | ⏳ | ⬜ | ⏳ daily tables since 2026-07-19; native rows awaited from 1.7.1 — see *Open finding* |
 | Phase 2 — Firestore→BigQuery export | ⬜ | ⬜ | ⬜ |
 | Phase 2 — Looker Studio dashboard | ⬜ | ⬜ | ⬜ |
 | Phase 3 — log-based metrics + Cloud Monitoring dashboard | ✅ 2026-10-06 | ✅ 2026-10-06 | ⬜ (`apply-monitoring.mjs --project=cultuvilla-prod --confirm`) |
