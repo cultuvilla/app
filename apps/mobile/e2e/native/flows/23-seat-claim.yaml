@@ -85,10 +85,14 @@ env:
     timeout: 45000
 - tapOn:
     id: 'claim-confirm'
+# claimEventSeat is called for the first time here, and on a loaded CI
+# machine the emulator boots its worker on that call: on iOS the request
+# started 33 s after the tap. Wait as long as FUNCTIONS_DISCOVERY_TIMEOUT
+# lets the worker boot.
 - extendedWaitUntil:
     visible:
       id: 'claim-success'
-    timeout: 30000
+    timeout: 120000
 
 # The open-seat registration was handed over, and the token is spent.
 - runScript:
