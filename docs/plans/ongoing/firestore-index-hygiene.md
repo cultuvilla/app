@@ -3,7 +3,7 @@
 **Priority:** low
 **Landed:** dev
 **Gate:** none
-**Next:** run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file
+**Next:** run the `--force` index cleanup on beta, then prod, from a clean `origin/beta` / `origin/main` checkout (see *Commands*), and re-verify live == file
 
 **Goal:** make each environment's live composite indexes match `firestore.indexes.json`
 exactly, and stop orphans from building up again.
@@ -28,9 +28,16 @@ file"*.
 2. After the `beta → main` promotion deploys green, do the same on prod.
 3. Add `--force` to the CI index deploy and a drift-check script (decided 2026-10-06, see *Stop the drift*) — only once beta and prod are clean. Then retire this plan.
 
-## Why the cleanup waits
+## Re-audit 2026-10-08 — ready to run
 
-No technical blocker. The cleanup is gated on the promotions on purpose — see *Why not now*.
+Live indexes were diffed against `origin/main`, which declares 54. Beta and prod
+each have **62 live indexes: exactly the 8 orphans in the table below, 0 missing,
+all READY**. `events status + startDate` is now declared, so the blocker under
+*Why not now* is gone. `origin/beta` has the same index file as `origin/main`.
+None of the 8 shapes is queried on `main`. The nearest one,
+`deleteNewsPost`'s comment cascade, filters `entityKind` and `entityId` by
+equality only, with no `orderBy`, so it does not need the `createdAt`
+composite.
 
 ## Handoff
 
