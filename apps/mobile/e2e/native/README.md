@@ -286,6 +286,8 @@ What differs, and where:
 | A Pressable is an accessibility element, and on iOS it hides its descendants: a sheet whose backdrop/catcher Pressables were accessible exposed its whole card as ONE element, so no testID inside it existed for XCUITest (or VoiceOver). Both wrappers are `accessible={false}`, enforced by `pressCatcherAccessibility.test.ts`. | the sheets |
 | Entitlements: the unsigned Simulator build needs `application-identifier` for Firebase Auth's keychain, linked into a `__TEXT,__entitlements` section the way Xcode does it — never into the signature, which the Mac kernel then refuses to launch. | `build-ios-e2e-app.mjs` |
 | A tab's accessibility label is `Explora, tab, 1 of 3`, and Maestro matches the whole string — so a bare `'Explora'` never matches on iOS. Tab labels are matched as `'Explora(,.*)?'`. | `subflows/login*.yaml` |
+| The screen under a native Alert stays in the hierarchy, so a header icon labelled like the alert's button (the trash, "Eliminar") also matches — and `rightOf: 'Cancelar'` alone picked it. The confirm is anchored `below` the alert's "¿…?" message too. | `subflows/confirm-alert.yaml` |
+| The screen is narrower, so a horizontal row's third card can sit wholly past the right edge, where no vertical scroll reaches it. Swipe the row itself (it carries a `testID`). | `63-private-event-feed` |
 
 **iOS quarantine** (reasons in `run-ios-e2e.mjs`): `45-offline-cached-village`
 (airplane mode is Android-only in Maestro) and `50-onboarding-complete-profile`
