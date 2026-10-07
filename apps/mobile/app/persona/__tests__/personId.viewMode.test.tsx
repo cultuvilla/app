@@ -35,7 +35,6 @@ jest.mock('@cultuvilla/shared/services/personService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadUserPhoto: jest.fn(),
-  uploadPersonImage: jest.fn(),
 }));
 jest.mock('../../../lib/auth/useAuth', () => ({
   // The creator of the dependent — the case that must NOT auto-open the form.

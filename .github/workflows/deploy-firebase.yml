@@ -278,6 +278,20 @@ jobs:
       - name: Smoke-check the live read site
         run: node scripts/smoke-read-site.mjs --env=${{ inputs.firebase_alias }}
 
+      # A signed-in, non-admin user must be able to upload to every image path
+      # the app uses, against the live Storage rules. The emulator cannot see a
+      # rule that only deployed projects deny: 2026-10-07, cross-service
+      # firestore.exists() in storage.rules passed every test and broke every
+      # event cover in prod. Runs well after the rules deploy (functions and
+      # hosting take minutes), so a new ruleset has propagated by then. Not on
+      # prod: it signs in a dedicated test account and writes test objects, and
+      # every ruleset reaches prod only after passing here on dev and beta.
+      - name: Smoke-check image uploads against the live Storage rules
+        if: ${{ inputs.firebase_alias != 'prod' }}
+        env:
+          FIREBASE_WEB_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+        run: node scripts/smoke-storage-upload.mjs --env=${{ inputs.firebase_alias }}
+
       # What this deploy put live is exactly this commit: Firestore and Storage
       # rules, composite indexes and the set of functions. Skipped only when
       # the backend is held, since then rules and functions deliberately stay

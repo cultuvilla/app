@@ -21,7 +21,7 @@ export interface PickImageOptions {
 /**
  * Opens the device image library and returns the selected image as an
  * UploadableImage (blob + filename + contentType) compatible with
- * imageService.uploadPersonImage / uploadMunicipalityImage.
+ * imageService's upload functions.
  *
  * With `{ square: true }` the pick is handed to the in-app square cropper
  * ({@link pickAndCropSquare}); otherwise the full asset is returned as-is.

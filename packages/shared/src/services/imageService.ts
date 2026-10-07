@@ -79,13 +79,6 @@ export async function uploadMunicipalityImage(
   );
 }
 
-export async function uploadPersonImage(
-  personId: string,
-  image: UploadableImage,
-): Promise<string> {
-  return uploadToPath(`persons/${personId}/photos/${generateImageId(image.filename)}`, image);
-}
-
 /**
  * Upload a photo owned by `userId` (its own account avatar, or a persona it
  * created). Lives under the user-scoped storage prefix that the simplest
