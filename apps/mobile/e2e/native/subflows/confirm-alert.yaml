@@ -1,5 +1,5 @@
 # Tap a native Alert's confirming button: the one right of "Cancelar", below
-# the alert's message (every confirmation in the app asks "¿…?").
+# the alert's message (every confirmation in the app asks a question).
 #
 # Maestro matches text case-insensitively, and the alert's TITLE and often an
 # icon behind it carry the same word as the button. `rightOf` alone is not
@@ -15,7 +15,7 @@ appId: com.cultuvilla.app.dev
 - tapOn:
     text: ${BUTTON}
     rightOf: 'Cancelar'
-    below: '¿.*'
+    below: '.*\?.*'
 - waitForAnimationToEnd:
     timeout: 3000
 # One more try if the alert is still up: under load the first tap can land
@@ -25,11 +25,11 @@ appId: com.cultuvilla.app.dev
       visible:
         text: ${BUTTON}
         rightOf: 'Cancelar'
-        below: '¿.*'
+        below: '.*\?.*'
     commands:
       - tapOn:
           text: ${BUTTON}
           rightOf: 'Cancelar'
-          below: '¿.*'
+          below: '.*\?.*'
       - waitForAnimationToEnd:
           timeout: 3000
