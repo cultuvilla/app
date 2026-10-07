@@ -38,7 +38,10 @@ interface Fetched {
 
 async function collectUrls(origin: string): Promise<Fetched> {
   const db = getFirestore();
-  const urls: SitemapUrl[] = [{ loc: `${origin}/`, changefreq: 'daily', priority: '1.0' }];
+  const urls: SitemapUrl[] = [
+    { loc: `${origin}/`, changefreq: 'daily', priority: '1.0' },
+    { loc: `${origin}/pueblos`, changefreq: 'daily', priority: '0.9' },
+  ];
   const counts: Record<string, number> = {};
 
   // typed-refs: allowed — intentional converter-less read. A sitemap must not

@@ -116,9 +116,18 @@ describe('readSite', () => {
     expect(body).not.toContain('noindex');
   });
 
-  it('features Matabuena on the landing, with its real content and every active pueblo', async () => {
-    await db().doc('municipalities/m3').set({ name: 'Arcones', slug: 'arcones', province: 'Segovia', communityActive: true });
+  it('draws the landing phone from Matabuena and links to /pueblos', async () => {
     const { status, body } = await html('/');
+    expect(status).toBe(200);
+    expect(body).toContain('class="phone" href="/matabuena"');
+    expect(body).toContain('Verbena');
+    expect(body).not.toContain('Cena de la peña');
+    expect(body).toContain('href="/pueblos"');
+  });
+
+  it('features Matabuena on /pueblos, with its real content and every active pueblo', async () => {
+    await db().doc('municipalities/m3').set({ name: 'Arcones', slug: 'arcones', province: 'Segovia', communityActive: true });
+    const { status, body } = await html('/pueblos');
     expect(status).toBe(200);
     expect(body).toContain('Así se vive Matabuena en Cultuvilla');
     expect(body).toContain('Verbena');
@@ -126,6 +135,19 @@ describe('readSite', () => {
     expect(body).not.toContain('Cena de la peña');
     expect(body).toContain('2 pueblos y contando');
     expect(body).not.toContain('href="/vacio"');
+  });
+
+  it('lists every active pueblo on /pueblos, past any page-size cap', async () => {
+    const batch = db().batch();
+    for (let i = 0; i < 70; i++) {
+      const n = String(i).padStart(2, '0');
+      batch.set(db().doc(`municipalities/bulk${n}`), { name: `Pueblo ${n}`, slug: `pueblo-${n}`, province: 'Soria', communityActive: true });
+    }
+    await batch.commit();
+    const { body } = await html('/pueblos');
+    expect(body).toContain('71 pueblos y contando');
+    expect(body).toContain('href="/pueblo-00"');
+    expect(body).toContain('href="/pueblo-69"');
   });
 
   it('features the first active pueblo by name when Matabuena is not active', async () => {
@@ -140,7 +162,7 @@ describe('readSite', () => {
       visibilityOrgId: null,
       status: 'published',
     });
-    const { body } = await html('/');
+    const { body } = await html('/pueblos');
     expect(body).toContain('Así se vive Arcones en Cultuvilla');
     expect(body).toContain('Romería de Arcones');
     expect(body).not.toContain('Así se vive Matabuena');

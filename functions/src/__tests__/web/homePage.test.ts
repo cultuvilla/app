@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Card, Village, VillageHome } from '../../web/data';
 import { renderDocument } from '../../web/document';
 import { render } from '../../web/html';
-import { homePage, type Landing } from '../../web/pages';
+import { homePage, villagesPage, type Landing } from '../../web/pages';
 
 const village = (slug: string, name: string, province: string | null = 'Segovia'): Village => ({
   id: `id-${slug}`,
@@ -39,6 +39,7 @@ const showcase: Landing['showcase'] = {
 };
 
 const body = (landing: Landing) => render(homePage(landing).body);
+const villagesBody = (landing: Landing) => render(villagesPage(landing).body);
 
 describe('homePage', () => {
   it('renders on the full-width landing layout', () => {
@@ -49,25 +50,36 @@ describe('homePage', () => {
     expect(out).toContain('/brand/gloock-latin.woff2');
   });
 
-  it('shows the featured pueblo with links into its real pages', () => {
+  it('draws the app phone from the featured pueblo and links it to the pueblo', () => {
     const out = body({ villages: [matabuena], showcase });
-    expect(out).toContain('Así se vive Matabuena en Cultuvilla');
-    expect(out).toContain('href="/matabuena/evento/torneo-de-mus_e1"');
-    expect(out).toContain('href="/matabuena/carteles"');
+    expect(out).toContain('class="phone" href="/matabuena"');
+    expect(out).toContain('Torneo de mus');
+    expect(out).toContain('Cartel 1');
     // The Embajador block uses a real event URL as its example.
     expect(out).toContain('cultuvilla.es/matabuena/evento/torneo-de-mus_e1');
-    // Three posters with images make the hero fan.
-    expect(out).toContain('class="fan"');
+    expect(out).toContain('href="/pueblos"');
+    expect(out).toContain('1 pueblo y contando');
+  });
+
+  it('keeps the full showcase and the pueblo list on /pueblos, not on the home', () => {
+    const home = body({ villages: [matabuena], showcase });
+    expect(home).not.toContain('Así se vive');
+    expect(home).not.toContain('class="villages"');
+    const out = villagesBody({ villages: [matabuena, village('pedraza', 'Pedraza')], showcase });
+    expect(out).toContain('Así se vive Matabuena en Cultuvilla');
+    expect(out).toContain('href="/matabuena/carteles"');
+    expect(out).toContain('2 pueblos y contando');
+    expect(out).toContain('href="/pedraza"');
   });
 
   it('falls back to the original upload when a card variant is missing', () => {
-    const out = body({ villages: [], showcase });
+    const out = villagesBody({ villages: [], showcase });
     expect(out).toContain('data-fallback="https://img/o1.jpg" onerror="this.onerror=null;this.src=this.dataset.fallback"');
   });
 
   it('never puts an upload URL inside the fallback handler', () => {
     const hostile = "https://img/x.jpg';alert(1);//";
-    const out = body({
+    const out = villagesBody({
       villages: [],
       showcase: { village: matabuena, home: { ...emptyHome, orgs: [card('/m/entidad/o9', 'Peña', 'https://img/x_card.jpg', hostile)] } },
     });
@@ -76,21 +88,16 @@ describe('homePage', () => {
     for (const h of handlers) expect(h).toBe('onerror="this.onerror=null;this.src=this.dataset.fallback"');
   });
 
-  it('lists every active pueblo and counts them', () => {
-    const out = body({ villages: [matabuena, village('pedraza', 'Pedraza')], showcase });
-    expect(out).toContain('2 pueblos y contando');
-    expect(out).toContain('href="/pedraza"');
-  });
-
-  it('drops the showcase and the village list when there is nothing to show', () => {
-    const out = body({ villages: [], showcase: { village: matabuena, home: emptyHome } });
+  it('drops the phone, showcase and lists when there is nothing to show', () => {
+    expect(body({ villages: [], showcase: null })).not.toContain('class="phone"');
+    expect(body({ villages: [], showcase: null })).not.toContain('pueblos y contando');
+    const out = villagesBody({ villages: [], showcase: { village: matabuena, home: emptyHome } });
     expect(out).not.toContain('Así se vive');
-    expect(out).not.toContain('class="fan"');
     expect(out).not.toContain('pueblos y contando');
   });
 
   it('escapes pueblo-written text', () => {
-    const out = body({ villages: [village('x', '<script>x</script>')], showcase: null });
+    const out = villagesBody({ villages: [village('x', '<script>x</script>')], showcase: null });
     expect(out).not.toContain('<script>x</script>');
   });
 });
