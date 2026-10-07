@@ -21,6 +21,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago | apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2 |
 | [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) | low | dev | 1 cycle ago | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
 | [store-release](ongoing/store-release.md) | low | prod | 1 cycle ago | once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc |
+| [e2e-full-feature-coverage](ready/e2e-full-feature-coverage.md) `ready` | high | — | this cycle | — |
 
 ## Soaking
 
