@@ -224,7 +224,12 @@ const config: ExpoConfig = {
     // only reads a coarse/fine location once (to drop the village pin) and picks
     // an existing image from the library — it never records, never uses the
     // camera, and never tracks location in the background.
+    // AD_ID arrives with native Firebase Analytics (play-services-measurement).
+    // Cultuvilla shows no ads and Play's declaration says it does not use the
+    // advertising ID, so Play rejects any release that carries it — the 1.7.1
+    // production upload did. Analytics works without it.
     blockedPermissions: [
+      'com.google.android.gms.permission.AD_ID',
       'android.permission.ACCESS_BACKGROUND_LOCATION',
       'android.permission.CAMERA',
       'android.permission.RECORD_AUDIO',
