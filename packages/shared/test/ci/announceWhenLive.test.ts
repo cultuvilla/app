@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { hostingRewriteFunctions } from '../../../../scripts/hosting-rewrite-functions.mjs';
 
 // Announce-when-live (docs/decisions/announce-when-live-poller.md): a production
 // release reaches installed apps only once the stores serve it, and a breaking
@@ -41,10 +42,8 @@ describe('the prod deploy holds a breaking backend', () => {
     expect(deploy.indexOf('hosting-rewrite-functions.mjs')).toBeLessThan(deploy.indexOf('firebase deploy --only hosting:app'));
   });
 
-  it('names every function firebase.json hosting rewrites to', async () => {
-    // @ts-expect-error -- untyped .mjs script
-    const { hostingRewriteFunctions } = await import('../../../../scripts/hosting-rewrite-functions.mjs');
-    const only: string = hostingRewriteFunctions(JSON.parse(read('firebase.json')));
+  it('names every function firebase.json hosting rewrites to', () => {
+    const only = hostingRewriteFunctions(JSON.parse(read('firebase.json')));
     expect(only.split(',')).toEqual(expect.arrayContaining(['functions:readSite', 'functions:sitemap']));
   });
 
