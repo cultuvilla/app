@@ -73,8 +73,12 @@ env:
 # Signed in as the seeded, onboarded user: the profile's read chain renders.
 # The AuthGate sends an onboarded user to the tabs, so ask for the profile, and
 # re-ask while a late redirect can still win (same reasoning as login.yaml).
+# No wait on the tabs first: a retry tap on the verify button can land on the
+# home screen that replaced it and open an event card, which hides the tab bar.
+# The profile deep link below recovers from wherever that tap went.
 - extendedWaitUntil:
-    visible: 'Explora'
+    notVisible:
+      id: 'login-verify-code'
     timeout: 60000
 - repeat:
     times: 4
