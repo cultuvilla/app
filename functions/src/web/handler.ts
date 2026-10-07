@@ -154,10 +154,16 @@ const SHOWCASE_VILLAGES = ['matabuena'];
 async function loadLanding(deps: WebDeps): Promise<Landing> {
   const villages = await loadActiveVillages(deps.db);
   const featured = villages.find((v) => SHOWCASE_VILLAGES.includes(v.slug)) ?? (villages.length > 0 ? villages[0] : null);
-  return {
-    villages,
-    showcase: featured ? { village: featured, home: await loadVillageHome(deps.db, deps.bucket, featured, deps.now) } : null,
-  };
+  if (!featured) return { villages, showcase: null, wrapped: null };
+  // This year's fiestas, or last year's until this year's summary is published.
+  const year = deps.now.getUTCFullYear();
+  const [home, thisYear, lastYear] = await Promise.all([
+    loadVillageHome(deps.db, deps.bucket, featured, deps.now),
+    loadWrapped(deps.db, featured.id, year),
+    loadWrapped(deps.db, featured.id, year - 1),
+  ]);
+  const view = thisYear ?? lastYear;
+  return { villages, showcase: { village: featured, home }, wrapped: view ? { village: featured, view } : null };
 }
 
 export async function handle(req: WebRequest, deps: WebDeps): Promise<WebResponse> {
