@@ -28,7 +28,7 @@ appId: com.cultuvilla.app.dev
           env:
             INDEX: '0'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-description'
 - runFlow:
@@ -39,7 +39,7 @@ appId: com.cultuvilla.app.dev
 # A second villager and both of the admin's orgs: two orgs, so the
 # private-to-org switch must stay hidden (asserted below).
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'add-user-btn'
 - tapOn:
@@ -49,7 +49,7 @@ appId: com.cultuvilla.app.dev
 - tapOn:
     id: 'villager-confirm'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'add-org-btn'
 - tapOn:
@@ -69,7 +69,7 @@ appId: com.cultuvilla.app.dev
 - assertNotVisible:
     id: 'private-to-org'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-form-primary'
 - tapOn:
@@ -91,7 +91,7 @@ appId: com.cultuvilla.app.dev
       HOUR: '21'
       MINUTE: '0'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-location'
 - tapOn:
@@ -114,13 +114,13 @@ appId: com.cultuvilla.app.dev
 - assertNotVisible:
     id: 'location-confirm'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-village'
 - assertVisible:
     text: '.*Altozano de Prueba.*'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-form-primary'
 - tapOn:
@@ -137,7 +137,7 @@ appId: com.cultuvilla.app.dev
       INPUT: 'event-max-attendees'
       TEXT: '25'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'birth-year-limit'
 - tapOn:
@@ -153,43 +153,43 @@ appId: com.cultuvilla.app.dev
       INPUT: 'max-birth-year'
       TEXT: '2015'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'telephone-required'
 - tapOn:
     id: 'telephone-required'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'requires-payment'
 - tapOn:
     id: 'requires-payment'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'signup-group-size'
 - tapOn:
     id: 'signup-group-size'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'group-size-3'
 - tapOn:
     id: 'group-size-3'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'attendees-public'
 - tapOn:
     id: 'attendees-public'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'form-enabled'
 - tapOn:
     id: 'form-enabled'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-form-primary'
 - tapOn:
@@ -212,7 +212,7 @@ appId: com.cultuvilla.app.dev
 - tapOn:
     id: 'signup-question-0-required'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'signup-question-add'
 - tapOn:
@@ -225,7 +225,7 @@ appId: com.cultuvilla.app.dev
       INPUT: 'signup-question-label-1'
       TEXT: 'Menu'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'signup-question-1-option-add'
 - tapOn:
@@ -236,7 +236,7 @@ appId: com.cultuvilla.app.dev
       INPUT: 'signup-question-1-option-0'
       TEXT: 'Carne'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'signup-question-1-option-add'
 - tapOn:
@@ -247,7 +247,7 @@ appId: com.cultuvilla.app.dev
       INPUT: 'signup-question-1-option-1'
       TEXT: 'Pescado'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-form-primary'
 - tapOn:

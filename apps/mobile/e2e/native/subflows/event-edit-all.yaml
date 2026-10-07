@@ -34,7 +34,7 @@ appId: com.cultuvilla.app.dev
       INPUT: 'event-description'
       TEXT: ${output.editDescription}
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'remove-user-e2e-user'
 - tapOn:
@@ -45,13 +45,13 @@ appId: com.cultuvilla.app.dev
     id: 'remove-org-e2e-org-ayto'
 # One org left, and it admits by approval: the private switch appears, enabled.
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'private-to-org'
 - tapOn:
     id: 'private-to-org'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-form-primary'
 - tapOn:
@@ -74,7 +74,7 @@ appId: com.cultuvilla.app.dev
       HOUR: '11'
       MINUTE: '0'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-form-primary'
 - tapOn:
@@ -91,7 +91,7 @@ appId: com.cultuvilla.app.dev
       INPUT: 'event-max-attendees'
       TEXT: '30'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'birth-year-limit'
 - tapOn:
@@ -99,19 +99,19 @@ appId: com.cultuvilla.app.dev
 - assertNotVisible:
     id: 'min-birth-year'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'telephone-required'
 - tapOn:
     id: 'telephone-required'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'requires-payment'
 - tapOn:
     id: 'requires-payment'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'signup-group-size'
 - tapOn:
@@ -119,13 +119,13 @@ appId: com.cultuvilla.app.dev
 - assertNotVisible:
     id: 'group-size-3'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'attendees-public'
 - tapOn:
     id: 'attendees-public'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-form-primary'
 - tapOn:
@@ -150,7 +150,7 @@ appId: com.cultuvilla.app.dev
 - assertNotVisible:
     id: 'signup-question-1-summary'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'signup-question-add'
 - tapOn:
@@ -163,7 +163,7 @@ appId: com.cultuvilla.app.dev
       INPUT: 'signup-question-label-1'
       TEXT: 'Alergias'
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: 'event-form-primary'
 - tapOn:

@@ -6,7 +6,7 @@
 appId: com.cultuvilla.app.dev
 ---
 - runFlow:
-    file: reveal.yaml
+    file: scroll-to.yaml
     env:
       TARGET: ${FIELD}-date
 - tapOn:

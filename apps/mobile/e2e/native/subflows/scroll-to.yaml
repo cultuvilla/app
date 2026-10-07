@@ -1,0 +1,29 @@
+# Bring ${TARGET} on screen without ever pressing BACK.
+#
+# reveal.yaml presses BACK on Android when its target is hidden, to close a
+# soft keyboard. Where no keyboard is up — after a sheet closes, a picker
+# returns, or on an AVD whose hardware keyboard never raises one — that BACK
+# leaves the screen instead (flow 60's first run ended on the Perfil tab).
+# The long forms the deep flows walk use this. iOS still dismisses its
+# keyboard with Enter, as reveal does: there it is always up after typing.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    when:
+      platform: iOS
+      visible:
+        id: 'inputView'
+    commands:
+      - pressKey: Enter
+      - waitForAnimationToEnd:
+          timeout: 2000
+- runFlow:
+    when:
+      notVisible:
+        id: ${TARGET}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: ${TARGET}
+          direction: DOWN
+          timeout: 20000
