@@ -380,6 +380,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
         {/* ── Eventos ──────────────────────────────────────────── */}
         <Section
           title={t('village.events.label')}
+          testID="village-events-row"
           isEmpty={events.length === 0}
           status={sectionStatus.events}
           data={events}
