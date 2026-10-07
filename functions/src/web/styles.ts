@@ -43,3 +43,100 @@ h2{color:var(--primary);font-size:20px;margin:28px 0 12px}
 footer.site{border-top:1px solid var(--border);padding:16px 0 32px;font-size:14px;color:var(--muted)}
 footer.site a{color:var(--muted);margin-right:12px}
 `;
+
+/**
+ * The home page only: full-bleed bands, a display face and the bunting. Kept
+ * apart so every other page stays the small reading column it is. Gloock is
+ * self-hosted under /brand (OFL, licence beside it) so no visitor's IP reaches
+ * a third-party font host.
+ */
+export const LANDING_STYLES = `
+@font-face{font-family:Gloock;src:url(/brand/gloock-latin.woff2) format("woff2");font-display:swap}
+.landing{--display:Gloock,Georgia,"Times New Roman",serif;--olive:${palette.olive};--clay:${palette.clay};--peach:${palette.peach};--band-muted:#d4d6c6;padding-bottom:0}
+.landing .in{max-width:1080px;margin:0 auto;padding:0 16px}
+.landing h1,.landing h2,.landing h3{font-family:var(--display);font-weight:400;line-height:1.05;text-wrap:balance;color:inherit;margin:0}
+.landing h2{font-size:clamp(28px,4.4vw,40px)}
+.landing h3{font-size:24px}
+.landing p{margin:0}
+.landing .eyebrow{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.landing .lead{font-size:18px;color:var(--text);max-width:36em}
+.landing .band{background:var(--olive);color:var(--surface)}
+.landing .band .lead,.landing .band .muted{color:var(--band-muted)}
+.landing .band .eyebrow{color:var(--clay)}
+.landing .blk{padding:72px 0}
+.landing .head{display:grid;gap:12px;margin-bottom:36px;max-width:40em}
+.landing .cta.block{display:inline-block;margin:0}
+.landing .ghost{display:inline-block;padding:10px 18px;border-radius:999px;border:1.5px solid var(--border);color:var(--primary);font-weight:600;text-decoration:none}
+.bunting{display:block;width:100%;height:48px}
+.bunting .flag{transform-box:fill-box;transform-origin:50% 0;animation:sway 4s ease-in-out infinite}
+.bunting .flag:nth-child(even){animation-delay:-2s}
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes scroll{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.bunting .flag,.landing .strip-track{animation:none}}
+.landing .top{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;padding:8px 16px 64px}
+.landing .top h1{font-size:clamp(40px,7vw,76px);color:var(--primary);margin:14px 0 18px}
+.landing .top h1 em{font-style:normal;color:var(--accent)}
+.landing .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;align-items:center}
+.landing .fine{margin-top:14px;font-size:14px;color:var(--muted)}
+.landing .fan{position:relative;display:block;height:400px}
+.landing .fan a{position:absolute;top:0;width:58%;border-radius:10px;overflow:hidden;box-shadow:0 18px 40px -16px rgba(63,70,53,.5);background:var(--card)}
+.landing .fan img{width:100%;aspect-ratio:3/4;object-fit:cover}
+.landing .fan a:nth-child(1){left:0;transform:rotate(-7deg) translateY(28px)}
+.landing .fan a:nth-child(2){left:21%;z-index:2}
+.landing .fan a:nth-child(3){right:0;transform:rotate(7deg) translateY(28px)}
+.landing .fan figcaption{position:absolute;left:0;right:0;bottom:-34px;text-align:center;font-size:13px;color:var(--muted)}
+@media (max-width:820px){.landing .top{grid-template-columns:1fr}.landing .fan{height:300px;max-width:380px;margin:0 auto 32px}}
+.landing .strip{border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;padding:14px 0}
+.landing .strip-track{display:flex;gap:36px;width:max-content;animation:scroll 40s linear infinite}
+.landing .strip span{font-family:var(--display);font-size:22px;white-space:nowrap;color:var(--muted)}
+.landing .split{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.landing .split .lead+.lead{margin-top:14px}
+.landing .unique{list-style:none;margin:0;padding:0}
+.landing .unique li{font-family:var(--display);font-size:clamp(32px,5vw,52px);line-height:1.15;color:var(--primary)}
+.landing .unique li:nth-child(odd){color:var(--accent)}
+@media (max-width:820px){.landing .split{grid-template-columns:1fr;gap:28px}}
+.landing .shelf{margin-top:40px}
+.landing .shelf-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:14px}
+.landing .shelf-head a{color:var(--clay);font-weight:600;white-space:nowrap}
+.landing .shelf .cards{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(190px,230px);overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity}
+.landing .shelf .cards li{scroll-snap-align:start}
+.landing .shelf.posters .cards img{aspect-ratio:3/4}
+.landing .word{display:grid;gap:6px;background:rgba(249,240,232,.08);border:1px solid rgba(249,240,232,.18);border-radius:16px;padding:20px 22px;margin-top:40px;max-width:40em}
+.landing .word a{font-family:var(--display);font-size:30px;color:var(--surface);text-decoration:none}
+.landing .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
+.landing .pillar{display:grid;gap:10px;align-content:start;padding-top:18px;border-top:2px solid var(--accent)}
+.landing .pillar b{font-family:var(--display);font-weight:400;font-size:36px;line-height:1;color:var(--primary)}
+.landing .pillar ul{margin:4px 0 0;padding-left:18px}
+@media (max-width:820px){.landing .pillars{grid-template-columns:1fr}}
+.landing .aud{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.landing .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;display:grid;gap:10px;align-content:start;min-width:0}
+.landing .tag{justify-self:start;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface);color:var(--accent)}
+.landing .card.amb{grid-column:1/-1;background:var(--accent);border-color:var(--accent);color:var(--on-accent);grid-template-columns:1.2fr 1fr;gap:24px;align-items:center}
+.landing .card.amb .muted{color:var(--on-accent);opacity:.92}
+.landing .card.amb .tag{background:rgba(255,255,255,.18);color:var(--on-accent)}
+.landing .url{font:500 14px/1.5 ui-monospace,Menlo,Consolas,monospace;background:rgba(255,255,255,.16);border-radius:12px;padding:14px 16px;overflow-x:auto;white-space:nowrap}
+.landing .url a{color:inherit}
+@media (max-width:820px){.landing .aud,.landing .card.amb{grid-template-columns:1fr}}
+.landing .card .muted{color:var(--text)}
+.landing .villages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.landing .villages a{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:12px;text-decoration:none;color:var(--primary);font-weight:600;height:100%}
+.landing .villages img{width:32px;height:38px;object-fit:contain;flex:none}
+.landing .villages small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.landing .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;counter-reset:s}
+.landing .step{display:grid;gap:8px;align-content:start}
+.landing .step::before{counter-increment:s;content:counter(s);font-family:var(--display);font-size:52px;line-height:1;color:var(--accent)}
+@media (max-width:820px){.landing .steps{grid-template-columns:1fr}}
+.landing .price{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:center}
+.landing .price .big{font-family:var(--display);font-size:clamp(72px,14vw,128px);line-height:.9;color:var(--clay)}
+@media (max-width:820px){.landing .price{grid-template-columns:1fr;gap:16px}}
+.landing .faq{display:grid;gap:10px;max-width:46em}
+.landing .faq details{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 20px}
+.landing .faq summary{cursor:pointer;font-weight:600;color:var(--primary)}
+.landing .faq details p{margin-top:10px}
+.landing .final{text-align:center;display:grid;justify-items:center;gap:18px}
+.landing .final h2{font-size:clamp(36px,6vw,60px)}
+.landing .store{display:inline-flex;flex-direction:column;align-items:flex-start;padding:10px 20px;border-radius:14px;background:var(--surface);color:var(--primary);text-decoration:none;line-height:1.2}
+.landing .store small{font-size:12px;color:var(--text)}
+.landing .store b{font-size:18px}
+.landing .final .stores{justify-content:center}
+`;
