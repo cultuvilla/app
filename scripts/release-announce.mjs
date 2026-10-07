@@ -13,6 +13,8 @@
  *   poll    --env=prod [--dry-run]     announce-when-live.yml, every 30 min:
  *                                      ask the stores, move `latest`, raise the
  *                                      wall, emit deploy_sha for a held backend
+ *   ready   --env=prod [--force]       release-publish.yml: both stores approved
+ *                                      the held release? emits version, backend_sha
  *   finish  --env=prod --sha=<sha>     deploy-firebase.yml, at the end of a
  *                                      SUCCESSFUL held-backend deploy: finish the
  *                                      release (never on mere dispatch)

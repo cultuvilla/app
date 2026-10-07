@@ -220,6 +220,10 @@ export async function submitIosForReview({
     return { status: 'noop', versionId: version.id, buildId };
   }
 
+  // A reused version keeps whatever release type it was created with; a breaking
+  // release must not go on sale by itself because an earlier draft said so.
+  if (!version.created) await setReleaseType(request, { versionId: version.id, releaseType });
+
   const notesResult = await setReleaseNotes(request, { versionId: version.id, locale, notes });
   log(`release notes ${notesResult.updated ? 'updated' : 'created'} for ${locale}`);
 

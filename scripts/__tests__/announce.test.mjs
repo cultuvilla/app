@@ -315,7 +315,15 @@ describe('interpretIosVersions', () => {
 
   it('is live only when the version is on sale', () => {
     assert.equal(interpretIosVersions(versions, '1.6.0').live, false);
-    assert.deepEqual(interpretIosVersions(versions, '1.5.0'), { found: true, live: true, state: 'READY_FOR_SALE', buildNumber: '6' });
+    assert.deepEqual(interpretIosVersions(versions, '1.5.0'), { found: true, live: true, approved: true, state: 'READY_FOR_SALE', buildNumber: '6' });
+  });
+
+  // A manual release (breaking) waits here after App Review: approved, not live.
+  it('is approved but not live while waiting for its manual release', () => {
+    const r = interpretIosVersions([{ versionString: '1.6.0', appStoreState: 'PENDING_DEVELOPER_RELEASE' }], '1.6.0');
+    assert.equal(r.live, false);
+    assert.equal(r.approved, true);
+    assert.equal(interpretIosVersions(versions, '1.6.0').approved, false);
   });
 
   it('accepts the newer READY_FOR_DISTRIBUTION name for the same state', () => {
@@ -364,7 +372,9 @@ describe('checkStores — fails safe', () => {
       const calls = [];
       const r = await checkStores({ pending, makePlay: fakePlay({ state: PLAY_LIFECYCLE[state], calls }), makeAsc: onSale, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
       assert.equal(r.live.android, false);
-      assert.match(r.detail.android, new RegExp(`${state} — not published yet`));
+      assert.equal(r.approved.android, state === 'APPROVED_NOT_PUBLISHED');
+      assert.equal(r.awaitingPublish.android, state === 'APPROVED_NOT_PUBLISHED');
+      assert.match(r.detail.android, state === 'APPROVED_NOT_PUBLISHED' ? /approved, waiting for Publish/ : new RegExp(`${state} — not published yet`));
       assert.deepEqual(warnings, []);
       assert.deepEqual(calls, ['list com.cultuvilla.app production'], 'no edit is opened before Google publishes');
     });

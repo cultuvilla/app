@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { readVersionFrom } from './lib/app-version.mjs';
+import { breakingSinceLastRelease } from './lib/breaking-rollup.mjs';
 import { extractMigrations, promotionPrBody, versionSection } from './lib/release.mjs';
 
 const [root = '.', flag] = process.argv.slice(2);
@@ -23,5 +24,8 @@ if (flag === '--version') {
 } else {
   const section = versionSection(readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8'), version);
   const runs = JSON.parse(process.env.RUNS_JSON || '[]');
-  process.stdout.write(promotionPrBody({ version, section, migrations: extractMigrations(section), runs }) + '\n');
+  // Needs the checkout's history and tags (fetch-depth 0): the same rollup the
+  // prod deploy uses to decide the hold.
+  const breaking = breakingSinceLastRelease({ version, cwd: root });
+  process.stdout.write(promotionPrBody({ version, section, migrations: extractMigrations(section), runs, breaking }) + '\n');
 }

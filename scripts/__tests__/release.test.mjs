@@ -155,6 +155,17 @@ describe('migrations', () => {
     const promo = promotionPrBody({ ...args, runs: [{ name: 'Deploy beta', url: 'u', conclusion: 'success' }] });
     assert.match(promo, /\[Deploy beta\]\(u\) — success/);
     assert.match(promo, /- \[ \] x/);
+    assert.doesNotMatch(promo, /Breaking release/);
+  });
+
+  it('turns a breaking promotion into a hand-release checklist', () => {
+    const args = { version: '1.8.0', section: '- New.', migrations: [] };
+    const promo = promotionPrBody({ ...args, breaking: { breaking: true, reasons: ['rules deny old reads'] } });
+    assert.match(promo, /Breaking release/);
+    assert.match(promo, /`Breaking-Client:` rules deny old reads/);
+    assert.match(promo, /- \[ \] \*\*Before merging:\*\* .*Managed publishing ON/);
+    assert.match(promo, /pnpm release:publish/);
+    assert.doesNotMatch(promo, /Merging deploys/);
   });
 });
 

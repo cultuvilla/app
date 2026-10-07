@@ -120,7 +120,7 @@ async function cmdPoll(ctx, env, args) {
   }
 
   const { packageName, track } = ctx.playTarget();
-  const { live, detail } = await checkStores({
+  const { live, approved, awaitingPublish, detail } = await checkStores({
     pending,
     makePlay: ctx.makePlay,
     makeAsc: ctx.makeAsc,
@@ -138,6 +138,8 @@ async function cmdPoll(ctx, env, args) {
     env,
     version: pending.version,
     live,
+    approved,
+    awaitingPublish,
     iosBuildNumber: detail.iosBuildNumber,
     dryRun,
     ...(ctx.now ? { now: ctx.now } : {}),
@@ -159,6 +161,54 @@ async function cmdPoll(ctx, env, args) {
     ctx.output('deploy_sha', plan.deploySha);
   }
   if (plan.clear) ctx.log(`v${pending.version} is live everywhere — pending cleared.`);
+
+  if (dryRun) return;
+  // Step outputs announce-when-live.yml turns into a GitHub issue for the user.
+  ctx.output('version', pending.version);
+  if (plan.ready) {
+    ctx.log(`both stores approved v${pending.version} — waiting for \`pnpm release:publish\` and Publish in the Play Console.`);
+    ctx.summary(`- :rocket: **v${pending.version} is approved in both stores** — release it: \`pnpm release:publish\` + Publish in the Play Console`);
+    ctx.output('ready', 'true');
+  }
+  if (plan.publishedEarly.length) {
+    const p = plan.publishedEarly.join(' + ');
+    ctx.warn(`breaking v${pending.version} went live on ${p} before the other store approved it — its users run against the held (old) backend. Was Play managed publishing off?`);
+    ctx.output('published_early', p);
+  }
+  if (plan.stuckUnpublished) {
+    ctx.warn(`Play approved v${pending.version} but it is not published: managed publishing is still on. Press Publish in the Play Console and turn managed publishing off.`);
+  }
+  if (plan.clear && pending.breaking) ctx.output('done', 'true');
+}
+
+/**
+ * Before `pnpm release:publish` ships a held backend: is there one, and have
+ * both stores approved its version? Emits `version` and `backend_sha`. Refuses
+ * otherwise, unless `--force` (for a store that cannot be asked).
+ */
+async function cmdReady(ctx, env, args) {
+  const force = parseBoolFlag(args.force, 'force');
+  const pending = await readDoc(ctx.db, pendingDocPath(env));
+  if (!pending) throw new Error('nothing pending — there is no release to publish.');
+  if (!pending.holdBackend) throw new Error(`v${pending.version}'s backend is not held — nothing to release by hand.`);
+  const { packageName, track } = ctx.playTarget();
+  const { approved, detail } = await checkStores({
+    pending,
+    makePlay: ctx.makePlay,
+    makeAsc: ctx.makeAsc,
+    ascAppId: ctx.ascAppId,
+    packageName,
+    track,
+    warn: ctx.warn,
+  });
+  ctx.log(`v${pending.version} — android: ${detail.android} | ios: ${detail.ios}`);
+  const missing = ['ios', 'android'].filter((p) => !approved[p]);
+  if (missing.length && !force) {
+    throw new Error(`v${pending.version} is not approved on ${missing.join(' + ')} yet — wait for it (or pass --force).`);
+  }
+  if (missing.length) ctx.warn(`--force: releasing v${pending.version} although ${missing.join(' + ')} has not approved it.`);
+  ctx.output('version', pending.version);
+  ctx.output('backend_sha', pending.backendSha ?? pending.releaseSha);
 }
 
 async function cmdFinish(ctx, env, args) {
@@ -175,6 +225,7 @@ export const COMMANDS = {
   record: (ctx, env, args) => cmdRecord(ctx, env, args),
   'record-android': (ctx, env, args) => cmdRecordAndroid(ctx, env, args),
   poll: (ctx, env, args) => cmdPoll(ctx, env, args),
+  ready: (ctx, env, args) => cmdReady(ctx, env, args),
   finish: (ctx, env, args) => cmdFinish(ctx, env, args),
 };
 

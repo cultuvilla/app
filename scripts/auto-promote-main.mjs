@@ -91,6 +91,9 @@ export function decideAutoMerge(input) {
     blockers.push('title carries a [skip-…] token, which would land in the merge commit');
   }
   if (pr.isDraft) blockers.push('PR is a draft');
+  // A breaking release needs Play managed publishing switched on by hand before
+  // it merges, and that cannot be checked — so a person merges it.
+  if (input.breaking) blockers.push('breaking release: a person merges it, after switching Play managed publishing on');
   if ((pr.labels ?? []).some((l) => l.name.toLowerCase() === HOLD_LABEL)) {
     blockers.push(`PR has the \`${HOLD_LABEL}\` label`);
   }

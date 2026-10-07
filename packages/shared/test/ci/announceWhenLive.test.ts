@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { hostingRewriteFunctions } from '../../../../scripts/hosting-rewrite-functions.mjs';
 
 // Announce-when-live (docs/decisions/announce-when-live-poller.md): a production
 // release reaches installed apps only once the stores serve it, and a breaking
@@ -17,6 +16,7 @@ const deploy = read('.github/workflows/deploy-firebase.yml');
 const deployProd = read('.github/workflows/deploy-prod.yml');
 const release = read('.github/workflows/production-release.yml');
 const poller = read('.github/workflows/announce-when-live.yml');
+const publish = read('.github/workflows/release-publish.yml');
 
 function step(workflow: string, needle: string): string {
   const blocks = workflow.split(/^ {6}- (?:name|uses):/m);
@@ -33,20 +33,6 @@ function job(workflow: string, name: string): string {
 }
 
 describe('the prod deploy holds a breaking backend', () => {
-  // Hosting rewrites every page to readSite. 1.7.1 held all functions, shipped
-  // hosting, and cultuvilla.es 404'd — privacy policy included — until Google
-  // Play rejected the release for it.
-  it('still ships the functions hosting rewrites to, before hosting, when held', () => {
-    const rewrites = step(deploy, 'hosting-rewrite-functions.mjs');
-    expect(rewrites).toContain("if: ${{ steps.release.outputs.hold_backend == 'true' }}");
-    expect(deploy.indexOf('hosting-rewrite-functions.mjs')).toBeLessThan(deploy.indexOf('firebase deploy --only hosting:app'));
-  });
-
-  it('names every function firebase.json hosting rewrites to', () => {
-    const only = hostingRewriteFunctions(JSON.parse(read('firebase.json')));
-    expect(only.split(',')).toEqual(expect.arrayContaining(['functions:readSite', 'functions:sitemap']));
-  });
-
   it('plans the release on prod only, and not on the run that ships a held backend', () => {
     const plan = step(deploy, 'release-announce.mjs plan');
     expect(plan).toContain('id: release');
@@ -55,19 +41,32 @@ describe('the prod deploy holds a breaking backend', () => {
     expect(plan).toContain('COMMIT_MESSAGE: ${{ github.event.head_commit.message }}');
   });
 
-  it('plans after the data gates and before the first firebase deploy', () => {
+  // A held release's data must not move either: the backfills (and the gates
+  // that read their result) run with the rest when a person releases it.
+  it('plans before the backfills, after authenticating, and before any deploy', () => {
     const plan = deploy.indexOf('release-announce.mjs plan');
-    expect(plan).toBeGreaterThan(deploy.indexOf('backfills-cli.mjs verify'));
-    expect(plan).toBeGreaterThan(deploy.indexOf('check-dev-conformance.mjs'));
+    expect(plan).toBeGreaterThan(deploy.indexOf('google-github-actions/auth'));
+    expect(plan).toBeLessThan(deploy.indexOf('backfills-cli.mjs auto-apply'));
     expect(plan).toBeLessThan(deploy.search(/^\s*run: firebase deploy/m));
   });
 
-  it('holds exactly functions and rules — never indexes or hosting', () => {
-    const held = "if: ${{ steps.release.outputs.hold_backend != 'true' }}";
-    expect(step(deploy, 'run: firebase deploy --only functions')).toContain(held);
-    expect(step(deploy, 'run: firebase deploy --only firestore:rules,storage')).toContain(held);
+  // Hosting is held with the functions it rewrites to: shipped alone on 1.7.1
+  // it pointed at a readSite prod did not have, and cultuvilla.es 404'd.
+  it('holds backfills, gates, rules, functions and hosting — only indexes ship', () => {
+    const held = "steps.release.outputs.hold_backend != 'true'";
+    for (const needle of [
+      'backfills-cli.mjs auto-apply',
+      'check-dev-conformance.mjs',
+      'backfills-cli.mjs verify',
+      'run: firebase deploy --only firestore:rules,storage',
+      'run: firebase deploy --only functions',
+      'node scripts/build-web-static.mjs',
+      'run: firebase deploy --only hosting',
+    ]) {
+      expect(step(deploy, needle), needle).toContain(held);
+    }
     expect(step(deploy, 'run: firebase deploy --only firestore:indexes')).not.toContain('hold_backend');
-    expect(step(deploy, 'run: firebase deploy --only hosting')).not.toContain('hold_backend');
+    expect(step(deploy, 'smoke-read-site.mjs')).not.toContain('hold_backend');
   });
 
   // Rollup reads `<previous tag>..HEAD`; a shallow clone has neither.
@@ -117,7 +116,8 @@ describe('production-release does not deadlock on a held backend', () => {
 
   it('still ships the store binaries, but no OTA, while the backend is held', () => {
     expect(job(release, 'ota')).toContain("needs.backend.outputs.held != 'true'");
-    expect(job(release, 'ios')).not.toContain('held');
+    // iOS still ships held; `held` only picks its release type.
+    expect(job(release, 'ios')).toMatch(/if: \$\{\{ needs\.plan\.outputs\.store == 'true' \}\}/);
     expect(job(release, 'android')).not.toContain('outputs.held');
   });
 
@@ -209,5 +209,41 @@ describe('a dispatched ref must already be on main', () => {
     const guardPos = deploy.indexOf('git merge-base --is-ancestor');
     expect(guardPos).toBeLessThan(deploy.indexOf('pnpm install --frozen-lockfile'));
     expect(guardPos).toBeLessThan(deploy.search(/^\s*run: firebase deploy/m));
+  });
+});
+
+describe('a breaking release is released by a person', () => {
+  // A MANUAL App Store release waits after approval instead of going on sale alone.
+  it('submits iOS with a manual release when the backend is held', () => {
+    const ios = job(release, 'ios');
+    expect(ios).toContain("RELEASE_TYPE: ${{ needs.backend.outputs.held == 'true' && 'MANUAL' || 'AFTER_APPROVAL' }}");
+    expect(ios).toContain('--release-type="${RELEASE_TYPE}"');
+  });
+
+  it('opens an issue when both stores approved, and closes it when done', () => {
+    const poll = job(poller, 'poll');
+    expect(poll).toContain('issues: write');
+    expect(step(poller, 'Tell the user the release is ready')).toContain("if: ${{ steps.poll.outputs.ready == 'true' }}");
+    expect(step(poller, 'Tell the user the release is ready')).toContain('pnpm release:publish');
+    expect(step(poller, 'went live on one store early')).toContain("if: ${{ steps.poll.outputs.published_early != '' }}");
+    expect(step(poller, 'Close the release issue')).toContain("if: ${{ steps.poll.outputs.done == 'true' }}");
+    expect(step(poller, 'Close the release issue')).toMatch(/managed publishing off/);
+  });
+
+  it('release:publish checks approvals, deploys the held backend, then releases iOS', () => {
+    expect(publish).toContain('workflow_dispatch:');
+    const ready = job(publish, 'ready');
+    expect(ready).toContain("if: ${{ github.ref == 'refs/heads/main' }}");
+    expect(ready).toContain('environment: production');
+    expect(ready).toContain('release-announce.mjs ready --env=prod');
+    const d = job(publish, 'deploy');
+    expect(d).toContain('uses: ./.github/workflows/deploy-firebase.yml');
+    expect(d).toContain('ref: ${{ needs.ready.outputs.backend_sha }}');
+    expect(d).toContain('held_backend: true');
+    const ios = job(publish, 'ios');
+    expect(ios).toContain('needs: [ready, deploy]');
+    expect(ios).toContain('appstore-release.mjs release --version="${VERSION}" --apply');
+    const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
+    expect(pkg.scripts['release:publish']).toContain('gh workflow run release-publish.yml --ref main');
   });
 });

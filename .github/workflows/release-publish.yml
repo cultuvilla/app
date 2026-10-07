@@ -1,0 +1,118 @@
+name: Release publish
+
+# Releases a held (breaking) production release once both stores have approved
+# it: `pnpm release:publish`, or Actions → "Release publish". announce-when-live
+# opens an issue when it is time.
+#
+#   1. ready    both stores approved the pending release? (refuses otherwise,
+#               unless `force`)
+#   2. deploy   the held backend at the release commit: backfills, gates,
+#               rules, functions, hosting (deploy-firebase.yml, held_backend)
+#   3. ios      releases the approved App Store version (manual release)
+#
+# Android is the one step this cannot do: Play has no API to publish a release
+# held by managed publishing. Press Publish in the Play Console as you run
+# this, then switch managed publishing off. The announce poller raises the wall
+# and announces once both stores serve the version.
+#
+# See docs/decisions/announce-when-live-poller.md. Locked by
+# packages/shared/test/ci/announceWhenLive.test.ts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Release even if a store has not approved yet (one that cannot be asked)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
+jobs:
+  ready:
+    name: Both stores approved?
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      version: ${{ steps.ready.outputs.version }}
+      backend_sha: ${{ steps.ready.outputs.backend_sha }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Check the stores
+        id: ready
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+          APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
+        run: node scripts/release-announce.mjs ready --env=prod ${{ inputs.force && '--force' || '' }}
+
+  deploy:
+    name: Deploy the held backend
+    needs: ready
+    uses: ./.github/workflows/deploy-firebase.yml
+    with:
+      environment: production
+      firebase_alias: prod
+      ref: ${{ needs.ready.outputs.backend_sha }}
+      held_backend: true
+
+  ios:
+    name: Release iOS
+    needs: [ready, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Release the approved App Store version
+        env:
+          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+          APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
+          VERSION: ${{ needs.ready.outputs.version }}
+        run: node scripts/appstore-release.mjs release --version="${VERSION}" --apply
+
+      - name: What is left for you
+        env:
+          VERSION: ${{ needs.ready.outputs.version }}
+        run: |
+          {
+            echo "### v${VERSION}: backend deployed, iOS released"
+            echo "- **Android:** press **Publish** in the Play Console (Publishing overview) if you have not yet,"
+            echo "  then switch **managed publishing off** — left on, it holds the next release too."
+            echo "- The announce poller raises the wall and announces once both stores serve v${VERSION}."
+          } >> "$GITHUB_STEP_SUMMARY"

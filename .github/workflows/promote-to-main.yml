@@ -93,6 +93,9 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           path: beta-src
+          # History and tags: the body flags a breaking release (Breaking-Client
+          # trailers since the previous vX.Y.Z tag).
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         if: steps.gate.outputs.ready == 'true'
@@ -142,10 +145,17 @@ jobs:
         run: |
           number=$(gh pr list --repo "$REPO" --base main --head beta --state open --json number --jq '.[0].number // ""')
           echo "number=$number" >> "$GITHUB_OUTPUT"
+          [ -n "$number" ] && echo "sha=$(gh pr view "$number" --repo "$REPO" --json headRefOid --jq .headRefOid)" >> "$GITHUB_OUTPUT"
           [ -n "$number" ] || echo "No open beta → main PR; nothing to merge." >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/checkout@v5
         if: steps.find.outputs.number != ''
+      - uses: actions/checkout@v5
+        if: steps.find.outputs.number != ''
+        with:
+          ref: ${{ steps.find.outputs.sha }}
+          path: beta-src
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         if: steps.find.outputs.number != ''
         with:
@@ -177,14 +187,17 @@ jobs:
             --jq '.check_runs[] | {id, name, status, conclusion}' | jq -s .)
           statuses=$(gh api "repos/$REPO/commits/$sha/status" --jq '[.statuses[] | {id, name: .context, state}]')
           enabled=false; [ "$AUTO_MERGE_TO_MAIN" = 'true' ] && enabled=true
+          breaking=$(VERSION="$head_version" node --input-type=module -e '
+            import { breakingSinceLastRelease } from "./scripts/lib/breaking-rollup.mjs";
+            console.log(breakingSinceLastRelease({ version: process.env.VERSION, cwd: "beta-src" }).breaking);')
           jq -n \
             --argjson pr "$pr" --arg headVersion "$head_version" --arg betaHead "$beta_head" --argjson runs "$runs" \
             --argjson requiredChecks "$required" --argjson checkRuns "$check_runs" --argjson statuses "$statuses" \
             --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg soakHours "$AUTO_PROMOTE_SOAK_HOURS" \
-            --argjson enabled "$enabled" --argjson hasToken "$HAS_RELEASE_PR_TOKEN" \
+            --argjson enabled "$enabled" --argjson hasToken "$HAS_RELEASE_PR_TOKEN" --argjson breaking "$breaking" \
             '{pr: $pr, headVersion: $headVersion, betaHead: $betaHead, runs: $runs, requiredChecks: $requiredChecks,
               checks: ($checkRuns + $statuses), now: $now, soakHours: $soakHours,
-              enabled: $enabled, hasToken: $hasToken}' > "$RUNNER_TEMP/input.json"
+              enabled: $enabled, hasToken: $hasToken, breaking: $breaking}' > "$RUNNER_TEMP/input.json"
 
       - name: Decide
         id: decide

@@ -56,6 +56,10 @@ export async function findIosVersion(request, { ascAppId, version }) {
  * Android is live once Play's release lifecycle says PUBLISHED and the edits
  * API shows it at full rollout (`decideAndroidLive`). A rejected release
  * (NOT_APPROVED) warns every tick and sets `detail.androidRejected`.
+ *
+ * Also returns, per platform, whether the store has `approved` the version —
+ * live, or waiting for a person to release it (Play managed publishing,
+ * iOS manual release) — and whether Play is `awaitingPublish`.
  */
 export async function checkStores({
   pending,
@@ -67,10 +71,13 @@ export async function checkStores({
   warn = () => {},
 }) {
   const live = { ios: false, android: false };
+  const approved = { ios: false, android: false };
+  const awaitingPublish = { ios: false, android: false };
   const detail = {};
 
   if (pending.announced?.android) {
     live.android = true;
+    approved.android = true;
     detail.android = 'already announced';
   } else {
     try {
@@ -94,6 +101,8 @@ export async function checkStores({
           : null;
         const r = decideAndroidLive({ lifecycle, rollout, track });
         live.android = r.live;
+        approved.android = lifecycle.approved;
+        awaitingPublish.android = lifecycle.awaitingPublish;
         detail.android = r.detail;
         if (r.rejected) {
           detail.androidRejected = true;
@@ -110,6 +119,7 @@ export async function checkStores({
 
   if (pending.announced?.ios) {
     live.ios = true;
+    approved.ios = true;
     detail.ios = 'already announced';
   } else {
     try {
@@ -120,6 +130,8 @@ export async function checkStores({
       } else {
         const r = interpretIosVersions(await findIosVersion(ascRequest, { ascAppId, version: pending.version }), pending.version);
         live.ios = r.live;
+        approved.ios = r.approved;
+        awaitingPublish.ios = r.state === 'PENDING_DEVELOPER_RELEASE';
         detail.ios = r.found ? `${r.state} (build ${r.buildNumber ?? '?'})` : 'no App Store version yet';
         if (r.live && r.buildNumber) detail.iosBuildNumber = String(r.buildNumber);
       }
@@ -129,7 +141,7 @@ export async function checkStores({
     }
   }
 
-  return { live, detail };
+  return { live, approved, awaitingPublish, detail };
 }
 
 /**
@@ -175,7 +187,7 @@ export async function recordAndroidBuild(db, { env, version, versionCode }) {
  */
 export async function applyTick(
   db,
-  { env, version, live, iosBuildNumber, dryRun = false, now = Date.now() },
+  { env, version, live, approved, awaitingPublish, iosBuildNumber, dryRun = false, now = Date.now() },
 ) {
   const nowIso = new Date(now).toISOString();
   const pendingRef = db.doc(pendingDocPath(env));
@@ -188,7 +200,7 @@ export async function applyTick(
     const cSnap = await tx.get(configRef);
     const stored = cSnap.exists ? cSnap.data() : null;
 
-    const plan = planTick(pending, { live, stored, now });
+    const plan = planTick(pending, { live, approved, awaitingPublish, stored, now });
     let payload = null;
     if (plan.config) {
       payload = resolveAppVersionConfig({
@@ -208,6 +220,8 @@ export async function applyTick(
         announced: plan.announced,
         ...(iosBuildNumber ? { iosBuildNumber } : {}),
         ...(plan.deploySha ? { deployRequestedAt: nowIso } : {}),
+        ...(plan.ready ? { readyNotifiedAt: nowIso } : {}),
+        ...(plan.publishedEarly.length ? { earlyAlertedAt: nowIso } : {}),
         updatedAt: nowIso,
       });
     }
