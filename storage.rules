@@ -3,13 +3,12 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // No new cross-service firestore.get/exists. In every deployed project
-    // (dev, beta, prod) they evaluate as denied even with the Rules service
-    // agent holding roles/firebaserules.firestoreServiceAgent, while the
-    // emulator allows them — so the emulator suite passes and every upload
-    // in the real app fails. Gating image writes on village membership this
-    // way broke every event/place/org cover upload in prod (2026-10-07).
-    // Authority over the content lives on the Firestore doc's own rules.
+    // Never read Firestore here (firestore.get/exists). Every deployed project
+    // (dev, beta, prod) denies those cross-service lookups while the emulator
+    // allows them, so such a rule passes emulator tests and refuses every
+    // real upload — 2026-10-07, every event cover in prod. Authority over an
+    // image lives on the doc that points at it. Enforced by
+    // packages/shared/test/ci/storageRulesNoCrossService.test.ts.
 
     // Reference-data escudos (coats of arms) — public, written only by
     // admin SDK from scripts/upload-escudos.mjs, never by clients.
@@ -62,27 +61,6 @@ service firebase.storage {
                    && request.auth.uid == userId
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
-    }
-
-    // A person photo can be managed by whoever may edit the person doc itself.
-    // Mirror firestore.rules /persons/{personId} update: the linked account
-    // owner (userId == uid), or the creator while no account is linked. The
-    // bare `createdBy == uid` check broke seed/migrated self-persons, whose
-    // `createdBy` is the seed but whose `userId` is the real owner.
-    function personOwnsPhoto(personId) {
-      return firestore.get(/databases/(default)/documents/persons/$(personId)).data.userId == request.auth.uid
-             || (firestore.get(/databases/(default)/documents/persons/$(personId)).data.createdBy == request.auth.uid
-                 && firestore.get(/databases/(default)/documents/persons/$(personId)).data.userId == null);
-    }
-
-    match /persons/{personId}/photos/{imageId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*')
-                   && personOwnsPhoto(personId);
-      allow delete: if request.auth != null
-                    && personOwnsPhoto(personId);
     }
 
     // News post images. Mirrors the event/org/place image rules: gate on auth +
