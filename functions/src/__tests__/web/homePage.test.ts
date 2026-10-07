@@ -61,7 +61,19 @@ describe('homePage', () => {
   });
 
   it('falls back to the original upload when a card variant is missing', () => {
-    expect(body({ villages: [], showcase })).toContain("this.src='https://img/o1.jpg'");
+    const out = body({ villages: [], showcase });
+    expect(out).toContain('data-fallback="https://img/o1.jpg" onerror="this.onerror=null;this.src=this.dataset.fallback"');
+  });
+
+  it('never puts an upload URL inside the fallback handler', () => {
+    const hostile = "https://img/x.jpg';alert(1);//";
+    const out = body({
+      villages: [],
+      showcase: { village: matabuena, home: { ...emptyHome, orgs: [card('/m/entidad/o9', 'Peña', 'https://img/x_card.jpg', hostile)] } },
+    });
+    const handlers = out.match(/onerror="[^"]*"/g) ?? [];
+    expect(handlers.length).toBeGreaterThan(0);
+    for (const h of handlers) expect(h).toBe('onerror="this.onerror=null;this.src=this.dataset.fallback"');
   });
 
   it('lists every active pueblo and counts them', () => {

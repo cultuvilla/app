@@ -83,7 +83,10 @@ function img(src: string | null, alt: string, cls?: string, original?: string | 
   if (!src) return null;
   const fallback = original && original !== src ? original : null;
   return fallback
-    ? html`<img class="${cls ?? ''}" src="${src}" alt="${alt}" loading="lazy" onerror="this.onerror=null;this.src='${fallback}'"/>`
+    ? // The URL rides in an HTML-escaped attribute and the handler is fixed code:
+      // interpolating it into the handler's JavaScript would let a quote in an
+      // upload URL break out of the string.
+      html`<img class="${cls ?? ''}" src="${src}" alt="${alt}" loading="lazy" data-fallback="${fallback}" onerror="this.onerror=null;this.src=this.dataset.fallback"/>`
     : html`<img class="${cls ?? ''}" src="${src}" alt="${alt}" loading="lazy"/>`;
 }
 
