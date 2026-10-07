@@ -30,6 +30,13 @@ env:
 # button's accessibility label leads with its icon glyph, so 'Apuntad.*' never
 # matched there, the flow re-registered, and unticking the already-registered
 # person raised a "Cancelar inscripción" alert it then stalled on.
+# The FAB first renders before the user's registrations load, reading
+# "Apuntarme" even for a registered user. Deciding on that first frame
+# re-registered on iOS, which unticked the user and raised the cancel alert.
+- extendedWaitUntil:
+    visible: '.*Apuntad.*'
+    timeout: 10000
+    optional: true
 - runFlow:
     when:
       notVisible: '.*Apuntad.*'
@@ -49,8 +56,10 @@ env:
           # This waits on state written by 21-register-family-member and then
           # denormalised by a background trigger, so it is a cross-flow race,
           # not a render. 20s passed on two runs and lost on the third; the rest
-          # of the suite waits 45s for exactly this kind of thing.
-          timeout: 45000
+          # of the suite waits 45s for exactly this kind of thing. Run on its
+          # own (a selection without 20), this is also the first call of the
+          # registration callable, whose worker boots on that call.
+          timeout: 120000
 
 # Untick this persona and confirm. The sheet opens with whoever is registered
 # already ticked, so one tap is a removal.
