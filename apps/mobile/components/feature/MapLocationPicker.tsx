@@ -192,6 +192,11 @@ export function MapLocationPicker({
         if (Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) < MIN_DISTANCE_THRESHOLD * 2) return;
       }
 
+      // The shown address now belongs to a pin that is no longer there: drop
+      // any lookup in flight and hold confirm until this one resolves, or a
+      // slow answer for the previous spot would be saved with these coordinates.
+      addressLookupRef.current++;
+      setIsLoadingAddress(true);
       regionChangeTimeoutRef.current = setTimeout(() => {
         void updateAddress(newRegion.latitude, newRegion.longitude);
         regionChangeTimeoutRef.current = null;

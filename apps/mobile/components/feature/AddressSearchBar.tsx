@@ -92,6 +92,10 @@ export function AddressSearchBar({
     (text: string) => {
       setInputValue(text);
       if (stableTimerRef.current) clearTimeout(stableTimerRef.current);
+      // Any edit retires the search in flight: its results answer a query the
+      // field no longer holds, and must not land after this text is cleared.
+      requestSeqRef.current++;
+      lastSearchedRef.current = '';
       // "Buscando" from the first keystroke rather than after the debounce, so a
       // slow search never looks like a dead input.
       const trimmed = text.trim();

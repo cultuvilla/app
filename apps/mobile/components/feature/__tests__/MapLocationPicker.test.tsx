@@ -60,6 +60,9 @@ function drag(latitude: number, longitude: number) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Drop any queued once-implementations a test left unconsumed.
+  mockReverse.mockReset();
+  mockSearch.mockReset();
   mockPermission.mockResolvedValue({ status: 'granted' });
   mockPosition.mockResolvedValue({ coords: { latitude: 39.47, longitude: -0.376 } });
   mockReverse.mockResolvedValue('Calle Colón 1, Valencia');
@@ -124,6 +127,27 @@ describe('MapLocationPicker', () => {
     expect(onConfirm).toHaveBeenCalledWith({ lat: 40.05, lng: -3.62 }, 'Calle Real 4');
   });
 
+  it('never confirms a new pin with the address of the previous one', async () => {
+    let resolveFirst: (label: string) => void = () => {};
+    mockReverse
+      .mockImplementationOnce(() => new Promise<string>((r) => (resolveFirst = r)))
+      .mockImplementationOnce(() => new Promise<string>(() => {}));
+    const onConfirm = jest.fn();
+    const { getByTestId } = render(
+      <MapLocationPicker initialCoords={PLAZA} initialLabel="Plaza Mayor" onConfirm={onConfirm} onClose={jest.fn()} />,
+    );
+
+    drag(40.05, -3.62);
+    await waitFor(() => expect(mockReverse).toHaveBeenCalledTimes(1));
+    // A second drag lands; the first lookup answers inside its debounce window.
+    drag(40.2, -3.9);
+    await act(async () => resolveFirst('Calle Vieja 1'));
+
+    expect(getByTestId('location-address')).not.toHaveTextContent('Calle Vieja 1');
+    fireEvent.press(getByTestId('location-confirm'));
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it('ignores the map settling a few metres from the shown address', async () => {
     render(
       <MapLocationPicker initialCoords={PLAZA} initialLabel="Plaza Mayor" onConfirm={jest.fn()} onClose={jest.fn()} />,
@@ -174,6 +198,24 @@ describe('MapLocationPicker', () => {
 
     fireEvent.press(getByTestId('location-confirm'));
     expect(onConfirm).toHaveBeenCalledWith({ lat: 41, lng: -4 }, '');
+  });
+
+  it('drops a search that answers after the query was cut short', async () => {
+    let resolveSearch: (r: unknown[]) => void = () => {};
+    mockSearch.mockImplementationOnce(() => new Promise((r) => (resolveSearch = r)));
+    const { getByTestId, queryByTestId } = render(
+      <MapLocationPicker initialCoords={PLAZA} initialLabel="Plaza Mayor" onConfirm={jest.fn()} onClose={jest.fn()} />,
+    );
+
+    fireEvent(getByTestId('address-search-input'), 'focus');
+    fireEvent.changeText(getByTestId('address-search-input'), 'ermita');
+    await waitFor(() => expect(mockSearch).toHaveBeenCalledWith('ermita'));
+    fireEvent.changeText(getByTestId('address-search-input'), 'e');
+    await act(() => new Promise((r) => setTimeout(r, 450)));
+    await act(async () => resolveSearch([{ label: 'Ermita de San Roque', lat: 40.1, lng: -3.5 }]));
+
+    expect(queryByTestId('address-search-result')).toBeNull();
+    expect(queryByTestId('address-search-dropdown')).toBeNull();
   });
 
   it('shows when a search finds nothing', async () => {
