@@ -81,7 +81,7 @@ export function EntityDetailScaffold({
         </View>
       ) : notFound ? (
         <View className="flex-1 items-center justify-center">
-          <Text>{t('common.notFound')}</Text>
+          <Text testID="entity-not-found">{t('common.notFound')}</Text>
         </View>
       ) : (
         <>

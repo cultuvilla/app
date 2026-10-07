@@ -117,6 +117,7 @@ function BarrioEditScreen() {
         rightSlot={
           canDelete(proposedBy, status) ? (
             <DeleteHeaderButton
+              testID="barrio-delete"
               onAccent
               onConfirm={removeBarrio}
               accessibilityLabel={t('common.delete')}

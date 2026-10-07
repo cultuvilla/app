@@ -76,6 +76,7 @@ function EditHistoryEntryScreen() {
         rightSlot={
           canDelete(entry.createdBy, entry.status) ? (
             <DeleteHeaderButton
+              testID="history-delete"
               onConfirm={remove}
               accessibilityLabel={t('common.delete')}
               confirmTitle={t('common.deleteConfirmTitle')}

@@ -1,0 +1,16 @@
+# Replace whatever ${INPUT} holds with ${TEXT}. type-into.yaml appends, which is
+# right for an empty create form and wrong for an edit form prefilled from the
+# stored doc.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: reveal.yaml
+    env:
+      TARGET: ${INPUT}
+- tapOn:
+    id: ${INPUT}
+- waitForAnimationToEnd:
+    timeout: 2000
+- eraseText: 200
+- inputText: ${TEXT}
+- assertVisible: ${TEXT}

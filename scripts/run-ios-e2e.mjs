@@ -41,6 +41,7 @@ import {
   planFlows,
   run,
   runMaestroSuite,
+  PICKER_IMAGES,
 } from './lib/maestro-suite.mjs';
 import { pickSimulator } from './lib/ios-simulator.mjs';
 
@@ -140,6 +141,9 @@ if (app) {
   const code = run(LABEL, 'xcrun', ['simctl', 'install', device, appPath]);
   if (code !== 0) process.exit(code);
 }
+
+// Stock the photo picker; see PICKER_IMAGES.
+if (run(LABEL, 'xcrun', ['simctl', 'addmedia', device, ...PICKER_IMAGES]) !== 0) process.exit(1);
 
 // 3. See the flow's header. Fatal: if the prompt cannot be answered, every
 //    flow would fail on its first link, naming the wrong cause each time.

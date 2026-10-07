@@ -128,6 +128,7 @@ export default function OrgEditScreen() {
         title={t('organization.editTitle')}
         rightSlot={
           <DeleteHeaderButton
+            testID="org-delete"
             onAccent
             onConfirm={() => {
               if (orgId) return deleteOrganization(orgId).then(() => router.replace('/(tabs)'));

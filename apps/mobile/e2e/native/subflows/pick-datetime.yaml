@@ -1,0 +1,38 @@
+# Set a DateTimeField (testID ${FIELD}) to ${DAY} (YYYY-MM-DD) at ${HOUR}:${MINUTE}.
+#
+# The calendar opens on the field's current month, so it pages forward until
+# the day is on screen rather than counting months: the start of a new event
+# opens on today, its end on the start's month. Minutes come in steps of 5.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: reveal.yaml
+    env:
+      TARGET: ${FIELD}-date
+- tapOn:
+    id: ${FIELD}-date
+- extendedWaitUntil:
+    visible:
+      id: ${FIELD}-date-calendar
+    timeout: 10000
+- repeat:
+    times: 13
+    while:
+      notVisible:
+        id: ${FIELD}-date-calendar-day-${DAY}
+    commands:
+      - tapOn:
+          id: ${FIELD}-date-calendar-next
+- tapOn:
+    id: ${FIELD}-date-calendar-day-${DAY}
+- assertNotVisible:
+    id: ${FIELD}-dialog
+- tapOn:
+    id: ${FIELD}-time
+- tapOn:
+    id: ${FIELD}-time-picker-hour-${HOUR}
+- tapOn:
+    id: ${FIELD}-time-picker-minute-${MINUTE}
+# A minute tap commits and closes the clock; still open means it was dropped.
+- assertNotVisible:
+    id: ${FIELD}-dialog
