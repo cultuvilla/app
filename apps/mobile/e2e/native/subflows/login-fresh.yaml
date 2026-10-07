@@ -13,7 +13,7 @@ appId: com.cultuvilla.app.dev
 # claims the schemeless link even in this release APK.
 - openLink: 'cultuvilla://perfil'
 - extendedWaitUntil:
-    visible: 'Explora'
+    visible: 'Explora(,.*)?'
     timeout: 90000
 - openLink: 'cultuvilla://perfil?e2eLogin=${EMAIL}%7C${PASSWORD}'
 - extendedWaitUntil:

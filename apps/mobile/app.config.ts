@@ -127,7 +127,12 @@ const hasGoogleServicesFile = existsSync(resolve(__dirname, googleServicesFile))
 // wired when this env has one — a build without it still runs, with native
 // analytics as a no-op. Android needs nothing extra: it initialises from the
 // google-services.json above. Same committed-per-env rule (no secret inside).
-const iosGoogleServicesFile = `./google-services/${env}/GoogleService-Info.plist`;
+// Overridden, like the Android file, only in the emulator E2E build
+// (scripts/build-ios-e2e-app.mjs).
+const iosGoogleServicesFile =
+  process.env['USE_FIREBASE_EMULATOR'] === '1' && process.env['E2E_GOOGLE_SERVICE_INFO_FILE']
+    ? process.env['E2E_GOOGLE_SERVICE_INFO_FILE']
+    : `./google-services/${env}/GoogleService-Info.plist`;
 const hasIosGoogleServicesFile = existsSync(resolve(__dirname, iosGoogleServicesFile));
 
 const firebaseConfigPerEnv: Record<Env, FirebaseOptions> = {

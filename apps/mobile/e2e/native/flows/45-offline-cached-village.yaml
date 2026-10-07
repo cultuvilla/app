@@ -66,7 +66,7 @@ onFlowComplete:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: 'Explora'
+    visible: 'Explora(,.*)?'
     timeout: 90000
 - assertVisible:
     id: 'offline-banner'

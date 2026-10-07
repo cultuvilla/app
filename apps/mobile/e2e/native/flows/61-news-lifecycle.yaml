@@ -19,9 +19,11 @@ env:
     visible:
       id: 'news-title'
     timeout: 45000
-- tapOn:
-    id: 'news-title'
-- inputText: ${output.newsTitle}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'news-title'
+      TEXT: ${output.newsTitle}
 - runFlow:
     file: ../subflows/reveal.yaml
     env:
@@ -110,7 +112,10 @@ env:
 - tapOn:
     id: 'news-delete'
 # Native Alert button: common.delete, upper-cased by the Material dialog.
-- tapOn: 'ELIMINAR'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
 - runScript:
     file: ../scripts/docField.js
     env:

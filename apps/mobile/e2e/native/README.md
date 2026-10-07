@@ -1,9 +1,10 @@
-# Native E2E (Maestro on Android)
+# Native E2E (Maestro on Android and iOS)
 
 The app's end-to-end suite, described in
 [docs/decisions/e2e-testing-substrate.md](../../../../docs/decisions/e2e-testing-substrate.md):
 seeded fixtures, assertions on Firestore emulator state rather than the view
-hierarchy, Maestro driving the real Android build. It is the only E2E suite —
+hierarchy, Maestro driving the real Android and iOS builds. **One set of flows
+serves both platforms** — see [iOS](#ios) for the little that differs. It is the only E2E suite —
 the Playwright web suite went with the Expo web build
 (docs/decisions/web-is-a-read-site.md).
 
@@ -15,6 +16,40 @@ day-to-day `develop` PRs, and `beta` is the release candidate, the last point
 where a native-only regression can be caught before it becomes a store binary.
 `workflow_dispatch` is enabled so a native regression can be chased from any
 branch without waiting for a promotion PR.
+
+[.github/workflows/ios-e2e.yml](../../../../.github/workflows/ios-e2e.yml) runs
+the same suite on an iOS Simulator, on a macOS runner (free: the repo is
+public). Same release-path gating, plus one trigger Android lacks: a `develop`
+PR that touches the iOS harness or anything under `e2e/native/` runs it too,
+because macOS is the only place it can run at all.
+
+### Shards (iOS)
+
+One machine took ~2.5 h for the iOS suite: Maestro restarts its iOS driver for
+every flow. So `ios-e2e` builds the Simulator app **once** (`build` job, shared
+as an artifact) and runs the flows on **four machines** (`suite` matrix, `iOS
+E2E shard i/4`). Each shard boots its own Simulator, emulators and seed, and
+runs the flows `shardFlows` (in [scripts/lib/maestro-suite.mjs](../../../../scripts/lib/maestro-suite.mjs))
+gives it:
+
+- **Whole tens-groups, never split.** Order inside a group is load-bearing
+  (22 unregisters what 20 registered; 95 runs after the other 9x flows), and a
+  shard starts from a fresh seed, so a split group would lose its first half.
+  The flip side: **a flow may only depend on the seed and on earlier flows of
+  its own group.** State that "lasts the rest of the run" (90 hides the seeded
+  place) lasts the rest of that shard.
+- **Deterministic.** Groups go largest-first to the least-loaded shard, so a
+  shard number always means the same flows for the same suite. The shard's log
+  prints its list (`[ios-e2e] shard 2/4: …`).
+- `E2E_SHARD=i/N` reproduces one locally. It composes with a selection: a
+  dispatched `flows=20,22` lands on one shard, and the others exit before
+  booting.
+
+Debugging a red `iOS E2E shard 3/4`: its artifact is
+`maestro-artifacts-ios-shard-3`, with one JUnit report and the Maestro
+screenshots per flow, uploaded even when the job timed out. Every Maestro call
+is bounded (`E2E_FLOW_TIMEOUT_MS`, 15 min), so a wedged driver fails one flow
+instead of the whole shard.
 
 ## The flows
 
@@ -50,13 +85,32 @@ still starts from `clearState: true`, so one failure never cascades into a bogus
 second one. [../../../../packages/shared/test/ci/androidE2e.test.ts](../../../../packages/shared/test/ci/androidE2e.test.ts)
 fails the build if a flow is added without a numeric prefix.
 
+## Running only some flows
+
+Both platforms take a comma-separated selection — numeric prefixes, names or
+filenames: `20,22`, `20-register-to-event`, `61-news-lifecycle.yaml`. It runs in
+**filename order** whatever order you typed (a pair like 20 → 22 still works),
+runs a quarantined flow if you name it, and fails fast on a name that matches
+nothing rather than passing on zero flows. Mind the pairs: `22` alone has
+nothing to unregister — select `20,22`.
+
+| Where | How |
+|---|---|
+| Locally | `E2E_NATIVE_FLOW=20,22 pnpm test:e2e:android` (or `:ios`), or `--flow 20,22` on the runner script |
+| CI, from a terminal | `pnpm e2e:ci:android -f flows=20,22 --ref <branch>` / `pnpm e2e:ci:ios -f flows=20,22 --ref <branch>` |
+| CI, from GitHub | Actions → `android-e2e` / `ios-e2e` → *Run workflow* → fill **flows** |
+
+On CI the build still dominates (~15 min Android, ~35 min iOS), so a targeted
+run saves the suite's ~20 minutes, not the build's. Empty **flows** = the whole
+suite, as on every non-dispatch event.
+
 ## Quarantine
 
 `scripts/run-android-e2e.mjs` holds a `QUARANTINED` map of flows that are **not
 run** by the gate, each with the reason. Every run prints what it held out, twice
 — once up front and once in the summary — because a suite that quietly shrank
-reads as "everything passed", which is worse than a red lane. `--flow <name>`
-still runs a quarantined flow, so chasing one needs no edit.
+reads as "everything passed", which is worse than a red lane. Naming a flow
+in a [selection](#running-only-some-flows) still runs a quarantined flow, so chasing one needs no edit.
 
 Currently held out: **nothing**. `50-onboarding-complete-profile` was held out
 while the app talked to the emulators through the Firestore JS SDK, whose
@@ -71,6 +125,13 @@ emulator's REST API and poll until the expected state appears, using the
 `Authorization: Bearer owner` rules-bypass (without it, a read of a rule-protected
 collection returns empty and the assertion fails against a backend that is
 actually correct).
+
+They poll, and Maestro's JS runtime has no sleep, so between attempts they
+call a pause endpoint the runner serves on `127.0.0.1:9399`
+([scripts/lib/poll-pause-server.mjs](../../../../scripts/lib/poll-pause-server.mjs)).
+Polling back to back starved the 3-core macOS runner: a callable the app sent
+during a poll only began executing once the poll gave up. Without the server
+(running a flow by hand) the call fails at once and the poll is merely tight.
 
 They run on the **host**, not on the device, so they use `127.0.0.1` even though
 the app inside the AVD reaches the same emulator at `10.0.2.2`.
@@ -126,10 +187,11 @@ E2E_ANDROID_APK=apps/mobile/android/app/build/outputs/apk/release/app-release.ap
   pnpm test:e2e:android
 ```
 
-One flow at a time, against whatever build is already installed:
+Some flows only, against whatever build is already installed — see
+[Running only some flows](#running-only-some-flows):
 
 ```bash
-node scripts/run-android-e2e.mjs --flow 20-register-to-event.yaml
+node scripts/run-android-e2e.mjs --flow 20,22
 ```
 
 ### Under WSL2
@@ -184,7 +246,7 @@ comments; this is the index.
 | The bare `cultuvilla://` | The app never starts. expo-dev-client is a plain dependency, so its launcher activity exists even in the release APK and claims the schemeless link. | Always name a route. |
 | An intent to a cold-starting app | Silently dropped — the JS listener has not mounted yet. | Launch first, wait for the tab bar, then send the link. |
 | The first tap with the soft keyboard up | Reports COMPLETED, but only closed the keyboard; the button's handler never ran (the login screen's "Enviar código"). | `repeat: while: notVisible: <next step>` around the tap. |
-| A flow that changes device state | Airplane mode or a global doc (`config/appVersion`) outlives the flow — and the app's `clearState` — so every later flow fails for a reason it cannot see. | Undo it in `onFlowComplete`, and add the doc to `LEFTOVER_DOCS` in `run-android-e2e.mjs`: before each flow the runner turns airplane mode off and deletes those docs, since `onFlowComplete` never runs when Maestro itself dies. |
+| A flow that changes device state | Airplane mode or a global doc (`config/appVersion`) outlives the flow — and the app's `clearState` — so every later flow fails for a reason it cannot see. | Undo it in `onFlowComplete`, and add the doc to `LEFTOVER_DOCS` in `scripts/lib/maestro-suite.mjs`: before each flow the runner turns airplane mode off and deletes those docs, since `onFlowComplete` never runs when Maestro itself dies. |
 | The OTP send cap | `sendAuthOtpCode` allows 5 sends per address per 15 minutes, and a capped send still answers `ok` without writing a new code — so a flow re-run against the same emulator reads a stale code and passes or fails on its 10-minute expiry, not on the login screen. | Re-run `11-otp-login` on a fresh `pnpm test:e2e:android`, not repeatedly against one emulator. |
 | A floating button over the bottom band | `RegisterFab` sits outside the scroll view over the screen's bottom band, so a field that `scrollUntilVisible` leaves near the bottom edge can have its centre under the FAB: the tap focuses nothing, and `inputText` arrives as raw key events into an unfocused window (on CI it tore the activity down). | Scroll to the end of the content (explicit `swipe`s) before tapping a field that is last on the page — the content's bottom padding lifts it clear. |
 | Text selectors match the WHOLE string | `Apuntado` misses "Apuntado (1)"; `Perfil` matches both the tab and the screen header. | Use a regex (`Apuntad.*`) or a `testID`. |
@@ -198,3 +260,49 @@ it creates with `Date.now()` so a re-run never matches a leftover. Any id or
 title referenced in YAML must stay in sync with
 `scripts/data/seed-fixtures/e2e/fixtures.mjs` by hand — Maestro YAML cannot
 import JS.
+
+## iOS
+
+The same flows, run by [scripts/run-ios-e2e.mjs](../../../../scripts/run-ios-e2e.mjs)
+against a Simulator build from
+[scripts/build-ios-e2e-app.mjs](../../../../scripts/build-ios-e2e-app.mjs). The
+ordered loop and the quarantine announcement are shared with Android
+([scripts/lib/maestro-suite.mjs](../../../../scripts/lib/maestro-suite.mjs)), as
+is the emulator-armed build env
+([scripts/lib/e2e-build-env.mjs](../../../../scripts/lib/e2e-build-env.mjs)), so
+"green" means the same thing on both. Each platform keeps its own quarantine:
+a flow can fail on one transport and pass on the other.
+
+What differs, and where:
+
+| Difference | Handled in |
+|---|---|
+| The Simulator shares the Mac's network, so the app reaches the emulators on `127.0.0.1` — no `10.0.2.2` alias. ATS still governs that HTTP, so the build sets `NSAllowsLocalNetworking` in the generated `ios/` tree only. | `build-ios-e2e-app.mjs` |
+| The native SDK reads its project from `GoogleService-Info.plist`; the build writes a copy re-pointed at the test project. | `lib/e2e-build-env.mjs` + `app.config.ts` |
+| iOS asks "Open in …?" the first time a custom-scheme link targets the app. Accepting is permanent per Simulator, so the runner answers it once before the suite, and the flows' `openLink` stays the same on both platforms. | `ios/trust-deep-links.yaml` |
+| No BACK key, and no safe keyboard dismissal: Maestro's iOS `hideKeyboard` is unreliable, and a tap on blank margin closes a bottom sheet (it hits the backdrop). `subflows/reveal.yaml` presses BACK only under `platform: Android`; on iOS it relies on `KeyboardAvoider` keeping the target above the keyboard, and just scrolls. | `subflows/reveal.yaml` |
+| The location prompt reads "Allow While Using App". | `subflows/allow-location.yaml` |
+| `clearState` wipes the app's files but **not the keychain**, where Firebase Auth keeps the session — so a flow inherited the previous one's user. The runner resets the Simulator keychain before every flow. | `run-ios-e2e.mjs` |
+| A Pressable is an accessibility element, and on iOS it hides its descendants: a sheet whose backdrop/catcher Pressables were accessible exposed its whole card as ONE element, so no testID inside it existed for XCUITest (or VoiceOver). Both wrappers are `accessible={false}`, enforced by `pressCatcherAccessibility.test.ts`. | the sheets |
+| Entitlements: the unsigned Simulator build needs `application-identifier` for Firebase Auth's keychain, linked into a `__TEXT,__entitlements` section the way Xcode does it — never into the signature, which the Mac kernel then refuses to launch. | `build-ios-e2e-app.mjs` |
+| A tab's accessibility label is `Explora, tab, 1 of 3`, and Maestro matches the whole string — so a bare `'Explora'` never matches on iOS. Tab labels are matched as `'Explora(,.*)?'`. | `subflows/login*.yaml` |
+| The screen under a native Alert stays in the hierarchy, so a header icon labelled like the alert's button (the trash, "Eliminar") also matches — and `rightOf: 'Cancelar'` alone picked it. The confirm is anchored `below` the alert's question (any text with a "?") too. | `subflows/confirm-alert.yaml` |
+| A tap right after a deep-linked screen appears is dropped: Maestro reports COMPLETED, nothing opens. `subflows/tap-until.yaml` taps, waits for what the tap should open, and taps again if it is not up. | `subflows/tap-until.yaml` |
+| A tap on an input right after its screen appears may not focus it, and keystrokes can drop while the keyboard settles. `subflows/type-into.yaml` types, checks the field shows the whole text, and retypes. | `subflows/type-into.yaml` |
+| The screen is narrower, so a horizontal row's third card can sit wholly past the right edge, where no vertical scroll reaches it. Swipe the row itself (it carries a `testID`). | `63-private-event-feed` |
+
+**iOS quarantine** (reasons in `run-ios-e2e.mjs`): `45-offline-cached-village`
+(airplane mode is Android-only in Maestro) and `50-onboarding-complete-profile`
+(keyboard choreography tuned to the AVD).
+
+Writing a flow: anything platform-specific goes in a `runFlow: when: platform:`
+branch, preferably in a subflow. `iosE2e.test.ts` fails the build on an
+unguarded `pressKey: back`.
+
+Locally (macOS + Xcode 26.4+ only):
+
+```bash
+pnpm app:ios:e2e-app                                  # prints the .app path last
+E2E_IOS_APP=<that path> pnpm test:e2e:ios             # emulators + seed + suite
+node scripts/run-ios-e2e.mjs --flow 20-register-to-event.yaml   # one flow
+```

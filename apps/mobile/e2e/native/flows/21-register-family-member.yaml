@@ -19,8 +19,11 @@ env:
     visible:
       id: 'register-fab'
     timeout: 45000
-- tapOn:
-    id: 'register-fab'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
 # The sheet opens with whoever is already registered ticked, so tapping only the
 # dependent row adds it without disturbing the attendee's own registration.
 - tapOn:

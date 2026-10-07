@@ -33,22 +33,9 @@
  *      We raise the ceiling AND build with `--no-daemon` so a fatal build dies
  *      immediately instead of hanging for another 45 minutes.
  *
- *   4. The E2E env must be set for BOTH prebuild and the gradle build.
- *      `USE_FIREBASE_EMULATOR` is read by app.config.ts (baked into
- *      `extra.useEmulator` by expo-constants at gradle time), while
- *      `EXPO_PUBLIC_EMULATOR_HOST` is inlined by Metro during the bundle task.
- *      Setting it for only one of the two produces an APK that looks right and
- *      silently talks to production Firebase.
- *
- *   5. The native SDKs take their project from google-services.json, not from
- *      FIREBASE_PROJECT_ID_DEV. The dev file names `villa-events`, while the
- *      emulators serve the seeded data and users under the test project — so an
- *      APK built from it reads an empty database and cannot sign anyone in. We
- *      write a copy re-pointed at the test project and hand app.config.ts its
- *      path; app.config.ts honours the override only in an emulator build.
- *
- * The armed bypass can only ever be a `dev` bundle: app.config.ts throws when
- * USE_FIREBASE_EMULATOR=1 meets APP_ENV=beta/prod.
+ *   4. The emulator-armed env and the re-pointed google-services.json are
+ *      shared with the iOS build — see scripts/lib/e2e-build-env.mjs for why
+ *      each one must hold.
  *
  * Usage: node scripts/build-android-e2e-apk.mjs [--skip-prebuild]
  * Prints the APK path on the last line.
@@ -56,10 +43,8 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { MOBILE, e2eBuildEnv, writeE2ENativeFirebaseConfig } from './lib/e2e-build-env.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const MOBILE = path.join(ROOT, 'apps', 'mobile');
 const ANDROID = path.join(MOBILE, 'android');
 const APK = path.join(ANDROID, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
 
@@ -67,40 +52,9 @@ const APK = path.join(ANDROID, 'app', 'build', 'outputs', 'apk', 'release', 'app
 // emulator is the device itself, so the app would find nothing there.
 const EMULATOR_HOST = process.env.EXPO_PUBLIC_EMULATOR_HOST || '10.0.2.2';
 
-const buildEnv = {
-  ...process.env,
-  APP_ENV: 'dev',
-  USE_FIREBASE_EMULATOR: '1',
-  EXPO_PUBLIC_EMULATOR_HOST: EMULATOR_HOST,
-  // app.config.ts fails fast on a missing Firebase config. The emulator ignores
-  // every value except the project id, which must match the seeder + emulator.
-  FIREBASE_API_KEY_DEV: process.env.FIREBASE_API_KEY_DEV || 'e2e-placeholder',
-  FIREBASE_AUTH_DOMAIN_DEV: process.env.FIREBASE_AUTH_DOMAIN_DEV || 'cultuvilla-test.firebaseapp.com',
-  FIREBASE_PROJECT_ID_DEV: process.env.FIREBASE_PROJECT_ID_DEV || 'cultuvilla-test',
-  FIREBASE_STORAGE_BUCKET_DEV: process.env.FIREBASE_STORAGE_BUCKET_DEV || 'cultuvilla-test.appspot.com',
-  FIREBASE_MESSAGING_SENDER_ID_DEV: process.env.FIREBASE_MESSAGING_SENDER_ID_DEV || '0',
-  FIREBASE_APP_ID_DEV: process.env.FIREBASE_APP_ID_DEV || 'e2e-placeholder',
-  GOOGLE_IOS_CLIENT_ID_DEV: process.env.GOOGLE_IOS_CLIENT_ID_DEV || '',
-  GOOGLE_IOS_URL_SCHEME_DEV: process.env.GOOGLE_IOS_URL_SCHEME_DEV || '',
-};
-
-// See requirement 5 above. Generated, gitignored, never committed.
-const e2eGoogleServices = path.join(MOBILE, '.e2e', 'google-services.json');
-{
-  const projectId = buildEnv.FIREBASE_PROJECT_ID_DEV;
-  const devConfig = JSON.parse(
-    readFileSync(path.join(MOBILE, 'google-services', 'dev', 'google-services.json'), 'utf8'),
-  );
-  devConfig.project_info = {
-    ...devConfig.project_info,
-    project_id: projectId,
-    storage_bucket: buildEnv.FIREBASE_STORAGE_BUCKET_DEV,
-  };
-  mkdirSync(path.dirname(e2eGoogleServices), { recursive: true });
-  writeFileSync(e2eGoogleServices, JSON.stringify(devConfig, null, 2));
-  buildEnv.E2E_GOOGLE_SERVICES_FILE = e2eGoogleServices;
-  console.log(`[android-e2e-apk] native Firebase project: ${projectId}`);
-}
+const buildEnv = e2eBuildEnv(EMULATOR_HOST);
+const projectId = writeE2ENativeFirebaseConfig(buildEnv, 'android');
+console.log(`[android-e2e-apk] native Firebase project: ${projectId}`);
 
 function run(cmd, args, cwd) {
   console.log(`[android-e2e-apk] ${cmd} ${args.join(' ')}`);

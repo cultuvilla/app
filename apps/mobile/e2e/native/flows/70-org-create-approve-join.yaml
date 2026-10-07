@@ -26,9 +26,11 @@ env:
     visible:
       id: 'org-name-input'
     timeout: 45000
-- tapOn:
-    id: 'org-name-input'
-- inputText: ${output.orgName}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'org-name-input'
+      TEXT: ${output.orgName}
 - runFlow:
     file: ../subflows/reveal.yaml
     env:

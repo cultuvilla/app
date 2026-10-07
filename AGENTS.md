@@ -496,6 +496,7 @@ pnpm typecheck        # tsc --noEmit in shared, functions, i18n, mobile
 pnpm test             # vitest (shared) + jest (mobile) + functions, under emulators
 pnpm backfills:list   # registered data migrations (see Backfills)
 pnpm test:e2e:android # Maestro on an Android AVD, under emulators (needs a device)
+pnpm test:e2e:ios     # the same flows on an iOS Simulator (macOS only; CI: ios-e2e)
 pnpm check:store-claims # verify the store-release runbook against live infra
 ```
 
@@ -623,7 +624,10 @@ direct-to-`develop` mode, run the full gate locally before committing:
 
 `pnpm test:e2e:android` (Maestro on an AVD) is the same shape but needs a booted
 Android emulator, which this environment usually lacks — CI's `android-e2e`
-workflow is the authoritative run. See
+workflow is the authoritative run. `pnpm test:e2e:ios` runs the same flows on
+an iOS Simulator and needs macOS, so here only CI's `ios-e2e` workflow can run
+it — built once and split across four shards by tens-group, so a flow may depend
+only on the seed and on earlier flows of its own group. See
 [apps/mobile/e2e/native/README.md](apps/mobile/e2e/native/README.md); under WSL2
 it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 

@@ -1,0 +1,35 @@
+# Tap a native Alert's confirming button: the one right of "Cancelar", below
+# the alert's message (every confirmation in the app asks a question).
+#
+# Maestro matches text case-insensitively, and the alert's TITLE and often an
+# icon behind it carry the same word as the button. `rightOf` alone is not
+# enough on iOS: the screen under an alert stays in the hierarchy there, and
+# a header icon labelled "Eliminar" in the top-right corner is right of
+# "Cancelar" too. Maestro tapped it instead of the button, so the alert never
+# went away (flows 61 and 90). `below` the message keeps the pick inside the
+# alert on both platforms.
+appId: com.cultuvilla.app.dev
+---
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: ${BUTTON}
+    rightOf: 'Cancelar'
+    below: '.*\?.*'
+- waitForAnimationToEnd:
+    timeout: 3000
+# One more try if the alert is still up: under load the first tap can land
+# while the alert is still animating in.
+- runFlow:
+    when:
+      visible:
+        text: ${BUTTON}
+        rightOf: 'Cancelar'
+        below: '.*\?.*'
+    commands:
+      - tapOn:
+          text: ${BUTTON}
+          rightOf: 'Cancelar'
+          below: '.*\?.*'
+      - waitForAnimationToEnd:
+          timeout: 3000

@@ -19,7 +19,7 @@ env:
 # A concrete route, never the bare scheme (README § traps).
 - openLink: 'cultuvilla://perfil'
 - extendedWaitUntil:
-    visible: 'Explora'
+    visible: 'Explora(,.*)?'
     timeout: 90000
 - openLink: 'cultuvilla://entrar'
 - extendedWaitUntil:
@@ -28,7 +28,19 @@ env:
     timeout: 30000
 - tapOn:
     id: 'login-email-input'
+- waitForAnimationToEnd:
+    timeout: 2000
 - inputText: ${EMAIL}
+# The iOS Simulator can drop keystrokes while the keyboard is still settling:
+# "e2e-user@…" arrived as "eer@…", so the code was issued to another address
+# and the flow waited on a document that never came. Retype until it is whole.
+- repeat:
+    times: 2
+    while:
+      notVisible: ${EMAIL}
+    commands:
+      - eraseText: 60
+      - inputText: ${EMAIL}
 # With the soft keyboard up, the first tap outside the input can be spent
 # closing it. Tap until the code step shows; a second send only overwrites
 # the code doc, which is read afterwards.
@@ -38,10 +50,21 @@ env:
       notVisible:
         id: 'login-code-sent'
     commands:
-      - tapOn:
-          id: 'login-submit'
-      - waitForAnimationToEnd:
-          timeout: 3000
+      # Re-tap only while the button is still there: when sending is slow the
+      # check runs before the screen switches, and an unconditional re-tap then
+      # races a button that is just disappearing (seen on iOS).
+      - runFlow:
+          when:
+            visible:
+              id: 'login-submit'
+          commands:
+            - tapOn:
+                id: 'login-submit'
+      - extendedWaitUntil:
+          visible:
+            id: 'login-code-sent'
+          timeout: 10000
+          optional: true
 - extendedWaitUntil:
     visible:
       id: 'login-code-sent'

@@ -21,8 +21,11 @@ env:
     visible:
       id: 'village-join-action'
     timeout: 45000
-- tapOn:
-    id: 'village-join-action'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'village-join-action'
+      EXPECT: 'join-village-confirm'
 - tapOn:
     id: 'join-village-confirm'
 - runScript:
