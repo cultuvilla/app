@@ -102,6 +102,17 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
+      # Parity gate: dev and beta exist to prove prod will work, which they
+      # only do while they are configured like prod. This project's setup
+      # (database and bucket settings, enabled APIs, service-account IAM,
+      # secret names, Auth) must equal infra/env-parity.json plus this env's
+      # declared, reasoned exceptions. First of all, before any backfill or
+      # deploy writes, so a drifted env blocks its own deploy. Read-only;
+      # needs roles/iam.securityReviewer and roles/serviceusage.serviceUsageViewer
+      # (setup-ci-deploy-wif.sh).
+      - name: Parity gate — this project is configured like the others
+        run: node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=config
+
       # Release plan — prod only, and not on the run that deploys a held
       # backend. A breaking release (a `Breaking-Client:` trailer since the
       # previous release tag, or a still-held earlier one) ships only its
@@ -221,7 +232,11 @@ jobs:
         run: firebase deploy --only firestore:rules,storage --project ${{ inputs.firebase_alias }} --non-interactive
 
       - name: Deploy Firestore indexes
-        run: firebase deploy --only firestore:indexes --project ${{ inputs.firebase_alias }} --non-interactive
+        # --force deletes deployed indexes the file no longer declares, so the
+        # file is the whole truth in every env. Without it, removed indexes
+        # stayed behind: in 2026-10 beta and prod carried 8 leftovers that dev
+        # did not, and dev one of its own.
+        run: firebase deploy --only firestore:indexes --project ${{ inputs.firebase_alias }} --non-interactive --force
 
       # production-release.yml reads this step's conclusion: `skipped` means the
       # backend is held, and it then holds the production OTA too. Rename both.
@@ -262,6 +277,14 @@ jobs:
       # every deploy step green, and Google Play rejected the release over it.
       - name: Smoke-check the live read site
         run: node scripts/smoke-read-site.mjs --env=${{ inputs.firebase_alias }}
+
+      # What this deploy put live is exactly this commit: Firestore and Storage
+      # rules, composite indexes and the set of functions. Skipped only when
+      # the backend is held, since then rules and functions deliberately stay
+      # at the previous release.
+      - name: Parity check — live rules, indexes and functions are this commit's
+        if: ${{ steps.release.outputs.hold_backend != 'true' }}
+        run: node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=artifacts
 
       # Hand the release to the announce poller (prod and beta). After hosting,
       # so a release whose deploy failed is never recorded. Prod records the

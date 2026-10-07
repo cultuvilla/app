@@ -654,6 +654,17 @@ restricts which branch may deploy (branch policy), but no longer requires a
 reviewer. All daily work targets `develop`. See
 [docs/decisions/dev-beta-prod-environments.md](docs/decisions/dev-beta-prod-environments.md).
 
+**Dev and beta are configured like prod, and every deploy checks it.**
+[infra/env-parity.json](infra/env-parity.json) declares the expected project
+setup — database and bucket settings, enabled APIs, service-account IAM, secret
+names, Auth — and each env may differ only by an exception that states its
+reason. The deploy fails before writing anything if its env has drifted, and
+again afterwards if the live rules, indexes or functions are not the commit's
+([check-env-parity.mjs](scripts/check-env-parity.mjs)); a nightly run checks all
+three. So a console change (an API, an IAM grant, a bucket setting) is made in
+every env and recorded in that file in the same PR — or declared, with why. Read
+[docs/decisions/environment-parity.md](docs/decisions/environment-parity.md).
+
 1. **Classify the mode from the diff — never ask.** See the Autonomy contract below.
    - **Direct** — the diff touches *only* `docs/**`, `*.md`, `CHANGELOG.md`, `.agents/**`, `.claude/**`. Commit and push straight to `develop` in the base checkout. No branch, no PR.
    - **Autonomous (everything else)** — branch from the latest `develop` into a worktree under `.claude/worktrees/<short-name>/` and work there. Never edit the base checkout in this mode. Worktrees isolate dependencies, build outputs, and caches so parallel changes don't fight each other, and they make it easy to abandon work that doesn't pan out.
