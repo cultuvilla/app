@@ -1,6 +1,6 @@
 import { APP_SCHEME, APP_STORE_ID } from '@cultuvilla/shared/config';
 import { html, raw, render, type Child, type SafeHtml } from './html';
-import { STYLES } from './styles';
+import { LANDING_STYLES, STYLES } from './styles';
 
 const SITE_NAME = 'Cultuvilla';
 export const DEFAULT_DESCRIPTION = 'Eventos, noticias y vida de tu pueblo.';
@@ -20,6 +20,8 @@ export interface Page {
   body: SafeHtml;
   /** HTTP status; 200 unless the page says otherwise. */
   status?: number;
+  /** `landing` lets the body run full-bleed bands instead of the reading column. */
+  layout?: 'landing';
 }
 
 export interface DocumentContext {
@@ -59,6 +61,9 @@ document.addEventListener('click',function(e){
 
 export function renderDocument(page: Page, ctx: DocumentContext): string {
   const { head } = page;
+  const landing = page.layout === 'landing';
+  const header = html`<header class="site"><a class="brand" href="/"><img src="/brand/logo-96.png" alt="" width="32" height="32"/>Cultuvilla</a>${appCta(ctx.appPath, 'Abrir en la app', 'small')}</header>`;
+  const footer = html`<footer class="site"><a href="/descarga">Descargar la app</a><a href="/legal/privacidad">Privacidad</a><a href="/legal/terminos">Términos</a><a href="/legal/eliminar-cuenta">Eliminar cuenta</a></footer>`;
   const title = head.title === SITE_NAME ? SITE_NAME : `${head.title} · ${SITE_NAME}`;
   const description = head.description || DEFAULT_DESCRIPTION;
   const image: Child = head.imageUrl
@@ -85,13 +90,10 @@ ${image}
 <meta name="theme-color" content="#f9f0e8"/>
 <link rel="icon" href="/brand/favicon.png"/>
 <style>${raw(STYLES)}</style>
+${landing ? html`<link rel="preload" href="/brand/gloock-latin.woff2" as="font" type="font/woff2" crossorigin/><style>${raw(LANDING_STYLES)}</style>` : null}
 ${head.jsonLd ? jsonLdScript(head.jsonLd) : null}
 </head><body>
-<div class="wrap">
-<header class="site"><a class="brand" href="/"><img src="/brand/logo-96.png" alt="" width="32" height="32"/>Cultuvilla</a>${appCta(ctx.appPath, 'Abrir en la app', 'small')}</header>
-<main>${page.body}</main>
-<footer class="site"><a href="/descarga">Descargar la app</a><a href="/legal/privacidad">Privacidad</a><a href="/legal/terminos">Términos</a><a href="/legal/eliminar-cuenta">Eliminar cuenta</a></footer>
-</div>
+${landing ? html`<div class="wrap">${header}</div><main class="landing">${page.body}</main><div class="wrap">${footer}</div>` : html`<div class="wrap">${header}<main>${page.body}</main>${footer}</div>`}
 ${CTA_SCRIPT}
 </body></html>`)
   );

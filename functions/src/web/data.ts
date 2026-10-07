@@ -33,6 +33,8 @@ export interface Card {
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
+  /** The upload itself, for when its `_card` variant was never generated. */
+  originalUrl?: string | null;
 }
 
 export interface Village {
@@ -78,9 +80,23 @@ export async function loadVillageById(db: Firestore, id: string): Promise<Villag
   return snap.exists ? toVillage(snap.id, snap.data() ?? {}) : null;
 }
 
+/** Every pueblo with an active community, by name. Same single-field shape as the sitemap's query. */
+export async function loadActiveVillages(db: Firestore): Promise<Village[]> {
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const snap = await db.collection('municipalities').where('communityActive', '==', true).limit(60).get();
+  return snap.docs
+    .map((d) => toVillage(d.id, d.data()))
+    .filter((v) => v.slug && v.name)
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
 /** Card-sized image; the app writes `_card` variants for its own uploads. */
 export function cardImage(url: string | null): string | null {
   return variantImageURL(url, 'card');
+}
+
+function cardImages(url: string | null): Pick<Card, 'imageUrl' | 'originalUrl'> {
+  return { imageUrl: cardImage(url), originalUrl: url };
 }
 
 // ── Events ──────────────────────────────────────────────────────────────────
@@ -138,7 +154,7 @@ function eventCard(e: EventView, villageSlug: string): Card {
     href: entityPath('event', { id: e.id, title: e.title, villageSlug }),
     title: e.title,
     subtitle: e.start ? formatDate(e.start, 'dayMonth', TZ) : null,
-    imageUrl: cardImage(e.imageUrl),
+    ...cardImages(e.imageUrl),
   };
 }
 
@@ -261,7 +277,7 @@ function orgCard(o: OrgView, villageSlug: string): Card {
     href: entityPath('organization', { id: o.id, title: o.name, villageSlug }),
     title: o.name,
     subtitle: o.memberCount ? `${String(o.memberCount)} miembros` : null,
-    imageUrl: cardImage(o.images[0] ?? null),
+    ...cardImages(o.images[0] ?? null),
   };
 }
 
@@ -370,7 +386,7 @@ function posterCard(p: PosterView, villageSlug: string): Card {
     href: entityPath('festivalPoster', festivalPosterLinkTarget({ ...p, villageSlug })),
     title: posterTitle(p),
     subtitle: p.datesLabel ?? String(p.year),
-    imageUrl: cardImage(p.images[0] ?? null),
+    ...cardImages(p.images[0] ?? null),
   };
 }
 
@@ -630,7 +646,7 @@ function placeCard(p: PlaceView, villageSlug: string): Card {
     href: entityPath('place', { id: p.id, title: p.name, villageSlug }),
     title: p.name,
     subtitle: null,
-    imageUrl: cardImage(p.images[0] ?? null),
+    ...cardImages(p.images[0] ?? null),
   };
 }
 
@@ -639,7 +655,7 @@ function barrioCard(b: BarrioView, villageSlug: string): Card {
     href: entityPath('barrio', { id: b.id, title: b.name, villageSlug }),
     title: b.name,
     subtitle: b.residentCount ? `${String(b.residentCount)} vecinos` : null,
-    imageUrl: cardImage(b.images[0] ?? null),
+    ...cardImages(b.images[0] ?? null),
   };
 }
 
@@ -648,7 +664,7 @@ function historyCard(h: HistoryView, villageSlug: string): Card {
     href: entityPath('historyEntry', { id: h.id, title: h.title, villageSlug }),
     title: h.title,
     subtitle: h.dateLabel || null,
-    imageUrl: cardImage(h.images[0]?.url ?? null),
+    ...cardImages(h.images[0]?.url ?? null),
   };
 }
 
