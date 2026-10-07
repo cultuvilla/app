@@ -116,9 +116,18 @@ describe('readSite', () => {
     expect(body).not.toContain('noindex');
   });
 
-  it('features Matabuena on the landing, with its real content and every active pueblo', async () => {
-    await db().doc('municipalities/m3').set({ name: 'Arcones', slug: 'arcones', province: 'Segovia', communityActive: true });
+  it('draws the landing phone from Matabuena and links to /pueblos', async () => {
     const { status, body } = await html('/');
+    expect(status).toBe(200);
+    expect(body).toContain('class="phone" href="/matabuena"');
+    expect(body).toContain('Verbena');
+    expect(body).not.toContain('Cena de la peña');
+    expect(body).toContain('href="/pueblos"');
+  });
+
+  it('features Matabuena on /pueblos, with its real content and every active pueblo', async () => {
+    await db().doc('municipalities/m3').set({ name: 'Arcones', slug: 'arcones', province: 'Segovia', communityActive: true });
+    const { status, body } = await html('/pueblos');
     expect(status).toBe(200);
     expect(body).toContain('Así se vive Matabuena en Cultuvilla');
     expect(body).toContain('Verbena');
@@ -140,7 +149,7 @@ describe('readSite', () => {
       visibilityOrgId: null,
       status: 'published',
     });
-    const { body } = await html('/');
+    const { body } = await html('/pueblos');
     expect(body).toContain('Así se vive Arcones en Cultuvilla');
     expect(body).toContain('Romería de Arcones');
     expect(body).not.toContain('Así se vive Matabuena');
