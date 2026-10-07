@@ -172,7 +172,8 @@ jobs:
       # announce-when-live.yml raises the wall and dispatches the held backend
       # (deploy-prod.yml, pinned to the release commit) when the stores are live.
       # Indexes and hosting still deploy: additive indexes harm no client, and
-      # the read site is not an installed binary. `[auto-deploy]` in the merge
+      # the read site is not an installed binary — with the functions hosting
+      # rewrites to, or it has nothing to serve pages from. `[auto-deploy]` in the merge
       # commit overrides the hold. Beta and dev never hold.
       # See docs/decisions/announce-when-live-poller.md.
       - name: Release plan — hold a breaking backend until the stores serve it
@@ -225,6 +226,16 @@ jobs:
       - name: Deploy Cloud Functions
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: firebase deploy --only functions --project ${{ inputs.firebase_alias }} --non-interactive --force
+
+      # A held backend still ships hosting, and hosting rewrites every page to
+      # functions (readSite, sitemap). Ship exactly those, or the read site —
+      # privacy policy and account-deletion page included — 404s until the
+      # stores go live: 1.7.1 did, and Google Play rejected it for that. They
+      # serve anonymous web readers, never an installed binary, so they are not
+      # what the hold protects.
+      - name: Deploy the functions hosting rewrites to
+        if: ${{ steps.release.outputs.hold_backend == 'true' }}
+        run: firebase deploy --only "$(node scripts/hosting-rewrite-functions.mjs)" --project ${{ inputs.firebase_alias }} --non-interactive --force
 
       # Belt-and-suspenders (fixture-login security model, Option 1C): a deployed
       # bundle must NEVER be built with the E2E emulator bypass enabled. The flag
