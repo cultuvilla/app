@@ -64,6 +64,5 @@ cannot share, so the two stay separate.
 ## Deferred
 
 - `@`-mentioning a history entry from news (`MENTION_ENTITY_TYPES`).
-- Share-link previews and sitemap entries. `ogRenderer`'s `/village/*`
-  rewrite matches a single segment, so `/village/{id}/history-entry/{id}` is
-  served the plain SPA shell, the same as places and barrios today.
+- Sitemap entries. (Share previews exist since 2026-10-02: the read site
+  renders `/<pueblo>/acontecimiento/<ref>` with its own OG tags.)

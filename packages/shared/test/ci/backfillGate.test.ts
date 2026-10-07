@@ -210,20 +210,20 @@ describe('set-app-version endpoint invariant', () => {
   });
 });
 
-// `config/appVersion.latest` drives the in-app update nudge, and it is a
-// Firestore document — so it does not ship with a code deploy the way rules,
-// indexes and functions do. Leaving it to a manual dispatch is what let beta
-// advertise 0.27.0 while 0.28.0, 0.29.0 and 0.30.0 shipped: three releases
-// whose testers were never told a new build existed. The deploy now announces
-// it itself.
-describe('version announcement on deploy', () => {
+// `config/appVersion` drives the in-app update nudge and the force-update wall.
+// The deploy keeps the doc well-formed on every env, but moves NEITHER value:
+// `latest` is the announce poller's (it asks the stores), and the wall is the
+// poller's or a deliberate "Set App Version" dispatch. A deploy announcing its
+// own version is what nudged every iOS user on 1.2.2 towards a 1.3.0 no store
+// had. See docs/decisions/announce-when-live-poller.md.
+describe('config/appVersion refresh on deploy', () => {
   // Resolved lazily, per test: `stepBlockContaining` throws when the step is
   // gone, and at describe-body scope that aborts collection of the whole FILE —
   // reporting "no tests" and taking the other 25 invariants down with it,
   // instead of naming the one thing that broke.
   const step = () => stepBlockContaining(deployWorkflow, 'seed-app-version-config.mjs');
 
-  it('announces the shipped version as part of every deploy', () => {
+  it('refreshes the doc as part of every deploy', () => {
     expect(deployWorkflow).toContain('node scripts/seed-app-version-config.mjs');
     expect(step()).toContain('--env=${{ inputs.firebase_alias }}');
   });
@@ -236,9 +236,9 @@ describe('version announcement on deploy', () => {
     expect(step()).not.toMatch(/--min[=\s]/);
   });
 
-  // Omitting --latest resolves to this branch's app.config.ts version, which is
-  // exactly what just deployed. Pinning a literal here would drift.
-  it('never pins --latest, so the announced version follows app.config.ts', () => {
+  // Omitting --latest PRESERVES the stored value. The deploy cannot know what a
+  // store serves; the announce poller asks the store and moves it.
+  it('never passes --latest, so a deploy cannot announce a version', () => {
     expect(step()).not.toMatch(/--latest[=\s]/);
   });
 

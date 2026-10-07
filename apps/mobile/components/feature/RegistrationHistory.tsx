@@ -9,7 +9,7 @@ import {
   getRegistrationEvents,
   type RegistrationEventWithId,
 } from '@cultuvilla/shared/services/registrationService';
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 import type { RegistrationEventAction } from '@cultuvilla/shared/models/event/RegistrationEventDataModel';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { formatDate } from '@cultuvilla/shared/utils/format';
@@ -79,7 +79,7 @@ export function RegistrationHistory({ eventId }: { eventId: string }) {
       // Only the handful of distinct people who acted, not one read per row —
       // an organizer removing twenty no-shows is one lookup.
       const actorIds = [...new Set(rows.map((r) => r.actorUserId).filter(Boolean))];
-      const profiles = await Promise.all(actorIds.map((id) => getUserProfile(id)));
+      const profiles = await Promise.all(actorIds.map((id) => getPublicProfile(id)));
       setActorNames(
         Object.fromEntries(
           profiles.flatMap((p, i) => (p ? [[actorIds[i], p.displayName]] : [])),

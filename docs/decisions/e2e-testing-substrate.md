@@ -1,5 +1,12 @@
 # E2E testing substrate (web Playwright + native Maestro)
 
+> **2026-10-02:** the web half is gone. The Expo web build was retired when the
+> web became a server-rendered read site
+> ([web-is-a-read-site.md](web-is-a-read-site.md)), and its Playwright suite
+> with it. Maestro on Android is the E2E suite; the read site is covered by
+> emulator tests in `functions/src/__tests__/handlers/web/`. What follows is the
+> original rationale, still true for the native half.
+
 ## Context
 
 Unit and emulator *rules* tests existed, but nothing exercised a real navigation
@@ -82,7 +89,7 @@ build (where `__DEV__` is false).
 
 - **Gate the E2E login on `__DEV__`** — `__DEV__` is false in the `expo export`
   bundle Playwright drives, so it wouldn't fire. Keyed off `USE_FIREBASE_EMULATOR`
-  instead (independent of `__DEV__`; local dev auto-login keeps its own gating).
+  instead (independent of `__DEV__`; the local dev login buttons keep their own gating).
 - **`signInWithCustomToken` / a broader auth surface** — rejected to keep the
   bypass to a single `signInWithEmailAndPassword` primitive, so the grep gate has
   one small surface to guard.

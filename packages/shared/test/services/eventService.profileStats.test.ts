@@ -28,35 +28,15 @@ vi.mock('firebase/firestore', async () => {
     query: vi.fn((_col, ...constraints) => ({ _constraints: constraints })),
     orderBy: vi.fn((field, dir) => ({ _orderBy: field, _dir: dir })),
     where: vi.fn((field, op, value) => ({ _where: field, _op: op, _value: value })),
-    getCountFromServer: vi.fn(),
+    onSnapshot: vi.fn(),
   };
 });
 
-import { getCountFromServer, getDocs, where, orderBy } from 'firebase/firestore';
+import { getDocs, onSnapshot, where, orderBy } from 'firebase/firestore';
 import {
-  getEventCountByOrganizer,
   getEventsByOrganizer,
-  getEventsByOrganization,
+  watchEventsByOrganizer,
 } from '../../src/services/eventService';
-
-describe('getEventCountByOrganizer', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('filters events by organizerUserIds array-contains and returns the server count', async () => {
-    vi.mocked(getCountFromServer).mockResolvedValue({
-      data: () => ({ count: 7 }),
-    } as any);
-
-    const n = await getEventCountByOrganizer('uid-1');
-
-    expect(where).toHaveBeenCalledWith('organizerUserIds', 'array-contains', 'uid-1');
-    expect(n).toBe(7);
-    // No ordering required for a count
-    expect(orderBy).not.toHaveBeenCalled();
-  });
-});
 
 describe('getEventsByOrganizer', () => {
   beforeEach(() => {
@@ -89,17 +69,29 @@ describe('getEventsByOrganizer', () => {
   });
 });
 
-describe('getEventsByOrganization', () => {
+// The profile's managed-events scroll reads through this watcher: same query,
+// same soft-delete filter as getEventsByOrganizer.
+describe('watchEventsByOrganizer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('queries organizerOrgIds array-contains ordered by startDate asc', async () => {
-    vi.mocked(getDocs).mockResolvedValue({ docs: [] } as any);
+  it('watches the organizer query and drops cancelled events', () => {
+    vi.mocked(onSnapshot).mockImplementation(((_q: unknown, next: (snap: unknown) => void) => {
+      next({
+        docs: [
+          { id: 'e-published', data: () => ({ status: 'published' }) },
+          { id: 'e-cancelled', data: () => ({ status: 'cancelled' }) },
+        ],
+      });
+      return () => undefined;
+    }) as any);
+    let ids: string[] = [];
 
-    await getEventsByOrganization('org-1');
+    watchEventsByOrganizer('uid-1', (events) => (ids = events.map((e) => e.id)), vi.fn());
 
-    expect(where).toHaveBeenCalledWith('organizerOrgIds', 'array-contains', 'org-1');
-    expect(orderBy).toHaveBeenCalledWith('startDate', 'asc');
+    expect(where).toHaveBeenCalledWith('organizerUserIds', 'array-contains', 'uid-1');
+    expect(orderBy).toHaveBeenCalledWith('createdAt', 'desc');
+    expect(ids).toEqual(['e-published']);
   });
 });

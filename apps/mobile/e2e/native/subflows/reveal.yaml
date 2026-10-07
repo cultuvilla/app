@@ -1,0 +1,28 @@
+# Make the element with id TARGET reachable after typing.
+#
+# CI's AVD raises a soft keyboard on `inputText`, and it covers the bottom of
+# the screen — the wizard's primary button, a form's submit. `hideKeyboard` is
+# banned (androidE2e.test.ts) because it is a BACK press that walks out of the
+# screen when no keyboard is up, as on a hardware-keyboard AVD. So BACK is sent
+# only while TARGET is hidden — the one case where a keyboard is what hides it.
+# If it is still hidden after that, it is genuinely below the fold: scroll.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    when:
+      notVisible:
+        id: ${TARGET}
+    commands:
+      - pressKey: back
+      - waitForAnimationToEnd:
+          timeout: 2000
+- runFlow:
+    when:
+      notVisible:
+        id: ${TARGET}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: ${TARGET}
+          direction: DOWN
+          timeout: 20000

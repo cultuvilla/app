@@ -2,7 +2,7 @@ import { wordHref } from '../../../lib/navigation/routes';
 import { termSlugFromId } from '@cultuvilla/shared/models';
 import { useVillageRoute, withVillageRoute } from '../../../lib/navigation/VillageRouteGate';
 import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '../../../components/primitives/Screen';
 import { VStack } from '../../../components/primitives/VStack';
@@ -171,10 +171,7 @@ function NewVocabularyTermScreen() {
   return (
     <Screen padded={false} bottomInset={false}>
       <ScreenHeader title={t('village.vocabulary.add')} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={{ flex: 1 }}>
         <Stepper
           steps={steps}
           onComplete={() => void submit()}
@@ -182,7 +179,7 @@ function NewVocabularyTermScreen() {
           loading={saving}
           primaryTestID="vocabulary-submit"
         />
-      </KeyboardAvoidingView>
+      </View>
     </Screen>
   );
 }

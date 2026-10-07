@@ -21,6 +21,7 @@ import { ManagedEventsScroll } from './ManagedEventsScroll';
 import { VillagesScroll } from './VillagesScroll';
 import { CreatedNewsScroll } from './CreatedNewsScroll';
 import { useProfileData } from '../../../lib/profile/useProfileData';
+import { useAmbassadorVillages } from '../../../lib/hooks/useAmbassadorVillages';
 
 export interface ProfileViewProps {
   uid: string;
@@ -41,6 +42,7 @@ export function ProfileView({
   const { t } = useT();
   const share = useShareDeepLink();
   const [uploading, setUploading] = useState(false);
+  const ambassadorVillages = useAmbassadorVillages(uid);
   const isSelf = variant === 'self';
 
   const {
@@ -54,7 +56,6 @@ export function ProfileView({
     orgs,
     villages,
     loading,
-    reload,
   } = useProfileData(uid, activeMunicipalityId, variant);
 
   async function onChangePhoto() {
@@ -66,10 +67,10 @@ export function ProfileView({
       // Upload to the user-scoped storage path (rule: auth.uid == userId) and
       // persist the URL on the person doc — same flow as onboarding's
       // complete-profile. The person-scoped path needs a cross-service
-      // firestore.get the live project can't resolve, so it 403s.
+      // firestore.get the live project can't resolve, so it 403s. The person
+      // listener picks the new photo up on its own.
       const url = await uploadUserPhoto(uid, picked);
       await updatePerson(selfPerson.id, { photoURL: url });
-      await reload();
     } finally {
       setUploading(false);
     }
@@ -91,6 +92,7 @@ export function ProfileView({
         subtitle={activeVillageName}
         uploading={isSelf ? uploading : false}
         onPressAvatar={isSelf ? onChangePhoto : undefined}
+        ambassadorOf={ambassadorVillages}
       />
 
       <View className="px-4 pt-4 pb-4">

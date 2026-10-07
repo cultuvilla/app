@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>34340110439-sd1n53nton2nb0m6eg319k9jueq265pa.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.34340110439-sd1n53nton2nb0m6eg319k9jueq265pa</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>34340110439-34osiqq5b35dlt8b81rf1fe6ua8piu12.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyA1YbrfqgTOARx1zwLO1fkxpnmqGu00Qsc</string>
+	<key>GCM_SENDER_ID</key>
+	<string>34340110439</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.cultuvilla.app</string>
+	<key>PROJECT_ID</key>
+	<string>cultuvilla-prod</string>
+	<key>STORAGE_BUCKET</key>
+	<string>cultuvilla-prod.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:34340110439:ios:4d1ec06ac87e7c365414c2</string>
+</dict>
+</plist>

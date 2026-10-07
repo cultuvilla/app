@@ -68,7 +68,7 @@ Play — es correcto: Play pregunta a quién va dirigida, Apple qué contiene.
 > Credenciales del buzón de prueba en los campos de arriba.
 > Eliminación de cuenta: Ajustes → Eliminar cuenta (borrado completo, RGPD).
 > El contenido generado por personas usuarias se puede denunciar desde el propio
-> comentario y los administradores del pueblo pueden ocultarlo.
+> comentario y el equipo del pueblo (su Embajador y quien le ayuda) puede ocultarlo.
 
 ## Otros formularios
 

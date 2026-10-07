@@ -32,7 +32,7 @@ import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(__dirname, 'data', 'escudos');
-const USER_AGENT = 'cultuvilla-escudo-fetcher/0.1 (https://github.com/alvaro-francisco-gil/cultuvilla)';
+const USER_AGENT = 'cultuvilla-escudo-fetcher/0.1 (https://github.com/cultuvilla/app)';
 const CONCURRENCY = 2;
 const MAX_RETRIES = 5;
 

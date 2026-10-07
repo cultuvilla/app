@@ -5,7 +5,9 @@ import * as admin from 'firebase-admin';
 const db = admin.firestore();
 
 /**
- * Keeps users/{uid}.displayName in sync with the linked persons/{personId} doc.
+ * Keeps users/{uid}.displayName in sync with the linked persons/{personId} doc,
+ * and `community.organizerSex` on every pueblo where that user is Embajador
+ * (the Embajador/Embajadora title).
  *
  * Source of truth: persons/{personId} (givenName + middleNames[] + firstSurname
  *   + secondSurname).
@@ -31,6 +33,8 @@ export const syncPersonDenormalization = onDocumentWritten(
     const userId = (after['userId'] as string | undefined) ?? null;
     if (!userId) return;
 
+    await syncOrganizerSex(handler, userId, before, after);
+
     const beforeName = before ? projectName(before) : null;
     const afterName = projectName(after);
     if (beforeName === afterName) return;
@@ -54,6 +58,36 @@ export const syncPersonDenormalization = onDocumentWritten(
     });
   },
 );
+
+async function syncOrganizerSex(
+  handler: string,
+  userId: string,
+  before: FirebaseFirestore.DocumentData | undefined,
+  after: FirebaseFirestore.DocumentData,
+): Promise<void> {
+  const afterSex = normalizeSex(after['sex']);
+  if (before && normalizeSex(before['sex']) === afterSex) return;
+
+  const snap = await db
+    .collection('municipalities')
+    .where('community.organizerId', '==', userId)
+    .get();
+  const stale = snap.docs.filter((d) => d.get('community.organizerSex') !== afterSex);
+  if (stale.length === 0) return;
+
+  const batch = db.batch();
+  for (const doc of stale) batch.update(doc.ref, { 'community.organizerSex': afterSex });
+  await batch.commit();
+  logger.info('community.organizerSex propagated', {
+    handler,
+    userId,
+    municipalities: stale.length,
+  });
+}
+
+function normalizeSex(value: unknown): 'male' | 'female' | 'other' | null {
+  return value === 'male' || value === 'female' || value === 'other' ? value : null;
+}
 
 function projectName(person: FirebaseFirestore.DocumentData): string {
   const p = person as Record<string, unknown>;

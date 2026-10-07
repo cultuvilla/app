@@ -3,8 +3,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 // Two apps reach Google Play, and only two: the public `com.cultuvilla.app`
-// (prod data, promoted across its tracks by an explicit `mobile-release`
-// dispatch) and the tester app `com.cultuvilla.app.beta` (beta data, internal
+// (prod data; its production track is fed by production-release.yml on every
+// version-bumping merge to main, its testing tracks by an explicit
+// `mobile-release` dispatch) and the tester app `com.cultuvilla.app.beta` (beta data, internal
 // track only, published on every merge to `beta`). Being separate packages is
 // the point — the beta app installs next to the store one instead of replacing
 // it. See docs/decisions/beta-is-its-own-play-app.md.
@@ -183,7 +184,10 @@ describe('mobile-release workflow', () => {
     expect(workflow).toContain('TRACK: ${{ inputs.track }}');
   });
 
-  it('never triggers automatically — publishing is an explicit decision', () => {
+  // The automatic production path is production-release.yml (see
+  // productionRelease.test.ts); this one stays the manual escape hatch for any
+  // track, a rebuild, or a resubmit.
+  it('never triggers automatically — it is the manual escape hatch', () => {
     const triggers = workflow.slice(workflow.indexOf('\non:'), workflow.indexOf('\njobs:'));
     expect(triggers).toContain('workflow_dispatch');
     expect(triggers).not.toContain('push:');
@@ -196,7 +200,7 @@ describe('prod deep-link association files', () => {
   // are committed rather than substituted at deploy time. What can silently
   // break is drift: if these stop naming the same app the submit profiles push
   // to, a shared link stops opening the app with no error message anywhere.
-  const wellKnown = resolve(repoRoot, 'apps/mobile/public/.well-known/prod');
+  const wellKnown = resolve(repoRoot, 'web/well-known/prod');
   const [assetLink] = JSON.parse(
     readFileSync(resolve(wellKnown, 'assetlinks.json'), 'utf-8'),
   ) as AssetLinks[];
@@ -243,8 +247,8 @@ describe('prod deep-link association files', () => {
 
 // The beta branch auto-builds the beta app and submits it to its internal track,
 // and builds iOS for TestFlight (.github/workflows/beta-build-and-submit.yml).
-// Neither is a public release, so this step is automated while production
-// stays an explicit decision.
+// Neither is a public release. Production follows on the beta -> main merge
+// (production-release.yml).
 describe('beta auto-submit workflow', () => {
   const wf = readFileSync(
     resolve(__dirname, '../../../..', '.github/workflows/beta-build-and-submit.yml'),

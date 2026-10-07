@@ -5,9 +5,10 @@ import { logger } from 'firebase-functions/v2';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { Resend } from 'resend';
 import { RESEND_API_KEY } from './secret';
-import { bucketIdFor, checkRateLimit } from './rateLimit';
+import { bucketIdFor, callerIpOf, checkSendRateLimits } from './rateLimit';
 import { reviewOtpCodeFor } from './reviewAccess';
 import { renderAuthOtpEmailHtml, renderAuthOtpEmailText, AUTH_OTP_EMAIL_SUBJECT_PREFIX } from './authEmailTemplate';
+import { isFunctionsEmulator } from '../shared/runtime';
 
 const handler = 'sendAuthOtpCode';
 
@@ -33,16 +34,10 @@ function generateCode(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
-// Set by the Functions emulator runtime itself — it cannot be true in deployed
-// Functions, so this is a guard by physics rather than by configuration. Read at
-// call time (not module load) so tests can toggle it.
-function isFunctionsEmulator(): boolean {
-  return process.env.FUNCTIONS_EMULATOR === 'true';
-}
-
 /** Core logic, separated from the onCall envelope so it is unit-testable. */
 export async function runSendAuthOtpCode(
   data: SendAuthOtpCodeData | undefined,
+  callerIp: string | null = null,
 ): Promise<SendAuthOtpCodeResult> {
   const email = data?.email;
 
@@ -53,7 +48,7 @@ export async function runSendAuthOtpCode(
   const trimmedEmail = email.trim();
   const bucketId = bucketIdFor(trimmedEmail.toLowerCase());
 
-  const allowed = await checkRateLimit(bucketId);
+  const allowed = await checkSendRateLimits(bucketId, callerIp);
   if (!allowed) {
     // Generic response on purpose — never let a caller distinguish
     // "rate-limited" from "sent".
@@ -141,6 +136,6 @@ export const sendAuthOtpCode = onCall<SendAuthOtpCodeData, Promise<SendAuthOtpCo
   async (request) => {
     // Unauthenticated by design: this is the entry point that lets a signed-out
     // user request a sign-in code in the first place.
-    return runSendAuthOtpCode(request.data);
+    return runSendAuthOtpCode(request.data, callerIpOf(request.rawRequest));
   },
 );

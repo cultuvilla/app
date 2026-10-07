@@ -3,7 +3,8 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
   adminDoc,
   municipalityDoc,
-  municipalityMembersCollection,
+  censoAnswersCollection,
+  censoAnswersDoc,
   municipalityMemberDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
@@ -34,9 +35,11 @@ interface MemberScan {
 async function scanMembers(municipalityId: string): Promise<MemberScan> {
   const used: UsedValuesByKey = {};
   const memberIdsByKey: Record<string, string[]> = {};
-  const membersSnap = await municipalityMembersCollection(db, municipalityId).get();
-  for (const m of membersSnap.docs) {
-    const answers = m.data().profileAnswers;
+  const answersSnap = await censoAnswersCollection(db)
+    .where('municipalityId', '==', municipalityId)
+    .get();
+  for (const m of answersSnap.docs) {
+    const { userId, profileAnswers: answers } = m.data();
     for (const [k, v] of Object.entries(answers)) {
       const existing = used[k] as Set<string | number | boolean> | undefined;
       const bucket = existing ?? new Set<string | number | boolean>();
@@ -48,7 +51,7 @@ async function scanMembers(municipalityId: string): Promise<MemberScan> {
         bucket.add(v);
       }
       if (hasValue) {
-        (memberIdsByKey[k] ??= []).push(m.id);
+        (memberIdsByKey[k] ??= []).push(userId);
       }
     }
   }
@@ -108,7 +111,7 @@ export const updateCenso = onCall<UpdateCensoData, Promise<UpdateCensoResult>>(
     });
     for (const key of removedAnsweredKeys) {
       for (const uid of memberIdsByKey[key] ?? []) {
-        batch.update(municipalityMemberDoc(db, municipalityId, uid), `profileAnswers.${key}`, FieldValue.delete());
+        batch.update(censoAnswersDoc(db, municipalityId, uid), `profileAnswers.${key}`, FieldValue.delete());
       }
     }
     // Single batch: 1 schema write + one delete per (removed-answered-key × member).

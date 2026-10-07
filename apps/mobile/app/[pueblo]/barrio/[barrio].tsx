@@ -18,11 +18,12 @@ import { ENTITY_FALLBACK_ICON } from '../../../lib/entities/registry';
 import { DetailSectionHeading } from '../../../components/feature/DetailSectionHeading';
 import { EntityComments } from '../../../components/feature/EntityComments';
 import { useT } from '../../../lib/i18n';
+import { useWatch } from '../../../lib/hooks/useWatch';
 import { useShareDeepLink } from '../../../lib/deeplink/useShareDeepLink';
 import { useAuth } from '../../../lib/auth/useAuth';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
-import { getBarrio } from '@cultuvilla/shared/services/municipalityService';
+import { watchBarrio } from '@cultuvilla/shared/services/municipalityService';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import { getBarrioViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { getMunicipalityPeopleByBarrio } from '@cultuvilla/shared/services/municipalityPersonService';
@@ -39,30 +40,25 @@ function BarrioDetailScreen() {
   const { user } = useAuth();
   const share = useShareDeepLink();
   const { canManage, canEdit } = useEntityCapabilities(villageId);
-  const [barrio, setBarrio] = useState<Barrio | null>(null);
-  const [residents, setResidents] = useState<Resident[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: barrio = null, status } = useWatch<Barrio | null>(
+    'barrioDetail:watchBarrio',
+    villageId && barrioId ? `${villageId}/${barrioId}` : null,
+    (next, error) => watchBarrio(villageId, barrioId, next, error),
+  );
+  const [residents, setResidents] = useState<Resident[] | null>(null);
+  const loading = status === 'loading';
 
-  const load = useCallback(async () => {
+  const loadResidents = useCallback(async () => {
     if (!villageId || !barrioId) return;
-    try {
-      const [b, people] = await Promise.all([
-        getBarrio(villageId, barrioId),
-        getMunicipalityPeopleByBarrio(villageId, barrioId),
-      ]);
-      setBarrio(b);
-      // Deceased residents are already absent: the directory trigger drops their
-      // municipality links, because they belong to the cemetery view.
-      setResidents(people);
-    } finally {
-      setLoading(false);
-    }
+    // Deceased residents are already absent: the directory trigger drops their
+    // municipality links, because they belong to the cemetery view.
+    setResidents(await getMunicipalityPeopleByBarrio(villageId, barrioId));
   }, [villageId, barrioId]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
-    }, [load]),
+      void loadResidents();
+    }, [loadResidents]),
   );
 
   useEffect(() => {
@@ -102,7 +98,7 @@ function BarrioDetailScreen() {
       fallbackIcon={ENTITY_FALLBACK_ICON.barrio}
       actions={actions}
       title={barrio?.name}
-      onRefresh={load}
+      onRefresh={loadResidents}
     >
       {barrio ? (
         <>
@@ -114,7 +110,7 @@ function BarrioDetailScreen() {
             </VStack>
           ) : null}
           <DetailSectionHeading>{t('village.barrioDetail.residents')}</DetailSectionHeading>
-          {residents.length === 0 ? (
+          {!residents ? null : residents.length === 0 ? (
             <Text tone="muted" variant="bodySm">
               {t('village.barrioDetail.residentsEmpty')}
             </Text>

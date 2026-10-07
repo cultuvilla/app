@@ -97,7 +97,7 @@ export default function DeleteAccountScreen() {
   const canSubmit = confirmText.trim() === CONFIRM_WORD;
 
   return (
-    <Screen padded={false} scroll>
+    <Screen padded={false} scroll bottomInset={false}>
       <ScreenHeader title={t('settings.deleteAccount.title')} />
       <View style={{ paddingBottom: insets.bottom + 16 }}>
         <VStack gap={4} className="p-4">

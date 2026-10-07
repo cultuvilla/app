@@ -60,7 +60,7 @@ If any of these is false, don't denormalize — query the source instead.
 ## When **not** to use it
 
 - The query is admin-only or runs once a day.
-- The field changes on every read-side event (e.g., live attendee count — use a counter document or `getCountFromServer` instead).
+- The field changes on every read-side event (e.g., live attendee count — use a counter field instead).
 - You're tempted to copy *every* field of the source. That isn't denormalization, it's duplication; you'll fight drift forever.
 - The value should stay **current** everywhere, lives on a **readable** source doc, and you never query by it (e.g. a villager's profile photo). Don't copy it — store the id and subscribe to the source. See [live references](./live-references.md) for that pattern and the full copy-vs-reference decision rule.
 
@@ -145,6 +145,25 @@ without joining the persons collection.
 - **Delete behavior:** the trigger leaves `users/{uid}.displayName` intact on
   person delete — the user's name is still a useful last-known value; an
   explicit account flow can clear it later if needed.
+
+### `publicProfiles/{uid}` ← `users/{uid}`
+
+The account doc holds private contact fields and is readable only by its owner
+(and app admins). Everything the app shows about *another* account — its name
+and active village — comes from this projection instead: a comment author, an
+org's member list, `/usuario/{uid}`.
+
+- **Source of truth:** `users/{uid}.displayName` (itself projected from the
+  linked person, see below) and `users/{uid}.activeMunicipalityId`.
+- **Trigger:** [functions/src/users/syncPublicProfile.ts](../../functions/src/users/syncPublicProfile.ts).
+  Fires `onDocumentWritten` on `users/{uid}`, writes exactly those two fields,
+  short-circuits when they are unchanged, and deletes the row with the account.
+- **Rules:** single-doc `get` is public; `list` and every client write are
+  denied. A listable projection would be an account directory.
+- **Backfill:** [scripts/backfill-public-profiles.mjs](../../scripts/backfill-public-profiles.mjs)
+  (registered, `pre-deploy`, auto-applied). Reconciles rows and deletes orphans.
+- **Adding a field:** only if anyone, signed out included, may read it. Contact
+  details never belong here.
 
 ### `commentCount` ← `comments/`
 
@@ -369,6 +388,32 @@ entities — `events`, `news`, `organizations`, `festivalPosters`,
   (which `dependsOn` it) copies them onto the entities. Both are registered,
   `pre-deploy`, and `autoApply` on every env.
 
+### `community.organizerSex` ← the Embajador's `persons/{personId}.sex`
+
+The pueblo's Embajador title is gendered — "Embajador" or "Embajadora" — and
+every viewer, including the anonymous web reader, has to be able to say which.
+The Embajador's person doc is often private, so the municipality carries a copy
+of that one person's `sex` next to the pointer it describes
+(`community.organizerId`). See
+[docs/decisions/embajador-title.md](../decisions/embajador-title.md).
+
+- **Why not on `users/{uid}`:** the user doc is public, so that copy would expose
+  every user's sex. On the municipality it exposes only the one person whose
+  public title reveals it anyway.
+- **Writers:** the functions that move the pointer —
+  `respondToOrganizerRequest` (approval) and `transferVillageAmbassador` (hand-over)
+  read the new Embajador's person in the same transaction; `deleteAccount` nulls
+  both fields together.
+- **Trigger:** [functions/src/users/syncPersonDenormalization.ts](../../functions/src/users/syncPersonDenormalization.ts)
+  re-projects it onto every municipality whose `community.organizerId` is the
+  user when their person's `sex` changes.
+- **Rules:** diff-locked with the pointer in `organizerIdUnchanged`
+  (`firestore.rules`) — a village admin may edit the community but not either
+  field.
+- **Backfill:** [scripts/backfill-community-organizer-sex.mjs](../../scripts/backfill-community-organizer-sex.mjs)
+  — registered, `pre-deploy`, `autoApply` on every env, and doubles as the repair
+  tool if the copy ever drifts.
+
 ## Adding a new denormalized field — checklist
 
 1. Add the field to the **read-model document's** data model in `packages/shared/src/models/`.
@@ -381,7 +426,7 @@ entities — `events`, `news`, `organizations`, `festivalPosters`,
 
 ## Counters vs. denormalization
 
-If the field you want to copy is a **count** (attendees, comments, likes), don't write a denormalization trigger — write a counter. Use Firestore aggregation queries (`getCountFromServer`) for low-traffic counts, or maintain a dedicated counter document for high-traffic ones (incremented in a transaction or by a function on the write trigger). Counters and denormalization look similar but the staleness profile is different.
+If the field you want to copy is a **count** (attendees, comments, likes), don't write a denormalization trigger — write a counter. Maintain a counter field (incremented in a transaction or by a function on the write trigger), or — for a small, bounded set the app already reads, like a user's unread notifications — count a live listener's rows with `watchCount`. Not an aggregation query (`getCountFromServer`) in the app: a server count cannot answer offline, and the app reads from its on-device cache (see [offline-first-village.md](../plans/ongoing/offline-first-village.md)). Counters and denormalization look similar but the staleness profile is different.
 
 ## Failure modes
 

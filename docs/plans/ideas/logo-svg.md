@@ -1,5 +1,7 @@
 # Vector (SVG) master for the Cultuvilla logo
 
+**Priority:** low
+
 ## Goal
 
 Replace the 472×472 PNG logo with an SVG master, the same way the lettering

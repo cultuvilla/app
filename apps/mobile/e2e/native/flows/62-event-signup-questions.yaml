@@ -1,0 +1,150 @@
+# An organizer adds a sign-up question to a new event, and an attendee answers
+# it when signing up.
+#
+# The Preguntas step exists only with sign-ups on AND "Añadir un formulario"
+# switched on (flow 60 covers the default, form-off path). The answer is stored
+# privately, on `events/{id}/registrationPrivate/{regId}.answers`, keyed by a
+# generated field id — hence docField's `answers.*`.
+#
+# The title is stamped so a re-run never matches a leftover event.
+appId: com.cultuvilla.app.dev
+env:
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  ATTENDEE_EMAIL: e2e-user@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  ATTENDEE_PERSON_ID: e2e-person-user
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- setLocation:
+    latitude: 39.4699
+    longitude: -0.3763
+- evalScript: ${output.eventTitle = 'Evento con preguntas ' + Date.now()}
+- openLink: 'cultuvilla://crear/evento'
+
+# Steps 1–2 as in flow 60.
+- extendedWaitUntil:
+    visible:
+      id: 'event-title'
+    timeout: 45000
+- tapOn:
+    id: 'event-title'
+- inputText: ${output.eventTitle}
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'event-form-primary'
+- tapOn:
+    id: 'event-form-primary'
+- tapOn:
+    id: 'event-location'
+- runFlow: ../subflows/allow-location.yaml
+- tapOn:
+    id: 'location-use-mine'
+- runFlow: ../subflows/allow-location.yaml
+- repeat:
+    times: 10
+    while:
+      visible:
+        id: 'location-confirm'
+    commands:
+      - tapOn:
+          id: 'location-confirm'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertNotVisible:
+    id: 'location-confirm'
+- tapOn:
+    id: 'event-form-primary'
+
+# Step 3 — Detalles: switch the form on, which appends the Preguntas step.
+- assertVisible:
+    id: 'signup-enabled'
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'form-enabled'
+- tapOn:
+    id: 'form-enabled'
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'event-form-primary'
+- tapOn:
+    id: 'event-form-primary'
+
+# Step 4 — Preguntas: one free-text question, then publish.
+- extendedWaitUntil:
+    visible:
+      id: 'signup-question-add'
+    timeout: 15000
+- tapOn:
+    id: 'signup-question-add'
+- tapOn:
+    id: 'type-sheet-row-text'
+- tapOn:
+    id: 'signup-question-label-0'
+- inputText: 'Talla'
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'event-form-primary'
+- tapOn:
+    id: 'event-form-primary'
+
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.eventTitle}
+      FIELD2: status
+      VALUE2: published
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.eventId = output.id}
+
+# The attendee signs up and answers the question.
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ATTENDEE_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://altozano-de-prueba/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'register-fab'
+    timeout: 45000
+- tapOn:
+    id: 'register-fab'
+- tapOn:
+    id: 'attendee-row-${ATTENDEE_PERSON_ID}'
+# The answer field's testID carries the generated field id, so match by prefix.
+- tapOn:
+    id: 'attendee-answer-${ATTENDEE_PERSON_ID}-.*'
+- inputText: 'XL'
+- runFlow:
+    file: ../subflows/reveal.yaml
+    env:
+      TARGET: 'attendee-confirm'
+- tapOn:
+    id: 'attendee-confirm'
+
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${output.eventId}/registrations'
+      FIELD: personId
+      VALUE: ${ATTENDEE_PERSON_ID}
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${output.eventId}/registrationPrivate/${output.id}'
+      FIELD: 'answers.*'
+      EXPECT: 'XL'
+- assertTrue: ${output.ok == 'true'}

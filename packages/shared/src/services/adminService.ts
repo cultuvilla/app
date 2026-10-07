@@ -1,4 +1,4 @@
-import { getDoc } from 'firebase/firestore';
+import { getDoc } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { adminDoc } from '../firebase/refs/client';
 

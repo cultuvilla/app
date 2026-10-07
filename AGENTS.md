@@ -8,11 +8,30 @@ Cultuvilla is a mobile-first web app for Spanish village communities. Organizati
 
 Design work lives under [docs/plans/](docs/plans/) by lifecycle stage (`ideas/` → `ready/` → `ongoing/`); durable rationale for shipped work is distilled into [docs/decisions/](docs/decisions/). **The code is the source of truth for *what* exists**; this file is the source of truth for *how* to build. See the `managing-plans-lifecycle` skill for where a given doc belongs. There is no `docs/superpowers/` or `docs/archive/`.
 
-The **business** side — public funding calls, encuentros worth attending, potential collaborators — lives under [project/](project/), governed by its own [project/AGENTS.md](project/AGENTS.md). It is a registry, not prose: `pnpm opportunities:list` prints the current state plus anything due in the next 30 days, and `pnpm opportunities:verify` gates it in CI. Research it with the `research-opportunities` skill / `opportunity-scout` agent, which may file and score but never contacts anyone and never submits anything. Every sweep also files a **`project/busquedas/`** record carrying its sources, its review date and — required — what returned **nothing**, because a search that records only its finds makes the next run redo it; `busquedas-freshness.yml` opens an issue weekly once a sweep is overdue.
+The **business** side — funding calls, encuentros, collaborators, the pueblo/fiestas market research, the legal entity, and the founders' panel — lives in the **private** [cultuvilla/business](https://github.com/cultuvilla/business) repo, not here. The boundary is one question: *would this still be true if the codebase were deleted and rewritten tomorrow?* If yes, it belongs there. This repo is public, so anything a funder, collaborator or co-founder would not want published never lands here.
 
-[project/mercado/](project/mercado/) is the other half: **where** Cultuvilla grows — which pueblos surround a village and when they hold their fiestas, since a pueblo is reachable in the weeks before its fiestas and persuadable in the weeks after. It is a record layer, not a registry: every date carries `fuente` + `verificadoEl`, `cobertura` records how far each search actually reached (a 20 km sweep and a 300 km sweep otherwise produce identical-looking files), and a pueblo with no verified week carries a `[[confirmar]]` so the gaps are greppable. `pnpm fiestas:verify` reports coverage; the `research-village-fiestas` skill / `mercado-scout` agent refresh it when a provincial bulletin publishes.
+The one seam between the two is the snapshot: the business repo's deploy writes it to `_admin/businessSnapshot` on the dev project, and [getBusinessSnapshot](functions/src/business/getBusinessSnapshot.ts) serves it to app admins. That callable owns only the access check — the snapshot's shape is the business repo's.
 
-That registry is read by **[apps/panel/](apps/panel/)**, a small private Vite app for the two founders — governed by its own [apps/panel/AGENTS.md](apps/panel/AGENTS.md). It is dev-only with no release path, and its data is served by an authenticated callable rather than bundled, because an earlier version lived inside the mobile app where the route guard hid the screen while the JSON still shipped in the public web bundle.
+## Sibling repos
+
+The `cultuvilla` org is checked out side by side under one folder, each repo in a
+folder prefixed with the org so a terminal or editor title says which one you
+are in:
+
+```bash
+git clone git@github.com:cultuvilla/app.git      ~/githubs/cultuvilla/cultuvilla-app
+git clone git@github.com:cultuvilla/business.git ~/githubs/cultuvilla/cultuvilla-business
+```
+
+So the other repo sits next to this one —
+relative to the **main checkout**, not to a worktree. Start a session in the repo
+the work belongs to, never in the parent folder: a session loads only its own
+repo's rules, skills and memory.
+
+- `../cultuvilla-business` — **private**: the business record and the founders' panel. Read
+  it when a task needs it (`claude --add-dir ../cultuvilla-business`); never copy its facts
+  into this public repo — not into code, docs, commit messages or PR bodies.
+  Edit it only from a session started there, under its own `AGENTS.md`.
 
 ## Repo health beats every rule below
 
@@ -26,6 +45,7 @@ Components, pages, and hooks **must not** import from `firebase/firestore`, `fir
 
 - Need `GeoPoint`, `Timestamp`, or the `User` type? Import from `@cultuvilla/shared/firebase` (the shared package re-exports them).
 - The **only** exempt file is [apps/mobile/lib/auth/AuthContext.tsx](apps/mobile/lib/auth/AuthContext.tsx) — it owns the auth boundary (sign-in/out, listeners). Everything else routes through services.
+- **Services import Firebase from the SDK seam** ([packages/shared/src/firebase/sdk/](packages/shared/src/firebase/sdk/README.md)), never `firebase/*`. On device the seam resolves to `@react-native-firebase/*` — the persistent offline cache, and the native Auth session the other SDKs authenticate with; Node tests resolve it to the JS SDK against the emulators. A lint rule forbids direct imports, and `sdkParity.test.ts` fails when a name the code imports is missing from a `.native.ts` twin. Compare error codes with `firebaseErrorCode()` — the two SDKs prefix them differently.
 
 `packages/shared` and `functions/` are ESLint-gated ([packages/shared/eslint.config.mjs](packages/shared/eslint.config.mjs), [functions/eslint.config.mjs](functions/eslint.config.mjs)); `apps/mobile` has no ESLint config yet, so there the rule is convention — don't import `firebase/*` from a screen, add a service instead.
 
@@ -49,32 +69,39 @@ This is the result of the migration recorded in [docs/decisions/open-feed-archit
 
 ### Request types (solicitudes)
 
-Two user-initiated requests exist. The Solicitudes screen (mobile) is open to
-everyone and has two tabs: **Recibidas** (inbox — items you can approve, scoped to
-what you administer) and **Enviadas** (outbox — requests you've sent). Non-admins
-simply see an empty inbox. Requests are created from in-context screens; outcomes
-arrive as notifications.
+Three user-initiated requests exist. They surface in the **Buzón** (mobile):
+*Necesita tu acción* lists what you can resolve, scoped to what you administer,
+and the activity feed shows the requests you've sent while they're pending.
+Requests are created from in-context screens; outcomes arrive as notifications.
 
 | Request | Collection | Created by | Approved by |
 |---|---|---|---|
-| Organizer (be the pueblo's organizer) | `organizerRequests/` | any user | super admin (`respondToOrganizerRequest` callable) |
+| Organizer (be the pueblo's **Embajador**) | `organizerRequests/` | any user | super admin (`respondToOrganizerRequest` callable) |
 | Organization (create peña/asociación/ayuntamiento) | `organizations/` (status `pending`) | village member | village admin (own village) or super admin (`approveOrganization` callable; `rejectOrganization` stays a client write) |
+| Join an `approval` org | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
 
-**Joining a peña/asociación is not a request — it is instant self-service.** The
-org detail FAB does a direct client write of `organizations/{orgId}/members/{uid}`
-(role `member`, function-owned), gated by Firestore rules: a user may add only
-themselves (`isOwner`), admins may add anyone. This mirrors village join
-(`joinVillage`) — both memberships are direct, approval-free client writes. (The
-legacy `organizationJoinRequests` approve-flow is superseded and slated for removal.)
+**Joining a peña/asociación depends on its `joinPolicy`.** An `open` org (the
+default) is instant self-service: the org detail FAB does a direct client write of
+`organizations/{orgId}/members/{uid}` (role `member`, function-owned), and a user
+may add only themselves, mirroring village join. An `approval` org takes a join
+request instead (table above). **Private events require an `approval` org**:
+anyone can walk into an open one, so its membership vets nobody. Read
+[docs/decisions/org-join-policy.md](docs/decisions/org-join-policy.md).
 
 **Membership roles & the audit log.** Villages and orgs are the same abstraction —
 a membership group with members that carry a `role` and one *founder*. Authority is
 ALWAYS the role flag, never the founder pointer:
 
 - **Village:** members at `municipalities/{id}/members/{uid}` with `role: 'admin' | 'user'`.
-  `community.organizerId` is the *founding organizer* — a single, nullable pointer
+  `community.organizerId` is the pueblo's **Embajador** — a single, nullable pointer
   (`null` during the wiki phase, where any member may edit basic info). It grants no
   authority of its own and it is **not** "the admin": a village can have many admins.
+  **User-facing names differ from code names on purpose:** the pointer's holder is
+  the *Embajador/Embajadora de Cultuvilla* (gendered from `community.organizerSex`),
+  every other admin is *Equipo del pueblo*. Never say "administrador" or
+  "organizador" for the village role in copy; keep the identifiers. The title moves
+  only via `transferVillageAmbassador`. Read
+  [docs/decisions/embajador-title.md](docs/decisions/embajador-title.md).
 - **Org:** members at `organizations/{orgId}/members/{uid}` with `role: 'admin' | 'member'`;
   `requestedBy` is the founder, seeded as admin on approval.
 
@@ -95,33 +122,26 @@ When a query would require N reads or live across collection boundaries, write a
 
 `strict: true` everywhere. No `any`. No `@ts-nocheck`. If a type is genuinely unknown at the boundary, use `unknown` and narrow. `@typescript-eslint/no-explicit-any` is an error in `packages/shared` and `functions`; the same standard applies in `apps/mobile` even though it isn't lint-gated yet — fix at the source, never silence with `as any`.
 
-### 6. Web parity is not a build rule
+### 6. The app is the product; the web is a read site
 
-`apps/mobile/` ships to iOS, Android **and** the web (Expo web export → Firebase
-Hosting). It is one codebase: the whole web-specific surface is 6 `.web.*` override
-files and ~27 `Platform.OS === 'web'` branch sites, fenced by
-`pnpm app:check-web-compat` / `pnpm app:check-web-export` and the
-`mobile-web-compat` skill. Keeping the two "in sync" is not a cost we pay.
+iOS and Android are the product. Every capability — writes, accounts, offline,
+push — is built for the app only, and web never shapes an app API or the app's
+data layer.
 
-Two rules, and they are deliberately not the same rule:
+The web's one job is the **anonymous reader** — the WhatsApp link recipient and
+Google search. Every public read route must resolve on web, permanently: share
+previews and the printed `/descarga` QR depend on it. Actions on web are app
+calls-to-action (universal link, store fallback), not flows.
 
-- **A feature does not have to work on web to be done.** Ship it app-only when the
-  web version would be a compromise or a blocker (native camera, push, offline).
-  Say so in the PR. Web does not hold a veto over native capabilities.
-- **Never block a flow that already works on web.** No walls, no "continúa en la
-  app" interstitial in front of a working action. The app earns its install by
-  being better, not by web being worse — and a wall lands hardest on the visitor
-  who tapped a WhatsApp link on a phone with no app installed. Desktop has no app
-  to install at all.
+The web is the **read site**: the `readSite` Cloud Function
+([functions/src/web/](functions/src/web/)) server-renders every public page,
+and Hosting serves only its static files (`web/`). `apps/mobile/` builds for
+iOS and Android only — no Expo web export, no `.web.*` files, no
+`Platform.OS === 'web'` branches. A new entity needs a read page there as well
+as its app screen.
 
-**Web's job is the anonymous reader** — the WhatsApp link recipient and Google
-search. Every read route must resolve on web, permanently: share previews
-(`ogRenderer`) and the printed `/descarga` QR depend on it. Work that improves
-anonymous read on web (SEO, share previews, first paint) is *more* valuable under
-this rule, not less.
-
-Read [docs/decisions/web-parity-not-a-build-rule.md](docs/decisions/web-parity-not-a-build-rule.md)
-before proposing that something be removed from, or blocked on, the web build.
+Read [docs/decisions/web-is-a-read-site.md](docs/decisions/web-is-a-read-site.md)
+before adding anything to the web, or proposing that web sign-up return.
 
 ## Conventions
 
@@ -149,7 +169,7 @@ detail screen; add a scaffold consumer. The term is also carried by
 
 ### State and data fetching
 
-React Context for cross-tree state (auth, village). No global store. No query cache today — every component fetches its own data via services. If you add a feature where this hurts (revalidation, optimistic updates, dedup), surface it in the PR rather than rolling your own cache.
+React Context for cross-tree state (auth, village). No global store, no query cache: the cache is Firestore's own persistent one on the native SDK. A screen reads through a service's `watch*` function and `useWatch` (`apps/mobile/lib/hooks/useWatch.ts`), so it paints from the device and stays live; a `get*` read plus a `useFocusEffect` reload is the legacy shape, kept only for per-user data not yet moved. Don't roll your own cache — see [docs/plans/ongoing/offline-first-village.md](docs/plans/ongoing/offline-first-village.md).
 
 ### Styling
 
@@ -271,32 +291,35 @@ Header ≤ 100 chars. Direct-to-`develop` is fine for small self-contained chang
 
 ### Versioning & releases
 
-- **Both stores are published.** iOS 1.0.0 was accepted by App Review on 2026-09-04; Google approved the Play production release (1.1.0, submitted 2026-09-08) and the listing went public by 2026-09-28. Both URLs are in `APP_STORES`, and `pnpm check:store-claims` verifies each listing is public. Web (Expo web export → Firebase Hosting) deploys on every promotion and is not going away — see [invariant 6](#6-web-parity-is-not-a-build-rule). See [docs/plans/ongoing/store-release.md](docs/plans/ongoing/store-release.md) for the runbook and the current state of the external (Play Console / App Store Connect) side. Store **binaries**: a merge to `beta` builds the **Cultuvilla Beta** Android app (`com.cultuvilla.app.beta`) onto its own Play **internal** track, and the prod bundle to **TestFlight** (every internal and external group; external ones via an automatic Beta App Review) ([beta-build-and-submit.yml](.github/workflows/beta-build-and-submit.yml)); **production is never automatic** and moves only by an explicit dispatch. The **JS bundle** is a separate matter — see *OTA updates* below.
-- **The Android beta is its own Play app, released automatically from `beta`.** Play serves a tester the highest version code across every track they joined, so shipping the prod package to a testing track put every tester on a testing build of the public listing. Instead `beta` builds the **`beta` EAS profile** (package `com.cultuvilla.app.beta`, "Cultuvilla Beta", Firebase `cultuvilla-beta`) and submits it to *that* app's **internal** track — it installs next to the store app, like Órdago's. The prod package reaches Play only by a deliberate `mobile-release` dispatch. iOS keeps building `production` for TestFlight, since TestFlight and the App Store share one install per bundle id. Read [docs/decisions/beta-is-its-own-play-app.md](docs/decisions/beta-is-its-own-play-app.md).
+- **Both stores are published.** iOS 1.0.0 was accepted by App Review on 2026-09-04; Google approved the Play production release (1.1.0, submitted 2026-09-08) and the listing went public by 2026-09-28. Both URLs are in `APP_STORES`, and `pnpm check:store-claims` verifies each listing is public. Web (today the Expo web export → Firebase Hosting, moving to a separate read site) deploys on every promotion — see [invariant 6](#6-the-app-is-the-product-the-web-is-a-read-site). See [docs/plans/ongoing/store-release.md](docs/plans/ongoing/store-release.md) for the runbook and the current state of the external (Play Console / App Store Connect) side. Store **binaries**: a merge to `beta` builds the **Cultuvilla Beta** Android app (`com.cultuvilla.app.beta`) onto its own Play **internal** track, and the prod bundle to **TestFlight** (every internal and external group; external ones via an automatic Beta App Review) ([beta-build-and-submit.yml](.github/workflows/beta-build-and-submit.yml)); **production follows the `beta → main` merge automatically** ([production-release.yml](.github/workflows/production-release.yml)): when the merge bumps the version, and once the prod backend deploy is green, Android builds the `production` profile onto the Play **production** track and iOS submits the TestFlight build of that version for App Review. Merging that PR is the human gate (unless the user switches on `AUTO_MERGE_TO_MAIN`, below) — decided 2026-10-06, see [docs/decisions/production-auto-release.md](docs/decisions/production-auto-release.md). Stop it per merge with `[skip-store]` in the merge commit, or with the repo variable `STORE_RELEASE_PAUSED=true`. The **JS bundle** is a separate matter — see *OTA updates* below.
+- **The Android beta is its own Play app, released automatically from `beta`.** Play serves a tester the highest version code across every track they joined, so shipping the prod package to a testing track put every tester on a testing build of the public listing. Instead `beta` builds the **`beta` EAS profile** (package `com.cultuvilla.app.beta`, "Cultuvilla Beta", Firebase `cultuvilla-beta`) and submits it to *that* app's **internal** track — it installs next to the store app, like Órdago's. The prod package reaches Play only from `main`: production-release.yml on a version-bumping merge, or a manual `mobile-release` dispatch (testing tracks, rebuilds, resubmits). iOS keeps building `production` for TestFlight, since TestFlight and the App Store share one install per bundle id. Read [docs/decisions/beta-is-its-own-play-app.md](docs/decisions/beta-is-its-own-play-app.md).
   - It needs `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` as a **repo-level** secret and fails fast with a pointer to the runbook when it is absent.
-  - **Freeze Play with the repo variable `PLAY_SUBMIT_PAUSED=true`, never by disabling the workflow** — the Android job skips and TestFlight keeps flowing. Disabling it for the 2026-09 Play review silently stopped iOS beta builds too.
-  - **iOS production ships the build testers ran.** Actions → *App Store release* → `submit` with no build number picks the newest TestFlight build of the `app.config.ts` version and submits it for App Store review. `mobile-release` (platform=ios) stays as the rebuild escape hatch. That App Store submission closes the version to Beta App Review, so external testers only ever get a version *before* it is sent to the App Store — which the beta → prod order gives for free.
+  - **Freeze Play with the repo variable `PLAY_SUBMIT_PAUSED=true`, never by disabling the workflow** — the Android jobs skip (beta and production alike) and TestFlight and the App Store keep flowing. Disabling it for the 2026-09 Play review silently stopped iOS beta builds too. On a production release this splits the stores, and the run warns about it. The skipped Android release does not come back when the variable is unset: re-run that *Production release* run, or dispatch `mobile-release` (track `production`).
+  - **iOS production ships the build testers ran.** On the `beta → main` merge, production-release.yml runs `appstore-release.mjs submit` with no build number, which picks the newest TestFlight build of the `app.config.ts` version and submits it for App Store review (a no-op if that version is already submitted). Actions → *App Store release* → `submit` is the same thing by hand; `mobile-release` (platform=ios) stays as the rebuild escape hatch. That App Store submission closes the version to Beta App Review, so external testers only ever get a version *before* it is sent to the App Store — which the beta → prod order gives for free.
   - It deliberately declares **no GitHub `environment`**: the `Production` environment's branch policy allows only `main`, so naming it from a `beta` trigger would be rejected before any step ran.
   - Locked by [storeRelease.test.ts](packages/shared/test/ci/storeRelease.test.ts).
 
-- **OTA updates (`beta` only).** A merge to `beta` publishes the JS bundle to the `beta` EAS Update channel via [mobile-ota.yml](.github/workflows/mobile-ota.yml), so a fix reaches apps that are **already installed** instead of waiting for a store binary. This is the one thing that does auto-publish on a merge, and it exists because of a concrete failure: a native-only layout bug (`h-full` on `DetailInfoCard`) was fixed the same day it was reported and still could not reach a single user — the newest binary was four days old, there was no channel, and `mobile-release` had no Play credentials.
+- **OTA updates (`beta` and `production`).** A merge to `beta` publishes the JS bundle to the `beta` EAS Update channel via [mobile-ota.yml](.github/workflows/mobile-ota.yml), and a merge to `main` publishes it to `production` (production-release.yml calls the same workflow once the prod backend deploy is green; docs/.github-only pushes skip it), so a fix reaches apps that are **already installed** instead of waiting for a store binary. It exists because of a concrete failure: a native-only layout bug (`h-full` on `DetailInfoCard`) was fixed the same day it was reported and still could not reach a single user — the newest binary was four days old, there was no channel, and `mobile-release` had no Play credentials.
   - **`runtimeVersion` is `fingerprint`, never `appVersion`** ([app.config.ts](apps/mobile/app.config.ts)). We bump the MINOR on every `develop → beta` promotion, so an `appVersion` policy would strand each update against the binaries already installed — silently recreating the problem OTA solves. Locked by [otaUpdates.test.ts](packages/shared/test/ci/otaUpdates.test.ts).
+  - **The fingerprint must survive a release, and two things used to break it.** @expo/fingerprint hashes the marketing `version` by default, so every bump minted a new runtime; [fingerprint.config.js](apps/mobile/fingerprint.config.js) skips `ExpoConfigVersions` (safe: build numbers are EAS-remote). And `eas.json` is itself fingerprinted, so CI patches the ASC key ids into it only **after** `eas build` has uploaded the project — never before. Both are locked by otaUpdates.test.ts. Binaries built before 2026-10-06 carry the old fingerprint and get no update; check a specific one with `eas fingerprint:compare --build-id <id> --environment production`.
   - **OTA carries JS and assets, never native code.** Adding a config plugin or a native module changes the fingerprint, and EAS then correctly refuses to serve the update to older binaries. Those changes still need `mobile-release` (and the `expo-native-rebuild` skill).
-  - **`production` is deliberately NOT automatic.** Pushing to real users is a release decision, not a side effect of a merge; publish it with a manual `workflow_dispatch` on the same workflow.
+  - **`production` is automatic on `main`** since 2026-10-06; merging the promotion PR is the release decision. Stop one with `[skip-ota]` in the merge commit or the repo variable `PROD_OTA_PAUSED=true`. A manual `workflow_dispatch` on mobile-ota.yml still publishes to any channel.
   - **A binary only receives updates if it was built after `expo-updates` landed** and its profile names a channel (all of `preview-dev` / `beta` / `production` do). Testers on an older build need one manual install before OTA reaches them at all.
 
-- **Deep links:** the per-env association files (`apps/mobile/public/.well-known/{env}/{apple-app-site-association,assetlinks.json}`) are copied into place at hosting-deploy time by `apps/mobile/scripts/copy-well-known.mjs`. Signing identities are **committed** there, not injected from CI — they ship in a world-readable file, so there is nothing to hide, and a value in git is reviewable and identical for a local deploy. `prod` carries the real Apple Team ID and the Play **app signing** SHA-256 (Play re-signs every AAB, so it is never the upload key); `dev` and `beta` still hold `REPLACE_SHA256_FINGERPRINT_*` and get theirs when those builds are distributed. An env with a placeholder simply opens the web build instead of the app — expected, not a bug. What must always work is that every deep link resolves as a real **web route** (each share URL, including invite `…/unirse` paths, needs a matching file under `apps/mobile/app/**`). URLs are Spanish and village-first (`/<pueblo>/evento/<titulo>_<id>`), built only by `packages/shared/src/utils/urls.ts` — read [docs/decisions/spanish-village-urls.md](docs/decisions/spanish-village-urls.md) before adding a route; a new top-level route must also be added to `RESERVED_ROOT_SEGMENTS` and the app-route rewrite in `firebase.json`. **Prod's AASA deliberately lags:** it claims only the legacy paths the live iOS 1.0.0 binary can route (it predates OTA), until an iOS build with the village-first routes is on sale — see that decision record before widening it.
+- **Deep links:** the per-env association files (`web/well-known/{env}/{apple-app-site-association,assetlinks.json}`) are copied into place at hosting-deploy time by `scripts/build-web-static.mjs`. Signing identities are **committed** there, not injected from CI — they ship in a world-readable file, so there is nothing to hide, and a value in git is reviewable and identical for a local deploy. `prod` carries the real Apple Team ID and the Play **app signing** SHA-256 (Play re-signs every AAB, so it is never the upload key); `dev` and `beta` still hold `REPLACE_SHA256_FINGERPRINT_*` and get theirs when those builds are distributed. An env with a placeholder simply opens the read site instead of the app — expected, not a bug. What must always work is that every deep link resolves on the **read site** too (each share URL, including invite `…/unirse` paths, needs a route in [functions/src/web/routes.ts](functions/src/web/routes.ts) and a screen under `apps/mobile/app/**`). URLs are Spanish and village-first (`/<pueblo>/evento/<titulo>_<id>`), built only by `packages/shared/src/utils/urls.ts` — read [docs/decisions/spanish-village-urls.md](docs/decisions/spanish-village-urls.md) before adding a route; a new top-level route must also be added to `RESERVED_ROOT_SEGMENTS` (Hosting sends every page to `readSite`, which answers reserved segments with the app hand-off). **Prod's AASA deliberately lags:** it claims only the legacy paths the live iOS 1.0.0 binary can route (it predates OTA), until an iOS build with the village-first routes is on sale — see that decision record before widening it.
 - **Marketing version** (`app.config.ts` `version`, semver `MAJOR.MINOR.PATCH`) is the single source of truth; `apps/mobile/package.json` mirrors it. MAJOR = redesign/breaking migration, MINOR = new feature, PATCH = fixes.
-- **Pre-release (now): stay on `0.x`.** Until the app is actually published to the stores, the MAJOR stays `0` — do **not** jump to `1.0.0`. Bump the **MINOR** on every `develop → beta` promotion (`0.1.0 → 0.2.0 → …`) as a running counter to track what's on beta. The `1.0.0` bump happens once, at the first real store release.
-- **Set the version in the `develop → beta` promotion PR** (beta = release candidate); it rides unchanged into `main`. Build numbers auto-increment (EAS `appVersionSource: remote`). **CI enforces this**: `.github/workflows/version-gate.yml` fails any PR targeting `beta` whose `app.config.ts` `version` isn't strictly greater than beta's, so the bump can't be forgotten. Use the `prepare-release` skill to do it.
-- **The version-bump commit message is the bare version string** — `0.10.0`, not `chore(release): 0.10.0`. commitlint (`commitlint.config.cjs`) has an `ignores` rule that exempts exactly a `X.Y.Z` header; every other commit still follows conventional commits. The bump commit contents are `apps/mobile/app.config.ts` + `apps/mobile/package.json` + the `CHANGELOG.md` stamp.
-- **`latest` is what the STORE serves, never what the repo is at.** `config/appVersion.latest` is per-platform and derives from `APP_STORE_VERSIONS` in [appStores.ts](apps/mobile/lib/appStores.ts) — the same single source as the store URLs. It is deliberately **not** the `app.config.ts` version: a promotion deploys the backend and the web on every merge, while a store binary moves only by an explicit `mobile-release` dispatch and then waits for review, so the two drift by design. Announcing the repo's version made the gate promise a download that did not exist — prod said `1.3.0` while the App Store served `1.2.2`, so every iOS user already on the newest build there got the "hay una actualización" modal every three days, pointing at a store page without it. A platform with nothing published is announced as `0.0.0`, which nobody is ever behind, so it is never nudged. **Update `APP_STORE_VERSIONS` the day a build goes live**, not the day it is submitted; `pnpm check:store-claims` compares iOS against the live App Store and fails when the two disagree.
-- **Force-update gate is dormant pre-release.** `config/appVersion.minSupported` is `0.0.0` (never blocks) while unreleased. Only raise `minSupported` above `0.0.0` once real store clients exist — and never above what that store serves: the write is refused, because a wall higher than the newest downloadable build blocks every client with nowhere to go.
-- **`config/appVersion` is written by the deploy itself — a routine release needs no dispatch.** It is a Firestore doc, so it is neither a code deploy nor a data migration, and it used to be the one manual step left in a release. It no longer is: the last step of [deploy-firebase.yml](.github/workflows/deploy-firebase.yml), *"Announce the shipped version to clients"*, runs `seed-app-version-config.mjs --env=<alias> --confirm` on every env after hosting goes out. Blank `latest` there means "whatever each store currently serves" (see above), and blank `min_supported` **preserves** whatever is stored — so a promotion announces only what a user can actually download, and cannot accidentally un-wall the fleet.
-  Reach for **Actions → "Set App Version"** ([set-app-version.yml](.github/workflows/set-app-version.yml)) only to write a value the deploy would not: **raising `minSupported`** (the deliberate force-update decision), or correcting `latest` out of band (an explicit `--latest` overrides the published version for both platforms — reach for it only when `APP_STORE_VERSIONS` cannot be committed in time). It is keyless via WIF and dry-run by default. Locally the same script is `node scripts/seed-app-version-config.mjs --env=<env> [--latest=] [--min=] [--dry-run] [--confirm]`.
+- **The bump follows the commits since beta:** any breaking change (`type!:` or a `BREAKING CHANGE:` footer) → MAJOR, any `feat` → MINOR, otherwise PATCH. `pnpm release:cut` proposes it; `--bump=` / `--version=` override when the release is a product call (a MAJOR always is).
+- **Cut a release with `pnpm release:cut`** (the `prepare-release` skill drives it; beta = release candidate, and the version rides unchanged into `main`). One command: it commits the bump (`app.config.ts` + `package.json` + the CHANGELOG stamp, which folds in and deletes every `changelog.d/` fragment) on top of `origin/develop` and **pushes it to develop** — so develop's version is always the latest cut, with no second PR — then branches `release/X.Y.Z` from it, merges `origin/main` in (beta and main are `strict`, and beta → main merge commits never reach develop), and opens the PR into beta titled `X.Y.Z` with the CHANGELOG section and a `**Migration:**` checklist. `--dry-run` shows all of it without writing. Build numbers auto-increment (EAS `appVersionSource: remote`). **CI enforces the shape** in `.github/workflows/version-gate.yml`: a PR into `beta` must bump `version` above beta's, come from `release/<that version>` and be titled with the bare version; a PR into `main` must come from `beta`.
+- **`beta → main` opens itself.** Once a push to beta has a green *Deploy beta* and a green *beta-build-and-submit*, [promote-to-main.yml](.github/workflows/promote-to-main.yml) opens (or refreshes) the `beta → main` PR, titled `X.Y.Z`, with the same checklist and links to those runs. It uses a `RELEASE_PR_TOKEN` secret when set, else `GITHUB_TOKEN`, which can only open PRs while *Settings → Actions → Allow GitHub Actions to create and approve pull requests* is on; the run fails with the manual `gh pr create` command otherwise.
+- **`beta → main` can also merge itself — off until the user turns it on.** The same workflow's `auto-merge` job (hourly, and when `android-e2e` finishes on beta) merges that PR once it is the auto-opened `X.Y.Z` PR at beta's tip, *Deploy beta*, *beta-build-and-submit* and `android-e2e` are green on that commit, main's required checks are green on it, it has no `hold` label, and `AUTO_PROMOTE_SOAK_HOURS` (repo variable, default 2) have passed since *Deploy beta* finished. It merges **only while the repo variable `AUTO_MERGE_TO_MAIN` is `true`** — setting it is the user's decision (approved in principle 2026-10-07, not yet switched on); unset, it only reports "would merge" or what it waits on in the run summary. It merges with `RELEASE_PR_TOKEN` and never with `GITHUB_TOKEN` (a `GITHUB_TOKEN` push triggers no workflow, so *Deploy prod* would never run); without the secret it warns and never merges. Add a `hold` label to stop a release, remove it to resume. The merge uses GitHub's default message, so no `[skip-…]` token lands by accident. Decision logic: [auto-promote-main.mjs](scripts/auto-promote-main.mjs); locked by [promoteToMain.test.ts](packages/shared/test/ci/promoteToMain.test.ts).
+- **The version-bump commit message is the bare version string** — `0.10.0`, not `chore(release): 0.10.0`. commitlint (`commitlint.config.cjs`) has an `ignores` rule that exempts exactly a `X.Y.Z` header; every other commit still follows conventional commits. `pnpm release:cut` writes it; `--breaking="<reason>"` adds one `Breaking-Client:` trailer line to it (still exempt), or, when develop already carries the version, makes an empty `chore(release): declare X.Y.Z breaking` commit carrying it — see the `prepare-release` skill. The bump commit contents are `apps/mobile/app.config.ts` + `apps/mobile/package.json` + the `CHANGELOG.md` stamp + the deleted `changelog.d/` fragments.
+- **`latest` is what the STORE serves, and only the announce poller moves it.** `config/appVersion.<platform>.latest` is the single source of truth — there is no copy in the repo (`APP_STORE_VERSIONS` was deleted 2026-10-06: a constant someone had to edit the day a build went live went stale). The prod deploy records the release at `_admin/announce/pending/prod`; [announce-when-live.yml](.github/workflows/announce-when-live.yml) asks Play and App Store Connect every 30 minutes and moves each platform's `latest` the first tick its store serves the version (Play: the `production` release's lifecycle is `PUBLISHED` — Google's review state, from `tracks.releases.list` — **and** the edits track shows it `completed` at full rollout; a `NOT_APPROVED` rejection warns every tick. App Store: `READY_FOR_SALE`). It is deliberately **not** the `app.config.ts` version: announcing the repo's version made prod say `1.3.0` while the App Store served `1.2.2`, nudging every iOS user towards nothing. A platform with nothing announced reads `0.0.0`, which nobody is ever behind. A store that cannot be asked (missing or malformed secret, API error) counts as not live, with a warning. A held backend is cleared only by its own successful deploy, and a dispatched `backend_sha` must already be on `main`. `pnpm check:store-claims` compares prod's iOS `latest` against the live App Store. Read [docs/decisions/announce-when-live-poller.md](docs/decisions/announce-when-live-poller.md).
+- **The wall (`minSupported`) is raised by the release that needs it, once the stores can serve it.** A `Breaking-Client:` trailer on any commit since the previous `vX.Y.Z` tag makes a production release breaking: its deploy **holds Cloud Functions and rules** (indexes and hosting still ship, the store binaries still ship, the production OTA does not), and once **both** stores serve it the poller raises `minSupported` to that version and then dispatches the held backend (`deploy-prod.yml` with `backend_sha`, pinned to the release commit). `[auto-deploy]` in the merge commit overrides the hold. Beta never holds. A wall is never written above what a store serves — the write is refused.
+- **Every deploy rewrites `config/appVersion` but moves nothing.** The last step of [deploy-firebase.yml](.github/workflows/deploy-firebase.yml) runs `seed-app-version-config.mjs --env=<alias> --confirm` on every env to keep the doc well-formed; blank `latest` and blank `min_supported` both **preserve** what is stored, so a merge can neither announce a version nor move the wall.
+  Reach for **Actions → "Set App Version"** ([set-app-version.yml](.github/workflows/set-app-version.yml)) only to write a value nothing else will: a wall the trailers did not declare, or an out-of-band correction to `latest` (an explicit `--latest` sets both platforms). It is keyless via WIF and dry-run by default; a prod run is the user's call for that run. Locally the same script is `node scripts/seed-app-version-config.mjs --env=<env> [--latest=] [--min=] [--dry-run] [--confirm]`.
 - **The `vX.Y.Z` tag is created by CI**, by the `tag` job in [deploy-prod.yml](.github/workflows/deploy-prod.yml), once the prod deploy is green — so a tag always names a commit that actually shipped. Don't tag by hand. It reads the version from `apps/mobile/package.json` and is idempotent, so a re-run (transient push failure, or re-deploying the same commit) succeeds rather than failing on an existing tag. It cannot retro-tag a release older than the job itself: a re-run uses the workflow file as it was at that commit. `v0.21.0` shipped before this existed and was tagged by hand — the only one.
-- **CHANGELOG:** on a cut release, stamp the version into the section heading (`## vX.Y.Z — YYYY-MM-DD`).
-- **Force-update gate:** clients read `config/appVersion` on launch (`appConfigService`) and block/nudge via `resolveVersionGate`. When you ship a client-breaking backend change (see *No retrocompat shims*), bump that doc's `minSupported` to the version carrying the client fix, at release time — that is the one case where you pass an explicit `min_supported`, since moving the wall is a deliberate product decision and never a side effect.
+- **CHANGELOG:** entries are `changelog.d/` fragments until a cut; `release:cut` stamps them with `[Unreleased]` into `## vX.Y.Z — YYYY-MM-DD`.
+- **Force-update gate:** clients read `config/appVersion` on launch (`appConfigService`) and block/nudge via `resolveVersionGate`. When you ship a client-breaking backend change (see *No retrocompat shims*), declare it with a `Breaking-Client:` trailer — that trailer is the decision (`pr:land` hands the PR to the user), and the release then holds its backend and raises the wall by itself, as above.
 
 ### Delete > deprecate
 
@@ -309,17 +332,19 @@ When changing the shape of data already in Firestore, surface the migration expl
 - Note the affected docs and field(s) in the commit body and the PR description.
 - Add a backfill script under `scripts/` when the change can't be expressed as a Cloud Function trigger.
 - **Register the backfill so the deploy can enforce it** — see *Backfills* below. A registered backfill declares a `phase`, and `pre-deploy` ones block the promotion until they have actually run against the target env. That, not a doc, is what makes "a backfill is pending" a checkable fact: the completion marker at `_admin/backfills/markers/{id}.{env}` is the source of truth.
-- **Also mark it in the CHANGELOG.** Put a `**Migration:**` marker inline in that `[Unreleased]` entry naming the script (e.g. `**Migration:** existing rows are purged by re-running \`scripts/backfill-municipality-people.mjs\` (per env)`). The `prepare-release` skill greps the stamped version block for `**Migration:**` and emits a per-env checklist into the `develop → beta` / `beta → main` promotion PRs. The registry is the *enforcement*; this marker is the human-readable release story that says which data moved and why.
+- **Also mark it in the CHANGELOG.** Put a `**Migration:**` marker inline in that change's `changelog.d/` entry naming the script (e.g. `**Migration:** existing rows are purged by re-running \`scripts/backfill-municipality-people.mjs\` (per env)`). `pnpm release:cut` and `promote-to-main.yml` turn every `**Migration:**` in the stamped version block into a checklist in the `release/X.Y.Z → beta` / `beta → main` promotion PRs. The registry is the *enforcement*; this marker is the human-readable release story that says which data moved and why.
 - Don't leave dual-read code, shim re-exports, or `// removed: …` comments. Pairs with the `### Delete > deprecate` rule above.
 - If the change breaks older store clients, raise `config/appVersion.minSupported` to the fixed version at release time (see *Versioning & releases*).
 
 Only add a compatibility layer when the user explicitly asks for one (e.g. when an in-flight client release would break without it).
 
+**Installed store clients are the exception, and expand → migrate → contract is the default for them.** Both store apps are published and installed binaries lag the backend by weeks, so a callable, a rule or a stored field an old binary still depends on is kept (dual-written, kept callable) until `minSupported` has passed it — that compatibility window is **not a shim**. The removal is a later *contract* commit, and only that commit may carry `Breaking-Client:` (or `Breaking-Client-Exempt:` once the drain is provably complete). CI's `breaking-changes` job fails an undeclared callable removal and a stored-schema change that tightens without a `pre-deploy` backfill or loosens without a trailer. Read [docs/decisions/breaking-change-and-hard-wall.md](docs/decisions/breaking-change-and-hard-wall.md).
+
 ### Backfill dev when a schema field is added
 
 Reads route through a **strict** Zod converter ([makeConverter](packages/shared/src/firebase/converters/makeConverter.ts) → `schema.parse`), so a doc missing a newly-added field makes the converter *throw* and crashes whatever screen reads that collection. When a feature adds or tightens a model field, backfill the existing dev docs (`villa-events`) in the same change — don't leave the field optional just to tolerate stale data (that's a retrocompat shim; see above).
 
-- **Dev backfill is autonomous — no confirmation needed.** Dev (`villa-events`) is safe to mutate; an agent implementing a feature may write and run the backfill script directly. Beta/prod stay off-limits (CI / explicit user instruction only — see `firebase-admin-dev` skill).
+- **Dev and beta backfills are autonomous — no confirmation needed** (see *Approval*). Dev (`villa-events`) and beta (`cultuvilla-beta`) are non-production; an agent may write and run the backfill there directly — dry run first, `--confirm` on beta. Prod stays the user's (CI on promotion, or their explicit go for a specific run).
 - Write the backfill as a one-off, idempotent `scripts/backfill-<thing>.mjs` **registered on the harness** (mirror `scripts/backfill-municipality-namelower.mjs`): only patch docs missing the field, set the same default the model builder uses, and give it `phase: 'pre-deploy'` so the promotion to beta/prod blocks until it has run there. See *Backfills* above.
 - Verify with **`pnpm check:dev-conformance`** ([scripts/check-dev-conformance.mjs](scripts/check-dev-conformance.mjs)) — it walks every dev collection through its converter and reports nonconforming docs. Run it before and after the backfill. It needs credentials, so it is **not** part of the `pnpm check` CI gate; run it manually against dev after schema changes.
 - **Beta/prod are gated automatically, twice.** Every `develop → beta` and `beta → main` deploy runs, *before* any `firebase deploy` and against the target env's live data (via the WIF service account): the **conformance gate** (this same check — does the stored data parse under the shipped converters?) and the **backfill gate** (`pnpm backfills:verify` — has every `pre-deploy` backfill actually run here?). Either one failing blocks the whole promotion instead of shipping a converter crash. See the "Conformance gate" and "Backfill gate" steps in [.github/workflows/deploy-firebase.yml](.github/workflows/deploy-firebase.yml); the wiring is locked in by [conformanceGate.test.ts](packages/shared/test/ci/conformanceGate.test.ts) and [backfillGate.test.ts](packages/shared/test/ci/backfillGate.test.ts). So the practical rule is: backfill the target env before promoting, or the promotion's deploy will block.
@@ -431,13 +456,30 @@ pnpm backfills:test                                   # registry unit tests
   manual dispatch at all.
 - **Six legacy scripts** predate the registry and are not on it.
   `pnpm backfills:lint` warns about them in CI without failing. Convert
-  opportunistically; register anything new. The other ~16 were spent one-offs
+  opportunistically; register anything new. The other ~17 were spent one-offs
   and have been deleted (*Delete > deprecate*) — what survives is the set with a
   live pointer: five are the **backfill-of-record** named in
   [denormalized-read-models.md](docs/architecture/denormalized-read-models.md)
   for a read model that could still drift, and one is wired to a `package.json`
   script. Deleting those would throw away the answer to "how do I repopulate
   this?", so retire one only after its entry in that doc goes too.
+
+### Plans carry a metadata block, and the map is generated
+
+<!-- plans:landed -->
+
+Every plan carries the block `managing-plans-lifecycle` defines (agent-plans v2):
+`**Priority:**` everywhere, plus `**Landed:** / **Gate:** / **Next:**` once it is in
+`ongoing/`. The comment above is the machine-readable switch that makes `Landed`
+required here: this repo deploys, and `Landed` (`none | dev | beta | prod | n/a`, the
+furthest env where the code is live) is the retirement gate — merged is not verified.
+Don't write `Status`/`Stage`/`Updated` lines; the folder and git carry them.
+
+[docs/plans/_plans-map.md](docs/plans/_plans-map.md) is **generated — never edit it,
+never commit it from a branch.** [plans-map.yml](.github/workflows/plans-map.yml)
+validates every block on a PR and regenerates the map on each push to `develop`.
+`pnpm plans:validate` checks your edit locally; `pnpm plans:map` renders it for a
+look. The generator is shared (`scripts/plans-map.js` links into `.agents/_shared`).
 
 ### Comments
 
@@ -453,7 +495,6 @@ pnpm lint             # eslint --max-warnings 0 in packages/shared + functions
 pnpm typecheck        # tsc --noEmit in shared, functions, i18n, mobile
 pnpm test             # vitest (shared) + jest (mobile) + functions, under emulators
 pnpm backfills:list   # registered data migrations (see Backfills)
-pnpm test:e2e:web     # Playwright over the web export, under emulators
 pnpm test:e2e:android # Maestro on an Android AVD, under emulators (needs a device)
 pnpm check:store-claims # verify the store-release runbook against live infra
 ```
@@ -565,7 +606,7 @@ pnpm app:typecheck                             # tsc --noEmit for apps/mobile
 - **Image uploads**: use `pickImageAsBlob` (returns a `Blob`) and pass it to `imageService`. Never import from `firebase/storage` directly in mobile screens — route through the service.
 - **i18n**: add new strings to `packages/i18n/messages/es.json` (nested JSON), consumed via the thin `useT()` adapter in `apps/mobile/lib/i18n.tsx`. Dotted-path lookup works (the adapter walks the object on `.` splits).
 - **EAS Build profiles**: `development` / `preview-dev` / `beta` / `production` (defined in `apps/mobile/eas.json`) map to the `villa-events` / `cultuvilla-beta` / `cultuvilla-prod` Firebase environments via `APP_ENV`. Keep them in sync when Firebase config changes. `production` reads its Firebase values from the **EAS `production` environment** (`eas env:list --environment production`), not from `.env` or GitHub — `app.config.ts` is evaluated on the EAS build server.
-- **EAS Submit profiles**: `internal` / `closed` / `production` map to the Play tracks `internal` / `alpha` / `production` of **Cultuvilla** (`com.cultuvilla.app`, Firebase `cultuvilla-prod`), used only by `mobile-release`. `beta` maps to the **internal** track of **Cultuvilla Beta** (`com.cultuvilla.app.beta`, Firebase `cultuvilla-beta`), used by `beta-build-and-submit` on every merge to `beta`. Nothing else reaches a store: `.dev` stays sideload-only, because a new store identity needs its own FCM config, Android OAuth client and App Links host. `cultuvilla-beta` is both the backend staging env (promotion deploys + the conformance/backfill gates) and the beta app's backend. Read [docs/decisions/beta-is-its-own-play-app.md](docs/decisions/beta-is-its-own-play-app.md); locked by [packages/shared/test/ci/storeRelease.test.ts](packages/shared/test/ci/storeRelease.test.ts).
+- **EAS Submit profiles**: `internal` / `closed` / `production` map to the Play tracks `internal` / `alpha` / `production` of **Cultuvilla** (`com.cultuvilla.app`, Firebase `cultuvilla-prod`), used by `mobile-release` and — `production` only — by `production-release` on a version-bumping merge to `main`. `beta` maps to the **internal** track of **Cultuvilla Beta** (`com.cultuvilla.app.beta`, Firebase `cultuvilla-beta`), used by `beta-build-and-submit` on every merge to `beta`. Nothing else reaches a store: `.dev` stays sideload-only, because a new store identity needs its own FCM config, Android OAuth client and App Links host. `cultuvilla-beta` is both the backend staging env (promotion deploys + the conformance/backfill gates) and the beta app's backend. Read [docs/decisions/beta-is-its-own-play-app.md](docs/decisions/beta-is-its-own-play-app.md); locked by [packages/shared/test/ci/storeRelease.test.ts](packages/shared/test/ci/storeRelease.test.ts).
 - **App Check**: the `initMobileAppCheck` seam is wired in the app bootstrap but is a no-op. Do not remove it — it will be activated when the product opts in. Leave it untouched unless explicitly asked.
 - **Native rebuilds**: after installing a package that ships an Expo config plugin, or after changing the `plugins` array in `apps/mobile/app.config.ts`, run a clean prebuild. See the `expo-native-rebuild` skill.
 
@@ -578,8 +619,7 @@ prefer targeted tests/typechecks locally and let the PR's CI run the full gate. 
 direct-to-`develop` mode, run the full gate locally before committing:
 
 - `pnpm check` (the full gate), `pnpm test`, `pnpm test:emulators`,
-  `pnpm test:integration`, `pnpm test:rules`, `pnpm test:functions`,
-  `pnpm test:e2e:web` (Playwright over the web export)
+  `pnpm test:integration`, `pnpm test:rules`, `pnpm test:functions`
 
 `pnpm test:e2e:android` (Maestro on an AVD) is the same shape but needs a booted
 Android emulator, which this environment usually lacks — CI's `android-e2e`
@@ -621,30 +661,83 @@ reviewer. All daily work targets `develop`. See
    - Pure logic, model builders, validation, and service helpers go in `packages/shared/test/` (vitest).
    - New ESLint rules, type-level contracts, or other "this must keep working" invariants get a test that fails if the invariant breaks (see [packages/shared/test/eslint/rules.test.ts](packages/shared/test/eslint/rules.test.ts) for the pattern).
    - If a change is genuinely untestable today (UI-only, no extractable logic), say so in the PR description and explain why.
-5. **Keep documentation in sync.** If you add a new collection or denormalized field, update [packages/shared/src/services/_services-map.md](packages/shared/src/services/_services-map.md) and [docs/architecture/denormalized-read-models.md](docs/architecture/denormalized-read-models.md) in the same change. Note user-facing changes in [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]`.
+5. **Keep documentation in sync.** If you add a new collection or denormalized field, update [packages/shared/src/services/_services-map.md](packages/shared/src/services/_services-map.md) and [docs/architecture/denormalized-read-models.md](docs/architecture/denormalized-read-models.md) in the same change. Note user-facing changes as a fragment, `changelog.d/<topic>.md` — never under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), which holds only the store notes. One file per change keeps parallel PRs from conflicting; `release:cut` stamps them. See [changelog.d/README.md](changelog.d/README.md).
 6. **Verify according to the selected mode.** In a worktree, run the relevant targeted tests/typechecks, push promptly, and use the PR's GitHub CI result as the authoritative full `pnpm check` gate — do not duplicate the entire gate locally by default. Direct-to-`develop` has no PR gate, so run `pnpm check` locally before committing.
-7. **Open a pull request** with `gh pr create` targeting `develop`. A PR is a written record of what changed and why, and lets CI gate the change before it touches `develop` (and, via promotion, beta/prod). The PR description should cover:
+7. **Open a pull request** targeting `develop` — through `pnpm pr:land` (step 8), which adds the `ai-review` label the reviewer needs; never a bare `gh pr create` without that label. A PR is a written record of what changed and why, and lets CI gate the change before it touches `develop` (and, via promotion, beta/prod). The PR description should cover:
    - **What** changed at a level the future reader needs (not a diff restatement).
    - **Why** it was done — the motivating problem or design decision.
    - **Tests** that were added (or an explicit note if none were possible).
    - **Test plan** as a checklist: targeted local checks, full CI gate, manual verification steps.
-8. **Land it with `pnpm pr:land`.** It opens the PR, watches CI, applies the rebase and hard-stop rules below, and merges when the bar is met. Run it, act on the exit code, run it again: `0` merged · `10` CI red · `20` review requested changes · `30` **hand to a human** · `40` preflight failed. Steps 7, 9 and 10 are what it automates — don't hand-roll them. **A green PR merges itself** — see the Autonomy contract for what that bar is and what it deliberately excludes.
-9. **Before merging, rebase the branch onto the latest `develop`.** `git fetch origin develop && git rebase origin/develop`, resolve any conflicts, run targeted checks for the affected/conflicted areas, then `git push --force-with-lease`. CI must run the full gate and go green again on the rebased commits before the merge. Stale branches cause silent breakage when the merge crosses a refactor that landed on develop while the PR was in review. (Promotion PRs `develop → beta` and `beta → main` follow the same rebase-then-green rule.)
-10. **Merge with a merge commit, not squash or rebase.** Use `gh pr merge <n> --merge`. Squashing would collapse the carefully-scoped commits in the PR (e.g. "feature" + "test for feature") into one, which makes `git bisect` and `git blame` worse. Rebase-merging hides the PR boundary entirely. A merge commit preserves both.
+8. **Land it with `pnpm pr:land`.** It opens the PR, watches CI, applies the hard-stop rules below, and hands a green PR to the **merge queue** on `develop`, which merges it. Run it, act on the exit code, run it again: `0` merged · `10` CI red · `20` review requested changes · `30` **hand to a human** · `40` preflight failed. Steps 7, 9 and 10 are what it automates — don't hand-roll them. **A green PR merges itself** — see the Autonomy contract for what that bar is and what it deliberately excludes.
+9. **Don't rebase to stay current — the merge queue tests the merge.** `develop` requires a GitHub merge queue ([.github/rulesets/develop.json](.github/rulesets/develop.json)): the queue runs the full `ci.yml` gate, emulators included, on your PR stacked on the latest `develop` and on every PR ahead of it, and merges only a green result. That is what catches a refactor that landed under you. Rebase only on a real conflict (`pr:land` exits `40`). Read [docs/decisions/merge-queue.md](docs/decisions/merge-queue.md). (Promotion PRs `develop → beta` and `beta → main` have no queue and still follow a rebase-then-green rule.)
+10. **Merge with a merge commit, not squash or rebase.** The queue's `merge_method` is `MERGE`, so it writes one merge commit per PR. Squashing would collapse the carefully-scoped commits in the PR (e.g. "feature" + "test for feature") into one, which makes `git bisect` and `git blame` worse. Rebase-merging hides the PR boundary entirely. A merge commit preserves both.
 11. **If you broke a rule in this file deliberately**, update this file in the same PR.
+
+## Approval — what agents start without asking
+
+**`ready/` means approved, not planned.** A plan reaches `ready/` because someone with the authority said *yes, this should exist* — the user, or the standing policy below — and that decision is what the stage records. The File Structure and Tasks are written by the agent that starts the work, against the code of that day: a decision holds for months, while plan facts rot in weeks. **Approve early, plan late.**
+
+**Priority orders the queue; it never gates it.** An approved `low` plan is worked when nothing ranked above it is waiting.
+
+Two shared skills run on this policy: **`advance-plans`** builds the approved pool in parallel — `ongoing/`, then `ready/`, then pre-approved ideas straight from `ideas/` — and **`review-ideas`** verifies ideas against the code and asks the user for the yeses (tagging the pre-approved ones `Pre-Approved: <slug>` so the builder finds them).
+
+**The line is subjectivity** (decided 2026-10-05, adopting ordago's policy). The user's consent is for what is a matter of judgement they hold — product, business, taste — and not for engineering the agents and the tests can verify. So the default for objective work is *do it and report it*, and a new gate needs a subjective reason.
+
+**Free — no approval at all:** read-only investigation and audits (prod reads included), and writing or updating plans.
+
+**Pre-approved — an agent may take these from `ideas/` to merged without asking:**
+- fixing a defect whose correct behaviour is not in dispute — a crash, a leak, a wrong result, code that breaks its own docs or tests — unless the fix changes a product rule;
+- debt and refactors that change nothing observable (below);
+- internal instrumentation and tooling no user sees — telemetry, log severity, diagnostics, scripts;
+- test and CI health — flakes, missing coverage, a broken lane;
+- docs, plans and comments that contradict the code;
+- consolidating duplicates into one source of truth — where the copies disagree, only if the surviving behaviour is the documented or tested one;
+- a data migration or backfill that follows from an architectural benefit — a reshaped read model, a dead field, a consolidation. One that implements a product or business decision inherits that decision's yes instead;
+- running dev (`villa-events`) and beta (`cultuvilla-beta`) data operations and deploys — backfills, repairs, rules, indexes, functions — dry run and backup first, logged with counts. **Beta is not a sandbox:** it is the backend of the *Cultuvilla Beta* app real testers run, so a beta write is held to a prod-grade dry run. Production (`cultuvilla-prod`) stays the user's.
+
+**Needs the user's yes:** anything a user can see or do differently; a product rule (a limit, a permission, who may do what); anything that adds running cost; removing something a user or any supported client version can reach; a new external service or account. **Unsure which class → it needs a yes.**
+
+What the words mean:
+- **Differently** — what a user is shown or allowed changes. The same result, faster or more reliably, does not count: a crash that stops happening is a fix, not a change. A stored shape changing underneath the same experience is engineering — a migration, pre-approved above when it follows from an architectural benefit.
+- **Observable / stored data** — any Firestore or Storage field or collection added, removed or reshaped, and any analytics event name or attribute a dashboard reads.
+- **Running cost** — a new recurring cost line: a deployed function or trigger, a Cloud resource, a quota, a paid service, a CI job. Marginal reads or bytes per request do not count.
+
+Three rules settle the edges. **A yes written into a plan counts** ("Decided 2026-10-05 (user)") — move that plan to `ready/` when you see it. **A plan's own `Gate` or "do not start until" outranks pre-approval.** **A plan that mixes classes** may land its pre-approved part alone only if that part is useful without the rest; otherwise the whole plan waits for the yes. Pre-approval covers *starting* the work, never merging past a hard stop (Autonomy contract).
+
+**The classifier enforces this for unattended agents.** [.agents/auto-mode.json](.agents/auto-mode.json) restates this section and the Autonomy contract for Claude Code's auto-mode classifier; each person running agents installs it with `pnpm agent:auto-mode --write` (it never reads a repo's own settings). Change both in the same commit — the file is this policy restated, never a looser one.
 
 ## Autonomy contract
 
 **The user is a decider, not a merge gate.** A change should cost them two messages: their request, and one decision. The `ship-a-feature` skill owns the procedure — front-load every business and technical question into ONE message with a recommended pick on each, take `go` as "all your picks", then implement and land without check-ins.
 
-- **`ship-a-feature` and `managing-plans-lifecycle` are shared, not local.** Both are symlinks into the `.agents/_shared` submodule ([agent-skills](https://github.com/alvaro-francisco-gil/agent-skills)), consumed by several repos. **Do not edit them to fix something about this repo** — they carry procedure only. Every Cultuvilla-specific value lives here and in `.agents/land.config.json`. Run `git submodule update --init` after cloning, or the skills are empty.
-- **Merge bar: CI green. The agent merges to `develop` itself** — the user is not the gate, on an explicit decision (2026-08-22). Say plainly what that costs: no `ai-review` reviewer is wired here yet, so **nothing reads the diff but the test suite**. This is a weaker bar than ordago's, not an equal one. It is bounded rather than unbounded: the hard-stop list below still never self-merges, the vacuous-green guard still refuses to read "no run dispatched" as "tests passed", and `develop` is not a release branch — a bad merge is caught before it reaches `beta`.
-- **Restore the review requirement the day the reviewer works here.** Set `requireApprovingReview: true` in `land.config.json` — leaving it false past that point keeps the weaker bar for nothing.
-- **Reviews reach this repo by poll, and cannot reach it any other way.** ordago gets an immediate trigger from a `request-review` job that calls homelab's reusable workflow. That is impossible here: **this repo is public and homelab is private**, and a public repo cannot call a private repo's reusable workflow. GitHub resolves the callee when it *creates* the run, before evaluating any job-level `if` — so such a job is not inert-until-enabled, it fails the entire workflow to load and takes every other job down with it. Don't add one back; it was tried on 2026-08-22 and run `32594475090` completed with zero jobs. This repo is already registered in homelab's `personal/agent-review.yml`, so the 15-minute poll backstop is the path. The cost is latency, not capability.
+- **`ship-a-feature` and `managing-plans-lifecycle` are shared, not local.** `ship-a-feature` is a symlink into the `.agents/_shared` submodule; `managing-plans-lifecycle` is vendored from agent-plans (see `.agents/README.md`). The [agent-skills](https://github.com/alvaro-francisco-gil/agent-skills) submodule is consumed by several repos. **Do not edit them to fix something about this repo** — they carry procedure only. Every Cultuvilla-specific value lives here and in `.agents/land.config.json`. Run `git submodule update --init` after cloning, or the skills are empty.
+- **Merge bar: CI green + an approving `ai-review`. The agent merges to `develop` itself** — the user is not the gate (decided 2026-08-22). The reviewer has worked here since 2026-10-06 (powerreviewer reviewed #469), so `requireApprovingReview` is `true` in `land.config.json`; from 2026-08-22 until then the bar was CI alone. A `REQUEST_CHANGES` is a round: fix and re-run `pr:land` (exit `20`). After **2** rounds (`maxReviewRounds`, cut from 3 on 2026-10-07: fix the first review, and the second verdict ends it) the review conversation ends and the PR lands on CI green alone (`roundsExhausted: "merge"`) — don't stop to report that. The hard stops below still never self-merge, the vacuous-green guard still refuses to read "no run dispatched" as "tests passed", and `develop` is not a release branch — a bad merge is caught before it reaches `beta`.
+- **Always open a PR through `pnpm pr:land`, or add the `ai-review` label yourself.** The reviewer only picks up labelled PRs, and `pr:land` adds the label when it opens one. A PR opened with bare `gh pr create` is never reviewed: PRs #436–#468 went through that way while the merge bar was CI alone. Now that the bar requires a review, such a PR just waits until `reviewTimeoutMs` (40 min) and exits `30`.
+- **Reviews reach this repo by poll, and cannot reach it any other way.** ordago gets an immediate trigger from a `request-review` job that calls homelab's reusable workflow. That is impossible here: **this repo is public and homelab is private**, and a public repo cannot call a private repo's reusable workflow. GitHub resolves the callee when it *creates* the run, before evaluating any job-level `if` — so such a job is not inert-until-enabled, it fails the entire workflow to load and takes every other job down with it. Don't add one back; it was tried on 2026-08-22 and run `32594475090` completed with zero jobs. This repo is already registered in homelab's `personal/agent-review.yml`, so the 15-minute poll backstop is the path. The cost is latency, not capability: expect a review within a poll interval, not immediately, and leave `pr:land` waiting rather than re-running it in a tight loop.
 - **"No CI ran" is never "CI passed".** `ci.yml` has no `paths:` filter, so every PR here does dispatch a run — `land.config.json` records that as `ciPaths: ["**"]`. If a path filter is ever added, that value must change with it.
-- **Rebase only when the base moved *into* your diff** — path intersection, or a `packages/shared/**` / lockfile / rules move. `pr:land` decides; don't pre-emptively rebase.
-- **Hard-stop list — these never self-merge, however green:** `firestore.rules`, `storage.rules`, `firestore.indexes.json`, `scripts/backfill*`, `packages/shared/src/firebase/converters/**`, and **any PR targeting `beta`/`main`**. "Green" answers *did the tests pass*, not *is the blast radius acceptable*.
+- **The merge queue owns staleness, not rebases.** `pr:land` detects the queue on `develop` and enqueues instead of rebasing; a queue failure is retried once, and a second one exits `10`. Rebase only on a conflict. The `sharedBlastRadius` rules in `land.config.json` apply only if the queue is ever switched off.
+- **Hard stops — what still goes to the user, and why so little does.** The user's consent covers what is *subjective* (*Approval*), not engineering an agent and the tests can judge. Nothing merged to `develop` reaches beta or prod by itself: rules, indexes and `autoApply` backfills get there only through a promotion PR the user merges. So since 2026-10-05 the `hardStop` path list in `.agents/land.config.json` is **empty**: rules, indexes, converters and backfill scripts merge on CI green + `ai-review` like any other code. `test:rules` and the conformance gates are what actually execute a rules or converter change before it auto-deploys to dev; the reviewer reads it, and once its rounds run out CI alone decides.
+  - **ENFORCED — `pr:land` exits `30` and hands the PR to the user:** a `Breaking-Client:` git trailer (it walls installed store clients — a product call; see *Versioning & releases*), and **any PR targeting `beta`/`main`** (a promotion), which `pr:land` cannot land since it only reads PRs based on `develop`. `pr:land` and agents never merge one; the one exception is the `beta → main` PR, which `promote-to-main.yml` merges by itself only while the user has set `AUTO_MERGE_TO_MAIN=true` (see *Versioning & releases*).
+  - **PARTLY ENFORCED — CI's `breaking-changes` job** ([check-callable-removal.mjs](scripts/check-callable-removal.mjs), [check-schema-change.mjs](scripts/check-schema-change.mjs)): a removed/renamed callable or HTTPS endpoint, and a stored Zod schema that loosens (required field dropped or made optional), fail the PR unless a commit carries `Breaking-Client:` or `Breaking-Client-Exempt:`; a schema that tightens fails unless a registered `pre-deploy` backfill ships in the same PR. Both are heuristics with documented blind spots — see [breaking-change-and-hard-wall.md](docs/decisions/breaking-change-and-hard-wall.md).
+  - **NOT ENFORCED — agent discipline:** what those checks cannot see is still breaking — a callable whose input or response **tightens**, a rule tightened against a write old binaries still make, an enum widened under an old converter. Declare it with `Breaking-Client:` or make it non-breaking (expand → migrate → contract). **Production writes and deploys** — `--env=prod`, `pnpm deploy:*:prod`, the *Run Backfill* / *Set App Version* workflows against prod — need the user's explicit go for that specific run.
 - **A red lane is not automatically your bug.** Read the log before changing code.
+
+**Parallel batches.** One leader session runs several workers at once with the shared
+`orchestrate` skill (an ad-hoc batch: pick with the user, then dispatch), or
+`advance-plans` (build every approved plan with no `go`, until nothing agents can move is
+left); `review-ideas` checks `ideas/` against the code and asks for yeses. Workers are
+admitted by `pnpm agent:capacity` (RAM and emulator suites — never a fixed count),
+launched by `pnpm agent:dispatch` into the `cultuvilla-fleet` tmux session, and land with
+`scripts/pr-land-bg.sh`. Fleet facts — session names, capacity limits, worktree setup —
+live in [.agents/orchestrate.config.json](.agents/orchestrate.config.json). Each worker
+inherits this whole contract, the hard-stop list included. In a worktree, run
+**`source scripts/agent-env.sh`** once before any emulator test: it installs
+dependencies and writes a gitignored `firebase.agent.json` that moves this worktree's
+emulators onto their own ports, which
+[run-tests-with-emulators.mjs](scripts/run-tests-with-emulators.mjs) then uses. Without
+it, two worktrees running emulator suites share 8080/9099 and one silently breaks the
+other's tests. The leader frees the slot with `source scripts/agent-env.sh --clean`
+before removing the worktree.
 
 **This repo overrides two `superpowers` skills.** `superpowers:brainstorming`'s one-question-per-message rule and `superpowers:finishing-a-development-branch`'s stop-and-ask merge menu are **superseded by `ship-a-feature`**. Every other superpowers skill still applies.
 
@@ -664,9 +757,15 @@ reviewer. All daily work targets `develop`. See
 Surface these as a one-line suggestion (or an inline diff if the change is under ~10 lines) at the end of your response, when you notice:
 
 - **Repeated manual ops (2+ times)** → script in `scripts/`.
-- **Encodable workflow** (deploy recipe, migration ritual, audit playbook) → skill under `.claude/skills/<name>/SKILL.md`.
+- **Encodable workflow** (deploy recipe, migration ritual, audit playbook) → skill under `.agents/skills/<name>/SKILL.md`.
 - **Convention used in 3+ places but undocumented** → addition to this file, or a new sub-directory `AGENTS.md` (e.g. `functions/AGENTS.md`, `packages/shared/AGENTS.md`, `apps/mobile/AGENTS.md`) so agents working there don't load the whole root file.
 - **Single source of truth violated** (duplicated enum, status string, threshold, hex colour) → consolidate in the same commit if small, propose a follow-up if not.
 - **Docs contradicting code** → fix or delete the doc; don't work around it.
 - **Shipped plan still in `docs/plans/ongoing/`** → distil durable rationale into `docs/decisions/<slug>.md`, then delete the plan (code is the source of truth). See the `managing-plans-lifecycle` skill. Don't archive — there is no `docs/archive/`.
 - **Service touched without tests** → propose adding the missing coverage.
+
+## Shared agent setup
+
+`AGENTS.md` is the shared instruction entry point. Project skills live in
+`.agents/skills/`; `.claude/skills` points to that directory. See
+[`.agents/README.md`](.agents/README.md) for discovery requirements and dependencies.

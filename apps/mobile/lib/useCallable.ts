@@ -5,7 +5,7 @@
 // rapid-tap double-fire bug for free.
 
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 
 import {
   useCallableErrorHandler,
@@ -77,12 +77,7 @@ export function useCallable<TArgs extends unknown[], TResult>(
           // Last-resort: the global handler itself blew up. Don't lose the
           // original error — fall back to a bare alert and re-throw.
           const message = error instanceof Error ? error.message : 'No se pudo completar la acción.';
-          // Alert.alert is a no-op on RN-Web; fall back to window.alert there.
-          if (Platform.OS === 'web') {
-            if (typeof window !== 'undefined') window.alert(`Error\n\n${message}`);
-          } else {
-            Alert.alert('Error', message);
-          }
+          Alert.alert('Error', message);
           console.error('[useCallable] showCallableError threw', modalError);
         }
         if (!optionsRef.current.swallow) {

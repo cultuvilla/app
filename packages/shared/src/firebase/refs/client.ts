@@ -1,19 +1,25 @@
 // packages/shared/src/firebase/refs/client.ts
-import { collection, doc, type Firestore } from 'firebase/firestore';
+// Type-only and erased at runtime: gives declaration emit a portable name for
+// the JS SDK types these refs return (TS2742 through the ../sdk re-export).
+import type {} from 'firebase/firestore';
+import { collection, collectionGroup, doc, type Firestore } from '../sdk/firestore';
 import { eventConverterClient } from '../converters/eventConverter.client';
 import { registrationConverterClient } from '../converters/registrationConverter.client';
 import { municipalityConverterClient } from '../converters/municipalityConverter.client';
 import { barrioConverterClient } from '../converters/barrioConverter.client';
 import { placeConverterClient } from '../converters/placeConverter.client';
 import { villageMemberConverterClient } from '../converters/villageMemberConverter.client';
-import { inviteTokenConverterClient } from '../converters/inviteTokenConverter.client';
+import { censoAnswersConverterClient } from '../converters/censoAnswersConverter.client';
+import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
 import { seatTokenConverterClient } from '../converters/seatTokenConverter.client';
 import { registrationEventConverterClient } from '../converters/registrationEventConverter.client';
 import { organizationConverterClient } from '../converters/organizationConverter.client';
 import { orgMemberConverterClient } from '../converters/orgMemberConverter.client';
+import { orgJoinRequestConverterClient } from '../converters/orgJoinRequestConverter.client';
 import { organizerRequestConverterClient } from '../converters/organizerRequestConverter.client';
 import { personConverterClient } from '../converters/personConverter.client';
 import { userConverterClient } from '../converters/userConverter.client';
+import { publicProfileConverterClient } from '../converters/publicProfileConverter.client';
 import { notificationConverterClient } from '../converters/notificationConverter.client';
 import { deviceTokenConverterClient } from '../converters/deviceTokenConverter.client';
 import { notificationPrefsConverterClient } from '../converters/notificationPrefsConverter.client';
@@ -91,14 +97,14 @@ export const municipalityPlaceDoc = (db: Firestore, municipalityId: string, plac
 export const municipalityMembersCollection = (db: Firestore, municipalityId: string) =>
   collection(db, 'municipalities', municipalityId, 'members').withConverter(villageMemberConverterClient);
 
+export const censoAnswersCollection = (db: Firestore) =>
+  collection(db, 'censoAnswers').withConverter(censoAnswersConverterClient);
+
+export const censoAnswersDoc = (db: Firestore, municipalityId: string, userId: string) =>
+  doc(db, 'censoAnswers', censoAnswersId(municipalityId, userId)).withConverter(censoAnswersConverterClient);
+
 export const municipalityMemberDoc = (db: Firestore, municipalityId: string, memberId: string) =>
   doc(db, 'municipalities', municipalityId, 'members', memberId).withConverter(villageMemberConverterClient);
-
-export const municipalityInviteTokensCollection = (db: Firestore, municipalityId: string) =>
-  collection(db, 'municipalities', municipalityId, 'inviteTokens').withConverter(inviteTokenConverterClient);
-
-export const municipalityInviteTokenDoc = (db: Firestore, municipalityId: string, tokenId: string) =>
-  doc(db, 'municipalities', municipalityId, 'inviteTokens', tokenId).withConverter(inviteTokenConverterClient);
 
 export const municipalityPeopleCollection = (db: Firestore) =>
   collection(db, 'municipalityPeople').withConverter(municipalityPersonConverterClient);
@@ -119,6 +125,15 @@ export const organizationMembersCollection = (db: Firestore, organizationId: str
 
 export const organizationMemberDoc = (db: Firestore, organizationId: string, memberId: string) =>
   doc(db, 'organizations', organizationId, 'members', memberId).withConverter(orgMemberConverterClient);
+
+export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);
+
+export const organizationJoinRequestDoc = (db: Firestore, organizationId: string, userId: string) =>
+  doc(db, 'organizations', organizationId, 'joinRequests', userId).withConverter(orgJoinRequestConverterClient);
+
+export const joinRequestsGroup = (db: Firestore) =>
+  collectionGroup(db, 'joinRequests').withConverter(orgJoinRequestConverterClient);
 
 // ── Organizer requests ───────────────────────────────────────────────────
 
@@ -143,6 +158,9 @@ export const usersCollection = (db: Firestore) =>
 
 export const userDoc = (db: Firestore, userId: string) =>
   doc(db, 'users', userId).withConverter(userConverterClient);
+
+export const publicProfileDoc = (db: Firestore, userId: string) =>
+  doc(db, 'publicProfiles', userId).withConverter(publicProfileConverterClient);
 
 export const userNotificationsCollection = (db: Firestore, userId: string) =>
   collection(db, 'users', userId, 'notifications').withConverter(notificationConverterClient);

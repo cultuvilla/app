@@ -6,8 +6,11 @@ import { VStack, HStack, Text, Button, Pressable } from '../primitives';
 import { useT } from '../../lib/i18n';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import { updateCensoSchema } from '@cultuvilla/shared/services/censoService';
-import { collectUsedValues, answeredCountByKey } from '@cultuvilla/shared/services/membershipProfileService';
-import { getVillageMembers } from '@cultuvilla/shared/services/villageMemberService';
+import {
+  collectUsedValues,
+  answeredCountByKey,
+  getVillageCensoAnswers,
+} from '@cultuvilla/shared/services/membershipProfileService';
 import { censoEditorReducer, fieldErrors, type EditorAction } from './censo/censoEditorReducer';
 import { QuestionCard } from './censo/QuestionCard';
 import { QuestionTypeSheet, type SheetPick } from './censo/QuestionTypeSheet';
@@ -34,14 +37,14 @@ export function CensoSchemaEditor({ villageId }: { villageId: string }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [mun, members] = await Promise.all([
+      const [mun, answers] = await Promise.all([
         getMunicipality(villageId),
-        getVillageMembers(villageId),
+        getVillageCensoAnswers(villageId),
       ]);
-      const used = collectUsedValues(members);
+      const used = collectUsedValues(answers);
       if (cancelled) return;
       setLocked(new Set(Object.entries(used).filter(([, v]) => v.size > 0).map(([k]) => k)));
-      setAnsweredCounts(answeredCountByKey(members));
+      setAnsweredCounts(answeredCountByKey(answers));
       dispatch({ kind: 'reset', fields: mun?.community?.profileForm?.fields ?? [] });
       setLoading(false);
     })();

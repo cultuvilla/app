@@ -2,6 +2,8 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import WrappedScreen from '../resumen';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
+import { useLocalSearchParams } from 'expo-router';
+import { madridYear } from '@cultuvilla/shared/models';
 import {
   buildVillageWrapped,
   getVillageWrappedForYear,
@@ -14,6 +16,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('expo-router', () => ({
   router: { replace: jest.fn(), push: jest.fn(), back: jest.fn() },
+  useLocalSearchParams: jest.fn(() => ({})),
   Redirect: ({ href }: { href: string }) => {
     const { Text } = require('react-native');
     return <Text>REDIRECT:{href}</Text>;
@@ -22,6 +25,9 @@ jest.mock('expo-router', () => ({
 jest.mock('../../../lib/navigation/VillageRouteGate');
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({ useEntityCapabilities: jest.fn() }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
+jest.mock('../../../lib/wrapped/useWrappedShare', () => ({
+  useWrappedShare: () => ({ shareLink: jest.fn(), shareCard: jest.fn() }),
+}));
 jest.mock('../../../lib/useCallable', () => ({
   useCallable: ({ callable, onSuccess }: { callable: (...a: unknown[]) => Promise<unknown>; onSuccess?: () => unknown }) => ({
     isPending: false,
@@ -94,6 +100,21 @@ describe('WrappedScreen', () => {
   // deny a read of a missing one rather than returning null. Whatever the read
   // fails for, the screen must say so -- it used to leave `fiestas` null and
   // spin forever, which is what an admin of a fresh village always saw.
+  // A January reminder is about December's fiestas: last year's Wrapped.
+  it('opens the year a reminder names', async () => {
+    const lastYear = madridYear(new Date()) - 1;
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ year: String(lastYear) });
+    render(<WrappedScreen />);
+    await waitFor(() => expect(getVillageWrappedForYear).toHaveBeenCalledWith('m1', lastYear));
+  });
+
+  it('never opens a year that has not happened', async () => {
+    const thisYear = madridYear(new Date());
+    (useLocalSearchParams as jest.Mock).mockReturnValueOnce({ year: String(thisYear + 1) });
+    render(<WrappedScreen />);
+    await waitFor(() => expect(getVillageWrappedForYear).toHaveBeenCalledWith('m1', thisYear));
+  });
+
   it('surfaces a failed load instead of spinning forever', async () => {
     mockWrapped.mockRejectedValue(new Error('permission-denied'));
     const { findByText, queryByText } = render(<WrappedScreen />);

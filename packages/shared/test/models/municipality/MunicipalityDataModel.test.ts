@@ -53,7 +53,7 @@ describe('MunicipalityDataSchema', () => {
         ...validMunicipality,
         community: {
           description: 'Hola',
-          organizerId: 'u1',
+          organizerId: 'u1', organizerSex: null,
           profileForm: null,
           fiestas: [],
           activatedAt: new Date('2026-01-02T00:00:00Z'),
@@ -83,7 +83,7 @@ describe('VillageCommunitySchema', () => {
     expect(() =>
       VillageCommunitySchema.parse({
         description: '',
-        organizerId: 'u',
+        organizerId: 'u', organizerSex: null,
         profileForm: {
           fields: [{ source: 'predefined', key: 'barrio', required: true }],
           updatedAt: new Date(),
@@ -168,7 +168,7 @@ describe('buildVillageCommunity', () => {
     expect(() =>
       VillageCommunitySchema.parse({
         description: '',
-        organizerId: null,
+        organizerId: null, organizerSex: null,
         profileForm: null,
         fiestas: [],
         activatedAt: new Date(),

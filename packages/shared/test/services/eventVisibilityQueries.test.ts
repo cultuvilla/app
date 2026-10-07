@@ -38,7 +38,6 @@ vi.mock('firebase/firestore', async () => {
 import { getDocs, where } from 'firebase/firestore';
 import {
   getEventsByMunicipality,
-  getEventsByOrganization,
   getPrivateEventsByMunicipality,
 } from '../../src/services/eventService';
 import { getPrivateUpcomingFeed, getUpcomingFeed } from '../../src/services/feedService';
@@ -61,15 +60,6 @@ describe('public queries pin visibility', () => {
     expect(where).toHaveBeenCalledWith('visibility', '==', 'public');
   });
 
-  it('the org list asks only for public events by default', async () => {
-    await getEventsByOrganization('org1');
-    expect(where).toHaveBeenCalledWith('visibility', '==', 'public');
-  });
-
-  it('the org list drops the filter for a member, who may read both halves', async () => {
-    await getEventsByOrganization('org1', { includePrivate: true });
-    expect(where).not.toHaveBeenCalledWith('visibility', '==', 'public');
-  });
 });
 
 describe('private queries stay one org at a time', () => {

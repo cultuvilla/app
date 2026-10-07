@@ -43,8 +43,10 @@ jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getVillageViewLink: jest.fn().mockReturnValue('https://example.test'),
 }));
 const mockJoinVillage = jest.fn(async (..._a: unknown[]) => undefined);
+const mockEnsureVillageMembership = jest.fn(async (..._a: unknown[]) => undefined);
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
   joinVillage: (...a: unknown[]) => mockJoinVillage(...a),
+  ensureVillageMembership: (...a: unknown[]) => mockEnsureVillageMembership(...a),
 }));
 // JoinVillageModal's barrio picker fetches approved barrios; none here, so the
 // picker hides itself and the modal shows only escudo + name + confirm.
@@ -52,6 +54,21 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   getBarrios: jest.fn().mockResolvedValue([]),
   deletePlace: jest.fn(),
   deleteBarrio: jest.fn(),
+}));
+// The prompt's own behaviour is covered in WrappedPrompt.test; here only who gets it.
+jest.mock('../wrapped/WrappedPrompt', () => {
+  const { Text } = jest.requireActual('react-native');
+  return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
+});
+const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
+  getPublishedVillageWrapped: (...a: unknown[]) => mockGetPublishedVillageWrapped(...a),
+}));
+let mockWelcomeSeen = true;
+const mockMarkWelcomeSeen = jest.fn(async (..._a: unknown[]) => undefined);
+jest.mock('../../../lib/village/ambassadorWelcome', () => ({
+  hasSeenAmbassadorWelcome: async () => mockWelcomeSeen,
+  markAmbassadorWelcomeSeen: (...a: unknown[]) => mockMarkWelcomeSeen(...a),
 }));
 // Real Spanish catalog so we can assert on the visible strings.
 jest.mock('../../../lib/i18n', () => {
@@ -112,10 +129,55 @@ const base: VillageHomeState = {
 
 beforeEach(() => {
   mockJoinVillage.mockClear();
+  mockEnsureVillageMembership.mockClear();
   mockRefreshProfile.mockClear();
   mockRequireAuth.mockClear();
   mockUser = { uid: 'u1' };
   mockIsAppAdmin = false;
+  mockWelcomeSeen = true;
+  mockMarkWelcomeSeen.mockClear();
+});
+
+const withAmbassador = (sex: 'male' | 'female' | null): VillageHomeState => ({
+  ...base,
+  village: {
+    ...village,
+    community: { organizerId: 'amb', organizerSex: sex, description: null },
+  } as unknown as VillageHomeState['village'],
+});
+
+describe('VillageHomeBody — Embajador', () => {
+  it('invites a vecino to become Embajador when the pueblo has none', () => {
+    const { getByText } = render(<VillageHomeBody data={base} reload={jest.fn()} />);
+    expect(getByText('Quiero ser embajador')).toBeTruthy();
+  });
+
+  it('carries no Embajador card on the village home', () => {
+    const { queryByText } = render(
+      <VillageHomeBody data={withAmbassador('female')} reload={jest.fn()} />,
+    );
+    expect(queryByText('Embajadora')).toBeNull();
+    expect(queryByText('Quiero ser embajador')).toBeNull();
+  });
+
+  it('welcomes a new Embajador once, then remembers it', async () => {
+    mockUser = { uid: 'amb' };
+    mockWelcomeSeen = false;
+    const { findByTestId, getByTestId } = render(
+      <VillageHomeBody data={withAmbassador('male')} reload={jest.fn()} />,
+    );
+    expect(await findByTestId('ambassador-welcome-sheet')).toBeTruthy();
+    fireEvent.press(getByTestId('ambassador-welcome-dismiss'));
+    expect(mockMarkWelcomeSeen).toHaveBeenCalledWith('m1', 'amb');
+  });
+
+  it('does not welcome anyone who is not the Embajador', async () => {
+    mockWelcomeSeen = false;
+    const { queryByTestId } = render(
+      <VillageHomeBody data={withAmbassador('male')} reload={jest.fn()} />,
+    );
+    await waitFor(() => expect(queryByTestId('ambassador-welcome-dismiss')).toBeNull());
+  });
 });
 
 describe('VillageHomeBody', () => {
@@ -157,13 +219,31 @@ describe('VillageHomeBody', () => {
     expect(mockRequireAuth).toHaveBeenCalledWith('/anaya', expect.any(String), 'm1');
   });
 
-  it('renders the start-village notice when the community is dormant', () => {
+  describe('dormant village (no separate start step)', () => {
     const dormant = {
       ...base,
       village: { ...village, communityActive: false } as VillageHomeState['village'],
     };
-    const { getByText } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
-    expect(getByText('Iniciar este pueblo')).toBeTruthy();
+
+    it('joining a dormant village starts it in the same tap', async () => {
+      const reload = jest.fn();
+      const { getByText, getByTestId } = render(<VillageHomeBody data={dormant} reload={reload} />);
+      expect(getByText(/Únete y sé el primero/)).toBeTruthy();
+      fireEvent.press(getByTestId('village-join-dormant'));
+      await waitFor(() => expect(reload).toHaveBeenCalled());
+      expect(mockEnsureVillageMembership).toHaveBeenCalledWith('m1', 'u1');
+      expect(mockOfferPush).toHaveBeenCalledWith('village_join', { villageName: 'Anaya' });
+      expect(mockRefreshProfile).toHaveBeenCalled();
+      expect(router.push).not.toHaveBeenCalled();
+    });
+
+    it('sends a guest through the register gate instead of joining', () => {
+      mockUser = null;
+      const { getByTestId } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
+      fireEvent.press(getByTestId('village-join-dormant'));
+      expect(mockRequireAuth).toHaveBeenCalledWith(expect.any(String), expect.any(String), 'm1');
+      expect(mockEnsureVillageMembership).not.toHaveBeenCalled();
+    });
   });
 
   it('non-admin member sees "Añadir contenido" + "Compartir pueblo" (no Editar)', () => {
@@ -481,5 +561,37 @@ describe('subdivision sections', () => {
     expect(getByText('Parroquias')).toBeTruthy();
     expect(getByText('Aldeas')).toBeTruthy();
     expect(getAllByText('Lugares').length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('VillageHomeBody — resumen de fiestas', () => {
+  it('invites only the village admins to make the resumen', () => {
+    const member = render(<VillageHomeBody data={base} reload={jest.fn()} />);
+    expect(member.queryByTestId('wrapped-prompt')).toBeNull();
+    const admin = render(<VillageHomeBody data={{ ...base, villageAdmin: true }} reload={jest.fn()} />);
+    expect(admin.getByTestId('wrapped-prompt')).toBeTruthy();
+  });
+
+  it('invites an app admin too', () => {
+    mockIsAppAdmin = true;
+    const { getByTestId } = render(<VillageHomeBody data={base} reload={jest.fn()} />);
+    expect(getByTestId('wrapped-prompt')).toBeTruthy();
+  });
+
+  it('waits for the events before judging the movement', () => {
+    const { queryByTestId } = render(
+      <VillageHomeBody
+        data={{ ...base, villageAdmin: true, sectionStatus: { ...base.sectionStatus, events: 'loading' } }}
+        reload={jest.fn()}
+      />,
+    );
+    expect(queryByTestId('wrapped-prompt')).toBeNull();
+  });
+
+  it('shows the published resumen to everyone', async () => {
+    mockGetPublishedVillageWrapped.mockResolvedValueOnce([{ id: 'm1_2026', year: 2026, images: { cover: 'https://x/c.png' } }]);
+    const { findByTestId } = render(<VillageHomeBody data={{ ...base, isMember: false }} reload={jest.fn()} />);
+    fireEvent.press(await findByTestId('village-wrapped-strip'));
+    expect(router.push).toHaveBeenCalledWith('/anaya/fiestas/2026');
   });
 });

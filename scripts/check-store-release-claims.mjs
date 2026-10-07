@@ -27,7 +27,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { currentStoreUrl, currentStoreVersion } from './lib/app-stores.mjs';
+import { currentStoreUrl } from './lib/app-stores.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP_STORE_ID = currentStoreUrl('ios').match(/id(\d+)/)?.[1] ?? '';
@@ -97,7 +97,7 @@ if (!account) {
 
 // ── App-signing fingerprints ──────────────────────────────────────────────
 console.log('\nAndroid signing / Google Sign-In');
-const assetlinksPath = resolve(ROOT, 'apps/mobile/public/.well-known/prod/assetlinks.json');
+const assetlinksPath = resolve(ROOT, 'web/well-known/prod/assetlinks.json');
 let committed = null;
 try {
   const entries = JSON.parse(readFileSync(assetlinksPath, 'utf8'));
@@ -249,29 +249,53 @@ for (const [key, probe] of [['ios', iosListingIsLive], ['android', androidListin
   }
 }
 
-// APP_STORE_VERSIONS is what `config/appVersion.latest` promises, so a stale
-// entry is a nudge nobody can satisfy — prod announced 1.3.0 for weeks while
-// the App Store served 1.2.2. Nothing in the repo can see a store's current
-// version; only the store can. Android has no free public equivalent, so it
-// stays declared-only until the listing is out of review.
-console.log('\nPublished versions (what config/appVersion announces)');
-const declaredIos = currentStoreVersion('ios');
-if (!declaredIos) {
-  meh('APP_STORE_VERSIONS.ios is empty', 'iOS would be announced as 0.0.0 — never nudged');
+// prod's `config/appVersion.<platform>.latest` is what the update nudge
+// promises; the announce poller writes it once a store serves a release. A
+// value behind the store means the poller missed one (nudges stop); ahead of
+// it means a version was announced that nobody can download — prod announced
+// 1.3.0 for weeks while the App Store served 1.2.2. Only the store can say
+// which; Android has no free public equivalent of the iTunes lookup, so it is
+// reported, not verified. The pending release, if any, is what is in flight.
+console.log('\nAnnounced versions (prod config/appVersion vs. the stores)');
+async function readProdDoc(docPath) {
+  const tok = trySh('gcloud', ['auth', 'print-access-token']);
+  if (!tok) return { error: 'needs an authenticated gcloud' };
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${PROD}/databases/(default)/documents/${docPath}`,
+    { headers: { Authorization: `Bearer ${tok}`, 'x-goog-user-project': PROD } },
+  );
+  if (res.status === 404) return { doc: null };
+  if (!res.ok) return { error: `Firestore HTTP ${res.status}` };
+  return { doc: (await res.json()).fields ?? {} };
+}
+const field = (fields, ...keys) =>
+  keys.reduce((f, k) => f?.mapValue?.fields?.[k] ?? f?.[k], fields)?.stringValue ?? null;
+
+const config = await readProdDoc('config/appVersion');
+if (config.error) {
+  meh('could not read prod config/appVersion', config.error);
+} else if (!config.doc) {
+  bad('prod config/appVersion is missing', 'clients have no update gate at all');
 } else {
+  const announcedIos = field(config.doc, 'ios', 'latest');
   try {
     const body = await (await fetch(`https://itunes.apple.com/lookup?id=${APP_STORE_ID}&country=es`)).json();
     const live = body.resultCount > 0 ? body.results[0].version : null;
     if (!live) meh('App Store version unavailable', 'lookup returned no result — the index lags the page');
-    else if (live === declaredIos) ok('APP_STORE_VERSIONS.ios matches the App Store', live);
-    else bad('APP_STORE_VERSIONS.ios is STALE', `declared ${declaredIos}, App Store serves ${live}`);
+    else if (live === announcedIos) ok('config/appVersion.ios.latest matches the App Store', live);
+    else bad('config/appVersion.ios.latest disagrees with the App Store', `announced ${announcedIos}, App Store serves ${live}`);
   } catch (err) {
     meh('could not read the App Store version', err.message);
   }
+  ok('config/appVersion.android.latest', `${field(config.doc, 'android', 'latest')} — no public API to verify against`);
 }
-const declaredAndroid = currentStoreVersion('android');
-if (declaredAndroid) ok('APP_STORE_VERSIONS.android declared', `${declaredAndroid} — no public API to verify against`);
-else meh('APP_STORE_VERSIONS.android is empty', 'Android announced as 0.0.0 — never nudged, correct while in review');
+const pending = await readProdDoc('_admin/announce/pending/prod');
+if (pending.error) meh('could not read the pending release', pending.error);
+else if (!pending.doc) ok('no release waiting on the stores');
+else {
+  const held = pending.doc.holdBackend?.booleanValue ? ' — its backend is HELD until both stores serve it' : '';
+  ok('release waiting on the stores', `${field(pending.doc, 'version')}${held}`);
+}
 
 console.log(`\n\x1b[1m${pass} pass · ${fail} fail · ${skip} skipped\x1b[0m`);
 if (fail > 0) {

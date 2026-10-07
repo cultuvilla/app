@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } 
 import functionsTestFactory from 'firebase-functions-test';
 import { getFirestore } from 'firebase-admin/firestore';
 import { resetEmulators } from '../helpers/firestoreEmulator';
-import { bucketIdFor } from '../../auth/rateLimit';
+import { bucketIdFor, IP_RATE_LIMIT_MAX_SENDS } from '../../auth/rateLimit';
 
 vi.mock('../../auth/secret', () => ({ RESEND_API_KEY: { value: () => 'TEST_RESEND_KEY' } }));
 
@@ -36,11 +36,12 @@ interface CallableResult {
   ok: true;
 }
 
-async function callSend(data: unknown): Promise<CallableResult> {
+async function callSend(data: unknown, ip = '198.51.100.1'): Promise<CallableResult> {
   const wrapped = ft.wrap(sendAuthOtpCode as unknown as Parameters<typeof ft.wrap>[0]);
   return (await wrapped({
     data,
     auth: undefined,
+    rawRequest: { headers: { 'x-forwarded-for': `${ip}, 10.0.0.1` }, ip: '10.0.0.1' },
   } as unknown as Parameters<typeof wrapped>[0])) as unknown as CallableResult;
 }
 
@@ -71,6 +72,22 @@ describe('sendAuthOtpCode (callable)', () => {
     const data = doc.data() as { codeHash: string; attempts: number };
     expect(data.attempts).toBe(0);
     expect(data.codeHash).not.toBe(codeMatch?.[1]);
+  });
+
+  // One caller cycling through many addresses must hit a ceiling too; the
+  // per-email bucket alone never fills when every address is new.
+  it('caps sends per caller IP across different emails, with the same {ok:true}', async () => {
+    for (let i = 0; i < IP_RATE_LIMIT_MAX_SENDS; i++) {
+      await callSend({ email: `user${String(i)}@example.com` }, '203.0.113.7');
+    }
+    expect(sendMock).toHaveBeenCalledTimes(IP_RATE_LIMIT_MAX_SENDS);
+
+    const result = await callSend({ email: 'one-more@example.com' }, '203.0.113.7');
+    expect(result.ok).toBe(true);
+    expect(sendMock).toHaveBeenCalledTimes(IP_RATE_LIMIT_MAX_SENDS);
+
+    await callSend({ email: 'neighbour@example.com' }, '203.0.113.8');
+    expect(sendMock).toHaveBeenCalledTimes(IP_RATE_LIMIT_MAX_SENDS + 1);
   });
 
   it('throws invalid-argument for a malformed email', async () => {

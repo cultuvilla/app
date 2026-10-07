@@ -1,18 +1,19 @@
 # Native Android E2E — the release gate that drives the REAL app on a REAL
 # Android emulator, against real Firebase emulators, through real user journeys.
 #
-# WHY THIS EXISTS ALONGSIDE web-e2e (mobile-ci.yml): the web suite runs the same
-# React tree via react-native-web, so it proves the product logic but not the
-# platform. Everything below it — native app boot, the Expo Router deep-link
-# intent path, AsyncStorage auth persistence, the native Firebase SDK, RN
-# modals/sheets/soft-keyboard, and `Alert.alert` (which react-native-web ships
-# as a NO-OP, so the web driver has literally never executed it) — is invisible
-# to Playwright and shipped to users. This job is the only thing that sees it.
+# It is the only end-to-end suite: the web build (and its Playwright suite) went
+# away when the web became a server-rendered read site
+# (docs/decisions/web-is-a-read-site.md).
 #
-# GATED TO THE RELEASE PATHS, like web-e2e: a full Gradle build plus an AVD boot
+# GATED TO THE RELEASE PATHS: a full Gradle build plus an AVD boot
 # is far too slow for day-to-day `develop` PRs, and beta is the release
 # candidate — the last point where a native-only regression can be caught before
 # it becomes a store binary. `develop` PRs keep the fast mobile-ci job.
+#
+# NIGHTLY ON DEVELOP: a scheduled run drives the suite against `develop` once a
+# day, so a native regression surfaces the morning after it merged instead of at
+# the next promotion, when it is mixed in with a whole release's worth of change.
+# `develop` is the default branch, which is the branch `schedule:` runs on.
 name: android-e2e
 
 on:
@@ -23,22 +24,30 @@ on:
   # So a native regression can be chased on a develop branch without waiting for
   # a promotion PR.
   workflow_dispatch:
+  # 03:00 UTC: after the day's merges, before the working day in Spain.
+  schedule:
+    - cron: '0 3 * * *'
 
 permissions:
   contents: read
 
+# The nightly gets its own group and is never cancelled: a manual dispatch on
+# develop shares its ref, and under the per-ref group it would silently kill the
+# one scheduled run of the day.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
   cancel-in-progress: >-
-    ${{ github.ref != 'refs/heads/beta' && github.ref != 'refs/heads/main' }}
+    ${{ github.event_name != 'schedule'
+        && github.ref != 'refs/heads/beta'
+        && github.ref != 'refs/heads/main' }}
 
 jobs:
   android-e2e:
     name: Android E2E (Maestro on an AVD)
     runs-on: ubuntu-latest
-    # Gradle cold build (~15 min) + AVD boot + 8 flows. Generous on purpose:
-    # timing out mid-suite tells you nothing, and this runs a handful of times
-    # per release, not per push.
+    # Gradle cold build (~15 min) + AVD boot + every gating Maestro flow.
+    # Generous on purpose: timing out mid-suite tells you nothing, and this runs
+    # nightly plus a handful of times per release, not per push.
     timeout-minutes: 60
 
     steps:
@@ -146,9 +155,22 @@ jobs:
       - name: Build E2E APK (emulator mode)
         run: node scripts/build-android-e2e-apk.mjs
 
+      # Pinned: the installer otherwise fetches the latest release on every run,
+      # so a Maestro release alone could turn the suite red with no change here.
+      # Version drift has bitten before: 2.4 rejects non-ASCII `inputText`, which
+      # flow 70 types ("Peña…"). Bump deliberately and run the suite on the branch.
       - name: Install Maestro
+        env:
+          MAESTRO_VERSION: 2.11.0
         run: |
           curl -Ls "https://get.maestro.mobile.dev" | bash
+          # The installer silently falls back to latest if it ignores the
+          # variable, so prove the pin took instead of trusting it.
+          installed="$("$HOME/.maestro/bin/maestro" --version | tail -n1)"
+          if [ "$installed" != "$MAESTRO_VERSION" ]; then
+            echo "::error::Maestro $installed installed, but $MAESTRO_VERSION is pinned."
+            exit 1
+          fi
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
       # One boot of everything: the action brings up the AVD, then the script

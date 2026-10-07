@@ -2,16 +2,17 @@
 // check is the ONLY thing protecting this data: an earlier version of the panel
 // lived inside the mobile app, where the route guard hid the screen but the JSON
 // still shipped in the public web bundle. So these tests are about who is
-// refused, not about what the snapshot contains.
+// refused, not about what the snapshot contains — its shape is owned by the
+// business repo that publishes it.
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import { resetEmulators } from '../helpers/firestoreEmulator';
-import { runGetBusinessSnapshot } from '../../business/getBusinessSnapshot';
-import { BusinessSnapshotSchema } from '@cultuvilla/shared/models';
+import { BUSINESS_SNAPSHOT_DOC, runGetBusinessSnapshot } from '../../business/getBusinessSnapshot';
 
 const ADMIN_UID = 'founder-1';
 const OUTSIDER_UID = 'someone-else';
+const PUBLISHED = { generatedAt: '2026-09-29', counts: { convocatoria: 1 } };
 
 describe('runGetBusinessSnapshot', () => {
   beforeAll(() => {
@@ -21,6 +22,7 @@ describe('runGetBusinessSnapshot', () => {
   beforeEach(async () => {
     await resetEmulators();
     await admin.firestore().collection('admins').doc(ADMIN_UID).set({ createdAt: new Date() });
+    await admin.firestore().doc(BUSINESS_SNAPSHOT_DOC).set({ json: JSON.stringify(PUBLISHED) });
   });
 
   afterAll(async () => {
@@ -35,9 +37,8 @@ describe('runGetBusinessSnapshot', () => {
     await expect(runGetBusinessSnapshot(OUTSIDER_UID)).rejects.toThrow(/equipo/i);
   });
 
-  it('returns the snapshot to an app admin', async () => {
-    const snapshot = await runGetBusinessSnapshot(ADMIN_UID);
-    expect(BusinessSnapshotSchema.safeParse(snapshot).success).toBe(true);
+  it('returns the published snapshot to an app admin', async () => {
+    await expect(runGetBusinessSnapshot(ADMIN_UID)).resolves.toEqual(PUBLISHED);
   });
 
   it('stops returning it the moment the admin doc is removed', async () => {
@@ -46,10 +47,8 @@ describe('runGetBusinessSnapshot', () => {
     await expect(runGetBusinessSnapshot(ADMIN_UID)).rejects.toThrow(/equipo/i);
   });
 
-  it('serves a snapshot that carries every kind the panel renders', async () => {
-    const snapshot = BusinessSnapshotSchema.parse(await runGetBusinessSnapshot(ADMIN_UID));
-    for (const kind of ['convocatoria', 'evento', 'entidad', 'propuesta'] as const) {
-      expect(snapshot.counts[kind]).toBe(snapshot.byKind[kind].length);
-    }
+  it('says so when nothing has been published yet', async () => {
+    await admin.firestore().doc(BUSINESS_SNAPSHOT_DOC).delete();
+    await expect(runGetBusinessSnapshot(ADMIN_UID)).rejects.toThrow(/publicado/i);
   });
 });

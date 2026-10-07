@@ -9,7 +9,7 @@ import {
   where,
   orderBy,
   limit,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { personsCollection, personDoc } from '../firebase/refs/client';
 import {
@@ -19,6 +19,9 @@ import {
   type PersonData,
   type PersonDataInput,
 } from '../models/person';
+import { watchQuery, type Unwatch, type WatchError } from './watch';
+
+type PersonWithId = PersonData & { id: string };
 
 export async function getPerson(personId: string): Promise<(PersonData & { id: string }) | null> {
   const snap = await getDoc(personDoc(getDb(), personId));
@@ -39,12 +42,9 @@ export async function getPerson(personId: string): Promise<(PersonData & { id: s
  * Pass `viewerUid` when the caller is asking about their own personas (the only
  * way to see the private ones); omitting it yields the public-only view.
  */
-export async function getPersonsByCreator(
-  userId: string,
-  viewerUid?: string | null,
-): Promise<(PersonData & { id: string })[]> {
+function personsByCreatorQuery(userId: string, viewerUid?: string | null) {
   const own = viewerUid != null && viewerUid === userId;
-  const q = own
+  return own
     ? query(
         personsCollection(getDb()),
         where('createdBy', '==', userId),
@@ -56,8 +56,23 @@ export async function getPersonsByCreator(
         where('isPublic', '==', true),
         orderBy('createdAt', 'asc'),
       );
-  const snap = await getDocs(q);
+}
+
+export async function getPersonsByCreator(
+  userId: string,
+  viewerUid?: string | null,
+): Promise<PersonWithId[]> {
+  const snap = await getDocs(personsByCreatorQuery(userId, viewerUid));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchPersonsByCreator(
+  userId: string,
+  viewerUid: string | null,
+  onNext: (persons: PersonWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(personsByCreatorQuery(userId, viewerUid), onNext, onError);
 }
 
 /**
@@ -75,12 +90,9 @@ export async function getPersonsByCreator(
  * Pass `viewerUid` whenever the answer must include the caller's own private
  * persona; omitting it yields the public-only view a stranger gets.
  */
-export async function getPersonByUserId(
-  userId: string,
-  viewerUid?: string | null,
-): Promise<(PersonData & { id: string }) | null> {
+function personByUserIdQuery(userId: string, viewerUid?: string | null) {
   const own = viewerUid != null && viewerUid === userId;
-  const q = own
+  return own
     ? query(personsCollection(getDb()), where('userId', '==', userId), limit(1))
     : query(
         personsCollection(getDb()),
@@ -88,8 +100,29 @@ export async function getPersonByUserId(
         where('isPublic', '==', true),
         limit(1),
       );
-  const snap = await getDocs(q);
+}
+
+export async function getPersonByUserId(
+  userId: string,
+  viewerUid?: string | null,
+): Promise<PersonWithId | null> {
+  const snap = await getDocs(personByUserIdQuery(userId, viewerUid));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))[0] ?? null;
+}
+
+export function watchPersonByUserId(
+  userId: string,
+  viewerUid: string | null,
+  onNext: (person: PersonWithId | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    personByUserIdQuery(userId, viewerUid),
+    (rows) => {
+      onNext(rows[0] ?? null);
+    },
+    onError,
+  );
 }
 
 export async function createPerson(input: PersonDataInput): Promise<string> {

@@ -1,8 +1,8 @@
 import { festivalPosterEditHref } from '../../../lib/navigation/routes';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { useVillageRoute, withVillageRoute } from '../../../lib/navigation/VillageRouteGate';
-import { useCallback, useEffect, useState } from 'react';
-import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
+import { useEffect } from 'react';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '../../../components/primitives/Text';
 import { VStack } from '../../../components/primitives/VStack';
 import { NaturalImage } from '../../../components/primitives/NaturalImage';
@@ -13,8 +13,9 @@ import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { EntityComments } from '../../../components/feature/EntityComments';
 import { EntityContributors } from '../../../components/feature/EntityContributors';
 import { useT } from '../../../lib/i18n';
+import { useWatch } from '../../../lib/hooks/useWatch';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
-import { getFestivalPoster } from '@cultuvilla/shared/services/festivalPosterService';
+import { watchFestivalPoster } from '@cultuvilla/shared/services/festivalPosterService';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import type { FestivalPosterWithId } from '@cultuvilla/shared/services/festivalPosterService';
 import { formatFestivalPosterDates } from '@cultuvilla/shared/utils';
@@ -25,23 +26,12 @@ function FestivalPosterDetailScreen() {
   const posterId = parseEntityRef(cartelRef ?? '') ?? '';
   const { t } = useT();
   const { canManage, canEdit } = useEntityCapabilities(villageId);
-  const [poster, setPoster] = useState<FestivalPosterWithId | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!posterId) return;
-    try {
-      setPoster(await getFestivalPoster(posterId));
-    } finally {
-      setLoading(false);
-    }
-  }, [posterId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
+  const { data: poster = null, status } = useWatch<FestivalPosterWithId | null>(
+    'festivalPosterDetail:watchFestivalPoster',
+    posterId || null,
+    (next, error) => watchFestivalPoster(posterId, next, error),
   );
+  const loading = status === 'loading';
 
   useEffect(() => {
     if (!poster) return;
@@ -82,7 +72,6 @@ function FestivalPosterDetailScreen() {
       fallbackIcon={ENTITY_FALLBACK_ICON.festivalPoster}
       actions={actions}
       title={poster ? (poster.title ?? String(poster.year)) : undefined}
-      onRefresh={load}
     >
       {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
       {poster ? (

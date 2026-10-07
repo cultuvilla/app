@@ -11,11 +11,10 @@ import {
   where,
   serverTimestamp,
   Timestamp,
-  getCountFromServer,
   doc,
   type UpdateData,
   type DocumentData,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import {
   eventsCollection,
@@ -28,6 +27,15 @@ import {
   type EventDataInput,
   type EventStatus,
 } from '../models/event/EventDataModel';
+import {
+  forbiddenAsEmpty,
+  watchDoc,
+  watchDocsByIds,
+  watchMerged,
+  watchQuery,
+  type Unwatch,
+  type WatchError,
+} from './watch';
 
 type EventWithId = EventData & { id: string };
 
@@ -47,29 +55,51 @@ export async function getEvent(eventId: string): Promise<(EventData & { id: stri
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export async function getEventsByMunicipality(
-  municipalityId: string,
-  status?: EventStatus | EventStatus[],
-): Promise<(EventData & { id: string })[]> {
-  const ref = eventsCollection(getDb());
-  // A status array becomes an `in` filter (e.g. the pueblo tab wants
-  // 'published' + 'completed' so past events survive the completion job);
-  // a single status stays an equality filter. Both reuse the
-  // municipalityId + status + startDate composite index.
-  const statusConstraint = Array.isArray(status)
+export function watchEvent(
+  eventId: string,
+  onNext: (event: (EventData & { id: string }) | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(eventDoc(getDb(), eventId), onNext, onError);
+}
+
+// A status array becomes an `in` filter (e.g. the pueblo tab wants
+// 'published' + 'completed' so past events survive the completion job);
+// a single status stays an equality filter. Both reuse the
+// municipalityId + status + startDate composite index.
+function statusConstraints(status?: EventStatus | EventStatus[]) {
+  return Array.isArray(status)
     ? [where('status', 'in', status)]
     : status
       ? [where('status', '==', status)]
       : [];
-  const q = query(
-    ref,
+}
+
+function municipalityEventsQuery(municipalityId: string, status?: EventStatus | EventStatus[]) {
+  return query(
+    eventsCollection(getDb()),
     where('municipalityId', '==', municipalityId),
     publicOnly(),
-    ...statusConstraint,
+    ...statusConstraints(status),
     orderBy('startDate', 'asc'),
   );
-  const snap = await getDocs(q);
+}
+
+export async function getEventsByMunicipality(
+  municipalityId: string,
+  status?: EventStatus | EventStatus[],
+): Promise<(EventData & { id: string })[]> {
+  const snap = await getDocs(municipalityEventsQuery(municipalityId, status));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchEventsByMunicipality(
+  municipalityId: string,
+  status: EventStatus | EventStatus[] | undefined,
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(municipalityEventsQuery(municipalityId, status), onNext, onError);
 }
 
 /**
@@ -87,48 +117,97 @@ export async function getPrivateEventsByMunicipality(
   status?: EventStatus | EventStatus[],
 ): Promise<EventWithId[]> {
   if (orgIds.length === 0) return [];
-  const statusConstraint = Array.isArray(status)
-    ? [where('status', 'in', status)]
-    : status
-      ? [where('status', '==', status)]
-      : [];
   const pages = await Promise.all(
     orgIds.map(async (orgId) => {
-      const snap = await getDocs(
-        query(
-          eventsCollection(getDb()),
-          where('visibilityOrgId', '==', orgId),
-          ...statusConstraint,
-          orderBy('startDate', 'asc'),
-        ),
-      );
+      const snap = await getDocs(orgPrivateEventsQuery(orgId, status));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     }),
   );
-  return pages
-    .flat()
+  return inMunicipalityByStart(municipalityId, pages.flat());
+}
+
+function orgPrivateEventsQuery(orgId: string, status?: EventStatus | EventStatus[]) {
+  return query(
+    eventsCollection(getDb()),
+    where('visibilityOrgId', '==', orgId),
+    ...statusConstraints(status),
+    orderBy('startDate', 'asc'),
+  );
+}
+
+function inMunicipalityByStart(municipalityId: string, events: EventWithId[]): EventWithId[] {
+  return events
     .filter((e) => e.municipalityId === municipalityId)
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 }
 
 /**
- * The org detail screen's event list. `includePrivate` must be true only when
- * the caller is a member of `organizationId` (or an app admin) — a non-member
- * asking for the private rows does not get a shorter list, they get a
- * permission-denied that empties the whole section.
+ * One listener per org (rules do not filter a list); merged as the get does.
+ * An org whose private events the rules refuse (an open one) contributes
+ * nothing rather than blanking every other org's — see watchPrivateUpcomingFeed.
  */
-export async function getEventsByOrganization(
-  organizationId: string,
-  { includePrivate = false }: { includePrivate?: boolean } = {},
-): Promise<EventWithId[]> {
-  const q = query(
+export function watchPrivateEventsByMunicipality(
+  municipalityId: string,
+  orgIds: string[],
+  status: EventStatus | EventStatus[] | undefined,
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchMerged<EventWithId>(
+    orgIds.map((orgId) =>
+      forbiddenAsEmpty<EventWithId>('events:watchPrivateEventsByMunicipality', (next, error) =>
+        watchQuery(orgPrivateEventsQuery(orgId, status), next, error),
+      ),
+    ),
+    (rows) => inMunicipalityByStart(municipalityId, rows),
+    onNext,
+    onError,
+  );
+}
+
+const LISTED_STATUSES: EventStatus[] = ['published', 'completed'];
+
+function organizationPublicEventsQuery(organizationId: string) {
+  return query(
     eventsCollection(getDb()),
     where('organizerOrgIds', 'array-contains', organizationId),
-    ...(includePrivate ? [] : [publicOnly()]),
+    publicOnly(),
     orderBy('startDate', 'asc'),
   );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * The events an organization has organized, for its detail screen: published
+ * and completed, never cancelled, in start order.
+ *
+ * The private half is its own query pinned on `visibilityOrgId` (rules do not
+ * filter a list), asked only when `includePrivate` — a vetted member. A refusal
+ * there answers empty rather than costing the public half.
+ */
+export function watchEventsByOrganization(
+  organizationId: string,
+  { includePrivate }: { includePrivate: boolean },
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  const publicPart = (next: (rows: EventWithId[]) => void, error: WatchError) =>
+    watchQuery(organizationPublicEventsQuery(organizationId), next, error);
+  const privatePart = forbiddenAsEmpty<EventWithId>('events:watchEventsByOrganization', (next, error) =>
+    watchQuery(orgPrivateEventsQuery(organizationId, LISTED_STATUSES), next, error),
+  );
+  return watchMerged<EventWithId>(
+    includePrivate ? [publicPart, privatePart] : [publicPart],
+    // Status is filtered here rather than in the public query, which would
+    // otherwise need a status + array-contains composite index.
+    (rows) =>
+      rows
+        // A private event names its org in visibilityOrgId, but nothing in the
+        // rules makes that org one of its organizers.
+        .filter((e) => e.organizerOrgIds.includes(organizationId) && LISTED_STATUSES.includes(e.status))
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime()),
+    onNext,
+    onError,
+  );
 }
 
 export async function createEvent(input: Omit<EventDataInput, 'villageSlug'>): Promise<string> {
@@ -173,25 +252,45 @@ export async function deleteEvent(eventId: string): Promise<void> {
   await deleteDoc(eventDoc(getDb(), eventId));
 }
 
-export async function getEventsByOrganizer(
-  userId: string,
-): Promise<(EventData & { id: string })[]> {
-  const q = query(
+function organizerEventsQuery(userId: string) {
+  return query(
     eventsCollection(getDb()),
     where('organizerUserIds', 'array-contains', userId),
     orderBy('createdAt', 'desc'),
   );
-  const snap = await getDocs(q);
-  // A "deleted" event is soft-cancelled (status -> 'cancelled'); the profile's
-  // managed-events list must not resurface it. Filtered here rather than in the
-  // query to avoid a status+array-contains composite index.
-  return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((e) => e.status !== 'cancelled');
 }
 
-export async function getEventCountByOrganizer(userId: string): Promise<number> {
-  const q = query(eventsCollection(getDb()), where('organizerUserIds', 'array-contains', userId));
-  const snap = await getCountFromServer(q);
-  return snap.data().count;
+// A "deleted" event is soft-cancelled (status -> 'cancelled'); the profile's
+// managed-events list must not resurface it. Filtered here rather than in the
+// query to avoid a status+array-contains composite index.
+const notCancelled = (rows: EventWithId[]) => rows.filter((e) => e.status !== 'cancelled');
+
+export async function getEventsByOrganizer(
+  userId: string,
+): Promise<(EventData & { id: string })[]> {
+  const snap = await getDocs(organizerEventsQuery(userId));
+  return notCancelled(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+}
+
+export function watchEventsByOrganizer(
+  userId: string,
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    organizerEventsQuery(userId),
+    (rows) => {
+      onNext(notCancelled(rows));
+    },
+    onError,
+  );
+}
+
+/** Several events by id, in the order given; an id with no event is dropped. */
+export function watchEventsByIds(
+  eventIds: string[],
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDocsByIds(eventIds, watchEvent, onNext, onError);
 }

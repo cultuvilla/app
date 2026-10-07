@@ -1,20 +1,88 @@
-import { useState, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import {
+  Animated,
   TextInput,
   View,
   type NativeSyntheticEvent,
   type TextInputContentSizeChangeEventData,
   type TextInputProps,
+  type TextInputScrollEvent,
 } from 'react-native';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, spacing, typography } from '@cultuvilla/shared/design-system';
 import { Text } from './Text';
 import { FieldLabel } from './FieldLabel';
 import { VStack } from './VStack';
 
 /** One line of body text — the composer's resting height. */
-const AUTO_GROW_MIN_HEIGHT = 20;
-/** ~6 lines: enough to read a long comment whole without eating the screen. */
-const AUTO_GROW_MAX_HEIGHT = 120;
+const AUTO_GROW_MIN_HEIGHT = typography.body.lineHeight;
+/** 5 lines: enough to read a long comment whole without eating the screen. */
+const AUTO_GROW_MAX_HEIGHT = typography.body.lineHeight * 5;
+/** Half a one-line pill (line + the wrapper's py-2), so it reads as a capsule at
+ * rest. `rounded-full` would turn a grown, multi-line field into a stadium whose
+ * curved ends cut across the text. */
+const PILL_RADIUS = (typography.body.lineHeight + spacing[2] * 2) / 2;
+/** How long the scroll hint stays after the last scroll or keystroke. */
+const SCROLL_HINT_VISIBLE_MS = 900;
+const SCROLL_HINT_WIDTH = 3;
+
+/**
+ * Thin bar on the left edge of a field that has outgrown `maxAutoGrowHeight`,
+ * so a typist can tell there is hidden text. Drawn by hand: Android draws no
+ * indicator on a TextInput at all, and iOS only on the right, under the send
+ * arrow. Its size and position mirror the visible window over the content.
+ */
+function ScrollHint({
+  visibleHeight,
+  contentHeight,
+  scrollY,
+  pulse,
+  left,
+  top,
+}: {
+  visibleHeight: number;
+  contentHeight: number;
+  scrollY: number;
+  /** Changes whenever the hint should flash into view. */
+  pulse: number;
+  left: number;
+  top: number;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (pulse === 0) return;
+    opacity.stopAnimation();
+    opacity.setValue(1);
+    const fade = Animated.timing(opacity, {
+      toValue: 0,
+      duration: 300,
+      delay: SCROLL_HINT_VISIBLE_MS,
+      useNativeDriver: true,
+    });
+    fade.start();
+    return () => fade.stop();
+  }, [pulse, opacity]);
+
+  const barHeight = Math.max((visibleHeight / contentHeight) * visibleHeight, 12);
+  const maxScroll = contentHeight - visibleHeight;
+  const progress = maxScroll > 0 ? Math.min(Math.max(scrollY / maxScroll, 0), 1) : 0;
+  // style, not className: NativeWind drops className on Animated components.
+  return (
+    <Animated.View
+      pointerEvents="none"
+      testID="input-scroll-hint"
+      style={{
+        position: 'absolute',
+        left,
+        top: top + progress * (visibleHeight - barHeight),
+        width: SCROLL_HINT_WIDTH,
+        height: barHeight,
+        borderRadius: SCROLL_HINT_WIDTH / 2,
+        backgroundColor: colors.light.fg.accent,
+        opacity: Animated.multiply(opacity, 0.5),
+      }}
+    />
+  );
+}
 
 export type InputProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText'> & {
   value: string;
@@ -34,6 +102,9 @@ export type InputProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText'
   autoGrow?: boolean;
   /** Ceiling for `autoGrow`, in px. Past it the field scrolls instead of growing. */
   maxAutoGrowHeight?: number;
+  /** Lays out the whole field (label, box, error) — e.g. `flex-1` in a row. It
+   * never reaches the TextInput, whose own classes carry the text style. */
+  className?: string;
 };
 
 // Controlled text input. `onChangeText` (vs `onChange`) keeps the API aligned
@@ -50,29 +121,48 @@ export function Input({
   inputRef,
   autoGrow = false,
   maxAutoGrowHeight = AUTO_GROW_MAX_HEIGHT,
+  onScroll,
+  className,
   ...rest
 }: InputProps) {
   // RN does not resize a multiline field to fit its text, so the height is
   // driven from the reported content size and clamped at both ends: one line at
   // rest, `maxAutoGrowHeight` before it starts scrolling instead of growing.
   const [contentHeight, setContentHeight] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+  const [hintPulse, setHintPulse] = useState(0);
   const grownHeight = Math.min(Math.max(contentHeight, AUTO_GROW_MIN_HEIGHT), maxAutoGrowHeight);
+  const overflowing = autoGrow && contentHeight > maxAutoGrowHeight;
+  const flashHint = () => setHintPulse((n) => n + 1);
+
+  // Typing past the ceiling hides the top lines — show the hint as it happens.
+  useEffect(() => {
+    if (overflowing) flashHint();
+  }, [overflowing, contentHeight]);
+
   const autoGrowProps = autoGrow
     ? ({
         multiline: true,
-        scrollEnabled: contentHeight > maxAutoGrowHeight,
+        scrollEnabled: overflowing,
         onContentSizeChange: (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) =>
           setContentHeight(e.nativeEvent.contentSize.height),
       } as const)
     : null;
+  const handleScroll = (e: TextInputScrollEvent) => {
+    onScroll?.(e);
+    if (!overflowing) return;
+    setScrollY(e.nativeEvent.contentOffset.y);
+    flashHint();
+  };
   const heightStyle = autoGrow ? { height: grownHeight } : null;
   return (
-    <VStack gap={1}>
+    <VStack gap={1} className={className}>
       {label && <FieldLabel>{label}</FieldLabel>}
       <View
         className={`flex-row ${autoGrow ? 'items-end' : 'items-center'} border ${
-          pill ? 'rounded-full px-4 gap-2 py-2' : `rounded-md px-3 bg-surface ${dense ? 'py-1' : 'py-2'}`
+          pill ? 'px-4 gap-2 py-2' : `rounded-md px-3 bg-surface ${dense ? 'py-1' : 'py-2'}`
         } ${error ? 'border-danger' : pill ? 'border-accent' : 'border-subtle'}`}
+        style={pill ? { borderRadius: PILL_RADIUS } : undefined}
       >
         <TextInput
           ref={inputRef}
@@ -92,8 +182,19 @@ export function Input({
           }
           {...autoGrowProps}
           {...rest}
+          onScroll={handleScroll}
         />
         {rightAdornment}
+        {overflowing ? (
+          <ScrollHint
+            visibleHeight={grownHeight}
+            contentHeight={contentHeight}
+            scrollY={scrollY}
+            pulse={hintPulse}
+            left={pill ? spacing[1] + 2 : spacing[1]}
+            top={dense ? spacing[1] : spacing[2]}
+          />
+        ) : null}
       </View>
       {error && (
         <Text variant="caption" tone="danger">

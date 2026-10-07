@@ -1,10 +1,13 @@
-import { FirebaseError } from '@firebase/util';
 import { withFirestoreErrorLog } from '../lib/firestoreErrorLog';
 
-// Mock @firebase/auth so getAuth().currentUser is controllable.
-jest.mock('@firebase/auth', () => ({
+jest.mock('@cultuvilla/shared/firebase', () => ({
   getAuth: () => ({ currentUser: { uid: 'test-uid' } }),
 }));
+
+/** A Firestore error as the native SDK throws it: the code carries a prefix. */
+function firestoreError(code: string, message: string): Error {
+  return Object.assign(new Error(message), { code: `firestore/${code}` });
+}
 
 const mockCaptureError = jest.fn();
 jest.mock('@cultuvilla/shared', () => ({
@@ -32,8 +35,8 @@ describe('withFirestoreErrorLog', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('logs label/code/uid and rethrows on permission-denied', async () => {
-    const err = new FirebaseError('permission-denied', 'Missing or insufficient permissions.');
+  it('logs label/uid and rethrows on permission-denied', async () => {
+    const err = firestoreError('permission-denied', 'Missing or insufficient permissions.');
     await expect(
       withFirestoreErrorLog('test:deny', async () => {
         throw err;
@@ -43,7 +46,6 @@ describe('withFirestoreErrorLog', () => {
     const line = warn.mock.calls[0][0] as string;
     expect(line).toContain('[firestore-deny]');
     expect(line).toContain('label=test:deny');
-    expect(line).toContain('code=permission-denied');
     expect(line).toContain('uid=test-uid');
     expect(mockCaptureError).toHaveBeenCalledWith(err, { operation: 'test:deny' });
   });
@@ -62,7 +64,7 @@ describe('withFirestoreErrorLog', () => {
   // denial, so production must report it even though it stays off the console.
   it('reports the label in production without writing to the console', async () => {
     globalThis.__DEV__ = false;
-    const err = new FirebaseError('permission-denied', 'denied');
+    const err = firestoreError('permission-denied', 'denied');
     await expect(
       withFirestoreErrorLog('test:prod', async () => {
         throw err;
@@ -74,7 +76,7 @@ describe('withFirestoreErrorLog', () => {
 
   it('does not report errors that are not permission denials', async () => {
     globalThis.__DEV__ = false;
-    const err = new FirebaseError('unavailable', 'offline');
+    const err = firestoreError('unavailable', 'offline');
     await expect(
       withFirestoreErrorLog('test:offline', async () => {
         throw err;

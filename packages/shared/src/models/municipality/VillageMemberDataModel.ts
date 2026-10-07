@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { ProfileAnswersSchema } from './CensoTypes';
 
 export const VillageMemberRoleSchema = z.enum(['admin', 'user']);
 export type VillageMemberRole = z.infer<typeof VillageMemberRoleSchema>;
@@ -18,7 +17,11 @@ export const VillageMemberDataSchema = z.object({
   userId: z.string(),
   role: VillageMemberRoleSchema,
   joinedAt: z.date(),
-  profileAnswers: ProfileAnswersSchema,
+  // Always `{}`. Census answers moved to censoAnswers/ (this doc is
+  // world-readable); the key stays only because store binaries that predate
+  // the move require it to parse the doc. Drop it once
+  // config/appVersion.minSupported is past those builds.
+  profileAnswers: z.object({}).strict(),
   profileCompletedAt: z.date().nullable(),
 });
 export type VillageMemberData = z.infer<typeof VillageMemberDataSchema>;
@@ -27,7 +30,6 @@ export interface VillageMemberDataInput {
   userId: string;
   role?: VillageMemberRole;
   joinedAt?: Date;
-  profileAnswers?: z.infer<typeof ProfileAnswersSchema>;
   profileCompletedAt?: Date | null;
 }
 
@@ -36,7 +38,7 @@ export function buildVillageMemberData(input: VillageMemberDataInput): VillageMe
     userId: input.userId,
     role: input.role ?? 'user',
     joinedAt: input.joinedAt ?? new Date(),
-    profileAnswers: input.profileAnswers ?? {},
+    profileAnswers: {},
     profileCompletedAt: input.profileCompletedAt ?? null,
   };
 }

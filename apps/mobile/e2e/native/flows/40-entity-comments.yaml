@@ -1,6 +1,5 @@
-# Posting a comment on an entity detail screen. This is the suite's only
-# keyboard-input flow against a running native app, so it covers what the web
-# driver cannot: the RN TextInput + soft keyboard + send round trip.
+# Posting a comment on an entity detail screen: the RN TextInput + soft
+# keyboard + send round trip.
 #
 # The comment body is stamped with the current time so a re-run never asserts on
 # a leftover from the previous one.
@@ -20,18 +19,34 @@ env:
 - openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}'
 - evalScript: ${output.body = 'Comentario nativo ' + Date.now()}
 # EntityComments renders below the hero image, the body and the organiser row,
-# so on a phone-sized screen it starts off the fold — Playwright's `click()`
-# scrolls implicitly, Maestro does not.
+# so on a phone-sized screen it starts off the fold, and Maestro does not
+# scroll implicitly.
+#
+# Then scroll to the END of the content before tapping. The register FAB is
+# absolutely positioned over the bottom band of the screen, outside the scroll
+# view, so wherever `scrollUntilVisible` happens to stop, the composer's centre
+# — where `tapOn` aims — can sit under the FAB. On CI's short pixel_5 it did:
+# the tap focused nothing, Maestro typed the comment as raw key events into an
+# unfocused window, and the activity was torn down mid-word. The composer is
+# the last thing on the page, and the content's bottom padding (pb-24) is what
+# lifts it clear of the FAB, so only the end of the scroll is a safe spot.
+# Explicit swipes: a bounded, deterministic "scroll to the end".
 - scrollUntilVisible:
     element:
       id: 'comment-input'
     direction: DOWN
     timeout: 45000
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          start: 50%, 60%
+          end: 50%, 25%
+          duration: 300
 - tapOn:
     id: 'comment-input'
 - inputText: ${output.body}
-# Send with the arrow, exactly as a user does and as the Playwright mirror
-# (`e2e/flows/entity-comments.spec.ts`) already did.
+# Send with the arrow, exactly as a user does.
 #
 # It used to be `pressKey: Enter`, because the composer was a single-line field
 # carrying `returnKeyType="send"` + `onSubmitEditing`. `Input` now takes

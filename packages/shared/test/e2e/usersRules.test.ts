@@ -8,9 +8,9 @@
 // contexts.
 import { describe, it } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asUserWithEmail, seed } from '../helpers/roles';
+import { asAdmin, asAnon, asUser, asUserWithEmail, seed } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -41,10 +41,78 @@ async function seedTriggerCreatedUserDoc(userId: string) {
 }
 
 describe('firestore.rules — /users/{userId}', () => {
+  // The account doc carries email and telephone. Other people's names come
+  // from publicProfiles/{uid}; nobody but the owner (and app admins) reads this.
+  describe('read access is owner- or app-admin-only', () => {
+    async function seedProfile(userId: string) {
+      await seed(getEnv(), async (ctx) => {
+        await setDoc(doc(ctx.firestore(), `users/${userId}`), {
+          ...createUserProfilePayload(),
+          displayName: 'Ana',
+          createdAt: new Date(),
+          termsAcceptedAt: new Date(),
+        });
+      });
+    }
+
+    it('denies a signed-out get', async () => {
+      await seedProfile(OWNER);
+      await assertFails(getDoc(doc(asAnon(getEnv()), `users/${OWNER}`)));
+    });
+
+    it('denies a signed-out list', async () => {
+      await seedProfile(OWNER);
+      await assertFails(getDocs(collection(asAnon(getEnv()), 'users')));
+    });
+
+    it("denies another signed-in user's get", async () => {
+      await seedProfile(OWNER);
+      await assertFails(getDoc(doc(asUser(getEnv(), OTHER), `users/${OWNER}`)));
+    });
+
+    it('denies a signed-in list', async () => {
+      await seedProfile(OWNER);
+      await assertFails(getDocs(collection(asUser(getEnv(), OTHER), 'users')));
+    });
+
+    it('allows the owner to get their own doc', async () => {
+      await seedProfile(OWNER);
+      await assertSucceeds(getDoc(doc(asUser(getEnv(), OWNER), `users/${OWNER}`)));
+    });
+
+    it('allows the owner to get their own doc before it exists', async () => {
+      await assertSucceeds(getDoc(doc(asUser(getEnv(), OWNER), `users/${OWNER}`)));
+    });
+
+    it('allows an app admin to get any doc', async () => {
+      await seedProfile(OWNER);
+      const adminDb = await asAdmin(getEnv(), 'sadmin');
+      await assertSucceeds(getDoc(doc(adminDb, `users/${OWNER}`)));
+    });
+  });
+
   describe('create (no pre-existing doc)', () => {
     it('owner can create their own profile', async () => {
-      const ownerDb = asUser(getEnv(), OWNER);
+      const ownerDb = asUserWithEmail(getEnv(), OWNER, OWNER_EMAIL);
       await assertSucceeds(
+        setDoc(doc(ownerDb, `users/${OWNER}`), createUserProfilePayload(), { merge: true }),
+      );
+    });
+
+    it('rejects a create whose email is not the verified auth email', async () => {
+      const ownerDb = asUserWithEmail(getEnv(), OWNER, OWNER_EMAIL);
+      await assertFails(
+        setDoc(
+          doc(ownerDb, `users/${OWNER}`),
+          { ...createUserProfilePayload(), email: 'someone-else@example.com' },
+          { merge: true },
+        ),
+      );
+    });
+
+    it('rejects a create when the auth token carries no email', async () => {
+      const ownerDb = asUser(getEnv(), OWNER);
+      await assertFails(
         setDoc(doc(ownerDb, `users/${OWNER}`), createUserProfilePayload(), { merge: true }),
       );
     });
@@ -183,5 +251,37 @@ describe('firestore.rules — /users/{userId}', () => {
         ),
       );
     });
+  });
+});
+
+describe('firestore.rules — /publicProfiles/{userId}', () => {
+  async function seedPublicProfile(userId: string) {
+    await seed(getEnv(), async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `publicProfiles/${userId}`), {
+        displayName: 'Ana',
+        activeMunicipalityId: null,
+      });
+    });
+  }
+
+  it('lets anyone, signed out included, get one profile', async () => {
+    await seedPublicProfile(OWNER);
+    await assertSucceeds(getDoc(doc(asAnon(getEnv()), `publicProfiles/${OWNER}`)));
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), OTHER), `publicProfiles/${OWNER}`)));
+  });
+
+  it('denies listing the collection, signed in or not', async () => {
+    await seedPublicProfile(OWNER);
+    await assertFails(getDocs(collection(asAnon(getEnv()), 'publicProfiles')));
+    await assertFails(getDocs(collection(asUser(getEnv(), OTHER), 'publicProfiles')));
+  });
+
+  it('denies client writes, even by the owner (function-owned)', async () => {
+    await assertFails(
+      setDoc(doc(asUser(getEnv(), OWNER), `publicProfiles/${OWNER}`), {
+        displayName: 'Ana',
+        activeMunicipalityId: null,
+      }),
+    );
   });
 });

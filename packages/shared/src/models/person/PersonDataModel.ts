@@ -1,7 +1,5 @@
 import { z } from 'zod';
-
-export const SexSchema = z.enum(['male', 'female', 'other']);
-export type Sex = z.infer<typeof SexSchema>;
+import { SexSchema, type Sex } from '../core/SexModel';
 
 export const PartialDateSchema = z.object({
   year: z.number().int().nullable(),

@@ -1,11 +1,24 @@
-import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  Timestamp,
+  where,
+  writeBatch,
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
+import { censoAnswersCollection, censoAnswersDoc } from '../firebase/refs/client';
 import type { ProfileAnswers, ProfileFormField } from '../models/municipality/CensoTypes';
+import { buildCensoAnswersData, type CensoAnswersData } from '../models/municipality/CensoAnswersDataModel';
 import { isCensoComplete } from './censoService';
 
 /**
- * Saves the user's answers to a municipality's censo. If all required fields
- * are filled, sets profileCompletedAt; otherwise clears it.
+ * Saves the user's answers to a municipality's censo. The answers go to the
+ * private censoAnswers doc; the world-readable member doc only records whether
+ * the censo is complete (profileCompletedAt), set when every required field is
+ * filled and cleared otherwise. One batch, so the two never disagree.
  *
  * Only the user themselves should call this (security rules enforce that).
  */
@@ -15,13 +28,35 @@ export async function saveProfileAnswers(
   fields: ProfileFormField[],
   answers: ProfileAnswers,
 ): Promise<void> {
-  // updateDoc bypasses the converter; inline untyped doc lets the partial
-  // payload (FieldValue | null union on profileCompletedAt) typecheck.
+  const db = getDb();
   const complete = isCensoComplete(fields, answers);
-  await updateDoc(doc(getDb(), 'municipalities', municipalityId, 'members', userId), {
-    profileAnswers: answers,
+  const batch = writeBatch(db);
+  batch.set(
+    censoAnswersDoc(db, municipalityId, userId),
+    buildCensoAnswersData({ municipalityId, userId, profileAnswers: answers }),
+  );
+  // Raw ref: the typed UpdateData chokes on the FieldValue | null union.
+  batch.update(doc(db, 'municipalities', municipalityId, 'members', userId), {
     profileCompletedAt: complete ? serverTimestamp() : null,
   });
+  await batch.commit();
+}
+
+/** The signed-in user's own answers for one village; `{}` when never answered. */
+export async function getMyCensoAnswers(
+  municipalityId: string,
+  userId: string,
+): Promise<ProfileAnswers> {
+  const snap = await getDoc(censoAnswersDoc(getDb(), municipalityId, userId));
+  return snap.exists() ? snap.data().profileAnswers : {};
+}
+
+/** Every villager's answers for one village. Village admins and app admins only. */
+export async function getVillageCensoAnswers(municipalityId: string): Promise<CensoAnswersData[]> {
+  const snap = await getDocs(
+    query(censoAnswersCollection(getDb()), where('municipalityId', '==', municipalityId)),
+  );
+  return snap.docs.map((d) => d.data());
 }
 
 /**

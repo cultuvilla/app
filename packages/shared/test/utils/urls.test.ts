@@ -16,6 +16,7 @@ import {
   villagePath,
   villageSectionPath,
   wordPath,
+  wrappedPath,
 } from '../../src/utils/urls';
 
 const fiesta = { id: 'evt123', title: 'Fiestas de San Roque 2026', villageSlug: 'matabuena' };
@@ -101,6 +102,23 @@ describe('parseAppPath', () => {
       token: 'tok',
     });
     expect(parseAppPath(userPath('u1'))).toEqual({ type: 'user', uid: 'u1' });
+  });
+
+  it('round-trips a fiestas Wrapped', () => {
+    expect(wrappedPath('matabuena', 2026)).toBe('/matabuena/fiestas/2026');
+    expect(parseAppPath(wrappedPath('matabuena', 2026))).toEqual({
+      type: 'wrapped',
+      villageSlug: 'matabuena',
+      year: 2026,
+    });
+  });
+
+  it('reads only a four-digit year as a Wrapped', () => {
+    expect(parseAppPath('/matabuena/fiestas')).toBeNull();
+    expect(parseAppPath('/matabuena/fiestas/26')).toBeNull();
+    expect(parseAppPath('/matabuena/fiestas/agosto')).toBeNull();
+    expect(parseAppPath('/matabuena/fiestas/2026/x')).toBeNull();
+    expect(parseAppPath('/ajustes/fiestas/2026')).toBeNull();
   });
 
   it('tolerates a trailing slash', () => {

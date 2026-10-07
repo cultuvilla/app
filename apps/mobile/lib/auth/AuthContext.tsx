@@ -13,13 +13,12 @@ import {
   OAuthProvider,
   signInWithCredential,
   signInWithCustomToken,
-  signInWithPopup,
   isSignInWithEmailLink,
   signInWithEmailAndPassword,
   verifyBeforeUpdateEmail,
   EmailAuthProvider,
   reauthenticateWithCredential,
-} from 'firebase/auth';
+} from '@cultuvilla/shared/firebase/sdk/auth';
 import {
   getUserProfile,
   setActiveMunicipality,
@@ -34,6 +33,7 @@ import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberSer
 import * as listenerManager from '@cultuvilla/shared/services/listenerManager';
 import type { UserData } from '@cultuvilla/shared/models/user';
 import { isE2EEmulatorHost, parseE2ELoginLink } from './e2eLoginLink';
+import { clearLocalCacheAndRestart } from './clearLocalCache';
 import {
   GoogleSignin,
   statusCodes,
@@ -58,21 +58,20 @@ interface GoogleSignInExtra {
   iosClientId: string;
 }
 
-interface DevAutoLogin {
-  email: string;
+interface DevLogin {
+  emails: string[];
   password: string;
 }
 
-// Dev-only convenience: skip the email-link round-trip on the emulator by
-// signing straight into a seeded test account. app.config.ts only populates
-// `extra.devAutoLogin` for `dev` builds when DEV_AUTOLOGIN_EMAIL/PASSWORD are
-// set; the __DEV__ guard is a second backstop so this is impossible in a
-// production bundle.
-function getDevAutoLogin(): DevAutoLogin | null {
+// Dev-only convenience: one-tap sign-in to seeded test accounts from the login
+// screen. app.config.ts only populates `extra.devLogin` for `dev` builds when
+// DEV_LOGIN_EMAILS/PASSWORD are set; the __DEV__ guard is a second backstop so
+// this is impossible in a production bundle.
+function getDevLogin(): DevLogin | null {
   if (!__DEV__) return null;
-  const extra = Constants.expoConfig?.extra as { devAutoLogin?: DevAutoLogin | null } | undefined;
-  const cfg = extra?.devAutoLogin;
-  if (!cfg?.email || !cfg?.password) return null;
+  const extra = Constants.expoConfig?.extra as { devLogin?: DevLogin | null } | undefined;
+  const cfg = extra?.devLogin;
+  if (!cfg?.emails?.length || !cfg.password) return null;
   return cfg;
 }
 
@@ -208,9 +207,22 @@ export interface AuthContextValue {
    * implementation for why an abandoned sign-up must not be left behind.
    */
   abandonSignUp: () => Promise<void>;
+  /** Seeded accounts the login screen offers one-tap sign-in to. Empty outside dev builds. */
+  devAccounts: string[];
+  signInWithDevAccount: (email: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
+
+// Prod logs (iOS 1.4.1–1.5.0) show the cancelled Apple sheet reaching JS with
+// no `code` at all, only expo-apple-authentication's RequestCanceledException
+// reason, so the code check alone let every cancel through as an error.
+const APPLE_CANCELLED_MESSAGE = 'The user canceled the authorization attempt';
+
+function isAppleCancellation(err: unknown): boolean {
+  const { code, message } = (err ?? {}) as { code?: unknown; message?: unknown };
+  return code === 'ERR_REQUEST_CANCELED' || message === APPLE_CANCELLED_MESSAGE;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -229,24 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Dev auto sign-in: once the initial auth state has resolved to "signed
-  // out", sign into the configured test account. Attempt-once-per-session so a
-  // manual signOut() lets you exercise the guest flow without being yanked
-  // straight back in — reload the app to re-trigger.
-  const devAutoLoginAttempted = useRef(false);
-  useEffect(() => {
-    if (loading || user || devAutoLoginAttempted.current) return;
-    const cfg = getDevAutoLogin();
-    if (!cfg) return;
-    devAutoLoginAttempted.current = true;
-    void signInWithEmailAndPassword(getAuth(), cfg.email, cfg.password).catch((e) => {
-      console.warn('[dev-autologin] sign-in failed:', e instanceof Error ? e.message : e);
-    });
-  }, [loading, user]);
-
   useEffect(() => {
     if (googleConfigured.current) return;
-    if (Platform.OS === 'web') return;
     const cfg = getGoogleSignInConfig();
     if (!cfg) return;
     GoogleSignin.configure({
@@ -257,11 +253,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // E2E fixture-login seam. Lets an automated driver sign in as a seeded fixture
-  // user without Google OAuth. Two drivers, two delivery mechanisms, ONE armed
-  // predicate and ONE auth primitive:
-  //   - web (Playwright) → `window.__cultuvillaE2E.login(email, password)`.
-  //   - native (Maestro) → a deep link, because Maestro drives the UI and cannot
-  //     call into the app's JS context. See `handleE2ELoginLink` below.
+  // user without Google OAuth, delivered as a deep link because Maestro drives
+  // the UI and cannot call into the app's JS context (see below).
   //
   // Guarded three independent ways so it can NEVER fire in a build a real user
   // could load:
@@ -302,15 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return fbSignOut(auth);
     };
 
-    if (Platform.OS === 'web') {
-      (globalThis as { __cultuvillaE2E?: unknown }).__cultuvillaE2E = {
-        login,
-        signOut: signOutFixture,
-      };
-      return;
-    }
-
-    // Native: the driver hands us credentials over the app's own URL scheme
+    // The driver hands us credentials over the app's own URL scheme
     // (`cultuvilla://?e2eLogin=<email>%7C<password>`), because Maestro drives
     // the UI and has no way to call into the app's JS context. The query lands
     // on the index route, which ignores unknown params, so no extra screen and
@@ -398,11 +383,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, profile, loadProfile]);
 
   const signInWithGoogle = async (): Promise<void> => {
-    if (Platform.OS === 'web') {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(getAuth(), provider);
-      return;
-    }
     const cfg = getGoogleSignInConfig();
     if (!cfg) {
       throw new Error(
@@ -454,8 +434,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nonce: hashedNonce,
       });
     } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      if (code === 'ERR_REQUEST_CANCELED') {
+      if (isAppleCancellation(err)) {
         // Carries a code so reportAuthError can tell "changed their mind"
         // apart from "the native flow broke" — the message alone cannot.
         const cancelled = new Error('Apple sign-in was cancelled') as Error & { code?: string };
@@ -586,9 +565,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.removeItem(PENDING_REAUTH_KEY);
   };
 
+  const devLogin = getDevLogin();
+  const devAccounts = devLogin?.emails ?? [];
+
+  const signInWithDevAccount = async (email: string): Promise<void> => {
+    if (!devLogin || !devLogin.emails.includes(email)) {
+      throw new Error(`[dev-login] ${email} is not a configured dev account`);
+    }
+    await signInWithEmailAndPassword(getAuth(), email, devLogin.password);
+  };
+
   const signOut = async (): Promise<void> => {
     await teardownSession();
     await fbSignOut(getAuth());
+    await clearLocalCacheAndRestart();
   };
 
   // Signing in with the wrong address used to be a one-way door: AuthGate
@@ -641,6 +631,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canChangeEmail,
         signOut,
         abandonSignUp,
+        devAccounts,
+        signInWithDevAccount,
       }}
     >
       {children}

@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Animated,
-  KeyboardAvoidingView,
   RefreshControl,
   ScrollView,
   View,
@@ -13,11 +11,8 @@ import { VStack } from '../primitives/VStack';
 import { Text } from '../primitives/Text';
 import { DetailHeroImage } from './DetailHeroImage';
 import { EntityDetailHeader, type EntityDetailAction } from './EntityDetailHeader';
-import { PullSpinner } from './PullSpinner';
-import { useWebPullToRefresh } from '../../lib/useWebPullToRefresh';
 import { DetailScrollProvider } from '../../lib/keyboard/DetailScrollContext';
 import { useT } from '../../lib/i18n';
-import { dismissSeoShell } from '../../lib/seoShell';
 
 /**
  * Shared scaffold for every ENTITY detail screen. An "entity" is a
@@ -65,15 +60,6 @@ export function EntityDetailScaffold({
   const { t } = useT();
   const busy = loading || notFound;
 
-  // Hand over from the server-rendered block that ogRenderer injected before
-  // #root. Waiting for `!loading` is the whole point: dismissing on mount would
-  // replace real content with this screen's spinner. Six entity detail screens
-  // share this scaffold, so one call covers all of them; no-op on native and on
-  // any route the renderer never touched.
-  useEffect(() => {
-    if (!loading) dismissSeoShell();
-  }, [loading]);
-
   const scrollRef = useRef<ScrollView>(null);
   const [nativeRefreshing, setNativeRefreshing] = useState(false);
   const runRefresh = async () => {
@@ -85,11 +71,6 @@ export function EntityDetailScaffold({
       setNativeRefreshing(false);
     }
   };
-  // Web-only pull-to-refresh (RefreshControl is inert on react-native-web). The
-  // hook owns the pull animation + spinner timing; the returned offset moves the
-  // content so it follows the drag. Enabled only once content is mounted and the
-  // screen opted in with `onRefresh`. Native uses RefreshControl below.
-  const { translateY: pull } = useWebPullToRefresh(scrollRef, runRefresh, !!onRefresh && !busy);
 
   return (
     <Screen padded={false} topInset={false}>
@@ -104,37 +85,31 @@ export function EntityDetailScaffold({
         </View>
       ) : (
         <>
-          {/* Android is edge-to-edge (Expo SDK 54+), so the window no longer
-              resizes for the keyboard and `adjustResize` is not an option:
-              without this the keyboard covers the comment composer on both
-              platforms. `padding` shrinks the scroll area instead, and the
-              composer scrolls itself into view via DetailScrollProvider. */}
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-            {onRefresh ? <PullSpinner pull={pull} top={0} /> : null}
-            <Animated.View style={{ flex: 1, transform: [{ translateY: pull }] }}>
-              <ScrollView
-                ref={scrollRef}
-                contentContainerClassName={scrollContentClassName}
-                keyboardShouldPersistTaps="handled"
-                refreshControl={
-                  onRefresh ? (
-                    <RefreshControl refreshing={nativeRefreshing} onRefresh={runRefresh} />
-                  ) : undefined
-                }
-              >
-                <DetailHeroImage
-                  imageUri={imageUri}
-                  fallbackImageUri={fallbackImageUri}
-                  fallbackIcon={fallbackIcon}
-                  accessibilityLabel={title}
-                />
-                <VStack gap={3} className="p-4">
-                  {title ? <Text variant="h1">{title}</Text> : null}
-                  <DetailScrollProvider scrollRef={scrollRef}>{children}</DetailScrollProvider>
-                </VStack>
-              </ScrollView>
-            </Animated.View>
-          </KeyboardAvoidingView>
+          {/* Screen avoids the keyboard; the composer scrolls itself into
+              view via DetailScrollProvider. */}
+          <View style={{ flex: 1 }}>
+            <ScrollView
+              ref={scrollRef}
+              contentContainerClassName={scrollContentClassName}
+              keyboardShouldPersistTaps="handled"
+              refreshControl={
+                onRefresh ? (
+                  <RefreshControl refreshing={nativeRefreshing} onRefresh={runRefresh} />
+                ) : undefined
+              }
+            >
+              <DetailHeroImage
+                imageUri={imageUri}
+                fallbackImageUri={fallbackImageUri}
+                fallbackIcon={fallbackIcon}
+                accessibilityLabel={title}
+              />
+              <VStack gap={3} className="p-4">
+                {title ? <Text variant="h1">{title}</Text> : null}
+                <DetailScrollProvider scrollRef={scrollRef}>{children}</DetailScrollProvider>
+              </VStack>
+            </ScrollView>
+          </View>
           {fab}
         </>
       )}

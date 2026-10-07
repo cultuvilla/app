@@ -10,10 +10,13 @@ registration *for that village*.
 ## Decision
 
 - The censo schema lives on the municipality doc (`municipalities/{id}.profileForm`);
-  a member's answers live on their membership doc
-  (`municipalities/{id}/members/{uid}.profileAnswers` + `profileCompletedAt`).
-  Schema is publicly readable; answers are visible only to authenticated
-  co-members.
+  a member's answers live in their own doc,
+  `censoAnswers/{municipalityId}_{uid}`, readable by that member, the village's
+  admins and app admins. The membership doc is world-readable, so it keeps only
+  the completion flag (`profileCompletedAt`) and an always-empty legacy
+  `profileAnswers: {}` that installed binaries still require to parse it. A
+  trigger (`purgeMemberCensoAnswers`) deletes the answers when the membership
+  ends. Schema is publicly readable.
 - **Lazy fill, not signup-time.** Joining via invite never prompts the censo.
   It's filled any time from `/profile`, and **force-prompted on first event
   registration** if any required field is unanswered.
@@ -33,7 +36,7 @@ registration *for that village*.
   `options` and `optionsSource`, or `optionsSource` on a non-choice type.
 - **Schema edits after first answer:** a field can **always be removed, even
   once answered** — `updateCenso` erases that field's `profileAnswers.<key>`
-  for every member in the same batch (explicit, admin-confirmed erasure; we
+  from every member's `censoAnswers` doc in the same batch (explicit, admin-confirmed erasure; we
   rejected soft-delete/archival and versioned schemas as over-engineering for a
   village censo). Mutating an answered field stays blocked: `type` and `key` are
   immutable, and select options can be appended but not removed once selected.

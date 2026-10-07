@@ -10,13 +10,10 @@
  *        [--latest=0.18.0] [--min=0.0.0] [--dry-run] [--confirm]
  *
  *   --env      target environment (default: dev).
- *   --latest   latest version, for BOTH platforms. Omit it: each platform then
- *              gets the version its own store actually serves, declared in
- *              `apps/mobile/lib/appStores.ts` (`APP_STORE_VERSIONS`). It is
- *              deliberately NOT the app.config.ts version — that is what a
- *              promotion deploys to the backend and the web, while a store
- *              binary moves only by an explicit `mobile-release` dispatch, so
- *              announcing it promises a download that does not exist yet.
+ *   --latest   latest version, for BOTH platforms. Omit it to PRESERVE what is
+ *              stored: in prod the announce poller (scripts/release-announce.mjs)
+ *              writes each platform's `latest` the moment its store serves the
+ *              release, so a value given here is an out-of-band correction.
  *   --min      minSupported. Omit to PRESERVE whatever is stored (see
  *              lib/app-version-config.mjs); only an explicit value moves the wall.
  *   --dry-run  print the diff and write nothing.
@@ -31,7 +28,7 @@
 import admin from 'firebase-admin';
 import { initAdminForEnv, ENVS } from './lib/env-credentials.mjs';
 import { currentAppVersion } from './lib/app-version.mjs';
-import { resolveAppVersionConfig, PUBLISHED_VERSION } from './lib/app-version-config.mjs';
+import { resolveAppVersionConfig } from './lib/app-version-config.mjs';
 
 function parseArgs(argv) {
   const out = {};
@@ -65,41 +62,48 @@ const { env, projectId } = initAdminForEnv(envArg);
 const db = admin.firestore();
 const ref = db.collection('config').doc('appVersion');
 
-async function main() {
-  const snap = await ref.get();
-  const stored = snap.exists ? snap.data() : null;
-
-  const appVersion = currentAppVersion();
-  const { payload, minSource, latestSource, unreleased } = resolveAppVersionConfig({
-    latest: typeof args.latest === 'string' ? args.latest : undefined,
-    minSupported: typeof args.min === 'string' ? args.min : undefined,
-    stored,
-    appVersion,
-  });
-
+function report(stored, resolved, appVersion) {
+  const { payload, minSource, latestSources, unreleased } = resolved;
   console.log(`config/appVersion in ${env} (${projectId})`);
   console.log(`  stored: ${stored ? JSON.stringify(stored) : '(absent)'}`);
-  console.log(`  app.config.ts    ${appVersion} (deployed here; not announced)`);
+  console.log(`  app.config.ts    ${appVersion} (deployed here; announced only once a store serves it)`);
   for (const platform of ['ios', 'android']) {
-    const declared = PUBLISHED_VERSION[platform] || '(nothing published)';
-    console.log(
-      `  ${platform.padEnd(7)} latest -> ${payload[platform].latest} (${latestSource}; store serves ${declared})`,
-    );
+    console.log(`  ${platform.padEnd(7)} latest -> ${payload[platform].latest} (${latestSources[platform]})`);
   }
   console.log(`  minSupported  -> ${payload.ios.minSupported} (${minSource})`);
   if (unreleased.length) {
     console.log(
-      `\n  NOTE: ${appVersion} is deployed but not in the ${unreleased.join('/')} store yet, so it is not` +
-        `\n  announced. Ship it with \`mobile-release\`, then update APP_STORE_VERSIONS and re-run.`,
+      `\n  NOTE: ${appVersion} is deployed but not announced on ${unreleased.join('/')} yet.` +
+        `\n  The announce poller moves it once that store serves it (docs/decisions/announce-when-live-poller.md).`,
     );
   }
+}
+
+async function main() {
+  const appVersion = currentAppVersion();
+  const request = {
+    latest: typeof args.latest === 'string' ? args.latest : undefined,
+    minSupported: typeof args.min === 'string' ? args.min : undefined,
+    appVersion,
+  };
 
   if (dryRun) {
+    const snap = await ref.get();
+    const stored = snap.exists ? snap.data() : null;
+    report(stored, resolveAppVersionConfig({ ...request, stored }), appVersion);
     console.log('\nDRY RUN — nothing written. Re-run without --dry-run to apply.');
     return;
   }
 
-  await ref.set(payload, { merge: false });
+  // A transaction, because the announce poller writes this doc too: a plain
+  // read-then-set here could put back the `latest` it moved a moment earlier.
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const stored = snap.exists ? snap.data() : null;
+    const resolved = resolveAppVersionConfig({ ...request, stored });
+    report(stored, resolved, appVersion);
+    tx.set(ref, resolved.payload, { merge: false });
+  });
   console.log(`\nWrote config/appVersion: ${JSON.stringify((await ref.get()).data())}`);
 }
 

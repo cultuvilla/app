@@ -7,7 +7,7 @@ import {
   where,
   orderBy,
   limit as fsLimit,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { contentReportsCollection, contentReportDoc } from '../firebase/refs/client';
 import {

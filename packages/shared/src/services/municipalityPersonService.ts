@@ -1,4 +1,4 @@
-import { getDocs, orderBy, query, where } from 'firebase/firestore';
+import { getDocs, orderBy, query, where } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { municipalityPeopleCollection } from '../firebase/refs/client';
 import type { MunicipalityPersonData } from '../models/municipality/MunicipalityPersonDataModel';

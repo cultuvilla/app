@@ -3,9 +3,12 @@
 // only the Resend secret and the `resend` package itself are mocked so no
 // network send happens.
 
-import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi, type MockInstance } from 'vitest';
 import functionsTestFactory from 'firebase-functions-test';
+import { logger } from 'firebase-functions/v2';
 import { resetEmulators } from '../helpers/firestoreEmulator';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { ipBucketIdFor, IP_RATE_LIMIT_MAX_SENDS } from '../../auth/rateLimit';
 
 vi.mock('../../auth/secret', () => ({ RESEND_API_KEY: { value: () => 'TEST_RESEND_KEY' } }));
 
@@ -35,11 +38,12 @@ interface CallableResult {
   ok: true;
 }
 
-async function callSend(data: unknown): Promise<CallableResult> {
+async function callSend(data: unknown, ip = '198.51.100.1'): Promise<CallableResult> {
   const wrapped = ft.wrap(sendAuthSignInEmail as unknown as Parameters<typeof ft.wrap>[0]);
   return (await wrapped({
     data,
     auth: undefined,
+    rawRequest: { headers: { 'x-forwarded-for': ip }, ip: '10.0.0.1' },
   } as unknown as Parameters<typeof wrapped>[0])) as unknown as CallableResult;
 }
 
@@ -100,6 +104,20 @@ describe('sendAuthSignInEmail (callable)', () => {
     expect(sendMock).toHaveBeenCalledTimes(5);
   });
 
+  it('skips the send once the caller IP is over its cap, whatever the address', async () => {
+    await getFirestore()
+      .collection('authEmailRateLimits')
+      .doc(ipBucketIdFor('203.0.113.7'))
+      .set({ count: IP_RATE_LIMIT_MAX_SENDS, windowStart: Timestamp.now() });
+
+    const result = await callSend(
+      { email: 'fresh@example.com', continueUrl: 'https://villa-events.web.app/finish' },
+      '203.0.113.7',
+    );
+    expect(result.ok).toBe(true);
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
   it('does not affect the rate-limit bucket of a different email', async () => {
     const data = { email: 'carol@example.com', continueUrl: 'https://villa-events.web.app/finish' };
     for (let i = 0; i < 5; i += 1) {
@@ -113,5 +131,34 @@ describe('sendAuthSignInEmail (callable)', () => {
     });
     expect(other.ok).toBe(true);
     expect(sendMock).toHaveBeenCalledTimes(6);
+  });
+
+  describe('under the Functions emulator', () => {
+    let info: MockInstance<typeof logger.info>;
+    beforeEach(() => {
+      vi.stubEnv('FUNCTIONS_EMULATOR', 'true');
+      info = vi.spyOn(logger, 'info');
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      info.mockRestore();
+    });
+
+    it('logs the generated link instead of calling Resend', async () => {
+      const result = await callSend({
+        email: 'frank@example.com',
+        continueUrl: 'https://villa-events.web.app/finish',
+      });
+      expect(result.ok).toBe(true);
+      expect(sendMock).not.toHaveBeenCalled();
+      const issued = info.mock.calls.find(([msg]) => msg === 'auth sign-in link issued (emulator, not emailed)');
+      expect(issued?.[1]).toMatchObject({ actionUrl: expect.stringMatching(/oobCode=/) });
+    });
+
+    it('still validates the request', async () => {
+      await expect(
+        callSend({ email: 'not-an-email', continueUrl: 'https://villa-events.web.app/finish' }),
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+    });
   });
 });

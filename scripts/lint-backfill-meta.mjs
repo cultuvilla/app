@@ -19,19 +19,17 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SENTINEL, SENTINEL_RE, loadBackfills } from './lib/backfill-harness.mjs';
+import { loadBackfills } from './lib/backfill-harness.mjs';
+import { SCAN_DIRS, SENTINEL, SENTINEL_RE, looksLikeBackfill } from './lib/backfill-registry.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SCAN_DIRS = [path.join(REPO_ROOT, 'scripts'), path.join(REPO_ROOT, 'scripts/backfill')];
-const LOOKS_LIKE_BACKFILL = /(backfill|migrate|cleanup)/i;
-const EXCLUDE = new Set(['backfills-cli.mjs', 'lint-backfill-meta.mjs']);
 
 const uncovered = [];
-for (const dir of SCAN_DIRS) {
+for (const rel of SCAN_DIRS) {
+  const dir = path.join(REPO_ROOT, rel);
   if (!existsSync(dir)) continue;
   for (const name of readdirSync(dir).sort()) {
-    if (!name.endsWith('.mjs') || EXCLUDE.has(name)) continue;
-    if (!LOOKS_LIKE_BACKFILL.test(name)) continue;
+    if (!looksLikeBackfill(`${rel}/${name}`)) continue;
     const file = path.join(dir, name);
     if (!statSync(file).isFile()) continue;
     if (SENTINEL_RE.test(readFileSync(file, 'utf8'))) continue;

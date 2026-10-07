@@ -78,26 +78,6 @@ describe('initFirebase', () => {
     expect((functions as unknown as { region: string }).region).toBe('us-central1');
   });
 
-  it('lets the caller customize auth init (RN passes getReactNativePersistence here)', () => {
-    let customizeCalled = false;
-    initFirebase(VALID_CONFIG, {
-      customizeAuth: (app) => {
-        customizeCalled = true;
-        // Call the standard initializer to satisfy the type contract.
-        // RN would call initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) }).
-        // require() is needed because `firebase/auth` must be evaluated in the
-        // customizeAuth callback (after initializeApp); we accept the unsafe
-        // any-typed import here as a contained test-only escape hatch.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
-        const { getAuth: getAuthFn } = require('firebase/auth');
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
-        return getAuthFn(app);
-      },
-    });
-    expect(customizeCalled).toBe(true);
-    expect(getAuth()).toBeDefined();
-  });
-
   it('_resetFirebaseForTests clears state so subsequent getDb() throws', async () => {
     initFirebase(VALID_CONFIG);
     expect(() => getDb()).not.toThrow();

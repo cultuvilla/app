@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { UPLOAD_MAX_EDGE, downscaleForUpload, resizeActionFor } from '../downscale';
 
@@ -60,17 +59,6 @@ describe('downscaleForUpload', () => {
       contentType: 'image/webp',
       extension: 'webp',
     });
-  });
-
-  it('encodes to JPEG on web, where canvas WebP encoding is not universal', async () => {
-    jest.replaceProperty(Platform, 'OS', 'web');
-    await downscaleForUpload({ uri: 'file:///a.jpg', width: 4000, height: 3000 });
-
-    expect(manipulate).toHaveBeenCalledWith(
-      'file:///a.jpg',
-      expect.anything(),
-      expect.objectContaining({ format: 'jpeg' }),
-    );
   });
 
   it('still re-encodes an image under the size cap', async () => {

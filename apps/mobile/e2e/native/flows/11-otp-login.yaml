@@ -1,0 +1,106 @@
+# A guest signs in through the real login screen with an emailed 6-digit code.
+#
+# Every other flow signs in through the fixture-login seam, so without this one
+# the login screen could be broken for every user while the suite stays green.
+#
+# Under the Functions emulator, sendAuthOtpCode writes the plaintext code onto
+# its `authOtpCodes` doc instead of emailing it; the flow reads it from there.
+# The doc id is sha256 of the lower-cased email (functions/src/auth/rateLimit.ts),
+# precomputed below because Maestro's JS runtime has no crypto.
+#
+# What it cannot catch: in production the custom token is signed through IAM,
+# which the Auth emulator stubs.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-user@cultuvilla.test
+  OTP_DOC: authOtpCodes/7cd46a1efa254b8369a2037942aa7dfe26ea21fa67442ae4996c0873e8bc0df2
+---
+- clearState
+# A concrete route, never the bare scheme (README § traps).
+- openLink: 'cultuvilla://perfil'
+- extendedWaitUntil:
+    visible: 'Explora'
+    timeout: 90000
+- openLink: 'cultuvilla://entrar'
+- extendedWaitUntil:
+    visible:
+      id: 'login-email-input'
+    timeout: 30000
+- tapOn:
+    id: 'login-email-input'
+- inputText: ${EMAIL}
+# With the soft keyboard up, the first tap outside the input can be spent
+# closing it. Tap until the code step shows; a second send only overwrites
+# the code doc, which is read afterwards.
+- repeat:
+    times: 3
+    while:
+      notVisible:
+        id: 'login-code-sent'
+    commands:
+      - tapOn:
+          id: 'login-submit'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- extendedWaitUntil:
+    visible:
+      id: 'login-code-sent'
+    timeout: 30000
+
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: ${OTP_DOC}
+      FIELD: emulatorCode
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.otpCode = output.value}
+- tapOn:
+    id: 'login-code-input'
+- inputText: ${output.otpCode}
+# Same keyboard caveat as the send button.
+- repeat:
+    times: 3
+    while:
+      visible:
+        id: 'login-verify-code'
+    commands:
+      - tapOn:
+          id: 'login-verify-code'
+      - waitForAnimationToEnd:
+          timeout: 5000
+
+# Signed in as the seeded, onboarded user: the profile's read chain renders.
+# The AuthGate sends an onboarded user to the tabs, so ask for the profile, and
+# re-ask while a late redirect can still win (same reasoning as login.yaml).
+# No wait on the tabs first: a retry tap on the verify button can land on the
+# home screen that replaced it and open an event card, which hides the tab bar.
+# The profile deep link below recovers from wherever that tap went.
+- extendedWaitUntil:
+    notVisible:
+      id: 'login-verify-code'
+    timeout: 60000
+- repeat:
+    times: 4
+    commands:
+      - runFlow:
+          when:
+            notVisible:
+              id: 'profile-edit-action'
+          commands:
+            - openLink: 'cultuvilla://perfil'
+            - waitForAnimationToEnd:
+                timeout: 4000
+- extendedWaitUntil:
+    visible:
+      id: 'profile-edit-action'
+    timeout: 60000
+- assertVisible: 'Usuario E2E'
+
+# A verified code is single-use: verifyAuthOtpCode deletes its doc.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: ${OTP_DOC}
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}

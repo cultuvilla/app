@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import PlaceDetailScreen, { sortBuriedByDeathDate } from '../[lugar]';
-import { getPlace } from '@cultuvilla/shared/services/municipalityService';
+import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { getPersonsByBurialPlace, updatePerson } from '@cultuvilla/shared/services/personService';
 import { buildPlaceData } from '@cultuvilla/shared/models/municipality';
 import { buildPersonData } from '@cultuvilla/shared/models/person';
@@ -25,7 +25,7 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getPlace: jest.fn().mockResolvedValue({ id: 'pl1', name: 'La Plaza', kind: 'plaza', images: [], description: 'desc' }),
+  watchPlace: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('place'),
 }));
 jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getPlaceViewLink: () => ({
@@ -65,10 +65,10 @@ function mockCaps(opts: { canEdit?: boolean; uid?: string | null } = {}) {
 describe('PlaceDetailScreen', () => {
   beforeEach(() => {
     mockCaps();
-    jest.mocked(getPlace).mockReset();
+    resetWatchers();
     jest.mocked(getPersonsByBurialPlace).mockReset();
     jest.mocked(updatePerson).mockClear();
-    jest.mocked(getPlace).mockResolvedValue({
+    setWatched('place', {
       ...buildPlaceData({
         name: 'La Plaza',
         kind: 'plaza',
@@ -121,7 +121,7 @@ describe('PlaceDetailScreen', () => {
   });
 
   it('renders cemetery difuntos as a date-sorted list and opens the burial editor instead of routing', async () => {
-    jest.mocked(getPlace).mockResolvedValueOnce({
+    setWatched('place', {
       ...buildPlaceData({
         name: 'Cementerio',
         kind: 'cemetery',
@@ -166,7 +166,7 @@ describe('PlaceDetailScreen', () => {
   });
 
   it('asks for the viewer\'s own burials and marks a private one with a lock', async () => {
-    jest.mocked(getPlace).mockResolvedValueOnce({
+    setWatched('place', {
       ...buildPlaceData({ name: 'Cementerio', kind: 'cemetery', municipalityId: 'm1' }),
       id: 'pl1',
     });
@@ -201,7 +201,7 @@ describe('PlaceDetailScreen', () => {
   });
 
   it('updates or removes the selected cemetery burial from the editor modal', async () => {
-    jest.mocked(getPlace).mockResolvedValue({
+    setWatched('place', {
       ...buildPlaceData({
         name: 'Cementerio',
         kind: 'cemetery',
@@ -247,7 +247,7 @@ describe('PlaceDetailScreen location', () => {
   });
 
   it('renders no map for a place nobody has pinned', async () => {
-    jest.mocked(getPlace).mockResolvedValue({
+    setWatched('place', {
       ...buildPlaceData({ name: 'La Plaza', kind: 'plaza', municipalityId: 'm1' }),
       id: 'pl1',
     });
@@ -257,7 +257,7 @@ describe('PlaceDetailScreen location', () => {
   });
 
   it('renders the map and the saved location name once the place is pinned', async () => {
-    jest.mocked(getPlace).mockResolvedValue({
+    setWatched('place', {
       ...buildPlaceData({
         name: 'La Plaza',
         kind: 'plaza',

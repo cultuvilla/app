@@ -66,7 +66,7 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
     if (blockers.length > 0) {
       throw new HttpsError(
         'failed-precondition',
-        'No puedes eliminar tu cuenta mientras seas el único administrador de un pueblo u organización. Nombra a otro administrador primero.',
+        'No puedes eliminar tu cuenta mientras seas la única persona al frente de un pueblo u organización. Nombra a alguien más primero.',
       );
     }
 
@@ -340,7 +340,7 @@ async function nullOrganizerPointers(uid: string): Promise<number> {
   for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
     const batch = db.batch();
     for (const doc of docs.slice(i, i + BATCH_LIMIT)) {
-      batch.update(doc.ref, { 'community.organizerId': null });
+      batch.update(doc.ref, { 'community.organizerId': null, 'community.organizerSex': null });
     }
     await batch.commit();
   }

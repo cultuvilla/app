@@ -15,7 +15,7 @@ import { describe, it } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { doc, setDoc, updateDoc, GeoPoint } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, seed } from '../helpers/roles';
+import { asUser, asUserWithEmail, seed } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -113,32 +113,32 @@ describe('shape enforcement — /users/{uid}', () => {
   };
 
   it('accepts a valid full-shape create', async () => {
-    const alice = asUser(getEnv(), 'alice');
+    const alice = asUserWithEmail(getEnv(), 'alice', 'alice@example.com');
     await assertSucceeds(setDoc(doc(alice, 'users/alice'), validUserCreate));
   });
 
   it('rejects creating with displayName (clients must not write it)', async () => {
-    const alice = asUser(getEnv(), 'alice');
+    const alice = asUserWithEmail(getEnv(), 'alice', 'alice@example.com');
     await assertFails(
       setDoc(doc(alice, 'users/alice'), { ...validUserCreate, displayName: 'spoof' }),
     );
   });
 
   it('rejects an unknown field on create', async () => {
-    const alice = asUser(getEnv(), 'alice');
+    const alice = asUserWithEmail(getEnv(), 'alice', 'alice@example.com');
     await assertFails(
       setDoc(doc(alice, 'users/alice'), { ...validUserCreate, isAdmin: true }),
     );
   });
 
   it('rejects a missing required field on create', async () => {
-    const alice = asUser(getEnv(), 'alice');
+    const alice = asUserWithEmail(getEnv(), 'alice', 'alice@example.com');
     const { email: _e, ...rest } = validUserCreate;
     await assertFails(setDoc(doc(alice, 'users/alice'), rest));
   });
 
   it('rejects wrong type on createdAt', async () => {
-    const alice = asUser(getEnv(), 'alice');
+    const alice = asUserWithEmail(getEnv(), 'alice', 'alice@example.com');
     await assertFails(
       setDoc(doc(alice, 'users/alice'), { ...validUserCreate, createdAt: 'now' }),
     );

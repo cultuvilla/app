@@ -47,14 +47,24 @@ pueblo y también un usuario autenticado.
 | **Visitante anónimo** | sin sesión iniciada | Explora eventos públicos y noticias visibles (`status: 'active'`). Ve **solo recuentos** de asistentes, nunca nombres. |
 | **Usuario autenticado** | con sesión iniciada | Todo lo anterior + inscribirse a **cualquier** evento de **cualquier** pueblo, gestionar su cuenta y Personas, publicar/comentar/reaccionar en noticias. |
 | **Miembro del pueblo** | `municipalities/{id}/members/{uid}` (`role: user`) | Miembro de un pueblo concreto. Ve los **nombres** de asistentes en los eventos de ese pueblo. Sujeto al censo de ese pueblo. |
-| **Administrador del pueblo** | `municipalities/{id}/members/{uid}` (`role: admin`) | Gestiona el pueblo: expulsa miembros, modera noticias, gestiona barrios/cementerios, edita/cancela cualquier evento del pueblo, aprueba solicitudes de creación de organizaciones. *(El ingreso es autoservicio — el administrador ya no lo aprueba.)* |
+| **Equipo del pueblo** (y su **Embajador**) | `municipalities/{id}/members/{uid}` (`role: admin`) | Gestiona el pueblo: expulsa miembros, modera noticias, gestiona barrios/cementerios, edita/cancela cualquier evento del pueblo, aprueba solicitudes de creación de organizaciones. *(El ingreso es autoservicio — el administrador ya no lo aprueba.)* |
 | **Miembro de organización** | `organizations/{orgId}/members/{uid}` | Crea/gestiona los eventos de esa organización. |
-| **Superadministrador** | `admins/{uid}` | Global. Crea municipios, aprueba solicitudes de organizador, gestiona los datos de referencia y tiene plenos poderes de administrador de pueblo en todas partes. |
+| **Superadministrador** | `admins/{uid}` | Global. Crea municipios, aprueba solicitudes de embajador, gestiona los datos de referencia y tiene plenos poderes de administrador de pueblo en todas partes. |
 
-**Los administradores no son únicos.** Un pueblo puede tener **varios
-administradores**. El organizador fundador (`community.adminUserId`) es el primer
-administrador; los administradores existentes pueden promover a otros miembros a
-administrador.
+**Un Embajador por pueblo, un equipo detrás.** En la app, el rol `admin` se
+presenta así (ver [decisions/embajador-title.md](decisions/embajador-title.md)):
+
+- **Embajador / Embajadora de Cultuvilla** — el único admin al que apunta
+  `community.organizerId`. Es un título **público**: su nombre y foto aparecen en
+  la página del pueblo y en su perfil. «Embajadora» sale automáticamente del
+  `sex` de su persona (`community.organizerSex`).
+- **Equipo del pueblo** — cualquier otro admin: los mismos permisos, sin título.
+
+El equipo puede añadir o quitar miembros del equipo; solo el Embajador (o un
+superadministrador) puede **ceder el título** a otro miembro
+(`transferVillageAmbassador`), que pasa a admin si no lo era. El Embajador saliente
+sigue en el equipo. Al Embajador no se le puede quitar del equipo sin ceder antes
+el título.
 
 **Multipueblo.** Un usuario puede ser miembro (o administrador) de **varios
 pueblos a la vez**. `activeMunicipalityId` en la cuenta selecciona en qué pueblo
@@ -86,21 +96,21 @@ lo canjea. *(Reglas diferidas — ver [§12](#12-diferido-en-otras-ramas).)*
 ### 3.1b Iniciar un pueblo dormido (activación, autoservicio)
 
 Un municipio sin comunidad se **inicia** con el callable `startVillage`:
-cualquier usuario lo activa (crea `community` con `adminUserId: null`,
+cualquier usuario lo activa (crea `community` con `organizerId: null`,
 `communityActive: true`) y queda como su **primer miembro**. Iniciar **no**
-convierte en organizador. Mientras `community.adminUserId == null` (sin
-organizador todavía — *fase wiki*), **cualquier miembro** puede editar la
+convierte en Embajador. Mientras `community.organizerId == null` (sin
+Embajador todavía — *fase wiki*), **cualquier miembro** puede editar la
 información básica (descripción e imágenes) vía el callable `updateVillageInfo`;
-cuando se concede un organizador, esa edición se consolida en los
-administradores.
+cuando se nombra un Embajador, esa edición se consolida en el equipo del
+pueblo.
 
-### 3.1c Organizar (rol de administrador, aprobado)
+### 3.1c Ser Embajador (aprobado)
 
-Un miembro de un pueblo **activo y sin organizador** solicita organizarlo
+Un miembro de un pueblo **activo y sin Embajador** solicita serlo
 (`requestOrganizeVillage`, solo motivación); un **superadministrador aprueba**
 (`respondToOrganizerRequest`). La aprobación **no crea la comunidad** (ya existe):
-fija `community.adminUserId` al solicitante y lo promueve a `role: admin`. Las
-solicitudes de organizador siguen pasando por Cloud Functions; la **membresía** y
+fija `community.organizerId` (y `organizerSex`) al solicitante y lo promueve a
+`role: admin`. Las solicitudes de Embajador siguen pasando por Cloud Functions; la **membresía** y
 el **inicio** del pueblo, en cambio, son escrituras gobernadas por reglas /
 callables sin aprobación.
 
@@ -126,11 +136,12 @@ requiere aprobación del administrador. Los campos de residencia del censo son
 
 - El administrador de cada pueblo define un **censo** — un formulario de perfil
   que captura información específica del pueblo (barrio, tipo de residencia,
-  hogar, …). El esquema es **de lectura pública**; las respuestas solo son
-  visibles para co-miembros autenticados.
+  hogar, …). El esquema es **de lectura pública**; las respuestas solo las ven
+  el propio vecino, el equipo del pueblo y los administradores de la app.
 - **Solo para miembros.** El censo es el padrón del pueblo sobre *sus propios
-  miembros*. Las respuestas de un miembro viven en su documento de membresía
-  (`profileAnswers` + `profileCompletedAt`). **Los visitantes no tienen censo.**
+  miembros*. Las respuestas de un miembro viven en `censoAnswers/{pueblo}_{uid}`;
+  su documento de membresía solo guarda si lo ha completado
+  (`profileCompletedAt`). **Los visitantes no tienen censo.**
 - **Relleno diferido, exigido en la primera inscripción.** Unirse nunca solicita
   el censo. A un miembro que no haya completado los campos obligatorios se le
   **fuerza a rellenarlo la primera vez que se inscribe** a un evento de ese

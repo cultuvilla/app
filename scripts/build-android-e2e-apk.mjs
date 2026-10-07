@@ -40,6 +40,13 @@
  *      Setting it for only one of the two produces an APK that looks right and
  *      silently talks to production Firebase.
  *
+ *   5. The native SDKs take their project from google-services.json, not from
+ *      FIREBASE_PROJECT_ID_DEV. The dev file names `villa-events`, while the
+ *      emulators serve the seeded data and users under the test project — so an
+ *      APK built from it reads an empty database and cannot sign anyone in. We
+ *      write a copy re-pointed at the test project and hand app.config.ts its
+ *      path; app.config.ts honours the override only in an emulator build.
+ *
  * The armed bypass can only ever be a `dev` bundle: app.config.ts throws when
  * USE_FIREBASE_EMULATOR=1 meets APP_ENV=beta/prod.
  *
@@ -76,6 +83,24 @@ const buildEnv = {
   GOOGLE_IOS_CLIENT_ID_DEV: process.env.GOOGLE_IOS_CLIENT_ID_DEV || '',
   GOOGLE_IOS_URL_SCHEME_DEV: process.env.GOOGLE_IOS_URL_SCHEME_DEV || '',
 };
+
+// See requirement 5 above. Generated, gitignored, never committed.
+const e2eGoogleServices = path.join(MOBILE, '.e2e', 'google-services.json');
+{
+  const projectId = buildEnv.FIREBASE_PROJECT_ID_DEV;
+  const devConfig = JSON.parse(
+    readFileSync(path.join(MOBILE, 'google-services', 'dev', 'google-services.json'), 'utf8'),
+  );
+  devConfig.project_info = {
+    ...devConfig.project_info,
+    project_id: projectId,
+    storage_bucket: buildEnv.FIREBASE_STORAGE_BUCKET_DEV,
+  };
+  mkdirSync(path.dirname(e2eGoogleServices), { recursive: true });
+  writeFileSync(e2eGoogleServices, JSON.stringify(devConfig, null, 2));
+  buildEnv.E2E_GOOGLE_SERVICES_FILE = e2eGoogleServices;
+  console.log(`[android-e2e-apk] native Firebase project: ${projectId}`);
+}
 
 function run(cmd, args, cwd) {
   console.log(`[android-e2e-apk] ${cmd} ${args.join(' ')}`);

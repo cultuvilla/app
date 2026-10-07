@@ -45,6 +45,8 @@ export const RESERVED_ROOT_SEGMENTS = [
   'usuario',
   // Served by Hosting / the web export, never by a route file.
   '_expo',
+  'brand',
+  'favicon.ico',
   'assets',
   'index.html',
   'robots.txt',
@@ -97,6 +99,7 @@ export const JOIN_SEGMENT = 'unirse';
 export const SEAT_CLAIM_SEGMENT = 'plaza';
 export const WORD_SEGMENT = 'palabra';
 export const NEW_WORD_SEGMENT = 'nueva';
+export const WRAPPED_SEGMENT = 'fiestas';
 
 /**
  * The first `_` splits a ref: slugs only ever contain `[a-z0-9-]`, while ids may
@@ -170,6 +173,11 @@ export function newWordPath(villageSlug: string): string {
   return `${villagePath(villageSlug)}/${WORD_SEGMENT}/${NEW_WORD_SEGMENT}`;
 }
 
+/** A village's fiestas Wrapped for one year — `/matabuena/fiestas/2026`. */
+export function wrappedPath(villageSlug: string, year: number): string {
+  return `${villagePath(villageSlug)}/${WRAPPED_SEGMENT}/${String(year)}`;
+}
+
 export function personPath(personId: string): string {
   return `/persona/${personId}`;
 }
@@ -191,6 +199,7 @@ export type ParsedAppPath =
       join?: true;
     }
   | { type: 'seatClaim'; villageSlug: string; ref: string; id: string; token: string }
+  | { type: 'wrapped'; villageSlug: string; year: number }
   | { type: 'user'; uid: string };
 
 /**
@@ -210,6 +219,12 @@ export function parseAppPath(pathname: string): ParsedAppPath | null {
   if (isReservedRootSegment(first)) return null;
 
   if (segments.length === 1) return { type: 'village', villageSlug: first };
+
+  if (second === WRAPPED_SEGMENT) {
+    return segments.length === 3 && third && /^\d{4}$/.test(third)
+      ? { type: 'wrapped', villageSlug: first, year: Number(third) }
+      : null;
+  }
 
   const kind = second ? SEGMENT_TO_ENTITY[second] : undefined;
   if (!kind || !third) return null;

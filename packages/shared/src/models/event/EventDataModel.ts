@@ -301,6 +301,20 @@ export function eventEndBoundary(event: Pick<EventData, 'startDate' | 'endDate'>
   return event.endDate ?? event.startDate;
 }
 
+/**
+ * How an event list reads left to right: upcoming first (soonest first), then
+ * past (most recent first). Split on the end boundary, so a multi-day event
+ * still running counts as upcoming.
+ */
+export function upcomingThenPast<E extends Pick<EventData, 'startDate' | 'endDate'>>(
+  events: readonly E[],
+  now: Date,
+): E[] {
+  const byStart = [...events].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  const isPast = (e: E) => isStartDayOver(eventEndBoundary(e), now);
+  return [...byStart.filter((e) => !isPast(e)), ...byStart.filter(isPast).reverse()];
+}
+
 export function isEventOngoing(
   event: Pick<EventData, 'status' | 'startDate' | 'endDate'>,
   now: Date,

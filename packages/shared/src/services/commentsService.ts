@@ -7,8 +7,8 @@ import {
   orderBy,
   where,
   limit as fsLimit,
-} from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+} from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import { commentsCollection, commentDoc } from '../firebase/refs/client';
 import { buildCommentData, type CommentData } from '../models/interaction/CommentDataModel';

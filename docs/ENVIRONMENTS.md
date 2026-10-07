@@ -67,7 +67,7 @@ the dev server after editing.
 ### Disaster recovery: rebuilding `apps/mobile/.env`
 
 If the file is ever lost, every value can be restored from
-[GitHub repo settings → Secrets and variables → Actions](https://github.com/alvaro-francisco-gil/cultuvilla/settings/secrets/actions):
+[GitHub repo settings → Secrets and variables → Actions](https://github.com/cultuvilla/app/settings/secrets/actions):
 
 - **Variables** (readable): `APP_ENV`, `EAS_PROJECT_ID`, all `FIREBASE_*` and
   `GOOGLE_*` keys. These are public identifiers — visible in the dashboard

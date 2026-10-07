@@ -16,9 +16,9 @@ jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
   removeOrgMember: (...a: unknown[]) => mockRemoveOrgMember(...a),
 }));
 
-const mockGetUserProfile = jest.fn();
+const mockGetPublicProfile = jest.fn();
 jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: (...a: unknown[]) => mockGetUserProfile(...a),
+  getPublicProfile: (...a: unknown[]) => mockGetPublicProfile(...a),
 }));
 
 const mockGetPersonByUserId = jest.fn();
@@ -59,7 +59,7 @@ beforeEach(() => {
   mockGetOrgMembers.mockReset();
   mockSetOrgMemberRole.mockReset();
   mockRemoveOrgMember.mockReset();
-  mockGetUserProfile.mockReset();
+  mockGetPublicProfile.mockReset();
   mockGetPersonByUserId.mockReset();
   mockShowConfirm.mockReset();
   mockShowAlert.mockReset();
@@ -67,7 +67,7 @@ beforeEach(() => {
   mockGetPersonByUserId.mockResolvedValue(null);
   mockSetOrgMemberRole.mockResolvedValue(undefined);
   mockRemoveOrgMember.mockResolvedValue(undefined);
-  mockGetUserProfile.mockImplementation(async (uid: string) => {
+  mockGetPublicProfile.mockImplementation(async (uid: string) => {
     const names: Record<string, string> = {
       admin1: 'Ana Admin',
       admin2: 'Carlos Admin',
@@ -254,4 +254,13 @@ test('surfaces an error if removal fails', async () => {
   fireEvent.press(screen.getByTestId('org-member-remove-user1'));
 
   await waitFor(() => expect(mockShowAlert).toHaveBeenCalledWith('No autorizado.'));
+});
+
+test('an org with no members renders nothing, not even the heading', async () => {
+  mockGetOrgMembers.mockResolvedValue([]);
+
+  const { toJSON } = render(<OrgMembersList orgId="o1" canManage currentUserId="admin1" />);
+
+  await waitFor(() => expect(mockGetOrgMembers).toHaveBeenCalled());
+  await waitFor(() => expect(toJSON()).toBeNull());
 });

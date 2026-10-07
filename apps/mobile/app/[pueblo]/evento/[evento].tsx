@@ -27,16 +27,17 @@ import { useAuth } from '../../../lib/auth/useAuth';
 import { useRegisterGate } from '../../../lib/auth/RegisterGateContext';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { useShareDeepLink } from '../../../lib/deeplink/useShareDeepLink';
-import { getEvent } from '@cultuvilla/shared/services/eventService';
+import { watchEvent } from '@cultuvilla/shared/services/eventService';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import { getEventLink } from '@cultuvilla/shared/services/deepLinkService';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
-import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
+import { watchMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import { escudoThumbDisplayUrl } from '@cultuvilla/shared/models/municipality';
 import { buildNameWithNickname } from '@cultuvilla/shared/models/person/PersonDataModel';
 import { formatDate, buildGoogleCalendarUrl } from '@cultuvilla/shared/utils';
 import { useT } from '../../../lib/i18n';
+import { useWatch } from '../../../lib/hooks/useWatch';
 import { isPrivateEvent } from '@cultuvilla/shared/models/event/EventDataModel';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import type { PersonData } from '@cultuvilla/shared/models/person/PersonDataModel';
@@ -53,28 +54,31 @@ export default function EventDetailScreen() {
   const gate = useRegisterGate();
   const { t } = useT();
   const share = useShareDeepLink();
-  const [event, setEvent] = useState<EventDoc | null>(null);
+  const { data: event = null, status } = useWatch<EventDoc | null>(
+    'eventDetail:watchEvent',
+    eventId || null,
+    (next, error) => watchEvent(eventId, next, error),
+  );
+  // The escudo lives on the municipality doc, not the event.
+  const villageId = event?.municipalityId ?? null;
+  const { data: village = null } = useWatch<VillageDoc | null>(
+    'eventDetail:watchMunicipality',
+    villageId,
+    villageId ? (next, error) => watchMunicipality(villageId, next, error) : null,
+  );
   const [person, setPerson] = useState<PersonDoc | null>(null);
-  const [village, setVillage] = useState<VillageDoc | null>(null);
   const { canManage, canEdit, isMember } = useEntityCapabilities(event?.municipalityId);
   // Organizing an event IS editing it: author, named organizer, or an admin of
   // the event's pueblo — the same three identities every entity kind accepts.
   const canOrganize = canEdit(event?.createdBy, event?.organizerUserIds);
 
-  // Single refetch for the whole screen, reused by pull-to-refresh. The escudo
-  // lives on the municipality doc (not the event), so the village is fetched
-  // once the event's municipalityId is known.
-  const load = useCallback(async () => {
-    if (!eventId) return;
-    const e = await getEvent(eventId);
-    setEvent(e);
-    if (e?.municipalityId) setVillage(await getMunicipality(e.municipalityId));
+  const loadPerson = useCallback(async () => {
     if (user) setPerson(await getPersonByUserId(user.uid, user.uid));
-  }, [eventId, user]);
+  }, [user]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadPerson();
+  }, [loadPerson]);
 
   useEffect(() => {
     if (!event) return;
@@ -137,13 +141,14 @@ export default function EventDetailScreen() {
 
   return (
     <EntityDetailScaffold
-      loading={!event}
+      loading={status === 'loading'}
+      notFound={status !== 'loading' && !event}
       imageUri={event?.imageURL ?? null}
       fallbackImageUri={event?.villageCoverImage ?? null}
       fallbackIcon={ENTITY_FALLBACK_ICON.event}
       actions={actions}
       title={event?.title}
-      onRefresh={load}
+      onRefresh={loadPerson}
       scrollContentClassName="pb-24"
       fab={
         event && person && user && event.signupEnabled !== false ? (

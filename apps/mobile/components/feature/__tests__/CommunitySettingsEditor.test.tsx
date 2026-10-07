@@ -27,7 +27,7 @@ const mockVillage = {
   locationLabel: null,
   mapZoom: null,
   communityActive: true,
-  community: { description: 'hola', organizerId: 'u1', profileForm: null, fiestas: [], activatedAt: new Date() },
+  community: { description: 'hola', organizerId: 'u1', organizerSex: null, profileForm: null, fiestas: [], activatedAt: new Date() },
 };
 
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
@@ -133,8 +133,8 @@ describe('fiestas persistence', () => {
         fiestas: [{ id: 'santiago', name: 'Santiago', anchor: { month: 7, day: 24, days: 3 }, years: {} }],
       },
     });
-    const { getByTestId } = render(<CommunitySettingsEditor villageId="m1" />);
-    await waitFor(() => expect(getByTestId('fiesta-santiago-name').props.value).toBe('Santiago'));
+    const { getByText } = render(<CommunitySettingsEditor villageId="m1" />);
+    await waitFor(() => expect(getByText('Santiago')).toBeTruthy());
   });
 
   // The service rejects malformed blocks at the write boundary; the screen must

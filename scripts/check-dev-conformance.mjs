@@ -48,13 +48,15 @@ import {
   municipalityBarriosCollection,
   municipalityPlacesCollection,
   municipalityMembersCollection,
-  municipalityInviteTokensCollection,
   organizationsCollection,
   organizationMembersCollection,
+  organizationJoinRequestsCollection,
   festivalPostersCollection,
   organizerRequestsCollection,
   personsCollection,
   usersCollection,
+  publicProfilesCollection,
+  censoAnswersCollection,
   userNotificationsCollection,
   userDevicesCollection,
   userPreferencesCollection,
@@ -103,7 +105,7 @@ const REGISTRY = [
     name: 'municipalities',
     coll: (db) => municipalitiesCollection(db),
     // ~6k municipalities are INE reference data with no community and no
-    // subcollections (members/joinRequests/inviteTokens/barrios/places only
+    // subcollections (members/joinRequests/barrios/places only
     // exist once a village is activated). Skip the subcollection round-trips
     // for inactive ones.
     //
@@ -127,13 +129,15 @@ const REGISTRY = [
       { name: 'barrios', coll: (db, id) => municipalityBarriosCollection(db, id) },
       { name: 'places', coll: (db, id) => municipalityPlacesCollection(db, id) },
       { name: 'members', coll: (db, id) => municipalityMembersCollection(db, id) },
-      { name: 'inviteTokens', coll: (db, id) => municipalityInviteTokensCollection(db, id) },
     ],
   },
   {
     name: 'organizations',
     coll: (db) => organizationsCollection(db),
-    subs: [{ name: 'members', coll: (db, id) => organizationMembersCollection(db, id) }],
+    subs: [
+      { name: 'members', coll: (db, id) => organizationMembersCollection(db, id) },
+      { name: 'joinRequests', coll: (db, id) => organizationJoinRequestsCollection(db, id) },
+    ],
   },
   { name: 'festivalPosters', coll: (db) => festivalPostersCollection(db) },
   { name: 'organizerRequests', coll: (db) => organizerRequestsCollection(db) },
@@ -147,6 +151,8 @@ const REGISTRY = [
       { name: 'preferences', coll: (db, id) => userPreferencesCollection(db, id) },
     ],
   },
+  { name: 'publicProfiles', coll: (db) => publicProfilesCollection(db) },
+  { name: 'censoAnswers', coll: (db) => censoAnswersCollection(db) },
   { name: 'pushQueue', coll: (db) => pushQueueCollection(db) },
   { name: 'news', coll: (db) => newsCollection(db) },
   { name: 'comments', coll: (db) => commentsCollection(db) },

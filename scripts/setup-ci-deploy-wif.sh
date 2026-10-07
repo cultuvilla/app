@@ -18,8 +18,8 @@
 set -euo pipefail
 
 ACC=cultuvilla.app@gmail.com
-REPO="alvaro-francisco-gil/cultuvilla"
-OWNER="alvaro-francisco-gil"
+REPO="cultuvilla/app"
+OWNER="cultuvilla"
 POOL="github-actions"
 PROVIDER="github"
 SA_ID="gha-deployer"
@@ -125,7 +125,12 @@ for T in "${TRIPLES[@]}"; do
     echo "  pool created: $POOL"
   fi
 
-  # 4) OIDC provider (trusts only this repo)
+  # 4) OIDC provider (trusts only this repo). The impersonation binding below is
+  #    scoped by branch alone, so this condition is the only thing keeping another
+  #    repo's `develop` from deploying as this SA — the private cultuvilla/business
+  #    repo deliberately has its own provider (`github-business`) for that reason.
+  #    Creation only: to change the condition on an existing provider, run
+  #    `gcloud iam workload-identity-pools providers update-oidc` with the same flag.
   if g iam workload-identity-pools providers describe "$PROVIDER" \
        --project="$PROJECT" --location=global --workload-identity-pool="$POOL" >/dev/null 2>&1; then
     echo "  provider exists: $PROVIDER"

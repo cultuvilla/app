@@ -9,9 +9,21 @@ name: mobile-ota
 # `mobile-release` could not submit (no Play service account). A one-line JS fix
 # had no route to a user. This is that route.
 #
-# Scope is deliberately `beta` only. Pushing straight to production users on a
-# merge is a release decision, not a side effect — `production` stays a manual
-# dispatch, consistent with store binaries only moving by explicit choice.
+# Two automatic routes, one publish step:
+#   - push to `beta`  -> channel `beta` (this file's own trigger);
+#   - push to `main`  -> channel `production`, via workflow_call from
+#     production-release.yml, which runs it only after the prod backend deploy
+#     is green and only when the push carries more than docs/workflow edits.
+# Production went automatic on 2026-10-06: the human gate is merging the
+# `beta -> main` promotion PR, not a second dispatch afterwards. See
+# docs/decisions/production-auto-release.md. workflow_dispatch stays for
+# publishing to any channel by hand.
+#
+# An update reaches a binary only when their fingerprints match. That survives a
+# release's `version` bump because apps/mobile/fingerprint.config.js skips
+# ExpoConfigVersions, and because no workflow edits the fingerprinted eas.json
+# before `eas build` uploads the project. Binaries built before that config
+# landed carry the old fingerprint and never receive these updates.
 #
 # LIMIT: OTA carries JS and assets, never native code. Adding a config plugin or
 # a native module changes the fingerprint, and EAS then refuses to serve that
@@ -34,9 +46,18 @@ on:
         type: choice
         options: [beta, dev, production]
         default: beta
+  workflow_call:
+    inputs:
+      channel:
+        description: Channel to publish to (beta | dev | production)
+        type: string
+        required: true
+    secrets:
+      EXPO_TOKEN:
+        required: true
 
 concurrency:
-  group: mobile-ota-${{ github.event.inputs.channel || 'beta' }}
+  group: mobile-ota-${{ inputs.channel || 'beta' }}
   cancel-in-progress: false
 
 permissions:
@@ -44,7 +65,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish OTA -> ${{ github.event.inputs.channel || 'beta' }}
+    name: Publish OTA -> ${{ inputs.channel || 'beta' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -82,7 +103,7 @@ jobs:
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          APP_ENV: ${{ github.event.inputs.channel == 'production' && 'prod' || (github.event.inputs.channel || 'beta') }}
+          APP_ENV: ${{ inputs.channel == 'production' && 'prod' || (inputs.channel || 'beta') }}
         # An update carries its own app config, `extra.firebaseConfig` included,
         # and replaces the one the binary was built with. Without --environment
         # the EAS variables are never loaded and every update ships EMPTY
@@ -91,7 +112,7 @@ jobs:
         # dispatch). Same mapping as eas.json: production -> production, else preview.
         run: |
           eas update \
-            --branch "${{ github.event.inputs.channel || 'beta' }}" \
-            --environment "${{ github.event.inputs.channel == 'production' && 'production' || 'preview' }}" \
+            --branch "${{ inputs.channel || 'beta' }}" \
+            --environment "${{ inputs.channel == 'production' && 'production' || 'preview' }}" \
             --message "${GITHUB_SHA::7}" \
             --non-interactive

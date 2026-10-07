@@ -28,20 +28,24 @@ Three independent layers replace the single "organize" act:
    `respondToJoinRequest`, and their screens) is **retired**.
 
 2. **Start (activation).** `startVillage` lets any user activate a dormant
-   municipality — creates `community` with `adminUserId: null`,
+   municipality — creates `community` with `organizerId: null`,
    `communityActive: true`, and joins them as the first member. Activation no
-   longer requires an organizer or superadmin approval.
+   longer requires an organizer or superadmin approval. The app has no separate
+   start step: a dormant pueblo opens its village home with a join button, and
+   that first join activates it (`ensureVillageMembership` calls `startVillage`).
+   A distinct "Iniciar pueblo" screen only made people decide something before
+   they had a reason to.
 
-3. **Organize (admin).** While `community.adminUserId == null` (the *wiki phase*),
+3. **Organize (admin).** While `community.organizerId == null` (the *wiki phase*),
    any member edits basic info via `updateVillageInfo`. To become organizer, a
    member of an active, organizer-less village requests it (`requestOrganizeVillage`,
    motivation only); a superadmin approves (`respondToOrganizerRequest`), which
-   **grants** admin on the existing community (sets `adminUserId`, promotes to
+   **grants** admin on the existing community (sets `organizerId`, promotes to
    `role: admin`) — it no longer creates the community.
 
 ## Key points
 
-- `community.adminUserId` is now **nullable** (started, no organizer yet).
+- `community.organizerId` is now **nullable** (started, no organizer yet).
 - Membership and activation are direct/callable writes without approval; only the
   organizer grant remains superadmin-gated.
 - Admins keep **expel**; there is **no blocklist** (an expelled user can re-join).
@@ -50,7 +54,7 @@ Three independent layers replace the single "organize" act:
   organizer-gated in the current rules.
 - Predicates rules can't express (member AND no-organizer-yet) live in the
   `updateVillageInfo` callable; the simple self-join guard lives in rules.
-- **Joining an organization (peña/asociación) is also instant self-service** —
-  a direct client write of `organizations/{orgId}/members/{uid}` (role `member`),
-  mirroring village join (see the request taxonomy in `AGENTS.md`). The earlier
-  `organizationJoinRequest` approve-flow has been removed.
+- **Joining an organization (peña/asociación) is instant self-service when the
+  org is `open`** — a direct client write of `organizations/{orgId}/members/{uid}`
+  (role `member`), mirroring village join. An org may instead require approval;
+  see [org-join-policy.md](./org-join-policy.md).

@@ -30,8 +30,8 @@ interface ChangeVillageMemberRoleResult {
  * and its `membershipEvents` audit record commit in one transaction.
  *
  * Guard: refuses to demote the current organizer below admin — the organizer
- * pointer would then dangle on a non-admin. Transferring the organizer is a
- * separate flow (not yet built); until then, demoting the organizer is blocked.
+ * pointer would then dangle on a non-admin. Move the title first with
+ * transferVillageAmbassador.
  */
 export const changeVillageMemberRole = onCall<
   ChangeVillageMemberRoleData,
@@ -83,7 +83,7 @@ export const changeVillageMemberRole = onCall<
       if (role === 'user' && organizerId === targetUserId) {
         throw new HttpsError(
           'failed-precondition',
-          'No puedes degradar al organizador del pueblo. Transfiere el rol de organizador primero.',
+          'No puedes quitar al embajador del equipo. Cede primero el título de embajador a otra persona.',
         );
       }
 

@@ -1,4 +1,5 @@
 import { render, waitFor } from '@testing-library/react-native';
+import { resetWatchers, setWatched, watchersOf } from '../../../../test/watchers';
 import HistoryEntryDetailScreen from '../[acontecimiento]';
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -7,7 +8,6 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ pueblo: 'villa', acontecimiento: 'carta-puebla_h1' }),
-  useFocusEffect: (cb: () => void) => cb(),
   router: { back: jest.fn(), canGoBack: () => true, replace: jest.fn(), push: jest.fn() },
 }));
 jest.mock('../../../../lib/navigation/VillageRouteGate');
@@ -17,23 +17,7 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
 }));
 jest.mock('../../../../lib/deeplink/useShareDeepLink', () => ({ useShareDeepLink: () => jest.fn() }));
 jest.mock('@cultuvilla/shared/services/historyService', () => ({
-  getHistoryEntry: jest.fn().mockResolvedValue({
-    id: 'h1',
-    municipalityId: 'm1',
-    villageSlug: 'villa',
-    createdBy: 'author',
-    title: 'Carta puebla',
-    body: { text: 'El rey concede fueros al concejo.', mentions: [], links: [], marks: [] },
-    images: [
-      { url: 'https://example.com/a.jpg', caption: 'Pergamino original' },
-      { url: 'https://example.com/b.jpg', caption: null },
-    ],
-    start: { year: 1212, month: null, day: null },
-    end: null,
-    approximate: true,
-    sources: 'Archivo Histórico Provincial. https://bvpb.mcu.es/registro?id=397371',
-    status: 'active',
-  }),
+  watchHistoryEntry: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('entry'),
 }));
 jest.mock('../../../../components/primitives/NaturalImage', () => ({ NaturalImage: () => null }));
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
@@ -49,7 +33,24 @@ jest.mock('@cultuvilla/shared/services/commentsService', () => ({
 
 import { RichText } from '../../../../components/feature/RichText';
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
-import { getHistoryEntry } from '@cultuvilla/shared/services/historyService';
+
+const ENTRY = {
+  id: 'h1',
+  municipalityId: 'm1',
+  villageSlug: 'villa',
+  createdBy: 'author',
+  title: 'Carta puebla',
+  body: { text: 'El rey concede fueros al concejo.', mentions: [], links: [], marks: [] },
+  images: [
+    { url: 'https://example.com/a.jpg', caption: 'Pergamino original' },
+    { url: 'https://example.com/b.jpg', caption: null },
+  ],
+  start: { year: 1212, month: null, day: null },
+  end: null,
+  approximate: true,
+  sources: 'Archivo Histórico Provincial. https://bvpb.mcu.es/registro?id=397371',
+  status: 'active',
+};
 
 function mockCaps(canEdit: boolean) {
   (useEntityCapabilities as jest.Mock).mockReturnValue({
@@ -62,7 +63,11 @@ function mockCaps(canEdit: boolean) {
 }
 
 describe('HistoryEntryDetailScreen', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetWatchers();
+    setWatched('entry', ENTRY);
+  });
 
   it('renders the title, loose date, article, caption and sources', async () => {
     mockCaps(false);
@@ -72,7 +77,7 @@ describe('HistoryEntryDetailScreen', () => {
     expect(getByText('El rey concede fueros al concejo.')).toBeTruthy();
     expect(getByText('Pergamino original')).toBeTruthy();
     expect(getByText('Archivo Histórico Provincial. https://bvpb.mcu.es/registro?id=397371')).toBeTruthy();
-    expect(getHistoryEntry).toHaveBeenCalledWith('h1');
+    expect(watchersOf('entry')[0]?.args).toEqual(['h1']);
   });
 
   it('renders the sources through RichText, so a URL cited there is tappable', async () => {

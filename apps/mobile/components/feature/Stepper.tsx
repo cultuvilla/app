@@ -1,6 +1,6 @@
 // apps/mobile/components/feature/Stepper.tsx
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Dimensions, Platform, View } from 'react-native';
+import { Animated, Dimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Ionicons } from '@expo/vector-icons';
 import { Button, HStack, Text } from '../primitives';
@@ -65,7 +65,7 @@ export function Stepper({
     Animated.timing(slideX, {
       toValue: 0,
       duration: 220,
-      useNativeDriver: Platform.OS !== 'web',
+      useNativeDriver: true,
     }).start();
   }, [current, slideX]);
 

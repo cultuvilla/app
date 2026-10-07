@@ -29,8 +29,13 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
-import { getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { createUserProfile, getUserProfile, patchUserProfile } from '../../src/services/userService';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  createUserProfile,
+  getPublicProfile,
+  getUserProfile,
+  patchUserProfile,
+} from '../../src/services/userService';
 
 describe('createUserProfile', () => {
   beforeEach(() => {
@@ -184,5 +189,30 @@ describe('getUserProfile', () => {
       personId: 'person-1',
       createdAt: fakeDate,
     });
+  });
+});
+
+describe('getPublicProfile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reads publicProfiles/{uid}, never the private account doc', async () => {
+    vi.mocked(getDoc).mockResolvedValue({
+      exists: () => true,
+      id: 'uid-2',
+      data: () => ({ displayName: 'Bea', activeMunicipalityId: 'muni-1' }),
+    } as any);
+
+    const result = await getPublicProfile('uid-2');
+
+    expect(vi.mocked(doc).mock.calls.map((c) => c.slice(1))).toEqual([['publicProfiles', 'uid-2']]);
+    expect(result).toEqual({ id: 'uid-2', displayName: 'Bea', activeMunicipalityId: 'muni-1' });
+  });
+
+  it('returns null when the projection does not exist', async () => {
+    vi.mocked(getDoc).mockResolvedValue({ exists: () => false } as any);
+
+    expect(await getPublicProfile('uid-2')).toBeNull();
   });
 });

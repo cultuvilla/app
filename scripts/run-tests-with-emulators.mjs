@@ -23,10 +23,11 @@
  *                       Each vitest config reads it and passes to `test.retry`.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { emulatorHostEnv, emulatorPorts, ensureEmulatorSecrets, resolveEmulatorConfig } from './lib/emulator-config.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -36,12 +37,8 @@ const ONLY = process.env.ONLY || 'auth,firestore,functions,storage';
 const WAIT_TIMEOUT_MS = Number(process.env.WAIT_TIMEOUT_MS || 180_000);
 const WAIT_INTERVAL_MS = 500;
 
-const PORTS_BY_SERVICE = {
-  auth: 9099,
-  firestore: 8080,
-  functions: 5001,
-  storage: 9199,
-};
+const emulatorConfig = resolveEmulatorConfig(ROOT);
+const PORTS_BY_SERVICE = emulatorPorts(emulatorConfig.config);
 const portsToWaitFor = ONLY.split(',').map((s) => PORTS_BY_SERVICE[s.trim()]).filter(Boolean);
 
 const rawArgs = process.argv.slice(2);
@@ -95,10 +92,7 @@ if (libIsStale()) {
 
 const emulatorEnv = {
   ...process.env,
-  FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080',
-  FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099',
-  FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199',
-  FIREBASE_FUNCTIONS_EMULATOR_HOST: '127.0.0.1:5001',
+  ...emulatorHostEnv(PORTS_BY_SERVICE),
   GCLOUD_PROJECT: TEST_PROJECT_ID,
   TEST_PROJECT_ID,
   VITEST_RETRY_COUNT: process.env.VITEST_RETRY_COUNT ?? '1',
@@ -118,9 +112,12 @@ const emulatorEnv = {
  * write a patched copy to a temp path and point `--config` at it.
  */
 const BIND_HOST = process.env.EMULATOR_BIND_HOST;
-let configArgs = [];
+let configArgs = emulatorConfig.slotted ? ['--config', emulatorConfig.file] : [];
+if (emulatorConfig.slotted) {
+  console.log(`[emulators] agent worktree: slot ports from ${emulatorConfig.file} (firestore ${PORTS_BY_SERVICE.firestore})`);
+}
 if (BIND_HOST) {
-  const base = JSON.parse(readFileSync(path.join(ROOT, 'firebase.json'), 'utf8'));
+  const base = structuredClone(emulatorConfig.config);
   for (const service of Object.keys(base.emulators ?? {})) {
     if (typeof base.emulators[service] === 'object' && base.emulators[service] !== null) {
       base.emulators[service].host = BIND_HOST;
@@ -128,7 +125,7 @@ if (BIND_HOST) {
   }
   // Inside ROOT so every relative path in the config (rules, functions source)
   // still resolves against the repo. A FIXED name, not per-pid: the emulators
-  // bind fixed ports, so two harness runs can't coexist anyway — and a
+  // bind fixed ports per checkout, so two runs in one checkout can't coexist anyway — and a
   // pid-suffixed name just accumulates litter every time a run is killed hard
   // enough to skip the exit hook.
   const generated = path.join(ROOT, 'firebase.emulator-bind.json');
@@ -136,6 +133,15 @@ if (BIND_HOST) {
   process.on('exit', () => { try { rmSync(generated); } catch { /* best effort */ } });
   configArgs = ['--config', path.basename(generated)];
   console.log(`[emulators] binding to ${BIND_HOST} via ${path.basename(generated)}`);
+}
+
+// Placeholder secrets so the Functions emulator never asks Secret Manager —
+// see ensureEmulatorSecrets. Only the run that wrote the file removes it.
+if (ONLY.split(',').map((s) => s.trim()).includes('functions')) {
+  const secretsFile = ensureEmulatorSecrets(path.join(ROOT, 'functions'));
+  if (secretsFile) {
+    process.on('exit', () => { try { rmSync(secretsFile); } catch { /* best effort */ } });
+  }
 }
 
 console.log(`[emulators] starting (project=${TEST_PROJECT_ID}, only=${ONLY})`);

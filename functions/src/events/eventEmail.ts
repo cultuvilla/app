@@ -14,6 +14,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { userDoc } from "@cultuvilla/shared/firebase/refs/admin";
 import { Resend } from "resend";
 import { RESEND_API_KEY } from "../auth/secret";
+import { isFunctionsEmulator } from "../shared/runtime";
 import {
   registrationEmailSubject,
   renderRegistrationEmailHtml,
@@ -62,6 +63,19 @@ export async function sendEventEmail(args: SendEventEmailArgs): Promise<void> {
       eventId,
       userId,
       error: err instanceof Error ? err.message : String(err),
+    });
+    return;
+  }
+
+  // The emulator has no RESEND_API_KEY, so every send failed with "Missing API
+  // key" at error severity and buried real failures in E2E logs. No mail
+  // leaves an emulator anyway.
+  if (isFunctionsEmulator()) {
+    logger.info("Event email skipped (functions emulator)", {
+      handler,
+      eventId,
+      userId,
+      kind: content.kind,
     });
     return;
   }

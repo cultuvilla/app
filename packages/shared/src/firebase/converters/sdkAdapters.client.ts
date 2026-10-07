@@ -1,4 +1,4 @@
-import { Timestamp, GeoPoint } from 'firebase/firestore';
+import { Timestamp, GeoPoint } from '../sdk/firestore';
 import type { SdkCtors } from './walkers';
 
 // Duck-type predicates instead of `instanceof` — see sdkAdapters.admin.ts

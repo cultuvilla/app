@@ -2,10 +2,12 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import OrganizeVillageScreen from '../[municipalityId]';
 
 // Vary the profile per test (must be `mock`-prefixed to be usable in a jest factory).
-let mockProfile: { telephone: string | null } | null = null;
+let mockProfile: { telephone: string | null; displayName?: string } | null = null;
+let mockPerson: Record<string, unknown> | null = null;
+let mockMunicipality: Record<string, unknown> | null = null;
 
 jest.mock('expo-router', () => ({
-  router: { back: jest.fn() },
+  router: { back: jest.fn(), push: jest.fn() },
   useLocalSearchParams: () => ({ municipalityId: 'muni-1' }),
 }));
 jest.mock('../../../../lib/auth/useAuth', () => ({
@@ -16,6 +18,18 @@ jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
   patchUserProfile: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('@cultuvilla/shared/services/personService', () => ({
+  watchPersonByUserId: jest.fn((_uid: string, _viewer: string, onNext: (p: unknown) => void) => {
+    onNext(mockPerson);
+    return () => {};
+  }),
+}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
+  watchMunicipality: jest.fn((_id: string, onNext: (m: unknown) => void) => {
+    onNext(mockMunicipality);
+    return () => {};
+  }),
 }));
 // Thin useCallable so the real submit callable runs and we can assert on the services.
 jest.mock('../../../../lib/useCallable', () => ({
@@ -38,6 +52,8 @@ describe('OrganizeVillageScreen phone field', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockProfile = null;
+    mockPerson = null;
+    mockMunicipality = null;
   });
 
   it('keeps the invalid-phone error hidden until Confirmar/submit is pressed', async () => {
@@ -78,5 +94,53 @@ describe('OrganizeVillageScreen phone field', () => {
     const { getByTestId } = render(<OrganizeVillageScreen />);
     expect(getByTestId('organizer-phone').props.value).toBe('612345678');
     expect(getByTestId('organizer-phone-prefix')).toBeTruthy();
+  });
+});
+
+describe('OrganizeVillageScreen carnet preview', () => {
+  const municipality = {
+    id: 'muni-1',
+    name: 'Matabuena',
+    escudoUrl: null,
+    escudoThumbUrl: null,
+    escudoManualUrl: null,
+  };
+  const person = {
+    id: 'p-1',
+    givenName: 'Lucía',
+    middleNames: [],
+    firstSurname: 'Martín',
+    secondSurname: null,
+    sex: 'female',
+    photoURL: 'https://example.com/lucia.jpg',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProfile = { telephone: null, displayName: 'Lucía Martín' };
+    mockPerson = null;
+    mockMunicipality = null;
+  });
+
+  it('shows the applicant their own carnet for this pueblo', () => {
+    mockPerson = person;
+    mockMunicipality = municipality;
+    const { getByTestId } = render(<OrganizeVillageScreen />);
+    expect(getByTestId('organize-carnet')).toBeTruthy();
+    expect(getByTestId('ambassador-carnet-name')).toHaveTextContent('Lucía Martín');
+    expect(getByTestId('avatar-ambassador-seal')).toBeTruthy();
+  });
+
+  it('lays the role out as points', () => {
+    const { getByText } = render(<OrganizeVillageScreen />);
+    for (const key of ['info', 'welcome', 'upToDate', 'public']) {
+      expect(getByText(`organize.points.${key}`)).toBeTruthy();
+    }
+  });
+
+  it('waits for the pueblo before drawing the carnet', () => {
+    mockPerson = person;
+    const { queryByTestId } = render(<OrganizeVillageScreen />);
+    expect(queryByTestId('organize-carnet')).toBeNull();
   });
 });

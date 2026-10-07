@@ -1,24 +1,31 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import type { OrganizationType, OrgMemberRole } from '@cultuvilla/shared/models/organization';
+import { useMemo } from 'react';
+import type { EventData } from '@cultuvilla/shared/models/event';
+import type { MunicipalityData } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
+import type { NewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
+import type { OrganizationData, OrganizationType, OrgMemberRole } from '@cultuvilla/shared/models/organization';
 import type { PersonData } from '@cultuvilla/shared/models/person';
-import { getPersonByUserId, getPersonsByCreator } from '@cultuvilla/shared/services/personService';
-import { getEventsByOrganizer } from '@cultuvilla/shared/services/eventService';
+import { watchPersonByUserId, watchPersonsByCreator } from '@cultuvilla/shared/services/personService';
+import { watchEventsByOrganizer } from '@cultuvilla/shared/services/eventService';
+import { watchNewsPostsByOrganizer } from '@cultuvilla/shared/services/newsService';
+import { watchOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 import {
-  getApprovedNewsPostsByOrganizer,
-  getNewsPostsByOrganizer,
-} from '@cultuvilla/shared/services/newsService';
-import { getOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
-import { getOrgMembershipsByUserInMunicipality } from '@cultuvilla/shared/services/orgMemberService';
-import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberService';
-import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
+  watchOrgMembershipsByUser,
+  type UserOrgMembership,
+} from '@cultuvilla/shared/services/orgMemberService';
+import {
+  watchUserMemberships,
+  type UserMembership,
+} from '@cultuvilla/shared/services/villageMemberService';
+import { watchMunicipalitiesByIds } from '@cultuvilla/shared/services/municipalityService';
 import { escudoFullUrl, hasManualEscudo } from '@cultuvilla/shared/models/municipality';
-import { withFirestoreErrorLog } from '../firestoreErrorLog';
+import { useWatch } from '../hooks/useWatch';
 import type { ManagedEvent } from '../../components/feature/profile/ManagedEventsScroll';
 import type { CreatedNews } from '../../components/feature/profile/CreatedNewsScroll';
 import type { VillageRow } from '../../components/feature/profile/VillagesScroll';
 
 type PersonDoc = PersonData & { id: string };
+type MunicipalityDoc = MunicipalityData & { id: string };
+type OrgDoc = OrganizationData & { id: string };
 
 /** An organization the user belongs to, shaped for the profile card scrolls. */
 type MemberOrg = {
@@ -42,167 +49,134 @@ type ProfileData = {
   orgs: MemberOrg[];
   villages: VillageRow[];
   loading: boolean;
-  reload: () => Promise<void>;
 };
 
+const NO_PERSONAS: PersonDoc[] = [];
+const NO_EVENTS: (EventData & { id: string })[] = [];
+const NO_NEWS: (NewsPostData & { id: string })[] = [];
+
+/**
+ * Everything the profile card shows, as live listeners: on the native SDK each
+ * answers from the device cache first and stays current, so an edit made on
+ * another screen (a new persona, a photo, an event) shows here without the
+ * profile reloading on focus.
+ *
+ * Every section is its own listener and fails on its own: a denial in one
+ * degrades that section instead of blanking the card. A single coupled load
+ * once left another user's profile with no photo, no name and a dash for every
+ * stat because one query the rules deny for a stranger failed.
+ */
 export function useProfileData(
   uid: string | null,
   activeMunicipalityId: string | null,
   variant: 'self' | 'other',
 ): ProfileData {
-  const [selfPerson, setSelfPerson] = useState<PersonDoc | null>(null);
-  const [allPersonas, setAllPersonas] = useState<PersonDoc[]>([]);
-  const [eventsCreated, setEventsCreated] = useState<number | null>(null);
-  const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([]);
-  const [newsCount, setNewsCount] = useState<number | null>(null);
-  const [createdNews, setCreatedNews] = useState<CreatedNews[]>([]);
-  const [newsError, setNewsError] = useState(false);
-  const [orgs, setOrgs] = useState<MemberOrg[]>([]);
-  const [villages, setVillages] = useState<VillageRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const isSelf = variant === 'self';
+  const key = uid ? `${uid}|${variant}` : null;
 
-  const load = useCallback(async () => {
-    if (!uid) {
-      setSelfPerson(null);
-      setAllPersonas([]);
-      setEventsCreated(null);
-      setManagedEvents([]);
-      setNewsCount(null);
-      setCreatedNews([]);
-      setNewsError(false);
-      setOrgs([]);
-      setVillages([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setNewsError(false);
-    try {
-      // allSettled, not all: these two feed different parts of the card, and a
-      // denial in one must degrade its own section rather than abort the load.
-      // Coupled in a Promise.all, a single permission-denied left the whole
-      // profile blank — no photo, no name, a dash for every stat.
-      const [selfResult, personasResult] = await Promise.allSettled([
-        withFirestoreErrorLog('profile:getPersonByUserId', () =>
-          // Only the profile's own owner may read it unfiltered (a private
-          // persona is still theirs to see).
-          getPersonByUserId(uid, variant === 'self' ? uid : null),
-        ),
-        // "Mi gente" is a self-only section, and only its owner may read the
-        // list at all (see getPersonsByCreator) — so don't ask when visiting.
-        variant === 'self'
-          ? withFirestoreErrorLog('profile:getPersonsByCreator', () =>
-              getPersonsByCreator(uid, uid),
-            )
-          : Promise.resolve([]),
-      ]);
-      setSelfPerson(selfResult.status === 'fulfilled' ? selfResult.value : null);
-      setAllPersonas(personasResult.status === 'fulfilled' ? personasResult.value : []);
-
-      const myEvents = await withFirestoreErrorLog('profile:getEventsByOrganizer', () =>
-        getEventsByOrganizer(uid),
-      );
-      setManagedEvents(myEvents);
-      setEventsCreated(myEvents.length);
-
-      // The organizer news query is denied by rules when the user is an
-      // organizer but not the post's creator. Isolate it so the denial shows
-      // an error in the news section instead of aborting the whole profile
-      // load (it shares the request batch with villages/orgs below) or
-      // surfacing as an uncaught promise rejection.
-      try {
-        const news = await withFirestoreErrorLog('profile:getNewsPostsByOrganizer', () =>
-          variant === 'other' ? getApprovedNewsPostsByOrganizer(uid) : getNewsPostsByOrganizer(uid),
-        );
-        setCreatedNews(news);
-        setNewsCount(news.length);
-      } catch {
-        setNewsError(true);
-        setCreatedNews([]);
-        setNewsCount(null);
-      }
-
-      try {
-        const villageMemberships = await withFirestoreErrorLog('profile:getUserMemberships', () =>
-          getUserMemberships(uid),
-        );
-        const villageRows = await Promise.all(
-          villageMemberships.map(async (m) => {
-            const muni = await withFirestoreErrorLog('profile:getMunicipality', () =>
-              getMunicipality(m.municipalityId),
-            );
-            return {
-              municipalityId: m.municipalityId,
-              name: muni?.name ?? m.municipalityId,
-              comunidadAutonoma: muni?.comunidadAutonoma ?? '',
-              escudoUrl: muni ? escudoFullUrl(muni) : null,
-              manualEscudo: muni ? hasManualEscudo(muni) : false,
-              role: m.role,
-            } satisfies VillageRow;
-          }),
-        );
-        setVillages(villageRows);
-      } catch {
-        setVillages([]);
-      }
-
-      if (activeMunicipalityId) {
-        const munOrgs = await withFirestoreErrorLog(
-          'profile:getOrganizationsByMunicipality',
-          () => getOrganizationsByMunicipality(activeMunicipalityId, 'approved'),
-        );
-        const memberships = await withFirestoreErrorLog(
-          'profile:getOrgMembershipsByUserInMunicipality',
-          () =>
-            getOrgMembershipsByUserInMunicipality(
-              uid,
-              activeMunicipalityId,
-              munOrgs.map((o) => o.id),
-            ),
-        );
-        const roleByOrgId = new Map(memberships.map((m) => [m.orgId, m.role]));
-        setOrgs(
-          munOrgs
-            .filter((o) => roleByOrgId.has(o.id))
-            .map((o) => ({
-              id: o.id,
-              name: o.name,
-              villageSlug: o.villageSlug,
-              type: o.type,
-              imageURL: o.images[0] ?? null,
-              role: roleByOrgId.get(o.id) ?? 'member',
-              commentCount: o.commentCount,
-            })),
-        );
-      } else {
-        setOrgs([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [uid, activeMunicipalityId, variant]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
+  // Only the profile's own owner may read it unfiltered (a private persona is
+  // still theirs to see).
+  const self = useWatch<PersonDoc | null>(
+    'profile:watchPersonByUserId',
+    key,
+    uid ? (next, error) => watchPersonByUserId(uid, isSelf ? uid : null, next, error) : null,
+  );
+  // "Mi gente" is a self-only section, and only its owner may read the list at
+  // all (see getPersonsByCreator) — so don't ask when visiting.
+  const personas = useWatch<PersonDoc[]>(
+    'profile:watchPersonsByCreator',
+    uid && isSelf ? uid : null,
+    uid && isSelf ? (next, error) => watchPersonsByCreator(uid, uid, next, error) : null,
+  );
+  const events = useWatch<(EventData & { id: string })[]>(
+    'profile:watchEventsByOrganizer',
+    uid,
+    uid ? (next, error) => watchEventsByOrganizer(uid, next, error) : null,
+  );
+  // The organizer news query is denied by rules when the user is an organizer
+  // but not the post's creator; the active-only form is what a visitor may read.
+  const news = useWatch<(NewsPostData & { id: string })[]>(
+    'profile:watchNewsPostsByOrganizer',
+    key,
+    uid ? (next, error) => watchNewsPostsByOrganizer(uid, { activeOnly: !isSelf }, next, error) : null,
   );
 
+  const villages = useVillageRows(uid);
+  const orgs = useMemberOrgs(uid, activeMunicipalityId);
+
+  const managedEvents = events.data ?? NO_EVENTS;
   return {
-    selfPerson,
-    allPersonas,
-    eventsCreated,
+    selfPerson: self.data ?? null,
+    allPersonas: personas.data ?? NO_PERSONAS,
+    eventsCreated: events.status === 'ready' ? managedEvents.length : null,
     managedEvents,
-    newsCount,
-    createdNews,
-    newsError,
+    newsCount: news.data ? news.data.length : null,
+    createdNews: news.data ?? NO_NEWS,
+    newsError: news.status === 'error',
     orgs,
     villages,
-    loading,
-    reload: load,
+    loading: self.status === 'loading' || personas.status === 'loading',
   };
+}
+
+function useVillageRows(uid: string | null): VillageRow[] {
+  const memberships = useWatch<UserMembership[]>(
+    'profile:watchUserMemberships',
+    uid,
+    uid ? (next, error) => watchUserMemberships(uid, next, error) : null,
+  );
+  const ids = useMemo(() => (memberships.data ?? []).map((m) => m.municipalityId), [memberships.data]);
+  const municipalities = useWatch<MunicipalityDoc[]>(
+    'profile:watchMunicipalitiesByIds',
+    memberships.data ? `ids:${ids.join(',')}` : null,
+    memberships.data ? (next, error) => watchMunicipalitiesByIds(ids, next, error) : null,
+  );
+
+  return useMemo(() => {
+    if (!memberships.data || municipalities.status === 'loading') return [];
+    const byId = new Map((municipalities.data ?? []).map((m) => [m.id, m]));
+    return memberships.data.map((m) => {
+      const muni = byId.get(m.municipalityId);
+      return {
+        municipalityId: m.municipalityId,
+        name: muni?.name ?? m.municipalityId,
+        comunidadAutonoma: muni?.comunidadAutonoma ?? '',
+        escudoUrl: muni ? escudoFullUrl(muni) : null,
+        manualEscudo: muni ? hasManualEscudo(muni) : false,
+        role: m.role,
+      } satisfies VillageRow;
+    });
+  }, [memberships.data, municipalities.status, municipalities.data]);
+}
+
+function useMemberOrgs(uid: string | null, municipalityId: string | null): MemberOrg[] {
+  const villageOrgs = useWatch<OrgDoc[]>(
+    'profile:watchOrganizationsByMunicipality',
+    uid && municipalityId ? municipalityId : null,
+    uid && municipalityId
+      ? (next, error) => watchOrganizationsByMunicipality(municipalityId, 'approved', next, error)
+      : null,
+  );
+  const orgIds = useMemo(() => (villageOrgs.data ?? []).map((o) => o.id), [villageOrgs.data]);
+  const memberships = useWatch<UserOrgMembership[]>(
+    'profile:watchOrgMembershipsByUser',
+    uid && villageOrgs.data ? `${uid}|${orgIds.join(',')}` : null,
+    uid && villageOrgs.data ? (next, error) => watchOrgMembershipsByUser(uid, orgIds, next, error) : null,
+  );
+
+  return useMemo(() => {
+    if (!villageOrgs.data || !memberships.data) return [];
+    const roleByOrgId = new Map(memberships.data.map((m) => [m.orgId, m.role]));
+    return villageOrgs.data
+      .filter((o) => roleByOrgId.has(o.id))
+      .map((o) => ({
+        id: o.id,
+        name: o.name,
+        villageSlug: o.villageSlug,
+        type: o.type,
+        imageURL: o.images[0] ?? null,
+        role: roleByOrgId.get(o.id) ?? 'member',
+        commentCount: o.commentCount,
+      }));
+  }, [villageOrgs.data, memberships.data]);
 }

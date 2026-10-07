@@ -6,7 +6,7 @@ import {
   orderBy,
   serverTimestamp,
   increment,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { occupationsCollection } from '../firebase/refs/client';
 import type { OccupationData } from '../models/occupation/OccupationDataModel';

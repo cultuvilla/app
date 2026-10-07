@@ -1,5 +1,9 @@
 # Register cultuvilla.org
 
+**Priority:** medium
+**Gate:** decision:register cultuvilla.org now in the founder's personal name, or wait for the asociación's CIF?
+**Next:** find which registrar and account hold cultuvilla.es, then buy .org (and decide on .com in the same sitting)
+
 ## Goal
 
 Own `cultuvilla.org` before someone else does, and decide **in whose name** it is
@@ -21,7 +25,7 @@ Two things make now the moment rather than later:
 
 - **Cultuvilla is about to become an asociación sin ánimo de lucro** — decided
   2026-09-14, constitution planned for the end of September 2026
-  ([entidad-juridica](entidad-juridica.md)). In the third sector a `.org` reads
+  ([entidad-juridica](https://github.com/cultuvilla/business/blob/main/docs/entidad-juridica.md), in the private business repo). In the third sector a `.org` reads
   as an entity rather than a product, and the audience that matters here is
   exactly that: ministerios, fundaciones, other asociaciones.
 - **The name is now in circulation.** It has gone into a SEDIA form, a Máshumano

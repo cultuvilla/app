@@ -40,7 +40,7 @@ async function seedMunicipality(
       escudoManualUrl: null,
       communityActive,
       community: communityActive
-        ? { description: '', organizerId, profileForm: null, fiestas: [], activatedAt: now }
+        ? { description: '', organizerId, organizerSex: null, profileForm: null, fiestas: [], activatedAt: now }
         : null,
     });
 }
@@ -116,7 +116,7 @@ describe('requestOrganizeVillage (callable)', () => {
     await seedMunicipality(true, 'someone-else');
     await expect(
       callRequest({ uid: USER_ID, data: { municipalityId: MUNICIPALITY_ID } }),
-    ).rejects.toThrow(/ya tiene organizador|already-exists/i);
+    ).rejects.toThrow(/ya tiene embajador|already-exists/i);
   });
 
   it('throws already-exists when a pending request from same user for same municipality exists', async () => {

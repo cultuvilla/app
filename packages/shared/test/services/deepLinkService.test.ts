@@ -15,6 +15,7 @@ import {
   getSeatClaimLink,
   getUserViewLink,
   getVillageViewLink,
+  getWrappedLink,
   parseLink,
   buildShareMessage,
 } from '../../src/services/deepLinkService';
@@ -89,10 +90,20 @@ describe('deepLinkService.parseLink', () => {
       getOrgInviteLink(target('o1', 'Peña')),
       getSeatClaimLink(target('e1', 'Cena'), 'tok'),
       getUserViewLink('u1'),
+      getWrappedLink('matabuena', 2026),
     ];
     for (const l of links) {
       expect(parseLink(l.url)).toEqual({ path: l.path, kind: l.kind, resource: l.resource });
     }
+  });
+
+  it('links a Wrapped as village content', () => {
+    expect(getWrappedLink('matabuena', 2026)).toEqual({
+      url: `${HOST}/matabuena/fiestas/2026`,
+      path: '/matabuena/fiestas/2026',
+      kind: 'content',
+      resource: 'wrapped',
+    });
   });
 
   it('accepts the app scheme', () => {

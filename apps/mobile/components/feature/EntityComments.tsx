@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Keyboard, Platform, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, router } from 'expo-router';
 import { VStack } from '../primitives/VStack';
@@ -213,11 +213,6 @@ export function EntityComments({
   }, [comments, repliesByParent, user, t]);
 
   const runDeleteConfirm = (onConfirm: () => void) => {
-    // Alert.alert is a no-op on RN-Web, so branch to window.confirm there.
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('comments.deleteConfirmMessage'))) onConfirm();
-      return;
-    }
     Alert.alert(t('comments.deleteConfirmTitle'), t('comments.deleteConfirmMessage'), [
       { text: t('comments.deleteConfirmCancel'), style: 'cancel' },
       { text: t('comments.deleteConfirmConfirm'), style: 'destructive', onPress: onConfirm },
@@ -515,13 +510,16 @@ export function EntityComments({
             </HStack>
           ) : null}
           {/* end-aligned so the avatar and send arrow stay level with the last
-              line as the field grows. */}
+              line as the field grows; mb-1 centres the 32px avatar on the
+              one-line pill (~40px) instead of hugging its bottom edge. */}
           <HStack gap={2} align="end">
-            <Avatar
-              uri={me?.photoURL ?? null}
-              size={32}
-              initials={initialsOf(me?.name)}
-            />
+            <View className="mb-1">
+              <Avatar
+                uri={me?.photoURL ?? null}
+                size={32}
+                initials={initialsOf(me?.name)}
+              />
+            </View>
             <View className="flex-1">
               <Input
                 inputRef={inputRef}

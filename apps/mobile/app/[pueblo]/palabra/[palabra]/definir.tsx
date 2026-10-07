@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '../../../../components/primitives/Screen';
 import { VStack } from '../../../../components/primitives/VStack';
@@ -127,10 +127,7 @@ function DefineVocabularyTermScreen() {
   return (
     <Screen padded={false} bottomInset={false}>
       <ScreenHeader title={t('village.vocabulary.addDefinition')} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={{ flex: 1 }}>
         <Stepper
           steps={steps}
           onComplete={() => void submit()}
@@ -138,7 +135,7 @@ function DefineVocabularyTermScreen() {
           loading={saving}
           primaryTestID="vocabulary-definition-submit"
         />
-      </KeyboardAvoidingView>
+      </View>
     </Screen>
   );
 }

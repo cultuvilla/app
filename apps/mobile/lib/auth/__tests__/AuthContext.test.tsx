@@ -1,12 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { Platform } from 'react-native';
-import { signOut as fbSignOut } from 'firebase/auth';
+import { signOut as fbSignOut } from '@cultuvilla/shared/firebase/sdk/auth';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { AuthProvider, SIGN_OUT_CLEANUP_TIMEOUT_MS } from '../AuthContext';
 import { useAuth } from '../useAuth';
 import { observability } from '@cultuvilla/shared';
 import { fetchUserIdHash } from '../../observability/errorBridge';
-import { signInWithCredential, signInWithCustomToken } from 'firebase/auth';
+import { signInWithCredential, signInWithCustomToken } from '@cultuvilla/shared/firebase/sdk/auth';
 import { verifyAuthOtpCode } from '@cultuvilla/shared/services/authEmailService';
 import { clearPendingToken } from '../otpTokenCache';
 import { unregisterPushForSignOut } from '../../push/pushSession';
@@ -36,7 +36,7 @@ jest.mock('@cultuvilla/shared/firebase', () => ({
   }),
 }));
 
-jest.mock('firebase/auth', () => ({
+jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
   onAuthStateChanged: (_auth: unknown, cb: (u: unknown) => void) => {
     cb(mockAuthUser);
     return () => {};
@@ -60,6 +60,9 @@ jest.mock('firebase/auth', () => ({
 }));
 
 import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { clearLocalCacheAndRestart } from '../clearLocalCache';
+
+jest.mock('../clearLocalCache', () => ({ clearLocalCacheAndRestart: jest.fn(async () => undefined) }));
 
 jest.mock('@cultuvilla/shared/services/userService', () => ({
   getUserProfile: jest.fn().mockResolvedValue({ activeMunicipalityId: 'm1' }),
@@ -326,6 +329,23 @@ describe('signInWithApple', () => {
     await expect(result.current.signInWithApple()).rejects.toThrow(/cancelled/);
   });
 
+  it('maps a cancel that arrives with no code, as prod iOS reports it', async () => {
+    (AppleAuthentication.signInAsync as jest.Mock).mockRejectedValueOnce(
+      new Error('The user canceled the authorization attempt'),
+    );
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await expect(result.current.signInWithApple()).rejects.toMatchObject({ code: 'auth/cancelled' });
+  });
+
+  it('passes a real Apple failure through untouched', async () => {
+    const failure = new Error('The authorization attempt failed for an unknown reason');
+    (AppleAuthentication.signInAsync as jest.Mock).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await expect(result.current.signInWithApple()).rejects.toBe(failure);
+  });
+
   it('rejects when Apple returns no identityToken', async () => {
     (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValueOnce({ identityToken: null });
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
@@ -383,5 +403,19 @@ describe('signOut', () => {
     const [unregisterOrder] = (unregisterPushForSignOut as jest.Mock).mock.invocationCallOrder;
     const [signOutOrder] = (fbSignOut as jest.Mock).mock.invocationCallOrder;
     expect(unregisterOrder).toBeLessThan(signOutOrder ?? -1);
+  });
+
+  // Member-only data must not outlive the session in the on-device cache.
+  it('clears the local cache only after auth has signed out', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile).not.toBeNull());
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    const [signOutOrder] = (fbSignOut as jest.Mock).mock.invocationCallOrder;
+    const [clearOrder] = (clearLocalCacheAndRestart as jest.Mock).mock.invocationCallOrder;
+    expect(signOutOrder).toBeLessThan(clearOrder ?? -1);
   });
 });

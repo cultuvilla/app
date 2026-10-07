@@ -27,7 +27,7 @@ export function extractReleaseNotes(changelog, version) {
   if (start === -1) {
     throw new Error(
       `extractReleaseNotes: no "## v${version}" section in the CHANGELOG. ` +
-        `Stamp it with the prepare-release skill before shipping.`,
+        `Stamp it with \`pnpm release:cut\` before shipping.`,
     );
   }
   const rest = lines.slice(start + 1);

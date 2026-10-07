@@ -23,15 +23,19 @@ async function seedCensoMunicipality(fields: unknown[]): Promise<void> {
     mapZoom: null,
     createdAt: now, escudoUrl: null, escudoThumbUrl: null, escudoManualUrl: null,
     communityActive: true,
-    community: { organizerId: ADMIN_ID, description: 'x', activatedAt: now, fiestas: [],
+    community: { organizerId: ADMIN_ID, organizerSex: null, description: 'x', activatedAt: now, fiestas: [],
       profileForm: { fields, updatedAt: now } },
   });
 }
 
 async function seedMember(uid: string, role: 'user' | 'admin', profileAnswers: Record<string, unknown>): Promise<void> {
   await admin.firestore().doc(`municipalities/${MID}/members/${uid}`).set({
-    userId: uid, role, joinedAt: new Date(), profileAnswers,
+    userId: uid, role, joinedAt: new Date(), profileAnswers: {},
     profileCompletedAt: null,
+  });
+  if (Object.keys(profileAnswers).length === 0) return;
+  await admin.firestore().doc(`censoAnswers/${MID}_${uid}`).set({
+    municipalityId: MID, userId: uid, profileAnswers, updatedAt: new Date(),
   });
 }
 
@@ -61,8 +65,8 @@ describe('updateCenso — removing an answered question', () => {
     const savedFields = mun.data()?.community?.profileForm?.fields as { key: string }[];
     expect(savedFields.map((f) => f.key)).toEqual(['edad']);
 
-    const member = await admin.firestore().doc(`municipalities/${MID}/members/${MEMBER_ID}`).get();
-    const answers = member.data()?.profileAnswers as Record<string, unknown>;
+    const censo = await admin.firestore().doc(`censoAnswers/${MID}_${MEMBER_ID}`).get();
+    const answers = censo.data()?.profileAnswers as Record<string, unknown>;
     expect(answers.color).toBeUndefined();
     expect(answers.edad).toBe(30);
   });

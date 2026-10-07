@@ -3,7 +3,7 @@
 // one underlying onSnapshot listener.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { onSnapshot, type DocumentReference, type DocumentSnapshot } from 'firebase/firestore';
+import { onSnapshot, type DocumentReference, type DocumentSnapshot } from '../../firebase/sdk/firestore';
 
 import { subscribe } from './cache';
 

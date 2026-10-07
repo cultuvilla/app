@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { getVillageMembers } from '@cultuvilla/shared/services/villageMemberService';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 import { getOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
@@ -81,7 +81,7 @@ export function OrganizerPicker({
   // Names and avatars come from the `municipalityPeople` directory, which
   // already carries `displayName`/`sortName`/`photoURL` per person. That is ONE
   // query for the whole village: the previous shape fanned out a
-  // getUserProfile + getPersonByUserId per member, which in Matabuena (165
+  // getPublicProfile + getPersonByUserId per member, which in Matabuena (165
   // members) meant ~331 reads before the sheet could show anything, and the
   // sheet visibly filled in late. A member the directory doesn't cover (no
   // person doc linked to this village yet) still falls back to their user doc,
@@ -106,7 +106,7 @@ export function OrganizerPicker({
       const fallbacks = new Map(
         await Promise.all(
           missing.map(async (m) => {
-            const profile = await getUserProfile(m.userId).catch(() => null);
+            const profile = await getPublicProfile(m.userId).catch(() => null);
             return [m.userId, profile?.displayName ?? m.userId] as const;
           }),
         ),

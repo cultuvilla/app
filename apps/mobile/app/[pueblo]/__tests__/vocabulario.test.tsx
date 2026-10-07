@@ -1,17 +1,10 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import VocabularyScreen from '../vocabulario';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
-import {
-  getVocabularyTerms,
-  getVillageVocabularyDefinitions,
-} from '@cultuvilla/shared/services/vocabularyService';
+import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../test/watchers';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ pueblo: 'villa' }),
-  useFocusEffect: (cb: () => void) => {
-    const { useEffect } = require('react');
-    useEffect(cb, [cb]);
-  },
   router: { push: jest.fn() },
 }));
 // ScreenHeader reads safe-area insets; provide them without a SafeAreaProvider.
@@ -21,8 +14,8 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
-  getVocabularyTerms: jest.fn(),
-  getVillageVocabularyDefinitions: jest.fn(),
+  watchVocabularyTerms: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('terms'),
+  watchVillageVocabularyDefinitions: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('definitions'),
 }));
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
@@ -38,8 +31,6 @@ jest.mock('../../../components/feature/ContributorAvatars', () => {
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 
 const mockCaps = useEntityCapabilities as jest.Mock;
-const mockTerms = getVocabularyTerms as jest.Mock;
-const mockDefinitions = getVillageVocabularyDefinitions as jest.Mock;
 
 function term(id: string, word: string, normalized: string, kind = 'palabra') {
   return {
@@ -64,9 +55,10 @@ function term(id: string, word: string, normalized: string, kind = 'palabra') {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  resetWatchers();
   mockCaps.mockReturnValue({ isMember: true, canManage: false, uid: 'u1', loading: false });
-  mockDefinitions.mockResolvedValue([]);
-  mockTerms.mockResolvedValue([
+  setWatched('definitions', []);
+  setWatched('terms', [
     term('m1__esbardo', 'Esbardo', 'esbardo'),
     term('m1__napa', 'Ñapa', 'napa'),
   ]);
@@ -89,7 +81,7 @@ describe('VocabularyScreen', () => {
 
     await waitFor(() => expect(queryByText('Esbardo')).toBeNull());
     expect(getByText('Ñapa')).toBeTruthy();
-    expect(mockTerms).toHaveBeenCalledTimes(1);
+    expect(watchersOf('terms')).toHaveLength(1);
   });
 
   it('offers the add action to a member', async () => {
@@ -121,7 +113,7 @@ describe('VocabularyScreen', () => {
   // Someone who only added a meaning — or the group they added it for — still
   // shows on the word's row.
   it('credits whoever added a meaning, groups included', async () => {
-    mockDefinitions.mockResolvedValue([
+    setWatched('definitions', [
       { termId: 'm1__napa', contributorUserIds: ['samu'], contributorOrgIds: ['podcast'] },
     ]);
     const { getByText } = render(<VocabularyScreen />);
@@ -137,7 +129,7 @@ describe('VocabularyScreen', () => {
 
   describe('with several kinds recorded', () => {
     beforeEach(() => {
-      mockTerms.mockResolvedValue([
+      setWatched('terms', [
         term('m1__esbardo', 'Esbardo', 'esbardo'),
         term('m1__en-abril-aguas-mil', 'En abril, aguas mil', 'en-abril-aguas-mil', 'dicho'),
       ]);
@@ -180,8 +172,29 @@ describe('VocabularyScreen', () => {
     });
   });
 
+  // The list is a live listener: a word added from another screen shows up
+  // here without the screen reloading on focus.
+  it('shows a newly added word as the listener delivers it', async () => {
+    const { getByText } = render(<VocabularyScreen />);
+    await waitFor(() => expect(getByText('Esbardo')).toBeTruthy());
+    emitWatched('terms', [
+      term('m1__esbardo', 'Esbardo', 'esbardo'),
+      term('m1__miaja', 'Miaja', 'miaja'),
+      term('m1__napa', 'Ñapa', 'napa'),
+    ]);
+    await waitFor(() => expect(getByText('Miaja')).toBeTruthy());
+    expect(watchersOf('terms')).toHaveLength(1);
+  });
+
+  it('still lists the words when the meanings fail to load', async () => {
+    setWatched('definitions', new Error('permission-denied'));
+    const { getByText, getAllByText } = render(<VocabularyScreen />);
+    await waitFor(() => expect(getByText('Esbardo')).toBeTruthy());
+    expect(getAllByText('faces:alice')).toHaveLength(2);
+  });
+
   it('shows the empty state when the pueblo has recorded nothing yet', async () => {
-    mockTerms.mockResolvedValue([]);
+    setWatched('terms', []);
     const { getByText } = render(<VocabularyScreen />);
     await waitFor(() => expect(getByText('village.vocabulary.empty')).toBeTruthy());
   });

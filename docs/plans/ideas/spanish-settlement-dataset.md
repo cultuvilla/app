@@ -1,9 +1,13 @@
 # Completar el nomenclátor de pueblos españoles
 
-> **Status:** Decided 2026-08-24, one question still open (see **D8**). Origin: a
+**Priority:** medium
+**Gate:** decision:D8 — does the municipal seat get its own row?
+**Next:** settle D8 (leaning: include the seat, flagged `isSeat: true`), then promote to `ready/`
+
+> Decided 2026-08-24, one question still open (see **D8**). Origin: a
 > user bug report (2026-08-23) that a resident of Villarino de Manzanas could not
 > find their village. PRs #259 and #260 fixed the *search*; this is the *data and
-> the model* behind it. Promote to `ready/` once D8 is settled.
+> the model* behind it.
 
 ---
 

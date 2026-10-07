@@ -1,6 +1,8 @@
 # Servicios — Idea Exploration
 
-> **Status:** Pre-spec exploration, derived from a design conversation on
+**Priority:** low
+
+> Pre-spec exploration, derived from a design conversation on
 > 2026-08-19. Not yet a formal design — the open questions at the bottom must be
 > answered before this becomes a plan in `ready/`.
 

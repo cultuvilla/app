@@ -7,9 +7,9 @@ import {
   type VocabularyTermKind,
 } from '@cultuvilla/shared/models';
 import { useVillageRoute, withVillageRoute } from '../../lib/navigation/VillageRouteGate';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Animated, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Screen } from '../../components/primitives/Screen';
 import { Text } from '../../components/primitives/Text';
 import { HStack } from '../../components/primitives/HStack';
@@ -22,9 +22,11 @@ import { SegmentedToggle } from '../../components/feature/SegmentedToggle';
 import { ContributorAvatars } from '../../components/feature/ContributorAvatars';
 import { useT } from '../../lib/i18n';
 import { useEntityCapabilities } from '../../lib/auth/useEntityCapabilities';
+import { useWatch } from '../../lib/hooks/useWatch';
 import {
-  getVocabularyTerms,
-  getVillageVocabularyDefinitions,
+  watchVillageVocabularyDefinitions,
+  watchVocabularyTerms,
+  type VocabularyDefinitionWithId,
   type VocabularyTermWithId,
 } from '@cultuvilla/shared/services/vocabularyService';
 import { slugifyTerm } from '@cultuvilla/shared/models/vocabulary';
@@ -50,30 +52,27 @@ function VocabularyScreen() {
   } = useVillageRoute();
   const { t } = useT();
   const { isMember } = useEntityCapabilities(villageId);
-  const [terms, setTerms] = useState<VocabularyTermWithId[]>([]);
-  const [credits, setCredits] = useState<Map<string, VocabularyCredit>>(new Map());
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedKind, setSelectedKind] = useState<VocabularyTermKind | null>(null);
 
-  const load = useCallback(async () => {
-    if (!villageId) return;
-    try {
-      const [loadedTerms, definitions] = await Promise.all([
-        getVocabularyTerms(villageId),
-        getVillageVocabularyDefinitions(villageId),
-      ]);
-      setTerms(loadedTerms);
-      setCredits(vocabularyCreditsByTerm(loadedTerms, definitions));
-    } finally {
-      setLoading(false);
-    }
-  }, [villageId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
+  const termsWatch = useWatch<VocabularyTermWithId[]>(
+    'vocabulary:watchVocabularyTerms',
+    villageId,
+    villageId ? (next, error) => watchVocabularyTerms(villageId, next, error) : null,
+  );
+  // Credits are a nicety on each row: until the meanings answer (or if they
+  // fail), a row falls back to the contributors denormalized on its term.
+  const definitionsWatch = useWatch<VocabularyDefinitionWithId[]>(
+    'vocabulary:watchVillageVocabularyDefinitions',
+    villageId,
+    villageId ? (next, error) => watchVillageVocabularyDefinitions(villageId, next, error) : null,
+  );
+  const terms = useMemo(() => termsWatch.data ?? [], [termsWatch.data]);
+  const loading = termsWatch.status === 'loading';
+  const credits = useMemo<Map<string, VocabularyCredit>>(
+    () =>
+      definitionsWatch.data ? vocabularyCreditsByTerm(terms, definitionsWatch.data) : new Map(),
+    [terms, definitionsWatch.data],
   );
 
   const kinds = useMemo(() => presentVocabularyKinds(terms), [terms]);

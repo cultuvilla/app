@@ -1,5 +1,8 @@
 # Image delivery through a CDN
 
+**Priority:** low
+**Next:** set a GCP budget alert on `cultuvilla-prod` so storage/egress growth is noticed before it is billed
+
 ## Goal
 
 Keep image download cost and latency flat as Cultuvilla grows from one village

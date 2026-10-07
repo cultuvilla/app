@@ -1,5 +1,5 @@
-import { getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { getDoc, getDocs, query, where, orderBy } from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   organizerRequestsCollection,

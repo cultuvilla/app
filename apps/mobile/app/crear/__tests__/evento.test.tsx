@@ -4,6 +4,7 @@ import NewEventScreen from '../evento';
 import { pickImageAsBlob } from '../../../lib/images';
 import { createEvent, updateEvent, getEvent } from '@cultuvilla/shared/services/eventService';
 import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
+import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { showConfirm } from '../../../lib/dialogs';
 
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -45,6 +46,9 @@ jest.mock('@cultuvilla/shared/models/municipality', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/feedService', () => ({
   haversineKm: () => 0,
+}));
+jest.mock('@cultuvilla/shared/services/organizationService', () => ({
+  getOrganization: jest.fn().mockResolvedValue({ id: 'org-1', joinPolicy: 'approval' }),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
   createEvent: jest.fn().mockResolvedValue('e-1'),
@@ -89,9 +93,17 @@ jest.mock('../../../components/feature/OrganizerPicker', () => ({
     );
   },
 }));
+const mockLocationRequired = { current: false };
 jest.mock('../../../components/feature/LocationField', () => ({
-  LocationField: ({ onChange }: { onChange: (c: { lat: number; lng: number }, a: string) => void }) => {
+  LocationField: ({
+    onChange,
+    required,
+  }: {
+    onChange: (c: { lat: number; lng: number }, a: string) => void;
+    required?: boolean;
+  }) => {
     const { Pressable } = require('react-native');
+    mockLocationRequired.current = !!required;
     return (
       <Pressable testID="location-field" onPress={() => onChange({ lat: 1, lng: 2 }, 'Plaza Mayor')} />
     );
@@ -179,10 +191,41 @@ describe('NewEventScreen stepper', () => {
     await waitFor(() => expect(getByTestId('telephone-required')).toBeTruthy());
     expect(queryByTestId('signup-question-add')).toBeNull();
 
+    fireEvent.press(getByTestId('form-enabled'));
     fireEvent.press(getByText('common.stepper.next'));
     await waitFor(() => expect(getByTestId('signup-question-add')).toBeTruthy());
     // Last step: the primary button submits instead of advancing.
     expect(getByTestId('event-form-primary')).toHaveTextContent('event.createEvent');
+  });
+
+  it('marks the location as mandatory', async () => {
+    const { getByText, getByLabelText, getByTestId } = render(<NewEventScreen />);
+    await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());
+    fireEvent.changeText(getByLabelText('event.title'), 'Fiesta');
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('startDate')).toBeTruthy());
+    expect(getByTestId('location-field')).toBeTruthy();
+    expect(mockLocationRequired.current).toBe(true);
+  });
+
+  // Most events need no questions, so the Preguntas step only exists once the
+  // creator asks for a form; until then Detalles is the last step.
+  it('shows the questions step only when "añadir un formulario" is on', async () => {
+    const { getByText, getByLabelText, getByTestId } = render(<NewEventScreen />);
+    await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());
+    fireEvent.changeText(getByLabelText('event.title'), 'Fiesta');
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('startDate')).toBeTruthy());
+    fireEvent.press(getByTestId('startDate'));
+    fireEvent.press(getByTestId('location-field'));
+    fireEvent.press(getByText('common.stepper.next'));
+
+    const formEnabled = await waitFor(() => getByTestId('form-enabled'));
+    expect(formEnabled.props.accessibilityState.checked).toBe(false);
+    expect(getByTestId('event-form-primary')).toHaveTextContent('event.createEvent');
+
+    fireEvent.press(formEnabled);
+    expect(getByTestId('event-form-primary')).toHaveTextContent('common.stepper.next');
   });
 
   // The group-size selector arrived with group sign-ups after this screen
@@ -347,9 +390,7 @@ describe('NewEventScreen cover upload', () => {
     fireEvent.press(getByTestId('location-field'));
     fireEvent.press(getByText('common.stepper.next'));
     await waitFor(() => expect(getByTestId('signup-enabled')).toBeTruthy());
-    // Sign-up questions are the last step; nothing to fill in, just walk past it.
-    fireEvent.press(getByText('common.stepper.next'));
-    await waitFor(() => expect(getByTestId('signup-question-add')).toBeTruthy());
+    // No form asked for, so Detalles is the last step.
     fireEvent.press(getByTestId('event-form-primary'));
   }
 
@@ -658,8 +699,6 @@ describe('NewEventScreen — birth-year limit toggle', () => {
     fireEvent.changeText(getByTestId('max-birth-year'), '2020');
     fireEvent.press(getByTestId('birth-year-limit'));
 
-    fireEvent.press(getByText('common.stepper.next'));
-    await waitFor(() => expect(getByTestId('signup-question-add')).toBeTruthy());
     fireEvent.press(getByTestId('event-form-primary'));
 
     await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
@@ -667,6 +706,72 @@ describe('NewEventScreen — birth-year limit toggle', () => {
       minBirthYear: null,
       maxBirthYear: null,
     });
+  });
+});
+
+// The form toggle is UI state over `signupFields`: an event that already asks
+// questions opens with it on, and once answers exist it cannot be switched off
+// (those questions key the answers already collected).
+describe('NewEventScreen — form toggle in edit mode', () => {
+  const QUESTION = { id: 'q-1', label: 'Talla', type: 'text', required: false, options: [] };
+
+  async function openEditDetails(totalCount: number) {
+    mockParams.eventId = 'e-8';
+    (getEvent as jest.Mock).mockResolvedValue({
+      id: 'e-8',
+      municipalityId: 'm-1',
+      villageSlug: 'villa',
+      villageName: 'Pueblo',
+      villageCoordinates: { lat: 1, lng: 2 },
+      title: 'Carrera',
+      description: 'Desc',
+      startDate: new Date('2026-08-01T18:00'),
+      endDate: null,
+      location: { coordinates: { lat: 1, lng: 2 }, displayName: 'Plaza' },
+      maxAttendees: null,
+      telephoneRequired: false,
+      requiresPayment: false,
+      signupGroupSize: 1,
+      signupEnabled: true,
+      signupInfo: null,
+      attendeesVisibility: 'members' as const,
+      signupFields: [QUESTION],
+      totalCount,
+      organizerUserIds: ['uid-1'],
+      organizerOrgIds: [],
+      createdBy: 'uid-1',
+      imageURL: null,
+      minBirthYear: null,
+      maxBirthYear: null,
+    });
+    const view = render(<NewEventScreen />);
+    await waitFor(() => expect(view.getByTestId('organizer-picker')).toBeTruthy());
+    fireEvent.press(view.getByText('common.stepper.next'));
+    await waitFor(() => expect(view.getByTestId('startDate')).toBeTruthy());
+    fireEvent.press(view.getByText('common.stepper.next'));
+    await waitFor(() => expect(view.getByTestId('form-enabled')).toBeTruthy());
+    return view;
+  }
+
+  afterEach(() => {
+    delete mockParams.eventId;
+  });
+
+  it('starts on, and saves no questions once switched off', async () => {
+    (updateEvent as jest.Mock).mockClear();
+    const { getByTestId } = await openEditDetails(0);
+    const toggle = getByTestId('form-enabled');
+    expect(toggle.props.accessibilityState.checked).toBe(true);
+
+    fireEvent.press(toggle);
+    fireEvent.press(getByTestId('event-form-primary'));
+    await waitFor(() => expect(updateEvent).toHaveBeenCalled());
+    expect((updateEvent as jest.Mock).mock.calls[0][1]).toMatchObject({ signupFields: [] });
+  });
+
+  it('cannot be switched off once the questions have answers', async () => {
+    const { getByTestId } = await openEditDetails(3);
+    expect(getByTestId('form-enabled')).toBeDisabled();
   });
 });
 
@@ -681,23 +786,41 @@ describe('NewEventScreen — private events', () => {
   // test can put the event in the one-org state the privacy switch needs.
   async function submitNewEvent(
     utils: ReturnType<typeof render>,
-    onFirstStep?: (u: ReturnType<typeof render>) => void,
+    onFirstStep?: (u: ReturnType<typeof render>) => void | Promise<void>,
   ) {
     const { getByText, getByLabelText, getByTestId } = utils;
     await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());
     fireEvent.changeText(getByLabelText('event.title'), 'Fiesta');
-    onFirstStep?.(utils);
+    await onFirstStep?.(utils);
     fireEvent.press(getByText('common.stepper.next'));
     await waitFor(() => expect(getByTestId('startDate')).toBeTruthy());
     fireEvent.press(getByTestId('startDate'));
     fireEvent.press(getByTestId('location-field'));
     fireEvent.press(getByText('common.stepper.next'));
     await waitFor(() => expect(getByTestId('signup-enabled')).toBeTruthy());
-    fireEvent.press(getByText('common.stepper.next'));
-    await waitFor(() => expect(getByTestId('signup-question-add')).toBeTruthy());
     fireEvent.press(getByTestId('event-form-primary'));
     await waitFor(() => expect(createEvent).toHaveBeenCalled());
   }
+
+  // The switch only turns on once the org's join policy has loaded.
+  async function pickApprovalOrg(u: ReturnType<typeof render>) {
+    fireEvent.press(u.getByTestId('pick-one-org'));
+    await waitFor(() => expect(getOrganization).toHaveBeenCalledWith('org-1'));
+    await waitFor(() => expect(u.getByTestId('private-to-org')).toBeEnabled());
+  }
+
+  it('cannot make an event private to an open org, and says why', async () => {
+    jest.mocked(getOrganization).mockResolvedValueOnce({ id: 'org-1', joinPolicy: 'open' } as never);
+    await submitNewEvent(render(<NewEventScreen />), async (u) => {
+      fireEvent.press(u.getByTestId('pick-one-org'));
+      await waitFor(() => expect(u.getByText('event.privateToOrgNeedsApproval')).toBeTruthy());
+      fireEvent.press(u.getByTestId('private-to-org'));
+    });
+    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
+      visibility: 'public',
+      visibilityOrgId: null,
+    });
+  });
 
   it('offers the switch only when exactly one org organizes the event', async () => {
     const { getByLabelText, getByTestId, queryByTestId } = render(<NewEventScreen />);
@@ -721,8 +844,8 @@ describe('NewEventScreen — private events', () => {
   });
 
   it('creates an event restricted to the organizing org when the switch is on', async () => {
-    await submitNewEvent(render(<NewEventScreen />), (u) => {
-      fireEvent.press(u.getByTestId('pick-one-org'));
+    await submitNewEvent(render(<NewEventScreen />), async (u) => {
+      await pickApprovalOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
     });
     expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
@@ -735,8 +858,8 @@ describe('NewEventScreen — private events', () => {
   // withholds it, and the address bar, history and copied links would not.
   it('opens a new private event at a URL without its title', async () => {
     const { router } = jest.requireMock('expo-router') as { router: { replace: jest.Mock } };
-    await submitNewEvent(render(<NewEventScreen />), (u) => {
-      fireEvent.press(u.getByTestId('pick-one-org'));
+    await submitNewEvent(render(<NewEventScreen />), async (u) => {
+      await pickApprovalOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
     });
     await waitFor(() => expect(router.replace).toHaveBeenCalled());
@@ -757,8 +880,8 @@ describe('NewEventScreen — private events', () => {
   // adding a second one — and a private event with two orgs has no single
   // membership to gate on, so the submit path has to drop it.
   it('falls back to public when a second org joins after the switch was set', async () => {
-    await submitNewEvent(render(<NewEventScreen />), (u) => {
-      fireEvent.press(u.getByTestId('pick-one-org'));
+    await submitNewEvent(render(<NewEventScreen />), async (u) => {
+      await pickApprovalOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
       fireEvent.press(u.getByTestId('pick-two-orgs'));
     });

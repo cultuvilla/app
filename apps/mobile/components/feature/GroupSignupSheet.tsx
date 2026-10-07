@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { Button } from '../primitives/Button';
+import { KeyboardAvoider } from '../primitives/KeyboardAvoider';
 import { Text } from '../primitives/Text';
 import { VStack } from '../primitives/VStack';
 import { HStack } from '../primitives/HStack';
@@ -228,230 +229,232 @@ export function GroupSignupSheet({
         if (!busy) onClose();
       }}
     >
-      <RNPressable
-        onPress={() => {
-          if (!busy) onClose();
-        }}
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        className="justify-end"
-      >
+      <KeyboardAvoider>
         <RNPressable
-          onPress={() => {}}
-          className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
-          style={{ paddingBottom: insets.bottom + 20, maxHeight: windowHeight * 0.9 }}
+          onPress={() => {
+            if (!busy) onClose();
+          }}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          className="justify-end"
         >
-          <VStack gap={3} className="shrink">
-            <Text variant="h3">{t('event.group.title', { count: groupSize })}</Text>
+          <RNPressable
+            onPress={() => {}}
+            className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
+            style={{ paddingBottom: insets.bottom + 20, maxHeight: windowHeight * 0.9 }}
+          >
+            <VStack gap={3} className="shrink">
+              <Text variant="h3">{t('event.group.title', { count: groupSize })}</Text>
 
-            {hasGroup ? (
-              <VStack gap={2} testID="group-summary">
-                <Text variant="bodySm" tone="muted">
-                  {t('event.group.summaryHelp')}
-                </Text>
-                {mySeats.map((seat) => (
-                  <VStack
-                    key={seat.regId}
-                    gap={0}
-                    className="rounded-lg border border-subtle overflow-hidden"
-                    testID={`group-seat-${seat.regId}`}
-                  >
-                    <VStack gap={0} className="p-3">
-                      <Text numberOfLines={1}>
-                        {seat.isOpenSeat ? t('event.group.openSeat') : seat.name}
-                      </Text>
-                      <Text
-                        variant="caption"
-                        tone={seat.status === 'waitlisted' ? 'muted' : 'success'}
-                      >
-                        {seat.status === 'waitlisted'
-                          ? t('event.register.waitlisted')
-                          : t('event.register.signedUp')}
-                      </Text>
-                    </VStack>
-                    {/* The link is the whole point of an unclaimed seat, so it
-                        gets a full row of its own rather than a button
-                        squeezed against the seat's name. */}
-                    {seat.isOpenSeat && seat.token ? (
-                      <RNPressable
-                        onPress={() => onShareSeat(seat.token as string)}
-                        testID={`group-share-${seat.regId}`}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('event.group.sendLink')}
-                        className="flex-row items-center border-t border-subtle bg-surface p-3"
-                      >
-                        <HStack gap={3} className="items-center flex-1">
-                          <Ionicons
-                            name="paper-plane-outline"
-                            size={iconSizes.sm}
-                            color={ACCENT}
-                          />
-                          <Text className="flex-1" style={{ color: ACCENT, fontWeight: '600' }}>
-                            {t('event.group.sendLink')}
-                          </Text>
-                        </HStack>
-                        <Ionicons name="chevron-forward" size={iconSizes.sm} color={ACCENT} />
-                      </RNPressable>
-                    ) : null}
-                  </VStack>
-                ))}
-                <Button
-                  variant="danger"
-                  onPress={() => {
-                    const first = mySeats[0];
-                    if (first) onCancelGroup(first.regId);
-                  }}
-                  loading={busy}
-                  fullWidth
-                  testID="group-cancel"
-                >
-                  {t('event.group.cancel')}
-                </Button>
-              </VStack>
-            ) : (
-              <>
-                <Text variant="bodySm" tone="muted" testID="group-remaining">
-                  {remaining > 0
-                    ? t('event.group.remaining', { count: remaining })
-                    : t('event.group.complete')}
-                </Text>
-
-                <ScrollView ref={listRef} style={{ flexShrink: 1 }} testID="group-attendee-list">
-                  <VStack gap={2}>
-                    {attendees.map((a) => {
-                      const isSelected = selected.has(a.id);
-                      const alreadyIn = a.status !== undefined;
-                      const showFields = isSelected && signupFields.length > 0;
-                      return (
-                        <View
-                          key={a.id}
-                          onLayout={(e) => {
-                            rowOffsets.current[a.id] = e.nativeEvent.layout.y;
-                          }}
-                        >
-                          <RNPressable
-                            testID={`group-row-${a.id}`}
-                            onPress={() => {
-                              if (!alreadyIn) toggle(a.id);
-                            }}
-                            disabled={alreadyIn}
-                            accessibilityRole="checkbox"
-                            accessibilityState={{ checked: isSelected, disabled: alreadyIn }}
-                            className={`flex-row items-center justify-between rounded-lg border p-3 ${
-                              isSelected ? 'border-accent bg-surface' : 'border-subtle'
-                            } ${alreadyIn ? 'opacity-50' : ''}`}
-                          >
-                            <HStack gap={3} className="items-center flex-1">
-                              <Text style={{ fontSize: 18 }}>{isSelected ? '☑' : '☐'}</Text>
-                              <Text className="flex-1">{a.name}</Text>
-                            </HStack>
-                            {alreadyIn ? (
-                              <Text variant="caption" tone="muted">
-                                {t('event.register.signedUp')}
-                              </Text>
-                            ) : null}
-                          </RNPressable>
-                          {showFields ? (
-                            <SignupAnswerFields
-                              fields={signupFields}
-                              values={answers[a.id] ?? {}}
-                              onChange={(fieldId, value) =>
-                                setAnswers((prev) => ({
-                                  ...prev,
-                                  [a.id]: { ...prev[a.id], [fieldId]: value },
-                                }))
-                              }
-                              invalidIds={confirmAttempted ? invalidIdsFor(a.id) : []}
-                              testIDPrefix={`group-answer-${a.id}`}
-                            />
-                          ) : null}
-                        </View>
-                      );
-                    })}
-
-                    <RNPressable
-                      onPress={onCreateNew}
-                      testID="group-create-persona"
-                      accessibilityRole="button"
-                      accessibilityLabel={t('event.register.createPersona')}
-                      className="flex-row items-center rounded-lg border border-dashed border-subtle p-3"
+              {hasGroup ? (
+                <VStack gap={2} testID="group-summary">
+                  <Text variant="bodySm" tone="muted">
+                    {t('event.group.summaryHelp')}
+                  </Text>
+                  {mySeats.map((seat) => (
+                    <VStack
+                      key={seat.regId}
+                      gap={0}
+                      className="rounded-lg border border-subtle overflow-hidden"
+                      testID={`group-seat-${seat.regId}`}
                     >
-                      <HStack gap={3} className="items-center flex-1">
-                        <Text tone="muted" style={{ fontSize: 18 }}>
-                          ＋
+                      <VStack gap={0} className="p-3">
+                        <Text numberOfLines={1}>
+                          {seat.isOpenSeat ? t('event.group.openSeat') : seat.name}
                         </Text>
-                        <Text tone="muted" className="flex-1">
-                          {t('event.register.createPersona')}
+                        <Text
+                          variant="caption"
+                          tone={seat.status === 'waitlisted' ? 'muted' : 'success'}
+                        >
+                          {seat.status === 'waitlisted'
+                            ? t('event.register.waitlisted')
+                            : t('event.register.signedUp')}
                         </Text>
-                      </HStack>
-                    </RNPressable>
-
-                    {/* Open seats: held places you hand to someone by link.
-                        Tickable rows rather than a counter, so a seat for a
-                        friend reads exactly like a seat for a persona. */}
-                    {Array.from({ length: maxOpenSeats }, (_, index) => {
-                      const isTicked = index < openSeats;
-                      const label =
-                        index === 0
-                          ? t('event.group.inviteSeat')
-                          : t('event.group.inviteSeatMore');
-                      return (
+                      </VStack>
+                      {/* The link is the whole point of an unclaimed seat, so it
+                          gets a full row of its own rather than a button
+                          squeezed against the seat's name. */}
+                      {seat.isOpenSeat && seat.token ? (
                         <RNPressable
-                          key={`open-seat-${index}`}
-                          testID={`group-open-seat-${index}`}
-                          onPress={() => toggleOpenSeat(index)}
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: isTicked }}
-                          accessibilityLabel={label}
-                          className={`flex-row items-center rounded-lg border border-dashed p-3 ${
-                            isTicked ? 'border-accent bg-surface' : 'border-subtle'
-                          }`}
+                          onPress={() => onShareSeat(seat.token as string)}
+                          testID={`group-share-${seat.regId}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('event.group.sendLink')}
+                          className="flex-row items-center border-t border-subtle bg-surface p-3"
                         >
                           <HStack gap={3} className="items-center flex-1">
-                            <Text style={{ fontSize: 18 }}>{isTicked ? '☑' : '☐'}</Text>
-                            <VStack gap={0} className="flex-1">
-                              <Text>{label}</Text>
-                              {index === 0 ? (
+                            <Ionicons
+                              name="paper-plane-outline"
+                              size={iconSizes.sm}
+                              color={ACCENT}
+                            />
+                            <Text className="flex-1" style={{ color: ACCENT, fontWeight: '600' }}>
+                              {t('event.group.sendLink')}
+                            </Text>
+                          </HStack>
+                          <Ionicons name="chevron-forward" size={iconSizes.sm} color={ACCENT} />
+                        </RNPressable>
+                      ) : null}
+                    </VStack>
+                  ))}
+                  <Button
+                    variant="danger"
+                    onPress={() => {
+                      const first = mySeats[0];
+                      if (first) onCancelGroup(first.regId);
+                    }}
+                    loading={busy}
+                    fullWidth
+                    testID="group-cancel"
+                  >
+                    {t('event.group.cancel')}
+                  </Button>
+                </VStack>
+              ) : (
+                <>
+                  <Text variant="bodySm" tone="muted" testID="group-remaining">
+                    {remaining > 0
+                      ? t('event.group.remaining', { count: remaining })
+                      : t('event.group.complete')}
+                  </Text>
+
+                  <ScrollView ref={listRef} style={{ flexShrink: 1 }} testID="group-attendee-list">
+                    <VStack gap={2}>
+                      {attendees.map((a) => {
+                        const isSelected = selected.has(a.id);
+                        const alreadyIn = a.status !== undefined;
+                        const showFields = isSelected && signupFields.length > 0;
+                        return (
+                          <View
+                            key={a.id}
+                            onLayout={(e) => {
+                              rowOffsets.current[a.id] = e.nativeEvent.layout.y;
+                            }}
+                          >
+                            <RNPressable
+                              testID={`group-row-${a.id}`}
+                              onPress={() => {
+                                if (!alreadyIn) toggle(a.id);
+                              }}
+                              disabled={alreadyIn}
+                              accessibilityRole="checkbox"
+                              accessibilityState={{ checked: isSelected, disabled: alreadyIn }}
+                              className={`flex-row items-center justify-between rounded-lg border p-3 ${
+                                isSelected ? 'border-accent bg-surface' : 'border-subtle'
+                              } ${alreadyIn ? 'opacity-50' : ''}`}
+                            >
+                              <HStack gap={3} className="items-center flex-1">
+                                <Text style={{ fontSize: 18 }}>{isSelected ? '☑' : '☐'}</Text>
+                                <Text className="flex-1">{a.name}</Text>
+                              </HStack>
+                              {alreadyIn ? (
                                 <Text variant="caption" tone="muted">
-                                  {t('event.group.inviteSeatHelp')}
+                                  {t('event.register.signedUp')}
                                 </Text>
                               ) : null}
-                            </VStack>
-                          </HStack>
-                        </RNPressable>
-                      );
-                    })}
-                  </VStack>
-                </ScrollView>
+                            </RNPressable>
+                            {showFields ? (
+                              <SignupAnswerFields
+                                fields={signupFields}
+                                values={answers[a.id] ?? {}}
+                                onChange={(fieldId, value) =>
+                                  setAnswers((prev) => ({
+                                    ...prev,
+                                    [a.id]: { ...prev[a.id], [fieldId]: value },
+                                  }))
+                                }
+                                invalidIds={confirmAttempted ? invalidIdsFor(a.id) : []}
+                                testIDPrefix={`group-answer-${a.id}`}
+                              />
+                            ) : null}
+                          </View>
+                        );
+                      })}
 
-                {telephoneRequired ? (
-                  <PhoneField
-                    label={t('event.register.phoneTitle')}
-                    value={phone}
-                    onChangeText={setPhone}
-                    country={phoneCountry}
-                    onCountryChange={setPhoneCountry}
-                    placeholder={t('event.register.phonePlaceholder')}
-                    searchPlaceholder={t('event.register.phoneSearch')}
-                    noResultsLabel={t('event.register.phoneNoResults')}
-                    error={phoneError ? t('event.register.phoneInvalid') : undefined}
-                    testID="group-phone"
-                  />
-                ) : null}
+                      <RNPressable
+                        onPress={onCreateNew}
+                        testID="group-create-persona"
+                        accessibilityRole="button"
+                        accessibilityLabel={t('event.register.createPersona')}
+                        className="flex-row items-center rounded-lg border border-dashed border-subtle p-3"
+                      >
+                        <HStack gap={3} className="items-center flex-1">
+                          <Text tone="muted" style={{ fontSize: 18 }}>
+                            ＋
+                          </Text>
+                          <Text tone="muted" className="flex-1">
+                            {t('event.register.createPersona')}
+                          </Text>
+                        </HStack>
+                      </RNPressable>
 
-                <Button
-                  onPress={handleConfirm}
-                  loading={busy}
-                  disabled={!canConfirm}
-                  fullWidth
-                  testID="group-confirm"
-                >
-                  {t('event.register.confirm')}
-                </Button>
-              </>
-            )}
-          </VStack>
+                      {/* Open seats: held places you hand to someone by link.
+                          Tickable rows rather than a counter, so a seat for a
+                          friend reads exactly like a seat for a persona. */}
+                      {Array.from({ length: maxOpenSeats }, (_, index) => {
+                        const isTicked = index < openSeats;
+                        const label =
+                          index === 0
+                            ? t('event.group.inviteSeat')
+                            : t('event.group.inviteSeatMore');
+                        return (
+                          <RNPressable
+                            key={`open-seat-${index}`}
+                            testID={`group-open-seat-${index}`}
+                            onPress={() => toggleOpenSeat(index)}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: isTicked }}
+                            accessibilityLabel={label}
+                            className={`flex-row items-center rounded-lg border border-dashed p-3 ${
+                              isTicked ? 'border-accent bg-surface' : 'border-subtle'
+                            }`}
+                          >
+                            <HStack gap={3} className="items-center flex-1">
+                              <Text style={{ fontSize: 18 }}>{isTicked ? '☑' : '☐'}</Text>
+                              <VStack gap={0} className="flex-1">
+                                <Text>{label}</Text>
+                                {index === 0 ? (
+                                  <Text variant="caption" tone="muted">
+                                    {t('event.group.inviteSeatHelp')}
+                                  </Text>
+                                ) : null}
+                              </VStack>
+                            </HStack>
+                          </RNPressable>
+                        );
+                      })}
+                    </VStack>
+                  </ScrollView>
+
+                  {telephoneRequired ? (
+                    <PhoneField
+                      label={t('event.register.phoneTitle')}
+                      value={phone}
+                      onChangeText={setPhone}
+                      country={phoneCountry}
+                      onCountryChange={setPhoneCountry}
+                      placeholder={t('event.register.phonePlaceholder')}
+                      searchPlaceholder={t('event.register.phoneSearch')}
+                      noResultsLabel={t('event.register.phoneNoResults')}
+                      error={phoneError ? t('event.register.phoneInvalid') : undefined}
+                      testID="group-phone"
+                    />
+                  ) : null}
+
+                  <Button
+                    onPress={handleConfirm}
+                    loading={busy}
+                    disabled={!canConfirm}
+                    fullWidth
+                    testID="group-confirm"
+                  >
+                    {t('event.register.confirm')}
+                  </Button>
+                </>
+              )}
+            </VStack>
+          </RNPressable>
         </RNPressable>
-      </RNPressable>
+      </KeyboardAvoider>
     </Modal>
   );
 }

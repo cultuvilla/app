@@ -37,7 +37,7 @@ async function seedMunicipality(organizerId: string | null = null): Promise<void
       escudoThumbUrl: null,
       escudoManualUrl: null,
       communityActive: true,
-      community: { organizerId, description: 'Mi pueblo', profileForm: null, activatedAt: now, fiestas: [] },
+      community: { organizerId, organizerSex: null, description: 'Mi pueblo', profileForm: null, activatedAt: now, fiestas: [] },
     });
 }
 
@@ -166,7 +166,7 @@ describe('changeVillageMemberRole (callable)', () => {
     await seedMember(TARGET_ID, 'admin');
     await expect(
       callChange({ uid: VILLAGE_ADMIN_ID, data: { municipalityId: MUNICIPALITY_ID, targetUserId: TARGET_ID, role: 'user' } }),
-    ).rejects.toThrow(/organizador|failed-precondition/i);
+    ).rejects.toThrow(/embajador|failed-precondition/i);
     expect(await memberRole(TARGET_ID)).toBe('admin');
   });
 

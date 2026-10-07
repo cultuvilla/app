@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { iconSizes, spacing } from '@cultuvilla/shared/design-system';
 import { VStack, HStack, Text, Pressable, TopCropImage } from '../primitives';
 import { useT } from '../../lib/i18n';
-import { HorizontalScrollRow } from './HorizontalScrollRow';
 import { SectionTitle } from './SectionTitle';
 import { RemoteImage } from '../primitives/RemoteImage';
 
@@ -140,36 +139,26 @@ export function Section<T>({
       {showSkeleton ? (
         <SkeletonRow />
       ) : data && renderItem ? (
-        <HorizontalScrollRow>
-          {(scrollRef) => (
-            <FlatList
-              ref={scrollRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={data}
-              renderItem={renderItem}
-              keyExtractor={keyExtractor}
-              contentContainerStyle={{ paddingHorizontal: spacing[4], gap: spacing[3] }}
-              initialNumToRender={4}
-              maxToRenderPerBatch={4}
-              windowSize={5}
-              removeClippedSubviews
-            />
-          )}
-        </HorizontalScrollRow>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={data}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={{ paddingHorizontal: spacing[4], gap: spacing[3] }}
+          initialNumToRender={4}
+          maxToRenderPerBatch={4}
+          windowSize={5}
+          removeClippedSubviews
+        />
       ) : (
-        <HorizontalScrollRow>
-          {(scrollRef) => (
-            <ScrollView
-              ref={scrollRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerClassName="px-4 gap-3"
-            >
-              {children}
-            </ScrollView>
-          )}
-        </HorizontalScrollRow>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="px-4 gap-3"
+        >
+          {children}
+        </ScrollView>
       )}
     </VStack>
   );

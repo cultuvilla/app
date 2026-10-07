@@ -1,4 +1,4 @@
-import { deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { getVillageSlug } from './municipalityService';
 import { historyEntriesCollection, historyEntryDoc } from '../firebase/refs/client';
@@ -8,6 +8,7 @@ import {
   type HistoryEntryData,
   type HistoryEntryDataInput,
 } from '../models/history/HistoryEntryDataModel';
+import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type HistoryEntryWithId = HistoryEntryData & { id: string };
 
@@ -32,21 +33,40 @@ export async function createHistoryEntry(
  * recorded history is tens of entries, and the timeline needs all of them to
  * place its century dividers.
  */
-export async function getHistoryEntries(municipalityId: string): Promise<HistoryEntryWithId[]> {
-  const q = query(
+function historyEntriesQuery(municipalityId: string) {
+  return query(
     historyEntriesCollection(getDb()),
     where('municipalityId', '==', municipalityId),
     where('status', '==', 'active'),
     orderBy('sortKey', 'desc'),
   );
-  const snap = await getDocs(q);
+}
+
+export async function getHistoryEntries(municipalityId: string): Promise<HistoryEntryWithId[]> {
+  const snap = await getDocs(historyEntriesQuery(municipalityId));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchHistoryEntries(
+  municipalityId: string,
+  onNext: (entries: HistoryEntryWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(historyEntriesQuery(municipalityId), onNext, onError);
 }
 
 export async function getHistoryEntry(entryId: string): Promise<HistoryEntryWithId | null> {
   const snap = await getDoc(historyEntryDoc(getDb(), entryId));
   const data = snap.data();
   return data ? { id: snap.id, ...data } : null;
+}
+
+export function watchHistoryEntry(
+  entryId: string,
+  onNext: (entry: HistoryEntryWithId | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(historyEntryDoc(getDb(), entryId), onNext, onError);
 }
 
 export function updateHistoryEntry(

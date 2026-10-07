@@ -1,6 +1,8 @@
 # Family Tree — Idea Exploration
 
-> **Status:** Pre-spec exploration. Not yet a formal design. Use as reference before writing the full spec.
+**Priority:** low
+
+> Pre-spec exploration. Not yet a formal design. Use as reference before writing the full spec.
 
 ---
 

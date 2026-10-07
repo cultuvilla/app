@@ -1,18 +1,19 @@
 import {
   doc,
   getDoc,
-  getDocs,
   setDoc,
   updateDoc,
   serverTimestamp,
-  query,
-  orderBy,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
-import { usersCollection, userDoc } from '../firebase/refs/client';
-import type { UserData, UserDataInput } from '../models/user';
+import { publicProfileDoc, userDoc } from '../firebase/refs/client';
+import type { PublicProfileData, UserData, UserDataInput } from '../models/user';
 import { CURRENT_TERMS_VERSION } from '../models/user';
 
+/**
+ * The signed-in user's OWN account doc. It carries private contact fields, so
+ * the rules deny it to anyone else — for another user use `getPublicProfile`.
+ */
 export async function getUserProfile(
   userId: string,
 ): Promise<(UserData & { id: string }) | null> {
@@ -20,10 +21,12 @@ export async function getUserProfile(
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export async function getAllUsers(): Promise<(UserData & { id: string })[]> {
-  const q = query(usersCollection(getDb()), orderBy('displayName', 'asc'));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+/** What anyone may see of another user's account (name, active village). */
+export async function getPublicProfile(
+  userId: string,
+): Promise<(PublicProfileData & { id: string }) | null> {
+  const snap = await getDoc(publicProfileDoc(getDb(), userId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
 /**

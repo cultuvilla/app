@@ -13,6 +13,7 @@ import {
   villagePath,
   villageSectionPath,
   wordPath,
+  wrappedPath,
   type EntityLinkTarget,
   type UrlEntityKind,
   type VillageSection,
@@ -66,6 +67,8 @@ export const villageHref = (villageSlug: string): HrefPath => href(villagePath(v
 
 export const villageSectionHref = (villageSlug: string, section: VillageSection, query?: string): HrefPath =>
   href(`${villageSectionPath(villageSlug, section)}${query ? `?${query}` : ''}`);
+
+export const wrappedHref = (villageSlug: string, year: number): HrefPath => href(wrappedPath(villageSlug, year));
 
 export const eventHref = (event: Parameters<typeof eventLinkTarget>[0]): HrefPath =>
   href(entityPath('event', eventLinkTarget(event)));
@@ -128,9 +131,6 @@ export function createNewsHref(params: { villageId?: string; newsId?: string } =
 
 export const discoverOrganizeHref = (municipalityId: string): HrefPath =>
   href(`/descubrir/organizar/${municipalityId}`);
-
-export const discoverStartHref = (municipalityId: string): HrefPath =>
-  href(`/descubrir/empezar/${municipalityId}`);
 
 function orgTarget(org: { id: string; name: string; villageSlug: string }): EntityLinkTarget {
   return { id: org.id, title: org.name, villageSlug: org.villageSlug };

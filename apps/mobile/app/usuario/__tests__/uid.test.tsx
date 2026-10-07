@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { render, waitFor } from '@testing-library/react-native';
 import UserProfileScreen from '../[uid]';
+import { resetWatchers, setWatched, watchersOf } from '../../../test/watchers';
 
 // Regression, screen level: tapping a villager opened /user/[uid] and the card
 // came up empty — placeholder avatar, no photo, dashes for every stat. The
@@ -29,31 +30,33 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: jest.fn(),
+  getPublicProfile: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn(),
-  getPersonsByCreator: jest.fn(),
+  watchPersonByUserId: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('person'),
+  watchPersonsByCreator: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('personas'),
+  // The screen's own header name.
+  getPersonByUserId: jest.fn().mockResolvedValue(null),
   updatePerson: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  getEventsByOrganizer: jest.fn(),
+  watchEventsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('events'),
 }));
 jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  getNewsPostsByOrganizer: jest.fn().mockResolvedValue([]),
-  getApprovedNewsPostsByOrganizer: jest.fn().mockResolvedValue([]),
+  watchNewsPostsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('news'),
 }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganizationsByMunicipality: jest.fn().mockResolvedValue([]),
+  watchOrganizationsByMunicipality: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('villageOrgs'),
 }));
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  getOrgMembershipsByUserInMunicipality: jest.fn().mockResolvedValue([]),
+  watchOrgMembershipsByUser: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('orgMemberships'),
 }));
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: jest.fn().mockResolvedValue([]),
+  watchUserMemberships: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('memberships'),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: jest.fn().mockResolvedValue(null),
+  watchMunicipalitiesByIds: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('municipalities'),
+  getVillagesWhereAmbassador: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadUserPhoto: jest.fn(),
@@ -61,6 +64,7 @@ jest.mock('@cultuvilla/shared/services/imageService', () => ({
 jest.mock('../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
+  reportFirestoreError: jest.fn(),
 }));
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true },
@@ -71,12 +75,7 @@ jest.mock('../../../lib/i18n', () => ({
   useT: () => ({ locale: 'es', t: (k: string) => k }),
 }));
 
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
-import {
-  getPersonByUserId,
-  getPersonsByCreator,
-} from '@cultuvilla/shared/services/personService';
-import { getEventsByOrganizer } from '@cultuvilla/shared/services/eventService';
+import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 
 function permissionDenied() {
   return Object.assign(new Error('Missing or insufficient permissions.'), {
@@ -86,25 +85,37 @@ function permissionDenied() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (getUserProfile as jest.Mock).mockResolvedValue({
+  (getPublicProfile as jest.Mock).mockResolvedValue({
     id: VIEWED,
     email: 'l@v.test',
     displayName: 'Lucía Vecina',
     activeMunicipalityId: 'muni-1',
     personId: 'person-2',
   });
-  (getPersonByUserId as jest.Mock).mockResolvedValue(OTHER_PERSON);
-  (getPersonsByCreator as jest.Mock).mockRejectedValue(permissionDenied());
-  (getEventsByOrganizer as jest.Mock).mockResolvedValue([{ id: 'e1' }, { id: 'e2' }, { id: 'e3' }]);
+  resetWatchers();
+  setWatched('person', OTHER_PERSON);
+  setWatched('personas', permissionDenied());
+  setWatched('events', [{ id: 'e1' }, { id: 'e2' }, { id: 'e3' }]);
+  setWatched('news', []);
+  // A denied section degrades on its own and never blanks the card.
+  setWatched('memberships', permissionDenied());
+  for (const name of ['villageOrgs', 'orgMemberships', 'municipalities']) {
+    setWatched(name, []);
+  }
 });
 
 async function renderScreen() {
   const screen = render(<UserProfileScreen />);
-  await waitFor(() => expect(getEventsByOrganizer as jest.Mock).toHaveBeenCalled());
+  await waitFor(() => expect(watchersOf('events')).toHaveLength(1));
   return screen;
 }
 
 describe('/user/[uid]', () => {
+  it("never asks for a stranger's personas", async () => {
+    await renderScreen();
+    expect(watchersOf('personas')).toHaveLength(0);
+  });
+
   it('shows the viewed villager photo', async () => {
     const screen = await renderScreen();
     await waitFor(() => {

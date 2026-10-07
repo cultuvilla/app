@@ -1,8 +1,8 @@
 export * from './MunicipalityDataModel'
 export * from './VillageMemberDataModel'
-export * from './InviteTokenDataModel'
 export * from './SpainGeography'
 export * from './CensoTypes'
+export * from './CensoAnswersDataModel'
 export * from './profileFieldRegistry'
 export * from './VillageFormSchema'
 export * from './OrganizerRequestDataModel'
@@ -10,3 +10,4 @@ export * from './MunicipalityPersonDataModel'
 export * from './SettlementSeedModel'
 export * from './FiestaBlockModel';
 export * from './municipalitySlug';
+export * from './villageTitle';

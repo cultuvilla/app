@@ -72,8 +72,17 @@ beforeEach(async () => {
         joinedAt: new Date(),
       });
     }
-    await setDoc(doc(db, `organizations/${ORG}`), { name: 'La Peña', municipalityId: M });
-    await setDoc(doc(db, `organizations/${OTHER_ORG}`), { name: 'Otra', municipalityId: M });
+    // Private events belong to orgs whose members are admitted by approval.
+    await setDoc(doc(db, `organizations/${ORG}`), {
+      name: 'La Peña',
+      municipalityId: M,
+      joinPolicy: 'approval',
+    });
+    await setDoc(doc(db, `organizations/${OTHER_ORG}`), {
+      name: 'Otra',
+      municipalityId: M,
+      joinPolicy: 'open',
+    });
     await setDoc(doc(db, `organizations/${ORG}/members/socio`), {
       userId: 'socio',
       role: 'member',
@@ -173,6 +182,43 @@ describe('firestore.rules — private events in list queries', () => {
       where('visibilityOrgId', '==', ORG),
     );
     await assertFails(getDocs(q));
+  });
+});
+
+// Anyone can self-join an open org, so membership there proves nothing.
+describe('firestore.rules — private events need an approval org', () => {
+  it('a member of an open org may not create a private event in it', async () => {
+    await assertFails(
+      setDoc(
+        doc(asUser(getEnv(), 'outsider'), 'events/n-open'),
+        eventPayload('outsider', { visibility: 'organization', visibilityOrgId: OTHER_ORG }),
+      ),
+    );
+  });
+
+  it('an organizer cannot move an event into an open org', async () => {
+    await seed(getEnv(), async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `organizations/${OTHER_ORG}/members/organizer`), {
+        userId: 'organizer',
+        role: 'member',
+        joinedAt: new Date(),
+      });
+    });
+    await assertFails(
+      updateDoc(doc(asUser(getEnv(), 'organizer'), 'events/pub'), {
+        visibility: 'organization',
+        visibilityOrgId: OTHER_ORG,
+      }),
+    );
+  });
+
+  it('fails closed for members if the org is switched back to open', async () => {
+    await seed(getEnv(), async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `organizations/${ORG}`), { joinPolicy: 'open' });
+    });
+    await assertFails(getDoc(doc(asUser(getEnv(), 'socio'), 'events/priv')));
+    // The event's own organizers and app admins keep access.
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'organizer'), 'events/priv')));
   });
 });
 

@@ -26,18 +26,11 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import admin from 'firebase-admin';
 import { initAdminForEnv, resolveEnv } from './env-credentials.mjs';
-import { validateMeta, markerPath, ENVS } from './backfill-registry.mjs';
+import { validateMeta, markerPath, ENVS, INFRA_FILES, SCAN_DIRS as SCAN_DIRS_REL, SENTINEL, SENTINEL_RE } from './backfill-registry.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-/** Directories scanned for registered backfills. */
-const SCAN_DIRS = [path.join(REPO_ROOT, 'scripts'), path.join(REPO_ROOT, 'scripts/backfill')];
-
-/** Registry tooling — contains the sentinel in prose/regex, is not a backfill. */
-const INFRA_FILES = new Set(['backfills-cli.mjs', 'lint-backfill-meta.mjs']);
-
-const SENTINEL = 'runBackfill({ meta, run })';
-const SENTINEL_RE = /runBackfill\(\{\s*meta,\s*run\s*\}\)/;
+const SCAN_DIRS = SCAN_DIRS_REL.map((dir) => path.join(REPO_ROOT, dir));
 
 export { SENTINEL, SENTINEL_RE };
 

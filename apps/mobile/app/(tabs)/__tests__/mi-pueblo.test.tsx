@@ -1,4 +1,5 @@
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { ensureVillageMembership } from '@cultuvilla/shared/services/villageMemberService';
 import VillageTabScreen from '../mi-pueblo';
 import { getMunicipality, getBarrios, getPlaces } from '@cultuvilla/shared/services/municipalityService';
 import { getMyOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
@@ -18,6 +19,16 @@ import { getHomeFeed } from '@cultuvilla/shared/services/newsService';
 import { buildEventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 
+/** A `watch*` mock that answers once with whatever its `get*` twin resolves. */
+function mockWatchFrom(get: (...args: unknown[]) => unknown) {
+  return (...args: unknown[]) => {
+    const onError = args.pop() as (e: unknown) => void;
+    const onNext = args.pop() as (v: unknown) => void;
+    Promise.resolve(get(...args)).then(onNext, onError);
+    return () => undefined;
+  };
+}
+
 const mockOfferPush = jest.fn();
 jest.mock('../../../lib/push/PushProvider', () => ({
   usePush: () => ({
@@ -27,41 +38,76 @@ jest.mock('../../../lib/push/PushProvider', () => ({
     requestPermission: jest.fn(),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: jest.fn(),
-  getBarrios: jest.fn().mockResolvedValue([]),
-  getPlaces: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () => {
+  const getMunicipality = jest.fn();
+  const getBarrios = jest.fn().mockResolvedValue([]);
+  const getPlaces = jest.fn().mockResolvedValue([]);
+  return {
+    getMunicipality,
+    getBarrios,
+    getPlaces,
+    watchMunicipality: mockWatchFrom(getMunicipality),
+    watchBarrios: mockWatchFrom(getBarrios),
+    watchPlaces: mockWatchFrom(getPlaces),
+  };
+});
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
+  ensureVillageMembership: jest.fn().mockResolvedValue(undefined),
   isVillageAdmin: jest.fn().mockResolvedValue(false),
   getVillageMembers: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
   getMunicipalityPeople: jest.fn().mockResolvedValue([]),
 }));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganizationsByMunicipality: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@cultuvilla/shared/services/organizationService', () => {
+  const getOrganizationsByMunicipality = jest.fn().mockResolvedValue([]);
+  return {
+    getOrganizationsByMunicipality,
+    watchOrganizationsByMunicipality: mockWatchFrom(getOrganizationsByMunicipality),
+  };
+});
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  getOrgMemberCount: jest.fn().mockResolvedValue(0),
   getUserOrgIds: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getBarrioResidentCount: jest.fn().mockResolvedValue(0),
+  getPersonByUserId: jest.fn().mockResolvedValue(null),
+}));
+jest.mock('@cultuvilla/shared/services/userService', () => ({
+  getUserProfile: jest.fn().mockResolvedValue(null),
+  getPublicProfile: jest.fn().mockResolvedValue(null),
+}));
+jest.mock('../../../lib/village/ambassadorWelcome', () => ({
+  hasSeenAmbassadorWelcome: jest.fn().mockResolvedValue(true),
+  markAmbassadorWelcomeSeen: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  getEventsByMunicipality: jest.fn().mockResolvedValue([]),
-  getPrivateEventsByMunicipality: jest.fn().mockResolvedValue([]),
+jest.mock('@cultuvilla/shared/services/eventService', () => {
+  const getEventsByMunicipality = jest.fn().mockResolvedValue([]);
+  const getPrivateEventsByMunicipality = jest.fn().mockResolvedValue([]);
+  return {
+    getEventsByMunicipality,
+    getPrivateEventsByMunicipality,
+    watchEventsByMunicipality: mockWatchFrom(getEventsByMunicipality),
+    watchPrivateEventsByMunicipality: mockWatchFrom(getPrivateEventsByMunicipality),
+  };
+});
+jest.mock('@cultuvilla/shared/services/newsService', () => {
+  const getHomeFeed = jest.fn().mockResolvedValue([]);
+  return { getHomeFeed, watchHomeFeed: mockWatchFrom(getHomeFeed) };
+});
+jest.mock('@cultuvilla/shared/services/festivalPosterService', () => {
+  const getFestivalPosters = jest.fn().mockResolvedValue([]);
+  return { getFestivalPosters, watchFestivalPosters: mockWatchFrom(getFestivalPosters) };
+});
+jest.mock('@cultuvilla/shared/services/historyService', () => ({
+  watchHistoryEntries: mockWatchFrom(() => []),
 }));
-jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  getHomeFeed: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/festivalPosterService', () => ({
-  getFestivalPosters: jest.fn().mockResolvedValue([]),
+jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
+  watchVocabularyTerms: mockWatchFrom(() => []),
+  watchVocabularyDefinitions: mockWatchFrom(() => []),
 }));
 jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
   getMyOrganizerRequests: jest.fn().mockResolvedValue([]),
@@ -77,6 +123,7 @@ jest.mock('../../../lib/auth/useAuth', () => ({
     user: { uid: 'uid-1' },
     profile: { activeMunicipalityId: 'mun1' },
     profileChecked: true,
+    refreshProfile: jest.fn().mockResolvedValue(undefined),
   }),
 }));
 jest.mock('../../../lib/auth/useIsAppAdmin', () => ({
@@ -112,9 +159,7 @@ jest.mock('../../../lib/i18n', () => ({
         'village.hub.organizations': 'Organizaciones',
         'village.hub.censo': 'Censo',
         'village.hub.news': 'Anuncios',
-        'village.notRegistered.body': 'Este pueblo todavía no está activo en Cultuvilla.',
-        'village.notRegistered.cta': '¿Quieres iniciarlo?',
-        'village.notRegistered.button': 'Iniciar este pueblo',
+        'village.notRegistered.body': 'Aún no hay vecinos en Cultuvilla.',
         'village.noOrganizer.body': 'Este pueblo todavía no tiene administrador.',
         'village.noOrganizer.cta': 'Administrar este pueblo',
         'village.noOrganizer.pending': 'Tu solicitud de administrador está pendiente de revisión',
@@ -171,17 +216,23 @@ describe('VillageTabScreen', () => {
     // Active community renders the redesigned village page (hero + sections);
     // neither the start CTA nor the no-organizer banner must appear.
     expect(await findByText('Sotos de Mayorga', undefined, { timeout: 5000 })).toBeTruthy();
-    expect(queryByText('Iniciar este pueblo')).toBeNull();
+    expect(queryByText('Aún no hay vecinos en Cultuvilla.')).toBeNull();
     expect(queryByText('Administrar este pueblo')).toBeNull();
   });
 
-  it('shows the "start this village" CTA when the community is inactive', async () => {
+  it('invites a viewer to join a dormant village, with no separate start step', async () => {
     (getMunicipality as jest.Mock).mockResolvedValue(inactiveMuni);
     (getMyOrganizerRequests as jest.Mock).mockResolvedValue([]);
-    const { findByText, queryByText } = render(<VillageTabScreen />);
-    expect(await findByText('Iniciar este pueblo')).toBeTruthy();
-    // "Organizaciones" only renders on the active village page, not the CTA.
+    const { findByText, queryByText, getByTestId } = render(<VillageTabScreen />);
+    expect(await findByText('Aún no hay vecinos en Cultuvilla.')).toBeTruthy();
+    // "Organizaciones" only renders on the active village page, not the invitation.
     expect(queryByText('Organizaciones')).toBeNull();
+
+    // Joining starts the village in the same tap: ensureVillageMembership runs
+    // startVillage for a dormant municipality.
+    fireEvent.press(getByTestId('village-join-dormant'));
+    await waitFor(() => expect(ensureVillageMembership).toHaveBeenCalledWith('mun1', 'uid-1'));
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('shows the organize CTA when active but with no organizer and no pending request', async () => {

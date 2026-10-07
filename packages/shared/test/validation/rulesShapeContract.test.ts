@@ -17,6 +17,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildOrganizationData } from '../../src/models/organization/OrganizationDataModel';
 import { buildOrgMemberData } from '../../src/models/organization/OrgMemberDataModel';
+import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
 import { buildPlaceData, buildBarrioData } from '../../src/models/municipality/MunicipalityDataModel';
 
@@ -37,13 +38,18 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     ruleKeys: [
       'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
       'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
-      'commentCount', 'readCount', 'memberCount', 'membersPublic',
+      'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
     ],
   },
   {
     label: 'organizations/{orgId}/members — org member create validator',
     build: () => buildOrgMemberData({ userId: 'u1' }),
     ruleKeys: ['userId', 'joinedAt', 'role'],
+  },
+  {
+    label: 'organizations/{orgId}/joinRequests — isValidOrgJoinRequestCreate',
+    build: () => buildOrgJoinRequestData({ userId: 'u1', orgId: 'o1', municipalityId: 'm1' }),
+    ruleKeys: ['userId', 'orgId', 'municipalityId', 'createdAt'],
   },
   {
     label: 'places (create) — isValidPlaceCreate',

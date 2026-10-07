@@ -5,7 +5,6 @@ import {
   PanResponder,
   Platform,
   Pressable as RNPressable,
-  StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { iconSizes } from '@cultuvilla/shared/design-system';
 import { HStack } from './HStack';
+import { KeyboardAvoider } from './KeyboardAvoider';
 import { Text } from './Text';
 
 /** Drag distance (px) past which a release dismisses instead of springing back. */
@@ -105,64 +105,67 @@ export function BottomSheet({
     }),
   ).current;
 
-  const dragHandlers = Platform.OS === 'web' ? {} : pan.panHandlers;
+  const dragHandlers = pan.panHandlers;
 
   if (!visible) return null;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      {/* absoluteFill, not flex-1: RN-Web collapses a flex-1 Modal child to zero
-          height, leaving no tappable backdrop. */}
-      <RNPressable
-        onPress={onClose}
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-        ]}
-      >
-        <Animated.View style={{ transform: [{ translateY }] }}>
-          <RNPressable
-            onPress={() => {}}
-            testID={testID}
-            className="bg-surface-elevated border-t border-subtle"
-            style={{
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              paddingBottom: insets.bottom + 12,
-              maxHeight: windowHeight * maxHeightRatio,
-            }}
-          >
-            <View {...dragHandlers}>
-              <RNPressable onPress={onClose} className="items-center pt-3 pb-1 active:opacity-60">
-                <View
-                  style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1' }}
-                />
-              </RNPressable>
-              <HStack gap={3} className="items-center px-5 pt-2 pb-1">
-                {title ? (
-                  <Text tone="primary" className="flex-1 font-semibold" style={{ fontSize: 17 }}>
-                    {title}
-                  </Text>
-                ) : (
-                  <View className="flex-1" />
-                )}
-                <RNPressable
-                  onPress={onClose}
-                  accessibilityRole="button"
-                  accessibilityLabel={closeLabel}
-                  testID={testID ? `${testID}-close` : undefined}
-                  hitSlop={12}
-                  className="active:opacity-60"
-                >
-                  <Ionicons name="close" size={iconSizes.lg} color="#94a3b8" />
+      {/* flex-1, not absoluteFill: an absolute backdrop would ignore the padding
+          KeyboardAvoider adds, and the keyboard would cover the sheet's fields. */}
+      <KeyboardAvoider>
+        <RNPressable
+          onPress={onClose}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+        >
+          {/* flexShrink: with the keyboard up the backdrop is shorter than
+              `maxHeight`, and the sheet must shrink (its body scrolls) rather
+              than overflow off the top of the screen. */}
+          <Animated.View style={{ flexShrink: 1, transform: [{ translateY }] }}>
+            <RNPressable
+              onPress={() => {}}
+              testID={testID}
+              className="bg-surface-elevated border-t border-subtle"
+              style={{
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                flexShrink: 1,
+                paddingBottom: insets.bottom + 12,
+                maxHeight: windowHeight * maxHeightRatio,
+              }}
+            >
+              <View {...dragHandlers}>
+                <RNPressable onPress={onClose} className="items-center pt-3 pb-1 active:opacity-60">
+                  <View
+                    style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1' }}
+                  />
                 </RNPressable>
-              </HStack>
-            </View>
-            {children}
-            {footer}
-          </RNPressable>
-        </Animated.View>
-      </RNPressable>
+                <HStack gap={3} className="items-center px-5 pt-2 pb-1">
+                  {title ? (
+                    <Text tone="primary" className="flex-1 font-semibold" style={{ fontSize: 17 }}>
+                      {title}
+                    </Text>
+                  ) : (
+                    <View className="flex-1" />
+                  )}
+                  <RNPressable
+                    onPress={onClose}
+                    accessibilityRole="button"
+                    accessibilityLabel={closeLabel}
+                    testID={testID ? `${testID}-close` : undefined}
+                    hitSlop={12}
+                    className="active:opacity-60"
+                  >
+                    <Ionicons name="close" size={iconSizes.lg} color="#94a3b8" />
+                  </RNPressable>
+                </HStack>
+              </View>
+              {children}
+              {footer}
+            </RNPressable>
+          </Animated.View>
+        </RNPressable>
+      </KeyboardAvoider>
     </Modal>
   );
 }

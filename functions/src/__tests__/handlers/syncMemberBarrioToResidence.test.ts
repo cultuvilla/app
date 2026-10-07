@@ -1,7 +1,7 @@
 // Trigger test for syncMemberBarrioToResidence — now a delete-only cleanup.
 // Drives the handler via firebase-functions-test's wrap() against the Firestore
-// emulator. The create/upsert projection moved to the client batches and
-// acceptInvite; this trigger only removes the residence link on membership
+// emulator. The create/upsert projection moved to the client batches and the
+// server-side membership creations; this trigger only removes the residence link on membership
 // delete (admin-remove path, where the actor can't write the user's person doc).
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';

@@ -48,7 +48,7 @@ function barrioKeys(links: unknown): Map<string, ResidenceLink> {
  * Keeps `municipalities/{mid}/barrios/{bid}.residentCount` in step with the
  * persons who list that barrio in their `municipalityLinks`. Residency is
  * written from many client and server paths (join/leave, change-barrio,
- * acceptInvite, membership-delete cleanup, account deletion), so a single
+ * startVillage, membership-delete cleanup, account deletion), so a single
  * persons write-trigger diffing the barrio set is the robust single writer.
  *
  * A barrio present only after → +1; present only before → -1; unchanged → skip.

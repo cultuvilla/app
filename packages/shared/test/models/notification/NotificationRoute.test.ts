@@ -46,8 +46,21 @@ describe('notificationRoute', () => {
     expect(notificationRoute({ ...base, type: 'org_rejected' }, 'villa')).toBe('/villa/entidades');
   });
 
-  it('sends the Wrapped reminder to the create screen', () => {
+  it('sends the Wrapped reminder to the create screen, for the year it is about', () => {
+    expect(
+      notificationRoute({ ...base, type: 'village_wrapped_reminder', entityId: 'mun1_2025' }, 'villa'),
+    ).toBe('/villa/resumen?year=2025');
+  });
+
+  it('opens the current year for a reminder written before it carried its Wrapped', () => {
     expect(notificationRoute({ ...base, type: 'village_wrapped_reminder' }, 'villa')).toBe('/villa/resumen');
+  });
+
+  it('opens a published Wrapped in the viewer', () => {
+    expect(
+      notificationRoute({ ...base, type: 'village_wrapped_published', entityId: 'mun1_2026' }, 'villa'),
+    ).toBe('/villa/fiestas/2026');
+    expect(notificationRoute({ ...base, type: 'village_wrapped_published' }, 'villa')).toBe('/villa');
   });
 
   it('sends organizer outcomes to the village', () => {

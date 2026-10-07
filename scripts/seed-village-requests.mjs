@@ -254,6 +254,7 @@ async function seedOne(v) {
       community: {
         description: fresh.get('description') ?? '',
         organizerId: requesterUid,
+        organizerSex: null,
         profileForm: null,
         fiestas: [],
         activatedAt: FieldValue.serverTimestamp(),

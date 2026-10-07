@@ -625,6 +625,10 @@ describe('registerToEvent — private events', () => {
     ft.cleanup();
   });
 
+  async function seedOrg(joinPolicy: 'open' | 'approval'): Promise<void> {
+    await admin.firestore().doc(`organizations/${ORG_ID}`).set({ name: 'La Peña', joinPolicy });
+  }
+
   async function seedOrgMember(userId: string): Promise<void> {
     await admin.firestore().doc(`organizations/${ORG_ID}/members/${userId}`).set({
       userId,
@@ -635,12 +639,27 @@ describe('registerToEvent — private events', () => {
 
   it('lets a member of the org sign up', async () => {
     await seedEvent({ maxAttendees: null, visibilityOrgId: ORG_ID });
+    await seedOrg('approval');
     await seedOrgMember(USER_ID);
     const result = await callRegister({
       uid: USER_ID,
       data: { eventId: EVENT_ID, registrants: [{ personId: 'p1', name: 'Ana' }] },
     });
     expect(result.registrations.map((r) => r.status)).toEqual(['confirmed']);
+  });
+
+  // Anyone can walk into an open org, so its membership admits nobody to a
+  // private event — the same fail-closed read the rules apply.
+  it('refuses a member once the org is open to anyone', async () => {
+    await seedEvent({ maxAttendees: null, visibilityOrgId: ORG_ID });
+    await seedOrg('open');
+    await seedOrgMember(USER_ID);
+    await expect(
+      callRegister({
+        uid: USER_ID,
+        data: { eventId: EVENT_ID, registrants: [{ personId: 'p1', name: 'Ana' }] },
+      }),
+    ).rejects.toThrow(/privado/i);
   });
 
   it('refuses someone who does not belong to the org', async () => {

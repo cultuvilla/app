@@ -1,5 +1,7 @@
 # App Check rollout (mobile)
 
+**Priority:** high
+
 ## Goal
 
 Attest that Firestore/Storage/Functions traffic comes from a genuine, unmodified

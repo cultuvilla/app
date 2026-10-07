@@ -34,6 +34,17 @@ service cloud.firestore {
     function orgMunicipalityId(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.municipalityId;
     }
+    // `open` orgs are instant self-service; `approval` orgs admit members only
+    // through an admin (a resolved join request or a direct add). Orgs written
+    // before the field existed are open.
+    function orgJoinPolicy(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('joinPolicy', 'open');
+    }
+    // Membership of an approval org is vetted, so it can gate private content.
+    // Anyone can walk into an open org, so there it proves nothing.
+    function isVettedOrgMember(orgId) {
+      return isOrgMember(orgId) && orgJoinPolicy(orgId) == 'approval';
+    }
     // Organizer of an event: a user in the event's organizerUserIds, a village
     // admin of the event's municipality, or an app admin. Used to gate the
     // attendee roster (check-in, remove, organizer-only phone contacts).
@@ -62,7 +73,7 @@ service cloud.firestore {
         // cannot see the event, so it must not see who is going to it either.
         // An attendee from outside the org still reaches their own row through
         // the per-document branch below.
-        && (event.get('visibilityOrgId', null) == null || isOrgMember(event.visibilityOrgId));
+        && (event.get('visibilityOrgId', null) == null || isVettedOrgMember(event.visibilityOrgId));
     }
 
     // Who may see a private event at all. Village admins are deliberately
@@ -73,7 +84,7 @@ service cloud.firestore {
     // Cheapest branch first: a public event costs no document reads at all.
     function canReadEvent(event) {
       return event.get('visibilityOrgId', null) == null
-        || isOrgMember(event.visibilityOrgId)
+        || isVettedOrgMember(event.visibilityOrgId)
         || (isAuthenticated() && request.auth.uid in event.organizerUserIds)
         || isAppAdmin();
     }
@@ -90,7 +101,7 @@ service cloud.firestore {
              afterOrg == beforeOrg
              || (
                   ((isAuthenticated() && request.auth.uid in before.organizerUserIds) || isAppAdmin())
-                  && (afterOrg == null || isOrgMember(afterOrg) || isAppAdmin())
+                  && (afterOrg == null || isVettedOrgMember(afterOrg) || (isAppAdmin() && orgJoinPolicy(afterOrg) == 'approval'))
                 )
            );
     }
@@ -269,6 +280,24 @@ service cloud.firestore {
       return d.userId == null || d.isPublic == true;
     }
 
+    function isValidCensoAnswersWrite(d) {
+      return d.keys().hasOnly(['municipalityId', 'userId', 'profileAnswers', 'updatedAt'])
+          && d.keys().hasAll(['municipalityId', 'userId', 'profileAnswers', 'updatedAt'])
+          && isString(d.municipalityId)
+          && isString(d.userId)
+          && isMap(d.profileAnswers)
+          && isTimestamp(d.updatedAt);
+    }
+
+    function isValidOrgJoinRequestCreate(d, orgId, userId) {
+      return d.keys().hasOnly(['userId', 'orgId', 'municipalityId', 'createdAt'])
+          && d.keys().hasAll(['userId', 'orgId', 'municipalityId', 'createdAt'])
+          && d.userId == userId
+          && d.orgId == orgId
+          && d.municipalityId == orgMunicipalityId(orgId)
+          && isTimestamp(d.createdAt);
+    }
+
     function isValidOrgMemberCreate(d) {
       return d.keys().hasOnly(['userId', 'joinedAt', 'role'])
           && d.keys().hasAll(['userId', 'joinedAt', 'role'])
@@ -281,7 +310,7 @@ service cloud.firestore {
       return d.keys().hasOnly([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
-              'commentCount', 'readCount', 'memberCount', 'membersPublic',
+              'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -302,7 +331,8 @@ service cloud.firestore {
           && d.commentCount == 0
           && d.readCount == 0
           && d.memberCount == 0
-          && d.membersPublic is bool;
+          && d.membersPublic is bool
+          && d.get('joinPolicy', 'open') in ['open', 'approval'];
     }
 
     function isValidPlaceCreate(d) {
@@ -735,11 +765,15 @@ service cloud.firestore {
     // organizer pointer has no such key, and a bare `.organizerId` on it is an
     // evaluation error, which denies the write outright — locking admins out
     // of editing their own pueblo rather than merely pinning the pointer.
+    // `organizerSex` rides with the pointer: it is the Embajador's own
+    // denormalized sex, owned by the functions that move the pointer.
     function organizerIdUnchanged(before, after) {
       return (before.get('community', null) == null && after.get('community', null) == null)
           || (before.get('community', null) != null && after.get('community', null) != null
               && before.community.get('organizerId', null)
-                 == after.community.get('organizerId', null));
+                 == after.community.get('organizerId', null)
+              && before.community.get('organizerSex', null)
+                 == after.community.get('organizerSex', null));
     }
 
     // A comment carries the municipalityId that its own delete rule reads for
@@ -939,13 +973,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The account doc holds private contact fields (email, telephone). What
+    // other people may see of an account is projected to publicProfiles/{uid}.
     match /users/{userId} {
-      allow read: if true;
+      allow read: if isOwner(userId) || isAppAdmin();
       // displayName is denormalized from persons/{id} by the
       // syncPersonDenormalization Cloud Function — clients must not touch it.
       allow create: if isOwner(userId)
                     && !request.resource.data.keys().hasAny(['displayName'])
-                    && isValidUserCreate(request.resource.data);
+                    && isValidUserCreate(request.resource.data)
+                    && request.resource.data.email == request.auth.token.email;
       allow update: if isOwner(userId)
                     && isEmailUpdateVerified(
                          request.resource.data,
@@ -998,6 +1035,14 @@ service cloud.firestore {
           && isValidBlockedUserCreate(request.resource.data, blockedUserId);
         allow update: if false;
       }
+    }
+
+    // Public projection of users/{uid}: only what other people may see of an
+    // account. Function-owned (syncPublicProfile). Single-doc reads only — a
+    // list would hand anyone a directory of every account.
+    match /publicProfiles/{userId} {
+      allow get: if true;
+      allow list, write: if false;
     }
 
     // municipalities: reference data + optional community overlay.
@@ -1085,7 +1130,10 @@ service cloud.firestore {
         // approval) go through the changeVillageMemberRole callable / admin SDK,
         // which audits the change. So the create paths are: a village/app admin
         // adding a plain member, or a self-service join (owner adds themselves).
+        // Census answers live in censoAnswers/ (owner + admins only); the member
+        // doc is world-readable, so its legacy `profileAnswers` stays empty.
         allow create: if request.resource.data.role == 'user'
+                       && request.resource.data.get('profileAnswers', {}) == {}
                        && (
                             isVillageAdmin(municipalityId)
                             || isAppAdmin()
@@ -1100,22 +1148,44 @@ service cloud.firestore {
         // only their profile.
         allow update: if (
                          (isVillageAdmin(municipalityId) || isAppAdmin())
-                         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
+                         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'profileAnswers'])
                        )
                        || (isOwner(userId)
                            && request.resource.data.diff(resource.data).affectedKeys()
-                              .hasOnly(['profileAnswers', 'profileCompletedAt']));
+                              .hasOnly(['profileCompletedAt']));
         allow delete: if isVillageAdmin(municipalityId) || isAppAdmin() || isOwner(userId);
       }
 
+      // Village invite tokens were retired with their admin screen; no client
+      // path reads or writes them. Explicit so a broader rule can't reopen it.
       match /inviteTokens/{tokenId} {
-        allow read: if true;
-        allow create: if isVillageAdmin(municipalityId) || isAppAdmin();
-        // acceptInvite Cloud Function handles redemption via admin SDK.
-        allow update: if false;
-        allow delete: if isVillageAdmin(municipalityId) || isAppAdmin();
+        allow read, write: if false;
       }
 
+    }
+
+    // A villager's census answers (residency, household, minors, origin…).
+    // Private: the villager, the village's admins and app admins. The doc id
+    // is {municipalityId}_{userId}, so the owner's own get works before the
+    // doc exists. A village-admin list must filter by municipalityId.
+    match /censoAnswers/{docId} {
+      allow get: if resource == null
+                   ? isAuthenticated() && docId.matches('.*_' + request.auth.uid)
+                   : isOwner(resource.data.userId)
+                     || isVillageAdmin(resource.data.municipalityId)
+                     || isAppAdmin();
+      allow list: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
+      allow create, update: if isOwner(request.resource.data.userId)
+                              && docId == request.resource.data.municipalityId + '_' + request.auth.uid
+                              && isVillageMember(request.resource.data.municipalityId)
+                              && isValidCensoAnswersWrite(request.resource.data)
+                              && (resource == null || (
+                                   resource.data.userId == request.resource.data.userId
+                                   && resource.data.municipalityId == request.resource.data.municipalityId
+                                 ));
+      allow delete: if isOwner(resource.data.userId)
+                    || isVillageAdmin(resource.data.municipalityId)
+                    || isAppAdmin();
     }
 
     match /organizerRequests/{requestId} {
@@ -1189,6 +1259,7 @@ service cloud.firestore {
       allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin() || isOrgAdmin(orgId))
         && (request.resource.data.status == resource.data.status
             || request.resource.data.status == 'rejected')
+        && request.resource.data.get('joinPolicy', 'open') in ['open', 'approval']
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'commentCount', 'readCount', 'memberCount',
              'type', 'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
@@ -1208,13 +1279,34 @@ service cloud.firestore {
           && request.resource.data.userId == userId
           && request.resource.data.role == 'member'
           && (
-               isOwner(userId)
+               (isOwner(userId) && orgJoinPolicy(orgId) == 'open')
                || isOrgAdmin(orgId)
                || isVillageAdmin(orgMunicipalityId(orgId))
                || isAppAdmin()
              );
         // role goes through changeOrgMemberRole (admin SDK); a member doc has no
         // other client-editable fields.
+        allow update: if false;
+        allow delete: if isOwner(userId)
+          || isOrgAdmin(orgId)
+          || isVillageAdmin(orgMunicipalityId(orgId))
+          || isAppAdmin();
+      }
+
+      // A pending request to join an `approval` org, keyed by the requester's
+      // uid. Filed and withdrawn by the requester; resolved only by the
+      // respondToOrgJoinRequest callable (Admin SDK), which adds the member,
+      // audits it and notifies the requester — so no client edits it.
+      match /joinRequests/{userId} {
+        allow read: if isOwner(userId)
+          || isOrgAdmin(orgId)
+          || isVillageAdmin(orgMunicipalityId(orgId))
+          || isAppAdmin();
+        allow create: if isOwner(userId)
+          && isValidOrgJoinRequestCreate(request.resource.data, orgId, userId)
+          && get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'approved'
+          && orgJoinPolicy(orgId) == 'approval'
+          && !isOrgMember(orgId);
         allow update: if false;
         allow delete: if isOwner(userId)
           || isOrgAdmin(orgId)
@@ -1234,10 +1326,11 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
         && isVillageMember(request.resource.data.municipalityId)
         && (request.auth.uid in request.resource.data.organizerUserIds)
-        // You can only make an event private to an org you belong to —
-        // otherwise anyone could park content inside someone else's peña.
+        // You can only make an event private to an approval org you belong to
+        // — otherwise anyone could park content inside someone else's peña,
+        // and an open org's membership would admit anyone to it.
         && (request.resource.data.visibilityOrgId == null
-            || isOrgMember(request.resource.data.visibilityOrgId));
+            || isVettedOrgMember(request.resource.data.visibilityOrgId));
       allow update: if (
            isOwner(resource.data.createdBy)
         || (request.auth.uid in resource.data.organizerUserIds)
@@ -1400,10 +1493,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // villageWrapped — the post-fiestas summary, one doc per village + year +
-    // block. Function-owned end to end: it is computed, rendered and published
-    // by Cloud Functions, and released or binned through
-    // respondToVillageWrapped, never by a client write.
+    // villageWrapped — the post-fiestas summary, one doc per village + year,
+    // covering every fiesta block of that year. Function-owned end to end: it
+    // is computed, rendered and published by Cloud Functions, and released or
+    // binned through respondToVillageWrapped, never by a client write.
     //
     // A published Wrapped reads publicly because the images it points at are
     // made to be forwarded — a recipient who is not a member, or not signed in,
@@ -1481,6 +1574,11 @@ service cloud.firestore {
     // per-event rule above also lets a village member list one event's roster,
     // but that is scoped by the event's municipality — a collection-group
     // query has no event in its path to scope by, so it cannot reuse it.
+
+    // A requester's own pending join requests, across every org.
+    match /{path=**}/joinRequests/{requestId} {
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
 
     match /{path=**}/registrations/{regId} {
       allow list: if isAuthenticated()

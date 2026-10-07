@@ -1,7 +1,7 @@
 import { historyEntryHref, villageSectionHref } from '../../../lib/navigation/routes';
 import { useVillageRoute, withVillageRoute } from '../../../lib/navigation/VillageRouteGate';
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { Screen } from '../../../components/primitives/Screen';
 import { ScreenHeader } from '../../../components/layout/ScreenHeader';
@@ -32,7 +32,7 @@ function NewHistoryEntryScreen() {
   return (
     <Screen padded={false} bottomInset={false}>
       <ScreenHeader title={t('village.history.newTitle')} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ flex: 1 }}>
         <HistoryEntryForm
           municipalityId={villageId}
           entryId={entryId}
@@ -44,7 +44,7 @@ function NewHistoryEntryScreen() {
             router.replace(historyEntryHref({ id: entryId, title: values.title, villageSlug }));
           }}
         />
-      </KeyboardAvoidingView>
+      </View>
     </Screen>
   );
 }

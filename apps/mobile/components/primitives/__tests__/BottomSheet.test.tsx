@@ -1,5 +1,5 @@
 import { render, fireEvent } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { KeyboardAvoidingView, Text } from 'react-native';
 import { BottomSheet, shouldDismissOnRelease } from '../BottomSheet';
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -34,6 +34,13 @@ describe('<BottomSheet>', () => {
     );
     return { ...utils, onClose };
   }
+
+  // A Modal is its own edge-to-edge window on Android, so it does not resize
+  // for the keyboard either: a field in the sheet would sit under it.
+  it('lifts above the keyboard', () => {
+    const { UNSAFE_getByType } = setup();
+    expect(UNSAFE_getByType(KeyboardAvoidingView).props.behavior).toBe('padding');
+  });
 
   it('renders its title and children when visible', () => {
     const { getByText } = setup();

@@ -1,9 +1,8 @@
 // Maestro runScript — read ONE Firestore-emulator document and poll a field
 // until it matches, then publish the result to `output`.
 //
-// This is the native half of the shared substrate: the same "assert on backend
-// state, not on the DOM" discipline as apps/mobile/e2e/lib/emulatorState.ts,
-// expressed in Maestro's JS runtime. Only the driver differs.
+// The suite's "assert on backend state, not on the screen" discipline,
+// expressed in Maestro's JS runtime.
 //
 // Runs on the HOST (the Maestro CLI machine), not on the device — so the
 // emulator is at 127.0.0.1 here even though the app inside the AVD reaches it
@@ -11,7 +10,7 @@
 //
 // env:
 //   DOC_PATH   required — path under /documents, e.g. "events/e2e-event-fiesta"
-//   FIELD      optional — field name to read (scalar)
+//   FIELD      optional — field to read (scalar); dotted for maps, `*` = the only key
 //   EXPECT     optional — "present" | "absent" | "<literal>" | ">=<n>"
 //   TIMEOUT_MS optional — default 20000
 // output:
@@ -39,6 +38,21 @@ function scalar(v) {
   return null;
 }
 
+// A dotted FIELD walks into map fields; a `*` segment takes the map's first
+// key, for maps keyed by generated ids (registration answers are keyed by a
+// random signup-field id the flow cannot know). Only for a single-entry map:
+// with two keys, which one is "first" is not defined.
+function walk(fields, path) {
+  var v = fields[path[0]];
+  for (var i = 1; i < path.length; i++) {
+    var inner = v && v.mapValue && v.mapValue.fields;
+    if (!inner) return null;
+    var key = path[i] === '*' ? Object.keys(inner)[0] : path[i];
+    v = inner[key];
+  }
+  return v;
+}
+
 function matches(exists, value) {
   var expect = typeof EXPECT !== 'undefined' ? EXPECT : null;
   if (!expect) return true;
@@ -61,7 +75,7 @@ while (true) {
   value = null;
   if (exists && typeof FIELD !== 'undefined' && FIELD) {
     var body = json(res.body);
-    value = body.fields ? scalar(body.fields[FIELD]) : null;
+    value = body.fields ? scalar(walk(body.fields, FIELD.split('.'))) : null;
   }
   if (matches(exists, value)) break;
   if (Date.now() >= deadline) break;

@@ -9,7 +9,7 @@ import {
   setDoc,
   updateDoc,
   where,
-} from 'firebase/firestore';
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { festivalPostersCollection, festivalPosterDoc } from '../firebase/refs/client';
 import {
@@ -17,6 +17,7 @@ import {
   type FestivalPosterData,
   type FestivalPosterDataInput,
 } from '../models/festivalPoster/FestivalPosterDataModel';
+import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type FestivalPosterWithId = FestivalPosterData & { id: string };
 
@@ -43,21 +44,40 @@ export function createFestivalPoster(
   return writePoster(id, input);
 }
 
-export async function getFestivalPosters(municipalityId: string): Promise<FestivalPosterWithId[]> {
-  const q = query(
+function festivalPostersQuery(municipalityId: string) {
+  return query(
     festivalPostersCollection(getDb()),
     where('municipalityId', '==', municipalityId),
     where('status', '==', 'active'),
     orderBy('year', 'desc'),
   );
-  const snap = await getDocs(q);
+}
+
+export async function getFestivalPosters(municipalityId: string): Promise<FestivalPosterWithId[]> {
+  const snap = await getDocs(festivalPostersQuery(municipalityId));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function watchFestivalPosters(
+  municipalityId: string,
+  onNext: (posters: FestivalPosterWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(festivalPostersQuery(municipalityId), onNext, onError);
 }
 
 export async function getFestivalPoster(posterId: string): Promise<FestivalPosterWithId | null> {
   const snap = await getDoc(festivalPosterDoc(getDb(), posterId));
   const data = snap.data();
   return data ? { id: snap.id, ...data } : null;
+}
+
+export function watchFestivalPoster(
+  posterId: string,
+  onNext: (poster: FestivalPosterWithId | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(festivalPosterDoc(getDb(), posterId), onNext, onError);
 }
 
 export function updateFestivalPoster(

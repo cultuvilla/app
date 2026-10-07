@@ -12,7 +12,7 @@ import {
 import { meetsAutoPublishFloor } from '@cultuvilla/shared/wrapped';
 import { villageWrappedDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { gatherWrappedInputs } from './gatherInputs';
-import { composeWrapped, CARD_FORMATS } from './composeWrapped';
+import { cardLink, composeWrapped, CARD_FORMATS } from './composeWrapped';
 
 /** Days a draft waits for a village admin before it publishes itself. */
 export const AUTO_PUBLISH_GRACE_DAYS = 3;
@@ -80,7 +80,8 @@ export async function buildAndStoreWrapped(
   const previous = (await ref.get()).data();
 
   const gathered = await gatherWrappedInputs(db, municipalityId, range);
-  const { aggregate, images } = await composeWrapped(gathered, { blocks, year });
+  const link = cardLink(process.env['GCLOUD_PROJECT'], gathered.villageSlug, year);
+  const { aggregate, images } = await composeWrapped(gathered, { blocks, year, link });
 
   const uploaded: [WrappedCard, string][] = [];
   for (const card of WRAPPED_CARDS) {

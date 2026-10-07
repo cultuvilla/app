@@ -1,4 +1,4 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from '../firebase/sdk/storage';
 import { getFirebaseStorage } from '../firebase';
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;

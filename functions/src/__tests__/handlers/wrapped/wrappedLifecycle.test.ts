@@ -32,7 +32,7 @@ async function seedVillage(fiestas: unknown[]): Promise<void> {
     coordinates: null, locationLabel: null, mapZoom: null, createdAt: new Date(),
     escudoUrl: null, escudoThumbUrl: null, escudoManualUrl: null,
     communityActive: true,
-    community: { description: 'Un pueblo', organizerId: ADMIN, profileForm: null, activatedAt: new Date(), fiestas },
+    community: { description: 'Un pueblo', organizerId: ADMIN, organizerSex: null, profileForm: null, activatedAt: new Date(), fiestas },
   });
   for (const [uid, role] of [[ADMIN, 'admin'], [MEMBER, 'user']] as const) {
     await db().doc(`municipalities/${MID}/members/${uid}`).set({
@@ -93,6 +93,16 @@ async function respond(uid: string | null, decision: string): Promise<unknown> {
 }
 
 const wrappedData = async () => (await db().doc(`villageWrapped/${WRAPPED_ID}`).get()).data();
+
+/** The "your pueblo's Wrapped is out" notification each member holds, by uid. */
+async function publishedNotices(): Promise<Record<string, string | undefined>> {
+  const out: Record<string, string | undefined> = {};
+  for (const uid of [ADMIN, MEMBER]) {
+    const snap = await db().doc(`users/${uid}/notifications/wrapped_published_${WRAPPED_ID}`).get();
+    out[uid] = snap.exists ? (snap.get('type') as string) : undefined;
+  }
+  return out;
+}
 
 describe('village Wrapped lifecycle', () => {
   beforeEach(async () => {
@@ -188,6 +198,9 @@ describe('village Wrapped lifecycle', () => {
         [`wrapped_reminder_${MID}_${String(reminderYear)}`, 'village_wrapped_reminder'],
       ]);
       expect(adminInbox.docs[0].get('municipalityId')).toBe(MID);
+      // The year it is about, so a January reminder for December's fiestas
+      // opens last year's Wrapped rather than this year's.
+      expect(adminInbox.docs[0].get('entityId')).toBe(`${MID}_${String(reminderYear)}`);
       expect((await db().collection(`users/${MEMBER}/notifications`).get()).empty).toBe(true);
     }, 60_000);
 
@@ -217,6 +230,10 @@ describe('village Wrapped lifecycle', () => {
     const data = await wrappedData();
     expect(data?.status).toBe('published');
     expect(data?.autoPublishAt).toBeNull();
+    expect(await publishedNotices()).toEqual({
+      [ADMIN]: 'village_wrapped_published',
+      [MEMBER]: 'village_wrapped_published',
+    });
   }, 180_000);
 
   describe('respondToVillageWrapped', () => {
@@ -231,6 +248,23 @@ describe('village Wrapped lifecycle', () => {
       const data = await wrappedData();
       expect(data?.status).toBe('published');
       expect(data?.autoPublishAt).toBeNull();
+    }, 120_000);
+
+    it('tells every member once it is published', async () => {
+      await respond(ADMIN, 'publish');
+
+      expect(await publishedNotices()).toEqual({
+        [ADMIN]: 'village_wrapped_published',
+        [MEMBER]: 'village_wrapped_published',
+      });
+      const notice = await db().doc(`users/${MEMBER}/notifications/wrapped_published_${WRAPPED_ID}`).get();
+      expect(notice.get('entityId')).toBe(WRAPPED_ID);
+      expect(notice.get('municipalityId')).toBe(MID);
+    }, 120_000);
+
+    it('tells nobody about a discarded Wrapped', async () => {
+      await respond(ADMIN, 'discard');
+      expect(await publishedNotices()).toEqual({ [ADMIN]: undefined, [MEMBER]: undefined });
     }, 120_000);
 
     it('refuses an ordinary member', async () => {

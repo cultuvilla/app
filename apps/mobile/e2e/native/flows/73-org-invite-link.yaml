@@ -1,0 +1,38 @@
+# An org's invite link (…/entidad/<ref>/unirse) lands on the org with the
+# invitation banner, and joining an open org from there is instant.
+#
+# The route is only a redirect to the org detail with `?intent=join`, which is
+# exactly what can break silently: a link that resolves to the wrong screen, or
+# to no banner.
+#
+# Uses the open ayuntamiento org; the joiner is a member of no org at this
+# point except the approval peña flow 72 admitted them to.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  JOINER_UID: e2e-joiner
+  ORG_ID: e2e-org-ayto
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://altozano-de-prueba/entidad/_${ORG_ID}/unirse'
+- extendedWaitUntil:
+    visible: 'Te han invitado a unirte a este grupo'
+    timeout: 45000
+- tapOn:
+    id: 'join-org-fab'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/members/${JOINER_UID}'
+      FIELD: role
+      EXPECT: member
+- assertTrue: ${output.ok == 'true'}
+- extendedWaitUntil:
+    notVisible:
+      id: 'join-org-fab'
+    timeout: 20000

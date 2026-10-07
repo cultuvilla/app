@@ -3,11 +3,7 @@ import { isAvailableAsync, shareAsync } from 'expo-sharing';
 import type { ExportFileData } from './exportFileTypes';
 
 /**
- * Hand the user a generated file on iOS/Android. Native half of the platform
- * split — Metro resolves `downloadFile.web.ts` on the web target instead, so
- * the two native modules imported above never reach the web bundle.
- *
- * There is no "Downloads folder" to write to on either OS, so the file goes to
+ * Hand the user a generated file on iOS/Android. There is no "Downloads folder" to write to on either OS, so the file goes to
  * the app's cache directory and is then handed to the system share sheet, which
  * is where "Guardar en Archivos" / Drive / WhatsApp / mail all live. Cache (not
  * documents) because the copy is disposable the moment the sheet is done with

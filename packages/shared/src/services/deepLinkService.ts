@@ -7,12 +7,13 @@ import {
   seatClaimPath,
   userPath,
   villagePath,
+  wrappedPath,
   type EntityLinkTarget,
   type UrlEntityKind,
 } from '../utils/urls';
 
 export type LinkKind = 'content' | 'invite';
-export type DeepLinkResource = UrlEntityKind | 'village' | 'user';
+export type DeepLinkResource = UrlEntityKind | 'village' | 'user' | 'wrapped';
 
 export interface DeepLink {
   url: string;
@@ -39,6 +40,9 @@ function link(resource: DeepLinkResource, path: string, kind: LinkKind = 'conten
 
 export const getVillageViewLink = (villageSlug: string): DeepLink =>
   link('village', villagePath(villageSlug));
+
+export const getWrappedLink = (villageSlug: string, year: number): DeepLink =>
+  link('wrapped', wrappedPath(villageSlug, year));
 
 export const getUserViewLink = (uid: string): DeepLink => {
   if (!uid) throw new Error('deepLinkService: uid is required');
@@ -95,6 +99,8 @@ function interpret(pathname: string): ParsedDeepLink | null {
       return { path, kind: 'content', resource: 'village' };
     case 'user':
       return { path, kind: 'content', resource: 'user' };
+    case 'wrapped':
+      return { path, kind: 'content', resource: 'wrapped' };
     case 'seatClaim':
       return { path, kind: 'invite', resource: 'event' };
     case 'entity':
