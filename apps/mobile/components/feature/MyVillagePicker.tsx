@@ -30,6 +30,7 @@ export function MyVillagePicker({
   onChange,
   disabled = false,
   hint,
+  testID,
 }: {
   label: string;
   villages: VillageOption[];
@@ -37,6 +38,8 @@ export function MyVillagePicker({
   onChange: (id: string) => void;
   disabled?: boolean;
   hint?: string;
+  /** Names the trigger (also the read-only box in edit mode) and each row, `<id>-option-<villageId>`. */
+  testID: string;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -55,12 +58,12 @@ export function MyVillagePicker({
     <View>
       <FieldLabel>{label}</FieldLabel>
       {disabled ? (
-        <View style={[styles.trigger, styles.triggerDisabled]}>{selectedRow}</View>
+        <View style={[styles.trigger, styles.triggerDisabled]} testID={testID}>{selectedRow}</View>
       ) : (
         <Pressable
           onPress={() => setOpen((o) => !o)}
           accessibilityRole="button"
-          testID="village-dropdown-trigger"
+          testID={testID}
           style={styles.trigger}
         >
           {selectedRow}
@@ -81,7 +84,7 @@ export function MyVillagePicker({
                   onChange(v.id);
                   setOpen(false);
                 }}
-                testID={`village-option-${v.id}`}
+                testID={`${testID}-option-${v.id}`}
                 style={[styles.row, i > 0 && styles.rowBorder]}
               >
                 <Escudo url={v.escudoThumbUrl} size={32} fallbackInitial={v.name} />

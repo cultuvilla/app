@@ -90,6 +90,7 @@ export default function OrganizeVillageScreen() {
           </VStack>
           <PhoneField {...organizerPhone.fieldProps} />
           <Input
+            testID="organizer-motivation"
             label={t('requests.organizer.motivationLabel')}
             value={motivation}
             onChangeText={setMotivation}

@@ -120,7 +120,8 @@ interface BlockEditorProps {
   blocks: EditorBlock[];
   onChange: (blocks: EditorBlock[]) => void;
   candidates: MentionCandidate[];
-  textTestIDPrefix?: string;
+  /** Heads every block's ids: `<prefix>-text-<i>`, `<prefix>-heading-<i>`, `<prefix>-caption-<i>`, `<prefix>-add-image`. */
+  testIDPrefix?: string;
 }
 
 /**
@@ -132,7 +133,9 @@ interface BlockEditorProps {
  * "add paragraph" or manual reorder — the structure follows from where titles
  * and images go.
  */
-export function BlockEditor({ blocks, onChange, candidates, textTestIDPrefix }: BlockEditorProps) {
+export function BlockEditor({ blocks, onChange, candidates, testIDPrefix }: BlockEditorProps) {
+  const blockTestID = (kind: string, index?: number) =>
+    testIDPrefix ? `${testIDPrefix}-${kind}${index === undefined ? '' : `-${index}`}` : undefined;
   const { t } = useT();
   // The currently-focused text block and caret, tracked in a ref (no re-render
   // needed) so an image insert knows where to split.
@@ -259,7 +262,7 @@ export function BlockEditor({ blocks, onChange, candidates, textTestIDPrefix }: 
             marks={block.marks}
             candidates={candidates}
             placeholder={t('news.compose.block.textPlaceholder')}
-            testID={textTestIDPrefix ? `${textTestIDPrefix}-${index}` : undefined}
+            testID={blockTestID('text', index)}
             onChange={(text, mentions, links, marks) => updateBlock(block.id, { text, mentions, links, marks })}
             onFocus={() => {
               active.current = { id: block.id, caret: block.text.length };
@@ -277,6 +280,7 @@ export function BlockEditor({ blocks, onChange, candidates, textTestIDPrefix }: 
             onText={(text) => updateBlock(block.id, { text })}
             onLevel={(level) => updateBlock(block.id, { level })}
             onRemove={() => removeBlock(block.id)}
+            testID={blockTestID('heading', index)}
           />
         ) : (
           <ImageBlock
@@ -288,6 +292,7 @@ export function BlockEditor({ blocks, onChange, candidates, textTestIDPrefix }: 
             onCaption={(caption, captionMentions, captionLinks, captionMarks) =>
               updateBlock(block.id, { caption, captionMentions, captionLinks, captionMarks })}
             onRemove={() => removeBlock(block.id)}
+            testID={blockTestID('image', index)}
           />
         ),
       )}
@@ -297,6 +302,7 @@ export function BlockEditor({ blocks, onChange, candidates, textTestIDPrefix }: 
           icon="image-outline"
           label={t('news.compose.block.addImage')}
           onPress={() => void addImageAtCaret()}
+          testID={blockTestID('add-image')}
         />
       ) : null}
     </VStack>
@@ -310,6 +316,7 @@ function ImageBlock({
   removeLabel,
   onCaption,
   onRemove,
+  testID,
 }: {
   block: EditorImageBlock;
   candidates: MentionCandidate[];
@@ -322,6 +329,7 @@ function ImageBlock({
     captionMarks: NewsMark[],
   ) => void;
   onRemove: () => void;
+  testID?: string;
 }) {
   return (
     <VStack gap={2}>
@@ -342,6 +350,7 @@ function ImageBlock({
           accessibilityRole="button"
           accessibilityLabel={removeLabel}
           hitSlop={8}
+          testID={testID ? `${testID}-remove` : undefined}
           className="absolute right-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/50"
         >
           <Ionicons name="close" size={20} color="#ffffff" />
@@ -355,6 +364,7 @@ function ImageBlock({
         candidates={candidates}
         placeholder={captionPlaceholder}
         onChange={onCaption}
+        testID={testID ? `${testID}-caption` : undefined}
       />
     </VStack>
   );
@@ -366,12 +376,14 @@ function HeadingBlock({
   onText,
   onLevel,
   onRemove,
+  testID,
 }: {
   block: EditorHeadingBlock;
   onToText: () => void;
   onText: (text: string) => void;
   onLevel: (level: HeadingLevel) => void;
   onRemove: () => void;
+  testID?: string;
 }) {
   const { t } = useT();
   const placeholder = t(`news.compose.block.${block.level}Placeholder`);
@@ -387,6 +399,7 @@ function HeadingBlock({
               accessibilityRole="button"
               accessibilityLabel={t(`news.compose.block.${level}`)}
               accessibilityState={{ selected }}
+              testID={testID ? `${testID}-${level}` : undefined}
               className={`rounded-full border px-3 py-1 ${selected ? 'border-accent bg-surface-elevated' : 'border-subtle'}`}
             >
               <RNText className={`text-caption ${selected ? 'text-accent' : 'text-muted'}`}>
@@ -399,6 +412,7 @@ function HeadingBlock({
           onPress={onToText}
           accessibilityRole="button"
           accessibilityLabel={t('news.compose.block.paragraph')}
+          testID={testID ? `${testID}-to-text` : undefined}
           className="rounded-full border border-subtle px-3 py-1"
         >
           <RNText className="text-caption text-muted">{t('news.compose.block.paragraph')}</RNText>
@@ -409,6 +423,7 @@ function HeadingBlock({
           accessibilityRole="button"
           accessibilityLabel={t('news.compose.block.removeSection')}
           hitSlop={8}
+          testID={testID ? `${testID}-remove` : undefined}
           className="h-8 w-8 items-center justify-center"
         >
           <Ionicons name="close" size={iconSizes.md} color={MUTED} />
@@ -424,6 +439,7 @@ function HeadingBlock({
         style={{ padding: 0 }}
         cursorColor={ACCENT}
         selectionColor={ACCENT}
+        testID={testID}
       />
     </VStack>
   );
@@ -435,16 +451,19 @@ function AddBlockButton({
   icon,
   label,
   onPress,
+  testID,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  testID?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
+      testID={testID}
       className="items-center justify-center gap-1 rounded-2xl border border-dashed border-subtle py-4"
     >
       <Ionicons name={icon} size={26} color={ACCENT} />

@@ -611,6 +611,7 @@ export default function NewEventScreen() {
                 const n = await pickImageAsBlob();
                 if (n) setCover(n);
               }}
+              testID="event-cover"
             />
           </VStack>
           <Input
@@ -619,6 +620,7 @@ export default function NewEventScreen() {
             onChangeText={setDescription}
             multiline
             numberOfLines={5}
+            testID="event-description"
           />
           {municipalityId && user ? (
             <OrganizerPicker
@@ -699,6 +701,7 @@ export default function NewEventScreen() {
             onChange={handleLocationChange}
             label={t('event.location')}
             required
+            testID="event-location"
           />
           <MyVillagePicker
             label={t('event.village')}
@@ -709,6 +712,7 @@ export default function NewEventScreen() {
               setVillageManuallyPicked(true);
             }}
             disabled={editMode}
+            testID="event-village"
           />
         </>,
       ),
@@ -749,6 +753,7 @@ export default function NewEventScreen() {
             value={maxAttendees}
             onChangeText={setMaxAttendees}
             keyboardType="numeric"
+            testID="event-max-attendees"
           />
           {/* Advisory only: the sign-up sheet warns and still lets the user
               through, so this is a hint to the pueblo, not a gate. Most events

@@ -79,6 +79,7 @@ export function BarriosManager({
         onChangeName={setName}
         nameLabel={t('village.admin.barrios.name')}
         nameTestID="barrio-name-input"
+        imagesTestID="barrio-images"
         submitLabel={t('village.admin.barrios.add')}
         submitTestID="barrio-submit"
         onSubmit={submit}

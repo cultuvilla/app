@@ -37,6 +37,7 @@ export function LocationField({
   onClear,
   label,
   required,
+  testID,
 }: {
   value: LatLng | null;
   displayName: string;
@@ -47,6 +48,8 @@ export function LocationField({
   onClear?: () => void;
   label?: string;
   required?: boolean;
+  /** Names the trigger. The picker's own controls keep fixed ids: only one is ever open. */
+  testID?: string;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -136,7 +139,7 @@ export function LocationField({
   return (
     <View>
       <FieldLabel required={required}>{label ?? t('event.location')}</FieldLabel>
-      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={styles.trigger} testID="event-location">
+      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={styles.trigger} testID={testID}>
 
         <View style={styles.triggerInner}>
           <Ionicons name="location-outline" size={18} color={ACCENT} />

@@ -29,6 +29,7 @@ export function LocationPicker({
   label,
   showUseMyLocation = true,
   showPreview = true,
+  testID,
 }: {
   value: LatLng | null;
   /** Saved name of `value`, shown in the field. Empty when the location has no
@@ -49,6 +50,8 @@ export function LocationPicker({
    * event form only keeps the coordinates).
    */
   showPreview?: boolean;
+  /** Names the search field; its clear, results and GPS button derive from it. */
+  testID?: string;
 }) {
   const { t } = useT();
   const [state, dispatch] = useReducer(
@@ -110,12 +113,14 @@ export function LocationPicker({
         value={state.query}
         onChangeText={(query) => dispatch({ type: 'setQuery', query })}
         placeholder={t('village.admin.community.locationSearchPlaceholder')}
+        testID={testID}
         rightAdornment={
           state.coords || state.query !== '' ? (
             <Pressable
               onPress={() => dispatch({ type: 'clear' })}
               accessibilityLabel={t('village.admin.community.removeLocation')}
               hitSlop={8}
+              testID={testID ? `${testID}-clear` : undefined}
             >
               <Ionicons name="close-circle" size={20} color={ACCENT} />
             </Pressable>
@@ -126,9 +131,10 @@ export function LocationPicker({
       {state.status === 'error' ? (
         <Text tone="muted" variant="bodySm">{t('village.admin.community.locationSearchFailed')}</Text>
       ) : null}
-      {state.results.map((place) => (
+      {state.results.map((place, i) => (
         <Pressable
           key={`${place.lat},${place.lng}`}
+          testID={testID ? `${testID}-result-${i}` : undefined}
           onPress={() => dispatch({ type: 'pickResult', place })}
           className="py-2 border-b border-subtle flex-row items-center gap-2"
         >
@@ -137,7 +143,7 @@ export function LocationPicker({
         </Pressable>
       ))}
       {showUseMyLocation ? (
-        <Button onPress={useMyLocation}>{t('village.admin.community.useMyLocation')}</Button>
+        <Button onPress={useMyLocation} testID={testID ? `${testID}-use-mine` : undefined}>{t('village.admin.community.useMyLocation')}</Button>
       ) : null}
       {showPreview && state.coords ? (
         <View className="gap-2">

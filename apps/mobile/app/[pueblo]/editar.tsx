@@ -57,9 +57,9 @@ function EditVillageInfoScreen() {
       <ScrollView contentContainerClassName="p-4">
         <VStack gap={3}>
           <Text variant="h3">{t('editInfo.descriptionLabel')}</Text>
-          <Input value={description} onChangeText={setDescription} multiline />
+          <Input value={description} onChangeText={setDescription} multiline testID="village-edit-description" />
 
-          <Button onPress={save} loading={saving}>
+          <Button onPress={save} loading={saving} testID="village-edit-submit">
             {t('common.save')}
           </Button>
         </VStack>

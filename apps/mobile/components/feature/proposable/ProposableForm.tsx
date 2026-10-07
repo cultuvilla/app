@@ -18,6 +18,7 @@ export interface ProposableFormProps {
   /** Loading state for the picker's "+" tile while an upload is in flight. */
   addingImage?: boolean;
   imageLabels?: { add: string; remove: string };
+  imagesTestID?: string;
 
   name: string;
   onChangeName: (value: string) => void;
@@ -28,12 +29,15 @@ export interface ProposableFormProps {
   description?: string;
   onChangeDescription?: (value: string) => void;
   descriptionLabel?: string;
+  descriptionTestID?: string;
 
   /** Chip type-picker. Omit (leave options unset) for entities without a type. */
   typeLabel?: string;
   typeOptions?: ProposableTypeOption[];
   typeValue?: string;
   onChangeType?: (value: string) => void;
+  /** Each chip is `<prefix>-<value>`. */
+  typeTestIDPrefix?: string;
 
   /** Extra content rendered at the end of the form, just above the submit
    * button (e.g. the agrupación members-visibility toggle). */
@@ -68,6 +72,7 @@ export function ProposableForm({
   onRemoveImage,
   addingImage,
   imageLabels,
+  imagesTestID,
   name,
   onChangeName,
   nameLabel,
@@ -75,10 +80,12 @@ export function ProposableForm({
   description,
   onChangeDescription,
   descriptionLabel,
+  descriptionTestID,
   typeLabel,
   typeOptions,
   typeValue,
   onChangeType,
+  typeTestIDPrefix,
   footer,
   submitLabel,
   submitTestID,
@@ -102,6 +109,7 @@ export function ProposableForm({
           adding={addingImage}
           addLabel={imageLabels?.add ?? ''}
           removeLabel={imageLabels?.remove ?? ''}
+          testID={imagesTestID}
         />
       </VStack>
 
@@ -118,6 +126,7 @@ export function ProposableForm({
           onChangeText={onChangeDescription}
           label={descriptionLabel}
           multiline
+          testID={descriptionTestID}
         />
       ) : null}
 
@@ -131,6 +140,7 @@ export function ProposableForm({
                 <Pressable
                   key={opt.value}
                   onPress={() => onChangeType!(opt.value)}
+                  testID={typeTestIDPrefix ? `${typeTestIDPrefix}-${opt.value}` : undefined}
                   className={`px-3 py-1 rounded-full border ${
                     selected ? 'bg-[#f3a64b] border-[#f3a64b]' : 'border-subtle'
                   }`}

@@ -21,6 +21,7 @@ export interface ImagePickerFieldProps {
   resizeMode?: 'cover' | 'contain';
   /** Shows a spinner overlay + disables the press while an upload is in flight. */
   loading?: boolean;
+  testID?: string;
 }
 
 // Image input that reuses the dashed "add" card affordance from the pueblo tab
@@ -36,6 +37,7 @@ export function ImagePickerField({
   height,
   resizeMode = 'cover',
   loading = false,
+  testID,
 }: ImagePickerFieldProps) {
   const w = width ?? size;
   const h = height ?? size;
@@ -44,6 +46,7 @@ export function ImagePickerField({
       onPress={onPress}
       disabled={loading}
       accessibilityLabel={label}
+      testID={testID}
       className={`relative rounded-2xl overflow-hidden border items-center justify-center ${
         uri ? 'border-subtle' : 'border-dashed border-subtle'
       }`}

@@ -91,6 +91,7 @@ export default function ChangeEmailScreen() {
         <Card variant="flat">
           <VStack gap={3}>
             <Input
+              testID="change-email-input"
               label={t('settings.changeEmail.newEmailPlaceholder')}
               value={newEmail}
               onChangeText={(next) => {

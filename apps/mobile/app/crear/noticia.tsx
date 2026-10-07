@@ -73,10 +73,12 @@ function CategoryField({
   value,
   onChange,
   t,
+  testID,
 }: {
   value: NewsPostCategory | null;
   onChange: (c: NewsPostCategory) => void;
   t: (key: string) => string;
+  testID: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -86,7 +88,7 @@ function CategoryField({
         onPress={() => setOpen((o) => !o)}
         accessibilityRole="button"
         accessibilityLabel={t('news.compose.categoryLabel')}
-        testID="news-category"
+        testID={testID}
         className="flex-row items-center justify-between border rounded-md px-3 py-3 bg-surface border-subtle"
       >
         <Text tone={value ? 'primary' : 'muted'}>
@@ -105,7 +107,7 @@ function CategoryField({
               }}
               accessibilityRole="button"
               accessibilityState={{ selected: value === opt }}
-              testID={`news-category-${opt}`}
+              testID={`${testID}-${opt}`}
               className={`flex-row items-center justify-between px-3 py-3 ${value === opt ? 'bg-surface' : ''}`}
             >
               <Text>{t(`news.compose.category.${opt}`)}</Text>
@@ -127,16 +129,18 @@ function CoverField({
   cover,
   onPick,
   t,
+  testID,
 }: {
   cover: CoverState;
   onPick: () => void;
   t: (key: string) => string;
+  testID: string;
 }) {
   return (
     <VStack gap={1}>
       <FieldLabel>{t('news.compose.coverLabel')}</FieldLabel>
       {cover?.uri ? (
-        <Pressable onPress={onPick} accessibilityLabel={t('news.compose.coverLabel')}>
+        <Pressable onPress={onPick} accessibilityLabel={t('news.compose.coverLabel')} testID={testID}>
           <View
             className="overflow-hidden rounded-2xl border border-subtle bg-surface"
             style={{ width: '100%', aspectRatio: cover.width > 0 && cover.height > 0 ? cover.width / cover.height : 16 / 9 }}
@@ -150,7 +154,7 @@ function CoverField({
           </View>
         </Pressable>
       ) : (
-        <ImagePickerField uri={null} width="100%" height={160} label={t('news.compose.addCover')} onPress={onPick} />
+        <ImagePickerField uri={null} width="100%" height={160} label={t('news.compose.addCover')} onPress={onPick} testID={testID} />
       )}
     </VStack>
   );
@@ -440,8 +444,8 @@ export default function NewNewsScreen() {
               onChangeText={setTitle}
               testID="news-title"
             />
-            <CategoryField value={category} onChange={setCategory} t={t} />
-            <CoverField cover={cover} onPick={pickCover} t={t} />
+            <CategoryField value={category} onChange={setCategory} t={t} testID="news-category" />
+            <CoverField cover={cover} onPick={pickCover} t={t} testID="news-cover" />
           </>,
         ),
     },
@@ -458,7 +462,7 @@ export default function NewNewsScreen() {
               blocks={blocks}
               onChange={setBlocks}
               candidates={candidates}
-              textTestIDPrefix="news-block-text"
+              testIDPrefix="news-block"
             />
           </>,
         ),
