@@ -439,7 +439,7 @@ function photo(name: string, alt: string, width: number, height: number, cls = '
  * The app's intro film (cultuvilla/motion, piece `intro`), muted so it may
  * autoplay. The sound toggle is fixed code: it reads nothing from the page.
  */
-const INTRO_VIDEO = html`<figure class="intro"><video src="/brand/landing/cultuvilla-intro.mp4" poster="/brand/landing/cultuvilla-intro.webp" width="720" height="720" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video><button type="button" class="sound" onclick="var v=this.previousElementSibling;v.muted=!v.muted;if(!v.muted){v.currentTime=0;v.play();}this.textContent=v.muted?'Activar sonido':'Silenciar'">Activar sonido</button></figure>`;
+const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/cultuvilla-intro-vertical.mp4" poster="/brand/landing/cultuvilla-intro-vertical.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video></span><button type="button" class="sound" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.currentTime=0;v.play();}this.textContent=v.muted?'Activar sonido':'Silenciar'">Activar sonido</button></figure>`;
 
 function storeButtons(): SafeHtml {
   return html`${APP_STORES.ios ? html`<a class="store" href="${APP_STORES.ios}"><small>Descárgala en el</small><b>App Store</b></a>` : null}${
@@ -461,11 +461,11 @@ export function homePage({ villages, showcase }: Landing): Page {
     layout: 'landing',
     head: {
       title: 'Cultuvilla',
-      description: 'Desarrolla el perfil de tu pueblo: sus fiestas, su historia, sus palabras y su gente, guardadas para siempre. Gratis para vecinos, peñas y ayuntamientos.',
+      description: 'Gestiona y aviva la cultura de tu pueblo: sus fiestas, su historia, sus palabras y su gente, guardadas para siempre. Gratis para vecinos, peñas y ayuntamientos.',
       jsonLd: { '@type': 'WebSite', name: 'Cultuvilla', url: 'https://cultuvilla.es/' },
     },
     body: html`${BUNTING}
-<section class="in top"><div><span class="eyebrow">Fiestas · Historia · Palabras · Vecinos</span><h1>Desarrolla el perfil <em>de tu pueblo.</em></h1><p class="lead">Sus fiestas, sus carteles, su historia, sus palabras y su gente, en un solo sitio. Lo construyen sus propios vecinos y queda guardado para siempre.</p><div class="actions">${appCta('/', 'Descarga la app gratis')}<a class="ghost" href="/pueblos">Ver los pueblos</a></div><p class="fine">Gratis para vecinos, peñas y ayuntamientos. En iPhone y Android.</p></div>${INTRO_VIDEO}</section>
+<section class="in top"><div><img class="lettering" src="/brand/cultuvilla-lettering.svg" alt="Cultuvilla" width="6085" height="729"/><span class="eyebrow">Fiestas · Historia · Palabras · Vecinos</span><h1>Gestiona y aviva <em>la cultura de tu pueblo.</em></h1><p class="lead">La construyen sus propios vecinos y queda guardada para siempre.</p></div>${INTRO_VIDEO}</section>
 <div class="strip" aria-hidden="true"><div class="strip-track">${[...FIESTAS, ...FIESTAS].map((f) => html`<span>${f} ✦</span>`)}</div></div>
 <section class="blk"><div class="in split"><ul class="mosaic">${(
       [

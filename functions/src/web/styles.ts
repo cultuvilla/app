@@ -17,11 +17,12 @@ img{max-width:100%;height:auto;display:block}
 .wrap{max-width:720px;margin:0 auto;padding:0 16px}
 header.site{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0}
 header.site .brand{display:flex;align-items:center;gap:8px;color:var(--primary);font-weight:700;font-size:20px;text-decoration:none}
-header.site .brand img{width:32px;height:32px}
+header.site .brand .mark{width:32px;height:32px}
 header.site nav{display:flex;align-items:center;gap:16px}
 .cta.small{white-space:nowrap}
 header.site .brand{flex:none}
-@media (max-width:420px){header.site .brand span{display:none}}
+header.site .wordmark{width:auto;height:20px}
+@media (max-width:420px){header.site .mark{display:none}header.site .wordmark{height:15px}}
 header.site nav>a:not(.cta){color:var(--primary);font-weight:600;text-decoration:none}
 .cta{display:inline-block;background:var(--accent);color:var(--on-accent);text-decoration:none;font-weight:600;padding:10px 18px;border-radius:999px;border:0;cursor:pointer}
 .cta.small{padding:6px 14px;font-size:14px}
@@ -79,6 +80,7 @@ export const LANDING_STYLES = `
 @keyframes scroll{to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.bunting .flag,.landing .strip-track{animation:none}}
 .landing .top{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;padding:8px 16px 64px}
+.landing .top .lettering{display:block;width:min(440px,100%);height:auto;margin-bottom:18px}
 .landing .top h1{font-size:clamp(40px,7vw,76px);color:var(--primary);margin:14px 0 18px}
 .landing .top h1 em{font-style:normal;color:var(--accent)}
 .landing .top.single{grid-template-columns:1fr;padding-bottom:48px}
@@ -103,9 +105,10 @@ export const LANDING_STYLES = `
 .landing .ph-tabs{margin-top:auto;display:flex;justify-content:space-around;padding:10px 0 14px;border-top:1px solid var(--border)}
 .landing .ph-tabs i{width:22px;height:4px;border-radius:2px;background:var(--muted)}
 .landing .ph-tabs i:first-child{background:var(--accent)}
-.landing .intro{position:relative;margin:0;justify-self:center;width:min(460px,100%)}
-.landing .intro video{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:24px;background:var(--card);box-shadow:0 30px 60px -24px rgba(63,70,53,.45)}
-.landing .sound{position:absolute;right:14px;bottom:14px;border:0;border-radius:999px;padding:8px 14px;font:600 13px/1 system-ui,sans-serif;background:rgba(47,53,39,.82);color:var(--surface);cursor:pointer}
+.landing .intro{position:relative;margin:0;justify-self:center;display:grid;justify-items:center;gap:14px}
+.landing .intro-phone{display:block;width:min(290px,78vw);aspect-ratio:9/18.6;padding:10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5);transform:rotate(2deg)}
+.landing .intro-phone video{display:block;width:100%;height:100%;object-fit:cover;border-radius:32px;background:var(--surface)}
+.landing .sound{border:0;border-radius:999px;padding:8px 14px;font:600 13px/1 system-ui,sans-serif;background:var(--primary);color:var(--surface);cursor:pointer}
 .landing .teaser.with-phone{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:48px;align-items:center}
 .landing .teaser.with-phone .phone{transform:rotate(-2deg)}
 .landing .teaser .lead{margin:12px 0 20px}

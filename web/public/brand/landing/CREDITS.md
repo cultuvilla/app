@@ -25,5 +25,5 @@ are cropped and re-encoded to webp.
 
 | File | Source |
 |---|---|
-| `cultuvilla-intro.mp4` | Cultuvilla's intro film, piece `intro` (1:1) of cultuvilla/motion, re-encoded to 720px |
-| `cultuvilla-intro.webp` | Poster frame of the same film |
+| `cultuvilla-intro-vertical.mp4` | Cultuvilla's intro film, piece `intro` (9:16) of cultuvilla/motion, re-encoded to 540×960 |
+| `cultuvilla-intro-vertical.webp` | Poster frame of the same film |
