@@ -8,9 +8,14 @@ name: Announce when live
 # See docs/decisions/announce-when-live-poller.md.
 #
 # Two legs, because of where credentials live. A schedule always runs on the
-# default branch (develop), and the `production` environment — which holds the
-# WIF variables for prod — admits only `main`. So the scheduled run only
-# dispatches this same workflow on `main`, and that run does the work.
+# default branch (develop), and each GitHub environment admits only its own
+# branch: `production` only `main`, `beta` only `beta`. So the scheduled run
+# dispatches this same workflow on `main` (prod) and on `beta`, and those runs
+# do the work.
+#
+# Beta is announced the same way and always automatically: it never holds, and
+# its only reader is the Cultuvilla Beta Android app (iOS testers run the
+# production build from TestFlight, which TestFlight itself announces).
 #
 # Fails safe: a store that cannot be asked (missing secret, API error) counts
 # as not live, with a warning, and the next tick asks again. Nothing is
@@ -52,18 +57,22 @@ jobs:
         run: |
           # Until this workflow reaches main there is nothing to dispatch there;
           # that is the normal state between landing on develop and a promotion.
-          if ! gh api "repos/${REPO}/contents/.github/workflows/announce-when-live.yml?ref=main" --silent 2>/dev/null; then
-            echo "announce-when-live.yml is not on main yet — nothing to poll."
-            exit 0
-          fi
-          gh workflow run announce-when-live.yml --repo "${REPO}" --ref main
+          for ref in main beta; do
+            if ! gh api "repos/${REPO}/contents/.github/workflows/announce-when-live.yml?ref=${ref}" --silent 2>/dev/null; then
+              echo "announce-when-live.yml is not on ${ref} yet — nothing to poll there."
+              continue
+            fi
+            gh workflow run announce-when-live.yml --repo "${REPO}" --ref "${ref}"
+          done
 
   poll:
-    name: Poll the stores (prod)
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    name: Poll the stores (${{ github.ref == 'refs/heads/beta' && 'beta' || 'prod' }})
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production
+    environment: ${{ github.ref == 'refs/heads/beta' && 'beta' || 'production' }}
+    env:
+      ANNOUNCE_ENV: ${{ github.ref == 'refs/heads/beta' && 'beta' || 'prod' }}
     permissions:
       actions: write # dispatch deploy-prod.yml for a held backend
       contents: read
@@ -91,7 +100,7 @@ jobs:
           if gcloud auth login --cred-file="${GOOGLE_APPLICATION_CREDENTIALS}" --quiet >/dev/null \
             && token=$(gcloud auth print-access-token); then
             status=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${token}" \
-              "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/_admin/announce/pending/prod") || status=unknown
+              "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/_admin/announce/pending/${ANNOUNCE_ENV}") || status=unknown
           else
             echo "::warning::gcloud could not authenticate for the cheap pending check (see above); running the full poll."
           fi
@@ -142,7 +151,7 @@ jobs:
           APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
           APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
           APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
-        run: node scripts/release-announce.mjs poll --env=prod ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: node scripts/release-announce.mjs poll --env=${ANNOUNCE_ENV} ${{ inputs.dry_run && '--dry-run' || '' }}
 
       # The wall was written in the step above, before this: a wall without its
       # backend is safe (old clients are told to update), the reverse is not.
@@ -150,7 +159,7 @@ jobs:
       # dispatch was accepted. The deploy clears it itself once it succeeds;
       # one that has not done so within DEPLOY_RETRY_HOURS is dispatched again.
       - name: Deploy the held backend
-        if: ${{ steps.poll.outputs.deploy_sha != '' }}
+        if: ${{ steps.poll.outputs.deploy_sha != '' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -164,7 +173,7 @@ jobs:
       # would leave the release sitting approved. RELEASE_MANAGER (repo
       # variable, a GitHub username) is @-mentioned.
       - name: Tell the user the release is ready
-        if: ${{ steps.poll.outputs.ready == 'true' }}
+        if: ${{ steps.poll.outputs.ready == 'true' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -181,7 +190,7 @@ jobs:
           The poller then raises the wall to ${VERSION} and announces once both stores serve it, and closes this issue. Afterwards, **switch managed publishing off** in the Play Console."
 
       - name: Alert that a held release went live on one store early
-        if: ${{ steps.poll.outputs.published_early != '' }}
+        if: ${{ steps.poll.outputs.published_early != '' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -195,7 +204,7 @@ jobs:
           Options: wait for the other store and then \`pnpm release:publish\`, or release the backend now with Actions → *Release publish* → \`force\` (installed older apps then meet the new backend before the wall can be raised)."
 
       - name: Close the release issue
-        if: ${{ steps.poll.outputs.done == 'true' }}
+        if: ${{ steps.poll.outputs.done == 'true' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}

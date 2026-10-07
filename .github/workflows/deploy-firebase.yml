@@ -46,13 +46,14 @@ jobs:
       id-token: write # required for Workload Identity Federation
 
     steps:
-      # Prod needs the full history and tags: the release plan below rolls up
-      # `Breaking-Client:` trailers since the previous release tag.
+      # Prod and beta need history: the release record rolls up
+      # `Breaking-Client:` trailers — since the previous release tag on prod,
+      # across the merge's own commits on beta.
       - name: Checkout
         uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: ${{ inputs.firebase_alias == 'prod' && '0' || '1' }}
+          fetch-depth: ${{ inputs.firebase_alias == 'dev' && '1' || '0' }}
 
       # An explicit `ref` arrives from a workflow_dispatch input, and
       # actions/checkout will fetch ANY commit the remote has — an unmerged
@@ -262,14 +263,15 @@ jobs:
       - name: Smoke-check the live read site
         run: node scripts/smoke-read-site.mjs --env=${{ inputs.firebase_alias }}
 
-      # Hand the release to the announce poller (prod). After hosting, so a
-      # release whose deploy failed is never recorded. Records the hold the plan
-      # step decided, which is what this run actually did.
+      # Hand the release to the announce poller (prod and beta). After hosting,
+      # so a release whose deploy failed is never recorded. Prod records the
+      # hold the plan step decided, which is what this run actually did; beta
+      # never holds, and its poller announces the Cultuvilla Beta Android app.
       - name: Record the release for the announce poller
-        if: ${{ inputs.firebase_alias == 'prod' && !inputs.held_backend }}
+        if: ${{ (inputs.firebase_alias == 'prod' || inputs.firebase_alias == 'beta') && !inputs.held_backend }}
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: node scripts/release-announce.mjs record --env=prod --hold=${{ steps.release.outputs.hold_backend }}
+        run: node scripts/release-announce.mjs record --env=${{ inputs.firebase_alias }} --hold=${{ steps.release.outputs.hold_backend || 'false' }}
 
       # A held backend just shipped — tell the poller only now, on success. If
       # any step above failed, the pending doc stays: re-run release-publish,

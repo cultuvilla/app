@@ -70,15 +70,16 @@ describe('the prod deploy holds a breaking backend', () => {
   });
 
   // Rollup reads `<previous tag>..HEAD`; a shallow clone has neither.
-  it('fetches full history and tags on prod', () => {
-    expect(step(deploy, 'actions/checkout')).toContain("fetch-depth: ${{ inputs.firebase_alias == 'prod' && '0' || '1' }}");
+  // Prod rolls up since the previous tag, beta across its merge (HEAD^1..HEAD).
+  it('fetches full history on prod and beta', () => {
+    expect(step(deploy, 'actions/checkout')).toContain("fetch-depth: ${{ inputs.firebase_alias == 'dev' && '1' || '0' }}");
     expect(step(deploy, 'actions/checkout')).toContain('ref: ${{ inputs.ref }}');
   });
 
-  it('records the release after hosting, with the hold the plan decided', () => {
+  it('records the release after hosting — prod with the hold the plan decided, beta never held', () => {
     const record = step(deploy, 'release-announce.mjs record');
-    expect(record).toContain('--hold=${{ steps.release.outputs.hold_backend }}');
-    expect(record).toMatch(/if: \$\{\{ inputs\.firebase_alias == 'prod' && !inputs\.held_backend \}\}/);
+    expect(record).toContain("--env=${{ inputs.firebase_alias }} --hold=${{ steps.release.outputs.hold_backend || 'false' }}");
+    expect(record).toContain("if: ${{ (inputs.firebase_alias == 'prod' || inputs.firebase_alias == 'beta') && !inputs.held_backend }}");
     expect(deploy.indexOf('release-announce.mjs record')).toBeGreaterThan(deploy.indexOf('firebase deploy --only hosting'));
   });
 });
@@ -143,19 +144,25 @@ describe('the announce poller', () => {
 
   // Schedules run on the default branch (develop); the production environment
   // admits only main. A poll scheduled directly would never get credentials.
-  it('polls only on main, kicked from the schedule', () => {
+  // Each environment admits only its own branch, so prod polls on main and
+  // beta on beta, each with its own environment's credentials.
+  it('polls on main (prod) and beta, kicked from the schedule', () => {
     expect(job(poller, 'kick')).toContain("if: ${{ github.event_name == 'schedule' }}");
-    expect(job(poller, 'kick')).toContain('gh workflow run announce-when-live.yml --repo "${REPO}" --ref main');
+    expect(job(poller, 'kick')).toContain('for ref in main beta; do');
+    expect(job(poller, 'kick')).toContain('gh workflow run announce-when-live.yml --repo "${REPO}" --ref "${ref}"');
     const poll = job(poller, 'poll');
     expect(poll).toContain("github.ref == 'refs/heads/main'");
-    expect(poll).toContain('environment: production');
+    expect(poll).toContain("github.ref == 'refs/heads/beta'");
+    expect(poll).toContain("environment: ${{ github.ref == 'refs/heads/beta' && 'beta' || 'production' }}");
+    expect(poll).toContain("ANNOUNCE_ENV: ${{ github.ref == 'refs/heads/beta' && 'beta' || 'prod' }}");
+    expect(step(poller, 'release-announce.mjs poll')).toContain('--env=${ANNOUNCE_ENV}');
     expect(poll).toContain('workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}');
     expect(poll).not.toMatch(/credentials_json:/);
   });
 
   it('exits before installing anything when nothing is pending', () => {
     const poll = job(poller, 'poll');
-    const check = poll.indexOf('_admin/announce/pending/prod');
+    const check = poll.indexOf('_admin/announce/pending/${ANNOUNCE_ENV}');
     expect(check).toBeGreaterThan(-1);
     expect(check).toBeLessThan(poll.indexOf('pnpm install'));
     expect(step(poller, 'pnpm install')).toContain("steps.pending.outputs.pending == 'true'");
@@ -182,7 +189,7 @@ describe('the announce poller', () => {
   // The wall is written inside the poll step; the backend follows it.
   it('dispatches the held backend after the poll, on main, pinned to its commit', () => {
     const dispatch = step(poller, 'gh workflow run deploy-prod.yml');
-    expect(dispatch).toContain("if: ${{ steps.poll.outputs.deploy_sha != '' }}");
+    expect(dispatch).toContain("if: ${{ steps.poll.outputs.deploy_sha != '' && github.ref == 'refs/heads/main' }}");
     expect(dispatch).toContain('--ref main -f backend_sha="${SHA}"');
     expect(poller.indexOf('release-announce.mjs poll')).toBeLessThan(poller.indexOf('gh workflow run deploy-prod.yml'));
   });
@@ -223,10 +230,11 @@ describe('a breaking release is released by a person', () => {
   it('opens an issue when both stores approved, and closes it when done', () => {
     const poll = job(poller, 'poll');
     expect(poll).toContain('issues: write');
-    expect(step(poller, 'Tell the user the release is ready')).toContain("if: ${{ steps.poll.outputs.ready == 'true' }}");
+    // Prod only: a beta release of the same version must not open or close them.
+    expect(step(poller, 'Tell the user the release is ready')).toContain("if: ${{ steps.poll.outputs.ready == 'true' && github.ref == 'refs/heads/main' }}");
     expect(step(poller, 'Tell the user the release is ready')).toContain('pnpm release:publish');
-    expect(step(poller, 'went live on one store early')).toContain("if: ${{ steps.poll.outputs.published_early != '' }}");
-    expect(step(poller, 'Close the release issue')).toContain("if: ${{ steps.poll.outputs.done == 'true' }}");
+    expect(step(poller, 'went live on one store early')).toContain("if: ${{ steps.poll.outputs.published_early != '' && github.ref == 'refs/heads/main' }}");
+    expect(step(poller, 'Close the release issue')).toContain("if: ${{ steps.poll.outputs.done == 'true' && github.ref == 'refs/heads/main' }}");
     expect(step(poller, 'Close the release issue')).toMatch(/managed publishing off/);
   });
 

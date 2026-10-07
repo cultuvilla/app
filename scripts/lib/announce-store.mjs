@@ -14,6 +14,7 @@ import {
   nextPending,
   pendingDocPath,
   planTick,
+  platformsFor,
   PLATFORMS,
 } from './announce.mjs';
 
@@ -75,7 +76,13 @@ export async function checkStores({
   const awaitingPublish = { ios: false, android: false };
   const detail = {};
 
-  if (pending.announced?.android) {
+  const served = pending.platforms ?? PLATFORMS;
+  // A platform this env does not serve (iOS on beta) is never asked.
+  for (const p of PLATFORMS) if (!served.includes(p)) detail[p] = 'not served from this env';
+
+  if (!served.includes('android')) {
+    // nothing to ask
+  } else if (pending.announced?.android) {
     live.android = true;
     approved.android = true;
     detail.android = 'already announced';
@@ -117,7 +124,9 @@ export async function checkStores({
     }
   }
 
-  if (pending.announced?.ios) {
+  if (!served.includes('ios')) {
+    // nothing to ask
+  } else if (pending.announced?.ios) {
     live.ios = true;
     approved.ios = true;
     detail.ios = 'already announced';
@@ -160,6 +169,7 @@ export async function recordRelease(db, { env, version, sha, decision, now = new
       breaking: decision.breaking,
       reasons: decision.reasons,
       hold: decision.hold,
+      platforms: platformsFor(env),
       now,
     });
     tx.set(ref, doc);
@@ -208,6 +218,7 @@ export async function applyTick(
         minSupported: plan.config.minSupported,
         stored,
         appVersion: version,
+        env,
       }).payload;
     }
     if (dryRun) return { outcome: 'dry-run', plan, payload, pending };
@@ -244,7 +255,7 @@ export async function finishHeldDeploy(db, { env, sha, now = new Date().toISOStr
     if (!snap.exists) return { outcome: 'gone' };
     const pending = snap.data();
     if ((pending.backendSha ?? pending.releaseSha) !== sha) return { outcome: 'other-sha', pending };
-    if (PLATFORMS.every((p) => pending.announced?.[p])) {
+    if ((pending.platforms ?? PLATFORMS).every((p) => pending.announced?.[p])) {
       tx.delete(ref);
       return { outcome: 'done' };
     }

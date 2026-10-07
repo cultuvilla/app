@@ -42,6 +42,30 @@ export const STORE_URL = {
 
 const PLATFORMS = ['ios', 'android'];
 
+/**
+ * The platforms whose installed apps read each env's config/appVersion. Beta's
+ * only reader is the Cultuvilla Beta Android app: iOS testers run the
+ * production build from TestFlight, which reads prod. A platform nobody serves
+ * from an env neither announces there nor caps its wall.
+ */
+export const SERVED_PLATFORMS = Object.freeze({
+  dev: ['ios', 'android'],
+  beta: ['android'],
+  prod: ['ios', 'android'],
+});
+
+/**
+ * Where the gate's update button sends each env's users. Beta's Android app is
+ * its own Play app (docs/decisions/beta-is-its-own-play-app.md): pointing it at
+ * the public listing would offer a tester the wrong app.
+ */
+export function storeUrlFor(env) {
+  if (env === 'beta') {
+    return { ...STORE_URL, android: 'https://play.google.com/store/apps/details?id=com.cultuvilla.app.beta' };
+  }
+  return STORE_URL;
+}
+
 /** -1 / 0 / 1 for two validated `MAJOR.MINOR.PATCH` strings. */
 function compare(a, b) {
   const pa = a.split('.').map(Number);
@@ -79,7 +103,9 @@ export function resolveAppVersionConfig({
   minSupported,
   stored,
   appVersion,
-  storeUrl = STORE_URL,
+  env,
+  storeUrl = storeUrlFor(env),
+  servedPlatforms = SERVED_PLATFORMS[env] ?? PLATFORMS,
 }) {
   // A blank workflow input arrives as an empty string; treat it as "not given"
   // so it falls through to the preserve path instead of failing.
@@ -110,7 +136,7 @@ export function resolveAppVersionConfig({
   // Checked for a PRESERVED min too — a wall that arrives by inheritance is more
   // dangerous than one somebody typed, not less. A platform with nothing
   // announced (0.0.0) has no ceiling to breach.
-  for (const platform of PLATFORMS) {
+  for (const platform of servedPlatforms) {
     const ceiling = latestFor[platform];
     if (ceiling === NOT_PUBLISHED) continue;
     if (compare(resolvedMin, ceiling) > 0) {
