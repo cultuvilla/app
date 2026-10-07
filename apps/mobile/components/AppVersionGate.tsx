@@ -57,7 +57,10 @@ export function AppVersionGate({ children }: { children: ReactNode }) {
         observability.captureError(error, {
           operation: 'appVersionGate:watch',
         });
-        setConfig(null);
+        // A listener error is terminal: keep the last answer, or a wall already
+        // up would come down for the rest of the session. Fail open only when
+        // nothing ever arrived.
+        setConfig((prev) => (prev === undefined ? null : prev));
       },
     );
   }, [platform]);

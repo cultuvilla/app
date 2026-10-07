@@ -158,6 +158,14 @@ describe('a gate that cannot read its config says so', () => {
     });
   });
 
+  it('keeps a wall it already raised when the listener then fails', async () => {
+    const { getByText } = renderGate();
+    emit(WALL);
+    await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
+    act(() => latestListener().onError(new Error('permission-denied')));
+    expect(getByText('appUpdate.blockTitle')).toBeTruthy();
+  });
+
   it('reports a missing config doc', async () => {
     renderGate();
     emit(null);
