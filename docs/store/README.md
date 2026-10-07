@@ -11,11 +11,9 @@ next release.
 | [app-store-declarations.md](app-store-declarations.md) | ASC → App Privacy, Age Rating, App Review Information |
 | [assets.md](assets.md) | Graphic assets required by both stores |
 
-The runbook for the *sequence* of external steps (developer account, signing
-keys, tracks, the 12-tester closed test) stays in
-[../plans/ongoing/store-release.md](../plans/ongoing/store-release.md). This
-folder is the *content*; that file is the *process* — and its **"Dónde estamos"**
-checklist is the live state of the release, so start there.
+The runbook for the *process* (publishing, console access, signing, build
+gotchas) is [release-runbook.md](release-runbook.md). This folder is the
+*content*, and that file is the process.
 
 ## The rule that matters
 
@@ -53,8 +51,6 @@ binary's behaviour, and a mismatch gets the app pulled, not warned. So:
   while Google Sign-In is on the login screen.
 
 > **Legal URLs moved to Spanish (2026-09).** The pages are now `/legal/privacidad`
-> and `/legal/terminos`; Hosting 301s the old `/legal/privacy` and `/legal/terms`,
-> so the URLs already declared in App Store Connect and Play Console keep working.
-> **Do not update the consoles until the change is live on prod** — before that,
-> prod serves the SPA's not-found screen at the new paths. The ordered steps are
-> in [store-release.md](../plans/ongoing/store-release.md#rollout-of-the-village-first-urls).
+> and `/legal/terminos`, and Hosting 301s the old `/legal/privacy` and `/legal/terms`.
+> Updating the URL declared in both consoles is a task in
+> [village-first-urls-prod-finish.md](../plans/ready/village-first-urls-prod-finish.md).

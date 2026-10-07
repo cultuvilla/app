@@ -62,7 +62,7 @@ jobs:
             missing=1
           fi
           if [ -z "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}" ]; then
-            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set — see docs/plans/ongoing/store-release.md (Play Console -> Setup -> API access -> Release Manager)."
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set — see docs/store/release-runbook.md (Play Console -> Setup -> API access -> Release Manager)."
             missing=1
           fi
           [ "$missing" = "0" ]
@@ -131,7 +131,7 @@ jobs:
           [ -z "${APPLE_ASC_KEY_ID}" ] && missing+=("APPLE_ASC_KEY_ID")
           [ -z "${APPLE_ASC_ISSUER_ID}" ] && missing+=("APPLE_ASC_ISSUER_ID")
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing repo secret/variable(s): ${missing[*]} — see docs/plans/ongoing/store-release.md."
+            echo "::error::Missing repo secret/variable(s): ${missing[*]} — see docs/store/release-runbook.md."
             exit 1
           fi
 
