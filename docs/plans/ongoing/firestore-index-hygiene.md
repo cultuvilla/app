@@ -2,8 +2,8 @@
 
 **Priority:** low
 **Landed:** dev
-**Gate:** none
-**Next:** add `--force` to the "Deploy Firestore indexes" step in `deploy-firebase.yml` plus a `scripts/` drift check (the verify snippet below), then retire this plan
+**Gate:** soak:the next `develop → beta → main` promotion runs the `--force` deploy on beta and prod
+**Next:** after the next promotions, check that the "Report index drift" step on Deploy beta and Deploy prod reports 0 orphaned and 0 missing, then retire this plan
 
 **Goal:** make each environment's live composite indexes match `firestore.indexes.json`
 exactly, and stop orphans from building up again.
@@ -26,7 +26,7 @@ file"*.
 1. After the next `develop → beta` promotion deploys green, run the beta cleanup
    below and re-verify.
 2. After the `beta → main` promotion deploys green, do the same on prod.
-3. Add `--force` to the CI index deploy and a drift-check script (decided 2026-10-06, see *Stop the drift*) — only once beta and prod are clean. Then retire this plan.
+3. ✅ `--force` added to the CI index deploy, preceded by a drift report (`scripts/check-index-drift.mjs --warn`) that names what it will delete. Locally: `pnpm check:index-drift --project=<dev|beta|prod>`. On 2026-10-08 dev had one orphan, the old `villageWrapped municipalityId+status+windowStart` index, replaced by `year` in `a2d9088f`. The first develop deploy deletes it.
 
 ## Re-audit 2026-10-08 — ready to run
 
@@ -102,22 +102,7 @@ bash scripts/firebase.sh deploy --only firestore:indexes --project <beta|prod> -
 # The log must say "Deleting 8 indexes". Any other number means stop and re-audit.
 ```
 
-Verify (live composite indexes vs the file, ignoring the implicit `__name__` field):
-
-```bash
-npx firebase firestore:indexes --project <cultuvilla-beta|cultuvilla-prod> \
-  --account cultuvilla.app@gmail.com > /tmp/live.json
-python3 - <<'EOF'
-import json
-def key(i):
-    fs = [f for f in i['fields'] if f.get('fieldPath') != '__name__']
-    return (i['collectionGroup'], i.get('queryScope', 'COLLECTION'),
-            tuple((f.get('fieldPath'), f.get('order') or f.get('arrayConfig')) for f in fs))
-live = {key(i) for i in json.load(open('/tmp/live.json'))['indexes']}
-repo = {key(i) for i in json.load(open('firestore.indexes.json'))['indexes']}
-print('orphans', len(live - repo), 'missing', len(repo - live))
-EOF
-```
+Verify: `pnpm check:index-drift --project=<dev|beta|prod>` (exit 1 on drift).
 
 ## Stop the drift — adopted 2026-10-06 (user)
 
