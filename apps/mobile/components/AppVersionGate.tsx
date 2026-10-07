@@ -72,6 +72,9 @@ export function AppVersionGate({ children }: { children: ReactNode }) {
     decision === 'nudge' && config && platform !== 'web' ? config[platform].latest : null;
 
   useEffect(() => {
+    // Every change re-earns visibility through the cooldown, so a nudge that
+    // leaves and comes back mid-session can't reappear on a stale flag.
+    setNudgeVisible(false);
     if (!nudgeVersion) return;
     let active = true;
     void (async () => {

@@ -133,6 +133,17 @@ describe('raises the wall whenever the config arrives, not only at launch', () =
     await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
   });
 
+  it('keeps the nudge cooldown when the same nudge comes back mid-session', async () => {
+    const { getByText, queryByText } = renderGate();
+    emit(NEWER);
+    await waitFor(() => expect(getByText('appUpdate.nudgeTitle')).toBeTruthy());
+    emit(UP_TO_DATE);
+    await waitFor(() => expect(queryByText('appUpdate.nudgeTitle')).toBeNull());
+    emit(NEWER);
+    await act(async () => {});
+    expect(queryByText('appUpdate.nudgeTitle')).toBeNull();
+  });
+
   it('shows nothing until the first answer, then blocks on it', async () => {
     const { getByText, queryByTestId } = renderGate();
     expect(queryByTestId('app-update-modal')).toBeNull();
