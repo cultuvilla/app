@@ -73,9 +73,9 @@ const deepLinkHostPerEnv: Record<Env, string> = {
 // each key is restricted to the Maps SDK for Android, which Google does not
 // bill. It must never be empty on Android — a MapView without a key crashes.
 const googleMapsAndroidKeyPerEnv: Record<Env, string> = {
-  dev: '',
-  beta: '',
-  prod: '',
+  dev: 'AIzaSyCmLTlhlhxtktsntvsfcxDNmHxo8ETccAM',
+  beta: 'AIzaSyCDfKbkM6WnH-e_GXlxG4eI-94QnKDISE8',
+  prod: 'AIzaSyAMBOeRHimDUL4I3BdBpAMpKS3WTgMjYAM',
 };
 
 // Firebase config is injected per-environment from .env (or EAS secrets).
