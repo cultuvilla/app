@@ -1,7 +1,8 @@
 import { APP_STORES } from '@cultuvilla/shared/config';
 import { palette } from '@cultuvilla/shared/design-system';
 import { LEGAL_DOCS } from '@cultuvilla/shared/legal';
-import { villagePath, villageSectionPath } from '@cultuvilla/shared/utils';
+import type { WrappedCard } from '@cultuvilla/shared/models';
+import { villagePath, villageSectionPath, wrappedPath } from '@cultuvilla/shared/utils';
 import {
   cardImage,
   eventWhen,
@@ -361,6 +362,8 @@ export interface Landing {
   villages: Village[];
   /** One real pueblo shown as the worked example; null when none is active. */
   showcase: { village: Village; home: VillageHome } | null;
+  /** That pueblo's latest published fiestas summary. */
+  wrapped: { village: Village; view: WrappedView } | null;
 }
 
 const BUNTING = raw(
@@ -403,31 +406,22 @@ function showcaseBlock({ village: v, home }: NonNullable<Landing['showcase']>): 
 }
 
 /**
- * The app's village home, drawn in HTML from the featured pueblo's real data —
- * so the picture of the app can never drift from what the app shows.
+ * The Wrapped cards a stranger may see on the home page. `people` and
+ * `organizers` name real vecinos: they stay on the pueblo's own summary page,
+ * never in Cultuvilla's marketing.
  */
-function phone(showcase: Landing['showcase']): Child {
-  if (!showcase) return null;
-  const { village: v, home } = showcase;
-  const mini = (c: Card) =>
-    html`<span class="mini">${img(c.imageUrl, '', undefined, c.originalUrl)}<span class="t">${c.title}</span>${c.subtitle ? html`<span class="s">${c.subtitle}</span>` : null}</span>`;
-  const row = (title: string, items: Card[]) =>
-    items.length ? html`<span class="ph-sec">${title}</span><span class="ph-row">${items.slice(0, 2).map(mini)}</span>` : null;
-  return html`<a class="phone" href="${villagePath(v.slug)}" aria-label="${`Así se ve ${v.name} en la app`}"><span class="screen"><span class="ph-head">${img(
-    cardImage(v.escudoUrl),
-    '',
-    'ph-escudo',
-    v.escudoUrl,
-  )}<span><b>${v.name}</b>${v.province ? html`<small>${v.province}</small>` : null}</span></span>${row('Eventos', home.events)}${row(
-    'Carteles de fiestas',
-    home.posters,
-  )}${
-    home.word
-      ? html`<span class="ph-word"><small>Palabra del día</small><b>${home.word.term.term}</b>${
-          home.word.definition ? html`<span>${excerpt(home.word.definition.definition, 70)}</span>` : null
-        }</span>`
-      : null
-  }<span class="ph-tabs"><i></i><i></i><i></i><i></i></span></span></a>`;
+const LANDING_WRAPPED_CARDS: readonly WrappedCard[] = ['cover', 'stats', 'events', 'news', 'posters'];
+
+/** A phone whose screen is the pueblo's fiestas summary, swiped card by card. */
+function wrappedPhone({ village: v, view }: NonNullable<Landing['wrapped']>): Child {
+  const cards = view.cards.filter((c) => LANDING_WRAPPED_CARDS.includes(c.card));
+  if (cards.length === 0) return null;
+  const href = wrappedPath(v.slug, view.year);
+  const step = (dir: 1 | -1) =>
+    `var t=this.closest('.wr').querySelector('.wr-track');t.scrollBy({left:${String(dir)}*t.clientWidth,behavior:'smooth'})`;
+  return html`<section class="blk" style="padding-top:0"><div class="in wr-split"><div><span class="eyebrow">Fiestas ${String(view.year)} · ${v.name}</span><h2>El resumen de vuestras fiestas</h2><p class="lead">Cuando acaban las fiestas, Cultuvilla prepara el resumen del pueblo: los eventos, las cifras, lo que se contó y los carteles de todos los años. Listo para compartir.</p><p><a class="cta" href="${href}">Ver el resumen de ${v.name} →</a></p></div><div class="wr"><div class="wr-phone"><div class="wr-track" tabindex="0" aria-label="${`Resumen de las fiestas ${String(view.year)} de ${v.name}`}">${cards.map(
+    (c, i) => html`<img src="${c.url}" alt="${`Tarjeta ${String(i + 1)} de ${String(cards.length)} del resumen de fiestas`}" width="1080" height="1920" loading="lazy" decoding="async"/>`,
+  )}</div></div><div class="wr-nav"><button type="button" aria-label="Anterior" onclick="${step(-1)}">‹</button><span>Desliza para ver más</span><button type="button" aria-label="Siguiente" onclick="${step(1)}">›</button></div></div></div></section>`;
 }
 
 /** A landing photograph from /brand/landing — Unsplash, credited in CREDITS.md there. */
@@ -439,7 +433,7 @@ function photo(name: string, alt: string, width: number, height: number, cls = '
  * The app's intro film (cultuvilla/motion, piece `intro`), muted so it may
  * autoplay. The sound toggle is fixed code: it reads nothing from the page.
  */
-const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/cultuvilla-intro-vertical.mp4" poster="/brand/landing/cultuvilla-intro-vertical.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video></span><button type="button" class="sound" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.currentTime=0;v.play();}this.textContent=v.muted?'Activar sonido':'Silenciar'">Activar sonido</button></figure>`;
+const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/cultuvilla-intro-vertical.mp4" poster="/brand/landing/cultuvilla-intro-vertical.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video></span><button type="button" class="sound" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.play();}this.textContent=v.muted?'Activar sonido':'Silenciar'">Activar sonido</button></figure>`;
 
 function storeButtons(): SafeHtml {
   return html`${APP_STORES.ios ? html`<a class="store" href="${APP_STORES.ios}"><small>Descárgala en el</small><b>App Store</b></a>` : null}${
@@ -455,17 +449,17 @@ const FAQ: [string, string][] = [
   ['¿Hace falta la app para ver un evento?', 'No. Cualquier evento, noticia o pueblo se abre en el navegador desde un enlace. Para apuntarte o publicar sí necesitas la app.'],
 ];
 
-export function homePage({ villages, showcase }: Landing): Page {
+export function homePage({ showcase, wrapped }: Landing): Page {
   const example = showcase?.home.events[0]?.href ?? (showcase ? villagePath(showcase.village.slug) : null);
   return {
     layout: 'landing',
     head: {
       title: 'Cultuvilla',
-      description: 'Gestiona y aviva la cultura de tu pueblo: sus fiestas, su historia, sus palabras y su gente, guardadas para siempre. Gratis para vecinos, peñas y ayuntamientos.',
+      description: 'Cuida la cultura de tu pueblo: sus fiestas, su historia, sus palabras y su gente, guardadas para siempre. Gratis para vecinos, peñas y ayuntamientos.',
       jsonLd: { '@type': 'WebSite', name: 'Cultuvilla', url: 'https://cultuvilla.es/' },
     },
     body: html`${BUNTING}
-<section class="in top"><div><img class="lettering" src="/brand/cultuvilla-lettering.svg" alt="Cultuvilla" width="6085" height="729"/><span class="eyebrow">Fiestas · Historia · Palabras · Vecinos</span><h1>Gestiona y aviva <em>la cultura de tu pueblo.</em></h1><p class="lead">La construyen sus propios vecinos y queda guardada para siempre.</p></div>${INTRO_VIDEO}</section>
+<section class="in top"><div><h1>Cuida <em>la cultura de tu pueblo.</em></h1><p class="lead">La construyen sus propios vecinos y queda guardada para siempre.</p></div>${INTRO_VIDEO}</section>
 <div class="strip" aria-hidden="true"><div class="strip-track">${[...FIESTAS, ...FIESTAS].map((f) => html`<span>${f} ✦</span>`)}</div></div>
 <section class="blk"><div class="in split"><ul class="mosaic">${(
       [
@@ -489,9 +483,7 @@ export function homePage({ villages, showcase }: Landing): Page {
       example ? html`<div class="url"><a href="${example}">cultuvilla.es${example}</a></div>` : null
     }</article>
 </div></div></section>
-${villages.length ? html`<section class="blk" style="padding-top:0"><div class="in teaser${showcase ? ' with-phone' : ''}"><div><span class="eyebrow">Ya están en Cultuvilla</span><h2>${villages.length} ${villages.length === 1 ? 'pueblo' : 'pueblos'} y contando</h2>${
-      showcase ? html`<p class="lead">Así se ve el perfil de ${showcase.village.name}, tal y como lo han ido construyendo sus vecinos.</p>` : null
-    }<p><a class="cta" href="/pueblos">Ver los pueblos →</a></p></div>${phone(showcase)}</div></section>` : null}
+${wrapped ? wrappedPhone(wrapped) : null}
 <section class="blk" style="padding-top:0"><div class="in"><div class="head"><span class="eyebrow">Cómo llega tu pueblo</span><h2>Tres pasos para poner tu pueblo en el mapa</h2></div><div class="steps">
 <div class="step"><h3>Pide ser Embajador</h3><p>Desde la app, busca tu municipio entre todos los de España y solicita activarlo.</p></div>
 <div class="step"><h3>Lo revisamos</h3><p>Comprobamos la solicitud y activamos la página de tu pueblo con su escudo.</p></div>
