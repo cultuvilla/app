@@ -182,4 +182,11 @@ await runMaestroSuite({
   reportDir: path.join(SUITE_DIR, 'report'),
   env: IOS_MAESTRO_ENV,
   beforeEachFlow: resetKeychain,
+  // One retry, iOS only. The free macOS runner (3 cores) hosts the Simulator,
+  // the app, the Firebase emulators and Maestro at once, and under that load a
+  // different flow lost a different race each run — a deep link timing out in
+  // simctl, a function worker slow to boot — while passing on the next. A flow
+  // that needs the retry is named FLAKY in the summary; one that fails twice
+  // still fails the gate. Android, on a 4-core Linux runner, retries nothing.
+  retries: 1,
 });

@@ -150,3 +150,24 @@ describe('backend assertions poll politely', () => {
     expect(read('scripts/lib/poll-pause-server.mjs')).toMatch(/E2E_POLL_PAUSE_PORT \|\| 9399/);
   });
 });
+
+// A retry may absorb a load-induced race, but never silently: a flow that
+// needed it is named FLAKY, and a flow failing every attempt still fails.
+describe('retries are loud and bounded', () => {
+  const lib = read('scripts/lib/maestro-suite.mjs');
+
+  it('names every flow that passed only on a retry', () => {
+    expect(lib).toMatch(/if \(status === 0 && attempt > 1\) flaky\.push\(name\)/);
+    expect(lib).toMatch(/FLAKY, passed only on retry/);
+  });
+
+  it('still fails a flow that fails every attempt', () => {
+    expect(lib).toMatch(/if \(status !== 0\) failed\.push\(name\)/);
+  });
+
+  it('retries once on iOS only; Android retries nothing', () => {
+    expect(read('scripts/run-ios-e2e.mjs')).toMatch(/retries: 1,/);
+    expect(read('scripts/run-android-e2e.mjs')).not.toMatch(/retries:/);
+    expect(lib).toMatch(/retries = 0,/);
+  });
+});

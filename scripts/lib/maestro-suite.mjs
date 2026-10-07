@@ -98,6 +98,8 @@ export function run(label, cmd, args, opts = {}) {
  *
  * `flow` optionally narrows the run to some flows — see `selectFlows`.
  * `shard` (`i/N`) runs this machine's slice of them — see `shardFlows`.
+ * `retries` re-runs a failed flow from a clean start that many times; one that
+ * passes only on a retry is reported as FLAKY by name, never silently.
  * `beforeEachFlow` runs before every flow: platform-specific state that
  * Maestro's `clearState` does not reach. Leftover backend docs are reset for
  * every platform here.
@@ -111,6 +113,7 @@ export async function runMaestroSuite({
   env = MAESTRO_ENV,
   beforeEachFlow = () => {},
   shard = process.env.E2E_SHARD,
+  retries = 0,
 }) {
   mkdirSync(reportDir, { recursive: true });
   const { flows, skipped } = planFlows({ label, quarantined, flow, shard });
@@ -122,39 +125,50 @@ export async function runMaestroSuite({
   }
 
   const failed = [];
+  const flaky = [];
   for (const name of flows) {
-    console.log(`\n[${label}] ─── ${name} ───`);
-    await beforeEachFlow(name);
-    await deleteLeftoverDocs(label);
-    const status = run(
-      label,
-      MAESTRO,
-      [
-        '--device',
-        device,
-        'test',
-        path.join(FLOWS_DIR, name),
-        '--format',
-        'junit',
-        '--output',
-        path.join(reportDir, `${name.replace(/\.yaml$/, '')}.xml`),
-      ],
-      { env, timeout: MAESTRO_CALL_TIMEOUT_MS },
-    );
+    let status = 1;
+    for (let attempt = 1; attempt <= 1 + retries && status !== 0; attempt++) {
+      const retry = attempt > 1 ? ` (retry ${attempt - 1}/${retries})` : '';
+      console.log(`\n[${label}] ─── ${name}${retry} ───`);
+      await beforeEachFlow(name);
+      await deleteLeftoverDocs(label);
+      status = run(
+        label,
+        MAESTRO,
+        [
+          '--device',
+          device,
+          'test',
+          path.join(FLOWS_DIR, name),
+          '--format',
+          'junit',
+          '--output',
+          path.join(reportDir, `${name.replace(/\.yaml$/, '')}${attempt > 1 ? `.retry${attempt - 1}` : ''}.xml`),
+        ],
+        { env, timeout: MAESTRO_CALL_TIMEOUT_MS },
+      );
+      if (status === 0 && attempt > 1) flaky.push(name);
+    }
     if (status !== 0) failed.push(name);
   }
 
   const quarantineNote = skipped.length
     ? ` (${skipped.length} quarantined and NOT run: ${skipped.join(', ')})`
     : '';
+  // A flow that needed its retry passed, but it is not healthy: name it on
+  // every run, like a quarantine, so flakiness is visible rather than absorbed.
+  const flakyNote = flaky.length ? ` (${flaky.length} FLAKY, passed only on retry: ${flaky.join(', ')})` : '';
+  for (const name of flaky) console.warn(`[${label}] !! FLAKY, passed only on retry: ${name}`);
 
   if (failed.length > 0) {
     console.error(`\n[${label}] ${failed.length}/${flows.length} flow(s) failed:`);
     for (const name of failed) console.error(`  - ${name}`);
     if (quarantineNote) console.error(`[${label}]${quarantineNote}`);
+    if (flakyNote) console.error(`[${label}]${flakyNote}`);
     process.exit(1);
   }
-  console.log(`\n[${label}] all ${flows.length} flow(s) passed${quarantineNote}`);
+  console.log(`\n[${label}] all ${flows.length} flow(s) passed${quarantineNote}${flakyNote}`);
   process.exit(0);
 }
 
