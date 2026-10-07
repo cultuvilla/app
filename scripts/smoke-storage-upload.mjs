@@ -58,14 +58,20 @@ const PNG = Buffer.from(
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function smokeUserPassword() {
-  const password = randomBytes(24).toString('base64url');
+/**
+ * Make the smoke account exactly the user the header promises: a fresh
+ * password, enabled, and no custom claims. Claims are cleared every run — an
+ * admin claim granted to it by hand would make every rule pass and hide the
+ * very denial this smoke exists to catch.
+ */
+export async function provisionSmokeUser(auth, password = randomBytes(24).toString('base64url')) {
   try {
-    await admin.auth().updateUser(SMOKE_UID, { password });
+    await auth.updateUser(SMOKE_UID, { password, disabled: false });
   } catch (err) {
     if (err?.code !== 'auth/user-not-found') throw err;
-    await admin.auth().createUser({ uid: SMOKE_UID, email: SMOKE_EMAIL, password, emailVerified: true });
+    await auth.createUser({ uid: SMOKE_UID, email: SMOKE_EMAIL, password, emailVerified: true });
   }
+  await auth.setCustomUserClaims(SMOKE_UID, null);
   return password;
 }
 
@@ -152,7 +158,7 @@ async function main() {
     .get();
   if (village.empty) throw new Error(`no active village in ${env} to upload against`);
 
-  const token = await idToken(apiKey, await smokeUserPassword());
+  const token = await idToken(apiKey, await provisionSmokeUser(admin.auth()));
   const results = await runSmoke({ bucket, paths: smokePaths(village.docs[0].id), token });
 
   for (const r of results) console.log(`${r.ok ? '✅' : '❌'} ${r.path} — ${r.status}`);

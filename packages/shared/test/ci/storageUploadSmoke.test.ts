@@ -4,10 +4,12 @@ import { resolve } from 'node:path';
 import {
   SMOKE_UID,
   failureMessage,
+  provisionSmokeUser,
   runSmoke,
   smokePaths,
   upload,
   uploadUrl,
+  type SmokeAuth,
 } from '../../../../scripts/smoke-storage-upload.mjs';
 
 // 2026-10-07: storage.rules gated image writes on cross-service
@@ -128,5 +130,47 @@ describe('smoke verdict', () => {
   it('passes only when every upload passed, and never on an empty run', () => {
     expect(failureMessage('dev', [{ path: 'p', ok: true, status: 'HTTP 200' }])).toBeNull();
     expect(failureMessage('dev', [])).toMatch(/uploaded nothing/);
+  });
+});
+
+describe('smoke account', () => {
+  function fakeAuth(exists: boolean) {
+    const notFound = Object.assign(new Error('no user'), { code: 'auth/user-not-found' });
+    return {
+      updateUser: vi.fn<SmokeAuth['updateUser']>(() =>
+        exists ? Promise.resolve({}) : Promise.reject(notFound),
+      ),
+      createUser: vi.fn<SmokeAuth['createUser']>(() => Promise.resolve({})),
+      setCustomUserClaims: vi.fn<SmokeAuth['setCustomUserClaims']>(() => Promise.resolve()),
+    };
+  }
+
+  it('resets an existing account: new password, enabled, and no claims', async () => {
+    const auth = fakeAuth(true);
+    await expect(provisionSmokeUser(auth, 'pw')).resolves.toBe('pw');
+    expect(auth.updateUser).toHaveBeenCalledWith(SMOKE_UID, { password: 'pw', disabled: false });
+    expect(auth.createUser).not.toHaveBeenCalled();
+    expect(auth.setCustomUserClaims).toHaveBeenCalledWith(SMOKE_UID, null);
+  });
+
+  it('creates the account when it does not exist, and still clears claims', async () => {
+    const auth = fakeAuth(false);
+    await provisionSmokeUser(auth, 'pw');
+    expect(auth.createUser).toHaveBeenCalledWith(expect.objectContaining({ uid: SMOKE_UID, password: 'pw' }));
+    expect(auth.setCustomUserClaims).toHaveBeenCalledWith(SMOKE_UID, null);
+  });
+
+  it('fails on any other Auth error instead of creating a second account', async () => {
+    const auth = fakeAuth(true);
+    auth.updateUser.mockRejectedValueOnce(Object.assign(new Error('quota'), { code: 'auth/quota-exceeded' }));
+    await expect(provisionSmokeUser(auth, 'pw')).rejects.toThrow('quota');
+    expect(auth.createUser).not.toHaveBeenCalled();
+  });
+
+  it('generates a fresh password when none is given', async () => {
+    const a = await provisionSmokeUser(fakeAuth(true));
+    const b = await provisionSmokeUser(fakeAuth(true));
+    expect(a).not.toBe(b);
+    expect(a.length).toBeGreaterThanOrEqual(24);
   });
 });
