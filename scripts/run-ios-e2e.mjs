@@ -30,7 +30,17 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { MAESTRO, MAESTRO_ENV, ROOT, SUITE_DIR, arg, planFlows, run, runMaestroSuite } from './lib/maestro-suite.mjs';
+import {
+  MAESTRO,
+  MAESTRO_CALL_TIMEOUT_MS,
+  MAESTRO_ENV,
+  ROOT,
+  SUITE_DIR,
+  arg,
+  planFlows,
+  run,
+  runMaestroSuite,
+} from './lib/maestro-suite.mjs';
 
 const LABEL = 'ios-e2e';
 
@@ -154,7 +164,7 @@ for (let attempt = 1; attempt <= 2 && trusted !== 0; attempt++) {
     LABEL,
     MAESTRO,
     ['--device', device, 'test', path.join(SUITE_DIR, 'ios', 'trust-deep-links.yaml')],
-    { env: IOS_MAESTRO_ENV },
+    { env: IOS_MAESTRO_ENV, timeout: MAESTRO_CALL_TIMEOUT_MS },
   );
 }
 if (trusted !== 0) {

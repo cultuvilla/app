@@ -57,8 +57,19 @@ export function arg(name) {
   return i === -1 ? undefined : process.argv[i + 1];
 }
 
+// A Maestro call must end, pass or fail. On iOS its XCTest driver can wedge —
+// shard 1 of an early sharded run threw `deviceInfo … 500` and then sat until
+// the job's 75-minute timeout, so its six flows reported nothing at all. Kill
+// a call that outlives this and count it as a failure; the next flow gets a
+// fresh Maestro.
+export const MAESTRO_CALL_TIMEOUT_MS = Number(process.env.E2E_FLOW_TIMEOUT_MS || 15 * 60_000);
+
 export function run(label, cmd, args, opts = {}) {
-  const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, ...opts });
+  const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, killSignal: 'SIGKILL', ...opts });
+  if (res.error?.code === 'ETIMEDOUT') {
+    console.error(`[${label}] ${cmd} ran past ${opts.timeout / 1000}s and was killed`);
+    return 1;
+  }
   if (res.error) {
     console.error(`[${label}] failed to spawn ${cmd}: ${res.error.message}`);
     process.exit(1);
@@ -127,7 +138,7 @@ export async function runMaestroSuite({
         '--output',
         path.join(reportDir, `${name.replace(/\.yaml$/, '')}.xml`),
       ],
-      { env },
+      { env, timeout: MAESTRO_CALL_TIMEOUT_MS },
     );
     if (status !== 0) failed.push(name);
   }

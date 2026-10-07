@@ -1,0 +1,26 @@
+# Tap a native Alert's confirming button — the one right of "Cancelar".
+#
+# Two traps, both seen on iOS:
+#  - Maestro matches text case-insensitively, and the alert's TITLE (and often
+#    an icon's label behind it) carry the same word as the button, so a bare
+#    text tap can land on any of them. `rightOf: 'Cancelar'` picks the button on
+#    both platforms (Android's Material dialog upper-cases both labels).
+#  - A tap during the alert's presentation animation is swallowed: Maestro
+#    reports it COMPLETED, the button highlights, and the alert stays up. So wait
+#    for the animation, and re-tap while the button is still there.
+appId: com.cultuvilla.app.dev
+---
+- waitForAnimationToEnd:
+    timeout: 3000
+- repeat:
+    times: 3
+    while:
+      visible:
+        text: ${BUTTON}
+        rightOf: 'Cancelar'
+    commands:
+      - tapOn:
+          text: ${BUTTON}
+          rightOf: 'Cancelar'
+      - waitForAnimationToEnd:
+          timeout: 3000

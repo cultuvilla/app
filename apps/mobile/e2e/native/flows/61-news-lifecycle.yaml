@@ -110,7 +110,10 @@ env:
 - tapOn:
     id: 'news-delete'
 # Native Alert button: common.delete, upper-cased by the Material dialog.
-- tapOn: 'ELIMINAR'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
 - runScript:
     file: ../scripts/docField.js
     env:

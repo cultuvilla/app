@@ -24,11 +24,14 @@ env:
 - tapOn: 'Explora(,.*)?'
 # The feed can open on its Artículos half; the label renders upper-cased.
 - tapOn: '(?i)eventos'
+# On iOS an event card is ONE accessibility element whose label joins all its
+# texts ("Cena Privada E2E, Merendero, …"), and Maestro matches a selector
+# against the whole label — so the bare title never matches there.
 - scrollUntilVisible:
-    element: ${EVENT_TITLE}
+    element: '.*${EVENT_TITLE}.*'
     timeout: 45000
 
 - openLink: 'cultuvilla://mi-pueblo?villageId=${VILLAGE_ID}'
 - scrollUntilVisible:
-    element: ${EVENT_TITLE}
+    element: '.*${EVENT_TITLE}.*'
     timeout: 45000

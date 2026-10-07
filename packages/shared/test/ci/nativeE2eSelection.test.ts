@@ -112,3 +112,19 @@ describe('shardFlows', () => {
     expect(() => shardFlows(discovered, 'two')).toThrow(/E2E_SHARD/);
   });
 });
+
+// A wedged Maestro once held a shard until the job timed out, reporting
+// nothing for six flows. Every Maestro call is bounded and a kill is a failure.
+describe('a hung Maestro call is bounded', () => {
+  const lib = read('scripts/lib/maestro-suite.mjs');
+
+  it('kills a call that outlives its budget and reports it as failed', () => {
+    expect(lib).toMatch(/killSignal: 'SIGKILL'/);
+    expect(lib).toMatch(/ETIMEDOUT'\) \{[\s\S]{0,160}return 1;/);
+  });
+
+  it('bounds every flow, and the iOS trust step', () => {
+    expect(lib).toMatch(/\{ env, timeout: MAESTRO_CALL_TIMEOUT_MS \}/);
+    expect(read('scripts/run-ios-e2e.mjs')).toMatch(/timeout: MAESTRO_CALL_TIMEOUT_MS/);
+  });
+});
