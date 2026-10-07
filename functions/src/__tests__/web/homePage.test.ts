@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { describe, it, expect } from 'vitest';
 import type { Card, Village, VillageHome, WrappedView } from '../../web/data';
 import { renderDocument } from '../../web/document';
@@ -73,17 +74,28 @@ describe('homePage', () => {
     expect(body({ villages: [matabuena], showcase, wrapped: null })).not.toContain('class="wr-track"');
   });
 
-  it('unmutes the intro film where it is, without restarting it', () => {
+  it('unmutes the intro film where it is, without restarting it, and mutes it again', () => {
     const out = body({ villages: [], showcase: null, wrapped: null });
     expect(out).toContain('cultuvilla-intro-vertical.mp4');
-    expect(out).not.toContain('currentTime');
+    const onclick = /class="sound" onclick="([^"]*)"/.exec(out)?.[1];
+    if (!onclick) throw new Error('the sound toggle has no handler');
+    const video = { muted: true, currentTime: 12.5, plays: 0, play() { this.plays += 1; } };
+    const button = { textContent: 'Activar sonido', parentNode: { querySelector: () => video } };
+    // The handler runs as the button: in a fresh vm context, top-level `this` is the context object.
+    const click = () => runInNewContext(onclick.replace(/&#39;/g, "'").replace(/&quot;/g, '"'), button);
+    click();
+    expect(video).toMatchObject({ muted: false, currentTime: 12.5, plays: 1 });
+    expect(button.textContent).toBe('Silenciar');
+    click();
+    expect(video).toMatchObject({ muted: true, currentTime: 12.5, plays: 1 });
+    expect(button.textContent).toBe('Activar sonido');
   });
 
   it('keeps the full showcase and the pueblo list on /pueblos, not on the home', () => {
-    const home = body({ villages: [matabuena], showcase });
+    const home = body({ villages: [matabuena], showcase, wrapped: null });
     expect(home).not.toContain('Así se vive');
     expect(home).not.toContain('class="villages"');
-    const out = villagesBody({ villages: [matabuena, village('pedraza', 'Pedraza')], showcase });
+    const out = villagesBody({ villages: [matabuena, village('pedraza', 'Pedraza')], showcase, wrapped: null });
     expect(out).toContain('Así se vive Matabuena en Cultuvilla');
     expect(out).toContain('href="/matabuena/carteles"');
     expect(out).toContain('2 pueblos y contando');
@@ -91,7 +103,7 @@ describe('homePage', () => {
   });
 
   it('falls back to the original upload when a card variant is missing', () => {
-    const out = villagesBody({ villages: [], showcase });
+    const out = villagesBody({ villages: [], showcase, wrapped: null });
     expect(out).toContain('data-fallback="https://img/o1.jpg" onerror="this.onerror=null;this.src=this.dataset.fallback"');
   });
 
@@ -122,7 +134,7 @@ describe('homePage', () => {
   it('serves every landing photo and video from Hosting and credits it', () => {
     const dir = resolve(__dirname, '../../../../web/public/brand/landing');
     const credits = readFileSync(resolve(dir, 'CREDITS.md'), 'utf8');
-    const pages = [body({ villages: [matabuena], showcase }), villagesBody({ villages: [matabuena], showcase })].join('');
+    const pages = [body({ villages: [matabuena], showcase, wrapped: null }), villagesBody({ villages: [matabuena], showcase, wrapped: null })].join('');
     const styles = renderDocument(homePage({ villages: [], showcase: null, wrapped: null }), { canonical: 'https://x/', appPath: '/' });
     const names = new Set([...`${pages}${styles}`.matchAll(/\/brand\/landing\/([a-z-]+\.(?:webp|mp4))/g)].map((m) => m[1]));
     expect(names.size).toBeGreaterThanOrEqual(10);
