@@ -146,6 +146,17 @@ describe('the announce poller', () => {
     expect(step(poller, 'pnpm install')).toContain("steps.pending.outputs.pending == 'true'");
   });
 
+  // checkout's clean deletes the credentials file the first auth wrote into the
+  // workspace, so the poll needs its own auth after checkout.
+  it('authenticates again after checkout, before the poll', () => {
+    const poll = job(poller, 'poll');
+    const checkout = poll.indexOf('actions/checkout');
+    const reauth = poll.indexOf('google-github-actions/auth', checkout);
+    expect(checkout).toBeGreaterThan(-1);
+    expect(reauth).toBeGreaterThan(checkout);
+    expect(reauth).toBeLessThan(poll.indexOf('release-announce.mjs poll'));
+  });
+
   it('asks both stores with their credentials', () => {
     const poll = step(poller, 'release-announce.mjs poll');
     for (const name of ['GOOGLE_PLAY_SERVICE_ACCOUNT_JSON', 'APPLE_ASC_API_KEY_P8', 'APPLE_ASC_KEY_ID', 'APPLE_ASC_ISSUER_ID', 'ASC_APP_ID']) {
