@@ -83,22 +83,56 @@ async function idToken(apiKey, password) {
   return body.idToken;
 }
 
-// A rules release takes up to a minute to reach every Storage frontend, so a
-// smoke run straight after `firebase deploy --only storage` retries a refusal.
-async function upload(bucket, path, token, { attempts = 6, delayMs = 15_000 } = {}) {
+/** Whether a refused upload may succeed on a later attempt. */
+export function isRetryable(status) {
+  return status === 403 || status >= 500;
+}
+
+// A refusal straight after a rules deploy can be the previous ruleset still
+// being served, so a 403 (and any 5xx or network error) is retried.
+export async function upload(
+  bucket,
+  path,
+  token,
+  { attempts = 6, delayMs = 15_000, fetchImpl = fetch, sleepImpl = sleep } = {},
+) {
   let last = '';
   for (let i = 1; i <= attempts; i++) {
-    const res = await fetch(uploadUrl(bucket, path), {
-      method: 'POST',
-      headers: { Authorization: `Firebase ${token}`, 'Content-Type': 'image/png' },
-      body: PNG,
-    });
-    if (res.ok) return { path, ok: true, status: res.status };
-    last = `HTTP ${res.status}`;
-    if (res.status !== 403 && res.status < 500) break;
-    if (i < attempts) await sleep(delayMs);
+    let status;
+    try {
+      const res = await fetchImpl(uploadUrl(bucket, path), {
+        method: 'POST',
+        headers: { Authorization: `Firebase ${token}`, 'Content-Type': 'image/png' },
+        body: PNG,
+      });
+      if (res.ok) return { path, ok: true, status: `HTTP ${res.status}` };
+      status = res.status;
+      last = `HTTP ${status}`;
+    } catch (err) {
+      last = err instanceof Error ? err.message : String(err);
+    }
+    if (status !== undefined && !isRetryable(status)) break;
+    if (i < attempts) await sleepImpl(delayMs);
   }
   return { path, ok: false, status: last };
+}
+
+/** Upload every path in turn; resolves to one result per path. */
+export async function runSmoke({ bucket, paths, token, uploadImpl = upload }) {
+  const results = [];
+  for (const path of paths) results.push(await uploadImpl(bucket, path, token));
+  return results;
+}
+
+/** The deploy-failing error for these results, or null when every upload passed. */
+export function failureMessage(env, results) {
+  const failed = results.filter((r) => !r.ok);
+  if (results.length === 0) return `::error::Storage upload smoke on ${env} uploaded nothing.`;
+  if (failed.length === 0) return null;
+  return (
+    `::error::Storage refuses ${failed.length} upload path(s) on ${env} for a signed-in user. ` +
+    'Every image upload on those paths fails in the app. Check storage.rules (see its header).'
+  );
 }
 
 async function main() {
@@ -119,16 +153,12 @@ async function main() {
   if (village.empty) throw new Error(`no active village in ${env} to upload against`);
 
   const token = await idToken(apiKey, await smokeUserPassword());
-  const results = [];
-  for (const path of smokePaths(village.docs[0].id)) results.push(await upload(bucket, path, token));
+  const results = await runSmoke({ bucket, paths: smokePaths(village.docs[0].id), token });
 
   for (const r of results) console.log(`${r.ok ? '✅' : '❌'} ${r.path} — ${r.status}`);
-  const failed = results.filter((r) => !r.ok);
-  if (failed.length) {
-    console.error(
-      `::error::Storage refuses ${failed.length} upload path(s) on ${env} for a signed-in user. ` +
-        'Every image upload on those paths fails in the app. Check storage.rules (no cross-service firestore.get — see its header).',
-    );
+  const error = failureMessage(env, results);
+  if (error) {
+    console.error(error);
     process.exit(1);
   }
 }
