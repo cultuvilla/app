@@ -68,6 +68,7 @@ jobs:
       actions: write # dispatch deploy-prod.yml for a held backend
       contents: read
       id-token: write # Workload Identity Federation
+      issues: write # tell the user a held release is ready to publish
     steps:
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
@@ -157,3 +158,49 @@ jobs:
         run: |
           gh workflow run deploy-prod.yml --repo "${REPO}" --ref main -f backend_sha="${SHA}"
           echo "- Held backend dispatched: deploy-prod.yml @ \`${SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # A held (breaking) release both stores approved: the user releases it.
+      # An issue, because it reaches their inbox — a run summary nobody opens
+      # would leave the release sitting approved. RELEASE_MANAGER (repo
+      # variable, a GitHub username) is @-mentioned.
+      - name: Tell the user the release is ready
+        if: ${{ steps.poll.outputs.ready == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.poll.outputs.version }}
+          MANAGER: ${{ vars.RELEASE_MANAGER }}
+        run: |
+          mention=""; [ -n "${MANAGER}" ] && mention="@${MANAGER} "
+          gh issue create --repo "${REPO}" --title "Release ${VERSION}: approved in both stores" --body "${mention}**v${VERSION}** (breaking) is approved by Apple and Google and is waiting for you. Nothing of it is live yet.
+
+          Release it — both at the same moment:
+          1. **Play Console** → Publishing overview → **Publish** (managed publishing; Google has no API for it).
+          2. \`pnpm release:publish\` (or Actions → *Release publish*): runs the backfills, deploys rules, storage, functions and hosting, then releases iOS.
+
+          The poller then raises the wall to ${VERSION} and announces once both stores serve it, and closes this issue. Afterwards, **switch managed publishing off** in the Play Console."
+
+      - name: Alert that a held release went live on one store early
+        if: ${{ steps.poll.outputs.published_early != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.poll.outputs.version }}
+          PLATFORMS: ${{ steps.poll.outputs.published_early }}
+          MANAGER: ${{ vars.RELEASE_MANAGER }}
+        run: |
+          mention=""; [ -n "${MANAGER}" ] && mention="@${MANAGER} "
+          gh issue create --repo "${REPO}" --title "Release ${VERSION}: live on ${PLATFORMS} before the other store approved" --body "${mention}Breaking **v${VERSION}** is live on **${PLATFORMS}** while its backend is still held, so those users run the new app against the old backend. Most likely Play managed publishing was off when it merged.
+
+          Options: wait for the other store and then \`pnpm release:publish\`, or release the backend now with Actions → *Release publish* → \`force\` (installed older apps then meet the new backend before the wall can be raised)."
+
+      - name: Close the release issue
+        if: ${{ steps.poll.outputs.done == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.poll.outputs.version }}
+        run: |
+          for n in $(gh issue list --repo "${REPO}" --state open --search "\"Release ${VERSION}:\" in:title" --json number --jq '.[].number'); do
+            gh issue close "${n}" --repo "${REPO}" --comment "v${VERSION} is live in both stores, the wall is at ${VERSION} and the backend is deployed. **Switch Play managed publishing off now** — left on, it holds the next release's Android rollout."
+          done

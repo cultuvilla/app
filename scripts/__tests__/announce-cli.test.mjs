@@ -38,10 +38,11 @@ function fakeDb(initial = {}) {
   };
 }
 
-const ascOnSale = (version) => async () => ({
-  data: [{ id: 'v1', attributes: { versionString: version, appStoreState: 'READY_FOR_SALE' }, relationships: { build: { data: { id: 'b1' } } } }],
+const ascIn = (version, appStoreState) => async () => ({
+  data: [{ id: 'v1', attributes: { versionString: version, appStoreState }, relationships: { build: { data: { id: 'b1' } } } }],
   included: [{ type: 'builds', id: 'b1', attributes: { version: '7' } }],
 });
+const ascOnSale = (version) => ascIn(version, 'READY_FOR_SALE');
 
 /** A context whose world is fully in memory; `outputs` collects $GITHUB_OUTPUT. */
 function harness({ db, breaking = false, version = '1.6.0', commitMessage = '', play, asc } = {}) {
@@ -92,7 +93,7 @@ describe('runCli', () => {
     for (const f of readdirSync(dir)) {
       for (const m of readFileSync(path.join(dir, f), 'utf8').matchAll(/release-announce\.mjs ([\w-]+)/g)) used.add(m[1]);
     }
-    assert.deepEqual([...used].sort(), ['finish', 'plan', 'poll', 'record', 'record-android']);
+    assert.deepEqual([...used].sort(), ['finish', 'plan', 'poll', 'ready', 'record', 'record-android']);
     for (const c of used) assert.ok(COMMANDS[c], `${c} not registered`);
   });
 
@@ -177,14 +178,44 @@ describe('poll → deploy_sha output', () => {
     assert.ok(db.docs.has(P), 'left for the deploy to finish');
   });
 
-  it('announces nothing while Play still reviews the release', async () => {
+  // A held release on sale in one store while the other still reviews it is
+  // the 1.7.1 failure: those users run the new app against the old backend.
+  it('announces nothing while Play still reviews, and alerts once that iOS went out early', async () => {
     const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0'), [P]: heldPending });
     const h = harness({ db, play: playIn(PLAY_LIFECYCLE.IN_REVIEW), asc: ascOnSale('1.6.0') });
     await h.run('poll', '--env=prod');
     assert.equal(h.outputs.deploy_sha, undefined);
     assert.equal(db.docs.get(CONFIG_DOC).android.latest, '1.5.0');
     assert.equal(db.docs.get(CONFIG_DOC).ios.latest, '1.6.0', 'iOS does not wait for Play');
-    assert.deepEqual(h.warnings, []);
+    assert.equal(h.outputs.published_early, 'ios');
+    assert.ok(db.docs.get(P).earlyAlertedAt);
+
+    const again = harness({ db, play: playIn(PLAY_LIFECYCLE.IN_REVIEW), asc: ascOnSale('1.6.0') });
+    await again.run('poll', '--env=prod');
+    assert.equal(again.outputs.published_early, undefined, 'said once');
+  });
+
+  // Both stores approved, neither published: the manual release is the user's.
+  it('says once that a held release is ready when both stores approved it', async () => {
+    const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0'), [P]: heldPending });
+    const asc = ascIn('1.6.0', 'PENDING_DEVELOPER_RELEASE');
+    const h = harness({ db, play: playIn(PLAY_LIFECYCLE.APPROVED_NOT_PUBLISHED), asc });
+    await h.run('poll', '--env=prod');
+    assert.equal(h.outputs.ready, 'true');
+    assert.equal(h.outputs.deploy_sha, undefined, 'nothing ships before a person releases it');
+    assert.equal(db.docs.get(CONFIG_DOC).ios.latest, '1.5.0');
+    assert.ok(db.docs.get(P).readyNotifiedAt);
+
+    const again = harness({ db, play: playIn(PLAY_LIFECYCLE.APPROVED_NOT_PUBLISHED), asc });
+    await again.run('poll', '--env=prod');
+    assert.equal(again.outputs.ready, undefined, 'said once');
+  });
+
+  it('warns every tick while an unheld release waits under managed publishing', async () => {
+    const db = fakeDb({ [CONFIG_DOC]: config('1.5.0', '1.5.0'), [P]: { ...heldPending, holdBackend: false, breaking: false } });
+    const h = harness({ db, play: playIn(PLAY_LIFECYCLE.APPROVED_NOT_PUBLISHED), asc: ascOnSale('1.6.0') });
+    await h.run('poll', '--env=prod');
+    assert.ok(h.warnings.some((w) => /managed publishing is still on/.test(w)));
   });
 
   it('puts a Play rejection in the run summary and warns', async () => {
@@ -237,5 +268,43 @@ describe('finish', () => {
 
   it('needs --sha', async () => {
     await assert.rejects(harness({ db: fakeDb() }).run('finish', '--env=prod'), /finish needs --sha/);
+  });
+});
+
+describe('ready (release:publish)', () => {
+  const held = {
+    version: '1.6.0',
+    breaking: true,
+    reasons: ['r'],
+    holdBackend: true,
+    releaseSha: 'sha-rel',
+    backendSha: 'sha-fix',
+    androidVersionCode: '42',
+    announced: { ios: false, android: false },
+    recordedAt: new Date(NOW).toISOString(),
+  };
+  const playIn = (state) => ({
+    listReleases: async () => ({ releases: [{ releaseName: '1.6.0', activeArtifacts: [{ versionCode: '42' }], releaseLifecycleState: state }] }),
+    getTrack: async () => ({ releases: [{ versionCodes: ['42'], status: 'completed' }] }),
+  });
+
+  it('hands the held backend over once both stores approved it', async () => {
+    const h = harness({ db: fakeDb({ [P]: held }), play: playIn(PLAY_LIFECYCLE.APPROVED_NOT_PUBLISHED), asc: ascIn('1.6.0', 'PENDING_DEVELOPER_RELEASE') });
+    await h.run('ready', '--env=prod');
+    assert.equal(h.outputs.version, '1.6.0');
+    assert.equal(h.outputs.backend_sha, 'sha-fix');
+  });
+
+  it('refuses while a store has not approved, unless forced', async () => {
+    const mk = () => harness({ db: fakeDb({ [P]: held }), play: playIn(PLAY_LIFECYCLE.IN_REVIEW), asc: ascIn('1.6.0', 'PENDING_DEVELOPER_RELEASE') });
+    await assert.rejects(mk().run('ready', '--env=prod'), /not approved on android/);
+    const forced = mk();
+    await forced.run('ready', '--env=prod', '--force');
+    assert.equal(forced.outputs.backend_sha, 'sha-fix');
+  });
+
+  it('refuses when nothing is held', async () => {
+    await assert.rejects(harness({ db: fakeDb({}) }).run('ready', '--env=prod'), /nothing pending/);
+    await assert.rejects(harness({ db: fakeDb({ [P]: { ...held, holdBackend: false } }) }).run('ready', '--env=prod'), /not held/);
   });
 });

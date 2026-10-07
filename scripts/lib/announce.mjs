@@ -10,8 +10,15 @@
  *      `_admin/announce/pending/{env}` for the poller — `nextPending`.
  *   3. ANNOUNCE (announce-when-live.yml, every 30 min). Per platform, the
  *      moment its store serves the version, `config/appVersion.<platform>.latest`
- *      moves to it. Once BOTH do, a breaking release raises `minSupported` and
- *      the held backend is dispatched — `planTick`.
+ *      moves to it. Once BOTH do, a breaking release raises `minSupported` —
+ *      `planTick`.
+ *
+ * A breaking release is released by a person, not by the stores: iOS is
+ * submitted with a manual release and Play holds it under managed publishing,
+ * so an approval publishes nothing. Once BOTH stores have approved, the poller
+ * says so (`ready`), and `pnpm release:publish` ships the held backend and
+ * releases iOS while the user presses Publish in the Play Console. Should both
+ * stores go live without it, the poller still dispatches the held backend.
  *
  * No IO here; every network answer is passed in. See
  * docs/decisions/announce-when-live-poller.md.
@@ -34,6 +41,16 @@ export const STALE_DAYS = 7;
 
 /** App Store states in which anyone can download the version. */
 export const IOS_LIVE_STATES = new Set(['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION']);
+
+/**
+ * App Store states past App Review: waiting for the manual release, being
+ * processed after it, or live.
+ */
+export const IOS_APPROVED_STATES = new Set([
+  ...IOS_LIVE_STATES,
+  'PENDING_DEVELOPER_RELEASE',
+  'PROCESSING_FOR_DISTRIBUTION',
+]);
 
 /**
  * Play's release lifecycle (applications.tracks.releases.list) — the one API
@@ -199,8 +216,16 @@ export function nextPending(existing, { version, sha, breaking, reasons, hold, n
  *   clear       delete the pending doc (live everywhere, no backend held). A
  *               held release is cleared by its own deploy, on success only.
  *   waitingOn   platforms still not live
+ *   ready       a held release both stores have approved: time for
+ *               `pnpm release:publish` (first tick only)
+ *   publishedEarly  platforms a held release went live on before the other
+ *               store approved it (first tick only)
+ *   stuckUnpublished  an unheld release Play approved but did not publish:
+ *               managed publishing is still on
+ *
+ * `approved` and `awaitingPublish` are per platform, from the store checks.
  */
-export function planTick(pending, { live, stored, now = Date.now() }) {
+export function planTick(pending, { live, approved = {}, awaitingPublish = {}, stored, now = Date.now() }) {
   const version = pending.version;
   const before = pending.announced ?? { ios: false, android: false };
   const newlyLive = PLATFORMS.filter((p) => live?.[p] && !before[p]);
@@ -226,10 +251,30 @@ export function planTick(pending, { live, stored, now = Date.now() }) {
   const held = bothLive && Boolean(pending.holdBackend);
   const deploySha = held && !awaitingDeploy ? pending.backendSha ?? pending.releaseSha ?? null : null;
 
+  // A held release waits for a person once both stores approve it. Said once.
+  const isApproved = (p) => Boolean(announced[p] || live?.[p] || approved?.[p]);
+  const bothApproved = PLATFORMS.every(isApproved);
+  const ready = Boolean(pending.holdBackend) && bothApproved && !bothLive && !pending.readyNotifiedAt;
+
+  // A held release live on one store while the other has not approved it: the
+  // store published on approval (Play managed publishing was off), and its
+  // users now run the new binary against the old backend. Said once.
+  const publishedEarly = Boolean(pending.holdBackend) && !pending.earlyAlertedAt
+    ? PLATFORMS.filter((p) => live?.[p] && !isApproved(PLATFORMS.find((q) => q !== p)))
+    : [];
+
+  // An unheld release approved by Play but not published: managed publishing
+  // was left on after a breaking release, and nothing goes out until a person
+  // presses Publish. Said every tick — it does not fix itself.
+  const stuckUnpublished = !pending.holdBackend && Boolean(awaitingPublish?.android);
+
   return {
     config: writes ? { latestFor, minSupported } : null,
     announced,
     newlyLive,
+    ready,
+    publishedEarly,
+    stuckUnpublished,
     deploySha,
     retry: Boolean(deploySha && Number.isFinite(requestedAt)),
     awaitingDeploy: held && awaitingDeploy,
@@ -272,11 +317,15 @@ export function interpretPlayLifecycle(list, { versionCode, version }) {
   const rel = via === 'versionCode'
     ? releases.find((r) => (r.activeArtifacts ?? []).some((a) => String(a?.versionCode) === String(versionCode)))
     : releases.find((r) => versionNameRe(version).test(String(r.releaseName ?? '')));
-  if (!rel) return { found: false, published: false, rejected: false, known: true, state: null, versionCodes: [], via };
+  if (!rel) {
+    return { found: false, published: false, approved: false, awaitingPublish: false, rejected: false, known: true, state: null, versionCodes: [], via };
+  }
   const state = rel.releaseLifecycleState ?? null;
   return {
     found: true,
     published: state === PLAY_LIFECYCLE.PUBLISHED,
+    approved: state === PLAY_LIFECYCLE.PUBLISHED || state === PLAY_LIFECYCLE.APPROVED_NOT_PUBLISHED,
+    awaitingPublish: state === PLAY_LIFECYCLE.APPROVED_NOT_PUBLISHED,
     rejected: state === PLAY_LIFECYCLE.NOT_APPROVED,
     known: KNOWN_PLAY_LIFECYCLE.has(state),
     state,
@@ -340,7 +389,10 @@ export function decideAndroidLive({ lifecycle, rollout, track = 'production' }) 
     return { live: false, rejected: false, unknown: true, detail: `${track} release in an unknown lifecycle state ${state}` };
   }
   if (!lifecycle.published) {
-    return { live: false, rejected: false, unknown: false, detail: `${track} release ${state} — not published yet` };
+    const detail = lifecycle.awaitingPublish
+      ? `${track} release approved, waiting for Publish in the Play Console (managed publishing)`
+      : `${track} release ${state} — not published yet`;
+    return { live: false, rejected: false, unknown: false, detail };
   }
   if (!rollout?.found) {
     return { live: false, rejected: false, unknown: true, detail: `${track} release PUBLISHED, but not found on the edits track` };
@@ -362,10 +414,11 @@ export function decideAndroidLive({ lifecycle, rollout, track = 'production' }) 
  */
 export function interpretIosVersions(versions, version) {
   const v = (versions ?? []).find((x) => x?.versionString === version);
-  if (!v) return { found: false, live: false, state: null, buildNumber: null };
+  if (!v) return { found: false, live: false, approved: false, state: null, buildNumber: null };
   return {
     found: true,
     live: IOS_LIVE_STATES.has(v.appStoreState),
+    approved: IOS_APPROVED_STATES.has(v.appStoreState),
     state: v.appStoreState ?? null,
     buildNumber: v.buildNumber ?? null,
   };

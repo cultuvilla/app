@@ -36,7 +36,7 @@ If develop is already at a version newer than beta with its CHANGELOG stamped (a
 
 ## 2b. Is the release breaking for installed clients?
 
-A production release is **breaking** when any non-merge commit since the previous `vX.Y.Z` tag carries a `Breaking-Client:` trailer ([breaking-rollup.mjs](../../../scripts/lib/breaking-rollup.mjs)). On prod that holds Cloud Functions and rules until both stores serve the version, then raises `minSupported` to it (AGENTS.md → _Versioning & releases_). This is about installed binaries, not about semver: it does not by itself make the bump a MAJOR.
+A production release is **breaking** when any non-merge commit since the previous `vX.Y.Z` tag carries a `Breaking-Client:` trailer ([breaking-rollup.mjs](../../../scripts/lib/breaking-rollup.mjs)). On prod it is **released by hand**: switch Play managed publishing **on** before merging `beta → main`. Once both stores approve, an issue opens. Then press Publish in the Play Console and run `pnpm release:publish`, and switch managed publishing **off** when the issue closes. Until then its backfills, rules, functions and hosting are held, and the poller raises `minSupported` once both stores serve it (AGENTS.md → _Versioning & releases_). This is about installed binaries, not about semver: it does not by itself make the bump a MAJOR.
 
 Check the range for anything an older installed client would hit and that no commit has declared yet:
 

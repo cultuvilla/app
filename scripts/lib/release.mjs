@@ -234,14 +234,37 @@ export function releasePrBody({ version, previous, section, migrations, breaking
 }
 
 /** Body of the `beta → main` PR the promotion workflow keeps up to date. */
-export function promotionPrBody({ version, section, migrations, runs = [] }) {
+/**
+ * The steps a breaking release needs from the user, in the promotion PR. Only
+ * managed publishing has to happen before the merge: without it Play publishes
+ * Android on approval, ahead of iOS and of the held backend (1.7.1 did).
+ */
+export function breakingReleaseChecklist(version, reasons = []) {
+  return [
+    '## :warning: Breaking release — released by hand',
+    '',
+    ...reasons.map((r) => `- \`Breaking-Client:\` ${r}`),
+    '',
+    'Merging ships only the store binaries and indexes. Nothing reaches users until you release it, and the auto-merge never merges this PR.',
+    '',
+    '- [ ] **Before merging:** Play Console → Publishing overview → **Managed publishing ON** (Google has no API for it)',
+    `- [ ] When the "Release ${version}: approved in both stores" issue opens: press **Publish** in the Play Console and run \`pnpm release:publish\``,
+    '- [ ] After the issue closes: **managed publishing OFF**',
+    '',
+  ];
+}
+
+export function promotionPrBody({ version, section, migrations, runs = [], breaking = null }) {
   return [
     `Promote **${version}** to production. Beta's deploy and store builds for this commit are green:`,
     '',
     ...runs.map((r) => `- [${r.name}](${r.url}) — ${r.conclusion}`),
     '',
-    `Merging deploys \`cultuvilla-prod\` and tags \`v${version}\`.`,
+    breaking?.breaking
+      ? `Merging submits both stores for review and tags \`v${version}\`; the backend waits for \`pnpm release:publish\`.`
+      : `Merging deploys \`cultuvilla-prod\` and tags \`v${version}\`.`,
     '',
+    ...(breaking?.breaking ? breakingReleaseChecklist(version, breaking.reasons) : []),
     '## Data migrations',
     '',
     migrationChecklist(migrations),

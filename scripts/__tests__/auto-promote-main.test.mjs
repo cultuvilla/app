@@ -76,6 +76,13 @@ describe('decideAutoMerge', () => {
     }
   });
 
+  // Managed publishing must be switched on by hand first, which no check can see.
+  it('never merges a breaking release', () => {
+    const d = decideAutoMerge(green({ breaking: true }));
+    assert.equal(d.action, 'wait');
+    assert.match(d.blockers.join(' '), /breaking release/);
+  });
+
   it('waits until the soak has passed since Deploy beta finished', () => {
     assert.equal(decideAutoMerge(green({ now: '2026-10-07T11:59:00Z' })).action, 'wait');
     assert.equal(decideAutoMerge(green({ now: '2026-10-07T12:00:00Z' })).action, 'merge');
