@@ -137,6 +137,19 @@ describe('readSite', () => {
     expect(body).not.toContain('href="/vacio"');
   });
 
+  it('lists every active pueblo on /pueblos, past any page-size cap', async () => {
+    const batch = db().batch();
+    for (let i = 0; i < 70; i++) {
+      const n = String(i).padStart(2, '0');
+      batch.set(db().doc(`municipalities/bulk${n}`), { name: `Pueblo ${n}`, slug: `pueblo-${n}`, province: 'Soria', communityActive: true });
+    }
+    await batch.commit();
+    const { body } = await html('/pueblos');
+    expect(body).toContain('71 pueblos y contando');
+    expect(body).toContain('href="/pueblo-00"');
+    expect(body).toContain('href="/pueblo-69"');
+  });
+
   it('features the first active pueblo by name when Matabuena is not active', async () => {
     await db().doc('municipalities/m1').update({ communityActive: false });
     await db().doc('municipalities/m3').set({ name: 'Arcones', slug: 'arcones', province: 'Segovia', communityActive: true });

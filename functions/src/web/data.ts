@@ -80,10 +80,14 @@ export async function loadVillageById(db: Firestore, id: string): Promise<Villag
   return snap.exists ? toVillage(snap.id, snap.data() ?? {}) : null;
 }
 
-/** Every pueblo with an active community, by name. Same single-field shape as the sitemap's query. */
+/**
+ * Every pueblo with an active community, by name. Same single-field shape as
+ * the sitemap's query, uncapped: /pueblos promises all of them, and active
+ * communities number in the tens, not the 8,000 municipalities.
+ */
 export async function loadActiveVillages(db: Firestore): Promise<Village[]> {
   // typed-refs: allowed — converter-less read; see the header of data.ts.
-  const snap = await db.collection('municipalities').where('communityActive', '==', true).limit(60).get();
+  const snap = await db.collection('municipalities').where('communityActive', '==', true).get();
   return snap.docs
     .map((d) => toVillage(d.id, d.data()))
     .filter((v) => v.slug && v.name)

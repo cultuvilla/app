@@ -47,4 +47,10 @@ describe('renderDocument', () => {
     expect(out).toContain('"@context":"https://schema.org"');
     expect(out).not.toContain('</script><b>');
   });
+
+  it('links every page, not just the landing, to the /pueblos directory from its header', () => {
+    const out = doc({ title: 'a' });
+    const header = out.slice(out.indexOf('<header class="site">'), out.indexOf('</header>'));
+    expect(header).toContain('<a href="/pueblos">Pueblos</a>');
+  });
 });
