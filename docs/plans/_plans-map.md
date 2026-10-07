@@ -4,7 +4,7 @@
      Edit the `**Priority:** / **Landed:** / **Gate:** / **Next:**` block at the top of
      the plan itself, and let CI regenerate this file on the base branch. -->
 
-Current cycle **v1.6.0** (cut 2026-10-06)
+Current cycle **v1.7.0** (cut 2026-10-07)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
@@ -14,13 +14,13 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 28 cycles ago \* | — |
-| [app-only-transition](ongoing/app-only-transition.md) | high | dev | this cycle | promote to beta and run the phase 3 `curl` checks there, then the same on prod |
-| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | verify delivery on a real iPhone (step 2) — the key is loaded and bound on prod since 2026-10-05 |
-| [offline-first-village](ongoing/offline-first-village.md) | high | dev | this cycle | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2 |
-| [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) | low | dev | this cycle | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
-| [store-release](ongoing/store-release.md) | low | prod | this cycle | once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc |
+| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 29 cycles ago \* | — |
+| [app-only-transition](ongoing/app-only-transition.md) | high | dev | 1 cycle ago | promote to beta and run the phase 3 `curl` checks there, then the same on prod |
+| [device-notifications](ongoing/device-notifications.md) | high | prod | 1 cycle ago | verify delivery on a real iPhone (step 2) — the key is loaded and bound on prod since 2026-10-05 |
+| [offline-first-village](ongoing/offline-first-village.md) | high | dev | 1 cycle ago | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago | apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2 |
+| [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) | low | dev | 1 cycle ago | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
+| [store-release](ongoing/store-release.md) | low | prod | 1 cycle ago | once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc |
 
 ## Soaking
 
@@ -34,7 +34,7 @@ _None._
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | this cycle | 1.6.0 must be live on BOTH stores before `beta → main` (decision 2026-10-06) | smoke-test on beta (step 2) while 1.6.0 is in store review |
+| [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | 1 cycle ago | 1.6.0 must be live on BOTH stores before `beta → main` (decision 2026-10-06) | smoke-test on beta (step 2) while 1.6.0 is in store review |
 
 ## How `Advanced` is derived
 

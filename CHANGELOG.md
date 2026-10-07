@@ -4,6 +4,19 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.7.1 — 2026-10-07
+
+<!-- store-notes -->
+- **Más rápida y sin conexión**: tu pueblo, sus eventos y noticias, tu perfil y tus inscripciones se abren al instante y se actualizan solos.
+- **Embajadores de Cultuvilla**: cada pueblo tiene su Embajador o Embajadora, con su sello y su acreditación.
+- **Grupos con admisión**: un grupo puede pedir aprobación para unirse, y sus eventos privados llegan a tu inicio.
+- **Fiestas del pueblo** en tarjetas, y el teclado ya no tapa los campos al escribir.
+<!-- /store-notes -->
+
+- Fix: an organization's invite link opened the group with the "Te han
+  invitado a unirte a este grupo" banner below its events and members, out of
+  sight. It now shows first.
+
 ## v1.7.0 — 2026-10-06
 
 <!-- store-notes -->
