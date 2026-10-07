@@ -83,6 +83,9 @@ export function AddContentSheet({ visible, onClose, villageId, villageSlug, canM
       >
         <RNPressable
           accessible={false}
+          // Its backdrop is not an accessibility element, so VoiceOver closes the
+          // sheet with the escape gesture instead.
+          onAccessibilityEscape={onClose}
           onPress={() => {}}
           className="bg-surface-elevated border-t border-subtle"
           style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: insets.bottom + 12 }}

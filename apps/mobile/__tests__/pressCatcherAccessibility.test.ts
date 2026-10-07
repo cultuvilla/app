@@ -10,6 +10,11 @@ import { join, relative } from 'path';
 // into. Both wrappers must be `accessible={false}`: they exist for touch
 // routing, not as controls.
 //
+// Taking the backdrop out of the accessibility tree must not trap anyone: on a
+// transparent Modal it was the sheet's only way out, and onRequestClose does
+// not fire on iOS for this presentation. So the catcher carries the same
+// dismissal as `onAccessibilityEscape` — VoiceOver's two-finger scrub.
+//
 // InfoTooltip is the one exception: its backdrop is labelled as the close
 // control and its card is read-only text.
 
@@ -28,6 +33,20 @@ function tsxFiles(dir: string): string[] {
 }
 
 const OPENING = /<(RNPressable|Pressable)\b/g;
+
+/** The source of a `name={…}` attribute's expression in a tag, or undefined. */
+function attribute(tag: string, name: string): string | undefined {
+  const start = tag.indexOf(`${name}={`);
+  if (start === -1) return undefined;
+  let depth = 0;
+  for (let i = start + name.length + 1; i < tag.length; i++) {
+    if (tag[i] === '{') depth++;
+    else if (tag[i] === '}' && --depth === 0) return tag.slice(start + name.length + 2, i);
+  }
+  return undefined;
+}
+
+const normalise = (code: string | undefined) => code?.replace(/\s+/g, ' ').trim();
 
 /** The opening tag (up to its closing `>`) of each Pressable in `source`. */
 function pressableTags(source: string): { at: number; tag: string }[] {
@@ -59,8 +78,11 @@ describe('modal press-catchers stay out of the accessibility tree', () => {
     tags.forEach(({ tag }, i) => {
       if (!tag.includes('onPress={() => {}}')) return;
       expect(tag).toContain('accessible={false}');
-      const backdrop = tags[i - 1];
-      expect(backdrop?.tag ?? '').toContain('accessible={false}');
+      const backdrop = tags[i - 1]?.tag ?? '';
+      expect(backdrop).toContain('accessible={false}');
+      const dismiss = normalise(attribute(backdrop, 'onPress'));
+      expect(dismiss).toBeTruthy();
+      expect(normalise(attribute(tag, 'onAccessibilityEscape'))).toBe(dismiss);
     });
   });
 });

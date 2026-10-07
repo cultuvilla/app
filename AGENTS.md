@@ -626,7 +626,8 @@ direct-to-`develop` mode, run the full gate locally before committing:
 Android emulator, which this environment usually lacks — CI's `android-e2e`
 workflow is the authoritative run. `pnpm test:e2e:ios` runs the same flows on
 an iOS Simulator and needs macOS, so here only CI's `ios-e2e` workflow can run
-it. See
+it — built once and split across four shards by tens-group, so a flow may depend
+only on the seed and on earlier flows of its own group. See
 [apps/mobile/e2e/native/README.md](apps/mobile/e2e/native/README.md); under WSL2
 it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 

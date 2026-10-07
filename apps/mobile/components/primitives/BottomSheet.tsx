@@ -125,6 +125,9 @@ export function BottomSheet({
           <Animated.View style={{ flexShrink: 1, transform: [{ translateY }] }}>
             <RNPressable
               accessible={false}
+              // Its backdrop is not an accessibility element, so VoiceOver closes the
+              // sheet with the escape gesture instead.
+              onAccessibilityEscape={onClose}
               onPress={() => {}}
               testID={testID}
               className="bg-surface-elevated border-t border-subtle"

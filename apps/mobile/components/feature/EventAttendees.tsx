@@ -342,7 +342,7 @@ export function EventAttendees({
           className="items-center justify-center px-8"
         >
           {/* Inner press-catcher: taps inside the card must not dismiss. */}
-          <Pressable accessible={false} onPress={() => {}} className="w-full rounded-lg bg-surface-elevated p-5 border border-subtle">
+          <Pressable accessible={false} onAccessibilityEscape={() => setCallTarget(null)} onPress={() => {}} className="w-full rounded-lg bg-surface-elevated p-5 border border-subtle">
             {callTarget ? (
               <VStack gap={3}>
                 <Text variant="h3">{callTarget.name}</Text>

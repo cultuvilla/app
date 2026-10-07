@@ -124,6 +124,9 @@ export function ReportSheet({
       >
         <RNPressable
           accessible={false}
+          // Its backdrop is not an accessibility element, so VoiceOver closes the
+          // sheet with the escape gesture instead.
+          onAccessibilityEscape={close}
           onPress={() => {}}
           className="bg-surface rounded-t-2xl overflow-hidden"
           style={{ maxHeight: SHEET_MAX_HEIGHT }}

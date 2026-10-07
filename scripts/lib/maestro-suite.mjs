@@ -163,7 +163,7 @@ export async function runMaestroSuite({
  * quarantine entry or a selection naming no flow. Exported so a runner can
  * skip its device setup when its shard has nothing to run.
  */
-export function planFlows({ label, quarantined, flow, shard = process.env.E2E_SHARD }) {
+export function planFlows({ label, quarantined, flow, shard = process.env.E2E_SHARD, quiet = false }) {
   const discovered = readdirSync(FLOWS_DIR)
     .filter((f) => f.endsWith('.yaml'))
     .sort();
@@ -185,9 +185,9 @@ export function planFlows({ label, quarantined, flow, shard = process.env.E2E_SH
   }
   const skipped = selection ? [] : discovered.filter((f) => quarantined.has(f));
   const selected = selection ? selection.flows : discovered.filter((f) => !quarantined.has(f));
-  if (selection) console.log(`[${label}] running a selection: ${selected.join(', ')}`);
+  if (selection && !quiet) console.log(`[${label}] running a selection: ${selected.join(', ')}`);
   const flows = shard ? shardFlows(selected, shard) : selected;
-  if (shard) console.log(`[${label}] shard ${shard}: ${flows.join(', ') || '(no flows)'}`);
+  if (shard && !quiet) console.log(`[${label}] shard ${shard}: ${flows.join(', ') || '(no flows)'}`);
   return { flows, skipped };
 }
 

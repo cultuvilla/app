@@ -36,8 +36,10 @@ describe('ios-e2e workflow gating', () => {
     expect(workflow).toMatch(/if: needs\.gate\.outputs\.run == 'true'/);
     const gate = workflow.slice(workflow.indexOf('  gate:'), workflow.indexOf('  build:'));
     for (const path of [
-      'scripts/(run-ios-e2e|build-ios-e2e-app)',
-      'scripts/lib/(maestro-suite|e2e-build-env)',
+      'scripts/(run-ios-e2e|build-ios-e2e-app|run-tests-with-emulators)',
+      'scripts/lib/(maestro-suite|e2e-build-env|ios-simulator)',
+      'package\\.json',
+      'scripts/seed/e2e',
       'apps/mobile/e2e/native/',
     ]) {
       expect(gate).toContain(path);
@@ -254,5 +256,82 @@ describe('setPlistString', () => {
 
   it('throws on a key the plist does not have', () => {
     expect(() => setPlistString(plist, 'NO_SUCH_KEY', 'x')).toThrow(/NO_SUCH_KEY/);
+  });
+});
+
+// On CI nothing is booted and nothing is named, so this pick decides the
+// device every run.
+describe('pickSimulator', () => {
+  interface Device {
+    udid: string;
+    name: string;
+    runtime: string;
+  }
+  let pickSimulator: (devices: Device[]) => Device | undefined;
+  let compareRuntimesNewestFirst: (a: string, b: string) => number;
+  const rt = (v: string) => `com.apple.CoreSimulator.SimRuntime.iOS-${v}`;
+
+  beforeAll(async () => {
+    ({ pickSimulator, compareRuntimesNewestFirst } = (await import(
+      pathToFileURL(resolve(repoRoot, 'scripts/lib/ios-simulator.mjs')).href
+    )) as { pickSimulator: typeof pickSimulator; compareRuntimesNewestFirst: typeof compareRuntimesNewestFirst });
+  });
+
+  it('ranks runtimes numerically — iOS 26 outranks iOS 9, which a string sort gets wrong', () => {
+    expect(compareRuntimesNewestFirst(rt('26-0'), rt('9-3'))).toBeLessThan(0);
+    expect(compareRuntimesNewestFirst(rt('26-5'), rt('26-10'))).toBeGreaterThan(0);
+    expect(compareRuntimesNewestFirst(rt('26'), rt('26-0'))).toBe(0);
+  });
+
+  it('picks an iPhone from the newest runtime, by name, whatever the listing order', () => {
+    const devices: Device[] = [
+      { udid: 'a', name: 'iPhone 17 Pro', runtime: rt('9-3') },
+      { udid: 'b', name: 'iPad Pro', runtime: rt('26-5') },
+      { udid: 'c', name: 'iPhone 17', runtime: rt('26-5') },
+      { udid: 'd', name: 'iPhone 9', runtime: rt('26-5') },
+      { udid: 'e', name: 'Apple Watch', runtime: 'com.apple.CoreSimulator.SimRuntime.watchOS-12-0' },
+    ];
+    expect(pickSimulator(devices)?.udid).toBe('d');
+    expect(pickSimulator([...devices].reverse())?.udid).toBe('d');
+  });
+
+  it('returns nothing when there is no iPhone at all', () => {
+    expect(pickSimulator([{ udid: 'x', name: 'iPad Air', runtime: rt('26-5') }])).toBeUndefined();
+    expect(read('scripts/run-ios-e2e.mjs')).toMatch(/if \(!iphone\) \{[\s\S]{0,200}process\.exit\(1\)/);
+  });
+});
+
+// Same stance as Android's quarantine (androidE2e.test.ts): a hole in the gate
+// is allowed, a quiet, vague or unbounded one is not.
+describe('iOS quarantine', () => {
+  const block = runner.slice(runner.indexOf('const QUARANTINED = new Map(['));
+  const quarantined = [...block.slice(0, block.indexOf(']);')).matchAll(/^\s{4}'([\w.-]+\.yaml)',$/gm)].map(
+    ([, name]) => name,
+  );
+
+  // Two: 45 needs airplane mode, which Maestro cannot toggle on iOS at all, and
+  // 50 is the AVD-tuned onboarding keyboard choreography. A third needs this
+  // bound raised on purpose, in review.
+  it('holds out at most two flows', () => {
+    expect(quarantined.length).toBeLessThanOrEqual(2);
+  });
+
+  it('names only flows that exist', () => {
+    const onDisk = readdirSync(resolve(repoRoot, nativeDir, 'flows'));
+    for (const name of quarantined) expect(onDisk).toContain(name);
+  });
+
+  it('gives each held-out flow a reason', () => {
+    for (const name of quarantined) {
+      const at = runner.indexOf(`'${name}',`);
+      const reason = runner.slice(at + name.length, at + name.length + 600);
+      expect(reason.length, `no reason recorded for ${name}`).toBeGreaterThan(80);
+    }
+  });
+
+  it('goes through the shared loop, which announces it and fails on a stale entry', () => {
+    const lib = read('scripts/lib/maestro-suite.mjs');
+    expect(lib).toMatch(/QUARANTINED, NOT RUN/);
+    expect(lib).toMatch(/quarantine names a flow that does not exist/);
   });
 });

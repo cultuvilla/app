@@ -166,16 +166,25 @@ const appPath = path.join(products, app);
 
 // See requirement 4 above. Fail here, in seconds, rather than 20 minutes into
 // a suite where every login silently fails.
-const executable = spawnSync(
+const plistRead = spawnSync(
   '/usr/libexec/PlistBuddy',
   ['-c', 'Print :CFBundleExecutable', path.join(appPath, 'Info.plist')],
   { encoding: 'utf8' },
-).stdout.trim();
-const loadCommands = spawnSync('otool', ['-l', path.join(appPath, executable)], {
+);
+const executable = plistRead.stdout?.trim();
+if (plistRead.status !== 0 || !executable) {
+  console.error(`[${LABEL}] could not read CFBundleExecutable from ${appPath}: ${plistRead.stderr || plistRead.error}`);
+  process.exit(1);
+}
+const otool = spawnSync('otool', ['-l', path.join(appPath, executable)], {
   encoding: 'utf8',
   maxBuffer: 64 * 1024 * 1024,
-}).stdout;
-if (!/sectname __entitlements/.test(loadCommands ?? '')) {
+});
+if (otool.status !== 0) {
+  console.error(`[${LABEL}] otool could not read ${executable}: ${otool.stderr || otool.error}`);
+  process.exit(1);
+}
+if (!/sectname __entitlements/.test(otool.stdout)) {
   console.error(`[${LABEL}] ${executable} has no __TEXT,__entitlements section — sign-in would fail`);
   process.exit(1);
 }

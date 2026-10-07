@@ -79,6 +79,11 @@ export function BuriedSheet({
       >
         <RNPressable
           accessible={false}
+          // Its backdrop is not an accessibility element, so VoiceOver closes the
+          // sheet with the escape gesture instead.
+          onAccessibilityEscape={() => {
+            if (!busy) onClose();
+          }}
           onPress={() => {}}
           className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
           style={{ paddingBottom: insets.bottom + 20 }}

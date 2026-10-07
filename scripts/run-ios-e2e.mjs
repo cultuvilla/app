@@ -9,8 +9,9 @@
  * owns the emulator boot and the seeding step.
  *
  * What it does own:
- *   1. a booted Simulator — the one already booted, or else it boots the newest
- *      iPhone available, so CI needs no device name that rots with each Xcode,
+ *   1. a booted Simulator — the one already booted, or else one picked from the
+ *      newest iOS runtime (scripts/lib/ios-simulator.mjs), so CI needs no device
+ *      name that rots with each Xcode,
  *   2. installing the .app under test when one is named,
  *   3. accepting iOS's one-time "Open in …?" deep-link prompt
  *      (apps/mobile/e2e/native/ios/trust-deep-links.yaml),
@@ -41,6 +42,7 @@ import {
   run,
   runMaestroSuite,
 } from './lib/maestro-suite.mjs';
+import { pickSimulator } from './lib/ios-simulator.mjs';
 
 const LABEL = 'ios-e2e';
 
@@ -74,17 +76,6 @@ function simctlDevices(...filter) {
   );
 }
 
-// The runtime id ends in the iOS version (`…iOS-26-0`); compare it numerically
-// so iOS 26 outranks iOS 9.
-const runtimeVersion = (runtime) =>
-  (/iOS-([\d-]+)$/.exec(runtime)?.[1] ?? '0').split('-').map(Number);
-const newerFirst = (a, b) => {
-  const [va, vb] = [runtimeVersion(a.runtime), runtimeVersion(b.runtime)];
-  for (let i = 0; i < Math.max(va.length, vb.length); i++) {
-    if ((vb[i] ?? 0) !== (va[i] ?? 0)) return (vb[i] ?? 0) - (va[i] ?? 0);
-  }
-  return 0;
-};
 
 // Flows held OUT of the gate on iOS, with the reason each one is out — see
 //    scripts/lib/maestro-suite.mjs for why a quarantine is announced rather
@@ -110,7 +101,7 @@ const QUARANTINED = new Map([
 
 // A shard (or a dispatched selection) can leave this machine nothing to run;
 // then there is no point booting, installing and trusting deep links for it.
-if (!bootOnly && planFlows({ label: LABEL, quarantined: QUARANTINED, flow }).flows.length === 0) {
+if (planFlows({ label: LABEL, quarantined: QUARANTINED, flow, quiet: true }).flows.length === 0) {
   console.log(`[${LABEL}] nothing to run on this machine`);
   process.exit(0);
 }
@@ -123,9 +114,7 @@ if (!device) {
   device = booted[0]?.udid;
 }
 if (!device) {
-  const iphone = simctlDevices('available')
-    .filter((d) => d.runtime.includes('iOS') && d.name.startsWith('iPhone'))
-    .sort(newerFirst)[0];
+  const iphone = pickSimulator(simctlDevices('available'));
   if (!iphone) {
     console.error(`[${LABEL}] no iPhone Simulator available. Install an iOS runtime in Xcode.`);
     process.exit(1);

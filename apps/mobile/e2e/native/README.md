@@ -23,6 +23,34 @@ public). Same release-path gating, plus one trigger Android lacks: a `develop`
 PR that touches the iOS harness or anything under `e2e/native/` runs it too,
 because macOS is the only place it can run at all.
 
+### Shards (iOS)
+
+One machine took ~2.5 h for the iOS suite: Maestro restarts its iOS driver for
+every flow. So `ios-e2e` builds the Simulator app **once** (`build` job, shared
+as an artifact) and runs the flows on **four machines** (`suite` matrix, `iOS
+E2E shard i/4`). Each shard boots its own Simulator, emulators and seed, and
+runs the flows `shardFlows` (in [scripts/lib/maestro-suite.mjs](../../../../scripts/lib/maestro-suite.mjs))
+gives it:
+
+- **Whole tens-groups, never split.** Order inside a group is load-bearing
+  (22 unregisters what 20 registered; 95 runs after the other 9x flows), and a
+  shard starts from a fresh seed, so a split group would lose its first half.
+  The flip side: **a flow may only depend on the seed and on earlier flows of
+  its own group.** State that "lasts the rest of the run" (90 hides the seeded
+  place) lasts the rest of that shard.
+- **Deterministic.** Groups go largest-first to the least-loaded shard, so a
+  shard number always means the same flows for the same suite. The shard's log
+  prints its list (`[ios-e2e] shard 2/4: …`).
+- `E2E_SHARD=i/N` reproduces one locally. It composes with a selection: a
+  dispatched `flows=20,22` lands on one shard, and the others exit before
+  booting.
+
+Debugging a red `iOS E2E shard 3/4`: its artifact is
+`maestro-artifacts-ios-shard-3`, with one JUnit report and the Maestro
+screenshots per flow, uploaded even when the job timed out. Every Maestro call
+is bounded (`E2E_FLOW_TIMEOUT_MS`, 15 min), so a wedged driver fails one flow
+instead of the whole shard.
+
 ## The flows
 
 | Flow | What only this can prove |

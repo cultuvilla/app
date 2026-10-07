@@ -62,7 +62,7 @@ jobs:
           fi
           changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
           echo "$changed"
-          if echo "$changed" | grep -qE '^(\.github/workflows/ios-e2e\.yml|scripts/(run-ios-e2e|build-ios-e2e-app)\.mjs|scripts/lib/(maestro-suite|e2e-build-env)\.mjs|apps/mobile/e2e/native/)'; then
+          if echo "$changed" | grep -qE '^(\.github/workflows/ios-e2e\.yml|package\.json|scripts/(run-ios-e2e|build-ios-e2e-app|run-tests-with-emulators)\.mjs|scripts/lib/(maestro-suite|e2e-build-env|ios-simulator)\.mjs|scripts/seed/e2e\.mjs|scripts/data/seed-fixtures/e2e/|apps/mobile/e2e/native/)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -149,6 +149,12 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
+    # Job-level, not just on the suite step: the boot step reads them too, so a
+    # shard a dispatched selection leaves empty skips its cold boot.
+    env:
+      E2E_SHARD: ${{ matrix.shard }}/4
+      # Empty on every event but a dispatch that names flows.
+      E2E_NATIVE_FLOW: ${{ inputs.flows }}
 
     steps:
       - name: Checkout
@@ -230,9 +236,6 @@ jobs:
       - name: Seed + run the Maestro suite on a Simulator
         env:
           E2E_FIREBASE_PROJECT: cultuvilla-test
-          E2E_SHARD: ${{ matrix.shard }}/4
-          # Empty on every event but a dispatch that names flows.
-          E2E_NATIVE_FLOW: ${{ inputs.flows }}
         run: pnpm test:e2e:ios
 
       # always(), not !cancelled(): a timeout cancels the job, and the

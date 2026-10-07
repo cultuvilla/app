@@ -135,6 +135,9 @@ export function RosterExportButton(props: RosterExportButtonProps) {
           {/* Inner press-catcher: taps inside the card must not dismiss. */}
           <Pressable
             accessible={false}
+            // Its backdrop is not an accessibility element, so VoiceOver closes the
+            // sheet with the escape gesture instead.
+            onAccessibilityEscape={() => setOpen(false)}
             onPress={() => {}}
             className="w-full max-w-md rounded-lg border border-subtle bg-surface-elevated p-5"
           >
