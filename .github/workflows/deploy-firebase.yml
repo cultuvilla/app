@@ -262,6 +262,13 @@ jobs:
       - name: Deploy Hosting
         run: firebase deploy --only hosting:app --project ${{ inputs.firebase_alias }} --non-interactive
 
+      # The read site must answer after every deploy, held or not. Before the
+      # release is recorded, so a broken site never reaches store review.
+      # 2026-10-07: a held release took cultuvilla.es down for five hours with
+      # every deploy step green, and Google Play rejected the release over it.
+      - name: Smoke-check the live read site
+        run: node scripts/smoke-read-site.mjs --env=${{ inputs.firebase_alias }}
+
       # Hand the release to the announce poller (prod). After hosting, so a
       # release whose deploy failed is never recorded. Records the hold the plan
       # step decided, which is what this run actually did.
