@@ -113,6 +113,16 @@ export const LANDING_STYLES = `
 .landing .strip span{font-family:var(--display);font-size:22px;white-space:nowrap;color:var(--muted)}
 .landing .split{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
 .landing .split .lead+.lead{margin-top:14px}
+.landing .mosaic{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.landing .mosaic li{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:1}
+.landing .mosaic li:nth-child(2),.landing .mosaic li:nth-child(3){transform:translateY(18px)}
+.landing .mosaic img{width:100%;height:100%;object-fit:cover}
+.landing .mosaic span{position:absolute;left:0;right:0;bottom:0;padding:28px 12px 10px;font-family:var(--display);font-size:clamp(18px,2.4vw,26px);color:#fff;background:linear-gradient(transparent,rgba(30,34,24,.75))}
+.landing .pillar img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:12px;margin-bottom:6px}
+.landing .card img.cover{width:calc(100% + 48px);max-width:none;margin:-24px -24px 6px;aspect-ratio:8/5;object-fit:cover}
+.landing .card{overflow:hidden}
+.landing .banner img{width:100%;aspect-ratio:1600/615;object-fit:cover;border-radius:18px;margin-bottom:56px}
+.landing .night{background:linear-gradient(rgba(38,43,30,.78),rgba(38,43,30,.86)),url(/brand/landing/verbena-noche.webp) center/cover}
 .landing .unique{list-style:none;margin:0;padding:0}
 .landing .unique li{font-family:var(--display);font-size:clamp(32px,5vw,52px);line-height:1.15;color:var(--primary)}
 .landing .unique li:nth-child(odd){color:var(--accent)}

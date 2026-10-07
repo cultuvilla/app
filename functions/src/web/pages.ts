@@ -430,6 +430,11 @@ function phone(showcase: Landing['showcase']): Child {
   }<span class="ph-tabs"><i></i><i></i><i></i><i></i></span></span></a>`;
 }
 
+/** A landing photograph from /brand/landing — Unsplash, credited in CREDITS.md there. */
+function photo(name: string, alt: string, width: number, height: number, cls = ''): SafeHtml {
+  return html`<img class="${cls}" src="/brand/landing/${name}.webp" alt="${alt}" width="${width}" height="${height}" loading="lazy" decoding="async"/>`;
+}
+
 function storeButtons(): SafeHtml {
   return html`${APP_STORES.ios ? html`<a class="store" href="${APP_STORES.ios}"><small>Descárgala en el</small><b>App Store</b></a>` : null}${
     APP_STORES.android ? html`<a class="store" href="${APP_STORES.android}"><small>Disponible en</small><b>Google Play</b></a>` : null
@@ -456,17 +461,24 @@ export function homePage({ villages, showcase }: Landing): Page {
     body: html`${BUNTING}
 <section class="in top"><div><span class="eyebrow">Fiestas · Peñas · Historia · Vecinos</span><h1>Todo tu pueblo, <em>en el bolsillo.</em></h1><p class="lead">Cultuvilla reúne en una app las fiestas, los eventos, las peñas, las noticias y la historia de tu pueblo. Lo cuentan sus propios vecinos.</p><div class="actions">${appCta('/', 'Descarga la app gratis')}<a class="ghost" href="/pueblos">Ver los pueblos</a></div><p class="fine">Gratis para vecinos, peñas y ayuntamientos. En iPhone y Android.</p></div>${phone(showcase)}</section>
 <div class="strip" aria-hidden="true"><div class="strip-track">${[...FIESTAS, ...FIESTAS].map((f) => html`<span>${f} ✦</span>`)}</div></div>
-<section class="blk"><div class="in split"><ul class="unique"><li>Sus fiestas.</li><li>Su historia.</li><li>Sus palabras.</li><li>Su gente.</li></ul><div><span class="eyebrow">Más que una agenda</span><h2 style="margin:12px 0 18px">Un pueblo es mucho más que su programa de fiestas</h2><p class="lead">Hoy lo que pasa en el pueblo está repartido entre carteles en el bar, grupos de WhatsApp y la memoria de los mayores.</p><p class="lead">Cultuvilla lo junta en un solo sitio: lo que pasa esta semana y lo que ha pasado siempre. Así lo encuentra quien vive allí todo el año y quien vuelve cada agosto.</p></div></div></section>
+<section class="blk"><div class="in split"><ul class="mosaic">${(
+      [
+        ['fiesta-calle', 'Sus fiestas.', 'Calle de un pueblo adornada con farolillos de papel para las fiestas'],
+        ['ventana-piedra', 'Su historia.', 'Ventana con rejas y geranios en una fachada de piedra'],
+        ['vecinos-paseo', 'Sus palabras.', 'Una pareja mayor pasea por una calle empedrada'],
+        ['baile-tradicional', 'Su gente.', 'Vecinos con traje tradicional bailan en la plaza'],
+      ] as const
+    ).map(([name, word, alt]) => html`<li>${photo(name, alt, 800, 800)}<span>${word}</span></li>`)}</ul><div><span class="eyebrow">Más que una agenda</span><h2 style="margin:12px 0 18px">Un pueblo es mucho más que su programa de fiestas</h2><p class="lead">Hoy lo que pasa en el pueblo está repartido entre carteles en el bar, grupos de WhatsApp y la memoria de los mayores.</p><p class="lead">Cultuvilla lo junta en un solo sitio: lo que pasa esta semana y lo que ha pasado siempre. Así lo encuentra quien vive allí todo el año y quien vuelve cada agosto.</p></div></div></section>
 <section class="band blk"><div class="in"><div class="head"><span class="eyebrow">Qué puedes hacer</span><h2>Descubre. Apúntate. Cuéntalo.</h2></div><div class="pillars">
-<div class="pillar"><b>Descubre</b><p class="muted">Todo lo que pasa en tu pueblo, sin perderte nada por no estar en el grupo adecuado.</p><ul><li>Calendario de eventos y fiestas</li><li>Noticias y avisos de quien organiza</li><li>Carteles de fiestas, de este año y de antes</li></ul></div>
-<div class="pillar"><b>Apúntate</b><p class="muted">Te apuntas con un toque, y a tu familia también, sin listas en papel.</p><ul><li>Comidas, torneos y excursiones</li><li>Apunta a los hijos y mayores a tu cargo</li><li>Únete a peñas y asociaciones</li></ul></div>
-<div class="pillar"><b>Cuéntalo</b><p class="muted">La historia del pueblo, contada por sus vecinos y guardada para los que vienen detrás.</p><ul><li>Línea del tiempo del pueblo</li><li>Barrios, lugares y vocabulario propio</li><li>El resumen de vuestras fiestas, para compartir</li></ul></div>
+<div class="pillar">${photo('pueblo-segovia', 'Un pueblo de Segovia visto desde el aire', 900, 600)}<b>Descubre</b><p class="muted">Todo lo que pasa en tu pueblo, sin perderte nada por no estar en el grupo adecuado.</p><ul><li>Calendario de eventos y fiestas</li><li>Noticias y avisos de quien organiza</li><li>Carteles de fiestas, de este año y de antes</li></ul></div>
+<div class="pillar">${photo('paella-popular', 'Una paella gigante para la comida popular', 900, 600)}<b>Apúntate</b><p class="muted">Te apuntas con un toque, y a tu familia también, sin listas en papel.</p><ul><li>Comidas, torneos y excursiones</li><li>Apunta a los hijos y mayores a tu cargo</li><li>Únete a peñas y asociaciones</li></ul></div>
+<div class="pillar">${photo('calle-antigua', 'Calle antigua de un pueblo con balcones de hierro', 900, 600)}<b>Cuéntalo</b><p class="muted">La historia del pueblo, contada por sus vecinos y guardada para los que vienen detrás.</p><ul><li>Línea del tiempo del pueblo</li><li>Barrios, lugares y vocabulario propio</li><li>El resumen de vuestras fiestas, para compartir</li></ul></div>
 </div></div></section>
 <section class="blk"><div class="in"><div class="head"><span class="eyebrow">Para quién</span><h2>Cada uno en el pueblo tiene su sitio</h2></div><div class="aud">
-<article class="card"><span class="tag">Vecinos y veraneantes</span><h3>Vivas allí o vuelvas en agosto</h3><p class="muted">Mira qué hay esta semana, apúntate tú y tu familia y recibe un aviso cuando se publique algo nuevo.</p></article>
-<article class="card"><span class="tag">Peñas y asociaciones</span><h3>Tu peña, sin depender del grupo de WhatsApp</h3><p class="muted">Publica eventos y noticias, gestiona quién forma parte de la peña y organiza actos solo para tus socios.</p></article>
-<article class="card"><span class="tag">Ayuntamientos</span><h3>Un canal oficial que llega a todos</h3><p class="muted">Bandos, programas de fiestas y avisos que llegan al móvil de cada vecino, también al de quien está fuera.</p></article>
-<article class="card"><span class="tag">Visitantes</span><h3>Conoce el pueblo antes de ir</h3><p class="muted">Cada pueblo tiene su propia página. Compártela por WhatsApp y se abre en cualquier móvil, aunque no tengan la app.</p></article>
+<article class="card">${photo('pueblo-colina', 'Un pueblo blanco en la ladera de una sierra', 800, 500, 'cover')}<span class="tag">Vecinos y veraneantes</span><h3>Vivas allí o vuelvas en agosto</h3><p class="muted">Mira qué hay esta semana, apúntate tú y tu familia y recibe un aviso cuando se publique algo nuevo.</p></article>
+<article class="card">${photo('charanga', 'Una charanga toca en las fiestas', 800, 500, 'cover')}<span class="tag">Peñas y asociaciones</span><h3>Tu peña, sin depender del grupo de WhatsApp</h3><p class="muted">Publica eventos y noticias, gestiona quién forma parte de la peña y organiza actos solo para tus socios.</p></article>
+<article class="card">${photo('calle-flores', 'Calle encalada con macetas de flores', 800, 500, 'cover')}<span class="tag">Ayuntamientos</span><h3>Un canal oficial que llega a todos</h3><p class="muted">Bandos, programas de fiestas y avisos que llegan al móvil de cada vecino, también al de quien está fuera.</p></article>
+<article class="card">${photo('casa-piedra', 'Casa de piedra entre árboles', 800, 500, 'cover')}<span class="tag">Visitantes</span><h3>Conoce el pueblo antes de ir</h3><p class="muted">Cada pueblo tiene su propia página. Compártela por WhatsApp y se abre en cualquier móvil, aunque no tengan la app.</p></article>
 <article class="card amb"><div style="display:grid;gap:10px"><span class="tag">Embajadores de Cultuvilla</span><h3>¿Tu pueblo aún no está? Tráelo tú.</h3><p class="muted">Cualquier vecino puede pedir ser el Embajador o la Embajadora de su pueblo. Lo activas, invitas a tu gente y entre todos lo vais llenando.</p></div>${
       example ? html`<div class="url"><a href="${example}">cultuvilla.es${example}</a></div>` : null
     }</article>
@@ -481,7 +493,7 @@ ${villages.length ? html`<section class="blk" style="padding-top:0"><div class="
 <section class="blk"><div class="in"><div class="head"><span class="eyebrow">Preguntas frecuentes</span><h2>Lo que nos suelen preguntar</h2></div><div class="faq">${FAQ.map(
       ([q, a], i) => (i === 0 ? html`<details open><summary>${q}</summary><p>${a}</p></details>` : html`<details><summary>${q}</summary><p>${a}</p></details>`),
     )}</div></div></section>
-<section class="band blk"><div class="in final"><span class="eyebrow">Descarga Cultuvilla</span><h2>Y tú, a disfrutar de las fiestas.</h2><p class="lead">Cuando todo está en un sitio, quien organiza apaga menos fuegos y los demás viven más la fiesta.</p><div class="stores">${storeButtons()}</div></div></section>`,
+<section class="band blk night"><div class="in final"><span class="eyebrow">Descarga Cultuvilla</span><h2>Y tú, a disfrutar de las fiestas.</h2><p class="lead">Cuando todo está en un sitio, quien organiza apaga menos fuegos y los demás viven más la fiesta.</p><div class="stores">${storeButtons()}</div></div></section>`,
   };
 }
 
@@ -494,11 +506,12 @@ export function villagesPage({ villages, showcase }: Landing): Page {
     },
     body: html`${BUNTING}
 <section class="in top single"><div><span class="eyebrow">Los pueblos de Cultuvilla</span><h1>Pueblos que ya se cuentan <em>aquí.</em></h1><p class="lead">Cada pueblo tiene su página con sus eventos, sus carteles de fiestas, su historia y sus peñas. Entra en cualquiera, no hace falta la app.</p></div></section>
+<div class="in banner">${photo('pueblo-atardecer', 'Un pueblo blanco al atardecer entre colinas', 1600, 615)}</div>
 ${showcase ? showcaseBlock(showcase) : null}
 ${villages.length ? html`<section class="blk"><div class="in"><div class="head"><span class="eyebrow">Ya están en Cultuvilla</span><h2>${villages.length} ${villages.length === 1 ? 'pueblo' : 'pueblos'} y contando</h2></div><ul class="villages">${villages.map(
       (v) => html`<li><a href="${villagePath(v.slug)}">${img(cardImage(v.escudoUrl), '', undefined, v.escudoUrl)}<span>${v.name}${v.province ? html`<small>${v.province}</small>` : null}</span></a></li>`,
     )}</ul></div></section>` : null}
-<section class="band blk"><div class="in final"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿No ves tu pueblo? Tráelo tú.</h2><p class="lead">Están todos los municipios de España. Pide ser el Embajador o la Embajadora del tuyo desde la app y lo ponemos en marcha contigo.</p><div class="stores">${storeButtons()}</div></div></section>`,
+<section class="band blk night"><div class="in final"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿No ves tu pueblo? Tráelo tú.</h2><p class="lead">Están todos los municipios de España. Pide ser el Embajador o la Embajadora del tuyo desde la app y lo ponemos en marcha contigo.</p><div class="stores">${storeButtons()}</div></div></section>`,
   };
 }
 

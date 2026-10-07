@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import type { Card, Village, VillageHome } from '../../web/data';
 import { renderDocument } from '../../web/document';
@@ -99,5 +101,18 @@ describe('homePage', () => {
   it('escapes pueblo-written text', () => {
     const out = villagesBody({ villages: [village('x', '<script>x</script>')], showcase: null });
     expect(out).not.toContain('<script>x</script>');
+  });
+
+  it('serves every landing photograph from Hosting and credits it', () => {
+    const dir = resolve(__dirname, '../../../../web/public/brand/landing');
+    const credits = readFileSync(resolve(dir, 'CREDITS.md'), 'utf8');
+    const pages = [body({ villages: [matabuena], showcase }), villagesBody({ villages: [matabuena], showcase })].join('');
+    const styles = renderDocument(homePage({ villages: [], showcase: null }), { canonical: 'https://x/', appPath: '/' });
+    const names = new Set([...`${pages}${styles}`.matchAll(/\/brand\/landing\/([a-z-]+)\.webp/g)].map((m) => m[1]));
+    expect(names.size).toBeGreaterThanOrEqual(10);
+    for (const name of names) {
+      expect(existsSync(resolve(dir, `${name}.webp`)), `${name}.webp`).toBe(true);
+      expect(credits, `${name}.webp credit`).toContain(`\`${name}.webp\``);
+    }
   });
 });
