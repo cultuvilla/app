@@ -4,7 +4,7 @@
      Edit the `**Priority:** / **Landed:** / **Gate:** / **Next:**` block at the top of
      the plan itself, and let CI regenerate this file on the base branch. -->
 
-Current cycle **v1.7.0** (cut 2026-10-07)
+Current cycle **v1.7.1** (cut 2026-10-07)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
