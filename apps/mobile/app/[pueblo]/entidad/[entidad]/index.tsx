@@ -227,6 +227,12 @@ export default function OrgDetailScreen() {
     >
       {org ? (
         <>
+          {/* First, so an invite link lands on it before the events and roster push it off screen. */}
+          {arrivedViaInvite && !isMember ? (
+            <Text tone="muted" variant="bodySm">
+              {t('organization.invitedBanner')}
+            </Text>
+          ) : null}
           {org.description ? <Text>{org.description}</Text> : null}
           {org.images.length > 1 ? (
             <VStack gap={2} className="pt-2">
@@ -253,11 +259,6 @@ export default function OrgDetailScreen() {
               canManage={canManage}
               currentUserId={user?.uid ?? null}
             />
-          ) : null}
-          {arrivedViaInvite && !isMember ? (
-            <Text tone="muted" variant="bodySm">
-              {t('organization.invitedBanner')}
-            </Text>
           ) : null}
           <EntityComments
             key={org.id}
