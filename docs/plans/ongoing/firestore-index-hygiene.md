@@ -3,7 +3,7 @@
 **Priority:** low
 **Landed:** dev
 **Gate:** none
-**Next:** run the `--force` index cleanup on beta, then prod, from a clean `origin/beta` / `origin/main` checkout (see *Commands*), and re-verify live == file
+**Next:** run the `--force` index cleanup on prod from a clean `origin/main` checkout (see *Commands*; needs the user's go), then re-verify live == file
 
 **Goal:** make each environment's live composite indexes match `firestore.indexes.json`
 exactly, and stop orphans from building up again.
@@ -55,8 +55,8 @@ composite.
 | Step | Dev | Beta | Prod |
 |---|---|---|---|
 | Orphans audited | ✅ 11 | ✅ 9 | ✅ 9 |
-| Orphans deleted (`--force`) | ✅ | ⬜ after promotion | ⬜ after promotion |
-| Re-verified: live == file | ✅ 51/51 | ⬜ | ⬜ |
+| Orphans deleted (`--force`) | ✅ | ✅ 8 on 2026-10-08 | ⬜ |
+| Re-verified: live == file | ✅ 51/51 | ✅ 54/54 | ⬜ |
 
 Legend: ⬜ pending · ⏳ in progress · ✅ done · ⚠️ blocked
 
