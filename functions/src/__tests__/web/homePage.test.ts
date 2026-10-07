@@ -103,16 +103,16 @@ describe('homePage', () => {
     expect(out).not.toContain('<script>x</script>');
   });
 
-  it('serves every landing photograph from Hosting and credits it', () => {
+  it('serves every landing photo and video from Hosting and credits it', () => {
     const dir = resolve(__dirname, '../../../../web/public/brand/landing');
     const credits = readFileSync(resolve(dir, 'CREDITS.md'), 'utf8');
     const pages = [body({ villages: [matabuena], showcase }), villagesBody({ villages: [matabuena], showcase })].join('');
     const styles = renderDocument(homePage({ villages: [], showcase: null }), { canonical: 'https://x/', appPath: '/' });
-    const names = new Set([...`${pages}${styles}`.matchAll(/\/brand\/landing\/([a-z-]+)\.webp/g)].map((m) => m[1]));
+    const names = new Set([...`${pages}${styles}`.matchAll(/\/brand\/landing\/([a-z-]+\.(?:webp|mp4))/g)].map((m) => m[1]));
     expect(names.size).toBeGreaterThanOrEqual(10);
     for (const name of names) {
-      expect(existsSync(resolve(dir, `${name}.webp`)), `${name}.webp`).toBe(true);
-      expect(credits, `${name}.webp credit`).toContain(`\`${name}.webp\``);
+      expect(existsSync(resolve(dir, name)), name).toBe(true);
+      expect(credits, `${name} credit`).toContain(`\`${name}\``);
     }
   });
 });

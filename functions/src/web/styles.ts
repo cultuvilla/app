@@ -103,6 +103,13 @@ export const LANDING_STYLES = `
 .landing .ph-tabs{margin-top:auto;display:flex;justify-content:space-around;padding:10px 0 14px;border-top:1px solid var(--border)}
 .landing .ph-tabs i{width:22px;height:4px;border-radius:2px;background:var(--muted)}
 .landing .ph-tabs i:first-child{background:var(--accent)}
+.landing .intro{position:relative;margin:0;justify-self:center;width:min(460px,100%)}
+.landing .intro video{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:24px;background:var(--card);box-shadow:0 30px 60px -24px rgba(63,70,53,.45)}
+.landing .sound{position:absolute;right:14px;bottom:14px;border:0;border-radius:999px;padding:8px 14px;font:600 13px/1 system-ui,sans-serif;background:rgba(47,53,39,.82);color:var(--surface);cursor:pointer}
+.landing .teaser.with-phone{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:48px;align-items:center}
+.landing .teaser.with-phone .phone{transform:rotate(-2deg)}
+.landing .teaser .lead{margin:12px 0 20px}
+@media (max-width:820px){.landing .teaser.with-phone{grid-template-columns:1fr}}
 .landing .teaser{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:20px;padding-top:28px;padding-bottom:28px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .landing .pillars ul{color:var(--surface)}
 .landing .band .pillar b{color:var(--surface)}
