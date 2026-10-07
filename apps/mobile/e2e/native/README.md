@@ -288,6 +288,7 @@ What differs, and where:
 | A tab's accessibility label is `Explora, tab, 1 of 3`, and Maestro matches the whole string — so a bare `'Explora'` never matches on iOS. Tab labels are matched as `'Explora(,.*)?'`. | `subflows/login*.yaml` |
 | The screen under a native Alert stays in the hierarchy, so a header icon labelled like the alert's button (the trash, "Eliminar") also matches — and `rightOf: 'Cancelar'` alone picked it. The confirm is anchored `below` the alert's question (any text with a "?") too. | `subflows/confirm-alert.yaml` |
 | A tap right after a deep-linked screen appears is dropped: Maestro reports COMPLETED, nothing opens. `subflows/tap-until.yaml` taps, waits for what the tap should open, and taps again if it is not up. | `subflows/tap-until.yaml` |
+| A tap on an input right after its screen appears may not focus it, and keystrokes can drop while the keyboard settles. `subflows/type-into.yaml` types, checks the field shows the whole text, and retypes. | `subflows/type-into.yaml` |
 | The screen is narrower, so a horizontal row's third card can sit wholly past the right edge, where no vertical scroll reaches it. Swipe the row itself (it carries a `testID`). | `63-private-event-feed` |
 
 **iOS quarantine** (reasons in `run-ios-e2e.mjs`): `45-offline-cached-village`

@@ -1,0 +1,24 @@
+# Type ${TEXT} into the input ${INPUT} and make sure all of it arrived.
+#
+# On iOS a tap on an input right after its screen appears can fail to focus
+# it, and keystrokes sent while the keyboard is still settling can be dropped:
+# flow 70's org name arrived empty, so its submit stayed disabled, and flow
+# 11's email arrived as "eer@…". Retype until the field shows the whole text.
+appId: com.cultuvilla.app.dev
+---
+- tapOn:
+    id: ${INPUT}
+- waitForAnimationToEnd:
+    timeout: 2000
+- inputText: ${TEXT}
+- repeat:
+    times: 2
+    while:
+      notVisible: ${TEXT}
+    commands:
+      - tapOn:
+          id: ${INPUT}
+      - waitForAnimationToEnd:
+          timeout: 2000
+      - eraseText: 80
+      - inputText: ${TEXT}
