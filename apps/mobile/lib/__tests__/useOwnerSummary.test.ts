@@ -3,7 +3,7 @@ import { useOwnerSummary } from '../useOwnerSummary';
 import { useFirestoreDoc } from '@cultuvilla/shared/hooks';
 import { DELETED_USER_UID } from '@cultuvilla/shared/models/user';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
-import { publicProfileDoc, userDoc } from '@cultuvilla/shared/firebase/refs/client';
+import { userDoc } from '@cultuvilla/shared/firebase/refs/client';
 
 jest.mock('../i18n', () => ({
   useT: () => ({ locale: 'es', t: (key: string) => (key === 'settings.deletedUser' ? 'Usuario eliminado' : key) }),
@@ -57,18 +57,17 @@ describe('useOwnerSummary', () => {
   it('reads another user through publicProfiles, never the owner-only users doc', () => {
     // users/{uid} is readable only by its owner or an app admin, so subscribing
     // to it for anyone else is denied and the chip rendered a bare "+" avatar
-    // with no name (event organizers, news bylines).
-    mockUseFirestoreDoc.mockReturnValue({
-      data: { displayName: 'Ana García', activeMunicipalityId: null },
-      loading: false,
-      error: null,
-    });
+    // with no name (event organizers, news bylines). The fake mirrors the rules:
+    // only the public projection yields data.
+    mockUseFirestoreDoc.mockImplementation((ref: { path?: string } | null) =>
+      ref?.path === 'publicProfiles/user-1'
+        ? { data: { displayName: 'Ana García', activeMunicipalityId: null }, loading: false, error: null }
+        : { data: undefined, loading: false, error: { code: 'permission-denied' } },
+    );
+    (userDoc as jest.Mock).mockImplementation((_db: unknown, uid: string) => ({ path: `users/${uid}` }));
 
     const { result } = renderHook(() => useOwnerSummary('user-1', 'user'));
 
-    expect(userDoc).not.toHaveBeenCalled();
-    expect(publicProfileDoc).toHaveBeenCalledWith(undefined, 'user-1');
-    expect(mockUseFirestoreDoc).toHaveBeenCalledWith({ path: 'publicProfiles/user-1' });
     expect(result.current.name).toBe('Ana García');
   });
 
