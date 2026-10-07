@@ -30,9 +30,11 @@ env:
     visible:
       id: 'event-title'
     timeout: 45000
-- tapOn:
-    id: 'event-title'
-- inputText: ${output.eventTitle}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'event-title'
+      TEXT: ${output.eventTitle}
 - runFlow:
     file: ../subflows/reveal.yaml
     env:
