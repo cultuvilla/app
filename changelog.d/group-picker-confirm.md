@@ -1,0 +1,1 @@
+- Al elegir grupos para un evento o noticia, el botón «Confirmar» ya no desaparece cuando la lista de grupos es larga.
