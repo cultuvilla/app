@@ -3,6 +3,7 @@ import { useOwnerSummary } from '../useOwnerSummary';
 import { useFirestoreDoc } from '@cultuvilla/shared/hooks';
 import { DELETED_USER_UID } from '@cultuvilla/shared/models/user';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
+import { publicProfileDoc, userDoc } from '@cultuvilla/shared/firebase/refs/client';
 
 jest.mock('../i18n', () => ({
   useT: () => ({ locale: 'es', t: (key: string) => (key === 'settings.deletedUser' ? 'Usuario eliminado' : key) }),
@@ -24,6 +25,7 @@ jest.mock('@cultuvilla/shared/firebase', () => ({
 
 jest.mock('@cultuvilla/shared/firebase/refs/client', () => ({
   userDoc: jest.fn(),
+  publicProfileDoc: jest.fn((_db: unknown, uid: string) => ({ path: `publicProfiles/${uid}` })),
   personDoc: jest.fn(),
   organizationDoc: jest.fn(),
 }));
@@ -52,17 +54,35 @@ describe('useOwnerSummary', () => {
     expect(mockUseFirestoreDoc).toHaveBeenCalledWith(null);
   });
 
-  it('resolves a real user doc through the normal path', () => {
+  it('reads another user through publicProfiles, never the owner-only users doc', () => {
+    // users/{uid} is readable only by its owner or an app admin, so subscribing
+    // to it for anyone else is denied and the chip rendered a bare "+" avatar
+    // with no name (event organizers, news bylines).
     mockUseFirestoreDoc.mockReturnValue({
-      data: { displayName: 'Ana García', photoURL: 'https://img/ana.jpg' },
+      data: { displayName: 'Ana García', activeMunicipalityId: null },
       loading: false,
       error: null,
     });
 
     const { result } = renderHook(() => useOwnerSummary('user-1', 'user'));
 
+    expect(userDoc).not.toHaveBeenCalled();
+    expect(publicProfileDoc).toHaveBeenCalledWith(undefined, 'user-1');
+    expect(mockUseFirestoreDoc).toHaveBeenCalledWith({ path: 'publicProfiles/user-1' });
     expect(result.current.name).toBe('Ana García');
-    expect(result.current.imageUri).toBe('https://img/ana.jpg');
+  });
+
+  it("takes a user's avatar from their linked persona", async () => {
+    mockUseFirestoreDoc.mockReturnValue({
+      data: { displayName: 'Ana García', activeMunicipalityId: null },
+      loading: false,
+      error: null,
+    });
+    (getPersonByUserId as jest.Mock).mockResolvedValueOnce({ photoURL: 'https://img/ana.jpg' });
+
+    const { result } = renderHook(() => useOwnerSummary('user-1', 'user'));
+
+    await waitFor(() => expect(result.current.imageUri).toBe('https://img/ana.jpg'));
   });
 
   it('passes the signed-in viewer to the persona lookup', async () => {
