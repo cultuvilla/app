@@ -15,10 +15,9 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 29 cycles ago \* | — |
-| [app-only-transition](ongoing/app-only-transition.md) | high | dev | 1 cycle ago | promote to beta and run the phase 3 `curl` checks there, then the same on prod |
 | [device-notifications](ongoing/device-notifications.md) | high | prod | 1 cycle ago | verify delivery on a real iPhone (step 2) — the key is loaded and bound on prod since 2026-10-05 |
 | [offline-first-village](ongoing/offline-first-village.md) | high | dev | 1 cycle ago | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago | apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) and confirm the `read_site_visits` metric fills once `readSite` ships there; confirm native BigQuery rows once 1.6.0 ships, then Phase 2 |
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago \* | find why prod BigQuery has no native rows — check GA4 Admin → BigQuery links on `cultuvilla-prod` for the Android and iOS streams (step 0), then confirm they land (step 1); in parallel, apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) |
 | [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) | low | dev | 1 cycle ago | run the beta orphan cleanup (a `--force` index deploy from a clean `origin/main`, with explicit go for a beta deploy) and re-verify live == file |
 | [store-release](ongoing/store-release.md) | low | prod | 1 cycle ago | once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc |
 | [e2e-full-feature-coverage](ready/e2e-full-feature-coverage.md) `ready` | high | — | this cycle | — |
@@ -33,9 +32,7 @@ _None._
 
 ## Blocked
 
-| Plan | Pri | Landed | Advanced | Waiting on | Next |
-|---|---|---|---|---|---|
-| [access-hardening-rollout](ongoing/access-hardening-rollout.md) | high | dev | 1 cycle ago | 1.6.0 must be live on BOTH stores before `beta → main` (decision 2026-10-06) | smoke-test on beta (step 2) while 1.6.0 is in store review |
+_None._
 
 ## How `Advanced` is derived
 
@@ -45,6 +42,7 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
+| `6c159bad` | 2026-10-08 | 5 | docs(plans): retire access-hardening and app-only-transition plans |
 | `78b72653` | 2026-09-30 | 18 | docs(plans): migrate to agent-plans v2 (Priority/Gate/Next block), vendor v2.0.1 |
 
 ## Ideas
