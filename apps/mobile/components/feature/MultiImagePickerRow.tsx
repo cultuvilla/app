@@ -14,6 +14,8 @@ export type MultiImagePickerRowProps = {
   adding?: boolean;
   addLabel: string;
   removeLabel: string;
+  /** Names the add square (`<id>-add`) and each thumbnail's remove (`<id>-remove-<i>`). */
+  testID?: string;
 };
 
 /**
@@ -30,6 +32,7 @@ export function MultiImagePickerRow({
   adding = false,
   addLabel,
   removeLabel,
+  testID,
 }: MultiImagePickerRowProps) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -40,6 +43,7 @@ export function MultiImagePickerRow({
             <Pressable
               onPress={() => onRemove(i)}
               accessibilityLabel={removeLabel}
+              testID={testID ? `${testID}-remove-${i}` : undefined}
               className="absolute rounded-full bg-black/60 items-center justify-center"
               style={{ top: 4, right: 4, width: 24, height: 24 }}
             >
@@ -54,6 +58,7 @@ export function MultiImagePickerRow({
             label={addLabel}
             size={THUMB}
             loading={adding}
+            testID={testID ? `${testID}-add` : undefined}
           />
         ) : null}
       </View>

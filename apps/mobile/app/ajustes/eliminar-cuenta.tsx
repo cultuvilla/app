@@ -105,6 +105,7 @@ export default function DeleteAccountScreen() {
             <VStack gap={3}>
               <Text>{t('settings.deleteAccount.warning')}</Text>
               <Input
+                testID="delete-account-confirm-input"
                 label={t('settings.deleteAccount.confirmPrompt')}
                 value={confirmText}
                 onChangeText={setConfirmText}

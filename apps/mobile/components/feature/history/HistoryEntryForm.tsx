@@ -143,6 +143,7 @@ export function HistoryEntryForm({
             adding={addingImage}
             addLabel={t('village.history.form.addImage')}
             removeLabel={t('village.history.form.removeImage')}
+            testID="history-images"
           />
         </VStack>
         {images.map((img, index) => (

@@ -121,6 +121,9 @@ export function PlacesManager({
             onChangeName={setName}
             nameLabel={t('village.admin.places.name')}
             nameTestID="place-name-input"
+            imagesTestID="place-images"
+            descriptionTestID="place-description"
+            typeTestIDPrefix="place-type"
             description={description}
             onChangeDescription={setDescription}
             descriptionLabel={t('village.admin.places.description')}
@@ -130,6 +133,7 @@ export function PlacesManager({
             onChangeType={(v) => setKind(v as PlaceKind)}
             footer={
               <LocationField
+                testID="place-location"
                 label={t('village.admin.places.location')}
                 value={coordinates}
                 displayName={locationLabel}

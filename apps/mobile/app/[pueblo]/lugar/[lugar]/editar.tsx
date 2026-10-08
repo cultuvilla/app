@@ -171,6 +171,9 @@ function PlaceEditScreen() {
             onChangeName={setName}
             nameLabel={t('village.admin.places.name')}
             nameTestID="place-edit-name-input"
+            imagesTestID="place-edit-images"
+            descriptionTestID="place-edit-description"
+            typeTestIDPrefix="place-edit-type"
             description={description}
             onChangeDescription={setDescription}
             descriptionLabel={t('village.admin.places.description')}
@@ -181,6 +184,7 @@ function PlaceEditScreen() {
             footer={
               <>
                 <LocationField
+                  testID="place-edit-location"
                   label={t('village.admin.places.location')}
                   value={coordinates}
                   displayName={locationLabel}
