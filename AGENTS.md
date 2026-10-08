@@ -664,7 +664,9 @@ reason. The deploy fails before writing anything if its env has drifted, and
 again afterwards if the live rules, indexes or functions are not the commit's
 ([check-env-parity.mjs](scripts/check-env-parity.mjs)); a nightly run checks all
 three. So a console change (an API, an IAM grant, a bucket setting) is made in
-every env and recorded in that file in the same PR — or declared, with why. Read
+every env and recorded in that file in the same PR — or declared, with why.
+Landing that PR on develop is enough to unblock beta and prod deploys: the
+`config` check also accepts develop's baseline. Read
 [docs/decisions/environment-parity.md](docs/decisions/environment-parity.md).
 
 1. **Classify the mode from the diff — never ask.** See the Autonomy contract below.

@@ -35,6 +35,14 @@ dropped (the index deploy never deleted anything).
   all three branches to catch changes made between deploys (console edits).
   Locally, `node scripts/check-env-parity.mjs --all` checks all three with the
   operator's ADC, and `--write-baseline` drafts the file from prod.
+- **`config` accepts develop's baseline too.** A live project changes the
+  moment someone changes it, but a baseline edit reaches beta and main only
+  with the next release. So the deploy and the nightly run also fetch
+  develop's `infra/env-parity.json`, and an env passes `config` if it matches
+  either — reported against its own branch's baseline when it matches neither.
+  Without this, removing the appspot editor grant (2026-10-08, declared on
+  develop) stopped the 1.8.0 prod deploy, and a whole release was cut only to
+  carry the file to main. `artifacts` still compares against the commit.
 - **Indexes deploy with `--force`.** The file is the whole truth; a removed
   index is removed everywhere.
 - **During a held breaking release** prod's rules and functions are

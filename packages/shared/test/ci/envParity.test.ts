@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import {
   BASELINE_PATH,
   type Baseline,
+  configDifferences,
   DIMENSIONS,
   diffSnapshot,
   draftBaseline,
@@ -76,6 +77,40 @@ describe('expectedFor / diffSnapshot', () => {
     const dev = { ...snap(), apis: ['b.googleapis.com', 'c.googleapis.com'], firestore: { locationId: 'eu', pitr: 'OFF' } };
     expect(diffSnapshot(dev, expectedFor(withEx, 'dev'))).toEqual([]);
     expect(diffSnapshot(dev, expectedFor(withEx, 'beta'))).not.toEqual([]);
+  });
+});
+
+describe('configDifferences — an infra change declared on develop does not block a release branch', () => {
+  // 2026-10-08: the appspot editor grant was removed from prod and from
+  // develop's baseline; main's baseline still expected it, so the 1.8.0 prod
+  // deploy failed its parity gate and a whole release was cut just to carry
+  // the baseline over.
+  const branch = { expected: snap(), exceptions: {} };
+  const develop = { expected: { ...snap(), iam: [] as string[] }, exceptions: {} };
+  const changed = { ...snap(), iam: [] as string[] };
+
+  it("passes when the env matches develop's baseline but not the branch's", () => {
+    expect(configDifferences(changed, 'prod', [branch, develop])).toEqual([]);
+  });
+
+  it("still passes when it matches the branch's baseline and develop has moved on", () => {
+    expect(configDifferences(snap(), 'prod', [branch, develop])).toEqual([]);
+  });
+
+  it("fails against the branch's own baseline when neither matches", () => {
+    const drifted = { ...changed, apis: ['a.googleapis.com'] };
+    expect(configDifferences(drifted, 'prod', [branch, develop])).toEqual(
+      diffSnapshot(drifted, expectedFor(branch, 'prod')),
+    );
+  });
+
+  it('is the plain diff when no other baseline is given', () => {
+    expect(configDifferences(changed, 'prod', [branch])).toEqual(diffSnapshot(changed, expectedFor(branch, 'prod')));
+  });
+
+  it("is wired into the deploy's parity gate with develop's baseline", () => {
+    expect(deploy).toContain('git show FETCH_HEAD:infra/env-parity.json');
+    expect(deploy).toMatch(/check-env-parity\.mjs --env=\$\{\{ inputs\.firebase_alias \}\} --scope=config \$also/);
   });
 });
 
