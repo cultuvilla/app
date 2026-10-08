@@ -10,7 +10,7 @@ carries the version. Modeled on ordago-apps, adapted where Cultuvilla differs.
 
 The current pipeline was built for one purpose: keep Play's "12 testers × 14
 days" clock running. That is over — the closed test finished and Play production
-was submitted on 2026-09-08 ([store-release.md](../ongoing/store-release.md)).
+was submitted on 2026-09-08 ([release-runbook.md](../../store/release-runbook.md)).
 What is left was never designed as a release process, and it shows:
 
 - **Users are nudged to versions the store does not have — live on prod today.**
