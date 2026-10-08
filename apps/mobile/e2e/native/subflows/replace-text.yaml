@@ -7,10 +7,17 @@ appId: com.cultuvilla.app.dev
     file: scroll-to.yaml
     env:
       TARGET: ${INPUT}
-- tapOn:
-    id: ${INPUT}
-- waitForAnimationToEnd:
-    timeout: 2000
-- eraseText: 200
+# A tap puts the cursor where it lands — mid-text in a prefilled field — and
+# eraseText only deletes what is left of the cursor. Each round taps the
+# field's centre and erases; once the leftover is shorter than half the field
+# the tap lands past its end and the round clears it.
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: ${INPUT}
+      - waitForAnimationToEnd:
+          timeout: 1000
+      - eraseText: 200
 - inputText: ${TEXT}
 - assertVisible: ${TEXT}
