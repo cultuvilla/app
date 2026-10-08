@@ -1,0 +1,40 @@
+# Run ONCE per Simulator by scripts/run-ios-e2e.mjs, before the suite.
+#
+# iOS asks "Open in “<app>”?" the first time a custom-scheme link targets the
+# app. Accepting is permanent for that Simulator and survives `clearState`, so
+# answering it here keeps every flow's `openLink` identical on both platforms
+# instead of threading the same conditional through each one. Optional, because
+# a Simulator that already said yes never asks again.
+#
+# Lives outside flows/ on purpose: it is setup, not a journey, and must not be
+# counted or ordered with the suite.
+appId: com.cultuvilla.app.dev
+---
+- clearState
+- openLink: 'cultuvilla://perfil'
+- extendedWaitUntil:
+    visible: 'Open in .*'
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      visible: 'Open in .*'
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - tapOn: 'Open'
+      - waitForAnimationToEnd:
+          timeout: 3000
+# The same iOS 26 trap as subflows/confirm-alert.yaml: a quick tap can light the
+# button up without pressing it. A press-and-hold does press it.
+- repeat:
+    times: 3
+    while:
+      visible: 'Open in .*'
+    commands:
+      - longPressOn: 'Open'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- extendedWaitUntil:
+    visible: 'Explora(,.*)?'
+    timeout: 120000

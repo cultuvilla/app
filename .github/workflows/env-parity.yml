@@ -1,0 +1,80 @@
+name: Environment parity
+
+# Nightly: dev, beta and prod must each still match infra/env-parity.json, and
+# what is live in each must still be what its branch deployed. Every deploy
+# checks this too (deploy-firebase.yml); the nightly run catches what changes
+# between deploys — a console edit, an API switched on by hand, an IAM grant.
+#
+# Same two legs as announce-when-live.yml, for the same reason: a schedule runs
+# on the default branch, and each GitHub environment admits only its own branch
+# (dev ← develop, beta ← beta, production ← main). The scheduled run dispatches
+# this workflow on all three branches, and each of those checks its own env
+# with its own keyless identity.
+#
+# Locked by packages/shared/test/ci/envParity.test.ts.
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kick:
+    name: Dispatch the check on each env's branch
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # A branch the workflow has not reached yet has nothing to run.
+          for ref in develop beta main; do
+            if ! gh api "repos/${REPO}/contents/.github/workflows/env-parity.yml?ref=${ref}" --silent 2>/dev/null; then
+              echo "env-parity.yml is not on ${ref} yet — nothing to check there."
+              continue
+            fi
+            gh workflow run env-parity.yml --repo "${REPO}" --ref "${ref}"
+          done
+
+  check:
+    name: Check ${{ github.ref_name == 'main' && 'prod' || github.ref_name == 'beta' && 'beta' || 'dev' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && contains(fromJSON('["refs/heads/develop","refs/heads/beta","refs/heads/main"]'), github.ref) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'beta' && 'beta' || 'dev' }}
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation
+    env:
+      PARITY_ENV: ${{ github.ref_name == 'main' && 'prod' || github.ref_name == 'beta' && 'beta' || 'dev' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Check the env against the declared configuration and its branch
+        run: node scripts/check-env-parity.mjs --env="${PARITY_ENV}" --scope=all

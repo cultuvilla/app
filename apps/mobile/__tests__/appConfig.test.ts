@@ -1,4 +1,5 @@
-import { readFileSync } from 'fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
 import { join } from 'path';
 
 import config from '../app.config';
@@ -98,6 +99,47 @@ describe('E2E emulator flag guard', () => {
 
   it('surfaces the flag as extra.useEmulator only when armed', () => {
     expect(config.extra?.['useEmulator']).toBe(false);
+  });
+});
+
+// The iOS E2E build re-points the native SDK at the emulators' test project
+// with a generated plist (scripts/lib/e2e-build-env.mjs). The override must be
+// inert unless the bypass is armed, or a stray env var could swap the Firebase
+// project of a real build.
+describe('E2E native Firebase config override', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'e2e-plist-'));
+  const plist = join(dir, 'GoogleService-Info.plist');
+  writeFileSync(plist, '<plist/>');
+
+  const iosConfigFile = (flag: string | undefined): unknown => {
+    const keys = ['APP_ENV', 'USE_FIREBASE_EMULATOR', 'E2E_GOOGLE_SERVICE_INFO_FILE'] as const;
+    const prev = keys.map((k) => process.env[k]);
+    process.env['APP_ENV'] = 'dev';
+    process.env['E2E_GOOGLE_SERVICE_INFO_FILE'] = plist;
+    if (flag === undefined) delete process.env['USE_FIREBASE_EMULATOR'];
+    else process.env['USE_FIREBASE_EMULATOR'] = flag;
+    let loaded: typeof config | undefined;
+    try {
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        loaded = require('../app.config').default;
+      });
+    } finally {
+      keys.forEach((k, i) => {
+        const value = prev[i];
+        if (value === undefined) delete process.env[k];
+        else process.env[k] = value;
+      });
+    }
+    return loaded?.ios?.googleServicesFile;
+  };
+
+  it('uses the generated plist in an armed build', () => {
+    expect(iosConfigFile('1')).toBe(plist);
+  });
+
+  it('ignores it in an ordinary build', () => {
+    expect(iosConfigFile(undefined)).toBe('./google-services/dev/GoogleService-Info.plist');
   });
 });
 

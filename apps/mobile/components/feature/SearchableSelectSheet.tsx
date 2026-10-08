@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes, spacing } from '@cultuvilla/shared/design-system';
 import { Avatar, BottomSheet, Button, HStack, Input, Pressable, Text, VStack } from '../primitives';
 import { filterOptions, orderOptions, type PickerOption } from './pickerOptions';
 import { useT } from '../../lib/i18n';
@@ -97,7 +97,14 @@ export function SearchableSelectSheet({
         </VStack>
       }
     >
-      <VStack gap={3} className="px-5 pt-2">
+      {/* flexShrink here too: the list's ScrollView can only shrink if its
+          wrapper does. Without it a long list grows the body past the sheet's
+          maxHeight and pushes the confirm footer off-screen. */}
+      <View
+        className="px-5 pt-2"
+        style={{ flexShrink: 1, gap: spacing[3] }}
+        testID={`${rowTestIDPrefix}-body`}
+      >
         {emptyLabel ? null : (
           <Input
             value={search}
@@ -150,7 +157,7 @@ export function SearchableSelectSheet({
             )}
           </VStack>
         </ScrollView>
-      </VStack>
+      </View>
     </BottomSheet>
   );
 }

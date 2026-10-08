@@ -64,6 +64,10 @@ SA_ROLES=(
   # (scripts/check-custom-token-signing.mjs needs serviceAccounts.getIamPolicy).
   roles/iam.serviceAccountViewer
   roles/serviceusage.serviceUsageConsumer
+  # read-only, for the parity gate (scripts/check-env-parity.mjs): the
+  # project IAM policy and the list of enabled APIs.
+  roles/iam.securityReviewer
+  roles/serviceusage.serviceUsageViewer
 )
 
 g() { gcloud "$@" --account="$ACC" --quiet; }

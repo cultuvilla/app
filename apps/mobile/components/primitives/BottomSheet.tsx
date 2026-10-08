@@ -115,6 +115,7 @@ export function BottomSheet({
           KeyboardAvoider adds, and the keyboard would cover the sheet's fields. */}
       <KeyboardAvoider>
         <RNPressable
+          accessible={false}
           onPress={onClose}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
         >
@@ -123,6 +124,10 @@ export function BottomSheet({
               than overflow off the top of the screen. */}
           <Animated.View style={{ flexShrink: 1, transform: [{ translateY }] }}>
             <RNPressable
+              accessible={false}
+              // Its backdrop is not an accessibility element, so VoiceOver closes the
+              // sheet with the escape gesture instead.
+              onAccessibilityEscape={onClose}
               onPress={() => {}}
               testID={testID}
               className="bg-surface-elevated border-t border-subtle"

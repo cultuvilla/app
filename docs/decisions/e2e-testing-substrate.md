@@ -6,6 +6,14 @@
 > with it. Maestro on Android is the E2E suite; the read site is covered by
 > emulator tests in `functions/src/__tests__/handlers/web/`. What follows is the
 > original rationale, still true for the native half.
+>
+> **2026-10-06:** the same Maestro flows now also run on an iOS Simulator
+> (`.github/workflows/ios-e2e.yml`). The "~10x the cost" reason for deferring iOS
+> below never applied to this repo: it is public, and GitHub's standard macOS
+> runners are free for public repos — the cost is wall-clock only. iOS is the
+> product as much as Android ([web-is-a-read-site.md](web-is-a-read-site.md)),
+> and no developer here can run a Simulator, so CI is the only iOS coverage
+> there is.
 
 ## Context
 
@@ -122,9 +130,6 @@ build (where `__DEV__` is false).
 The testing-enhancement effort that produced this substrate is complete on both
 drivers. Deliberately deferred, none currently planned:
 
-- **iOS.** Maestro drives simulators too, but GitHub's macOS runners are ~10x the
-  cost of Linux and the native risk this suite covers is overwhelmingly shared
-  RN, not platform-specific. Revisit if an iOS-only regression ever ships.
 - CI minutes hurt → add `dorny/paths-filter` so UI-only PRs skip the emulator job.
 - Coverage should gate, not just report → wire `diff-cover` and gate on **patch/diff
   coverage only, never absolute total** (a total gate on the existing baseline would

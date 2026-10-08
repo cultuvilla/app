@@ -17,11 +17,14 @@ name: Production release
 #            production ships exactly what testers ran. Android waits for it.
 #
 # A BREAKING release (a `Breaking-Client:` trailer since the previous release
-# tag) is deployed with its functions and rules held until both stores serve
-# it. Its deploy is still green, so the store jobs run; the OTA is skipped, and
-# announce-when-live.yml ships the backend and raises the wall once the stores
-# are live. `[auto-deploy]` in the merge commit deploys it immediately instead.
-# See docs/decisions/announce-when-live-poller.md.
+# tag) is deployed with everything but its indexes held. Its deploy is still
+# green, so the store jobs run; the OTA is skipped. iOS is submitted with a
+# MANUAL release and Play holds the build under managed publishing (switched on
+# by hand before the merge — Google has no API for it), so neither store
+# publishes on approval. Once both approve, announce-when-live.yml opens an
+# issue, and `pnpm release:publish` ships the backend and releases iOS while
+# the user presses Publish on Play. `[auto-deploy]` in the merge commit deploys
+# it immediately instead. See docs/decisions/announce-when-live-poller.md.
 #
 # The store jobs run only when apps/mobile/package.json's version differs from
 # the previous main tip, so a re-deploy or a hotfix merge without a bump never
@@ -288,7 +291,7 @@ jobs:
             missing=1
           fi
           if [ -z "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}" ]; then
-            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set — see docs/plans/ongoing/store-release.md."
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set — see docs/store/release-runbook.md."
             missing=1
           fi
           [ "$missing" = "0" ]
@@ -438,7 +441,7 @@ jobs:
           [ -z "${APPLE_ASC_ISSUER_ID}" ] && missing+=("APPLE_ASC_ISSUER_ID")
           [ -z "${APPLE_ASC_API_KEY_P8}" ] && missing+=("APPLE_ASC_API_KEY_P8")
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing: ${missing[*]} — see docs/plans/ongoing/store-release.md."
+            echo "::error::Missing: ${missing[*]} — see docs/store/release-runbook.md."
             exit 1
           fi
 
@@ -451,4 +454,7 @@ jobs:
           APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
           APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
           APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
-        run: node scripts/appstore-release.mjs submit --apply
+          # A held (breaking) release waits for `pnpm release:publish` after
+          # approval instead of going on sale alone.
+          RELEASE_TYPE: ${{ needs.backend.outputs.held == 'true' && 'MANUAL' || 'AFTER_APPROVAL' }}
+        run: node scripts/appstore-release.mjs submit --apply --release-type="${RELEASE_TYPE}"

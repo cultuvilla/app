@@ -10,7 +10,7 @@ import {
   type UrlEntityKind,
 } from '@cultuvilla/shared/utils';
 import {
-  cardImage,
+  loadActiveVillages,
   loadBarrio,
   loadEvent,
   loadHistoryEntry,
@@ -25,7 +25,6 @@ import {
   loadVillageBySlug,
   loadVillageHome,
   loadWrapped,
-  type Card,
   type Village,
 } from './data';
 import type { Page } from './document';
@@ -36,6 +35,7 @@ import {
   eventPage,
   historyPage,
   homePage,
+  type Landing,
   legalPage,
   newsPage,
   notFoundPage,
@@ -43,6 +43,7 @@ import {
   placePage,
   posterPage,
   sectionPage,
+  villagesPage,
   villagePage,
   wordPage,
   wrappedPage,
@@ -142,19 +143,27 @@ async function entity(
   }
 }
 
-async function activeVillageCards(db: Firestore): Promise<Card[]> {
-  // Same shape as the sitemap's query — single-field, no composite index.
-  // typed-refs: allowed — converter-less read; see the header of data.ts.
-  const snap = await db.collection('municipalities').where('communityActive', '==', true).limit(60).get();
-  return snap.docs
-    .map((d) => ({
-      href: `/${String(d.get('slug'))}`,
-      title: String(d.get('name') ?? ''),
-      subtitle: typeof d.get('province') === 'string' ? (d.get('province') as string) : null,
-      imageUrl: cardImage((d.get('escudoManualUrl') as string | null) ?? (d.get('escudoUrl') as string | null) ?? null),
-    }))
-    .filter((c) => c.href !== '/undefined' && c.title)
-    .sort((a, b) => a.title.localeCompare(b.title, 'es'));
+/**
+ * The pueblo the landing page shows as its worked example: the first of these
+ * that is active, else the first active pueblo by name (dev and beta have no
+ * Matabuena). An editorial pick, not a ranking — ranking by content would cost
+ * a count query per pueblo on every home render.
+ */
+const SHOWCASE_VILLAGES = ['matabuena'];
+
+async function loadLanding(deps: WebDeps): Promise<Landing> {
+  const villages = await loadActiveVillages(deps.db);
+  const featured = villages.find((v) => SHOWCASE_VILLAGES.includes(v.slug)) ?? (villages.length > 0 ? villages[0] : null);
+  if (!featured) return { villages, showcase: null, wrapped: null };
+  // This year's fiestas, or last year's until this year's summary is published.
+  const year = deps.now.getUTCFullYear();
+  const [home, thisYear, lastYear] = await Promise.all([
+    loadVillageHome(deps.db, deps.bucket, featured, deps.now),
+    loadWrapped(deps.db, featured.id, year),
+    loadWrapped(deps.db, featured.id, year - 1),
+  ]);
+  const view = thisYear ?? lastYear;
+  return { villages, showcase: { village: featured, home }, wrapped: view ? { village: featured, view } : null };
 }
 
 export async function handle(req: WebRequest, deps: WebDeps): Promise<WebResponse> {
@@ -164,7 +173,9 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
 
   switch (route.type) {
     case 'home':
-      return page(homePage(await activeVillageCards(db)), path);
+      return page(homePage(await loadLanding(deps)), path);
+    case 'villages':
+      return page(villagesPage(await loadLanding(deps)), path);
     case 'download': {
       // The printed /descarga QR: a phone goes straight to its store.
       const platform = resolveStorePlatform(req.userAgent, 0);

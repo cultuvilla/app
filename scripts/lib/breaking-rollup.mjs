@@ -82,3 +82,21 @@ export function breakingSinceLastRelease({ version, head = 'HEAD', cwd = process
   const messages = log.split('\x1e').map((m) => m.trim()).filter(Boolean);
   return { base, commits: messages.length, ...rollupBreaking(messages, version) };
 }
+
+/**
+ * The `Breaking-Client:` trailers a single merge brings in: `HEAD^1..HEAD`, the
+ * commits the previous tip lacked. Beta uses it, since beta has no release
+ * tags: a beta version is breaking for the beta app when its own merge carries
+ * a trailer. A root commit (no parent) reads as nothing breaking.
+ */
+export function breakingInMerge({ version, head = 'HEAD', cwd = process.cwd() }) {
+  let base;
+  try {
+    base = git(['rev-parse', '--verify', `${head}^1`], cwd).trim();
+  } catch {
+    return { base: null, ...rollupBreaking([], version) };
+  }
+  const log = git(['log', '--no-merges', '--format=%B%x1e', `${base}..${head}`], cwd);
+  const messages = log.split('\x1e').map((m) => m.trim()).filter(Boolean);
+  return { base, commits: messages.length, ...rollupBreaking(messages, version) };
+}

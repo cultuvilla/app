@@ -374,5 +374,27 @@ describe('<OrganizerPicker>', () => {
       });
       expect(getByTestId('org-row-org2')).toBeTruthy();
     });
+
+    // Layout can't be measured in jest, so this pins the property that keeps the
+    // confirm footer on screen: without it a long group list pushed "Confirmar"
+    // off the bottom of the sheet and a group could be ticked but never added.
+    it('lets the group sheet body shrink so the confirm button stays visible', async () => {
+      const { getByTestId } = render(
+        <OrganizerPicker
+          municipalityId={MUNICIPALITY_ID}
+          selectedUserIds={[CREATOR_ID]}
+          selectedOrgIds={[]}
+          lockedUserId={CREATOR_ID}
+          onChangeUsers={jest.fn()}
+          onChangeOrgs={jest.fn()}
+        />,
+      );
+      await waitFor(() => {
+        expect(getByTestId('add-org-btn')).toBeTruthy();
+      });
+      fireEvent.press(getByTestId('add-org-btn'));
+      expect(getByTestId('org-row-body')).toHaveStyle({ flexShrink: 1 });
+      expect(getByTestId('org-confirm')).toBeTruthy();
+    });
   });
 });

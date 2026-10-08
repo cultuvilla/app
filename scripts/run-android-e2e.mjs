@@ -24,73 +24,23 @@
  *   MAESTRO_BIN       maestro binary (default `maestro`).
  *   E2E_ANDROID_DEVICE  adb id to target; defaults to the first attached
  *                     emulator (see the selection note below).
- *   E2E_NATIVE_FLOW   Single flow file to run (same as --flow). Useful for
+ *   E2E_NATIVE_FLOW   Flows to run instead of the whole suite (same as
+ *                     --flow): comma-separated numeric prefixes or names, e.g.
+ *                     `20,22` or `20-register-to-event`. Runs quarantined
+ *                     flows too; see selectFlows in scripts/lib/maestro-suite.mjs. Useful for
  *                     iterating on one flow under `pnpm test:e2e:android`,
  *                     which owns the emulator boot and takes no extra args.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { ROOT, SUITE_DIR, arg, run, runMaestroSuite } from './lib/maestro-suite.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SUITE_DIR = path.join(ROOT, 'apps', 'mobile', 'e2e', 'native');
-const FLOWS_DIR = path.join(SUITE_DIR, 'flows');
-const REPORT_DIR = path.join(SUITE_DIR, 'report');
-
+const LABEL = 'android-e2e';
 const ADB = process.env.ADB || 'adb';
-const MAESTRO = process.env.MAESTRO_BIN || 'maestro';
-
-// Maestro installs a driver APK on the device and connects to it over a
-// forwarded port. Its default startup budget is tight enough that a cold or
-// loaded emulator — a CI runner's software-rendered AVD, or a Windows-hosted
-// one reached across a WSL2 adb bridge — loses the race and dies with an opaque
-// `AndroidDriverTimeoutException` that reads like a broken flow. Give it room
-// unless the caller has already said otherwise.
-const MAESTRO_ENV = {
-  ...process.env,
-  MAESTRO_DRIVER_STARTUP_TIMEOUT: process.env.MAESTRO_DRIVER_STARTUP_TIMEOUT || '180000',
-};
-
-function arg(name) {
-  const i = process.argv.indexOf(`--${name}`);
-  return i === -1 ? undefined : process.argv[i + 1];
-}
 
 const apk = arg('apk') ?? process.env.E2E_ANDROID_APK;
 const flow = arg('flow') ?? process.env.E2E_NATIVE_FLOW;
-
-const DEVICE_WAIT_MS = 60_000;
-
-// Backend state a flow creates and must undo, and that nothing else heals: the
-// seed never writes these docs, so re-seeding leaves them. A flow undoes its
-// own in `onFlowComplete`, but that never runs when the Maestro process dies.
-// A leftover update wall (95) would block the whole app; a leftover block (41)
-// would hide the admin's comments from the attendee.
-const LEFTOVER_DOCS = ['config/appVersion', 'users/e2e-user/blockedUsers/e2e-admin'];
-
-async function deleteLeftoverDocs() {
-  const host = process.env.FIRESTORE_EMULATOR_HOST;
-  if (!host) return;
-  const project = process.env.E2E_FIREBASE_PROJECT || process.env.GCLOUD_PROJECT || 'cultuvilla-test';
-  for (const doc of LEFTOVER_DOCS) {
-    const url = `http://${host}/v1/projects/${project}/databases/(default)/documents/${doc}`;
-    const res = await fetch(url, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } });
-    if (!res.ok) {
-      console.error(`[android-e2e] could not reset ${doc}: HTTP ${res.status}; stopping the run.`);
-      process.exit(1);
-    }
-  }
-}
-
-function run(cmd, args, opts = {}) {
-  const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, ...opts });
-  if (res.error) {
-    console.error(`[android-e2e] failed to spawn ${cmd}: ${res.error.message}`);
-    process.exit(1);
-  }
-  return res.status ?? 1;
-}
 
 // 1. A device must be attached BEFORE anything else — the failure mode we are
 //    avoiding is a five-minute Maestro hang that says nothing about the cause.
@@ -133,93 +83,39 @@ if (apk) {
     process.exit(1);
   }
   console.log(`[android-e2e] installing ${apkPath}`);
-  const code = run(ADB, ['-s', device, 'install', '-r', '-d', apkPath]);
+  const code = run(LABEL, ADB, ['-s', device, 'install', '-r', '-d', apkPath]);
   if (code !== 0) process.exit(code);
 }
 
-// 3. Run the flows IN FILENAME ORDER, one `maestro test` per flow.
-//
-//    Maestro's workspace mode does not guarantee the order it discovers flows
-//    in, and this suite depends on it: 22 unregisters what 20 registered. A
-//    reshuffle would turn a healthy suite red for reasons that have nothing to
-//    do with the app. Driving the order here also gives one JUnit report per
-//    flow, so a CI failure names the flow instead of the workspace.
-//
-//    A failing flow does NOT stop the run: the rest of the suite is still worth
-//    knowing about, and a cascade (22 failing because 20 did) is itself the
-//    diagnosis.
-// Flows held OUT of the gate, with the reason each one is out. A quarantine is
-// a coverage cut, so it is announced on every run and named in the summary: a
-// suite that silently shrank reads as "everything passed", which is worse than
-// a red lane. `--flow` still runs a quarantined flow explicitly, so chasing one
-// needs no edit here.
+// 3. Run the suite (scripts/lib/maestro-suite.mjs). Flows held OUT of the
+//    gate on Android, with the reason each one is out — see that module for why
+//    a quarantine is announced rather than silent.
 // Shape: [['NN-name.yaml', 'reason, long enough to act on'], ...].
 const QUARANTINED = new Map([]);
 
-mkdirSync(REPORT_DIR, { recursive: true });
-const discovered = readdirSync(FLOWS_DIR)
-  .filter((f) => f.endsWith('.yaml'))
-  .sort();
+const DEVICE_WAIT_MS = 60_000;
 
-// An entry that no longer matches a file is a stale quarantine — fail rather
-// than let it rot into a line nobody can act on.
-for (const name of QUARANTINED.keys()) {
-  if (!discovered.includes(name)) {
-    console.error(`[android-e2e] quarantine names a flow that does not exist: ${name}`);
-    process.exit(1);
-  }
-}
-
-const skipped = flow ? [] : discovered.filter((f) => QUARANTINED.has(f));
-const flows = flow ? [flow] : discovered.filter((f) => !QUARANTINED.has(f));
-
-for (const name of skipped) {
-  console.warn(`\n[android-e2e] !! QUARANTINED, NOT RUN: ${name}`);
-  console.warn(`[android-e2e]    ${QUARANTINED.get(name)}`);
-}
-
-const failed = [];
-for (const name of flows) {
-  console.log(`\n[android-e2e] ─── ${name} ───`);
-  // Airplane mode outlives a flow, and even a crashed Maestro process. A flow
-  // that left it on (45-offline-cached-village) would fail every flow after it
-  // for a reason none of them can see, so every flow starts online.
-  run(ADB, ['-s', device, 'shell', 'cmd', 'connectivity', 'airplane-mode', 'disable']);
-  await deleteLeftoverDocs();
+// Airplane mode outlives a flow, and even a crashed Maestro process. A flow
+// that left it on (45-offline-cached-village) would fail every flow after it
+// for a reason none of them can see, so every flow starts online.
+function startOnline() {
+  run(LABEL, ADB, ['-s', device, 'shell', 'cmd', 'connectivity', 'airplane-mode', 'disable']);
   // Leaving airplane mode can drop the emulator's adb transport for a moment;
   // a flow started inside that window dies on "device offline" in seconds.
   // Bounded: a device that never comes back must fail the run by name, not
   // hang it until the CI job's timeout reports a bare "cancelled".
   const back = spawnSync(ADB, ['-s', device, 'wait-for-device'], { stdio: 'inherit', timeout: DEVICE_WAIT_MS });
   if (back.status !== 0) {
-    console.error(`[android-e2e] ${device} did not come back within ${DEVICE_WAIT_MS / 1000}s; stopping the run.`);
+    console.error(`[${LABEL}] ${device} did not come back within ${DEVICE_WAIT_MS / 1000}s; stopping the run.`);
     process.exit(1);
   }
-  const status = run(
-    MAESTRO,
-    [
-      '--device',
-      device,
-      'test',
-      path.join(FLOWS_DIR, name),
-      '--format',
-      'junit',
-      '--output',
-      path.join(REPORT_DIR, `${name.replace(/\.yaml$/, '')}.xml`),
-    ],
-    { env: MAESTRO_ENV },
-  );
-  if (status !== 0) failed.push(name);
 }
 
-const quarantineNote = skipped.length
-  ? ` (${skipped.length} quarantined and NOT run: ${skipped.join(', ')})`
-  : '';
-
-if (failed.length > 0) {
-  console.error(`\n[android-e2e] ${failed.length}/${flows.length} flow(s) failed:`);
-  for (const name of failed) console.error(`  - ${name}`);
-  if (quarantineNote) console.error(`[android-e2e]${quarantineNote}`);
-  process.exit(1);
-}
-console.log(`\n[android-e2e] all ${flows.length} flow(s) passed${quarantineNote}`);
+await runMaestroSuite({
+  label: LABEL,
+  device,
+  quarantined: QUARANTINED,
+  flow,
+  reportDir: path.join(SUITE_DIR, 'report'),
+  beforeEachFlow: startOnline,
+});

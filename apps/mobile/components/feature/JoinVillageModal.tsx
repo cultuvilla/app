@@ -47,6 +47,7 @@ export function JoinVillageModal({ municipality, busy = false, onCancel, onConfi
       }}
     >
       <Pressable
+        accessible={false}
         onPress={() => {
           if (!busy) onCancel();
         }}
@@ -55,6 +56,12 @@ export function JoinVillageModal({ municipality, busy = false, onCancel, onConfi
       >
         {/* Inner press-catcher: taps inside the card must not dismiss. */}
         <Pressable
+          accessible={false}
+          // Its backdrop is not an accessibility element, so VoiceOver closes the
+          // sheet with the escape gesture instead.
+          onAccessibilityEscape={() => {
+            if (!busy) onCancel();
+          }}
           onPress={() => {}}
           className="w-full rounded-lg bg-surface-elevated p-5 border border-subtle"
         >

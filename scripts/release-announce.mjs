@@ -13,12 +13,16 @@
  *   poll    --env=prod [--dry-run]     announce-when-live.yml, every 30 min:
  *                                      ask the stores, move `latest`, raise the
  *                                      wall, emit deploy_sha for a held backend
+ *   ready   --env=prod [--force]       release-publish.yml: both stores approved
+ *                                      the held release? emits version, backend_sha
  *   finish  --env=prod --sha=<sha>     deploy-firebase.yml, at the end of a
  *                                      SUCCESSFUL held-backend deploy: finish the
  *                                      release (never on mere dispatch)
  *
- * Writes go to the env's Firestore through initAdminForEnv (WIF in CI). Only
- * prod has a pending release; every command is a no-op elsewhere. The logic
+ * Writes go to the env's Firestore through initAdminForEnv (WIF in CI). Prod
+ * and beta have a pending release; beta runs only `record` and `poll` (it
+ * never holds, and announces the Cultuvilla Beta Android app alone).
+ * Everything is a no-op elsewhere. The logic
  * lives in lib/announce-cli.mjs; this file only binds it to the real world.
  */
 
@@ -29,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 import admin from 'firebase-admin';
 import { initAdminForEnv } from './lib/env-credentials.mjs';
 import { currentAppVersion } from './lib/app-version.mjs';
-import { breakingSinceLastRelease } from './lib/breaking-rollup.mjs';
+import { breakingInMerge, breakingSinceLastRelease } from './lib/breaking-rollup.mjs';
 import { playTargetFrom } from './lib/announce.mjs';
 import { runCli } from './lib/announce-cli.mjs';
 import { makePlayClient } from './lib/play.mjs';
@@ -52,9 +56,11 @@ function makeCtx(env) {
     log: (m) => console.log(`[announce] ${m}`),
     warn: (m) => console.log(`::warning::[announce] ${m}`),
     appVersion: () => currentAppVersion(),
-    rollup: (version) => breakingSinceLastRelease({ version, cwd: ROOT }),
+    // Prod rolls up since the previous release tag; beta has no tags and
+    // judges each merge by the commits it brings in.
+    rollup: (version, e) => (e === 'beta' ? breakingInMerge({ version, cwd: ROOT }) : breakingSinceLastRelease({ version, cwd: ROOT })),
     headSha: () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(),
-    playTarget: () => playTargetFrom(JSON.parse(readFileSync(path.join(ROOT, 'apps/mobile/eas.json'), 'utf8'))),
+    playTarget: () => playTargetFrom(JSON.parse(readFileSync(path.join(ROOT, 'apps/mobile/eas.json'), 'utf8')), env),
     makePlay: () => makePlayClient(),
     makeAsc: () => makeAscRequest(),
     ascAppId: process.env.ASC_APP_ID,

@@ -26,36 +26,62 @@ env:
     timeout: 45000
 
 # Precondition: be signed up. The FAB reads "Apuntarme" only while nobody is.
+# Matched anywhere in the label, not just at its start: on iOS the register
+# button's accessibility label leads with its icon glyph, so 'Apuntad.*' never
+# matched there, the flow re-registered, and unticking the already-registered
+# person raised a "Cancelar inscripción" alert it then stalled on.
+# The FAB first renders before the user's registrations load, reading
+# "Apuntarme" even for a registered user. Deciding on that first frame
+# re-registered on iOS, which unticked the user and raised the cancel alert.
+- extendedWaitUntil:
+    visible: '.*Apuntad.*'
+    timeout: 10000
+    optional: true
 - runFlow:
     when:
-      notVisible: 'Apuntad.*'
+      notVisible: '.*Apuntad.*'
     commands:
-      - tapOn:
-          id: 'register-fab'
+      - runFlow:
+          file: ../subflows/tap-until.yaml
+          env:
+            TAP: 'register-fab'
+            EXPECT: 'attendee-list'
       - tapOn:
           id: 'attendee-row-${PERSON_ID}'
       - tapOn:
           id: 'attendee-confirm'
-      - runFlow: ../subflows/dismiss-push-soft-ask.yaml
-      - extendedWaitUntil:
-          visible: 'Apuntad.*'
-          # This waits on state written by 21-register-family-member and then
-          # denormalised by a background trigger, so it is a cross-flow race,
-          # not a render. 20s passed on two runs and lost on the third; the rest
-          # of the suite waits 45s for exactly this kind of thing.
-          timeout: 45000
+      # Wait for "Apuntado", declining the push soft ask whenever it shows:
+      # the sheet opens only once the registration lands, and run on its own
+      # (a selection without 20) that is the registration callable's first
+      # call, whose worker boots on it. A single 10 s dismiss window missed
+      # the sheet, and it then hid the FAB for the rest of the wait. The
+      # registration itself is also a cross-flow race in the full suite: it
+      # waits on state written by 21 and denormalised by a trigger.
+      - repeat:
+          times: 12
+          while:
+            notVisible: '.*Apuntad.*'
+          commands:
+            - runFlow: ../subflows/dismiss-push-soft-ask.yaml
+      - assertVisible: '.*Apuntad.*'
 
 # Untick this persona and confirm. The sheet opens with whoever is registered
 # already ticked, so one tap is a removal.
-- tapOn:
-    id: 'register-fab'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
 - tapOn:
     id: 'attendee-row-${PERSON_ID}'
 - tapOn:
     id: 'attendee-confirm'
 # Native two-button Alert from lib/dialogs.ts showConfirm; the label is
 # event.register.cancelConfirm in packages/i18n/messages/es.json.
-- tapOn: 'SÍ, CANCELAR'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Sí, cancelar'
 
 - runScript:
     file: ../scripts/queryCollection.js

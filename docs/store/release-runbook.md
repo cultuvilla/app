@@ -1,105 +1,14 @@
 # Store release runbook — Google Play and App Store
 
-**Priority:** low
-**Landed:** prod
-**Gate:** none
-**Next:** once the 1.6.0 promotion reaches prod, confirm the read site serves the `apple-itunes-app` banner tag, then retire this plan into one decision doc
+How Cultuvilla reaches both stores, and the external (console-side) facts that
+the code cannot show. Both listings are public: iOS since 2026-09-04, Play since
+2026-09-28. The release *flow* itself is in AGENTS.md (*Versioning & releases*)
+and [production-auto-release.md](../decisions/production-auto-release.md).
 
-**Goal:** Cultuvilla public on both stores. **Done** — what remains is the
-open items below, then retiring this plan.
-
-## Done
-
-- **iOS 1.0.0 live** on the App Store since 2026-09-04 (175 territories, free):
-  <https://apps.apple.com/app/cultuvilla/id6804756586>. `APP_STORES.ios` filled in.
-- **Play closed test completed** (12 testers × 14 days).
-- **Play production approved**: 1.1.0, submitted 2026-09-08, public by
-  2026-09-28 (<https://play.google.com/store/apps/details?id=com.cultuvilla.app>).
-  `APP_STORES.android` filled in (what each store serves now lives in
-  `config/appVersion`, written by the announce poller);
-  `pnpm check:store-claims` 20 pass, 0 fail.
-- **Play freeze lifted** 2026-09-28 (`PLAY_SUBMIT_PAUSED` deleted): every
-  `beta` merge again submits Android to the closed track, iOS to TestFlight.
-- AGENTS.md *Versioning & releases* updated.
-
-## Next steps
-
-1. Retire this plan. Keep one decision doc for the lesson below: *what sinks a
-   release is server-side config no test in the repo can see.* Delete the rest.
-
-## Open, before retiring
-
-- ✅ **Sign in with Apple** — checked 2026-10-06 against prod Cloud Logging
-  (`jsonPayload.surface="auth"`, since 2026-09-04): 12 Apple entries, of which
-  4 are people cancelling the sheet (logged because the cancel reaches JS with
-  no `code`; fixed by matching the message too) and 8 are
-  `The authorization attempt failed for an unknown reason` — 4 attempts, each
-  retried once, spread over 1.2.2, 1.4.1 and 1.5.0. That is
-  `ASAuthorizationError.unknown`, typically a phone not signed into an Apple ID;
-  a broken entitlement or Services ID would fail every attempt. Not a defect.
-- **iOS Safari install banner.** The `apple-itunes-app` tag this doc says Safari
-  draws its banner from never shipped: `+html.tsx` is ignored with
-  `web.output: 'single'`. So iOS Safari visitors may get no install offer at
-  all. The fix shipped on dev in #336 and reaches prod with the next
-  promotion; the read site carries the tag from then on — see
-  [app-only-transition.md](app-only-transition.md) phase 2.
-
-## Handoff
-
-This doc describes state that lives **outside the repo** and
-drifts silently. Run `pnpm check:store-claims` before trusting any line of it.
-Before 2026-09-11 (PR #331) that check never read `APP_STORES` correctly and
-reported both platforms as empty. Release-pipeline follow-ups (the
-`beta-build-and-submit` dispatch guard, four failed `mobile-release` runs on
-26–28 Aug, announcing a version only once it is live in the store) moved to
-[store-release-pipeline.md](../ideas/store-release-pipeline.md).
-
-## Rollout status
-
-| Step | Android (Play) | iOS (App Store) |
-|---|---|---|
-| Pre-release testing | ✅ closed test, 12 × 14 days | ✅ TestFlight internal + external |
-| Submitted to production review | ✅ 2026-09-08 | ✅ 2026-09-02 (rejected, resubmitted) |
-| Approved | ⏳ | ✅ 2026-09-04 |
-| Listing public (`check:store-claims` PASS) | ⬜ | ✅ |
-| `APP_STORES` URL filled | ⬜ | ✅ |
-
-Legend: ⬜ pending · ⏳ in progress · ✅ done · ⚠️ blocked (note inline)
-
-## Rollout of the village-first URLs
-
-The Spanish, village-first URLs (#341, #348, #350) are on `develop` and live on
-dev. Why each step is ordered this way is in
-[spanish-village-urls.md](../../decisions/spanish-village-urls.md#hosting-and-native-links).
-Tick these off in order:
-
-1. ✅ **Promote `develop → beta → main`** as usual — done in v1.2.0 (2026-09-14; backfills auto-applied on beta and prod). Nothing extra by hand: the two
-   backfills (`municipality-slug`, then `village-slug-denorm`) auto-apply before
-   the gates on each deploy.
-2. ✅ **Check prod after the deploy.** — verified 2026-09-14: 404, 301, AASA still legacy.
-   - `curl -sI https://cultuvilla.es/pueblo-que-no-existe` → `404`
-   - `curl -sI https://cultuvilla.es/legal/privacy` → `301` to `/legal/privacidad`
-   - `curl -s https://cultuvilla.es/.well-known/apple-app-site-association` →
-     still the **legacy** paths (`/event/*`, `/news/*`, `/village/*`, `/o/*`)
-3. ⬜ **Update the legal URLs in both consoles** — only once step 2 passes. Before
-   that, prod has no page at the new paths.
-   - App Store Connect → App Information → Privacy Policy URL →
-     `https://cultuvilla.es/legal/privacidad`
-   - Play Console → Policy and programs → App content → Privacy policy → same URL
-     (the Play API cannot set this field; it is a UI-only edit)
-4. ⏳ **Ship an iOS build carrying the new routes** — iOS **1.2.1 (build 17)** submitted for review 2026-09-14 (AFTER_APPROVAL, phased). — any build made from `main`
-   after step 1: `mobile-release`, then **App Store release** → `submit`. Wait
-   until `status` says **READY_FOR_SALE**, not merely approved.
-5. ⬜ **Widen prod's iOS deep links.** Set prod's `apple-app-site-association`
-   `paths` to `["NOT /entrar", "NOT /entrar/*", "*"]` and update the pinned list
-   in `packages/shared/test/ci/storeRelease.test.ts` in the same PR (and include
-   `prod` again in `apps/mobile/__tests__/appConfig.test.ts`).
-   - **Why it waits:** the live iOS 1.0.0 predates both the new routes and OTA, so
-     a wider claim would open new links inside an app with no screen for them.
-
-Android needs no step of its own: its path claim lives in the binary's manifest,
-so the first Android build made after step 1 claims the new URLs by itself.
-Until then, new links simply open on the web.
+**This doc describes state that lives outside the repo, and that state drifts
+silently.** Run `pnpm check:store-claims` before trusting any line of it.
+[README.md](README.md) holds the store *content* (listing, declarations,
+assets). This file is the *process*.
 
 ## Publicar iOS es automático (desde el 4 sep 2026)
 
@@ -171,27 +80,11 @@ runtime, delante del revisor. `pnpm check:store-claims` ahora comprueba, contra
 la infra viva, que cada proveedor que la app ofrece está habilitado en los tres
 entornos.
 
-**Queda un fallo sin explicar, en otra capa.** Tras habilitar el proveedor, un
-tester de TestFlight seguía sin poder entrar: se abre la hoja de Apple, Face ID
-reconoce, y entonces es **el propio iOS** quien dice *«no se ha completado el
-registro»* — cadena que no está en `packages/i18n`. Es decir, `signInAsync()`
-aborta en la capa nativa y Firebase no llega a llamarse.
-
-Verificado y descartado como causa (3 sep 2026), todo vía la ASC API:
-
-| Comprobación | Resultado |
-|---|---|
-| Capability `APPLE_ID_AUTH` en el App ID `CMZZ2NW7J9` | habilitada, `PRIMARY_APP_CONSENT` (no agrupada bajo `com.ordago.app`) |
-| Perfil de aprovisionamiento (26 ago, `ACTIVE`) | concede `com.apple.developer.applesignin: ["Default"]` |
-| Proveedor `apple.com` en los tres entornos | habilitado, `bundleIds: com.cultuvilla.app` |
-| Nonce del cliente | correcto: hasheado a Apple, crudo a Firebase |
-| Código de auth en el build 9 | idéntico a `develop` (`git diff` vacío) |
-| Colisión `auth/account-exists-with-different-credential` | descartada: ocurriría *después* de la hoja de Apple, con error nuestro, no de iOS |
-
-El dato que lo resolvería es el código de `ASAuthorizationError` detrás del
-diálogo. Desde `55589f4a` (`reportAuthError`) los fallos de login que no son una
-cancelación llegan a Error Reporting con `surface: auth` — mirar ahí antes de
-retirar el plan.
+Sign in with Apple was re-checked on 2026-10-06 against prod Cloud Logging
+(`jsonPayload.surface="auth"`). The remaining failures were
+`ASAuthorizationError.unknown`, spread across versions and retried, which is
+typically a phone not signed into an Apple ID. It is not a defect: a broken
+entitlement or Services ID would fail every attempt.
 
 ## The one decision that set the timeline
 
@@ -208,7 +101,7 @@ que personal es lo honesto y lo rápido.
 The requirement is **per package name**. It is satisfied for `com.cultuvilla.app`;
 the tester app `com.cultuvilla.app.beta` lives on its own **internal** track,
 which the rule does not gate — see
-[docs/decisions/beta-is-its-own-play-app.md](../../decisions/beta-is-its-own-play-app.md).
+[docs/decisions/beta-is-its-own-play-app.md](../decisions/beta-is-its-own-play-app.md).
 
 ## External facts and where each one lands
 
@@ -258,20 +151,6 @@ The **SHA-256** from the same screen belongs in
 in — that is what makes a shared `https://cultuvilla.es/event/...` link open the
 app instead of the browser. `dev` and `beta` still carry placeholders; fill each
 one when that build is first distributed.
-
-## Store listing, declarations, assets
-
-Kept in [docs/store/](../../store/) so the same answers serve both consoles and
-stay reviewable in git:
-
-- [docs/store/listing-es-ES.md](../../store/listing-es-ES.md) — nombre, descripciones, categoría, keywords.
-- [docs/store/play-declarations.md](../../store/play-declarations.md) — todo el checklist de **App content**: privacy policy, app access, ads, content rating, target audience, data safety, government apps, financial features, health.
-- [docs/store/app-store-declarations.md](../../store/app-store-declarations.md) — App Privacy labels, age rating, notas de revisión, export compliance.
-- [docs/store/assets.md](../../store/assets.md) — icono, feature graphic, capturas.
-
-Reviewers sign in with the fixed-code review account (`_admin/reviewAccess`,
-written by `scripts/set-review-access.mjs`), since login is email OTP or
-Google/Apple and no loose credential works.
 
 ## Repo knobs this runbook feeds
 

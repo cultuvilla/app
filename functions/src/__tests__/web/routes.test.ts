@@ -5,6 +5,9 @@ describe('matchRoute', () => {
   it.each([
     ['/', { type: 'home' }],
     ['/descarga', { type: 'download' }],
+    ['/pueblos', { type: 'villages' }],
+    ['/pueblos/', { type: 'villages' }],
+    ['/pueblos/x', { type: 'notFound' }],
     ['/legal/privacidad', { type: 'legal', page: 'privacidad' }],
     ['/legal/terminos', { type: 'legal', page: 'terminos' }],
     ['/legal/eliminar-cuenta', { type: 'legal', page: 'eliminar-cuenta' }],

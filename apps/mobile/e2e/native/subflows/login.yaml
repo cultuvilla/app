@@ -41,7 +41,7 @@ appId: com.cultuvilla.app.dev
 # which is fine — we are only waiting for the app to be alive.
 - openLink: 'cultuvilla://perfil'
 - extendedWaitUntil:
-    visible: 'Explora'
+    visible: 'Explora(,.*)?'
     timeout: 90000
 - openLink: 'cultuvilla://perfil?e2eLogin=${EMAIL}%7C${PASSWORD}'
 - repeat:

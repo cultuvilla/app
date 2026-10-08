@@ -288,6 +288,7 @@ function PlaceDetailScreen() {
         }}
       >
         <RNPressable
+          accessible={false}
           onPress={() => {
             if (!savingBurial) setEditingPerson(null);
           }}
@@ -295,6 +296,12 @@ function PlaceDetailScreen() {
           className="justify-end"
         >
           <RNPressable
+            accessible={false}
+            // Its backdrop is not an accessibility element, so VoiceOver closes the
+            // sheet with the escape gesture instead.
+            onAccessibilityEscape={() => {
+              if (!savingBurial) setEditingPerson(null);
+            }}
             onPress={() => {}}
             style={{ paddingBottom: insets.bottom + 20 }}
             className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"

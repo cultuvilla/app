@@ -14,7 +14,6 @@ jest.mock('@cultuvilla/shared/services/personService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadUserPhoto: jest.fn(),
-  uploadPersonImage: jest.fn(),
 }));
 jest.mock('../../../lib/auth/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'uid-2', email: 'b@b.test', displayName: null } }),

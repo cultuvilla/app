@@ -71,12 +71,17 @@ export function TypeSheet({
           height, which in turn starved the sheet's max-height calculation and
           cropped the last rows with no way to scroll to them. */}
       <RNPressable
+        accessible={false}
         onPress={onClose}
         style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }]}
       >
         {/* No-op onPress stops a tap on the sheet itself from bubbling to the
             backdrop and closing the sheet. */}
         <RNPressable
+          accessible={false}
+          // Its backdrop is not an accessibility element, so VoiceOver closes the
+          // sheet with the escape gesture instead.
+          onAccessibilityEscape={onClose}
           onPress={() => {}}
           className="bg-surface rounded-t-2xl overflow-hidden"
           style={{ maxHeight: SHEET_MAX_HEIGHT }}

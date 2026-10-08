@@ -33,4 +33,10 @@ describe('sitemap', () => {
     expect(xml).toContain('/matabuena/noticia/visible_n1');
     expect(xml).not.toContain('_n2');
   });
+
+  it('lists the home and the /pueblos directory', async () => {
+    const xml = await fetchSitemap();
+    expect(xml).toMatch(/<loc>https?:\/\/[^<]+\/<\/loc>/);
+    expect(xml).toMatch(/<loc>https?:\/\/[^<]+\/pueblos<\/loc>/);
+  });
 });

@@ -23,8 +23,22 @@ env:
 - extendedWaitUntil:
     visible: 'Te han invitado a unirte a este grupo'
     timeout: 45000
+# A tap right after the deep-linked screen appears can be dropped on iOS (see
+# subflows/tap-until.yaml). Joining hides the FAB, so tap again while it stays.
 - tapOn:
     id: 'join-org-fab'
+- extendedWaitUntil:
+    notVisible:
+      id: 'join-org-fab'
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: 'join-org-fab'
+    commands:
+      - tapOn:
+          id: 'join-org-fab'
 - runScript:
     file: ../scripts/docField.js
     env:

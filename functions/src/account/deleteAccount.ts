@@ -83,7 +83,7 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
     const notificationsDeleted = await deleteNotifications(uid);
     const organizerRequestsDeleted = await deleteOrganizerRequests(uid);
     const organizerPointersNulled = await nullOrganizerPointers(uid);
-    await deleteStoragePhotos(uid, personIds);
+    await deleteStoragePhotos(uid);
     await userDoc(db, uid).delete();
 
     await getAuth().deleteUser(uid);
@@ -269,8 +269,7 @@ async function deleteUserComments(uid: string): Promise<number> {
  * Delete the departing user's uploaded photos from Cloud Storage: their account
  * avatar and every persona photo they uploaded. Both onboarding and the person
  * editor write to `users/{uid}/photo/...` (via `uploadUserPhoto`), so that
- * prefix covers self + dependents; `persons/{personId}/...` covers the legacy
- * `uploadPersonImage` path. The `photoURL` stored on the doc is a download URL,
+ * prefix covers self + dependents. The `photoURL` stored on the doc is a download URL,
  * not a storage path, so we delete by the derivable prefix rather than parsing
  * the URL.
  *
@@ -278,20 +277,17 @@ async function deleteUserComments(uid: string): Promise<number> {
  * that would leave the account's Firestore data half-deleted. `deleteFiles` is
  * idempotent, so the callable can be re-invoked to retry.
  */
-async function deleteStoragePhotos(uid: string, personIds: string[]): Promise<void> {
-  const bucket = getStorage().bucket();
-  const prefixes = [`users/${uid}/`, ...personIds.map((id) => `persons/${id}/`)];
-  for (const prefix of prefixes) {
-    try {
-      await bucket.deleteFiles({ prefix });
-    } catch (err) {
-      logger.warn('failed to delete storage photos', {
-        handler: 'deleteAccount',
-        uid,
-        prefix,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+async function deleteStoragePhotos(uid: string): Promise<void> {
+  const prefix = `users/${uid}/`;
+  try {
+    await getStorage().bucket().deleteFiles({ prefix });
+  } catch (err) {
+    logger.warn('failed to delete storage photos', {
+      handler: 'deleteAccount',
+      uid,
+      prefix,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

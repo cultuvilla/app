@@ -64,7 +64,7 @@ async function readDoc(db, p) {
 
 async function decide(ctx, env) {
   const version = ctx.appVersion();
-  const rollup = ctx.rollup(version);
+  const rollup = ctx.rollup(version, env);
   const decision = decideBackendHold({
     env,
     version,
@@ -93,7 +93,8 @@ async function cmdRecord(ctx, env, args) {
   const { version, decision } = await decide(ctx, env);
   // The plan step decided what this deploy did; record that, not a re-decision
   // (the pending doc or config may have changed in between).
-  const hold = parseHoldFlag(args.hold);
+  // Beta has no plan step, so nothing to hand over: it never holds.
+  const hold = env === 'prod' ? parseHoldFlag(args.hold) : false;
   const result = await recordRelease(ctx.db, { env, version, sha: ctx.headSha(), decision: { ...decision, hold } });
   if (result.outcome === 'not-in-flight') ctx.log(`v${version} is already what both stores serve — nothing to announce.`);
   else ctx.log(`${result.outcome} ${pendingDocPath(env)}: ${JSON.stringify(result.doc)}`);
@@ -120,7 +121,7 @@ async function cmdPoll(ctx, env, args) {
   }
 
   const { packageName, track } = ctx.playTarget();
-  const { live, detail } = await checkStores({
+  const { live, approved, awaitingPublish, detail } = await checkStores({
     pending,
     makePlay: ctx.makePlay,
     makeAsc: ctx.makeAsc,
@@ -138,6 +139,8 @@ async function cmdPoll(ctx, env, args) {
     env,
     version: pending.version,
     live,
+    approved,
+    awaitingPublish,
     iosBuildNumber: detail.iosBuildNumber,
     dryRun,
     ...(ctx.now ? { now: ctx.now } : {}),
@@ -159,6 +162,54 @@ async function cmdPoll(ctx, env, args) {
     ctx.output('deploy_sha', plan.deploySha);
   }
   if (plan.clear) ctx.log(`v${pending.version} is live everywhere — pending cleared.`);
+
+  if (dryRun) return;
+  // Step outputs announce-when-live.yml turns into a GitHub issue for the user.
+  ctx.output('version', pending.version);
+  if (plan.ready) {
+    ctx.log(`both stores approved v${pending.version} — waiting for \`pnpm release:publish\` and Publish in the Play Console.`);
+    ctx.summary(`- :rocket: **v${pending.version} is approved in both stores** — release it: \`pnpm release:publish\` + Publish in the Play Console`);
+    ctx.output('ready', 'true');
+  }
+  if (plan.publishedEarly.length) {
+    const p = plan.publishedEarly.join(' + ');
+    ctx.warn(`breaking v${pending.version} went live on ${p} before the other store approved it — its users run against the held (old) backend. Was Play managed publishing off?`);
+    ctx.output('published_early', p);
+  }
+  if (plan.stuckUnpublished) {
+    ctx.warn(`Play approved v${pending.version} but it is not published: managed publishing is still on. Press Publish in the Play Console and turn managed publishing off.`);
+  }
+  if (plan.clear && pending.breaking) ctx.output('done', 'true');
+}
+
+/**
+ * Before `pnpm release:publish` ships a held backend: is there one, and have
+ * both stores approved its version? Emits `version` and `backend_sha`. Refuses
+ * otherwise, unless `--force` (for a store that cannot be asked).
+ */
+async function cmdReady(ctx, env, args) {
+  const force = parseBoolFlag(args.force, 'force');
+  const pending = await readDoc(ctx.db, pendingDocPath(env));
+  if (!pending) throw new Error('nothing pending — there is no release to publish.');
+  if (!pending.holdBackend) throw new Error(`v${pending.version}'s backend is not held — nothing to release by hand.`);
+  const { packageName, track } = ctx.playTarget();
+  const { approved, detail } = await checkStores({
+    pending,
+    makePlay: ctx.makePlay,
+    makeAsc: ctx.makeAsc,
+    ascAppId: ctx.ascAppId,
+    packageName,
+    track,
+    warn: ctx.warn,
+  });
+  ctx.log(`v${pending.version} — android: ${detail.android} | ios: ${detail.ios}`);
+  const missing = ['ios', 'android'].filter((p) => !approved[p]);
+  if (missing.length && !force) {
+    throw new Error(`v${pending.version} is not approved on ${missing.join(' + ')} yet — wait for it (or pass --force).`);
+  }
+  if (missing.length) ctx.warn(`--force: releasing v${pending.version} although ${missing.join(' + ')} has not approved it.`);
+  ctx.output('version', pending.version);
+  ctx.output('backend_sha', pending.backendSha ?? pending.releaseSha);
 }
 
 async function cmdFinish(ctx, env, args) {
@@ -175,20 +226,24 @@ export const COMMANDS = {
   record: (ctx, env, args) => cmdRecord(ctx, env, args),
   'record-android': (ctx, env, args) => cmdRecordAndroid(ctx, env, args),
   poll: (ctx, env, args) => cmdPoll(ctx, env, args),
+  ready: (ctx, env, args) => cmdReady(ctx, env, args),
   finish: (ctx, env, args) => cmdFinish(ctx, env, args),
 };
 
 /**
- * Run one invocation. `makeCtx` is called only for prod, so another env never
- * touches credentials; it still answers `hold_backend=false` for a caller that
- * branches on it.
+ * Run one invocation. `makeCtx` is called only for prod, and for beta's
+ * record and poll, so another env never touches credentials; a skipped call
+ * still answers `hold_backend=false` for a caller that branches on it.
  */
+/** Beta announces and walls too, but never holds: only these run there. */
+const BETA_COMMANDS = new Set(['record', 'poll']);
+
 export async function runCli(argv, { makeCtx, output }) {
   const args = parseArgs(argv);
   const command = args._[0];
   if (!COMMANDS[command]) throw new Error(`unknown command "${command}" — one of ${Object.keys(COMMANDS).join(', ')}`);
   const env = typeof args.env === 'string' ? args.env : '';
-  if (env !== 'prod') {
+  if (env !== 'prod' && !(env === 'beta' && BETA_COMMANDS.has(command))) {
     output('hold_backend', 'false');
     return { skipped: true, env };
   }

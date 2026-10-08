@@ -36,6 +36,10 @@ for (const env of ['dev', 'beta', 'prod']) {
     assert.ok(existsSync(join(out, '.well-known/assetlinks.json')));
     assert.equal(readFileSync(join(out, 'robots.txt'), 'utf8'), buildRobotsTxt(env));
     assert.ok(existsSync(join(out, 'brand/logo-96.png')));
+    assert.equal(
+      readFileSync(join(out, 'brand/cultuvilla-lettering.svg'), 'utf8'),
+      readFileSync(new URL('../../packages/shared/assets/brand/cultuvilla-lettering.svg', import.meta.url), 'utf8'),
+    );
     assert.ok(existsSync(join(out, 'favicon.ico')));
   });
 }

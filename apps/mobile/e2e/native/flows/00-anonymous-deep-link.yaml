@@ -31,6 +31,13 @@ appId: com.cultuvilla.app.dev
 # full-bleed hero, title, date/location cards, organisers and village have had
 # their say. Guarded by `when: notVisible` so a
 # future layout that does fit it on screen doesn't start scrolling past it.
+# The button renders after the event loads; deciding whether to scroll before
+# it exists sends a scroll at a screen that cannot scroll, which fails while
+# the button sits in plain view (seen on iOS). Give it a moment first.
+- extendedWaitUntil:
+    visible: 'Apuntarme'
+    timeout: 15000
+    optional: true
 - runFlow:
     when:
       notVisible: 'Apuntarme'

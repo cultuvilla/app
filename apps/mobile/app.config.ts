@@ -67,6 +67,17 @@ const deepLinkHostPerEnv: Record<Env, string> = {
   prod: process.env['DEEP_LINK_HOST_PROD'] ?? 'cultuvilla.es',
 };
 
+// Google Maps SDK for Android key per env, for the draggable location picker
+// (react-native-maps; iOS draws Apple Maps and needs none). Committed like
+// google-services/: it ships inside every APK, so there is nothing to hide, and
+// each key is restricted to the Maps SDK for Android, which Google does not
+// bill. It must never be empty on Android — a MapView without a key crashes.
+const googleMapsAndroidKeyPerEnv: Record<Env, string> = {
+  dev: 'AIzaSyCmLTlhlhxtktsntvsfcxDNmHxo8ETccAM',
+  beta: 'AIzaSyCDfKbkM6WnH-e_GXlxG4eI-94QnKDISE8',
+  prod: 'AIzaSyAMBOeRHimDUL4I3BdBpAMpKS3WTgMjYAM',
+};
+
 // Firebase config is injected per-environment from .env (or EAS secrets).
 // DO NOT commit real keys — use a local .env file (gitignored) with these vars:
 //   FIREBASE_API_KEY_DEV, FIREBASE_AUTH_DOMAIN_DEV, FIREBASE_PROJECT_ID_DEV,
@@ -127,7 +138,12 @@ const hasGoogleServicesFile = existsSync(resolve(__dirname, googleServicesFile))
 // wired when this env has one — a build without it still runs, with native
 // analytics as a no-op. Android needs nothing extra: it initialises from the
 // google-services.json above. Same committed-per-env rule (no secret inside).
-const iosGoogleServicesFile = `./google-services/${env}/GoogleService-Info.plist`;
+// Overridden, like the Android file, only in the emulator E2E build
+// (scripts/build-ios-e2e-app.mjs).
+const iosGoogleServicesFile =
+  process.env['USE_FIREBASE_EMULATOR'] === '1' && process.env['E2E_GOOGLE_SERVICE_INFO_FILE']
+    ? process.env['E2E_GOOGLE_SERVICE_INFO_FILE']
+    : `./google-services/${env}/GoogleService-Info.plist`;
 const hasIosGoogleServicesFile = existsSync(resolve(__dirname, iosGoogleServicesFile));
 
 const firebaseConfigPerEnv: Record<Env, FirebaseOptions> = {
@@ -165,7 +181,7 @@ const config: ExpoConfig = {
   // the shell would silently build one repo into the other's EAS project; owner
   // + projectId in the file make the routing per-repo by construction.
   owner: 'cultuvilla.app',
-  version: '1.7.1',
+  version: '1.8.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
 
@@ -322,6 +338,10 @@ const config: ExpoConfig = {
           ] as [string, { iosUrlScheme: string }],
         ]
       : []),
+    [
+      'react-native-maps',
+      { androidGoogleMapsApiKey: googleMapsAndroidKeyPerEnv[env] },
+    ],
     [
       'expo-location',
       {

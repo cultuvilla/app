@@ -35,6 +35,23 @@ function scalar(v) {
 
 var min = Number(typeof MIN !== 'undefined' && MIN !== '' ? MIN : 1);
 var max = typeof MAX !== 'undefined' && MAX !== '' ? Number(MAX) : Infinity;
+// Pause between polls. Maestro's JS runtime has no sleep, and a bare loop fires
+// GETs back to back for the whole timeout: on a 3-core macOS runner that also
+// hosts the Simulator, it starved the app and the Functions emulator — a
+// callable the app sent during the poll only began executing the second the
+// poll gave up. The runner (scripts/lib/maestro-suite.mjs) serves a URL that
+// answers after `ms`; without it the GET fails at once and the loop is merely
+// tight, as before.
+var PAUSE_URL =
+  typeof POLL_PAUSE_URL !== 'undefined' && POLL_PAUSE_URL ? POLL_PAUSE_URL : 'http://127.0.0.1:9399/pause?ms=250';
+function pause() {
+  try {
+    http.get(PAUSE_URL);
+  } catch (e) {
+    // No pause server: carry on unthrottled.
+  }
+}
+
 var timeoutMs = Number(typeof TIMEOUT_MS !== 'undefined' && TIMEOUT_MS ? TIMEOUT_MS : 20000);
 var deadline = Date.now() + timeoutMs;
 var count = 0;
@@ -66,6 +83,7 @@ while (true) {
   }
   if (count >= min && count <= max) break;
   if (Date.now() >= deadline) break;
+  pause();
 }
 
 output.count = String(count);

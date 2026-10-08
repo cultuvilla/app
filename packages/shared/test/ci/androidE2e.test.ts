@@ -20,6 +20,8 @@ const workflow = read('.github/workflows/android-e2e.yml');
 const appConfig = read('apps/mobile/app.config.ts');
 const apkScript = read('scripts/build-android-e2e-apk.mjs');
 const runner = read('scripts/run-android-e2e.mjs');
+const buildEnvLib = read('scripts/lib/e2e-build-env.mjs');
+const suiteLib = read('scripts/lib/maestro-suite.mjs');
 const rootPkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
 const flowsDir = resolve(repoRoot, 'apps/mobile/e2e/native/flows');
 
@@ -120,11 +122,11 @@ describe('E2E auth-bypass hygiene', () => {
   // Setting the flag for prebuild but not for the Gradle bundle task (or the
   // reverse) yields an APK that looks correct and talks to real Firebase.
   it('builds the E2E APK as dev + emulator-armed, for both build phases', () => {
-    expect(apkScript).toMatch(/APP_ENV:\s*'dev'/);
-    expect(apkScript).toMatch(/USE_FIREBASE_EMULATOR:\s*'1'/);
-    expect(apkScript).toMatch(/EXPO_PUBLIC_EMULATOR_HOST/);
+    expect(buildEnvLib).toMatch(/APP_ENV:\s*'dev'/);
+    expect(buildEnvLib).toMatch(/USE_FIREBASE_EMULATOR:\s*'1'/);
+    expect(buildEnvLib).toMatch(/EXPO_PUBLIC_EMULATOR_HOST: emulatorHost/);
     // One env object, used for prebuild AND gradle — not two.
-    expect(apkScript.match(/const buildEnv = \{/g)).toHaveLength(1);
+    expect(apkScript.match(/const buildEnv = e2eBuildEnv\(EMULATOR_HOST\)/g)).toHaveLength(1);
     expect(apkScript).toMatch(/spawnSync\(cmd, args, \{ cwd, env: buildEnv/);
   });
 
@@ -162,14 +164,15 @@ describe('quarantine', () => {
   // The runner also checks this at runtime and exits non-zero; this catches it
   // in the unit suite, where it is 200ms instead of a 40-minute AVD boot.
   it('fails the run rather than skipping a quarantine entry that no longer matches a file', () => {
-    expect(runner).toMatch(/quarantine names a flow that does not exist/);
+    expect(suiteLib).toMatch(/quarantine names a flow that does not exist/);
+    expect(runner).toMatch(/runMaestroSuite\(\{[\s\S]*quarantined: QUARANTINED/);
   });
 
   it('announces every held-out flow instead of shrinking the suite quietly', () => {
-    expect(runner).toMatch(/QUARANTINED, NOT RUN/);
+    expect(suiteLib).toMatch(/QUARANTINED, NOT RUN/);
     // ...and says so again in the summary line, which is the part a passing run
     // actually prints.
-    expect(runner).toMatch(/quarantined and NOT run/);
+    expect(suiteLib).toMatch(/quarantined and NOT run/);
   });
 
   it('gives each held-out flow a reason', () => {
@@ -181,8 +184,8 @@ describe('quarantine', () => {
     }
   });
 
-  it('still lets --flow run a quarantined flow explicitly', () => {
-    expect(runner).toMatch(/flow \? \[flow\]/);
+  it('still lets a selection run a quarantined flow explicitly', () => {
+    expect(suiteLib).toMatch(/const skipped = selection \? \[\] :/);
   });
 });
 
@@ -190,15 +193,20 @@ describe('flows start from a clean device', () => {
   // A flow that switches airplane mode on (45-offline-cached-village) would
   // otherwise fail every flow after it — even after a Maestro crash, which
   // skips the flow's own onFlowComplete cleanup.
-  const loop = runner.slice(runner.indexOf('for (const name of flows)'));
+  // The reset is split: the device half is Android's per-flow hook, the
+  // backend half runs inside the shared loop for every platform.
+  const hook = runner.slice(runner.indexOf('function startOnline()'));
+  const loop = suiteLib.slice(suiteLib.indexOf('for (const name of flows)'));
 
   it('switches airplane mode off before every flow', () => {
-    expect(loop).toMatch(/'airplane-mode',\s*'disable'/);
+    expect(hook).toMatch(/'airplane-mode',\s*'disable'/);
+    expect(runner).toMatch(/beforeEachFlow: startOnline/);
+    expect(loop).toMatch(/await beforeEachFlow\(name\)/);
   });
 
   it('deletes backend state a flow leaves behind before every flow', () => {
-    expect(loop).toMatch(/await deleteLeftoverDocs\(\)/);
-    expect(runner).toMatch(/'config\/appVersion'/);
+    expect(loop).toMatch(/await deleteLeftoverDocs\(label\)/);
+    expect(suiteLib).toMatch(/'config\/appVersion'/);
   });
 
   // 95 writes an update wall and removes it only on the way out, so any flow
@@ -209,9 +217,9 @@ describe('flows start from a clean device', () => {
   });
 
   it('waits for the device before every flow, bounded so a dead AVD fails by name', () => {
-    expect(loop).toMatch(/'wait-for-device'\]/);
-    expect(loop).toMatch(/timeout:\s*DEVICE_WAIT_MS/);
-    expect(loop).toMatch(/process\.exit\(1\)/);
+    expect(hook).toMatch(/'wait-for-device'\]/);
+    expect(hook).toMatch(/timeout:\s*DEVICE_WAIT_MS/);
+    expect(hook).toMatch(/process\.exit\(1\)/);
   });
 });
 

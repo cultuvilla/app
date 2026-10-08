@@ -855,8 +855,16 @@
     "confirmLocation": "Confirmar ubicación",
     "searchLocationPlaceholder": "Buscar dirección…",
     "useMyLocation": "Usar mi ubicación",
-    "locationPickerTitle": "Ubicación del evento",
-    "noLocationYet": "Busca una dirección o usa tu ubicación",
+    "searchingAddresses": "Buscando direcciones…",
+    "noAddressResults": "Sin resultados para «{query}»",
+    "addressSearchFailed": "No se pudo buscar. Toca para reintentar.",
+    "gettingLocation": "Obteniendo ubicación…",
+    "gettingAddress": "Obteniendo dirección…",
+    "moveMapOrSearch": "Mueve el mapa o busca una dirección",
+    "addressUnavailable": "Nombre de ubicación no disponible",
+    "locationInitialFailed": "No se pudo obtener tu ubicación inicial.",
+    "locationCurrentFailed": "No se pudo obtener tu ubicación actual.",
+    "searchAddress": "Buscar dirección",
     "organizersLabel": "Organizadores",
     "villageLabel": "Pueblo",
     "groupsLabel": "Grupos involucrados",
@@ -1527,13 +1535,6 @@
     "titleFemale": "Embajadora",
     "inVillage": "Embajador en {village}",
     "inVillageFemale": "Embajadora en {village}",
-    "team": "Equipo del pueblo",
-    "welcome": {
-      "title": "¡Ya eres {title} de Cultuvilla en {village}!",
-      "body": "Desde hoy eres la cara de tu pueblo en Cultuvilla. Tu nombre aparece en la página del pueblo y en tu perfil. Gracias por dar un paso al frente.",
-      "share": "Compartir la noticia",
-      "dismiss": "Empezar",
-      "close": "Cerrar"
-    }
+    "team": "Equipo del pueblo"
   }
 }

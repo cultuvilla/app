@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 // docs/architecture/live-references.md.
 import { getDb } from '@cultuvilla/shared/firebase';
 import { useFirestoreDoc } from '@cultuvilla/shared/hooks';
-import { userDoc, personDoc, organizationDoc } from '@cultuvilla/shared/firebase/refs/client';
+import { publicProfileDoc, personDoc, organizationDoc } from '@cultuvilla/shared/firebase/refs/client';
 import { buildDisplayName } from '@cultuvilla/shared/models/person/PersonDataModel';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
 import { DELETED_USER_UID } from '@cultuvilla/shared/models/user';
@@ -19,9 +19,11 @@ import { useAuth } from './auth/useAuth';
 /**
  * Owners whose document carries a name + image we resolve live. `person`
  * carries its own avatar (`photoURL`); `organization`'s avatar is `images[0]`
- * (the hero/cover convention shared with places/barrios/festival posters); a `user`'s
- * avatar lives on the linked person doc — the user doc's `photoURL` is
- * frequently null — so we resolve the person and use its photo as the fallback.
+ * (the hero/cover convention shared with places/barrios/festival posters). A
+ * `user` resolves through `publicProfiles/{uid}`, never `users/{uid}`: the
+ * account doc is readable only by its owner and app admins, so for anyone else
+ * the subscription is denied and the chip loses its name. The projection has no
+ * photo, so a user's avatar comes from their linked person doc.
  */
 export type OwnerType = 'user' | 'person' | 'organization';
 
@@ -53,7 +55,7 @@ export function useOwnerSummary(
     const db = getDb();
     switch (ownerType) {
       case 'user':
-        return userDoc(db, ownerId);
+        return publicProfileDoc(db, ownerId);
       case 'person':
         return personDoc(db, ownerId);
       case 'organization':
@@ -82,8 +84,8 @@ export function useOwnerSummary(
     | undefined;
 
   // A `user`'s avatar lives on their linked person doc, which is a query
-  // (persons.userId == uid) rather than a doc we can subscribe to by path. We
-  // resolve it once per uid and fall back to it when the user doc has no photo.
+  // (persons.userId == uid) rather than a doc we can subscribe to by path, so we
+  // resolve it once per uid.
   const { user } = useAuth();
   const viewerUid = user?.uid ?? null;
   const [personPhotoURL, setPersonPhotoURL] = useState<string | null>(null);
@@ -133,7 +135,7 @@ export function useOwnerSummary(
       default:
         return {
           name: data.displayName ?? null,
-          imageUri: data.photoURL ?? personPhotoURL ?? null,
+          imageUri: personPhotoURL,
           loading,
         };
     }

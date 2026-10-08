@@ -43,9 +43,11 @@ env:
           start: 50%, 60%
           end: 50%, 25%
           duration: 300
-- tapOn:
-    id: 'comment-input'
-- inputText: ${output.body}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'comment-input'
+      TEXT: ${output.body}
 # Send with the arrow, exactly as a user does.
 #
 # It used to be `pressKey: Enter`, because the composer was a single-line field
