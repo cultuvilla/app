@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import type { Card, Village, VillageHome, WrappedView } from '../../web/data';
 import { renderDocument } from '../../web/document';
 import { render } from '../../web/html';
-import { homePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
+import { ambassadorsPage, homePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
 import { LANDING_STYLES } from '../../web/styles';
 
 const village = (slug: string, name: string, province: string | null = 'Segovia'): Village => ({
@@ -77,10 +77,11 @@ describe('homePage', () => {
     expect(out).toMatch(/src="https:\/\/img\/posters\.png"[^>]*\/><img src="https:\/\/img\/cover\.png" alt="" aria-hidden="true"/);
     for (const c of ['people', 'organizers']) expect(out).not.toContain(`https://img/${c}.png`);
     expect(out).toContain('<section class="blk amb">');
-    expect(out.match(/<li class="step">/g)).toHaveLength(3);
-    // The Embajador pitch opens on the question the Embajador film opens on.
+    // The home only hooks the Embajador pitch with the film's question and hands over to /embajadores.
     expect(out).toContain('<h2>¿Vives las fiestas de tu pueblo como nadie?</h2>');
-    expect(out).toContain('Pulsa «Quiero ser embajador»');
+    expect(out).toContain('<a class="cta" href="/embajadores">');
+    expect(out).not.toContain('class="steps"');
+    expect(out).not.toContain('Para quién');
     expect(body({ villages: [matabuena], showcase, wrapped: null })).not.toContain('class="wr-track"');
   });
 
@@ -166,6 +167,22 @@ describe('homePage', () => {
     expect(LANDING_STYLES).not.toMatch(/\n\.landing \.intro\{[^}]*padding-top/);
     expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-latin.woff2'))).toBe(true);
     expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-OFL.txt'))).toBe(true);
+  });
+
+  it('gives would-be Embajadores a page of their own, with the Embajador film, the steps and the stores', () => {
+    const page = ambassadorsPage();
+    expect(page.layout).toBe('landing');
+    const out = render(page.body);
+    expect(out).toContain('<h1>¿Vives las fiestas de tu pueblo <em>como nadie</em>?</h1>');
+    expect(out).toContain('src="/brand/landing/cultuvilla-embajador-vertical.mp4"');
+    expect(out).toContain('poster="/brand/landing/cultuvilla-embajador-vertical.webp"');
+    expect(out).toContain('class="sound"');
+    expect(out.match(/<li class="step">/g)).toHaveLength(3);
+    expect(out).toContain('Pulsa «Quiero ser embajador»');
+    expect(out.match(/<a class="store"/g)).toHaveLength(2);
+    for (const f of ['cultuvilla-embajador-vertical.mp4', 'cultuvilla-embajador-vertical.webp']) {
+      expect(existsSync(resolve(__dirname, '../../../../web/public/brand/landing', f))).toBe(true);
+    }
   });
 
   it('marks each store button with its store icon', () => {

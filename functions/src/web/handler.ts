@@ -44,6 +44,7 @@ import {
   posterPage,
   sectionPage,
   villagesPage,
+  ambassadorsPage,
   villagePage,
   wordPage,
   wrappedPage,
@@ -176,6 +177,8 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
       return page(homePage(await loadLanding(deps)), path);
     case 'villages':
       return page(villagesPage(await loadLanding(deps)), path);
+    case 'ambassadors':
+      return page(ambassadorsPage(), path);
     case 'download': {
       // The printed /descarga QR: a phone goes straight to its store.
       const platform = resolveStorePlatform(req.userAgent, 0);

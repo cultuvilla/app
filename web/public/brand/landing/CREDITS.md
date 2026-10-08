@@ -20,6 +20,7 @@ are cropped and re-encoded to webp.
 | `casa-piedra.webp` | Walter Martin | https://unsplash.com/photos/bUNNUjJvT0Q |
 | `verbena-noche.webp` | Alberto Frías | https://unsplash.com/photos/2LlSzJKeYdU |
 | `pueblo-atardecer.webp` | Álvaro Ruiz Mena | https://unsplash.com/photos/8umzzjf36LY |
+| `biblioteca-antigua.webp` | Hieu Vu Minh | https://unsplash.com/photos/He8-FZl-o10 |
 
 ## Our own
 
@@ -27,3 +28,5 @@ are cropped and re-encoded to webp.
 |---|---|
 | `cultuvilla-intro-vertical.mp4` | Cultuvilla's intro film, piece `intro` (9:16) of cultuvilla/motion, re-encoded to 540×960 |
 | `cultuvilla-intro-vertical.webp` | Poster frame of the same film |
+| `cultuvilla-embajador-vertical.mp4` | Cultuvilla's Embajador film, piece `embajador` (9:16) of cultuvilla/motion, re-encoded to 540×960; the Matabuena photos in it are cleared in that repo's `consentimientos.json` |
+| `cultuvilla-embajador-vertical.webp` | Its cover (`portada.png`), resized |

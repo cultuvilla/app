@@ -1,0 +1,3 @@
+- **Web:** a new `/embajadores` page pitches being a pueblo's Embajador around the Embajador film: the question hook, what is lost each year, what an Embajador does, the three steps, its own FAQ and the store buttons. The header links to it on wider screens, and the app sends `/embajadores` to the village search.
+- **Web:** the landing drops its "Para quién" cards; its Embajadores block is now short, on a light background, and links to `/embajadores`. "Inmortaliza la cultura de tu pueblo" reads "Conserva…", and the "Inmortalízalo" pillar shows an old library.
+- **Web:** the header no longer overflows a 320px-wide phone on the landing pages.

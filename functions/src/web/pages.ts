@@ -445,12 +445,16 @@ function photo(name: string, alt: string, width: number, height: number, cls = '
 }
 
 /**
- * The app's intro film (cultuvilla/motion, piece `intro`), muted so it may
- * autoplay. The sound toggle is fixed code: it reads nothing from the page.
+ * A film from cultuvilla/motion in a phone, muted so it may autoplay. The sound
+ * toggle is fixed code: it reads nothing from the page.
  */
-const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/cultuvilla-intro-vertical.mp4" poster="/brand/landing/cultuvilla-intro-vertical.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video><button type="button" class="sound" aria-label="Activar sonido" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.play();}this.classList.toggle('on',!v.muted);this.setAttribute('aria-label',v.muted?'Activar sonido':'Silenciar')">${raw(
+function phoneVideo(name: string, label: string): SafeHtml {
+  return html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/${name}.mp4" poster="/brand/landing/${name}.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="${label}"></video><button type="button" class="sound" aria-label="Activar sonido" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.play();}this.classList.toggle('on',!v.muted);this.setAttribute('aria-label',v.muted?'Activar sonido':'Silenciar')">${raw(
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="off" d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
 )}</button></span></figure>`;
+}
+
+const INTRO_VIDEO = phoneVideo('cultuvilla-intro-vertical', 'Vídeo: cómo funciona Cultuvilla');
 
 const storeIcon = (path: string): SafeHtml => raw(`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}" fill="currentColor"/></svg>`);
 const APPLE_ICON = storeIcon('M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701');
@@ -488,29 +492,59 @@ export function homePage({ wrapped }: Landing): Page {
         ['vecinos-paseo', 'Sus palabras.', 'Una pareja mayor pasea por una calle empedrada'],
         ['baile-tradicional', 'Su gente.', 'Vecinos con traje tradicional bailan en la plaza'],
       ] as const
-    ).map(([name, word, alt]) => html`<li>${photo(name, alt, 800, 800)}<span>${word}</span></li>`)}</ul><div><span class="eyebrow">Más que una agenda</span><h2 style="margin:12px 0 18px">Inmortaliza la cultura de tu pueblo</h2><p class="lead">Los carteles de cada año, los motes, las palabras que solo se dicen allí, las historias de los mayores. Hoy están repartidos entre el bar, los grupos de WhatsApp y la memoria de unos pocos.</p><p class="lead">En Cultuvilla quedan guardados para siempre: para quien vive en el pueblo todo el año, para quien vuelve cada agosto y para los que vienen detrás.</p></div></div></section>
+    ).map(([name, word, alt]) => html`<li>${photo(name, alt, 800, 800)}<span>${word}</span></li>`)}</ul><div><span class="eyebrow">Más que una agenda</span><h2 style="margin:12px 0 18px">Conserva la cultura de tu pueblo</h2><p class="lead">Los carteles de cada año, los motes, las palabras que solo se dicen allí, las historias de los mayores. Hoy están repartidos entre el bar, los grupos de WhatsApp y la memoria de unos pocos.</p><p class="lead">En Cultuvilla quedan guardados para siempre: para quien vive en el pueblo todo el año, para quien vuelve cada agosto y para los que vienen detrás.</p></div></div></section>
 <section class="band blk"><div class="in"><div class="head"><span class="eyebrow">Qué puedes hacer</span><h2>Descubre. Apúntate. Inmortalízalo.</h2></div><div class="pillars">
 <div class="pillar">${photo('pueblo-segovia', 'Un pueblo de Segovia visto desde el aire', 900, 600)}<b>Descubre</b><p class="muted">Todo lo que pasa en tu pueblo, sin perderte nada por no estar en el grupo adecuado.</p><ul><li>Calendario de eventos y fiestas</li><li>Noticias y avisos de quien organiza</li><li>Carteles de fiestas, de este año y de antes</li></ul></div>
 <div class="pillar">${photo('paella-popular', 'Una paella gigante para la comida popular', 900, 600)}<b>Apúntate</b><p class="muted">Te apuntas con un toque, y a tu familia también, sin listas en papel.</p><ul><li>Comidas, torneos y excursiones</li><li>Apunta a los hijos y mayores a tu cargo</li><li>Únete a peñas y asociaciones</li></ul></div>
-<div class="pillar">${photo('calle-antigua', 'Calle antigua de un pueblo con balcones de hierro', 900, 600)}<b>Inmortalízalo</b><p class="muted">La historia del pueblo, sus palabras y sus fiestas, contadas por sus vecinos y guardadas para siempre.</p><ul><li>Línea del tiempo del pueblo</li><li>Barrios, lugares y vocabulario propio</li><li>El resumen de vuestras fiestas, para compartir</li></ul></div>
-</div></div></section>
-<section class="blk"><div class="in"><div class="head"><span class="eyebrow">Para quién</span><h2>Cada uno en el pueblo tiene su sitio</h2></div><div class="aud">
-<article class="card">${photo('pueblo-colina', 'Un pueblo blanco en la ladera de una sierra', 800, 500, 'cover')}<span class="tag">Vecinos y veraneantes</span><h3>Vivas allí o vuelvas en agosto</h3><p class="muted">Mira qué hay esta semana, apúntate tú y tu familia y recibe un aviso cuando se publique algo nuevo.</p></article>
-<article class="card">${photo('charanga', 'Una charanga toca en las fiestas', 800, 500, 'cover')}<span class="tag">Peñas y asociaciones</span><h3>Tu peña, sin depender del grupo de WhatsApp</h3><p class="muted">Publica eventos y noticias, gestiona quién forma parte de la peña y organiza actos solo para tus socios.</p></article>
-<article class="card">${photo('calle-flores', 'Calle encalada con macetas de flores', 800, 500, 'cover')}<span class="tag">Ayuntamientos</span><h3>Un canal oficial que llega a todos</h3><p class="muted">Bandos, programas de fiestas y avisos que llegan al móvil de cada vecino, también al de quien está fuera.</p></article>
-<article class="card">${photo('casa-piedra', 'Casa de piedra entre árboles', 800, 500, 'cover')}<span class="tag">Visitantes</span><h3>Conoce el pueblo antes de ir</h3><p class="muted">Cada pueblo tiene su propia página. Compártela por WhatsApp y se abre en cualquier móvil, aunque no tengan la app.</p></article>
+<div class="pillar">${photo('biblioteca-antigua', 'Una biblioteca antigua con estanterías de madera y el techo pintado', 900, 600)}<b>Inmortalízalo</b><p class="muted">La historia del pueblo, sus palabras y sus fiestas, contadas por sus vecinos y guardadas para siempre.</p><ul><li>Línea del tiempo del pueblo</li><li>Barrios, lugares y vocabulario propio</li><li>El resumen de vuestras fiestas, para compartir</li></ul></div>
 </div></div></section>
 ${wrapped ? wrappedPhone(wrapped) : null}
-<section class="blk amb"><div class="in"><div class="split"><div class="head"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿Vives las fiestas de tu pueblo como nadie?</h2><p class="hook">¿Presumes de pueblo allá donde vas?</p><p class="lead">Entonces sabes lo que se pierde cada año: las palabras de los abuelos, los lugares que solo conocen los de siempre, los carteles de hace cincuenta años. Alguien tiene que cuidarlo.</p><p class="lead"><b>Seas de la comisión, del ayuntamiento o simplemente lo quieras como nadie: hazte Embajador de Cultuvilla.</b></p></div>${photo('pueblo-atardecer', 'Un pueblo blanco al atardecer entre colinas', 1600, 615, 'amb-photo')}</div><ol class="steps">
-<li class="step"><h3>Busca tu pueblo</h3><p>En la app están todos los municipios de España.</p></li>
-<li class="step"><h3>Pulsa «Quiero ser embajador»</h3><p>Revisamos la solicitud y activamos la página de tu pueblo, con su escudo.</p></li>
-<li class="step"><h3>Cuídalo</h3><p>Sube sus fiestas, carteles, historia y palabras, e invita a vecinos, peñas y ayuntamiento a sumarse.</p></li>
-</ol></div></section>
+<section class="blk amb"><div class="in split"><div class="head"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿Vives las fiestas de tu pueblo como nadie?</h2><p class="lead">Hazte Embajador de Cultuvilla y cuida la cultura de tu pueblo para siempre.</p><p><a class="cta" href="/embajadores">Descubre cómo →</a></p></div>${photo('pueblo-atardecer', 'Un pueblo blanco al atardecer entre colinas', 1600, 615, 'amb-photo')}</div></section>
 <section class="band blk"><div class="in price"><span class="big">0 €</span><div style="display:grid;gap:12px"><span class="eyebrow">Precio</span><h2>Gratis para todo el pueblo</h2><p class="lead">Sin cuotas por socio ni planes. Vecinos, peñas, asociaciones y ayuntamientos usan Cultuvilla sin pagar nada.</p></div></div></section>
 <section class="blk"><div class="in"><div class="head"><span class="eyebrow">Preguntas frecuentes</span><h2>Lo que nos suelen preguntar</h2></div><div class="faq">${FAQ.map(
       ([q, a], i) => (i === 0 ? html`<details open><summary>${q}</summary><p>${a}</p></details>` : html`<details><summary>${q}</summary><p>${a}</p></details>`),
     )}</div></div></section>
 <section class="band blk night"><div class="in final"><span class="eyebrow">Descarga Cultuvilla</span><h2>Y tú, a disfrutar de las fiestas.</h2><p class="lead">Cuando todo está en un sitio, quien organiza apaga menos fuegos y los demás viven más la fiesta.</p><div class="stores">${storeButtons()}</div></div></section>`,
+  };
+}
+
+const AMBASSADOR_FAQ: [string, string][] = [
+  ['¿Tengo que ser del ayuntamiento?', 'No. Cualquier vecino puede pedirlo: de la comisión, de una peña o simplemente alguien que quiere a su pueblo como nadie.'],
+  ['¿Cuesta algo?', 'Nada. Activar un pueblo y cuidarlo es gratis, como todo Cultuvilla.'],
+  ['¿Lo tengo que hacer todo yo?', 'No. Suma a quien quiera ayudar al Equipo del pueblo, y las peñas, asociaciones y el ayuntamiento publican lo suyo.'],
+  ['¿Y si mi pueblo ya tiene Embajador?', 'Únete al pueblo desde la app y ofrécete a echar una mano: su Embajador puede sumarte al Equipo del pueblo.'],
+];
+
+export function ambassadorsPage(): Page {
+  return {
+    layout: 'landing',
+    head: {
+      title: 'Embajadores',
+      description: '¿Vives las fiestas de tu pueblo como nadie? Hazte Embajador de Cultuvilla y cuida su cultura para siempre: sus palabras, sus lugares, su historia y sus fiestas.',
+    },
+    body: html`${BUNTING}
+<section class="in top"><div><span class="eyebrow">Embajadores de Cultuvilla</span><h1>¿Vives las fiestas de tu pueblo <em>como nadie</em>?</h1><p class="lead">¿Presumes de pueblo allá donde vas? Hazte Embajador de Cultuvilla y cuida su cultura para siempre.</p></div>${phoneVideo('cultuvilla-embajador-vertical', 'Vídeo: hazte Embajador de Cultuvilla')}</section>
+<section class="blk"><div class="in"><div class="head"><span class="eyebrow">Por qué</span><h2>Cada año se pierde algo</h2></div><ul class="losing">${(
+      [
+        ['vecinos-paseo', 'Las palabras de tus abuelos.', 'Una pareja mayor pasea por una calle empedrada'],
+        ['calle-antigua', 'Los lugares que solo conocen los de siempre.', 'Calle antigua de un pueblo con balcones de hierro'],
+        ['fiesta-calle', 'Los carteles de las fiestas de hace cincuenta años.', 'Calle de un pueblo adornada con farolillos de papel para las fiestas'],
+      ] as const
+    ).map(([name, words, alt]) => html`<li>${photo(name, alt, 800, 800)}<span>${words}</span></li>`)}</ul><p class="lead losing-end">Si nadie lo guarda, se pierde. En Cultuvilla, tu pueblo guarda sus palabras, sus lugares, su historia y sus fiestas. <b>Y alguien tiene que cuidarlo.</b></p></div></section>
+<section class="band blk"><div class="in"><div class="head"><span class="eyebrow">Qué hace un Embajador</span><h2>Seas de la comisión, del ayuntamiento o simplemente lo quieras como nadie</h2></div><div class="pillars">
+<div class="pillar"><b>Lo pone en marcha</b><p class="muted">Activa la página del pueblo, con su escudo, para que cualquiera la abra desde un enlace.</p></div>
+<div class="pillar"><b>Suma a su gente</b><p class="muted">Invita a los vecinos y forma el Equipo del pueblo con quien quiera ayudar. Da paso a sus peñas y asociaciones.</p></div>
+<div class="pillar"><b>Guarda su cultura</b><p class="muted">Sus fiestas y carteles, sus lugares, su historia y sus palabras, para los que vienen detrás.</p></div>
+</div></div></section>
+<section class="blk"><div class="in"><div class="head"><span class="eyebrow">Cómo se hace</span><h2>Tres pasos y tu pueblo está en marcha</h2></div><ol class="steps">
+<li class="step"><h3>Busca tu pueblo</h3><p>En la app están todos los municipios de España.</p></li>
+<li class="step"><h3>Pulsa «Quiero ser embajador»</h3><p>Revisamos la solicitud y activamos la página de tu pueblo, con su escudo.</p></li>
+<li class="step"><h3>Cuídalo</h3><p>Sube sus fiestas, carteles, historia y palabras, e invita a vecinos, peñas y ayuntamiento a sumarse.</p></li>
+</ol></div></section>
+<section class="blk" style="padding-top:0"><div class="in"><div class="head"><span class="eyebrow">Preguntas frecuentes</span><h2>Lo que nos preguntan los Embajadores</h2></div><div class="faq">${AMBASSADOR_FAQ.map(
+      ([q, a], i) => (i === 0 ? html`<details open><summary>${q}</summary><p>${a}</p></details>` : html`<details><summary>${q}</summary><p>${a}</p></details>`),
+    )}</div></div></section>
+<section class="band blk night"><div class="in final"><span class="eyebrow">Hazte Embajador</span><h2>Busca tu pueblo y pulsa «Quiero ser embajador».</h2><p class="lead">Desde la app, en iPhone y Android.</p><div class="stores">${storeButtons()}</div></div></section>`,
   };
 }
 

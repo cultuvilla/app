@@ -41,6 +41,7 @@ async function collectUrls(origin: string): Promise<Fetched> {
   const urls: SitemapUrl[] = [
     { loc: `${origin}/`, changefreq: 'daily', priority: '1.0' },
     { loc: `${origin}/pueblos`, changefreq: 'daily', priority: '0.9' },
+    { loc: `${origin}/embajadores`, changefreq: 'monthly', priority: '0.8' },
   ];
   const counts: Record<string, number> = {};
 
