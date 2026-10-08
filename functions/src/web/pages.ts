@@ -433,7 +433,9 @@ function photo(name: string, alt: string, width: number, height: number, cls = '
  * The app's intro film (cultuvilla/motion, piece `intro`), muted so it may
  * autoplay. The sound toggle is fixed code: it reads nothing from the page.
  */
-const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/cultuvilla-intro-vertical.mp4" poster="/brand/landing/cultuvilla-intro-vertical.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video></span><button type="button" class="sound" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.play();}this.textContent=v.muted?'Activar sonido':'Silenciar'">Activar sonido</button></figure>`;
+const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/cultuvilla-intro-vertical.mp4" poster="/brand/landing/cultuvilla-intro-vertical.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video><button type="button" class="sound" aria-label="Activar sonido" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.play();}this.classList.toggle('on',!v.muted);this.setAttribute('aria-label',v.muted?'Activar sonido':'Silenciar')">${raw(
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="off" d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
+)}</button></span></figure>`;
 
 function storeButtons(): SafeHtml {
   return html`${APP_STORES.ios ? html`<a class="store" href="${APP_STORES.ios}"><small>Descárgala en el</small><b>App Store</b></a>` : null}${

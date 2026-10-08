@@ -74,21 +74,32 @@ describe('homePage', () => {
     expect(body({ villages: [matabuena], showcase, wrapped: null })).not.toContain('class="wr-track"');
   });
 
-  it('unmutes the intro film where it is, without restarting it, and mutes it again', () => {
+  it('unmutes the intro film from the icon inside the phone, without restarting it, and mutes it again', () => {
     const out = body({ villages: [], showcase: null, wrapped: null });
-    expect(out).toContain('cultuvilla-intro-vertical.mp4');
-    const onclick = /class="sound" onclick="([^"]*)"/.exec(out)?.[1];
-    if (!onclick) throw new Error('the sound toggle has no handler');
+    // The icon sits on the phone's screen, beside the video it controls.
+    expect(out).toMatch(/<span class="intro-phone"><video [^>]*><\/video><button type="button" class="sound"/);
+    const onclick = /class="sound" aria-label="Activar sonido" onclick="([^"]*)"/.exec(out)?.[1];
+    if (!onclick) throw new Error('the sound icon has no handler');
     const video = { muted: true, currentTime: 12.5, plays: 0, play() { this.plays += 1; } };
-    const button = { textContent: 'Activar sonido', parentNode: { querySelector: () => video } };
+    const classes = new Set<string>();
+    const button = {
+      label: 'Activar sonido',
+      parentNode: { querySelector: () => video },
+      classList: { toggle: (c: string, on: boolean) => (on ? classes.add(c) : classes.delete(c)) },
+      setAttribute(name: string, value: string) {
+        if (name === 'aria-label') this.label = value;
+      },
+    };
     // The handler runs as the button: in a fresh vm context, top-level `this` is the context object.
     const click = () => runInNewContext(onclick.replace(/&#39;/g, "'").replace(/&quot;/g, '"'), button);
     click();
     expect(video).toMatchObject({ muted: false, currentTime: 12.5, plays: 1 });
-    expect(button.textContent).toBe('Silenciar');
+    expect(classes.has('on')).toBe(true);
+    expect(button.label).toBe('Silenciar');
     click();
     expect(video).toMatchObject({ muted: true, currentTime: 12.5, plays: 1 });
-    expect(button.textContent).toBe('Activar sonido');
+    expect(classes.has('on')).toBe(false);
+    expect(button.label).toBe('Activar sonido');
   });
 
   it('keeps the full showcase and the pueblo list on /pueblos, not on the home', () => {
