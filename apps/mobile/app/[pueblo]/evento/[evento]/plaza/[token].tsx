@@ -1,6 +1,6 @@
 import { entityRefHref, personHref } from '../../../../../lib/navigation/routes';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '../../../../../components/primitives/Screen';
 import { VStack } from '../../../../../components/primitives/VStack';
@@ -13,6 +13,7 @@ import { SignupAnswerFields } from '../../../../../components/feature/SignupAnsw
 import { useAuth } from '../../../../../lib/auth/useAuth';
 import { useRegisterGate } from '../../../../../lib/auth/RegisterGateContext';
 import { useT } from '../../../../../lib/i18n';
+import { initialPhone, rememberProfilePhone } from '../../../../../lib/profilePhone';
 import { withFirestoreErrorLog } from '../../../../../lib/firestoreErrorLog';
 import { getEvent } from '@cultuvilla/shared/services/eventService';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
@@ -48,7 +49,7 @@ export default function ClaimSeatScreen() {
   const eventId = parseEntityRef(evento ?? '') ?? '';
   const eventPath = entityRefHref('event', pueblo ?? '', evento ?? '');
   const { t } = useT();
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const gate = useRegisterGate();
 
   const [event, setEvent] = useState<(EventData & { id: string }) | null>(null);
@@ -63,6 +64,17 @@ export default function ClaimSeatScreen() {
   const [phone, setPhone] = useState('');
   const [phoneCountry, setPhoneCountry] = useState<PhoneCountry>(DEFAULT_PHONE_COUNTRY);
   const [attempted, setAttempted] = useState(false);
+
+  // Seed from the saved number only while the field is untouched: the profile
+  // can arrive after the form is already editable, and it must never
+  // overwrite what the user has started typing.
+  const phoneTouched = useRef(false);
+  useEffect(() => {
+    if (phoneTouched.current || !profile?.telephone) return;
+    const seed = initialPhone(profile.telephone);
+    setPhone(seed.national);
+    setPhoneCountry(seed.country);
+  }, [profile?.telephone]);
 
   const load = useCallback(async () => {
     if (!eventId) return;
@@ -104,14 +116,16 @@ export default function ClaimSeatScreen() {
     }
     setBusy(true);
     setClaimError(null);
+    const e164 = needsPhone ? formatPhoneE164(phone, phoneCountry.dialCode) : undefined;
     try {
       await claimEventSeat(eventId, token, {
         personId,
         name: personName,
-        ...(needsPhone ? { phone: formatPhoneE164(phone, phoneCountry.dialCode) } : {}),
+        ...(e164 ? { phone: e164 } : {}),
         ...(Object.keys(validation.value).length > 0 ? { answers: validation.value } : {}),
       });
       setClaimed(true);
+      if (user) void rememberProfilePhone(user.uid, profile?.telephone, e164, refreshProfile);
     } catch (e) {
       setClaimError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -194,9 +208,15 @@ export default function ClaimSeatScreen() {
                   <PhoneField
                     label={t('event.register.phoneTitle')}
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={(text) => {
+                      phoneTouched.current = true;
+                      setPhone(text);
+                    }}
                     country={phoneCountry}
-                    onCountryChange={setPhoneCountry}
+                    onCountryChange={(country) => {
+                      phoneTouched.current = true;
+                      setPhoneCountry(country);
+                    }}
                     placeholder={t('event.register.phonePlaceholder')}
                     searchPlaceholder={t('event.register.phoneSearch')}
                     noResultsLabel={t('event.register.phoneNoResults')}

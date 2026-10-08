@@ -31,6 +31,7 @@ import {
   type PhoneCountry,
 } from '@cultuvilla/shared/utils';
 import { useT } from '../../lib/i18n';
+import { initialPhone } from '../../lib/profilePhone';
 
 const ACCENT = colors.light.fg.accent;
 
@@ -55,6 +56,8 @@ export interface GroupSignupSheetProps {
   /** Seats the caller already holds; non-empty switches the sheet to summary. */
   mySeats: MyGroupSeat[];
   telephoneRequired: boolean;
+  /** The account's saved phone (E.164); the phone field starts from it. */
+  savedPhone?: string | null;
   signupFields?: SignupFieldSpec[];
   busy: boolean;
   autoSelectIds?: string[];
@@ -99,6 +102,7 @@ export function GroupSignupSheet({
   ownPersonId,
   mySeats,
   telephoneRequired,
+  savedPhone,
   signupFields = [],
   busy,
   autoSelectIds,
@@ -132,8 +136,9 @@ export function GroupSignupSheet({
       setSelected(ownIsBookable ? new Set([ownPersonId]) : new Set());
       setOpenSeats(0);
       setAnswers({});
-      setPhone('');
-      setPhoneCountry(DEFAULT_PHONE_COUNTRY);
+      const seed = initialPhone(savedPhone);
+      setPhone(seed.national);
+      setPhoneCountry(seed.country);
       setConfirmAttempted(false);
     }
     // Re-seed only on open — a persona list arriving mid-session must not wipe

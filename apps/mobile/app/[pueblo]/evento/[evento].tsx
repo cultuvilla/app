@@ -50,7 +50,7 @@ type VillageDoc = MunicipalityData & { id: string };
 export default function EventDetailScreen() {
   const { evento } = useLocalSearchParams<{ evento: string }>();
   const eventId = parseEntityRef(evento ?? '') ?? '';
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const gate = useRegisterGate();
   const { t } = useT();
   const share = useShareDeepLink();
@@ -159,6 +159,8 @@ export default function EventDetailScreen() {
             name={personName}
             eventTitle={event.title}
             telephoneRequired={!!event.telephoneRequired}
+            savedPhone={profile?.telephone}
+            onPhoneSaved={refreshProfile}
             signupFields={event.signupFields}
             villageId={event.municipalityId}
             villageSlug={event.villageSlug}
