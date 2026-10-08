@@ -461,7 +461,7 @@ export function homePage({ showcase, wrapped }: Landing): Page {
       jsonLd: { '@type': 'WebSite', name: 'Cultuvilla', url: 'https://cultuvilla.es/' },
     },
     body: html`${BUNTING}
-<section class="in top"><div><h1>Cuida <em>la cultura de tu pueblo.</em></h1><p class="lead">La construyen sus propios vecinos y queda guardada para siempre.</p></div>${INTRO_VIDEO}</section>
+<section class="in top"><div><h1>Cuida la cultura de tu <em>pueblo</em>.</h1><p class="lead">La construyen sus propios vecinos y queda guardada para siempre.</p></div>${INTRO_VIDEO}</section>
 <div class="strip" aria-hidden="true"><div class="strip-track">${[...FIESTAS, ...FIESTAS].map((f) => html`<span>${f} ✦</span>`)}</div></div>
 <section class="blk"><div class="in split"><ul class="mosaic">${(
       [

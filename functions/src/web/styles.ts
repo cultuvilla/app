@@ -85,6 +85,7 @@ export const LANDING_STYLES = `
 .landing .top.single{grid-template-columns:1fr;padding-bottom:48px}
 .landing .top.single .lead{max-width:40em}
 @media (max-width:820px){.landing .top{grid-template-columns:1fr}}
+@media (min-width:821px){.landing .intro{padding-top:56px}}
 .landing .intro{position:relative;margin:0;justify-self:center;display:grid;justify-items:center;gap:14px}
 .landing .intro-phone{display:block;width:min(290px,78vw);aspect-ratio:9/18.6;padding:10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5);position:relative}
 .landing .intro-phone video{display:block;width:100%;height:100%;object-fit:cover;border-radius:32px;background:var(--surface)}
