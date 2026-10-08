@@ -451,8 +451,7 @@ const FAQ: [string, string][] = [
   ['¿Hace falta la app para ver un evento?', 'No. Cualquier evento, noticia o pueblo se abre en el navegador desde un enlace. Para apuntarte o publicar sí necesitas la app.'],
 ];
 
-export function homePage({ showcase, wrapped }: Landing): Page {
-  const example = showcase?.home.events[0]?.href ?? (showcase ? villagePath(showcase.village.slug) : null);
+export function homePage({ wrapped }: Landing): Page {
   return {
     layout: 'landing',
     head: {
@@ -481,16 +480,13 @@ export function homePage({ showcase, wrapped }: Landing): Page {
 <article class="card">${photo('charanga', 'Una charanga toca en las fiestas', 800, 500, 'cover')}<span class="tag">Peñas y asociaciones</span><h3>Tu peña, sin depender del grupo de WhatsApp</h3><p class="muted">Publica eventos y noticias, gestiona quién forma parte de la peña y organiza actos solo para tus socios.</p></article>
 <article class="card">${photo('calle-flores', 'Calle encalada con macetas de flores', 800, 500, 'cover')}<span class="tag">Ayuntamientos</span><h3>Un canal oficial que llega a todos</h3><p class="muted">Bandos, programas de fiestas y avisos que llegan al móvil de cada vecino, también al de quien está fuera.</p></article>
 <article class="card">${photo('casa-piedra', 'Casa de piedra entre árboles', 800, 500, 'cover')}<span class="tag">Visitantes</span><h3>Conoce el pueblo antes de ir</h3><p class="muted">Cada pueblo tiene su propia página. Compártela por WhatsApp y se abre en cualquier móvil, aunque no tengan la app.</p></article>
-<article class="card amb"><div style="display:grid;gap:10px"><span class="tag">Embajadores de Cultuvilla</span><h3>¿Tu pueblo aún no está? Tráelo tú.</h3><p class="muted">Cualquier vecino puede pedir ser el Embajador o la Embajadora de su pueblo. Lo activas, invitas a tu gente y entre todos desarrolláis su perfil: escudo, fiestas, lugares, historia y vocabulario.</p></div>${
-      example ? html`<div class="url"><a href="${example}">cultuvilla.es${example}</a></div>` : null
-    }</article>
 </div></div></section>
 ${wrapped ? wrappedPhone(wrapped) : null}
-<section class="blk" style="padding-top:0"><div class="in"><div class="head"><span class="eyebrow">Cómo llega tu pueblo</span><h2>Tres pasos para poner tu pueblo en el mapa</h2></div><div class="steps">
-<div class="step"><h3>Pide ser Embajador</h3><p>Desde la app, busca tu municipio entre todos los de España y solicita activarlo.</p></div>
-<div class="step"><h3>Lo revisamos</h3><p>Comprobamos la solicitud y activamos la página de tu pueblo con su escudo.</p></div>
-<div class="step"><h3>Desarrolla su perfil</h3><p>Sube sus fiestas, carteles, lugares, historia y vocabulario, e invita a vecinos, peñas y ayuntamiento a completarlo.</p></div>
-</div></div></section>
+<section class="blk amb"><div class="in"><div class="split"><div class="head"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿Tu pueblo aún no está? Tráelo tú.</h2><p class="lead">Están todos los municipios de España, esperando a que un vecino dé el paso. Puede ser cualquiera: tú también.</p></div>${photo('pueblo-atardecer', 'Un pueblo blanco al atardecer entre colinas', 1600, 615, 'amb-photo')}</div><ol class="steps">
+<li class="step"><h3>Pídelo</h3><p>Busca tu pueblo en la app y solicita ser su Embajador o Embajadora.</p></li>
+<li class="step"><h3>Lo activamos</h3><p>Revisamos la solicitud y ponemos en marcha la página de tu pueblo, con su escudo.</p></li>
+<li class="step"><h3>Dale vida</h3><p>Sube sus fiestas, carteles, historia y palabras, e invita a vecinos, peñas y ayuntamiento a sumarse.</p></li>
+</ol></div></section>
 <section class="band blk"><div class="in price"><span class="big">0 €</span><div style="display:grid;gap:12px"><span class="eyebrow">Precio</span><h2>Gratis para todo el pueblo</h2><p class="lead">Sin cuotas por socio ni planes. Vecinos, peñas, asociaciones y ayuntamientos usan Cultuvilla sin pagar nada.</p></div></div></section>
 <section class="blk"><div class="in"><div class="head"><span class="eyebrow">Preguntas frecuentes</span><h2>Lo que nos suelen preguntar</h2></div><div class="faq">${FAQ.map(
       ([q, a], i) => (i === 0 ? html`<details open><summary>${q}</summary><p>${a}</p></details>` : html`<details><summary>${q}</summary><p>${a}</p></details>`),

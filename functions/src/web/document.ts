@@ -90,7 +90,7 @@ ${image}
 <meta name="theme-color" content="#f9f0e8"/>
 <link rel="icon" href="/brand/favicon.png"/>
 <style>${raw(STYLES)}</style>
-${landing ? html`<link rel="preload" href="/brand/gloock-latin.woff2" as="font" type="font/woff2" crossorigin/><style>${raw(LANDING_STYLES)}</style>` : null}
+${landing ? html`<link rel="preload" href="/brand/gloock-latin.woff2" as="font" type="font/woff2" crossorigin/><link rel="preload" href="/brand/figtree-latin.woff2" as="font" type="font/woff2" crossorigin/><style>${raw(LANDING_STYLES)}</style>` : null}
 ${head.jsonLd ? jsonLdScript(head.jsonLd) : null}
 </head><body>
 ${landing ? html`<div class="wrap">${header}</div><main class="landing">${page.body}</main><div class="wrap">${footer}</div>` : html`<div class="wrap">${header}<main>${page.body}</main>${footer}</div>`}

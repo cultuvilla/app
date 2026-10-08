@@ -51,6 +51,7 @@ describe('homePage', () => {
     const out = renderDocument(page, { canonical: 'https://cultuvilla.es/', appPath: '/' });
     expect(out).toContain('<main class="landing">');
     expect(out).toContain('/brand/gloock-latin.woff2');
+    expect(out).toContain('/brand/figtree-latin.woff2');
   });
 
   it('shows the fiestas summary of the featured pueblo in a swipeable phone, never its named people', () => {
@@ -69,8 +70,8 @@ describe('homePage', () => {
     expect(out).toContain('href="/matabuena/fiestas/2026"');
     for (const c of ['cover', 'stats', 'events', 'news', 'posters']) expect(out).toContain(`src="https://img/${c}.png"`);
     for (const c of ['people', 'organizers']) expect(out).not.toContain(`https://img/${c}.png`);
-    // The Embajador block uses a real event URL as its example.
-    expect(out).toContain('cultuvilla.es/matabuena/evento/torneo-de-mus_e1');
+    expect(out).toContain('<section class="blk amb">');
+    expect(out.match(/<li class="step">/g)).toHaveLength(3);
     expect(body({ villages: [matabuena], showcase, wrapped: null })).not.toContain('class="wr-track"');
   });
 
