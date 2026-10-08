@@ -21,14 +21,33 @@ env:
     env:
       EMAIL: ${EMAIL}
       PASSWORD: ${PASSWORD}
-- tapOn: 'Explora'
+- tapOn: 'Explora(,.*)?'
 # The feed can open on its Artículos half; the label renders upper-cased.
 - tapOn: '(?i)eventos'
+# On iOS an event card is ONE accessibility element whose label joins all its
+# texts ("Cena Privada E2E, Merendero, …"), and Maestro matches a selector
+# against the whole label — so the bare title never matches there.
 - scrollUntilVisible:
-    element: ${EVENT_TITLE}
+    element: '.*${EVENT_TITLE}.*'
     timeout: 45000
 
 - openLink: 'cultuvilla://mi-pueblo?villageId=${VILLAGE_ID}'
 - scrollUntilVisible:
-    element: ${EVENT_TITLE}
-    timeout: 45000
+    element:
+      id: village-events-row
+    timeout: 30000
+# The events row is horizontal and the private event is not its first card: on
+# iOS's narrower screen it sat wholly past the right edge, where no vertical
+# scroll reaches it. Swipe the row itself until the card shows.
+- repeat:
+    times: 6
+    while:
+      notVisible: '.*${EVENT_TITLE}.*'
+    commands:
+      - swipe:
+          from:
+            id: village-events-row
+          direction: LEFT
+          duration: 600
+- takeScreenshot: village-events-row
+- assertVisible: '.*${EVENT_TITLE}.*'

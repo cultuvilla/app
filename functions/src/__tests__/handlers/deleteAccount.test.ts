@@ -138,12 +138,8 @@ async function seedComment(uid: string): Promise<void> {
   });
 }
 
-async function seedStoragePhoto(uid: string, personId: string): Promise<void> {
-  const bucket = admin.storage().bucket();
-  await bucket.file(`users/${uid}/photo/avatar.jpg`).save('avatar-bytes', {
-    contentType: 'image/jpeg',
-  });
-  await bucket.file(`persons/${personId}/photos/legacy.jpg`).save('persona-bytes', {
+async function seedStoragePhoto(uid: string): Promise<void> {
+  await admin.storage().bucket().file(`users/${uid}/photo/avatar.jpg`).save('avatar-bytes', {
     contentType: 'image/jpeg',
   });
 }
@@ -215,7 +211,7 @@ describe('deleteAccount (callable)', () => {
     await seedRegistration(USER_ID, `person-${USER_ID}`);
     await seedRegistration(USER_ID, 'dependent-1');
     await seedComment(USER_ID);
-    await seedStoragePhoto(USER_ID, `person-${USER_ID}`);
+    await seedStoragePhoto(USER_ID);
     await seedNotification(USER_ID);
     await seedOrganizerRequest(USER_ID);
     await seedUserDoc(USER_ID);
@@ -260,9 +256,8 @@ describe('deleteAccount (callable)', () => {
     // Interactions (comment) hard-deleted.
     expect((await db().doc('comments/comment-1').get()).exists).toBe(false);
 
-    // Storage photos (avatar + persona) purged.
+    // Storage photos (avatar + persona, all under users/{uid}/) purged.
     expect(await storageFileExists(`users/${USER_ID}/photo/avatar.jpg`)).toBe(false);
-    expect(await storageFileExists(`persons/person-${USER_ID}/photos/legacy.jpg`)).toBe(false);
 
     // Dangling organizer pointer nulled.
     const muniSnap = await db().doc(`municipalities/${MUNICIPALITY_ID}`).get();

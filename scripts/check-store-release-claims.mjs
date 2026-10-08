@@ -2,7 +2,7 @@
 /**
  * Verify the store-release runbook against live infrastructure.
  *
- * WHY THIS EXISTS. `docs/plans/ongoing/store-release.md` tracks state that lives
+ * WHY THIS EXISTS. `docs/store/release-runbook.md` tracks state that lives
  * outside the repo — Play Console, GCP, EAS, GitHub secrets — and that state
  * drifts silently while the doc does not. On 2026-08-24 three of its claims were
  * wrong at once, and each cost real time chasing a non-problem:
@@ -299,7 +299,7 @@ else {
 
 console.log(`\n\x1b[1m${pass} pass · ${fail} fail · ${skip} skipped\x1b[0m`);
 if (fail > 0) {
-  console.log('\nA FAIL means docs/plans/ongoing/store-release.md may be out of date.');
+  console.log('\nA FAIL means docs/store/release-runbook.md may be out of date.');
   console.log('Fix the infrastructure or the doc — do not leave them disagreeing.\n');
 }
 process.exit(fail > 0 ? 1 : 0);

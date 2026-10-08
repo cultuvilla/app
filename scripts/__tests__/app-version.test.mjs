@@ -208,3 +208,22 @@ describe('minSupported cannot exceed what the store serves', () => {
     );
   });
 });
+
+// Beta's only reader is the Cultuvilla Beta Android app; iOS testers run the
+// production build. iOS on beta is never announced, so it cannot cap a wall.
+describe('resolveAppVersionConfig on beta', () => {
+  const stored = { ios: { latest: '1.4.1', minSupported: '0.0.0' }, android: { latest: '1.8.0', minSupported: '0.0.0' } };
+
+  it('walls beta at what Android serves, ignoring the unannounced iOS', () => {
+    const { payload } = resolveAppVersionConfig({ minSupported: '1.8.0', stored, appVersion: '1.8.0', env: 'beta' });
+    assert.equal(payload.android.minSupported, '1.8.0');
+    assert.throws(() => resolveAppVersionConfig({ minSupported: '1.8.0', stored, appVersion: '1.8.0', env: 'prod' }), /above what ios serves/);
+  });
+
+  it('sends beta testers to the Cultuvilla Beta listing', () => {
+    const { payload } = resolveAppVersionConfig({ stored, appVersion: '1.8.0', env: 'beta' });
+    assert.equal(payload.storeUrl.android, 'https://play.google.com/store/apps/details?id=com.cultuvilla.app.beta');
+    const prod = resolveAppVersionConfig({ stored, appVersion: '1.8.0', env: 'prod' });
+    assert.equal(prod.payload.storeUrl.android, 'https://play.google.com/store/apps/details?id=com.cultuvilla.app');
+  });
+});

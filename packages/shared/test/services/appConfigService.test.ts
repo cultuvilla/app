@@ -1,58 +1,59 @@
 // appConfigService feeds the force-update gate (`resolveVersionGate`, covered
-// in test/utils/versionGate.test.ts). Its contract is "never brick the app": any
-// failure to produce a valid config must come back as null, which the gate
-// reads as 'ok'.
+// in test/utils/versionGate.test.ts). It is a listener, not a one-shot read: a
+// gate that reads once at launch is down for the session when that one read
+// fails, which is how 1.5.0 never showed its wall.
 //
-// The firebase/firestore fake below keeps the converter the service attaches
-// and runs it inside `snap.data()`, exactly where the real SDK runs it — so the
+// The onSnapshot fake below keeps the converter the service attaches and runs
+// it inside `snap.data()`, exactly where the real SDK runs it — so the
 // malformed-doc case exercises the real strict Zod converter.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-type RawDoc = Record<string, unknown> | undefined;
 interface Converter {
   fromFirestore: (snap: { data: () => unknown; id: string }, options?: unknown) => unknown;
 }
+interface Ref {
+  converter: Converter | null;
+  withConverter: (c: Converter) => Ref;
+}
+type Snap = { id: string; data: () => unknown };
 
-const state: { raw: RawDoc; getDocError: Error | null; path: string[] } = {
-  raw: undefined,
-  getDocError: null,
-  path: [],
-};
+const state: {
+  path: string[];
+  next: ((snap: Snap) => void) | null;
+  fail: ((err: unknown) => void) | null;
+  ref: Ref | null;
+  unsubscribe: ReturnType<typeof vi.fn>;
+} = { path: [], next: null, fail: null, ref: null, unsubscribe: vi.fn() };
 
-vi.mock('../../src/firebase', () => ({ getDb: () => ({}), getFirebaseFunctions: vi.fn(() => ({})) }));
+vi.mock('../../src/firebase', () => ({
+  getDb: () => ({}),
+  getFirebaseFunctions: vi.fn(() => ({})),
+}));
 vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return {
     ...actual,
     doc: (_db: unknown, ...path: string[]) => {
       state.path = path;
-      const ref: { converter: Converter | null; withConverter: (c: Converter) => unknown } = {
+      const ref: Ref = {
         converter: null,
         withConverter(c: Converter) {
           ref.converter = c;
           return ref;
         },
       };
+      state.ref = ref;
       return ref;
     },
-    getDoc: (ref: { converter: Converter | null }) => {
-      if (state.getDocError) return Promise.reject(state.getDocError);
-      const raw = state.raw;
-      return Promise.resolve({
-        id: 'appVersion',
-        exists: () => raw !== undefined,
-        data: () =>
-          raw === undefined
-            ? undefined
-            : ref.converter
-              ? ref.converter.fromFirestore({ id: 'appVersion', data: () => raw })
-              : raw,
-      });
+    onSnapshot: (_ref: unknown, next: (snap: Snap) => void, fail: (err: unknown) => void) => {
+      state.next = next;
+      state.fail = fail;
+      return state.unsubscribe;
     },
   };
 });
 
-import { getAppVersionConfig } from '../../src/services/appConfigService';
+import { watchAppVersionConfig } from '../../src/services/appConfigService';
 
 const VALID = {
   ios: { minSupported: '1.0.0', latest: '1.2.2' },
@@ -63,36 +64,68 @@ const VALID = {
   },
 };
 
-describe('getAppVersionConfig', () => {
+function push(raw: Record<string, unknown> | undefined) {
+  const converter = state.ref?.converter;
+  state.next?.({
+    id: 'appVersion',
+    data: () =>
+      raw === undefined
+        ? undefined
+        : converter
+          ? converter.fromFirestore({ id: 'appVersion', data: () => raw })
+          : raw,
+  });
+}
+
+describe('watchAppVersionConfig', () => {
   beforeEach(() => {
-    state.raw = undefined;
-    state.getDocError = null;
     state.path = [];
+    state.next = null;
+    state.fail = null;
+    state.ref = null;
+    state.unsubscribe = vi.fn();
   });
 
-  it('reads config/appVersion', async () => {
-    state.raw = VALID;
-    await getAppVersionConfig();
+  it('listens to config/appVersion and hands back its unsubscribe', () => {
+    const unwatch = watchAppVersionConfig(vi.fn(), vi.fn());
     expect(state.path).toEqual(['config', 'appVersion']);
+    unwatch();
+    expect(state.unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it('returns the parsed per-platform config when the doc exists', async () => {
-    state.raw = VALID;
-    await expect(getAppVersionConfig()).resolves.toEqual(VALID);
+  it('delivers every snapshot, so a wall raised mid-session arrives', () => {
+    const onNext = vi.fn();
+    watchAppVersionConfig(onNext, vi.fn());
+    push(VALID);
+    const wall = { ...VALID, ios: { minSupported: '9.0.0', latest: '9.0.0' } };
+    push(wall);
+    expect(onNext).toHaveBeenNthCalledWith(1, expect.objectContaining(VALID));
+    expect(onNext).toHaveBeenNthCalledWith(2, expect.objectContaining(wall));
   });
 
-  it('returns null when the doc is missing', async () => {
-    await expect(getAppVersionConfig()).resolves.toBeNull();
+  it('delivers null when the doc is missing', () => {
+    const onNext = vi.fn();
+    watchAppVersionConfig(onNext, vi.fn());
+    push(undefined);
+    expect(onNext).toHaveBeenCalledWith(null);
   });
 
-  it('returns null when the read fails (offline, permission denied)', async () => {
-    state.getDocError = new Error('unavailable');
-    await expect(getAppVersionConfig()).resolves.toBeNull();
+  it('routes a failed listener to onError', () => {
+    const onError = vi.fn();
+    watchAppVersionConfig(vi.fn(), onError);
+    state.fail?.(new Error('permission-denied'));
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'permission-denied' }));
   });
 
-  it('returns null instead of throwing on a malformed doc', async () => {
+  it('routes a malformed doc to onError instead of throwing', () => {
+    const onNext = vi.fn();
+    const onError = vi.fn();
+    watchAppVersionConfig(onNext, onError);
     // Missing `android` and a non-URL store link: the strict converter throws.
-    state.raw = { ios: VALID.ios, storeUrl: { ios: 'not a url', android: 'x' } };
-    await expect(getAppVersionConfig()).resolves.toBeNull();
+    expect(() => {
+      push({ ios: VALID.ios, storeUrl: { ios: 'not a url', android: 'x' } });
+    }).not.toThrow();
+    expect(onNext).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
   });
 });

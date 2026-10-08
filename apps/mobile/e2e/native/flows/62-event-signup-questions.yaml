@@ -30,9 +30,11 @@ env:
     visible:
       id: 'event-title'
     timeout: 45000
-- tapOn:
-    id: 'event-title'
-- inputText: ${output.eventTitle}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'event-title'
+      TEXT: ${output.eventTitle}
 - runFlow:
     file: ../subflows/reveal.yaml
     env:
@@ -104,6 +106,9 @@ env:
       FIELD2: status
       VALUE2: published
       MIN: '1'
+      # Creating the event (with its signup form) outlasted the default 20 s
+      # on the loaded macOS runner while "Crear evento" was still spinning.
+      TIMEOUT_MS: '60000'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.eventId = output.id}
 
@@ -118,8 +123,11 @@ env:
     visible:
       id: 'register-fab'
     timeout: 45000
-- tapOn:
-    id: 'register-fab'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
 - tapOn:
     id: 'attendee-row-${ATTENDEE_PERSON_ID}'
 # The answer field's testID carries the generated field id, so match by prefix.

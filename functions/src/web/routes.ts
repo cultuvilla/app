@@ -31,6 +31,8 @@ export type LegalPage = (typeof LEGAL_PAGES)[number];
 export type WebRoute =
   | { type: 'home' }
   | { type: 'download' }
+  /** The directory of every active pueblo, with one shown in full. */
+  | { type: 'villages' }
   | { type: 'legal'; page: LegalPage }
   | { type: 'village'; villageSlug: string }
   | { type: 'section'; villageSlug: string; section: PublicSection }
@@ -68,6 +70,7 @@ export function matchRoute(pathname: string): WebRoute {
 
   if (!first) return { type: 'home' };
   if (first === 'descarga') return segments.length === 1 ? { type: 'download' } : NOT_FOUND;
+  if (first === 'pueblos') return segments.length === 1 ? { type: 'villages' } : NOT_FOUND;
   if (first === 'legal') {
     return segments.length === 2 && second && includes(LEGAL_PAGES, second)
       ? { type: 'legal', page: second }

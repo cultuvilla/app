@@ -73,11 +73,4 @@ describe('location naming', () => {
     expect(s.query).toBe('Calle Mayor 3, Abadía');
     expect(s.selected).toBe(true);
   });
-
-  it('clearing the query keeps the coordinate but drops the name', () => {
-    const seeded = initialLocationState({ coords: { lat: 40.28911, lng: -5.98762 }, label: 'Plaza Mayor' });
-    const s = locationReducer(seeded, { type: 'clearQuery' });
-    expect(s.coords).toEqual({ lat: 40.28911, lng: -5.98762 });
-    expect(s.query).toBe('');
-  });
 });

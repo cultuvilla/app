@@ -3,33 +3,12 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Authority for an image is the authority over the Firestore doc it
-    // illustrates, read cross-service. Requires the Firebase Rules service
-    // agent to hold roles/firebaserules.firestoreServiceAgent in the project.
-    function fsPath(p) { return /databases/(default)/documents/$(p); }
-    function isSignedIn() { return request.auth != null; }
-    function isAppAdmin() {
-      return isSignedIn() && firestore.exists(fsPath('admins/' + request.auth.uid));
-    }
-    function isVillageMember(municipalityId) {
-      return isSignedIn()
-        && firestore.exists(fsPath('municipalities/' + municipalityId + '/members/' + request.auth.uid));
-    }
-    function isVillageAdmin(municipalityId) {
-      return isVillageMember(municipalityId)
-        && firestore.get(fsPath('municipalities/' + municipalityId + '/members/' + request.auth.uid)).data.role == 'admin';
-    }
-    function isCommunityActive(municipalityId) {
-      return firestore.exists(fsPath('municipalities/' + municipalityId))
-        && firestore.get(fsPath('municipalities/' + municipalityId)).data.get('communityActive', false) == true;
-    }
-    function canUploadForVillage(municipalityId) {
-      return isVillageMember(municipalityId) || isAppAdmin();
-    }
-    function isImageUpload() {
-      return request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
-    }
+    // Never read Firestore here (firestore.get/exists). Every deployed project
+    // (dev, beta, prod) denies those cross-service lookups while the emulator
+    // allows them, so such a rule passes emulator tests and refuses every
+    // real upload — 2026-10-07, every event cover in prod. Authority over an
+    // image lives on the doc that points at it. Enforced by
+    // packages/shared/test/ci/storageRulesNoCrossService.test.ts.
 
     // Reference-data escudos (coats of arms) — public, written only by
     // admin SDK from scripts/upload-escudos.mjs, never by clients.
@@ -42,21 +21,22 @@ service firebase.storage {
       allow write: if false;
     }
 
-    // Community cover images (imageService.uploadMunicipalityImage). A village
-    // not yet activated accepts any signed-in upload: "empezar un pueblo"
-    // uploads the escudo before startVillage seats the requester as a member.
+    // Community cover images uploaded by village admins via
+    // imageService.uploadMunicipalityImage (villageId === municipalityId).
     match /municipalities/{municipalityId}/images/{imageId} {
       allow read: if true;
-      allow write: if isSignedIn()
-                   && isImageUpload()
-                   && (canUploadForVillage(municipalityId) || !isCommunityActive(municipalityId));
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     // Event cover images uploaded via imageService.uploadEventImage, scoped to
     // the event's owning municipality.
     match /municipalities/{municipalityId}/events/{eventId}/image/{imageId} {
       allow read: if true;
-      allow write: if isImageUpload() && canUploadForVillage(municipalityId);
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     // Rendered Wrapped cards, written only by the Cloud Function that builds
@@ -83,85 +63,56 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
-    // A person photo can be managed by whoever may edit the person doc itself.
-    // Mirror firestore.rules /persons/{personId} update: the linked account
-    // owner (userId == uid), or the creator while no account is linked. The
-    // bare `createdBy == uid` check broke seed/migrated self-persons, whose
-    // `createdBy` is the seed but whose `userId` is the real owner.
-    function personOwnsPhoto(personId) {
-      return firestore.get(/databases/(default)/documents/persons/$(personId)).data.userId == request.auth.uid
-             || (firestore.get(/databases/(default)/documents/persons/$(personId)).data.createdBy == request.auth.uid
-                 && firestore.get(/databases/(default)/documents/persons/$(personId)).data.userId == null);
-    }
-
-    // Mirrors persons/{id} visibility: a private persona (often a child) is
-    // seen only by whoever manages it.
-    match /persons/{personId}/photos/{imageId} {
-      allow read: if isSignedIn()
-                  && (firestore.get(fsPath('persons/' + personId)).data.get('isPublic', false) == true
-                      || personOwnsPhoto(personId)
-                      || isAppAdmin());
+    // News post images. Mirrors the event/org/place image rules: gate on auth +
+    // size + content-type, not a cross-service firestore.get. The news doc is
+    // created milliseconds before its images upload, and a Storage-rules
+    // firestore.get races that just-committed write (sees null -> 403). The
+    // authoring guard lives on the news doc write in firestore.rules; the
+    // storage path is keyed by post id, same as events.
+    match /news/{postId}/images/{imageId} {
+      // News is public, shareable content (public /news/:id links) — reads are
+      // public, mirroring event/org/place images. Anonymous visitors opening a
+      // shared link must be able to load the image, not just the text.
+      allow read: if true;
       allow write: if request.auth != null
                    && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*')
-                   && personOwnsPhoto(personId);
-      allow delete: if request.auth != null
-                    && personOwnsPhoto(personId);
-    }
-
-    // News post images: the news doc edit authority (author, named organizer,
-    // admin of its pueblo). The client creates the doc before uploading, so
-    // the doc is committed by the time this rule reads it.
-    function canEditNews(postId) {
-      let news = firestore.get(fsPath('news/' + postId));
-      return isSignedIn() && news != null && (
-        news.data.createdBy == request.auth.uid
-        || request.auth.uid in news.data.organizerUserIds
-        || isVillageAdmin(news.data.municipalityId)
-        || isAppAdmin()
-      );
-    }
-
-    match /news/{postId}/images/{imageId} {
-      // News is public, shareable content (public /news/:id links).
-      allow read: if true;
-      allow write: if isImageUpload() && canEditNews(postId);
-      allow delete: if canEditNews(postId);
-    }
-
-    // Mirrors the organizations/{id} update authority.
-    function canEditOrganization(orgId) {
-      let memberPath = fsPath('organizations/' + orgId + '/members/' + request.auth.uid);
-      return isSignedIn() && (
-        (firestore.exists(memberPath) && firestore.get(memberPath).data.role == 'admin')
-        || isVillageAdmin(firestore.get(fsPath('organizations/' + orgId)).data.municipalityId)
-        || isAppAdmin()
-      );
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null;
     }
 
     match /organizations/{organizationId}/image/{imageId} {
       allow read: if true;
-      allow write: if isImageUpload() && canEditOrganization(organizationId);
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     match /municipalities/{municipalityId}/places/{placeId}/image/{imageId} {
       allow read: if true;
-      allow write: if isImageUpload() && canUploadForVillage(municipalityId);
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     match /municipalities/{municipalityId}/barrios/{barrioId}/image/{imageId} {
       allow read: if true;
-      allow write: if isImageUpload() && canUploadForVillage(municipalityId);
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     match /festivalPosters/{municipalityId}/{posterId}/{fileName} {
       allow read: if true;
-      allow write: if isImageUpload() && canUploadForVillage(municipalityId);
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     match /historyEntries/{municipalityId}/{entryId}/{fileName} {
       allow read: if true;
-      allow write: if isImageUpload() && canUploadForVillage(municipalityId);
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
   }
 }

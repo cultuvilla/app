@@ -116,6 +116,70 @@ describe('readSite', () => {
     expect(body).not.toContain('noindex');
   });
 
+  it("shows Matabuena's published fiestas summary on the landing, card by card", async () => {
+    const { status, body } = await html('/');
+    expect(status).toBe(200);
+    expect(body).toContain('class="wr-track"');
+    expect(body).toContain('src="https://img.test/cover.png"');
+    expect(body).toContain('href="/matabuena/fiestas/2026"');
+    expect(body).toContain('href="/pueblos"');
+  });
+
+  it("falls back to last year's summary until this year's is published, and never shows a draft", async () => {
+    const at = async (iso: string) => {
+      const out = await handle({ pathname: '/', userAgent: null }, { db: db(), bucket: 'test-bucket', now: new Date(iso) });
+      if (out.kind !== 'page') throw new Error('expected a page');
+      return renderDocument(out.page, { canonical: 'https://x/', appPath: '/' });
+    };
+    expect(await at('2027-03-01T10:00:00Z')).toContain('href="/matabuena/fiestas/2026"');
+    // 2026 itself has no summary in this probe: only the 2025 draft is left.
+    await db().doc('villageWrapped/m1_2026').delete();
+    expect(await at('2026-08-01T10:00:00Z')).not.toContain('class="wr-track"');
+  });
+
+  it('features Matabuena on /pueblos, with its real content and every active pueblo', async () => {
+    await db().doc('municipalities/m3').set({ name: 'Arcones', slug: 'arcones', province: 'Segovia', communityActive: true });
+    const { status, body } = await html('/pueblos');
+    expect(status).toBe(200);
+    expect(body).toContain('Así se vive Matabuena en Cultuvilla');
+    expect(body).toContain('Verbena');
+    expect(body).toContain('Peña El Toro');
+    expect(body).not.toContain('Cena de la peña');
+    expect(body).toContain('2 pueblos y contando');
+    expect(body).not.toContain('href="/vacio"');
+  });
+
+  it('lists every active pueblo on /pueblos, past any page-size cap', async () => {
+    const batch = db().batch();
+    for (let i = 0; i < 70; i++) {
+      const n = String(i).padStart(2, '0');
+      batch.set(db().doc(`municipalities/bulk${n}`), { name: `Pueblo ${n}`, slug: `pueblo-${n}`, province: 'Soria', communityActive: true });
+    }
+    await batch.commit();
+    const { body } = await html('/pueblos');
+    expect(body).toContain('71 pueblos y contando');
+    expect(body).toContain('href="/pueblo-00"');
+    expect(body).toContain('href="/pueblo-69"');
+  });
+
+  it('features the first active pueblo by name when Matabuena is not active', async () => {
+    await db().doc('municipalities/m1').update({ communityActive: false });
+    await db().doc('municipalities/m3').set({ name: 'Arcones', slug: 'arcones', province: 'Segovia', communityActive: true });
+    await db().doc('events/e9').set({
+      municipalityId: 'm3',
+      title: 'Romería de Arcones',
+      startDate: ts('2026-09-08T10:00:00Z'),
+      endDate: null,
+      visibility: 'public',
+      visibilityOrgId: null,
+      status: 'published',
+    });
+    const { body } = await html('/pueblos');
+    expect(body).toContain('Así se vive Arcones en Cultuvilla');
+    expect(body).toContain('Romería de Arcones');
+    expect(body).not.toContain('Así se vive Matabuena');
+  });
+
   it('keeps a village without a community out of the index', async () => {
     const { body } = await html('/vacio');
     expect(body).toContain('noindex');

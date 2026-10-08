@@ -42,6 +42,7 @@ export const RESERVED_ROOT_SEGMENTS = [
   'mis-pueblos',
   'perfil',
   'persona',
+  'pueblos',
   'usuario',
   // Served by Hosting / the web export, never by a route file.
   '_expo',

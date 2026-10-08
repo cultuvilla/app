@@ -53,7 +53,7 @@ function getFirebaseOptions(): FirebaseOptions {
  * E2E only — point the client SDK at the local Firebase emulators.
  *
  * Gated by the build-time `USE_FIREBASE_EMULATOR` flag (surfaced as
- * `extra.useEmulator`), which is set ONLY in the android-e2e CI job and never in a
+ * `extra.useEmulator`), which is set ONLY in the native E2E CI jobs (android-e2e, ios-e2e) and never in a
  * deploy workflow. This is one half of the fail-closed fixture-login design:
  * the SAME flag also enables the test-login seam in AuthContext, so a fixture
  * session can only be minted while the app talks to `127.0.0.1` emulators. A

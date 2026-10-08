@@ -24,8 +24,8 @@ on:
       held_backend:
         description: >-
           This run deploys a backend an earlier prod deploy held back
-          (dispatched by announce-when-live.yml once both stores serve the
-          release). Deploys everything and records nothing.
+          (release-publish.yml, or announce-when-live.yml once both stores
+          serve the release). Deploys everything and records nothing.
         required: false
         type: boolean
         default: false
@@ -46,13 +46,14 @@ jobs:
       id-token: write # required for Workload Identity Federation
 
     steps:
-      # Prod needs the full history and tags: the release plan below rolls up
-      # `Breaking-Client:` trailers since the previous release tag.
+      # Prod and beta need history: the release record rolls up
+      # `Breaking-Client:` trailers — since the previous release tag on prod,
+      # across the merge's own commits on beta.
       - name: Checkout
         uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: ${{ inputs.firebase_alias == 'prod' && '0' || '1' }}
+          fetch-depth: ${{ inputs.firebase_alias == 'dev' && '1' || '0' }}
 
       # An explicit `ref` arrives from a workflow_dispatch input, and
       # actions/checkout will fetch ANY commit the remote has — an unmerged
@@ -101,6 +102,38 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
+      # Parity gate: dev and beta exist to prove prod will work, which they
+      # only do while they are configured like prod. This project's setup
+      # (database and bucket settings, enabled APIs, service-account IAM,
+      # secret names, Auth) must equal infra/env-parity.json plus this env's
+      # declared, reasoned exceptions. First of all, before any backfill or
+      # deploy writes, so a drifted env blocks its own deploy. Read-only;
+      # needs roles/iam.securityReviewer and roles/serviceusage.serviceUsageViewer
+      # (setup-ci-deploy-wif.sh).
+      - name: Parity gate — this project is configured like the others
+        run: node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=config
+
+      # Release plan — prod only, and not on the run that deploys a held
+      # backend. A breaking release (a `Breaking-Client:` trailer since the
+      # previous release tag, or a still-held earlier one) ships only its
+      # indexes here: no backfills, no gates, no rules, no functions, no
+      # hosting. Its binaries go to the stores, which hold them after approval
+      # (iOS manual release, Play managed publishing); once both approve,
+      # `pnpm release:publish` (release-publish.yml) runs this workflow with
+      # `held_backend` — backfills, gates, rules, functions, hosting — and
+      # releases iOS while the user publishes on Play. So nothing of a breaking
+      # release reaches users until a person releases it everywhere at once.
+      # Hosting is held with the functions it rewrites to: shipping it alone
+      # took cultuvilla.es down on 1.7.1. `[auto-deploy]` in the merge commit
+      # overrides the hold. Beta and dev never hold.
+      # See docs/decisions/announce-when-live-poller.md.
+      - name: Release plan — hold a breaking release until a person releases it
+        id: release
+        if: ${{ inputs.firebase_alias == 'prod' && !inputs.held_backend }}
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: node scripts/release-announce.mjs plan --env=prod
+
       # Auto-apply opted-in backfills — beta/prod only. Runs every backfill
       # that opted into `autoApply` for this env and has no marker yet, in
       # dependency order (`dependsOn`). `validateMeta` only accepts that opt-in
@@ -113,7 +146,7 @@ jobs:
       # died before reaching it. A migration that can apply itself must do so
       # before anything inspects the data. Order is locked by backfillGate.test.ts.
       - name: Auto-apply opted-in backfills
-        if: ${{ inputs.firebase_alias != 'dev' }}
+        if: ${{ inputs.firebase_alias != 'dev' && steps.release.outputs.hold_backend != 'true' }}
         run: node scripts/backfills-cli.mjs auto-apply --env ${{ inputs.firebase_alias }} --confirm --apply
 
       # Data-conformance gate — beta/prod only. Before shipping any schema
@@ -129,7 +162,7 @@ jobs:
       # account through GOOGLE_APPLICATION_CREDENTIALS — the SA needs Firestore
       # read (roles/datastore.viewer or broader).
       - name: Conformance gate — live data matches shipped schema
-        if: ${{ inputs.firebase_alias != 'dev' }}
+        if: ${{ inputs.firebase_alias != 'dev' && steps.release.outputs.hold_backend != 'true' }}
         run: node scripts/check-dev-conformance.mjs --env ${{ inputs.firebase_alias }}
 
       # Backfill gate — beta/prod only. A code change deploys automatically
@@ -147,7 +180,7 @@ jobs:
       # credentials. Skipped for dev for the same reason as the conformance
       # gate above.
       - name: Backfill gate — required migrations have run on the target env
-        if: ${{ inputs.firebase_alias != 'dev' }}
+        if: ${{ inputs.firebase_alias != 'dev' && steps.release.outputs.hold_backend != 'true' }}
         run: node scripts/backfills-cli.mjs verify --env ${{ inputs.firebase_alias }}
 
       # Custom-token signing gate — all envs. createCustomToken() signs via the
@@ -162,25 +195,6 @@ jobs:
       # WIF SA (granted by scripts/setup-ci-deploy-wif.sh).
       - name: Signing gate — runtime SA can mint custom tokens
         run: node scripts/check-custom-token-signing.mjs --env ${{ inputs.firebase_alias }}
-
-      # Release plan — prod only, and not on the run that deploys a held
-      # backend. A breaking release (a `Breaking-Client:` trailer since the
-      # previous release tag, or a still-held earlier one) keeps its functions
-      # and rules back until both stores serve the binary that copes with them:
-      # until then the wall cannot be raised, so an installed client the new
-      # backend no longer supports would just break, with no screen saying why.
-      # announce-when-live.yml raises the wall and dispatches the held backend
-      # (deploy-prod.yml, pinned to the release commit) when the stores are live.
-      # Indexes and hosting still deploy: additive indexes harm no client, and
-      # the read site is not an installed binary. `[auto-deploy]` in the merge
-      # commit overrides the hold. Beta and dev never hold.
-      # See docs/decisions/announce-when-live-poller.md.
-      - name: Release plan — hold a breaking backend until the stores serve it
-        id: release
-        if: ${{ inputs.firebase_alias == 'prod' && !inputs.held_backend }}
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: node scripts/release-announce.mjs plan --env=prod
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools@14
@@ -217,8 +231,17 @@ jobs:
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: firebase deploy --only firestore:rules,storage --project ${{ inputs.firebase_alias }} --non-interactive
 
+      # `--force` makes firestore.indexes.json the only source of truth: an
+      # index missing from the file (an orphan, or one made by hand in the
+      # console) is deleted. The report before it names exactly what will go,
+      # as a warning on the run. Without `--force`, removed indexes lived on
+      # forever and every write kept paying for them (8 per env on beta/prod,
+      # cleaned 2026-10-08).
+      - name: Report index drift (what --force will delete)
+        run: node scripts/check-index-drift.mjs --project=${{ inputs.firebase_alias }} --warn
+
       - name: Deploy Firestore indexes
-        run: firebase deploy --only firestore:indexes --project ${{ inputs.firebase_alias }} --non-interactive
+        run: firebase deploy --only firestore:indexes --project ${{ inputs.firebase_alias }} --non-interactive --force
 
       # production-release.yml reads this step's conclusion: `skipped` means the
       # backend is held, and it then holds the production OTA too. Rename both.
@@ -242,6 +265,7 @@ jobs:
       # identities and robots.txt — and rewrites every page to the `readSite`
       # function deployed above (docs/decisions/web-is-a-read-site.md).
       - name: Assemble static web files
+        if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: node scripts/build-web-static.mjs ${{ inputs.firebase_alias }}
 
       # `hosting:app` and not `hosting` — the internal founders' panel is a second
@@ -249,20 +273,51 @@ jobs:
       # to deploy it from every env, and a missing panel build would block the
       # app's promotion. See hostingTargets.test.ts.
       - name: Deploy Hosting
+        if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: firebase deploy --only hosting:app --project ${{ inputs.firebase_alias }} --non-interactive
 
-      # Hand the release to the announce poller (prod). After hosting, so a
-      # release whose deploy failed is never recorded. Records the hold the plan
-      # step decided, which is what this run actually did.
+      # The read site must answer after every deploy, held or not. Before the
+      # release is recorded, so a broken site never reaches store review.
+      # 2026-10-07: a held release took cultuvilla.es down for five hours with
+      # every deploy step green, and Google Play rejected the release over it.
+      - name: Smoke-check the live read site
+        run: node scripts/smoke-read-site.mjs --env=${{ inputs.firebase_alias }}
+
+      # A signed-in, non-admin user must be able to upload to every image path
+      # the app uses, against the live Storage rules. The emulator cannot see a
+      # rule that only deployed projects deny: 2026-10-07, cross-service
+      # firestore.exists() in storage.rules passed every test and broke every
+      # event cover in prod. Runs well after the rules deploy (functions and
+      # hosting take minutes), so a new ruleset has propagated by then. Not on
+      # prod: it signs in a dedicated test account and writes test objects, and
+      # every ruleset reaches prod only after passing here on dev and beta.
+      - name: Smoke-check image uploads against the live Storage rules
+        if: ${{ inputs.firebase_alias != 'prod' }}
+        env:
+          FIREBASE_WEB_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+        run: node scripts/smoke-storage-upload.mjs --env=${{ inputs.firebase_alias }}
+
+      # What this deploy put live is exactly this commit: Firestore and Storage
+      # rules, composite indexes and the set of functions. Skipped only when
+      # the backend is held, since then rules and functions deliberately stay
+      # at the previous release.
+      - name: Parity check — live rules, indexes and functions are this commit's
+        if: ${{ steps.release.outputs.hold_backend != 'true' }}
+        run: node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=artifacts
+
+      # Hand the release to the announce poller (prod and beta). After hosting,
+      # so a release whose deploy failed is never recorded. Prod records the
+      # hold the plan step decided, which is what this run actually did; beta
+      # never holds, and its poller announces the Cultuvilla Beta Android app.
       - name: Record the release for the announce poller
-        if: ${{ inputs.firebase_alias == 'prod' && !inputs.held_backend }}
+        if: ${{ (inputs.firebase_alias == 'prod' || inputs.firebase_alias == 'beta') && !inputs.held_backend }}
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: node scripts/release-announce.mjs record --env=prod --hold=${{ steps.release.outputs.hold_backend }}
+        run: node scripts/release-announce.mjs record --env=${{ inputs.firebase_alias }} --hold=${{ steps.release.outputs.hold_backend || 'false' }}
 
       # A held backend just shipped — tell the poller only now, on success. If
-      # any step above failed, the pending doc stays and the poller dispatches
-      # this deploy again after DEPLOY_RETRY_HOURS.
+      # any step above failed, the pending doc stays: re-run release-publish,
+      # or the poller dispatches this deploy once both stores serve the release.
       - name: Finish the held release
         if: ${{ inputs.firebase_alias == 'prod' && inputs.held_backend }}
         run: node scripts/release-announce.mjs finish --env=prod --sha="$(git rev-parse HEAD)"

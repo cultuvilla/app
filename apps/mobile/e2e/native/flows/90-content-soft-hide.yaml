@@ -20,8 +20,12 @@ env:
     timeout: 45000
 - tapOn:
     id: 'place-delete'
-# Native Alert button: common.delete, upper-cased by the Material dialog.
-- tapOn: 'ELIMINAR'
+# Native Alert button: common.delete. See the subflow for why this is not a
+# bare text tap.
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
 - runScript:
     file: ../scripts/docField.js
     env:

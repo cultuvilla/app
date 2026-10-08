@@ -100,8 +100,9 @@ does the work:
    - A **breaking** release raises `minSupported` to its version. The ceiling
      check still applies, and since `latest` is now that version on both
      platforms, the wall can never exceed what the stores serve.
-   - A **held backend** is dispatched: `deploy-prod.yml` with `backend_sha`, run
-     on `main` and checking out the pinned commit.
+   - A **held backend** still held at that point (the stores went live
+     without `pnpm release:publish`) is dispatched: `deploy-prod.yml` with
+     `backend_sha`, run on `main` and checking out the pinned commit.
    - The pending doc is cleared, but for a held release only by that deploy's
      own last step, once it has **succeeded**. `gh workflow run` only proves
      the dispatch was accepted. A deploy that fails a gate leaves the doc in
@@ -113,6 +114,28 @@ answer) counts as **not live**, with a warning, and the next tick asks again.
 After 7 days each tick warns that the build looks stuck in review. Nothing is
 ever announced on a guess, and nothing gives up silently.
 
+### Beta is announced too, always automatically
+
+Added 2026-10-08: until then beta's `latest` never moved, so a tester was never
+prompted to install a new beta build. Beta runs the same machinery, with three
+differences:
+
+- **Android only.** Beta's config is read by one app, Cultuvilla Beta
+  (`com.cultuvilla.app.beta`, Play **internal** track). iOS testers run the
+  production build from TestFlight, which reads prod and is announced by
+  TestFlight itself. A pending beta release records `platforms: ['android']`,
+  and beta's wall is capped by Android alone (`SERVED_PLATFORMS`).
+- **Never held.** Deploy beta ships everything at once and records the release.
+  The poller (dispatched on `beta`, under the `beta` environment) moves
+  `android.latest` once Play publishes the build, then clears.
+- **Breaking per merge.** Beta has no release tags, so a beta version is
+  breaking when its own merge brings a `Breaking-Client:` trailer
+  (`breakingInMerge`, `HEAD^1..HEAD`). Its wall then rises to that version, so
+  older beta builds are told to update to the one the backend now needs.
+
+Beta's `storeUrl.android` points at the Cultuvilla Beta listing, so the gate's
+button opens the tester's app and not the public one.
+
 ### Breaking releases hold their backend
 
 "Breaking" means a `Breaking-Client:` trailer on any non-merge commit since the
@@ -120,28 +143,53 @@ previous `vX.Y.Z` tag ([breaking-rollup.mjs](../../scripts/lib/breaking-rollup.m
 `Breaking-Client-Exempt:` never counts, and neither do merge commits, which
 carry PR bodies that may merely describe the trailer.
 
-On prod, `deploy-firebase.yml`'s release plan **holds Cloud Functions and the
-Firestore + Storage rules** of a breaking, in-flight release. Indexes and
-hosting still deploy: additive indexes strand no client, and the read site is
-not an installed binary.
+On prod, `deploy-firebase.yml`'s release plan **holds everything but the
+indexes** of a breaking, in-flight release: backfills and the data gates, rules,
+functions and hosting. Hosting is held with the functions it rewrites to:
+shipped alone on 1.7.1, it pointed at a `readSite` prod had never run, and
+cultuvilla.es answered 404 for six hours, privacy policy and account-deletion
+page included. Google Play rejected the release for exactly that (2026-10-07).
 
-When both stores are live, the poller first writes the wall and then dispatches
-the backend. That order is the safe one. A wall without its backend only tells
-old clients to update. A backend without its wall breaks them with no
-explanation.
+**A breaking release is released by a person, in both stores at once**
+(decided 2026-10-08, after 1.7.1). Play approved 1.7.1 and published it at
+once, while Apple took another day, so Android users ran the new app against
+the held backend. The stores must not publish on approval:
+
+1. **Before the `beta → main` merge**, the user switches **Play managed
+   publishing on**. Google has no API for that setting, so the promotion PR
+   carries it as a checklist item and the auto-merge never merges a breaking
+   release.
+2. **The merge** ships only the store binaries and indexes. iOS is submitted
+   with a **manual** App Store release (`--release-type=MANUAL`), and Play
+   holds the build after approval.
+3. **Once both stores approve** (Play `APPROVED_NOT_PUBLISHED`, App Store
+   `PENDING_DEVELOPER_RELEASE`), the poller opens a GitHub issue,
+   @-mentioning the `RELEASE_MANAGER` repo variable.
+4. **The user releases it**, both at the same moment: **Publish** in the Play
+   Console, and `pnpm release:publish` (`release-publish.yml`). That checks
+   the approvals, runs this workflow with `held_backend` (backfills, gates,
+   rules, functions, hosting), then releases iOS.
+5. **The poller finishes it**: once both stores serve the version, it raises
+   `minSupported` and announces, then closes the issue with a reminder to
+   switch managed publishing **off**. While it stays on, an unheld release sits
+   approved and unpublished, and the poller warns every tick.
+
+The poller alerts once, by issue, if a held release goes live on one store
+before the other has approved it. That is the 1.7.1 failure, usually because
+managed publishing was off. If both stores go live without
+`release:publish`, the poller still raises the wall and then dispatches the
+held backend, as before. The wall comes first because a wall without its
+backend only tells old clients to update, while a backend without its wall
+breaks them with no explanation.
 
 | Situation | Backend |
 |---|---|
 | beta, dev | always deploys on the merge |
-| prod, not breaking | deploys on the merge |
-| prod, breaking, version in flight | **held** until both stores serve it |
+| prod, not breaking | deploys on the merge; each store publishes on approval |
+| prod, breaking, version in flight | **held** until `pnpm release:publish` |
 | prod, breaking, nothing in flight (no bump) | deploys, with a warning: there is no binary to wait for, so a hold would last forever. Raise the wall by hand if clients break |
 | `[auto-deploy]` in the merge commit | deploys on the merge (deliberate override) |
 | a later push while a held release is still pending | **held too** (sticky), since it contains those commits |
-
-To release a held backend early, dispatch *Deploy prod* on `main` with that
-`backend_sha`. The release is still announced, and the wall still raised, once
-the stores serve it.
 
 **Only code already on `main` can be deployed this way.** `actions/checkout`
 will fetch any commit the remote has, and the `production` environment's

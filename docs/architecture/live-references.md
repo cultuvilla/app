@@ -22,8 +22,8 @@ DENORMALIZE (copy onto A)                REFERENCE + LIVE RESOLVE (this doc)
 └─────────────────────┘                             │ subscribe at render
    1 read, always.                                  ▼
    Copies go stale → needs              ┌─────────────────────┐
-   a sync trigger forever.              │ users/u1 (live)     │
-                                        │  photoURL, name     │
+   a sync trigger forever.              │ publicProfiles/u1   │
+                                        │  name (live)        │
                                         └─────────────────────┘
                                            always fresh, no trigger
 ```
@@ -47,8 +47,8 @@ Spelled out — **denormalize** when *any* of these hold:
 
 Use a **live reference** when *none* of those hold — the value is current,
 the source is readable, you never query by it, and only a handful show at once.
-A villager's profile photo is the textbook case: current, `users/*` is
-world-readable in our rules, never queried, shown in small numbers.
+A villager's name and photo are the textbook case: current, readable through
+`publicProfiles/*` and `persons/*`, never queried, shown in small numbers.
 
 ## The pattern
 
@@ -93,11 +93,13 @@ A live reference dies with `permission-denied` if the viewer can't read the
 source doc. Check `firestore.rules` before adopting it for a new owner type.
 Current state:
 
-- `users/{userId}` — `allow read: if true`
+- `users/{userId}` — owner and app admins only. **Never** live-resolve another
+  user here: the chip silently lost every name when this tightened. Use
+  `publicProfiles/{userId}` (`allow get: if true`), its function-owned projection.
 - `organizations/{orgId}` — `allow read: if true`
 - `persons/{personId}` — `allow read: if isAuthenticated()`
 
-All three are safe to subscribe to. If a future owner type is access-restricted,
+`publicProfiles`, `organizations` and `persons` are safe to subscribe to. If a future owner type is access-restricted,
 that flips the decision toward denormalizing the safe fields instead (rule 2).
 
 ## How the two strategies coexist in this app — on purpose

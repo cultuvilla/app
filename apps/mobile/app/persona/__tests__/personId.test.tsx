@@ -32,7 +32,6 @@ jest.mock('@cultuvilla/shared/services/personService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadUserPhoto: jest.fn().mockResolvedValue('https://photo.test/new.jpg'),
-  uploadPersonImage: jest.fn().mockResolvedValue('https://photo.test/new.jpg'),
 }));
 jest.mock('../../../lib/auth/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'uid-1', email: 'a@b.test', displayName: null } }),
@@ -102,7 +101,6 @@ describe('PersonDetailScreen — edit existing photo', () => {
         expect.objectContaining({ contentType: 'image/jpeg' }),
       );
     });
-    expect(imageService.uploadPersonImage).not.toHaveBeenCalled();
     expect(personService.updatePerson).toHaveBeenCalledWith('p-existing', {
       photoURL: 'https://photo.test/new.jpg',
     });

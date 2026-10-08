@@ -22,8 +22,15 @@ on:
   push:
     branches: [beta, main]
   # So a native regression can be chased on a develop branch without waiting for
-  # a promotion PR.
+  # a promotion PR. `flows` narrows it to a few flows (`pnpm e2e:ci:android`).
   workflow_dispatch:
+    inputs:
+      flows:
+        description: >-
+          Only these flows, comma-separated (e.g. `20,22` or
+          `20-register-to-event`). Empty = the whole suite.
+        required: false
+        default: ''
   # 03:00 UTC: after the day's merges, before the working day in Spain.
   schedule:
     - cron: '0 3 * * *'
@@ -185,6 +192,8 @@ jobs:
         env:
           E2E_ANDROID_APK: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
           E2E_FIREBASE_PROJECT: cultuvilla-test
+          # Empty on every event but a dispatch that names flows.
+          E2E_NATIVE_FLOW: ${{ inputs.flows }}
         with:
           api-level: 33
           target: google_apis

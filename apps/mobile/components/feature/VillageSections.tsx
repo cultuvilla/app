@@ -99,8 +99,11 @@ export function Section<T>({
   data,
   renderItem,
   keyExtractor,
+  testID,
 }: {
   title: string;
+  /** On the horizontal row, so an E2E flow can swipe it to an off-screen card. */
+  testID?: string;
   /** When provided, renders the "Gestionar" link (admins only). */
   onManage?: () => void;
   isEmpty: boolean;
@@ -140,6 +143,7 @@ export function Section<T>({
         <SkeletonRow />
       ) : data && renderItem ? (
         <FlatList
+          testID={testID}
           horizontal
           showsHorizontalScrollIndicator={false}
           data={data}
@@ -153,6 +157,7 @@ export function Section<T>({
         />
       ) : (
         <ScrollView
+          testID={testID}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerClassName="px-4 gap-3"

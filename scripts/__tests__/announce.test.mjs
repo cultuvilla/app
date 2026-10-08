@@ -315,7 +315,15 @@ describe('interpretIosVersions', () => {
 
   it('is live only when the version is on sale', () => {
     assert.equal(interpretIosVersions(versions, '1.6.0').live, false);
-    assert.deepEqual(interpretIosVersions(versions, '1.5.0'), { found: true, live: true, state: 'READY_FOR_SALE', buildNumber: '6' });
+    assert.deepEqual(interpretIosVersions(versions, '1.5.0'), { found: true, live: true, approved: true, state: 'READY_FOR_SALE', buildNumber: '6' });
+  });
+
+  // A manual release (breaking) waits here after App Review: approved, not live.
+  it('is approved but not live while waiting for its manual release', () => {
+    const r = interpretIosVersions([{ versionString: '1.6.0', appStoreState: 'PENDING_DEVELOPER_RELEASE' }], '1.6.0');
+    assert.equal(r.live, false);
+    assert.equal(r.approved, true);
+    assert.equal(interpretIosVersions(versions, '1.6.0').approved, false);
   });
 
   it('accepts the newer READY_FOR_DISTRIBUTION name for the same state', () => {
@@ -364,7 +372,9 @@ describe('checkStores — fails safe', () => {
       const calls = [];
       const r = await checkStores({ pending, makePlay: fakePlay({ state: PLAY_LIFECYCLE[state], calls }), makeAsc: onSale, ascAppId: 'app1', ...target, warn: (m) => warnings.push(m) });
       assert.equal(r.live.android, false);
-      assert.match(r.detail.android, new RegExp(`${state} — not published yet`));
+      assert.equal(r.approved.android, state === 'APPROVED_NOT_PUBLISHED');
+      assert.equal(r.awaitingPublish.android, state === 'APPROVED_NOT_PUBLISHED');
+      assert.match(r.detail.android, state === 'APPROVED_NOT_PUBLISHED' ? /approved, waiting for Publish/ : new RegExp(`${state} — not published yet`));
       assert.deepEqual(warnings, []);
       assert.deepEqual(calls, ['list com.cultuvilla.app production'], 'no edit is opened before Google publishes');
     });
@@ -612,5 +622,38 @@ describe('makePlayClient', () => {
     assert.deepEqual(list, body);
     assert.equal(scope, 'https://www.googleapis.com/auth/androidpublisher');
     assert.deepEqual(calls.slice(1), ['GET /androidpublisher/v3/applications/com.cultuvilla.app/tracks/production/releases']);
+  });
+});
+
+describe('beta: announced and walled on Android alone, never held', () => {
+  const betaPending = {
+    version: '1.8.0',
+    breaking: true,
+    reasons: ['r'],
+    holdBackend: false,
+    platforms: ['android'],
+    announced: { ios: false, android: false },
+  };
+  const stored = { ios: { latest: '1.4.1', minSupported: '0.0.0' }, android: { latest: '1.7.1', minSupported: '0.0.0' } };
+
+  it('announces and walls once the beta app is live, and finishes without iOS', () => {
+    const plan = planTick(betaPending, { live: { android: true, ios: false }, stored });
+    assert.deepEqual(plan.config, { latestFor: { android: '1.8.0' }, minSupported: '1.8.0' });
+    assert.equal(plan.clear, true);
+    assert.deepEqual(plan.waitingOn, []);
+    assert.equal(plan.deploySha, null);
+  });
+
+  it('never moves iOS, even if a store answer says live', () => {
+    const plan = planTick(betaPending, { live: { android: false, ios: true }, stored });
+    assert.equal(plan.config, null);
+    assert.deepEqual(plan.waitingOn, ['android']);
+  });
+
+  it('never holds, but still reads the merge as breaking', () => {
+    const d = decideBackendHold({ env: 'beta', version: '1.8.0', config: stored, rollup: { breaking: true, reasons: ['r'] } });
+    assert.equal(d.hold, false);
+    assert.equal(d.breaking, true);
+    assert.equal(d.inFlight, true, 'ahead of what the beta app has announced (iOS is not counted)');
   });
 });
