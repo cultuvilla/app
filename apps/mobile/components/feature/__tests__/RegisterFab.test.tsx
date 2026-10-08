@@ -375,6 +375,24 @@ describe('RegisterFab — group sign-up', () => {
     expect(getByTestId('group-confirm').props.accessibilityState.disabled).toBe(false);
   });
 
+  // The same iOS Modal problem, through the group sheet's "Crear una nueva persona".
+  it('hides the group sheet while another screen is in front, and brings it back as it was', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([dep]);
+    const { getByTestId, queryByTestId } = render(<RegisterFab {...groupProps} />);
+    await waitFor(() => expect(getByTestId('register-fab')).toBeTruthy());
+    fireEvent.press(getByTestId('register-fab'));
+    await waitFor(() => expect(getByTestId('group-row-p2')).toBeTruthy());
+    fireEvent.press(getByTestId('group-row-p2'));
+    fireEvent.press(getByTestId('group-create-persona'));
+
+    await setScreenFocused(false);
+    expect(queryByTestId('group-attendee-list')).toBeNull();
+
+    await setScreenFocused(true);
+    await waitFor(() => expect(getByTestId('group-attendee-list')).toBeTruthy());
+    expect(getByTestId('group-row-p2').props.accessibilityState).toMatchObject({ checked: true });
+  });
+
   it('prefills the group phone and saves a changed one after the group is booked', async () => {
     mockGetPersonsByCreator.mockResolvedValue([dep]);
     mockRegisterToEvent.mockResolvedValue(wrapRegs([
