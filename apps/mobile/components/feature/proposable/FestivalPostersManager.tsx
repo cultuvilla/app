@@ -126,6 +126,7 @@ export function FestivalPostersManager({
                 adding={addingImage}
                 addLabel={t('village.festivalPosters.form.addImage')}
                 removeLabel={t('village.festivalPosters.form.removeImage')}
+                testID="poster-images"
               />
             </VStack>
             <Input

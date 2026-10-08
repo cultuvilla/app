@@ -58,6 +58,8 @@ footer.site a{color:var(--muted);margin-right:12px}
  */
 export const LANDING_STYLES = `
 @font-face{font-family:Gloock;src:url(/brand/gloock-latin.woff2) format("woff2");font-display:swap}
+@font-face{font-family:Figtree;src:url(/brand/figtree-latin.woff2) format("woff2");font-weight:300 900;font-display:swap}
+body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing{--display:Gloock,Georgia,"Times New Roman",serif;--olive:${palette.olive};--clay:${palette.clay};--peach:${palette.peach};--band-muted:#d4d6c6;padding-bottom:0}
 .landing .in{max-width:1080px;margin:0 auto;padding:0 16px}
 .landing h1,.landing h2,.landing h3{font-family:var(--display);font-weight:400;line-height:1.05;text-wrap:balance;color:inherit;margin:0}
@@ -85,16 +87,20 @@ export const LANDING_STYLES = `
 .landing .top.single{grid-template-columns:1fr;padding-bottom:48px}
 .landing .top.single .lead{max-width:40em}
 @media (max-width:820px){.landing .top{grid-template-columns:1fr}}
+@media (min-width:821px){.landing .intro{padding-top:56px}}
 .landing .intro{position:relative;margin:0;justify-self:center;display:grid;justify-items:center;gap:14px}
-.landing .intro-phone{display:block;width:min(290px,78vw);aspect-ratio:9/18.6;padding:10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5);transform:rotate(2deg)}
+.landing .intro-phone{display:block;width:min(290px,78vw);aspect-ratio:9/18.6;padding:10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5);position:relative}
 .landing .intro-phone video{display:block;width:100%;height:100%;object-fit:cover;border-radius:32px;background:var(--surface)}
-.landing .sound{border:0;border-radius:999px;padding:8px 14px;font:600 13px/1 system-ui,sans-serif;background:var(--primary);color:var(--surface);cursor:pointer}
+.landing .sound{position:absolute;right:22px;bottom:22px;width:40px;height:40px;padding:9px;border:0;border-radius:50%;background:rgba(29,33,23,.72);color:#fff;cursor:pointer}
+.landing .sound svg{display:block;width:100%;height:100%}
+.landing .sound .wave,.landing .sound.on .off{display:none}
+.landing .sound.on .wave{display:inline}
 .landing .pillars ul{color:var(--surface)}
 .landing .band .pillar b{color:var(--surface)}
 .landing .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;align-items:center}
 .landing .fine{margin-top:14px;font-size:14px;color:var(--muted)}
 .landing .strip{border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;padding:14px 0}
-.landing .strip-track{display:flex;gap:36px;width:max-content;animation:scroll 40s linear infinite}
+.landing .strip-track{display:flex;gap:56px;width:max-content;animation:scroll 40s linear infinite}
 .landing .strip span{font-family:var(--display);font-size:22px;white-space:nowrap;color:var(--muted)}
 .landing .split{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
 .landing .split .lead+.lead{margin-top:14px}
@@ -106,16 +112,14 @@ export const LANDING_STYLES = `
 .landing .card img.cover{width:calc(100% + 48px);max-width:none;margin:-24px -24px 6px;aspect-ratio:8/5;object-fit:cover}
 .landing .card{overflow:hidden}
 .landing .banner img{width:100%;aspect-ratio:1600/615;object-fit:cover;border-radius:18px;margin-bottom:56px}
-.landing .wr-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:56px;align-items:center}
-.landing .wr-split .lead{margin:14px 0 22px}
+.landing .wr-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center}
+.landing .wr-split .lead{margin:14px 0 0}
 @media (max-width:820px){.landing .wr-split{grid-template-columns:1fr;gap:28px}}
 .landing .wr{display:grid;justify-items:center;gap:12px}
 .landing .wr-phone{width:min(300px,80vw);padding:12px 10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5)}
 .landing .wr-track{display:flex;aspect-ratio:9/16;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:32px;scrollbar-width:none;background:#1d2117}
 .landing .wr-track::-webkit-scrollbar{display:none}
 .landing .wr-track img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;scroll-snap-align:center}
-.landing .wr-nav{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--muted)}
-.landing .wr-nav button{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--primary);font-size:22px;line-height:1;cursor:pointer}
 .landing .night{background:linear-gradient(rgba(38,43,30,.78),rgba(38,43,30,.86)),url(/brand/landing/verbena-noche.webp) center/cover}
 .landing .unique{list-style:none;margin:0;padding:0}
 .landing .unique li{font-family:var(--display);font-size:clamp(32px,5vw,52px);line-height:1.15;color:var(--primary)}
@@ -137,21 +141,26 @@ export const LANDING_STYLES = `
 .landing .aud{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
 .landing .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;display:grid;gap:10px;align-content:start;min-width:0}
 .landing .tag{justify-self:start;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface);color:var(--accent)}
-.landing .card.amb{grid-column:1/-1;background:var(--accent);border-color:var(--accent);color:var(--on-accent);grid-template-columns:1.2fr 1fr;gap:24px;align-items:center}
-.landing .card.amb .muted{color:var(--on-accent);opacity:.92}
-.landing .card.amb .tag{background:rgba(255,255,255,.18);color:var(--on-accent)}
-.landing .url{font:500 14px/1.5 ui-monospace,Menlo,Consolas,monospace;background:rgba(255,255,255,.16);border-radius:12px;padding:14px 16px;overflow-x:auto;white-space:nowrap}
-.landing .url a{color:inherit}
-@media (max-width:820px){.landing .aud,.landing .card.amb{grid-template-columns:1fr}}
+@media (max-width:820px){.landing .aud{grid-template-columns:1fr}}
 .landing .card .muted{color:var(--text)}
 .landing .villages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .landing .villages a{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:12px;text-decoration:none;color:var(--primary);font-weight:600;height:100%}
 .landing .villages img{width:32px;height:38px;object-fit:contain;flex:none}
 .landing .villages small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
-.landing .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;counter-reset:s}
+.landing .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;counter-reset:s;list-style:none;margin:0;padding:0}
 .landing .step{display:grid;gap:8px;align-content:start}
 .landing .step::before{counter-increment:s;content:counter(s);font-family:var(--display);font-size:52px;line-height:1;color:var(--accent)}
 @media (max-width:820px){.landing .steps{grid-template-columns:1fr}}
+.landing .amb{background:var(--accent);color:var(--on-accent)}
+.landing .amb .eyebrow{color:var(--on-accent);opacity:.8}
+.landing .amb .lead,.landing .amb .step p{color:var(--on-accent);opacity:.92}
+.landing .amb .head{margin:0}
+.landing .amb .hook{font-family:var(--display);font-size:clamp(22px,2.6vw,30px);line-height:1.15;margin:0}
+.landing .amb .lead b{font-weight:600}
+.landing .amb .split{margin-bottom:48px}
+.landing .amb-photo{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:20px}
+.landing .amb .steps{padding-top:32px;border-top:1.5px solid rgba(255,255,255,.3)}
+.landing .amb .step::before{color:var(--on-accent)}
 .landing .price{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:center}
 .landing .price .big{font-family:var(--display);font-size:clamp(72px,14vw,128px);line-height:.9;color:var(--clay)}
 @media (max-width:820px){.landing .price{grid-template-columns:1fr;gap:16px}}
@@ -161,7 +170,9 @@ export const LANDING_STYLES = `
 .landing .faq details p{margin-top:10px}
 .landing .final{text-align:center;display:grid;justify-items:center;gap:18px}
 .landing .final h2{font-size:clamp(36px,6vw,60px)}
-.landing .store{display:inline-flex;flex-direction:column;align-items:flex-start;padding:10px 20px;border-radius:14px;background:var(--surface);color:var(--primary);text-decoration:none;line-height:1.2}
+.landing .store{display:inline-flex;align-items:center;gap:12px;padding:10px 20px 10px 16px;border-radius:14px;background:var(--surface);color:var(--primary);text-decoration:none;line-height:1.2}
+.landing .store svg{width:26px;height:26px;flex:none}
+.landing .store span{display:grid;text-align:left}
 .landing .store small{font-size:12px;color:var(--text)}
 .landing .store b{font-size:18px}
 .landing .final .stores{justify-content:center}

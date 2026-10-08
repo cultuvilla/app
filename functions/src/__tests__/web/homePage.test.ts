@@ -5,7 +5,8 @@ import { describe, it, expect } from 'vitest';
 import type { Card, Village, VillageHome, WrappedView } from '../../web/data';
 import { renderDocument } from '../../web/document';
 import { render } from '../../web/html';
-import { homePage, villagesPage, type Landing } from '../../web/pages';
+import { homePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
+import { LANDING_STYLES } from '../../web/styles';
 
 const village = (slug: string, name: string, province: string | null = 'Segovia'): Village => ({
   id: `id-${slug}`,
@@ -51,6 +52,7 @@ describe('homePage', () => {
     const out = renderDocument(page, { canonical: 'https://cultuvilla.es/', appPath: '/' });
     expect(out).toContain('<main class="landing">');
     expect(out).toContain('/brand/gloock-latin.woff2');
+    expect(out).toContain('/brand/figtree-latin.woff2');
   });
 
   it('shows the fiestas summary of the featured pueblo in a swipeable phone, never its named people', () => {
@@ -66,29 +68,110 @@ describe('homePage', () => {
     };
     const out = body({ villages: [matabuena], showcase, wrapped: { village: matabuena, view } });
     expect(out).toContain('class="wr-track"');
-    expect(out).toContain('href="/matabuena/fiestas/2026"');
+    // It plays by itself: no link out, no arrows.
+    expect(out).not.toContain('/matabuena/fiestas/2026');
+    expect(out).not.toContain('<button type="button" aria-label="Siguiente"');
+    expect(out).toContain('Cada año, listo para compartir entre los vecinos.');
     for (const c of ['cover', 'stats', 'events', 'news', 'posters']) expect(out).toContain(`src="https://img/${c}.png"`);
+    // The cover is repeated, hidden, at the end so the loop can wrap without rewinding.
+    expect(out).toMatch(/src="https:\/\/img\/posters\.png"[^>]*\/><img src="https:\/\/img\/cover\.png" alt="" aria-hidden="true"/);
     for (const c of ['people', 'organizers']) expect(out).not.toContain(`https://img/${c}.png`);
-    // The Embajador block uses a real event URL as its example.
-    expect(out).toContain('cultuvilla.es/matabuena/evento/torneo-de-mus_e1');
+    expect(out).toContain('<section class="blk amb">');
+    expect(out.match(/<li class="step">/g)).toHaveLength(3);
+    // The Embajador pitch opens on the question the Embajador film opens on.
+    expect(out).toContain('<h2>¿Vives las fiestas de tu pueblo como nadie?</h2>');
+    expect(out).toContain('Pulsa «Quiero ser embajador»');
     expect(body({ villages: [matabuena], showcase, wrapped: null })).not.toContain('class="wr-track"');
   });
 
-  it('unmutes the intro film where it is, without restarting it, and mutes it again', () => {
+  it('unmutes the intro film from the icon inside the phone, without restarting it, and mutes it again', () => {
     const out = body({ villages: [], showcase: null, wrapped: null });
-    expect(out).toContain('cultuvilla-intro-vertical.mp4');
-    const onclick = /class="sound" onclick="([^"]*)"/.exec(out)?.[1];
-    if (!onclick) throw new Error('the sound toggle has no handler');
+    // The icon sits on the phone's screen, beside the video it controls.
+    expect(out).toMatch(/<span class="intro-phone"><video [^>]*><\/video><button type="button" class="sound"/);
+    const onclick = /class="sound" aria-label="Activar sonido" onclick="([^"]*)"/.exec(out)?.[1];
+    if (!onclick) throw new Error('the sound icon has no handler');
     const video = { muted: true, currentTime: 12.5, plays: 0, play() { this.plays += 1; } };
-    const button = { textContent: 'Activar sonido', parentNode: { querySelector: () => video } };
+    const classes = new Set<string>();
+    const button = {
+      label: 'Activar sonido',
+      parentNode: { querySelector: () => video },
+      classList: { toggle: (c: string, on: boolean) => (on ? classes.add(c) : classes.delete(c)) },
+      setAttribute(name: string, value: string) {
+        if (name === 'aria-label') this.label = value;
+      },
+    };
     // The handler runs as the button: in a fresh vm context, top-level `this` is the context object.
     const click = () => runInNewContext(onclick.replace(/&#39;/g, "'").replace(/&quot;/g, '"'), button);
     click();
     expect(video).toMatchObject({ muted: false, currentTime: 12.5, plays: 1 });
-    expect(button.textContent).toBe('Silenciar');
+    expect(classes.has('on')).toBe(true);
+    expect(button.label).toBe('Silenciar');
     click();
     expect(video).toMatchObject({ muted: true, currentTime: 12.5, plays: 1 });
-    expect(button.textContent).toBe('Activar sonido');
+    expect(classes.has('on')).toBe(false);
+    expect(button.label).toBe('Activar sonido');
+  });
+
+  it('advances the summary one card at a time and wraps from the copied cover back to the start', () => {
+    let tick = (): void => undefined;
+    const pending: (() => void)[] = [];
+    const scrolls: { left: number; behavior: string }[] = [];
+    const track = {
+      children: { length: 6 }, // five cards plus the trailing copy of the cover
+      clientWidth: 300,
+      scrollLeft: 0,
+      addEventListener: () => undefined,
+      scrollTo(o: { left: number; behavior: string }) {
+        scrolls.push(o);
+        this.scrollLeft = o.left;
+      },
+    };
+    runInNewContext(WRAPPED_AUTOPLAY, {
+      document: { hidden: false, querySelectorAll: () => [track] },
+      matchMedia: () => ({ matches: false }),
+      setInterval: (f: () => void) => (tick = f),
+      setTimeout: (f: () => void) => pending.push(f),
+    });
+    for (let i = 0; i < 5; i++) tick();
+    expect(scrolls.map((x) => x.left)).toEqual([300, 600, 900, 1200, 1500]);
+    // Landing on the copy queues an instant jump back to the real cover.
+    expect(pending).toHaveLength(1);
+    pending[0]();
+    expect(scrolls[scrolls.length - 1]).toEqual({ left: 0, behavior: 'instant' });
+    tick();
+    expect(scrolls[scrolls.length - 1]).toEqual({ left: 300, behavior: 'smooth' });
+  });
+
+  it('stays still for readers who ask for reduced motion', () => {
+    let started = false;
+    runInNewContext(WRAPPED_AUTOPLAY, {
+      document: { hidden: false, querySelectorAll: () => [{ children: { length: 6 }, addEventListener: () => undefined }] },
+      matchMedia: () => ({ matches: true }),
+      setInterval: () => (started = true),
+    });
+    expect(started).toBe(false);
+  });
+
+  it('heads the page in green with only "pueblo" in orange, over a star-less fiesta strip', () => {
+    const out = body({ villages: [], showcase: null, wrapped: null });
+    expect(out).toContain('<h1>Cuida la cultura de tu <em>pueblo</em>.</h1>');
+    expect(out).toContain('<span>Romerías</span>');
+    expect(out).not.toContain('✦');
+  });
+
+  it('sets the landing in Figtree and drops the intro phone below the bunting only on the wide layout', () => {
+    expect(LANDING_STYLES).toMatch(/@font-face\{font-family:Figtree;src:url\(\/brand\/figtree-latin\.woff2\)/);
+    expect(LANDING_STYLES).toMatch(/\nbody\{font-family:Figtree,/);
+    expect(LANDING_STYLES).toContain('@media (min-width:821px){.landing .intro{padding-top:56px}}');
+    expect(LANDING_STYLES).not.toMatch(/\n\.landing \.intro\{[^}]*padding-top/);
+    expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-latin.woff2'))).toBe(true);
+    expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-OFL.txt'))).toBe(true);
+  });
+
+  it('marks each store button with its store icon', () => {
+    const out = body({ villages: [], showcase: null, wrapped: null });
+    expect(out).toMatch(/<a class="store" href="https:\/\/apps\.apple\.com[^"]*"><svg viewBox="0 0 24 24" aria-hidden="true">/);
+    expect(out).toMatch(/<a class="store" href="https:\/\/play\.google\.com[^"]*"><svg viewBox="0 0 24 24" aria-hidden="true">/);
   });
 
   it('keeps the full showcase and the pueblo list on /pueblos, not on the home', () => {

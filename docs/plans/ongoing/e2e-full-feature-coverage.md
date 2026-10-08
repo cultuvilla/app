@@ -1,6 +1,9 @@
 # E2E — full feature coverage
 
 **Priority:** high — bugs reached production through flows the suite reports green
+**Landed:** none
+**Gate:** none
+**Next:** Stage 1 — seed collaborators + a picker image, then the deep event flow replacing 60 and 62
 
 ## Goal
 
@@ -112,6 +115,16 @@ iOS runs four shards grouped by the tens digit, and a group never splits
 - give a heavy feature its own tens group rather than stacking two in one;
 - a flow may depend only on the seed and earlier flows **of its own group**.
 
+## Handoff
+
+Stage 0 baseline (2026-10-09): 334 testIDs, 65 touched by a flow, 269 listed in
+`uncovered.json`, all `todo:`. Components that render several controls take one
+`testID` and derive the rest, so the ratchet counts the caller's literal (a
+`VillagePicker` row is `<id>-option-<municipalityId>`). `LocationField`'s inner
+controls (`location-use-mine`, `location-confirm`) keep fixed ids — only one picker
+is ever open. `MyVillagePicker` lost its hardcoded `village-dropdown-trigger`; the
+event form now names it `event-village`.
+
 ## Feature matrix — target
 
 `C` create · `E` edit · `D` display (screen) · `F` Firestore · `O` other-user view ·
@@ -140,7 +153,7 @@ none today).
 ## File Structure
 
 - Create `packages/shared/test/ci/e2eCoverage.test.ts` — the ratchet and the
-  testID-required check (§2).
+  testID-required check (§2); the extraction lives in `scripts/lib/e2e-coverage.mjs`.
 - Create `apps/mobile/e2e/native/uncovered.json` — the shrinking gap list, with reasons.
 - Create `apps/mobile/e2e/native/subflows/<feature>/*.yaml` — phase subflows per feature.
 - Create or replace flows under `apps/mobile/e2e/native/flows/` — one deep flow per
@@ -161,9 +174,9 @@ none today).
 ## Tasks
 
 ### Stage 0 — make gaps visible
-- [ ] Add missing `testID`s to every form control listed in Context (no behaviour change).
-- [ ] Write `e2eCoverage.test.ts` and seed `uncovered.json` with today's gaps, each with a reason.
-- [ ] Add the testID-required check for form surfaces.
+- [x] Add missing `testID`s to every form control listed in Context (no behaviour change).
+- [x] Write `e2eCoverage.test.ts` and seed `uncovered.json` with today's gaps, each with a reason.
+- [x] Add the testID-required check for form surfaces.
 - [ ] Ask the user for the production bugs they found; for each, record which matrix
       cell would have caught it and move those cells to the front of the stages below.
 

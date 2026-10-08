@@ -121,7 +121,7 @@ describe('readSite', () => {
     expect(status).toBe(200);
     expect(body).toContain('class="wr-track"');
     expect(body).toContain('src="https://img.test/cover.png"');
-    expect(body).toContain('href="/matabuena/fiestas/2026"');
+    expect(body).toContain('Fiestas 2026 · Matabuena');
     expect(body).toContain('href="/pueblos"');
   });
 
@@ -131,7 +131,7 @@ describe('readSite', () => {
       if (out.kind !== 'page') throw new Error('expected a page');
       return renderDocument(out.page, { canonical: 'https://x/', appPath: '/' });
     };
-    expect(await at('2027-03-01T10:00:00Z')).toContain('href="/matabuena/fiestas/2026"');
+    expect(await at('2027-03-01T10:00:00Z')).toContain('Fiestas 2026 · Matabuena');
     // 2026 itself has no summary in this probe: only the 2025 draft is left.
     await db().doc('villageWrapped/m1_2026').delete();
     expect(await at('2026-08-01T10:00:00Z')).not.toContain('class="wr-track"');

@@ -207,6 +207,7 @@ export default function CompleteProfileScreen() {
               label={t('profile.personForm.village')}
               value={municipalityId}
               onChange={handleVillageChange}
+              testID="onboarding-village"
             />
             <BarrioPicker
               label={t('profile.personForm.barrio')}
@@ -214,6 +215,7 @@ export default function CompleteProfileScreen() {
               value={barrioId}
               onChange={setBarrioId}
               wholeVillageLabel={t('profile.personForm.wholeVillage')}
+              testID="onboarding-barrio"
             />
           </>
         )}

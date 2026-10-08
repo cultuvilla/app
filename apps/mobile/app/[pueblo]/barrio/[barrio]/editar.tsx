@@ -146,6 +146,7 @@ function BarrioEditScreen() {
             onChangeName={setName}
             nameLabel={t('village.admin.barrios.name')}
             nameTestID="barrio-edit-name-input"
+            imagesTestID="barrio-edit-images"
             submitLabel={t('common.save')}
             submitTestID="barrio-edit-submit"
             onSubmit={submit}

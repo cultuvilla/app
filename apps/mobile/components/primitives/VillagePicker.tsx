@@ -31,12 +31,14 @@ export interface VillagePickerProps {
    * "add" affordance instead of a field-style trigger.
    */
   trigger?: (open: () => void) => ReactNode;
+  /** Names the trigger; the modal's search, rows and buttons derive from it. */
+  testID?: string;
 }
 
 const PAGE_SIZE = 50;
 const DEBOUNCE_MS = 200;
 
-export function VillagePicker({ label, value, onChange, placeholder = 'Sin pueblo', trigger }: VillagePickerProps) {
+export function VillagePicker({ label, value, onChange, placeholder = 'Sin pueblo', trigger, testID }: VillagePickerProps) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [results, setResults] = useState<Option[]>([]);
@@ -95,7 +97,7 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
       ) : (
         <>
           <FieldLabel>{label}</FieldLabel>
-          <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={styles.trigger}>
+          <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={styles.trigger} testID={testID}>
             <View style={styles.triggerInner}>
               {selected && (
                 <Escudo url={selected.escudoThumbUrl} size={28} fallbackInitial={selected.name} />
@@ -114,6 +116,7 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
             onChangeText={setFilter}
             style={styles.search}
             autoCapitalize="none"
+            testID={testID ? `${testID}-search` : undefined}
           />
           {loading && results.length === 0 ? (
             <View style={styles.center}>
@@ -136,6 +139,7 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
                     setFilter('');
                   }}
                   style={styles.row}
+                  testID={testID ? `${testID}-option-${item.id}` : undefined}
                 >
                   <Escudo url={item.escudoThumbUrl} size={36} fallbackInitial={item.name} />
                   <View style={styles.rowText}>
@@ -148,7 +152,7 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
           )}
           <View style={styles.actions}>
             {value && (
-              <Button variant="secondary" onPress={() => { onChange(null); setOpen(false); }}>
+              <Button variant="secondary" onPress={() => { onChange(null); setOpen(false); }} testID={testID ? `${testID}-clear` : undefined}>
                 Quitar
               </Button>
             )}
