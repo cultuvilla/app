@@ -11,6 +11,8 @@ describe('matchRoute', () => {
     ['/embajadores', { type: 'ambassadors' }],
     ['/embajadores/', { type: 'ambassadors' }],
     ['/embajadores/x', { type: 'notFound' }],
+    ['/embajadores/gracias', { type: 'ambassadorsThanks' }],
+    ['/embajadores/pueblos', { type: 'ambassadorSearch' }],
     ['/legal/privacidad', { type: 'legal', page: 'privacidad' }],
     ['/legal/terminos', { type: 'legal', page: 'terminos' }],
     ['/legal/eliminar-cuenta', { type: 'legal', page: 'eliminar-cuenta' }],

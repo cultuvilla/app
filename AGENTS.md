@@ -131,7 +131,9 @@ data layer.
 The web's one job is the **anonymous reader** — the WhatsApp link recipient and
 Google search. Every public read route must resolve on web, permanently: share
 previews and the printed `/descarga` QR depend on it. Actions on web are app
-calls-to-action (universal link, store fallback), not flows.
+calls-to-action (universal link, store fallback), not flows — with one
+exception, the `/embajadores` lead form (name + phone, stored server-side in
+`ambassadorLeads/`); see the decision record's "The one form".
 
 The web is the **read site**: the `readSite` Cloud Function
 ([functions/src/web/](functions/src/web/)) server-renders every public page,

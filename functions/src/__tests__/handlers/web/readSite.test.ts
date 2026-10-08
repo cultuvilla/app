@@ -18,7 +18,7 @@ async function get(pathname: string, userAgent: string | null = null): Promise<W
 
 async function html(pathname: string): Promise<{ status: number; body: string }> {
   const out = await get(pathname);
-  if (out.kind !== 'page') throw new Error(`expected a page for ${pathname}, got a redirect to ${out.location}`);
+  if (out.kind !== 'page') throw new Error(`expected a page for ${pathname}, got ${out.kind === 'redirect' ? `a redirect to ${out.location}` : out.kind}`);
   return {
     status: out.page.status ?? 200,
     body: renderDocument(out.page, { canonical: `https://x${out.path}`, appPath: out.path }),
@@ -282,5 +282,103 @@ describe('readSite', () => {
     expect(status).toBe(200);
     expect(body).toContain('noindex');
     expect(body).toContain('Esto está en la app');
+  });
+});
+
+describe('readSite — the /embajadores form', () => {
+  const post = (body: Record<string, string>, ip = '203.0.113.7', now = NOW) =>
+    handle({ pathname: '/embajadores', userAgent: null, method: 'POST', body, ip }, { db: db(), bucket: 'test-bucket', now });
+  const form = { pueblo: 'Matabuena (Segovia)', municipalityId: 'm9', nombre: 'Ana', telefono: '612 345 678', consentimiento: 'si', web: '' };
+  const leads = async () => (await db().collection('ambassadorLeads').get()).docs.map((d) => d.data());
+
+  beforeEach(async () => {
+    await resetEmulators();
+    await db().doc('municipalities/m9').set({
+      name: 'Matabuena',
+      nameLower: 'matabuena',
+      province: 'Segovia',
+      searchPrefixes: ['ma', 'mat', 'mata', 'matab', 'mataba', 'matabu', 'matabue', 'matabuen', 'matabuena'],
+    });
+    await db().doc('municipalities/m8').set({
+      name: 'Matamala de Almazán',
+      nameLower: 'matamala de almazan',
+      province: 'Soria',
+      searchPrefixes: ['ma', 'mat', 'mata', 'matam', 'matamala', 'al', 'almazan'],
+    });
+  });
+
+  it('stores a lead with the chosen pueblo and a normalised phone, then sends the visitor to the thanks page', async () => {
+    const out = await post(form);
+    expect(out).toEqual({ kind: 'redirect', location: '/embajadores/gracias', permanent: false, seeOther: true });
+    const stored = await leads();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({ municipalityId: 'm9', municipalityName: 'Matabuena (Segovia)', name: 'Ana', phone: '+34612345678', status: 'new' });
+    expect(JSON.stringify(stored[0])).not.toContain('203.0.113.7');
+    expect(Object.keys(stored[0]).sort()).toEqual(['createdAt', 'municipalityId', 'municipalityName', 'name', 'phone', 'status']);
+  });
+
+  it('finds the pueblo from what was typed when the picker never ran, and keeps the typed name when nothing matches', async () => {
+    await post({ ...form, municipalityId: '', pueblo: 'matabuena' });
+    await post({ ...form, municipalityId: '', pueblo: 'Villaperdida' }, '198.51.100.1');
+    const stored = await leads();
+    expect(stored.map((l) => [l['municipalityId'], l['municipalityName']]).sort()).toEqual([
+      [null, 'Villaperdida'],
+      ['m9', 'Matabuena (Segovia)'],
+    ]);
+  });
+
+  it('hands an incomplete form back, uncached, and stores nothing', async () => {
+    const out = await post({ ...form, telefono: '123', consentimiento: '' });
+    expect(out.kind).toBe('page');
+    if (out.kind !== 'page') return;
+    expect(out.page.status).toBe(400);
+    expect(out.deviceDependent).toBe(true);
+    const body = renderDocument(out.page, { canonical: 'https://x/embajadores', appPath: '/embajadores' });
+    expect(body).toContain('Escribe un teléfono válido');
+    expect(body).toContain('Necesitamos tu permiso');
+    expect(body).toContain('value="Ana"');
+    expect(await leads()).toHaveLength(0);
+  });
+
+  it('tells a bot that filled the hidden field it worked, and stores nothing', async () => {
+    const out = await post({ ...form, web: 'http://spam.example' });
+    expect(out.kind).toBe('redirect');
+    expect(await leads()).toHaveLength(0);
+  });
+
+  it('stops one network after a day’s worth of requests, and lets it back the next day', async () => {
+    for (let i = 0; i < 5; i++) expect((await post(form)).kind).toBe('redirect');
+    const sixth = await post(form);
+    expect(sixth.kind).toBe('page');
+    if (sixth.kind === 'page') expect(renderDocument(sixth.page, { canonical: 'https://x', appPath: '/' })).toContain('cultuvilla.app@gmail.com');
+    expect((await post(form, '198.51.100.1')).kind).toBe('redirect');
+    expect((await post(form, '203.0.113.7', new Date(NOW.getTime() + 25 * 3600 * 1000))).kind).toBe('redirect');
+    expect(await leads()).toHaveLength(7);
+  });
+
+  it('holds the cap when one network submits many times at once', async () => {
+    const outcomes = await Promise.all(Array.from({ length: 9 }, () => post(form)));
+    expect(outcomes.filter((o) => o.kind === 'redirect')).toHaveLength(5);
+    expect(await leads()).toHaveLength(5);
+  });
+
+  it('answers the picker with matching pueblos, by any word of their name', async () => {
+    const search = (q: string) => handle({ pathname: '/embajadores/pueblos', userAgent: null, q }, { db: db(), bucket: 'test-bucket', now: NOW });
+    expect(await search('mata')).toEqual({
+      kind: 'json',
+      maxAge: 86400,
+      body: [
+        { id: 'm9', name: 'Matabuena', province: 'Segovia' },
+        { id: 'm8', name: 'Matamala de Almazán', province: 'Soria' },
+      ],
+    });
+    expect(await search('Almazán')).toMatchObject({ body: [{ id: 'm8' }] });
+    expect(await search('m')).toMatchObject({ body: [] });
+  });
+
+  it('takes a POST only on /embajadores', async () => {
+    const out = await handle({ pathname: '/pueblos', userAgent: null, method: 'POST', body: form, ip: '1.2.3.4' }, { db: db(), bucket: 'test-bucket', now: NOW });
+    expect(out).toEqual({ kind: 'methodNotAllowed', allow: 'GET, HEAD' });
+    expect(await leads()).toHaveLength(0);
   });
 });
