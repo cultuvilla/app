@@ -56,26 +56,39 @@ env:
 - assertVisible:
     id: 'attendee-confirm'
 
-# Self: tap the chips and the checkbox while no keyboard is up (a tap in the
-# list with one up only closes it), then the number, then the text.
+# Order matters on iOS. A tap in the sheet's list while a keyboard is up only
+# closes it, and the number and phone keypads have no return key. So: each
+# text answer closes its keyboard with Enter, the chips and checkbox are
+# tapped with no keyboard up, and the one number answer comes last, straight
+# before the phone field (outside the list), where focus can simply move.
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'attendee-answer-${SELF}-talla'
+      TEXT: 'L'
+- runFlow: ../subflows/close-sheet-keyboard.yaml
 - scrollUntilVisible:
     element:
-      id: 'attendee-answer-${SELF}-menu-Carne'
+      id: 'attendee-answer-${SELF}-alergias'
     direction: DOWN
     timeout: 10000
 - tapOn:
     id: 'attendee-answer-${SELF}-menu-Carne'
 - tapOn:
     id: 'attendee-answer-${SELF}-alergias'
-- tapOn:
-    id: 'attendee-answer-${SELF}-invitados'
-- inputText: '2'
-- tapOn:
-    id: 'attendee-answer-${SELF}-talla'
-- inputText: 'L'
-- runFlow: ../subflows/close-sheet-keyboard.yaml
 
 # Dependent: the required two only, so the optional ones stay unanswered.
+- scrollUntilVisible:
+    element:
+      id: 'attendee-answer-${DEPENDENT}-talla'
+    direction: DOWN
+    timeout: 10000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'attendee-answer-${DEPENDENT}-talla'
+      TEXT: 'S'
+- runFlow: ../subflows/close-sheet-keyboard.yaml
 - scrollUntilVisible:
     element:
       id: 'attendee-answer-${DEPENDENT}-menu-Pescado'
@@ -83,10 +96,16 @@ env:
     timeout: 10000
 - tapOn:
     id: 'attendee-answer-${DEPENDENT}-menu-Pescado'
+
+# Self's number, last.
+- scrollUntilVisible:
+    element:
+      id: 'attendee-answer-${SELF}-invitados'
+    direction: UP
+    timeout: 10000
 - tapOn:
-    id: 'attendee-answer-${DEPENDENT}-talla'
-- inputText: 'S'
-- runFlow: ../subflows/close-sheet-keyboard.yaml
+    id: 'attendee-answer-${SELF}-invitados'
+- inputText: '2'
 
 # ── Phone: prefilled from the profile; a bad one is refused ──
 - tapOn:
@@ -304,12 +323,13 @@ env:
           'birthday.day': 1
         }
 
-# Back on the event, the new persona arrives ticked; open the sheet if the
-# return closed it, and tick the persona if it did not arrive ticked.
+# Back on the event the sheet is still open, with the new persona ticked. The
+# sheet covers the FAB, so wait for the sheet; reopen it if the return closed it.
 - extendedWaitUntil:
     visible:
-      id: 'register-fab'
+      id: 'attendee-list'
     timeout: 30000
+    optional: true
 - runFlow:
     when:
       notVisible:
