@@ -7,8 +7,8 @@
 #             read it in 60 now gets "not found"
 #   cancel  — the organizer's delete, which cancels rather than deletes
 #
-# Depends on 60, the only flow before it in its tens group that creates this
-# title (scripts/eventLifecycleValues.js); see the README on group order.
+# Depends on 60, which clears any leftover of this title before creating it,
+# so exactly one published match is required here.
 appId: com.cultuvilla.app.dev
 env:
   ADMIN_EMAIL: e2e-admin@cultuvilla.test
@@ -34,6 +34,7 @@ env:
       FIELD2: status
       VALUE2: published
       MIN: '1'
+      MAX: '1'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.eventId = output.id}
 - runFlow:

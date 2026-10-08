@@ -25,6 +25,21 @@ env:
 ---
 - runScript: ../scripts/eventLifecycleValues.js
 
+# A leftover of either title from an interrupted earlier run would be what 60
+# and 64 find and assert on. Clear both, then require exactly one match.
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.title}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.editTitle}
+
 # ── Create ──
 - runFlow:
     file: ../subflows/login.yaml
@@ -45,6 +60,7 @@ env:
       FIELD2: status
       VALUE2: published
       MIN: '1'
+      MAX: '1'
       # Upload + create outlasted the default 20 s on the loaded macOS runner.
       TIMEOUT_MS: '60000'
 - assertTrue: ${output.ok == 'true'}

@@ -1,9 +1,8 @@
 // Maestro runScript — the values flow 60 types and flow 64 edits them to.
 //
 // Deterministic, not time-stamped: 64 finds 60's event by its title, and two
-// flows share nothing but Firestore. A leftover from an earlier local run is
-// harmless — 64 renames and cancels the event it edits, so only a run that
-// died between the two leaves a published duplicate behind.
+// flows share nothing but Firestore. 60 deletes any leftover of either title
+// before creating, and both require exactly one match.
 //
 // Dates are two months out, so the calendar has to page and day 20 is never in
 // the past; the labels are what the detail screen's date card renders
