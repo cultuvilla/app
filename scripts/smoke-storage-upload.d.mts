@@ -24,3 +24,9 @@ export function runSmoke(args: {
   uploadImpl?: (bucket: string, path: string, token: string) => Promise<UploadResult>;
 }): Promise<UploadResult[]>;
 export function failureMessage(env: string, results: UploadResult[]): string | null;
+export interface SmokeAuth {
+  updateUser(uid: string, props: { password: string; disabled: boolean }): Promise<unknown>;
+  createUser(props: { uid: string; email: string; password: string; emailVerified: boolean }): Promise<unknown>;
+  setCustomUserClaims(uid: string, claims: null): Promise<void>;
+}
+export function provisionSmokeUser(auth: SmokeAuth, password?: string): Promise<string>;
