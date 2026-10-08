@@ -6,8 +6,7 @@
 # leaves the screen instead (flow 60's first run ended on the Perfil tab).
 # The long forms the deep flows walk use this. It closes a keyboard only when
 # one is on screen: Gboard's window is in the hierarchy Maestro reads, so BACK
-# is pressed only when it can do nothing but close it. iOS dismisses with Enter,
-# as reveal does.
+# is pressed only when it can do nothing but close it. iOS: see below.
 appId: com.cultuvilla.app.dev
 ---
 - runFlow:
@@ -19,13 +18,19 @@ appId: com.cultuvilla.app.dev
       - pressKey: back
       - waitForAnimationToEnd:
           timeout: 2000
+# iOS: not Enter, which types a newline into a multiline field (flow 60's
+# description gained one, and the tap meant for the next button typed a G on
+# the still-open keyboard). The forms' ScrollViews use
+# keyboardShouldPersistTaps="handled", so a tap on the empty left gutter —
+# no control lives there — closes the keyboard and nothing else.
 - runFlow:
     when:
       platform: iOS
       visible:
         id: 'inputView'
     commands:
-      - pressKey: Enter
+      - tapOn:
+          point: '2%,30%'
       - waitForAnimationToEnd:
           timeout: 2000
 - runFlow:
