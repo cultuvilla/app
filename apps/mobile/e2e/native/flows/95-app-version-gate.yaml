@@ -1,10 +1,12 @@
 # The force-update gate, both halves: a nudge the user can dismiss, then a wall
 # they cannot.
 #
-# The gate reads `config/appVersion` once, at launch, and fails OPEN on any
-# missing or malformed doc. Unit tests cover the decision; only a device proves
-# the wiring — that the doc is read, the modal mounts over the app, and
-# hardware BACK cannot escape the wall.
+# The gate listens to `config/appVersion` for the whole session and fails OPEN
+# on a missing or malformed doc. Unit tests cover the decision; only a device
+# proves the wiring — that the doc is read, the modal mounts over the app, a
+# wall raised mid-session lands without a relaunch, and hardware BACK cannot
+# escape the wall. (1.5.0 read the doc once at launch; that one read timed out
+# and the wall never showed.)
 #
 # Versions are deliberately extreme (99.0.0 / 0.0.0) so no release bump of the
 # APK's own version can change the outcome.
@@ -31,8 +33,8 @@ onFlowComplete:
       DOC_PATH: config/appVersion
       EXPECT: present
 - assertTrue: ${output.ok == 'true'}
-# The gate checks only at launch, and the nudge's cooldown lives in
-# AsyncStorage, so a clean launch is what makes it fire.
+# The nudge's cooldown lives in AsyncStorage, so a clean launch is what makes
+# it fire.
 - clearState
 - openLink: 'cultuvilla://perfil'
 - extendedWaitUntil:
@@ -61,12 +63,17 @@ onFlowComplete:
       id: 'app-update-modal'
     timeout: 5000
 
-# Wall: the installed version is below the minimum.
+# Wall, raised while the app is open: no relaunch, the listener must deliver it.
 - runScript:
     file: ../scripts/appVersionConfig.js
     env:
       MIN_SUPPORTED: 99.0.0
       LATEST: 99.0.0
+- extendedWaitUntil:
+    visible: 'Actualización necesaria'
+    timeout: 30000
+
+# Wall at launch: a fresh start answers from the doc, not only from a change.
 - clearState
 - openLink: 'cultuvilla://perfil'
 - extendedWaitUntil:

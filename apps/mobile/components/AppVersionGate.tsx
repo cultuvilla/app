@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  getAppVersionConfig,
+  observability,
   resolveVersionGate,
   shouldPromptUpdate,
-  type GateDecision,
+  watchAppVersionConfig,
+  type AppVersionConfig,
   type UpdatePromptRecord,
 } from '@cultuvilla/shared';
 import { AppUpdateModal } from './AppUpdateModal';
@@ -33,38 +34,59 @@ async function writePromptRecord(record: UpdatePromptRecord): Promise<void> {
 
 export function AppVersionGate({ children }: { children: ReactNode }) {
   const { t } = useT();
-  const [decision, setDecision] = useState<GateDecision | 'loading'>('loading');
-  const [storeUrl, setStoreUrl] = useState<string | null>(null);
+  const platform = getGatePlatform();
+  // undefined until the first answer: no modal yet, and none flashes in.
+  const [config, setConfig] = useState<AppVersionConfig | null | undefined>(undefined);
   const [nudgeVisible, setNudgeVisible] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const platform = getGatePlatform();
-      if (platform === 'web') {
-        setDecision('ok');
-        return;
-      }
-      const config = await getAppVersionConfig();
-      if (!active) return;
-      const next = resolveVersionGate(getRunningVersion(), config, platform);
-      setDecision(next);
-      if (config) setStoreUrl(config.storeUrl[platform]);
-
-      if (next === 'nudge' && config) {
-        const latest = config[platform].latest;
-        const record = await readPromptRecord();
-        if (!active) return;
-        if (shouldPromptUpdate(record, latest, Date.now())) {
-          setNudgeVisible(true);
-          void writePromptRecord({ version: latest, promptedAt: Date.now() });
+    if (platform === 'web') return;
+    // A listener rather than one read at launch, so a slow first connection or
+    // a wall raised mid-session still lands (appConfigService).
+    return watchAppVersionConfig(
+      (next) => {
+        if (next === null) {
+          observability.captureError(new Error('config/appVersion is missing'), {
+            operation: 'appVersionGate:missing',
+          });
         }
-      }
+        setConfig(next);
+      },
+      (error) => {
+        // The gate fails open, so this report is the only sign it is down.
+        observability.captureError(error, {
+          operation: 'appVersionGate:watch',
+        });
+        // A listener error is terminal: keep the last answer, or a wall already
+        // up would come down for the rest of the session. Fail open only when
+        // nothing ever arrived.
+        setConfig((prev) => (prev === undefined ? null : prev));
+      },
+    );
+  }, [platform]);
+
+  const decision =
+    config === undefined ? 'loading' : resolveVersionGate(getRunningVersion(), config, platform);
+  const storeUrl = config && platform !== 'web' ? config.storeUrl[platform] : null;
+  const nudgeVersion =
+    decision === 'nudge' && config && platform !== 'web' ? config[platform].latest : null;
+
+  useEffect(() => {
+    // Every change re-earns visibility through the cooldown, so a nudge that
+    // leaves and comes back mid-session can't reappear on a stale flag.
+    setNudgeVisible(false);
+    if (!nudgeVersion) return;
+    let active = true;
+    void (async () => {
+      const record = await readPromptRecord();
+      if (!active || !shouldPromptUpdate(record, nudgeVersion, Date.now())) return;
+      setNudgeVisible(true);
+      void writePromptRecord({ version: nudgeVersion, promptedAt: Date.now() });
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [nudgeVersion]);
 
   const openStore = useCallback(() => {
     if (storeUrl) void Linking.openURL(storeUrl);
