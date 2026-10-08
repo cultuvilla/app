@@ -4,6 +4,13 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+<!-- store-notes -->
+- **Elige el lugar en un mapa**: arrastra el mapa bajo el pin para situar eventos y lugares, busca una dirección o usa tu ubicación.
+- **Las fotos vuelven a subirse**: portadas de eventos, lugares, carteles, grupos y noticias.
+- **Aviso de actualización fiable**, aunque abras la app con poca cobertura.
+- Mejor accesibilidad con VoiceOver y correcciones varias.
+<!-- /store-notes -->
+
 ## v1.7.1 — 2026-10-07
 
 <!-- store-notes -->
