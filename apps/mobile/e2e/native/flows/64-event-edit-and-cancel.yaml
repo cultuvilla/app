@@ -1,0 +1,152 @@
+# Edit EVERY field of the event flow 60 created, check it all again, and
+# cancel it:
+#
+#   edit    — every field changed, ending private to the approval peña
+#             (subflows/event-edit-all.yaml)
+#   assert  — the stored doc and the detail screen; the villager who could
+#             read it in 60 now gets "not found"
+#   cancel  — the organizer's delete, which cancels rather than deletes
+#
+# Depends on 60, the only flow before it in its tens group that creates this
+# title (scripts/eventLifecycleValues.js); see the README on group order.
+appId: com.cultuvilla.app.dev
+env:
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  VILLAGER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/eventLifecycleValues.js
+
+# ── The event flow 60 made ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.title}
+      FIELD2: status
+      VALUE2: published
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.eventId = output.id}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/docField.js
+          env:
+            DOC_PATH: 'events/${output.eventId}'
+            FIELD: imageURL
+            EXPECT: present
+      - evalScript: ${output.firstImage = output.value}
+
+# ── Edit every field ──
+- openLink: 'cultuvilla://crear/evento?eventId=${output.eventId}'
+- runFlow: ../subflows/event-edit-all.yaml
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${output.eventId}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: >-
+        {
+          'title': '@editTitle',
+          'description': '@editDescription',
+          'status': 'published',
+          'organizerUserIds': ['e2e-admin'],
+          'organizerOrgIds': ['e2e-org-pena-cerrada'],
+          'visibility': 'organization',
+          'visibilityOrgId': 'e2e-org-pena-cerrada',
+          'startDate': { 'prefix': '@editDay' },
+          'endDate': { 'prefix': '@editEndDay' },
+          'location.displayName': 'present',
+          'signupEnabled': true,
+          'maxAttendees': 30,
+          'minBirthYear': 'absent',
+          'maxBirthYear': 'absent',
+          'telephoneRequired': false,
+          'requiresPayment': false,
+          'signupGroupSize': 1,
+          'attendeesVisibility': 'members',
+          'signupFields': { 'length': 2 },
+          'signupFields.0.label': 'Talla de camiseta',
+          'signupFields.0.type': 'text',
+          'signupFields.1.label': 'Alergias',
+          'signupFields.1.type': 'checkbox'
+        }
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'events/${output.eventId}'
+            EXPECT_JSON: "{ 'imageURL': { 'not': '@firstImage' } }"
+
+# ── What the organizer sees now ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+- assertVisible: ${output.editTitle}
+- assertVisible: 'Este evento es privado.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.editLabel}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Peña Cerrada E2E'
+- assertNotVisible: 'Ayuntamiento de Altozano'
+- assertNotVisible: 'Nacidos entre.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.editDescription}
+
+# ── Private now: the villager can't open it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${VILLAGER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'entity-not-found'
+    timeout: 45000
+- assertNotVisible: ${output.editTitle}
+
+# ── Cancel ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://crear/evento?eventId=${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-delete'
+    timeout: 45000
+- tapOn:
+    id: 'event-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${output.eventId}'
+      EXPECT_JSON: "{ 'status': 'cancelled', 'title': '@editTitle' }"
