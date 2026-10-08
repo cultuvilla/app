@@ -128,10 +128,15 @@ env:
 - assertNotVisible: '.*611.*'
 
 # Remove the dependent; the waitlisted persona takes the freed seat.
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'attendees-edit-toggle'
+# The roster's heading (and its Editar toggle) is above the rows just read,
+# tucked under the screen's top bar: scroll UP to centre it, or the tap lands
+# on the bar.
+- scrollUntilVisible:
+    element:
+      id: 'attendees-edit-toggle'
+    direction: UP
+    centerElement: true
+    timeout: 20000
 - tapOn:
     id: 'attendees-edit-toggle'
 - runFlow:
