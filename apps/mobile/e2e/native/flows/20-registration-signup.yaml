@@ -255,12 +255,16 @@ env:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'birthday-year'
+# Each picker is a full-screen list with a Cancelar bar at its foot; an
+# option just above that bar counts as visible but the tap lands on the bar,
+# so each option is centred first.
 - tapOn:
     id: 'birthday-year'
 - scrollUntilVisible:
     element:
       id: 'birthday-year-option-2015'
     direction: DOWN
+    centerElement: true
     timeout: 30000
 - tapOn:
     id: 'birthday-year-option-2015'
@@ -271,6 +275,7 @@ env:
     element:
       id: 'birthday-month-option-5'
     direction: DOWN
+    centerElement: true
     timeout: 30000
 - tapOn:
     id: 'birthday-month-option-5'
@@ -280,6 +285,7 @@ env:
     element:
       id: 'birthday-day-option-1'
     direction: DOWN
+    centerElement: true
     timeout: 30000
 - tapOn:
     id: 'birthday-day-option-1'
