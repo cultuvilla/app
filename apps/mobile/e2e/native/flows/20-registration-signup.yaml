@@ -127,8 +127,11 @@ env:
     file: ../subflows/confirm-alert.yaml
     env:
       BUTTON: 'Sí, apuntar'
+# registerToEvent's first call boots its emulator worker; on a loaded macOS
+# runner the request has arrived over two minutes after the tap. 30 rounds of
+# the 10 s soft-ask window is five minutes.
 - repeat:
-    times: 12
+    times: 30
     while:
       notVisible: '.*Apuntad.*'
     commands:
@@ -384,7 +387,7 @@ env:
 
 # Two seats, both taken: the third goes on the waitlist, and the FAB splits.
 - repeat:
-    times: 12
+    times: 30
     while:
       notVisible:
         id: 'register-fab-waitlist'

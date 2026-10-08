@@ -149,13 +149,15 @@ env:
     env:
       DOC_PATH: 'events/${EVENT_ID}/registrations/${output.dependentReg}'
       EXPECT: absent
+      # cancelRegistration's first call boots its worker (see flow 20).
+      TIMEOUT_MS: '180000'
 - assertTrue: ${output.ok == 'true'}
 - runScript:
     file: ../scripts/assertDoc.js
     env:
       DOC_PATH: 'events/${EVENT_ID}/registrations/${output.waitlistedReg}'
       EXPECT_JSON: "{ 'status': 'confirmed' }"
-      TIMEOUT_MS: '45000'
+      TIMEOUT_MS: '120000'
 - runScript:
     file: ../scripts/assertDoc.js
     env:
@@ -195,6 +197,7 @@ env:
       VALUE: ${SELF}
       MIN: '0'
       MAX: '0'
+      TIMEOUT_MS: '120000'
 - assertTrue: ${output.ok == 'true'}
 - runScript:
     file: ../scripts/assertDoc.js
