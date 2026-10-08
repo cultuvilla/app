@@ -237,6 +237,7 @@ describe('homePage', () => {
     const out = body({ villages: [], showcase: null, wrapped: null });
     expect(out).toContain('<h2>Preguntas frecuentes</h2>');
     expect(out).not.toContain('Lo que nos suelen preguntar');
+    expect(out).toContain('<a href="mailto:moises@cultuvilla.es">moises@cultuvilla.es</a>');
     expect(out).not.toContain('<span class="eyebrow">Preguntas frecuentes</span>');
     expect(out).not.toContain('<span class="eyebrow">Precio</span>');
     expect(out).not.toContain('<span class="eyebrow">Descarga Cultuvilla</span>');
