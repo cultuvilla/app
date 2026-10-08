@@ -112,16 +112,14 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .card img.cover{width:calc(100% + 48px);max-width:none;margin:-24px -24px 6px;aspect-ratio:8/5;object-fit:cover}
 .landing .card{overflow:hidden}
 .landing .banner img{width:100%;aspect-ratio:1600/615;object-fit:cover;border-radius:18px;margin-bottom:56px}
-.landing .wr-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:56px;align-items:center}
-.landing .wr-split .lead{margin:14px 0 22px}
+.landing .wr-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center}
+.landing .wr-split .lead{margin:14px 0 0}
 @media (max-width:820px){.landing .wr-split{grid-template-columns:1fr;gap:28px}}
 .landing .wr{display:grid;justify-items:center;gap:12px}
 .landing .wr-phone{width:min(300px,80vw);padding:12px 10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5)}
 .landing .wr-track{display:flex;aspect-ratio:9/16;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:32px;scrollbar-width:none;background:#1d2117}
 .landing .wr-track::-webkit-scrollbar{display:none}
 .landing .wr-track img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;scroll-snap-align:center}
-.landing .wr-nav{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--muted)}
-.landing .wr-nav button{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--primary);font-size:22px;line-height:1;cursor:pointer}
 .landing .night{background:linear-gradient(rgba(38,43,30,.78),rgba(38,43,30,.86)),url(/brand/landing/verbena-noche.webp) center/cover}
 .landing .unique{list-style:none;margin:0;padding:0}
 .landing .unique li{font-family:var(--display);font-size:clamp(32px,5vw,52px);line-height:1.15;color:var(--primary)}

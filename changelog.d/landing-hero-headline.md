@@ -1,3 +1,4 @@
 - **Web:** the landing headline reads in green with only "pueblo" in orange, the intro phone sits lower, clear of the bunting, and the scrolling fiesta names drop their ✦ separators.
 - **Web:** the landing's body text is set in Figtree (self-hosted, SIL OFL) instead of each device's system font.
 - **Web:** the Embajador card and the "Tres pasos" section merge into one orange "¿Tu pueblo aún no está? Tráelo tú." block with a photo and the three steps.
+- **Web:** the fiestas summary phone sits nearer the centre and cycles through its cards by itself in an endless loop (still swipeable, paused while touched or for reduced motion), with no arrows and no "Ver el resumen" button; its copy is now "Cada año, listo para compartir entre los vecinos."

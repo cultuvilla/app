@@ -5,7 +5,8 @@ import { describe, it, expect } from 'vitest';
 import type { Card, Village, VillageHome, WrappedView } from '../../web/data';
 import { renderDocument } from '../../web/document';
 import { render } from '../../web/html';
-import { homePage, villagesPage, type Landing } from '../../web/pages';
+import { homePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
+import { LANDING_STYLES } from '../../web/styles';
 
 const village = (slug: string, name: string, province: string | null = 'Segovia'): Village => ({
   id: `id-${slug}`,
@@ -67,8 +68,13 @@ describe('homePage', () => {
     };
     const out = body({ villages: [matabuena], showcase, wrapped: { village: matabuena, view } });
     expect(out).toContain('class="wr-track"');
-    expect(out).toContain('href="/matabuena/fiestas/2026"');
+    // It plays by itself: no link out, no arrows.
+    expect(out).not.toContain('/matabuena/fiestas/2026');
+    expect(out).not.toContain('<button type="button" aria-label="Siguiente"');
+    expect(out).toContain('Cada año, listo para compartir entre los vecinos.');
     for (const c of ['cover', 'stats', 'events', 'news', 'posters']) expect(out).toContain(`src="https://img/${c}.png"`);
+    // The cover is repeated, hidden, at the end so the loop can wrap without rewinding.
+    expect(out).toMatch(/src="https:\/\/img\/posters\.png"[^>]*\/><img src="https:\/\/img\/cover\.png" alt="" aria-hidden="true"/);
     for (const c of ['people', 'organizers']) expect(out).not.toContain(`https://img/${c}.png`);
     expect(out).toContain('<section class="blk amb">');
     expect(out.match(/<li class="step">/g)).toHaveLength(3);
@@ -101,6 +107,62 @@ describe('homePage', () => {
     expect(video).toMatchObject({ muted: true, currentTime: 12.5, plays: 1 });
     expect(classes.has('on')).toBe(false);
     expect(button.label).toBe('Activar sonido');
+  });
+
+  it('advances the summary one card at a time and wraps from the copied cover back to the start', () => {
+    let tick = (): void => undefined;
+    const pending: (() => void)[] = [];
+    const scrolls: { left: number; behavior: string }[] = [];
+    const track = {
+      children: { length: 6 }, // five cards plus the trailing copy of the cover
+      clientWidth: 300,
+      scrollLeft: 0,
+      addEventListener: () => undefined,
+      scrollTo(o: { left: number; behavior: string }) {
+        scrolls.push(o);
+        this.scrollLeft = o.left;
+      },
+    };
+    runInNewContext(WRAPPED_AUTOPLAY, {
+      document: { hidden: false, querySelectorAll: () => [track] },
+      matchMedia: () => ({ matches: false }),
+      setInterval: (f: () => void) => (tick = f),
+      setTimeout: (f: () => void) => pending.push(f),
+    });
+    for (let i = 0; i < 5; i++) tick();
+    expect(scrolls.map((x) => x.left)).toEqual([300, 600, 900, 1200, 1500]);
+    // Landing on the copy queues an instant jump back to the real cover.
+    expect(pending).toHaveLength(1);
+    pending[0]();
+    expect(scrolls[scrolls.length - 1]).toEqual({ left: 0, behavior: 'instant' });
+    tick();
+    expect(scrolls[scrolls.length - 1]).toEqual({ left: 300, behavior: 'smooth' });
+  });
+
+  it('stays still for readers who ask for reduced motion', () => {
+    let started = false;
+    runInNewContext(WRAPPED_AUTOPLAY, {
+      document: { hidden: false, querySelectorAll: () => [{ children: { length: 6 }, addEventListener: () => undefined }] },
+      matchMedia: () => ({ matches: true }),
+      setInterval: () => (started = true),
+    });
+    expect(started).toBe(false);
+  });
+
+  it('heads the page in green with only "pueblo" in orange, over a star-less fiesta strip', () => {
+    const out = body({ villages: [], showcase: null, wrapped: null });
+    expect(out).toContain('<h1>Cuida la cultura de tu <em>pueblo</em>.</h1>');
+    expect(out).toContain('<span>Romerías</span>');
+    expect(out).not.toContain('✦');
+  });
+
+  it('sets the landing in Figtree and drops the intro phone below the bunting only on the wide layout', () => {
+    expect(LANDING_STYLES).toMatch(/@font-face\{font-family:Figtree;src:url\(\/brand\/figtree-latin\.woff2\)/);
+    expect(LANDING_STYLES).toMatch(/\nbody\{font-family:Figtree,/);
+    expect(LANDING_STYLES).toContain('@media (min-width:821px){.landing .intro{padding-top:56px}}');
+    expect(LANDING_STYLES).not.toMatch(/\n\.landing \.intro\{[^}]*padding-top/);
+    expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-latin.woff2'))).toBe(true);
+    expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-OFL.txt'))).toBe(true);
   });
 
   it('keeps the full showcase and the pueblo list on /pueblos, not on the home', () => {

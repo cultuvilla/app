@@ -2,7 +2,7 @@ import { APP_STORES } from '@cultuvilla/shared/config';
 import { palette } from '@cultuvilla/shared/design-system';
 import { LEGAL_DOCS } from '@cultuvilla/shared/legal';
 import type { WrappedCard } from '@cultuvilla/shared/models';
-import { villagePath, villageSectionPath, wrappedPath } from '@cultuvilla/shared/utils';
+import { villagePath, villageSectionPath } from '@cultuvilla/shared/utils';
 import {
   cardImage,
   eventWhen,
@@ -413,15 +413,30 @@ function showcaseBlock({ village: v, home }: NonNullable<Landing['showcase']>): 
 const LANDING_WRAPPED_CARDS: readonly WrappedCard[] = ['cover', 'stats', 'events', 'news', 'posters'];
 
 /** A phone whose screen is the pueblo's fiestas summary, swiped card by card. */
+/**
+ * Advances every Wrapped phone one card every few seconds. The last slide is a
+ * copy of the first, so on reaching it the track jumps back to the start
+ * unseen and the loop never rewinds. Fixed code: it reads nothing from the page.
+ */
+export const WRAPPED_AUTOPLAY = `document.querySelectorAll('.wr-track').forEach(function(t){
+if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+var held=false,n=t.children.length-1;
+['pointerdown','touchstart','mouseenter','focusin'].forEach(function(e){t.addEventListener(e,function(){held=true;},{passive:true});});
+['pointerup','touchend','mouseleave','focusout'].forEach(function(e){t.addEventListener(e,function(){held=false;},{passive:true});});
+setInterval(function(){
+if(held||document.hidden)return;
+var w=t.clientWidth,i=Math.round(t.scrollLeft/w)+1;
+t.scrollTo({left:i*w,behavior:'smooth'});
+if(i>=n)setTimeout(function(){t.scrollTo({left:0,behavior:'instant'});},700);
+},3500);
+});`;
+
 function wrappedPhone({ village: v, view }: NonNullable<Landing['wrapped']>): Child {
   const cards = view.cards.filter((c) => LANDING_WRAPPED_CARDS.includes(c.card));
   if (cards.length === 0) return null;
-  const href = wrappedPath(v.slug, view.year);
-  const step = (dir: 1 | -1) =>
-    `var t=this.closest('.wr').querySelector('.wr-track');t.scrollBy({left:${String(dir)}*t.clientWidth,behavior:'smooth'})`;
-  return html`<section class="blk" style="padding-top:0"><div class="in wr-split"><div><span class="eyebrow">Fiestas ${String(view.year)} · ${v.name}</span><h2>El resumen de vuestras fiestas</h2><p class="lead">Cuando acaban las fiestas, Cultuvilla prepara el resumen del pueblo: los eventos, las cifras, lo que se contó y los carteles de todos los años. Listo para compartir.</p><p><a class="cta" href="${href}">Ver el resumen de ${v.name} →</a></p></div><div class="wr"><div class="wr-phone"><div class="wr-track" tabindex="0" aria-label="${`Resumen de las fiestas ${String(view.year)} de ${v.name}`}">${cards.map(
+  return html`<section class="blk" style="padding-top:0"><div class="in wr-split"><div><span class="eyebrow">Fiestas ${String(view.year)} · ${v.name}</span><h2>El resumen de vuestras fiestas</h2><p class="lead">Cada año, listo para compartir entre los vecinos.</p></div><div class="wr"><div class="wr-phone"><div class="wr-track" tabindex="0" aria-label="${`Resumen de las fiestas ${String(view.year)} de ${v.name}`}">${cards.map(
     (c, i) => html`<img src="${c.url}" alt="${`Tarjeta ${String(i + 1)} de ${String(cards.length)} del resumen de fiestas`}" width="1080" height="1920" loading="lazy" decoding="async"/>`,
-  )}</div></div><div class="wr-nav"><button type="button" aria-label="Anterior" onclick="${step(-1)}">‹</button><span>Desliza para ver más</span><button type="button" aria-label="Siguiente" onclick="${step(1)}">›</button></div></div></div></section>`;
+  )}<img src="${cards[0].url}" alt="" aria-hidden="true" width="1080" height="1920" loading="lazy" decoding="async"/></div></div></div></div></section><script>${raw(WRAPPED_AUTOPLAY)}</script>`;
 }
 
 /** A landing photograph from /brand/landing — Unsplash, credited in CREDITS.md there. */
