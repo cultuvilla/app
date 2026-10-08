@@ -178,6 +178,17 @@ export function RegisterFab({
     }, [load]),
   );
 
+  // iOS presents a Modal above every screen, so a sheet left open while
+  // "Crear una nueva persona" pushes the person form would cover that form.
+  // Hide it while this screen is out of focus; it comes back as it was.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+
   const attendees: AttendeeOption[] = [
     { id: personId, name, status: registrations.get(personId)?.status },
     ...dependents.map((d) => ({
@@ -443,6 +454,7 @@ export function RegisterFab({
       {isGroupEvent ? (
         <GroupSignupSheet
           visible={sheetOpen}
+          hidden={!focused}
           groupSize={groupSize}
           attendees={attendees}
           ownPersonId={personId}
@@ -465,6 +477,7 @@ export function RegisterFab({
       ) : (
         <AttendeeSheet
           visible={sheetOpen}
+          hidden={!focused}
           attendees={attendees}
           telephoneRequired={telephoneRequired}
           savedPhone={savedPhone}

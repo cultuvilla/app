@@ -39,6 +39,8 @@ export interface AttendeeOption {
 
 export interface AttendeeSheetProps {
   visible: boolean;
+  /** Keeps an open sheet's state but takes it off screen (another screen is in front). */
+  hidden?: boolean;
   /** The user's personas — own persona first, then personas a cargo. */
   attendees: AttendeeOption[];
   telephoneRequired: boolean;
@@ -77,6 +79,7 @@ export interface AttendeeSheetProps {
  */
 export function AttendeeSheet({
   visible,
+  hidden = false,
   attendees,
   telephoneRequired,
   savedPhone,
@@ -200,7 +203,7 @@ export function AttendeeSheet({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !hidden}
       transparent
       animationType="fade"
       onRequestClose={() => {

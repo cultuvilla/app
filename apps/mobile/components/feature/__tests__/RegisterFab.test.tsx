@@ -1,5 +1,5 @@
 // apps/mobile/components/feature/__tests__/RegisterFab.test.tsx
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { RegisterFab } from '../RegisterFab';
 import {
   getUserRegistrations,
@@ -39,12 +39,34 @@ jest.mock('../../../lib/dialogs', () => ({
 }));
 jest.mock('expo-router', () => {
   const React = require('react');
+  const listeners = new Set<(mockFocused: boolean) => void>();
   return {
     router: { push: jest.fn() },
-    // Run the focus callback once after mount, like a real initial focus.
-    useFocusEffect: (cb: () => void) => React.useEffect(cb, []),
+    // Run the focus callback after mount, like a real initial focus, and again
+    // (after its cleanup) whenever a test moves focus away and back.
+    useFocusEffect: (cb: () => void | (() => void)) =>
+      React.useEffect(() => {
+        let cleanup = cb();
+        const onFocusChange = (mockFocused: boolean) => {
+          if (mockFocused) cleanup = cb();
+          else {
+            cleanup?.();
+            cleanup = undefined;
+          }
+        };
+        listeners.add(onFocusChange);
+        return () => {
+          listeners.delete(onFocusChange);
+          cleanup?.();
+        };
+      }, []),
+    __setFocused: (mockFocused: boolean) => listeners.forEach((l) => l(mockFocused)),
   };
 });
+const setScreenFocused = (focused: boolean) =>
+  act(() => {
+    (jest.requireMock('expo-router') as { __setFocused: (f: boolean) => void }).__setFocused(focused);
+  });
 jest.mock('@cultuvilla/shared/services/registrationService', () => ({
   getUserRegistrations: jest.fn(),
   registerToEvent: jest.fn(),
@@ -116,6 +138,23 @@ describe('RegisterFab', () => {
     fireEvent.press(getByTestId('register-fab'));
     // Sheet opened with the caller's own persona as a row.
     expect(getByTestId('attendee-row-p1')).toBeTruthy();
+  });
+
+  // iOS presents a Modal above every screen, so a sheet left open while
+  // "Crear una nueva persona" pushed the person form covered that form.
+  it('hides the sheet while another screen is in front, and brings it back as it was', async () => {
+    const { getByTestId, queryByTestId, getByText } = render(<RegisterFab {...baseProps} />);
+    await waitFor(() => expect(getByText('event.register.cta')).toBeTruthy());
+    fireEvent.press(getByTestId('register-fab'));
+    fireEvent.press(getByTestId('attendee-row-p1'));
+    fireEvent.press(getByTestId('attendee-create'));
+
+    await setScreenFocused(false);
+    expect(queryByTestId('attendee-list')).toBeNull();
+
+    await setScreenFocused(true);
+    await waitFor(() => expect(getByTestId('attendee-list')).toBeTruthy());
+    expect(getByTestId('attendee-row-p1').props.accessibilityState).toMatchObject({ checked: true });
   });
 
   it('shows a group count label when personas are already registered', async () => {
