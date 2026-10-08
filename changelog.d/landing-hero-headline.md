@@ -1,1 +1,1 @@
-- **Web:** the landing headline reads in green with only "pueblo" in orange, and the intro phone sits lower, clear of the bunting.
+- **Web:** the landing headline reads in green with only "pueblo" in orange, the intro phone sits lower, clear of the bunting, and the scrolling fiesta names drop their ✦ separators.

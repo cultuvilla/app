@@ -98,7 +98,7 @@ export const LANDING_STYLES = `
 .landing .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;align-items:center}
 .landing .fine{margin-top:14px;font-size:14px;color:var(--muted)}
 .landing .strip{border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;padding:14px 0}
-.landing .strip-track{display:flex;gap:36px;width:max-content;animation:scroll 40s linear infinite}
+.landing .strip-track{display:flex;gap:56px;width:max-content;animation:scroll 40s linear infinite}
 .landing .strip span{font-family:var(--display);font-size:22px;white-space:nowrap;color:var(--muted)}
 .landing .split{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
 .landing .split .lead+.lead{margin-top:14px}
