@@ -58,18 +58,18 @@ env:
       DOC_PATH: 'events/${output.eventId}'
       EXPECT_JSON: >-
         {
-          'title': '${output.title}',
-          'description': '${output.description}',
+          'title': '@title',
+          'description': '@description',
           'status': 'published',
-          'municipalityId': '${VILLAGE_ID}',
-          'villageSlug': '${VILLAGE_SLUG}',
+          'municipalityId': 'e2e-village-altozano',
+          'villageSlug': 'altozano-de-prueba',
           'createdBy': 'e2e-admin',
           'organizerUserIds': ['e2e-admin', 'e2e-user'],
           'organizerOrgIds': ['e2e-org-ayto', 'e2e-org-pena-cerrada'],
           'visibility': 'public',
           'visibilityOrgId': 'absent',
-          'startDate': { 'prefix': '${output.startDay}' },
-          'endDate': { 'prefix': '${output.startDay}' },
+          'startDate': { 'prefix': '@startDay' },
+          'endDate': { 'prefix': '@startDay' },
           'location.displayName': 'present',
           'location.coordinates': 'present',
           'signupEnabled': true,
@@ -186,15 +186,15 @@ env:
       TIMEOUT_MS: '60000'
       EXPECT_JSON: >-
         {
-          'title': '${output.editTitle}',
-          'description': '${output.editDescription}',
+          'title': '@editTitle',
+          'description': '@editDescription',
           'status': 'published',
           'organizerUserIds': ['e2e-admin'],
           'organizerOrgIds': ['e2e-org-pena-cerrada'],
           'visibility': 'organization',
           'visibilityOrgId': 'e2e-org-pena-cerrada',
-          'startDate': { 'prefix': '${output.editDay}' },
-          'endDate': { 'prefix': '${output.editEndDay}' },
+          'startDate': { 'prefix': '@editDay' },
+          'endDate': { 'prefix': '@editEndDay' },
           'location.displayName': 'present',
           'signupEnabled': true,
           'maxAttendees': 30,
@@ -218,7 +218,7 @@ env:
           file: ../scripts/assertDoc.js
           env:
             DOC_PATH: 'events/${output.eventId}'
-            EXPECT_JSON: "{ 'imageURL': { 'not': '${output.firstImage}' } }"
+            EXPECT_JSON: "{ 'imageURL': { 'not': '@firstImage' } }"
 
 # ── What the organizer sees now ──
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
@@ -277,4 +277,4 @@ env:
     file: ../scripts/assertDoc.js
     env:
       DOC_PATH: 'events/${output.eventId}'
-      EXPECT_JSON: "{ 'status': 'cancelled', 'title': '${output.editTitle}' }"
+      EXPECT_JSON: "{ 'status': 'cancelled', 'title': '@editTitle' }"

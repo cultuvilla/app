@@ -9,7 +9,8 @@
 //
 // env:
 //   DOC_PATH    required — path under /documents, e.g. "events/abc"
-//   EXPECT_JSON required — { '<path>': <matcher>, … }, single-quoted (see below). A path is dotted; a
+//   EXPECT_JSON required — { '<path>': <matcher>, … }, single-quoted, with
+//               '@name' for output.name (see below on why not ${…}). A path is dotted; a
 //               numeric segment indexes an array ("signupFields.0.label").
 //               Matchers:
 //                 "x" | 3 | true      the scalar, compared as a string
@@ -100,10 +101,21 @@ function check(v, want) {
   return got1 === String(want) ? null : 'got ' + JSON.stringify(got1);
 }
 
-// Written with single quotes: an env value holding a double quote breaks
-// Maestro's injection of it into this script ("Missing close quote"). So the
-// spec is JSON with ' for ", and no value may contain an apostrophe.
-var expectations = JSON.parse(EXPECT_JSON.replace(/'/g, '"'));
+// Single-quoted JSON, and no `${…}` inside it: Maestro finds an interpolation
+// with a greedy match that runs to the last `}` before the next `$`, so in a
+// JSON spec it swallows the closing braces and evaluates them as JavaScript
+// ("Missing close quote"). A value written '@name' is output.name instead.
+function resolve(v) {
+  if (typeof v === 'string' && v.charAt(0) === '@') return String(output[v.slice(1)]);
+  if (Array.isArray(v)) return v.map(resolve);
+  if (v !== null && typeof v === 'object') {
+    var out = {};
+    for (var k in v) out[k] = resolve(v[k]);
+    return out;
+  }
+  return v;
+}
+var expectations = resolve(JSON.parse(EXPECT_JSON.replace(/'/g, '"')));
 var timeoutMs = Number(typeof TIMEOUT_MS !== 'undefined' && TIMEOUT_MS ? TIMEOUT_MS : 20000);
 var deadline = Date.now() + timeoutMs;
 var problems = [];
