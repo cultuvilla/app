@@ -4,6 +4,16 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+<!-- store-notes -->
+- **Elige el lugar en un mapa**: arrastra el mapa bajo el pin para situar eventos y lugares, busca una dirección o usa tu ubicación.
+- **Las fotos vuelven a subirse**: portadas de eventos, lugares, carteles, grupos y noticias.
+- **Aviso de actualización fiable**, aunque abras la app con poca cobertura.
+- Mejor accesibilidad con VoiceOver y correcciones varias.
+<!-- /store-notes -->
+
+- Infra: prod's deploy gate now matches prod after the App Engine default
+  account's legacy editor grant was removed. **Migration:** none.
+
 ## v1.8.0 — 2026-10-08
 
 <!-- store-notes -->
