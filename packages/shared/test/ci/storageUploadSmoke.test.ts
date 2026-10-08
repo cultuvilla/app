@@ -167,6 +167,12 @@ describe('smoke account', () => {
     expect(auth.createUser).not.toHaveBeenCalled();
   });
 
+  it('fails when the claims cannot be cleared, so a privileged account never runs the smoke', async () => {
+    const auth = fakeAuth(true);
+    auth.setCustomUserClaims.mockRejectedValueOnce(new Error('claims refused'));
+    await expect(provisionSmokeUser(auth, 'pw')).rejects.toThrow('claims refused');
+  });
+
   it('generates a fresh password when none is given', async () => {
     const a = await provisionSmokeUser(fakeAuth(true));
     const b = await provisionSmokeUser(fakeAuth(true));
