@@ -109,8 +109,8 @@ env:
     file: ../subflows/see-text.yaml
     env:
       TEXT: 'Peña Cerrada E2E'
-- assertNotVisible: 'Ayuntamiento de Altozano'
-- assertNotVisible: 'Nacidos entre.*'
+- assertNotVisible: '.*Ayuntamiento de Altozano.*'
+- assertNotVisible: '.*Nacidos entre.*'
 - runFlow:
     file: ../subflows/see-text.yaml
     env:

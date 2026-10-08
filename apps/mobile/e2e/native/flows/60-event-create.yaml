@@ -139,7 +139,7 @@ env:
 - runFlow:
     file: ../subflows/see-text.yaml
     env:
-      TEXT: '.*Usuario E2E.*'
+      TEXT: 'Usuario E2E'
 - runFlow:
     file: ../subflows/see-text.yaml
     env:
