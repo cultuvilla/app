@@ -54,10 +54,7 @@ appId: com.cultuvilla.app.dev
       TARGET: 'private-to-org'
 - tapOn:
     id: 'private-to-org'
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: 'event-form-primary'
+- runFlow: close-keyboard.yaml
 - tapOn:
     id: 'event-form-primary'
 
@@ -77,10 +74,7 @@ appId: com.cultuvilla.app.dev
       DAY: ${output.editDay}
       HOUR: '11'
       MINUTE: '0'
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: 'event-form-primary'
+- runFlow: close-keyboard.yaml
 - tapOn:
     id: 'event-form-primary'
 
@@ -128,10 +122,7 @@ appId: com.cultuvilla.app.dev
       TARGET: 'attendees-public'
 - tapOn:
     id: 'attendees-public'
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: 'event-form-primary'
+- runFlow: close-keyboard.yaml
 - tapOn:
     id: 'event-form-primary'
 
@@ -166,9 +157,6 @@ appId: com.cultuvilla.app.dev
     env:
       INPUT: 'signup-question-label-1'
       TEXT: 'Alergias'
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: 'event-form-primary'
+- runFlow: close-keyboard.yaml
 - tapOn:
     id: 'event-form-primary'

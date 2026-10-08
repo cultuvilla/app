@@ -80,10 +80,7 @@ appId: com.cultuvilla.app.dev
     id: 'remove-org-e2e-org-pena-cerrada'
 - assertNotVisible:
     id: 'private-to-org'
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: 'event-form-primary'
+- runFlow: close-keyboard.yaml
 - tapOn:
     id: 'event-form-primary'
 
@@ -131,10 +128,7 @@ appId: com.cultuvilla.app.dev
       TARGET: 'event-village'
 - assertVisible:
     text: '.*Altozano de Prueba.*'
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: 'event-form-primary'
+- runFlow: close-keyboard.yaml
 - tapOn:
     id: 'event-form-primary'
 
@@ -200,10 +194,7 @@ appId: com.cultuvilla.app.dev
       TARGET: 'form-enabled'
 - tapOn:
     id: 'form-enabled'
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: 'event-form-primary'
+- runFlow: close-keyboard.yaml
 - tapOn:
     id: 'event-form-primary'
 
@@ -258,9 +249,6 @@ appId: com.cultuvilla.app.dev
     env:
       INPUT: 'signup-question-1-option-1'
       TEXT: 'Pescado'
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: 'event-form-primary'
+- runFlow: close-keyboard.yaml
 - tapOn:
     id: 'event-form-primary'

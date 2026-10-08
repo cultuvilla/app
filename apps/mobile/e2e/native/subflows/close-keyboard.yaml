@@ -1,0 +1,31 @@
+# Close the soft keyboard if one is up, and do nothing otherwise.
+#
+# Android: BACK only while Gboard's window is in the hierarchy Maestro reads;
+# an unconditional BACK (reveal.yaml's) leaves the screen when no keyboard is
+# up — flow 60's first run ended on the Perfil tab.
+# iOS: not Enter, which types a newline into a multiline field (the event
+# description gained one, and the next tap typed a G on the still-open
+# keyboard). The forms' ScrollViews use keyboardShouldPersistTaps="handled",
+# so a tap on the empty left gutter — no control lives there — closes the
+# keyboard and nothing else.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: 'com.google.android.inputmethod.latin:id/keyboard_holder'
+    commands:
+      - pressKey: back
+      - waitForAnimationToEnd:
+          timeout: 2000
+- runFlow:
+    when:
+      platform: iOS
+      visible:
+        id: 'inputView'
+    commands:
+      - tapOn:
+          point: '2%,30%'
+      - waitForAnimationToEnd:
+          timeout: 2000
