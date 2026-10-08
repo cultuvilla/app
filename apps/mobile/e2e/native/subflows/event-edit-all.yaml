@@ -138,8 +138,16 @@ appId: com.cultuvilla.app.dev
     env:
       INPUT: 'signup-question-label-0'
       TEXT: 'Talla de camiseta'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'signup-question-1-summary'
 - tapOn:
     id: 'signup-question-1-summary'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'signup-question-1-remove'
 - tapOn:
     id: 'signup-question-1-remove'
 - assertNotVisible:
