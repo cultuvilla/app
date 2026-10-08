@@ -110,9 +110,15 @@ env:
     env:
       DOC_PATH: 'events/${EVENT_ID}/registrations/${output.selfReg}'
       EXPECT_JSON: "{ 'paidAt': 'present' }"
-- assertVisible:
-    id: 'paid-attendee-${output.selfReg}'
-    checked: true
+# The ticked state is read from accessibilityState, which Maestro exposes on
+# Android only; on iOS the paidAt write above is the check.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: 'paid-attendee-${output.selfReg}'
+          checked: true
 
 # The phone the attendee gave, behind the call button.
 - tapOn:
