@@ -17,11 +17,12 @@ img{max-width:100%;height:auto;display:block}
 .wrap{max-width:720px;margin:0 auto;padding:0 16px}
 header.site{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0}
 header.site .brand{display:flex;align-items:center;gap:8px;color:var(--primary);font-weight:700;font-size:20px;text-decoration:none}
-header.site .brand img{width:32px;height:32px}
+header.site .brand .mark{width:32px;height:32px}
 header.site nav{display:flex;align-items:center;gap:16px}
 .cta.small{white-space:nowrap}
 header.site .brand{flex:none}
-@media (max-width:420px){header.site .brand span{display:none}}
+header.site .wordmark{width:auto;height:20px}
+@media (max-width:420px){header.site .mark{display:none}header.site .wordmark{height:15px}}
 header.site nav>a:not(.cta){color:var(--primary);font-weight:600;text-decoration:none}
 .cta{display:inline-block;background:var(--accent);color:var(--on-accent);text-decoration:none;font-weight:600;padding:10px 18px;border-radius:999px;border:0;cursor:pointer}
 .cta.small{padding:6px 14px;font-size:14px}
@@ -84,26 +85,10 @@ export const LANDING_STYLES = `
 .landing .top.single{grid-template-columns:1fr;padding-bottom:48px}
 .landing .top.single .lead{max-width:40em}
 @media (max-width:820px){.landing .top{grid-template-columns:1fr}}
-.landing .phone{justify-self:center;display:block;width:min(300px,100%);aspect-ratio:9/18.5;background:#1d2117;border-radius:40px;padding:10px;box-shadow:0 30px 60px -20px rgba(63,70,53,.45);transform:rotate(2deg);text-decoration:none;color:var(--text)}
-.landing .screen{display:flex;flex-direction:column;height:100%;border-radius:31px;background:var(--surface);overflow:hidden}
-.landing .ph-head{display:flex;align-items:center;gap:10px;padding:22px 16px 8px}
-.landing .ph-escudo{width:34px;height:40px;object-fit:contain;flex:none}
-.landing .ph-head b{display:block;font-family:var(--display);font-weight:400;font-size:20px;line-height:1;color:var(--primary)}
-.landing .ph-head small{font-size:11px;color:var(--muted)}
-.landing .ph-sec{display:block;padding:8px 16px 0;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--primary)}
-.landing .ph-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px 16px 2px}
-.landing .mini{display:block;background:var(--card);border-radius:10px;overflow:hidden;min-width:0}
-.landing .mini img{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--border)}
-.landing .mini .t{display:block;padding:5px 7px 0;font-size:11px;font-weight:600;line-height:1.25;color:var(--primary);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.landing .mini .s{display:block;padding:1px 7px 6px;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.landing .ph-word{display:block;margin:10px 16px 0;padding:9px 11px;border-radius:12px;background:var(--olive);color:var(--surface)}
-.landing .ph-word small{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
-.landing .ph-word b{display:block;font-family:var(--display);font-weight:400;font-size:18px}
-.landing .ph-word span{display:block;font-size:10px;opacity:.9}
-.landing .ph-tabs{margin-top:auto;display:flex;justify-content:space-around;padding:10px 0 14px;border-top:1px solid var(--border)}
-.landing .ph-tabs i{width:22px;height:4px;border-radius:2px;background:var(--muted)}
-.landing .ph-tabs i:first-child{background:var(--accent)}
-.landing .teaser{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:20px;padding-top:28px;padding-bottom:28px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.landing .intro{position:relative;margin:0;justify-self:center;display:grid;justify-items:center;gap:14px}
+.landing .intro-phone{display:block;width:min(290px,78vw);aspect-ratio:9/18.6;padding:10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5);transform:rotate(2deg)}
+.landing .intro-phone video{display:block;width:100%;height:100%;object-fit:cover;border-radius:32px;background:var(--surface)}
+.landing .sound{border:0;border-radius:999px;padding:8px 14px;font:600 13px/1 system-ui,sans-serif;background:var(--primary);color:var(--surface);cursor:pointer}
 .landing .pillars ul{color:var(--surface)}
 .landing .band .pillar b{color:var(--surface)}
 .landing .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;align-items:center}
@@ -113,6 +98,25 @@ export const LANDING_STYLES = `
 .landing .strip span{font-family:var(--display);font-size:22px;white-space:nowrap;color:var(--muted)}
 .landing .split{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
 .landing .split .lead+.lead{margin-top:14px}
+.landing .mosaic{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.landing .mosaic li{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:1}
+.landing .mosaic img{width:100%;height:100%;object-fit:cover}
+.landing .mosaic span{position:absolute;left:0;right:0;bottom:0;padding:28px 12px 10px;font-family:var(--display);font-size:clamp(18px,2.4vw,26px);color:#fff;background:linear-gradient(transparent,rgba(30,34,24,.75))}
+.landing .pillar img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:12px;margin-bottom:6px}
+.landing .card img.cover{width:calc(100% + 48px);max-width:none;margin:-24px -24px 6px;aspect-ratio:8/5;object-fit:cover}
+.landing .card{overflow:hidden}
+.landing .banner img{width:100%;aspect-ratio:1600/615;object-fit:cover;border-radius:18px;margin-bottom:56px}
+.landing .wr-split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:56px;align-items:center}
+.landing .wr-split .lead{margin:14px 0 22px}
+@media (max-width:820px){.landing .wr-split{grid-template-columns:1fr;gap:28px}}
+.landing .wr{display:grid;justify-items:center;gap:12px}
+.landing .wr-phone{width:min(300px,80vw);padding:12px 10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5)}
+.landing .wr-track{display:flex;aspect-ratio:9/16;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:32px;scrollbar-width:none;background:#1d2117}
+.landing .wr-track::-webkit-scrollbar{display:none}
+.landing .wr-track img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;scroll-snap-align:center}
+.landing .wr-nav{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--muted)}
+.landing .wr-nav button{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--primary);font-size:22px;line-height:1;cursor:pointer}
+.landing .night{background:linear-gradient(rgba(38,43,30,.78),rgba(38,43,30,.86)),url(/brand/landing/verbena-noche.webp) center/cover}
 .landing .unique{list-style:none;margin:0;padding:0}
 .landing .unique li{font-family:var(--display);font-size:clamp(32px,5vw,52px);line-height:1.15;color:var(--primary)}
 .landing .unique li:nth-child(odd){color:var(--accent)}

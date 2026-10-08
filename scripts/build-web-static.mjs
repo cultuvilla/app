@@ -5,6 +5,7 @@
  * `readSite` function (docs/decisions/web-is-a-read-site.md):
  *
  *   - `web/public/**`                       brand images, favicon
+ *   - the CULTUVILLA lettering              from its one home, packages/shared/assets/brand
  *   - `web/well-known/<env>/*` → `.well-known/`   this env's deep-link identities
  *   - `robots.txt`                          generated per env
  *
@@ -52,6 +53,7 @@ export function buildWebStatic(env, out = WEB_DIST) {
   if (!ENVS.includes(env)) throw new Error(`build-web-static: unknown env "${env}" (dev|beta|prod)`);
   rmSync(out, { recursive: true, force: true });
   cpSync(resolve(REPO, 'web/public'), out, { recursive: true });
+  cpSync(resolve(REPO, 'packages/shared/assets/brand/cultuvilla-lettering.svg'), resolve(out, 'brand/cultuvilla-lettering.svg'));
   mkdirSync(resolve(out, '.well-known'), { recursive: true });
   cpSync(resolve(REPO, `web/well-known/${env}`), resolve(out, '.well-known'), { recursive: true });
   writeFileSync(resolve(out, 'robots.txt'), buildRobotsTxt(env));

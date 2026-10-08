@@ -45,6 +45,7 @@
     "backfills:auto-apply": "node scripts/backfills-cli.mjs auto-apply",
     "backfills:lint": "node scripts/lint-backfill-meta.mjs",
     "backfills:test": "node --test scripts/__tests__/backfill-registry.test.mjs scripts/__tests__/backfill-discovery.test.mjs scripts/__tests__/existing-village-settlements.test.mjs scripts/__tests__/backfill-village-fiestas-month.test.mjs scripts/__tests__/backfill-org-join-policy.test.mjs",
+    "check:index-drift": "FIREBASE_BIN='bash scripts/firebase.sh' node scripts/check-index-drift.mjs",
     "scripts:test": "node --test \"scripts/__tests__/*.test.mjs\"",
     "agents:test": "node --test \".agents/_shared/scripts/__tests__/*.test.mjs\"",
     "backfill:municipality-people:dev": "pnpm shared:build && node scripts/backfill-municipality-people.mjs",

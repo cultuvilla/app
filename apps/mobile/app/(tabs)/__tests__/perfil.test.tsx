@@ -30,7 +30,6 @@ jest.mock('@cultuvilla/shared/services/personService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadUserPhoto: jest.fn().mockResolvedValue('https://photo.test/new.jpg'),
-  uploadPersonImage: jest.fn().mockResolvedValue('https://photo.test/new.jpg'),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
   watchEventsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('events'),
@@ -317,7 +316,6 @@ describe('ProfileScreen — change photo', () => {
     await waitFor(() => {
       expect(imageService.uploadUserPhoto).toHaveBeenCalledWith('uid-1', PICKED_IMAGE);
     });
-    expect(imageService.uploadPersonImage).not.toHaveBeenCalled();
     expect(personService.updatePerson).toHaveBeenCalledWith(SELF_PERSON.id, {
       photoURL: 'https://photo.test/new.jpg',
     });

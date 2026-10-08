@@ -388,6 +388,7 @@ export default function NewEventScreen() {
   const createdEventIdRef = useRef<string | null>(null);
 
   const { fire: submit, isPending } = useCallable({
+    operation: editMode ? 'event:update' : 'event:create',
     callable: async () => {
       if (!municipalityId || !user || !startDate) return;
       const location = buildLocationData({

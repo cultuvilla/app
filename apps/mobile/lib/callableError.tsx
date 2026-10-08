@@ -15,7 +15,11 @@ import {
   type ClassifiedCallableError,
 } from '@cultuvilla/shared';
 
+import { reportActionError } from './reportActionError';
+
 export interface ShowCallableErrorOptions {
+  /** Names the action in the error report (`event:save`). Default `action`. */
+  operation?: string;
   /** Overrides the headline from the classifier. */
   headline?: string;
   /** Overrides the detail from the classifier. */
@@ -79,8 +83,11 @@ export function useCallableErrorHandler(): ShowCallableError {
   const handler = useContext(Context);
   // A consumer outside the provider is legitimate during very early app boot.
   // Fall back to the default surface so callsites never crash on first paint.
+  // Reported here rather than in the surface, so a provider that swaps the
+  // Alert for its own modal still reports.
   return useCallback<ShowCallableError>(
     (error, options) => {
+      reportActionError(options?.operation ?? 'action', error, classifyCallableError(error));
       (handler ?? defaultShowCallableError)(error, options);
     },
     [handler],

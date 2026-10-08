@@ -6,7 +6,7 @@ name: App Store release
 # the operations that have no build of their own — releasing an approved
 # version, or pausing a phased rollout that is going badly.
 #
-# There is no ASC key on a laptop by design (see docs/plans/ongoing/store-release.md),
+# There is no ASC key on a laptop by design (see docs/store/release-runbook.md),
 # so this workflow is how a human or an agent drives the App Store at all. It is
 # dispatchable through the GitHub API, which means an agent can run a release it
 # holds no Apple credentials for.
@@ -105,7 +105,7 @@ jobs:
           [ -z "${APPLE_ASC_ISSUER_ID}" ] && missing+=("APPLE_ASC_ISSUER_ID (repo var)")
           [ -z "${APPLE_ASC_API_KEY_P8}" ] && missing+=("APPLE_ASC_API_KEY_P8 (repo secret)")
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing: ${missing[*]} — see docs/plans/ongoing/store-release.md"
+            echo "::error::Missing: ${missing[*]} — see docs/store/release-runbook.md"
             exit 1
           fi
 

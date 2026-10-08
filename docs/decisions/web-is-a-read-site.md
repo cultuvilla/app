@@ -84,10 +84,20 @@ Two readings, kept separate on purpose:
   ([spanish-village-urls.md](spanish-village-urls.md)): the same path opens the
   read page in a browser and the app screen through a universal link.
 - Member-only data (private events, censo, personas) is never rendered on web.
-- Until the read site replaces the Expo export, nothing that works on the
-  current web build is removed. The switch happens route by route, never with a
-  window in which a shared link is broken.
+- The read site replaced the Expo export in one cutover. It was verified on prod
+  on 2026-10-08: a pueblo, an event's OG tags, `/descarga` from an iPhone (302 to
+  the App Store), `robots.txt`, the sitemap and the AASA (JSON).
 - An app feature never carries a web fallback, a `.web.*` twin or a web test.
+
+## Operating notes
+
+- `/robots.txt` and `/favicon.ico` stay static files per env
+  (`scripts/build-web-static.mjs`). A function behind Hosting cannot serve them
+  reliably.
+- The sitemap uses no composite index on purpose, so a sitemap change never has
+  to touch `firestore.indexes.json`.
+- Verify a deploy with a cache-busting query (`?cb=$RANDOM`). Hosting caches a
+  404 for 10 minutes, which looks exactly like a broken rewrite.
 
 ## Rejected alternatives
 
