@@ -452,9 +452,13 @@ const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video 
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="off" d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
 )}</button></span></figure>`;
 
+const storeIcon = (path: string): SafeHtml => raw(`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}" fill="currentColor"/></svg>`);
+const APPLE_ICON = storeIcon('M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701');
+const PLAY_ICON = storeIcon('M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z');
+
 function storeButtons(): SafeHtml {
-  return html`${APP_STORES.ios ? html`<a class="store" href="${APP_STORES.ios}"><small>Descárgala en el</small><b>App Store</b></a>` : null}${
-    APP_STORES.android ? html`<a class="store" href="${APP_STORES.android}"><small>Disponible en</small><b>Google Play</b></a>` : null
+  return html`${APP_STORES.ios ? html`<a class="store" href="${APP_STORES.ios}">${APPLE_ICON}<span><small>Descárgala en el</small><b>App Store</b></span></a>` : null}${
+    APP_STORES.android ? html`<a class="store" href="${APP_STORES.android}">${PLAY_ICON}<span><small>Disponible en</small><b>Google Play</b></span></a>` : null
   }`;
 }
 
@@ -497,10 +501,10 @@ export function homePage({ wrapped }: Landing): Page {
 <article class="card">${photo('casa-piedra', 'Casa de piedra entre árboles', 800, 500, 'cover')}<span class="tag">Visitantes</span><h3>Conoce el pueblo antes de ir</h3><p class="muted">Cada pueblo tiene su propia página. Compártela por WhatsApp y se abre en cualquier móvil, aunque no tengan la app.</p></article>
 </div></div></section>
 ${wrapped ? wrappedPhone(wrapped) : null}
-<section class="blk amb"><div class="in"><div class="split"><div class="head"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿Tu pueblo aún no está? Tráelo tú.</h2><p class="lead">Están todos los municipios de España, esperando a que un vecino dé el paso. Puede ser cualquiera: tú también.</p></div>${photo('pueblo-atardecer', 'Un pueblo blanco al atardecer entre colinas', 1600, 615, 'amb-photo')}</div><ol class="steps">
-<li class="step"><h3>Pídelo</h3><p>Busca tu pueblo en la app y solicita ser su Embajador o Embajadora.</p></li>
-<li class="step"><h3>Lo activamos</h3><p>Revisamos la solicitud y ponemos en marcha la página de tu pueblo, con su escudo.</p></li>
-<li class="step"><h3>Dale vida</h3><p>Sube sus fiestas, carteles, historia y palabras, e invita a vecinos, peñas y ayuntamiento a sumarse.</p></li>
+<section class="blk amb"><div class="in"><div class="split"><div class="head"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿Vives las fiestas de tu pueblo como nadie?</h2><p class="hook">¿Presumes de pueblo allá donde vas?</p><p class="lead">Entonces sabes lo que se pierde cada año: las palabras de los abuelos, los lugares que solo conocen los de siempre, los carteles de hace cincuenta años. Alguien tiene que cuidarlo.</p><p class="lead"><b>Seas de la comisión, del ayuntamiento o simplemente lo quieras como nadie: hazte Embajador de Cultuvilla.</b></p></div>${photo('pueblo-atardecer', 'Un pueblo blanco al atardecer entre colinas', 1600, 615, 'amb-photo')}</div><ol class="steps">
+<li class="step"><h3>Busca tu pueblo</h3><p>En la app están todos los municipios de España.</p></li>
+<li class="step"><h3>Pulsa «Quiero ser embajador»</h3><p>Revisamos la solicitud y activamos la página de tu pueblo, con su escudo.</p></li>
+<li class="step"><h3>Cuídalo</h3><p>Sube sus fiestas, carteles, historia y palabras, e invita a vecinos, peñas y ayuntamiento a sumarse.</p></li>
 </ol></div></section>
 <section class="band blk"><div class="in price"><span class="big">0 €</span><div style="display:grid;gap:12px"><span class="eyebrow">Precio</span><h2>Gratis para todo el pueblo</h2><p class="lead">Sin cuotas por socio ni planes. Vecinos, peñas, asociaciones y ayuntamientos usan Cultuvilla sin pagar nada.</p></div></div></section>
 <section class="blk"><div class="in"><div class="head"><span class="eyebrow">Preguntas frecuentes</span><h2>Lo que nos suelen preguntar</h2></div><div class="faq">${FAQ.map(

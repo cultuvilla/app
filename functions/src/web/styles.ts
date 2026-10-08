@@ -155,6 +155,8 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .amb .eyebrow{color:var(--on-accent);opacity:.8}
 .landing .amb .lead,.landing .amb .step p{color:var(--on-accent);opacity:.92}
 .landing .amb .head{margin:0}
+.landing .amb .hook{font-family:var(--display);font-size:clamp(22px,2.6vw,30px);line-height:1.15;margin:0}
+.landing .amb .lead b{font-weight:600}
 .landing .amb .split{margin-bottom:48px}
 .landing .amb-photo{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:20px}
 .landing .amb .steps{padding-top:32px;border-top:1.5px solid rgba(255,255,255,.3)}
@@ -168,7 +170,9 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .faq details p{margin-top:10px}
 .landing .final{text-align:center;display:grid;justify-items:center;gap:18px}
 .landing .final h2{font-size:clamp(36px,6vw,60px)}
-.landing .store{display:inline-flex;flex-direction:column;align-items:flex-start;padding:10px 20px;border-radius:14px;background:var(--surface);color:var(--primary);text-decoration:none;line-height:1.2}
+.landing .store{display:inline-flex;align-items:center;gap:12px;padding:10px 20px 10px 16px;border-radius:14px;background:var(--surface);color:var(--primary);text-decoration:none;line-height:1.2}
+.landing .store svg{width:26px;height:26px;flex:none}
+.landing .store span{display:grid;text-align:left}
 .landing .store small{font-size:12px;color:var(--text)}
 .landing .store b{font-size:18px}
 .landing .final .stores{justify-content:center}

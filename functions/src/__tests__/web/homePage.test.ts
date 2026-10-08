@@ -78,6 +78,9 @@ describe('homePage', () => {
     for (const c of ['people', 'organizers']) expect(out).not.toContain(`https://img/${c}.png`);
     expect(out).toContain('<section class="blk amb">');
     expect(out.match(/<li class="step">/g)).toHaveLength(3);
+    // The Embajador pitch opens on the question the Embajador film opens on.
+    expect(out).toContain('<h2>¿Vives las fiestas de tu pueblo como nadie?</h2>');
+    expect(out).toContain('Pulsa «Quiero ser embajador»');
     expect(body({ villages: [matabuena], showcase, wrapped: null })).not.toContain('class="wr-track"');
   });
 
@@ -163,6 +166,12 @@ describe('homePage', () => {
     expect(LANDING_STYLES).not.toMatch(/\n\.landing \.intro\{[^}]*padding-top/);
     expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-latin.woff2'))).toBe(true);
     expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-OFL.txt'))).toBe(true);
+  });
+
+  it('marks each store button with its store icon', () => {
+    const out = body({ villages: [], showcase: null, wrapped: null });
+    expect(out).toMatch(/<a class="store" href="https:\/\/apps\.apple\.com[^"]*"><svg viewBox="0 0 24 24" aria-hidden="true">/);
+    expect(out).toMatch(/<a class="store" href="https:\/\/play\.google\.com[^"]*"><svg viewBox="0 0 24 24" aria-hidden="true">/);
   });
 
   it('keeps the full showcase and the pueblo list on /pueblos, not on the home', () => {
