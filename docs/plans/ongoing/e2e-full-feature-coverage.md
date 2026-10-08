@@ -3,7 +3,7 @@
 **Priority:** high — bugs reached production through flows the suite reports green
 **Landed:** none
 **Gate:** none
-**Next:** Stage 1 — seed collaborators + a picker image, then the deep event flow replacing 60 and 62
+**Next:** Stage 1 — get flows 60 + 64 green on android-e2e and ios-e2e, then Stage 2's registration flow absorbing 62
 
 ## Goal
 
@@ -54,8 +54,11 @@ its phase:
 > (what they see; that they cannot edit) → **delete/cancel** → **assert gone** from detail
 > and feed.
 
-Phases live in `e2e/native/subflows/<feature>/` (`create-full.yaml`, `assert-full.yaml`,
-`edit-all.yaml`, `as-other-user.yaml`, `delete.yaml`). The flow file is the sequence;
+A feature's lifecycle may span two flows of one tens group when it would pass
+Maestro's 15-minute per-flow limit (`E2E_FLOW_TIMEOUT_MS`); the later one finds
+the entity by a deterministic title. Phases live in `e2e/native/subflows/<feature>-<phase>.yaml` (`event-create-full.yaml`,
+`event-edit-all.yaml`, …) — flat, because the iOS/Android hygiene tests read
+`subflows/` one level deep. The flow file is the sequence;
 assertion subflows are reused after create and after edit with different `env` values.
 
 Existing shortest-path flows fold into these as phases and are deleted (*Delete >
@@ -125,6 +128,11 @@ controls (`location-use-mine`, `location-confirm`) keep fixed ids — only one p
 is ever open. `MyVillagePicker` lost its hardcoded `village-dropdown-trigger`; the
 event form now names it `event-village`.
 
+Stage 1 (2026-10-09): the local AVD loop OOM-killed WSL during the Gradle APK
+build (~5.8 GB), so flow iteration runs on dispatched `android-e2e` runs
+(`gh workflow run android-e2e.yml --ref <branch> -f flows=60`, ~20 min). The
+Android photo picker's cells are `com.google.android.providers.media.module:id/icon_thumbnail`.
+
 ## Feature matrix — target
 
 `C` create · `E` edit · `D` display (screen) · `F` Firestore · `O` other-user view ·
@@ -181,9 +189,12 @@ none today).
       cell would have caught it and move those cells to the front of the stages below.
 
 ### Stage 1 — event (highest traffic; the user's example)
-- [ ] Seed collaborators + picker image; push the image in both runners.
-- [ ] `subflows/event/`: `create-full`, `assert-full`, `edit-all`, `as-other-user`, `cancel`.
-- [ ] Deep event flow replacing 60 and 62; delete them.
+- [x] Seed collaborators + picker image; push the image in both runners (the seed already had them; `PICKER_IMAGES` stocks the picker).
+- [x] `subflows/event-create-full.yaml`, `event-edit-all.yaml`, plus `pick-datetime`, `pick-photo`, `replace-text`, `see-text`; `scripts/assertDoc.js`.
+- [x] Deep event flows `60-event-create` + `64-event-edit-and-cancel` replacing 60 — one flow for the whole life ran past Maestro's 15-minute per-flow limit. Sign-up with answers stays in 62 until Stage 2 absorbs it.
+- [x] Green on android-e2e (run 37723123831: 60 in 9m20s, 64 in 11m11s).
+- [ ] Green on ios-e2e.
+- [ ] Cover picking on iOS (PHPicker selector); Android-only today.
 - [ ] Jest coverage for event validation (dates, birth-year bounds, capacity) listed as `unit-tested:`.
 
 ### Stage 2 — registration

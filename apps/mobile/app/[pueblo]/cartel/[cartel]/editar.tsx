@@ -142,6 +142,7 @@ function FestivalPosterEditScreen() {
         rightSlot={
           canDelete(proposedBy, status) ? (
             <DeleteHeaderButton
+              testID="poster-delete"
               onAccent
               onConfirm={removePoster}
               accessibilityLabel={t('common.delete')}

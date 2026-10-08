@@ -58,6 +58,7 @@ function HistoryEntryDetailScreen() {
           ? [
               {
                 icon: 'create-outline' as const,
+                testID: 'history-edit-action',
                 accessibilityLabel: t('common.edit'),
                 onPress: () =>
                   router.push(historyEntryEditHref({ ...entry, villageSlug })),
@@ -66,6 +67,7 @@ function HistoryEntryDetailScreen() {
           : []),
         {
           icon: 'share-outline',
+          testID: 'history-share-action',
           accessibilityLabel: t('deeplink.shareViewLabel'),
           onPress: () => void share(getHistoryEntryViewLink({ id: entry.id, title: entry.title, villageSlug }), entry.title),
         },

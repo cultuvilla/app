@@ -919,6 +919,7 @@ export default function NewEventScreen() {
         rightSlot={
           editMode ? (
             <DeleteHeaderButton
+              testID="event-delete"
               onAccent
               onConfirm={deleteEvent}
               accessibilityLabel={t('common.delete')}

@@ -66,8 +66,11 @@ export function sourceTestIds(files = sourceFiles()) {
 }
 
 // Keys whose value names a testID: Maestro's own `id:`, and the env vars the
-// shared subflows forward into one (`TAP`, `TARGET`, `INPUT`, `EXPECT`).
-const REF = /^\s*-?\s*(id|TAP|TARGET|INPUT|EXPECT):\s*(.+?)\s*$/;
+// shared subflows forward into one (`TAP`, `TARGET`, `INPUT`, `EXPECT`, `FIELD`).
+const REF = /^\s*-?\s*(id|TAP|TARGET|INPUT|EXPECT|FIELD):\s*(.+?)\s*$/;
+// These two double as Firestore values and field names in docField.js, so they
+// count towards coverage but are never required to name a control.
+const COVERAGE_ONLY = new Set(['EXPECT', 'FIELD']);
 
 /** @returns {{ value: string, key: string, file: string }[]} */
 export function flowRefs() {
@@ -105,8 +108,10 @@ function touches(ref, key, prefix) {
   return (re?.test(key) ?? false) || ref.startsWith(`${key}-`);
 }
 
-// Ids the OS renders, not the app: iOS's keyboard accessory view.
+// Ids the OS renders, not the app: iOS's keyboard accessory view, and any
+// Android resource id (`<package>:id/<name>`), such as the system photo picker's.
 const NATIVE_IDS = new Set(['inputView']);
+const isNativeId = (value) => NATIVE_IDS.has(value) || /^[\w.]+:id\//.test(value);
 
 export function coverage(ids = sourceTestIds(), refs = flowRefs()) {
   const covered = new Set();
@@ -114,10 +119,10 @@ export function coverage(ids = sourceTestIds(), refs = flowRefs()) {
   for (const [key, { prefix }] of ids) {
     (refs.some((r) => touches(r.value, key, prefix)) ? covered : uncovered).add(key);
   }
-  // EXPECT doubles as a Firestore value in docField checks, so only keys that are
-  // always ids must resolve to a control.
+  // A ref that starts with a variable (`${FIELD}-time`) is a subflow building
+  // on its caller's id, which the caller's own ref accounts for.
   const dangling = refs.filter(
-    (r) => r.key !== 'EXPECT' && !NATIVE_IDS.has(r.value) && ![...ids].some(([key, { prefix }]) => touches(r.value, key, prefix)),
+    (r) => !COVERAGE_ONLY.has(r.key) && !r.value.startsWith('${') && !isNativeId(r.value) && ![...ids].some(([key, { prefix }]) => touches(r.value, key, prefix)),
   );
   return { covered, uncovered, dangling };
 }
@@ -164,6 +169,8 @@ export const FORM_CONTROLS = [
   'MyVillagePicker',
   'BarrioPicker',
   'PhoneField',
+  'OptionsEditor',
+  'DeleteHeaderButton',
 ];
 
 const CONTROL = new RegExp(`<(${FORM_CONTROLS.join('|')})\\b`, 'g');

@@ -1,0 +1,18 @@
+# Bring ${TARGET} to the middle of the screen, keyboard closed, never with BACK.
+#
+# Centred, not merely "visible": Maestro counts an element under the wizard's
+# sticky footer as visible, so a tap on it lands on "Siguiente" instead (on
+# iOS flow 60 jumped a step instead of opening the org sheet). centerElement
+# stops scrolling once the element is near the centre, and accepts it where
+# the content cannot scroll further.
+#
+# For the footer's own button use close-keyboard.yaml: it never centres.
+appId: com.cultuvilla.app.dev
+---
+- runFlow: close-keyboard.yaml
+- scrollUntilVisible:
+    element:
+      id: ${TARGET}
+    direction: DOWN
+    centerElement: true
+    timeout: 20000

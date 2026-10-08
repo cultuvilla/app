@@ -1,0 +1,13 @@
+# Scroll a detail screen down until ${TEXT} (a regex) is on it. A detail
+# screen is taller than the device, so a bare assertVisible on its lower half
+# fails on a short screen for a reason that has nothing to do with the app.
+# ${TEXT} may sit anywhere in the element: on iOS a pressable card or chip is
+# one accessibility element whose text joins all of its children's ("Fecha"
+# and the date, the avatar initial and the name).
+appId: com.cultuvilla.app.dev
+---
+- scrollUntilVisible:
+    element:
+      text: '.*${TEXT}.*'
+    direction: DOWN
+    timeout: 20000

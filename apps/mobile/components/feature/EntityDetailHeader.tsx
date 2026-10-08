@@ -12,6 +12,8 @@ export type EntityDetailAction = {
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   accessibilityLabel: string;
+  /** `<kind>-edit-action` / `<kind>-share-action`, so a flow can reach it. */
+  testID: string;
 };
 
 /**
@@ -45,6 +47,7 @@ export function EntityDetailHeader({
               icon={a.icon}
               onPress={a.onPress}
               accessibilityLabel={a.accessibilityLabel}
+              testID={a.testID}
             />
           ))}
         </View>

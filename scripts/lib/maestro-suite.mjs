@@ -19,6 +19,13 @@ const FLOWS_DIR = path.join(SUITE_DIR, 'flows');
 
 export const MAESTRO = process.env.MAESTRO_BIN || 'maestro';
 
+// What a flow picks in the OS photo picker. The deep flows set every field,
+// images included, and a picker with nothing in it can only be cancelled. Two,
+// so an edit can swap one for the other. Committed seed art, not new binaries.
+export const PICKER_IMAGES = ['aranjuez-cover-1.jpg', 'admin-avatar.jpg'].map((f) =>
+  path.join(ROOT, 'scripts', 'data', 'seed-fixtures', 'demo_1', 'images', f),
+);
+
 // Maestro installs a driver on the device and connects to it. Its default
 // startup budget is tight enough that a cold or loaded device — a CI runner's
 // software-rendered AVD, a first-boot Simulator, or a Windows-hosted AVD reached

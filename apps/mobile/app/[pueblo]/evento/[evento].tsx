@@ -126,6 +126,7 @@ export default function EventDetailScreen() {
           ? [
               {
                 icon: 'create-outline' as const,
+                testID: 'event-edit-action',
                 accessibilityLabel: t('event.editEvent'),
                 onPress: () => router.push(createEventHref({ eventId: event.id })),
               },
@@ -133,6 +134,7 @@ export default function EventDetailScreen() {
           : []),
         {
           icon: 'share-outline',
+          testID: 'event-share-action',
           accessibilityLabel: t('deeplink.shareViewLabel'),
           onPress: () => void share(getEventLink(event), event.title),
         },

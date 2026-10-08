@@ -67,7 +67,8 @@ instead of the whole shard.
 | `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
 | `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
 | `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. |
-| `60-create-publish-event` | The event wizard (3 steps; Preguntas appears only with sign-ups on *and* the form toggle on), including the OS location permission and a real GPS fix (`setLocation`). |
+| `60-event-create` | An event created with every field: cover, organizers (a villager + two orgs), dates, capacity, age range, phone, payment, groups, private roster, questions; every stored field and the detail screen asserted; a co-organizer may edit, a villager may only read. Also the OS location permission and a real GPS fix (`setLocation`). |
+| `64-event-edit-and-cancel` | The same event with every field edited, down to private to the approval peña; the doc and screen asserted again, the villager now gets "not found"; then cancelled. Depends on 60 (same tens group). |
 | `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
 | `62-event-signup-questions` | The wizard with the form on: a Preguntas step, then an attendee answers it; the answer lands in `registrationPrivate`. |
 | `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
@@ -136,6 +137,9 @@ during a poll only began executing once the poll gave up. Without the server
 They run on the **host**, not on the device, so they use `127.0.0.1` even though
 the app inside the AVD reaches the same emulator at `10.0.2.2`.
 
+`assertDoc.js` checks many fields of one doc in a single call — scalars, arrays
+as sets, lengths, prefixes, indexed paths (`signupFields.0.label`) — and fails
+the step with the full diff; a deep flow uses it after every create and edit.
 `docField.js` reads one scalar; a dotted `FIELD` walks into maps, and a `*`
 segment takes a map's first key (for maps keyed by generated ids, such as
 registration answers). Three scripts write, for state a flow must set up or

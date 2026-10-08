@@ -1,0 +1,181 @@
+# An event created with every field the wizard has, then checked:
+#
+#   create  — every field set off its default (subflows/event-create-full.yaml)
+#   assert  — each stored field, then what the detail screen shows
+#   others  — a co-organizer may edit; a villager may only read, and the edit
+#             link sends them back to the event
+#
+# It replaces a flow that typed a title, accepted every default and checked
+# three fields — green while most of the form went untested. Flow 64 edits
+# and cancels this same event: one flow for the whole life ran past Maestro's
+# 15-minute limit. Sign-up with answers to the questions stays in 62 until the
+# registration flow takes it.
+#
+# Cover images are picked on Android only; see subflows/pick-photo.yaml.
+# Times sit mid-day so the stored UTC date matches the local one in any
+# timezone a runner is likely to have.
+appId: com.cultuvilla.app.dev
+env:
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  ORGANIZER_EMAIL: e2e-user@cultuvilla.test
+  VILLAGER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/eventLifecycleValues.js
+
+# A leftover of either title from an interrupted earlier run would be what 60
+# and 64 find and assert on. Clear both, then require exactly one match.
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.title}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.editTitle}
+
+# ── Create ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- setLocation:
+    latitude: 39.4699
+    longitude: -0.3763
+- openLink: 'cultuvilla://crear/evento'
+- runFlow: ../subflows/event-create-full.yaml
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.title}
+      FIELD2: status
+      VALUE2: published
+      MIN: '1'
+      MAX: '1'
+      # Upload + create outlasted the default 20 s on the loaded macOS runner.
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.eventId = output.id}
+
+# ── Every stored field ──
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${output.eventId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@title',
+          'description': '@description',
+          'status': 'published',
+          'municipalityId': 'e2e-village-altozano',
+          'villageSlug': 'altozano-de-prueba',
+          'createdBy': 'e2e-admin',
+          'organizerUserIds': ['e2e-admin', 'e2e-user'],
+          'organizerOrgIds': ['e2e-org-ayto', 'e2e-org-pena-cerrada'],
+          'visibility': 'public',
+          'visibilityOrgId': 'absent',
+          'startDate': { 'prefix': '@startDay' },
+          'endDate': { 'prefix': '@startDay' },
+          'location.displayName': 'present',
+          'location.coordinates': 'present',
+          'signupEnabled': true,
+          'maxAttendees': 25,
+          'minBirthYear': 1950,
+          'maxBirthYear': 2015,
+          'telephoneRequired': true,
+          'requiresPayment': true,
+          'signupGroupSize': 3,
+          'attendeesVisibility': 'organizers',
+          'signupFields': { 'length': 2 },
+          'signupFields.0.label': 'Talla',
+          'signupFields.0.type': 'text',
+          'signupFields.0.required': true,
+          'signupFields.1.label': 'Menu',
+          'signupFields.1.type': 'select',
+          'signupFields.1.options': ['Carne', 'Pescado']
+        }
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'events/${output.eventId}'
+            EXPECT_JSON: "{ 'imageURL': { 'prefix': 'http' } }"
+
+# ── What the organizer sees ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+- assertVisible: ${output.title}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.startLabel}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Nacidos entre 1950 y 2015'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Ayuntamiento de Altozano'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Peña Cerrada E2E'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Usuario E2E'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.description}
+
+# ── A co-organizer may edit it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ORGANIZER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+
+# ── A villager who is neither may only read it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${VILLAGER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-share-action'
+    timeout: 45000
+- assertVisible: ${output.title}
+- assertNotVisible:
+    id: 'event-edit-action'
+# The edit link itself sends a non-organizer back to the event.
+- openLink: 'cultuvilla://crear/evento?eventId=${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'event-form-primary'
