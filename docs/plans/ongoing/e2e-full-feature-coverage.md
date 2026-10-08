@@ -1,9 +1,9 @@
 # E2E — full feature coverage
 
 **Priority:** high — bugs reached production through flows the suite reports green
-**Landed:** none
+**Landed:** dev
 **Gate:** none
-**Next:** Stage 1 — get flows 60 + 64 green on android-e2e and ios-e2e, then Stage 2's registration flow absorbing 62
+**Next:** Stage 2 — the deep registration flow replacing 20, 21, 22, 80 and absorbing 62's sign-up with answers
 
 ## Goal
 
@@ -133,6 +133,22 @@ build (~5.8 GB), so flow iteration runs on dispatched `android-e2e` runs
 (`gh workflow run android-e2e.yml --ref <branch> -f flows=60`, ~20 min). The
 Android photo picker's cells are `com.google.android.providers.media.module:id/icon_thumbnail`.
 
+Stage 1 iOS lessons (2026-10-08), all now in the shared subflows:
+- The iOS keyboard is closed by a tap at `1%,30%`, not 2%: every `Pressable` has an
+  8pt hitSlop, so a card 16pt from the edge is tappable from 8pt (2% of 402pt).
+- An open keyboard lifts the sticky wizard footer over low fields, so a second tap on
+  the same field can press Siguiente/Guardar. Re-run `scroll-to.yaml` (closes the
+  keyboard, centres the target) before *every* tap after typing.
+- A pressable card or chip is ONE iOS accessibility element whose text joins its
+  children's; match text with `.*….*` (`see-text.yaml` does), and never assert
+  `assertNotVisible` on exact text — it passes vacuously.
+- Iterate with targeted dispatches on BOTH platforms
+  (`gh workflow run ios-e2e.yml --ref <branch> -f flows=60,64`) and cancel the
+  automatic full PR run until the fix works; a full ~70-min iOS run per push also
+  pays for unrelated flakes (23, 70, 71, 72 time out on a slow macOS runner).
+- Android: the CI emulator sometimes drops `device offline` as the map picker loads
+  after the location grant (2 of ~6 runs); a re-run passes.
+
 ## Feature matrix — target
 
 `C` create · `E` edit · `D` display (screen) · `F` Firestore · `O` other-user view ·
@@ -140,7 +156,7 @@ Android photo picker's cells are `com.google.android.providers.media.module:id/i
 
 | Feature | Fields / actions to cover | C | E | D | F | O | X |
 |---|---|---|---|---|---|---|---|
-| **Event** | title, description, cover, organizers (+user, +org, remove), private-to-org, start/end date+time, location, village, sign-ups on/off + info, capacity, birth-year range, phone, payment, group size, attendees public, questions (each type, required, reorder, remove, options) | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ cancel |
+| **Event** | title, description, cover, organizers (+user, +org, remove), private-to-org, start/end date+time, location, village, sign-ups on/off + info, capacity, birth-year range, phone, payment, group size, attendees public, questions (each type, required, reorder, remove, options) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ cancel |
 | **Registration** | self, dependent, inline new persona, phone, answers, group + open seat + share/cancel, seat claim, waitlist + promotion, unregister, organizer paid/remove | ✅ partial | — | ⬜ | ✅ partial | ⬜ roster as non-organizer | ✅ unregister |
 | **News** | title, category, cover, text + image blocks + captions, attribution | ✅ partial | ✅ category only | ⬜ | ✅ partial | ⬜ | ✅ |
 | **Place** | images, name, description, type, location, contributors | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ✅ soft-hide |
@@ -193,7 +209,7 @@ none today).
 - [x] `subflows/event-create-full.yaml`, `event-edit-all.yaml`, plus `pick-datetime`, `pick-photo`, `replace-text`, `see-text`; `scripts/assertDoc.js`.
 - [x] Deep event flows `60-event-create` + `64-event-edit-and-cancel` replacing 60 — one flow for the whole life ran past Maestro's 15-minute per-flow limit. Sign-up with answers stays in 62 until Stage 2 absorbs it.
 - [x] Green on android-e2e (run 37723123831: 60 in 9m20s, 64 in 11m11s).
-- [ ] Green on ios-e2e.
+- [x] Green on ios-e2e (run 37777784951: 60 in 8m59s, 64 in 9m21s). Landed in #538.
 - [ ] Cover picking on iOS (PHPicker selector); Android-only today.
 - [ ] Jest coverage for event validation (dates, birth-year bounds, capacity) listed as `unit-tested:`.
 
