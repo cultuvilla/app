@@ -154,22 +154,14 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .amb .head{margin:0}
 .landing .amb .lead b{font-weight:600}
 .landing .amb-photo{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:20px}
-.landing .amb-page{background:linear-gradient(180deg,var(--olive),#3f4635);color:var(--surface);margin-bottom:-1px}
-.landing .amb-page .bunting .flag[fill="${palette.olive}"]{fill:var(--surface)}
-.landing .amb-page h1{color:var(--surface)}
-.landing .amb-page h1 em{color:var(--peach)}
-.landing .amb-page .lead,.landing .amb-page .muted,.landing .amb-page .amb-does span{color:var(--band-muted)}
-.landing .amb-page .amb-does{border-top-color:var(--clay)}
-.landing .amb-page .amb-does b{color:var(--surface)}
-.landing .amb-page .amb-form{border-color:transparent;box-shadow:0 24px 48px -24px rgba(0,0,0,.45)}
-.landing .amb-page .amb-form .fine a{color:var(--accent)}
-.landing .amb-top{display:grid;justify-items:center;text-align:center;gap:16px;padding:16px 16px 40px}
-.landing .amb-top h1{font-size:clamp(40px,7vw,72px);margin:0}
-.landing .amb-top h1 em{font-style:normal}
-.landing .amb-top .lead{max-width:34em;margin:0}
-.landing .amb-top .intro{margin:16px 0 8px}
-.landing .amb-top .amb-form{text-align:left;width:100%}
-.landing .amb-form{display:grid;gap:10px;margin-top:8px;max-width:460px;padding:22px;background:var(--card);border:1px solid var(--border);border-radius:20px}
+.landing .amb-page{background:linear-gradient(180deg,#eef0e4,#e3e7d5);margin-bottom:-1px}
+.landing .amb-page .amb-does{border-top-color:var(--accent)}
+.landing .amb-top{padding-bottom:32px}
+.landing .amb-top h1{font-size:clamp(40px,6.4vw,72px);color:var(--primary);margin:14px 0 18px}
+.landing .amb-top h1 em{font-style:normal;color:var(--accent)}
+.landing .amb-form-row{display:grid;justify-items:center;padding:0 16px 56px}
+.landing .amb-form-row .amb-form{width:100%;max-width:560px;margin:0}
+.landing .amb-form{display:grid;gap:10px;padding:26px;background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:0 24px 48px -28px rgba(63,70,53,.35)}
 .landing .amb-form label{display:grid;gap:6px;font-weight:600;font-size:14px;color:var(--primary)}
 .landing .amb-form input:not([type=checkbox]){font:inherit;font-size:16px;font-weight:400;color:var(--text);padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;background:var(--surface);width:100%}
 .landing .amb-form input:focus{outline:2px solid var(--accent);outline-offset:1px}
