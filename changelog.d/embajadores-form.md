@@ -1,0 +1,1 @@
+- **Web:** `/embajadores` is now one short screen: the Embajador film and a form (pueblo picker, name, phone, consent) that stores a lead the team calls back, then a thanks page. The long version's sections are gone, and the landing's teaser button reads «Quiero ser Embajador →». New collection `ambassadorLeads/` (app admins read; no client writes). **Deploy:** firestore.rules.

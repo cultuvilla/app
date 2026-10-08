@@ -31,10 +31,30 @@ export const readSite = onRequest(
       logger.info(READ_SITE_VISIT_MESSAGE, visitFields(url.pathname, userAgent, status));
     };
     try {
+      // Hosting puts the visitor first in X-Forwarded-For; req.ip would be Google's front end.
+      const ip = (req.get('x-forwarded-for') ?? '').split(',')[0]?.trim() || req.ip || 'unknown';
       const out = await handle(
-        { pathname: url.pathname, userAgent },
+        { pathname: url.pathname, userAgent, method: req.method, q: url.searchParams.get('q') ?? '', body: req.body as unknown, ip },
         { db: getFirestore(), bucket: getStorage().bucket().name, now: new Date() },
       );
+      if (out.kind === 'methodNotAllowed') {
+        logVisit(405);
+        res.status(405).set('Allow', out.allow).set('Cache-Control', 'no-store').send('');
+        return;
+      }
+      if (out.kind === 'json') {
+        res
+          .status(200)
+          .set('Content-Type', 'application/json; charset=utf-8')
+          .set('Cache-Control', `public, max-age=${String(out.maxAge)}, s-maxage=${String(out.maxAge)}`)
+          .send(JSON.stringify(out.body));
+        return;
+      }
+      if (out.kind === 'redirect' && out.seeOther) {
+        logVisit(303);
+        res.status(303).set('Location', out.location).set('Cache-Control', 'no-store').send('');
+        return;
+      }
       if (out.kind === 'redirect') {
         logVisit(out.permanent ? 301 : 302);
         res

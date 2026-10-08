@@ -33,7 +33,11 @@ export type WebRoute =
   | { type: 'download' }
   /** The directory of every active pueblo, with one shown in full. */
   | { type: 'villages' }
+  /** The Embajador pitch and its form; POST stores a lead. */
   | { type: 'ambassadors' }
+  | { type: 'ambassadorsThanks' }
+  /** JSON for the form's pueblo picker. */
+  | { type: 'ambassadorSearch' }
   | { type: 'legal'; page: LegalPage }
   | { type: 'village'; villageSlug: string }
   | { type: 'section'; villageSlug: string; section: PublicSection }
@@ -72,7 +76,12 @@ export function matchRoute(pathname: string): WebRoute {
   if (!first) return { type: 'home' };
   if (first === 'descarga') return segments.length === 1 ? { type: 'download' } : NOT_FOUND;
   if (first === 'pueblos') return segments.length === 1 ? { type: 'villages' } : NOT_FOUND;
-  if (first === 'embajadores') return segments.length === 1 ? { type: 'ambassadors' } : NOT_FOUND;
+  if (first === 'embajadores') {
+    if (segments.length === 1) return { type: 'ambassadors' };
+    if (segments.length === 2 && second === 'gracias') return { type: 'ambassadorsThanks' };
+    if (segments.length === 2 && second === 'pueblos') return { type: 'ambassadorSearch' };
+    return NOT_FOUND;
+  }
   if (first === 'legal') {
     return segments.length === 2 && second && includes(LEGAL_PAGES, second)
       ? { type: 'legal', page: second }
