@@ -548,7 +548,7 @@ export function ambassadorsPage(submitted?: { form: AmbassadorForm; errors: Amba
       description: '¿Presumes de pueblo allá donde vas? Hazte su Embajador de Cultuvilla: déjanos tu teléfono y lo ponemos en marcha contigo.',
     },
     body: html`<div class="amb-page">${BUNTING}
-<section class="in top amb-top"><div><h1>¿Presumes de pueblo <em>allá donde vas</em>?</h1><p class="lead">Hazte su Embajador: activa la página de tu pueblo y cuida su cultura para siempre. Déjanos tu teléfono y lo ponemos en marcha contigo.</p></div>${phoneVideo('cultuvilla-embajador-vertical', 'Vídeo: hazte Embajador de Cultuvilla')}</section>
+<section class="in top amb-top"><div><h1 class="amb-q"><span>¿Presumes de</span> <em>pueblo</em> <span>allá donde vas?</span></h1><p class="lead">Hazte su Embajador: activa la página de tu pueblo y cuida su cultura para siempre. Déjanos tu teléfono y lo ponemos en marcha contigo.</p></div>${phoneVideo('cultuvilla-embajador-vertical', 'Vídeo: hazte Embajador de Cultuvilla')}</section>
 <section class="in amb-form-row">${ambassadorForm(submitted?.form ?? null, submitted?.errors ?? {})}</section>
 <section class="blk amb-more"><div class="in"><ul class="amb-does">
 <li><b>Lo pone en marcha</b><span>Activa la página del pueblo, con su escudo.</span></li>

@@ -156,9 +156,9 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .amb-photo{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:20px}
 .landing .amb-page{background:linear-gradient(180deg,#eef0e4,#e3e7d5);margin-bottom:-1px}
 .landing .amb-page .amb-does{border-top-color:var(--accent)}
-.landing .amb-top{padding-bottom:32px}
-.landing .amb-top h1{font-size:clamp(40px,6.4vw,72px);color:var(--primary);margin:14px 0 18px}
-.landing .amb-top h1 em{font-style:normal;color:var(--accent)}
+.landing .amb-top{padding-bottom:72px}
+.landing .amb-top h1.amb-q{display:grid;justify-items:start;margin:14px 0 22px;color:var(--primary);font-size:clamp(34px,4.8vw,56px);line-height:1}
+.landing .amb-q em{font-style:normal;color:var(--accent);font-size:clamp(84px,13vw,164px);line-height:1;letter-spacing:-.02em;margin:0 0 6px}
 .landing .amb-form-row{display:grid;justify-items:center;padding:0 16px 56px}
 .landing .amb-form-row .amb-form{width:100%;max-width:560px;margin:0}
 .landing .amb-form{display:grid;gap:10px;padding:26px;background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:0 24px 48px -28px rgba(63,70,53,.35)}

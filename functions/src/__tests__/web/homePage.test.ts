@@ -173,7 +173,7 @@ describe('homePage', () => {
     const page = ambassadorsPage();
     expect(page.layout).toBe('landing');
     const out = render(page.body);
-    expect(out).toContain('<h1>¿Presumes de pueblo <em>allá donde vas</em>?</h1>');
+    expect(out).toContain('<h1 class="amb-q"><span>¿Presumes de</span> <em>pueblo</em> <span>allá donde vas?</span></h1>');
     // The form follows the film, so a visitor watches before they are asked.
     expect(out.indexOf('cultuvilla-embajador-vertical.mp4')).toBeLessThan(out.indexOf('<form id="amb-form"'));
     expect(out).toContain('src="/brand/landing/cultuvilla-embajador-vertical.mp4"');
