@@ -233,6 +233,16 @@ describe('homePage', () => {
     expect(hidden.value).toBe('m1');
   });
 
+  it('titles the FAQ, the price and the closing band plainly, with no label above them', () => {
+    const out = body({ villages: [], showcase: null, wrapped: null });
+    expect(out).toContain('<h2>Preguntas frecuentes</h2>');
+    expect(out).not.toContain('Lo que nos suelen preguntar');
+    expect(out).not.toContain('<span class="eyebrow">Preguntas frecuentes</span>');
+    expect(out).not.toContain('<span class="eyebrow">Precio</span>');
+    expect(out).not.toContain('<span class="eyebrow">Descarga Cultuvilla</span>');
+    expect(out).toMatch(/<details open><summary>¿Cuánto cuesta\?<span class="pm" aria-hidden="true"><\/span><\/summary>/);
+  });
+
   it('marks each store button with its store icon', () => {
     const out = body({ villages: [], showcase: null, wrapped: null });
     expect(out).toMatch(/<a class="store" href="https:\/\/apps\.apple\.com[^"]*"><svg viewBox="0 0 24 24" aria-hidden="true">/);

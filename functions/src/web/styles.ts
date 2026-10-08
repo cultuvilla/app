@@ -188,10 +188,24 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .price{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:center}
 .landing .price .big{font-family:var(--display);font-size:clamp(72px,14vw,128px);line-height:.9;color:var(--clay)}
 @media (max-width:820px){.landing .price{grid-template-columns:1fr;gap:16px}}
-.landing .faq{display:grid;gap:10px;max-width:46em}
-.landing .faq details{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 20px}
-.landing .faq summary{cursor:pointer;font-weight:600;color:var(--primary)}
-.landing .faq details p{margin-top:10px}
+.landing .faq-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:56px;align-items:start}
+.landing .faq-head{display:grid;gap:14px;position:sticky;top:24px}
+.landing .faq-head h2{font-size:clamp(34px,4.4vw,52px);color:var(--primary)}
+.landing .faq-head p{margin:0}
+.landing .faq{border-top:1.5px solid var(--primary)}
+.landing .faq details{border-bottom:1px solid var(--border)}
+.landing .faq summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 0;font-family:var(--display);font-size:clamp(20px,2.2vw,25px);line-height:1.2;color:var(--primary)}
+.landing .faq summary::-webkit-details-marker{display:none}
+.landing .faq summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
+.landing .faq .pm{position:relative;flex:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);transition:background .2s,border-color .2s,transform .25s}
+.landing .faq .pm::before,.landing .faq .pm::after{content:"";position:absolute;left:50%;top:50%;width:12px;height:1.5px;margin:-.75px 0 0 -6px;background:var(--primary)}
+.landing .faq .pm::after{transform:rotate(90deg)}
+.landing .faq details[open] .pm{background:var(--accent);border-color:var(--accent);transform:rotate(45deg)}
+.landing .faq details[open] .pm::before,.landing .faq details[open] .pm::after{background:var(--on-accent)}
+.landing .faq summary:hover .pm{border-color:var(--accent)}
+.landing .faq details p{margin:-6px 54px 24px 0;color:var(--text);max-width:38em}
+@media (max-width:820px){.landing .faq-wrap{grid-template-columns:1fr;gap:24px}.landing .faq-head{position:static}.landing .faq details p{margin-right:0}}
+@media (prefers-reduced-motion:reduce){.landing .faq .pm{transition:none}}
 .landing .final{text-align:center;display:grid;justify-items:center;gap:18px}
 .landing .final h2{font-size:clamp(36px,6vw,60px)}
 .landing .store{display:inline-flex;align-items:center;gap:12px;padding:10px 20px 10px 16px;border-radius:14px;background:var(--surface);color:var(--primary);text-decoration:none;line-height:1.2}

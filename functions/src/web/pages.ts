@@ -501,11 +501,11 @@ export function homePage({ wrapped }: Landing): Page {
 </div></div></section>
 ${wrapped ? wrappedPhone(wrapped) : null}
 <section class="blk amb"><div class="in split"><div class="head"><h2>¿Presumes de pueblo allá donde vas?</h2><p class="lead">Hazte Embajador de Cultuvilla y cuida la cultura de tu pueblo para siempre.</p><p><a class="cta" href="/embajadores">Quiero ser Embajador →</a></p></div>${photo('conversacion-mayor', 'Un joven charla con un hombre mayor al aire libre', 1200, 800, 'amb-photo')}</div></section>
-<section class="band blk"><div class="in price"><span class="big">0 €</span><div style="display:grid;gap:12px"><span class="eyebrow">Precio</span><h2>Gratis para todo el pueblo</h2><p class="lead">Sin cuotas por socio ni planes. Vecinos, peñas, asociaciones y ayuntamientos usan Cultuvilla sin pagar nada.</p></div></div></section>
-<section class="blk"><div class="in"><div class="head"><span class="eyebrow">Preguntas frecuentes</span><h2>Lo que nos suelen preguntar</h2></div><div class="faq">${FAQ.map(
-      ([q, a], i) => (i === 0 ? html`<details open><summary>${q}</summary><p>${a}</p></details>` : html`<details><summary>${q}</summary><p>${a}</p></details>`),
+<section class="band blk"><div class="in price"><span class="big">0 €</span><div style="display:grid;gap:12px"><h2>Gratis para todo el pueblo</h2><p class="lead">Sin cuotas por socio ni planes. Vecinos, peñas, asociaciones y ayuntamientos usan Cultuvilla sin pagar nada.</p></div></div></section>
+<section class="blk"><div class="in faq-wrap"><div class="faq-head"><h2>Preguntas frecuentes</h2><p class="muted">¿Te queda otra duda? Escríbenos a <a href="mailto:cultuvilla.app@gmail.com">cultuvilla.app@gmail.com</a>.</p></div><div class="faq">${FAQ.map(
+      ([q, a], i) => (i === 0 ? html`<details open><summary>${q}<span class="pm" aria-hidden="true"></span></summary><p>${a}</p></details>` : html`<details><summary>${q}<span class="pm" aria-hidden="true"></span></summary><p>${a}</p></details>`),
     )}</div></div></section>
-<section class="band blk night"><div class="in final"><span class="eyebrow">Descarga Cultuvilla</span><h2>Y tú, a disfrutar de las fiestas.</h2><p class="lead">Cuando todo está en un sitio, quien organiza apaga menos fuegos y los demás viven más la fiesta.</p><div class="stores">${storeButtons()}</div></div></section>`,
+<section class="band blk night"><div class="in final"><h2>Y tú, a disfrutar de las fiestas.</h2><p class="lead">Cuando todo está en un sitio, quien organiza apaga menos fuegos y los demás viven más la fiesta.</p><div class="stores">${storeButtons()}</div></div></section>`,
   };
 }
 
