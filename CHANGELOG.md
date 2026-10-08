@@ -4,6 +4,57 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.8.0 — 2026-10-08
+
+<!-- store-notes -->
+- **Elige el lugar en un mapa**: arrastra el mapa bajo el pin para situar eventos y lugares, busca una dirección o usa tu ubicación.
+- **Las fotos vuelven a subirse**: portadas de eventos, lugares, carteles, grupos y noticias.
+- **Aviso de actualización fiable**, aunque abras la app con poca cobertura.
+- Mejor accesibilidad con VoiceOver y correcciones varias.
+<!-- /store-notes -->
+
+- Android: the app no longer declares the advertising-ID permission that native
+  analytics pulled in; Cultuvilla shows no ads and does not use it.
+- Feat: the location picker for events and places is a real, draggable map
+  (ported from Órdago's picker, in Cultuvilla's colours): drag the map under the
+  fixed pin and the address follows, search an address, or jump to your
+  position. Adds the native `react-native-maps` module, so it reaches users with
+  the next store build, not over the air. **Migration:** none.
+- Al elegir grupos para un evento o noticia, el botón «Confirmar» ya no desaparece cuando la lista de grupos es larga.
+- Fix: on iPhone, VoiceOver can now reach the controls inside sheets and dialogs
+  (choosing who to sign up, confirming "Unirme", the report and group sign-up
+  sheets) and approve or reject an Embajador request in the Buzón — each of
+  these used to be read as a single block that could not be operated.
+  **Migration:** none.
+- Web: the cultuvilla.es landing and /pueblos now carry photographs of village
+  life — fiesta streets, a charanga, a communal paella, stone houses, a night
+  verbena behind the closing call to action. **Migration:** none.
+- Web: the landing opens on "Cuida la cultura de tu pueblo" and Cultuvilla's
+  intro film playing inside a phone; turning the sound on no longer restarts
+  it. Every read-site page signs its header with the CULTUVILLA lettering. A
+  phone you can swipe shows a real pueblo's published fiestas summary (without
+  the cards that name vecinos). **Migration:** none.
+- Event organizers, news authors and other people shown by name next to their
+  photo display their name again instead of a bare "+" placeholder.
+- Web: cultuvilla.es now opens on a landing page that explains Cultuvilla and
+  shows a real pueblo (Matabuena) as the example — its events, carteles,
+  history, peñas and word of the day — plus every active pueblo. **Migration:** none.
+- Fix: on the read site, card images whose `_card` variant was never generated
+  (several peñas) now fall back to the original upload instead of a broken image.
+  **Migration:** none.
+- Web: the cultuvilla.es home shows the app in a phone drawn from a real
+  pueblo's data, and a new **cultuvilla.es/pueblos** page holds that pueblo's
+  events, carteles, history and peñas plus every active pueblo. The site header
+  links to it from every page. **Migration:** none.
+- The "¡Ya eres Embajador!" sheet that popped up on the village home is gone.
+- Las fotos de portada de eventos, lugares, barrios, carteles, grupos y noticias
+  vuelven a subirse: desde la 1.7 fallaban con «No tienes permiso para hacer
+  esta acción». Las fotos de las personas vuelven a verse.
+- Fix: the "actualiza la app" screen now appears even when the app starts on a
+  slow connection, and as soon as an update becomes required, without
+  reopening the app. Before, the check ran once at launch and one failed read
+  hid it for the whole session. **Migration:** none.
+
 ## v1.7.1 — 2026-10-07
 
 <!-- store-notes -->
