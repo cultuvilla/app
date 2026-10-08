@@ -1,1 +1,0 @@
-- **Web:** the landing's Embajadores block opens on the Embajador film's question, "¿Vives las fiestas de tu pueblo como nadie?", and its steps end on the app's own «Quiero ser embajador» button; the App Store and Google Play buttons carry their store icons.
