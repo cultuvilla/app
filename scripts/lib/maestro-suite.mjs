@@ -88,7 +88,7 @@ export function run(label, cmd, args, opts = {}) {
  * Run the flows IN FILENAME ORDER, one `maestro test` per flow, and exit.
  *
  * Maestro's workspace mode does not guarantee the order it discovers flows in,
- * and this suite depends on it: 22 unregisters what 20 registered. A reshuffle
+ * and this suite depends on it: 21 organizes what 20 signed up. A reshuffle
  * would turn a healthy suite red for reasons that have nothing to do with the
  * app. Driving the order here also gives one JUnit report per flow, so a CI
  * failure names the flow instead of the workspace.
@@ -226,10 +226,10 @@ export function planFlows({ label, quarantined, flow, shard = process.env.E2E_SH
 }
 
 /**
- * Resolve a comma-separated selection (`20,22` / `20-register-to-event` /
- * `20-register-to-event.yaml`) against the discovered flow files. Returned in
+ * Resolve a comma-separated selection (`20,21` / `20-registration-signup` /
+ * `20-registration-signup.yaml`) against the discovered flow files. Returned in
  * FILENAME order whatever order it was typed in, since the suite's pairs depend
- * on it (22 unregisters what 20 registered — select both to run 22). A token
+ * on it (21 organizes what 20 signed up — select both to run 21). A token
  * that matches nothing is reported rather than dropped: a typo that quietly ran
  * zero flows would read as a pass.
  */
@@ -255,7 +255,7 @@ export function selectFlows(discovered, selection) {
  * can each run part of the suite against their own emulators and seed.
  *
  * Flows travel in GROUPS that share a tens digit, never alone: within a group
- * order is load-bearing (22 unregisters what 20 registered; 95 must run after
+ * order is load-bearing (21 organizes what 20 signed up; 95 must run after
  * every other 9x flow), while each shard starts from a fresh seed, so a group
  * split across machines would lose its earlier half. Groups go largest-first to
  * the least-loaded shard (lowest index on a tie) — deterministic, so a shard

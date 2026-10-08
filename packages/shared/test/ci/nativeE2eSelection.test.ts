@@ -3,8 +3,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-// Running only some native E2E flows — locally (`E2E_NATIVE_FLOW=20,22`) or on
-// CI (`pnpm e2e:ci:ios -f flows=20,22`) — on both platforms, through the one
+// Running only some native E2E flows — locally (`E2E_NATIVE_FLOW=20,21`) or on
+// CI (`pnpm e2e:ci:ios -f flows=20,21`) — on both platforms, through the one
 // shared resolver in scripts/lib/maestro-suite.mjs.
 
 const repoRoot = resolve(__dirname, '../../../..');
@@ -26,18 +26,18 @@ const { selectFlows, shardFlows } = (await import(
 
 describe('selectFlows', () => {
   it('takes numeric prefixes, names and filenames alike', () => {
-    expect(selectFlows(discovered, '20').flows).toEqual(['20-register-to-event.yaml']);
-    expect(selectFlows(discovered, '20-register-to-event').flows).toEqual(['20-register-to-event.yaml']);
-    expect(selectFlows(discovered, '20-register-to-event.yaml').flows).toEqual([
-      '20-register-to-event.yaml',
+    expect(selectFlows(discovered, '20').flows).toEqual(['20-registration-signup.yaml']);
+    expect(selectFlows(discovered, '20-registration-signup').flows).toEqual(['20-registration-signup.yaml']);
+    expect(selectFlows(discovered, '20-registration-signup.yaml').flows).toEqual([
+      '20-registration-signup.yaml',
     ]);
   });
 
-  // 22 unregisters what 20 registered: typed order must not reorder the run.
+  // 21 organizes what 20 signed up: typed order must not reorder the run.
   it('runs a selection in filename order, whatever order it was typed in', () => {
-    expect(selectFlows(discovered, ' 22 , 20 ').flows).toEqual([
-      '20-register-to-event.yaml',
-      '22-unregister-from-event.yaml',
+    expect(selectFlows(discovered, ' 21 , 20 ').flows).toEqual([
+      '20-registration-signup.yaml',
+      '21-registration-organize.yaml',
     ]);
   });
 
@@ -85,7 +85,7 @@ describe('shardFlows', () => {
   });
 
   // Each shard starts from a fresh seed, so a split group would lose its earlier
-  // half: 22 would find nothing of 20's to unregister.
+  // half: 21 would find nothing of 20's to organize.
   it('never splits a tens-group across shards', () => {
     const four = shards(4);
     for (const shard of four) {

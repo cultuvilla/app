@@ -26,7 +26,7 @@
  *                     emulator (see the selection note below).
  *   E2E_NATIVE_FLOW   Flows to run instead of the whole suite (same as
  *                     --flow): comma-separated numeric prefixes or names, e.g.
- *                     `20,22` or `20-register-to-event`. Runs quarantined
+ *                     `20,21` or `20-registration-signup`. Runs quarantined
  *                     flows too; see selectFlows in scripts/lib/maestro-suite.mjs. Useful for
  *                     iterating on one flow under `pnpm test:e2e:android`,
  *                     which owns the emulator boot and takes no extra args.

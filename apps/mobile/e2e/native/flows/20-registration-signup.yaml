@@ -1,0 +1,420 @@
+# The attendee side of a sign-up, on the seeded event that turns every sign-up
+# option on (fixtures.mjs `signupEvent`: phone, payment, a 1950–2015 birth-year
+# window, a required text + required select + optional number + optional
+# checkbox question, and room for two).
+#
+# One account signs up itself and its dependent, answering every question type,
+# after being stopped once by an unanswered question and once by a bad phone,
+# and confirming through the birth-year warning the dependent (born 2020)
+# raises. It then creates a third, private persona from the sheet, which lands
+# on the waitlist. A villager finally reads the roster: names, the private
+# persona anonymised, and none of the organizer-only answers or controls.
+#
+# Every write is checked on the emulator: the public registration and its
+# organizer-only registrationPrivate half (phone + answers). Flow 21 picks up
+# from here as the organizer.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  USER_EMAIL: e2e-user@cultuvilla.test
+  VILLAGER_EMAIL: e2e-joiner@cultuvilla.test
+  EVENT_ID: e2e-event-inscripcion
+  EVENT_URL: 'cultuvilla://altozano-de-prueba/evento/_e2e-event-inscripcion'
+  SELF: e2e-person-user
+  DEPENDENT: e2e-person-dependent
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: ${EVENT_URL}
+- extendedWaitUntil:
+    visible:
+      id: 'register-fab'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
+
+# ── Tick self and the dependent; each grows its own set of questions ──
+- tapOn:
+    id: 'attendee-row-${SELF}'
+- tapOn:
+    id: 'attendee-row-${DEPENDENT}'
+- assertVisible:
+    id: 'attendee-answer-${SELF}-talla'
+- assertVisible:
+    id: 'attendee-phone'
+
+# Unanswered required questions hold the sign-up back.
+- tapOn:
+    id: 'attendee-confirm'
+- assertVisible: '.*Completa esta pregunta.*'
+- assertVisible:
+    id: 'attendee-confirm'
+
+# Self: tap the chips and the checkbox while no keyboard is up (a tap in the
+# list with one up only closes it), then the number, then the text.
+- scrollUntilVisible:
+    element:
+      id: 'attendee-answer-${SELF}-menu-Carne'
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: 'attendee-answer-${SELF}-menu-Carne'
+- tapOn:
+    id: 'attendee-answer-${SELF}-alergias'
+- tapOn:
+    id: 'attendee-answer-${SELF}-invitados'
+- inputText: '2'
+- tapOn:
+    id: 'attendee-answer-${SELF}-talla'
+- inputText: 'L'
+- runFlow: ../subflows/close-sheet-keyboard.yaml
+
+# Dependent: the required two only, so the optional ones stay unanswered.
+- scrollUntilVisible:
+    element:
+      id: 'attendee-answer-${DEPENDENT}-menu-Pescado'
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: 'attendee-answer-${DEPENDENT}-menu-Pescado'
+- tapOn:
+    id: 'attendee-answer-${DEPENDENT}-talla'
+- inputText: 'S'
+- runFlow: ../subflows/close-sheet-keyboard.yaml
+
+# ── Phone: prefilled from the profile; a bad one is refused ──
+- tapOn:
+    id: 'attendee-phone'
+- eraseText: 30
+- inputText: '12'
+- tapOn:
+    id: 'attendee-confirm'
+- assertVisible: '.*número de teléfono válido.*'
+- tapOn:
+    id: 'attendee-phone'
+- eraseText: 30
+- inputText: '611222333'
+- tapOn:
+    id: 'attendee-confirm'
+
+# The dependent was born after the window: an advisory warning, not a block.
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Sí, apuntar'
+- repeat:
+    times: 12
+    while:
+      notVisible: '.*Apuntad.*'
+    commands:
+      - runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- assertVisible: '.*Apuntados \(2\).*'
+
+# ── Backend: both confirmed, with phone and answers on the private half ──
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: personId
+      VALUE: ${SELF}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.selfReg = output.id}
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: personId
+      VALUE: ${DEPENDENT}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.dependentReg = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.selfReg}'
+      EXPECT_JSON: >-
+        {
+          'status': 'confirmed',
+          'userId': 'e2e-user',
+          'name': 'Usuario E2E',
+          'isOpenSeat': false
+        }
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrationPrivate/${output.selfReg}'
+      EXPECT_JSON: >-
+        {
+          'phone': '+34611222333',
+          'answers.talla': 'L',
+          'answers.menu': 'Carne',
+          'answers.invitados': 2,
+          'answers.alergias': true,
+          'answers': { 'length': 4 }
+        }
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.dependentReg}'
+      EXPECT_JSON: >-
+        {
+          'status': 'confirmed',
+          'userId': 'e2e-user',
+          'name': 'Lucía Dependiente'
+        }
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrationPrivate/${output.dependentReg}'
+      EXPECT_JSON: >-
+        {
+          'phone': '+34611222333',
+          'answers.talla': 'S',
+          'answers.menu': 'Pescado',
+          'answers': { 'length': 2 },
+          'birthday.year': 2020
+        }
+# The roster count the registration trigger maintains on the event.
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}'
+      EXPECT_JSON: "{ 'confirmedCount': 2 }"
+
+# ── A third persona, created from the sheet, private, born inside the window ──
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
+- scrollUntilVisible:
+    element:
+      id: 'attendee-create'
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: 'attendee-create'
+- extendedWaitUntil:
+    visible:
+      id: 'person-given-name'
+    timeout: 20000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-given-name'
+      TEXT: 'Pablo'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-first-surname'
+      TEXT: 'Invitado'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-sex-male'
+- tapOn:
+    id: 'person-sex-male'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-is-public'
+- tapOn:
+    id: 'person-is-public'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'birthday-year'
+- tapOn:
+    id: 'birthday-year'
+- scrollUntilVisible:
+    element:
+      id: 'birthday-year-option-2015'
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: 'birthday-year-option-2015'
+- tapOn:
+    id: 'birthday-month'
+- scrollUntilVisible:
+    element:
+      id: 'birthday-month-option-6'
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: 'birthday-month-option-6'
+- tapOn:
+    id: 'birthday-day'
+- scrollUntilVisible:
+    element:
+      id: 'birthday-day-option-1'
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: 'birthday-day-option-1'
+# Residence, then About (nothing required on either), then save.
+- repeat:
+    times: 3
+    while:
+      visible:
+        id: 'person-form-primary'
+    commands:
+      - runFlow: ../subflows/close-keyboard.yaml
+      - tapOn:
+          id: 'person-form-primary'
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: persons
+      FIELD: givenName
+      VALUE: 'Pablo'
+      FIELD2: createdBy
+      VALUE2: 'e2e-user'
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.newPerson = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/${output.newPerson}'
+      EXPECT_JSON: >-
+        {
+          'firstSurname': 'Invitado',
+          'sex': 'male',
+          'isPublic': false,
+          'userId': 'absent',
+          'birthday.year': 2015,
+          'birthday.month': 6,
+          'birthday.day': 1
+        }
+
+# Back on the event, the new persona arrives ticked; open the sheet if the
+# return closed it, and tick the persona if it did not arrive ticked.
+- extendedWaitUntil:
+    visible:
+      id: 'register-fab'
+    timeout: 30000
+- runFlow:
+    when:
+      notVisible:
+        id: 'attendee-list'
+    commands:
+      - runFlow:
+          file: ../subflows/tap-until.yaml
+          env:
+            TAP: 'register-fab'
+            EXPECT: 'attendee-list'
+- scrollUntilVisible:
+    element:
+      id: 'attendee-row-${output.newPerson}'
+    direction: DOWN
+    timeout: 10000
+- runFlow:
+    when:
+      notVisible:
+        id: 'attendee-answer-${output.newPerson}-talla'
+    commands:
+      - tapOn:
+          id: 'attendee-row-${output.newPerson}'
+- scrollUntilVisible:
+    element:
+      id: 'attendee-answer-${output.newPerson}-menu-Carne'
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: 'attendee-answer-${output.newPerson}-menu-Carne'
+- tapOn:
+    id: 'attendee-answer-${output.newPerson}-talla'
+- inputText: 'M'
+- runFlow: ../subflows/close-sheet-keyboard.yaml
+# The phone is asked again for a new sign-up; the one just used is valid.
+- runFlow:
+    when:
+      visible:
+        id: 'attendee-phone'
+    commands:
+      - tapOn:
+          id: 'attendee-phone'
+      - eraseText: 30
+      - inputText: '611222333'
+- tapOn:
+    id: 'attendee-confirm'
+
+# Two seats, both taken: the third goes on the waitlist, and the FAB splits.
+- repeat:
+    times: 12
+    while:
+      notVisible:
+        id: 'register-fab-waitlist'
+    commands:
+      - runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- assertVisible:
+    id: 'register-fab-waitlist'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: personId
+      VALUE: ${output.newPerson}
+      FIELD2: status
+      VALUE2: waitlisted
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.id}'
+      EXPECT_JSON: "{ 'isPersonPublic': false, 'name': 'Pablo Invitado' }"
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}'
+      EXPECT_JSON: "{ 'confirmedCount': 2 }"
+
+# ── A villager reads the roster ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${VILLAGER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: ${EVENT_URL}
+- extendedWaitUntil:
+    visible:
+      id: 'register-fab'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Usuario E2E'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Lucía Dependiente'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Perfil privado'
+- assertNotVisible: '.*Pablo Invitado.*'
+- assertNotVisible: '.*Talla: .*'
+- assertNotVisible:
+    id: 'attendees-edit-toggle'
+- assertNotVisible:
+    id: 'paid-attendee-${output.selfReg}'
+- assertNotVisible:
+    id: 'call-attendee-${output.selfReg}'

@@ -1,0 +1,27 @@
+# Close the soft keyboard inside a bottom sheet, after a SINGLE-LINE text input.
+#
+# close-keyboard.yaml's iOS gutter tap would land on a sheet's backdrop, which
+# closes the sheet. Inside a sheet, iOS takes Enter instead: a single-line
+# field submits and blurs on it. Never call this after a numeric or phone
+# field — their iOS keypads have no return key; tap the next text field (focus
+# moves) or a button outside the sheet's list instead.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: 'com.google.android.inputmethod.latin:id/keyboard_holder'
+    commands:
+      - pressKey: back
+      - waitForAnimationToEnd:
+          timeout: 2000
+- runFlow:
+    when:
+      platform: iOS
+      visible:
+        id: 'inputView'
+    commands:
+      - pressKey: Enter
+      - waitForAnimationToEnd:
+          timeout: 2000

@@ -33,7 +33,7 @@ runs the flows `shardFlows` (in [scripts/lib/maestro-suite.mjs](../../../../scri
 gives it:
 
 - **Whole tens-groups, never split.** Order inside a group is load-bearing
-  (22 unregisters what 20 registered; 95 runs after the other 9x flows), and a
+  (21 organizes what 20 signed up; 95 runs after the other 9x flows), and a
   shard starts from a fresh seed, so a split group would lose its first half.
   The flip side: **a flow may only depend on the seed and on earlier flows of
   its own group.** State that "lasts the rest of the run" (90 hides the seeded
@@ -42,7 +42,7 @@ gives it:
   shard number always means the same flows for the same suite. The shard's log
   prints its list (`[ios-e2e] shard 2/4: …`).
 - `E2E_SHARD=i/N` reproduces one locally. It composes with a selection: a
-  dispatched `flows=20,22` lands on one shard, and the others exit before
+  dispatched `flows=20,21` lands on one shard, and the others exit before
   booting.
 
 Debugging a red `iOS E2E shard 3/4`: its artifact is
@@ -58,9 +58,8 @@ instead of the whole shard.
 | `00-anonymous-deep-link` | The substrate boots: APK + emulator-connect + seed + deep-link routing, before any interaction. |
 | `10-login-and-profile` | The native fixture-login seam, then auth → `users/{uid}` → `persons/{id}` → rendered. |
 | `11-otp-login` | The real login screen: email → 6-digit code (read from the emulator's `authOtpCodes` doc) → signed in. Every other flow uses the fixture seam. |
-| `20-register-to-event` | Sign-up through the attendee sheet; registration doc **and** the trigger-maintained `confirmedCount`. |
-| `21-register-family-member` | The multi-persona model — signing up a dependent. |
-| `22-unregister-from-event` | A real native `Alert.alert` confirmation. |
+| `20-registration-signup` | Every sign-up option on one seeded event: self + dependent with one answer of each type, the required-answer and bad-phone refusals, the birth-year warning, a private persona created from the sheet and waitlisted; registrations, their private half (phone + answers) and the trigger-maintained `confirmedCount` asserted; a villager's roster view (anonymised, no answers or controls). |
+| `21-registration-organize` | The organizer's roster: every answer, the private name, paid, the call sheet, removing an attendee promotes the waitlisted one (trigger); then the attendee cancels through a native `Alert`. Depends on 20 (same tens group). |
 | `23-seat-claim` | A group booking leaves a seat open; a second user opens its claim link (`…/plaza/<token>`) and takes it. |
 | `30-village-join` | A rules-gated direct client write, and the UI flip that follows it. |
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
@@ -70,18 +69,16 @@ instead of the whole shard.
 | `60-event-create` | An event created with every field: cover, organizers (a villager + two orgs), dates, capacity, age range, phone, payment, groups, private roster, questions; every stored field and the detail screen asserted; a co-organizer may edit, a villager may only read. Also the OS location permission and a real GPS fix (`setLocation`). |
 | `64-event-edit-and-cancel` | The same event with every field edited, down to private to the approval peña; the doc and screen asserted again, the villager now gets "not found"; then cancelled. Depends on 60 (same tens group). |
 | `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
-| `62-event-signup-questions` | The wizard with the form on: a Preguntas step, then an attendee answers it; the answer lands in `registrationPrivate`. |
 | `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
 | `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
 | `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
 | `72-org-join-request` | Joining an `approval` peña: a join request, admitted by the org admin from the Buzón (callable). |
 | `73-org-invite-link` | An org invite link (`…/unirse`) opens the org with the invitation banner; joining an open org is instant. |
-| `80-waitlist-promotion` | A full event waitlists a sign-up; removing a confirmed attendee promotes it (trigger). |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
 | `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |
 
-Filename order is load-bearing: `22` unregisters what `20` registered. Every flow
+Filename order is load-bearing: `21` organizes what `20` signed up. Every flow
 still starts from `clearState: true`, so one failure never cascades into a bogus
 second one. [../../../../packages/shared/test/ci/androidE2e.test.ts](../../../../packages/shared/test/ci/androidE2e.test.ts)
 fails the build if a flow is added without a numeric prefix.
@@ -89,16 +86,16 @@ fails the build if a flow is added without a numeric prefix.
 ## Running only some flows
 
 Both platforms take a comma-separated selection — numeric prefixes, names or
-filenames: `20,22`, `20-register-to-event`, `61-news-lifecycle.yaml`. It runs in
-**filename order** whatever order you typed (a pair like 20 → 22 still works),
+filenames: `20,21`, `20-registration-signup`, `61-news-lifecycle.yaml`. It runs in
+**filename order** whatever order you typed (a pair like 20 → 21 still works),
 runs a quarantined flow if you name it, and fails fast on a name that matches
-nothing rather than passing on zero flows. Mind the pairs: `22` alone has
-nothing to unregister — select `20,22`.
+nothing rather than passing on zero flows. Mind the pairs: `21` alone has
+nothing to organize — select `20,21` (and `60,64`).
 
 | Where | How |
 |---|---|
-| Locally | `E2E_NATIVE_FLOW=20,22 pnpm test:e2e:android` (or `:ios`), or `--flow 20,22` on the runner script |
-| CI, from a terminal | `pnpm e2e:ci:android -f flows=20,22 --ref <branch>` / `pnpm e2e:ci:ios -f flows=20,22 --ref <branch>` |
+| Locally | `E2E_NATIVE_FLOW=20,21 pnpm test:e2e:android` (or `:ios`), or `--flow 20,21` on the runner script |
+| CI, from a terminal | `pnpm e2e:ci:android -f flows=20,21 --ref <branch>` / `pnpm e2e:ci:ios -f flows=20,21 --ref <branch>` |
 | CI, from GitHub | Actions → `android-e2e` / `ios-e2e` → *Run workflow* → fill **flows** |
 
 On CI the build still dominates (~15 min Android, ~35 min iOS), so a targeted
@@ -195,7 +192,7 @@ Some flows only, against whatever build is already installed — see
 [Running only some flows](#running-only-some-flows):
 
 ```bash
-node scripts/run-android-e2e.mjs --flow 20,22
+node scripts/run-android-e2e.mjs --flow 20,21
 ```
 
 ### Under WSL2
@@ -332,5 +329,5 @@ Locally (macOS + Xcode 26.4+ only):
 ```bash
 pnpm app:ios:e2e-app                                  # prints the .app path last
 E2E_IOS_APP=<that path> pnpm test:e2e:ios             # emulators + seed + suite
-node scripts/run-ios-e2e.mjs --flow 20-register-to-event.yaml   # one flow
+node scripts/run-ios-e2e.mjs --flow 20-registration-signup.yaml   # one flow
 ```
