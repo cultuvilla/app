@@ -20,6 +20,8 @@ export interface UseCallableOptions<TArgs extends unknown[], TResult> {
    * function) when the options depend on values that change between renders.
    */
   errorOptions?: ShowCallableErrorOptions | (() => ShowCallableErrorOptions);
+  /** Names the action in the error report (`event:save`). */
+  operation?: string;
   /** Runs after the callable resolves, before `isPending` flips false. */
   onSuccess?: (result: TResult) => void | Promise<void>;
   /**
@@ -67,10 +69,11 @@ export function useCallable<TArgs extends unknown[], TResult>(
         }
         return result;
       } catch (error) {
-        const errorOpts =
-          typeof optionsRef.current.errorOptions === 'function'
-            ? optionsRef.current.errorOptions()
-            : optionsRef.current.errorOptions;
+        const { errorOptions, operation } = optionsRef.current;
+        const errorOpts = {
+          operation,
+          ...(typeof errorOptions === 'function' ? errorOptions() : errorOptions),
+        };
         try {
           showCallableError(error, errorOpts);
         } catch (modalError) {

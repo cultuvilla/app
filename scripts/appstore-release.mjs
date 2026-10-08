@@ -62,7 +62,7 @@ const log = (m) => console.log(m);
 
 const ascAppId = process.env.ASC_APP_ID;
 if (!ascAppId) {
-  console.error('ASC_APP_ID is not set — it is a repo variable; see docs/plans/ongoing/store-release.md.');
+  console.error('ASC_APP_ID is not set — it is a repo variable; see docs/store/release-runbook.md.');
   process.exit(1);
 }
 

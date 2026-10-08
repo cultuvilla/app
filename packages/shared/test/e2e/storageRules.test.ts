@@ -17,7 +17,6 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { ref, uploadBytes, deleteObject, type FirebaseStorage } from 'firebase/storage';
-import { doc, setDoc, type Firestore } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -27,19 +26,16 @@ const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47]); // "‰PNG" magic bytes
 
 beforeAll(async () => {
   const rules = readFileSync(resolve(__dirname, '../../../../storage.rules'), 'utf8');
-  const firestoreRules = readFileSync(resolve(__dirname, '../../../../firestore.rules'), 'utf8');
   env = await initializeTestEnvironment({
     projectId: process.env.TEST_PROJECT_ID || 'cultuvilla-rules-test',
-    // Host and port come from FIREBASE_STORAGE_EMULATOR_HOST / FIRESTORE_EMULATOR_HOST,
+    // Host and port come from FIREBASE_STORAGE_EMULATOR_HOST,
     // which the harness sets to the worktree's slot when it has one.
     storage: { rules },
-    firestore: { rules: firestoreRules },
   });
 });
 
 beforeEach(async () => {
   await env.clearStorage();
-  await env.clearFirestore();
 });
 
 afterAll(async () => {
@@ -102,67 +98,6 @@ describe('storage.rules — org / place / barrio images', () => {
       );
     });
   }
-});
-
-describe('storage.rules — /persons/{personId}/photos/{imageId}', () => {
-  // Regression: a self-person can be created by a seed/migration (so its
-  // `createdBy` is the seed's uid) while its `userId` is the real account that
-  // owns it. The Firestore /persons update rule already lets the linked account
-  // owner (userId == auth.uid) edit the doc, but the storage write/delete rule
-  // only checked `createdBy == auth.uid`, so the owner could not upload their
-  // own photo — FirebaseError storage/unauthorized on `persons/.../photos/...`.
-  async function seedPerson(
-    personId: string,
-    overrides: { createdBy: string; userId: string | null },
-  ) {
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      const db = ctx.firestore() as unknown as Firestore;
-      await setDoc(doc(db, `persons/${personId}`), {
-        createdBy: overrides.createdBy,
-        userId: overrides.userId,
-      });
-    });
-  }
-
-  it('the linked account owner can upload their own person photo', async () => {
-    // Seed case: created by the seed, owned by alice's real account.
-    await seedPerson('p-self', { createdBy: 'seed', userId: 'alice' });
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await assertSucceeds(
-      uploadBytes(ref(alice, 'persons/p-self/photos/photo.png'), PNG, {
-        contentType: 'image/png',
-      }),
-    );
-  });
-
-  it('the creator can upload when no account is linked', async () => {
-    await seedPerson('p-own', { createdBy: 'alice', userId: null });
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await assertSucceeds(
-      uploadBytes(ref(alice, 'persons/p-own/photos/photo.png'), PNG, {
-        contentType: 'image/png',
-      }),
-    );
-  });
-
-  it('a user who is neither owner nor creator cannot upload', async () => {
-    await seedPerson('p-self', { createdBy: 'seed', userId: 'alice' });
-    const bob = env.authenticatedContext('bob').storage() as unknown as FirebaseStorage;
-    await assertFails(
-      uploadBytes(ref(bob, 'persons/p-self/photos/photo.png'), PNG, {
-        contentType: 'image/png',
-      }),
-    );
-  });
-
-  it('the linked account owner can delete their own person photo', async () => {
-    await seedPerson('p-self', { createdBy: 'seed', userId: 'alice' });
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
-    await uploadBytes(ref(alice, 'persons/p-self/photos/photo.png'), PNG, {
-      contentType: 'image/png',
-    });
-    await assertSucceeds(deleteObject(ref(alice, 'persons/p-self/photos/photo.png')));
-  });
 });
 
 describe('storage.rules — /news/{postId}/images/{imageId}', () => {

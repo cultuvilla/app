@@ -12,7 +12,7 @@ import {
   wordPath,
   type UrlEntityKind,
 } from '@cultuvilla/shared/utils';
-import { WRAPPED_CARDS, wrappedId } from '@cultuvilla/shared/models';
+import { WRAPPED_CARDS, wrappedId, type WrappedCard } from '@cultuvilla/shared/models';
 import { arr, bool, date, num, obj, str, strArr, type Raw } from './read';
 import type { RichTextInput } from './richText';
 
@@ -498,6 +498,8 @@ export interface WrappedView {
   year: number;
   /** The rendered cards in display order, cover first. */
   images: string[];
+  /** The same cards, named, so a page can pick which to show. */
+  cards: { card: WrappedCard; url: string }[];
   eventCount: number | null;
   personCount: number | null;
 }
@@ -509,12 +511,14 @@ export async function loadWrapped(db: Firestore, municipalityId: string, year: n
   if (!snap.exists || snap.get('status') !== 'published') return null;
   const images = obj(snap.get('images')) ?? {};
   const stats = obj(snap.get('stats')) ?? {};
+  const cards = WRAPPED_CARDS.flatMap((card) => {
+    const url = str(images[card]);
+    return url ? [{ card, url }] : [];
+  });
   return {
     year,
-    images: WRAPPED_CARDS.flatMap((card) => {
-      const url = str(images[card]);
-      return url ? [url] : [];
-    }),
+    images: cards.map((c) => c.url),
+    cards,
     eventCount: num(stats['eventCount']),
     personCount: num(stats['uniquePersonCount']),
   };

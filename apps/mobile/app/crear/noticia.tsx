@@ -285,6 +285,7 @@ export default function NewNewsScreen() {
   }
 
   const { fire: submit, isPending } = useCallable({
+    operation: editMode ? 'news:update' : 'news:create',
     callable: async () => {
       if (!municipalityId || !user || !category) return;
 

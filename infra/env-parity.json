@@ -1,0 +1,252 @@
+{
+  "$comment": "The declared configuration of dev, beta and prod. Every env must equal `expected` plus its own exceptions; each exception says why. Checked by scripts/check-env-parity.mjs on every deploy and nightly on prod. To change a project, change it here in the same PR \u2014 and prefer fixing the env over adding an exception.",
+  "expected": {
+    "firestore": {
+      "locationId": "europe-southwest1",
+      "type": "FIRESTORE_NATIVE",
+      "databaseEdition": "STANDARD",
+      "concurrencyMode": "PESSIMISTIC",
+      "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_ENABLED",
+      "deleteProtectionState": "DELETE_PROTECTION_DISABLED"
+    },
+    "bucket": {
+      "location": "US-EAST1",
+      "locationType": "region",
+      "storageClass": "REGIONAL",
+      "uniformBucketLevelAccess": true,
+      "cors": []
+    },
+    "auth": {
+      "email": true,
+      "emailPasswordRequired": false,
+      "phone": false,
+      "anonymous": false,
+      "allowDuplicateEmails": false,
+      "mfa": "DISABLED",
+      "blockingFunctions": []
+    },
+    "apis": [
+      "analyticshub.googleapis.com",
+      "androidpublisher.googleapis.com",
+      "apikeys.googleapis.com",
+      "appengine.googleapis.com",
+      "artifactregistry.googleapis.com",
+      "bigquery.googleapis.com",
+      "bigqueryconnection.googleapis.com",
+      "bigquerydatapolicy.googleapis.com",
+      "bigquerydatatransfer.googleapis.com",
+      "bigquerymigration.googleapis.com",
+      "bigqueryreservation.googleapis.com",
+      "bigquerystorage.googleapis.com",
+      "cloudaicompanion.googleapis.com",
+      "cloudapis.googleapis.com",
+      "cloudbilling.googleapis.com",
+      "cloudbuild.googleapis.com",
+      "clouderrorreporting.googleapis.com",
+      "cloudfunctions.googleapis.com",
+      "cloudresourcemanager.googleapis.com",
+      "cloudscheduler.googleapis.com",
+      "cloudtrace.googleapis.com",
+      "containerregistry.googleapis.com",
+      "dataform.googleapis.com",
+      "dataplex.googleapis.com",
+      "datastore.googleapis.com",
+      "deploymentmanager.googleapis.com",
+      "eventarc.googleapis.com",
+      "fcm.googleapis.com",
+      "fcmregistrations.googleapis.com",
+      "firebase.googleapis.com",
+      "firebaseappdistribution.googleapis.com",
+      "firebaseextensions.googleapis.com",
+      "firebasehosting.googleapis.com",
+      "firebaseinstallations.googleapis.com",
+      "firebaseremoteconfig.googleapis.com",
+      "firebaseremoteconfigrealtime.googleapis.com",
+      "firebaserules.googleapis.com",
+      "firebasestorage.googleapis.com",
+      "firestore.googleapis.com",
+      "geocoding-backend.googleapis.com",
+      "iam.googleapis.com",
+      "iamcredentials.googleapis.com",
+      "identitytoolkit.googleapis.com",
+      "logging.googleapis.com",
+      "maps-android-backend.googleapis.com",
+      "monitoring.googleapis.com",
+      "pubsub.googleapis.com",
+      "run.googleapis.com",
+      "runtimeconfig.googleapis.com",
+      "secretmanager.googleapis.com",
+      "securetoken.googleapis.com",
+      "servicemanagement.googleapis.com",
+      "serviceusage.googleapis.com",
+      "source.googleapis.com",
+      "sql-component.googleapis.com",
+      "static-maps-backend.googleapis.com",
+      "storage-api.googleapis.com",
+      "storage-component.googleapis.com",
+      "storage.googleapis.com",
+      "sts.googleapis.com",
+      "telemetry.googleapis.com",
+      "testing.googleapis.com"
+    ],
+    "iam": [
+      "serviceAccount:<number>-compute@developer.gserviceaccount.com roles/editor",
+      "serviceAccount:<number>-compute@developer.gserviceaccount.com roles/eventarc.eventReceiver",
+      "serviceAccount:<number>-compute@developer.gserviceaccount.com roles/run.invoker",
+      "serviceAccount:<number>@cloudbuild.gserviceaccount.com roles/cloudbuild.builds.builder",
+      "serviceAccount:<number>@cloudservices.gserviceaccount.com roles/editor",
+      "serviceAccount:<project>@appspot.gserviceaccount.com roles/editor",
+      "serviceAccount:firebase-adminsdk-fbsvc@<project>.iam.gserviceaccount.com roles/firebase.sdkAdminServiceAgent",
+      "serviceAccount:firebase-adminsdk-fbsvc@<project>.iam.gserviceaccount.com roles/firebaseauth.admin",
+      "serviceAccount:firebase-adminsdk-fbsvc@<project>.iam.gserviceaccount.com roles/iam.serviceAccountTokenCreator",
+      "serviceAccount:firebase-adminsdk-fbsvc@<project>.iam.gserviceaccount.com roles/storage.admin",
+      "serviceAccount:firebase-measurement@system.gserviceaccount.com roles/bigquery.user",
+      "serviceAccount:firebase-measurement@system.gserviceaccount.com roles/logging.logWriter",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/artifactregistry.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/cloudbuild.builds.editor",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/cloudfunctions.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/cloudscheduler.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/datastore.owner",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/eventarc.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/firebase.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/firebasehosting.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/firebaserules.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/iam.securityReviewer",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/iam.serviceAccountUser",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/iam.serviceAccountViewer",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/pubsub.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/run.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/secretmanager.admin",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/serviceusage.serviceUsageConsumer",
+      "serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com roles/serviceusage.serviceUsageViewer",
+      "serviceAccount:service-<number>@containerregistry.iam.gserviceaccount.com roles/containerregistry.ServiceAgent",
+      "serviceAccount:service-<number>@firebase-rules.iam.gserviceaccount.com roles/firebaserules.firestoreServiceAgent",
+      "serviceAccount:service-<number>@firebase-rules.iam.gserviceaccount.com roles/firebaserules.system",
+      "serviceAccount:service-<number>@gcf-admin-robot.iam.gserviceaccount.com roles/cloudfunctions.serviceAgent",
+      "serviceAccount:service-<number>@gcf-admin-robot.iam.gserviceaccount.com roles/cloudfunctions.standardServiceAgent",
+      "serviceAccount:service-<number>@gcp-sa-artifactregistry.iam.gserviceaccount.com roles/artifactregistry.serviceAgent",
+      "serviceAccount:service-<number>@gcp-sa-cloudbuild.iam.gserviceaccount.com roles/cloudbuild.serviceAgent",
+      "serviceAccount:service-<number>@gcp-sa-cloudscheduler.iam.gserviceaccount.com roles/cloudscheduler.serviceAgent",
+      "serviceAccount:service-<number>@gcp-sa-eventarc.iam.gserviceaccount.com roles/eventarc.serviceAgent",
+      "serviceAccount:service-<number>@gcp-sa-firebase.iam.gserviceaccount.com roles/firebase.managementServiceAgent",
+      "serviceAccount:service-<number>@gcp-sa-firebasemods.iam.gserviceaccount.com roles/firebasemods.serviceAgent",
+      "serviceAccount:service-<number>@gcp-sa-firebasestorage.iam.gserviceaccount.com roles/firebasestorage.serviceAgent",
+      "serviceAccount:service-<number>@gcp-sa-firestore.iam.gserviceaccount.com roles/firestore.serviceAgent",
+      "serviceAccount:service-<number>@gcp-sa-pubsub.iam.gserviceaccount.com roles/iam.serviceAccountTokenCreator",
+      "serviceAccount:service-<number>@gcp-sa-pubsub.iam.gserviceaccount.com roles/pubsub.serviceAgent",
+      "serviceAccount:service-<number>@gs-project-accounts.iam.gserviceaccount.com roles/pubsub.publisher",
+      "serviceAccount:service-<number>@serverless-robot-prod.iam.gserviceaccount.com roles/run.serviceAgent"
+    ],
+    "secrets": [
+      "APNS_AUTH_KEY",
+      "GOOGLE_MAPS_API_KEY",
+      "OBSERVABILITY_USER_ID_SALT",
+      "RESEND_API_KEY"
+    ],
+    "authProviders": [
+      "apple.com",
+      "google.com"
+    ],
+    "authDomains": [
+      "<project>.firebaseapp.com",
+      "<project>.web.app",
+      "cultuvilla.es",
+      "localhost"
+    ]
+  },
+  "exceptions": {
+    "dev": [
+      {
+        "dimension": "apis",
+        "remove": [
+          "androidpublisher.googleapis.com"
+        ],
+        "reason": "The Play Developer API is called only by the release tooling's service account, which lives in the prod project (scripts/lib/play.mjs); dev and beta never call it."
+      },
+      {
+        "dimension": "iam",
+        "add": [
+          "serviceAccount:business-publisher@<project>.iam.gserviceaccount.com roles/datastore.user",
+          "serviceAccount:business-publisher@<project>.iam.gserviceaccount.com roles/firebase.viewer",
+          "serviceAccount:business-publisher@<project>.iam.gserviceaccount.com roles/firebasehosting.admin",
+          "serviceAccount:business-publisher@<project>.iam.gserviceaccount.com roles/serviceusage.serviceUsageConsumer"
+        ],
+        "reason": "The business repo's deploy publishes _admin/businessSnapshot and the founders' panel to the dev project only (AGENTS.md, business split)."
+      },
+      {
+        "dimension": "iam",
+        "remove": [
+          "serviceAccount:firebase-measurement@system.gserviceaccount.com roles/bigquery.user",
+          "serviceAccount:firebase-measurement@system.gserviceaccount.com roles/logging.logWriter"
+        ],
+        "reason": "GA4 \u2192 BigQuery export (Firebase measurement writing to BigQuery) runs on prod only; dev and beta analytics are not exported."
+      },
+      {
+        "dimension": "secrets",
+        "add": [
+          "RESEND_ADMIN_API_KEY"
+        ],
+        "reason": "Referenced by neither this repo nor the business repo; kept only until its owner confirms it can be deleted (deleting a secret is irreversible)."
+      },
+      {
+        "dimension": "authDomains",
+        "add": [
+          "cultuvilla-panel.web.app"
+        ],
+        "reason": "The founders' panel is a second hosting site that exists on dev only (hostingTargets.test.ts)."
+      },
+      {
+        "dimension": "authDomains",
+        "remove": [
+          "cultuvilla.es"
+        ],
+        "reason": "cultuvilla.es is prod's custom domain; dev and beta are served from their own web.app hosts."
+      },
+      {
+        "dimension": "firestore",
+        "set": {
+          "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_DISABLED"
+        },
+        "reason": "Point-in-time recovery is a paid backup feature kept for production data only."
+      }
+    ],
+    "beta": [
+      {
+        "dimension": "apis",
+        "remove": [
+          "androidpublisher.googleapis.com"
+        ],
+        "reason": "The Play Developer API is called only by the release tooling's service account, which lives in the prod project (scripts/lib/play.mjs); dev and beta never call it."
+      },
+      {
+        "dimension": "iam",
+        "remove": [
+          "serviceAccount:<project>@appspot.gserviceaccount.com roles/editor"
+        ],
+        "reason": "Legacy project-wide editor grant to the App Engine default account, which nothing runs as. Beta never had it; removing it from prod and dev is tracked in docs/plans/ideas/drop-appspot-editor.md."
+      },
+      {
+        "dimension": "iam",
+        "remove": [
+          "serviceAccount:firebase-measurement@system.gserviceaccount.com roles/bigquery.user",
+          "serviceAccount:firebase-measurement@system.gserviceaccount.com roles/logging.logWriter"
+        ],
+        "reason": "GA4 \u2192 BigQuery export (Firebase measurement writing to BigQuery) runs on prod only; dev and beta analytics are not exported."
+      },
+      {
+        "dimension": "authDomains",
+        "remove": [
+          "cultuvilla.es"
+        ],
+        "reason": "cultuvilla.es is prod's custom domain; dev and beta are served from their own web.app hosts."
+      },
+      {
+        "dimension": "firestore",
+        "set": {
+          "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_DISABLED"
+        },
+        "reason": "Point-in-time recovery is a paid backup feature kept for production data only."
+      }
+    ]
+  }
+}

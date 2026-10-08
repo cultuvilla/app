@@ -1,7 +1,8 @@
-import { render } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { LiveAvatar } from '../LiveAvatar';
 import { useFirestoreDoc } from '@cultuvilla/shared/hooks';
-import { userDoc, personDoc, organizationDoc } from '@cultuvilla/shared/firebase/refs/client';
+import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
+import { publicProfileDoc, personDoc, organizationDoc } from '@cultuvilla/shared/firebase/refs/client';
 
 jest.mock('@cultuvilla/shared/firebase', () => ({
   getDb: jest.fn(() => ({})),
@@ -10,7 +11,7 @@ jest.mock('@cultuvilla/shared/hooks', () => ({
   useFirestoreDoc: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/firebase/refs/client', () => ({
-  userDoc: jest.fn((_db, id) => ({ __ref: 'user', id })),
+  publicProfileDoc: jest.fn((_db, id) => ({ __ref: 'publicProfile', id })),
   personDoc: jest.fn((_db, id) => ({ __ref: 'person', id })),
   organizationDoc: jest.fn((_db, id) => ({ __ref: 'organization', id })),
 }));
@@ -34,17 +35,19 @@ beforeEach(() => {
 });
 
 describe('<LiveAvatar>', () => {
-  it("subscribes to the user doc and renders the owner's photoURL", () => {
+  it("renders a user owner's photo from their linked persona", async () => {
     mockUseFirestoreDoc.mockReturnValue({
-      data: { photoURL: 'https://img/alice.jpg' },
+      data: { displayName: 'Alice', activeMunicipalityId: null },
       loading: false,
       error: null,
     });
+    (getPersonByUserId as jest.Mock).mockResolvedValueOnce({ photoURL: 'https://img/alice.jpg' });
 
-    const { getByTestId } = render(<LiveAvatar ownerId="alice" ownerType="user" />);
+    const { findByTestId } = render(<LiveAvatar ownerId="alice" ownerType="user" />);
 
-    expect(userDoc).toHaveBeenCalledWith(expect.anything(), 'alice');
-    expect(getByTestId('avatar-image').props.source).toEqual([{ uri: 'https://img/alice.jpg' }]);
+    expect(publicProfileDoc).toHaveBeenCalledWith(expect.anything(), 'alice');
+    const image = await findByTestId('avatar-image');
+    await waitFor(() => expect(image.props.source).toEqual([{ uri: 'https://img/alice.jpg' }]));
   });
 
   it('reads images[0] for organization owners', () => {
@@ -77,7 +80,7 @@ describe('<LiveAvatar>', () => {
 
   it('does not build a ref when ownerId is missing', () => {
     render(<LiveAvatar ownerId={null} ownerType="user" initials="?" />);
-    expect(userDoc).not.toHaveBeenCalled();
+    expect(publicProfileDoc).not.toHaveBeenCalled();
     // ref stays null → hook is called with null (disabled)
     expect(mockUseFirestoreDoc).toHaveBeenCalledWith(null);
   });
