@@ -39,6 +39,10 @@ appId: com.cultuvilla.app.dev
       TARGET: 'remove-user-e2e-user'
 - tapOn:
     id: 'remove-user-e2e-user'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'remove-org-e2e-org-ayto'
 - tapOn:
     id: 'remove-org-e2e-org-ayto'
 - assertNotVisible:
