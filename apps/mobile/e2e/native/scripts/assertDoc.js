@@ -9,7 +9,7 @@
 //
 // env:
 //   DOC_PATH    required — path under /documents, e.g. "events/abc"
-//   EXPECT_JSON required — { "<path>": <matcher>, … }. A path is dotted; a
+//   EXPECT_JSON required — { '<path>': <matcher>, … }, single-quoted (see below). A path is dotted; a
 //               numeric segment indexes an array ("signupFields.0.label").
 //               Matchers:
 //                 "x" | 3 | true      the scalar, compared as a string
@@ -100,7 +100,10 @@ function check(v, want) {
   return got1 === String(want) ? null : 'got ' + JSON.stringify(got1);
 }
 
-var expectations = JSON.parse(EXPECT_JSON);
+// Written with single quotes: an env value holding a double quote breaks
+// Maestro's injection of it into this script ("Missing close quote"). So the
+// spec is JSON with ' for ", and no value may contain an apostrophe.
+var expectations = JSON.parse(EXPECT_JSON.replace(/'/g, '"'));
 var timeoutMs = Number(typeof TIMEOUT_MS !== 'undefined' && TIMEOUT_MS ? TIMEOUT_MS : 20000);
 var deadline = Date.now() + timeoutMs;
 var problems = [];

@@ -58,35 +58,35 @@ env:
       DOC_PATH: 'events/${output.eventId}'
       EXPECT_JSON: >-
         {
-          "title": "${output.title}",
-          "description": "${output.description}",
-          "status": "published",
-          "municipalityId": "${VILLAGE_ID}",
-          "villageSlug": "${VILLAGE_SLUG}",
-          "createdBy": "e2e-admin",
-          "organizerUserIds": ["e2e-admin", "e2e-user"],
-          "organizerOrgIds": ["e2e-org-ayto", "e2e-org-pena-cerrada"],
-          "visibility": "public",
-          "visibilityOrgId": "absent",
-          "startDate": { "prefix": "${output.startDay}" },
-          "endDate": { "prefix": "${output.startDay}" },
-          "location.displayName": "present",
-          "location.coordinates": "present",
-          "signupEnabled": true,
-          "maxAttendees": 25,
-          "minBirthYear": 1950,
-          "maxBirthYear": 2015,
-          "telephoneRequired": true,
-          "requiresPayment": true,
-          "signupGroupSize": 3,
-          "attendeesVisibility": "organizers",
-          "signupFields": { "length": 2 },
-          "signupFields.0.label": "Talla",
-          "signupFields.0.type": "text",
-          "signupFields.0.required": true,
-          "signupFields.1.label": "Menu",
-          "signupFields.1.type": "select",
-          "signupFields.1.options": ["Carne", "Pescado"]
+          'title': '${output.title}',
+          'description': '${output.description}',
+          'status': 'published',
+          'municipalityId': '${VILLAGE_ID}',
+          'villageSlug': '${VILLAGE_SLUG}',
+          'createdBy': 'e2e-admin',
+          'organizerUserIds': ['e2e-admin', 'e2e-user'],
+          'organizerOrgIds': ['e2e-org-ayto', 'e2e-org-pena-cerrada'],
+          'visibility': 'public',
+          'visibilityOrgId': 'absent',
+          'startDate': { 'prefix': '${output.startDay}' },
+          'endDate': { 'prefix': '${output.startDay}' },
+          'location.displayName': 'present',
+          'location.coordinates': 'present',
+          'signupEnabled': true,
+          'maxAttendees': 25,
+          'minBirthYear': 1950,
+          'maxBirthYear': 2015,
+          'telephoneRequired': true,
+          'requiresPayment': true,
+          'signupGroupSize': 3,
+          'attendeesVisibility': 'organizers',
+          'signupFields': { 'length': 2 },
+          'signupFields.0.label': 'Talla',
+          'signupFields.0.type': 'text',
+          'signupFields.0.required': true,
+          'signupFields.1.label': 'Menu',
+          'signupFields.1.type': 'select',
+          'signupFields.1.options': ['Carne', 'Pescado']
         }
 - runFlow:
     when:
@@ -96,7 +96,7 @@ env:
           file: ../scripts/assertDoc.js
           env:
             DOC_PATH: 'events/${output.eventId}'
-            EXPECT_JSON: '{ "imageURL": { "prefix": "http" } }'
+            EXPECT_JSON: "{ 'imageURL': { 'prefix': 'http' } }"
       - runScript:
           file: ../scripts/docField.js
           env:
@@ -186,29 +186,29 @@ env:
       TIMEOUT_MS: '60000'
       EXPECT_JSON: >-
         {
-          "title": "${output.editTitle}",
-          "description": "${output.editDescription}",
-          "status": "published",
-          "organizerUserIds": ["e2e-admin"],
-          "organizerOrgIds": ["e2e-org-pena-cerrada"],
-          "visibility": "organization",
-          "visibilityOrgId": "e2e-org-pena-cerrada",
-          "startDate": { "prefix": "${output.editDay}" },
-          "endDate": { "prefix": "${output.editEndDay}" },
-          "location.displayName": "present",
-          "signupEnabled": true,
-          "maxAttendees": 30,
-          "minBirthYear": "absent",
-          "maxBirthYear": "absent",
-          "telephoneRequired": false,
-          "requiresPayment": false,
-          "signupGroupSize": 1,
-          "attendeesVisibility": "members",
-          "signupFields": { "length": 2 },
-          "signupFields.0.label": "Talla de camiseta",
-          "signupFields.0.type": "text",
-          "signupFields.1.label": "Alergias",
-          "signupFields.1.type": "checkbox"
+          'title': '${output.editTitle}',
+          'description': '${output.editDescription}',
+          'status': 'published',
+          'organizerUserIds': ['e2e-admin'],
+          'organizerOrgIds': ['e2e-org-pena-cerrada'],
+          'visibility': 'organization',
+          'visibilityOrgId': 'e2e-org-pena-cerrada',
+          'startDate': { 'prefix': '${output.editDay}' },
+          'endDate': { 'prefix': '${output.editEndDay}' },
+          'location.displayName': 'present',
+          'signupEnabled': true,
+          'maxAttendees': 30,
+          'minBirthYear': 'absent',
+          'maxBirthYear': 'absent',
+          'telephoneRequired': false,
+          'requiresPayment': false,
+          'signupGroupSize': 1,
+          'attendeesVisibility': 'members',
+          'signupFields': { 'length': 2 },
+          'signupFields.0.label': 'Talla de camiseta',
+          'signupFields.0.type': 'text',
+          'signupFields.1.label': 'Alergias',
+          'signupFields.1.type': 'checkbox'
         }
 - runFlow:
     when:
@@ -218,7 +218,7 @@ env:
           file: ../scripts/assertDoc.js
           env:
             DOC_PATH: 'events/${output.eventId}'
-            EXPECT_JSON: '{ "imageURL": { "not": "${output.firstImage}" } }'
+            EXPECT_JSON: "{ 'imageURL': { 'not': '${output.firstImage}' } }"
 
 # ── What the organizer sees now ──
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
@@ -277,4 +277,4 @@ env:
     file: ../scripts/assertDoc.js
     env:
       DOC_PATH: 'events/${output.eventId}'
-      EXPECT_JSON: '{ "status": "cancelled", "title": "${output.editTitle}" }'
+      EXPECT_JSON: "{ 'status': 'cancelled', 'title': '${output.editTitle}' }"
