@@ -9,6 +9,7 @@ import {
   cancelRegistration,
 } from '@cultuvilla/shared/services/registrationService';
 import { getPersonsByCreator } from '@cultuvilla/shared/services/personService';
+import { patchUserProfile } from '@cultuvilla/shared/services/userService';
 import { observability } from '@cultuvilla/shared';
 
 const mockOfferPush = jest.fn();
@@ -62,6 +63,7 @@ jest.mock('../../../lib/deeplink/useShareDeepLink', () => ({
   useShareDeepLink: () => mockShareDeepLink,
 }));
 const mockShareDeepLink = jest.fn().mockResolvedValue(undefined);
+jest.mock('@cultuvilla/shared/services/userService', () => ({ patchUserProfile: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
   getPersonsByCreator: jest.fn(),
 }));
@@ -167,6 +169,43 @@ describe('RegisterFab', () => {
     expect(observability.trackEvent).toHaveBeenCalledWith('event.signup.success', { villageId: undefined });
     // A booked seat is the moment the push soft ask earns its place.
     await waitFor(() => expect(mockOfferPush).toHaveBeenCalledWith('event_signup'));
+  });
+
+  it('saves a newly typed sign-up phone to the profile', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([]);
+    mockRegisterToEvent.mockResolvedValue(wrapRegs([{ id: 'rA', status: 'confirmed', position: 1, isMember: true }]));
+    (patchUserProfile as jest.Mock).mockResolvedValue(undefined);
+    const onPhoneSaved = jest.fn();
+    const { getByTestId, getByText } = render(
+      <RegisterFab {...baseProps} telephoneRequired savedPhone={null} onPhoneSaved={onPhoneSaved} />,
+    );
+    await waitFor(() => expect(getByText('event.register.cta')).toBeTruthy());
+
+    fireEvent.press(getByTestId('register-fab'));
+    fireEvent.press(getByTestId('attendee-row-p1'));
+    fireEvent.changeText(getByTestId('attendee-phone'), '600111222');
+    fireEvent.press(getByTestId('attendee-confirm'));
+
+    await waitFor(() => expect(patchUserProfile).toHaveBeenCalledWith('u1', { telephone: '+34600111222' }));
+    await waitFor(() => expect(onPhoneSaved).toHaveBeenCalled());
+  });
+
+  it('does not rewrite the profile when the prefilled phone is kept', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([]);
+    mockRegisterToEvent.mockResolvedValue(wrapRegs([{ id: 'rA', status: 'confirmed', position: 1, isMember: true }]));
+    const { getByTestId, getByText } = render(
+      <RegisterFab {...baseProps} telephoneRequired savedPhone="+34600111222" />,
+    );
+    await waitFor(() => expect(getByText('event.register.cta')).toBeTruthy());
+
+    fireEvent.press(getByTestId('register-fab'));
+    fireEvent.press(getByTestId('attendee-row-p1'));
+    fireEvent.press(getByTestId('attendee-confirm'));
+
+    await waitFor(() =>
+      expect(mockRegisterToEvent).toHaveBeenCalledWith('e1', [{ personId: 'p1', name: 'Ana', phone: '+34600111222' }]),
+    );
+    expect(patchUserProfile).not.toHaveBeenCalled();
   });
 
   it('shows a dependent full name with the apodo in parentheses, not the apodo alone', async () => {

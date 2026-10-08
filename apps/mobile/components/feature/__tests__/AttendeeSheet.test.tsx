@@ -84,6 +84,23 @@ describe('AttendeeSheet', () => {
     expect(onConfirm).toHaveBeenCalledWith(['self'], '+34600111222', {});
   });
 
+  it('prefills the phone from the saved profile number', () => {
+    const onConfirm = jest.fn();
+    const { getByTestId } = render(
+      <AttendeeSheet
+        {...baseProps}
+        telephoneRequired
+        savedPhone="+34600111222"
+        onConfirm={onConfirm}
+        attendees={[{ id: 'self', name: 'Ana' }]}
+      />,
+    );
+    fireEvent.press(getByTestId('attendee-row-self'));
+    expect(getByTestId('attendee-phone').props.value).toBe('600111222');
+    fireEvent.press(getByTestId('attendee-confirm'));
+    expect(onConfirm).toHaveBeenCalledWith(['self'], '+34600111222', {});
+  });
+
   it('shows the invalid-phone error only after Confirmar is pressed, not while typing', () => {
     const { getByTestId, queryByText, getByText } = render(
       <AttendeeSheet
