@@ -86,9 +86,12 @@ export const LANDING_STYLES = `
 .landing .top.single .lead{max-width:40em}
 @media (max-width:820px){.landing .top{grid-template-columns:1fr}}
 .landing .intro{position:relative;margin:0;justify-self:center;display:grid;justify-items:center;gap:14px}
-.landing .intro-phone{display:block;width:min(290px,78vw);aspect-ratio:9/18.6;padding:10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5);transform:rotate(2deg)}
+.landing .intro-phone{display:block;width:min(290px,78vw);aspect-ratio:9/18.6;padding:10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5);position:relative}
 .landing .intro-phone video{display:block;width:100%;height:100%;object-fit:cover;border-radius:32px;background:var(--surface)}
-.landing .sound{border:0;border-radius:999px;padding:8px 14px;font:600 13px/1 system-ui,sans-serif;background:var(--primary);color:var(--surface);cursor:pointer}
+.landing .sound{position:absolute;right:22px;bottom:22px;width:40px;height:40px;padding:9px;border:0;border-radius:50%;background:rgba(29,33,23,.72);color:#fff;cursor:pointer}
+.landing .sound svg{display:block;width:100%;height:100%}
+.landing .sound .wave,.landing .sound.on .off{display:none}
+.landing .sound.on .wave{display:inline}
 .landing .pillars ul{color:var(--surface)}
 .landing .band .pillar b{color:var(--surface)}
 .landing .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px;align-items:center}
