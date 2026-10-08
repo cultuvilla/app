@@ -245,15 +245,16 @@ env:
     timeout: 30000
 - tapOn:
     id: 'birthday-year-option-2015'
+# Month options are indexed from 0: option 5 is June, stored as month 6.
 - tapOn:
     id: 'birthday-month'
 - scrollUntilVisible:
     element:
-      id: 'birthday-month-option-6'
+      id: 'birthday-month-option-5'
     direction: DOWN
     timeout: 30000
 - tapOn:
-    id: 'birthday-month-option-6'
+    id: 'birthday-month-option-5'
 - tapOn:
     id: 'birthday-day'
 - scrollUntilVisible:
