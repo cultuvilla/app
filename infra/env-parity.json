@@ -95,7 +95,6 @@
       "serviceAccount:<number>-compute@developer.gserviceaccount.com roles/run.invoker",
       "serviceAccount:<number>@cloudbuild.gserviceaccount.com roles/cloudbuild.builds.builder",
       "serviceAccount:<number>@cloudservices.gserviceaccount.com roles/editor",
-      "serviceAccount:<project>@appspot.gserviceaccount.com roles/editor",
       "serviceAccount:firebase-adminsdk-fbsvc@<project>.iam.gserviceaccount.com roles/firebase.sdkAdminServiceAgent",
       "serviceAccount:firebase-adminsdk-fbsvc@<project>.iam.gserviceaccount.com roles/firebaseauth.admin",
       "serviceAccount:firebase-adminsdk-fbsvc@<project>.iam.gserviceaccount.com roles/iam.serviceAccountTokenCreator",
@@ -182,13 +181,6 @@
         "reason": "GA4 \u2192 BigQuery export (Firebase measurement writing to BigQuery) runs on prod only; dev and beta analytics are not exported."
       },
       {
-        "dimension": "secrets",
-        "add": [
-          "RESEND_ADMIN_API_KEY"
-        ],
-        "reason": "Referenced by neither this repo nor the business repo; kept only until its owner confirms it can be deleted (deleting a secret is irreversible)."
-      },
-      {
         "dimension": "authDomains",
         "add": [
           "cultuvilla-panel.web.app"
@@ -217,13 +209,6 @@
           "androidpublisher.googleapis.com"
         ],
         "reason": "The Play Developer API is called only by the release tooling's service account, which lives in the prod project (scripts/lib/play.mjs); dev and beta never call it."
-      },
-      {
-        "dimension": "iam",
-        "remove": [
-          "serviceAccount:<project>@appspot.gserviceaccount.com roles/editor"
-        ],
-        "reason": "Legacy project-wide editor grant to the App Engine default account, which nothing runs as. Beta never had it; removing it from prod and dev is tracked in docs/plans/ideas/drop-appspot-editor.md."
       },
       {
         "dimension": "iam",

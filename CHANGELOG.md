@@ -4,6 +4,26 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.8.1 — 2026-10-08
+
+<!-- store-notes -->
+- **Elige el lugar en un mapa**: arrastra el mapa bajo el pin para situar eventos y lugares, busca una dirección o usa tu ubicación.
+- **Las fotos vuelven a subirse**: portadas de eventos, lugares, carteles, grupos y noticias.
+- **Aviso de actualización fiable**, aunque abras la app con poca cobertura.
+- Mejor accesibilidad con VoiceOver y correcciones varias.
+<!-- /store-notes -->
+
+- Infra: prod's deploy gate now matches prod after the App Engine default
+  account's legacy editor grant was removed. **Migration:** none.
+
+- **Web:** the landing's Embajadores block opens on the Embajador film's question, "¿Vives las fiestas de tu pueblo como nadie?", and its steps end on the app's own «Quiero ser embajador» button; the App Store and Google Play buttons carry their store icons.
+- **Web:** the landing headline reads in green with only "pueblo" in orange, the intro phone sits lower, clear of the bunting, and the scrolling fiesta names drop their ✦ separators.
+- **Web:** the landing's body text is set in Figtree (self-hosted, SIL OFL) instead of each device's system font.
+- **Web:** the Embajador card and the "Tres pasos" section merge into one orange "¿Tu pueblo aún no está? Tráelo tú." block with a photo and the three steps.
+- **Web:** the fiestas summary phone sits nearer the centre and cycles through its cards by itself in an endless loop (still swipeable, paused while touched or for reduced motion), with no arrows and no "Ver el resumen" button; its copy is now "Cada año, listo para compartir entre los vecinos."
+- Web: the landing's intro film plays in an upright phone, with a speaker icon
+  on its screen to turn the sound on and off. **Migration:** none.
+
 ## v1.8.0 — 2026-10-08
 
 <!-- store-notes -->

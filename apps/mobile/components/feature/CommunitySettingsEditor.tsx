@@ -119,6 +119,7 @@ export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
           label={hasEscudo ? t('village.escudo.change') : t('village.escudo.add')}
           resizeMode={village && hasManualEscudo(village) ? 'cover' : 'contain'}
           loading={uploadingEscudo}
+          testID="community-escudo"
         />
 
         {/* Render only once loaded, so the picker seeds its state (and preview)
@@ -138,6 +139,7 @@ export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
               void saveLocation(coords, z, locationLabel);
             }}
             showUseMyLocation={false}
+            testID="community-location"
           />
         ) : null}
 
@@ -147,6 +149,7 @@ export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
           onChangeText={setDescription}
           onBlur={() => void saveDescription()}
           multiline
+          testID="community-description"
           placeholder={t('village.admin.community.description')}
         />
 

@@ -261,6 +261,30 @@ title referenced in YAML must stay in sync with
 `scripts/data/seed-fixtures/e2e/fixtures.mjs` by hand — Maestro YAML cannot
 import JS.
 
+## Coverage ratchet
+
+Every `testID` in the app is either touched by a flow or listed in
+[uncovered.json](uncovered.json) with a reason, and that list may only shrink.
+[e2eCoverage.test.ts](../../../../packages/shared/test/ci/e2eCoverage.test.ts) runs
+in `pnpm test` and fails when:
+
+- a new control ships with a `testID` no flow touches and the list doesn't name;
+- a listed id is now covered or gone (the list must shrink with it);
+- a flow taps an id that exists nowhere in the app;
+- an input-like control on a form surface (`app/crear/**`, `**/editar.tsx`, the
+  proposable forms, `PersonForm`, …) has no `testID` at all.
+
+After a flow covers more, regenerate the list with
+`node scripts/lib/e2e-coverage.mjs --write`. Reasons are `todo: …` (debt),
+`unit-tested: <test>` (validation detail jest owns) or `device-only: <why>`
+(an OS share sheet, Google/Apple sign-in). A component that renders several
+controls takes one `testID` and derives the rest (`<id>-option-<x>`,
+`<id>-remove-<i>`); the ratchet tracks the caller's literal.
+
+The aim is one deep flow per feature — create with every field, assert each in
+Firestore *and* on screen, edit every field, view as another user, delete. See
+[the plan](../../../../docs/plans/ongoing/e2e-full-feature-coverage.md).
+
 ## iOS
 
 The same flows, run by [scripts/run-ios-e2e.mjs](../../../../scripts/run-ios-e2e.mjs)

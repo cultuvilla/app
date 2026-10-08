@@ -112,6 +112,9 @@ export function OrganizationsManager({
         onChangeName={setName}
         nameLabel={t('organization.name')}
         nameTestID="org-name-input"
+        imagesTestID="org-images"
+        descriptionTestID="org-description"
+        typeTestIDPrefix="org-type"
         description={description}
         onChangeDescription={setDescription}
         descriptionLabel={t('organization.description')}

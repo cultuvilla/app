@@ -324,6 +324,7 @@ export function PersonForm({
               label={t('onboarding.completeProfile.birthPlace')}
               value={birthPlace}
               onChange={setBirthPlace}
+              testID="person-birth-place"
             />
             {renderResidence?.()}
           </>,
@@ -345,6 +346,7 @@ export function PersonForm({
                 if (next) setPhoto(next);
               }}
               label={t('common.photo')}
+              testID="person-photo"
             />
             <Input
               label={t(
@@ -354,6 +356,7 @@ export function PersonForm({
               )}
               value={biography}
               onChangeText={setBiography}
+              testID="person-biography"
               multiline
               numberOfLines={4}
             />

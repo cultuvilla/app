@@ -2,7 +2,7 @@ import { APP_STORES } from '@cultuvilla/shared/config';
 import { palette } from '@cultuvilla/shared/design-system';
 import { LEGAL_DOCS } from '@cultuvilla/shared/legal';
 import type { WrappedCard } from '@cultuvilla/shared/models';
-import { villagePath, villageSectionPath, wrappedPath } from '@cultuvilla/shared/utils';
+import { villagePath, villageSectionPath } from '@cultuvilla/shared/utils';
 import {
   cardImage,
   eventWhen,
@@ -413,15 +413,30 @@ function showcaseBlock({ village: v, home }: NonNullable<Landing['showcase']>): 
 const LANDING_WRAPPED_CARDS: readonly WrappedCard[] = ['cover', 'stats', 'events', 'news', 'posters'];
 
 /** A phone whose screen is the pueblo's fiestas summary, swiped card by card. */
+/**
+ * Advances every Wrapped phone one card every few seconds. The last slide is a
+ * copy of the first, so on reaching it the track jumps back to the start
+ * unseen and the loop never rewinds. Fixed code: it reads nothing from the page.
+ */
+export const WRAPPED_AUTOPLAY = `document.querySelectorAll('.wr-track').forEach(function(t){
+if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+var held=false,n=t.children.length-1;
+['pointerdown','touchstart','mouseenter','focusin'].forEach(function(e){t.addEventListener(e,function(){held=true;},{passive:true});});
+['pointerup','touchend','mouseleave','focusout'].forEach(function(e){t.addEventListener(e,function(){held=false;},{passive:true});});
+setInterval(function(){
+if(held||document.hidden)return;
+var w=t.clientWidth,i=Math.round(t.scrollLeft/w)+1;
+t.scrollTo({left:i*w,behavior:'smooth'});
+if(i>=n)setTimeout(function(){t.scrollTo({left:0,behavior:'instant'});},700);
+},3500);
+});`;
+
 function wrappedPhone({ village: v, view }: NonNullable<Landing['wrapped']>): Child {
   const cards = view.cards.filter((c) => LANDING_WRAPPED_CARDS.includes(c.card));
   if (cards.length === 0) return null;
-  const href = wrappedPath(v.slug, view.year);
-  const step = (dir: 1 | -1) =>
-    `var t=this.closest('.wr').querySelector('.wr-track');t.scrollBy({left:${String(dir)}*t.clientWidth,behavior:'smooth'})`;
-  return html`<section class="blk" style="padding-top:0"><div class="in wr-split"><div><span class="eyebrow">Fiestas ${String(view.year)} · ${v.name}</span><h2>El resumen de vuestras fiestas</h2><p class="lead">Cuando acaban las fiestas, Cultuvilla prepara el resumen del pueblo: los eventos, las cifras, lo que se contó y los carteles de todos los años. Listo para compartir.</p><p><a class="cta" href="${href}">Ver el resumen de ${v.name} →</a></p></div><div class="wr"><div class="wr-phone"><div class="wr-track" tabindex="0" aria-label="${`Resumen de las fiestas ${String(view.year)} de ${v.name}`}">${cards.map(
+  return html`<section class="blk" style="padding-top:0"><div class="in wr-split"><div><span class="eyebrow">Fiestas ${String(view.year)} · ${v.name}</span><h2>El resumen de vuestras fiestas</h2><p class="lead">Cada año, listo para compartir entre los vecinos.</p></div><div class="wr"><div class="wr-phone"><div class="wr-track" tabindex="0" aria-label="${`Resumen de las fiestas ${String(view.year)} de ${v.name}`}">${cards.map(
     (c, i) => html`<img src="${c.url}" alt="${`Tarjeta ${String(i + 1)} de ${String(cards.length)} del resumen de fiestas`}" width="1080" height="1920" loading="lazy" decoding="async"/>`,
-  )}</div></div><div class="wr-nav"><button type="button" aria-label="Anterior" onclick="${step(-1)}">‹</button><span>Desliza para ver más</span><button type="button" aria-label="Siguiente" onclick="${step(1)}">›</button></div></div></div></section>`;
+  )}<img src="${cards[0].url}" alt="" aria-hidden="true" width="1080" height="1920" loading="lazy" decoding="async"/></div></div></div></div></section><script>${raw(WRAPPED_AUTOPLAY)}</script>`;
 }
 
 /** A landing photograph from /brand/landing — Unsplash, credited in CREDITS.md there. */
@@ -433,11 +448,17 @@ function photo(name: string, alt: string, width: number, height: number, cls = '
  * The app's intro film (cultuvilla/motion, piece `intro`), muted so it may
  * autoplay. The sound toggle is fixed code: it reads nothing from the page.
  */
-const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/cultuvilla-intro-vertical.mp4" poster="/brand/landing/cultuvilla-intro-vertical.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video></span><button type="button" class="sound" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.play();}this.textContent=v.muted?'Activar sonido':'Silenciar'">Activar sonido</button></figure>`;
+const INTRO_VIDEO = html`<figure class="intro"><span class="intro-phone"><video src="/brand/landing/cultuvilla-intro-vertical.mp4" poster="/brand/landing/cultuvilla-intro-vertical.webp" width="540" height="960" autoplay muted loop playsinline preload="metadata" aria-label="Vídeo: cómo funciona Cultuvilla"></video><button type="button" class="sound" aria-label="Activar sonido" onclick="var v=this.parentNode.querySelector('video');v.muted=!v.muted;if(!v.muted){v.play();}this.classList.toggle('on',!v.muted);this.setAttribute('aria-label',v.muted?'Activar sonido':'Silenciar')">${raw(
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="off" d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>',
+)}</button></span></figure>`;
+
+const storeIcon = (path: string): SafeHtml => raw(`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}" fill="currentColor"/></svg>`);
+const APPLE_ICON = storeIcon('M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701');
+const PLAY_ICON = storeIcon('M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z');
 
 function storeButtons(): SafeHtml {
-  return html`${APP_STORES.ios ? html`<a class="store" href="${APP_STORES.ios}"><small>Descárgala en el</small><b>App Store</b></a>` : null}${
-    APP_STORES.android ? html`<a class="store" href="${APP_STORES.android}"><small>Disponible en</small><b>Google Play</b></a>` : null
+  return html`${APP_STORES.ios ? html`<a class="store" href="${APP_STORES.ios}">${APPLE_ICON}<span><small>Descárgala en el</small><b>App Store</b></span></a>` : null}${
+    APP_STORES.android ? html`<a class="store" href="${APP_STORES.android}">${PLAY_ICON}<span><small>Disponible en</small><b>Google Play</b></span></a>` : null
   }`;
 }
 
@@ -449,8 +470,7 @@ const FAQ: [string, string][] = [
   ['¿Hace falta la app para ver un evento?', 'No. Cualquier evento, noticia o pueblo se abre en el navegador desde un enlace. Para apuntarte o publicar sí necesitas la app.'],
 ];
 
-export function homePage({ showcase, wrapped }: Landing): Page {
-  const example = showcase?.home.events[0]?.href ?? (showcase ? villagePath(showcase.village.slug) : null);
+export function homePage({ wrapped }: Landing): Page {
   return {
     layout: 'landing',
     head: {
@@ -459,8 +479,8 @@ export function homePage({ showcase, wrapped }: Landing): Page {
       jsonLd: { '@type': 'WebSite', name: 'Cultuvilla', url: 'https://cultuvilla.es/' },
     },
     body: html`${BUNTING}
-<section class="in top"><div><h1>Cuida <em>la cultura de tu pueblo.</em></h1><p class="lead">La construyen sus propios vecinos y queda guardada para siempre.</p></div>${INTRO_VIDEO}</section>
-<div class="strip" aria-hidden="true"><div class="strip-track">${[...FIESTAS, ...FIESTAS].map((f) => html`<span>${f} ✦</span>`)}</div></div>
+<section class="in top"><div><h1>Cuida la cultura de tu <em>pueblo</em>.</h1><p class="lead">La construyen sus propios vecinos y queda guardada para siempre.</p></div>${INTRO_VIDEO}</section>
+<div class="strip" aria-hidden="true"><div class="strip-track">${[...FIESTAS, ...FIESTAS].map((f) => html`<span>${f}</span>`)}</div></div>
 <section class="blk"><div class="in split"><ul class="mosaic">${(
       [
         ['fiesta-calle', 'Sus fiestas.', 'Calle de un pueblo adornada con farolillos de papel para las fiestas'],
@@ -479,16 +499,13 @@ export function homePage({ showcase, wrapped }: Landing): Page {
 <article class="card">${photo('charanga', 'Una charanga toca en las fiestas', 800, 500, 'cover')}<span class="tag">Peñas y asociaciones</span><h3>Tu peña, sin depender del grupo de WhatsApp</h3><p class="muted">Publica eventos y noticias, gestiona quién forma parte de la peña y organiza actos solo para tus socios.</p></article>
 <article class="card">${photo('calle-flores', 'Calle encalada con macetas de flores', 800, 500, 'cover')}<span class="tag">Ayuntamientos</span><h3>Un canal oficial que llega a todos</h3><p class="muted">Bandos, programas de fiestas y avisos que llegan al móvil de cada vecino, también al de quien está fuera.</p></article>
 <article class="card">${photo('casa-piedra', 'Casa de piedra entre árboles', 800, 500, 'cover')}<span class="tag">Visitantes</span><h3>Conoce el pueblo antes de ir</h3><p class="muted">Cada pueblo tiene su propia página. Compártela por WhatsApp y se abre en cualquier móvil, aunque no tengan la app.</p></article>
-<article class="card amb"><div style="display:grid;gap:10px"><span class="tag">Embajadores de Cultuvilla</span><h3>¿Tu pueblo aún no está? Tráelo tú.</h3><p class="muted">Cualquier vecino puede pedir ser el Embajador o la Embajadora de su pueblo. Lo activas, invitas a tu gente y entre todos desarrolláis su perfil: escudo, fiestas, lugares, historia y vocabulario.</p></div>${
-      example ? html`<div class="url"><a href="${example}">cultuvilla.es${example}</a></div>` : null
-    }</article>
 </div></div></section>
 ${wrapped ? wrappedPhone(wrapped) : null}
-<section class="blk" style="padding-top:0"><div class="in"><div class="head"><span class="eyebrow">Cómo llega tu pueblo</span><h2>Tres pasos para poner tu pueblo en el mapa</h2></div><div class="steps">
-<div class="step"><h3>Pide ser Embajador</h3><p>Desde la app, busca tu municipio entre todos los de España y solicita activarlo.</p></div>
-<div class="step"><h3>Lo revisamos</h3><p>Comprobamos la solicitud y activamos la página de tu pueblo con su escudo.</p></div>
-<div class="step"><h3>Desarrolla su perfil</h3><p>Sube sus fiestas, carteles, lugares, historia y vocabulario, e invita a vecinos, peñas y ayuntamiento a completarlo.</p></div>
-</div></div></section>
+<section class="blk amb"><div class="in"><div class="split"><div class="head"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿Vives las fiestas de tu pueblo como nadie?</h2><p class="hook">¿Presumes de pueblo allá donde vas?</p><p class="lead">Entonces sabes lo que se pierde cada año: las palabras de los abuelos, los lugares que solo conocen los de siempre, los carteles de hace cincuenta años. Alguien tiene que cuidarlo.</p><p class="lead"><b>Seas de la comisión, del ayuntamiento o simplemente lo quieras como nadie: hazte Embajador de Cultuvilla.</b></p></div>${photo('pueblo-atardecer', 'Un pueblo blanco al atardecer entre colinas', 1600, 615, 'amb-photo')}</div><ol class="steps">
+<li class="step"><h3>Busca tu pueblo</h3><p>En la app están todos los municipios de España.</p></li>
+<li class="step"><h3>Pulsa «Quiero ser embajador»</h3><p>Revisamos la solicitud y activamos la página de tu pueblo, con su escudo.</p></li>
+<li class="step"><h3>Cuídalo</h3><p>Sube sus fiestas, carteles, historia y palabras, e invita a vecinos, peñas y ayuntamiento a sumarse.</p></li>
+</ol></div></section>
 <section class="band blk"><div class="in price"><span class="big">0 €</span><div style="display:grid;gap:12px"><span class="eyebrow">Precio</span><h2>Gratis para todo el pueblo</h2><p class="lead">Sin cuotas por socio ni planes. Vecinos, peñas, asociaciones y ayuntamientos usan Cultuvilla sin pagar nada.</p></div></div></section>
 <section class="blk"><div class="in"><div class="head"><span class="eyebrow">Preguntas frecuentes</span><h2>Lo que nos suelen preguntar</h2></div><div class="faq">${FAQ.map(
       ([q, a], i) => (i === 0 ? html`<details open><summary>${q}</summary><p>${a}</p></details>` : html`<details><summary>${q}</summary><p>${a}</p></details>`),

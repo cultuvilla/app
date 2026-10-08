@@ -155,6 +155,9 @@ export default function OrgEditScreen() {
           onChangeName={setName}
           nameLabel={t('organization.name')}
           nameTestID="org-edit-name-input"
+          imagesTestID="org-edit-images"
+          descriptionTestID="org-edit-description"
+          typeTestIDPrefix="org-edit-type"
           description={description}
           onChangeDescription={setDescription}
           descriptionLabel={t('organization.description')}

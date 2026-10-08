@@ -168,6 +168,7 @@ function FestivalPosterEditScreen() {
                 adding={addingImage}
                 addLabel={t('village.festivalPosters.form.addImage')}
                 removeLabel={t('village.festivalPosters.form.removeImage')}
+                testID="poster-edit-images"
               />
             </VStack>
             <Input
@@ -188,6 +189,7 @@ function FestivalPosterEditScreen() {
               label={t('village.festivalPosters.form.startDate')}
               value={startsAt}
               onChange={setStartsAt}
+              testID="poster-edit-start-date"
             />
             {uid ? (
               <OrganizerPicker
@@ -205,6 +207,7 @@ function FestivalPosterEditScreen() {
               label={t('village.festivalPosters.form.endDate')}
               value={endsAt}
               onChange={setEndsAt}
+              testID="poster-edit-end-date"
             />
             <Button
               testID="poster-edit-submit"

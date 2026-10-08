@@ -15,6 +15,7 @@ export interface EventCoverPickerProps {
   onPress: () => void;
   /** Accessibility label (e.g. "Añadir imagen"). */
   label: string;
+  testID?: string;
 }
 
 /**
@@ -23,7 +24,7 @@ export interface EventCoverPickerProps {
  * (nothing cropped or highlighted). When empty it shows a small dashed "add"
  * card matching the other image inputs.
  */
-export function EventCoverPicker({ uri, onPress, label }: EventCoverPickerProps) {
+export function EventCoverPicker({ uri, onPress, label, testID }: EventCoverPickerProps) {
   // Natural ratio comes from the rendered image's onLoad (not Image.getSize,
   // which is imperative and fragile under the test mock); default 1 until known.
   const [ratio, setRatio] = useState(1);
@@ -39,6 +40,7 @@ export function EventCoverPicker({ uri, onPress, label }: EventCoverPickerProps)
       <Pressable
         onPress={onPress}
         accessibilityLabel={label}
+        testID={testID}
         className="rounded-2xl overflow-hidden border border-dashed border-subtle items-center justify-center"
         style={{ width: EMPTY_SIZE, height: EMPTY_SIZE }}
       >
@@ -51,6 +53,7 @@ export function EventCoverPicker({ uri, onPress, label }: EventCoverPickerProps)
     <Pressable
       onPress={onPress}
       accessibilityLabel={label}
+      testID={testID}
       className="rounded-2xl overflow-hidden border border-subtle"
       style={{ width: '100%', aspectRatio: ratio }}
     >

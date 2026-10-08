@@ -45,7 +45,6 @@ export function useOrganizerPhone(profileTelephone?: string | null) {
     country,
     onCountryChange: setCountry,
     error: submitAttempted && !isValid ? t('event.register.phoneInvalid') : undefined,
-    testID: 'organizer-phone',
   };
 
   return {

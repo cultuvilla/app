@@ -31,6 +31,8 @@ export interface BarrioPickerProps {
    * surface must always show the control.
    */
   hideWhenEmpty?: boolean;
+  /** Names the trigger; the modal's rows derive from it. */
+  testID?: string;
 }
 
 export function BarrioPicker({
@@ -40,6 +42,7 @@ export function BarrioPicker({
   onChange,
   wholeVillageLabel,
   hideWhenEmpty = true,
+  testID,
 }: BarrioPickerProps) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<Option[]>([]);
@@ -91,6 +94,7 @@ export function BarrioPicker({
         accessibilityRole="button"
         disabled={disabled}
         style={[styles.trigger, disabled && styles.triggerDisabled]}
+        testID={testID}
       >
         <Text tone={disabled ? 'muted' : undefined}>{triggerText}</Text>
         <Ionicons name="chevron-down" size={16} color="#64748b" />
@@ -112,6 +116,7 @@ export function BarrioPicker({
                     setOpen(false);
                   }}
                   style={styles.row}
+                  testID={testID ? `${testID}-option-whole` : undefined}
                 >
                   <View style={styles.thumbPlaceholder}>
                     <Ionicons name="albums-outline" size={18} color="#94a3b8" />
@@ -126,6 +131,7 @@ export function BarrioPicker({
                     setOpen(false);
                   }}
                   style={styles.row}
+                  testID={testID ? `${testID}-option-${item.id}` : undefined}
                 >
                   {item.image ? (
                     <RemoteImage
