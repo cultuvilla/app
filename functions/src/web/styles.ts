@@ -146,9 +146,11 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .step{display:grid;gap:8px;align-content:start}
 .landing .step::before{counter-increment:s;content:counter(s);font-family:var(--display);font-size:52px;line-height:1;color:var(--accent)}
 @media (max-width:820px){.landing .steps{grid-template-columns:1fr}}
-.landing .amb{background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.landing .amb{background:var(--accent);color:var(--on-accent)}
+.landing .amb .eyebrow{color:var(--on-accent);opacity:.8}
+.landing .amb .lead{color:var(--on-accent);opacity:.92}
+.landing .amb .cta{margin-top:6px;background:var(--surface);color:var(--accent)}
 .landing .amb .head{margin:0}
-.landing .amb .cta{margin-top:6px}
 .landing .losing{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .landing .losing li{position:relative;border-radius:18px;overflow:hidden;aspect-ratio:4/5}
 .landing .losing img{width:100%;height:100%;object-fit:cover}

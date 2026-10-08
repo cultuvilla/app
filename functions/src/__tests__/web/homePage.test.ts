@@ -78,7 +78,7 @@ describe('homePage', () => {
     for (const c of ['people', 'organizers']) expect(out).not.toContain(`https://img/${c}.png`);
     expect(out).toContain('<section class="blk amb">');
     // The home only hooks the Embajador pitch with the film's question and hands over to /embajadores.
-    expect(out).toContain('<h2>¿Vives las fiestas de tu pueblo como nadie?</h2>');
+    expect(out).toContain('<h2>¿Presumes de pueblo allá donde vas?</h2>');
     expect(out).toContain('<a class="cta" href="/embajadores">');
     expect(out).not.toContain('class="steps"');
     expect(out).not.toContain('Para quién');
