@@ -112,6 +112,12 @@ describe('configDifferences — an infra change declared on develop does not blo
     expect(deploy).toContain('git show FETCH_HEAD:infra/env-parity.json');
     expect(deploy).toMatch(/check-env-parity\.mjs --env=\$\{\{ inputs\.firebase_alias \}\} --scope=config \$also/);
   });
+
+  it("is wired into the nightly run with develop's baseline", () => {
+    expect(nightly).toContain('git show FETCH_HEAD:infra/env-parity.json');
+    expect(nightly).toContain('--also-baseline=$RUNNER_TEMP/develop-env-parity.json');
+    expect(nightly).toMatch(/check-env-parity\.mjs --env="\$\{PARITY_ENV\}" --scope=all \$also/);
+  });
 });
 
 describe('validateBaseline', () => {
