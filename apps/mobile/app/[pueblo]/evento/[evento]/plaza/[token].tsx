@@ -65,15 +65,15 @@ export default function ClaimSeatScreen() {
   const [phoneCountry, setPhoneCountry] = useState<PhoneCountry>(DEFAULT_PHONE_COUNTRY);
   const [attempted, setAttempted] = useState(false);
 
-  // Seed once from the saved number; a later profile refresh must not
-  // overwrite what the user is typing.
-  const phoneSeeded = useRef(false);
+  // Seed from the saved number only while the field is untouched: the profile
+  // can arrive after the form is already editable, and it must never
+  // overwrite what the user has started typing.
+  const phoneTouched = useRef(false);
   useEffect(() => {
-    if (phoneSeeded.current || !profile?.telephone) return;
+    if (phoneTouched.current || !profile?.telephone) return;
     const seed = initialPhone(profile.telephone);
     setPhone(seed.national);
     setPhoneCountry(seed.country);
-    phoneSeeded.current = true;
   }, [profile?.telephone]);
 
   const load = useCallback(async () => {
@@ -208,9 +208,15 @@ export default function ClaimSeatScreen() {
                   <PhoneField
                     label={t('event.register.phoneTitle')}
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={(text) => {
+                      phoneTouched.current = true;
+                      setPhone(text);
+                    }}
                     country={phoneCountry}
-                    onCountryChange={setPhoneCountry}
+                    onCountryChange={(country) => {
+                      phoneTouched.current = true;
+                      setPhoneCountry(country);
+                    }}
                     placeholder={t('event.register.phonePlaceholder')}
                     searchPlaceholder={t('event.register.phoneSearch')}
                     noResultsLabel={t('event.register.phoneNoResults')}

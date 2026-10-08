@@ -336,6 +336,39 @@ describe('RegisterFab — group sign-up', () => {
     expect(getByTestId('group-confirm').props.accessibilityState.disabled).toBe(false);
   });
 
+  it('prefills the group phone and saves a changed one after the group is booked', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([dep]);
+    mockRegisterToEvent.mockResolvedValue(wrapRegs([
+      { id: 'rA', status: 'confirmed', position: 1, isMember: true },
+      { id: 'rB', status: 'confirmed', position: 2, isMember: false },
+    ]));
+    (patchUserProfile as jest.Mock).mockResolvedValue(undefined);
+    const onPhoneSaved = jest.fn();
+    const { getByTestId } = render(
+      <RegisterFab {...groupProps} telephoneRequired savedPhone="+34600111222" onPhoneSaved={onPhoneSaved} />,
+    );
+    await waitFor(() => expect(getByTestId('register-fab')).toBeTruthy());
+    fireEvent.press(getByTestId('register-fab'));
+    fireEvent.press(getByTestId('group-row-p2'));
+
+    expect(getByTestId('group-phone').props.value).toBe('600111222');
+    fireEvent.changeText(getByTestId('group-phone'), '600333444');
+    fireEvent.press(getByTestId('group-confirm'));
+
+    await waitFor(() =>
+      expect(mockRegisterToEvent).toHaveBeenCalledWith(
+        'e1',
+        [
+          { personId: 'p1', name: 'Ana', phone: '+34600333444' },
+          { personId: 'p2', name: 'Hijo García', phone: '+34600333444' },
+        ],
+        0,
+      ),
+    );
+    await waitFor(() => expect(patchUserProfile).toHaveBeenCalledWith('u1', { telephone: '+34600333444' }));
+    await waitFor(() => expect(onPhoneSaved).toHaveBeenCalled());
+  });
+
   it('books a persona plus an open seat and lands on the summary, not a share sheet', async () => {
     mockRegisterToEvent.mockResolvedValue({
       registrations: [
