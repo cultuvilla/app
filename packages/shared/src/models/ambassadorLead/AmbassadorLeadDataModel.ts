@@ -13,14 +13,12 @@ export type AmbassadorLeadStatus = z.infer<typeof AmbassadorLeadStatusSchema>;
  *
  * `municipalityId` is null when what they typed matched no municipality — the
  * typed name is still kept, since a person reads it.
- * `ipHash` only throttles repeated submissions; it is never shown.
  */
 export const AmbassadorLeadDataSchema = z.object({
   municipalityId: z.string().nullable(),
   municipalityName: z.string(),
   name: z.string(),
   phone: z.string(),
-  ipHash: z.string(),
   status: AmbassadorLeadStatusSchema,
   createdAt: z.date(),
 });
@@ -31,7 +29,6 @@ export interface AmbassadorLeadDataInput {
   municipalityName: string;
   name: string;
   phone: string;
-  ipHash: string;
   createdAt: Date;
 }
 

@@ -500,7 +500,7 @@ export function homePage({ wrapped }: Landing): Page {
 <div class="pillar">${photo('biblioteca-antigua', 'Una biblioteca antigua con estanterías de madera y el techo pintado', 900, 600)}<b>Inmortalízalo</b><p class="muted">La historia del pueblo, sus palabras y sus fiestas, contadas por sus vecinos y guardadas para siempre.</p><ul><li>Línea del tiempo del pueblo</li><li>Barrios, lugares y vocabulario propio</li><li>El resumen de vuestras fiestas, para compartir</li></ul></div>
 </div></div></section>
 ${wrapped ? wrappedPhone(wrapped) : null}
-<section class="blk amb"><div class="in split"><div class="head"><span class="eyebrow">Embajadores de Cultuvilla</span><h2>¿Presumes de pueblo allá donde vas?</h2><p class="lead">Hazte Embajador de Cultuvilla y cuida la cultura de tu pueblo para siempre.</p><p><a class="cta" href="/embajadores">Quiero ser Embajador →</a></p></div>${photo('conversacion-mayor', 'Un joven charla con un hombre mayor al aire libre', 1200, 800, 'amb-photo')}</div></section>
+<section class="blk amb"><div class="in split"><div class="head"><h2>¿Presumes de pueblo allá donde vas?</h2><p class="lead">Hazte Embajador de Cultuvilla y cuida la cultura de tu pueblo para siempre.</p><p><a class="cta" href="/embajadores">Quiero ser Embajador →</a></p></div>${photo('conversacion-mayor', 'Un joven charla con un hombre mayor al aire libre', 1200, 800, 'amb-photo')}</div></section>
 <section class="band blk"><div class="in price"><span class="big">0 €</span><div style="display:grid;gap:12px"><span class="eyebrow">Precio</span><h2>Gratis para todo el pueblo</h2><p class="lead">Sin cuotas por socio ni planes. Vecinos, peñas, asociaciones y ayuntamientos usan Cultuvilla sin pagar nada.</p></div></div></section>
 <section class="blk"><div class="in"><div class="head"><span class="eyebrow">Preguntas frecuentes</span><h2>Lo que nos suelen preguntar</h2></div><div class="faq">${FAQ.map(
       ([q, a], i) => (i === 0 ? html`<details open><summary>${q}</summary><p>${a}</p></details>` : html`<details><summary>${q}</summary><p>${a}</p></details>`),
@@ -545,15 +545,15 @@ export function ambassadorsPage(submitted?: { form: AmbassadorForm; errors: Amba
     layout: 'landing',
     head: {
       title: 'Embajadores',
-      description: '¿Vives las fiestas de tu pueblo como nadie? Hazte su Embajador de Cultuvilla: déjanos tu teléfono y lo ponemos en marcha contigo.',
+      description: '¿Presumes de pueblo allá donde vas? Hazte su Embajador de Cultuvilla: déjanos tu teléfono y lo ponemos en marcha contigo.',
     },
-    body: html`${BUNTING}
-<section class="in top amb-top"><div><span class="eyebrow">Embajadores de Cultuvilla</span><h1>¿Vives las fiestas de tu pueblo <em>como nadie</em>?</h1><p class="lead">Hazte su Embajador: activa la página de tu pueblo y cuida su cultura para siempre. Déjanos tu teléfono y lo ponemos en marcha contigo.</p>${ambassadorForm(submitted?.form ?? null, submitted?.errors ?? {})}</div>${phoneVideo('cultuvilla-embajador-vertical', 'Vídeo: hazte Embajador de Cultuvilla')}</section>
+    body: html`<div class="amb-page">${BUNTING}
+<section class="in amb-top"><h1>¿Presumes de pueblo <em>allá donde vas</em>?</h1><p class="lead">Hazte su Embajador: activa la página de tu pueblo y cuida su cultura para siempre. Déjanos tu teléfono y lo ponemos en marcha contigo.</p>${phoneVideo('cultuvilla-embajador-vertical', 'Vídeo: hazte Embajador de Cultuvilla')}${ambassadorForm(submitted?.form ?? null, submitted?.errors ?? {})}</section>
 <section class="blk amb-more"><div class="in"><ul class="amb-does">
 <li><b>Lo pone en marcha</b><span>Activa la página del pueblo, con su escudo.</span></li>
 <li><b>Suma a su gente</b><span>Invita a los vecinos, a sus peñas y al ayuntamiento.</span></li>
 <li><b>Guarda su cultura</b><span>Fiestas, carteles, lugares, historia y palabras.</span></li>
-</ul><p class="muted amb-app">¿Prefieres hacerlo tú desde la app? Busca tu pueblo y pulsa «Quiero ser embajador».</p><div class="stores">${storeButtons()}</div></div></section>`,
+</ul><p class="muted amb-app">¿Prefieres hacerlo tú desde la app? Busca tu pueblo y pulsa «Quiero ser embajador».</p><div class="stores">${storeButtons()}</div></div></section></div>`,
   };
 }
 
@@ -561,8 +561,8 @@ export function ambassadorsThanksPage(): Page {
   return {
     layout: 'landing',
     head: { title: 'Gracias', noindex: true },
-    body: html`${BUNTING}
-<section class="in top single"><div><span class="eyebrow">Embajadores de Cultuvilla</span><h1>¡Gracias! <em>Te llamamos pronto.</em></h1><p class="lead">Revisamos tu solicitud y te llamamos o te escribimos por WhatsApp en unos días para poner tu pueblo en marcha contigo. Mientras, ve descargando la app.</p><div class="stores">${storeButtons()}</div></div></section>`,
+    body: html`<div class="amb-page">${BUNTING}
+<section class="in top single"><div><span class="eyebrow">Embajadores de Cultuvilla</span><h1>¡Gracias! <em>Te llamamos pronto.</em></h1><p class="lead">Revisamos tu solicitud y te llamamos o te escribimos por WhatsApp en unos días para poner tu pueblo en marcha contigo. Mientras, ve descargando la app.</p><div class="stores">${storeButtons()}</div></div></section></div>`,
   };
 }
 

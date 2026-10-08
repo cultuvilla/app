@@ -34,7 +34,6 @@ export type LeadOutcome = { ok: true } | { ok: false; errors: AmbassadorFormErro
 /** Submissions one network may make in a day before the form asks them to write instead. */
 export const LEADS_PER_IP_PER_DAY = 5;
 const MAX_TEXT = 80;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const field = (body: Record<string, unknown>, key: string): string => {
   const v = body[key];
@@ -99,7 +98,7 @@ async function resolvePueblo(db: Firestore, form: AmbassadorForm): Promise<{ id:
   return exact.length === 1 ? { id: exact[0].id, name: `${exact[0].name} (${exact[0].province})` } : { id: null, name: form.pueblo };
 }
 
-/** Throttle key: a hash, so the stored lead never holds the address itself. */
+/** Throttle key: a hash, so the counter never holds the address itself. */
 export function hashIp(ip: string): string {
   return createHash('sha256').update(`ambassadorLead|${ip}`).digest('hex').slice(0, 32);
 }
@@ -111,25 +110,30 @@ export async function submitAmbassadorLead(db: Firestore, body: unknown, ip: str
   const errors = validateAmbassadorForm(form);
   if (Object.keys(errors).length > 0) return { ok: false, errors, form };
 
-  const ipHash = hashIp(ip);
-  const recent = await ambassadorLeadsCollection(db).where('ipHash', '==', ipHash).limit(LEADS_PER_IP_PER_DAY * 4).get();
-  const today = recent.docs.filter((d) => now.getTime() - d.data().createdAt.getTime() < DAY_MS).length;
-  if (today >= LEADS_PER_IP_PER_DAY) {
-    return { ok: false, form, errors: { form: 'Ya nos han llegado varias solicitudes desde aquí. Escríbenos a cultuvilla.app@gmail.com y lo vemos.' } };
-  }
-
-  const pueblo = await resolvePueblo(db, form);
   const phone = normalizeLeadPhone(form.telefono);
   if (!phone) return { ok: false, form, errors: { telefono: 'Escribe un teléfono válido, por ejemplo 612 345 678.' } };
-  await ambassadorLeadsCollection(db).add(
-    buildAmbassadorLeadData({
-      municipalityId: pueblo.id,
-      municipalityName: pueblo.name,
-      name: form.nombre.slice(0, MAX_TEXT),
-      phone,
-      ipHash,
-      createdAt: now,
-    }),
-  );
+  const pueblo = await resolvePueblo(db, form);
+
+  // One counter per network and UTC day, bumped in the same transaction that
+  // stores the lead: parallel submissions cannot all slip under the cap.
+  const day = now.toISOString().slice(0, 10);
+  // typed-refs: allowed — a throttle counter under _admin (denied to every
+  // client), not a collection the app reads.
+  const counter = db.doc(`_admin/ambassadorLeadThrottle/counters/${hashIp(ip)}_${day}`);
+  const lead = ambassadorLeadsCollection(db).doc();
+  const stored = await db.runTransaction(async (tx) => {
+    const count = (await tx.get(counter)).get('count') as unknown;
+    const used = typeof count === 'number' ? count : 0;
+    if (used >= LEADS_PER_IP_PER_DAY) return false;
+    tx.set(counter, { count: used + 1, day, updatedAt: now });
+    tx.set(
+      lead,
+      buildAmbassadorLeadData({ municipalityId: pueblo.id, municipalityName: pueblo.name, name: form.nombre.slice(0, MAX_TEXT), phone, createdAt: now }),
+    );
+    return true;
+  });
+  if (!stored) {
+    return { ok: false, form, errors: { form: 'Ya nos han llegado varias solicitudes desde aquí. Escríbenos a cultuvilla.app@gmail.com y lo vemos.' } };
+  }
   return { ok: true };
 }

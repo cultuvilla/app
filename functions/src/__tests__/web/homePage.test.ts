@@ -173,7 +173,9 @@ describe('homePage', () => {
     const page = ambassadorsPage();
     expect(page.layout).toBe('landing');
     const out = render(page.body);
-    expect(out).toContain('<h1>¿Vives las fiestas de tu pueblo <em>como nadie</em>?</h1>');
+    expect(out).toContain('<h1>¿Presumes de pueblo <em>allá donde vas</em>?</h1>');
+    // The form follows the film, so a visitor watches before they are asked.
+    expect(out.indexOf('cultuvilla-embajador-vertical.mp4')).toBeLessThan(out.indexOf('<form id="amb-form"'));
     expect(out).toContain('src="/brand/landing/cultuvilla-embajador-vertical.mp4"');
     expect(out).toContain('<form id="amb-form" class="amb-form" method="post" action="/embajadores" novalidate>');
     for (const name of ['pueblo', 'municipalityId', 'nombre', 'telefono', 'consentimiento', 'web']) expect(out).toContain(`name="${name}"`);

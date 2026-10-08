@@ -114,7 +114,8 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .banner img{width:100%;aspect-ratio:1600/615;object-fit:cover;border-radius:18px;margin-bottom:56px}
 .landing .wr-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center}
 .landing .wr-split .lead{margin:14px 0 0}
-@media (max-width:820px){.landing .wr-split{grid-template-columns:1fr;gap:28px}}
+.landing .wr-split .wr{order:-1}
+@media (max-width:820px){.landing .wr-split{grid-template-columns:1fr;gap:28px}.landing .wr-split .wr{order:0}}
 .landing .wr{display:grid;justify-items:center;gap:12px}
 .landing .wr-phone{width:min(300px,80vw);padding:12px 10px;background:#1d2117;border-radius:42px;box-shadow:0 30px 60px -20px rgba(63,70,53,.5)}
 .landing .wr-track{display:flex;aspect-ratio:9/16;overflow-x:auto;scroll-snap-type:x mandatory;border-radius:32px;scrollbar-width:none;background:#1d2117}
@@ -153,9 +154,22 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .amb .head{margin:0}
 .landing .amb .lead b{font-weight:600}
 .landing .amb-photo{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:20px}
-.landing .amb-top{align-items:start}
-.landing .amb-top .intro{padding-top:24px}
-.landing .amb-form{display:grid;gap:10px;margin-top:24px;max-width:460px;padding:22px;background:var(--card);border:1px solid var(--border);border-radius:20px}
+.landing .amb-page{background:linear-gradient(180deg,var(--olive),#3f4635);color:var(--surface);margin-bottom:-1px}
+.landing .amb-page .bunting .flag[fill="${palette.olive}"]{fill:var(--surface)}
+.landing .amb-page h1{color:var(--surface)}
+.landing .amb-page h1 em{color:var(--peach)}
+.landing .amb-page .lead,.landing .amb-page .muted,.landing .amb-page .amb-does span{color:var(--band-muted)}
+.landing .amb-page .amb-does{border-top-color:var(--clay)}
+.landing .amb-page .amb-does b{color:var(--surface)}
+.landing .amb-page .amb-form{border-color:transparent;box-shadow:0 24px 48px -24px rgba(0,0,0,.45)}
+.landing .amb-page .amb-form .fine a{color:var(--accent)}
+.landing .amb-top{display:grid;justify-items:center;text-align:center;gap:16px;padding:16px 16px 40px}
+.landing .amb-top h1{font-size:clamp(40px,7vw,72px);margin:0}
+.landing .amb-top h1 em{font-style:normal}
+.landing .amb-top .lead{max-width:34em;margin:0}
+.landing .amb-top .intro{margin:16px 0 8px}
+.landing .amb-top .amb-form{text-align:left;width:100%}
+.landing .amb-form{display:grid;gap:10px;margin-top:8px;max-width:460px;padding:22px;background:var(--card);border:1px solid var(--border);border-radius:20px}
 .landing .amb-form label{display:grid;gap:6px;font-weight:600;font-size:14px;color:var(--primary)}
 .landing .amb-form input:not([type=checkbox]){font:inherit;font-size:16px;font-weight:400;color:var(--text);padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;background:var(--surface);width:100%}
 .landing .amb-form input:focus{outline:2px solid var(--accent);outline-offset:1px}

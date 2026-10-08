@@ -314,6 +314,7 @@ describe('readSite — the /embajadores form', () => {
     expect(stored).toHaveLength(1);
     expect(stored[0]).toMatchObject({ municipalityId: 'm9', municipalityName: 'Matabuena (Segovia)', name: 'Ana', phone: '+34612345678', status: 'new' });
     expect(JSON.stringify(stored[0])).not.toContain('203.0.113.7');
+    expect(Object.keys(stored[0]).sort()).toEqual(['createdAt', 'municipalityId', 'municipalityName', 'name', 'phone', 'status']);
   });
 
   it('finds the pueblo from what was typed when the picker never ran, and keeps the typed name when nothing matches', async () => {
@@ -353,6 +354,12 @@ describe('readSite — the /embajadores form', () => {
     expect((await post(form, '198.51.100.1')).kind).toBe('redirect');
     expect((await post(form, '203.0.113.7', new Date(NOW.getTime() + 25 * 3600 * 1000))).kind).toBe('redirect');
     expect(await leads()).toHaveLength(7);
+  });
+
+  it('holds the cap when one network submits many times at once', async () => {
+    const outcomes = await Promise.all(Array.from({ length: 9 }, () => post(form)));
+    expect(outcomes.filter((o) => o.kind === 'redirect')).toHaveLength(5);
+    expect(await leads()).toHaveLength(5);
   });
 
   it('answers the picker with matching pueblos, by any word of their name', async () => {

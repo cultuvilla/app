@@ -25,7 +25,6 @@ describe('buildAmbassadorLeadData', () => {
       municipalityName: 'Villanueva',
       name: 'Ana',
       phone: '+34612345678',
-      ipHash: 'abc',
       createdAt: new Date('2026-10-08T10:00:00Z'),
     });
     expect(data.status).toBe('new');

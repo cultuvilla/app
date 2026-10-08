@@ -16,7 +16,6 @@ const lead = () => ({
   municipalityName: 'Matabuena (Segovia)',
   name: 'Ana',
   phone: '+34612345678',
-  ipHash: 'abc',
   status: 'new',
   createdAt: new Date(),
 });
