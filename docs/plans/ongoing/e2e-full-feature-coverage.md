@@ -192,7 +192,8 @@ none today).
 - [x] Seed collaborators + picker image; push the image in both runners (the seed already had them; `PICKER_IMAGES` stocks the picker).
 - [x] `subflows/event-create-full.yaml`, `event-edit-all.yaml`, plus `pick-datetime`, `pick-photo`, `replace-text`, `see-text`; `scripts/assertDoc.js`.
 - [x] Deep event flows `60-event-create` + `64-event-edit-and-cancel` replacing 60 — one flow for the whole life ran past Maestro's 15-minute per-flow limit. Sign-up with answers stays in 62 until Stage 2 absorbs it.
-- [ ] Green on android-e2e and ios-e2e.
+- [x] Green on android-e2e (run 37723123831: 60 in 9m20s, 64 in 11m11s).
+- [ ] Green on ios-e2e.
 - [ ] Cover picking on iOS (PHPicker selector); Android-only today.
 - [ ] Jest coverage for event validation (dates, birth-year bounds, capacity) listed as `unit-tested:`.
 
