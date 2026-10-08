@@ -6,8 +6,10 @@
 # iOS: not Enter, which types a newline into a multiline field (the event
 # description gained one, and the next tap typed a G on the still-open
 # keyboard). The forms' ScrollViews use keyboardShouldPersistTaps="handled",
-# so a tap on the empty left gutter — no control lives there — closes the
-# keyboard and nothing else.
+# so a tap on the empty left gutter closes the keyboard and nothing else.
+# The gutter is 16pt, but every Pressable carries an 8pt hitSlop, so a card's
+# touch area starts 8pt from the edge — 2% of an iPhone's 402pt is exactly 8,
+# and that tap collapsed the open signup question by activating its neighbour.
 appId: com.cultuvilla.app.dev
 ---
 - runFlow:
@@ -26,6 +28,6 @@ appId: com.cultuvilla.app.dev
         id: 'inputView'
     commands:
       - tapOn:
-          point: '2%,30%'
+          point: '1%,30%'
       - waitForAnimationToEnd:
           timeout: 2000
