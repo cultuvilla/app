@@ -1,30 +1,11 @@
 # A freshly-authenticated account with no profile is diverted to complete-profile
-# by the AuthGate, and completes the three-step person form.
+# by the AuthGate, and completes the three-step person form with EVERY field:
+# names, nickname, sex, terms; birthday, birthplace, village and barrio; photo,
+# biography and occupations (a catalog one and a custom one). Each is then
+# checked on the stored person, profile and membership, and on the profile tab.
 #
-# High value natively and nowhere else: this is the app's only multi-step form
-# with native pickers, and the step gating (terms acceptance, required birthday)
-# is exactly the kind of thing that behaves differently on a real device.
-#
-# TWO Maestro traps are designed around here, both of which cost an afternoon:
-#
-#  - NO `hideKeyboard`. On Android it is a BACK press. When the soft keyboard is
-#    up that closes it; when it is not — and on an AVD with a hardware keyboard
-#    `inputText` never raises one — the same BACK walks out of the screen, and
-#    the next step fails with "element not found" while the app sits on the
-#    launcher.
-#  - Tap `accept-terms-box`, not `accept-terms`. The latter is the whole consent
-#    ROW, and its centre sits on the "Términos de uso" link — a centre-tap opens
-#    the legal screen instead of ticking the box, and every later step then
-#    fails against the wrong screen.
-#  - Scroll ONLY when the element is genuinely off-screen, via `runFlow: when:`.
-#    Each step of this form fits a phone screen with no keyboard, and
-#    `scrollUntilVisible` on an unscrollable screen does not no-op: it burns its
-#    timeout and fails, pointing at a field that was visible all along. But with
-#    a soft keyboard up the lower controls ARE covered — so the scroll has to be
-#    conditional rather than present or absent.
-#
-# Strong assertion: users/{uid}.personId links a persons/{id} that exists —
-# precisely what authRoute reads to consider the user onboarded.
+# Tap `accept-terms-box`, not `accept-terms`: the latter is the whole consent
+# row, and its centre sits on the "Términos de uso" link.
 appId: com.cultuvilla.app.dev
 env:
   EMAIL: e2e-fresh@cultuvilla.test
@@ -37,214 +18,203 @@ env:
       EMAIL: ${EMAIL}
       PASSWORD: ${PASSWORD}
 
-# Step 1 — identity. Terms acceptance gates the step, so accept before advancing.
+# ── Step 1: who ──
 - runFlow:
-    when:
-      notVisible:
-        id: 'person-given-name'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'person-given-name'
-          direction: DOWN
-          timeout: 20000
-- tapOn:
-    id: 'person-given-name'
-- inputText: 'Nueva'
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-given-name'
+      TEXT: 'Nueva'
 - runFlow:
-    when:
-      notVisible:
-        id: 'person-first-surname'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'person-first-surname'
-          direction: DOWN
-          timeout: 20000
-- tapOn:
-    id: 'person-first-surname'
-- inputText: 'Vecina'
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-first-surname'
 - runFlow:
-    when:
-      notVisible:
-        id: 'person-second-surname'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'person-second-surname'
-          direction: DOWN
-          timeout: 20000
-- tapOn:
-    id: 'person-second-surname'
-- inputText: 'DePrueba'
-# The soft keyboard covers the bottom ~45% of a pixel_5, and `scrollUntilVisible`
-# CANNOT get out from under it: Maestro's swipe starts at the screen centre,
-# which sits right on the keyboard's top edge, so the gesture is absorbed and the
-# list barely moves. Swipe explicitly instead, with BOTH endpoints above the
-# keyboard, and repeat until the target surfaces.
-#
-# A swipe is also the only option that keeps the focused field focused —
-# `hideKeyboard` is banned suite-wide (androidE2e.test.ts: on Android it is a
-# BACK press, which walks out of the screen on a hardware-keyboard AVD), and
-# tapping a label to dismiss does not work either: the label belongs to the
-# Input's own subtree, so Maestro resolves the text to the FIELD and taps it,
-# re-opening the keyboard it was meant to close.
-#
-# Everything from the sex selector down (terms box, submit) is below the fold
-# with the keyboard up, so this is the one place the flow needs it.
-- repeat:
-    times: 25
-    while:
-      notVisible:
-        id: 'person-sex-female'
-    commands:
-      # 45% -> 15%, NOT 50% -> 12%: this flow reached the end of the form with
-      # these exact numbers, and regressed the moment the stroke was widened.
-      # A start at 50% lands on a text field rather than on inert form
-      # background, so the gesture is taken as a text interaction instead of a
-      # scroll. Both endpoints must also stay clear of the keyboard.
-      - swipe:
-          start: 45%, 45%
-          end: 45%, 15%
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-first-surname'
+      TEXT: 'Vecina'
 - runFlow:
-    when:
-      notVisible:
-        id: 'person-sex-female'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'person-sex-female'
-          direction: DOWN
-          timeout: 20000
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-second-surname'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-second-surname'
+      TEXT: 'DePrueba'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-nickname'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-nickname'
+      TEXT: 'Nuevita'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-sex-female'
 - tapOn:
     id: 'person-sex-female'
 - runFlow:
-    when:
-      notVisible:
-        id: 'accept-terms-box'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'accept-terms-box'
-          direction: DOWN
-          timeout: 20000
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'accept-terms-box'
 - tapOn:
     id: 'accept-terms-box'
-- runFlow:
-    when:
-      notVisible:
-        id: 'person-form-primary'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'person-form-primary'
-          direction: DOWN
-          timeout: 20000
+- runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'person-form-primary'
 
-# Step 2 — residence: only the birthday is required. Each segment opens a Modal
-# with a FlatList, so the option itself is genuinely off-screen and gets an
-# unconditional scroll.
+# ── Step 2: where ── (month option 4 is May)
 - runFlow:
-    when:
-      notVisible:
-        id: 'birthday-year'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'birthday-year'
-          direction: DOWN
-          timeout: 20000
-- tapOn:
-    id: 'birthday-year'
-- scrollUntilVisible:
-    element:
-      id: 'birthday-year-option-1990'
-    direction: DOWN
-    timeout: 30000
-- tapOn:
-    id: 'birthday-year-option-1990'
+    file: ../subflows/pick-birthday.yaml
+    env:
+      YEAR: '1990'
+      MONTH_OPTION: '4'
+      DAY: '15'
 - runFlow:
-    when:
-      notVisible:
-        id: 'birthday-month'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'birthday-month'
-          direction: DOWN
-          timeout: 20000
-- tapOn:
-    id: 'birthday-month'
-- scrollUntilVisible:
-    element:
-      id: 'birthday-month-option-4'
-    direction: DOWN
-    timeout: 30000
-- tapOn:
-    id: 'birthday-month-option-4'
+    file: ../subflows/pick-village.yaml
+    env:
+      PICKER: 'person-birth-place'
+      SEARCH: 'Solana'
+      VILLAGE_ID: 'e2e-village-solana'
 - runFlow:
-    when:
-      notVisible:
-        id: 'birthday-day'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'birthday-day'
-          direction: DOWN
-          timeout: 20000
-- tapOn:
-    id: 'birthday-day'
-- scrollUntilVisible:
-    element:
-      id: 'birthday-day-option-15'
-    direction: DOWN
-    timeout: 30000
-- tapOn:
-    id: 'birthday-day-option-15'
+    file: ../subflows/pick-village.yaml
+    env:
+      PICKER: 'onboarding-village'
+      SEARCH: 'Altozano'
+      VILLAGE_ID: 'e2e-village-altozano'
 - runFlow:
-    when:
-      notVisible:
-        id: 'person-form-primary'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'person-form-primary'
-          direction: DOWN
-          timeout: 20000
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'onboarding-barrio'
+- tapOn:
+    id: 'onboarding-barrio'
+- extendedWaitUntil:
+    visible:
+      id: 'onboarding-barrio-option-e2e-barrio-alto'
+    timeout: 20000
+- tapOn:
+    id: 'onboarding-barrio-option-e2e-barrio-alto'
+- runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'person-form-primary'
 
-# Step 3 — about: every field optional, submit straight through.
+# ── Step 3: about ──
+- extendedWaitUntil:
+    visible:
+      id: 'person-photo'
+    timeout: 10000
+- tapOn:
+    id: 'person-photo'
+- runFlow: ../subflows/pick-photo-square.yaml
 - runFlow:
-    when:
-      notVisible:
-        id: 'person-form-primary'
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: 'person-form-primary'
-          direction: DOWN
-          timeout: 20000
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-biography'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-biography'
+      TEXT: 'Nacida en Solana y vecina de Altozano'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'occupation-agricultor'
+- tapOn:
+    id: 'occupation-agricultor'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'occupation-otro'
+- tapOn:
+    id: 'occupation-otro'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'occupation-custom-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'occupation-custom-input'
+      TEXT: 'Pastora'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'occupation-custom-add'
+- tapOn:
+    id: 'occupation-custom-add'
+- runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'person-form-primary'
 
+# ── Every stored field ──
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'users/${UID}'
+      TIMEOUT_MS: '90000'
+      EXPECT_JSON: >-
+        {
+          'personId': 'present',
+          'activeMunicipalityId': 'e2e-village-altozano',
+          'termsVersion': 'present'
+        }
 - runScript:
     file: ../scripts/docField.js
     env:
       DOC_PATH: 'users/${UID}'
       FIELD: personId
       EXPECT: present
-      # 30s expired with "Crear perfil" still spinning on CI: creating the
-      # person, linking it onto the user and running the denormalisation
-      # triggers is a lot slower on a loaded emulator than on a laptop.
-      TIMEOUT_MS: '90000'
-- assertTrue: ${output.exists == 'true'}
-- assertTrue: ${output.value != ''}
+- evalScript: ${output.personId = output.value}
 - runScript:
-    file: ../scripts/docField.js
+    file: ../scripts/assertDoc.js
     env:
-      DOC_PATH: 'persons/${output.value}'
-      EXPECT: present
-- assertTrue: ${output.ok == 'true'}
+      DOC_PATH: 'persons/${output.personId}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: >-
+        {
+          'givenName': 'Nueva',
+          'firstSurname': 'Vecina',
+          'secondSurname': 'DePrueba',
+          'nickname': 'Nuevita',
+          'sex': 'female',
+          'userId': 'e2e-fresh',
+          'birthday.year': 1990,
+          'birthday.month': 5,
+          'birthday.day': 15,
+          'birthPlace.municipalityId': 'e2e-village-solana',
+          'municipalityLinks.0.municipalityId': 'e2e-village-altozano',
+          'municipalityLinks.0.barrioId': 'e2e-barrio-alto',
+          'biography': 'Nacida en Solana y vecina de Altozano',
+          'occupations': { 'contains': ['agricultor', 'Pastora'] },
+          'photoURL': { 'prefix': 'http' }
+        }
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/e2e-village-altozano/members/${UID}'
+      EXPECT_JSON: "{ 'role': 'user' }"
+
+# ── The profile tab ──
+- openLink: 'cultuvilla://perfil'
+- extendedWaitUntil:
+    visible:
+      id: 'profile-edit-action'
+    timeout: 60000
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Nueva Vecina'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Nacida en Solana y vecina de Altozano'
+# Occupations are not shown on the profile tab; the village joined is.
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Altozano de Prueba'

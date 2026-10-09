@@ -1,0 +1,46 @@
+# Pick a photo for a square image (an escudo, a profile photo): the picker
+# opens its crop step after the pick (lib/imageCrop.ts, allowsEditing), which
+# is accepted as framed.
+#
+# Android: expo-image-picker's crop screen, confirmed from its toolbar.
+# iOS: the in-process picker's move-and-scale screen, confirmed with "Choose".
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: pick-photo.yaml
+          env:
+            INDEX: '0'
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - runFlow:
+          when:
+            visible:
+              id: 'com.cultuvilla.app.dev:id/crop_image_menu_crop'
+          commands:
+            - tapOn:
+                id: 'com.cultuvilla.app.dev:id/crop_image_menu_crop'
+      - runFlow:
+          when:
+            visible: '(?i)(crop|recortar)'
+          commands:
+            - tapOn: '(?i)(crop|recortar)'
+# iOS: the editing picker is its own screen, so pick-photo.yaml's "the picker
+# has closed" check does not apply — its move-and-scale step has a Cancel too.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - tapOn:
+          point: '17%,45%'
+      - extendedWaitUntil:
+          visible: '(?i)(choose|elegir)'
+          timeout: 15000
+      - tapOn: '(?i)(choose|elegir)'
+- waitForAnimationToEnd:
+    timeout: 5000

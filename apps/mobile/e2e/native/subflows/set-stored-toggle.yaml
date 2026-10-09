@@ -1,0 +1,32 @@
+# Bring the Toggle ${ID} to the stored value ${WANT} ("true" | "false") of
+# ${FIELD} in the document ${DOC_PATH}, tapping only while they differ.
+#
+# Idempotent on purpose: a retried flow starts from whatever the first attempt
+# stored, and a blind tap would flip it back; and an iOS tap on a toggle has
+# been lost under load, which the re-read catches.
+appId: com.cultuvilla.app.dev
+---
+- repeat:
+    times: 3
+    commands:
+      - runScript:
+          file: ../scripts/docField.js
+          env:
+            DOC_PATH: ${DOC_PATH}
+            FIELD: ${FIELD}
+            TIMEOUT_MS: '1000'
+      - runFlow:
+          when:
+            true: ${output.value != WANT}
+          commands:
+            - waitForAnimationToEnd:
+                timeout: 2000
+            - tapOn:
+                id: ${ID}
+            - runScript:
+                file: ../scripts/docField.js
+                env:
+                  DOC_PATH: ${DOC_PATH}
+                  FIELD: ${FIELD}
+                  EXPECT: ${WANT}
+                  TIMEOUT_MS: '8000'
