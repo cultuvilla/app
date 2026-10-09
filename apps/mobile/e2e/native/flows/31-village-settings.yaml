@@ -14,6 +14,7 @@ env:
   VILLAGE_SLUG: pueblo-de-union-e2e
   INFO_DESCRIPTION: 'Pueblo editado desde Maestro'
   COMMUNITY_DESCRIPTION: 'Pueblo de la sierra con fiestas en agosto'
+  FINAL_DESCRIPTION: 'Pueblo serrano de fiestas en agosto'
 ---
 - runFlow:
     file: ../subflows/login.yaml
@@ -195,6 +196,23 @@ env:
 - assertVisible:
     id: 'fiesta-san-roque-e2e'
 
+# An edit followed straight by "Listo" is kept too: leaving the editor must
+# not drop a description that was never blurred.
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'community-description'
+      TEXT: ${FINAL_DESCRIPTION}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn: 'Listo'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      FIELD: community.description
+      EXPECT: ${FINAL_DESCRIPTION}
+- assertTrue: ${output.ok == 'true'}
+
 # ── A villager who is not on the team ──
 - runFlow:
     file: ../subflows/login.yaml
@@ -206,11 +224,11 @@ env:
 - runFlow:
     file: ../subflows/see-text.yaml
     env:
-      TEXT: ${COMMUNITY_DESCRIPTION}
+      TEXT: ${FINAL_DESCRIPTION}
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/comunidad'
 - runFlow:
     file: ../subflows/see-text.yaml
     env:
-      TEXT: ${COMMUNITY_DESCRIPTION}
+      TEXT: ${FINAL_DESCRIPTION}
 - assertNotVisible:
     id: 'community-escudo'
