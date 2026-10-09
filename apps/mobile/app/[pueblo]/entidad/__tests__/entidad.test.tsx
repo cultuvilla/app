@@ -1,5 +1,11 @@
+import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { addOrgMember, getOrgMembers, isOrgMember } from '@cultuvilla/shared/services/orgMemberService';
+import {
+  addOrgMember,
+  getOrgMembers,
+  isOrgMember,
+  removeOrgMember,
+} from '@cultuvilla/shared/services/orgMemberService';
 import {
   hasPendingOrgJoinRequest,
   requestToJoinOrganization,
@@ -33,6 +39,7 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => ({
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
   isOrgMember: jest.fn().mockResolvedValue(false),
   addOrgMember: jest.fn(),
+  removeOrgMember: jest.fn().mockResolvedValue(undefined),
   getOrgMembers: jest.fn().mockResolvedValue([]),
   getUserOrgIds: jest.fn().mockResolvedValue([]),
 }));
@@ -42,6 +49,7 @@ jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
   cancelOrgJoinRequest: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../../../../components/feature/OrgJoinRequests', () => ({ OrgJoinRequests: () => null }));
+jest.mock('../../../../components/feature/OrgMembersList', () => ({ OrgMembersList: () => null }));
 jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getOrgViewLink: () => ({
     url: 'https://x/villa/entidad/pena-la-union_o1',
@@ -165,5 +173,56 @@ describe('OrgDetailScreen — join policy', () => {
     (hasPendingOrgJoinRequest as jest.Mock).mockResolvedValue(true);
     const { getByText } = render(<OrgDetailScreen />);
     await waitFor(() => getByText('organization.requestPending'));
+  });
+});
+
+describe('OrgDetailScreen — leaving', () => {
+  const pressConfirm = () => {
+    const buttons = (Alert.alert as jest.Mock).mock.calls.at(-1)?.[2] as { text: string; onPress?: () => void }[];
+    buttons.find((b) => b.text === 'organization.leave.confirm')?.onPress?.();
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    setWatched('org', OPEN_ORG);
+  });
+
+  afterEach(() => {
+    (isOrgMember as jest.Mock).mockResolvedValue(false);
+    (getOrgMembers as jest.Mock).mockResolvedValue([]);
+  });
+
+  it('offers no leave action to a non-member', async () => {
+    const { getByText, queryByTestId } = render(<OrgDetailScreen />);
+    await waitFor(() => getByText('Peña La Unión'));
+    expect(queryByTestId('org-leave-action')).toBeNull();
+  });
+
+  it('lets a member leave the group after confirming', async () => {
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    (getOrgMembers as jest.Mock).mockResolvedValue([
+      { id: 'u1', userId: 'u1', role: 'admin', joinedAt: new Date() },
+      { id: 'u2', userId: 'u2', role: 'member', joinedAt: new Date() },
+    ]);
+    const { findByTestId } = render(<OrgDetailScreen />);
+    fireEvent.press(await findByTestId('org-leave-action'));
+
+    expect(removeOrgMember).not.toHaveBeenCalled();
+    pressConfirm();
+    await waitFor(() => expect(removeOrgMember).toHaveBeenCalledWith('o1', 'u2'));
+  });
+
+  it('holds back the only admin while others remain', async () => {
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    (getOrgMembers as jest.Mock).mockResolvedValue([
+      { id: 'u2', userId: 'u2', role: 'admin', joinedAt: new Date() },
+      { id: 'u3', userId: 'u3', role: 'member', joinedAt: new Date() },
+    ]);
+    const { findByTestId } = render(<OrgDetailScreen />);
+    fireEvent.press(await findByTestId('org-leave-action'));
+
+    expect(Alert.alert).toHaveBeenCalledWith('organization.leave.title', 'organization.leave.soleAdminBody');
+    expect(removeOrgMember).not.toHaveBeenCalled();
   });
 });

@@ -20,19 +20,28 @@ import { useShareDeepLink } from '../../../../lib/deeplink/useShareDeepLink';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import { watchOrganization } from '@cultuvilla/shared/services/organizationService';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
-import { isOrgMember, addOrgMember, getOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
+import {
+  isOrgMember,
+  addOrgMember,
+  getOrgMembers,
+  removeOrgMember,
+} from '@cultuvilla/shared/services/orgMemberService';
 import {
   cancelOrgJoinRequest,
   hasPendingOrgJoinRequest,
   requestToJoinOrganization,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
 import { OrgJoinRequests } from '../../../../components/feature/OrgJoinRequests';
-import { showConfirm } from '../../../../lib/dialogs';
+import { showAlert, showConfirm } from '../../../../lib/dialogs';
 import { getOrgViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { entityRefHref, orgEditHref } from '../../../../lib/navigation/routes';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { canViewOrgRoster } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
+import {
+  isSoleAdminWithOthers,
+  type OrgMemberData,
+} from '@cultuvilla/shared/models/organization/OrgMemberDataModel';
 
 type Org = OrganizationData & { id: string };
 
@@ -50,7 +59,8 @@ export default function OrgDetailScreen() {
     orgId || null,
     (next, error) => watchOrganization(orgId, next, error),
   );
-  const [membersCount, setMembersCount] = useState<number | null>(null);
+  const [members, setMembers] = useState<OrgMemberData[] | null>(null);
+  const membersCount = members?.length ?? null;
   const [isMember, setIsMember] = useState<boolean>(false);
   const [membershipLoaded, setMembershipLoaded] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -67,8 +77,7 @@ export default function OrgDetailScreen() {
 
   const refresh = useCallback(async () => {
     if (!orgId || !orgExists) return;
-    const members = await getOrgMembers(orgId as string);
-    setMembersCount(members.length);
+    setMembers(await getOrgMembers(orgId as string));
     if (user) {
       const member = await isOrgMember(orgId as string, user.uid);
       setIsMember(member);
@@ -142,6 +151,26 @@ export default function OrgDetailScreen() {
     }
   }, [user, orgId, org, requested, arrivedViaInvite, refresh, gate, t]);
 
+  const onLeave = useCallback(() => {
+    if (!user || !org) return;
+    if (members && isSoleAdminWithOthers(members, user.uid)) {
+      showAlert(t('organization.leave.soleAdminBody'), t('organization.leave.title'));
+      return;
+    }
+    showConfirm(
+      t('organization.leave.title'),
+      t(org.joinPolicy === 'approval' ? 'organization.leave.bodyApproval' : 'organization.leave.body', {
+        name: org.name,
+      }),
+      () => {
+        removeOrgMember(org.id, user.uid)
+          .then(refresh)
+          .catch(() => showAlert(t('organization.leave.error')));
+      },
+      { confirmText: t('organization.leave.confirm'), cancelText: t('common.cancel') },
+    );
+  }, [user, org, members, refresh, t]);
+
   const actions: EntityDetailAction[] = org
     ? [
         ...(canManage
@@ -165,6 +194,16 @@ export default function OrgDetailScreen() {
             void share(getOrgViewLink({ id: org.id, title: org.name, villageSlug: org.villageSlug }), org.name);
           },
         },
+        ...(isMember
+          ? [
+              {
+                icon: 'exit-outline' as const,
+                testID: 'org-leave-action',
+                accessibilityLabel: t('organization.leave.title'),
+                onPress: onLeave,
+              },
+            ]
+          : []),
       ]
     : [];
   const joinLabel = !user

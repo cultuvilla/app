@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   OrgMemberDataSchema,
   buildOrgMemberData,
+  isSoleAdminWithOthers,
 } from '../../src/models/organization/OrgMemberDataModel';
 
 describe('OrgMemberDataModel', () => {
@@ -36,5 +37,26 @@ describe('OrgMemberDataModel', () => {
     const m = buildOrgMemberData({ userId: 'u-1' });
     expect(m.userId).toBe('u-1');
     expect(() => OrgMemberDataSchema.parse(m)).not.toThrow();
+  });
+});
+
+describe('isSoleAdminWithOthers', () => {
+  const admin = (userId: string) => ({ userId, role: 'admin' as const });
+  const member = (userId: string) => ({ userId, role: 'member' as const });
+
+  it('holds back the only admin while other members remain', () => {
+    expect(isSoleAdminWithOthers([admin('a'), member('b')], 'a')).toBe(true);
+  });
+
+  it('lets an admin leave when another admin remains', () => {
+    expect(isSoleAdminWithOthers([admin('a'), admin('b'), member('c')], 'a')).toBe(false);
+  });
+
+  it('lets the sole member leave, admin or not', () => {
+    expect(isSoleAdminWithOthers([admin('a')], 'a')).toBe(false);
+  });
+
+  it('never holds back a plain member', () => {
+    expect(isSoleAdminWithOthers([admin('a'), member('b')], 'b')).toBe(false);
   });
 });
