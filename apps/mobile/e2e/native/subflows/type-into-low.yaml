@@ -18,7 +18,7 @@ appId: com.cultuvilla.app.dev
           id: ${INPUT}
       - waitForAnimationToEnd:
           timeout: 1000
-      - eraseText: 200
+      - eraseText: 80
 - inputText: ${TEXT}
 - runFlow:
     file: scroll-to.yaml
