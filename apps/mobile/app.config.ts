@@ -222,6 +222,10 @@ const config: ExpoConfig = {
       // iOS requires this usage string.
       NSPhotoLibraryUsageDescription:
         'Cultuvilla necesita acceso a tus fotos para elegir y recortar tu imagen de perfil.',
+      // expo-media-library saves a fiestas-summary card to the library; adding
+      // a photo needs only this add-only permission, never read access.
+      NSPhotoLibraryAddUsageDescription:
+        'Cultuvilla guarda en tus fotos las imágenes del resumen de fiestas que descargas.',
     },
     // No `com.apple.developer.usernotifications.time-sensitive` entitlement yet:
     // the App ID lacks the capability, and the App Store Connect API cannot add
@@ -251,6 +255,13 @@ const config: ExpoConfig = {
       'android.permission.RECORD_AUDIO',
       'android.permission.READ_EXTERNAL_STORAGE',
       'android.permission.WRITE_EXTERNAL_STORAGE',
+      // expo-media-library only ever *saves* a card (MediaStore, no permission
+      // on Android 13+). Play restricts the media-read permissions to apps whose
+      // core feature is browsing photos, so none of them may reach the manifest.
+      'android.permission.READ_MEDIA_IMAGES',
+      'android.permission.READ_MEDIA_VIDEO',
+      'android.permission.READ_MEDIA_AUDIO',
+      'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
     ],
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
@@ -350,6 +361,8 @@ const config: ExpoConfig = {
       },
     ],
     'expo-apple-authentication',
+    // Read permissions off: the app saves cards, it never browses the library.
+    ['expo-media-library', { granularPermissions: [] }],
     [
       'expo-notifications',
       {

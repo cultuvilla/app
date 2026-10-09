@@ -3,17 +3,19 @@ import { getWrappedLink } from '@cultuvilla/shared/services/deepLinkService';
 import { useShareDeepLink } from '../deeplink/useShareDeepLink';
 import { showAlert } from '../dialogs';
 import { useT } from '../i18n';
-import { canShareCardImage, shareCardImage } from './shareCardImage';
+import { canShareCardImage, saveCardImage, shareCardImage } from './shareCardImage';
 import type { StoryCard } from '../../components/feature/wrapped/WrappedStoryViewer';
 
 /**
- * The two ways a published Wrapped leaves the app: its link (which previews as
- * the cover card) and a single card as an image. `shareCard` is undefined
- * where a card cannot be shared as a file.
+ * The ways a published Wrapped leaves the app: its link (which previews as the
+ * cover card), a single card as an image, and a single card saved to the photo
+ * library. `shareCard` and `saveCard` are undefined where a card cannot be
+ * handled as a file.
  */
 export function useWrappedShare(wrapped: { villageSlug: string; villageName: string; year: number }): {
   shareLink: () => void;
   shareCard: ((card: StoryCard) => void) | undefined;
+  saveCard: ((card: StoryCard) => void) | undefined;
 } {
   const { t } = useT();
   const shareDeepLink = useShareDeepLink();
@@ -35,5 +37,22 @@ export function useWrappedShare(wrapped: { villageSlug: string; villageName: str
     [t, villageSlug, year],
   );
 
-  return { shareLink, shareCard: canShareCardImage ? shareCard : undefined };
+  const saveCard = useCallback(
+    (card: StoryCard) => {
+      const baseName = `${villageSlug}-fiestas-${String(year)}-${card.card}`;
+      saveCardImage(card.url, baseName)
+        .then((result) => {
+          showAlert(t(result === 'saved' ? 'village.wrapped.viewer.saved' : 'village.wrapped.viewer.saveDenied'));
+        })
+        // A device that cannot write to the library can still save from the share sheet.
+        .catch(() => shareCard(card));
+    },
+    [shareCard, t, villageSlug, year],
+  );
+
+  return {
+    shareLink,
+    shareCard: canShareCardImage ? shareCard : undefined,
+    saveCard: canShareCardImage ? saveCard : undefined,
+  };
 }

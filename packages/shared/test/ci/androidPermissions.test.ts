@@ -14,4 +14,15 @@ describe('Android blocked permissions', () => {
   it('strips the advertising ID the Play declaration says the app does not use', () => {
     expect(blocked).toContain("'com.google.android.gms.permission.AD_ID'");
   });
+
+  // Saving a fiestas card needs no read access; Play's Photo and Video
+  // Permissions policy rejects an app that declares it without a core need.
+  it.each([
+    'READ_MEDIA_IMAGES',
+    'READ_MEDIA_VIDEO',
+    'READ_MEDIA_AUDIO',
+    'READ_MEDIA_VISUAL_USER_SELECTED',
+  ])('strips %s, which expo-media-library pulls in', (permission) => {
+    expect(blocked).toContain(`'android.permission.${permission}'`);
+  });
 });
