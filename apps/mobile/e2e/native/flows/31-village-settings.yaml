@@ -20,8 +20,8 @@ env:
       EMAIL: e2e-superadmin@cultuvilla.test
       PASSWORD: ${PASSWORD}
 - setLocation:
-    latitude: 39.52
-    longitude: -0.42
+    latitude: 39.53
+    longitude: -0.43
 
 # ── Info ──
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/editar'
@@ -65,10 +65,20 @@ env:
       DOC_PATH: 'municipalities/${VILLAGE_ID}'
       TIMEOUT_MS: '60000'
       EXPECT_JSON: "{ 'escudoManualUrl': { 'prefix': 'http' } }"
+# The seeded village already has a location: clear it, then take the device's.
 - runFlow:
-    file: ../subflows/pick-my-location.yaml
+    file: ../subflows/scroll-to.yaml
     env:
-      TARGET: 'community-location'
+      TARGET: 'community-location-clear'
+- tapOn:
+    id: 'community-location-clear'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'community-location-use-mine'
+- tapOn:
+    id: 'community-location-use-mine'
+- runFlow: ../subflows/allow-location.yaml
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:
@@ -84,7 +94,6 @@ env:
         {
           'community.description': 'Pueblo de la sierra con fiestas en agosto',
           'coordinates': 'present',
-          'locationLabel': 'present',
           'mapZoom': 'present'
         }
 

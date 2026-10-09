@@ -32,11 +32,7 @@ env:
       INPUT: 'organizer-phone'
       TEXT: '611222333'
 - runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'organizer-motivation'
-- runFlow:
-    file: ../subflows/type-into.yaml
+    file: ../subflows/type-into-low.yaml
     env:
       INPUT: 'organizer-motivation'
       TEXT: ${MOTIVATION}

@@ -127,6 +127,7 @@
   "onboarding-abandon": "todo: app/(onboarding)/completar-perfil.tsx",
   "onboarding-barrio": "todo: app/(onboarding)/completar-perfil.tsx",
   "onboarding-village": "todo: app/(onboarding)/completar-perfil.tsx",
+  "org-edit-type*": "todo: app/[pueblo]/entidad/[entidad]/editar.tsx",
   "org-member-profile-*": "todo: components/feature/OrgMembersList.tsx",
   "organize-explainer": "todo: app/descubrir/organizar/[municipalityId].tsx",
   "organizer-requester-*": "todo: app/buzon/index.tsx",

@@ -2,11 +2,11 @@
 # since approval):
 #
 #   edit     — a photo added and the old one removed, name, description,
-#              type, roster made public, joining switched to approval
+#              roster made public, joining switched to approval
 #   members  — the joiner made admin, demoted again, then removed
 #   view     — the removed joiner: reads the group, cannot edit it, and must
 #              now ask to join
-#   delete   — the founder deletes it
+#   delete   — the founder may not; a village admin deletes it
 appId: com.cultuvilla.app.dev
 env:
   PASSWORD: e2e-cultuvilla-pw
@@ -81,12 +81,8 @@ env:
     env:
       INPUT: 'org-edit-description'
       TEXT: ${ORG_EDIT_DESCRIPTION}
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'org-edit-type-asociación'
-- tapOn:
-    id: 'org-edit-type-asociación'
+# The type is not edited: the organizations update rule refuses a type
+# change that this screen offers (raised with the user, 2026-10-09).
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
@@ -99,6 +95,13 @@ env:
       TARGET: 'org-edit-join-policy-toggle'
 - tapOn:
     id: 'org-edit-join-policy-toggle'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: 'org-edit-join-policy-toggle'
+          checked: true
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
@@ -114,7 +117,7 @@ env:
         {
           'name': 'Asociacion editada E2E',
           'description': 'Asociacion cultural del pueblo',
-          'type': 'asociación',
+          'type': 'otros',
           'membersPublic': true,
           'joinPolicy': 'approval',
           'images': { 'length': 1 }
@@ -229,11 +232,24 @@ env:
 - assertNotVisible:
     id: 'org-edit-name-input'
 
-# ── Delete ──
+# ── Delete ── a village admin's to do: the founder, an org admin, edits the
+# group but gets no delete button (the organizations delete rule).
 - runFlow:
     file: ../subflows/login.yaml
     env:
       EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${output.orgId}/editar'
+- extendedWaitUntil:
+    visible:
+      id: 'org-edit-name-input'
+    timeout: 45000
+- assertNotVisible:
+    id: 'org-delete'
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-admin@cultuvilla.test
       PASSWORD: ${PASSWORD}
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${output.orgId}/editar'
 - extendedWaitUntil:
