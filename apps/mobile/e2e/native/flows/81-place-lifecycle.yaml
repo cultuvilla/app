@@ -1,4 +1,5 @@
-# A place through its whole life, every field set and read back:
+# A place through its whole life, every field set and read back. Photos are
+# picked on Android only, as in flow 60 (subflows/pick-photo.yaml):
 #
 #   create  — a villager (not an admin): two photos, name, description, type,
 #             location, a second contributor and a group
@@ -44,26 +45,30 @@ env:
     visible:
       id: 'place-name-input'
     timeout: 45000
-- tapOn:
-    id: 'place-images-add'
 - runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '0'
-- extendedWaitUntil:
-    visible:
-      id: 'place-images-remove-0'
-    timeout: 60000
-- tapOn:
-    id: 'place-images-add'
-- runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '1'
-- extendedWaitUntil:
-    visible:
-      id: 'place-images-remove-1'
-    timeout: 60000
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'place-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '0'
+      - extendedWaitUntil:
+          visible:
+            id: 'place-images-remove-0'
+          timeout: 60000
+      - tapOn:
+          id: 'place-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '1'
+      - extendedWaitUntil:
+          visible:
+            id: 'place-images-remove-1'
+          timeout: 60000
 - runFlow:
     file: ../subflows/type-into.yaml
     env:
@@ -131,10 +136,19 @@ env:
           'municipalityId': 'e2e-village-altozano',
           'proposedBy': 'e2e-user',
           'coordinates': 'present',
-          'images': { 'length': 2 },
           'contributorUserIds': ['e2e-user', 'e2e-admin'],
           'contributorOrgIds': ['e2e-org-ayto']
         }
+
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+            EXPECT_JSON: "{ 'images': { 'length': 2 } }"
 
 # locationLabel is not asserted: it is the reverse-geocoded address, and the CI
 # emulators have no geocoder to answer.
@@ -211,14 +225,19 @@ env:
     visible:
       id: 'place-edit-name-input'
     timeout: 45000
-# A photo removed is written at once, not on save.
-- tapOn:
-    id: 'place-edit-images-remove-0'
-- runScript:
-    file: ../scripts/assertDoc.js
-    env:
-      DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
-      EXPECT_JSON: "{ 'images': { 'length': 1 } }"
+# A photo removed is written at once, not on save. Photos are picked on
+# Android only, as in flow 60 (subflows/pick-photo.yaml).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'place-edit-images-remove-0'
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+            EXPECT_JSON: "{ 'images': { 'length': 1 } }"
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:
@@ -271,7 +290,6 @@ env:
           'kind': 'church',
           'coordinates': 'absent',
           'locationLabel': 'absent',
-          'images': { 'length': 1 },
           'contributorUserIds': ['e2e-user'],
           'contributorOrgIds': { 'length': 0 }
         }

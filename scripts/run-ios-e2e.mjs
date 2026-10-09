@@ -98,6 +98,14 @@ const QUARANTINED = new Map([
       'mode to toggle. Offline rendering on iOS needs a different lever (e.g. ' +
       'stopping the emulators mid-flow) before this can run here.',
   ],
+  [
+    '83-poster-lifecycle.yaml',
+    'a festival poster cannot exist without a photo, and photo uploads through ' +
+      'the iOS picker did not land within 60 s on the shared macOS runners (PR ' +
+      '#560, 2026-10-09, every attempt of two full runs). The other content ' +
+      'flows pick photos on Android only and still run here; this one has ' +
+      'nothing left to run without one. Chase with `pnpm e2e:ci:ios -f flows=83`.',
+  ],
 ]);
 
 // A shard (or a dispatched selection) can leave this machine nothing to run;

@@ -1,4 +1,6 @@
-# A news post through its whole life, every field set and read back:
+# A news post through its whole life, every field set and read back. The cover
+# and the image block are picked on Android only, as in flow 60
+# (subflows/pick-photo.yaml):
 #
 #   create  — the admin: title, category, cover, a text block, an image block
 #             with a caption, a second writer and a group
@@ -56,15 +58,19 @@ env:
 - tapOn:
     id: 'news-category-fiesta'
 - runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'news-cover'
-- tapOn:
-    id: 'news-cover'
-- runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '0'
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'news-cover'
+      - tapOn:
+          id: 'news-cover'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '0'
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'news-form-primary'
@@ -80,24 +86,28 @@ env:
       INPUT: 'news-block-text-0'
       TEXT: ${output.newsText}
 - runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'news-block-add-image'
-- tapOn:
-    id: 'news-block-add-image'
-- runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '1'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'news-block-image-1-caption'
-- runFlow:
-    file: ../subflows/type-into.yaml
-    env:
-      INPUT: 'news-block-image-1-caption'
-      TEXT: ${output.newsCaption}
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'news-block-add-image'
+      - tapOn:
+          id: 'news-block-add-image'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '1'
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'news-block-image-1-caption'
+      - runFlow:
+          file: ../subflows/type-into.yaml
+          env:
+            INPUT: 'news-block-image-1-caption'
+            TEXT: ${output.newsCaption}
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'news-form-primary'
@@ -145,21 +155,32 @@ env:
           'organizerUserIds': ['e2e-admin', 'e2e-user'],
           'organizerOrgIds': ['e2e-org-ayto'],
           'body': '@newsText',
-          'content': { 'length': 2 },
           'content.0.type': 'text',
-          'content.0.text': '@newsText',
-          'content.1.type': 'image',
-          'content.1.storagePath': 'present',
-          'content.1.caption': '@newsCaption',
-          'coverImage.storagePath': 'present'
+          'content.0.text': '@newsText'
         }
-- runScript:
-    file: ../scripts/docField.js
-    env:
-      DOC_PATH: 'news/${output.newsId}'
-      FIELD: coverImage.storagePath
-      EXPECT: present
-- evalScript: ${output.coverPath = output.value}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'news/${output.newsId}'
+            EXPECT_JSON: >-
+              {
+                'content': { 'length': 2 },
+                'content.1.type': 'image',
+                'content.1.storagePath': 'present',
+                'content.1.caption': '@newsCaption',
+                'coverImage.storagePath': 'present'
+              }
+      - runScript:
+          file: ../scripts/docField.js
+          env:
+            DOC_PATH: 'news/${output.newsId}'
+            FIELD: coverImage.storagePath
+            EXPECT: present
+      - evalScript: ${output.coverPath = output.value}
 
 # ── What the admin sees ──
 - extendedWaitUntil:
@@ -189,14 +210,18 @@ env:
     env:
       TEXT: ${output.newsText}
 - runFlow:
-    file: ../subflows/see-text.yaml
-    env:
-      TEXT: ${output.newsCaption}
-- scrollUntilVisible:
-    element:
-      id: 'news-image-zoom'
-    direction: UP
-    timeout: 20000
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/see-text.yaml
+          env:
+            TEXT: ${output.newsCaption}
+      - scrollUntilVisible:
+          element:
+            id: 'news-image-zoom'
+          direction: UP
+          timeout: 20000
 
 # ── A villager who wrote none of it ──
 - runFlow:
@@ -214,7 +239,7 @@ env:
 - runFlow:
     file: ../subflows/see-text.yaml
     env:
-      TEXT: ${output.newsCaption}
+      TEXT: ${output.newsText}
 # The edit route sends a non-writer to the article.
 - openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
 - extendedWaitUntil:
@@ -255,15 +280,19 @@ env:
 - tapOn:
     id: 'news-category-tradicion'
 - runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'news-cover'
-- tapOn:
-    id: 'news-cover'
-- runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '1'
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'news-cover'
+      - tapOn:
+          id: 'news-cover'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '1'
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'news-form-primary'
@@ -278,10 +307,14 @@ env:
       INPUT: 'news-block-text-0'
       TEXT: ${output.newsEditText}
 - runFlow:
-    file: ../subflows/replace-text.yaml
-    env:
-      INPUT: 'news-block-image-1-caption'
-      TEXT: ${output.newsEditCaption}
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/replace-text.yaml
+          env:
+            INPUT: 'news-block-image-1-caption'
+            TEXT: ${output.newsEditCaption}
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'news-form-primary'
@@ -309,12 +342,23 @@ env:
           'organizerUserIds': ['e2e-admin', 'e2e-user'],
           'organizerOrgIds': { 'length': 0 },
           'body': '@newsEditText',
-          'content': { 'length': 2 },
-          'content.0.text': '@newsEditText',
-          'content.1.type': 'image',
-          'content.1.caption': '@newsEditCaption',
-          'coverImage.storagePath': { 'not': '@coverPath' }
+          'content.0.text': '@newsEditText'
         }
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'news/${output.newsId}'
+            EXPECT_JSON: >-
+              {
+                'content': { 'length': 2 },
+                'content.1.type': 'image',
+                'content.1.caption': '@newsEditCaption',
+                'coverImage.storagePath': { 'not': '@coverPath' }
+              }
 
 # ── What the co-writer sees after saving ──
 - extendedWaitUntil:
@@ -331,9 +375,13 @@ env:
     env:
       TEXT: ${output.newsEditText}
 - runFlow:
-    file: ../subflows/see-text.yaml
-    env:
-      TEXT: ${output.newsEditCaption}
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/see-text.yaml
+          env:
+            TEXT: ${output.newsEditCaption}
 
 # A co-writer may edit but not delete: deleteNewsPost lets only the author or
 # an admin through, so the button is not theirs.

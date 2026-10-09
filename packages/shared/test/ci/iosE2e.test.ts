@@ -315,11 +315,12 @@ describe('iOS quarantine', () => {
     ([, name]) => name,
   );
 
-  // Two: 45 needs airplane mode, which Maestro cannot toggle on iOS at all, and
-  // 50 is the AVD-tuned onboarding keyboard choreography. A third needs this
-  // bound raised on purpose, in review.
-  it('holds out at most two flows', () => {
-    expect(quarantined.length).toBeLessThanOrEqual(2);
+  // Three: 45 needs airplane mode, which Maestro cannot toggle on iOS at all;
+  // 50 is the AVD-tuned onboarding keyboard choreography; 83's poster needs a
+  // photo, and iOS photo uploads did not land on the shared runners (#560).
+  // A fourth needs this bound raised on purpose, in review.
+  it('holds out at most three flows', () => {
+    expect(quarantined.length).toBeLessThanOrEqual(3);
   });
 
   it('names only flows that exist', () => {

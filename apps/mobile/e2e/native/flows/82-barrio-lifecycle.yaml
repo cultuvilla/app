@@ -1,4 +1,5 @@
-# A barrio through its whole life, every field set and read back:
+# A barrio through its whole life, every field set and read back. Photos are
+# picked on Android only, as in flow 60 (subflows/pick-photo.yaml):
 #
 #   create  — a villager (not an admin): two photos and a name
 #   assert  — each stored field, then the barrio as its creator sees it
@@ -38,26 +39,30 @@ env:
     visible:
       id: 'barrio-name-input'
     timeout: 45000
-- tapOn:
-    id: 'barrio-images-add'
 - runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '0'
-- extendedWaitUntil:
-    visible:
-      id: 'barrio-images-remove-0'
-    timeout: 60000
-- tapOn:
-    id: 'barrio-images-add'
-- runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '1'
-- extendedWaitUntil:
-    visible:
-      id: 'barrio-images-remove-1'
-    timeout: 60000
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'barrio-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '0'
+      - extendedWaitUntil:
+          visible:
+            id: 'barrio-images-remove-0'
+          timeout: 60000
+      - tapOn:
+          id: 'barrio-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '1'
+      - extendedWaitUntil:
+          visible:
+            id: 'barrio-images-remove-1'
+          timeout: 60000
 - runFlow:
     file: ../subflows/type-into.yaml
     env:
@@ -89,10 +94,17 @@ env:
           'name': '@barrioName',
           'status': 'active',
           'municipalityId': 'e2e-village-altozano',
-          'proposedBy': 'e2e-user',
-          'images': { 'length': 2 },
-          'images.0': { 'prefix': 'http' }
+          'proposedBy': 'e2e-user'
         }
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'municipalities/${VILLAGE_ID}/barrios/${output.barrioId}'
+            EXPECT_JSON: "{ 'images': { 'length': 2 }, 'images.0': { 'prefix': 'http' } }"
 
 # ── What the creator sees ──
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/barrio/_${output.barrioId}'
@@ -141,13 +153,17 @@ env:
     visible:
       id: 'barrio-edit-name-input'
     timeout: 45000
-- tapOn:
-    id: 'barrio-edit-images-remove-0'
-- runScript:
-    file: ../scripts/assertDoc.js
-    env:
-      DOC_PATH: 'municipalities/${VILLAGE_ID}/barrios/${output.barrioId}'
-      EXPECT_JSON: "{ 'images': { 'length': 1 } }"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'barrio-edit-images-remove-0'
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'municipalities/${VILLAGE_ID}/barrios/${output.barrioId}'
+            EXPECT_JSON: "{ 'images': { 'length': 1 } }"
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:
@@ -167,7 +183,6 @@ env:
       EXPECT_JSON: >-
         {
           'name': '@barrioEditName',
-          'images': { 'length': 1 },
           'proposedBy': 'e2e-user'
         }
 - extendedWaitUntil:

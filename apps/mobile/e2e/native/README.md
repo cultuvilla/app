@@ -75,10 +75,10 @@ instead of the whole shard.
 | `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
 | `72-org-join-request` | Joining an `approval` peña: a join request, admitted by the org admin from the Buzón (callable). |
 | `73-org-invite-link` | An org invite link (`…/unirse`) opens the org with the invitation banner; joining an open org is instant. |
-| `80-news-lifecycle` | A news post with every field (cover, a text block, a captioned image block, a co-writer and a group); read by a villager who cannot edit it; every field edited by the co-writer, the cover swapped; hard-deleted through the callable behind a native `Alert`. |
-| `81-place-lifecycle` | A place a villager creates with two photos, description, type, GPS location and contributors; another villager may only read it; the creator edits every field and clears the location, then withdraws it (a hard delete — an admin's is the soft-hide in 90). |
-| `82-barrio-lifecycle` | The same life for a barrio: photos and name, read-only for others, edited, withdrawn. |
-| `83-poster-lifecycle` | A festival poster: photo, year, title, start and end days on the calendar, contributors; edited (a second photo, new year, title and end day) and withdrawn. |
+| `80-news-lifecycle` | A news post with every field (cover, a text block, a captioned image block, a co-writer and a group); read by a villager who cannot edit it; every field edited by the co-writer, the cover swapped; hard-deleted through the callable behind a native `Alert`. Cover and image block on Android only. |
+| `81-place-lifecycle` | A place a villager creates with two photos, description, type, GPS location and contributors; another villager may only read it; the creator edits every field and clears the location, then withdraws it (a hard delete — an admin's is the soft-hide in 90). Photos on Android only. |
+| `82-barrio-lifecycle` | The same life for a barrio: photos and name, read-only for others, edited, withdrawn. Photos on Android only. |
+| `83-poster-lifecycle` | A festival poster: photo, year, title, start and end days on the calendar, contributors; edited (a second photo, new year, title and end day) and withdrawn. Quarantined on iOS (a poster needs a photo; see run-ios-e2e.mjs). |
 | `84-history-create` | A history entry: a captioned photo, a day-precise start, an end year, approximate, body and sources; read back, and read-only for another villager. |
 | `85-history-edit` | 84's entry edited to a BC year with no month or range, every text changed; then withdrawn. Depends on 84. Split from it to stay under Maestro's 15-minute limit. |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
