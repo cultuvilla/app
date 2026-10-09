@@ -1,5 +1,6 @@
 # An org's invite link (…/entidad/<ref>/unirse) lands on the org with the
-# invitation banner, and joining an open org from there is instant.
+# invitation banner, and joining an open org from there is instant. Then the
+# member leaves again from the top bar's exit action.
 #
 # The route is only a redirect to the org detail with `?intent=join`, which is
 # exactly what can break silently: a link that resolves to the wrong screen, or
@@ -48,5 +49,22 @@ env:
 - assertTrue: ${output.ok == 'true'}
 - extendedWaitUntil:
     notVisible:
+      id: 'join-org-fab'
+    timeout: 20000
+- tapOn:
+    id: 'org-leave-action'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Salir'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/members/${JOINER_UID}'
+      FIELD: role
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+- extendedWaitUntil:
+    visible:
       id: 'join-org-fab'
     timeout: 20000

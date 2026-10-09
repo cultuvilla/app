@@ -147,10 +147,11 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .step{display:grid;gap:8px;align-content:start}
 .landing .step::before{counter-increment:s;content:counter(s);font-family:var(--display);font-size:52px;line-height:1;color:var(--accent)}
 @media (max-width:820px){.landing .steps{grid-template-columns:1fr}}
-.landing .amb{background:var(--accent);color:var(--on-accent)}
-.landing .amb .eyebrow{color:var(--on-accent);opacity:.8}
-.landing .amb .lead{color:var(--on-accent);opacity:.92}
-.landing .amb .cta{margin-top:6px;background:var(--surface);color:var(--accent)}
+.landing .accent-band{background:var(--accent);color:var(--on-accent)}
+.landing .accent-band .eyebrow{color:var(--on-accent);opacity:.8}
+.landing .accent-band .lead{color:var(--on-accent);opacity:.92}
+.landing .accent-band .price .big{color:var(--on-accent)}
+.landing .amb .cta{margin-top:6px}
 .landing .amb .head{margin:0}
 .landing .amb .lead b{font-weight:600}
 .landing .amb-photo{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:20px}
