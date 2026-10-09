@@ -213,6 +213,29 @@ describe('OrgDetailScreen — leaving', () => {
     await waitFor(() => expect(removeOrgMember).toHaveBeenCalledWith('o1', 'u2'));
   });
 
+  it('warns a member of an approval group that coming back takes a new request', async () => {
+    setWatched('org', { ...OPEN_ORG, joinPolicy: 'approval' });
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    const { findByTestId } = render(<OrgDetailScreen />);
+    fireEvent.press(await findByTestId('org-leave-action'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'organization.leave.title',
+      'organization.leave.bodyApproval',
+      expect.any(Array),
+    );
+  });
+
+  it('tells the member when leaving fails', async () => {
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    (removeOrgMember as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    const { findByTestId } = render(<OrgDetailScreen />);
+    fireEvent.press(await findByTestId('org-leave-action'));
+    pressConfirm();
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenLastCalledWith('organization.leave.error'));
+  });
+
   it('holds back the only admin while others remain', async () => {
     (isOrgMember as jest.Mock).mockResolvedValue(true);
     (getOrgMembers as jest.Mock).mockResolvedValue([
