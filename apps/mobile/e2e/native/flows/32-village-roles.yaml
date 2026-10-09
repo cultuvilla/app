@@ -1,0 +1,132 @@
+# Village roles on the village flow 30 joined, driven by an app admin (who may
+# manage any pueblo and hand over its Embajador title):
+#
+#   promote   — the joiner onto the team (setVillageMemberRole)
+#   demote    — and off it again
+#   transfer  — the Embajador title to the joiner, which puts them back on the
+#               team (transferVillageAmbassador)
+#
+# Each change is checked on the member doc, the audit log and the roster.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-join
+  VILLAGE_SLUG: pueblo-de-union-e2e
+  TARGET_UID: e2e-joiner
+  TARGET_PERSON: e2e-person-joiner
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-superadmin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/miembros'
+- extendedWaitUntil:
+    visible:
+      id: 'member-row-${TARGET_UID}'
+    timeout: 60000
+- assertNotVisible:
+    id: 'member-title-${TARGET_PERSON}'
+
+# ── Promote ──
+- tapOn:
+    id: 'member-row-${TARGET_UID}'
+- extendedWaitUntil:
+    visible:
+      id: 'member-action-team'
+    timeout: 10000
+- tapOn:
+    id: 'member-action-team'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Añadir al equipo'
+# The callable's first call boots its worker.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/members/${TARGET_UID}'
+      FIELD: role
+      EXPECT: admin
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+- extendedWaitUntil:
+    visible:
+      id: 'member-title-${TARGET_PERSON}'
+    timeout: 30000
+
+# ── Demote ──
+- tapOn:
+    id: 'member-row-${TARGET_UID}'
+- extendedWaitUntil:
+    visible:
+      id: 'member-action-team'
+    timeout: 10000
+- tapOn:
+    id: 'member-action-team'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Quitar del equipo'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/members/${TARGET_UID}'
+      FIELD: role
+      EXPECT: user
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+- extendedWaitUntil:
+    notVisible:
+      id: 'member-title-${TARGET_PERSON}'
+    timeout: 30000
+
+# ── Hand over the Embajador title ──
+- tapOn:
+    id: 'member-row-${TARGET_UID}'
+- extendedWaitUntil:
+    visible:
+      id: 'member-action-transfer'
+    timeout: 10000
+- tapOn:
+    id: 'member-action-transfer'
+# The body states a fact rather than asking, so confirm-alert's "below the
+# question" anchor does not apply; the button's text is unique on screen.
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: 'Ceder título'
+    rightOf: 'Cancelar'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      TIMEOUT_MS: '180000'
+      EXPECT_JSON: "{ 'community.organizerId': 'e2e-joiner' }"
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/members/${TARGET_UID}'
+      FIELD: role
+      EXPECT: admin
+- assertTrue: ${output.ok == 'true'}
+# The Embajador's row is never actionable: the title moves before a demotion.
+- extendedWaitUntil:
+    notVisible:
+      id: 'member-row-${TARGET_UID}'
+    timeout: 30000
+# The Embajador wears the seal on their avatar instead of the team badge.
+- assertNotVisible:
+    id: 'member-title-${TARGET_PERSON}'
+- assertVisible:
+    id: 'avatar-ambassador-seal'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: membershipEvents
+      FIELD: scopeId
+      VALUE: ${VILLAGE_ID}
+      FIELD2: targetUserId
+      VALUE2: ${TARGET_UID}
+      MIN: '3'
+- assertTrue: ${output.ok == 'true'}

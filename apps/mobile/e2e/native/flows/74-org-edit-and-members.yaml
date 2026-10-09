@@ -1,0 +1,255 @@
+# The group flow 70 created and approved, run by its founder (an org admin
+# since approval):
+#
+#   edit     — a photo added and the old one removed, name, description,
+#              type, roster made public, joining switched to approval
+#   members  — the joiner made admin, demoted again, then removed
+#   view     — the removed joiner: reads the group, cannot edit it, and must
+#              now ask to join
+#   delete   — the founder deletes it
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+  JOINER_UID: e2e-joiner
+  ORG_NAME: 'Grupo completo E2E'
+  ORG_EDIT_NAME: 'Asociacion editada E2E'
+  ORG_EDIT_DESCRIPTION: 'Asociacion cultural del pueblo'
+---
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: organizations
+      FIELD: name
+      VALUE: ${ORG_NAME}
+      FIELD2: status
+      VALUE2: approved
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.orgId = output.id}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      FIELD: images.0
+      EXPECT: present
+- evalScript: ${output.firstImage = output.value}
+
+# ── Edit every field ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${output.orgId}'
+- extendedWaitUntil:
+    visible:
+      id: 'org-edit-action'
+    timeout: 45000
+- tapOn:
+    id: 'org-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'org-edit-name-input'
+    timeout: 45000
+# Photos are written at once, not on save.
+- tapOn:
+    id: 'org-edit-images-add'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '1'
+- extendedWaitUntil:
+    visible:
+      id: 'org-edit-images-remove-1'
+    timeout: 60000
+- tapOn:
+    id: 'org-edit-images-remove-0'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      EXPECT_JSON: "{ 'images': { 'length': 1 }, 'images.0': { 'not': '@firstImage' } }"
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'org-edit-name-input'
+      TEXT: ${ORG_EDIT_NAME}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'org-edit-description'
+      TEXT: ${ORG_EDIT_DESCRIPTION}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-edit-type-asociación'
+- tapOn:
+    id: 'org-edit-type-asociación'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-edit-members-public-toggle'
+- tapOn:
+    id: 'org-edit-members-public-toggle'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-edit-join-policy-toggle'
+- tapOn:
+    id: 'org-edit-join-policy-toggle'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-edit-submit'
+- tapOn:
+    id: 'org-edit-submit'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      TIMEOUT_MS: '120000'
+      EXPECT_JSON: >-
+        {
+          'name': 'Asociacion editada E2E',
+          'description': 'Asociacion cultural del pueblo',
+          'type': 'asociación',
+          'membersPublic': true,
+          'joinPolicy': 'approval',
+          'images': { 'length': 1 }
+        }
+
+# ── Back on the group ──
+- extendedWaitUntil:
+    visible:
+      id: 'org-edit-action'
+    timeout: 45000
+- assertVisible: '.*${ORG_EDIT_NAME}.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${ORG_EDIT_DESCRIPTION}
+
+# ── Members: promote, demote, remove ──
+- scrollUntilVisible:
+    element:
+      id: 'org-members-edit-toggle'
+    direction: DOWN
+    centerElement: true
+    timeout: 20000
+- tapOn:
+    id: 'org-members-edit-toggle'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-member-row-${JOINER_UID}'
+- tapOn:
+    id: 'org-member-row-${JOINER_UID}'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Hacer administrador'
+# changeOrgMemberRole is a callable; its first call boots the worker.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}/members/${JOINER_UID}'
+      FIELD: role
+      EXPECT: admin
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: membershipEvents
+      FIELD: scopeId
+      VALUE: ${output.orgId}
+      FIELD2: targetUserId
+      VALUE2: ${JOINER_UID}
+      MIN: '1'
+- assertTrue: ${output.ok == 'true'}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-member-row-${JOINER_UID}'
+- tapOn:
+    id: 'org-member-row-${JOINER_UID}'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Quitar administrador'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}/members/${JOINER_UID}'
+      FIELD: role
+      EXPECT: member
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-member-remove-${JOINER_UID}'
+- tapOn:
+    id: 'org-member-remove-${JOINER_UID}'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}/members/${JOINER_UID}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+
+# ── The removed joiner ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-joiner@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${output.orgId}'
+- extendedWaitUntil:
+    visible:
+      id: 'org-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'org-edit-action'
+- extendedWaitUntil:
+    visible: 'Solicitar unirme'
+    timeout: 20000
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${output.orgId}/editar'
+- extendedWaitUntil:
+    visible:
+      id: 'org-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'org-edit-name-input'
+
+# ── Delete ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${output.orgId}/editar'
+- extendedWaitUntil:
+    visible:
+      id: 'org-delete'
+    timeout: 45000
+- tapOn:
+    id: 'org-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}

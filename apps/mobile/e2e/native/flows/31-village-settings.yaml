@@ -1,0 +1,207 @@
+# A village's own settings, every one set and read back, by an app admin (who
+# manages every pueblo) on the village flow 30 joined:
+#
+#   info       — the description, through the updateVillageInfo callable
+#   community  — escudo, location and description, each saving as it changes
+#   fiestas    — two added, one removed, the other renamed and moved a month
+#   view       — a villager who is not on the team: sees the new description,
+#                and the community editor sends them back to the village
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-join
+  VILLAGE_SLUG: pueblo-de-union-e2e
+  INFO_DESCRIPTION: 'Pueblo editado desde Maestro'
+  COMMUNITY_DESCRIPTION: 'Pueblo de la sierra con fiestas en agosto'
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-superadmin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- setLocation:
+    latitude: 39.52
+    longitude: -0.42
+
+# ── Info ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/editar'
+- extendedWaitUntil:
+    visible:
+      id: 'village-edit-description'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'village-edit-description'
+      TEXT: ${INFO_DESCRIPTION}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'village-edit-submit'
+- tapOn:
+    id: 'village-edit-submit'
+# updateVillageInfo is a callable; its first call boots the worker.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      FIELD: community.description
+      EXPECT: ${INFO_DESCRIPTION}
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+
+# ── Community: escudo, location, description ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/comunidad'
+- extendedWaitUntil:
+    visible:
+      id: 'community-escudo'
+    timeout: 45000
+- tapOn:
+    id: 'community-escudo'
+- runFlow: ../subflows/pick-photo-square.yaml
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: "{ 'escudoManualUrl': { 'prefix': 'http' } }"
+- runFlow:
+    file: ../subflows/pick-my-location.yaml
+    env:
+      TARGET: 'community-location'
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'community-description'
+      TEXT: ${COMMUNITY_DESCRIPTION}
+# The description saves on blur.
+- runFlow: ../subflows/close-keyboard.yaml
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      EXPECT_JSON: >-
+        {
+          'community.description': 'Pueblo de la sierra con fiestas en agosto',
+          'coordinates': 'present',
+          'locationLabel': 'present',
+          'mapZoom': 'present'
+        }
+
+# ── Fiestas: add two, drop one, rename and move the other ──
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-new-name'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'fiesta-new-name'
+      TEXT: 'San Roque E2E'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-add'
+- tapOn:
+    id: 'fiesta-add'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-san-roque-e2e-month-9'
+- tapOn:
+    id: 'fiesta-san-roque-e2e-month-9'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-san-roque-e2e-done'
+- tapOn:
+    id: 'fiesta-san-roque-e2e-done'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-new-name'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'fiesta-new-name'
+      TEXT: 'Virgen E2E'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-add'
+- tapOn:
+    id: 'fiesta-add'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      EXPECT_JSON: >-
+        {
+          'community.fiestas': { 'length': 2 },
+          'community.fiestas.0.id': 'san-roque-e2e',
+          'community.fiestas.0.month': 9,
+          'community.fiestas.1.id': 'virgen-e2e',
+          'community.fiestas.1.month': 8
+        }
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-remove-virgen-e2e'
+- tapOn:
+    id: 'fiesta-remove-virgen-e2e'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-edit-san-roque-e2e'
+- tapOn:
+    id: 'fiesta-edit-san-roque-e2e'
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'fiesta-san-roque-e2e-name'
+      TEXT: 'San Roque y Santa Ana'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-san-roque-e2e-month-7'
+- tapOn:
+    id: 'fiesta-san-roque-e2e-month-7'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-san-roque-e2e-done'
+- tapOn:
+    id: 'fiesta-san-roque-e2e-done'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      EXPECT_JSON: >-
+        {
+          'community.fiestas': { 'length': 1 },
+          'community.fiestas.0.id': 'san-roque-e2e',
+          'community.fiestas.0.name': 'San Roque y Santa Ana',
+          'community.fiestas.0.month': 7
+        }
+- assertVisible:
+    id: 'fiesta-san-roque-e2e'
+
+# ── A villager who is not on the team ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-joiner@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}'
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${COMMUNITY_DESCRIPTION}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/comunidad'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${COMMUNITY_DESCRIPTION}
+- assertNotVisible:
+    id: 'community-escudo'
