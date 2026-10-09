@@ -77,7 +77,14 @@ env:
     env:
       INPUT: 'community-description'
       TEXT: ${COMMUNITY_DESCRIPTION}
-# The description saves on blur.
+# The description saves on blur, and closing the keyboard does not blur it on
+# Android: move to the next field, as a user filling the form would.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-new-name'
+- tapOn:
+    id: 'fiesta-new-name'
 - runFlow: ../subflows/close-keyboard.yaml
 - runScript:
     file: ../scripts/assertDoc.js
