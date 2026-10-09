@@ -52,6 +52,7 @@ describe('renderDocument', () => {
     const out = doc({ title: 'a' });
     const header = out.slice(out.indexOf('<header class="site">'), out.indexOf('</header>'));
     expect(header).toContain('<a href="/pueblos">Pueblos</a>');
+    expect(header).toContain('<a class="wide" href="/embajadores">Embajadores</a>');
   });
 
   it('signs every page with the CULTUVILLA lettering, not plain text', () => {

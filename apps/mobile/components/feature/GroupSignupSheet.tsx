@@ -31,6 +31,7 @@ import {
   type PhoneCountry,
 } from '@cultuvilla/shared/utils';
 import { useT } from '../../lib/i18n';
+import { initialPhone } from '../../lib/profilePhone';
 
 const ACCENT = colors.light.fg.accent;
 
@@ -46,6 +47,8 @@ export interface MyGroupSeat {
 
 export interface GroupSignupSheetProps {
   visible: boolean;
+  /** Keeps an open sheet's state but takes it off screen (another screen is in front). */
+  hidden?: boolean;
   /** Seats that must be filled together — the event's `signupGroupSize`. */
   groupSize: number;
   /** The caller's personas — own persona first, then personas a cargo. */
@@ -55,6 +58,8 @@ export interface GroupSignupSheetProps {
   /** Seats the caller already holds; non-empty switches the sheet to summary. */
   mySeats: MyGroupSeat[];
   telephoneRequired: boolean;
+  /** The account's saved phone (E.164); the phone field starts from it. */
+  savedPhone?: string | null;
   signupFields?: SignupFieldSpec[];
   busy: boolean;
   autoSelectIds?: string[];
@@ -94,11 +99,13 @@ export interface GroupSignupSheetProps {
  */
 export function GroupSignupSheet({
   visible,
+  hidden = false,
   groupSize,
   attendees,
   ownPersonId,
   mySeats,
   telephoneRequired,
+  savedPhone,
   signupFields = [],
   busy,
   autoSelectIds,
@@ -132,8 +139,9 @@ export function GroupSignupSheet({
       setSelected(ownIsBookable ? new Set([ownPersonId]) : new Set());
       setOpenSeats(0);
       setAnswers({});
-      setPhone('');
-      setPhoneCountry(DEFAULT_PHONE_COUNTRY);
+      const seed = initialPhone(savedPhone);
+      setPhone(seed.national);
+      setPhoneCountry(seed.country);
       setConfirmAttempted(false);
     }
     // Re-seed only on open — a persona list arriving mid-session must not wipe
@@ -222,7 +230,7 @@ export function GroupSignupSheet({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !hidden}
       transparent
       animationType="fade"
       onRequestClose={() => {

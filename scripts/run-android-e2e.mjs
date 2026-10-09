@@ -26,7 +26,7 @@
  *                     emulator (see the selection note below).
  *   E2E_NATIVE_FLOW   Flows to run instead of the whole suite (same as
  *                     --flow): comma-separated numeric prefixes or names, e.g.
- *                     `20,22` or `20-register-to-event`. Runs quarantined
+ *                     `20,21` or `20-registration-signup`. Runs quarantined
  *                     flows too; see selectFlows in scripts/lib/maestro-suite.mjs. Useful for
  *                     iterating on one flow under `pnpm test:e2e:android`,
  *                     which owns the emulator boot and takes no extra args.
@@ -34,7 +34,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { ROOT, SUITE_DIR, arg, run, runMaestroSuite } from './lib/maestro-suite.mjs';
+import { PICKER_IMAGES, ROOT, SUITE_DIR, arg, run, runMaestroSuite } from './lib/maestro-suite.mjs';
 
 const LABEL = 'android-e2e';
 const ADB = process.env.ADB || 'adb';
@@ -86,6 +86,13 @@ if (apk) {
   const code = run(LABEL, ADB, ['-s', device, 'install', '-r', '-d', apkPath]);
   if (code !== 0) process.exit(code);
 }
+
+// 2b. Stock the photo picker. A push alone is invisible to it until MediaStore
+//     rescans the volume.
+for (const [i, image] of PICKER_IMAGES.entries()) {
+  if (run(LABEL, ADB, ['-s', device, 'push', image, `/sdcard/Pictures/e2e-picker-${i}.jpg`]) !== 0) process.exit(1);
+}
+run(LABEL, ADB, ['-s', device, 'shell', 'content', 'call', '--uri', 'content://media', '--method', 'scan_volume', '--arg', 'external_primary']);
 
 // 3. Run the suite (scripts/lib/maestro-suite.mjs). Flows held OUT of the
 //    gate on Android, with the reason each one is out — see that module for why

@@ -1,5 +1,5 @@
 // apps/mobile/components/feature/__tests__/RegisterFab.test.tsx
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { RegisterFab } from '../RegisterFab';
 import {
   getUserRegistrations,
@@ -9,6 +9,7 @@ import {
   cancelRegistration,
 } from '@cultuvilla/shared/services/registrationService';
 import { getPersonsByCreator } from '@cultuvilla/shared/services/personService';
+import { patchUserProfile } from '@cultuvilla/shared/services/userService';
 import { observability } from '@cultuvilla/shared';
 
 const mockOfferPush = jest.fn();
@@ -38,12 +39,34 @@ jest.mock('../../../lib/dialogs', () => ({
 }));
 jest.mock('expo-router', () => {
   const React = require('react');
+  const listeners = new Set<(mockFocused: boolean) => void>();
   return {
     router: { push: jest.fn() },
-    // Run the focus callback once after mount, like a real initial focus.
-    useFocusEffect: (cb: () => void) => React.useEffect(cb, []),
+    // Run the focus callback after mount, like a real initial focus, and again
+    // (after its cleanup) whenever a test moves focus away and back.
+    useFocusEffect: (cb: () => void | (() => void)) =>
+      React.useEffect(() => {
+        let cleanup = cb();
+        const onFocusChange = (mockFocused: boolean) => {
+          if (mockFocused) cleanup = cb();
+          else {
+            cleanup?.();
+            cleanup = undefined;
+          }
+        };
+        listeners.add(onFocusChange);
+        return () => {
+          listeners.delete(onFocusChange);
+          cleanup?.();
+        };
+      }, []),
+    __setFocused: (mockFocused: boolean) => listeners.forEach((l) => l(mockFocused)),
   };
 });
+const setScreenFocused = (focused: boolean) =>
+  act(() => {
+    (jest.requireMock('expo-router') as { __setFocused: (f: boolean) => void }).__setFocused(focused);
+  });
 jest.mock('@cultuvilla/shared/services/registrationService', () => ({
   getUserRegistrations: jest.fn(),
   registerToEvent: jest.fn(),
@@ -62,6 +85,7 @@ jest.mock('../../../lib/deeplink/useShareDeepLink', () => ({
   useShareDeepLink: () => mockShareDeepLink,
 }));
 const mockShareDeepLink = jest.fn().mockResolvedValue(undefined);
+jest.mock('@cultuvilla/shared/services/userService', () => ({ patchUserProfile: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
   getPersonsByCreator: jest.fn(),
 }));
@@ -116,6 +140,23 @@ describe('RegisterFab', () => {
     expect(getByTestId('attendee-row-p1')).toBeTruthy();
   });
 
+  // iOS presents a Modal above every screen, so a sheet left open while
+  // "Crear una nueva persona" pushed the person form covered that form.
+  it('hides the sheet while another screen is in front, and brings it back as it was', async () => {
+    const { getByTestId, queryByTestId, getByText } = render(<RegisterFab {...baseProps} />);
+    await waitFor(() => expect(getByText('event.register.cta')).toBeTruthy());
+    fireEvent.press(getByTestId('register-fab'));
+    fireEvent.press(getByTestId('attendee-row-p1'));
+    fireEvent.press(getByTestId('attendee-create'));
+
+    await setScreenFocused(false);
+    expect(queryByTestId('attendee-list')).toBeNull();
+
+    await setScreenFocused(true);
+    await waitFor(() => expect(getByTestId('attendee-list')).toBeTruthy());
+    expect(getByTestId('attendee-row-p1').props.accessibilityState).toMatchObject({ checked: true });
+  });
+
   it('shows a group count label when personas are already registered', async () => {
     mockGetUserRegistrations.mockResolvedValue([{ id: 'rA', personId: 'p1', status: 'confirmed' }]);
     const { getByText } = render(<RegisterFab {...baseProps} />);
@@ -167,6 +208,43 @@ describe('RegisterFab', () => {
     expect(observability.trackEvent).toHaveBeenCalledWith('event.signup.success', { villageId: undefined });
     // A booked seat is the moment the push soft ask earns its place.
     await waitFor(() => expect(mockOfferPush).toHaveBeenCalledWith('event_signup'));
+  });
+
+  it('saves a newly typed sign-up phone to the profile', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([]);
+    mockRegisterToEvent.mockResolvedValue(wrapRegs([{ id: 'rA', status: 'confirmed', position: 1, isMember: true }]));
+    (patchUserProfile as jest.Mock).mockResolvedValue(undefined);
+    const onPhoneSaved = jest.fn();
+    const { getByTestId, getByText } = render(
+      <RegisterFab {...baseProps} telephoneRequired savedPhone={null} onPhoneSaved={onPhoneSaved} />,
+    );
+    await waitFor(() => expect(getByText('event.register.cta')).toBeTruthy());
+
+    fireEvent.press(getByTestId('register-fab'));
+    fireEvent.press(getByTestId('attendee-row-p1'));
+    fireEvent.changeText(getByTestId('attendee-phone'), '600111222');
+    fireEvent.press(getByTestId('attendee-confirm'));
+
+    await waitFor(() => expect(patchUserProfile).toHaveBeenCalledWith('u1', { telephone: '+34600111222' }));
+    await waitFor(() => expect(onPhoneSaved).toHaveBeenCalled());
+  });
+
+  it('does not rewrite the profile when the prefilled phone is kept', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([]);
+    mockRegisterToEvent.mockResolvedValue(wrapRegs([{ id: 'rA', status: 'confirmed', position: 1, isMember: true }]));
+    const { getByTestId, getByText } = render(
+      <RegisterFab {...baseProps} telephoneRequired savedPhone="+34600111222" />,
+    );
+    await waitFor(() => expect(getByText('event.register.cta')).toBeTruthy());
+
+    fireEvent.press(getByTestId('register-fab'));
+    fireEvent.press(getByTestId('attendee-row-p1'));
+    fireEvent.press(getByTestId('attendee-confirm'));
+
+    await waitFor(() =>
+      expect(mockRegisterToEvent).toHaveBeenCalledWith('e1', [{ personId: 'p1', name: 'Ana', phone: '+34600111222' }]),
+    );
+    expect(patchUserProfile).not.toHaveBeenCalled();
   });
 
   it('shows a dependent full name with the apodo in parentheses, not the apodo alone', async () => {
@@ -295,6 +373,57 @@ describe('RegisterFab — group sign-up', () => {
 
     fireEvent.press(getByTestId('group-row-p2'));
     expect(getByTestId('group-confirm').props.accessibilityState.disabled).toBe(false);
+  });
+
+  // The same iOS Modal problem, through the group sheet's "Crear una nueva persona".
+  it('hides the group sheet while another screen is in front, and brings it back as it was', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([dep]);
+    const { getByTestId, queryByTestId } = render(<RegisterFab {...groupProps} />);
+    await waitFor(() => expect(getByTestId('register-fab')).toBeTruthy());
+    fireEvent.press(getByTestId('register-fab'));
+    await waitFor(() => expect(getByTestId('group-row-p2')).toBeTruthy());
+    fireEvent.press(getByTestId('group-row-p2'));
+    fireEvent.press(getByTestId('group-create-persona'));
+
+    await setScreenFocused(false);
+    expect(queryByTestId('group-attendee-list')).toBeNull();
+
+    await setScreenFocused(true);
+    await waitFor(() => expect(getByTestId('group-attendee-list')).toBeTruthy());
+    expect(getByTestId('group-row-p2').props.accessibilityState).toMatchObject({ checked: true });
+  });
+
+  it('prefills the group phone and saves a changed one after the group is booked', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([dep]);
+    mockRegisterToEvent.mockResolvedValue(wrapRegs([
+      { id: 'rA', status: 'confirmed', position: 1, isMember: true },
+      { id: 'rB', status: 'confirmed', position: 2, isMember: false },
+    ]));
+    (patchUserProfile as jest.Mock).mockResolvedValue(undefined);
+    const onPhoneSaved = jest.fn();
+    const { getByTestId } = render(
+      <RegisterFab {...groupProps} telephoneRequired savedPhone="+34600111222" onPhoneSaved={onPhoneSaved} />,
+    );
+    await waitFor(() => expect(getByTestId('register-fab')).toBeTruthy());
+    fireEvent.press(getByTestId('register-fab'));
+    fireEvent.press(getByTestId('group-row-p2'));
+
+    expect(getByTestId('group-phone').props.value).toBe('600111222');
+    fireEvent.changeText(getByTestId('group-phone'), '600333444');
+    fireEvent.press(getByTestId('group-confirm'));
+
+    await waitFor(() =>
+      expect(mockRegisterToEvent).toHaveBeenCalledWith(
+        'e1',
+        [
+          { personId: 'p1', name: 'Ana', phone: '+34600333444' },
+          { personId: 'p2', name: 'Hijo García', phone: '+34600333444' },
+        ],
+        0,
+      ),
+    );
+    await waitFor(() => expect(patchUserProfile).toHaveBeenCalledWith('u1', { telephone: '+34600333444' }));
+    await waitFor(() => expect(onPhoneSaved).toHaveBeenCalled());
   });
 
   it('books a persona plus an open seat and lands on the summary, not a share sheet', async () => {

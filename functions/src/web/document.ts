@@ -62,7 +62,7 @@ document.addEventListener('click',function(e){
 export function renderDocument(page: Page, ctx: DocumentContext): string {
   const { head } = page;
   const landing = page.layout === 'landing';
-  const header = html`<header class="site"><a class="brand" href="/"><img class="mark" src="/brand/logo-96.png" alt="" width="32" height="32"/><img class="wordmark" src="/brand/cultuvilla-lettering.svg" alt="Cultuvilla" width="167" height="20"/></a><nav><a href="/pueblos">Pueblos</a>${appCta(ctx.appPath, 'Abrir en la app', 'small')}</nav></header>`;
+  const header = html`<header class="site"><a class="brand" href="/"><img class="mark" src="/brand/logo-96.png" alt="" width="32" height="32"/><img class="wordmark" src="/brand/cultuvilla-lettering.svg" alt="Cultuvilla" width="167" height="20"/></a><nav><a class="wide" href="/embajadores">Embajadores</a><a href="/pueblos">Pueblos</a>${appCta(ctx.appPath, 'Abrir en la app', 'small')}</nav></header>`;
   const footer = html`<footer class="site"><a href="/descarga">Descargar la app</a><a href="/legal/privacidad">Privacidad</a><a href="/legal/terminos">Términos</a><a href="/legal/eliminar-cuenta">Eliminar cuenta</a></footer>`;
   const title = head.title === SITE_NAME ? SITE_NAME : `${head.title} · ${SITE_NAME}`;
   const description = head.description || DEFAULT_DESCRIPTION;

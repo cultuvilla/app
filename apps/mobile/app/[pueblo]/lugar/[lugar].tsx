@@ -104,6 +104,7 @@ function PlaceDetailScreen() {
           ? [
               {
                 icon: 'create-outline' as const,
+                testID: 'place-edit-action',
                 accessibilityLabel: t('common.edit'),
                 onPress: () => router.push(placeEditHref(villageSlug, place)),
               },
@@ -111,6 +112,7 @@ function PlaceDetailScreen() {
           : []),
         {
           icon: 'share-outline',
+          testID: 'place-share-action',
           accessibilityLabel: t('deeplink.shareViewLabel'),
           onPress: () => void share(getPlaceViewLink({ id: place.id, title: place.name, villageSlug }), place.name),
         },

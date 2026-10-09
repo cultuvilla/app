@@ -4,6 +4,50 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.10.0 — 2026-10-09
+
+<!-- store-notes -->
+- **Sal de un grupo cuando quieras**: desde la barra superior de una peña o asociación ya puedes dejarla.
+- **Tu teléfono, guardado**: al apuntarte a un evento que pide teléfono, ya aparece el de tu perfil, y el que uses queda guardado para la próxima vez.
+- Tus grupos y peñas vuelven a aparecer en tu perfil.
+- En iPhone, «Crear una nueva persona» desde la inscripción ya no se abre debajo de la ventana.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
+- **Web:** the landing's Embajador section takes the light page background, and the price band is orange.
+
+- Feat: a member can leave a group (peña/asociación) from the exit icon in its
+  top bar; the only admin of a group with other members is asked to promote
+  someone first. The top bar of every detail screen (events, groups, places,
+  news…) is taller and its icons larger.
+- Fix: the profile's Grupos and Peñas lists showed nothing on device. A live
+  read of a document that does not exist (your membership in an org you never
+  joined) ran the strict converter on empty data and failed, which emptied the
+  whole list. **Migration:** none.
+
+## v1.9.0 — 2026-10-09
+
+<!-- store-notes -->
+- **Tu teléfono, guardado**: al apuntarte a un evento que pide teléfono, ya aparece el de tu perfil, y el que uses queda guardado para la próxima vez.
+- En iPhone, «Crear una nueva persona» desde la inscripción ya no se abre debajo de la ventana.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
+- **Web:** `/embajadores` is now one short screen on its own light sage background: «¿Presumes de pueblo allá donde vas?» beside the Embajador film, and below them a form (pueblo picker, name, phone, consent) that stores a lead the team calls back, then a thanks page. The long version's sections are gone. On the landing, the Embajadores teaser loses its label and its button reads «Quiero ser Embajador →», and the fiestas summary phone moves to the left of its text. New collection `ambassadorLeads/` (app admins read; no client writes). **Deploy:** firestore.rules.
+- **Web:** the landing's FAQ is redesigned (title beside a divided list with chevron toggles, and a line pointing other questions to moises@cultuvilla.es) and titled plainly «Preguntas frecuentes»; the price and closing bands drop their small labels.
+- **Web:** the landing's Embajadores teaser is orange again, asks "¿Presumes de pueblo allá donde vas?" and shows a young man talking with an older one; the fiestas summary phone gets room above it.
+- **Web:** a new `/embajadores` page pitches being a pueblo's Embajador around the Embajador film: the question hook, what is lost each year, what an Embajador does, the three steps, its own FAQ and the store buttons. The header links to it on wider screens, and the app sends `/embajadores` to the village search.
+- **Web:** the landing drops its "Para quién" cards; its Embajadores block is now short, on a light background, and links to `/embajadores`. "Inmortaliza la cultura de tu pueblo" reads "Conserva…", and the "Inmortalízalo" pillar shows an old library.
+- **Web:** the header no longer overflows a 320px-wide phone on the landing pages.
+- Feature: an event sign-up that asks for a phone starts from the number saved
+  on your account, and the number you sign up with becomes the saved one — so
+  the next sign-up (or seat claim) doesn't make you type it again.
+  **Migration:** none.
+- Fix: on iPhone, "Crear una nueva persona" in the event sign-up sheet opened the
+  person form underneath the sheet, which stayed on top until tapped away. The
+  sheet now steps aside while the form is open and comes back as it was, with
+  the new person ticked. **Migration:** none.
+
 ## v1.8.1 — 2026-10-08
 
 <!-- store-notes -->

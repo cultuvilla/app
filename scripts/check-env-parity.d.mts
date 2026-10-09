@@ -13,6 +13,7 @@ export const DIMENSIONS: string[];
 export function normalize<T>(value: T, ids: { project: string; number: number | string }): T;
 export function expectedFor(baseline: Baseline, env: string): Snapshot;
 export function diffSnapshot(actual: Snapshot, expected: Snapshot): string[];
+export function configDifferences(actual: Snapshot, env: string, baselines: Baseline[]): string[];
 export function validateBaseline(baseline: Baseline): string[];
 export function draftBaseline(snapshots: Record<string, Snapshot>): Baseline;
 export function exportedFunctionNames(indexSource: string): string[];
@@ -36,5 +37,5 @@ export function checkEnv(
   scope: 'config' | 'artifacts' | 'all',
   baseline: Baseline,
   api: Api,
-  options?: { readFile?: (path: string) => string },
+  options?: { readFile?: (path: string) => string; alsoBaselines?: Baseline[] },
 ): Promise<string[]>;

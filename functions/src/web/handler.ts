@@ -44,22 +44,37 @@ import {
   posterPage,
   sectionPage,
   villagesPage,
+  ambassadorsPage,
+  ambassadorsThanksPage,
   villagePage,
   wordPage,
   wrappedPage,
 } from './pages';
 import { matchRoute, type WebRoute } from './routes';
+import { searchPueblos, submitAmbassadorLead } from './ambassadorLead';
 
 export interface WebRequest {
   pathname: string;
   userAgent: string | null;
+  /** GET unless said otherwise; only /embajadores accepts a POST. */
+  method?: string;
+  /** The `q` search parameter, for the pueblo picker. */
+  q?: string;
+  /** A parsed form body. */
+  body?: unknown;
+  /** The visitor's address, only to throttle the form. */
+  ip?: string;
 }
 
 export type WebResponse =
   /** `deviceDependent`: the answer differs by User-Agent, so the edge must not share it. */
   | { kind: 'page'; page: Page; path: string; deviceDependent?: true }
   /** Permanent for canonical paths, temporary for the UA-dependent store hand-off. */
-  | { kind: 'redirect'; location: string; permanent: boolean };
+  | { kind: 'redirect'; location: string; permanent: boolean; seeOther?: true }
+  /** `maxAge` in seconds for the browser and the edge. */
+  | { kind: 'json'; body: unknown; maxAge: number }
+  /** A method this path does not take. */
+  | { kind: 'methodNotAllowed'; allow: string };
 
 export interface WebDeps {
   db: Firestore;
@@ -170,12 +185,27 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
   const path = req.pathname.length > 1 ? req.pathname.replace(/\/+$/, '') : '/';
   const route = matchRoute(path);
   const { db, bucket } = deps;
+  const method = req.method ?? 'GET';
+  if (method !== 'GET' && method !== 'HEAD' && !(method === 'POST' && route.type === 'ambassadors')) {
+    return { kind: 'methodNotAllowed', allow: route.type === 'ambassadors' ? 'GET, HEAD, POST' : 'GET, HEAD' };
+  }
 
   switch (route.type) {
     case 'home':
       return page(homePage(await loadLanding(deps)), path);
     case 'villages':
       return page(villagesPage(await loadLanding(deps)), path);
+    case 'ambassadors': {
+      if (req.method !== 'POST') return page(ambassadorsPage(), path);
+      const outcome = await submitAmbassadorLead(db, req.body, req.ip ?? 'unknown', deps.now);
+      if (outcome.ok) return { kind: 'redirect', location: '/embajadores/gracias', permanent: false, seeOther: true };
+      // The visitor's own answers come back to them, so the edge must never keep this page.
+      return { kind: 'page', page: { ...ambassadorsPage(outcome), status: 400 }, path, deviceDependent: true };
+    }
+    case 'ambassadorsThanks':
+      return page(ambassadorsThanksPage(), path);
+    case 'ambassadorSearch':
+      return { kind: 'json', body: await searchPueblos(db, req.q ?? ''), maxAge: 86400 };
     case 'download': {
       // The printed /descarga QR: a phone goes straight to its store.
       const platform = resolveStorePlatform(req.userAgent, 0);

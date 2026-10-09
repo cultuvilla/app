@@ -77,6 +77,7 @@ function BarrioDetailScreen() {
           ? [
               {
                 icon: 'create-outline' as const,
+                testID: 'barrio-edit-action',
                 accessibilityLabel: t('common.edit'),
                 onPress: () => router.push(barrioEditHref(villageSlug, barrio)),
               },
@@ -84,6 +85,7 @@ function BarrioDetailScreen() {
           : []),
         {
           icon: 'share-outline',
+          testID: 'barrio-share-action',
           accessibilityLabel: t('deeplink.shareViewLabel'),
           onPress: () => void share(getBarrioViewLink({ id: barrio.id, title: barrio.name, villageSlug }), barrio.name),
         },

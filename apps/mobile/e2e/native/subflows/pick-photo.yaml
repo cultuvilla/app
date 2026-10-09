@@ -1,0 +1,31 @@
+# Pick a photo in the OS picker that the app has just opened. The runner stocks
+# it with PICKER_IMAGES (scripts/lib/maestro-suite.mjs); ${INDEX} is 0 or 1, so
+# an edit can swap one for the other.
+#
+# Android only for now: the system Photo Picker names its cells by resource id.
+# iOS's PHPicker runs out of process and needs its own selector — until then a
+# flow guards this with `platform: Android` and asserts images there alone.
+appId: com.cultuvilla.app.dev
+---
+- extendedWaitUntil:
+    visible:
+      id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+    timeout: 15000
+- runFlow:
+    when:
+      true: ${INDEX == 0}
+    commands:
+      - tapOn:
+          id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+          index: 0
+- runFlow:
+    when:
+      true: ${INDEX == 1}
+    commands:
+      - tapOn:
+          id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+          index: 1
+- extendedWaitUntil:
+    notVisible:
+      id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+    timeout: 15000

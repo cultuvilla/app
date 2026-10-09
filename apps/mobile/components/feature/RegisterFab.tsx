@@ -30,6 +30,7 @@ import { useT } from '../../lib/i18n';
 import { useMyRegistrations } from '../../lib/registrations/MyRegistrationsContext';
 import { usePush } from '../../lib/push/PushProvider';
 import { withFirestoreErrorLog } from '../../lib/firestoreErrorLog';
+import { rememberProfilePhone } from '../../lib/profilePhone';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 
 export interface RegisterFabProps {
@@ -48,6 +49,10 @@ export interface RegisterFabProps {
   visibilityOrgId: string | null;
   /** When true, adding new attendees first requires a shared phone. */
   telephoneRequired: boolean;
+  /** The account's saved phone — prefills the sign-up phone, updated after a sign-up. */
+  savedPhone?: string | null;
+  /** Called once a new phone has been saved to the profile, so it can be re-read. */
+  onPhoneSaved?: () => void | Promise<void>;
   /** The event's custom sign-up fields, answered once per new attendee. */
   signupFields?: SignupFieldSpec[];
   /** The event's municipality — threaded into signup observability events. */
@@ -80,6 +85,8 @@ export function RegisterFab({
   villageSlug,
   visibilityOrgId,
   telephoneRequired,
+  savedPhone,
+  onPhoneSaved,
   signupFields,
   villageId,
   groupSize = 1,
@@ -171,6 +178,17 @@ export function RegisterFab({
     }, [load]),
   );
 
+  // iOS presents a Modal above every screen, so a sheet left open while
+  // "Crear una nueva persona" pushes the person form would cover that form.
+  // Hide it while this screen is out of focus; it comes back as it was.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+
   const attendees: AttendeeOption[] = [
     { id: personId, name, status: registrations.get(personId)?.status },
     ...dependents.map((d) => ({
@@ -228,6 +246,7 @@ export function RegisterFab({
         });
         const { registrations: summaries } = await registerToEvent(eventId, registrants);
         succeeded = true;
+        void rememberProfilePhone(userId, savedPhone, phone, onPhoneSaved);
         summaries.forEach((s, i) => {
           const pid = diff.toAdd[i]?.personId;
           if (pid) next.set(pid, { regId: s.id, status: s.status });
@@ -281,6 +300,7 @@ export function RegisterFab({
       // atomically instead of racing seat by seat against the capacity.
       const result = await registerToEvent(eventId, registrants, openSeats);
       succeeded = true;
+      void rememberProfilePhone(userId, savedPhone, phone, onPhoneSaved);
       observability.trackEvent(OBSERVABILITY_EVENTS.EVENT_SIGNUP_SUCCESS, { villageId });
       setAutoSelectIds([]);
       await load();
@@ -434,11 +454,13 @@ export function RegisterFab({
       {isGroupEvent ? (
         <GroupSignupSheet
           visible={sheetOpen}
+          hidden={!focused}
           groupSize={groupSize}
           attendees={attendees}
           ownPersonId={personId}
           mySeats={mySeats}
           telephoneRequired={telephoneRequired}
+          savedPhone={savedPhone}
           signupFields={signupFields}
           busy={busy}
           autoSelectIds={autoSelectIds}
@@ -455,8 +477,10 @@ export function RegisterFab({
       ) : (
         <AttendeeSheet
           visible={sheetOpen}
+          hidden={!focused}
           attendees={attendees}
           telephoneRequired={telephoneRequired}
+          savedPhone={savedPhone}
           signupFields={signupFields}
           busy={busy}
           autoSelectIds={autoSelectIds}

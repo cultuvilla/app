@@ -163,6 +163,7 @@ export function SignupQuestionsEditor({
                 options={field.options}
                 mode="single"
                 onChange={(options) => patch(index, { options })}
+                testIDPrefix={`signup-question-${String(index)}`}
               />
             ) : null}
           </QuestionCardShell>

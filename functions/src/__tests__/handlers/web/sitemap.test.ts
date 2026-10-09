@@ -34,9 +34,10 @@ describe('sitemap', () => {
     expect(xml).not.toContain('_n2');
   });
 
-  it('lists the home and the /pueblos directory', async () => {
+  it('lists the home, the /pueblos directory and the /embajadores page', async () => {
     const xml = await fetchSitemap();
     expect(xml).toMatch(/<loc>https?:\/\/[^<]+\/<\/loc>/);
     expect(xml).toMatch(/<loc>https?:\/\/[^<]+\/pueblos<\/loc>/);
+    expect(xml).toMatch(/<loc>https?:\/\/[^<]+\/embajadores<\/loc>/);
   });
 });

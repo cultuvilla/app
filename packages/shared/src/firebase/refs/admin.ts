@@ -27,6 +27,7 @@ import { occupationConverterAdmin } from '../converters/occupationConverter.admi
 import { adminConverterAdmin } from '../converters/adminConverter.admin';
 import { membershipEventConverterAdmin } from '../converters/membershipEventConverter.admin';
 import { moderationEventConverterAdmin } from '../converters/moderationEventConverter.admin';
+import { ambassadorLeadConverterAdmin } from '../converters/ambassadorLeadConverter.admin';
 import { festivalPosterConverterAdmin } from '../converters/festivalPosterConverter.admin';
 import { villageWrappedConverterAdmin } from '../converters/villageWrappedConverter.admin';
 import { municipalityPersonConverterAdmin } from '../converters/municipalityPersonConverter.admin';
@@ -243,6 +244,9 @@ export const moderationEventsCollection = (db: Firestore) =>
 
 export const moderationEventDoc = (db: Firestore, id: string) =>
   db.collection('moderationEvents').doc(id).withConverter(moderationEventConverterAdmin);
+
+export const ambassadorLeadsCollection = (db: Firestore) =>
+  db.collection('ambassadorLeads').withConverter(ambassadorLeadConverterAdmin);
 
 // ── Admin domain ─────────────────────────────────────────────────────────
 

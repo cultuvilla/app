@@ -10,6 +10,7 @@ import {
   classifyReleasability,
   classifyVersionState,
   isBuildReady,
+  EDITABLE_STATES,
   pickEditableVersion,
   pickTestflightGroups,
   PENDING_RELEASE_STATE,
@@ -63,6 +64,18 @@ export async function findOrCreateVersion(request, { ascAppId, versionString, re
       `findOrCreateVersion: version ${versionString} exists in unexpected state ` +
         `'${sameVersion.attributes.appStoreState}' — refusing to submit.`,
     );
+  }
+
+  // Apple keeps one editable version per platform: a version cut but never
+  // submitted (1.8.0, whose prod deploy failed) refuses every POST with 409
+  // "cannot create a new version in the current state". Renaming that draft is
+  // what App Store Connect itself does when you edit its version number.
+  const draft = (data.data || []).find((v) => EDITABLE_STATES.has(v?.attributes?.appStoreState));
+  if (draft) {
+    await request('PATCH', `/appStoreVersions/${draft.id}`, {
+      data: { type: 'appStoreVersions', id: draft.id, attributes: { versionString, releaseType } },
+    });
+    return { id: draft.id, created: false, renamedFrom: draft.attributes.versionString };
   }
 
   const created = await request('POST', '/appStoreVersions', {

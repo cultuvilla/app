@@ -1,0 +1,219 @@
+# The organizer side of flow 20's sign-ups, then the attendee cancelling.
+#
+# The organizer reads every answer on the roster, sees the private persona's
+# real name, marks a payment, opens the call sheet, and removes the dependent —
+# which frees the seat the waitlisted persona is then promoted into by the
+# registration trigger. The attendee finally unticks themselves; the persona
+# they signed up stays.
+#
+# Depends on flow 20 (same tens group).
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  USER_EMAIL: e2e-user@cultuvilla.test
+  EVENT_ID: e2e-event-inscripcion
+  EVENT_URL: 'cultuvilla://altozano-de-prueba/evento/_e2e-event-inscripcion'
+  SELF: e2e-person-user
+  DEPENDENT: e2e-person-dependent
+---
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: personId
+      VALUE: ${SELF}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.selfReg = output.id}
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: personId
+      VALUE: ${DEPENDENT}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.dependentReg = output.id}
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: name
+      VALUE: 'Pablo Invitado'
+      FIELD2: status
+      VALUE2: waitlisted
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.waitlistedReg = output.id}
+
+# ── The organizer's roster ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: ${EVENT_URL}
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'answer-${output.selfReg}-alergias'
+- assertVisible:
+    id: 'answer-${output.selfReg}-talla'
+    text: 'Talla: L'
+- assertVisible:
+    id: 'answer-${output.selfReg}-menu'
+    text: 'Menú: Carne'
+- assertVisible:
+    id: 'answer-${output.selfReg}-invitados'
+    text: 'Invitados: 2'
+- assertVisible:
+    id: 'answer-${output.selfReg}-alergias'
+    text: 'Alergias: Sí'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'answer-${output.dependentReg}-menu'
+- assertVisible:
+    id: 'answer-${output.dependentReg}-talla'
+    text: 'Talla: S'
+- assertVisible:
+    id: 'answer-${output.dependentReg}-menu'
+    text: 'Menú: Pescado'
+# Optional questions left blank don't render at all.
+- assertNotVisible:
+    id: 'answer-${output.dependentReg}-invitados'
+- assertNotVisible:
+    id: 'answer-${output.dependentReg}-alergias'
+# An organizer sees the private persona's name, not "Perfil privado".
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Pablo Invitado'
+
+# Payment: a checkbox per row, stored as paidAt.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'paid-attendee-${output.selfReg}'
+- tapOn:
+    id: 'paid-attendee-${output.selfReg}'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.selfReg}'
+      EXPECT_JSON: "{ 'paidAt': 'present' }"
+# The ticked state is read from accessibilityState, which Maestro exposes on
+# Android only; on iOS the paidAt write above is the check.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: 'paid-attendee-${output.selfReg}'
+          checked: true
+
+# The phone the attendee gave, behind the call button.
+- tapOn:
+    id: 'call-attendee-${output.selfReg}'
+- assertVisible: '.*611.*'
+- tapOn: 'Cerrar'
+- assertNotVisible: '.*611.*'
+
+# Remove the dependent; the waitlisted persona takes the freed seat.
+# The roster's heading (and its Editar toggle) is above the rows just read,
+# tucked under the screen's top bar: scroll UP to centre it, or the tap lands
+# on the bar.
+- scrollUntilVisible:
+    element:
+      id: 'attendees-edit-toggle'
+    direction: UP
+    centerElement: true
+    timeout: 20000
+- tapOn:
+    id: 'attendees-edit-toggle'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'remove-attendee-${output.dependentReg}'
+- tapOn:
+    id: 'remove-attendee-${output.dependentReg}'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: '(?i)quitar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.dependentReg}'
+      EXPECT: absent
+      # cancelRegistration's first call boots its worker (see flow 20).
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.waitlistedReg}'
+      EXPECT_JSON: "{ 'status': 'confirmed' }"
+      TIMEOUT_MS: '120000'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}'
+      EXPECT_JSON: "{ 'confirmedCount': 2 }"
+
+# ── The attendee cancels their own place ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: ${EVENT_URL}
+- extendedWaitUntil:
+    visible: '.*Apuntados \(2\).*'
+    timeout: 45000
+- assertNotVisible:
+    id: 'register-fab-waitlist'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'register-fab'
+      EXPECT: 'attendee-list'
+- tapOn:
+    id: 'attendee-row-${SELF}'
+- tapOn:
+    id: 'attendee-confirm'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Sí, cancelar'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'events/${EVENT_ID}/registrations'
+      FIELD: personId
+      VALUE: ${SELF}
+      MIN: '0'
+      MAX: '0'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}/registrations/${output.waitlistedReg}'
+      EXPECT_JSON: "{ 'status': 'confirmed' }"
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${EVENT_ID}'
+      EXPECT_JSON: "{ 'confirmedCount': 1 }"
+- extendedWaitUntil:
+    visible: '.*Apuntado \(1\).*'
+    timeout: 20000

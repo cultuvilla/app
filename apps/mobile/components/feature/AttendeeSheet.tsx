@@ -28,6 +28,7 @@ import {
   type PhoneCountry,
 } from '@cultuvilla/shared/utils';
 import { useT } from '../../lib/i18n';
+import { initialPhone } from '../../lib/profilePhone';
 
 export interface AttendeeOption {
   id: string;
@@ -38,9 +39,13 @@ export interface AttendeeOption {
 
 export interface AttendeeSheetProps {
   visible: boolean;
+  /** Keeps an open sheet's state but takes it off screen (another screen is in front). */
+  hidden?: boolean;
   /** The user's personas — own persona first, then personas a cargo. */
   attendees: AttendeeOption[];
   telephoneRequired: boolean;
+  /** The account's saved phone (E.164); the phone field starts from it. */
+  savedPhone?: string | null;
   /** The event's custom sign-up fields, asked once per ticked persona. */
   signupFields?: SignupFieldSpec[];
   busy: boolean;
@@ -74,8 +79,10 @@ export interface AttendeeSheetProps {
  */
 export function AttendeeSheet({
   visible,
+  hidden = false,
   attendees,
   telephoneRequired,
+  savedPhone,
   signupFields = [],
   busy,
   autoSelectIds,
@@ -109,8 +116,9 @@ export function AttendeeSheet({
     if (visible) {
       setSelected(new Set(attendees.filter((a) => a.status).map((a) => a.id)));
       setAnswers({});
-      setPhone('');
-      setPhoneCountry(DEFAULT_PHONE_COUNTRY);
+      const seed = initialPhone(savedPhone);
+      setPhone(seed.national);
+      setPhoneCountry(seed.country);
       setConfirmAttempted(false);
     }
     // attendees identity intentionally excluded — re-seed only on open.
@@ -195,7 +203,7 @@ export function AttendeeSheet({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !hidden}
       transparent
       animationType="fade"
       onRequestClose={() => {
