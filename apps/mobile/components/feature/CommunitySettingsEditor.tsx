@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { VStack, Text, Input, ImagePickerField } from '../primitives';
 import { LocationPicker } from './LocationPicker';
@@ -24,10 +24,13 @@ import type { FiestaBlock } from '@cultuvilla/shared/models/municipality/FiestaB
 /**
  * Organizer-only community editor (escudo, location, description). Content-only
  * so the "Editar pueblo" screen can render it directly. Every field saves
- * immediately — escudo on pick, location/zoom on change, description on blur —
+ * immediately — escudo on pick, location/zoom on change, description on blur
+ * and once typing pauses —
  * so the screen's "Listo" button just closes the editor (a deferred save keyed
  * off unmount would silently no-op against a nulled ref, the bug this replaced).
  */
+const DESCRIPTION_SAVE_DELAY_MS = 600;
+
 export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
   const { t } = useT();
   const [village, setVillage] = useState<MunicipalityData | null>(null);
@@ -42,7 +45,8 @@ export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
     if (!villageId) return;
     const m = await getMunicipality(villageId);
     setVillage(m);
-    setDescription(m?.community?.description ?? '');
+    savedDescription.current = m?.community?.description ?? '';
+    setDescription(savedDescription.current);
     setFiestas(m?.community?.fiestas ?? []);
     setCoords(m?.coordinates ?? null);
     setLocationLabel(m?.locationLabel ?? '');
@@ -98,14 +102,27 @@ export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
     [villageId],
   );
 
+  // The last description written (or loaded), so neither a blur nor the
+  // debounce below writes an unchanged one.
+  const savedDescription = useRef<string | null>(null);
+
   const saveDescription = useCallback(async () => {
-    if (!villageId || description === null) return;
+    if (!villageId || description === null || description === savedDescription.current) return;
+    savedDescription.current = description;
     try {
       await updateCommunity(villageId, { description });
     } catch (e) {
       showAlert(e instanceof Error ? e.message : String(e));
     }
   }, [villageId, description]);
+
+  // Also save once typing pauses: "Listo" closes the editor without blurring
+  // the field, and a description saved only on blur was dropped there.
+  useEffect(() => {
+    if (description === null || description === savedDescription.current) return;
+    const timer = setTimeout(() => void saveDescription(), DESCRIPTION_SAVE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [description, saveDescription]);
 
   const hasEscudo = village ? escudoFullUrl(village) !== null : false;
 
