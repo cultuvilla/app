@@ -7,6 +7,9 @@ import { useIsAppAdmin } from './useIsAppAdmin';
 export interface OrgCapabilities {
   /** May edit the org (app admin, village admin of its municipality, or org admin). */
   canManage: boolean;
+  /** May delete the org: app admin or village admin only — an org admin may
+   * not (the organizations delete rule). */
+  canDelete: boolean;
   uid: string | null;
   loading: boolean;
 }
@@ -59,5 +62,6 @@ export function useOrgCapabilities(
   const loading =
     authLoading || appAdminLoading || orgAdmin === null || villageAdmin === null;
   const canManage = isAppAdmin || orgAdmin === true || villageAdmin === true;
-  return { canManage, uid: user?.uid ?? null, loading };
+  const canDelete = isAppAdmin || villageAdmin === true;
+  return { canManage, canDelete, uid: user?.uid ?? null, loading };
 }
