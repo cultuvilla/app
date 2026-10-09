@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { getVillageMembers } from '@cultuvilla/shared/services/villageMemberService';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
@@ -86,50 +86,76 @@ export function OrganizerPicker({
   // sheet visibly filled in late. A member the directory doesn't cover (no
   // person doc linked to this village yet) still falls back to their user doc,
   // so nobody drops off the list.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const [orgDocs, memberDocs, people] = await Promise.all([
-        getOrganizationsByMunicipality(municipalityId, 'approved').catch(() => []),
-        getVillageMembers(municipalityId).catch(() => []),
-        getMunicipalityPeople(municipalityId).catch(() => []),
-      ]);
-      if (cancelled) return;
+  //
+  // Each list remembers whether it actually loaded. A failed read used to
+  // become an empty list for good — "Sin resultados", no error, no retry — so
+  // opening a sheet whose list never loaded loads it again.
+  const currentMunicipality = useRef(municipalityId);
+  currentMunicipality.current = municipalityId;
+  const [orgsLoaded, setOrgsLoaded] = useState(false);
+  const [villagersLoaded, setVillagersLoaded] = useState(false);
+
+  const loadOrgs = useCallback(async () => {
+    const forMunicipality = municipalityId;
+    try {
+      const orgDocs = await getOrganizationsByMunicipality(forMunicipality, 'approved');
+      if (currentMunicipality.current !== forMunicipality) return;
       setOrgs(orgDocs);
-
-      const byUserId = new Map(
-        people.filter((p) => p.userId).map((p) => [p.userId as string, p]),
-      );
-      const missing = memberDocs.filter((m) => !byUserId.has(m.userId));
-      // Per-member catch, not one Promise.all over the batch: a transient denial
-      // must cost only that member's name, never the whole villager list.
-      const fallbacks = new Map(
-        await Promise.all(
-          missing.map(async (m) => {
-            const profile = await getPublicProfile(m.userId).catch(() => null);
-            return [m.userId, profile?.displayName ?? m.userId] as const;
-          }),
-        ),
-      );
-      if (cancelled) return;
-
-      setVillagers(
-        memberDocs.map((m) => {
-          const person = byUserId.get(m.userId);
-          const displayName = person?.displayName ?? fallbacks.get(m.userId) ?? m.userId;
-          return {
-            userId: m.userId,
-            displayName,
-            photoURL: person?.photoURL ?? null,
-            sortName: person?.sortName ?? displayName,
-          };
-        }),
-      );
-    })();
-    return () => {
-      cancelled = true;
-    };
+      setOrgsLoaded(true);
+    } catch {
+      // Left unloaded: opening the group sheet tries again.
+    }
   }, [municipalityId]);
+
+  const loadVillagers = useCallback(async () => {
+    const forMunicipality = municipalityId;
+    let memberDocs: Awaited<ReturnType<typeof getVillageMembers>>;
+    try {
+      memberDocs = await getVillageMembers(forMunicipality);
+    } catch {
+      // Left unloaded: opening the villager sheet tries again.
+      return;
+    }
+    const people = await getMunicipalityPeople(forMunicipality).catch(() => []);
+    if (currentMunicipality.current !== forMunicipality) return;
+
+    const byUserId = new Map(
+      people.filter((p) => p.userId).map((p) => [p.userId as string, p]),
+    );
+    const missing = memberDocs.filter((m) => !byUserId.has(m.userId));
+    // Per-member catch, not one Promise.all over the batch: a transient denial
+    // must cost only that member's name, never the whole villager list.
+    const fallbacks = new Map(
+      await Promise.all(
+        missing.map(async (m) => {
+          const profile = await getPublicProfile(m.userId).catch(() => null);
+          return [m.userId, profile?.displayName ?? m.userId] as const;
+        }),
+      ),
+    );
+    if (currentMunicipality.current !== forMunicipality) return;
+
+    setVillagers(
+      memberDocs.map((m) => {
+        const person = byUserId.get(m.userId);
+        const displayName = person?.displayName ?? fallbacks.get(m.userId) ?? m.userId;
+        return {
+          userId: m.userId,
+          displayName,
+          photoURL: person?.photoURL ?? null,
+          sortName: person?.sortName ?? displayName,
+        };
+      }),
+    );
+    setVillagersLoaded(true);
+  }, [municipalityId]);
+
+  useEffect(() => {
+    setOrgsLoaded(false);
+    setVillagersLoaded(false);
+    void loadOrgs();
+    void loadVillagers();
+  }, [loadOrgs, loadVillagers]);
 
   // ---- Villager sheet -------------------------------------------------------
   const villagerRows: SelectableRow[] = useMemo(
@@ -146,6 +172,7 @@ export function OrganizerPicker({
   );
 
   function openUserSheet() {
+    if (!villagersLoaded) void loadVillagers();
     setUserSheetSelected(new Set(selectedUserIds));
     setUserSheetPinned(new Set(selectedUserIds));
     setUserSheetOpen(true);
@@ -177,6 +204,7 @@ export function OrganizerPicker({
   );
 
   function openOrgSheet() {
+    if (!orgsLoaded) void loadOrgs();
     setOrgSheetSelected(new Set(selectedOrgIds));
     setOrgSheetPinned(new Set(selectedOrgIds));
     setOrgSheetOpen(true);
