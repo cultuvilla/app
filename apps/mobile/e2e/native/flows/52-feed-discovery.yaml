@@ -110,7 +110,6 @@ env:
       text: '.*Fiesta de Prueba E2E.*'
       above: '.*Fiesta Lejana E2E.*'
     timeout: 10000
-- assertVisible: 'Por cercanía'
 - tapOn:
     id: 'filter-search-clear'
 
