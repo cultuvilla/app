@@ -44,6 +44,8 @@ env:
     env:
       INPUT: 'filter-village-sheet-search'
       TEXT: 'Pueblo'
+# The keyboard covers the filtered rows.
+- runFlow: ../subflows/close-sheet-keyboard.yaml
 - tapOn:
     id: 'filter-village-sheet-option-e2e-village-join'
 - extendedWaitUntil:
