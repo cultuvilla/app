@@ -41,8 +41,8 @@ output.posterEditEndDay = ym + '-14';
 output.posterLabel = '10 de ' + monthName + ' – 12 de ' + monthName + ' 1987';
 output.posterEditLabel = '10 de ' + monthName + ' – 14 de ' + monthName + ' 1992';
 
-output.historyTitle = 'Fundación completa E2E';
-output.historyEditTitle = 'Fundación editada E2E';
+output.historyTitle = 'Fundacion completa E2E';
+output.historyEditTitle = 'Fundacion editada E2E';
 output.historyBody = 'Los primeros pobladores llegaron del valle';
 output.historyEditBody = 'Llegaron en realidad desde la sierra';
 output.historySources = 'Archivo municipal de Altozano';
