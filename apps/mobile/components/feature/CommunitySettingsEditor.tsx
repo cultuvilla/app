@@ -24,10 +24,11 @@ import type { FiestaBlock } from '@cultuvilla/shared/models/municipality/FiestaB
 /**
  * Organizer-only community editor (escudo, location, description). Content-only
  * so the "Editar pueblo" screen can render it directly. Every field saves
- * immediately — escudo on pick, location/zoom on change, description on blur
- * and once typing pauses —
- * so the screen's "Listo" button just closes the editor (a deferred save keyed
- * off unmount would silently no-op against a nulled ref, the bug this replaced).
+ * immediately — escudo on pick, location/zoom on change, description on blur,
+ * once typing pauses, and on close if still unsaved — so the screen's "Listo"
+ * button just closes the editor. (A parent calling an imperative save() on
+ * unmount once no-opped against a nulled ref; the close flush here lives in
+ * the editor and reads its own refs.)
  */
 const DESCRIPTION_SAVE_DELAY_MS = 600;
 
@@ -102,27 +103,48 @@ export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
     [villageId],
   );
 
-  // The last description written (or loaded), so neither a blur nor the
-  // debounce below writes an unchanged one.
+  // The last description stored (or loaded). It moves only once a write has
+  // succeeded, so a failed one is retried by the next blur or pause.
   const savedDescription = useRef<string | null>(null);
+  // The latest typed value, for the flush when the editor closes.
+  const latestDescription = useRef<string | null>(null);
+  latestDescription.current = description;
+
+  const writeDescription = useCallback(
+    async (value: string) => {
+      try {
+        await updateCommunity(villageId, { description: value });
+        savedDescription.current = value;
+      } catch (e) {
+        showAlert(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [villageId],
+  );
 
   const saveDescription = useCallback(async () => {
     if (!villageId || description === null || description === savedDescription.current) return;
-    savedDescription.current = description;
-    try {
-      await updateCommunity(villageId, { description });
-    } catch (e) {
-      showAlert(e instanceof Error ? e.message : String(e));
-    }
-  }, [villageId, description]);
+    await writeDescription(description);
+  }, [villageId, description, writeDescription]);
 
-  // Also save once typing pauses: "Listo" closes the editor without blurring
-  // the field, and a description saved only on blur was dropped there.
+  // Also save once typing pauses, and flush on close: "Listo" leaves the
+  // editor without blurring the field, and a description saved only on blur
+  // was dropped there.
   useEffect(() => {
     if (description === null || description === savedDescription.current) return;
     const timer = setTimeout(() => void saveDescription(), DESCRIPTION_SAVE_DELAY_MS);
     return () => clearTimeout(timer);
   }, [description, saveDescription]);
+
+  useEffect(
+    () => () => {
+      const pending = latestDescription.current;
+      if (villageId && pending !== null && pending !== savedDescription.current) {
+        void writeDescription(pending);
+      }
+    },
+    [villageId, writeDescription],
+  );
 
   const hasEscudo = village ? escudoFullUrl(village) !== null : false;
 

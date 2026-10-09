@@ -168,6 +168,30 @@ describe('CommunitySettingsEditor description persistence', () => {
     );
   });
 
+  it('saves a description typed just before leaving, before the pause', async () => {
+    const { getByTestId, unmount } = render(<CommunitySettingsEditor villageId="m1" />);
+    const input = await waitFor(() => getByTestId('community-description'));
+
+    fireEvent.changeText(input, 'Pueblo serrano');
+    unmount();
+
+    expect(updateCommunity).toHaveBeenCalledWith('m1', { description: 'Pueblo serrano' });
+  });
+
+  it('retries a description whose write failed', async () => {
+    (updateCommunity as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    const { getByTestId } = render(<CommunitySettingsEditor villageId="m1" />);
+    const input = await waitFor(() => getByTestId('community-description'));
+
+    fireEvent.changeText(input, 'Pueblo serrano');
+    fireEvent(input, 'blur');
+    await waitFor(() => expect(updateCommunity).toHaveBeenCalledTimes(1));
+    fireEvent(input, 'blur');
+
+    await waitFor(() => expect(updateCommunity).toHaveBeenCalledTimes(2));
+    expect(updateCommunity).toHaveBeenLastCalledWith('m1', { description: 'Pueblo serrano' });
+  });
+
   it('does not write the description just for loading it', async () => {
     const { getByTestId } = render(<CommunitySettingsEditor villageId="m1" />);
     await waitFor(() => getByTestId('community-description'));
