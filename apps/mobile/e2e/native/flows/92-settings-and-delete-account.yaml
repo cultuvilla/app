@@ -54,32 +54,20 @@ env:
     notVisible:
       id: 'push-permission-undetermined'
     timeout: 15000
-- tapOn:
-    id: 'push-pref-village'
-- runScript:
-    file: ../scripts/assertDoc.js
-    env:
-      DOC_PATH: 'users/${UID}/preferences/notifications'
-      EXPECT_JSON: "{ 'village': false }"
-- waitForAnimationToEnd:
-    timeout: 3000
-- tapOn:
-    id: 'push-pref-quietHours'
 - runFlow:
-    when:
-      platform: Android
-    commands:
-      - repeat:
-          times: 2
-          while:
-            notVisible:
-              id: 'push-pref-quietHours'
-              checked: true
-          commands:
-            - waitForAnimationToEnd:
-                timeout: 2000
-            - tapOn:
-                id: 'push-pref-quietHours'
+    file: ../subflows/set-stored-toggle.yaml
+    env:
+      ID: 'push-pref-village'
+      DOC_PATH: 'users/${UID}/preferences/notifications'
+      FIELD: village
+      WANT: 'false'
+- runFlow:
+    file: ../subflows/set-stored-toggle.yaml
+    env:
+      ID: 'push-pref-quietHours'
+      DOC_PATH: 'users/${UID}/preferences/notifications'
+      FIELD: quietHours
+      WANT: 'true'
 - runScript:
     file: ../scripts/assertDoc.js
     env:

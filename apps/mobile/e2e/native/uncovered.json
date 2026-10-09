@@ -179,6 +179,7 @@
   "poster-submit": "todo: components/feature/proposable/FestivalPostersManager.tsx",
   "poster-title-input": "todo: components/feature/proposable/FestivalPostersManager.tsx",
   "poster-year-input": "todo: components/feature/proposable/FestivalPostersManager.tsx",
+  "push-pref-quietHours": "todo: app/ajustes/notificaciones.tsx",
   "push-soft-ask-accept": "todo: components/feature/PushSoftAskSheet.tsx",
   "push-soft-ask-sheet": "todo: components/feature/PushSoftAskSheet.tsx",
   "section-skeleton": "todo: components/feature/VillageSections.tsx",
