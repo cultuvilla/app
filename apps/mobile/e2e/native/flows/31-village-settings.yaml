@@ -2,7 +2,8 @@
 # manages every pueblo) on the village flow 30 joined:
 #
 #   info       — the description, through the updateVillageInfo callable
-#   community  — escudo, location and description, each saving as it changes
+#   community  — escudo, location (cleared) and description, each saving as
+#                it changes
 #   fiestas    — two added, one removed, the other renamed and moved a month
 #   view       — a villager who is not on the team: sees the new description,
 #                and the community editor sends them back to the village
@@ -19,9 +20,6 @@ env:
     env:
       EMAIL: e2e-superadmin@cultuvilla.test
       PASSWORD: ${PASSWORD}
-- setLocation:
-    latitude: 39.53
-    longitude: -0.43
 
 # ── Info ──
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/editar'
@@ -65,20 +63,15 @@ env:
       DOC_PATH: 'municipalities/${VILLAGE_ID}'
       TIMEOUT_MS: '60000'
       EXPECT_JSON: "{ 'escudoManualUrl': { 'prefix': 'http' } }"
-# The seeded village already has a location: clear it, then take the device's.
+# The location is set by address search, which goes through a geocoding proxy
+# the emulators cannot answer; so here it is only cleared (uncovered.json:
+# community-location-result-*).
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'community-location-clear'
 - tapOn:
     id: 'community-location-clear'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'community-location-use-mine'
-- tapOn:
-    id: 'community-location-use-mine'
-- runFlow: ../subflows/allow-location.yaml
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:
@@ -93,8 +86,8 @@ env:
       EXPECT_JSON: >-
         {
           'community.description': 'Pueblo de la sierra con fiestas en agosto',
-          'coordinates': 'present',
-          'mapZoom': 'present'
+          'coordinates': 'absent',
+          'mapZoom': 'absent'
         }
 
 # ── Fiestas: add two, drop one, rename and move the other ──

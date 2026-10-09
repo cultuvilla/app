@@ -93,12 +93,26 @@ env:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'org-edit-join-policy-toggle'
+# A tap while the centring scroll still glides only stops the scroll.
+- waitForAnimationToEnd:
+    timeout: 3000
 - tapOn:
     id: 'org-edit-join-policy-toggle'
 - runFlow:
     when:
       platform: Android
     commands:
+      - repeat:
+          times: 2
+          while:
+            notVisible:
+              id: 'org-edit-join-policy-toggle'
+              checked: true
+          commands:
+            - waitForAnimationToEnd:
+                timeout: 2000
+            - tapOn:
+                id: 'org-edit-join-policy-toggle'
       - assertVisible:
           id: 'org-edit-join-policy-toggle'
           checked: true
