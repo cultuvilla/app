@@ -141,6 +141,18 @@ export const event = {
   status: 'published',
 };
 
+// A public event in `joinVillage`, sooner than `event` but further from
+// `village`: the feed's date order puts it first and "Por cercanía" from
+// `village` puts it after (flow 52).
+export const farEvent = {
+  docId: 'e2e-event-lejana',
+  title: 'Fiesta Lejana E2E',
+  description: 'Evento en otro pueblo para comprobar el orden por cercanía.',
+  startOffsetDays: 3,
+  maxAttendees: 50,
+  status: 'published',
+};
+
 export const capacityEvent = {
   docId: 'e2e-event-aforo',
   title: 'Evento con Aforo E2E',

@@ -2,7 +2,8 @@
 #
 #   notifications  — push allowed, one category muted, quiet hours on
 #   email          — a malformed address refused, a good one sent to verify
-#   delete         — "ELIMINAR" typed and the account gone: profile and person
+#   delete         — "ELIMINAR" typed and the account gone: profile, person
+#                    and the Auth user
 #
 # The account is e2e-throwaway, seeded for this flow alone: nothing else may
 # depend on it, and a retry finds it already deleted.
@@ -13,6 +14,14 @@ env:
   UID: e2e-throwaway
   PERSON_ID: e2e-person-throwaway
 ---
+# The lookup must see the account first, or its "absent" at the end proves
+# nothing.
+- runScript:
+    file: ../scripts/authUser.js
+    env:
+      UID: ${UID}
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}
 - runFlow:
     file: ../subflows/login.yaml
     env:
@@ -133,6 +142,13 @@ env:
     file: ../scripts/docField.js
     env:
       DOC_PATH: 'persons/${PERSON_ID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+# And from Auth, so the address cannot sign in again.
+- runScript:
+    file: ../scripts/authUser.js
+    env:
+      UID: ${UID}
       EXPECT: absent
 - assertTrue: ${output.ok == 'true'}
 # Signed out: the profile tab has nothing of theirs left to show.

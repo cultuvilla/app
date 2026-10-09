@@ -2,8 +2,9 @@
 # list and being cleared again. As the user flow 50 onboarded, whose active
 # village is what "Por cercanía" sorts from.
 #
-# Seeded events sit 7–10 days out, so "Esta semana" (the next seven days from
-# midnight) drops them and "Este mes" keeps them.
+# Seeded events in Altozano sit 7–10 days out and one in the join village 3
+# days out, so "Esta semana" (the next seven days from midnight) keeps only
+# that one, and "Por cercanía" from Altozano puts it behind the others.
 appId: com.cultuvilla.app.dev
 env:
   EMAIL: e2e-fresh@cultuvilla.test
@@ -36,7 +37,7 @@ env:
     visible: '.*Fiesta de Prueba E2E.*'
     timeout: 10000
 
-# ── Village ──
+# ── Village ── the far event is the join village's only one
 - tapOn:
     id: 'filter-village'
 - runFlow:
@@ -49,8 +50,9 @@ env:
 - tapOn:
     id: 'filter-village-sheet-option-e2e-village-join'
 - extendedWaitUntil:
-    visible: 'No hay eventos próximos'
+    visible: '.*Fiesta Lejana E2E.*'
     timeout: 10000
+- assertNotVisible: '.*Fiesta de Prueba E2E.*'
 - tapOn:
     id: 'filter-village'
 - tapOn:
@@ -59,14 +61,15 @@ env:
     visible: '.*Fiesta de Prueba E2E.*'
     timeout: 10000
 
-# ── Date ──
+# ── Date ── the far event is 3 days out, the others 7 or more
 - tapOn:
     id: 'filter-date'
 - tapOn:
     id: 'filter-date-sheet-option-semana'
 - extendedWaitUntil:
-    notVisible: '.*Fiesta de Prueba E2E.*'
+    visible: '.*Fiesta Lejana E2E.*'
     timeout: 10000
+- assertNotVisible: '.*Fiesta de Prueba E2E.*'
 - tapOn:
     id: 'filter-date'
 - tapOn:
@@ -79,15 +82,29 @@ env:
 - tapOn:
     id: 'filter-date-sheet-option-all'
 
-# ── Sort ──
+# ── Sort ── narrowed to the two fiestas: by date the far one leads; by
+# distance from the user's village (Altozano) it falls behind.
+- tapOn:
+    id: 'filter-search'
+- inputText: 'Fiesta'
+- runFlow: ../subflows/close-keyboard.yaml
+- extendedWaitUntil:
+    visible:
+      text: '.*Fiesta Lejana E2E.*'
+      above: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
 - tapOn:
     id: 'filter-sort'
 - tapOn:
     id: 'filter-sort-sheet-option-proximity'
 - extendedWaitUntil:
-    visible: 'Por cercanía'
+    visible:
+      text: '.*Fiesta de Prueba E2E.*'
+      above: '.*Fiesta Lejana E2E.*'
     timeout: 10000
-- assertVisible: '.*Fiesta de Prueba E2E.*'
+- assertVisible: 'Por cercanía'
+- tapOn:
+    id: 'filter-search-clear'
 
 # ── News: category ──
 - tapOn: 'Artículos'

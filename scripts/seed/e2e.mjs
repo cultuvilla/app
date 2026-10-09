@@ -37,6 +37,7 @@ import {
   approvalOrg,
   event,
   capacityEvent,
+  farEvent,
   groupEvent,
   signupEvent,
   privateEvent,
@@ -312,6 +313,32 @@ async function run() {
         villageName: village.name,
         villageSlug: village.slug,
         villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('events')
+    .doc(farEvent.docId)
+    .set(
+      buildEventData({
+        title: farEvent.title,
+        description: farEvent.description,
+        startDate: new Date(Date.now() + farEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: joinVillage.coordinates,
+          displayName: `Plaza, ${joinVillage.name}`,
+        }),
+        maxAttendees: farEvent.maxAttendees,
+        telephoneRequired: false,
+        status: farEvent.status,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [],
+        createdBy: users.admin.uid,
+        municipalityId: joinVillage.docId,
+        villageName: joinVillage.name,
+        villageSlug: joinVillage.slug,
+        villageCoordinates: joinCoords,
       }),
       { merge: true },
     );
