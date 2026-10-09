@@ -35,10 +35,9 @@ export async function shareCardImage(url: string, baseName: string): Promise<voi
 
 /**
  * Save one rendered Wrapped card straight to the photo library. Asks only for
- * add-only access: the app never reads the library. Resolves `'denied'` when
- * the user refuses; throws when the device cannot save (Android 10–12 without
- * the storage permission we deliberately do not declare), so the caller can
- * fall back to the share sheet, whose "Save image" still works there.
+ * add-only access — the app never reads the library: on iOS the "add photos"
+ * permission, below Android 13 the storage write permission, from Android 13 on
+ * nothing at all. Resolves `'denied'` when the user refuses.
  */
 export async function saveCardImage(url: string, baseName: string): Promise<'saved' | 'denied'> {
   const permission = await requestPermissionsAsync(true);

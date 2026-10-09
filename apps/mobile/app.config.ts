@@ -254,10 +254,12 @@ const config: ExpoConfig = {
       'android.permission.CAMERA',
       'android.permission.RECORD_AUDIO',
       'android.permission.READ_EXTERNAL_STORAGE',
-      'android.permission.WRITE_EXTERNAL_STORAGE',
-      // expo-media-library only ever *saves* a card (MediaStore, no permission
-      // on Android 13+). Play restricts the media-read permissions to apps whose
-      // core feature is browsing photos, so none of them may reach the manifest.
+      // WRITE_EXTERNAL_STORAGE is deliberately NOT blocked: saving a fiestas
+      // card (expo-media-library) needs it below Android 13 (from 13 on the
+      // system ignores it, and the app never asks). It reads nothing.
+      // expo-media-library only ever *saves* a card. Play restricts the
+      // media-read permissions to apps whose core feature is browsing photos,
+      // so none of them may reach the manifest.
       'android.permission.READ_MEDIA_IMAGES',
       'android.permission.READ_MEDIA_VIDEO',
       'android.permission.READ_MEDIA_AUDIO',

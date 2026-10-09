@@ -99,8 +99,8 @@ describe('saveCardImage', () => {
     expect(mockSaveToLibrary).not.toHaveBeenCalled();
   });
 
-  it('throws when the device cannot write to the library, so the caller can fall back', async () => {
-    mockSaveToLibrary.mockRejectedValue(new Error('Missing WRITE_EXTERNAL_STORAGE'));
-    await expect(saveCardImage(URL_PNG, 'x')).rejects.toThrow(/WRITE_EXTERNAL_STORAGE/);
+  it('fails when the library refuses the file', async () => {
+    mockSaveToLibrary.mockRejectedValue(new Error('E_SAVE'));
+    await expect(saveCardImage(URL_PNG, 'x')).rejects.toThrow('E_SAVE');
   });
 });

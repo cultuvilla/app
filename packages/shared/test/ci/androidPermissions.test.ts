@@ -25,4 +25,10 @@ describe('Android blocked permissions', () => {
   ])('strips %s, which expo-media-library pulls in', (permission) => {
     expect(blocked).toContain(`'android.permission.${permission}'`);
   });
+
+  // saveToLibraryAsync refuses below Android 13 without it, so blocking it
+  // would turn the download button into an error on Android 12 and older.
+  it('keeps WRITE_EXTERNAL_STORAGE, which saving a card needs before Android 13', () => {
+    expect(blocked).not.toContain("'android.permission.WRITE_EXTERNAL_STORAGE'");
+  });
 });

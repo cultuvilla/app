@@ -44,10 +44,11 @@ export function useWrappedShare(wrapped: { villageSlug: string; villageName: str
         .then((result) => {
           showAlert(t(result === 'saved' ? 'village.wrapped.viewer.saved' : 'village.wrapped.viewer.saveDenied'));
         })
-        // A device that cannot write to the library can still save from the share sheet.
-        .catch(() => shareCard(card));
+        .catch(() => {
+          showAlert(t('village.wrapped.viewer.saveFailed'));
+        });
     },
-    [shareCard, t, villageSlug, year],
+    [t, villageSlug, year],
   );
 
   return {

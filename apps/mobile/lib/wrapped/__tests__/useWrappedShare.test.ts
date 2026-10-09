@@ -43,9 +43,10 @@ describe('useWrappedShare saveCard', () => {
     expect(mockShare).not.toHaveBeenCalled();
   });
 
-  it('falls back to the share sheet when the device cannot save', async () => {
-    mockSave.mockRejectedValue(new Error('Missing WRITE_EXTERNAL_STORAGE'));
+  it('says so when the card could not be saved', async () => {
+    mockSave.mockRejectedValue(new Error('E_SAVE'));
     saveCard();
-    await waitFor(() => expect(mockShare).toHaveBeenCalledWith(card.url, 'villa-fiestas-2026-stats'));
+    await waitFor(() => expect(showAlert).toHaveBeenCalledWith('village.wrapped.viewer.saveFailed'));
+    expect(mockShare).not.toHaveBeenCalled();
   });
 });
