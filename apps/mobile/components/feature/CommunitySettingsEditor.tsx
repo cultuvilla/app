@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { VStack, Text, Input, ImagePickerField } from '../primitives';
 import { LocationPicker } from './LocationPicker';
@@ -27,8 +27,16 @@ import type { FiestaBlock } from '@cultuvilla/shared/models/municipality/FiestaB
  * immediately — escudo on pick, location/zoom on change, description on blur —
  * so the screen's "Listo" button just closes the editor (a deferred save keyed
  * off unmount would silently no-op against a nulled ref, the bug this replaced).
+ * `afterFiestas` renders right below the fiestas, where the screen puts the
+ * entry to the fiestas summary they feed.
  */
-export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
+export function CommunitySettingsEditor({
+  villageId,
+  afterFiestas,
+}: {
+  villageId: string;
+  afterFiestas?: ReactNode;
+}) {
   const { t } = useT();
   const [village, setVillage] = useState<MunicipalityData | null>(null);
   const [description, setDescription] = useState<string | null>(null);
@@ -157,6 +165,7 @@ export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
           blocks={fiestas}
           onChange={(next) => void saveFiestas(next)}
         />
+        {afterFiestas}
       </VStack>
     </ScrollView>
   );
