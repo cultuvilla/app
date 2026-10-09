@@ -3,7 +3,8 @@
 #
 # Each picker is a full-screen list with a Cancelar bar at its foot; an option
 # just above that bar counts as visible but the tap lands on the bar, so each
-# option is centred first.
+# option is centred first. A list may open scrolled past the option (it
+# follows the current value), so it is sought upwards before downwards.
 appId: com.cultuvilla.app.dev
 ---
 - runFlow:
@@ -12,6 +13,13 @@ appId: com.cultuvilla.app.dev
       TARGET: 'birthday-year'
 - tapOn:
     id: 'birthday-year'
+- scrollUntilVisible:
+    element:
+      id: 'birthday-year-option-${YEAR}'
+    direction: UP
+    centerElement: true
+    timeout: 15000
+    optional: true
 - scrollUntilVisible:
     element:
       id: 'birthday-year-option-${YEAR}'
@@ -25,6 +33,13 @@ appId: com.cultuvilla.app.dev
 - scrollUntilVisible:
     element:
       id: 'birthday-month-option-${MONTH_OPTION}'
+    direction: UP
+    centerElement: true
+    timeout: 15000
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: 'birthday-month-option-${MONTH_OPTION}'
     direction: DOWN
     centerElement: true
     timeout: 30000
@@ -32,6 +47,13 @@ appId: com.cultuvilla.app.dev
     id: 'birthday-month-option-${MONTH_OPTION}'
 - tapOn:
     id: 'birthday-day'
+- scrollUntilVisible:
+    element:
+      id: 'birthday-day-option-${DAY}'
+    direction: UP
+    centerElement: true
+    timeout: 15000
+    optional: true
 - scrollUntilVisible:
     element:
       id: 'birthday-day-option-${DAY}'

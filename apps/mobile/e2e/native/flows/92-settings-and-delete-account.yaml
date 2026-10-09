@@ -25,12 +25,11 @@ env:
     visible:
       id: 'settings-notifications'
     timeout: 30000
-- tapOn:
-    id: 'settings-notifications'
-- extendedWaitUntil:
-    visible:
-      id: 'push-pref-village'
-    timeout: 30000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'settings-notifications'
+      EXPECT: 'push-pref-village'
 # A fresh install has not been asked yet; the toggles stay disabled until it is.
 - runFlow:
     when:
