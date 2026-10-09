@@ -7,22 +7,40 @@
 appId: com.cultuvilla.app.dev
 ---
 - runFlow:
-    file: pick-photo.yaml
-    env:
-      INDEX: '0'
-- waitForAnimationToEnd:
-    timeout: 5000
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: pick-photo.yaml
+          env:
+            INDEX: '0'
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - runFlow:
+          when:
+            visible:
+              id: 'com.cultuvilla.app.dev:id/crop_image_menu_crop'
+          commands:
+            - tapOn:
+                id: 'com.cultuvilla.app.dev:id/crop_image_menu_crop'
+      - runFlow:
+          when:
+            visible: '(?i)(crop|recortar)'
+          commands:
+            - tapOn: '(?i)(crop|recortar)'
+# iOS: the editing picker is its own screen, so pick-photo.yaml's "the picker
+# has closed" check does not apply — its move-and-scale step has a Cancel too.
 - runFlow:
     when:
-      visible:
-        id: 'com.cultuvilla.app.dev:id/crop_image_menu_crop'
+      platform: iOS
     commands:
+      - waitForAnimationToEnd:
+          timeout: 5000
       - tapOn:
-          id: 'com.cultuvilla.app.dev:id/crop_image_menu_crop'
-- runFlow:
-    when:
-      visible: '(?i)(crop|recortar|choose|elegir|usar foto|use photo)'
-    commands:
-      - tapOn: '(?i)(crop|recortar|choose|elegir|usar foto|use photo)'
+          point: '17%,45%'
+      - extendedWaitUntil:
+          visible: '(?i)(choose|elegir)'
+          timeout: 15000
+      - tapOn: '(?i)(choose|elegir)'
 - waitForAnimationToEnd:
     timeout: 5000

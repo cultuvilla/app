@@ -94,9 +94,24 @@ env:
 # question" anchor does not apply; the button's text is unique on screen.
 - waitForAnimationToEnd:
     timeout: 3000
-- tapOn:
-    text: 'Ceder título'
-    rightOf: 'Cancelar'
+- runFlow:
+    when:
+      visible:
+        text: 'Ceder título'
+        rightOf: 'Cancelar'
+    commands:
+      - tapOn:
+          text: 'Ceder título'
+          rightOf: 'Cancelar'
+- runFlow:
+    when:
+      visible:
+        text: 'Ceder título'
+        above: 'Cancelar'
+    commands:
+      - tapOn:
+          text: 'Ceder título'
+          above: 'Cancelar'
 - runScript:
     file: ../scripts/assertDoc.js
     env:
