@@ -148,6 +148,7 @@ export default function OrgDetailScreen() {
           ? [
               {
                 icon: 'create-outline' as const,
+                testID: 'org-edit-action',
                 accessibilityLabel: t('common.edit'),
                 onPress: () => router.push(orgEditHref({ id: org.id, name: org.name, villageSlug: org.villageSlug })),
               },
@@ -155,6 +156,7 @@ export default function OrgDetailScreen() {
           : []),
         {
           icon: 'share-outline',
+          testID: 'org-share-action',
           accessibilityLabel: t('deeplink.shareViewLabel'),
           onPress: () => {
             observability.trackEvent(OBSERVABILITY_EVENTS.ORG_INVITE_SHARED, {

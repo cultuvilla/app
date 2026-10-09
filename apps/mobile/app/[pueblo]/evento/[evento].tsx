@@ -50,7 +50,7 @@ type VillageDoc = MunicipalityData & { id: string };
 export default function EventDetailScreen() {
   const { evento } = useLocalSearchParams<{ evento: string }>();
   const eventId = parseEntityRef(evento ?? '') ?? '';
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const gate = useRegisterGate();
   const { t } = useT();
   const share = useShareDeepLink();
@@ -126,6 +126,7 @@ export default function EventDetailScreen() {
           ? [
               {
                 icon: 'create-outline' as const,
+                testID: 'event-edit-action',
                 accessibilityLabel: t('event.editEvent'),
                 onPress: () => router.push(createEventHref({ eventId: event.id })),
               },
@@ -133,6 +134,7 @@ export default function EventDetailScreen() {
           : []),
         {
           icon: 'share-outline',
+          testID: 'event-share-action',
           accessibilityLabel: t('deeplink.shareViewLabel'),
           onPress: () => void share(getEventLink(event), event.title),
         },
@@ -159,6 +161,8 @@ export default function EventDetailScreen() {
             name={personName}
             eventTitle={event.title}
             telephoneRequired={!!event.telephoneRequired}
+            savedPhone={profile?.telephone}
+            onPhoneSaved={refreshProfile}
             signupFields={event.signupFields}
             villageId={event.municipalityId}
             villageSlug={event.villageSlug}

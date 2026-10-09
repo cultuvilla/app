@@ -131,7 +131,9 @@ data layer.
 The web's one job is the **anonymous reader** — the WhatsApp link recipient and
 Google search. Every public read route must resolve on web, permanently: share
 previews and the printed `/descarga` QR depend on it. Actions on web are app
-calls-to-action (universal link, store fallback), not flows.
+calls-to-action (universal link, store fallback), not flows — with one
+exception, the `/embajadores` lead form (name + phone, stored server-side in
+`ambassadorLeads/`); see the decision record's "The one form".
 
 The web is the **read site**: the `readSite` Cloud Function
 ([functions/src/web/](functions/src/web/)) server-renders every public page,
@@ -662,7 +664,9 @@ reason. The deploy fails before writing anything if its env has drifted, and
 again afterwards if the live rules, indexes or functions are not the commit's
 ([check-env-parity.mjs](scripts/check-env-parity.mjs)); a nightly run checks all
 three. So a console change (an API, an IAM grant, a bucket setting) is made in
-every env and recorded in that file in the same PR — or declared, with why. Read
+every env and recorded in that file in the same PR — or declared, with why.
+Landing that PR on develop is enough to unblock beta and prod deploys: the
+`config` check also accepts develop's baseline. Read
 [docs/decisions/environment-parity.md](docs/decisions/environment-parity.md).
 
 1. **Classify the mode from the diff — never ask.** See the Autonomy contract below.

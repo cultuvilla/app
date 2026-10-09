@@ -1,0 +1,59 @@
+# The edited event (flow 64) is now private to the approval peña: the villager
+# who could read it in 62 gets "not found". Then the organizer's delete, which
+# cancels rather than deletes. Depends on 60 and 64 (same tens group).
+appId: com.cultuvilla.app.dev
+env:
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  VILLAGER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/eventLifecycleValues.js
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.editTitle}
+      FIELD2: status
+      VALUE2: published
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.eventId = output.id}
+
+# ── Private now: the villager can't open it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${VILLAGER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'entity-not-found'
+    timeout: 45000
+- assertNotVisible: ${output.editTitle}
+
+# ── Cancel ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://crear/evento?eventId=${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-delete'
+    timeout: 45000
+- tapOn:
+    id: 'event-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${output.eventId}'
+      EXPECT_JSON: "{ 'status': 'cancelled', 'title': '@editTitle' }"

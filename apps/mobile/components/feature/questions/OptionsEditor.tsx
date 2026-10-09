@@ -12,11 +12,14 @@ export function OptionsEditor({
   options,
   mode,
   onChange,
+  testIDPrefix,
 }: {
   options: string[];
   /** 'single' shows radio bullets, 'multi' shows checkbox squares. */
   mode: 'single' | 'multi';
   onChange: (next: string[]) => void;
+  /** `<prefix>-option-<i>`, `<prefix>-option-remove-<i>`, `<prefix>-option-add`. */
+  testIDPrefix?: string;
 }) {
   const { t } = useT();
   const glyph = mode === 'multi' ? 'square-outline' : 'radio-button-off';
@@ -31,11 +34,13 @@ export function OptionsEditor({
               value={opt}
               onChangeText={(v) => onChange(options.map((o, j) => (j === i ? v : o)))}
               placeholder={t('questions.optionPlaceholder')}
+              testID={testIDPrefix ? `${testIDPrefix}-option-${i}` : undefined}
             />
           </View>
           <Pressable
             onPress={() => onChange(options.filter((_, j) => j !== i))}
             accessibilityLabel={t('common.delete')}
+            testID={testIDPrefix ? `${testIDPrefix}-option-remove-${i}` : undefined}
             className="p-1"
           >
             <Ionicons name="close" size={20} color="#9ca3af" />
@@ -43,7 +48,11 @@ export function OptionsEditor({
         </HStack>
       ))}
 
-      <Pressable onPress={() => onChange([...options, ''])} className="py-2">
+      <Pressable
+        onPress={() => onChange([...options, ''])}
+        testID={testIDPrefix ? `${testIDPrefix}-option-add` : undefined}
+        className="py-2"
+      >
         <HStack gap={2} align="center">
           <Ionicons name={glyph} size={20} color="#d1d5db" />
           <Text tone="muted">{t('questions.addOption')}</Text>

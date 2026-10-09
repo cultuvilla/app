@@ -57,6 +57,7 @@ function FestivalPosterDetailScreen() {
       ? [
           {
             icon: 'create-outline',
+            testID: 'poster-edit-action',
             accessibilityLabel: t('common.edit'),
             onPress: () =>
               router.push(festivalPosterEditHref({ ...poster, villageSlug })),

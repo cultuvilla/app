@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import type { Card, Village, VillageHome, WrappedView } from '../../web/data';
 import { renderDocument } from '../../web/document';
 import { render } from '../../web/html';
-import { homePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
+import { AMBASSADOR_PICKER, ambassadorsPage, homePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
 import { LANDING_STYLES } from '../../web/styles';
 
 const village = (slug: string, name: string, province: string | null = 'Segovia'): Village => ({
@@ -77,10 +77,11 @@ describe('homePage', () => {
     expect(out).toMatch(/src="https:\/\/img\/posters\.png"[^>]*\/><img src="https:\/\/img\/cover\.png" alt="" aria-hidden="true"/);
     for (const c of ['people', 'organizers']) expect(out).not.toContain(`https://img/${c}.png`);
     expect(out).toContain('<section class="blk amb">');
-    expect(out.match(/<li class="step">/g)).toHaveLength(3);
-    // The Embajador pitch opens on the question the Embajador film opens on.
-    expect(out).toContain('<h2>¿Vives las fiestas de tu pueblo como nadie?</h2>');
-    expect(out).toContain('Pulsa «Quiero ser embajador»');
+    // The home only hooks the Embajador pitch with the film's question and hands over to /embajadores.
+    expect(out).toContain('<h2>¿Presumes de pueblo allá donde vas?</h2>');
+    expect(out).toContain('<a class="cta" href="/embajadores">');
+    expect(out).not.toContain('class="steps"');
+    expect(out).not.toContain('Para quién');
     expect(body({ villages: [matabuena], showcase, wrapped: null })).not.toContain('class="wr-track"');
   });
 
@@ -166,6 +167,81 @@ describe('homePage', () => {
     expect(LANDING_STYLES).not.toMatch(/\n\.landing \.intro\{[^}]*padding-top/);
     expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-latin.woff2'))).toBe(true);
     expect(existsSync(resolve(__dirname, '../../../../web/public/brand/figtree-OFL.txt'))).toBe(true);
+  });
+
+  it('gives would-be Embajadores a short page of their own: the film and a form that asks for their pueblo and phone', () => {
+    const page = ambassadorsPage();
+    expect(page.layout).toBe('landing');
+    const out = render(page.body);
+    expect(out).toContain('<h1 class="amb-q"><span>¿Presumes de</span> <em>pueblo</em> <span>allá donde vas?</span></h1>');
+    // The form follows the film, so a visitor watches before they are asked.
+    expect(out.indexOf('cultuvilla-embajador-vertical.mp4')).toBeLessThan(out.indexOf('<form id="amb-form"'));
+    expect(out).toContain('src="/brand/landing/cultuvilla-embajador-vertical.mp4"');
+    expect(out).toContain('<form id="amb-form" class="amb-form" method="post" action="/embajadores" novalidate>');
+    for (const name of ['pueblo', 'municipalityId', 'nombre', 'telefono', 'consentimiento', 'web']) expect(out).toContain(`name="${name}"`);
+    expect(out).toContain('type="tel"');
+    expect(out).toContain('href="/legal/privacidad"');
+    // Concise: none of the long version's sections.
+    expect(out).not.toContain('class="steps"');
+    expect(out).not.toContain('class="faq"');
+    expect(out.match(/<a class="store"/g)).toHaveLength(2);
+    for (const f of ['cultuvilla-embajador-vertical.mp4', 'cultuvilla-embajador-vertical.webp']) {
+      expect(existsSync(resolve(__dirname, '../../../../web/public/brand/landing', f))).toBe(true);
+    }
+  });
+
+  it('hands a rejected form back with what was typed, escaped, and each problem beside its field', () => {
+    const form = { pueblo: '<b>Mata</b>', municipalityId: '', nombre: 'Ana "la del bar"', telefono: '123', consentimiento: true, web: '' };
+    const out = render(ambassadorsPage({ form, errors: { telefono: 'Escribe un teléfono válido, por ejemplo 612 345 678.' } }).body);
+    expect(out).toContain('value="&lt;b&gt;Mata&lt;/b&gt;"');
+    expect(out).toContain('value="Ana &quot;la del bar&quot;"');
+    expect(out).toContain('<span class="err" role="alert">Escribe un teléfono válido');
+    expect(out).toMatch(/name="consentimiento" value="si" required checked/);
+  });
+
+  it('fills the pueblo picker from the search and remembers the id of the pueblo chosen', async () => {
+    const listeners: Record<string, () => void> = {};
+    const input = { value: '', addEventListener: (_: string, f: () => void) => (listeners['input'] = f) };
+    const hidden = { value: '' };
+    const options: { value: string }[] = [];
+    const list = { set textContent(_: string) { options.length = 0; }, appendChild: (o: { value: string }) => options.push(o) };
+    const timers: (() => void)[] = [];
+    const fetched: string[] = [];
+    let resolveFetch: (() => void) | null = null;
+    const done = new Promise<void>((r) => (resolveFetch = r));
+    runInNewContext(AMBASSADOR_PICKER, {
+      document: {
+        getElementById: (id: string) => (id === 'amb-form' ? { elements: { pueblo: input, municipalityId: hidden } } : list),
+        createElement: () => ({ value: '' }),
+      },
+      encodeURIComponent,
+      clearTimeout: () => undefined,
+      setTimeout: (f: () => void) => timers.push(f),
+      fetch: (url: string) => {
+        fetched.push(url);
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([{ id: 'm1', name: 'Matabuena', province: 'Segovia' }]) }).finally(() => setImmediate(() => resolveFetch?.()));
+      },
+    });
+    input.value = 'mata';
+    listeners['input']();
+    for (const f of timers) f();
+    await done;
+    expect(fetched).toEqual(['/embajadores/pueblos?q=mata']);
+    expect(options.map((o) => o.value)).toEqual(['Matabuena (Segovia)']);
+    input.value = 'Matabuena (Segovia)';
+    listeners['input']();
+    expect(hidden.value).toBe('m1');
+  });
+
+  it('titles the FAQ, the price and the closing band plainly, with no label above them', () => {
+    const out = body({ villages: [], showcase: null, wrapped: null });
+    expect(out).toContain('<h2>Preguntas frecuentes</h2>');
+    expect(out).not.toContain('Lo que nos suelen preguntar');
+    expect(out).toContain('<a href="mailto:moises@cultuvilla.es">moises@cultuvilla.es</a>');
+    expect(out).not.toContain('<span class="eyebrow">Preguntas frecuentes</span>');
+    expect(out).not.toContain('<span class="eyebrow">Precio</span>');
+    expect(out).not.toContain('<span class="eyebrow">Descarga Cultuvilla</span>');
+    expect(out).toMatch(/<details open><summary>¿Cuánto cuesta\?<span class="pm" aria-hidden="true"><\/span><\/summary>/);
   });
 
   it('marks each store button with its store icon', () => {

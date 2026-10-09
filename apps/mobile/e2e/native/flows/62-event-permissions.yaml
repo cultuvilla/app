@@ -1,0 +1,59 @@
+# Who may do what with flow 60's event: the co-organizer it named may edit it;
+# a villager who is neither may only read it, and the edit link sends them
+# back to the event. Split from 60, which a slow macOS runner pushed past
+# Maestro's 15-minute limit. Depends on 60 (same tens group).
+appId: com.cultuvilla.app.dev
+env:
+  ORGANIZER_EMAIL: e2e-user@cultuvilla.test
+  VILLAGER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/eventLifecycleValues.js
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.title}
+      FIELD2: status
+      VALUE2: published
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.eventId = output.id}
+
+# ── A co-organizer may edit it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ORGANIZER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+
+# ── A villager who is neither may only read it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${VILLAGER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-share-action'
+    timeout: 45000
+- assertVisible: ${output.title}
+- assertNotVisible:
+    id: 'event-edit-action'
+# The edit link itself sends a non-organizer back to the event.
+- openLink: 'cultuvilla://crear/evento?eventId=${output.eventId}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'event-form-primary'

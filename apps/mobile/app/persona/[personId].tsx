@@ -218,6 +218,7 @@ export default function PersonDetailScreen() {
         rightSlot={
           canDelete && canEdit ? (
             <DeleteHeaderButton
+              testID="persona-delete"
               onAccent
               onConfirm={removePersona}
               accessibilityLabel={t('common.delete')}

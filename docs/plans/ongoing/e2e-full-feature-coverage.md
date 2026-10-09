@@ -1,9 +1,9 @@
 # E2E — full feature coverage
 
 **Priority:** high — bugs reached production through flows the suite reports green
-**Landed:** none
+**Landed:** dev
 **Gate:** none
-**Next:** Stage 1 — seed collaborators + a picker image, then the deep event flow replacing 60 and 62
+**Next:** Stage 3 — village content: extend 61 (news) and one deep flow each for place, barrio, festival poster, history entry
 
 ## Goal
 
@@ -54,8 +54,11 @@ its phase:
 > (what they see; that they cannot edit) → **delete/cancel** → **assert gone** from detail
 > and feed.
 
-Phases live in `e2e/native/subflows/<feature>/` (`create-full.yaml`, `assert-full.yaml`,
-`edit-all.yaml`, `as-other-user.yaml`, `delete.yaml`). The flow file is the sequence;
+A feature's lifecycle may span two flows of one tens group when it would pass
+Maestro's 15-minute per-flow limit (`E2E_FLOW_TIMEOUT_MS`); the later one finds
+the entity by a deterministic title. Phases live in `e2e/native/subflows/<feature>-<phase>.yaml` (`event-create-full.yaml`,
+`event-edit-all.yaml`, …) — flat, because the iOS/Android hygiene tests read
+`subflows/` one level deep. The flow file is the sequence;
 assertion subflows are reused after create and after edit with different `env` values.
 
 Existing shortest-path flows fold into these as phases and are deleted (*Delete >
@@ -117,6 +120,12 @@ iOS runs four shards grouped by the tens digit, and a group never splits
 
 ## Handoff
 
+**Decided 2026-10-09 (user): run Stages 3 → 6 back to back without check-ins**, one PR per
+stage (each landed via `pr:land` before the next starts), iterating with targeted
+`flows=` dispatches on both platforms and the full suite only on the PR. Stop only for a
+bug whose fix changes a product rule, or anything adding running cost (a new CI job or
+iOS shard); fix undisputed bugs under `fix-bug` and report them.
+
 Stage 0 baseline (2026-10-09): 334 testIDs, 65 touched by a flow, 269 listed in
 `uncovered.json`, all `todo:`. Components that render several controls take one
 `testID` and derive the rest, so the ratchet counts the caller's literal (a
@@ -125,6 +134,36 @@ controls (`location-use-mine`, `location-confirm`) keep fixed ids — only one p
 is ever open. `MyVillagePicker` lost its hardcoded `village-dropdown-trigger`; the
 event form now names it `event-village`.
 
+Stage 1 (2026-10-09): the local AVD loop OOM-killed WSL during the Gradle APK
+build (~5.8 GB), so flow iteration runs on dispatched `android-e2e` runs
+(`gh workflow run android-e2e.yml --ref <branch> -f flows=60`, ~20 min). The
+Android photo picker's cells are `com.google.android.providers.media.module:id/icon_thumbnail`.
+
+Stage 1 iOS lessons (2026-10-08), all now in the shared subflows:
+- The iOS keyboard is closed by a tap at `1%,30%`, not 2%: every `Pressable` has an
+  8pt hitSlop, so a card 16pt from the edge is tappable from 8pt (2% of 402pt).
+- An open keyboard lifts the sticky wizard footer over low fields, so a second tap on
+  the same field can press Siguiente/Guardar. Re-run `scroll-to.yaml` (closes the
+  keyboard, centres the target) before *every* tap after typing.
+- A pressable card or chip is ONE iOS accessibility element whose text joins its
+  children's; match text with `.*….*` (`see-text.yaml` does), and never assert
+  `assertNotVisible` on exact text — it passes vacuously.
+- Iterate with targeted dispatches on BOTH platforms
+  (`gh workflow run ios-e2e.yml --ref <branch> -f flows=60,62,64,65`) and cancel the
+  automatic full PR run until the fix works; a full ~70-min iOS run per push also
+  pays for unrelated flakes (23, 70, 71, 72 time out on a slow macOS runner).
+- Inside a bottom sheet never use `close-keyboard.yaml` (its iOS gutter tap hits the
+  backdrop and closes the sheet): `close-sheet-keyboard.yaml` presses Enter, which only a
+  single-line text field honours. Numeric and phone keypads have no return key, so put a
+  number answer last, straight before a field outside the sheet's list.
+- A callable's FIRST call boots its emulator worker; on the macOS runner the request has
+  arrived 2+ minutes after the tap. Wait up to 3–5 minutes on any first-call result.
+- Maestro's `checked:` reads `accessibilityState` on Android only.
+- An element under a fixed top bar counts as visible too: centre it with
+  `scrollUntilVisible` direction UP before tapping (the roster's Editar toggle).
+- Android: the CI emulator sometimes drops `device offline` as the map picker loads
+  after the location grant (2 of ~6 runs); a re-run passes.
+
 ## Feature matrix — target
 
 `C` create · `E` edit · `D` display (screen) · `F` Firestore · `O` other-user view ·
@@ -132,8 +171,8 @@ event form now names it `event-village`.
 
 | Feature | Fields / actions to cover | C | E | D | F | O | X |
 |---|---|---|---|---|---|---|---|
-| **Event** | title, description, cover, organizers (+user, +org, remove), private-to-org, start/end date+time, location, village, sign-ups on/off + info, capacity, birth-year range, phone, payment, group size, attendees public, questions (each type, required, reorder, remove, options) | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ cancel |
-| **Registration** | self, dependent, inline new persona, phone, answers, group + open seat + share/cancel, seat claim, waitlist + promotion, unregister, organizer paid/remove | ✅ partial | — | ⬜ | ✅ partial | ⬜ roster as non-organizer | ✅ unregister |
+| **Event** | title, description, cover, organizers (+user, +org, remove), private-to-org, start/end date+time, location, village, sign-ups on/off + info, capacity, birth-year range, phone, payment, group size, attendees public, questions (each type, required, reorder, remove, options) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ cancel |
+| **Registration** | self, dependent, inline new persona, phone, answers, group + open seat + share/cancel, seat claim, waitlist + promotion, unregister, organizer paid/remove | ✅ (date answer, group share/cancel ⬜) | — | ✅ | ✅ | ✅ roster as villager | ✅ unregister + organizer remove |
 | **News** | title, category, cover, text + image blocks + captions, attribution | ✅ partial | ✅ category only | ⬜ | ✅ partial | ⬜ | ✅ |
 | **Place** | images, name, description, type, location, contributors | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ✅ soft-hide |
 | **Barrio** | images, name | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
@@ -181,15 +220,25 @@ none today).
       cell would have caught it and move those cells to the front of the stages below.
 
 ### Stage 1 — event (highest traffic; the user's example)
-- [ ] Seed collaborators + picker image; push the image in both runners.
-- [ ] `subflows/event/`: `create-full`, `assert-full`, `edit-all`, `as-other-user`, `cancel`.
-- [ ] Deep event flow replacing 60 and 62; delete them.
+- [x] Seed collaborators + picker image; push the image in both runners (the seed already had them; `PICKER_IMAGES` stocks the picker).
+- [x] `subflows/event-create-full.yaml`, `event-edit-all.yaml`, plus `pick-datetime`, `pick-photo`, `replace-text`, `see-text`; `scripts/assertDoc.js`.
+- [x] Deep event flows `60-event-create` + `64-event-edit-and-cancel` replacing 60 (since split further into 60 create, 62 permissions, 64 edit, 65 private + cancel, each under the 15-minute limit on a slow macOS runner) — one flow for the whole life ran past Maestro's 15-minute per-flow limit. Sign-up with answers stays in 62 until Stage 2 absorbs it.
+- [x] Green on android-e2e (run 37723123831: 60 in 9m20s, 64 in 11m11s).
+- [x] Green on ios-e2e (run 37777784951: 60 in 8m59s, 64 in 9m21s). Landed in #538.
+- [ ] Cover picking on iOS (PHPicker selector); Android-only today.
 - [ ] Jest coverage for event validation (dates, birth-year bounds, capacity) listed as `unit-tested:`.
 
 ### Stage 2 — registration
-- [ ] Deep registration flow replacing 20, 21, 22, 80 (self, dependent, inline persona,
-      phone, answers, group/open seat, waitlist promotion, unregister, organizer paid/remove).
-- [ ] Keep 23 (seat claim) as a phase or a separate flow in the same group.
+- [x] Deep flows `20-registration-signup` + `21-registration-organize` replacing 20, 21, 22,
+      62 and 80, on a seeded `signupEvent` with every option (phone, payment, birth-year
+      window, a text/select/number/checkbox question, two seats). Green on android-e2e and
+      ios-e2e (20 in ~9m, 21 in ~4m on iOS).
+- [x] Found and fixed: on iOS the sign-up sheet covered the person form its "Crear una
+      nueva persona" opens (the sheet now hides while its screen is out of focus).
+- [x] Keep 23 (seat claim) as its own flow in the same group.
+- [ ] A `date` question answer (the one answer type not driven; needs the DateField calendar
+      inside a sheet).
+- [ ] Group sign-up beyond 23: share/cancel a group, a group's answers.
 
 ### Stage 3 — village content
 - [ ] News: extend 61 to cover, image blocks, attribution, display, other-user view.

@@ -79,6 +79,7 @@ export default function NewsDetailScreen() {
           ? [
               {
                 icon: 'create-outline' as const,
+                testID: 'news-edit-action',
                 accessibilityLabel: t('news.compose.editTitle'),
                 onPress: () => router.push(createNewsHref({ newsId: post.id })),
               },
@@ -86,6 +87,7 @@ export default function NewsDetailScreen() {
           : []),
         {
           icon: 'share-outline',
+          testID: 'news-share-action',
           accessibilityLabel: t('deeplink.shareViewLabel'),
           onPress: () => void share(getNewsLink(post), post.title),
         },

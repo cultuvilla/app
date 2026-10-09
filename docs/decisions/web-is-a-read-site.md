@@ -89,6 +89,23 @@ Two readings, kept separate on purpose:
   the App Store), `robots.txt`, the sitemap and the AASA (JSON).
 - An app feature never carries a web fallback, a `.web.*` twin or a web test.
 
+## The one form: `/embajadores` (2026-10-08)
+
+Decided by the user on 2026-10-08: the read site takes **one** write, the
+would-be Embajador's request on `/embajadores` (pueblo picker, name, phone,
+consent). It is a *lead* for the team to call back, not an app flow on the web:
+
+- It stores `ambassadorLeads/{id}` through the `readSite` function and the admin
+  SDK. The browser still ships no Firebase SDK, and no account is created. The
+  real `organizerRequests/` request is still made in the app, after the call.
+- A spam guard runs before anything is stored: a honeypot field and a cap per
+  network (5 a day, keyed by a hash of the address). Rules let only app admins
+  read the collection, and no client writes it.
+- The form carries its own data-protection notice; the privacy policy itself
+  is a legal text the user updates.
+
+This is the exception, not a precedent: the next web write needs its own yes.
+
 ## Operating notes
 
 - `/robots.txt` and `/favicon.ico` stay static files per env

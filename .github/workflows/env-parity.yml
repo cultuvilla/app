@@ -76,5 +76,12 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
+      # develop's baseline is accepted for config too, as in the deploy gate.
       - name: Check the env against the declared configuration and its branch
-        run: node scripts/check-env-parity.mjs --env="${PARITY_ENV}" --scope=all
+        run: |
+          also=""
+          if git fetch --quiet --depth=1 origin develop \
+            && git show FETCH_HEAD:infra/env-parity.json > "$RUNNER_TEMP/develop-env-parity.json"; then
+            also="--also-baseline=$RUNNER_TEMP/develop-env-parity.json"
+          fi
+          node scripts/check-env-parity.mjs --env="${PARITY_ENV}" --scope=all $also

@@ -110,8 +110,18 @@ jobs:
       # deploy writes, so a drifted env blocks its own deploy. Read-only;
       # needs roles/iam.securityReviewer and roles/serviceusage.serviceUsageViewer
       # (setup-ci-deploy-wif.sh).
+      # develop's baseline is accepted too: an infra change lands on the live
+      # project at once but reaches this branch's baseline only with the next
+      # release, so without it a change declared on develop would block every
+      # beta and prod deploy until then (configDifferences).
       - name: Parity gate — this project is configured like the others
-        run: node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=config
+        run: |
+          also=""
+          if git fetch --quiet --depth=1 origin develop \
+            && git show FETCH_HEAD:infra/env-parity.json > "$RUNNER_TEMP/develop-env-parity.json"; then
+            also="--also-baseline=$RUNNER_TEMP/develop-env-parity.json"
+          fi
+          node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=config $also
 
       # Release plan — prod only, and not on the run that deploys a held
       # backend. A breaking release (a `Breaking-Client:` trailer since the

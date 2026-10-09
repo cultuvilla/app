@@ -25,7 +25,7 @@
  * operator's ADC, --all checks all three and --write-baseline drafts the
  * baseline from them.
  *
- *   node scripts/check-env-parity.mjs --env=<dev|beta|prod> [--scope=config|artifacts|all]
+ *   node scripts/check-env-parity.mjs --env=<dev|beta|prod> [--scope=config|artifacts|all] [--also-baseline=<file>]
  *   node scripts/check-env-parity.mjs --all
  *   node scripts/check-env-parity.mjs --write-baseline
  *
@@ -92,6 +92,20 @@ export function diffSnapshot(actual, expected) {
     }
   }
   return out.sort();
+}
+
+/**
+ * Config differences of `actual` from the first baseline it fully matches —
+ * none if it matches any. A live env changes the moment someone changes it,
+ * while a baseline edit reaches main only with the next release; accepting
+ * develop's baseline too lets an infra change that is declared on develop
+ * stop blocking beta and prod deploys in the meantime (2026-10-08: dropping
+ * the appspot editor grant stopped the 1.8.0 prod deploy). When nothing
+ * matches, the report is against the first — the branch's own — baseline.
+ */
+export function configDifferences(actual, env, baselines) {
+  const diffs = baselines.map((b) => diffSnapshot(actual, expectedFor(b, env)));
+  return diffs.some((d) => d.length === 0) ? [] : diffs[0];
 }
 
 /**
@@ -361,13 +375,14 @@ function arg(name) {
 }
 
 /** Every difference between `env` and its declared state, as report lines. */
-export async function checkEnv(env, scope, baseline, api, { readFile } = {}) {
+export async function checkEnv(env, scope, baseline, api, { readFile, alsoBaselines = [] } = {}) {
   const project = ENVS[env].project;
   const lines = [];
   if (scope !== 'artifacts') {
     const number = await projectNumber(api, project);
     const actual = await configSnapshot(api, project, number);
-    lines.push(...diffSnapshot(actual, expectedFor(baseline, env)).map((l) => `config ${l}`));
+    const differences = configDifferences(actual, env, [baseline, ...alsoBaselines]);
+    lines.push(...differences.map((l) => `config ${l}`));
   }
   if (scope !== 'config') {
     const held = await backendHeld(api, project, env);
@@ -406,6 +421,16 @@ async function main() {
     for (const p of invalid) console.error(`::error::infra/env-parity.json: ${p}`);
     process.exit(1);
   }
+  // --also-baseline=<file>: develop's baseline, accepted for the config scope
+  // too (see configDifferences). Ignored when missing or invalid — it can only
+  // widen what passes, never be the reason a deploy fails.
+  const alsoBaselines = [];
+  const alsoPath = arg('also-baseline');
+  if (alsoPath && existsSync(alsoPath)) {
+    const also = JSON.parse(readFileSync(alsoPath, 'utf8'));
+    if (validateBaseline(also).length === 0) alsoBaselines.push(also);
+    else console.log(`   ${alsoPath} is not a valid baseline — ignored`);
+  }
 
   const scope = arg('scope') ?? 'all';
   if (!['config', 'artifacts', 'all'].includes(scope)) throw new Error(`unknown --scope=${scope}`);
@@ -413,7 +438,7 @@ async function main() {
 
   let failed = false;
   for (const env of envs) {
-    const lines = await checkEnv(env, scope, baseline, client(token, ENVS[env].project));
+    const lines = await checkEnv(env, scope, baseline, client(token, ENVS[env].project), { alsoBaselines });
     console.log(`${lines.length ? '❌' : '✅'} ${env} (${ENVS[env].project}) — ${scope}`);
     for (const l of lines) console.log(`   ${l}`);
     if (lines.length) {

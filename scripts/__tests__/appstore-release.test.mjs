@@ -210,6 +210,30 @@ test('findOrCreateVersion creates with the requested releaseType', async () => {
   assert.equal(post.body.data.attributes.platform, 'IOS');
 });
 
+test('findOrCreateVersion renames a never-submitted draft of another version instead of creating', async () => {
+  const { request, calls } = fakeAsc([
+    [
+      /^GET \/apps\/app1\/appStoreVersions/,
+      {
+        data: [
+          { id: 'v180', attributes: { versionString: '1.8.0', appStoreState: 'PREPARE_FOR_SUBMISSION' } },
+          { id: 'v171', attributes: { versionString: '1.7.1', appStoreState: 'READY_FOR_SALE' } },
+        ],
+      },
+    ],
+    [/^PATCH \/appStoreVersions\/v180$/, { data: { id: 'v180' } }],
+  ]);
+  const result = await findOrCreateVersion(request, {
+    ascAppId: 'app1',
+    versionString: '1.8.1',
+    releaseType: 'AFTER_APPROVAL',
+  });
+  assert.deepEqual(result, { id: 'v180', created: false, renamedFrom: '1.8.0' });
+  assert.equal(calls.some((c) => c.method === 'POST'), false);
+  const patch = calls.find((c) => c.method === 'PATCH');
+  assert.equal(patch.body.data.attributes.versionString, '1.8.1');
+});
+
 test('findOrCreateVersion no-ops on a version already in review', async () => {
   const { request } = fakeAsc([
     [

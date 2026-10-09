@@ -1220,6 +1220,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Would-be Embajadores who left a name and phone on the read site's
+    // /embajadores form. Written only by the readSite function (admin SDK).
+    // Personal data from people with no account: app admins only.
+    match /ambassadorLeads/{leadId} {
+      allow read: if isAppAdmin();
+      allow write: if false;
+    }
+
     // User-filed reports about UGC (comments, news, profiles, entities). Any
     // signed-in person may file one — a report that can fail is worse than no
     // report — but only against themselves as reporter, and always unreviewed:

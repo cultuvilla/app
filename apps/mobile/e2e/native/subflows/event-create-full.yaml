@@ -1,0 +1,254 @@
+# Create an event with EVERY field set to something other than its default,
+# on an open /crear/evento. The values come from `output`, set by the calling
+# flow, so it can assert them afterwards:
+#   output.title, output.description, output.startDay (YYYY-MM-DD)
+# and the fixed choices below (organizers, 12:30–21:00, 25 places, born
+# 1950–2015, phone + payment, groups of 3, private roster, two questions).
+appId: com.cultuvilla.app.dev
+---
+- extendedWaitUntil:
+    visible:
+      id: 'event-title'
+    timeout: 45000
+
+# ── Step 1: basics ──
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'event-title'
+      TEXT: ${output.title}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'event-cover'
+      - runFlow:
+          file: pick-photo.yaml
+          env:
+            INDEX: '0'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'event-description'
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'event-description'
+      TEXT: ${output.description}
+# A second villager and both of the admin's orgs: two orgs, so the
+# private-to-org switch must stay hidden (asserted below).
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'add-user-btn'
+- tapOn:
+    id: 'add-user-btn'
+- tapOn:
+    id: 'villager-row-e2e-user'
+- tapOn:
+    id: 'villager-confirm'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'add-org-btn'
+- tapOn:
+    id: 'add-org-btn'
+- tapOn:
+    id: 'org-row-e2e-org-ayto'
+- tapOn:
+    id: 'org-row-e2e-org-pena-cerrada'
+- tapOn:
+    id: 'org-confirm'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'remove-user-e2e-user'
+- assertVisible:
+    id: 'remove-user-e2e-user'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'remove-org-e2e-org-ayto'
+- assertVisible:
+    id: 'remove-org-e2e-org-ayto'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'remove-org-e2e-org-pena-cerrada'
+- assertVisible:
+    id: 'remove-org-e2e-org-pena-cerrada'
+- assertNotVisible:
+    id: 'private-to-org'
+- runFlow: close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+
+# ── Step 2: when & where ──
+- runFlow:
+    file: pick-datetime.yaml
+    env:
+      FIELD: 'startDate'
+      DAY: ${output.startDay}
+      HOUR: '12'
+      MINUTE: '30'
+- runFlow:
+    file: pick-datetime.yaml
+    env:
+      FIELD: 'endDate'
+      DAY: ${output.startDay}
+      HOUR: '21'
+      MINUTE: '0'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'event-location'
+- tapOn:
+    id: 'event-location'
+- runFlow: allow-location.yaml
+- tapOn:
+    id: 'location-use-mine'
+- runFlow: allow-location.yaml
+# `location-confirm` stays disabled until the fix resolves; see flow 60's history.
+- repeat:
+    times: 10
+    while:
+      visible:
+        id: 'location-confirm'
+    commands:
+      - tapOn:
+          id: 'location-confirm'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertNotVisible:
+    id: 'location-confirm'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'event-village'
+- assertVisible:
+    text: '.*Altozano de Prueba.*'
+- runFlow: close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+
+# ── Step 3: details — every switch flipped from its default ──
+- extendedWaitUntil:
+    visible:
+      id: 'signup-enabled'
+    timeout: 10000
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'event-max-attendees'
+      TEXT: '25'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'birth-year-limit'
+- tapOn:
+    id: 'birth-year-limit'
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'min-birth-year'
+      TEXT: '1950'
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'max-birth-year'
+      TEXT: '2015'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'telephone-required'
+- tapOn:
+    id: 'telephone-required'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'requires-payment'
+- tapOn:
+    id: 'requires-payment'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'signup-group-size'
+- tapOn:
+    id: 'signup-group-size'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'group-size-3'
+- tapOn:
+    id: 'group-size-3'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'attendees-public'
+- tapOn:
+    id: 'attendees-public'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'form-enabled'
+- tapOn:
+    id: 'form-enabled'
+- runFlow: close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+
+# ── Step 4: questions — a required text one and a two-option choice ──
+- extendedWaitUntil:
+    visible:
+      id: 'signup-question-add'
+    timeout: 15000
+- tapOn:
+    id: 'signup-question-add'
+- tapOn:
+    id: 'type-sheet-row-text'
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'signup-question-label-0'
+      TEXT: 'Talla'
+- tapOn:
+    id: 'signup-question-0-required'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'signup-question-add'
+- tapOn:
+    id: 'signup-question-add'
+- tapOn:
+    id: 'type-sheet-row-select'
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'signup-question-label-1'
+      TEXT: 'Menu'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'signup-question-1-option-add'
+- tapOn:
+    id: 'signup-question-1-option-add'
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'signup-question-1-option-0'
+      TEXT: 'Carne'
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'signup-question-1-option-add'
+- tapOn:
+    id: 'signup-question-1-option-add'
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: 'signup-question-1-option-1'
+      TEXT: 'Pescado'
+- runFlow: close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'

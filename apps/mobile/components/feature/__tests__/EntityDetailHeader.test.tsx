@@ -12,15 +12,19 @@ describe('EntityDetailHeader', () => {
   it('renders a back button and one button per action', () => {
     const back = jest.fn();
     const share = jest.fn();
-    const { getByLabelText } = render(
+    const { getByLabelText, getByTestId } = render(
       <EntityDetailHeader
         onBack={back}
-        actions={[{ icon: 'share-outline', onPress: share, accessibilityLabel: 'deeplink.shareViewLabel' }]}
+        actions={[
+          { icon: 'share-outline', onPress: share, accessibilityLabel: 'deeplink.shareViewLabel', testID: 'x-share-action' },
+        ]}
       />,
     );
     fireEvent.press(getByLabelText('header.back'));
     expect(back).toHaveBeenCalledTimes(1);
     fireEvent.press(getByLabelText('deeplink.shareViewLabel'));
     expect(share).toHaveBeenCalledTimes(1);
+    // The id is what the Maestro flows reach the action by.
+    expect(getByTestId('x-share-action')).toBeTruthy();
   });
 });
