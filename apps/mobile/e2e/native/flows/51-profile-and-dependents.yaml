@@ -158,7 +158,7 @@ env:
     env:
       YEAR: '2016'
       MONTH_OPTION: '0'
-      DAY: '9'
+      DAY: '28'
 - runFlow:
     file: ../subflows/pick-village.yaml
     env:
@@ -208,7 +208,7 @@ env:
           'userId': 'absent',
           'birthday.year': 2016,
           'birthday.month': 1,
-          'birthday.day': 9,
+          'birthday.day': 28,
           'birthPlace.municipalityId': 'e2e-village-altozano',
           'biography': 'Le gusta la musica'
         }

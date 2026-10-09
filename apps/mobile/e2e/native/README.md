@@ -67,7 +67,7 @@ instead of the whole shard.
 | `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
 | `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
 | `51-profile-and-dependents` | A user's own profile edited; a dependent created with every field, renamed and made private, closed to another villager (a public one is not), then deleted. |
-| `52-feed-discovery` | Explora's search and each filter (village, date, proximity sort, news category) narrowing the list and clearing again. Depends on 50. |
+| `52-feed-discovery` | Explora's search and each filter (village, date, proximity sort, news category) narrowing the list and clearing again; the proximity sort proven by order. |
 | `53-vocabulary` | A word created with every field, found by search, given and stripped of a second villager's meaning, then emptied and deleted by its author. |
 | `60-event-create` | An event created with every field: cover, organizers (a villager + two orgs), dates, capacity, age range, phone, payment, groups, private roster, questions; every stored field and the detail screen asserted. Also the OS location permission and a real GPS fix (`setLocation`). |
 | `62-event-permissions` | 60's event as its other users see it: the co-organizer may edit; a villager may only read, and the edit link sends them back. Split from 60 to keep it under Maestro's 15-minute limit on a slow runner. |
