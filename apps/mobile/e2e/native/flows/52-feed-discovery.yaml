@@ -93,10 +93,18 @@ env:
       text: '.*Fiesta Lejana E2E.*'
       above: '.*Fiesta de Prueba E2E.*'
     timeout: 10000
+# The open search box pushes the sort pill off the filter row: close it, sort,
+# and search again.
+- tapOn:
+    id: 'filter-search-clear'
 - tapOn:
     id: 'filter-sort'
 - tapOn:
     id: 'filter-sort-sheet-option-proximity'
+- tapOn:
+    id: 'filter-search'
+- inputText: 'Fiesta'
+- runFlow: ../subflows/close-keyboard.yaml
 - extendedWaitUntil:
     visible:
       text: '.*Fiesta de Prueba E2E.*'
