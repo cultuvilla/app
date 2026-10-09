@@ -1,0 +1,28 @@
+# Choose ${VILLAGE_ID} in the VillagePicker ${PICKER}, found by typing ${SEARCH}.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: ${PICKER}
+- tapOn:
+    id: ${PICKER}
+- extendedWaitUntil:
+    visible:
+      id: ${PICKER}-search
+    timeout: 10000
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: ${PICKER}-search
+      TEXT: ${SEARCH}
+- extendedWaitUntil:
+    visible:
+      id: ${PICKER}-option-${VILLAGE_ID}
+    timeout: 20000
+- tapOn:
+    id: ${PICKER}-option-${VILLAGE_ID}
+- extendedWaitUntil:
+    notVisible:
+      id: ${PICKER}-search
+    timeout: 10000

@@ -1,0 +1,42 @@
+# Set the person form's birthday to ${YEAR}, month option ${MONTH_OPTION} and
+# day ${DAY}. Month options are indexed from 0: option 5 is June, stored as 6.
+#
+# Each picker is a full-screen list with a Cancelar bar at its foot; an option
+# just above that bar counts as visible but the tap lands on the bar, so each
+# option is centred first.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'birthday-year'
+- tapOn:
+    id: 'birthday-year'
+- scrollUntilVisible:
+    element:
+      id: 'birthday-year-option-${YEAR}'
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- tapOn:
+    id: 'birthday-year-option-${YEAR}'
+- tapOn:
+    id: 'birthday-month'
+- scrollUntilVisible:
+    element:
+      id: 'birthday-month-option-${MONTH_OPTION}'
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- tapOn:
+    id: 'birthday-month-option-${MONTH_OPTION}'
+- tapOn:
+    id: 'birthday-day'
+- scrollUntilVisible:
+    element:
+      id: 'birthday-day-option-${DAY}'
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- tapOn:
+    id: 'birthday-day-option-${DAY}'

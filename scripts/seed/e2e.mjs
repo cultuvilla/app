@@ -23,6 +23,8 @@ import {
   buildEventData,
   buildLocationData,
   buildPlaceData,
+  buildBarrioData,
+  buildNewsPostData,
   buildCommentData,
 } from '@cultuvilla/shared/models';
 import {
@@ -41,6 +43,8 @@ import {
   otherUserComment,
   dependentPerson,
   place,
+  barrio,
+  newsPost,
 } from '../data/seed-fixtures/e2e/fixtures.mjs';
 
 if (!EMULATOR) {
@@ -71,7 +75,7 @@ async function run() {
   // Auth accounts + persons/{id} + users/{uid} profile docs. The person is
   // linked via personId so the app treats the user as onboarded (otherwise the
   // register FAB never renders — it diverts to complete-profile).
-  for (const u of [users.admin, users.attendee, users.superAdmin, users.joiner]) {
+  for (const u of [users.admin, users.attendee, users.superAdmin, users.joiner, users.throwaway]) {
     await upsertUser(u);
     await db
       .collection('persons')
@@ -427,6 +431,39 @@ async function run() {
         description: place.description,
         municipalityId: village.docId,
         proposedBy: users.admin.uid,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('municipalities')
+    .doc(village.docId)
+    .collection('barrios')
+    .doc(barrio.docId)
+    .set(
+      buildBarrioData({
+        name: barrio.name,
+        municipalityId: village.docId,
+        proposedBy: users.admin.uid,
+      }),
+      { merge: true },
+    );
+
+  const newsAt = new Date();
+  await db
+    .collection('news')
+    .doc(newsPost.docId)
+    .set(
+      buildNewsPostData({
+        municipalityId: village.docId,
+        villageSlug: village.slug,
+        createdBy: users.admin.uid,
+        organizerUserIds: [users.admin.uid],
+        title: newsPost.title,
+        body: newsPost.body,
+        category: newsPost.category,
+        createdAt: newsAt,
+        updatedAt: newsAt,
       }),
       { merge: true },
     );

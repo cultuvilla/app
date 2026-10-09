@@ -1,0 +1,110 @@
+# Finding things on the Explora feed: search, and every filter narrowing the
+# list and being cleared again. As the user flow 50 onboarded, whose active
+# village is what "Por cercanía" sorts from.
+#
+# Seeded events sit 7–10 days out, so "Esta semana" (the next seven days from
+# midnight) drops them and "Este mes" keeps them.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-fresh@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- tapOn: 'Explora(,.*)?'
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- extendedWaitUntil:
+    visible: '.*Fiesta de Prueba E2E.*'
+    timeout: 45000
+
+# ── Search ──
+- tapOn:
+    id: 'filter-search'
+- inputText: 'Aforo'
+- extendedWaitUntil:
+    visible: '.*Evento con Aforo E2E.*'
+    timeout: 10000
+- assertNotVisible: '.*Fiesta de Prueba E2E.*'
+- tapOn:
+    id: 'filter-search-clear'
+- extendedWaitUntil:
+    visible: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
+
+# ── Village ──
+- tapOn:
+    id: 'filter-village'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'filter-village-sheet-search'
+      TEXT: 'Pueblo'
+- tapOn:
+    id: 'filter-village-sheet-option-e2e-village-join'
+- extendedWaitUntil:
+    visible: 'No hay eventos próximos'
+    timeout: 10000
+- tapOn:
+    id: 'filter-village'
+- tapOn:
+    id: 'filter-village-sheet-option-all'
+- extendedWaitUntil:
+    visible: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
+
+# ── Date ──
+- tapOn:
+    id: 'filter-date'
+- tapOn:
+    id: 'filter-date-sheet-option-semana'
+- extendedWaitUntil:
+    notVisible: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
+- tapOn:
+    id: 'filter-date'
+- tapOn:
+    id: 'filter-date-sheet-option-mes'
+- extendedWaitUntil:
+    visible: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
+- tapOn:
+    id: 'filter-date'
+- tapOn:
+    id: 'filter-date-sheet-option-all'
+
+# ── Sort ──
+- tapOn:
+    id: 'filter-sort'
+- tapOn:
+    id: 'filter-sort-sheet-option-proximity'
+- extendedWaitUntil:
+    visible: 'Por cercanía'
+    timeout: 10000
+- assertVisible: '.*Fiesta de Prueba E2E.*'
+
+# ── News: category ──
+- tapOn: 'Artículos'
+- extendedWaitUntil:
+    visible:
+      id: 'filter-category'
+    timeout: 15000
+- extendedWaitUntil:
+    visible: '.*Noticia Sembrada E2E.*'
+    timeout: 30000
+- tapOn:
+    id: 'filter-category'
+- tapOn:
+    id: 'filter-category-sheet-option-fiesta'
+- extendedWaitUntil:
+    notVisible: '.*Noticia Sembrada E2E.*'
+    timeout: 10000
+- tapOn:
+    id: 'filter-category'
+- tapOn:
+    id: 'filter-category-sheet-option-historia'
+- extendedWaitUntil:
+    visible: '.*Noticia Sembrada E2E.*'
+    timeout: 10000

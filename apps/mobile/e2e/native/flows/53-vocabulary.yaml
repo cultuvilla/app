@@ -1,0 +1,253 @@
+# A word in a pueblo's vocabulary, every field set and read back:
+#
+#   create  — a villager: the term, its kind, a definition, an example and the
+#             castellano equivalent
+#   search  — it is found from the vocabulary list
+#   second  — another villager adds a meaning of their own, then removes it
+#   delete  — the author removes their meaning, which leaves the word empty,
+#             and then the word itself
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  JOINER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+  TERM_ID: 'e2e-village-altozano__zagalillo'
+---
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: vocabularyDefinitions
+      FIELD: termId
+      VALUE: ${TERM_ID}
+- runScript:
+    file: ../scripts/deleteDoc.js
+    env:
+      DOC_PATH: 'vocabularyTerms/${TERM_ID}'
+
+# ── Create ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/vocabulario'
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-add-fab'
+    timeout: 45000
+- tapOn:
+    id: 'vocabulary-add-fab'
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-term-input'
+    timeout: 20000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'vocabulary-term-input'
+      TEXT: 'zagalillo'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'vocabulary-kind-mote'
+- tapOn:
+    id: 'vocabulary-kind-mote'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'vocabulary-definition-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'vocabulary-definition-input'
+      TEXT: 'Chico joven y travieso'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'vocabulary-example-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'vocabulary-example-input'
+      TEXT: 'El zagalillo se subio al tejado'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'vocabulary-castellano-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'vocabulary-castellano-input'
+      TEXT: 'muchacho'
+- repeat:
+    times: 3
+    while:
+      visible:
+        id: 'vocabulary-submit'
+    commands:
+      - runFlow: ../subflows/close-keyboard.yaml
+      - tapOn:
+          id: 'vocabulary-submit'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'vocabularyTerms/${TERM_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: >-
+        {
+          'term': 'zagalillo',
+          'kind': 'mote',
+          'municipalityId': 'e2e-village-altozano',
+          'createdBy': 'e2e-user'
+        }
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: vocabularyDefinitions
+      FIELD: termId
+      VALUE: ${TERM_ID}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.userDefinition = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'vocabularyDefinitions/${output.userDefinition}'
+      EXPECT_JSON: >-
+        {
+          'definition': 'Chico joven y travieso',
+          'example': 'El zagalillo se subio al tejado',
+          'castellano': 'muchacho',
+          'createdBy': 'e2e-user',
+          'status': 'active'
+        }
+# The word page it lands on.
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-add-definition'
+    timeout: 30000
+- assertVisible:
+    id: 'vocabulary-term-kind'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Chico joven y travieso'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'muchacho'
+
+# ── Search ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/vocabulario'
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-search'
+    timeout: 30000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'vocabulary-search'
+      TEXT: 'zagal'
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-term-${TERM_ID}'
+    timeout: 15000
+
+# ── A second villager's meaning ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${JOINER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/palabra/zagalillo'
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-add-definition'
+    timeout: 45000
+# Not the author and not an admin: the word cannot be deleted from here.
+- assertNotVisible:
+    id: 'vocabulary-delete-term'
+- tapOn:
+    id: 'vocabulary-add-definition'
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-definition-input'
+    timeout: 20000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'vocabulary-definition-input'
+      TEXT: 'Nino que ayuda al pastor'
+- repeat:
+    times: 3
+    while:
+      visible:
+        id: 'vocabulary-definition-submit'
+    commands:
+      - runFlow: ../subflows/close-keyboard.yaml
+      - tapOn:
+          id: 'vocabulary-definition-submit'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: vocabularyDefinitions
+      FIELD: termId
+      VALUE: ${TERM_ID}
+      FIELD2: createdBy
+      VALUE2: e2e-joiner
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.joinerDefinition = output.id}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Nino que ayuda al pastor'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'vocabulary-definition-action-${output.joinerDefinition}'
+- tapOn:
+    id: 'vocabulary-definition-action-${output.joinerDefinition}'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'vocabularyDefinitions/${output.joinerDefinition}'
+      EXPECT: absent
+      TIMEOUT_MS: '30000'
+- assertTrue: ${output.ok == 'true'}
+
+# ── The author empties and deletes the word ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/palabra/zagalillo'
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-definition-action-${output.userDefinition}'
+    timeout: 45000
+- tapOn:
+    id: 'vocabulary-definition-action-${output.userDefinition}'
+# definitionCount is trigger-owned; the delete appears once it reaches 0.
+- extendedWaitUntil:
+    visible:
+      id: 'vocabulary-delete-term'
+    timeout: 60000
+- tapOn:
+    id: 'vocabulary-delete-term'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'vocabularyTerms/${TERM_ID}'
+      EXPECT: absent
+      TIMEOUT_MS: '30000'
+- assertTrue: ${output.ok == 'true'}

@@ -1,0 +1,121 @@
+# A user's own settings, ending with the account deleted for real:
+#
+#   notifications  — push allowed, one category muted, quiet hours on
+#   email          — a malformed address refused, a good one sent to verify
+#   delete         — "ELIMINAR" typed and the account gone: profile and person
+#
+# The account is e2e-throwaway, seeded for this flow alone: nothing else may
+# depend on it, and a retry finds it already deleted.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-throwaway@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  UID: e2e-throwaway
+  PERSON_ID: e2e-person-throwaway
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+
+# ── Notifications ──
+- openLink: 'cultuvilla://ajustes'
+- extendedWaitUntil:
+    visible:
+      id: 'settings-notifications'
+    timeout: 30000
+- tapOn:
+    id: 'settings-notifications'
+- extendedWaitUntil:
+    visible:
+      id: 'push-pref-village'
+    timeout: 30000
+# A fresh install has not been asked yet; the toggles stay disabled until it is.
+- runFlow:
+    when:
+      visible:
+        id: 'push-permission-undetermined'
+    commands:
+      - tapOn: 'Activar notificaciones'
+      - extendedWaitUntil:
+          visible: '(?i)(allow|permitir)'
+          timeout: 15000
+      - tapOn: '(?i)(allow|permitir)'
+- extendedWaitUntil:
+    notVisible:
+      id: 'push-permission-undetermined'
+    timeout: 15000
+- tapOn:
+    id: 'push-pref-village'
+- tapOn:
+    id: 'push-pref-quietHours'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'users/${UID}/preferences/notifications'
+      EXPECT_JSON: "{ 'village': false, 'quietHours': true, 'mine': true, 'social': true }"
+
+# ── Change email ──
+- openLink: 'cultuvilla://ajustes/cambiar-email'
+- extendedWaitUntil:
+    visible:
+      id: 'change-email-input'
+    timeout: 30000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'change-email-input'
+      TEXT: 'no-es-un-correo'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'change-email-submit'
+- extendedWaitUntil:
+    visible: 'Introduce un correo electrónico válido'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'change-email-input'
+      TEXT: 'e2e-throwaway-new@cultuvilla.test'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'change-email-submit'
+- extendedWaitUntil:
+    visible: '.*Hemos enviado un enlace de confirmación a tu nuevo correo.*'
+    timeout: 60000
+
+# ── Delete the account ──
+- openLink: 'cultuvilla://ajustes/eliminar-cuenta'
+# checkAccountDeletable is a callable; its first call boots the worker.
+- extendedWaitUntil:
+    visible:
+      id: 'delete-account-confirm-input'
+    timeout: 240000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'delete-account-confirm-input'
+      TEXT: 'ELIMINAR'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'delete-account-submit'
+# deleteAccount is a callable; its first call boots the worker.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'users/${UID}'
+      EXPECT: absent
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'persons/${PERSON_ID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+# Signed out: the profile tab has nothing of theirs left to show.
+- extendedWaitUntil:
+    notVisible:
+      id: 'profile-edit-action'
+    timeout: 30000

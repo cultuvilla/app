@@ -1,0 +1,308 @@
+# A user's own profile and the personas they manage:
+#
+#   own      — nickname, sex, birthday, biography and an occupation edited and
+#              read back on the profile tab
+#   create   — a dependent persona with every field, public by default
+#   edit     — renamed, made private, biography changed
+#   view     — another villager: the private persona is closed to them, a
+#              public one (the seeded dependent) is not
+#   delete   — the creator deletes the dependent
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  JOINER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+---
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: persons
+      FIELD: givenName
+      VALUE: 'Hija'
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: persons
+      FIELD: givenName
+      VALUE: 'Hijita'
+
+# ── Own profile ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- tapOn:
+    id: 'profile-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'person-nickname'
+    timeout: 30000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'person-nickname'
+      TEXT: 'Usu'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-sex-male'
+- tapOn:
+    id: 'person-sex-male'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+# Month option 2 is March.
+- runFlow:
+    file: ../subflows/pick-birthday.yaml
+    env:
+      YEAR: '1985'
+      MONTH_OPTION: '2'
+      DAY: '3'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'person-biography'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'person-biography'
+      TEXT: 'Vecino de Altozano de toda la vida'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'occupation-profesor'
+- tapOn:
+    id: 'occupation-profesor'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/e2e-person-user'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: >-
+        {
+          'givenName': 'Usuario',
+          'nickname': 'Usu',
+          'sex': 'male',
+          'birthday.year': 1985,
+          'birthday.month': 3,
+          'birthday.day': 3,
+          'biography': 'Vecino de Altozano de toda la vida',
+          'occupations': { 'contains': ['profesor'] }
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'profile-edit-action'
+    timeout: 30000
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Vecino de Altozano de toda la vida'
+
+# ── A dependent, every field ──
+- openLink: 'cultuvilla://persona/new'
+- extendedWaitUntil:
+    visible:
+      id: 'person-given-name'
+    timeout: 30000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-given-name'
+      TEXT: 'Hija'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-first-surname'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-first-surname'
+      TEXT: 'Prueba'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-second-surname'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-second-surname'
+      TEXT: 'Segunda'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-nickname'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-nickname'
+      TEXT: 'Peque'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-sex-female'
+- tapOn:
+    id: 'person-sex-female'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+# Month option 0 is January.
+- runFlow:
+    file: ../subflows/pick-birthday.yaml
+    env:
+      YEAR: '2016'
+      MONTH_OPTION: '0'
+      DAY: '9'
+- runFlow:
+    file: ../subflows/pick-village.yaml
+    env:
+      PICKER: 'person-birth-place'
+      SEARCH: 'Altozano'
+      VILLAGE_ID: 'e2e-village-altozano'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'person-biography'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'person-biography'
+      TEXT: 'Le gusta la musica'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: persons
+      FIELD: givenName
+      VALUE: 'Hija'
+      FIELD2: createdBy
+      VALUE2: 'e2e-user'
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.personaId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/${output.personaId}'
+      EXPECT_JSON: >-
+        {
+          'givenName': 'Hija',
+          'firstSurname': 'Prueba',
+          'secondSurname': 'Segunda',
+          'nickname': 'Peque',
+          'sex': 'female',
+          'isPublic': true,
+          'userId': 'absent',
+          'birthday.year': 2016,
+          'birthday.month': 1,
+          'birthday.day': 9,
+          'birthPlace.municipalityId': 'e2e-village-altozano',
+          'biography': 'Le gusta la musica'
+        }
+
+# ── Edit the dependent: renamed, private, new biography ──
+- openLink: 'cultuvilla://persona/${output.personaId}?edit=1'
+- extendedWaitUntil:
+    visible:
+      id: 'person-given-name'
+    timeout: 30000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'person-given-name'
+      TEXT: 'Hijita'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-is-public'
+- tapOn:
+    id: 'person-is-public'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'person-biography'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'person-biography'
+      TEXT: 'Toca la flauta'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/${output.personaId}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: >-
+        {
+          'givenName': 'Hijita',
+          'isPublic': false,
+          'biography': 'Toca la flauta',
+          'birthday.year': 2016
+        }
+
+# ── Another villager ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${JOINER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://persona/${output.personaId}'
+- extendedWaitUntil:
+    visible: 'Esta ficha es privada'
+    timeout: 45000
+- assertNotVisible: '.*Hijita.*'
+- assertNotVisible:
+    id: 'persona-delete'
+- openLink: 'cultuvilla://persona/e2e-person-dependent'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Lucía Dependiente'
+- assertNotVisible:
+    id: 'person-given-name'
+
+# ── Delete ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://persona/${output.personaId}?edit=1'
+- extendedWaitUntil:
+    visible:
+      id: 'persona-delete'
+    timeout: 45000
+- tapOn:
+    id: 'persona-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'persons/${output.personaId}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
