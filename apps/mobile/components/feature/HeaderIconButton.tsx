@@ -13,8 +13,8 @@ export type HeaderIconButtonProps = {
  * neutral surface bar). The neutral-bar analogue of the old floating disc. */
 export function HeaderIconButton({ icon, onPress, accessibilityLabel, testID }: HeaderIconButtonProps) {
   return (
-    <Pressable onPress={onPress} accessibilityLabel={accessibilityLabel} testID={testID} className="p-1 ml-2">
-      <Ionicons name={icon} size={iconSizes.md} color={colors.light.fg.accent} />
+    <Pressable onPress={onPress} accessibilityLabel={accessibilityLabel} testID={testID} className="p-2 ml-1">
+      <Ionicons name={icon} size={iconSizes.lg} color={colors.light.fg.accent} />
     </Pressable>
   );
 }

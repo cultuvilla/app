@@ -90,15 +90,28 @@ describe('converter failures', () => {
     const onNext = vi.fn();
     const onError = vi.fn();
     watchDoc({} as DocumentReference<{ n: number }>, onNext, onError);
-    snapshots.next?.({ id: 'a', data: throwingData });
+    snapshots.next?.({ id: 'a', exists: () => true, data: throwingData });
     expect(onNext).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  // The native SDK runs `fromFirestore` even for a doc that does not exist, so
+  // the strict converter throws on it. A missing doc is an answer (null), not
+  // an error: the profile watches the viewer's member doc in every village org,
+  // and one absent doc used to fail the whole list and hide every group.
+  it('answers a missing doc with null without running the converter', () => {
+    const onNext = vi.fn();
+    const onError = vi.fn();
+    watchDoc({} as DocumentReference<{ n: number }>, onNext, onError);
+    snapshots.next?.({ id: 'a', exists: () => false, data: throwingData });
+    expect(onNext).toHaveBeenCalledWith(null);
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it('still delivers a doc that parses', () => {
     const onNext = vi.fn();
     watchDoc({} as DocumentReference<{ n: number }>, onNext, vi.fn());
-    snapshots.next?.({ id: 'a', data: () => ({ n: 1 }) });
+    snapshots.next?.({ id: 'a', exists: () => true, data: () => ({ n: 1 }) });
     expect(onNext).toHaveBeenCalledWith({ id: 'a', n: 1 });
   });
 });
