@@ -81,25 +81,13 @@ env:
 - tapOn:
     id: 'poster-submit'
 - runFlow:
-    file: ../subflows/scroll-to.yaml
+    file: ../subflows/add-organizer-user.yaml
     env:
-      TARGET: 'add-user-btn'
-- tapOn:
-    id: 'add-user-btn'
-- tapOn:
-    id: 'villager-row-e2e-admin'
-- tapOn:
-    id: 'villager-confirm'
+      UID: 'e2e-admin'
 - runFlow:
-    file: ../subflows/scroll-to.yaml
+    file: ../subflows/add-organizer-org.yaml
     env:
-      TARGET: 'add-org-btn'
-- tapOn:
-    id: 'add-org-btn'
-- tapOn:
-    id: 'org-row-e2e-org-ayto'
-- tapOn:
-    id: 'org-confirm'
+      ORG_ID: 'e2e-org-ayto'
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:

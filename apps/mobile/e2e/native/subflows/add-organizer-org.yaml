@@ -1,0 +1,18 @@
+# Add the group ${ORG_ID} in an open OrganizerPicker; see add-organizer-user.yaml
+# for why the row is waited for.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'add-org-btn'
+- tapOn:
+    id: 'add-org-btn'
+- extendedWaitUntil:
+    visible:
+      id: 'org-row-${ORG_ID}'
+    timeout: 60000
+- tapOn:
+    id: 'org-row-${ORG_ID}'
+- tapOn:
+    id: 'org-confirm'
