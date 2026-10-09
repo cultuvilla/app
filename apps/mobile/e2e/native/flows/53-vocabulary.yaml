@@ -98,7 +98,7 @@ env:
       TIMEOUT_MS: '60000'
       EXPECT_JSON: >-
         {
-          'term': 'zagalillo',
+          'term': 'Zagalillo',
           'kind': 'mote',
           'municipalityId': 'e2e-village-altozano',
           'createdBy': 'e2e-user'

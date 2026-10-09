@@ -20,9 +20,17 @@ appId: com.cultuvilla.app.dev
     visible:
       id: ${PICKER}-option-${VILLAGE_ID}
     timeout: 20000
-- tapOn:
-    id: ${PICKER}-option-${VILLAGE_ID}
-- extendedWaitUntil:
-    notVisible:
-      id: ${PICKER}-search
-    timeout: 10000
+# With the search keyboard up, the first tap on an option can go to closing
+# the keyboard instead; tap until the picker closes.
+- repeat:
+    times: 3
+    while:
+      visible:
+        id: ${PICKER}-search
+    commands:
+      - tapOn:
+          id: ${PICKER}-option-${VILLAGE_ID}
+      - waitForAnimationToEnd:
+          timeout: 2000
+- assertNotVisible:
+    id: ${PICKER}-search

@@ -48,6 +48,11 @@ env:
     timeout: 15000
 - tapOn:
     id: 'push-pref-village'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'users/${UID}/preferences/notifications'
+      EXPECT_JSON: "{ 'village': false }"
 - tapOn:
     id: 'push-pref-quietHours'
 - runScript:
