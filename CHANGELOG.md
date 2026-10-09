@@ -4,6 +4,8 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.10.0 — 2026-10-09
+
 <!-- store-notes -->
 - **Sal de un grupo cuando quieras**: desde la barra superior de una peña o asociación ya puedes dejarla.
 - **Tu teléfono, guardado**: al apuntarte a un evento que pide teléfono, ya aparece el de tu perfil, y el que uses queda guardado para la próxima vez.
@@ -13,6 +15,15 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 <!-- /store-notes -->
 
 - **Web:** the landing's Embajador section takes the light page background, and the price band is orange.
+
+- Feat: a member can leave a group (peña/asociación) from the exit icon in its
+  top bar; the only admin of a group with other members is asked to promote
+  someone first. The top bar of every detail screen (events, groups, places,
+  news…) is taller and its icons larger.
+- Fix: the profile's Grupos and Peñas lists showed nothing on device. A live
+  read of a document that does not exist (your membership in an org you never
+  joined) ran the strict converter on empty data and failed, which emptied the
+  whole list. **Migration:** none.
 
 ## v1.9.0 — 2026-10-09
 
