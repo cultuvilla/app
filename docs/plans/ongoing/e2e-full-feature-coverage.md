@@ -143,7 +143,7 @@ Stage 1 iOS lessons (2026-10-08), all now in the shared subflows:
   children's; match text with `.*….*` (`see-text.yaml` does), and never assert
   `assertNotVisible` on exact text — it passes vacuously.
 - Iterate with targeted dispatches on BOTH platforms
-  (`gh workflow run ios-e2e.yml --ref <branch> -f flows=60,64`) and cancel the
+  (`gh workflow run ios-e2e.yml --ref <branch> -f flows=60,62,64,65`) and cancel the
   automatic full PR run until the fix works; a full ~70-min iOS run per push also
   pays for unrelated flakes (23, 70, 71, 72 time out on a slow macOS runner).
 - Inside a bottom sheet never use `close-keyboard.yaml` (its iOS gutter tap hits the
@@ -216,7 +216,7 @@ none today).
 ### Stage 1 — event (highest traffic; the user's example)
 - [x] Seed collaborators + picker image; push the image in both runners (the seed already had them; `PICKER_IMAGES` stocks the picker).
 - [x] `subflows/event-create-full.yaml`, `event-edit-all.yaml`, plus `pick-datetime`, `pick-photo`, `replace-text`, `see-text`; `scripts/assertDoc.js`.
-- [x] Deep event flows `60-event-create` + `64-event-edit-and-cancel` replacing 60 — one flow for the whole life ran past Maestro's 15-minute per-flow limit. Sign-up with answers stays in 62 until Stage 2 absorbs it.
+- [x] Deep event flows `60-event-create` + `64-event-edit-and-cancel` replacing 60 (since split further into 60 create, 62 permissions, 64 edit, 65 private + cancel, each under the 15-minute limit on a slow macOS runner) — one flow for the whole life ran past Maestro's 15-minute per-flow limit. Sign-up with answers stays in 62 until Stage 2 absorbs it.
 - [x] Green on android-e2e (run 37723123831: 60 in 9m20s, 64 in 11m11s).
 - [x] Green on ios-e2e (run 37777784951: 60 in 8m59s, 64 in 9m21s). Landed in #538.
 - [ ] Cover picking on iOS (PHPicker selector); Android-only today.

@@ -5,9 +5,9 @@
 #
 # It replaces a flow that typed a title, accepted every default and checked
 # three fields — green while most of the form went untested. The same event
-# is then opened by its other users (62), and edited and cancelled (64): one
-# flow for the whole life ran past Maestro's 15-minute limit, and on a slow
-# macOS runner so did create + the other users' checks.
+# is then opened by its other users (62), edited (64), shut to the villager
+# and cancelled (65): one flow for the whole life ran past Maestro's 15-minute
+# limit, and on a slow macOS runner so did each half of it.
 #
 # Cover images are picked on Android only; see subflows/pick-photo.yaml.
 # Times sit mid-day so the stored UTC date matches the local one in any
@@ -58,7 +58,7 @@ env:
       MIN: '1'
       MAX: '1'
       # Upload + create outlasted the default 20 s on the loaded macOS runner.
-      TIMEOUT_MS: '60000'
+      TIMEOUT_MS: '180000'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.eventId = output.id}
 

@@ -68,7 +68,8 @@ instead of the whole shard.
 | `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. |
 | `60-event-create` | An event created with every field: cover, organizers (a villager + two orgs), dates, capacity, age range, phone, payment, groups, private roster, questions; every stored field and the detail screen asserted. Also the OS location permission and a real GPS fix (`setLocation`). |
 | `62-event-permissions` | 60's event as its other users see it: the co-organizer may edit; a villager may only read, and the edit link sends them back. Split from 60 to keep it under Maestro's 15-minute limit on a slow runner. |
-| `64-event-edit-and-cancel` | The same event with every field edited, down to private to the approval peña; the doc and screen asserted again, the villager now gets "not found"; then cancelled. Depends on 60 (same tens group). |
+| `64-event-edit` | The same event with every field edited, down to private to the approval peña; the doc and the screen asserted again. Depends on 60 (same tens group). |
+| `65-event-private-and-cancel` | The now-private event: the villager gets "not found"; then the organizer cancels it. Depends on 60 and 64. |
 | `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
 | `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
 | `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
@@ -91,7 +92,7 @@ filenames: `20,21`, `20-registration-signup`, `61-news-lifecycle.yaml`. It runs 
 **filename order** whatever order you typed (a pair like 20 → 21 still works),
 runs a quarantined flow if you name it, and fails fast on a name that matches
 nothing rather than passing on zero flows. Mind the pairs: `21` alone has
-nothing to organize — select `20,21` (and `60,64`).
+nothing to organize — select `20,21` (and `60,62,64,65`).
 
 | Where | How |
 |---|---|
