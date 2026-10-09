@@ -1027,6 +1027,15 @@
       "approve": "Aceptar",
       "reject": "Rechazar"
     }
+,
+    "leave": {
+      "title": "Salir del grupo",
+      "body": "¿Quieres salir de {name}? Puedes volver a unirte cuando quieras.",
+      "bodyApproval": "¿Quieres salir de {name}? Para volver tendrás que solicitarlo de nuevo.",
+      "confirm": "Salir",
+      "soleAdminBody": "Eres el único administrador del grupo. Haz administrador a otro miembro antes de salir.",
+      "error": "No se pudo salir del grupo. Inténtalo de nuevo."
+    }
   },
   "partialDate": {
     "year": "Año",
