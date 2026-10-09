@@ -4,8 +4,9 @@
 // reach the inputs at all. It also reads raw fields, so a malformed doc has to
 // degrade to a default rather than fail the whole Wrapped.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as admin from 'firebase-admin';
+import { logger } from 'firebase-functions/v2';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { gatherWrappedInputs } from '../../../wrapped/gatherInputs';
 
@@ -211,6 +212,32 @@ describe('gatherWrappedInputs', () => {
 
     expect(g.news.map((n) => n.id)).toEqual(['opening', 'closing']);
     expect(g.news[0].imageURL).toBeNull();
+  });
+
+  // A cover the function cannot read (missing, or the runtime account lost
+  // `storage.objects.get`) used to come back null with no trace, which is how
+  // a prod Wrapped shipped blank article tiles behind a clean log.
+  it('warns when an article cover cannot be read', async () => {
+    const warn = vi.spyOn(logger, 'warn');
+    await db()
+      .doc('news/unreadable')
+      .set({
+        municipalityId: MID,
+        title: 'unreadable',
+        status: 'active',
+        publishedAt: admin.firestore.Timestamp.fromDate(IN_WINDOW),
+        coverImage: { storagePath: 'news/unreadable/images/missing.jpg', width: 10, height: 10 },
+        images: [],
+      });
+
+    const g = await gather();
+
+    expect(g.news[0].imageURL).toBeNull();
+    expect(warn).toHaveBeenCalledWith(
+      'wrapped news image dropped',
+      expect.objectContaining({ handler: 'gatherWrappedInputs', path: 'news/unreadable/images/missing.jpg' }),
+    );
+    warn.mockRestore();
   });
 
   it('resolves organizer orgs and creators of counted events only', async () => {
