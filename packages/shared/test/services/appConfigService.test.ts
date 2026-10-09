@@ -15,7 +15,7 @@ interface Ref {
   converter: Converter | null;
   withConverter: (c: Converter) => Ref;
 }
-type Snap = { id: string; data: () => unknown };
+type Snap = { id: string; exists: () => boolean; data: () => unknown };
 
 const state: {
   path: string[];
@@ -68,6 +68,7 @@ function push(raw: Record<string, unknown> | undefined) {
   const converter = state.ref?.converter;
   state.next?.({
     id: 'appVersion',
+    exists: () => raw !== undefined,
     data: () =>
       raw === undefined
         ? undefined
