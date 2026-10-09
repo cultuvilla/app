@@ -28,6 +28,8 @@ env:
     visible: '.*Evento con Aforo E2E.*'
     timeout: 10000
 - assertNotVisible: '.*Fiesta de Prueba E2E.*'
+# With the keyboard up, a first tap only closes it.
+- runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'filter-search-clear'
 - extendedWaitUntil:

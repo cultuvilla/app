@@ -213,7 +213,8 @@ env:
     file: ../subflows/see-text.yaml
     env:
       TEXT: 'Nacida en Solana y vecina de Altozano'
+# Occupations are not shown on the profile tab; the village joined is.
 - runFlow:
     file: ../subflows/see-text.yaml
     env:
-      TEXT: 'Pastora'
+      TEXT: 'Altozano de Prueba'

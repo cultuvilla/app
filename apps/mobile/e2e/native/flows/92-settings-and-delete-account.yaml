@@ -53,8 +53,25 @@ env:
     env:
       DOC_PATH: 'users/${UID}/preferences/notifications'
       EXPECT_JSON: "{ 'village': false }"
+- waitForAnimationToEnd:
+    timeout: 3000
 - tapOn:
     id: 'push-pref-quietHours'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - repeat:
+          times: 2
+          while:
+            notVisible:
+              id: 'push-pref-quietHours'
+              checked: true
+          commands:
+            - waitForAnimationToEnd:
+                timeout: 2000
+            - tapOn:
+                id: 'push-pref-quietHours'
 - runScript:
     file: ../scripts/assertDoc.js
     env:
