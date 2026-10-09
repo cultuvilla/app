@@ -91,8 +91,11 @@ export function watchDoc<T>(
   return onSnapshot(
     ref,
     (snap) => {
+      // Check existence before `data()`: the native SDK runs the converter on a
+      // missing doc too, and the strict schema throws on its empty data.
       readOrReport(
         () => {
+          if (!snap.exists()) return null;
           const data = snap.data();
           return data === undefined ? null : { id: snap.id, ...data };
         },

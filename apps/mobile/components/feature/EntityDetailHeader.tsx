@@ -36,9 +36,9 @@ export function EntityDetailHeader({
   return (
     <View className="bg-surface border-b border-subtle" style={{ paddingTop: insets.top }}>
       <StatusBar style="dark" />
-      <View className="h-11 flex-row items-center justify-between px-3">
-        <Pressable onPress={handleBack} accessibilityLabel={t('header.back')} className="p-1 -ml-1">
-          <Ionicons name="chevron-back" size={iconSizes.md} color={colors.light.fg.accent} />
+      <View className="h-14 flex-row items-center justify-between px-3">
+        <Pressable onPress={handleBack} accessibilityLabel={t('header.back')} className="p-2 -ml-2">
+          <Ionicons name="chevron-back" size={iconSizes.lg} color={colors.light.fg.accent} />
         </Pressable>
         <View className="flex-row items-center">
           {actions.map((a) => (
