@@ -1,0 +1,27 @@
+# Replace whatever ${INPUT} holds with ${TEXT}, for a field at the foot of a
+# form: once the keyboard opens it covers the field, so type-into's "is the
+# whole text there?" check (and replace-text's) cannot see it. Type, close the
+# keyboard, then look. Not for a field inside a sheet (see close-keyboard).
+appId: com.cultuvilla.app.dev
+---
+# A tap leaves the cursor where it lands, and eraseText only deletes left of
+# it, so clear in rounds as replace-text does, re-centring with the keyboard
+# closed each time.
+- repeat:
+    times: 3
+    commands:
+      - runFlow:
+          file: scroll-to.yaml
+          env:
+            TARGET: ${INPUT}
+      - tapOn:
+          id: ${INPUT}
+      - waitForAnimationToEnd:
+          timeout: 1000
+      - eraseText: 200
+- inputText: ${TEXT}
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: ${INPUT}
+- assertVisible: '.*${TEXT}.*'

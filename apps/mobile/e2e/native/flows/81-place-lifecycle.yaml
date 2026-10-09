@@ -143,11 +143,13 @@ env:
           'municipalityId': 'e2e-village-altozano',
           'proposedBy': 'e2e-user',
           'coordinates': 'present',
-          'locationLabel': 'present',
           'images': { 'length': 2 },
           'contributorUserIds': ['e2e-user', 'e2e-admin'],
           'contributorOrgIds': ['e2e-org-ayto']
         }
+
+# locationLabel is not asserted: it is the reverse-geocoded address, and the CI
+# emulators have no geocoder to answer.
 
 # ── What the creator sees ──
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/lugar/_${output.placeId}'

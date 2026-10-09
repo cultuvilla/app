@@ -124,11 +124,7 @@ env:
       INPUT: 'history-body-input'
       TEXT: ${output.historyBody}
 - runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'history-sources-input'
-- runFlow:
-    file: ../subflows/type-into.yaml
+    file: ../subflows/type-into-low.yaml
     env:
       INPUT: 'history-sources-input'
       TEXT: ${output.historySources}
@@ -287,7 +283,7 @@ env:
       INPUT: 'history-body-input'
       TEXT: ${output.historyEditBody}
 - runFlow:
-    file: ../subflows/replace-text.yaml
+    file: ../subflows/type-into-low.yaml
     env:
       INPUT: 'history-sources-input'
       TEXT: ${output.historyEditSources}

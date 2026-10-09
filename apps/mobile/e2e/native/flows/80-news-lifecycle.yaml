@@ -6,7 +6,8 @@
 #   view    — a villager who wrote none of it: reads it, cannot edit it
 #   edit    — the co-writer: every field changed, the cover swapped, the
 #             group removed
-#   delete  — the co-writer again, a hard delete through the callable
+#   delete  — not the co-writer's to do; the author hard-deletes it through
+#             the callable
 appId: com.cultuvilla.app.dev
 env:
   ADMIN_EMAIL: e2e-admin@cultuvilla.test
@@ -346,7 +347,22 @@ env:
     env:
       TEXT: ${output.newsEditCaption}
 
-# ── Delete ── a hard delete through the cascading callable.
+# A co-writer may edit but not delete: deleteNewsPost lets only the author or
+# an admin through, so the button is not theirs.
+- openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
+- extendedWaitUntil:
+    visible:
+      id: 'news-title'
+    timeout: 45000
+- assertNotVisible:
+    id: 'news-delete'
+
+# ── Delete ── the author, a hard delete through the cascading callable.
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
 - openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
 - extendedWaitUntil:
     visible:
