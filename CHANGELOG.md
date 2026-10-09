@@ -4,6 +4,12 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+<!-- store-notes -->
+- **Tu teléfono, guardado**: al apuntarte a un evento que pide teléfono, ya aparece el de tu perfil, y el que uses queda guardado para la próxima vez.
+- En iPhone, «Crear una nueva persona» desde la inscripción ya no se abre debajo de la ventana.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
 ## v1.8.1 — 2026-10-08
 
 <!-- store-notes -->
