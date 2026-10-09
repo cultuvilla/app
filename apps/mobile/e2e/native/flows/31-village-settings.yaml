@@ -4,7 +4,6 @@
 #   info       — the description, through the updateVillageInfo callable
 #   community  — escudo, location (cleared) and description, each saving as
 #                it changes
-#   fiestas    — two added, one removed, the other renamed and moved a month
 #   leave      — an edit made just before "Listo" is kept
 #   view       — a villager who is not on the team is sent from the editor
 #                back to the village
@@ -98,104 +97,6 @@ env:
           'coordinates': 'absent',
           'mapZoom': 'absent'
         }
-
-# ── Fiestas: add two, drop one, rename and move the other ──
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-new-name'
-- runFlow:
-    file: ../subflows/type-into.yaml
-    env:
-      INPUT: 'fiesta-new-name'
-      TEXT: 'San Roque E2E'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-add'
-- tapOn:
-    id: 'fiesta-add'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-san-roque-e2e-month-9'
-- tapOn:
-    id: 'fiesta-san-roque-e2e-month-9'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-san-roque-e2e-done'
-- tapOn:
-    id: 'fiesta-san-roque-e2e-done'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-new-name'
-- runFlow:
-    file: ../subflows/type-into.yaml
-    env:
-      INPUT: 'fiesta-new-name'
-      TEXT: 'Virgen E2E'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-add'
-- tapOn:
-    id: 'fiesta-add'
-- runScript:
-    file: ../scripts/assertDoc.js
-    env:
-      DOC_PATH: 'municipalities/${VILLAGE_ID}'
-      EXPECT_JSON: >-
-        {
-          'community.fiestas': { 'length': 2 },
-          'community.fiestas.0.id': 'san-roque-e2e',
-          'community.fiestas.0.month': 9,
-          'community.fiestas.1.id': 'virgen-e2e',
-          'community.fiestas.1.month': 8
-        }
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-remove-virgen-e2e'
-- tapOn:
-    id: 'fiesta-remove-virgen-e2e'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-edit-san-roque-e2e'
-- tapOn:
-    id: 'fiesta-edit-san-roque-e2e'
-- runFlow:
-    file: ../subflows/replace-text.yaml
-    env:
-      INPUT: 'fiesta-san-roque-e2e-name'
-      TEXT: 'San Roque y Santa Ana'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-san-roque-e2e-month-7'
-- tapOn:
-    id: 'fiesta-san-roque-e2e-month-7'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'fiesta-san-roque-e2e-done'
-- tapOn:
-    id: 'fiesta-san-roque-e2e-done'
-- runScript:
-    file: ../scripts/assertDoc.js
-    env:
-      DOC_PATH: 'municipalities/${VILLAGE_ID}'
-      EXPECT_JSON: >-
-        {
-          'community.fiestas': { 'length': 1 },
-          'community.fiestas.0.id': 'san-roque-e2e',
-          'community.fiestas.0.name': 'San Roque y Santa Ana',
-          'community.fiestas.0.month': 7
-        }
-- assertVisible:
-    id: 'fiesta-san-roque-e2e'
 
 # An edit followed straight by "Listo" is kept too: leaving the editor must
 # not drop a description that was never blurred.

@@ -28,13 +28,17 @@ env:
       MAX: '1'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.orgId = output.id}
-- runScript:
-    file: ../scripts/docField.js
-    env:
-      DOC_PATH: 'organizations/${output.orgId}'
-      FIELD: images.0
-      EXPECT: present
-- evalScript: ${output.firstImage = output.value}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/docField.js
+          env:
+            DOC_PATH: 'organizations/${output.orgId}'
+            FIELD: images.0
+            EXPECT: present
+      - evalScript: ${output.firstImage = output.value}
 
 # ── Edit every field ──
 - runFlow:
@@ -53,24 +57,29 @@ env:
     visible:
       id: 'org-edit-name-input'
     timeout: 45000
-# Photos are written at once, not on save.
-- tapOn:
-    id: 'org-edit-images-add'
+# Photos are written at once, not on save; picked on Android only, as in
+# flow 60 (subflows/pick-photo.yaml).
 - runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '1'
-- extendedWaitUntil:
-    visible:
-      id: 'org-edit-images-remove-1'
-    timeout: 60000
-- tapOn:
-    id: 'org-edit-images-remove-0'
-- runScript:
-    file: ../scripts/assertDoc.js
-    env:
-      DOC_PATH: 'organizations/${output.orgId}'
-      EXPECT_JSON: "{ 'images': { 'length': 1 }, 'images.0': { 'not': '@firstImage' } }"
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'org-edit-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '1'
+      - extendedWaitUntil:
+          visible:
+            id: 'org-edit-images-remove-1'
+          timeout: 60000
+      - tapOn:
+          id: 'org-edit-images-remove-0'
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'organizations/${output.orgId}'
+            EXPECT_JSON: "{ 'images': { 'length': 1 }, 'images.0': { 'not': '@firstImage' } }"
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:
@@ -133,8 +142,7 @@ env:
           'description': 'Asociacion cultural del pueblo',
           'type': 'otros',
           'membersPublic': true,
-          'joinPolicy': 'approval',
-          'images': { 'length': 1 }
+          'joinPolicy': 'approval'
         }
 
 # ── Back on the group ──

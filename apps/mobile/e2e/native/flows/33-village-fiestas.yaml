@@ -1,0 +1,117 @@
+# A village's fiestas, by an app admin on the village flow 30 joined: two
+# added, one removed, the other renamed and moved a month — each change saved
+# as it is made. Split from 31 to stay under Maestro's 15-minute limit on iOS.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-join
+  VILLAGE_SLUG: pueblo-de-union-e2e
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-superadmin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/comunidad'
+- extendedWaitUntil:
+    visible:
+      id: 'fiesta-new-name'
+    timeout: 45000
+
+# ── Fiestas: add two, drop one, rename and move the other ──
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-new-name'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'fiesta-new-name'
+      TEXT: 'San Roque E2E'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-add'
+- tapOn:
+    id: 'fiesta-add'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-san-roque-e2e-month-9'
+- tapOn:
+    id: 'fiesta-san-roque-e2e-month-9'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-san-roque-e2e-done'
+- tapOn:
+    id: 'fiesta-san-roque-e2e-done'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-new-name'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'fiesta-new-name'
+      TEXT: 'Virgen E2E'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-add'
+- tapOn:
+    id: 'fiesta-add'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      EXPECT_JSON: >-
+        {
+          'community.fiestas': { 'length': 2 },
+          'community.fiestas.0.id': 'san-roque-e2e',
+          'community.fiestas.0.month': 9,
+          'community.fiestas.1.id': 'virgen-e2e',
+          'community.fiestas.1.month': 8
+        }
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-remove-virgen-e2e'
+- tapOn:
+    id: 'fiesta-remove-virgen-e2e'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-edit-san-roque-e2e'
+- tapOn:
+    id: 'fiesta-edit-san-roque-e2e'
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'fiesta-san-roque-e2e-name'
+      TEXT: 'San Roque y Santa Ana'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-san-roque-e2e-month-7'
+- tapOn:
+    id: 'fiesta-san-roque-e2e-month-7'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-san-roque-e2e-done'
+- tapOn:
+    id: 'fiesta-san-roque-e2e-done'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      EXPECT_JSON: >-
+        {
+          'community.fiestas': { 'length': 1 },
+          'community.fiestas.0.id': 'san-roque-e2e',
+          'community.fiestas.0.name': 'San Roque y Santa Ana',
+          'community.fiestas.0.month': 7
+        }
+- assertVisible:
+    id: 'fiesta-san-roque-e2e'

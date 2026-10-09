@@ -1,4 +1,5 @@
-# A villager proposes two groups — one with every field set, one bare — and the
+# A villager proposes two groups — one with every field set (its photo picked
+# on Android only, as in flow 60), one bare — and the
 # village admin approves the first and rejects the second from the Buzón. A
 # third user then joins the approved one, which is `open`, so joining is
 # instant self-service: the FAB writes the joiner's own member doc, gated by
@@ -46,16 +47,20 @@ env:
     visible:
       id: 'org-name-input'
     timeout: 45000
-- tapOn:
-    id: 'org-images-add'
 - runFlow:
-    file: ../subflows/pick-photo.yaml
-    env:
-      INDEX: '0'
-- extendedWaitUntil:
-    visible:
-      id: 'org-images-remove-0'
-    timeout: 60000
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'org-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '0'
+      - extendedWaitUntil:
+          visible:
+            id: 'org-images-remove-0'
+          timeout: 60000
 - runFlow:
     file: ../subflows/type-into.yaml
     env:
@@ -114,9 +119,17 @@ env:
           'municipalityId': 'e2e-village-altozano',
           'requestedBy': 'e2e-user',
           'membersPublic': false,
-          'joinPolicy': 'open',
-          'images': { 'length': 1 }
+          'joinPolicy': 'open'
         }
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'organizations/${output.orgId}'
+            EXPECT_JSON: "{ 'images': { 'length': 1 } }"
 
 # ── And a bare one, to be rejected. ──
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/entidades'
