@@ -4,6 +4,18 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+<!-- store-notes -->
+- **Sal de un grupo cuando quieras**: desde la barra superior de una peña o asociación ya puedes dejarla.
+- **Tu teléfono, guardado**: al apuntarte a un evento que pide teléfono, ya aparece el de tu perfil, y el que uses queda guardado para la próxima vez.
+- Tus grupos y peñas vuelven a aparecer en tu perfil.
+- En iPhone, «Crear una nueva persona» desde la inscripción ya no se abre debajo de la ventana.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
+- Feature: a member can leave a peña/asociación from its detail top bar; the only admin of a group with other members is asked to promote someone first. The entity detail top bar grows from 44 to 56pt with larger icons. **Migration:** none.
+- Fix: the profile's Grupos/Peñas sections rendered empty on device when the viewer was absent from any org of the village (`watchDoc` now answers a missing doc with null).
+- **Web:** the landing's Embajador section takes the light page background, and the price band is orange.
+
 ## v1.9.0 — 2026-10-09
 
 <!-- store-notes -->
