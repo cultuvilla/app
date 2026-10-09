@@ -1,0 +1,138 @@
+# Finding things on the Explora feed: search, and every filter narrowing the
+# list and being cleared again. As the user flow 50 onboarded, whose active
+# village is what "Por cercanía" sorts from.
+#
+# Seeded events in Altozano sit 7–10 days out and one in the join village 3
+# days out, so "Esta semana" (the next seven days from midnight) keeps only
+# that one, and "Por cercanía" from Altozano puts it behind the others.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-fresh@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- tapOn: 'Explora(,.*)?'
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- extendedWaitUntil:
+    visible: '.*Fiesta de Prueba E2E.*'
+    timeout: 45000
+
+# ── Search ──
+- tapOn:
+    id: 'filter-search'
+- inputText: 'Aforo'
+- extendedWaitUntil:
+    visible: '.*Evento con Aforo E2E.*'
+    timeout: 10000
+- assertNotVisible: '.*Fiesta de Prueba E2E.*'
+# With the keyboard up, a first tap only closes it.
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'filter-search-clear'
+- extendedWaitUntil:
+    visible: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
+
+# ── Village ── the far event is the join village's only one
+- tapOn:
+    id: 'filter-village'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'filter-village-sheet-search'
+      TEXT: 'Pueblo'
+# The keyboard covers the filtered rows.
+- runFlow: ../subflows/close-sheet-keyboard.yaml
+- tapOn:
+    id: 'filter-village-sheet-option-e2e-village-join'
+- extendedWaitUntil:
+    visible: '.*Fiesta Lejana E2E.*'
+    timeout: 10000
+- assertNotVisible: '.*Fiesta de Prueba E2E.*'
+- tapOn:
+    id: 'filter-village'
+- tapOn:
+    id: 'filter-village-sheet-option-all'
+- extendedWaitUntil:
+    visible: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
+
+# ── Date ── the far event is 3 days out, the others 7 or more
+- tapOn:
+    id: 'filter-date'
+- tapOn:
+    id: 'filter-date-sheet-option-semana'
+- extendedWaitUntil:
+    visible: '.*Fiesta Lejana E2E.*'
+    timeout: 10000
+- assertNotVisible: '.*Fiesta de Prueba E2E.*'
+- tapOn:
+    id: 'filter-date'
+- tapOn:
+    id: 'filter-date-sheet-option-mes'
+- extendedWaitUntil:
+    visible: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
+- tapOn:
+    id: 'filter-date'
+- tapOn:
+    id: 'filter-date-sheet-option-all'
+
+# ── Sort ── narrowed to the two fiestas: by date the far one leads; by
+# distance from the user's village (Altozano) it falls behind.
+- tapOn:
+    id: 'filter-search'
+- inputText: 'Fiesta'
+- runFlow: ../subflows/close-keyboard.yaml
+- extendedWaitUntil:
+    visible:
+      text: '.*Fiesta Lejana E2E.*'
+      above: '.*Fiesta de Prueba E2E.*'
+    timeout: 10000
+# The open search box pushes the sort pill off the filter row: close it, sort,
+# and search again.
+- tapOn:
+    id: 'filter-search-clear'
+- tapOn:
+    id: 'filter-sort'
+- tapOn:
+    id: 'filter-sort-sheet-option-proximity'
+- tapOn:
+    id: 'filter-search'
+- inputText: 'Fiesta'
+- runFlow: ../subflows/close-keyboard.yaml
+- extendedWaitUntil:
+    visible:
+      text: '.*Fiesta de Prueba E2E.*'
+      above: '.*Fiesta Lejana E2E.*'
+    timeout: 10000
+- tapOn:
+    id: 'filter-search-clear'
+
+# ── News: category ──
+- tapOn: 'Artículos'
+- extendedWaitUntil:
+    visible:
+      id: 'filter-category'
+    timeout: 15000
+- extendedWaitUntil:
+    visible: '.*Noticia Sembrada E2E.*'
+    timeout: 30000
+- tapOn:
+    id: 'filter-category'
+- tapOn:
+    id: 'filter-category-sheet-option-fiesta'
+- extendedWaitUntil:
+    notVisible: '.*Noticia Sembrada E2E.*'
+    timeout: 10000
+- tapOn:
+    id: 'filter-category'
+- tapOn:
+    id: 'filter-category-sheet-option-historia'
+- extendedWaitUntil:
+    visible: '.*Noticia Sembrada E2E.*'
+    timeout: 10000

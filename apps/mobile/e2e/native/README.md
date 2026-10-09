@@ -68,7 +68,10 @@ instead of the whole shard.
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
 | `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
-| `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. |
+| `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
+| `51-profile-and-dependents` | A user's own profile edited; a dependent created with every field, renamed and made private, closed to another villager (a public one is not), then deleted. |
+| `52-feed-discovery` | Explora's search and each filter (village, date, proximity sort, news category) narrowing the list and clearing again. Depends on 50. |
+| `53-vocabulary` | A word created with every field, found by search, given and stripped of a second villager's meaning, then emptied and deleted by its author. |
 | `60-event-create` | An event created with every field: cover, organizers (a villager + two orgs), dates, capacity, age range, phone, payment, groups, private roster, questions; every stored field and the detail screen asserted. Also the OS location permission and a real GPS fix (`setLocation`). |
 | `62-event-permissions` | 60's event as its other users see it: the co-organizer may edit; a villager may only read, and the edit link sends them back. Split from 60 to keep it under Maestro's 15-minute limit on a slow runner. |
 | `64-event-edit` | The same event with every field edited, down to private to the approval peña; the doc and the screen asserted again. Depends on 60 (same tens group). |
@@ -82,6 +85,7 @@ instead of the whole shard.
 | `74-org-edit-and-members` | 70's group edited by its founder (photo swapped, every field, roster public, joining by approval); a member promoted, demoted and removed (callables); the removed member must now ask to join and cannot edit; the group deleted. Depends on 70. Photos on Android only. |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
+| `92-settings-and-delete-account` | Push allowed, a category muted and quiet hours on; a bad email refused and a good one sent to verify; then a throwaway account deleted for real. |
 | `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |
 
 Filename order is load-bearing: `21` organizes what `20` signed up. Every flow
