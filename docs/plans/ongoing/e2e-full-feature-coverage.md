@@ -120,6 +120,12 @@ iOS runs four shards grouped by the tens digit, and a group never splits
 
 ## Handoff
 
+**Decided 2026-10-09 (user): run Stages 3 → 6 back to back without check-ins**, one PR per
+stage (each landed via `pr:land` before the next starts), iterating with targeted
+`flows=` dispatches on both platforms and the full suite only on the PR. Stop only for a
+bug whose fix changes a product rule, or anything adding running cost (a new CI job or
+iOS shard); fix undisputed bugs under `fix-bug` and report them.
+
 Stage 0 baseline (2026-10-09): 334 testIDs, 65 touched by a flow, 269 listed in
 `uncovered.json`, all `todo:`. Components that render several controls take one
 `testID` and derive the rest, so the ratchet counts the caller's literal (a
