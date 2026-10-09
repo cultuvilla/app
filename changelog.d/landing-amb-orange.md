@@ -1,1 +1,0 @@
-- **Web:** the landing's Embajadores teaser is orange again, asks "¿Presumes de pueblo allá donde vas?" and shows a young man talking with an older one; the fiestas summary phone gets room above it.
