@@ -3,7 +3,7 @@
 **Priority:** high — bugs reached production through flows the suite reports green
 **Landed:** dev
 **Gate:** none
-**Next:** Stage 2 — the deep registration flow replacing 20, 21, 22, 80 and absorbing 62's sign-up with answers
+**Next:** Stage 3 — village content: extend 61 (news) and one deep flow each for place, barrio, festival poster, history entry
 
 ## Goal
 
@@ -143,9 +143,18 @@ Stage 1 iOS lessons (2026-10-08), all now in the shared subflows:
   children's; match text with `.*….*` (`see-text.yaml` does), and never assert
   `assertNotVisible` on exact text — it passes vacuously.
 - Iterate with targeted dispatches on BOTH platforms
-  (`gh workflow run ios-e2e.yml --ref <branch> -f flows=60,64`) and cancel the
+  (`gh workflow run ios-e2e.yml --ref <branch> -f flows=60,62,64,65`) and cancel the
   automatic full PR run until the fix works; a full ~70-min iOS run per push also
   pays for unrelated flakes (23, 70, 71, 72 time out on a slow macOS runner).
+- Inside a bottom sheet never use `close-keyboard.yaml` (its iOS gutter tap hits the
+  backdrop and closes the sheet): `close-sheet-keyboard.yaml` presses Enter, which only a
+  single-line text field honours. Numeric and phone keypads have no return key, so put a
+  number answer last, straight before a field outside the sheet's list.
+- A callable's FIRST call boots its emulator worker; on the macOS runner the request has
+  arrived 2+ minutes after the tap. Wait up to 3–5 minutes on any first-call result.
+- Maestro's `checked:` reads `accessibilityState` on Android only.
+- An element under a fixed top bar counts as visible too: centre it with
+  `scrollUntilVisible` direction UP before tapping (the roster's Editar toggle).
 - Android: the CI emulator sometimes drops `device offline` as the map picker loads
   after the location grant (2 of ~6 runs); a re-run passes.
 
@@ -157,7 +166,7 @@ Stage 1 iOS lessons (2026-10-08), all now in the shared subflows:
 | Feature | Fields / actions to cover | C | E | D | F | O | X |
 |---|---|---|---|---|---|---|---|
 | **Event** | title, description, cover, organizers (+user, +org, remove), private-to-org, start/end date+time, location, village, sign-ups on/off + info, capacity, birth-year range, phone, payment, group size, attendees public, questions (each type, required, reorder, remove, options) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ cancel |
-| **Registration** | self, dependent, inline new persona, phone, answers, group + open seat + share/cancel, seat claim, waitlist + promotion, unregister, organizer paid/remove | ✅ partial | — | ⬜ | ✅ partial | ⬜ roster as non-organizer | ✅ unregister |
+| **Registration** | self, dependent, inline new persona, phone, answers, group + open seat + share/cancel, seat claim, waitlist + promotion, unregister, organizer paid/remove | ✅ (date answer, group share/cancel ⬜) | — | ✅ | ✅ | ✅ roster as villager | ✅ unregister + organizer remove |
 | **News** | title, category, cover, text + image blocks + captions, attribution | ✅ partial | ✅ category only | ⬜ | ✅ partial | ⬜ | ✅ |
 | **Place** | images, name, description, type, location, contributors | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ✅ soft-hide |
 | **Barrio** | images, name | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
@@ -207,16 +216,23 @@ none today).
 ### Stage 1 — event (highest traffic; the user's example)
 - [x] Seed collaborators + picker image; push the image in both runners (the seed already had them; `PICKER_IMAGES` stocks the picker).
 - [x] `subflows/event-create-full.yaml`, `event-edit-all.yaml`, plus `pick-datetime`, `pick-photo`, `replace-text`, `see-text`; `scripts/assertDoc.js`.
-- [x] Deep event flows `60-event-create` + `64-event-edit-and-cancel` replacing 60 — one flow for the whole life ran past Maestro's 15-minute per-flow limit. Sign-up with answers stays in 62 until Stage 2 absorbs it.
+- [x] Deep event flows `60-event-create` + `64-event-edit-and-cancel` replacing 60 (since split further into 60 create, 62 permissions, 64 edit, 65 private + cancel, each under the 15-minute limit on a slow macOS runner) — one flow for the whole life ran past Maestro's 15-minute per-flow limit. Sign-up with answers stays in 62 until Stage 2 absorbs it.
 - [x] Green on android-e2e (run 37723123831: 60 in 9m20s, 64 in 11m11s).
 - [x] Green on ios-e2e (run 37777784951: 60 in 8m59s, 64 in 9m21s). Landed in #538.
 - [ ] Cover picking on iOS (PHPicker selector); Android-only today.
 - [ ] Jest coverage for event validation (dates, birth-year bounds, capacity) listed as `unit-tested:`.
 
 ### Stage 2 — registration
-- [ ] Deep registration flow replacing 20, 21, 22, 80 (self, dependent, inline persona,
-      phone, answers, group/open seat, waitlist promotion, unregister, organizer paid/remove).
-- [ ] Keep 23 (seat claim) as a phase or a separate flow in the same group.
+- [x] Deep flows `20-registration-signup` + `21-registration-organize` replacing 20, 21, 22,
+      62 and 80, on a seeded `signupEvent` with every option (phone, payment, birth-year
+      window, a text/select/number/checkbox question, two seats). Green on android-e2e and
+      ios-e2e (20 in ~9m, 21 in ~4m on iOS).
+- [x] Found and fixed: on iOS the sign-up sheet covered the person form its "Crear una
+      nueva persona" opens (the sheet now hides while its screen is out of focus).
+- [x] Keep 23 (seat claim) as its own flow in the same group.
+- [ ] A `date` question answer (the one answer type not driven; needs the DateField calendar
+      inside a sheet).
+- [ ] Group sign-up beyond 23: share/cancel a group, a group's answers.
 
 ### Stage 3 — village content
 - [ ] News: extend 61 to cover, image blocks, attribution, display, other-user view.

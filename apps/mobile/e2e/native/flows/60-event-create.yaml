@@ -2,14 +2,12 @@
 #
 #   create  — every field set off its default (subflows/event-create-full.yaml)
 #   assert  — each stored field, then what the detail screen shows
-#   others  — a co-organizer may edit; a villager may only read, and the edit
-#             link sends them back to the event
 #
 # It replaces a flow that typed a title, accepted every default and checked
-# three fields — green while most of the form went untested. Flow 64 edits
-# and cancels this same event: one flow for the whole life ran past Maestro's
-# 15-minute limit. Sign-up with answers to the questions stays in 62 until the
-# registration flow takes it.
+# three fields — green while most of the form went untested. The same event
+# is then opened by its other users (62), edited (64), shut to the villager
+# and cancelled (65): one flow for the whole life ran past Maestro's 15-minute
+# limit, and on a slow macOS runner so did each half of it.
 #
 # Cover images are picked on Android only; see subflows/pick-photo.yaml.
 # Times sit mid-day so the stored UTC date matches the local one in any
@@ -17,8 +15,6 @@
 appId: com.cultuvilla.app.dev
 env:
   ADMIN_EMAIL: e2e-admin@cultuvilla.test
-  ORGANIZER_EMAIL: e2e-user@cultuvilla.test
-  VILLAGER_EMAIL: e2e-joiner@cultuvilla.test
   PASSWORD: e2e-cultuvilla-pw
   VILLAGE_ID: e2e-village-altozano
   VILLAGE_SLUG: altozano-de-prueba
@@ -62,7 +58,7 @@ env:
       MIN: '1'
       MAX: '1'
       # Upload + create outlasted the default 20 s on the loaded macOS runner.
-      TIMEOUT_MS: '60000'
+      TIMEOUT_MS: '180000'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.eventId = output.id}
 
@@ -144,38 +140,3 @@ env:
     file: ../subflows/see-text.yaml
     env:
       TEXT: ${output.description}
-
-# ── A co-organizer may edit it ──
-- runFlow:
-    file: ../subflows/login.yaml
-    env:
-      EMAIL: ${ORGANIZER_EMAIL}
-      PASSWORD: ${PASSWORD}
-- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
-- extendedWaitUntil:
-    visible:
-      id: 'event-edit-action'
-    timeout: 45000
-
-# ── A villager who is neither may only read it ──
-- runFlow:
-    file: ../subflows/login.yaml
-    env:
-      EMAIL: ${VILLAGER_EMAIL}
-      PASSWORD: ${PASSWORD}
-- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${output.eventId}'
-- extendedWaitUntil:
-    visible:
-      id: 'event-share-action'
-    timeout: 45000
-- assertVisible: ${output.title}
-- assertNotVisible:
-    id: 'event-edit-action'
-# The edit link itself sends a non-organizer back to the event.
-- openLink: 'cultuvilla://crear/evento?eventId=${output.eventId}'
-- extendedWaitUntil:
-    visible:
-      id: 'event-share-action'
-    timeout: 45000
-- assertNotVisible:
-    id: 'event-form-primary'

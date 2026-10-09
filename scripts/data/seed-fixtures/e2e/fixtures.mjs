@@ -134,11 +134,35 @@ export const event = {
 export const capacityEvent = {
   docId: 'e2e-event-aforo',
   title: 'Evento con Aforo E2E',
-  description: 'Evento lleno usado para comprobar lista de espera y promoción.',
+  description: 'Evento con aforo, donde comenta otra persona (flujo 41).',
   startOffsetDays: 8,
   maxAttendees: 1,
   status: 'published',
-  seededRegistrationId: 'e2e-reg-admin-confirmed',
+};
+
+// Every sign-up option at once, for the deep registration flows (20, 21): a
+// phone, payment, a birth-year window the dependent falls outside, one custom
+// question of each answerable type, and room for two — the third persona is
+// waitlisted, then promoted when the organizer removes one. Field ids are fixed
+// so the flows can address each answer's testID and its stored value.
+export const signupEvent = {
+  docId: 'e2e-event-inscripcion',
+  title: 'Inscripción Completa E2E',
+  description: 'Evento con teléfono, pago, años de nacimiento y preguntas.',
+  startOffsetDays: 10,
+  maxAttendees: 2,
+  telephoneRequired: true,
+  requiresPayment: true,
+  minBirthYear: 1950,
+  maxBirthYear: 2015,
+  attendeesVisibility: 'members',
+  signupFields: [
+    { id: 'talla', label: 'Talla', type: 'text', required: true, options: [] },
+    { id: 'menu', label: 'Menú', type: 'select', required: true, options: ['Carne', 'Pescado'] },
+    { id: 'invitados', label: 'Invitados', type: 'number', required: false, options: [] },
+    { id: 'alergias', label: 'Alergias', type: 'checkbox', required: false, options: [] },
+  ],
+  status: 'published',
 };
 
 // A group event: a sign-up books seats for several people, and a seat left open
@@ -181,6 +205,9 @@ export const dependentPerson = {
   docId: 'e2e-person-dependent',
   givenName: 'Lucía',
   firstSurname: 'Dependiente',
+  // After signupEvent's maxBirthYear, so signing her up raises the advisory
+  // birth-year confirm.
+  birthday: { year: 2020, month: 5, day: 3 },
 };
 
 export const place = {

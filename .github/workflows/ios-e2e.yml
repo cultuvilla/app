@@ -22,8 +22,8 @@ on:
     inputs:
       flows:
         description: >-
-          Only these flows, comma-separated (e.g. `20,22` or
-          `20-register-to-event`). Empty = the whole suite.
+          Only these flows, comma-separated (e.g. `20,21` or
+          `20-registration-signup`). Empty = the whole suite.
         required: false
         default: ''
 

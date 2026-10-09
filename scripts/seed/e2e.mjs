@@ -21,7 +21,6 @@ import {
   buildOrganizationData,
   buildOrgMemberData,
   buildEventData,
-  buildRegistrationData,
   buildLocationData,
   buildPlaceData,
   buildCommentData,
@@ -37,6 +36,7 @@ import {
   event,
   capacityEvent,
   groupEvent,
+  signupEvent,
   privateEvent,
   otherUserComment,
   dependentPerson,
@@ -106,6 +106,7 @@ async function run() {
       buildPersonData({
         givenName: dependentPerson.givenName,
         firstSurname: dependentPerson.firstSurname,
+        birthday: dependentPerson.birthday,
         createdBy: users.attendee.uid,
         userId: null,
         municipalityLinks: [{ municipalityId: village.docId, barrioId: null }],
@@ -285,50 +286,59 @@ async function run() {
       { merge: true },
     );
 
-  const capacityStartDate = new Date(Date.now() + capacityEvent.startOffsetDays * DAY_MS);
-  const capacityData = buildEventData({
-    title: capacityEvent.title,
-    description: capacityEvent.description,
-    startDate: capacityStartDate,
-    location: buildLocationData({
-      coordinates: village.coordinates,
-      displayName: `Centro social, ${village.name}`,
-    }),
-    maxAttendees: capacityEvent.maxAttendees,
-    telephoneRequired: false,
-    status: capacityEvent.status,
-    organizerUserIds: [users.admin.uid],
-    organizerOrgIds: [org.docId],
-    createdBy: users.admin.uid,
-    municipalityId: village.docId,
-    villageName: village.name,
-    villageSlug: village.slug,
-    villageCoordinates: coords,
-  });
   await db
     .collection('events')
     .doc(capacityEvent.docId)
     .set(
-      {
-        ...capacityData,
-        confirmedCount: 1,
-        totalCount: 1,
-      },
+      buildEventData({
+        title: capacityEvent.title,
+        description: capacityEvent.description,
+        startDate: new Date(Date.now() + capacityEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Centro social, ${village.name}`,
+        }),
+        maxAttendees: capacityEvent.maxAttendees,
+        telephoneRequired: false,
+        status: capacityEvent.status,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [org.docId],
+        createdBy: users.admin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
+      }),
       { merge: true },
     );
+
   await db
     .collection('events')
-    .doc(capacityEvent.docId)
-    .collection('registrations')
-    .doc(capacityEvent.seededRegistrationId)
+    .doc(signupEvent.docId)
     .set(
-      buildRegistrationData({
-        userId: users.admin.uid,
-        personId: users.admin.personId,
-        name: `${users.admin.givenName} ${users.admin.firstSurname}`,
-        status: 'confirmed',
-        position: 0,
-        isMember: true,
+      buildEventData({
+        title: signupEvent.title,
+        description: signupEvent.description,
+        startDate: new Date(Date.now() + signupEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Polideportivo, ${village.name}`,
+        }),
+        maxAttendees: signupEvent.maxAttendees,
+        telephoneRequired: signupEvent.telephoneRequired,
+        requiresPayment: signupEvent.requiresPayment,
+        minBirthYear: signupEvent.minBirthYear,
+        maxBirthYear: signupEvent.maxBirthYear,
+        attendeesVisibility: signupEvent.attendeesVisibility,
+        signupFields: signupEvent.signupFields,
+        status: signupEvent.status,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [org.docId],
+        createdBy: users.admin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
       }),
       { merge: true },
     );
@@ -427,7 +437,7 @@ async function run() {
       `village=${village.docId} organizerless=${organizerlessVillage.docId} ` +
       `joinVillage=${joinVillage.docId} org=${org.docId} approvalOrg=${approvalOrg.docId} ` +
       `event=${event.docId} ` +
-      `capacityEvent=${capacityEvent.docId} groupEvent=${groupEvent.docId} ` +
+      `capacityEvent=${capacityEvent.docId} groupEvent=${groupEvent.docId} signupEvent=${signupEvent.docId} ` +
       `privateEvent=${privateEvent.docId} ` +
       `comment=${otherUserComment.docId})`,
   );

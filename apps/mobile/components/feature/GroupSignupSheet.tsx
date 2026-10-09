@@ -47,6 +47,8 @@ export interface MyGroupSeat {
 
 export interface GroupSignupSheetProps {
   visible: boolean;
+  /** Keeps an open sheet's state but takes it off screen (another screen is in front). */
+  hidden?: boolean;
   /** Seats that must be filled together — the event's `signupGroupSize`. */
   groupSize: number;
   /** The caller's personas — own persona first, then personas a cargo. */
@@ -97,6 +99,7 @@ export interface GroupSignupSheetProps {
  */
 export function GroupSignupSheet({
   visible,
+  hidden = false,
   groupSize,
   attendees,
   ownPersonId,
@@ -227,7 +230,7 @@ export function GroupSignupSheet({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !hidden}
       transparent
       animationType="fade"
       onRequestClose={() => {
