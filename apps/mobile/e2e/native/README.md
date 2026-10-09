@@ -70,12 +70,16 @@ instead of the whole shard.
 | `62-event-permissions` | 60's event as its other users see it: the co-organizer may edit; a villager may only read, and the edit link sends them back. Split from 60 to keep it under Maestro's 15-minute limit on a slow runner. |
 | `64-event-edit` | The same event with every field edited, down to private to the approval peña; the doc and the screen asserted again. Depends on 60 (same tens group). |
 | `65-event-private-and-cancel` | The now-private event: the villager gets "not found"; then the organizer cancels it. Depends on 60 and 64. |
-| `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
 | `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
 | `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
 | `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
 | `72-org-join-request` | Joining an `approval` peña: a join request, admitted by the org admin from the Buzón (callable). |
 | `73-org-invite-link` | An org invite link (`…/unirse`) opens the org with the invitation banner; joining an open org is instant. |
+| `80-news-lifecycle` | A news post with every field (cover, a text block, a captioned image block, a co-writer and a group); read by a villager who cannot edit it; every field edited by the co-writer, the cover swapped; hard-deleted through the callable behind a native `Alert`. |
+| `81-place-lifecycle` | A place a villager creates with two photos, description, type, GPS location and contributors; another villager may only read it; the creator edits every field and clears the location, then withdraws it (a hard delete — an admin's is the soft-hide in 90). |
+| `82-barrio-lifecycle` | The same life for a barrio: photos and name, read-only for others, edited, withdrawn. |
+| `83-poster-lifecycle` | A festival poster: photo, year, title, start and end days on the calendar, contributors; edited (a second photo, new year, title and end day) and withdrawn. |
+| `84-history-lifecycle` | A history entry: a captioned photo, a day-precise start, an end year, approximate, body and sources; edited to a BC year with no month or range; withdrawn. |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
 | `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |
@@ -88,7 +92,7 @@ fails the build if a flow is added without a numeric prefix.
 ## Running only some flows
 
 Both platforms take a comma-separated selection — numeric prefixes, names or
-filenames: `20,21`, `20-registration-signup`, `61-news-lifecycle.yaml`. It runs in
+filenames: `20,21`, `20-registration-signup`, `80-news-lifecycle.yaml`. It runs in
 **filename order** whatever order you typed (a pair like 20 → 21 still works),
 runs a quarantined flow if you name it, and fails fast on a name that matches
 nothing rather than passing on zero flows. Mind the pairs: `21` alone has
