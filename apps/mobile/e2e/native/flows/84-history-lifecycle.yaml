@@ -1,0 +1,350 @@
+# A history entry through its whole life, every field set and read back:
+#
+#   create  — a villager (not an admin): a captioned photo, title, a start
+#             date down to the day, an end year, "approximate", body, sources
+#   assert  — each stored field, then the entry as its creator sees it
+#   view    — another villager: reads it, cannot edit it
+#   edit    — the creator: a BC year with no month, no range, not approximate,
+#             every text changed
+#   delete  — the creator withdraws it, which deletes the doc
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  JOINER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/villageContentValues.js
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: historyEntries
+      FIELD: title
+      VALUE: ${output.historyTitle}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: historyEntries
+      FIELD: title
+      VALUE: ${output.historyEditTitle}
+
+# ── Create ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/historia'
+- extendedWaitUntil:
+    visible:
+      id: 'history-add-fab'
+    timeout: 45000
+- tapOn:
+    id: 'history-add-fab'
+- extendedWaitUntil:
+    visible:
+      id: 'history-title-input'
+    timeout: 45000
+- tapOn:
+    id: 'history-images-add'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '0'
+- extendedWaitUntil:
+    visible:
+      id: 'history-caption-0'
+    timeout: 60000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'history-caption-0'
+      TEXT: ${output.historyCaption}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-title-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'history-title-input'
+      TEXT: ${output.historyTitle}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-start-year'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'history-start-year'
+      TEXT: '1250'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-start-month-3'
+- tapOn:
+    id: 'history-start-month-3'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-start-day'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'history-start-day'
+      TEXT: '15'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-range-toggle'
+- tapOn:
+    id: 'history-range-toggle'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-end-year'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'history-end-year'
+      TEXT: '1300'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-approximate-toggle'
+- tapOn:
+    id: 'history-approximate-toggle'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-body-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'history-body-input'
+      TEXT: ${output.historyBody}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-sources-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'history-sources-input'
+      TEXT: ${output.historySources}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-submit'
+- tapOn:
+    id: 'history-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: historyEntries
+      FIELD: title
+      VALUE: ${output.historyTitle}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.entryId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'historyEntries/${output.entryId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@historyTitle',
+          'status': 'active',
+          'municipalityId': 'e2e-village-altozano',
+          'createdBy': 'e2e-user',
+          'start.year': 1250,
+          'start.month': 3,
+          'start.day': 15,
+          'end.year': 1300,
+          'end.month': 'absent',
+          'approximate': true,
+          'sortKey': 12500315,
+          'body.text': '@historyBody',
+          'sources': '@historySources',
+          'images': { 'length': 1 },
+          'images.0.url': { 'prefix': 'http' },
+          'images.0.caption': '@historyCaption'
+        }
+
+# ── What the creator sees ── (the create screen lands on the entry)
+- extendedWaitUntil:
+    visible:
+      id: 'history-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.historyTitle}.*'
+- assertVisible:
+    id: 'history-entry-date'
+    text: 'h. 15 de marzo de 1250 – 1300'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.historyCaption}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.historyBody}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.historySources}
+
+# ── Another villager ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${JOINER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/acontecimiento/_${output.entryId}'
+- extendedWaitUntil:
+    visible:
+      id: 'history-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'history-edit-action'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.historyBody}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/acontecimiento/_${output.entryId}/editar'
+- extendedWaitUntil:
+    visible:
+      id: 'history-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'history-title-input'
+
+# ── Edit: the creator ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/acontecimiento/_${output.entryId}'
+- extendedWaitUntil:
+    visible:
+      id: 'history-edit-action'
+    timeout: 45000
+- tapOn:
+    id: 'history-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'history-title-input'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-caption-0'
+      TEXT: ${output.historyEditCaption}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-title-input'
+      TEXT: ${output.historyEditTitle}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-start-year'
+      TEXT: '50'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-start-bc'
+- tapOn:
+    id: 'history-start-bc'
+# Tapping the chosen month again clears it, and the day with it.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-start-month-3'
+- tapOn:
+    id: 'history-start-month-3'
+- assertNotVisible:
+    id: 'history-start-day'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-range-toggle'
+- tapOn:
+    id: 'history-range-toggle'
+- assertNotVisible:
+    id: 'history-end-year'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-approximate-toggle'
+- tapOn:
+    id: 'history-approximate-toggle'
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-body-input'
+      TEXT: ${output.historyEditBody}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-sources-input'
+      TEXT: ${output.historyEditSources}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-submit'
+- tapOn:
+    id: 'history-submit'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'historyEntries/${output.entryId}'
+      TIMEOUT_MS: '120000'
+      EXPECT_JSON: >-
+        {
+          'title': '@historyEditTitle',
+          'start.year': -50,
+          'start.month': 'absent',
+          'start.day': 'absent',
+          'end': 'absent',
+          'approximate': false,
+          'sortKey': -500000,
+          'body.text': '@historyEditBody',
+          'sources': '@historyEditSources',
+          'images': { 'length': 1 },
+          'images.0.caption': '@historyEditCaption'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'history-edit-action'
+    timeout: 45000
+- assertVisible:
+    id: 'history-entry-date'
+    text: '50 a. C.'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.historyEditBody}
+
+# ── Delete: the creator withdraws it ──
+- tapOn:
+    id: 'history-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'history-delete'
+    timeout: 45000
+- tapOn:
+    id: 'history-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'historyEntries/${output.entryId}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}

@@ -1,0 +1,289 @@
+# A festival poster (cartel) through its whole life, every field set and read
+# back:
+#
+#   create  — a villager (not an admin): a photo, year, title, start and end
+#             days, a second contributor and a group
+#   assert  — each stored field, then the poster as its creator sees it
+#   view    — another villager: reads it, cannot edit it
+#   edit    — the creator: a second photo, year, title and end day changed,
+#             both extra contributors removed
+#   delete  — the creator withdraws it, which deletes the doc
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  JOINER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/villageContentValues.js
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: festivalPosters
+      FIELD: title
+      VALUE: ${output.posterTitle}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: festivalPosters
+      FIELD: title
+      VALUE: ${output.posterEditTitle}
+
+# ── Create ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/carteles'
+- extendedWaitUntil:
+    visible:
+      id: 'poster-year-input'
+    timeout: 45000
+- tapOn:
+    id: 'poster-images-add'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '0'
+- extendedWaitUntil:
+    visible:
+      id: 'poster-images-remove-0'
+    timeout: 60000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'poster-year-input'
+      TEXT: ${output.posterYear}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'poster-title-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'poster-title-input'
+      TEXT: ${output.posterTitle}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'poster-submit'
+- runFlow:
+    file: ../subflows/pick-date.yaml
+    env:
+      FIELD: 'poster-start-date'
+      DAY: ${output.posterStartDay}
+- runFlow:
+    file: ../subflows/pick-date.yaml
+    env:
+      FIELD: 'poster-end-date'
+      DAY: ${output.posterEndDay}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'poster-submit'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'add-user-btn'
+- tapOn:
+    id: 'add-user-btn'
+- tapOn:
+    id: 'villager-row-e2e-admin'
+- tapOn:
+    id: 'villager-confirm'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'add-org-btn'
+- tapOn:
+    id: 'add-org-btn'
+- tapOn:
+    id: 'org-row-e2e-org-ayto'
+- tapOn:
+    id: 'org-confirm'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'remove-org-e2e-org-ayto'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'poster-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: festivalPosters
+      FIELD: title
+      VALUE: ${output.posterTitle}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.posterId = output.id}
+# The days are checked on screen below: the stored instant is local midnight,
+# whose UTC date depends on the runner's timezone.
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'festivalPosters/${output.posterId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@posterTitle',
+          'year': 1987,
+          'status': 'active',
+          'municipalityId': 'e2e-village-altozano',
+          'villageSlug': 'altozano-de-prueba',
+          'proposedBy': 'e2e-user',
+          'images': { 'length': 1 },
+          'datePrecision': 'day',
+          'startsAt': 'present',
+          'endsAt': 'present',
+          'contributorUserIds': ['e2e-user', 'e2e-admin'],
+          'contributorOrgIds': ['e2e-org-ayto']
+        }
+
+# ── What the creator sees ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/cartel/_${output.posterId}'
+- extendedWaitUntil:
+    visible:
+      id: 'poster-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.posterTitle}.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.posterLabel}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Ayuntamiento de Altozano'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Admin E2E'
+
+# ── Another villager ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${JOINER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/cartel/_${output.posterId}'
+- extendedWaitUntil:
+    visible: '.*${output.posterTitle}.*'
+    timeout: 45000
+- assertNotVisible:
+    id: 'poster-edit-action'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.posterLabel}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/cartel/_${output.posterId}/editar'
+- extendedWaitUntil:
+    visible: '.*${output.posterTitle}.*'
+    timeout: 45000
+- assertNotVisible:
+    id: 'poster-edit-year-input'
+
+# ── Edit: the creator ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/cartel/_${output.posterId}'
+- extendedWaitUntil:
+    visible:
+      id: 'poster-edit-action'
+    timeout: 45000
+- tapOn:
+    id: 'poster-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'poster-edit-year-input'
+    timeout: 45000
+- tapOn:
+    id: 'poster-edit-images-add'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '1'
+- extendedWaitUntil:
+    visible:
+      id: 'poster-edit-images-remove-1'
+    timeout: 60000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'poster-edit-year-input'
+      TEXT: ${output.posterEditYear}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'poster-edit-title-input'
+      TEXT: ${output.posterEditTitle}
+- runFlow:
+    file: ../subflows/pick-date.yaml
+    env:
+      FIELD: 'poster-edit-end-date'
+      DAY: ${output.posterEditEndDay}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'remove-user-e2e-admin'
+- tapOn:
+    id: 'remove-user-e2e-admin'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'remove-org-e2e-org-ayto'
+- tapOn:
+    id: 'remove-org-e2e-org-ayto'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'poster-edit-submit'
+- tapOn:
+    id: 'poster-edit-submit'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'festivalPosters/${output.posterId}'
+      TIMEOUT_MS: '120000'
+      EXPECT_JSON: >-
+        {
+          'title': '@posterEditTitle',
+          'year': 1992,
+          'images': { 'length': 2 },
+          'datePrecision': 'day',
+          'contributorUserIds': ['e2e-user'],
+          'contributorOrgIds': { 'length': 0 }
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'poster-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.posterEditTitle}.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.posterEditLabel}
+
+# ── Delete: the creator withdraws it ──
+- tapOn:
+    id: 'poster-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'poster-delete'
+    timeout: 45000
+- tapOn:
+    id: 'poster-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'festivalPosters/${output.posterId}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}

@@ -1,0 +1,198 @@
+# A barrio through its whole life, every field set and read back:
+#
+#   create  — a villager (not an admin): two photos and a name
+#   assert  — each stored field, then the barrio as its creator sees it
+#   view    — another villager: reads it, cannot edit it
+#   edit    — the creator: a photo removed, the name changed
+#   delete  — the creator withdraws it, which deletes the doc
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  JOINER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/villageContentValues.js
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: 'municipalities/${VILLAGE_ID}/barrios'
+      FIELD: name
+      VALUE: ${output.barrioName}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: 'municipalities/${VILLAGE_ID}/barrios'
+      FIELD: name
+      VALUE: ${output.barrioEditName}
+
+# ── Create ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/barrios'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-name-input'
+    timeout: 45000
+- tapOn:
+    id: 'barrio-images-add'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '0'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-images-remove-0'
+    timeout: 60000
+- tapOn:
+    id: 'barrio-images-add'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '1'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-images-remove-1'
+    timeout: 60000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'barrio-name-input'
+      TEXT: ${output.barrioName}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'barrio-submit'
+- tapOn:
+    id: 'barrio-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'municipalities/${VILLAGE_ID}/barrios'
+      FIELD: name
+      VALUE: ${output.barrioName}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.barrioId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/barrios/${output.barrioId}'
+      EXPECT_JSON: >-
+        {
+          'name': '@barrioName',
+          'status': 'active',
+          'municipalityId': 'e2e-village-altozano',
+          'proposedBy': 'e2e-user',
+          'images': { 'length': 2 },
+          'images.0': { 'prefix': 'http' }
+        }
+
+# ── What the creator sees ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/barrio/_${output.barrioId}'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.barrioName}.*'
+
+# ── Another villager ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${JOINER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/barrio/_${output.barrioId}'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'barrio-edit-action'
+- assertVisible: '.*${output.barrioName}.*'
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/barrio/_${output.barrioId}/editar'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'barrio-edit-name-input'
+
+# ── Edit: the creator ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/barrio/_${output.barrioId}'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-edit-action'
+    timeout: 45000
+- tapOn:
+    id: 'barrio-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-edit-name-input'
+    timeout: 45000
+- tapOn:
+    id: 'barrio-edit-images-remove-0'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/barrios/${output.barrioId}'
+      EXPECT_JSON: "{ 'images': { 'length': 1 } }"
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'barrio-edit-name-input'
+      TEXT: ${output.barrioEditName}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'barrio-edit-submit'
+- tapOn:
+    id: 'barrio-edit-submit'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/barrios/${output.barrioId}'
+      TIMEOUT_MS: '120000'
+      EXPECT_JSON: >-
+        {
+          'name': '@barrioEditName',
+          'images': { 'length': 1 },
+          'proposedBy': 'e2e-user'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.barrioEditName}.*'
+
+# ── Delete: the creator withdraws it ──
+- tapOn:
+    id: 'barrio-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'barrio-delete'
+    timeout: 45000
+- tapOn:
+    id: 'barrio-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/barrios/${output.barrioId}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}

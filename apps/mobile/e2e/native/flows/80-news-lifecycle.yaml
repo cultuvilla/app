@@ -1,0 +1,367 @@
+# A news post through its whole life, every field set and read back:
+#
+#   create  — the admin: title, category, cover, a text block, an image block
+#             with a caption, a second writer and a group
+#   assert  — each stored field, then the article as the admin sees it
+#   view    — a villager who wrote none of it: reads it, cannot edit it
+#   edit    — the co-writer: every field changed, the cover swapped, the
+#             group removed
+#   delete  — the co-writer again, a hard delete through the callable
+appId: com.cultuvilla.app.dev
+env:
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  USER_EMAIL: e2e-user@cultuvilla.test
+  JOINER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/villageContentValues.js
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: news
+      FIELD: title
+      VALUE: ${output.newsTitle}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: news
+      FIELD: title
+      VALUE: ${output.newsEditTitle}
+
+# ── Create ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://crear/noticia?villageId=${VILLAGE_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'news-title'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'news-title'
+      TEXT: ${output.newsTitle}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'news-category'
+- tapOn:
+    id: 'news-category'
+- tapOn:
+    id: 'news-category-fiesta'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'news-cover'
+- tapOn:
+    id: 'news-cover'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '0'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'news-form-primary'
+# Content: a paragraph, then an image after it with a caption. The image is
+# inserted at the caret, which splits the paragraph: text-0, image-1, text-2.
+- extendedWaitUntil:
+    visible:
+      id: 'news-block-text-0'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'news-block-text-0'
+      TEXT: ${output.newsText}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'news-block-add-image'
+- tapOn:
+    id: 'news-block-add-image'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '1'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'news-block-image-1-caption'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'news-block-image-1-caption'
+      TEXT: ${output.newsCaption}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'news-form-primary'
+# Attribution: a second writer and a group.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'add-user-btn'
+- tapOn:
+    id: 'add-user-btn'
+- tapOn:
+    id: 'villager-row-e2e-user'
+- tapOn:
+    id: 'villager-confirm'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'add-org-btn'
+- tapOn:
+    id: 'add-org-btn'
+- tapOn:
+    id: 'org-row-e2e-org-ayto'
+- tapOn:
+    id: 'org-confirm'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'remove-org-e2e-org-ayto'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'news-form-primary'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: news
+      FIELD: title
+      VALUE: ${output.newsTitle}
+      FIELD2: status
+      VALUE2: active
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.newsId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'news/${output.newsId}'
+      TIMEOUT_MS: '180000'
+      EXPECT_JSON: >-
+        {
+          'title': '@newsTitle',
+          'category': 'fiesta',
+          'municipalityId': 'e2e-village-altozano',
+          'villageSlug': 'altozano-de-prueba',
+          'createdBy': 'e2e-admin',
+          'organizerUserIds': ['e2e-admin', 'e2e-user'],
+          'organizerOrgIds': ['e2e-org-ayto'],
+          'body': '@newsText',
+          'content': { 'length': 2 },
+          'content.0.type': 'text',
+          'content.0.text': '@newsText',
+          'content.1.type': 'image',
+          'content.1.storagePath': 'present',
+          'content.1.caption': '@newsCaption',
+          'coverImage.storagePath': 'present'
+        }
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'news/${output.newsId}'
+      FIELD: coverImage.storagePath
+      EXPECT: present
+- evalScript: ${output.coverPath = output.value}
+
+# ── What the admin sees ──
+- extendedWaitUntil:
+    visible: 'Volver'
+    timeout: 15000
+- tapOn: 'Volver'
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/noticia/_${output.newsId}'
+- extendedWaitUntil:
+    visible:
+      id: 'news-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.newsTitle}.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Fiesta'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Ayuntamiento de Altozano'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Usuario E2E'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.newsText}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.newsCaption}
+- scrollUntilVisible:
+    element:
+      id: 'news-image-zoom'
+    direction: UP
+    timeout: 20000
+
+# ── A villager who wrote none of it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${JOINER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/noticia/_${output.newsId}'
+- extendedWaitUntil:
+    visible:
+      id: 'news-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'news-edit-action'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.newsCaption}
+# The edit route sends a non-writer to the article.
+- openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
+- extendedWaitUntil:
+    visible:
+      id: 'news-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'news-form-primary'
+
+# ── Edit: the co-writer changes every field ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/noticia/_${output.newsId}'
+- extendedWaitUntil:
+    visible:
+      id: 'news-edit-action'
+    timeout: 45000
+- tapOn:
+    id: 'news-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'news-title'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'news-title'
+      TEXT: ${output.newsEditTitle}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'news-category'
+- tapOn:
+    id: 'news-category'
+- tapOn:
+    id: 'news-category-tradicion'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'news-cover'
+- tapOn:
+    id: 'news-cover'
+- runFlow:
+    file: ../subflows/pick-photo.yaml
+    env:
+      INDEX: '1'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'news-form-primary'
+# Stored content loads back as text-0, image-1.
+- extendedWaitUntil:
+    visible:
+      id: 'news-block-text-0'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'news-block-text-0'
+      TEXT: ${output.newsEditText}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'news-block-image-1-caption'
+      TEXT: ${output.newsEditCaption}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'news-form-primary'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'remove-org-e2e-org-ayto'
+- tapOn:
+    id: 'remove-org-e2e-org-ayto'
+- assertNotVisible:
+    id: 'remove-org-e2e-org-ayto'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'news-form-primary'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'news/${output.newsId}'
+      TIMEOUT_MS: '180000'
+      EXPECT_JSON: >-
+        {
+          'title': '@newsEditTitle',
+          'category': 'tradicion',
+          'createdBy': 'e2e-admin',
+          'organizerUserIds': ['e2e-admin', 'e2e-user'],
+          'organizerOrgIds': { 'length': 0 },
+          'body': '@newsEditText',
+          'content': { 'length': 2 },
+          'content.0.text': '@newsEditText',
+          'content.1.type': 'image',
+          'content.1.caption': '@newsEditCaption',
+          'coverImage.storagePath': { 'not': '@coverPath' }
+        }
+
+# ── What the co-writer sees after saving ──
+- extendedWaitUntil:
+    visible:
+      id: 'news-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.newsEditTitle}.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Tradición'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.newsEditText}
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.newsEditCaption}
+
+# ── Delete ── a hard delete through the cascading callable.
+- openLink: 'cultuvilla://crear/noticia?newsId=${output.newsId}'
+- extendedWaitUntil:
+    visible:
+      id: 'news-delete'
+    timeout: 45000
+- tapOn:
+    id: 'news-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'news/${output.newsId}'
+      EXPECT: absent
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
