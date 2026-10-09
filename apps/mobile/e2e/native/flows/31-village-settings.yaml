@@ -5,8 +5,9 @@
 #   community  — escudo, location (cleared) and description, each saving as
 #                it changes
 #   fiestas    — two added, one removed, the other renamed and moved a month
-#   view       — a villager who is not on the team: sees the new description,
-#                and the community editor sends them back to the village
+#   leave      — an edit made just before "Listo" is kept
+#   view       — a villager who is not on the team is sent from the editor
+#                back to the village
 appId: com.cultuvilla.app.dev
 env:
   PASSWORD: e2e-cultuvilla-pw
@@ -214,21 +215,19 @@ env:
 - assertTrue: ${output.ok == 'true'}
 
 # ── A villager who is not on the team ──
+# The description is not shown anywhere in the app (only the read site and the
+# editors carry it), so the villager's check is the editor turning them away.
 - runFlow:
     file: ../subflows/login.yaml
     env:
       EMAIL: e2e-joiner@cultuvilla.test
       PASSWORD: ${PASSWORD}
-- openLink: 'cultuvilla://${VILLAGE_SLUG}'
-- runFlow: ../subflows/dismiss-push-soft-ask.yaml
-- runFlow:
-    file: ../subflows/see-text.yaml
-    env:
-      TEXT: ${FINAL_DESCRIPTION}
 - openLink: 'cultuvilla://${VILLAGE_SLUG}/comunidad'
-- runFlow:
-    file: ../subflows/see-text.yaml
-    env:
-      TEXT: ${FINAL_DESCRIPTION}
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- extendedWaitUntil:
+    visible: '.*Pueblo de Unión E2E.*'
+    timeout: 45000
 - assertNotVisible:
     id: 'community-escudo'
+- assertNotVisible:
+    id: 'community-description'

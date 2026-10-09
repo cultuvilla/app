@@ -62,7 +62,7 @@ instead of the whole shard.
 | `21-registration-organize` | The organizer's roster: every answer, the private name, paid, the call sheet, removing an attendee promotes the waitlisted one (trigger); then the attendee cancels through a native `Alert`. Depends on 20 (same tens group). |
 | `23-seat-claim` | A group booking leaves a seat open; a second user opens its claim link (`…/plaza/<token>`) and takes it. |
 | `30-village-join` | A rules-gated direct client write, and the UI flip that follows it. |
-| `31-village-settings` | A village's info description (callable), escudo (square crop), location, description and fiestas (two added, one removed, one renamed and moved), by an app admin; a villager off the team sees the result and is turned away from the editor. Depends on 30. |
+| `31-village-settings` | A village's info description (callable), escudo (square crop), location, description and fiestas (two added, one removed, one renamed and moved), by an app admin; an edit made right before "Listo" kept; a villager off the team is turned away from the editor. Depends on 30. |
 | `32-village-roles` | A villager promoted onto the pueblo's team, demoted, then handed the Embajador title; member doc, audit log and roster badges checked each time. Depends on 30. |
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
