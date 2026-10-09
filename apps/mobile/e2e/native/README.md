@@ -79,7 +79,8 @@ instead of the whole shard.
 | `81-place-lifecycle` | A place a villager creates with two photos, description, type, GPS location and contributors; another villager may only read it; the creator edits every field and clears the location, then withdraws it (a hard delete — an admin's is the soft-hide in 90). |
 | `82-barrio-lifecycle` | The same life for a barrio: photos and name, read-only for others, edited, withdrawn. |
 | `83-poster-lifecycle` | A festival poster: photo, year, title, start and end days on the calendar, contributors; edited (a second photo, new year, title and end day) and withdrawn. |
-| `84-history-lifecycle` | A history entry: a captioned photo, a day-precise start, an end year, approximate, body and sources; edited to a BC year with no month or range; withdrawn. |
+| `84-history-create` | A history entry: a captioned photo, a day-precise start, an end year, approximate, body and sources; read back, and read-only for another villager. |
+| `85-history-edit` | 84's entry edited to a BC year with no month or range, every text changed; then withdrawn. Depends on 84. Split from it to stay under Maestro's 15-minute limit. |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
 | `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |

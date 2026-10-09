@@ -1,0 +1,154 @@
+# The history entry flow 84 created, edited and withdrawn by its creator:
+#
+#   edit    — a BC year with no month, no range, not approximate, every text
+#             changed
+#   delete  — the creator withdraws it, which deletes the doc
+#
+# Depends on 84 (same tens group), which leaves exactly one entry titled
+# output.historyTitle.
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/villageContentValues.js
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: historyEntries
+      FIELD: title
+      VALUE: ${output.historyTitle}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.entryId = output.id}
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+
+# ── Edit: the creator ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/acontecimiento/_${output.entryId}'
+- extendedWaitUntil:
+    visible:
+      id: 'history-edit-action'
+    timeout: 45000
+- tapOn:
+    id: 'history-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'history-title-input'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-caption-0'
+      TEXT: ${output.historyEditCaption}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-title-input'
+      TEXT: ${output.historyEditTitle}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-start-year'
+      TEXT: '50'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-start-bc'
+- tapOn:
+    id: 'history-start-bc'
+# Tapping the chosen month again clears it, and the day with it.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-start-month-3'
+- tapOn:
+    id: 'history-start-month-3'
+- assertNotVisible:
+    id: 'history-start-day'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-range-toggle'
+- tapOn:
+    id: 'history-range-toggle'
+- assertNotVisible:
+    id: 'history-end-year'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-approximate-toggle'
+- tapOn:
+    id: 'history-approximate-toggle'
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'history-body-input'
+      TEXT: ${output.historyEditBody}
+- runFlow:
+    file: ../subflows/type-into-low.yaml
+    env:
+      INPUT: 'history-sources-input'
+      TEXT: ${output.historyEditSources}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'history-submit'
+- tapOn:
+    id: 'history-submit'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'historyEntries/${output.entryId}'
+      TIMEOUT_MS: '120000'
+      EXPECT_JSON: >-
+        {
+          'title': '@historyEditTitle',
+          'start.year': -50,
+          'start.month': 'absent',
+          'start.day': 'absent',
+          'end': 'absent',
+          'approximate': false,
+          'sortKey': -500000,
+          'body.text': '@historyEditBody',
+          'sources': '@historyEditSources',
+          'images': { 'length': 1 },
+          'images.0.caption': '@historyEditCaption'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'history-edit-action'
+    timeout: 45000
+- assertVisible:
+    id: 'history-entry-date'
+    text: '50 a. C.'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.historyEditBody}
+
+# ── Delete: the creator withdraws it ──
+- tapOn:
+    id: 'history-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'history-delete'
+    timeout: 45000
+- tapOn:
+    id: 'history-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'historyEntries/${output.entryId}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
