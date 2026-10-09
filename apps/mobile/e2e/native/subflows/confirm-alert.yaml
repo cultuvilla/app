@@ -15,6 +15,12 @@ appId: com.cultuvilla.app.dev
 # "Cancelar". Both layouts are tried, twice over: under load the first tap can
 # land while the alert is still animating in.
 ---
+# The checks below are instant, so first wait for the alert to be up.
+- extendedWaitUntil:
+    visible:
+      text: ${BUTTON}
+      below: '.*\?.*'
+    timeout: 10000
 - waitForAnimationToEnd:
     timeout: 3000
 - repeat:
