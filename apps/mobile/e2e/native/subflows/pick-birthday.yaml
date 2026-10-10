@@ -2,6 +2,10 @@
 appId: com.cultuvilla.app.dev
 ---
 - runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'birthday-year'
+- runFlow:
     file: pick-partial-date.yaml
     env:
       FIELD: 'birthday'

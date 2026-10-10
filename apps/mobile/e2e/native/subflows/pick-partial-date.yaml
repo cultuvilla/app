@@ -6,12 +6,12 @@
 # just above that bar counts as visible but the tap lands on the bar, so each
 # option is centred first. A list may open scrolled past the option (it
 # follows the current value), so it is sought upwards before downwards.
+#
+# The field must already be on screen. It does not scroll there itself: in a
+# bottom sheet (the burial date) scroll-to's keyboard-closing tap lands on the
+# backdrop and closes the sheet. A form caller centres it first (pick-birthday).
 appId: com.cultuvilla.app.dev
 ---
-- runFlow:
-    file: scroll-to.yaml
-    env:
-      TARGET: '${FIELD}-year'
 - tapOn:
     id: '${FIELD}-year'
 - scrollUntilVisible:
