@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ScrollView } from 'react-native';
 import {
   requestOrganization, newOrganizationId, approveOrganization,
 } from '@cultuvilla/shared/services/organizationService';
@@ -97,8 +98,10 @@ export function OrganizationsManager({
 
   const typeLabel = (ty: OrganizationType) => t(`organization.${ty}`);
 
+  // A ScrollView that takes taps: on iOS the multiline description's keyboard
+  // otherwise covers the submit with no way to close it (return adds a line).
   return (
-    <VStack gap={3} className="p-4">
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="p-4">
       <ProposableForm
         images={images}
         onAddImage={addImage}
@@ -143,6 +146,6 @@ export function OrganizationsManager({
         saving={saving}
         disabled={!name.trim()}
       />
-    </VStack>
+    </ScrollView>
   );
 }

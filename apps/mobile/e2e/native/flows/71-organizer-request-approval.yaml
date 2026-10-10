@@ -1,13 +1,73 @@
-# A member asks to be the Embajador of an organizer-less village; the super
-# admin approves it from the Buzón. The requester's phone is pre-seeded, so the
-# phone-gated submit passes without driving the field.
+# Two members ask to be the Embajador of an organizer-less village; the super
+# admin rejects one and approves the other from the Buzón.
+#
+# The first asks with a phone typed in and a motivation, both stored; the
+# second's phone is pre-seeded, so the phone-gated submit passes untouched.
 appId: com.cultuvilla.app.dev
 env:
   PASSWORD: e2e-cultuvilla-pw
   VILLAGE_ID: e2e-village-solana
   REQUESTER_UID: e2e-user
+  REJECTED_UID: e2e-joiner
+  MOTIVATION: 'Vivo aqui todo el verano y conozco a todos'
 ---
-# ── The requester. ──
+# ── The first requester, rejected below. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-joiner@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://descubrir/organizar/${VILLAGE_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'organize-submit'
+    timeout: 45000
+# The carnet previews the title with the applicant's own name.
+- assertVisible:
+    id: 'organize-carnet'
+- assertVisible: '.*Vecino Nuevo.*'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'organizer-phone'
+      TEXT: '611222333'
+- runFlow:
+    file: ../subflows/type-into-low.yaml
+    env:
+      INPUT: 'organizer-motivation'
+      TEXT: ${MOTIVATION}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'organize-submit'
+- tapOn:
+    id: 'organize-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: organizerRequests
+      FIELD: municipalityId
+      VALUE: ${VILLAGE_ID}
+      FIELD2: userId
+      VALUE2: ${REJECTED_UID}
+      MIN: '1'
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.rejectedId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizerRequests/${output.rejectedId}'
+      EXPECT_JSON: "{ 'status': 'pending', 'motivation': 'Vivo aqui todo el verano y conozco a todos' }"
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'users/${REJECTED_UID}'
+      FIELD: telephone
+      EXPECT: '+34611222333'
+- assertTrue: ${output.ok == 'true'}
+
+# ── The second requester, approved below. ──
 - runFlow:
     file: ../subflows/login.yaml
     env:
@@ -32,7 +92,7 @@ env:
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.requestId = output.id}
 
-# ── The super admin approves it. ──
+# ── The super admin decides both from the Buzón. ──
 - runFlow:
     file: ../subflows/login.yaml
     env:
@@ -41,18 +101,51 @@ env:
 - openLink: 'cultuvilla://buzon'
 - extendedWaitUntil:
     visible:
-      id: 'approve-organizer-${output.requestId}'
+      id: 'reject-organizer-${output.rejectedId}'
     timeout: 45000
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${MOTIVATION}
+- scrollUntilVisible:
+    element:
+      id: 'reject-organizer-${output.rejectedId}'
+    direction: UP
+    centerElement: true
+    timeout: 20000
+- tapOn:
+    id: 'reject-organizer-${output.rejectedId}'
+# respondToOrganizerRequest is a callable; its first call boots the worker.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizerRequests/${output.rejectedId}'
+      FIELD: status
+      EXPECT: rejected
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/members/${REJECTED_UID}'
+      FIELD: role
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+- scrollUntilVisible:
+    element:
+      id: 'approve-organizer-${output.requestId}'
+    direction: DOWN
+    centerElement: true
+    timeout: 20000
 - tapOn:
     id: 'approve-organizer-${output.requestId}'
-
-# The request is approved and the requester is now an admin of the village.
 - runScript:
     file: ../scripts/docField.js
     env:
       DOC_PATH: 'organizerRequests/${output.requestId}'
       FIELD: status
       EXPECT: approved
+      TIMEOUT_MS: '60000'
 - assertTrue: ${output.ok == 'true'}
 - runScript:
     file: ../scripts/docField.js
@@ -60,4 +153,11 @@ env:
       DOC_PATH: 'municipalities/${VILLAGE_ID}/members/${REQUESTER_UID}'
       FIELD: role
       EXPECT: admin
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      FIELD: community.organizerId
+      EXPECT: ${REQUESTER_UID}
 - assertTrue: ${output.ok == 'true'}

@@ -1,0 +1,1 @@
+- Fixed: editing a pueblo's description and tapping "Listo" straight away lost the change; it now saves as soon as you stop typing.

@@ -71,7 +71,12 @@ export function OrgJoinRequestRow({
         >
           {t('organization.joinRequests.approve')}
         </Button>
-        <Button variant="ghost" onPress={() => onDecide('rejected')} loading={busy}>
+        <Button
+          variant="ghost"
+          onPress={() => onDecide('rejected')}
+          loading={busy}
+          testID={`reject-join-${request.orgId}-${request.userId}`}
+        >
           {t('organization.joinRequests.reject')}
         </Button>
       </HStack>

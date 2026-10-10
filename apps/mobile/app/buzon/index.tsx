@@ -414,6 +414,7 @@ export default function InboxScreen() {
                           variant="ghost"
                           onPress={() => handleOrganizerDecide(row, 'rejected')}
                           loading={busyKey === key}
+                          testID={`reject-organizer-${row.id}`}
                         >
                           {t('inbox.reject')}
                         </Button>
@@ -472,6 +473,7 @@ export default function InboxScreen() {
                       variant="ghost"
                       onPress={() => handleOrgDecide(row, 'rejected')}
                       loading={busyKey === key}
+                      testID={`reject-org-${row.id}`}
                     >
                       {t('inbox.reject')}
                     </Button>
