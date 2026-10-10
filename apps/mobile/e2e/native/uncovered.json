@@ -156,6 +156,7 @@
   "wrapped-range": "todo: components/feature/wrapped/WrappedCreateForm.tsx",
   "wrapped-range-reset": "todo: components/feature/wrapped/WrappedCreateForm.tsx",
   "wrapped-replay": "todo: components/feature/wrapped/WrappedStoryViewer.tsx",
+  "wrapped-save-card": "todo: components/feature/wrapped/WrappedStoryViewer.tsx",
   "wrapped-share-card": "todo: components/feature/wrapped/WrappedStoryViewer.tsx",
   "wrapped-share-cover": "todo: components/feature/wrapped/WrappedReview.tsx",
   "wrapped-share-link": "todo: components/feature/wrapped/WrappedStoryViewer.tsx",

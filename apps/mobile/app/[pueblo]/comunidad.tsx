@@ -39,17 +39,21 @@ function CommunityScreen() {
       <ScreenHeader accent title={t('village.edit.title')} />
       <View style={{ flex: 1 }}>
         <View className="flex-1">
-          <CommunitySettingsEditor villageId={villageId} />
+          <CommunitySettingsEditor
+            villageId={villageId}
+            afterFiestas={
+              <Button
+                variant="secondary"
+                onPress={() => router.push(villageSectionHref(villageSlug, 'resumen'))}
+                fullWidth
+                testID="community-wrapped"
+              >
+                {t('village.wrapped.entry')}
+              </Button>
+            }
+          />
         </View>
-        <View className="gap-2 bg-surface-elevated px-4 pt-2" style={{ paddingBottom: insets.bottom + 8 }}>
-          <Button
-            variant="secondary"
-            onPress={() => router.push(villageSectionHref(villageSlug, 'resumen'))}
-            fullWidth
-            testID="community-wrapped"
-          >
-            {t('village.wrapped.entry')}
-          </Button>
+        <View className="bg-surface-elevated px-4 pt-2" style={{ paddingBottom: insets.bottom + 8 }}>
           <Button onPress={() => router.back()} fullWidth>
             {t('common.done')}
           </Button>
