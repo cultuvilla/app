@@ -36,11 +36,19 @@ appId: com.cultuvilla.app.dev
     commands:
       - waitForAnimationToEnd:
           timeout: 5000
-      - tapOn:
-          point: '17%,45%'
-      - extendedWaitUntil:
-          visible: '(?i)(choose|elegir)'
-          timeout: 15000
+      # A tap on a grid still loading selects nothing: tap until the
+      # move-and-scale step is up.
+      - repeat:
+          times: 3
+          while:
+            notVisible: '(?i)(choose|elegir)'
+          commands:
+            - tapOn:
+                point: '17%,45%'
+            - extendedWaitUntil:
+                visible: '(?i)(choose|elegir)'
+                timeout: 8000
+                optional: true
       - tapOn: '(?i)(choose|elegir)'
 - waitForAnimationToEnd:
     timeout: 5000
