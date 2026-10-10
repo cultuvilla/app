@@ -29,12 +29,11 @@ env:
     id: 'member-title-${TARGET_PERSON}'
 
 # ── Promote ──
-- tapOn:
-    id: 'member-row-${TARGET_UID}'
-- extendedWaitUntil:
-    visible:
-      id: 'member-action-team'
-    timeout: 10000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'member-row-${TARGET_UID}'
+      EXPECT: 'member-action-team'
 - tapOn:
     id: 'member-action-team'
 - runFlow:
@@ -56,12 +55,11 @@ env:
     timeout: 30000
 
 # ── Demote ──
-- tapOn:
-    id: 'member-row-${TARGET_UID}'
-- extendedWaitUntil:
-    visible:
-      id: 'member-action-team'
-    timeout: 10000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'member-row-${TARGET_UID}'
+      EXPECT: 'member-action-team'
 - tapOn:
     id: 'member-action-team'
 - runFlow:
@@ -82,12 +80,11 @@ env:
     timeout: 30000
 
 # ── Hand over the Embajador title ──
-- tapOn:
-    id: 'member-row-${TARGET_UID}'
-- extendedWaitUntil:
-    visible:
-      id: 'member-action-transfer'
-    timeout: 10000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'member-row-${TARGET_UID}'
+      EXPECT: 'member-action-transfer'
 - tapOn:
     id: 'member-action-transfer'
 # The body states a fact rather than asking, so confirm-alert's "below the

@@ -91,6 +91,9 @@ env:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'org-submit'
+# The centring swipe can start on the description and focus it again on iOS,
+# and the keyboard then sits over the submit.
+- runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'org-submit'
 - runScript:
@@ -146,6 +149,9 @@ env:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'org-submit'
+# The centring swipe can start on the description and focus it again on iOS,
+# and the keyboard then sits over the submit.
+- runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'org-submit'
 - runScript:
