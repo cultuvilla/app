@@ -99,6 +99,7 @@
   "signup-info": "todo: app/crear/evento.tsx",
   "signup-question-type-*": "todo: components/feature/signup/SignupQuestionsEditor.tsx",
   "step-dot-*": "todo: components/feature/StepIndicator.tsx",
+  "village-description": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
   "village-join-dormant": "todo: components/feature/VillageHomeBody.tsx",
   "village-wrapped-strip": "todo: components/feature/wrapped/VillageWrappedStrip.tsx",
   "vocabulary-joining-notice": "todo: app/[pueblo]/palabra/nueva.tsx",

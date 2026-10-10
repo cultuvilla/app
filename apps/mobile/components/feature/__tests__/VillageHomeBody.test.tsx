@@ -383,6 +383,31 @@ describe('VillageHomeBody', () => {
     expect(router.push).toHaveBeenCalledWith('/anaya/entidades?type=pena');
   });
 
+  // The team writes the description in the app; every visitor reads it here,
+  // members or not, as they do on the web village page.
+  it('shows the village description under its name, to a non-member too', () => {
+    const described = {
+      ...village,
+      community: {
+        ...(village as unknown as { community: Record<string, unknown> }).community,
+        description: 'Pueblo serrano junto al río.',
+      },
+    } as unknown as VillageHomeState['village'];
+    const { getByTestId } = render(
+      <VillageHomeBody data={{ ...base, village: described, isMember: false }} reload={jest.fn()} />,
+    );
+    expect(getByTestId('village-description')).toHaveTextContent('Pueblo serrano junto al río.');
+  });
+
+  it('shows no description block when the team has written none', () => {
+    const blank = {
+      ...village,
+      community: { ...(village as unknown as { community: Record<string, unknown> }).community, description: '  ' },
+    } as unknown as VillageHomeState['village'];
+    const { queryByTestId } = render(<VillageHomeBody data={{ ...base, village: blank }} reload={jest.fn()} />);
+    expect(queryByTestId('village-description')).toBeNull();
+  });
+
   it('shows the censo fill CTA to a villager of a village with a configured censo', () => {
     const censoVillage = {
       ...village,

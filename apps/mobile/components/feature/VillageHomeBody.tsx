@@ -176,6 +176,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
   const canManage = isAppAdmin || villageAdmin;
   // Wiki phase: active but no organizer granted yet (community.organizerId null).
   const noOrganizer = village.community?.organizerId == null;
+  const description = village.community?.description?.trim() || null;
   const villageSlug = village.slug;
 
   const caps = { canManage, uid: user?.uid ?? null };
@@ -254,6 +255,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               </Text>
             </VStack>
           </HStack>
+          {description ? <Text testID="village-description">{description}</Text> : null}
         </VStack>
 
         {/* ── Stats ────────────────────────────────────────────── */}
