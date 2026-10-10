@@ -62,6 +62,9 @@ instead of the whole shard.
 | `21-registration-organize` | The organizer's roster: every answer, the private name, paid, the call sheet, removing an attendee promotes the waitlisted one (trigger); then the attendee cancels through a native `Alert`. Depends on 20 (same tens group). |
 | `23-seat-claim` | A group booking leaves a seat open; a second user opens its claim link (`…/plaza/<token>`) and takes it. |
 | `30-village-join` | A rules-gated direct client write, and the UI flip that follows it. |
+| `31-village-settings` | A village's info description (callable), escudo (square crop), location (cleared) and description, by an app admin; an edit made right before "Listo" kept; a villager off the team turned away from the editor. Depends on 30. |
+| `32-village-roles` | A villager promoted onto the pueblo's team, demoted, then handed the Embajador title; member doc, audit log and roster badges checked each time. Depends on 30. |
+| `33-village-fiestas` | The same village's fiestas: two added, one removed, the other renamed and moved a month. Split from 31 to stay under the 15-minute limit on iOS. |
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
 | `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
@@ -74,10 +77,11 @@ instead of the whole shard.
 | `64-event-edit` | The same event with every field edited, down to private to the approval peña; the doc and the screen asserted again. Depends on 60 (same tens group). |
 | `65-event-private-and-cancel` | The now-private event: the villager gets "not found"; then the organizer cancels it. Depends on 60 and 64. |
 | `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
-| `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
-| `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
-| `72-org-join-request` | Joining an `approval` peña: a join request, admitted by the org admin from the Buzón (callable). |
+| `70-org-create-approve-join` | A villager proposes a group with every field (photo, description, type, private roster) and a bare one; the village admin approves the first and rejects the second from the Buzón; a third user joins the approved one. Photos on Android only. |
+| `71-organizer-request-approval` | Two Embajador requests — one with a typed phone and a motivation — rejected and approved by a super admin; the approved requester becomes the village's admin and Embajador. |
+| `72-org-join-request` | Joining an `approval` peña: two join requests, one admitted and one turned down by the org admin from the Buzón (callable). |
 | `73-org-invite-link` | An org invite link (`…/unirse`) opens the org with the invitation banner; joining an open org is instant. |
+| `74-org-edit-and-members` | 70's group edited by its founder (photo swapped, every field, roster public, joining by approval); a member promoted, demoted and removed (callables); the removed member must now ask to join and cannot edit; the group deleted. Depends on 70. Photos on Android only. |
 | `80-news-lifecycle` | A news post with every field (cover, a text block, a captioned image block, a co-writer and a group); read by a villager who cannot edit it; every field edited by the co-writer, the cover swapped; hard-deleted through the callable behind a native `Alert`. Cover and image block on Android only. |
 | `81-place-lifecycle` | A place a villager creates with two photos, description, type, GPS location and contributors; another villager may only read it; the creator edits every field and clears the location, then withdraws it (a hard delete — an admin's is the soft-hide in 90). Photos on Android only. |
 | `82-barrio-lifecycle` | The same life for a barrio: photos and name, read-only for others, edited, withdrawn. Photos on Android only. |

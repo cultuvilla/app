@@ -1,0 +1,134 @@
+# A village's own settings, every one set and read back, by an app admin (who
+# manages every pueblo) on the village flow 30 joined:
+#
+#   info       — the description, through the updateVillageInfo callable
+#   community  — escudo, location (cleared) and description, each saving as
+#                it changes
+#   leave      — an edit made just before "Listo" is kept
+#   view       — a villager who is not on the team is sent from the editor
+#                back to the village
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-join
+  VILLAGE_SLUG: pueblo-de-union-e2e
+  INFO_DESCRIPTION: 'Pueblo editado desde Maestro'
+  COMMUNITY_DESCRIPTION: 'Pueblo de la sierra con fiestas en agosto'
+  FINAL_DESCRIPTION: 'Pueblo serrano de fiestas en agosto'
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-superadmin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+
+# ── Info ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/editar'
+- extendedWaitUntil:
+    visible:
+      id: 'village-edit-description'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'village-edit-description'
+      TEXT: ${INFO_DESCRIPTION}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'village-edit-submit'
+- tapOn:
+    id: 'village-edit-submit'
+# updateVillageInfo is a callable; its first call boots the worker.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      FIELD: community.description
+      EXPECT: ${INFO_DESCRIPTION}
+      TIMEOUT_MS: '180000'
+- assertTrue: ${output.ok == 'true'}
+
+# ── Community: escudo, location, description ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/comunidad'
+- extendedWaitUntil:
+    visible:
+      id: 'community-escudo'
+    timeout: 45000
+- tapOn:
+    id: 'community-escudo'
+- runFlow: ../subflows/pick-photo-square.yaml
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: "{ 'escudoManualUrl': { 'prefix': 'http' } }"
+# The location is set by address search, which goes through a geocoding proxy
+# the emulators cannot answer; so here it is only cleared (uncovered.json:
+# community-location-result-*).
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'community-location-clear'
+- tapOn:
+    id: 'community-location-clear'
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'community-description'
+      TEXT: ${COMMUNITY_DESCRIPTION}
+# The description saves on blur, and closing the keyboard does not blur it on
+# Android: move to the next field, as a user filling the form would.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'fiesta-new-name'
+- tapOn:
+    id: 'fiesta-new-name'
+- runFlow: ../subflows/close-keyboard.yaml
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      EXPECT_JSON: >-
+        {
+          'community.description': 'Pueblo de la sierra con fiestas en agosto',
+          'coordinates': 'absent',
+          'mapZoom': 'absent'
+        }
+
+# An edit followed straight by "Listo" is kept too: leaving the editor must
+# not drop a description that was never blurred.
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'community-description'
+      TEXT: ${FINAL_DESCRIPTION}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn: 'Listo'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}'
+      FIELD: community.description
+      EXPECT: ${FINAL_DESCRIPTION}
+- assertTrue: ${output.ok == 'true'}
+
+# ── A villager who is not on the team ──
+# The description is not shown anywhere in the app (only the read site and the
+# editors carry it), so the villager's check is the editor turning them away.
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-joiner@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/comunidad'
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- extendedWaitUntil:
+    visible: '.*Pueblo de Unión E2E.*'
+    timeout: 45000
+- assertNotVisible:
+    id: 'community-escudo'
+- assertNotVisible:
+    id: 'community-description'

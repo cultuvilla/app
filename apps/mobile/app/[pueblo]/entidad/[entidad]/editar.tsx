@@ -27,7 +27,7 @@ export default function OrgEditScreen() {
   const orgId = parseEntityRef(entidadRef ?? '') ?? '';
   const { t } = useT();
   const [municipalityId, setMunicipalityId] = useState<string | undefined>(undefined);
-  const { canManage, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
+  const { canManage, canDelete, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<OrganizationType>('peña');
@@ -127,19 +127,23 @@ export default function OrgEditScreen() {
         accent
         title={t('organization.editTitle')}
         rightSlot={
-          <DeleteHeaderButton
-            testID="org-delete"
-            onAccent
-            onConfirm={() => {
-              if (orgId) return deleteOrganization(orgId).then(() => router.replace('/(tabs)'));
-            }}
-            accessibilityLabel={t('common.delete')}
-            confirmTitle={t('common.deleteConfirmTitle')}
-            confirmMessage={t('common.deleteConfirmMessage')}
-            confirmLabel={t('common.delete')}
-            cancelLabel={t('common.cancel')}
-            deletingLabel={t('common.deleting.organization')}
-          />
+          // The organizations delete rule admits a village or app admin, not an
+          // org admin, who may otherwise edit everything here.
+          canDelete ? (
+            <DeleteHeaderButton
+              testID="org-delete"
+              onAccent
+              onConfirm={() => {
+                if (orgId) return deleteOrganization(orgId).then(() => router.replace('/(tabs)'));
+              }}
+              accessibilityLabel={t('common.delete')}
+              confirmTitle={t('common.deleteConfirmTitle')}
+              confirmMessage={t('common.deleteConfirmMessage')}
+              confirmLabel={t('common.delete')}
+              cancelLabel={t('common.cancel')}
+              deletingLabel={t('common.deleting.organization')}
+            />
+          ) : undefined
         }
       />
       <ScrollView contentContainerClassName="p-4">

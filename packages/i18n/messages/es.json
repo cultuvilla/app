@@ -1012,7 +1012,10 @@
       "confirmRemoveTitle": "Eliminar miembro",
       "confirmRemoveBody": "¿Eliminar a {name} del grupo?",
       "roleChangeError": "No se pudo cambiar el rol. Inténtalo de nuevo.",
-      "removeError": "No se pudo eliminar al miembro. Inténtalo de nuevo."
+      "removeError": "No se pudo eliminar al miembro. Inténtalo de nuevo.",
+      "promoteMember": "Hacer administrador a {name}",
+      "demoteMember": "Quitar administrador a {name}",
+      "removeMember": "Eliminar a {name} del grupo"
     },
     "requestToJoin": "Solicitar unirme",
     "requestPending": "Solicitud enviada",
@@ -1030,8 +1033,7 @@
       "wantsToJoin": "quiere unirse",
       "approve": "Aceptar",
       "reject": "Rechazar"
-    }
-,
+    },
     "leave": {
       "title": "Salir del grupo",
       "body": "¿Quieres salir de {name}? Puedes volver a unirte cuando quieras.",

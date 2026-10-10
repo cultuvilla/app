@@ -1,0 +1,1 @@
+- Fixed: a group's own admins were shown a delete button that did nothing; deleting a group is for the pueblo's team, and only they now see it.
