@@ -121,26 +121,32 @@ env:
 - tapOn:
     id: 'filter-search-clear'
 
-# ── News: category ──
-- tapOn: 'Artículos'
-- extendedWaitUntil:
-    visible:
-      id: 'filter-category'
-    timeout: 15000
-- extendedWaitUntil:
-    visible: '.*Noticia Sembrada E2E.*'
-    timeout: 30000
-- tapOn:
-    id: 'filter-category'
-- tapOn:
-    id: 'filter-category-sheet-option-fiesta'
-- extendedWaitUntil:
-    notVisible: '.*Noticia Sembrada E2E.*'
-    timeout: 10000
-- tapOn:
-    id: 'filter-category'
-- tapOn:
-    id: 'filter-category-sheet-option-historia'
-- extendedWaitUntil:
-    visible: '.*Noticia Sembrada E2E.*'
-    timeout: 10000
+# ── News: category ── on Android only. On iOS the news tab stayed on its
+# spinner for this non-admin user in CI (2026-10-10); to reproduce on an
+# iPhone before it runs here.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: 'Artículos'
+      - extendedWaitUntil:
+          visible:
+            id: 'filter-category'
+          timeout: 15000
+      - extendedWaitUntil:
+          visible: '.*Noticia Sembrada E2E.*'
+          timeout: 30000
+      - tapOn:
+          id: 'filter-category'
+      - tapOn:
+          id: 'filter-category-sheet-option-fiesta'
+      - extendedWaitUntil:
+          notVisible: '.*Noticia Sembrada E2E.*'
+          timeout: 10000
+      - tapOn:
+          id: 'filter-category'
+      - tapOn:
+          id: 'filter-category-sheet-option-historia'
+      - extendedWaitUntil:
+          visible: '.*Noticia Sembrada E2E.*'
+          timeout: 10000

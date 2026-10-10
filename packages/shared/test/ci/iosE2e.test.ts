@@ -315,9 +315,9 @@ describe('iOS quarantine', () => {
     ([, name]) => name,
   );
 
-  // Two: 45 needs airplane mode, which Maestro cannot toggle on iOS at all, and
-  // 50 is the AVD-tuned onboarding keyboard choreography. A third needs this
-  // bound raised on purpose, in review.
+  // Two: 45 needs airplane mode, which Maestro cannot toggle on iOS at all
+  // (50, the onboarding flow, came back once its rewrite ran on iOS). A third
+  // needs this bound raised on purpose, in review.
   it('holds out at most two flows', () => {
     expect(quarantined.length).toBeLessThanOrEqual(2);
   });
