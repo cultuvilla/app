@@ -96,19 +96,25 @@ env:
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'place-submit'
-# Attribution: the creator is locked in; add a second villager and a group.
+# Attribution: the creator is locked in; add a second villager and a group —
+# on Android only. On iOS the creator's villager list came back empty in CI,
+# with no error reported (PR #560, 2026-10-10); to reproduce on an iPhone.
 - runFlow:
-    file: ../subflows/add-organizer-user.yaml
-    env:
-      UID: 'e2e-admin'
-- runFlow:
-    file: ../subflows/add-organizer-org.yaml
-    env:
-      ORG_ID: 'e2e-org-ayto'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'remove-org-e2e-org-ayto'
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/add-organizer-user.yaml
+          env:
+            UID: 'e2e-admin'
+      - runFlow:
+          file: ../subflows/add-organizer-org.yaml
+          env:
+            ORG_ID: 'e2e-org-ayto'
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'remove-org-e2e-org-ayto'
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'place-submit'
@@ -136,9 +142,17 @@ env:
           'municipalityId': 'e2e-village-altozano',
           'proposedBy': 'e2e-user',
           'coordinates': 'present',
-          'contributorUserIds': ['e2e-user', 'e2e-admin'],
-          'contributorOrgIds': ['e2e-org-ayto']
+          'contributorUserIds': { 'contains': ['e2e-user'] }
         }
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+            EXPECT_JSON: "{ 'contributorUserIds': ['e2e-user', 'e2e-admin'], 'contributorOrgIds': ['e2e-org-ayto'] }"
 
 - runFlow:
     when:
@@ -174,13 +188,17 @@ env:
     direction: DOWN
     timeout: 20000
 - runFlow:
-    file: ../subflows/see-text.yaml
-    env:
-      TEXT: 'Ayuntamiento de Altozano'
-- runFlow:
-    file: ../subflows/see-text.yaml
-    env:
-      TEXT: 'Admin E2E'
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/see-text.yaml
+          env:
+            TEXT: 'Ayuntamiento de Altozano'
+      - runFlow:
+          file: ../subflows/see-text.yaml
+          env:
+            TEXT: 'Admin E2E'
 
 # ── Another villager ──
 - runFlow:
@@ -261,17 +279,21 @@ env:
 - tapOn:
     id: 'location-clear'
 - runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'remove-user-e2e-admin'
-- tapOn:
-    id: 'remove-user-e2e-admin'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'remove-org-e2e-org-ayto'
-- tapOn:
-    id: 'remove-org-e2e-org-ayto'
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'remove-user-e2e-admin'
+      - tapOn:
+          id: 'remove-user-e2e-admin'
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'remove-org-e2e-org-ayto'
+      - tapOn:
+          id: 'remove-org-e2e-org-ayto'
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:

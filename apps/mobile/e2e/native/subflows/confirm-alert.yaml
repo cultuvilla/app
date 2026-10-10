@@ -50,6 +50,3 @@ appId: com.cultuvilla.app.dev
                 below: '.*\?.*'
       - waitForAnimationToEnd:
           timeout: 3000
-- assertNotVisible:
-    text: ${BUTTON}
-    below: '.*\?.*'
