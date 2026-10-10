@@ -1,0 +1,1 @@
+- Fixed: when the list of villagers or groups failed to load, the "Añadir persona" and "Añadir grupo" pickers stayed empty for good; opening them now loads the list again.

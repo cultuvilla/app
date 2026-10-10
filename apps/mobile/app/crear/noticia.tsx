@@ -33,6 +33,7 @@ import {
   type NewsPostImage,
   type NewsBlock,
 } from '@cultuvilla/shared/models/news/NewsPostDataModel';
+import type { VisibilityStatus } from '@cultuvilla/shared/models';
 
 // The dedicated card cover: either a freshly-picked image (uploaded on submit)
 // or one already in Storage (edit mode), or none.
@@ -183,7 +184,7 @@ export default function NewNewsScreen() {
   const [villageSlug, setVillageSlug] = useState('');
 
   const municipalityId = editMode ? editMunicipalityId : (villageId ?? profile?.activeMunicipalityId ?? null);
-  const { canEdit, loading: capLoading } = useEntityCapabilities(municipalityId ?? undefined);
+  const { canEdit, canDelete, loading: capLoading } = useEntityCapabilities(municipalityId ?? undefined);
 
   // The article's URL is built from its pueblo's slug. In edit mode it comes off
   // the post; when writing a new one, resolve it from the pueblo being posted to.
@@ -199,6 +200,7 @@ export default function NewNewsScreen() {
   }, [municipalityId, villageSlug]);
   const [organizerUserIds, setOrganizerUserIds] = useState<string[]>([]);
   const [createdBy, setCreatedBy] = useState<string | null>(null);
+  const [status, setStatus] = useState<VisibilityStatus>('active');
   const [organizerOrgIds, setOrganizerOrgIds] = useState<string[]>([]);
 
   const { candidates } = useMentionSources(municipalityId, newsId);
@@ -225,6 +227,7 @@ export default function NewNewsScreen() {
       setVillageSlug(post.villageSlug);
       setOrganizerUserIds(post.organizerUserIds);
       setCreatedBy(post.createdBy);
+      setStatus(post.status);
       setOrganizerOrgIds(post.organizerOrgIds);
 
       // Cover: dedicated coverImage, else legacy images[0].
@@ -499,7 +502,9 @@ export default function NewNewsScreen() {
       <ScreenHeader
         title={headerTitle}
         rightSlot={
-          editMode ? (
+          // deleteNewsPost lets only the author or an admin through, not every
+          // co-writer who may edit — the same split as every other entity.
+          editMode && canDelete(createdBy, status) ? (
             <DeleteHeaderButton
               onConfirm={remove}
               accessibilityLabel={t('common.delete')}

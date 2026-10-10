@@ -1,0 +1,355 @@
+# A place through its whole life, every field set and read back. Photos are
+# picked on Android only, as in flow 60 (subflows/pick-photo.yaml):
+#
+#   create  — a villager (not an admin): two photos, name, description, type,
+#             location, a second contributor and a group
+#   assert  — each stored field, then the place as its creator sees it
+#   view    — another villager: reads it, cannot edit it
+#   edit    — the creator: a photo removed, every field changed, the location
+#             and both extra contributors cleared
+#   delete  — the creator withdraws it, which deletes the doc (an admin's
+#             delete is a soft-hide instead; flow 90 covers that)
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  JOINER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- runScript: ../scripts/villageContentValues.js
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: 'municipalities/${VILLAGE_ID}/places'
+      FIELD: name
+      VALUE: ${output.placeName}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: 'municipalities/${VILLAGE_ID}/places'
+      FIELD: name
+      VALUE: ${output.placeEditName}
+
+# ── Create ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- setLocation:
+    latitude: 39.4699
+    longitude: -0.3763
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/lugares'
+- extendedWaitUntil:
+    visible:
+      id: 'place-name-input'
+    timeout: 45000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'place-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '0'
+      - extendedWaitUntil:
+          visible:
+            id: 'place-images-remove-0'
+          timeout: 60000
+      - tapOn:
+          id: 'place-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '1'
+      - extendedWaitUntil:
+          visible:
+            id: 'place-images-remove-1'
+          timeout: 60000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'place-name-input'
+      TEXT: ${output.placeName}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'place-description'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'place-description'
+      TEXT: ${output.placeDescription}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'place-type-hermitage'
+- tapOn:
+    id: 'place-type-hermitage'
+- runFlow:
+    file: ../subflows/pick-my-location.yaml
+    env:
+      TARGET: 'place-location'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'place-submit'
+# Attribution: the creator is locked in; add a second villager and a group —
+# on Android only. On iOS the creator's villager list came back empty in CI,
+# with no error reported (PR #560, 2026-10-10); to reproduce on an iPhone.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/add-organizer-user.yaml
+          env:
+            UID: 'e2e-admin'
+      - runFlow:
+          file: ../subflows/add-organizer-org.yaml
+          env:
+            ORG_ID: 'e2e-org-ayto'
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'remove-org-e2e-org-ayto'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'place-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'municipalities/${VILLAGE_ID}/places'
+      FIELD: name
+      VALUE: ${output.placeName}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.placeId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+      EXPECT_JSON: >-
+        {
+          'name': '@placeName',
+          'description': '@placeDescription',
+          'kind': 'hermitage',
+          'status': 'active',
+          'municipalityId': 'e2e-village-altozano',
+          'proposedBy': 'e2e-user',
+          'coordinates': 'present',
+          'contributorUserIds': { 'contains': ['e2e-user'] }
+        }
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+            EXPECT_JSON: "{ 'contributorUserIds': ['e2e-user', 'e2e-admin'], 'contributorOrgIds': ['e2e-org-ayto'] }"
+
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+            EXPECT_JSON: "{ 'images': { 'length': 2 } }"
+
+# locationLabel is not asserted: it is the reverse-geocoded address, and the CI
+# emulators have no geocoder to answer.
+
+# ── What the creator sees ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/lugar/_${output.placeId}'
+- extendedWaitUntil:
+    visible:
+      id: 'place-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.placeName}.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Ermita'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.placeDescription}
+- scrollUntilVisible:
+    element:
+      id: 'place-location-map'
+    direction: DOWN
+    timeout: 20000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/see-text.yaml
+          env:
+            TEXT: 'Ayuntamiento de Altozano'
+      - runFlow:
+          file: ../subflows/see-text.yaml
+          env:
+            TEXT: 'Admin E2E'
+
+# ── Another villager ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${JOINER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/lugar/_${output.placeId}'
+- extendedWaitUntil:
+    visible:
+      id: 'place-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'place-edit-action'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.placeDescription}
+# The edit route sends anyone else back to the place.
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/lugar/_${output.placeId}/editar'
+- extendedWaitUntil:
+    visible:
+      id: 'place-share-action'
+    timeout: 45000
+- assertNotVisible:
+    id: 'place-edit-name-input'
+
+# ── Edit: the creator changes every field ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/lugar/_${output.placeId}'
+- extendedWaitUntil:
+    visible:
+      id: 'place-edit-action'
+    timeout: 45000
+- tapOn:
+    id: 'place-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'place-edit-name-input'
+    timeout: 45000
+# A photo removed is written at once, not on save. Photos are picked on
+# Android only, as in flow 60 (subflows/pick-photo.yaml).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'place-edit-images-remove-0'
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+            EXPECT_JSON: "{ 'images': { 'length': 1 } }"
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'place-edit-name-input'
+      TEXT: ${output.placeEditName}
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'place-edit-description'
+      TEXT: ${output.placeEditDescription}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'place-edit-type-church'
+- tapOn:
+    id: 'place-edit-type-church'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'place-edit-location'
+- tapOn:
+    id: 'location-clear'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'remove-user-e2e-admin'
+      - tapOn:
+          id: 'remove-user-e2e-admin'
+      - runFlow:
+          file: ../subflows/scroll-to.yaml
+          env:
+            TARGET: 'remove-org-e2e-org-ayto'
+      - tapOn:
+          id: 'remove-org-e2e-org-ayto'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'place-edit-submit'
+- tapOn:
+    id: 'place-edit-submit'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+      TIMEOUT_MS: '120000'
+      EXPECT_JSON: >-
+        {
+          'name': '@placeEditName',
+          'description': '@placeEditDescription',
+          'kind': 'church',
+          'coordinates': 'absent',
+          'locationLabel': 'absent',
+          'contributorUserIds': ['e2e-user'],
+          'contributorOrgIds': { 'length': 0 }
+        }
+
+# ── Back on the place ──
+- extendedWaitUntil:
+    visible:
+      id: 'place-edit-action'
+    timeout: 45000
+- assertVisible: '.*${output.placeEditName}.*'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Iglesia'
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.placeEditDescription}
+- assertNotVisible:
+    id: 'place-location-map'
+
+# ── Delete: the creator withdraws it ──
+- tapOn:
+    id: 'place-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'place-delete'
+    timeout: 45000
+- tapOn:
+    id: 'place-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/places/${output.placeId}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}

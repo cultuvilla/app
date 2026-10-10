@@ -1,0 +1,1 @@
+- Fixed: editing a festival poster showed only its photos; the year, title, dates, contributors and the save button sat a screen below them.
