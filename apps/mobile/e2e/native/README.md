@@ -19,9 +19,9 @@ branch without waiting for a promotion PR.
 
 [.github/workflows/ios-e2e.yml](../../../../.github/workflows/ios-e2e.yml) runs
 the same suite on an iOS Simulator, on a macOS runner (free: the repo is
-public). Same release-path gating, plus one trigger Android lacks: a `develop`
-PR that touches the iOS harness or anything under `e2e/native/` runs it too,
-because macOS is the only place it can run at all.
+public). Same release-path gating as Android: a `develop` PR never runs it, so
+harness work on a develop branch dispatches it by hand (`pnpm e2e:ci:ios`),
+since macOS is the only place it can run at all.
 
 ### Shards (iOS)
 
