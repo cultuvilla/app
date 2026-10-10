@@ -27,6 +27,12 @@ env:
     timeout: 60000
 - assertNotVisible:
     id: 'member-title-${TARGET_PERSON}'
+- assertVisible:
+    id: 'person-profile-${TARGET_PERSON}'
+- assertVisible:
+    id: 'member-name'
+- assertVisible:
+    id: 'member-action-slot'
 
 # ── Promote ──
 - runFlow:
@@ -34,6 +40,8 @@ env:
     env:
       TAP: 'member-row-${TARGET_UID}'
       EXPECT: 'member-action-team'
+- assertVisible:
+    id: 'member-actions-sheet'
 - tapOn:
     id: 'member-action-team'
 - runFlow:
@@ -132,6 +140,8 @@ env:
     id: 'member-title-${TARGET_PERSON}'
 - assertVisible:
     id: 'avatar-ambassador-seal'
+- assertVisible:
+    id: 'avatar-ambassador-mark'
 - runScript:
     file: ../scripts/queryCollection.js
     env:
@@ -142,3 +152,9 @@ env:
       VALUE2: ${TARGET_UID}
       MIN: '3'
 - assertTrue: ${output.ok == 'true'}
+# The new Embajador's profile carries the title for this pueblo.
+- openLink: 'cultuvilla://usuario/${TARGET_UID}'
+- extendedWaitUntil:
+    visible:
+      id: 'ambassador-badge-${VILLAGE_ID}'
+    timeout: 45000

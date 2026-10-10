@@ -108,9 +108,10 @@ jobs:
     name: iOS E2E shard ${{ matrix.shard }}/4
     needs: build
     runs-on: macos-26
-    # ~15 min of setup (emulators, seed, deep-link trust) + ~6 flows at ~3 min.
-    # Generous on purpose, as for Android: timing out mid-suite tells you nothing.
-    timeout-minutes: 75
+    # ~15 min of setup (emulators, seed, deep-link trust) + a tens-group pair of
+    # deep flows, ~45-60 min, plus a retry or two. Generous on purpose, as for
+    # Android: timing out mid-suite tells you nothing (75 cut off two shards).
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:

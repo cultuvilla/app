@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -32,6 +32,7 @@ const lib = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/e2e-cover
   ) => { covered: Set<string>; uncovered: Set<string>; dangling: Ref[] };
   controlsWithoutTestId: (files?: string[], root?: string) => { file: string; line: number; control: string }[];
   readUncovered: () => Record<string, string>;
+  referencesTestId: (source: string, key: string) => boolean;
 };
 
 const ids = lib.sourceTestIds();
@@ -59,9 +60,22 @@ describe('native E2E coverage ratchet', () => {
     expect(stale, `now covered or deleted — ${REGENERATE}`).toEqual([]);
   });
 
+  // A gap is either proven elsewhere or impossible to drive on a device. A
+  // `todo:` was the backlog while the suite was being built; the regenerator
+  // still writes one for a new control, and this fails until it is resolved.
   it('each gap says why', () => {
-    const bad = Object.entries(listed).filter(([, why]) => !/^(todo|unit-tested|device-only): \S/.test(why));
-    expect(bad, 'reasons are `todo: …`, `unit-tested: <test>` or `device-only: <why>`').toEqual([]);
+    const bad = Object.entries(listed).filter(([, why]) => !/^(unit-tested|device-only): \S/.test(why));
+    expect(bad, 'reasons are `unit-tested: <test>` or `device-only: <why>` — cover a `todo:` in a flow').toEqual([]);
+  });
+
+  it('a unit-tested gap names a test that exercises it', () => {
+    const missing = Object.entries(listed).flatMap(([key, why]) => {
+      if (!why.startsWith('unit-tested: ')) return [];
+      const path = resolve(repoRoot, 'apps/mobile', why.slice('unit-tested: '.length));
+      if (!existsSync(path)) return [`${key}: ${path} does not exist`];
+      return lib.referencesTestId(readFileSync(path, 'utf8'), key) ? [] : [`${key}: not referenced in ${why}`];
+    });
+    expect(missing).toEqual([]);
   });
 
   // A renamed control otherwise surfaces only as a slow timeout on a device.
@@ -73,6 +87,24 @@ describe('native E2E coverage ratchet', () => {
   // without one would be invisible to it.
   it('every control on a form surface carries a testID', () => {
     expect(lib.controlsWithoutTestId().map((m) => `${m.file}:${String(m.line)} <${m.control}>`)).toEqual([]);
+  });
+});
+
+describe('unit-tested gap references', () => {
+  it('counts the id as a string literal in code', () => {
+    expect(lib.referencesTestId("getByTestId('wrapped-range')", 'wrapped-range')).toBe(true);
+    expect(lib.referencesTestId('fireEvent.press(getByTestId(`group-row-p1`))', 'group-row-*')).toBe(true);
+  });
+
+  it('ignores a comment, and a longer id that only contains it', () => {
+    expect(lib.referencesTestId("// covers 'wrapped-range'\nrender(<X />)", 'wrapped-range')).toBe(false);
+    expect(lib.referencesTestId("/* 'wrapped-range' */", 'wrapped-range')).toBe(false);
+    expect(lib.referencesTestId("getByTestId('wrapped-range-reset')", 'wrapped-range')).toBe(false);
+    expect(lib.referencesTestId("getByTestId('my-group-row-1')", 'group-row-*')).toBe(false);
+  });
+
+  it('keeps a URL in a string, whose // is not a comment', () => {
+    expect(lib.referencesTestId("uri: 'https://x.test/a.jpg', id: 'avatar-image'", 'avatar-image')).toBe(true);
   });
 });
 

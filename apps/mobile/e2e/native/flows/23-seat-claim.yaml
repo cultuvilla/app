@@ -116,3 +116,26 @@ env:
       FIELD: consumedBy
       EXPECT: ${CLAIMER_UID}
 - assertTrue: ${output.ok == 'true'}
+
+# From the confirmation, on to the event.
+- tapOn:
+    id: 'claim-go-to-event'
+- extendedWaitUntil:
+    visible: '.*Comida en Grupo E2E.*'
+    timeout: 30000
+
+# The spent link refuses a second claim and says so.
+- openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}/plaza/${output.token}'
+- extendedWaitUntil:
+    visible:
+      id: 'claim-confirm'
+    timeout: 45000
+- tapOn:
+    id: 'claim-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'claim-error'
+    timeout: 60000
+
+# Signed out, the link asks to sign in first: flow 00, since on iOS a flow
+# cannot sign out (clearState keeps the keychain session).

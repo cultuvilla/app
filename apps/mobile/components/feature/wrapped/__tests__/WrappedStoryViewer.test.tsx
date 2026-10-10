@@ -55,6 +55,7 @@ describe('WrappedStoryViewer', () => {
 
   it('pages through the cards by tapping, then lands on the closing screen', () => {
     const { getByTestId, queryByTestId } = renderViewer();
+    expect(getByTestId('wrapped-story')).toBeTruthy();
     expect(getByTestId('wrapped-story-card-cover')).toBeTruthy();
 
     fireEvent.press(getByTestId('wrapped-story-tap'), tapRight);

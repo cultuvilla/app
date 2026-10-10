@@ -21,6 +21,24 @@ env:
     visible:
       id: 'village-join-action'
     timeout: 45000
+# Backing out of the join modal leaves the user outside the village.
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'village-join-action'
+      EXPECT: 'join-village-cancel'
+- tapOn:
+    id: 'join-village-cancel'
+- extendedWaitUntil:
+    notVisible:
+      id: 'join-village-confirm'
+    timeout: 10000
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'municipalities/${VILLAGE_ID}/members/${UID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:

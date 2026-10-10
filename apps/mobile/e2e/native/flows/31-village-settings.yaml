@@ -132,3 +132,22 @@ env:
     id: 'community-escudo'
 - assertNotVisible:
     id: 'community-description'
+# The escudo set above shows on the village page, and opens full size.
+- openLink: 'cultuvilla://${VILLAGE_SLUG}'
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'escudo-zoom'
+    timeout: 45000
+- tapOn:
+    id: 'escudo-zoom'
+- extendedWaitUntil:
+    visible:
+      id: 'image-lightbox-stage'
+    timeout: 15000
+- tapOn:
+    id: 'image-lightbox-close'
+- extendedWaitUntil:
+    notVisible:
+      id: 'image-lightbox-stage'
+    timeout: 15000
