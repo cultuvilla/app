@@ -24,7 +24,11 @@ appId: com.cultuvilla.app.dev
 - waitForAnimationToEnd:
     timeout: 3000
 - repeat:
-    times: 2
+    times: 3
+    while:
+      visible:
+        text: ${BUTTON}
+        below: '.*\?.*'
     commands:
       - runFlow:
           when:
