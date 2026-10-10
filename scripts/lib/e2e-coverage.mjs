@@ -66,8 +66,9 @@ export function sourceTestIds(files = sourceFiles()) {
 }
 
 // Keys whose value names a testID: Maestro's own `id:`, and the env vars the
-// shared subflows forward into one (`TAP`, `TARGET`, `INPUT`, `EXPECT`, `FIELD`).
-const REF = /^\s*-?\s*(id|TAP|TARGET|INPUT|EXPECT|FIELD):\s*(.+?)\s*$/;
+// shared subflows forward into one (`TAP`, `TARGET`, `INPUT`, `EXPECT`, `FIELD`,
+// `PICKER` for pick-village.yaml, `ID` for set-stored-toggle.yaml).
+const REF = /^\s*-?\s*(id|TAP|TARGET|INPUT|EXPECT|FIELD|PICKER|ID):\s*(.+?)\s*$/;
 // These two double as Firestore values and field names in docField.js, so they
 // count towards coverage but are never required to name a control.
 const COVERAGE_ONLY = new Set(['EXPECT', 'FIELD']);

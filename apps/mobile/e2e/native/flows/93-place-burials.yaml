@@ -1,0 +1,201 @@
+# A cemetery's burials, by a villager for the personas they manage:
+#
+#   bury     — two personas, one public and one private, each with a death date
+#   edit     — a death date changed from the burial row
+#   view     — another villager sees the public burial and not the private one
+#   remove   — the creator takes both out of the cemetery again
+#
+# The cemetery and both personas are seeded (scripts/data/seed-fixtures/e2e:
+# `cemetery`, `burialPersons`), so the registration flows' dependent is left
+# alone.
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  JOINER_EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+  PLACE_ID: e2e-place-cementerio
+  PUBLIC_ID: e2e-person-abuela
+  PRIVATE_ID: e2e-person-abuelo
+---
+# ── Bury both ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/lugar/_${PLACE_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'bury-fab'
+    timeout: 45000
+- tapOn:
+    id: 'bury-fab'
+- extendedWaitUntil:
+    visible:
+      id: 'buried-persona-${PUBLIC_ID}'
+    timeout: 30000
+- assertVisible:
+    id: 'buried-create'
+- tapOn:
+    id: 'buried-persona-${PUBLIC_ID}'
+- runFlow:
+    file: ../subflows/pick-partial-date.yaml
+    env:
+      FIELD: 'buried-death-date'
+      YEAR: '1990'
+      MONTH_OPTION: '2'
+      DAY: '14'
+- tapOn:
+    id: 'buried-confirm'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/${PUBLIC_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: >-
+        {
+          'burialPlace.placeId': 'e2e-place-cementerio',
+          'deathDate.year': 1990,
+          'deathDate.month': 3,
+          'deathDate.day': 14
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'buried-person-row-${PUBLIC_ID}'
+    timeout: 30000
+- tapOn:
+    id: 'bury-fab'
+- extendedWaitUntil:
+    visible:
+      id: 'buried-persona-${PRIVATE_ID}'
+    timeout: 30000
+- tapOn:
+    id: 'buried-persona-${PRIVATE_ID}'
+- runFlow:
+    file: ../subflows/pick-partial-date.yaml
+    env:
+      FIELD: 'buried-death-date'
+      YEAR: '1975'
+      MONTH_OPTION: '0'
+      DAY: '2'
+- tapOn:
+    id: 'buried-confirm'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/${PRIVATE_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: "{ 'burialPlace.placeId': 'e2e-place-cementerio', 'deathDate.year': 1975 }"
+# The private burial carries a lock, since only its creator ever sees it.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'buried-person-private-${PRIVATE_ID}'
+- assertVisible:
+    id: 'buried-person-date-${PUBLIC_ID}'
+    text: '.*1990.*'
+
+# ── Edit a death date from its row ──
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'buried-person-row-${PUBLIC_ID}'
+- tapOn:
+    id: 'buried-person-row-${PUBLIC_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'buried-edit-person-name'
+    timeout: 10000
+- assertVisible:
+    id: 'buried-edit-person-name'
+    text: '.*Abuela.*'
+- runFlow:
+    file: ../subflows/pick-partial-date.yaml
+    env:
+      FIELD: 'buried-edit-death-date'
+      YEAR: '1991'
+      MONTH_OPTION: '2'
+      DAY: '14'
+- tapOn:
+    id: 'buried-save-date'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/${PUBLIC_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: "{ 'deathDate.year': 1991, 'burialPlace.placeId': 'e2e-place-cementerio' }"
+
+# ── Another villager ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${JOINER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/lugar/_${PLACE_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'place-share-action'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'buried-person-row-${PUBLIC_ID}'
+- assertNotVisible:
+    id: 'buried-person-row-${PRIVATE_ID}'
+# The village home's cemetery card counts its burials (syncPlaceBurialCount).
+- openLink: 'cultuvilla://${VILLAGE_SLUG}'
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- scrollUntilVisible:
+    element:
+      id: 'entity-card-burial-count'
+    direction: DOWN
+    timeout: 60000
+
+# ── Remove both ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/lugar/_${PLACE_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'bury-fab'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'buried-person-row-${PUBLIC_ID}'
+- tapOn:
+    id: 'buried-person-row-${PUBLIC_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'buried-remove'
+    timeout: 10000
+- tapOn:
+    id: 'buried-remove'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/${PUBLIC_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: "{ 'burialPlace': 'absent' }"
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'buried-person-row-${PRIVATE_ID}'
+- tapOn:
+    id: 'buried-person-row-${PRIVATE_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'buried-remove'
+    timeout: 10000
+- tapOn:
+    id: 'buried-remove'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/${PRIVATE_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: "{ 'burialPlace': 'absent' }"
