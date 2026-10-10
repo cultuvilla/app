@@ -56,8 +56,10 @@ jobs:
     # one after another. Generous on purpose: timing out mid-suite tells you
     # nothing, and this runs nightly plus a handful of times per release, not
     # per push. The deep lifecycle flows (docs/plans/ongoing/
-    # e2e-full-feature-coverage.md) took the suite past an hour on 2026-10-09.
-    timeout-minutes: 150
+    # e2e-full-feature-coverage.md) took the suite past an hour on 2026-10-09,
+    # and with every stage in, the per-flow timings add up to ~170 minutes.
+    # A stopgap until the suite is sharded like ios-e2e (GitHub's cap is 360).
+    timeout-minutes: 240
 
     steps:
       - name: Checkout

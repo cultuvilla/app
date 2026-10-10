@@ -1,0 +1,19 @@
+# Add the villager ${UID} in an open OrganizerPicker. The villager list loads
+# once, as the picker mounts; on a busy runner (image uploads and their variant
+# trigger) that has taken longer than a tap's own wait, so wait for the row.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'add-user-btn'
+- tapOn:
+    id: 'add-user-btn'
+- extendedWaitUntil:
+    visible:
+      id: 'villager-row-${UID}'
+    timeout: 60000
+- tapOn:
+    id: 'villager-row-${UID}'
+- tapOn:
+    id: 'villager-confirm'
