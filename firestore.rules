@@ -1258,9 +1258,9 @@ service cloud.firestore {
       // Approval (status -> 'approved') is function-owned: the approveOrganization
       // callable flips the status AND seeds the founding admin + audits it in one
       // transaction. Clients may edit other fields or reject, never approve.
-      // `type` is locked because create forbids seeding an ayuntamiento — the
-      // town hall is a per-village singleton that only requestAyuntamiento may
-      // mint. Left mutable, an approved peña could simply become one.
+      // `type` moves only among the self-service kinds. The ayuntamiento is a
+      // per-village singleton that only requestAyuntamiento may mint, so no
+      // group may become one and it may become nothing else.
       // `municipalityId` is locked because this rule derives village-admin
       // authority from it: rewriting it moves the org into another pueblo and
       // out of its own admins' reach.
@@ -1268,9 +1268,12 @@ service cloud.firestore {
         && (request.resource.data.status == resource.data.status
             || request.resource.data.status == 'rejected')
         && request.resource.data.get('joinPolicy', 'open') in ['open', 'approval']
+        && (request.resource.data.type == resource.data.type
+            || (resource.data.type in ['peña', 'asociación', 'otros']
+                && request.resource.data.type in ['peña', 'asociación', 'otros']))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'commentCount', 'readCount', 'memberCount',
-             'type', 'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
+             'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
            ]);
       allow delete: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
 
