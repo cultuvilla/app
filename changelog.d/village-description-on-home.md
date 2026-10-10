@@ -1,0 +1,1 @@
+- New: the village home now shows the description the village team writes, under the escudo and name, to every visitor.
