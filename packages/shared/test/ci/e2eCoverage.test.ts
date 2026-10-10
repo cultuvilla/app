@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -59,9 +59,23 @@ describe('native E2E coverage ratchet', () => {
     expect(stale, `now covered or deleted — ${REGENERATE}`).toEqual([]);
   });
 
+  // A gap is either proven elsewhere or impossible to drive on a device. A
+  // `todo:` was the backlog while the suite was being built; the regenerator
+  // still writes one for a new control, and this fails until it is resolved.
   it('each gap says why', () => {
-    const bad = Object.entries(listed).filter(([, why]) => !/^(todo|unit-tested|device-only): \S/.test(why));
-    expect(bad, 'reasons are `todo: …`, `unit-tested: <test>` or `device-only: <why>`').toEqual([]);
+    const bad = Object.entries(listed).filter(([, why]) => !/^(unit-tested|device-only): \S/.test(why));
+    expect(bad, 'reasons are `unit-tested: <test>` or `device-only: <why>` — cover a `todo:` in a flow').toEqual([]);
+  });
+
+  it('a unit-tested gap names a test that exercises it', () => {
+    const missing = Object.entries(listed).flatMap(([key, why]) => {
+      if (!why.startsWith('unit-tested: ')) return [];
+      const path = resolve(repoRoot, 'apps/mobile', why.slice('unit-tested: '.length));
+      if (!existsSync(path)) return [`${key}: ${path} does not exist`];
+      const literal = key.split(/\$\{|\*/)[0];
+      return readFileSync(path, 'utf8').includes(literal) ? [] : [`${key}: not referenced in ${why}`];
+    });
+    expect(missing).toEqual([]);
   });
 
   // A renamed control otherwise surfaces only as a slow timeout on a device.

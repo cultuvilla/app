@@ -213,7 +213,8 @@ export function readUncovered() {
 }
 
 // Rewrites the gap list from the current coverage, keeping each surviving
-// entry's reason and giving a new one `todo: <where it renders>`.
+// entry's reason and giving a new one `todo: <where it renders>` — which the
+// ratchet rejects until a flow covers it or it is marked unit-tested/device-only.
 function writeUncovered() {
   const previous = readUncovered();
   const ids = sourceTestIds();
