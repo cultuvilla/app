@@ -1,4 +1,5 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { ScrollView } from 'react-native';
 import { OrganizationsManager } from '../OrganizationsManager';
 import {
   requestOrganization, approveOrganization,
@@ -74,5 +75,15 @@ describe('<OrganizationsManager>', () => {
         expect.objectContaining({ images: ['https://example.com/org.jpg'] }),
       ),
     );
+  });
+
+  // On iOS the multiline description's keyboard covered the submit button and
+  // nothing dismissed it: return adds a line, and a tap outside an input
+  // dismisses nothing unless a ScrollView takes it (E2E flow 70).
+  it('lays the form out in a scroll view that lets a tap outside close the keyboard', () => {
+    const { UNSAFE_getAllByType, getByTestId } = render(<OrganizationsManager villageId="m1" />);
+    const scrolls = UNSAFE_getAllByType(ScrollView);
+    expect(scrolls.some((s) => s.props.keyboardShouldPersistTaps === 'handled')).toBe(true);
+    expect(getByTestId('org-submit')).toBeTruthy();
   });
 });

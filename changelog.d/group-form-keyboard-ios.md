@@ -1,0 +1,1 @@
+- Fixed: on iPhone, after typing a group's description the keyboard covered the "Proponer" button and could not be closed; the form now scrolls and a tap outside the field closes the keyboard.
