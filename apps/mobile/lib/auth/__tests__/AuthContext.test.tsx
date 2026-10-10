@@ -238,6 +238,28 @@ describe('a failed profile read', () => {
     expect(fbSignOut).toHaveBeenCalledTimes(1);
   });
 
+  // An account switch while the first read is in flight: the old account's
+  // late "no profile" must not land in the new account's state, where
+  // abandonSignUp would take it for a fresh sign-up and delete the new account.
+  it('ignores a read that answers after its account is no longer signed in', async () => {
+    let answerFirst: (v: unknown) => void = () => {};
+    (getUserProfile as jest.Mock).mockReturnValueOnce(new Promise((r) => { answerFirst = r; }));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalledWith(FAKE_UID));
+
+    const deleteB = jest.fn().mockResolvedValue(undefined);
+    mockAuthUser = { uid: 'other-uid', email: 'b@b.com', delete: deleteB };
+    await act(async () => {
+      answerFirst(null);
+    });
+
+    expect(result.current.profileChecked).toBe(false);
+    await act(async () => {
+      await result.current.abandonSignUp();
+    });
+    expect(deleteB).not.toHaveBeenCalled();
+  });
+
   it('tries again and loads the profile once the read succeeds', async () => {
     (getUserProfile as jest.Mock)
       .mockRejectedValueOnce(new Error('unavailable'))

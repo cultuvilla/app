@@ -325,11 +325,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // read taken as a missing profile sent a signed-in user to onboarding, where
   // abandonSignUp deletes what it takes for a fresh sign-up. A failure leaves it
   // unchecked and is rethrown; the sign-in load below retries it.
+  // A read whose account is no longer the signed-in one (a switch while it was
+  // in flight) touches no state: its "no profile" would otherwise stand for
+  // the new account.
   const loadProfile = useCallback(async (uid: string, currentEmail: string | null) => {
+    const current = () => getAuth().currentUser?.uid === uid;
     setProfileLoading(true);
     let answered = false;
     try {
       const p = await getUserProfile(uid);
+      if (!current()) return;
       answered = true;
       setProfile(p);
       if (p) {
@@ -355,8 +360,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     } finally {
-      setProfileLoading(false);
-      if (answered) setProfileChecked(true);
+      if (current()) {
+        setProfileLoading(false);
+        if (answered) setProfileChecked(true);
+      }
     }
   }, []);
 
