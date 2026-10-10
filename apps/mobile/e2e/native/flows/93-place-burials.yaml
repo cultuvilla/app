@@ -46,13 +46,14 @@ env:
       YEAR: '1990'
       MONTH_OPTION: '2'
       DAY: '14'
+# The macOS runner has taken over a minute to acknowledge this write.
 - tapOn:
     id: 'buried-confirm'
 - runScript:
     file: ../scripts/assertDoc.js
     env:
       DOC_PATH: 'persons/${PUBLIC_ID}'
-      TIMEOUT_MS: '60000'
+      TIMEOUT_MS: '180000'
       EXPECT_JSON: >-
         {
           'burialPlace.placeId': 'e2e-place-cementerio',
@@ -85,7 +86,7 @@ env:
     file: ../scripts/assertDoc.js
     env:
       DOC_PATH: 'persons/${PRIVATE_ID}'
-      TIMEOUT_MS: '60000'
+      TIMEOUT_MS: '180000'
       EXPECT_JSON: "{ 'burialPlace.placeId': 'e2e-place-cementerio', 'deathDate.year': 1975 }"
 # The private burial carries a lock, since only its creator ever sees it.
 - runFlow:
