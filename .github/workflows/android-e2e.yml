@@ -50,20 +50,38 @@ concurrency:
 
 jobs:
   android-e2e:
-    name: Android E2E (Maestro on an AVD)
+    name: Android E2E shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
-    # Gradle cold build (~15 min) + AVD boot + every gating Maestro flow, run
-    # one after another. Generous on purpose: timing out mid-suite tells you
-    # nothing, and this runs nightly plus a handful of times per release, not
-    # per push. The deep lifecycle flows (docs/plans/ongoing/
-    # e2e-full-feature-coverage.md) took the suite past an hour on 2026-10-09,
-    # and with every stage in, the per-flow timings add up to ~170 minutes.
-    # A stopgap until the suite is sharded like ios-e2e (GitHub's cap is 360).
-    timeout-minutes: 240
+    # Four machines, as ios-e2e: one ran the whole suite serially for ~2.5 h
+    # and a runner lost two hours in took every result with it. Each shard runs
+    # whole tens-groups (shardFlows in scripts/lib/maestro-suite.mjs) against
+    # its own AVD, emulators and seed: Gradle build (~15 min, cached) + boot +
+    # ~25-50 min of flows. Generous on purpose: timing out mid-suite tells you
+    # nothing. Free on a public repo (decided 2026-10-10, user).
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      E2E_SHARD: ${{ matrix.shard }}/4
+      # Empty on every event but a dispatch that names flows.
+      E2E_NATIVE_FLOW: ${{ inputs.flows }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      # A dispatched selection (`flows=60`) lands on one shard; the others stop
+      # here instead of building an APK and booting an AVD for nothing.
+      - name: Plan this shard
+        id: plan
+        run: |
+          count=$(node --input-type=module -e "
+            import { planFlows } from './scripts/lib/maestro-suite.mjs';
+            console.log(planFlows({ label: 'android-e2e', quarantined: new Map(), flow: process.env.E2E_NATIVE_FLOW }).flows.length);
+          " | tail -n1)
+          echo "run=$([ "$count" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       # The AVD needs hardware acceleration to be usable. ubuntu-latest runners
       # expose /dev/kvm but not to the runner user; this udev rule is the
@@ -84,6 +102,7 @@ jobs:
       # (it waits for the queue, not for the static_node rule to be applied),
       # hence the bounded retry.
       - name: Enable KVM
+        if: steps.plan.outputs.run == 'true'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -108,11 +127,13 @@ jobs:
           exit 1
 
       - name: Setup pnpm
+        if: steps.plan.outputs.run == 'true'
         uses: pnpm/action-setup@v6
         with:
           version: 10.24.0
 
       - name: Setup Node
+        if: steps.plan.outputs.run == 'true'
         uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -122,12 +143,14 @@ jobs:
       # ci.yml) and AGP 8.x on Expo SDK 56 supports it. One JAVA_HOME, no
       # switching mid-job.
       - name: Setup Java
+        if: steps.plan.outputs.run == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Setup Android SDK
+        if: steps.plan.outputs.run == 'true'
         uses: android-actions/setup-android@v3
         # The action's default also installs the legacy `tools` package, which the
         # runner image's cmdline-tools 16.0 no longer carries: sdkmanager exits 1
@@ -136,22 +159,27 @@ jobs:
           packages: platform-tools
 
       - name: Install workspace dependencies
+        if: steps.plan.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Install functions dependencies
+        if: steps.plan.outputs.run == 'true'
         run: npm ci
         working-directory: functions
 
       - name: Build shared package
+        if: steps.plan.outputs.run == 'true'
         run: pnpm shared:build
 
       - name: Build functions
+        if: steps.plan.outputs.run == 'true'
         run: pnpm functions:build
 
       # Gradle's own cache. The Android build is the long pole in this job by a
       # wide margin, and it is almost entirely dependency resolution + AGP work
       # that does not change between runs.
       - name: Cache Gradle
+        if: steps.plan.outputs.run == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -164,6 +192,7 @@ jobs:
       # alias baked in. Every non-obvious constraint lives in the script, so the
       # local run and this one produce the same APK.
       - name: Build E2E APK (emulator mode)
+        if: steps.plan.outputs.run == 'true'
         run: node scripts/build-android-e2e-apk.mjs
 
       # Pinned: the installer otherwise fetches the latest release on every run,
@@ -171,6 +200,7 @@ jobs:
       # Version drift has bitten before: 2.4 rejects non-ASCII `inputText`, which
       # flow 70 types ("Peña…"). Bump deliberately and run the suite on the branch.
       - name: Install Maestro
+        if: steps.plan.outputs.run == 'true'
         env:
           MAESTRO_VERSION: 2.11.0
         run: |
@@ -192,12 +222,11 @@ jobs:
       # API 33 + google_apis + x86_64 matches the image the repo's local AVD
       # uses. `-no-snapshot-save` keeps a forced kill from poisoning the image.
       - name: Seed + run the Maestro suite on an AVD
+        if: steps.plan.outputs.run == 'true'
         uses: reactivecircus/android-emulator-runner@v2
         env:
           E2E_ANDROID_APK: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
           E2E_FIREBASE_PROJECT: cultuvilla-test
-          # Empty on every event but a dispatch that names flows.
-          E2E_NATIVE_FLOW: ${{ inputs.flows }}
         with:
           api-level: 33
           target: google_apis
@@ -210,10 +239,10 @@ jobs:
           script: pnpm test:e2e:android
 
       - name: Upload Maestro artifacts
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.plan.outputs.run == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: maestro-artifacts
+          name: maestro-artifacts-android-shard-${{ matrix.shard }}
           path: |
             apps/mobile/e2e/native/report/
             ~/.maestro/tests/

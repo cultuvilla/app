@@ -23,7 +23,13 @@ public). Same release-path gating as Android: a `develop` PR never runs it, so
 harness work on a develop branch dispatches it by hand (`pnpm e2e:ci:ios`),
 since macOS is the only place it can run at all.
 
-### Shards (iOS)
+### Shards
+
+Both platforms split the suite across **four machines** the same way
+(`shardFlows`). On Android each shard builds its own APK (Gradle is cached)
+and boots its own AVD; a shard a dispatched `flows=` selection leaves empty
+stops after its *Plan this shard* step. Its artifact is
+`maestro-artifacts-android-shard-i`. iOS builds once and shares the app.
 
 One machine took ~2.5 h for the iOS suite: Maestro restarts its iOS driver for
 every flow. So `ios-e2e` builds the Simulator app **once** (`build` job, shared

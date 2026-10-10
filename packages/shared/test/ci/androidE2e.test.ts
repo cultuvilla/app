@@ -106,6 +106,28 @@ describe('android-e2e workflow gating', () => {
   });
 });
 
+// One serial job ran ~2.5 h, and a runner lost two hours in took every result
+// with it. The suite runs on four machines, as ios-e2e does.
+describe('android-e2e shards', () => {
+  it('splits the suite across machines by E2E_SHARD', () => {
+    const shards = /shard: \[([\d, ]+)\]/.exec(workflow)?.[1].split(',').map(Number) ?? [];
+    expect(shards.length).toBeGreaterThan(1);
+    expect(workflow).toContain(`E2E_SHARD: \${{ matrix.shard }}/${String(shards.length)}`);
+    expect(workflow).toMatch(/fail-fast: false/);
+    expect(workflow).toContain('maestro-artifacts-android-shard-${{ matrix.shard }}');
+  });
+
+  // A dispatched selection lands on one shard; the rest must not build an APK
+  // and boot an AVD for no flows.
+  it('skips every costly step on a shard with nothing to run', () => {
+    const steps = workflow.split('\n      - name: ').slice(1);
+    const planAt = steps.findIndex((st) => st.startsWith('Plan this shard'));
+    expect(planAt).toBeGreaterThanOrEqual(0);
+    const ungated = steps.slice(planAt + 1).filter((st) => !st.includes("steps.plan.outputs.run == 'true'"));
+    expect(ungated.map((st) => st.split('\n')[0])).toEqual([]);
+  });
+});
+
 describe('E2E auth-bypass hygiene', () => {
   // THE load-bearing one. `Platform.OS === 'web'` used to make it structurally
   // impossible for the fixture-login to exist in a store binary. The native
