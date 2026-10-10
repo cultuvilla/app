@@ -1551,5 +1551,21 @@
     "inVillage": "Embajador en {village}",
     "inVillageFemale": "Embajadora en {village}",
     "team": "Equipo del pueblo"
+  },
+  "entityCard": {
+    "a11y": {
+      "comments": {
+        "one": "1 comentario",
+        "other": "{count} comentarios"
+      },
+      "burials": {
+        "one": "1 persona enterrada",
+        "other": "{count} personas enterradas"
+      },
+      "attendees": {
+        "one": "1 persona apuntada",
+        "other": "{count} personas apuntadas"
+      }
+    }
   }
 }
