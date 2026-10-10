@@ -95,6 +95,7 @@ jest.mock('../../push/pushSession', () => ({
 jest.mock('@cultuvilla/shared', () => ({
   observability: {
     setUserContext: jest.fn(),
+    captureError: jest.fn(),
   },
 }));
 
@@ -203,6 +204,47 @@ describe('abandonSignUp', () => {
     });
 
     expect(fbSignOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+// A profile read that FAILS is not a profile that is missing. Read as missing,
+// it sent a signed-in user to "Completa tu perfil", whose abandon button then
+// deleted their account as a fresh sign-up (seen under a loaded emulator,
+// 2026-10-10).
+describe('a failed profile read', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchUserIdHash as jest.Mock).mockResolvedValue(FAKE_HASH);
+    mockAuthUser = { uid: FAKE_UID, email: 'a@b.com', delete: jest.fn().mockResolvedValue(undefined) };
+  });
+
+  it('leaves the profile unchecked, so nothing routes to onboarding', async () => {
+    (getUserProfile as jest.Mock).mockRejectedValue(new Error('unavailable'));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+    await act(async () => {});
+    expect(result.current.profileChecked).toBe(false);
+  });
+
+  it('never deletes the account from abandonSignUp', async () => {
+    (getUserProfile as jest.Mock).mockRejectedValue(new Error('unavailable'));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+    const deleteFn = mockAuthUser!.delete!;
+    await act(async () => {
+      await result.current.abandonSignUp();
+    });
+    expect(deleteFn).not.toHaveBeenCalled();
+    expect(fbSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('tries again and loads the profile once the read succeeds', async () => {
+    (getUserProfile as jest.Mock)
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValue({ activeMunicipalityId: 'm1' });
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile).not.toBeNull(), { timeout: 5000 });
+    expect(result.current.profileChecked).toBe(true);
   });
 });
 
