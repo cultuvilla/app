@@ -300,11 +300,17 @@ describe('iOS quarantine', () => {
   );
 
   // Three: 45 needs airplane mode, which Maestro cannot toggle on iOS at all;
-  // 50 is the AVD-tuned onboarding keyboard choreography; 83's poster needs a
-  // photo, and iOS photo uploads did not land on the shared runners (#560).
-  // A fourth needs this bound raised on purpose, in review.
+  // 55's news tab never finished loading for a villager on the Simulator; and
+  // 83's poster needs a photo, and iOS photo uploads did not land on the shared
+  // runners (#560). A fourth needs this bound raised on purpose, in review.
   it('holds out at most three flows', () => {
     expect(quarantined.length).toBeLessThanOrEqual(3);
+  });
+
+  // 50 left the quarantine once its rewrite passed on iOS; a quiet return
+  // would drop onboarding from the iOS gate again.
+  it('runs onboarding (50) on iOS', () => {
+    expect(quarantined).not.toContain('50-onboarding-complete-profile.yaml');
   });
 
   it('names only flows that exist', () => {

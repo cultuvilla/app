@@ -1,12 +1,12 @@
-# A user's own profile and the personas they manage:
+# A dependent persona a user manages, through its whole life:
 #
-#   own      — nickname, sex, birthday, biography and an occupation edited and
-#              read back on the profile tab
-#   create   — a dependent persona with every field, public by default
+#   create   — every field, public by default
 #   edit     — renamed, made private, biography changed
 #   view     — another villager: the private persona is closed to them, a
 #              public one (the seeded dependent) is not
-#   delete   — the creator deletes the dependent
+#   delete   — the creator deletes it
+#
+# Split from 51 to stay under Maestro's 15-minute limit.
 appId: com.cultuvilla.app.dev
 env:
   USER_EMAIL: e2e-user@cultuvilla.test
@@ -26,85 +26,11 @@ env:
       FIELD: givenName
       VALUE: 'Hijita'
 
-# ── Own profile ──
 - runFlow:
     file: ../subflows/login.yaml
     env:
       EMAIL: ${USER_EMAIL}
       PASSWORD: ${PASSWORD}
-- tapOn:
-    id: 'profile-edit-action'
-- extendedWaitUntil:
-    visible:
-      id: 'person-nickname'
-    timeout: 30000
-- runFlow:
-    file: ../subflows/replace-text.yaml
-    env:
-      INPUT: 'person-nickname'
-      TEXT: 'Usu'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'person-sex-male'
-- tapOn:
-    id: 'person-sex-male'
-- runFlow: ../subflows/close-keyboard.yaml
-- tapOn:
-    id: 'person-form-primary'
-# Month option 2 is March.
-- runFlow:
-    file: ../subflows/pick-birthday.yaml
-    env:
-      YEAR: '1985'
-      MONTH_OPTION: '2'
-      DAY: '3'
-- runFlow: ../subflows/close-keyboard.yaml
-- tapOn:
-    id: 'person-form-primary'
-- extendedWaitUntil:
-    visible:
-      id: 'person-biography'
-    timeout: 10000
-- runFlow:
-    file: ../subflows/replace-text.yaml
-    env:
-      INPUT: 'person-biography'
-      TEXT: 'Vecino de Altozano de toda la vida'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'occupation-profesor'
-- tapOn:
-    id: 'occupation-profesor'
-- runFlow: ../subflows/close-keyboard.yaml
-- tapOn:
-    id: 'person-form-primary'
-- runScript:
-    file: ../scripts/assertDoc.js
-    env:
-      DOC_PATH: 'persons/e2e-person-user'
-      TIMEOUT_MS: '60000'
-      EXPECT_JSON: >-
-        {
-          'givenName': 'Usuario',
-          'nickname': 'Usu',
-          'sex': 'male',
-          'birthday.year': 1985,
-          'birthday.month': 3,
-          'birthday.day': 3,
-          'biography': 'Vecino de Altozano de toda la vida',
-          'occupations': { 'contains': ['profesor'] }
-        }
-- extendedWaitUntil:
-    visible:
-      id: 'profile-edit-action'
-    timeout: 30000
-- runFlow:
-    file: ../subflows/see-text.yaml
-    env:
-      TEXT: 'Vecino de Altozano de toda la vida'
-
 # ── A dependent, every field ──
 - openLink: 'cultuvilla://persona/new'
 - extendedWaitUntil:
@@ -158,7 +84,7 @@ env:
     env:
       YEAR: '2016'
       MONTH_OPTION: '0'
-      DAY: '9'
+      DAY: '28'
 - runFlow:
     file: ../subflows/pick-village.yaml
     env:
@@ -208,7 +134,7 @@ env:
           'userId': 'absent',
           'birthday.year': 2016,
           'birthday.month': 1,
-          'birthday.day': 9,
+          'birthday.day': 28,
           'birthPlace.municipalityId': 'e2e-village-altozano',
           'biography': 'Le gusta la musica'
         }
