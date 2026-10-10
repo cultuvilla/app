@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getVillageMembers } from '@cultuvilla/shared/services/villageMemberService';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
 import { getPublicProfile } from '@cultuvilla/shared/services/userService';
+import { observability } from '@cultuvilla/shared';
 import { getOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
@@ -102,8 +103,9 @@ export function OrganizerPicker({
       if (currentMunicipality.current !== forMunicipality) return;
       setOrgs(orgDocs);
       setOrgsLoaded(true);
-    } catch {
+    } catch (error) {
       // Left unloaded: opening the group sheet tries again.
+      observability.captureError(error, { operation: 'organizerPicker:orgs' });
     }
   }, [municipalityId]);
 
@@ -112,11 +114,16 @@ export function OrganizerPicker({
     let memberDocs: Awaited<ReturnType<typeof getVillageMembers>>;
     try {
       memberDocs = await getVillageMembers(forMunicipality);
-    } catch {
+    } catch (error) {
       // Left unloaded: opening the villager sheet tries again.
+      observability.captureError(error, { operation: 'organizerPicker:members' });
       return;
     }
-    const people = await getMunicipalityPeople(forMunicipality).catch(() => []);
+    const people = await getMunicipalityPeople(forMunicipality).catch((error: unknown) => {
+      // Names fall back to each member's profile below.
+      observability.captureError(error, { operation: 'organizerPicker:people' });
+      return [];
+    });
     if (currentMunicipality.current !== forMunicipality) return;
 
     const byUserId = new Map(
