@@ -1,0 +1,86 @@
+# A user's own profile: nickname, sex, birthday, biography and an occupation
+# edited, each checked on the person doc and read back on the profile tab.
+# The personas they manage are flow 54.
+appId: com.cultuvilla.app.dev
+env:
+  USER_EMAIL: e2e-user@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+---
+# ── Own profile ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- tapOn:
+    id: 'profile-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'person-nickname'
+    timeout: 30000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'person-nickname'
+      TEXT: 'Usu'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'person-sex-male'
+- tapOn:
+    id: 'person-sex-male'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+# Month option 2 is March.
+- runFlow:
+    file: ../subflows/pick-birthday.yaml
+    env:
+      YEAR: '1985'
+      MONTH_OPTION: '2'
+      DAY: '3'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'person-biography'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'person-biography'
+      TEXT: 'Vecino de Altozano de toda la vida'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'occupation-profesor'
+- tapOn:
+    id: 'occupation-profesor'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'person-form-primary'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'persons/e2e-person-user'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: >-
+        {
+          'givenName': 'Usuario',
+          'nickname': 'Usu',
+          'sex': 'male',
+          'birthday.year': 1985,
+          'birthday.month': 3,
+          'birthday.day': 3,
+          'biography': 'Vecino de Altozano de toda la vida',
+          'occupations': { 'contains': ['profesor'] }
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'profile-edit-action'
+    timeout: 30000
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: 'Vecino de Altozano de toda la vida'

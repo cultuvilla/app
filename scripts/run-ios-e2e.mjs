@@ -84,19 +84,18 @@ function simctlDevices(...filter) {
 //    transport and pass on the other's.
 const QUARANTINED = new Map([
   [
-    '50-onboarding-complete-profile.yaml',
-    'its keyboard choreography is tuned to the Android AVD (swipe endpoints as ' +
-      'percentages of a pixel_5, no hideKeyboard). On the iOS Simulator the step-1 ' +
-      '"Siguiente" tap left the form on step 1 with the keyboard up, so birthday-year ' +
-      '(step 2) never appeared (first full iOS run, 2026-10-06). Android still runs ' +
-      'it. Chase with `pnpm e2e:ci:ios -f flows=50`.',
-  ],
-  [
     '45-offline-cached-village.yaml',
     "drives the device offline with Maestro's setAirplaneMode, which is " +
       'Android-only: a Simulator shares the Mac\'s network and has no airplane ' +
       'mode to toggle. Offline rendering on iOS needs a different lever (e.g. ' +
       'stopping the emulators mid-flow) before this can run here.',
+  ],
+  [
+    '55-news-filters.yaml',
+    "the news tab stayed on its loading spinner for a non-admin villager on " +
+      'the iOS Simulator in CI (PR #563, 2026-10-10, every attempt) while it ' +
+      'loads on Android and for the admin on iOS. Reproduce on an iPhone; until ' +
+      'then Android runs it. Chase with `pnpm e2e:ci:ios -f flows=55`.',
   ],
 ]);
 
