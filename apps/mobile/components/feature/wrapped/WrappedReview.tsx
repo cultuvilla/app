@@ -106,6 +106,7 @@ export function WrappedReview({ wrapped, villageSlug, onPublish, onDiscard, deci
             onClose={() => setOpenAt(null)}
             onShareLink={published ? share.shareLink : undefined}
             onShareCard={share.shareCard}
+            onSaveCard={share.saveCard}
           />
         ) : null}
       </Modal>
