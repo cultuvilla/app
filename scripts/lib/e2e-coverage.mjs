@@ -208,6 +208,16 @@ export function controlsWithoutTestId(files = sourceFiles(), root = mobileDir) {
   return misses;
 }
 
+// Whether a test file names a gap's id as a string literal in code: the whole
+// id between quotes, or for a prefix id (`group-row-*`) a literal that starts
+// with it. A comment, or a longer id that merely contains it, does not count.
+export function referencesTestId(source, key) {
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  const prefix = key.endsWith('*');
+  const head = (prefix ? key.slice(0, -1) : key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(prefix ? `['"\`]${head}` : `['"\`]${head}['"\`]`).test(code);
+}
+
 export function readUncovered() {
   return JSON.parse(readFileSync(uncoveredPath, 'utf8'));
 }

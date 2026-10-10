@@ -32,6 +32,7 @@ const lib = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/e2e-cover
   ) => { covered: Set<string>; uncovered: Set<string>; dangling: Ref[] };
   controlsWithoutTestId: (files?: string[], root?: string) => { file: string; line: number; control: string }[];
   readUncovered: () => Record<string, string>;
+  referencesTestId: (source: string, key: string) => boolean;
 };
 
 const ids = lib.sourceTestIds();
@@ -72,8 +73,7 @@ describe('native E2E coverage ratchet', () => {
       if (!why.startsWith('unit-tested: ')) return [];
       const path = resolve(repoRoot, 'apps/mobile', why.slice('unit-tested: '.length));
       if (!existsSync(path)) return [`${key}: ${path} does not exist`];
-      const literal = key.split(/\$\{|\*/)[0];
-      return readFileSync(path, 'utf8').includes(literal) ? [] : [`${key}: not referenced in ${why}`];
+      return lib.referencesTestId(readFileSync(path, 'utf8'), key) ? [] : [`${key}: not referenced in ${why}`];
     });
     expect(missing).toEqual([]);
   });
@@ -87,6 +87,24 @@ describe('native E2E coverage ratchet', () => {
   // without one would be invisible to it.
   it('every control on a form surface carries a testID', () => {
     expect(lib.controlsWithoutTestId().map((m) => `${m.file}:${String(m.line)} <${m.control}>`)).toEqual([]);
+  });
+});
+
+describe('unit-tested gap references', () => {
+  it('counts the id as a string literal in code', () => {
+    expect(lib.referencesTestId("getByTestId('wrapped-range')", 'wrapped-range')).toBe(true);
+    expect(lib.referencesTestId('fireEvent.press(getByTestId(`group-row-p1`))', 'group-row-*')).toBe(true);
+  });
+
+  it('ignores a comment, and a longer id that only contains it', () => {
+    expect(lib.referencesTestId("// covers 'wrapped-range'\nrender(<X />)", 'wrapped-range')).toBe(false);
+    expect(lib.referencesTestId("/* 'wrapped-range' */", 'wrapped-range')).toBe(false);
+    expect(lib.referencesTestId("getByTestId('wrapped-range-reset')", 'wrapped-range')).toBe(false);
+    expect(lib.referencesTestId("getByTestId('my-group-row-1')", 'group-row-*')).toBe(false);
+  });
+
+  it('keeps a URL in a string, whose // is not a comment', () => {
+    expect(lib.referencesTestId("uri: 'https://x.test/a.jpg', id: 'avatar-image'", 'avatar-image')).toBe(true);
   });
 });
 

@@ -137,20 +137,43 @@ env:
     visible:
       id: 'place-share-action'
     timeout: 45000
+# The whole burial section on screen at once — its heading, the public row and
+# the comment box below it — so the private row's absence is not merely its
+# being scrolled out of view.
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
-      TARGET: 'buried-person-row-${PUBLIC_ID}'
+      TARGET: 'comment-input'
+- assertVisible: 'Personas enterradas aquí'
+- assertVisible:
+    id: 'buried-person-row-${PUBLIC_ID}'
 - assertNotVisible:
     id: 'buried-person-row-${PRIVATE_ID}'
-# The village home's cemetery card counts its burials (syncPlaceBurialCount).
+# The cemetery counts every burial, private ones included (syncPlaceBurialCount),
+# and the village home's card shows that count.
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'municipalities/e2e-village-altozano/places/${PLACE_ID}'
+      TIMEOUT_MS: '60000'
+      EXPECT_JSON: "{ 'burialCount': 2 }"
+# On iOS the card is one accessibility element labelled with its name alone,
+# so the badge inside it is not in the hierarchy; the doc above is the check.
 - openLink: 'cultuvilla://${VILLAGE_SLUG}'
 - runFlow: ../subflows/dismiss-push-soft-ask.yaml
-- scrollUntilVisible:
-    element:
-      id: 'entity-card-burial-count'
-    direction: DOWN
-    timeout: 60000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'entity-card-burial-count'
+          direction: DOWN
+          timeout: 60000
+      - assertVisible:
+          text: '2'
+          childOf:
+            id: 'entity-card-burial-count'
 
 # ── Remove both ──
 - runFlow:
