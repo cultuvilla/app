@@ -9,6 +9,8 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 describe('<PersonForm> stepper', () => {
+  afterEach(() => jest.useRealTimers());
+
   it('shows the identity step first and blocks Next without a given name', () => {
     const onSubmit = jest.fn();
     const { getByText, getByLabelText, queryByTestId } = render(
@@ -215,7 +217,9 @@ describe('<PersonForm> stepper', () => {
   // Self-registration has a minimum age; a birthday after the cut-off is
   // named on the residence step and keeps it from advancing.
   it('names a birthday too recent for the minimum age, and blocks the step', () => {
-    const year = new Date().getFullYear() - 14;
+    // A fixed today, so 31 December of the cut-off year is always too recent.
+    jest.useFakeTimers({ now: new Date(2026, 5, 15), doNotFake: ['setTimeout', 'setInterval', 'setImmediate', 'nextTick', 'queueMicrotask'] });
+    const year = 2012;
     const utils = render(
       <PersonForm submitLabel="Guardar" minAgeYears={14} onSubmit={jest.fn()} />,
     );
