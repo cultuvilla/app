@@ -90,6 +90,13 @@ const QUARANTINED = new Map([
       'mode to toggle. Offline rendering on iOS needs a different lever (e.g. ' +
       'stopping the emulators mid-flow) before this can run here.',
   ],
+  [
+    '55-news-filters.yaml',
+    "the news tab stayed on its loading spinner for a non-admin villager on " +
+      'the iOS Simulator in CI (PR #563, 2026-10-10, every attempt) while it ' +
+      'loads on Android and for the admin on iOS. Reproduce on an iPhone; until ' +
+      'then Android runs it. Chase with `pnpm e2e:ci:ios -f flows=55`.',
+  ],
 ]);
 
 // A shard (or a dispatched selection) can leave this machine nothing to run;

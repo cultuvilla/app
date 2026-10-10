@@ -1,5 +1,5 @@
-# Finding things on the Explora feed: search, and every filter narrowing the
-# list and being cleared again. "Por cercanía" sorts from the user's active
+# Finding events on the Explora feed: search, and every filter narrowing the
+# list and being cleared again. The news tab's category filter is flow 55. "Por cercanía" sorts from the user's active
 # village, which the flow sets to Altozano first: it must not depend on flow 50,
 # which iOS holds out (run-ios-e2e.mjs).
 #
@@ -120,33 +120,3 @@ env:
     timeout: 10000
 - tapOn:
     id: 'filter-search-clear'
-
-# ── News: category ── on Android only. On iOS the news tab stayed on its
-# spinner for this non-admin user in CI (2026-10-10); to reproduce on an
-# iPhone before it runs here.
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - tapOn: 'Artículos'
-      - extendedWaitUntil:
-          visible:
-            id: 'filter-category'
-          timeout: 15000
-      - extendedWaitUntil:
-          visible: '.*Noticia Sembrada E2E.*'
-          timeout: 30000
-      - tapOn:
-          id: 'filter-category'
-      - tapOn:
-          id: 'filter-category-sheet-option-fiesta'
-      - extendedWaitUntil:
-          notVisible: '.*Noticia Sembrada E2E.*'
-          timeout: 10000
-      - tapOn:
-          id: 'filter-category'
-      - tapOn:
-          id: 'filter-category-sheet-option-historia'
-      - extendedWaitUntil:
-          visible: '.*Noticia Sembrada E2E.*'
-          timeout: 10000

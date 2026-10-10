@@ -299,11 +299,17 @@ describe('iOS quarantine', () => {
     ([, name]) => name,
   );
 
-  // Two: 45 needs airplane mode, which Maestro cannot toggle on iOS at all
-  // (50, the onboarding flow, came back once its rewrite ran on iOS). A third
-  // needs this bound raised on purpose, in review.
+  // Two: 45 needs airplane mode, which Maestro cannot toggle on iOS at all,
+  // and 55's news tab never finished loading for a villager on the Simulator.
+  // A third needs this bound raised on purpose, in review.
   it('holds out at most two flows', () => {
     expect(quarantined.length).toBeLessThanOrEqual(2);
+  });
+
+  // 50 left the quarantine once its rewrite passed on iOS; a quiet return
+  // would drop onboarding from the iOS gate again.
+  it('runs onboarding (50) on iOS', () => {
+    expect(quarantined).not.toContain('50-onboarding-complete-profile.yaml');
   });
 
   it('names only flows that exist', () => {

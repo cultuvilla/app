@@ -68,7 +68,8 @@ instead of the whole shard.
 | `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
 | `51-own-profile` | A user's own profile edited — nickname, sex, birthday, biography, an occupation — and read back. |
 | `54-dependents` | A dependent created with every field, renamed and made private, closed to another villager (a public one is not), then deleted. Split from 51 to stay under the 15-minute limit. |
-| `52-feed-discovery` | Explora's search and each filter (village, date, proximity sort, news category) narrowing the list and clearing again; the proximity sort proven by order. The news category filter runs on Android only. |
+| `52-feed-discovery` | Explora's event search and each filter (village, date, proximity sort) narrowing the list and clearing again; the proximity sort proven by order. |
+| `55-news-filters` | The news tab's category filter keeping and dropping the seeded post. Quarantined on iOS (see run-ios-e2e.mjs). |
 | `53-vocabulary` | A word created with every field, found by search, given and stripped of a second villager's meaning, then emptied and deleted by its author. |
 | `60-event-create` | An event created with every field: cover, organizers (a villager + two orgs), dates, capacity, age range, phone, payment, groups, private roster, questions; every stored field and the detail screen asserted. Also the OS location permission and a real GPS fix (`setLocation`). |
 | `62-event-permissions` | 60's event as its other users see it: the co-organizer may edit; a villager may only read, and the edit link sends them back. Split from 60 to keep it under Maestro's 15-minute limit on a slow runner. |
