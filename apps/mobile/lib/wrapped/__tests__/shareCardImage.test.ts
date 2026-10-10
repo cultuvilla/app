@@ -1,10 +1,12 @@
-import { shareCardImage } from '../shareCardImage';
+import { saveCardImage, shareCardImage } from '../shareCardImage';
 
 const mockDownload = jest.fn();
 const mockDelete = jest.fn();
 const mockShareAsync = jest.fn<Promise<void>, [string, Record<string, unknown>?]>();
 const mockIsAvailableAsync = jest.fn<Promise<boolean>, []>();
 const mockExisting = { value: false };
+const mockRequestPermissions = jest.fn<Promise<{ granted: boolean }>, [boolean?]>();
+const mockSaveToLibrary = jest.fn<Promise<void>, [string]>();
 
 jest.mock('expo-file-system', () => ({
   get File() {
@@ -29,6 +31,11 @@ jest.mock('expo-sharing', () => ({
   shareAsync: (...args: [string, Record<string, unknown>?]) => mockShareAsync(...args),
 }));
 
+jest.mock('expo-media-library/legacy', () => ({
+  requestPermissionsAsync: (...args: [boolean?]) => mockRequestPermissions(...args),
+  saveToLibraryAsync: (...args: [string]) => mockSaveToLibrary(...args),
+}));
+
 const URL_JPG = 'https://firebasestorage.googleapis.com/v0/b/x/o/villageWrapped%2Fm_2026%2Fevents.jpg?alt=media&token=t';
 const URL_PNG = 'https://firebasestorage.googleapis.com/v0/b/x/o/villageWrapped%2Fm_2026%2Fstats.png?alt=media&token=t';
 
@@ -37,6 +44,8 @@ beforeEach(() => {
   mockExisting.value = false;
   mockIsAvailableAsync.mockResolvedValue(true);
   mockShareAsync.mockResolvedValue(undefined);
+  mockRequestPermissions.mockResolvedValue({ granted: true });
+  mockSaveToLibrary.mockResolvedValue(undefined);
   mockDownload.mockImplementation((_url: string, file: { name: string }) =>
     Promise.resolve({ uri: `file:///cache/${file.name}` }),
   );
@@ -72,5 +81,26 @@ describe('shareCardImage', () => {
     mockIsAvailableAsync.mockResolvedValue(false);
     await expect(shareCardImage(URL_PNG, 'x')).rejects.toThrow(/not available/);
     expect(mockDownload).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveCardImage', () => {
+  it('asks for add-only access and saves the downloaded file to the library', async () => {
+    await expect(saveCardImage(URL_JPG, 'villa-fiestas-2026-events')).resolves.toBe('saved');
+    // writeOnly: the app adds photos, it never reads the library.
+    expect(mockRequestPermissions).toHaveBeenCalledWith(true);
+    expect(mockSaveToLibrary).toHaveBeenCalledWith('file:///cache/villa-fiestas-2026-events.jpg');
+  });
+
+  it('downloads nothing when the user refuses', async () => {
+    mockRequestPermissions.mockResolvedValue({ granted: false });
+    await expect(saveCardImage(URL_JPG, 'x')).resolves.toBe('denied');
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(mockSaveToLibrary).not.toHaveBeenCalled();
+  });
+
+  it('fails when the library refuses the file', async () => {
+    mockSaveToLibrary.mockRejectedValue(new Error('E_SAVE'));
+    await expect(saveCardImage(URL_PNG, 'x')).rejects.toThrow('E_SAVE');
   });
 });

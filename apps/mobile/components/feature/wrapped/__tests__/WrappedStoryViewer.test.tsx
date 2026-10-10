@@ -15,7 +15,13 @@ const tapRight = { nativeEvent: { locationX: 10_000 } };
 const tapLeft = { nativeEvent: { locationX: 0 } };
 
 function renderViewer(props: Partial<Parameters<typeof WrappedStoryViewer>[0]> = {}) {
-  const handlers = { onClose: jest.fn(), onShareLink: jest.fn(), onShareCard: jest.fn(), onOpenVillage: jest.fn() };
+  const handlers = {
+    onClose: jest.fn(),
+    onShareLink: jest.fn(),
+    onShareCard: jest.fn(),
+    onSaveCard: jest.fn(),
+    onOpenVillage: jest.fn(),
+  };
   const utils = render(<WrappedStoryViewer cards={cards} title="Fiestas 2026 · Villa" {...handlers} {...props} />);
   return { ...utils, ...handlers };
 }
@@ -94,6 +100,20 @@ describe('WrappedStoryViewer', () => {
     expect(onShareLink).toHaveBeenCalled();
     fireEvent.press(getByTestId('wrapped-open-village'));
     expect(onOpenVillage).toHaveBeenCalled();
+  });
+
+  it('downloads the card on screen, and offers no download once the cards run out', () => {
+    const { getByTestId, queryByTestId, onSaveCard } = renderViewer({ initialIndex: 1 });
+    fireEvent.press(getByTestId('wrapped-save-card'));
+    expect(onSaveCard).toHaveBeenCalledWith(cards[1]);
+
+    fireEvent.press(getByTestId('wrapped-story-tap'), tapRight);
+    expect(queryByTestId('wrapped-save-card')).toBeNull();
+  });
+
+  it('offers no download where none was given', () => {
+    const { queryByTestId } = renderViewer({ onSaveCard: undefined });
+    expect(queryByTestId('wrapped-save-card')).toBeNull();
   });
 
   it('offers no sharing where none was given — a draft in review', () => {

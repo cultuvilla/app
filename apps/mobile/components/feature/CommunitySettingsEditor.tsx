@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { VStack, Text, Input, ImagePickerField } from '../primitives';
 import { LocationPicker } from './LocationPicker';
@@ -28,11 +28,18 @@ import type { FiestaBlock } from '@cultuvilla/shared/models/municipality/FiestaB
  * once typing pauses, and on close if still unsaved — so the screen's "Listo"
  * button just closes the editor. (A parent calling an imperative save() on
  * unmount once no-opped against a nulled ref; the close flush here lives in
- * the editor and reads its own refs.)
+ * the editor and reads its own refs.) `afterFiestas` renders right below the
+ * fiestas, where the screen puts the entry to the fiestas summary they feed.
  */
 const DESCRIPTION_SAVE_DELAY_MS = 600;
 
-export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
+export function CommunitySettingsEditor({
+  villageId,
+  afterFiestas,
+}: {
+  villageId: string;
+  afterFiestas?: ReactNode;
+}) {
   const { t } = useT();
   const [village, setVillage] = useState<MunicipalityData | null>(null);
   const [description, setDescription] = useState<string | null>(null);
@@ -196,6 +203,7 @@ export function CommunitySettingsEditor({ villageId }: { villageId: string }) {
           blocks={fiestas}
           onChange={(next) => void saveFiestas(next)}
         />
+        {afterFiestas}
       </VStack>
     </ScrollView>
   );
