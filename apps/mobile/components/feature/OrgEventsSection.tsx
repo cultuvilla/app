@@ -41,7 +41,7 @@ export function OrgEventsSection({ orgId, includePrivate }: { orgId: string; inc
             sub={formatDate(e.startDate, 'short')}
             icon="calendar-outline"
             imageUri={e.imageURL ?? e.villageCoverImage}
-            statBadge={{ icon: 'person-outline', count: e.confirmedCount }}
+            statBadge={{ icon: 'person-outline', count: e.confirmedCount, spoken: 'attendees' }}
             onPress={() => router.push(eventHref(e))}
           />
         )}

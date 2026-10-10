@@ -367,6 +367,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               statBadge={{
                 icon: 'person-outline',
                 count: e.confirmedCount,
+                spoken: 'attendees',
                 testID: 'entity-card-event-attendee-count',
               }}
               onPress={() => router.push(eventHref({ ...e, villageSlug }))}
@@ -459,6 +460,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
                   ? {
                       icon: 'person-outline',
                       count: p.burialCount,
+                      spoken: 'burials',
                       testID: 'entity-card-burial-count',
                     }
                   : undefined
