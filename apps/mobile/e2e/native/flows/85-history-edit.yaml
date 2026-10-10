@@ -132,11 +132,14 @@ env:
       TEXT: ${output.historyEditBody}
 
 # ── Delete: the creator withdraws it ──
-- runFlow:
-    file: ../subflows/tap-until.yaml
-    env:
-      TAP: 'history-edit-action'
-      EXPECT: 'history-delete'
+# A plain tap: tap-until's second tap would land on the edit screen's trash,
+# which sits where the edit action was.
+- tapOn:
+    id: 'history-edit-action'
+- extendedWaitUntil:
+    visible:
+      id: 'history-delete'
+    timeout: 45000
 - tapOn:
     id: 'history-delete'
 - runFlow:

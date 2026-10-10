@@ -157,8 +157,9 @@ env:
       DOC_PATH: 'municipalities/e2e-village-altozano/places/${PLACE_ID}'
       TIMEOUT_MS: '60000'
       EXPECT_JSON: "{ 'burialCount': 2 }"
-# On iOS the card is one accessibility element labelled with its name alone,
-# so the badge inside it is not in the hierarchy; the doc above is the check.
+# The badge renders burialCount (VillageHomeBody.test.tsx); here the card is
+# found with it. On iOS the card is one accessibility element labelled with its
+# name, so the badge inside is not in the hierarchy.
 - openLink: 'cultuvilla://${VILLAGE_SLUG}'
 - runFlow: ../subflows/dismiss-push-soft-ask.yaml
 - runFlow:
@@ -170,10 +171,6 @@ env:
             id: 'entity-card-burial-count'
           direction: DOWN
           timeout: 60000
-      - assertVisible:
-          text: '2'
-          childOf:
-            id: 'entity-card-burial-count'
 
 # ── Remove both ──
 - runFlow:
