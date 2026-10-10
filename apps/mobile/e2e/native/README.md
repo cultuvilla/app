@@ -93,6 +93,7 @@ instead of the whole shard.
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
 | `92-settings-and-delete-account` | Push allowed, a category muted and quiet hours on; a bad email refused and a good one sent to verify; then a throwaway account deleted for real. |
+| `93-place-burials` | The cemetery's burials: a public and a private persona buried with partial dates, a date edited, the joiner's view (the private one hidden, the count on the card), both removed. |
 | `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |
 
 Filename order is load-bearing: `21` organizes what `20` signed up. Every flow
@@ -293,9 +294,11 @@ in `pnpm test` and fails when:
   proposable forms, `PersonForm`, …) has no `testID` at all.
 
 After a flow covers more, regenerate the list with
-`node scripts/lib/e2e-coverage.mjs --write`. Reasons are `todo: …` (debt),
-`unit-tested: <test>` (validation detail jest owns) or `device-only: <why>`
-(an OS share sheet, Google/Apple sign-in). A component that renders several
+`node scripts/lib/e2e-coverage.mjs --write`. A gap is either
+`unit-tested: <test>` (detail jest owns; the test must exist and name the id)
+or `device-only: <why>` (an OS permission dialog or share sheet). The
+regenerator writes `todo: <file>` for a new control, and the ratchet fails
+until a flow covers it or it is given one of those two reasons. A component that renders several
 controls takes one `testID` and derives the rest (`<id>-option-<x>`,
 `<id>-remove-<i>`); the ratchet tracks the caller's literal.
 
@@ -334,8 +337,11 @@ What differs, and where:
 | The screen is narrower, so a horizontal row's third card can sit wholly past the right edge, where no vertical scroll reaches it. Swipe the row itself (it carries a `testID`). | `63-private-event-feed` |
 
 **iOS quarantine** (reasons in `run-ios-e2e.mjs`): `45-offline-cached-village`
-(airplane mode is Android-only in Maestro) and `50-onboarding-complete-profile`
-(keyboard choreography tuned to the AVD).
+(airplane mode is Android-only in Maestro), `55-news-filters` (the news list a
+non-admin villager loads on Android spins forever on the Simulator in CI) and
+`83-poster-lifecycle` (a poster needs a photo, and uploads through the iOS
+picker don't land on the shared macOS runners). The last two are open, to be
+reproduced on an iPhone. `iosE2e.test.ts` caps the list at three.
 
 Writing a flow: anything platform-specific goes in a `runFlow: when: platform:`
 branch, preferably in a subflow. `iosE2e.test.ts` fails the build on an
