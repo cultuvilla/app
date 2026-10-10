@@ -145,3 +145,10 @@ test('renders the photo in a square box, matching the 1:1 upload crop', async ()
   const box = await findByTestId('person-photo');
   expect(box.props.style).toEqual(expect.objectContaining({ aspectRatio: 1 }));
 });
+
+test('shows a persona photo that opens full size', async () => {
+  const { findByTestId } = render(
+    <PersonProfileView person={person({ photoURL: 'https://example.test/marta.jpg' })} />,
+  );
+  expect(await findByTestId('person-photo-zoom')).toBeTruthy();
+});

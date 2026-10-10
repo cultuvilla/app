@@ -211,4 +211,26 @@ describe('<PersonForm> stepper', () => {
       null,
     );
   });
+
+  // Self-registration has a minimum age; a birthday after the cut-off is
+  // named on the residence step and keeps it from advancing.
+  it('names a birthday too recent for the minimum age, and blocks the step', () => {
+    const year = new Date().getFullYear() - 14;
+    const utils = render(
+      <PersonForm submitLabel="Guardar" minAgeYears={14} onSubmit={jest.fn()} />,
+    );
+    fireEvent.changeText(utils.getByLabelText('onboarding.completeProfile.givenName'), 'Ana');
+    fireEvent.press(utils.getByText('onboarding.completeProfile.sex_female'));
+    fireEvent.press(utils.getByText('common.stepper.next')); // → residence
+    fireEvent.press(utils.getByTestId('birthday-year'));
+    fireEvent.press(utils.getByTestId(`birthday-year-option-${year}`));
+    fireEvent.press(utils.getByTestId('birthday-month'));
+    fireEvent.press(utils.getByTestId('birthday-month-option-11'));
+    fireEvent.press(utils.getByTestId('birthday-day'));
+    fireEvent.press(utils.getByTestId('birthday-day-option-31'));
+
+    expect(utils.getByTestId('birthday-min-age-error')).toBeTruthy();
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    expect(utils.queryByTestId('occupation-otro')).toBeNull();
+  });
 });

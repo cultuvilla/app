@@ -74,8 +74,9 @@ describe('WrappedScreen', () => {
 
   it('points a village without fiestas to add them', async () => {
     mockMunicipality.mockResolvedValue({ ...village, community: { fiestas: [] } });
-    const { findByText } = render(<WrappedScreen />);
+    const { findByText, getByTestId } = render(<WrappedScreen />);
     expect(await findByText('village.wrapped.noFiestas')).toBeTruthy();
+    expect(getByTestId('wrapped-go-fiestas')).toBeTruthy();
   });
 
   it('shows a built draft and publishes it', async () => {

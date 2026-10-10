@@ -53,4 +53,23 @@ describe('WrappedReview', () => {
       expect.objectContaining({ onShareLink: mockShareLink, onShareCard: mockShareCard }),
     );
   });
+
+  it('states a draft and lets it be published or discarded', () => {
+    const onPublish = jest.fn();
+    const onDiscard = jest.fn();
+    const { getByTestId } = render(
+      <WrappedReview
+        wrapped={{ status: 'draft', images: IMAGES, autoPublishAt: null, villageName: 'Anaya', year: 2026 }}
+        villageSlug="anaya"
+        onPublish={onPublish}
+        onDiscard={onDiscard}
+        deciding={false}
+      />,
+    );
+    expect(getByTestId('wrapped-status')).toBeTruthy();
+    fireEvent.press(getByTestId('wrapped-discard'));
+    expect(onDiscard).toHaveBeenCalled();
+    fireEvent.press(getByTestId('wrapped-publish'));
+    expect(onPublish).toHaveBeenCalled();
+  });
 });
