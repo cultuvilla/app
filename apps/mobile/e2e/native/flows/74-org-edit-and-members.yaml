@@ -51,12 +51,11 @@ env:
     visible:
       id: 'org-edit-action'
     timeout: 45000
-- tapOn:
-    id: 'org-edit-action'
-- extendedWaitUntil:
-    visible:
-      id: 'org-edit-name-input'
-    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'org-edit-action'
+      EXPECT: 'org-edit-name-input'
 # Photos are written at once, not on save; picked on Android only, as in
 # flow 60 (subflows/pick-photo.yaml).
 - runFlow:
