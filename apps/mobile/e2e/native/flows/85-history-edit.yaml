@@ -35,12 +35,11 @@ env:
     visible:
       id: 'history-edit-action'
     timeout: 45000
-- tapOn:
-    id: 'history-edit-action'
-- extendedWaitUntil:
-    visible:
-      id: 'history-title-input'
-    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'history-edit-action'
+      EXPECT: 'history-title-input'
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:
@@ -133,12 +132,11 @@ env:
       TEXT: ${output.historyEditBody}
 
 # ── Delete: the creator withdraws it ──
-- tapOn:
-    id: 'history-edit-action'
-- extendedWaitUntil:
-    visible:
-      id: 'history-delete'
-    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'history-edit-action'
+      EXPECT: 'history-delete'
 - tapOn:
     id: 'history-delete'
 - runFlow:

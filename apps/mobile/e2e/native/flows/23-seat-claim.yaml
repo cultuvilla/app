@@ -137,10 +137,5 @@ env:
       id: 'claim-error'
     timeout: 60000
 
-# Signed out, the link asks the visitor to sign in first.
-- clearState
-- openLink: 'cultuvilla://altozano-de-prueba/evento/_${EVENT_ID}/plaza/${output.token}'
-- extendedWaitUntil:
-    visible:
-      id: 'claim-sign-in'
-    timeout: 90000
+# Signed out, the link asks to sign in first: flow 00, since on iOS a flow
+# cannot sign out (clearState keeps the keychain session).

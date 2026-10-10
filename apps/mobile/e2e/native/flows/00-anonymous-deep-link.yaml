@@ -48,3 +48,11 @@ appId: com.cultuvilla.app.dev
           direction: DOWN
           timeout: 20000
 - assertVisible: 'Apuntarme'
+
+# A seat-claim link asks a signed-out visitor to sign in before anything else;
+# the token is only read once they claim, so any token shows it.
+- openLink: cultuvilla://altozano-de-prueba/evento/_e2e-event-fiesta/plaza/e2e-any-token
+- extendedWaitUntil:
+    visible:
+      id: 'claim-sign-in'
+    timeout: 60000
