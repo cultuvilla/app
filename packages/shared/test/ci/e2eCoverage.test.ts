@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 // walked the shortest path on defaults, and nothing measured what it skipped.
 // This is that measurement, as a ratchet. Every testID in the app is either
 // touched by a Maestro flow or listed in apps/mobile/e2e/native/uncovered.json,
-// and that list may only shrink. See docs/plans/ongoing/e2e-full-feature-coverage.md.
+// and that list may only shrink. See docs/decisions/e2e-feature-coverage.md.
 //
 // After a flow covers more: `node scripts/lib/e2e-coverage.mjs --write`.
 

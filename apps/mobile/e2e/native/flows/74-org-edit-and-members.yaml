@@ -89,12 +89,14 @@ env:
     env:
       INPUT: 'org-edit-description'
       TEXT: ${ORG_EDIT_DESCRIPTION}
-# The type is not edited: the organizations update rule refuses a type
-# change that this screen offers (raised with the user, 2026-10-09).
+# A group's type moves among the self-service kinds (never to or from the
+# ayuntamiento): 70 created it as otros.
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
-      TARGET: 'org-edit-type-otros'
+      TARGET: 'org-edit-type-asociación'
+- tapOn:
+    id: 'org-edit-type-asociación'
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
@@ -143,7 +145,7 @@ env:
         {
           'name': 'Asociacion editada E2E',
           'description': 'Asociacion cultural del pueblo',
-          'type': 'otros',
+          'type': 'asociación',
           'membersPublic': true,
           'joinPolicy': 'approval'
         }

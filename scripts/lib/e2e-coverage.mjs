@@ -4,7 +4,7 @@
 // shortest path on defaults and nothing measured what it skipped. This module is
 // the measurement — packages/shared/test/ci/e2eCoverage.test.ts turns it into a
 // ratchet, and `node scripts/lib/e2e-coverage.mjs --write` regenerates the gap
-// list after a flow covers more. See docs/plans/ongoing/e2e-full-feature-coverage.md.
+// list after a flow covers more. See docs/decisions/e2e-feature-coverage.md.
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
