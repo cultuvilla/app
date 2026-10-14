@@ -13,8 +13,6 @@ import {
   isVillageAdmin,
   getVillageMembers,
 } from '@cultuvilla/shared/services/villageMemberService';
-import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
-import { isAppAdmin } from '@cultuvilla/shared/services/adminService';
 import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
 import { watchOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 import { getMyOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
@@ -87,7 +85,7 @@ export interface VillageHomeState {
   history: HistoryEntryWithId[];
   wordOfTheDay: WordOfTheDay | null;
   vocabularyCount: number;
-  /** null while the members fetch is in flight, so the stat renders "—". */
+  /** Denormalized on the village doc; null while it loads, so the stat renders "—". */
   peopleCount: number | null;
   pendingOrganizerRequest: boolean;
   /** The current user's censo answers (empty if not a member / none yet). */
@@ -132,7 +130,6 @@ const EMPTY: VillageHomeState = {
 interface Chrome {
   villageAdmin: boolean;
   isMember: boolean;
-  peopleCount: number | null;
   pendingOrganizerRequest: boolean;
   myCensoAnswers: ProfileAnswers;
 }
@@ -140,7 +137,6 @@ interface Chrome {
 const NO_CHROME: Chrome = {
   villageAdmin: false,
   isMember: false,
-  peopleCount: null,
   pendingOrganizerRequest: false,
   myCensoAnswers: {},
 };
@@ -224,6 +220,7 @@ export function useVillageHome(municipalityId: string | null) {
       coreError: core.error?.message ?? null,
       village: core.data ?? null,
       ...chrome.value,
+      peopleCount: core.data?.peopleCount ?? null,
       events,
       news: news.data ?? NO_ROWS,
       festivalPosters: posters.data ?? NO_ROWS,
@@ -272,31 +269,16 @@ function useChrome(municipalityId: string | null, uid: string | null) {
       if (runId.current === myRun) setValue(next);
     };
     try {
-      const [isAdmin, appAdmin, myReqs, members] = await Promise.all([
+      const [isAdmin, myReqs, members] = await Promise.all([
         uid
           ? withFirestoreErrorLog('villageHome:isVillageAdmin', () => isVillageAdmin(municipalityId, uid))
           : Promise.resolve(false),
-        uid ? isAppAdmin(uid).catch(() => false) : Promise.resolve(false),
         uid
           ? withFirestoreErrorLog('villageHome:getMyOrganizerRequests', () => getMyOrganizerRequests(uid))
           : Promise.resolve([]),
         withFirestoreErrorLog('villageHome:getVillageMembers', () => getVillageMembers(municipalityId)),
       ]);
       const isMember = uid != null && members.some((m) => m.userId === uid);
-      // The people directory is readable by members and app admins only, so it
-      // is asked for only by them: anyone else was refused on every load.
-      // Fetched on its own, outside the Promise.all: its rows go through a
-      // strict converter, so one doc that predates a schema field throws, and
-      // losing just the stat beats rendering the village as if you weren't a
-      // member.
-      const peopleCount =
-        isMember || appAdmin
-          ? await withFirestoreErrorLog('villageHome:getMunicipalityPeople', () =>
-              getMunicipalityPeople(municipalityId),
-            )
-              .then((people) => people.length)
-              .catch(() => null)
-          : null;
       // Answers are private (censoAnswers/), so only a member's own are fetched.
       const myCensoAnswers =
         uid != null && isMember
@@ -307,7 +289,6 @@ function useChrome(municipalityId: string | null, uid: string | null) {
       commit({
         villageAdmin: isAdmin,
         isMember,
-        peopleCount,
         pendingOrganizerRequest: myReqs.some(
           (r) => r.municipalityId === municipalityId && r.status === 'pending',
         ),

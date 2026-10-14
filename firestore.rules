@@ -1062,7 +1062,8 @@ service cloud.firestore {
       // The INE reference fields and `communityActive` are identity, not
       // content — a village admin editing their pueblo must not be able to
       // rewrite which municipality it *is*, nor deactivate the community
-      // (that is startVillage's to own).
+      // (that is startVillage's to own). `peopleCount` is a denormalized
+      // counter owned by syncVillagePeopleCount.
       //
       // `community.organizerId` is diff-locked separately because
       // affectedKeys() only reports the top-level `community` key, and the
@@ -1074,7 +1075,7 @@ service cloud.firestore {
            isVillageAdmin(municipalityId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'name', 'nameLower', 'province', 'comunidadAutonoma', 'codigoINE',
-             'createdAt', 'communityActive',
+             'createdAt', 'communityActive', 'peopleCount',
            ])
         && organizerIdUnchanged(resource.data, request.resource.data)
       );
