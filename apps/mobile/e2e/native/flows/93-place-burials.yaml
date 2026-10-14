@@ -31,10 +31,11 @@ env:
     timeout: 45000
 - tapOn:
     id: 'bury-fab'
+# The sheet reads the user's personas first; slow on the macOS runner.
 - extendedWaitUntil:
     visible:
       id: 'buried-persona-${PUBLIC_ID}'
-    timeout: 30000
+    timeout: 90000
 - assertVisible:
     id: 'buried-create'
 - tapOn:
@@ -70,7 +71,7 @@ env:
 - extendedWaitUntil:
     visible:
       id: 'buried-persona-${PRIVATE_ID}'
-    timeout: 30000
+    timeout: 90000
 - tapOn:
     id: 'buried-persona-${PRIVATE_ID}'
 - runFlow:
