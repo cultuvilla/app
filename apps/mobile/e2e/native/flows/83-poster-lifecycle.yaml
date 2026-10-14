@@ -46,10 +46,12 @@ env:
     file: ../subflows/pick-photo.yaml
     env:
       INDEX: '0'
+# Three minutes: on the shared macOS runner an upload has landed up to 26 s
+# past a 60 s wait, while Maestro's polling starves the app (2026-10-14).
 - extendedWaitUntil:
     visible:
       id: 'poster-images-remove-0'
-    timeout: 60000
+    timeout: 180000
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:
@@ -197,7 +199,7 @@ env:
 - extendedWaitUntil:
     visible:
       id: 'poster-edit-images-remove-1'
-    timeout: 60000
+    timeout: 180000
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:

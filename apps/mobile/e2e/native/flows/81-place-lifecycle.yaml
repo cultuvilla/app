@@ -58,7 +58,7 @@ env:
       - extendedWaitUntil:
           visible:
             id: 'place-images-remove-0'
-          timeout: 60000
+          timeout: 180000
       - tapOn:
           id: 'place-images-add'
       - runFlow:
@@ -68,7 +68,7 @@ env:
       - extendedWaitUntil:
           visible:
             id: 'place-images-remove-1'
-          timeout: 60000
+          timeout: 180000
 - runFlow:
     file: ../subflows/type-into.yaml
     env:

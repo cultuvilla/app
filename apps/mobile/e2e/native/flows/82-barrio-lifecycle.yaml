@@ -52,7 +52,7 @@ env:
       - extendedWaitUntil:
           visible:
             id: 'barrio-images-remove-0'
-          timeout: 60000
+          timeout: 180000
       - tapOn:
           id: 'barrio-images-add'
       - runFlow:
@@ -62,7 +62,7 @@ env:
       - extendedWaitUntil:
           visible:
             id: 'barrio-images-remove-1'
-          timeout: 60000
+          timeout: 180000
 - runFlow:
     file: ../subflows/type-into.yaml
     env:
