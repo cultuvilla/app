@@ -14,6 +14,7 @@ import {
   getVillageMembers,
 } from '@cultuvilla/shared/services/villageMemberService';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
+import { isAppAdmin } from '@cultuvilla/shared/services/adminService';
 import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
 import { watchOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 import { getMyOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
@@ -270,27 +271,32 @@ function useChrome(municipalityId: string | null, uid: string | null) {
     const commit = (next: Chrome) => {
       if (runId.current === myRun) setValue(next);
     };
-    // The people directory is fetched on its own, NOT inside the Promise.all
-    // below. Its rows go through a strict converter, so one doc that predates a
-    // schema field throws — and sharing a Promise.all would take membership,
-    // admin rights and censo answers down with the count, silently rendering the
-    // village as if you weren't a member. Losing just the stat is acceptable.
-    const peopleCount = await withFirestoreErrorLog('villageHome:getMunicipalityPeople', () =>
-      getMunicipalityPeople(municipalityId),
-    )
-      .then((people) => people.length)
-      .catch(() => null);
     try {
-      const [isAdmin, myReqs, members] = await Promise.all([
+      const [isAdmin, appAdmin, myReqs, members] = await Promise.all([
         uid
           ? withFirestoreErrorLog('villageHome:isVillageAdmin', () => isVillageAdmin(municipalityId, uid))
           : Promise.resolve(false),
+        uid ? isAppAdmin(uid).catch(() => false) : Promise.resolve(false),
         uid
           ? withFirestoreErrorLog('villageHome:getMyOrganizerRequests', () => getMyOrganizerRequests(uid))
           : Promise.resolve([]),
         withFirestoreErrorLog('villageHome:getVillageMembers', () => getVillageMembers(municipalityId)),
       ]);
       const isMember = uid != null && members.some((m) => m.userId === uid);
+      // The people directory is readable by members and app admins only, so it
+      // is asked for only by them: anyone else was refused on every load.
+      // Fetched on its own, outside the Promise.all: its rows go through a
+      // strict converter, so one doc that predates a schema field throws, and
+      // losing just the stat beats rendering the village as if you weren't a
+      // member.
+      const peopleCount =
+        isMember || appAdmin
+          ? await withFirestoreErrorLog('villageHome:getMunicipalityPeople', () =>
+              getMunicipalityPeople(municipalityId),
+            )
+              .then((people) => people.length)
+              .catch(() => null)
+          : null;
       // Answers are private (censoAnswers/), so only a member's own are fetched.
       const myCensoAnswers =
         uid != null && isMember
@@ -310,7 +316,7 @@ function useChrome(municipalityId: string | null, uid: string | null) {
     } catch {
       // Chrome degrades silently to the non-member view; the error is already
       // logged by withFirestoreErrorLog and must not take down the tab.
-      commit({ ...NO_CHROME, peopleCount });
+      commit(NO_CHROME);
     }
   }, [municipalityId, uid]);
 
