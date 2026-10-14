@@ -43,6 +43,7 @@ async function seedMunicipality(organizerId: string | null): Promise<void> {
       escudoThumbUrl: null,
       escudoManualUrl: null,
       communityActive: true,
+      peopleCount: 0,
       community: { organizerId, organizerSex: null, description: 'Mi pueblo', profileForm: null, activatedAt: now, fiestas: [] },
     });
 }

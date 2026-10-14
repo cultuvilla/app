@@ -39,6 +39,7 @@ async function seedMunicipality(organizerId: string | null): Promise<void> {
       escudoThumbUrl: null,
       escudoManualUrl: null,
       communityActive: true,
+      peopleCount: 0,
       community: { description: 'old', organizerId, organizerSex: null, profileForm: null, activatedAt: now, fiestas: [] },
     });
 }
@@ -62,6 +63,7 @@ async function seedInactiveMunicipality(): Promise<void> {
     escudoThumbUrl: null,
     escudoManualUrl: null,
     communityActive: false,
+    peopleCount: 0,
     community: null,
   });
 }

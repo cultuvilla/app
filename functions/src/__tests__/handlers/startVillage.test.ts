@@ -37,6 +37,7 @@ async function seedMunicipality(communityActive: boolean): Promise<void> {
       escudoThumbUrl: null,
       escudoManualUrl: null,
       communityActive,
+      peopleCount: 0,
       community: communityActive
         ? { description: 'ya', organizerId: 'someone', organizerSex: null, profileForm: null, fiestas: [], activatedAt: now }
         : null,
@@ -222,6 +223,7 @@ describe('startVillage (callable)', () => {
         escudoThumbUrl: null,
         escudoManualUrl: 'https://example.com/existing.webp',
         communityActive: false,
+        peopleCount: 0,
         community: null,
       });
 
