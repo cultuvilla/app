@@ -279,6 +279,25 @@ reactions/likes feature — it was removed in favor of this invisible counter.
 - **Not surfaced in the UI today** — it's tracked for future use (e.g.
   ranking, moderation signal), not rendered on any card or detail screen.
 
+### `villageRankings/top` ← `municipalities/` + every public content collection
+
+One doc listing the active pueblos with the most to show, best first (top
+`VILLAGE_RANKING_SIZE`), so "Descubre otros pueblos" on a village page costs one
+read instead of a count query per pueblo per view.
+
+- **Source of truth:** active `municipalities/` (profile completeness: manual
+  escudo, description, map, fiestas, Embajador) and the counts of each pueblo's
+  public events, news, carteles, approved orgs, places, history entries, words
+  and `municipalityPeople` rows, filtered the way the read site lists them.
+- **Writer:** [functions/src/village/refreshVillageRanking.ts](../../functions/src/village/refreshVillageRanking.ts)
+  — a scheduled job (04:00 Madrid, nightly) that recomputes the whole doc with
+  `count()` aggregations. Not a trigger: discovery tolerates a day's lag, and
+  per-write counters would put a trigger on six collections for one row.
+  Scoring lives in `VillageRankingDataModel.ts` (`villageRichnessScore`).
+- **Rules:** public read, no client writes.
+- **Backfill:** none — the next run rewrites it from scratch. Until the first
+  run the doc is missing and every reader shows nothing.
+
 ### `_card` / `_thumb` image renditions ← any uploaded Storage object
 
 Feed cards and section rows render into boxes a few hundred dp wide; the

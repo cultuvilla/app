@@ -25,6 +25,7 @@ export { purgeMemberCensoAnswers } from './village/purgeMemberCensoAnswers';
 export { syncBarrioResidentCount } from './village/syncBarrioResidentCount';
 export { syncPlaceBurialCount } from './village/syncPlaceBurialCount';
 export { syncMunicipalityPeople } from './village/syncMunicipalityPeople';
+export { refreshVillageRanking } from './village/refreshVillageRanking';
 
 // Organizations (ayuntamiento singleton enforcement)
 export { requestAyuntamiento } from './organizations/requestAyuntamiento';

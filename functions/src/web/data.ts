@@ -9,10 +9,17 @@ import {
   historicalCenturyLabel,
   pickWordOfTheDay,
   variantImageURL,
+  villagePath,
   wordPath,
   type UrlEntityKind,
 } from '@cultuvilla/shared/utils';
-import { WRAPPED_CARDS, wrappedId, type WrappedCard } from '@cultuvilla/shared/models';
+import {
+  OTHER_VILLAGES_SHOWN,
+  VILLAGE_RANKING_DOC,
+  WRAPPED_CARDS,
+  wrappedId,
+  type WrappedCard,
+} from '@cultuvilla/shared/models';
 import { arr, bool, date, num, obj, str, strArr, type Raw } from './read';
 import type { RichTextInput } from './richText';
 
@@ -92,6 +99,25 @@ export async function loadActiveVillages(db: Firestore): Promise<Village[]> {
     .map((d) => toVillage(d.id, d.data()))
     .filter((v) => v.slug && v.name)
     .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
+/**
+ * The best-ranked other pueblos, from the nightly `refreshVillageRanking` doc —
+ * empty until it has run once. The ranking only holds active pueblos.
+ */
+export async function loadOtherVillages(db: Firestore, excludeId: string): Promise<Card[]> {
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const snap = await db.collection('villageRankings').doc(VILLAGE_RANKING_DOC).get();
+  return arr(snap.get('villages'))
+    .map((raw) => obj(raw) ?? {})
+    .filter((v) => str(v['id']) !== excludeId && str(v['slug']) && str(v['name']))
+    .slice(0, OTHER_VILLAGES_SHOWN)
+    .map((v) => ({
+      href: villagePath(str(v['slug']) ?? ''),
+      title: str(v['name']) ?? '',
+      subtitle: str(v['province']),
+      imageUrl: str(v['escudoUrl']),
+    }));
 }
 
 /** Card-sized image; the app writes `_card` variants for its own uploads. */

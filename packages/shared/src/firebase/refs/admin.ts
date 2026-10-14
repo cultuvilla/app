@@ -30,6 +30,7 @@ import { moderationEventConverterAdmin } from '../converters/moderationEventConv
 import { ambassadorLeadConverterAdmin } from '../converters/ambassadorLeadConverter.admin';
 import { festivalPosterConverterAdmin } from '../converters/festivalPosterConverter.admin';
 import { villageWrappedConverterAdmin } from '../converters/villageWrappedConverter.admin';
+import { villageRankingConverterAdmin } from '../converters/villageRankingConverter.admin';
 import { municipalityPersonConverterAdmin } from '../converters/municipalityPersonConverter.admin';
 import { contentReportConverterAdmin } from '../converters/contentReportConverter.admin';
 import { blockedUserConverterAdmin } from '../converters/blockedUserConverter.admin';
@@ -316,3 +317,10 @@ export const villageWrappedCollection = (db: Firestore) =>
 
 export const villageWrappedDoc = (db: Firestore, wrappedId: string) =>
   db.collection('villageWrapped').doc(wrappedId).withConverter(villageWrappedConverterAdmin);
+
+/** The nightly "most to show" ranking of active pueblos. Function-owned. */
+export const villageRankingsCollection = (db: Firestore) =>
+  db.collection('villageRankings').withConverter(villageRankingConverterAdmin);
+
+export const villageRankingDoc = (db: Firestore, rankingId: string) =>
+  db.collection('villageRankings').doc(rankingId).withConverter(villageRankingConverterAdmin);
