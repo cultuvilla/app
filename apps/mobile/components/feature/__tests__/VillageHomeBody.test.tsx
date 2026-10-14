@@ -1,5 +1,6 @@
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { ScrollView } from 'react-native';
 import { VillageHomeBody } from '../VillageHomeBody';
 import type { VillageHomeState } from '../../../lib/useVillageHome';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
@@ -61,9 +62,10 @@ jest.mock('../wrapped/WrappedPrompt', () => {
   return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
 });
 const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+let mockRankedVillages: unknown[] = [];
 jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
   watchRankedVillages: (next: (rows: unknown[]) => void) => {
-    next([]);
+    next(mockRankedVillages);
     return () => undefined;
   },
 }));
@@ -214,6 +216,25 @@ describe('VillageHomeBody', () => {
       expect(mockOfferPush).toHaveBeenCalledWith('village_join', { villageName: 'Anaya' });
       expect(mockRefreshProfile).toHaveBeenCalled();
       expect(router.push).not.toHaveBeenCalled();
+    });
+
+    // The recommendations sit below the invitation, so the dormant view has to
+    // scroll to reach them on a short screen.
+    it('ends with other pueblos to discover, inside a scrollable view', () => {
+      mockRankedVillages = [
+        { id: 'm1', name: 'Anaya', slug: 'anaya', province: 'Segovia', escudoUrl: null, manualEscudo: false, score: 9 },
+        { id: 'm2', name: 'Matabuena', slug: 'matabuena', province: 'Segovia', escudoUrl: null, manualEscudo: false, score: 8 },
+      ];
+      try {
+        const { UNSAFE_getByType } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
+        const scroll = within(UNSAFE_getByType(ScrollView));
+        expect(scroll.getByText('Descubre otros pueblos')).toBeTruthy();
+        expect(scroll.getByText('Matabuena')).toBeTruthy();
+        fireEvent.press(scroll.getByText('Matabuena'));
+        expect(router.push).toHaveBeenCalledWith('/matabuena');
+      } finally {
+        mockRankedVillages = [];
+      }
     });
 
     it('sends a guest through the register gate instead of joining', () => {
