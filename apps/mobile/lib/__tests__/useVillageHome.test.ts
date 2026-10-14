@@ -1,5 +1,6 @@
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
+import { isAppAdmin } from '@cultuvilla/shared/services/adminService';
 import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
 import { getVillageMembers } from '@cultuvilla/shared/services/villageMemberService';
 import { useVillageHome } from '../useVillageHome';
@@ -68,6 +69,7 @@ jest.mock('@cultuvilla/shared/services/membershipProfileService', () => ({
 jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
   getMunicipalityPeople: jest.fn(async () => [{ personId: 'p1' }, { personId: 'p2' }, { personId: 'p3' }]),
 }));
+jest.mock('@cultuvilla/shared/services/adminService', () => ({ isAppAdmin: jest.fn(async () => false) }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
   watchOrganizationsByMunicipality: mockWatcher('orgs'),
 }));
@@ -191,6 +193,28 @@ describe('useVillageHome', () => {
     expect(result.current.isMember).toBe(false);
     expect(getMyCensoAnswers).not.toHaveBeenCalled();
     expect(result.current.myCensoAnswers).toEqual({});
+  });
+
+  // municipalityPeople is readable by members and app admins only. Asking for
+  // it as anyone else is refused, so a visitor's home logged a permission
+  // denial on every load (95 in prod over 30 days) for a stat they see as "—".
+  it("does not ask a non-member for the village's people", async () => {
+    (getVillageMembers as jest.Mock).mockResolvedValue([{ userId: 'u2' }]);
+    const { result } = renderHook(() => useVillageHome('m1'));
+    await waitFor(() => expect(getVillageMembers).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.isMember).toBe(false));
+    expect(getMunicipalityPeople).not.toHaveBeenCalled();
+    expect(result.current.peopleCount).toBeNull();
+  });
+
+  it('counts the people for a member, and for an app admin who is not one', async () => {
+    const member = renderHook(() => useVillageHome('m1'));
+    await waitFor(() => expect(member.result.current.peopleCount).toBe(3));
+
+    (getVillageMembers as jest.Mock).mockResolvedValue([{ userId: 'u2' }]);
+    (isAppAdmin as jest.Mock).mockResolvedValue(true);
+    const admin = renderHook(() => useVillageHome('m1'));
+    await waitFor(() => expect(admin.result.current.peopleCount).toBe(3));
   });
 
   it('watches published + completed events, private ones per org, upcoming before past', () => {
