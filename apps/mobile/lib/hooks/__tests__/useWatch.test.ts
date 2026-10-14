@@ -2,8 +2,10 @@ import { act, renderHook } from '@testing-library/react-native';
 import { useWatch, type Watcher } from '../useWatch';
 
 const mockReport = jest.fn();
+const mockStall = jest.fn();
 jest.mock('../../firestoreErrorLog', () => ({
-  reportFirestoreError: (...args: unknown[]) => mockReport(...args),
+  reportWatchError: (...args: unknown[]) => mockReport(...args),
+  reportWatchStall: (...args: unknown[]) => mockStall(...args),
 }));
 
 function controllable() {
@@ -61,5 +63,42 @@ describe('useWatch', () => {
     const { result } = renderHook(() => useWatch('t', null, watcher));
     expect(result.current.status).toBe('ready');
     expect(calls).toHaveLength(0);
+  });
+
+  // A listener that never answers leaves the screen on its spinner with nothing
+  // in any log: the iOS news list in CI, and anything like it on a phone.
+  describe('a listener that never answers', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      mockStall.mockClear();
+    });
+    afterEach(() => jest.useRealTimers());
+
+    it('is reported once, with its label, after 20 s', () => {
+      const { watcher } = controllable();
+      renderHook(() => useWatch('feed:watchAllVillagesFeed', 'k1', watcher));
+      act(() => jest.advanceTimersByTime(19_999));
+      expect(mockStall).not.toHaveBeenCalled();
+      act(() => jest.advanceTimersByTime(60_000));
+      expect(mockStall).toHaveBeenCalledTimes(1);
+      expect(mockStall).toHaveBeenCalledWith('feed:watchAllVillagesFeed', 20_000);
+    });
+
+    it('is not reported when the listener answers or fails in time, or the screen closes', () => {
+      const answered = controllable();
+      renderHook(() => useWatch('a', 'k1', answered.watcher));
+      act(() => answered.calls[0]?.onNext('x'));
+
+      const failed = controllable();
+      renderHook(() => useWatch('b', 'k1', failed.watcher));
+      act(() => failed.calls[0]?.onError(new Error('boom')));
+
+      const closed = controllable();
+      const { unmount } = renderHook(() => useWatch('c', 'k1', closed.watcher));
+      unmount();
+
+      act(() => jest.advanceTimersByTime(60_000));
+      expect(mockStall).not.toHaveBeenCalled();
+    });
   });
 });

@@ -17,7 +17,7 @@ jest.mock('@cultuvilla/shared/services/notificationService', () => ({
     .requireActual<typeof import('../../../test/watchers')>('../../../test/watchers')
     .mockWatcher('unread'),
 }));
-jest.mock('../../firestoreErrorLog', () => ({ reportFirestoreError: jest.fn() }));
+jest.mock('../../firestoreErrorLog', () => ({ reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn() }));
 
 const mockGetPendingOrganizerRequests = jest.fn();
 jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
