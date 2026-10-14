@@ -61,7 +61,7 @@ jest.mock('../../../lib/images', () => ({
 }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
-  reportFirestoreError: jest.fn(),
+  reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn(),
 }));
 // Stable references for the auth context.
 const mockUser = { uid: 'uid-1', email: 'a@b.test', displayName: null };

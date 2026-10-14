@@ -75,7 +75,7 @@ jest.mock('../../../lib/auth/RegisterGateContext', () => ({
 }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
-  reportFirestoreError: jest.fn(),
+  reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn(),
 }));
 jest.mock('../../../components/layout/AppHeader', () => ({
   AppHeader: () => null,

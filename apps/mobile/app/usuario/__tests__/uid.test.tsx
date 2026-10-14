@@ -64,7 +64,7 @@ jest.mock('@cultuvilla/shared/services/imageService', () => ({
 jest.mock('../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
-  reportFirestoreError: jest.fn(),
+  reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn(),
 }));
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true },

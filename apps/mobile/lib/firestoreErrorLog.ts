@@ -43,3 +43,25 @@ export function reportFirestoreError(label: string, err: unknown): void {
     console.warn(`[firestore-deny] label=${label} uid=${uid}`);
   }
 }
+
+/**
+ * A listener's error. A one-off read reports permission-denied only (its other
+ * failures are the caller's to handle); a listener's error is the screen's
+ * error state, so every code is worth knowing — a missing index, a doc the
+ * strict converter rejects.
+ */
+export function reportWatchError(label: string, err: unknown): void {
+  if (firebaseErrorCode(err) === 'permission-denied') {
+    reportFirestoreError(label, err);
+    return;
+  }
+  observability.captureError(err, { operation: label, surface: 'watch' });
+}
+
+/** A listener that has given neither data nor an error after `afterMs`. */
+export function reportWatchStall(label: string, afterMs: number): void {
+  observability.captureError(new Error(`${label} gave no answer in ${String(afterMs / 1000)} s`), {
+    operation: label,
+    surface: 'watch-stall',
+  });
+}

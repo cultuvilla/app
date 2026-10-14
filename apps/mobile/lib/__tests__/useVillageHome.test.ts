@@ -49,7 +49,7 @@ jest.mock('../orgs/useMyOrgIds', () => {
 });
 jest.mock('../firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
-  reportFirestoreError: jest.fn(),
+  reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn(),
 }));
 const mockFocusEffects: (() => void)[] = [];
 jest.mock('expo-router', () => ({ useFocusEffect: (fn: () => void) => mockFocusEffects.push(fn) }));
