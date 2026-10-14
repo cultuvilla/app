@@ -368,7 +368,10 @@ members and app admins. The count is copied onto the public municipality doc.
   edit, and those are no-ops — and then **recounts** with an aggregate
   `count()` rather than incrementing, so any drift (including rows written
   between the backfill and the trigger's first deploy) heals on the next
-  roster change. A missing municipality doc is skipped.
+  roster change. The count and the write share a transaction that reads the
+  municipality doc, so overlapping invocations conflict and the later one
+  recounts; an early count can never overwrite a newer one. A missing
+  municipality doc is skipped.
 - **Rules:** `peopleCount` is on the village-admin diff-lock list in
   `firestore.rules`; only the trigger (and app admins) can write it.
 - **Backfill:** [scripts/backfill-village-people-count.mjs](../../scripts/backfill-village-people-count.mjs)

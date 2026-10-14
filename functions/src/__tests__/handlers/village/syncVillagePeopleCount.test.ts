@@ -116,6 +116,17 @@ describe('syncVillagePeopleCount', () => {
     expect(await peopleCount('m1')).toBe(7);
   });
 
+  // Trigger invocations for one village run in no particular order. Each
+  // recount runs in a transaction with the municipality doc, so an invocation
+  // that counted early cannot overwrite a later, larger count.
+  it('ends on the true count when invocations overlap', async () => {
+    await seedMunicipality('m1', 0);
+    const ids = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
+    await Promise.all(ids.map((id) => write(null, row('m1', id))));
+
+    expect(await peopleCount('m1')).toBe(ids.length);
+  });
+
   it('skips a municipality doc that does not exist', async () => {
     await expect(write(null, row('missing', 'p1'))).resolves.not.toThrow();
     expect((await admin.firestore().doc('municipalities/missing').get()).exists).toBe(false);
