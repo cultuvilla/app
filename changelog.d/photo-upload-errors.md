@@ -1,0 +1,1 @@
+- Fixed: when adding a photo failed (no connection, no permission, a file too large), the photo silently disappeared. The app now says what went wrong.

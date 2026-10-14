@@ -21,11 +21,13 @@ import {
   PROPOSABLE_ORGANIZATION_TYPES,
   type OrganizationType,
 } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
+import { useCallableErrorHandler } from '../../../../lib/callableError';
 
 export default function OrgEditScreen() {
   const { pueblo: villageSlug, entidad: entidadRef } = useLocalSearchParams<{ pueblo: string; entidad: string }>();
   const orgId = parseEntityRef(entidadRef ?? '') ?? '';
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const [municipalityId, setMunicipalityId] = useState<string | undefined>(undefined);
   const { canManage, canDelete, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
   const [name, setName] = useState('');
@@ -92,6 +94,8 @@ export default function OrgEditScreen() {
       const next = [...images, url];
       await updateOrganization(orgId, { images: next });
       setImages(next);
+    } catch (e) {
+      showCallableError(e, { operation: 'org:uploadImage' });
     } finally {
       setAddingImage(false);
     }

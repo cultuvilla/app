@@ -29,12 +29,14 @@ import {
   uploadFestivalPosterImage,
 } from '@cultuvilla/shared/services/imageService';
 import type { VisibilityStatus } from '@cultuvilla/shared/models';
+import { useCallableErrorHandler } from '../../../../lib/callableError';
 
 function FestivalPosterEditScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { cartel: cartelRef } = useLocalSearchParams<{ cartel: string }>();
   const posterId = parseEntityRef(cartelRef ?? '') ?? '';
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { canManage, canEdit, canDelete, uid, loading: capLoading } = useEntityCapabilities(villageId);
 
   const [year, setYear] = useState(String(new Date().getFullYear()));
@@ -107,6 +109,8 @@ function FestivalPosterEditScreen() {
     try {
       const url = await uploadFestivalPosterImage(villageId, posterId, picked);
       setImages((prev) => [...prev, url]);
+    } catch (e) {
+      showCallableError(e, { operation: 'poster:uploadImage' });
     } finally {
       setAddingImage(false);
     }
