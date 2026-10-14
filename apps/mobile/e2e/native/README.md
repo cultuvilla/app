@@ -304,7 +304,7 @@ controls takes one `testID` and derives the rest (`<id>-option-<x>`,
 
 The aim is one deep flow per feature — create with every field, assert each in
 Firestore *and* on screen, edit every field, view as another user, delete. See
-[the plan](../../../../docs/plans/ongoing/e2e-full-feature-coverage.md).
+[the decision record](../../../../docs/decisions/e2e-feature-coverage.md).
 
 ## iOS
 
