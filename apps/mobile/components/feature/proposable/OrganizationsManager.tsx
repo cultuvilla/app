@@ -15,6 +15,7 @@ import { useT } from '../../../lib/i18n';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { ProposableForm } from './ProposableForm';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
+import { useCallableErrorHandler } from '../../../lib/callableError';
 
 /**
  * "Añadir agrupación" form. A villager proposes a peña/asociación/otros
@@ -32,6 +33,7 @@ export function OrganizationsManager({
   onCreated?: () => void;
 }) {
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { canManage, uid } = useEntityCapabilities(villageId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -52,6 +54,8 @@ export function OrganizationsManager({
     try {
       const url = await uploadOrganizationImage(orgId, picked);
       setImages((prev) => [...prev, url]);
+    } catch (e) {
+      showCallableError(e, { operation: 'org:uploadImage' });
     } finally {
       setAddingImage(false);
     }

@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import ProfileScreen from '../perfil';
 import { resetWatchers, setWatched, watchersOf } from '../../../test/watchers';
@@ -319,5 +320,37 @@ describe('ProfileScreen — change photo', () => {
     expect(personService.updatePerson).toHaveBeenCalledWith(SELF_PERSON.id, {
       photoURL: 'https://photo.test/new.jpg',
     });
+  });
+});
+
+// A failed upload used to vanish: the spinner stopped and the old photo stayed,
+// with only an unhandled rejection that a release build shows nobody.
+describe('ProfileScreen — change photo fails', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    answerEmpty();
+  });
+
+  it('says so when the upload fails, and leaves the person untouched', async () => {
+    const personService = require('@cultuvilla/shared/services/personService');
+    const imageService = require('@cultuvilla/shared/services/imageService');
+    const images = require('../../../lib/images');
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    setWatched('person', SELF_PERSON);
+    (images.pickImageAsBlob as jest.Mock).mockResolvedValue(PICKED_IMAGE);
+    (imageService.uploadUserPhoto as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('User does not have permission'), { code: 'storage/unauthorized' }),
+    );
+
+    const { getByTestId } = render(<ProfileScreen />);
+    await waitFor(() => expect(watchersOf('person')).toHaveLength(1));
+
+    await act(async () => {
+      fireEvent.press(getByTestId('change-photo'));
+    });
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('No puedes hacer eso', expect.any(String), expect.any(Array), expect.anything()));
+    expect(personService.updatePerson).not.toHaveBeenCalled();
+    alert.mockRestore();
   });
 });

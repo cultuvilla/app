@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { BarriosManager } from '../BarriosManager';
 import { createBarrio, newBarrioId } from '@cultuvilla/shared/services/municipalityService';
@@ -76,5 +77,21 @@ describe('<BarriosManager>', () => {
   it('mints the barrio id up front via newBarrioId', () => {
     render(<BarriosManager villageId="m1" />);
     expect(newBarrioId).toHaveBeenCalledWith('m1');
+  });
+});
+
+// A failed upload used to vanish: the spinner stopped and the photo was gone,
+// with only an unhandled rejection that a release build shows nobody.
+describe('<BarriosManager> photo upload', () => {
+  it('says so when the upload fails, and adds no photo', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (uploadBarrioImage as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('Max retry time exceeded'), { code: 'storage/retry-limit-exceeded' }),
+    );
+    const { getByTestId, queryByTestId } = render(<BarriosManager villageId="m1" />);
+    fireEvent.press(getByTestId('barrio-images-add'));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Sin conexión', expect.any(String), expect.any(Array), expect.anything()));
+    expect(queryByTestId('barrio-images-remove-0')).toBeNull();
+    alert.mockRestore();
   });
 });

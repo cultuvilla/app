@@ -8,6 +8,7 @@ import { pickImageAsBlob } from '../../../lib/images';
 import { useT } from '../../../lib/i18n';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { ProposableForm } from './ProposableForm';
+import { useCallableErrorHandler } from '../../../lib/callableError';
 
 /**
  * "Añadir barrio" form. Any member creates directly and the barrio is visible
@@ -23,6 +24,7 @@ export function BarriosManager({
   onCreated?: () => void;
 }) {
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { uid } = useEntityCapabilities(villageId);
 
   // Mint the id up front so each picked image can upload before the doc write.
@@ -40,6 +42,8 @@ export function BarriosManager({
     try {
       const url = await uploadBarrioImage(villageId, barrioId, picked);
       setImages((prev) => [...prev, url]);
+    } catch (e) {
+      showCallableError(e, { operation: 'barrio:uploadImage' });
     } finally {
       setAddingImage(false);
     }
