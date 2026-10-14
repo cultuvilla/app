@@ -94,6 +94,10 @@ env:
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
+      TARGET: 'org-edit-type-otros'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
       TARGET: 'org-edit-members-public-toggle'
 - tapOn:
     id: 'org-edit-members-public-toggle'
@@ -162,6 +166,8 @@ env:
     direction: DOWN
     centerElement: true
     timeout: 20000
+- assertVisible:
+    id: 'org-member-profile-${JOINER_UID}'
 - tapOn:
     id: 'org-members-edit-toggle'
 - runFlow:

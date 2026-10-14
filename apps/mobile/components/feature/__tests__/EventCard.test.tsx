@@ -62,4 +62,11 @@ describe('<EventCard>', () => {
     expect(getByTestId('event-card-attendee-count')).toBeTruthy();
     expect(getByText('12')).toBeTruthy();
   });
+
+  it('ribbons an event the user is signed up to', () => {
+    const { getByTestId } = render(
+      <EventCard event={fixture} onPress={() => {}} registration={{ kind: 'confirmed', count: 1 }} />,
+    );
+    expect(getByTestId('event-card-ribbon')).toBeTruthy();
+  });
 });

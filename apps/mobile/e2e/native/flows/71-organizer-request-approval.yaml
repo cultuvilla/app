@@ -25,7 +25,13 @@ env:
 # The carnet previews the title with the applicant's own name.
 - assertVisible:
     id: 'organize-carnet'
-- assertVisible: '.*Vecino Nuevo.*'
+- assertVisible:
+    id: 'ambassador-carnet-name'
+    text: '.*Vecino Nuevo.*'
+- assertVisible:
+    id: 'ambassador-carnet-title'
+- assertVisible:
+    id: 'organize-explainer'
 - runFlow:
     file: ../subflows/type-into.yaml
     env:
@@ -107,6 +113,8 @@ env:
     file: ../subflows/see-text.yaml
     env:
       TEXT: ${MOTIVATION}
+- assertVisible:
+    id: 'organizer-requester-${output.rejectedId}'
 - scrollUntilVisible:
     element:
       id: 'reject-organizer-${output.rejectedId}'

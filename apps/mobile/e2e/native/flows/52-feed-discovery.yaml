@@ -25,6 +25,8 @@ env:
       PASSWORD: ${PASSWORD}
 - tapOn: 'Explora(,.*)?'
 - runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- assertVisible:
+    id: 'create-fab'
 - extendedWaitUntil:
     visible: '.*Fiesta de Prueba E2E.*'
     timeout: 45000
@@ -32,7 +34,11 @@ env:
 # ── Search ──
 - tapOn:
     id: 'filter-search'
-- inputText: 'Aforo'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'filter-search-input'
+      TEXT: 'Aforo'
 - extendedWaitUntil:
     visible: '.*Evento con Aforo E2E.*'
     timeout: 10000

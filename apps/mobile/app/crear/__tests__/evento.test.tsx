@@ -178,6 +178,27 @@ describe('NewEventScreen stepper', () => {
     expect(toggle.props.accessibilityState.checked).toBe(true);
   });
 
+  it('flags a birth-year window that is backwards or outside sensible years', async () => {
+    const { getByText, getByLabelText, getByTestId, queryByTestId } = render(<NewEventScreen />);
+    await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());
+    fireEvent.changeText(getByLabelText('event.title'), 'Fiesta');
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('startDate')).toBeTruthy());
+    fireEvent.press(getByTestId('startDate'));
+    fireEvent.press(getByTestId('location-field'));
+    fireEvent.press(getByText('common.stepper.next'));
+    fireEvent.press(await waitFor(() => getByTestId('birth-year-limit')));
+
+    fireEvent.changeText(getByTestId('min-birth-year'), '2010');
+    fireEvent.changeText(getByTestId('max-birth-year'), '1990');
+    expect(getByTestId('birth-year-range-error')).toBeTruthy();
+
+    fireEvent.changeText(getByTestId('min-birth-year'), '1700');
+    fireEvent.changeText(getByTestId('max-birth-year'), '1990');
+    expect(queryByTestId('birth-year-range-error')).toBeNull();
+    expect(getByTestId('birth-year-bounds-error')).toBeTruthy();
+  });
+
   it('puts the sign-up questions in their own step after the details', async () => {
     const { getByText, getByLabelText, getByTestId, queryByTestId } = render(<NewEventScreen />);
     await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());

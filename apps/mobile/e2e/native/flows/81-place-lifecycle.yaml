@@ -174,6 +174,23 @@ env:
       id: 'place-edit-action'
     timeout: 45000
 - assertVisible: '.*${output.placeName}.*'
+# The cover photo opens full size (photos are picked on Android only).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'hero-image-zoom'
+      - extendedWaitUntil:
+          visible:
+            id: 'image-lightbox-stage'
+          timeout: 15000
+      - tapOn:
+          id: 'image-lightbox-close'
+      - extendedWaitUntil:
+          notVisible:
+            id: 'image-lightbox-stage'
+          timeout: 15000
 - runFlow:
     file: ../subflows/see-text.yaml
     env:

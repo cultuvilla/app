@@ -44,6 +44,8 @@ import {
   otherUserComment,
   dependentPerson,
   place,
+  cemetery,
+  burialPersons,
   barrio,
   newsPost,
 } from '../data/seed-fixtures/e2e/fixtures.mjs';
@@ -494,6 +496,38 @@ async function run() {
       }),
       { merge: true },
     );
+
+  await db
+    .collection('municipalities')
+    .doc(village.docId)
+    .collection('places')
+    .doc(cemetery.docId)
+    .set(
+      buildPlaceData({
+        name: cemetery.name,
+        kind: cemetery.kind,
+        description: cemetery.description,
+        municipalityId: village.docId,
+        proposedBy: users.admin.uid,
+      }),
+      { merge: true },
+    );
+  for (const p of burialPersons) {
+    await db
+      .collection('persons')
+      .doc(p.docId)
+      .set(
+        buildPersonData({
+          givenName: p.givenName,
+          firstSurname: p.firstSurname,
+          isPublic: p.isPublic,
+          createdBy: users.attendee.uid,
+          userId: null,
+          municipalityLinks: [{ municipalityId: village.docId, barrioId: null }],
+        }),
+        { merge: true },
+      );
+  }
 
   console.log(
     `[seed:e2e] seeded emulator (users=${users.admin.uid},${users.attendee.uid},` +

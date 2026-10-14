@@ -247,6 +247,21 @@ export const barrio = {
   name: 'Barrio Alto E2E',
 };
 
+// A cemetery of `village`, and two personas of `users.attendee` to bury there
+// (flow 93): one public, one private — a private burial shows only to its
+// creator. Separate from `dependentPerson`, whom the registration flows sign up.
+export const cemetery = {
+  docId: 'e2e-place-cementerio',
+  name: 'Cementerio E2E',
+  kind: 'cemetery',
+  description: 'Cementerio usado para comprobar los enterramientos.',
+};
+
+export const burialPersons = [
+  { docId: 'e2e-person-abuela', givenName: 'Abuela', firstSurname: 'Publica', isPublic: true },
+  { docId: 'e2e-person-abuelo', givenName: 'Abuelo', firstSurname: 'Privado', isPublic: false },
+];
+
 export const place = {
   docId: 'e2e-place-plaza',
   name: 'Plaza E2E Visible',
