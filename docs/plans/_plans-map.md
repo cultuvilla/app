@@ -19,7 +19,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | dev | 3 cycles ago | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
 | [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago \* | after 1.7.1's first full day (check the `events_20261008` table on 2026-10-09), look for `ANDROID`/`IOS` rows; if there are none, check the stream boxes on GA4 Admin → BigQuery links; in parallel, apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) |
 | [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` | medium | — | 1 cycle ago | — |
-| [e2e-full-feature-coverage](ongoing/e2e-full-feature-coverage.md) | high | dev | this cycle | Stage 3 — village content: extend 61 (news) and one deep flow each for place, barrio, festival poster, history entry |
 
 ## Soaking
 
