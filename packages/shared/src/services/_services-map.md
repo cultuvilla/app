@@ -75,6 +75,7 @@ Some documents carry denormalized copies of fields owned by other collections so
 | `residentCount` on barrio doc | `municipalities/{mid}/barrios/{bid}` | `persons/` (via `municipalityLinks` `{municipalityId, barrioId}`) | [functions/src/village/syncBarrioResidentCount.ts](../../../../functions/src/village/syncBarrioResidentCount.ts) (`syncBarrioResidentCount`) |
 | `burialCount` on place doc | `municipalities/{mid}/places/{pid}` | `persons/` (via `burialPlace` `{municipalityId, placeId}`) | [functions/src/village/syncPlaceBurialCount.ts](../../../../functions/src/village/syncPlaceBurialCount.ts) (`syncPlaceBurialCount`) |
 | municipality people directory rows | `municipalityPeople/` | `persons/` (via `municipalityLinks`) | [functions/src/village/syncMunicipalityPeople.ts](../../../../functions/src/village/syncMunicipalityPeople.ts) (`syncMunicipalityPeople`) |
+| `peopleCount` on municipality doc | `municipalities/{mid}` | `municipalityPeople/` (rows per `municipalityId`) | [functions/src/village/syncVillagePeopleCount.ts](../../../../functions/src/village/syncVillagePeopleCount.ts) (`syncVillagePeopleCount`) |
 
 See [docs/architecture/denormalized-read-models.md](../../../../docs/architecture/denormalized-read-models.md) for the pattern. If you introduce a new denormalized field, add a row above and a trigger in the same change.
 

@@ -206,6 +206,10 @@ export const MunicipalityDataSchema = z.object({
   /** Denorm of `community != null` — needed for queries since Firestore
    * can't index "field exists" cheaply. */
   communityActive: z.boolean(),
+  /** Denormalized count of this village's rows in `municipalityPeople`, kept by
+   *  functions/src/village/syncVillagePeopleCount.ts. That projection is
+   *  member-only, so the public doc carries the number every viewer sees. */
+  peopleCount: z.number().int(),
 });
 export type MunicipalityData = z.infer<typeof MunicipalityDataSchema>;
 
@@ -274,6 +278,7 @@ export function buildMunicipalityData(input: MunicipalityDataInput): Municipalit
     escudoManualUrl: input.escudoManualUrl ?? null,
     community: null,
     communityActive: false,
+    peopleCount: 0,
   };
 }
 

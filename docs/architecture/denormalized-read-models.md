@@ -352,6 +352,32 @@ without issuing one `persons` query per place in the village home scroll.
 - **Backfill:** [scripts/backfill-place-burial-count.mjs](../../scripts/backfill-place-burial-count.mjs)
   recalculates existing place counts from `persons/`.
 
+### `peopleCount` ← `municipalityPeople/`
+
+The village home shows how many people a village has to every viewer, but the
+`municipalityPeople` projection it is counted from is readable only by village
+members and app admins. The count is copied onto the public municipality doc.
+
+- **Source of truth:** the `municipalityPeople` rows carrying that
+  `municipalityId` (itself a projection of `persons/`, by
+  `syncMunicipalityPeople`).
+- **Trigger:** [functions/src/village/syncVillagePeopleCount.ts](../../functions/src/village/syncVillagePeopleCount.ts)
+  (`syncVillagePeopleCount`), an `onDocumentWritten` on `municipalityPeople/`.
+  It acts only when a row is created, deleted or changes `municipalityId` —
+  `syncMunicipalityPeople` rewrites rows with a full `set()` on every person
+  edit, and those are no-ops — and then **recounts** with an aggregate
+  `count()` rather than incrementing, so any drift (including rows written
+  between the backfill and the trigger's first deploy) heals on the next
+  roster change. The count and the write share a transaction that reads the
+  municipality doc, so overlapping invocations conflict and the later one
+  recounts; an early count can never overwrite a newer one. A missing
+  municipality doc is skipped.
+- **Rules:** `peopleCount` is on the village-admin diff-lock list in
+  `firestore.rules`; only the trigger (and app admins) can write it.
+- **Backfill:** [scripts/backfill-village-people-count.mjs](../../scripts/backfill-village-people-count.mjs)
+  (`village-people-count`, `pre-deploy`, auto-applied) recounts every
+  municipality from `municipalityPeople/`.
+
 ### `memberCount` ← `organizations/{orgId}/members/` and `residentCount` ← `persons/`
 
 Membership-size counters that back **ordering** on the village hub: peñas /
