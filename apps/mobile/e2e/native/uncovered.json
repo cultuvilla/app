@@ -60,6 +60,7 @@
   "signup-info": "unit-tested: app/crear/__tests__/evento.test.tsx",
   "signup-question-type-*": "unit-tested: components/feature/signup/__tests__/SignupQuestionsEditor.test.tsx",
   "step-dot-*": "unit-tested: components/feature/__tests__/StepIndicator.test.tsx",
+  "village-description": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
   "village-join-dormant": "unit-tested: app/(tabs)/__tests__/mi-pueblo.test.tsx",
   "village-wrapped-strip": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
   "vocabulary-joining-notice": "unit-tested: app/[pueblo]/palabra/__tests__/nueva.test.tsx",

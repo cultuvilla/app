@@ -176,6 +176,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
   const canManage = isAppAdmin || villageAdmin;
   // Wiki phase: active but no organizer granted yet (community.organizerId null).
   const noOrganizer = village.community?.organizerId == null;
+  const description = village.community?.description?.trim() || null;
   const villageSlug = village.slug;
 
   const caps = { canManage, uid: user?.uid ?? null };
@@ -254,6 +255,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               </Text>
             </VStack>
           </HStack>
+          {description ? <Text testID="village-description">{description}</Text> : null}
         </VStack>
 
         {/* ── Stats ────────────────────────────────────────────── */}
@@ -367,6 +369,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               statBadge={{
                 icon: 'person-outline',
                 count: e.confirmedCount,
+                spoken: 'attendees',
                 testID: 'entity-card-event-attendee-count',
               }}
               onPress={() => router.push(eventHref({ ...e, villageSlug }))}
@@ -459,6 +462,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
                   ? {
                       icon: 'person-outline',
                       count: p.burialCount,
+                      spoken: 'burials',
                       testID: 'entity-card-burial-count',
                     }
                   : undefined
