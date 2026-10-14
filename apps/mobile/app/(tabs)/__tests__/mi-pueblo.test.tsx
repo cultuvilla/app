@@ -98,6 +98,12 @@ jest.mock('@cultuvilla/shared/services/festivalPosterService', () => {
   const getFestivalPosters = jest.fn().mockResolvedValue([]);
   return { getFestivalPosters, watchFestivalPosters: mockWatchFrom(getFestivalPosters) };
 });
+jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
+  watchRankedVillages: (next: (rows: unknown[]) => void) => {
+    next([]);
+    return () => undefined;
+  },
+}));
 jest.mock('@cultuvilla/shared/services/historyService', () => ({
   watchHistoryEntries: mockWatchFrom(() => []),
 }));

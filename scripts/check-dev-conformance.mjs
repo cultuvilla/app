@@ -75,6 +75,7 @@ import {
   historyEntriesCollection,
   contentReportsCollection,
   villageWrappedCollection,
+  villageRankingsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 
 // `--env dev|beta|prod` (default dev). Read-only check — safe against any env,
@@ -169,6 +170,7 @@ const REGISTRY = [
   { name: 'historyEntries', coll: (db) => historyEntriesCollection(db) },
   { name: 'contentReports', coll: (db) => contentReportsCollection(db) },
   { name: 'villageWrapped', coll: (db) => villageWrappedCollection(db) },
+  { name: 'villageRankings', coll: (db) => villageRankingsCollection(db) },
 ];
 
 /** Format a caught converter error into `path: message` lines, one per zod issue. */

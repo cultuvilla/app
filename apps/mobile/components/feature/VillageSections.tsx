@@ -93,6 +93,7 @@ export function SectionHeader({
 export function Section<T>({
   title,
   onManage,
+  actionLabel,
   isEmpty,
   status = 'ready',
   children,
@@ -106,6 +107,8 @@ export function Section<T>({
   testID?: string;
   /** When provided, renders the "Gestionar" link (admins only). */
   onManage?: () => void;
+  /** Replaces "Gestionar" when the header link does something else ("Ver todos"). */
+  actionLabel?: string;
   isEmpty: boolean;
   /**
    * Load state of this section's own fetch. 'loading' shows a skeleton row,
@@ -136,7 +139,7 @@ export function Section<T>({
     <VStack gap={3} className="pt-4">
       <SectionHeader
         title={title}
-        actionLabel={onManage ? t('village.admin.overview.manage') : undefined}
+        actionLabel={onManage ? (actionLabel ?? t('village.admin.overview.manage')) : undefined}
         onAction={onManage}
       />
       {showSkeleton ? (

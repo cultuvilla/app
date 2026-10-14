@@ -121,16 +121,17 @@ function gallery(urls: string[], alt: string): Child {
 
 // ── Village ─────────────────────────────────────────────────────────────────
 
-export function villagePage(v: Village, home: VillageHome | null): Page {
+export function villagePage(v: Village, home: VillageHome | null, others: Card[] = []): Page {
   const where = v.province ? `${v.name}, ${v.province}` : v.name;
   const intro = html`<div style="display:flex;gap:16px;align-items:center">${img(v.escudoUrl, `Escudo de ${v.name}`, 'escudo')}<div><h1>${v.name}</h1>${
     v.province ? html`<p class="meta">${v.province}</p>` : null
   }</div></div>`;
+  const discover = section('Descubre otros pueblos', others, '/pueblos');
 
   if (!v.active || !home) {
     return {
       head: { title: v.name, description: `${where} aún no tiene comunidad en Cultuvilla.`, noindex: true },
-      body: html`${intro}<div class="notice"><p>${v.name} aún no está en Cultuvilla. Cualquier vecino puede darlo de alta desde la app y empezar a compartir sus fiestas, noticias e historia.</p></div>${appCta(villagePath(v.slug), 'Traer mi pueblo a Cultuvilla')}`,
+      body: html`${intro}<div class="notice"><p>${v.name} aún no está en Cultuvilla. Cualquier vecino puede darlo de alta desde la app y empezar a compartir sus fiestas, noticias e historia.</p></div>${appCta(villagePath(v.slug), 'Traer mi pueblo a Cultuvilla')}${discover}`,
     };
   }
 
@@ -161,6 +162,7 @@ ${section('Lugares', home.places, villageSectionPath(v.slug, 'lugares'))}
 ${section('Barrios', home.barrios, villageSectionPath(v.slug, 'barrios'))}
 ${section('Historia', home.history, villageSectionPath(v.slug, 'historia'))}
 ${word}
+${discover}
 ${appCta(villagePath(v.slug), `Sigue a ${v.name} en la app`)}`,
   };
 }

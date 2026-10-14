@@ -42,6 +42,7 @@ import { WordOfTheDayCard } from './vocabulary/WordOfTheDayCard';
 import { LocationMap } from './LocationMap';
 import { JoinVillageModal } from './JoinVillageModal';
 import { VillageWrappedStrip } from './wrapped/VillageWrappedStrip';
+import { OtherVillagesSection } from './OtherVillagesSection';
 import { WrappedPrompt } from './wrapped/WrappedPrompt';
 import { StatsRow } from './StatsRow';
 import { useAuth } from '../../lib/auth/useAuth';
@@ -129,34 +130,37 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
       }
     };
     return (
-      <View className="flex-1 items-center justify-center px-8">
-        <VStack gap={2} className="items-center">
-          <Escudo
-            url={escudoFullUrl(village)}
-            size={96}
-            fallbackInitial={village.name}
-            zoomable
-            accessibilityLabel={village.name}
-          />
-          <Text variant="h2" className="mt-2 text-center">
-            {village.name}
-          </Text>
-          <Text tone="muted" variant="bodySm">
-            {village.province}
-          </Text>
-          <Text className="text-center mt-4">
-            {t('village.notRegistered.body', { name: village.name })}
-          </Text>
-          <Button
-            className="mt-4"
-            onPress={() => void joinDormant()}
-            loading={joining}
-            testID="village-join-dormant"
-          >
-            {user ? t('village.join') : t('village.signInToJoin')}
-          </Button>
-        </VStack>
-      </View>
+      <ScrollView contentContainerClassName="flex-grow pb-10">
+        <View className="flex-1 items-center justify-center px-8 py-8">
+          <VStack gap={2} className="items-center">
+            <Escudo
+              url={escudoFullUrl(village)}
+              size={96}
+              fallbackInitial={village.name}
+              zoomable
+              accessibilityLabel={village.name}
+            />
+            <Text variant="h2" className="mt-2 text-center">
+              {village.name}
+            </Text>
+            <Text tone="muted" variant="bodySm">
+              {village.province}
+            </Text>
+            <Text className="text-center mt-4">
+              {t('village.notRegistered.body', { name: village.name })}
+            </Text>
+            <Button
+              className="mt-4"
+              onPress={() => void joinDormant()}
+              loading={joining}
+              testID="village-join-dormant"
+            >
+              {user ? t('village.join') : t('village.signInToJoin')}
+            </Button>
+          </VStack>
+        </View>
+        <OtherVillagesSection municipalityId={village.id} />
+      </ScrollView>
     );
   }
 
@@ -544,6 +548,9 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
 
         {/* ── The latest published fiestas Wrapped, closing the page ── */}
         <VillageWrappedStrip municipalityId={village.id} villageSlug={villageSlug} />
+
+        {/* ── Somewhere to go next: the pueblos with the most to show ── */}
+        <OtherVillagesSection municipalityId={village.id} />
       </ScrollView>
       <JoinVillageModal
         municipality={

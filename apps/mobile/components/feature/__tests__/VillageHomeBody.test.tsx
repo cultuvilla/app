@@ -61,6 +61,12 @@ jest.mock('../wrapped/WrappedPrompt', () => {
   return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
 });
 const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
+  watchRankedVillages: (next: (rows: unknown[]) => void) => {
+    next([]);
+    return () => undefined;
+  },
+}));
 jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
   getPublishedVillageWrapped: (...a: unknown[]) => mockGetPublishedVillageWrapped(...a),
 }));

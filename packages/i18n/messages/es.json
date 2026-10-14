@@ -684,6 +684,10 @@
         "draftBody": "Revísalo, descarga la portada o compártela, y publícalo para que aparezca en el pueblo.",
         "review": "Revisar resumen"
       }
+    },
+    "otherVillages": {
+      "title": "Descubre otros pueblos",
+      "seeAll": "Ver todos"
     }
   },
   "villages": {

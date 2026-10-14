@@ -1616,6 +1616,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // The nightly ranking of active pueblos by how much they have to show
+    // (refreshVillageRanking). Public: a guest's village page lists other
+    // pueblos from it. Function-owned, so no client can rank its own pueblo up.
+    match /villageRankings/{rankingId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Public read-only app config (force-update gate). Written by admin/seed
     // script via the admin SDK, never by clients.
     match /config/{docId} {
