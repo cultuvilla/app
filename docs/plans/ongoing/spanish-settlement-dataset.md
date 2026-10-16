@@ -1,10 +1,12 @@
 # Completar el nomenclátor de pueblos españoles
 
 **Priority:** medium
-**Gate:** decision:D8 — does the municipal seat get its own row?
-**Next:** settle D8 (leaning: include the seat, flagged `isSeat: true`), then promote to `ready/`
+**Landed:** prod
+**Gate:** none
+**Next:** render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet)
 
-> Decided 2026-08-24, one question still open (see **D8**). Origin: a
+> Decided 2026-08-24; D8 decided 2026-10-17. Stages 1–4 shipped 2026-08 (on prod)
+> — the dataset already carries `isSeat`. Origin: a
 > user bug report (2026-08-23) that a resident of Villarino de Manzanas could not
 > find their village. PRs #259 and #260 fixed the *search*; this is the *data and
 > the model* behind it.
@@ -172,26 +174,20 @@ forever. Instead:
 So the alias layer answers _"can I find my pueblo?"_ and the entity layer
 answers _"now that my village is live, what is in it?"_.
 
-### D8 — OPEN: does the municipal seat get its own row?
+### D8 — The municipal seat gets its own row (decided 2026-10-17, Álvaro)
 
 OSM's Matabuena returns **three** settlements: _Matamala_, _Cañicosa_ — and
 **_Matabuena_ itself**, the `place=village` seat. The current Wikidata script
 strips it (`names.delete(entry.name)`), but that was for a search-alias list,
 where a municipio matching its own name is pointless. As an *entity* the
-trade-off is different:
+trade-off is different. Excluding it would match what a villager means by "las
+pedanías", but leave residents of the main village nowhere to live — the
+residence link and barrio censo would be asymmetric.
 
-- **Include it.** INE agrees — the seat *is* an entidad singular. It gives
-  residents of the main village a row to belong to, so `residentCount` and the
-  censo work symmetrically for everyone. Cost: "Matabuena" appears inside
-  Matabuena, which reads as redundant.
-- **Exclude it.** The scroll shows only the *other* settlements, which is what a
-  villager means by "las pedanías". Cost: residents of the main village have
-  nowhere to live — the residence link and barrio censo become asymmetric, with
-  Cañicosa residents assignable and Matabuena residents not.
-
-Leaning **include, flagged `isSeat: true`**, rendered first and styled distinctly
-(or labelled "el pueblo"), so the data stays symmetric while the UI stops looking
-redundant. **Needs a decision before Stage 1.**
+**Decided: include it, flagged `isSeat: true`**, rendered first and styled
+distinctly / labelled "el pueblo". INE agrees — the seat *is* an entidad
+singular — so `residentCount` and the censo work symmetrically for everyone,
+while the UI stops looking redundant.
 
 ## Known risk
 
@@ -216,7 +212,7 @@ Galician villages complain. Nesting lugares under parroquias is the fallback.
 **Modified**
 
 - `packages/shared/src/models/municipality/MunicipalityDataModel.ts` —
-  `BarrioDataSchema` gains `kind`, `source`, and (pending D8) `isSeat`
+  `BarrioDataSchema` gains `kind`, `source` and `isSeat`
 - `packages/shared/src/services/municipalityService.ts` — `getBarrios(kind?)`
 - `functions/src/village/startVillage.ts` — seed settlements on activation
 - `apps/mobile/components/feature/VillageHomeBody.tsx` — one Section per kind
@@ -231,34 +227,36 @@ Galician villages complain. Nesting lugares under parroquias is the fallback.
 
 ### Stage 1 — Data
 
-- [ ] Settle **D8** (seat row or not)
-- [ ] Write `scripts/fetch-settlements.mjs` (Overpass, per province, retry/backoff
+- [x] Settle **D8** — include the seat, `isSeat: true`
+- [x] Write `scripts/fetch-settlements.mjs` (Overpass, per province, retry/backoff
       for 429 + 504 + truncated-200, as in `fetch-localities.mjs`)
-- [ ] Exclude `place=locality` explicitly, with a test asserting Figueruela
+- [ ] Exclude `place=locality` explicitly (the script does; the test is not found), with a test asserting Figueruela
       yields 6–7 settlements and not 260
-- [ ] Fetch and commit `settlements-es.json`; record per-province counts
-- [ ] Add "© OpenStreetMap contributors" attribution to the app's legal screen
+- [x] Fetch and commit `settlements-es.json`; record per-province counts
+- [ ] Add "© OpenStreetMap contributors" attribution to the app's legal screen —
+      CHANGELOG says it shipped, but no app or i18n string carries it; verify
 
 ### Stage 2 — Model
 
-- [ ] `kind` + `source` on `BarrioDataSchema` (+ builder, + tests)
-- [ ] `backfill-barrio-kind.mjs` — existing rows default to `kind: 'barrio'`,
+- [x] `kind` + `source` + `isSeat` on `BarrioDataSchema` (+ builder, + tests)
+- [x] `backfill-barrio-kind.mjs` — existing rows default to `kind: 'barrio'`,
       `source: 'user'`; `pre-deploy`, `autoApply`, idempotent
-- [ ] Firestore rules: `kind`/`source` function-owned; admins may rename/delete
-- [ ] Fix the `real_villages_1` fixture
+- [x] Firestore rules: `kind`/`source` function-owned; admins may rename/delete
+- [x] Fix the `real_villages_1` fixture
 
 ### Stage 3 — Seeding
 
-- [ ] `startVillage` seeds all three kinds for the activated municipio
-- [ ] Re-activation is idempotent (no duplicate rows)
-- [ ] Emulator test: activating Figueruela de Arriba creates its 6 pedanías
+- [x] `startVillage` seeds all three kinds for the activated municipio
+- [x] Re-activation is idempotent (no duplicate rows)
+- [x] Emulator test: activating Figueruela de Arriba creates its 6 pedanías
 
 ### Stage 4 — UI
 
-- [ ] `useVillageHome` splits barrios by kind
-- [ ] One `<Section>` per kind, virtualized path for large ones
+- [x] `useVillageHome` splits barrios by kind
+- [ ] One `<Section>` per kind, virtualized path for large ones; the seat row
+      first, styled distinctly ("el pueblo")
 - [ ] Kind picker in the add-barrio form
-- [ ] i18n strings
+- [x] i18n strings
 
 ## Out of scope
 

@@ -1,8 +1,8 @@
 # Register cultuvilla.org
 
 **Priority:** medium
-**Gate:** decision:register cultuvilla.org now in the founder's personal name, or wait for the asociación's CIF?
-**Next:** find which registrar and account hold cultuvilla.es, then buy .org (and decide on .com in the same sitting)
+**Gate:** blocked:cultuvilla/cultuvilla-business:constituir-la-asociacion
+**Next:** once the asociación has its CIF, find the registrar holding cultuvilla.es and buy .org there in the asociación's name (and decide on .com in the same sitting)
 
 ## Goal
 
@@ -45,14 +45,10 @@ will have a CIF within weeks.
 | Later work | a holder change, plus whatever transfer lock the registrar applies | none |
 | Matches the legal reality | no, and it adds one more personal asset to unwind | yes |
 
-**Leaning: register now, in Álvaro's name, and move it with everything else when
-the asociación exists.** A domain holder change is a form, not a renegotiation —
-unlike a store payout profile, which is why the Órdago plan sequences that one so
-carefully. The asymmetry runs the other way here: losing the name is permanent,
-an administrative transfer is not.
-
-That is a lean, not a decision. If the asociación is constituted within days,
-waiting costs nothing and is cleaner.
+**Decided 2026-10-17 (Álvaro): wait for the CIF.** Register `.org` (and decide
+`.com` in the same sitting) in the asociación's name, not Álvaro's, accepting the
+small risk of losing the name meanwhile. The constitution meeting with Pablo is on
+2026-10-22 (`constituir-la-asociacion`, in the business repo).
 
 ## What to do with it once held
 
@@ -82,6 +78,6 @@ and a Search Console move, not a side effect of buying a domain.
 
 ## Next action
 
-Answer the registrar question, then buy `.org` (and decide on `.com` in the same
-sitting). Set auto-renew, and put the renewal date where it will be seen — an
+Once the CIF exists, answer the registrar question, then buy `.org` in the
+asociación's name (and decide on `.com` in the same sitting). Set auto-renew, and put the renewal date where it will be seen — an
 expired domain is a broken redirect and, eventually, someone else's name.
