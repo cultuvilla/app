@@ -2,7 +2,7 @@
 
 **Priority:** medium
 **Gate:** blocked:cultuvilla/cultuvilla-business:constituir-la-asociacion
-**Next:** once the asociación has its CIF, find the registrar holding cultuvilla.es and buy .org there in the asociación's name (and decide on .com in the same sitting)
+**Next:** once the asociación has its CIF and its own bank account (Álvaro, 2026-10-17: not before), find the registrar holding cultuvilla.es and buy .org there in the asociación's name (and decide on .com in the same sitting)
 
 ## Goal
 
