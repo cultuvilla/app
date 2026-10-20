@@ -29,12 +29,14 @@ export function TypedSocioSheet({
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
 
+  // Reset on open only: `initial` is rebuilt on every parent render, and a
+  // roster snapshot landing mid-edit must not wipe what is being typed.
   useEffect(() => {
     if (visible) {
       setValues(initial ?? EMPTY);
       setError(undefined);
     }
-  }, [visible, initial]);
+  }, [visible]);
 
   const save = () => {
     if (!values.displayName.trim()) {
