@@ -116,6 +116,20 @@ describe('village entity broadcast', () => {
     expect(n.data()).toMatchObject({ entityKind: 'event', entityId: 'e2', title: 'Nuevo evento en Matabuena' });
   });
 
+  it('announces a weekly series once, on its first occurrence', async () => {
+    const series = (index: number) => ({ id: 's1', index, weekdays: [2, 4], until: new Date('2026-12-01') });
+    for (const index of [0, 1, 2]) {
+      await fireCreate(
+        onEventPublished,
+        `events/s1-${String(index)}`,
+        { municipalityId: MUN, createdBy: ACTOR, title: 'Yoga', status: 'published', series: series(index) },
+        { eventId: `s1-${String(index)}` },
+      );
+    }
+    const notes = await notificationsOf('member-1');
+    expect(notes.map((d) => d.id)).toEqual(['village_entity_event_s1-0']);
+  });
+
   it('announces a place proposed by a person', async () => {
     await fireCreate(
       onPlacePublished,

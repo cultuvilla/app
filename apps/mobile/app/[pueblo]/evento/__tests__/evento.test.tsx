@@ -99,6 +99,16 @@ describe('EventDetailScreen', () => {
     expect(watchersOf('village')[0]?.args).toEqual(['m1']);
   });
 
+  it('says when a weekly event repeats, and nothing for a one-off', async () => {
+    const { findByTestId, queryByTestId } = render(<EventDetailScreen />);
+    await waitFor(() => expect(queryByTestId('event-series-summary')).toBeNull());
+    emitWatched('event', {
+      ...EVENT,
+      series: { id: 's', index: 0, weekdays: [2, 4], until: new Date('2026-12-15T00:00:00') },
+    });
+    expect(await findByTestId('event-series-summary')).toHaveTextContent('event.seriesSummary');
+  });
+
   it('shows the not-found state for an event that does not exist', async () => {
     setWatched('event', null);
     const { findByText } = render(<EventDetailScreen />);

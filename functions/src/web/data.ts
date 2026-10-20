@@ -143,6 +143,8 @@ export interface EventView {
   /** Org-only event: the page withholds everything but the fact it exists. */
   private: boolean;
   municipalityId: string | null;
+  /** The weekly series this occurrence belongs to, or null when standalone. */
+  seriesId: string | null;
 }
 
 const LISTED_EVENT_STATUSES = ['published', 'completed'];
@@ -160,6 +162,7 @@ function toEvent(id: string, d: Raw): EventView {
     cancelled: d['status'] === 'cancelled',
     private: d['visibility'] === 'private' || str(d['visibilityOrgId']) !== null,
     municipalityId: str(d['municipalityId']),
+    seriesId: str(obj(d['series'])?.['id']),
   };
 }
 
@@ -624,12 +627,21 @@ async function listTerms(db: Firestore, m: string): Promise<TermView[]> {
   return snap.docs.map((d) => toTerm(d.id, d.data()));
 }
 
-/** Upcoming first (soonest first), then past (most recent first) — the app's order. */
+/**
+ * Upcoming first (soonest first), then past (most recent first) — the app's
+ * order — with one card per weekly series: its next date, else its latest.
+ */
 export function orderEvents(events: EventView[], now: Date): EventView[] {
   const ends = (e: EventView) => (e.end ?? e.start)?.getTime() ?? 0;
   const upcoming = events.filter((e) => ends(e) >= now.getTime());
   const past = events.filter((e) => ends(e) < now.getTime()).reverse();
-  return [...upcoming, ...past];
+  const seen = new Set<string>();
+  return [...upcoming, ...past].filter((e) => {
+    if (e.seriesId === null) return true;
+    if (seen.has(e.seriesId)) return false;
+    seen.add(e.seriesId);
+    return true;
+  });
 }
 
 export interface VillageHome {
