@@ -54,6 +54,12 @@ beforeEach(() => {
 });
 
 describe('Grupos tab', () => {
+  it('says so when the user has no group left', async () => {
+    mockGroups = [];
+    const { findByTestId } = render(<GroupsTabScreen />);
+    expect(await findByTestId('groups-empty')).toBeTruthy();
+  });
+
   it('shows no switcher with a single group', async () => {
     mockGroups = [group('Anduela')];
     const { findByTestId, queryByTestId } = render(<GroupsTabScreen />);

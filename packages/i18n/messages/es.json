@@ -1580,6 +1580,8 @@
     "noUpcomingEvents": "No hay eventos próximos.",
     "openGroupPage": "Ver la página del grupo",
     "manage": "Gestionar",
+    "empty": "Ya no perteneces a ningún grupo.",
+    "loadError": "No se han podido cargar tus grupos.",
     "consent": {
       "title": "¿Qué datos de contacto puede ver la junta?",
       "body": "Solo los administradores del grupo los verán, para avisarte o cobrar la cuota. Los demás socios nunca los ven.",

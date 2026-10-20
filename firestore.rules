@@ -1308,6 +1308,7 @@ service cloud.firestore {
         && (request.resource.data.status == resource.data.status
             || request.resource.data.status == 'rejected')
         && request.resource.data.get('joinPolicy', 'open') in ['open', 'approval']
+        && request.resource.data.get('sociosListVisible', false) is bool
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros']
                 && request.resource.data.type in ['peña', 'asociación', 'otros']))
@@ -1368,6 +1369,9 @@ service cloud.firestore {
                  && isOrgMember(orgId)
                  && request.resource.data.responsibleUid == request.auth.uid
                  && request.resource.data.personId is string
+                 // A member writes the alta of their own persona: keep it to now.
+                 && request.resource.data.altaAt > request.time - duration.value(5, 'm')
+                 && request.resource.data.altaAt < request.time + duration.value(5, 'm')
                  && get(/databases/$(database)/documents/persons/$(request.resource.data.personId)).data.createdBy == request.auth.uid)
              );
         allow update: if isAuthenticated() && resource.data.bajaAt == null && (

@@ -65,6 +65,9 @@ export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: tru
       tx.update(typed.ref.withConverter(null), {
         kind: 'member',
         uid: memberUid,
+        // The account's own name wins over the admin's typing: once the row is a
+        // member row no client may edit its name.
+        displayName: memberData?.displayName.trim() ? memberData.displayName : typedData.displayName,
         personId: memberData?.personId ?? null,
         adminTitle: memberData?.adminTitle ?? null,
         altaAt,

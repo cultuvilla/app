@@ -46,6 +46,7 @@
   "group-share-*": "unit-tested: components/feature/__tests__/RegisterFab.test.tsx",
   "group-switcher": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
   "group-switcher-*": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
+  "groups-empty": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
   "image-lightbox-image": "unit-tested: components/primitives/__tests__/ZoomableImage.test.tsx",
   "input-scroll-hint": "unit-tested: components/primitives/__tests__/Input.test.tsx",
   "intro-backdrop": "unit-tested: components/intro/__tests__/IntroOverlay.test.tsx",

@@ -23,7 +23,7 @@ async function seed() {
   await db.doc(`organizations/${ORG_ID}/socios/typed`).set(socioRow({}));
   await db.doc(`organizations/${ORG_ID}/socioPrivate/typed`).set({ phone: '600', email: null, consentAnsweredAt: null });
   await db.doc(`organizations/${ORG_ID}/socios/dup`).set(
-    socioRow({ kind: 'member', uid: 'paco', personId: 'person-paco', altaAt: new Date('2026-10-01'), createdBy: 'paco' }),
+    socioRow({ kind: 'member', displayName: 'Francisco Pérez', uid: 'paco', personId: 'person-paco', altaAt: new Date('2026-10-01'), createdBy: 'paco' }),
   );
 }
 
@@ -46,7 +46,7 @@ describe('linkSocioToMember (callable)', () => {
     await call('admin', { orgId: ORG_ID, socioId: 'typed', memberUid: 'paco' });
     const db = admin.firestore();
     const typed = (await db.doc(`organizations/${ORG_ID}/socios/typed`).get()).data();
-    expect(typed).toMatchObject({ kind: 'member', uid: 'paco', personId: 'person-paco', bajaAt: null });
+    expect(typed).toMatchObject({ kind: 'member', uid: 'paco', personId: 'person-paco', displayName: 'Francisco Pérez', bajaAt: null });
     expect((typed?.altaAt as admin.firestore.Timestamp).toDate()).toEqual(new Date('2024-01-01'));
     expect((await db.doc(`organizations/${ORG_ID}/socios/dup`).get()).exists).toBe(false);
     expect((await db.doc(`organizations/${ORG_ID}/socioPrivate/typed`).get()).data()?.phone).toBe('600');

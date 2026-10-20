@@ -55,7 +55,12 @@ export default function GroupsTabScreen() {
         </View>
       ) : selected ? (
         <GroupHome key={selected.org.id} group={selected} uid={uid} />
-      ) : null}
+      ) : (
+        // A failed read, or the user just left their last group (the tab hides next).
+        <View className="flex-1 items-center justify-center px-4" testID="groups-empty">
+          <Text tone="muted">{t(status === 'error' ? 'groups.loadError' : 'groups.empty')}</Text>
+        </View>
+      )}
     </Screen>
   );
 }

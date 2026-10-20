@@ -185,6 +185,21 @@ describe('socios — writes', () => {
     );
   });
 
+  it("a member cannot backdate their persona's alta", async () => {
+    await assertFails(
+      setDoc(
+        doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/new1`),
+        socio({ kind: 'persona', personId: 'kid2', responsibleUid: 'member1', createdBy: 'member1', altaAt: new Date(2000, 0, 1) }),
+      ),
+    );
+  });
+
+  it('an admin turns the estatutos setting on, but only with a boolean', async () => {
+    const db = asUser(getEnv(), 'admin1');
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}`), { sociosListVisible: true }));
+    await assertFails(updateDoc(doc(db, `organizations/${ORG}`), { sociosListVisible: 'yes' }));
+  });
+
   it('a non-member cannot add a persona', async () => {
     await getEnv().withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'persons/kid3'), { createdBy: 'outsider', isPublic: false, userId: null });
