@@ -37,6 +37,7 @@ export const RESERVED_ROOT_SEGMENTS = [
   'descubrir',
   'embajadores',
   'entrar',
+  'grupos',
   'legal',
   'mi-pueblo',
   'mis-inscripciones',

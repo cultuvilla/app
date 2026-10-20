@@ -311,6 +311,7 @@ service cloud.firestore {
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
+              'sociosListVisible',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -332,7 +333,56 @@ service cloud.firestore {
           && d.readCount == 0
           && d.memberCount == 0
           && d.membersPublic is bool
-          && d.get('joinPolicy', 'open') in ['open', 'approval'];
+          && d.get('joinPolicy', 'open') in ['open', 'approval']
+          && d.get('sociosListVisible', false) is bool;
+    }
+
+    // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
+    // Only peñas, asociaciones and otros keep one; the ayuntamiento has none.
+    function orgHasSocioRoster(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.type
+        in ['peña', 'asociación', 'otros'];
+    }
+    // "Los estatutos permiten ver la lista de socios" — names only, never contact.
+    function orgSociosListVisible(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('sociosListVisible', false) == true;
+    }
+    function isValidSocioCreate(d) {
+      return d.keys().hasOnly([
+              'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
+              'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
+            ])
+          && d.keys().hasAll([
+              'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
+              'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
+            ])
+          && d.kind in ['persona', 'typed']
+          && isString(d.displayName) && d.displayName.size() > 0 && d.displayName.size() <= 200
+          && d.uid == null
+          && isStringOrNull(d.personId)
+          && isStringOrNull(d.responsibleUid)
+          && d.adminTitle == null
+          && isTimestamp(d.altaAt)
+          && d.bajaAt == null
+          && d.memberJoinedAt == null
+          && d.createdBy == request.auth.uid;
+    }
+    // A persona a cargo may be a socio only while it is one: created by the
+    // caller, with no account of its own (one who claimed it joins as a member)
+    // and alive — the same test MyPersonasSocios applies.
+    function isEligiblePersona(personId) {
+      let p = get(/databases/$(database)/documents/persons/$(personId)).data;
+      return p.createdBy == request.auth.uid
+        && p.get('userId', null) == null
+        && p.get('deathDate', null) == null
+        && p.get('burialPlace', null) == null;
+    }
+    function isValidSocioPrivate(d) {
+      return d.keys().hasOnly(['phone', 'email', 'consentAnsweredAt'])
+          && d.keys().hasAll(['phone', 'email', 'consentAnsweredAt'])
+          && (d.phone == null || (d.phone is string && d.phone.size() <= 40))
+          && (d.email == null || (d.email is string && d.email.size() <= 200))
+          && isTimestampOrNull(d.consentAnsweredAt);
     }
 
     function isValidPlaceCreate(d) {
@@ -1291,6 +1341,7 @@ service cloud.firestore {
         && (request.resource.data.status == resource.data.status
             || request.resource.data.status == 'rejected')
         && request.resource.data.get('joinPolicy', 'open') in ['open', 'approval']
+        && request.resource.data.get('sociosListVisible', false) is bool
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros']
                 && request.resource.data.type in ['peña', 'asociación', 'otros']))
@@ -1325,6 +1376,108 @@ service cloud.firestore {
           || isOrgAdmin(orgId)
           || isVillageAdmin(orgMunicipalityId(orgId))
           || isAppAdmin();
+      }
+
+      // The socio roster — the libro de socios. Member rows are function-owned
+      // (syncOrgSocioRoster: alta on join, baja on leave; linkSocioToMember
+      // merges a typed row into one). A member adds and gives the baja to their
+      // own personas a cargo; an admin types in socios without an account. No
+      // row is ever deleted: leaving is a baja. Contact data is NOT here — see
+      // socioPrivate — so a socio may read names when the estatutos allow it.
+      match /socios/{socioId} {
+        allow read: if isOrgAdmin(orgId)
+          || (isAuthenticated()
+              && (resource.data.uid == request.auth.uid
+                  || resource.data.responsibleUid == request.auth.uid))
+          || (isOrgMember(orgId) && orgSociosListVisible(orgId));
+        allow create: if isAuthenticated()
+          && isValidSocioCreate(request.resource.data)
+          && orgHasSocioRoster(orgId)
+          && (
+               (request.resource.data.kind == 'typed'
+                 && isOrgAdmin(orgId)
+                 && request.resource.data.personId == null
+                 && request.resource.data.responsibleUid == null)
+               || (request.resource.data.kind == 'persona'
+                 && isOrgMember(orgId)
+                 && request.resource.data.responsibleUid == request.auth.uid
+                 && request.resource.data.personId is string
+                 // A member writes the alta of their own persona: keep it to now.
+                 && request.resource.data.altaAt > request.time - duration.value(5, 'm')
+                 && request.resource.data.altaAt < request.time + duration.value(5, 'm')
+                 && isEligiblePersona(request.resource.data.personId)
+                 // One active row per persona: its lock is created in the same
+                 // batch, and a lock create fails while another row holds it.
+                 && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(request.resource.data.personId)).data.socioId == socioId)
+             );
+        allow update: if isAuthenticated() && resource.data.bajaAt == null && (
+             // Baja: a persona by its responsible member or an admin; a typed
+             // socio by an admin. Stamped with the server's clock.
+             (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bajaAt'])
+               && request.resource.data.bajaAt == request.time
+               && ((resource.data.kind == 'persona'
+                     && (resource.data.responsibleUid == request.auth.uid || isOrgAdmin(orgId))
+                     // The baja frees the persona's lock in the same write.
+                     && !existsAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(resource.data.personId)))
+                   || (resource.data.kind == 'typed' && isOrgAdmin(orgId))))
+             // An admin corrects a typed-in socio's name.
+          || (resource.data.kind == 'typed'
+               && isOrgAdmin(orgId)
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+               && isString(request.resource.data.displayName)
+               && request.resource.data.displayName.size() > 0
+               && request.resource.data.displayName.size() <= 200)
+             // An admin gives an admin a display title (no powers), or clears it.
+          || (resource.data.kind == 'member'
+               && isOrgAdmin(orgId)
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adminTitle'])
+               && (request.resource.data.adminTitle == null
+                   || (request.resource.data.adminTitle in ['presidente', 'secretario', 'tesorero', 'vocal', 'otro']
+                       && get(/databases/$(database)/documents/organizations/$(orgId)/members/$(resource.data.uid)).data.role == 'admin')))
+        );
+        allow delete: if false;
+      }
+
+      // While a persona is an active socio, its lock names the row (see
+      // SocioPersonaLockDataSchema). Written only in the batch that creates or
+      // gives the baja to that row; never updated, so a second add fails.
+      match /socioPersonaLocks/{personId} {
+        allow read: if isOrgAdmin(orgId);
+        allow create: if isAuthenticated()
+          && request.resource.data.keys().hasOnly(['socioId'])
+          && request.resource.data.socioId is string
+          && !exists(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId))
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.kind == 'persona'
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.personId == personId
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.responsibleUid == request.auth.uid;
+        allow update: if false;
+        allow delete: if isAuthenticated()
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(resource.data.socioId)).data.bajaAt != null
+          && (get(/databases/$(database)/documents/organizations/$(orgId)/socios/$(resource.data.socioId)).data.responsibleUid == request.auth.uid
+              || isOrgAdmin(orgId));
+      }
+
+      // A socio's phone and email. Only the org's admins and the socio read it
+      // (AEPD 0514/2009: socios don't see each other's contact data). A member
+      // writes their own answer to "what may the junta see"; an admin writes a
+      // typed-in socio's. getAfter so the typed row and this doc can land in one
+      // batch.
+      match /socioPrivate/{socioId} {
+        allow read: if isOrgAdmin(orgId)
+          || (isAuthenticated()
+              && get(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.uid == request.auth.uid);
+        allow create, update: if isAuthenticated()
+          && isValidSocioPrivate(request.resource.data)
+          && (
+               (getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.kind == 'typed'
+                 && isOrgAdmin(orgId)
+                 && request.resource.data.consentAnsweredAt == null)
+               || (getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.kind == 'member'
+                 && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.uid == request.auth.uid
+                 && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.bajaAt == null
+                 && request.resource.data.consentAnsweredAt is timestamp)
+             );
+        allow delete: if false;
       }
 
       // A pending request to join an `approval` org, keyed by the requester's

@@ -1230,7 +1230,8 @@
     "explora": "Explora",
     "village": "Pueblo",
     "findVillage": "Buscar pueblo",
-    "profile": "Perfil"
+    "profile": "Perfil",
+    "groups": "Grupos"
   },
   "onboarding": {
     "completeProfile": {
@@ -1587,6 +1588,87 @@
         "one": "1 persona apuntada",
         "other": "{count} personas apuntadas"
       }
+    }
+  },
+  "groups": {
+    "title": "Mis grupos",
+    "switcherLabel": "Cambiar de grupo",
+    "upcomingEvents": "Próximos eventos",
+    "noUpcomingEvents": "No hay eventos próximos.",
+    "openGroupPage": "Ver la página del grupo",
+    "manage": "Gestionar",
+    "empty": "Ya no perteneces a ningún grupo.",
+    "loadError": "No se han podido cargar tus grupos.",
+    "consent": {
+      "title": "¿Qué datos de contacto puede ver la junta?",
+      "body": "Solo los administradores del grupo los verán, para avisarte o cobrar la cuota. Los demás socios nunca los ven.",
+      "sharePhone": "Compartir mi teléfono",
+      "shareEmail": "Compartir mi email",
+      "phone": "Teléfono",
+      "email": "Email",
+      "save": "Guardar",
+      "saved": "Tus datos de contacto se han guardado.",
+      "edit": "Cambiar qué datos ve la junta",
+      "sharingSummary": "La junta ve: {items}",
+      "sharingNothing": "La junta no ve ningún dato de contacto tuyo.",
+      "error": "No se han podido guardar tus datos. Inténtalo de nuevo."
+    },
+    "personas": {
+      "title": "Personas a tu cargo",
+      "hint": "Hazlas socias del grupo. Los avisos y la cuota te llegarán a ti.",
+      "add": "Hacer socio/a",
+      "remove": "Dar de baja",
+      "isSocio": "Socio/a",
+      "confirmRemoveTitle": "Dar de baja",
+      "confirmRemoveBody": "{name} dejará de ser socio/a. Quedará en el libro de socios con la fecha de baja.",
+      "error": "No se ha podido completar. Inténtalo de nuevo."
+    },
+    "socios": {
+      "title": "Socios",
+      "count": "{count, plural, one {1 socio} other {# socios}}",
+      "add": "Añadir socio",
+      "addTitle": "Añadir socio sin la app",
+      "editTitle": "Editar socio",
+      "name": "Nombre y apellidos",
+      "phone": "Teléfono (opcional)",
+      "email": "Email (opcional)",
+      "save": "Guardar",
+      "nameRequired": "Escribe el nombre.",
+      "kindMember": "Con la app",
+      "kindPersona": "A cargo de {name}",
+      "kindTyped": "Sin la app",
+      "baja": "Baja {date}",
+      "alta": "Alta {date}",
+      "showBajas": "Ver también las bajas",
+      "hideBajas": "Ocultar las bajas",
+      "noContact": "Sin datos de contacto",
+      "contactNotShared": "No ha compartido sus datos",
+      "giveBaja": "Dar de baja",
+      "confirmBajaTitle": "Dar de baja",
+      "confirmBajaBody": "{name} quedará en el libro de socios con la fecha de baja de hoy.",
+      "memberBajaHint": "Un socio con la app se da de baja al salir del grupo.",
+      "link": "Vincular con un miembro",
+      "linkTitle": "¿Quién es {name} en la app?",
+      "linkHint": "Se unirán en una sola ficha, con la fecha de alta más antigua.",
+      "linkEmpty": "No hay miembros con la app para vincular.",
+      "titleLabel": "Cargo",
+      "setTitle": "Poner cargo",
+      "noTitle": "Sin cargo",
+      "error": "No se ha podido completar. Inténtalo de nuevo.",
+      "unnamed": "Sin nombre"
+    },
+    "titles": {
+      "presidente": "Presidencia",
+      "secretario": "Secretaría",
+      "tesorero": "Tesorería",
+      "vocal": "Vocal",
+      "otro": "Otro cargo"
+    },
+    "settings": {
+      "title": "Ajustes del grupo",
+      "sociosListVisible": "Los estatutos permiten ver la lista de socios",
+      "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
+      "error": "No se ha podido guardar el ajuste."
     }
   }
 }
