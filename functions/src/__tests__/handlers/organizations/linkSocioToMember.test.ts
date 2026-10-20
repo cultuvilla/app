@@ -63,6 +63,35 @@ describe('linkSocioToMember (callable)', () => {
     expect(priv).toMatchObject({ phone: null, email: 'paco@x.es' });
   });
 
+  it('moves the cuota entries and assignment of the deleted row onto the surviving one', async () => {
+    const db = admin.firestore();
+    const entry = {
+      periodKey: '2026', kind: 'payment', reversesId: null, amountCents: 3000, method: 'bizum',
+      paidOn: '2026-02-20', note: null, recordedBy: 'admin', recordedAt: new Date(),
+    };
+    await db.doc(`organizations/${ORG_ID}/cuotaPayments/pay1`).set({ ...entry, socioId: 'dup' });
+    await db.doc(`organizations/${ORG_ID}/cuotaPayments/pay2`).set({ ...entry, socioId: 'typed' });
+    await db.doc(`organizations/${ORG_ID}/cuotaAssignments/dup`).set({
+      tierId: 'fam', exempt: false, customAmountCents: null, updatedBy: 'admin', updatedAt: new Date(),
+    });
+
+    await call('admin', { orgId: ORG_ID, socioId: 'typed', memberUid: 'paco' });
+
+    expect((await db.doc(`organizations/${ORG_ID}/cuotaPayments/pay1`).get()).data()?.socioId).toBe('typed');
+    expect((await db.doc(`organizations/${ORG_ID}/cuotaPayments/pay2`).get()).data()?.socioId).toBe('typed');
+    expect((await db.doc(`organizations/${ORG_ID}/cuotaAssignments/typed`).get()).data()?.tierId).toBe('fam');
+    expect((await db.doc(`organizations/${ORG_ID}/cuotaAssignments/dup`).get()).exists).toBe(false);
+  });
+
+  it("keeps the typed row's own assignment over the deleted row's", async () => {
+    const db = admin.firestore();
+    const assignment = (tierId: string) => ({ tierId, exempt: false, customAmountCents: null, updatedBy: 'admin', updatedAt: new Date() });
+    await db.doc(`organizations/${ORG_ID}/cuotaAssignments/typed`).set(assignment('jub'));
+    await db.doc(`organizations/${ORG_ID}/cuotaAssignments/dup`).set(assignment('fam'));
+    await call('admin', { orgId: ORG_ID, socioId: 'typed', memberUid: 'paco' });
+    expect((await db.doc(`organizations/${ORG_ID}/cuotaAssignments/typed`).get()).data()?.tierId).toBe('jub');
+  });
+
   it('refuses a caller who is not an org admin', async () => {
     await expect(call('paco', { orgId: ORG_ID, socioId: 'typed', memberUid: 'paco' })).rejects.toMatchObject({
       code: 'permission-denied',
