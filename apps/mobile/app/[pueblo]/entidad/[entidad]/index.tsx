@@ -32,12 +32,14 @@ import {
   requestToJoinOrganization,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
 import { OrgJoinRequests } from '../../../../components/feature/OrgJoinRequests';
+import { SocioConsentCard } from '../../../../components/feature/groups/SocioConsentCard';
 import { showAlert, showConfirm } from '../../../../lib/dialogs';
 import { getOrgViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { entityRefHref, orgEditHref } from '../../../../lib/navigation/routes';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { canViewOrgRoster } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
+import { hasSocioRoster } from '@cultuvilla/shared/models/organization/SocioDataModel';
 import {
   isSoleAdminWithOthers,
   type OrgMemberData,
@@ -274,6 +276,8 @@ export default function OrgDetailScreen() {
               {t('organization.invitedBanner')}
             </Text>
           ) : null}
+          {/* Asked once, right after joining: what the junta may see. */}
+          {isMember && hasSocioRoster(org.type) ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
           {org.description ? <Text>{org.description}</Text> : null}
           {org.images.length > 1 ? (
             <VStack gap={2} className="pt-2">

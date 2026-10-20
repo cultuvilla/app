@@ -40,6 +40,7 @@ export const routes = {
   home: href('/(tabs)'),
   myVillage: href('/(tabs)/mi-pueblo'),
   profile: href('/(tabs)/perfil'),
+  groups: href('/(tabs)/grupos'),
   login: href('/(auth)/entrar'),
   completeProfile: href('/(onboarding)/completar-perfil'),
   inbox: href('/buzon'),

@@ -50,6 +50,7 @@ jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
 }));
 jest.mock('../../../../components/feature/OrgJoinRequests', () => ({ OrgJoinRequests: () => null }));
 jest.mock('../../../../components/feature/OrgMembersList', () => ({ OrgMembersList: () => null }));
+jest.mock('../../../../components/feature/groups/SocioConsentCard', () => ({ SocioConsentCard: () => null }));
 jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getOrgViewLink: () => ({
     url: 'https://x/villa/entidad/pena-la-union_o1',
