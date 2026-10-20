@@ -721,7 +721,9 @@ export default function NewEventScreen() {
           {/* Only offered with exactly one organizing org: "private" has to
               name the single group whose membership is the guest list, and a
               two-org event has no such group. */}
-          {organizerOrgIds.length === 1 ? (
+          {/* A series shares one visibility (firestore.rules refuses a change
+              on one occurrence), so its days offer no switch. */}
+          {organizerOrgIds.length === 1 && !loadedEvent?.series ? (
             <VStack gap={1}>
               <ToggleField
                 label={t('event.privateToOrg')}

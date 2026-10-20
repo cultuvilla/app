@@ -473,9 +473,42 @@ service cloud.firestore {
           && s.weekdays is list && s.weekdays.size() >= 1 && s.weekdays.size() <= 7
           && s.weekdays.hasOnly([1, 2, 3, 4, 5, 6, 7])
           && isTimestamp(s.until)
-          && d.startDate < s.until + duration.value(1, 'd')
+          // `until` is the start of the last calendar day, and a Madrid day
+          // runs 25 hours on the night clocks go back — 26 h of slack keeps a
+          // late occurrence on that day valid.
+          && d.startDate < s.until + duration.value(26, 'h')
           && s.until < d.startDate + duration.value(184, 'd')
       );
+    }
+
+    // Who may put an occurrence into a series. The first occurrence (index 0)
+    // IS the series: its id is the series id, so nobody can claim an id
+    // already taken. Every later one must point at a root that exists once the
+    // request lands (`getAfter`: the whole series is one batch), made by the
+    // same creator in the same village, with the same visibility. Without this
+    // any member could slot an earlier-dated "occurrence" into someone else's
+    // series — replacing its card in every collapsed list — or a later one that
+    // makes the organizer's "este y los siguientes" batch fail.
+    function isOwnSeriesOccurrence(eventId, d) {
+      let s = d.get('series', null);
+      return s == null
+        || (s.index == 0 && s.id == eventId)
+        || (s.index > 0 && s.id != eventId && isOwnSeriesRoot(s.id, d));
+    }
+
+    function isOwnSeriesRoot(rootId, d) {
+      let path = /databases/$(database)/documents/events/$(rootId);
+      return existsAfter(path) && isSeriesRootOf(getAfter(path).data, rootId, d);
+    }
+
+    function isSeriesRootOf(root, rootId, d) {
+      let rs = root.get('series', null);
+      return rs != null
+        && rs.id == rootId
+        && rs.index == 0
+        && root.createdBy == d.createdBy
+        && root.municipalityId == d.municipalityId
+        && root.visibilityOrgId == d.visibilityOrgId;
     }
 
     function isValidEventCreate(d) {
@@ -1356,6 +1389,7 @@ service cloud.firestore {
       allow read: if resource == null || canReadEvent(resource.data);
       allow create: if isAuthenticated()
         && isValidEventCreate(request.resource.data)
+        && isOwnSeriesOccurrence(eventId, request.resource.data)
         && request.resource.data.municipalityId is string
         && request.resource.data.createdBy == request.auth.uid
         && isVillageMember(request.resource.data.municipalityId)
@@ -1376,7 +1410,11 @@ service cloud.firestore {
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentCount', 'readCount', 'villageSlug', 'series'])
         && isAdditiveSignupFieldsChange(resource.data, request.resource.data)
         && isFrozenGroupSizeChange(resource.data, request.resource.data)
-        && isValidVisibilityChange(resource.data, request.resource.data);
+        && isValidVisibilityChange(resource.data, request.resource.data)
+        // A series shares one visibility: "este y los siguientes" finds its
+        // siblings within it, and a day made private on its own would split it.
+        && (resource.data.get('series', null) == null
+            || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['visibility', 'visibilityOrgId']));
       allow delete: if isOwner(resource.data.createdBy)
         || (request.auth.uid in resource.data.organizerUserIds)
         || isVillageAdmin(resource.data.municipalityId)

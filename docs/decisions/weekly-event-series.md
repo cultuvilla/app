@@ -25,6 +25,17 @@ teacher is ill, without touching the rest.
 - **`series` is immutable after create** (firestore.rules refuses a change), and
   optional on create, so installed binaries that never send it keep creating
   events.
+- **Only the series' creator can add to it.** The first occurrence's `series.id`
+  must be its own doc id; every later one must point at a root that exists once
+  the batch lands (`getAfter`), with the same creator, village and visibility.
+  Otherwise any member could slot an earlier-dated "occurrence" into someone
+  else's series and replace its card in every collapsed list, or a later one
+  that breaks the organizer's "este y los siguientes" batch. A batch at the cap
+  (184 occurrences) stays inside the per-request document-access budget —
+  pinned by a rules test.
+- **One visibility per series.** The update rule refuses a visibility change on
+  an occurrence, and the form hides the switch: "este y los siguientes" looks
+  for siblings in the occurrence's own visibility partition.
 - **Cancel one day or this-and-following.** Deleting an occurrence offers *Solo
   este día* (the existing soft-cancel) or *Este y los siguientes*
   (`cancelSeriesFrom`: the published occurrences from this start onwards).
@@ -35,6 +46,9 @@ teacher is ill, without touching the rest.
   `upcomingThenPast` (pueblo and org lists) and after the Explora filters (so
   a date filter still finds the matching day); the read site's `orderEvents`
   does the same. The card is the next occurrence, or the latest if all passed.
+  Explora pages by occurrence docs but shows cards, so a daily series could
+  fill its 50-row page alone: `grownFeedSize` doubles the page (up to 400)
+  while it comes back full and shows fewer than 20 cards.
 - **Shared cover.** The flyer is uploaded once, under the first occurrence, and
   every occurrence points at it. `cleanupRemovedEventImages` ignores series
   docs, so replacing the first day's cover cannot delete the image its siblings
@@ -61,6 +75,8 @@ teacher is ill, without touching the rest.
 - A query over a series must pin `visibility` / `visibilityOrgId` like every
   `events` list (see `publicOnly` in eventService).
 - `MAX_SERIES_DAYS` and the 184-day bound in `isValidEventSeries` move together.
+  The last-day bound allows 26 h past `until` (the start of that day), because
+  a Madrid day lasts 25 h when clocks go back.
 
 ## Revisit when
 

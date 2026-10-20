@@ -40,7 +40,7 @@ import {
 import { watchAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
 import { getActiveCommunities } from '@cultuvilla/shared/services/municipalityService';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
-import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
+import { firstOfEachSeries, grownFeedSize } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import {
   NEWS_POST_CATEGORIES,
   type NewsPostData,
@@ -51,6 +51,10 @@ const ACCENT = '#bb5d3a'; // colors.ts: light.bg.accent (terracotta)
 // Breathing room between the filter bar and the first card. Lives in the feed's
 // top padding (the content behind), not in the filter component itself.
 const FEED_TOP_GAP = 12;
+/** Explora's first page of public occurrences, and how far it may grow. */
+const FEED_PAGE = 50;
+const FEED_MAX = 400;
+const FEED_TARGET_CARDS = 20;
 
 type FeedEvent = EventData & { id: string };
 type FeedNews = NewsPostData & { id: string };
@@ -119,11 +123,23 @@ export default function FeedScreen() {
   // private half is one query per org the viewer belongs to — rules do not
   // filter a list, so each query must ask only for rows this viewer may read.
   // The private half is best-effort: losing it must not empty the feed.
+  // The page is counted in occurrence docs but shown in cards (one per weekly
+  // series), so a page a daily series crowded grows until it shows enough —
+  // see grownFeedSize. While the bigger page loads, the last one stays up.
+  const [feedSize, setFeedSize] = useState(FEED_PAGE);
   const publicFeed = useWatch<FeedEvent[]>(
     'feed:watchUpcomingFeed',
-    `${today}|${String(eventsRetry)}`,
-    (next, fail) => watchUpcomingFeed(50, next, fail),
+    `${today}|${String(eventsRetry)}|${String(feedSize)}`,
+    (next, fail) => watchUpcomingFeed(feedSize, next, fail),
   );
+  const lastPublicRows = useRef<FeedEvent[] | undefined>(undefined);
+  if (publicFeed.data) lastPublicRows.current = publicFeed.data;
+  const publicRows = publicFeed.data ?? (feedSize > FEED_PAGE ? lastPublicRows.current : undefined);
+  useEffect(() => {
+    if (!publicFeed.data) return;
+    const next = grownFeedSize(publicFeed.data, feedSize, { targetCards: FEED_TARGET_CARDS, max: FEED_MAX });
+    if (next !== feedSize) setFeedSize(next);
+  }, [publicFeed.data, feedSize]);
   const privateFeed = useWatch<FeedEvent[]>(
     'feed:watchPrivateUpcomingFeed',
     `${today}|${orgIds.join(',')}|${String(eventsRetry)}`,
@@ -131,12 +147,12 @@ export default function FeedScreen() {
   );
   const events = useMemo<FeedEvent[] | null>(
     () =>
-      publicFeed.data
-        ? [...publicFeed.data, ...(privateFeed.data ?? [])].sort(
+      publicRows
+        ? [...publicRows, ...(privateFeed.data ?? [])].sort(
             (a, b) => a.endBoundary.getTime() - b.endBoundary.getTime(),
           )
         : null,
-    [publicFeed.data, privateFeed.data],
+    [publicRows, privateFeed.data],
   );
   const error = publicFeed.error?.message ?? null;
 
