@@ -1669,6 +1669,105 @@
       "sociosListVisible": "Los estatutos permiten ver la lista de socios",
       "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
       "error": "No se ha podido guardar el ajuste."
+    },
+    "cuota": {
+      "title": "Cuota de socios",
+      "myTitle": "Mi cuota",
+      "periodTitle": "Cuota {period}",
+      "status": {
+        "al_dia": "Al día",
+        "pendiente": "Pendiente",
+        "vencida": "Vencida"
+      },
+      "dueOn": "Vence el {date}",
+      "overdueSince": "Venció el {date}",
+      "paidOf": "Pagado {paid} de {owed}",
+      "exempt": "Exento/a",
+      "household": "Incluida en la cuota familiar de {name}",
+      "howToPay": "Cómo pagar",
+      "bizum": "Bizum: {value}",
+      "iban": "Transferencia: {value}",
+      "concept": "Concepto: {value}",
+      "history": "Pagos anotados",
+      "noHistory": "Todavía no hay pagos anotados.",
+      "reversed": "Anulado",
+      "reversal": "Anulación",
+      "entryLine": "{period} · {amount} · {method} · {date}",
+      "methods": {
+        "efectivo": "Efectivo",
+        "bizum": "Bizum",
+        "transferencia": "Transferencia",
+        "domiciliacion": "Domiciliación"
+      },
+      "periodicity": {
+        "yearly": "Anual",
+        "monthly": "Mensual"
+      },
+      "error": "No se ha podido completar. Inténtalo de nuevo.",
+      "admin": {
+        "notConfigured": "Todavía no hay cuota. Configúrala para anotar pagos y que cada socio vea cómo pagar.",
+        "configure": "Configurar la cuota",
+        "editSettings": "Ajustes",
+        "summary": "{amount} · {periodicity} · vence el {due}",
+        "remindersOn": "Recordatorios activos, firmados por {name}",
+        "remindersOff": "Recordatorios desactivados",
+        "prevPeriod": "Periodo anterior",
+        "nextPeriod": "Periodo siguiente",
+        "filterAll": "Todos ({count})",
+        "filterStatus": "{label} ({count})",
+        "recordPayment": "Anotar pago",
+        "assign": "Cuota",
+        "showHistory": "Ver pagos",
+        "hideHistory": "Ocultar pagos",
+        "reverse": "Anular",
+        "confirmReverseTitle": "Anular el pago",
+        "confirmReverseBody": "Se anotará una anulación de {amount}. El pago queda en el historial.",
+        "reminderSent": "Recordatorio enviado el {date}",
+        "empty": "No hay socios en este periodo.",
+        "exportTitle": "Exportar la cuota",
+        "exportBody": "{count, plural, one {1 socio} other {# socios}} del periodo {period}."
+      },
+      "settings": {
+        "title": "Ajustes de la cuota",
+        "amount": "Importe (€)",
+        "amountInvalid": "Escribe un importe, por ejemplo 30 o 12,50.",
+        "periodicity": "Periodo",
+        "dueDay": "Día de vencimiento",
+        "dueMonth": "Mes de vencimiento",
+        "dueDayInvalid": "Escribe un día del 1 al 31.",
+        "graceDays": "Días de margen hasta que esté vencida",
+        "graceDaysInvalid": "Escribe un número de días, de 0 a 365.",
+        "bizum": "Número de Bizum (opcional)",
+        "iban": "IBAN (opcional)",
+        "payInstructions": "Otras indicaciones (opcional)",
+        "reminders": "Enviar recordatorios",
+        "remindersHint": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email, firmados por {name}. Actívalos cuando hayas anotado los pagos que ya tienes.",
+        "remindersHintNoSigner": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email, firmados por la junta.",
+        "tiers": "Tarifas",
+        "tiersHint": "Opcional: por ejemplo, reducida para jubilados o familiar.",
+        "addTier": "Añadir tarifa",
+        "tierName": "Nombre de la tarifa",
+        "tierNameRequired": "Pon un nombre a la tarifa.",
+        "tierCovers": "Cubre a las personas a su cargo",
+        "removeTier": "Quitar tarifa",
+        "save": "Guardar"
+      },
+      "payment": {
+        "title": "Anotar pago de {name}",
+        "amount": "Importe (€)",
+        "method": "Forma de pago",
+        "date": "Fecha del pago",
+        "note": "Nota (opcional)",
+        "save": "Anotar pago"
+      },
+      "assignment": {
+        "title": "Cuota de {name}",
+        "general": "General ({amount})",
+        "tier": "{name} ({amount})",
+        "exempt": "Exento/a",
+        "custom": "Importe propio",
+        "save": "Guardar"
+      }
     }
   }
 }

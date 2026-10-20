@@ -16,6 +16,12 @@ import { registrationEventConverterClient } from '../converters/registrationEven
 import { organizationConverterClient } from '../converters/organizationConverter.client';
 import { orgMemberConverterClient } from '../converters/orgMemberConverter.client';
 import { orgJoinRequestConverterClient } from '../converters/orgJoinRequestConverter.client';
+import {
+  cuotaAssignmentConverterClient,
+  cuotaPaymentConverterClient,
+  cuotaReminderConverterClient,
+  cuotaSettingsConverterClient,
+} from '../converters/cuotaConverter.client';
 import { socioConverterClient, socioPersonaLockConverterClient, socioPrivateConverterClient } from '../converters/socioConverter.client';
 import { organizerRequestConverterClient } from '../converters/organizerRequestConverter.client';
 import { personConverterClient } from '../converters/personConverter.client';
@@ -143,6 +149,35 @@ export const organizationSocioPrivateDoc = (db: Firestore, organizationId: strin
 
 export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
   doc(db, 'organizations', organizationId, 'socioPersonaLocks', personId).withConverter(socioPersonaLockConverterClient);
+
+// The cuota de socios (see CuotaDataModel): settings, per-socio assignment,
+// the append-only payment ledger, and the reminders the job sent.
+export const organizationCuotaSettingsDoc = (db: Firestore, organizationId: string) =>
+  doc(db, 'organizations', organizationId, 'cuotaSettings', 'current').withConverter(cuotaSettingsConverterClient);
+
+export const organizationCuotaAssignmentsCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'cuotaAssignments').withConverter(cuotaAssignmentConverterClient);
+
+export const organizationCuotaAssignmentDoc = (db: Firestore, organizationId: string, socioId: string) =>
+  doc(db, 'organizations', organizationId, 'cuotaAssignments', socioId).withConverter(cuotaAssignmentConverterClient);
+
+export const organizationCuotaPaymentsCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'cuotaPayments').withConverter(cuotaPaymentConverterClient);
+
+export const organizationCuotaRemindersCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'cuotaReminders').withConverter(cuotaReminderConverterClient);
+
+/**
+ * Unconverted, for cuota writes only: they stamp `serverTimestamp()` (which
+ * rules compare with `request.time`) and the strict converter refuses the
+ * sentinel. The service validates each payload with its schema first.
+ */
+export const organizationCuotaWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  collectionName: 'cuotaSettings' | 'cuotaAssignments' | 'cuotaPayments',
+  id: string,
+) => doc(db, 'organizations', organizationId, collectionName, id);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);

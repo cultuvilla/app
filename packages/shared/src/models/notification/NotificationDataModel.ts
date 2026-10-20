@@ -45,6 +45,11 @@ export const NotificationTypeSchema = z.enum([
   // A village's Wrapped went public, by an admin or by the grace timer. Sent to
   // every member; carries its `wrappedId` the same way and opens the viewer.
   'village_wrapped_published',
+  // The cuota de socios is about to fall due, or is vencida. Written by the
+  // scheduled `sendCuotaReminders` in the treasurer's name, to the member (or a
+  // persona's responsible member). Carries entityKind 'organization' +
+  // entityId (the org), so a client that predates the type still opens the group.
+  'cuota_reminder',
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 

@@ -2,6 +2,8 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
+  organizationCuotaAssignmentDoc,
+  organizationCuotaPaymentsCollection,
   organizationMemberDoc,
   organizationSocioDoc,
   organizationSocioPrivateDoc,
@@ -24,6 +26,11 @@ interface LinkSocioToMemberData {
  *
  * Contact data: the member's own answer, if they gave one, replaces what the
  * admin typed (it is theirs to give); otherwise the typed contact stays.
+ *
+ * Cuota: entries recorded against the deleted row move to the surviving one
+ * (the only time a ledger entry is rewritten — it keeps its history, only the
+ * row it points at changes), and so does its assignment unless the typed row
+ * has its own.
  *
  * Authority: an admin of the org. Callable because it rewrites a function-owned
  * member row and deletes one, which no client may do.
@@ -56,9 +63,14 @@ export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: tru
 
       const memberRow = memberRows.empty ? undefined : memberRows.docs[0];
       const memberData = memberRow?.data();
-      const memberPrivate = memberRow
-        ? (await tx.get(organizationSocioPrivateDoc(db, orgId, memberRow.id))).data()
-        : undefined;
+      const [memberPrivate, memberPayments, memberAssignment, typedAssignment] = memberRow
+        ? await Promise.all([
+            tx.get(organizationSocioPrivateDoc(db, orgId, memberRow.id)).then((snap) => snap.data()),
+            tx.get(organizationCuotaPaymentsCollection(db, orgId).where('socioId', '==', memberRow.id)),
+            tx.get(organizationCuotaAssignmentDoc(db, orgId, memberRow.id)),
+            tx.get(organizationCuotaAssignmentDoc(db, orgId, socioId)),
+          ])
+        : [undefined, undefined, undefined, undefined];
 
       const altaAt =
         memberData && memberData.altaAt < typedData.altaAt ? memberData.altaAt : typedData.altaAt;
@@ -82,6 +94,10 @@ export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: tru
       if (memberRow) {
         tx.delete(memberRow.ref);
         tx.delete(organizationSocioPrivateDoc(db, orgId, memberRow.id));
+        for (const entry of memberPayments?.docs ?? []) tx.update(entry.ref, { socioId });
+        const moved = memberAssignment?.data();
+        if (moved && !typedAssignment?.exists) tx.set(organizationCuotaAssignmentDoc(db, orgId, socioId), moved);
+        if (memberAssignment?.exists) tx.delete(memberAssignment.ref);
       }
     });
 

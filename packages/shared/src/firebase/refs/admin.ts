@@ -13,6 +13,12 @@ import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel'
 import { organizationConverterAdmin } from '../converters/organizationConverter.admin';
 import { orgMemberConverterAdmin } from '../converters/orgMemberConverter.admin';
 import { orgJoinRequestConverterAdmin } from '../converters/orgJoinRequestConverter.admin';
+import {
+  cuotaAssignmentConverterAdmin,
+  cuotaPaymentConverterAdmin,
+  cuotaReminderConverterAdmin,
+  cuotaSettingsConverterAdmin,
+} from '../converters/cuotaConverter.admin';
 import { socioConverterAdmin, socioPersonaLockConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
 import { organizerRequestConverterAdmin } from '../converters/organizerRequestConverter.admin';
 import { personConverterAdmin } from '../converters/personConverter.admin';
@@ -145,6 +151,32 @@ export const organizationSocioPersonaLocksCollection = (db: Firestore, organizat
 
 export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
   db.collection('organizations').doc(organizationId).collection('socioPersonaLocks').doc(personId).withConverter(socioPersonaLockConverterAdmin);
+
+// The cuota de socios (see CuotaDataModel).
+export const organizationCuotaSettingsDoc = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('cuotaSettings').doc('current').withConverter(cuotaSettingsConverterAdmin);
+
+export const organizationCuotaSettingsCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('cuotaSettings').withConverter(cuotaSettingsConverterAdmin);
+
+/** Every org's cuota settings — the reminder job's starting point. */
+export const cuotaSettingsGroup = (db: Firestore) =>
+  db.collectionGroup('cuotaSettings').withConverter(cuotaSettingsConverterAdmin);
+
+export const organizationCuotaAssignmentsCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('cuotaAssignments').withConverter(cuotaAssignmentConverterAdmin);
+
+export const organizationCuotaAssignmentDoc = (db: Firestore, organizationId: string, socioId: string) =>
+  db.collection('organizations').doc(organizationId).collection('cuotaAssignments').doc(socioId).withConverter(cuotaAssignmentConverterAdmin);
+
+export const organizationCuotaPaymentsCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('cuotaPayments').withConverter(cuotaPaymentConverterAdmin);
+
+export const organizationCuotaRemindersCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('cuotaReminders').withConverter(cuotaReminderConverterAdmin);
+
+export const organizationCuotaReminderDoc = (db: Firestore, organizationId: string, reminderId: string) =>
+  db.collection('organizations').doc(organizationId).collection('cuotaReminders').doc(reminderId).withConverter(cuotaReminderConverterAdmin);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);

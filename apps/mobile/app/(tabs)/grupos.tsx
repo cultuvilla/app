@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { hasSocioRoster, type OrgMemberData } from '@cultuvilla/shared/models/organization';
 import { watchOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
 import { Pressable, Screen, Text, VStack } from '../../components/primitives';
@@ -10,6 +10,8 @@ import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCa
 import { MyPersonasSocios } from '../../components/feature/groups/MyPersonasSocios';
 import { SociosRoster } from '../../components/feature/groups/SociosRoster';
 import { GroupSettings } from '../../components/feature/groups/GroupSettings';
+import { MyCuota } from '../../components/feature/groups/MyCuota';
+import { CuotaAdmin } from '../../components/feature/groups/CuotaAdmin';
 import { OrgEventsSection } from '../../components/feature/OrgEventsSection';
 import { OrgJoinRequests } from '../../components/feature/OrgJoinRequests';
 import { OrgMembersList } from '../../components/feature/OrgMembersList';
@@ -31,10 +33,17 @@ export default function GroupsTabScreen() {
   const uid = user?.uid ?? null;
   const { groups, status } = useMyGroups(uid);
   const [remembered, setRemembered] = useState<string | null | undefined>(undefined);
+  // A cuota reminder opens the tab on its group (`/grupos?grupo=<orgId>`).
+  const { grupo } = useLocalSearchParams<{ grupo?: string }>();
 
   useEffect(() => {
+    if (grupo) {
+      setRemembered(grupo);
+      void rememberLastGroupId(grupo);
+      return;
+    }
     void readLastGroupId().then(setRemembered);
-  }, []);
+  }, [grupo]);
 
   const groupIds = useMemo(() => groups.map((g) => g.org.id), [groups]);
   const selectedId = remembered === undefined ? null : pickGroupId(groupIds, remembered);
@@ -97,6 +106,8 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
         {/* Rules let only an approval org's members read its private events. */}
         <OrgEventsSection orgId={org.id} includePrivate={org.joinPolicy === 'approval'} />
 
+        {roster ? <MyCuota orgId={org.id} uid={uid} /> : null}
+
         {roster ? <MyPersonasSocios orgId={org.id} uid={uid} /> : null}
 
         {roster && !isAdmin && org.sociosListVisible ? (
@@ -108,6 +119,7 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
             <Text variant="h3" className="mt-4">
               {t('groups.manage')}
             </Text>
+            {roster ? <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} /> : null}
             {roster ? <SociosRoster orgId={org.id} canManage adminUids={adminUids} currentUid={uid} /> : null}
             {org.joinPolicy === 'approval' ? <OrgJoinRequests orgId={org.id} /> : null}
             <OrgMembersList orgId={org.id} canManage currentUserId={uid} />

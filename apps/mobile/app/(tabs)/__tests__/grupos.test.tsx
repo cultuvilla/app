@@ -16,7 +16,11 @@ jest.mock('../../../lib/orgs/lastGroup', () => ({
   rememberLastGroupId: (id: string) => mockRemember(id),
 }));
 const mockPush = jest.fn();
-jest.mock('expo-router', () => ({ router: { push: (href: unknown) => mockPush(href) } }));
+let mockParams: { grupo?: string } = {};
+jest.mock('expo-router', () => ({
+  router: { push: (href: unknown) => mockPush(href) },
+  useLocalSearchParams: () => mockParams,
+}));
 jest.mock('../../../components/layout/AppHeader', () => ({ AppHeader: () => null }));
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
   watchOrgMembers: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('members'),
@@ -28,6 +32,8 @@ function mockStub(name: string) {
 jest.mock('../../../components/feature/groups/SocioConsentCard', () => mockStub('SocioConsentCard'));
 jest.mock('../../../components/feature/groups/MyPersonasSocios', () => mockStub('MyPersonasSocios'));
 jest.mock('../../../components/feature/groups/GroupSettings', () => mockStub('GroupSettings'));
+jest.mock('../../../components/feature/groups/MyCuota', () => mockStub('MyCuota'));
+jest.mock('../../../components/feature/groups/CuotaAdmin', () => mockStub('CuotaAdmin'));
 jest.mock('../../../components/feature/OrgEventsSection', () => mockStub('OrgEventsSection'));
 jest.mock('../../../components/feature/OrgJoinRequests', () => mockStub('OrgJoinRequests'));
 jest.mock('../../../components/feature/OrgMembersList', () => mockStub('OrgMembersList'));
@@ -49,6 +55,7 @@ function group(id: string, overrides: Partial<Parameters<typeof buildOrganizatio
 }
 
 beforeEach(() => {
+  mockParams = {};
   mockRemembered = null;
   mockRemember.mockClear();
 });
@@ -92,7 +99,9 @@ describe('Grupos tab', () => {
     await findByTestId('group-home');
     expect(getByTestId('stub-SocioConsentCard')).toBeTruthy();
     expect(getByTestId('stub-MyPersonasSocios')).toBeTruthy();
+    expect(getByTestId('stub-MyCuota')).toBeTruthy();
     expect(queryByTestId('group-manage')).toBeNull();
+    expect(queryByTestId('stub-CuotaAdmin')).toBeNull();
     expect(queryByTestId('stub-SociosRoster-names')).toBeNull();
   });
 
@@ -110,6 +119,17 @@ describe('Grupos tab', () => {
     expect(getByTestId('stub-OrgJoinRequests')).toBeTruthy();
     expect(getByTestId('stub-OrgMembersList')).toBeTruthy();
     expect(getByTestId('stub-GroupSettings')).toBeTruthy();
+    expect(getByTestId('stub-CuotaAdmin')).toBeTruthy();
+  });
+
+  it('opens on the group a cuota reminder names, and remembers it', async () => {
+    mockGroups = [group('Anduela'), group('Peña')];
+    mockRemembered = 'Anduela';
+    mockParams = { grupo: 'Peña' };
+    const { findByTestId, getAllByText } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    expect(getAllByText('Peña')).toHaveLength(2);
+    expect(mockRemember).toHaveBeenCalledWith('Peña');
   });
 
   it('an ayuntamiento has no socio roster', async () => {
@@ -119,6 +139,8 @@ describe('Grupos tab', () => {
     expect(queryByTestId('stub-SocioConsentCard')).toBeNull();
     expect(queryByTestId('stub-SociosRoster-manage')).toBeNull();
     expect(queryByTestId('stub-GroupSettings')).toBeNull();
+    expect(queryByTestId('stub-CuotaAdmin')).toBeNull();
+    expect(queryByTestId('stub-MyCuota')).toBeNull();
     expect(getByTestId('stub-OrgMembersList')).toBeTruthy();
   });
 });

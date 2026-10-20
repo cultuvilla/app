@@ -28,6 +28,9 @@ export const NOTIFICATION_CATEGORY: Record<NotificationType, NotificationCategor
   signups_disabled: 'mine',
   registration_removed: 'mine',
   event_reminder: 'mine',
+  // Your own debt to your group. The job only runs at 10:00 Madrid, so it
+  // never lands in quiet hours even though `mine` would bypass them.
+  cuota_reminder: 'mine',
 
   village_entity_published: 'village',
   // Addressed to village admins, but it is about the pueblo, not about them,

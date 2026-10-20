@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** none
 **Gate:** none
-**Next:** Phase 3 (cuota de socios) — write its plan section against the Phase 1 roster model below, then build it
+**Next:** Phase 4 (messaging) — build it on the Phase 3 reminder plumbing (shared `sendEmail` transport, `cuota_reminder`-style notification docs, per-recipient grouping) described under *Phase 3 — as built*
 
 Decided 2026-10-20 (user): build all five phases, taking the agent's picks on the
 open questions (recorded under *Decisions* below).
@@ -168,6 +168,81 @@ what is going on; whether members can create tasks is a later setting.)*
   design.
 - Event payments keep using `registration.paidAt`; they appear in the group's money
   view but are not merged into the cuota model.
+
+### Phase 3 — as built
+
+Shipped in one PR (`feat/group-toolkit-phase3-cuota`). Only orgs with a socio roster
+(`hasSocioRoster`) have a cuota; rules check it on the settings write.
+
+- **Data** (`CuotaDataModel`, amounts in integer euro cents):
+  - `organizations/{orgId}/cuotaSettings/current` — `amountCents`, `periodicity`
+    (`yearly` | `monthly`), `dueMonth` (yearly only), `dueDay` (clamped to the month),
+    `graceDays`, `startPeriod` (first tracked period; earlier ones owe nothing; reset
+    to the current period when the periodicity changes), `tiers[]` (`id`, `name`,
+    `amountCents`, `coversPersonas`), `bizum`, `iban`, `payInstructions`,
+    `remindersEnabled` (off on first configuration, so nobody is reminded before the
+    paper payments are recorded), `configuredBy` (last admin who saved), `updatedAt`
+    (server time). Members read it; admins write it.
+  - `cuotaAssignments/{socioId}` — `tierId`, `exempt`, `customAmountCents` (wins over
+    the tier), `updatedBy`, `updatedAt`. No doc = base cuota.
+  - `cuotaPayments/{paymentId}` — append-only ledger: `socioId`, `periodKey` (`YYYY` |
+    `YYYY-MM`), `kind` (`payment` | `reversal`), `reversesId`, `amountCents`, `method`
+    (`efectivo` | `bizum` | `transferencia` | `domiciliacion`), `paidOn` (Madrid day
+    key), `note`, `recordedBy`, `recordedAt` (server time). Rules refuse update and
+    delete; a reversal lives at `rev_<paymentId>` and must copy the payment's socio,
+    period and amount, so each payment is reversed at most once. Admins record; a
+    member reads the entries of the rows they are or answer for (`isMySocioRow`, one
+    `socioId ==` query per row). `linkSocioToMember` re-points a merged row's entries
+    and assignment to the surviving row — the only rewrite of a ledger entry.
+  - `cuotaReminders/{periodKey}_{stage}_{socioId}` — function-owned record of what was
+    sent (`stage` `before` | `after`, `recipientUid`, `push`, `email`, `signerName`,
+    `sentAt`); admins read it ("Recordatorio enviado el …").
+- **Status on read**, never stored: `computeCuotaStatuses` in
+  `packages/shared/src/models/organization/cuotaStatus.ts` (+ `periodKeyFor`,
+  `periodDueDay`, `owedCents`, `netPaidBySocio`, `cuotaReminderStage`, `cuotaSigner`,
+  `cuotaConcept`, `parseEuroCents`). Al día when net paid ≥ owed (or exempt);
+  pendiente until `dueOn + graceDays`; vencida after. `dueOn` is the period's due day,
+  or the socio's alta when later. A socio is listed for a period they were a socio in
+  any part of. A persona a cargo whose responsible member is on a `coversPersonas`
+  tier follows that member's status (`basis: 'household'`) and is never reminded.
+- **Reminders:** `sendCuotaReminders` (functions/src/organizations/), `onSchedule`
+  `every day 10:00` Europe/Madrid — the daytime schedule is what keeps it out of quiet
+  hours, since the notification type sits in the `mine` category. It walks
+  `collectionGroup('cuotaSettings')` (unfiltered: no index), skips orgs with reminders
+  off, computes today's statuses, and sends `before` in the 7 days up to `dueOn`
+  (`CUOTA_REMINDER_LEAD_DAYS`) and `after` once vencida — only to active socios.
+  Recipients are grouped per account and stage: a member hears once about themself
+  and the personas they answer for; a typed socio gets email only when `socioPrivate`
+  has an address. Each socio's record is created in a transaction *before* sending,
+  so a retry sends nothing twice (a send that fails after the claim is logged, not
+  retried). Push = a `users/{uid}/notifications` doc of type `cuota_reminder`
+  (`entityKind: 'organization'`, `entityId: orgId`; routed to `/grupos?grupo=<orgId>`
+  by `notificationRoute`, which the Grupos tab reads; older clients drop the row from
+  the Buzón or open the org page) — the existing pipeline applies prefs and quiet
+  hours. Email = Resend through the new shared transport
+  `functions/src/shared/email.ts` (`sendEmail({ to, subject, html, text, fromName }, {
+  handler, label, fields })` → `'sent' | 'skipped' | 'failed'`, never throws;
+  `eventEmail.ts` now uses it too) with the template
+  `packages/shared/src/email/cuotaReminderEmailTemplate.ts`; From is "<org> (vía
+  Cultuvilla)", the body is signed by `cuotaSigner` (admin titled tesorero → admin who
+  configured it → any titled admin → any admin → "La junta de <org>"). Address: the
+  email the socio shared in `socioPrivate`, else the account's.
+- **App:** member card `MyCuota` (status per own/persona row, how to pay with the
+  suggested concept "Cuota {periodo} — {nombre}", full history with anulaciones) and
+  admin `CuotaAdmin` in Gestionar (period stepper, status filter, record payment,
+  reverse, tier/exemption/custom amount, reminder-sent line, Excel/CSV export via the
+  generic `ExportButton` extracted from `RosterExportButton`; the export model is
+  `buildCuotaExport` in `packages/shared/src/export/cuotaExport.ts`, a
+  `RosterExportModel`, which now carries a `summary` line and an `euros` column type).
+- **For Phase 4:** reuse `sendEmail` for message emails; write one notification doc
+  per recipient and let `onNotificationCreated` push; group recipients per account the
+  way `groupReminders` does (persona → `responsibleUid`, typed → `socioPrivate.email`);
+  record sends in a per-org log like `cuotaReminders`. A group-level push category (so
+  members can mute a group's pushes but not cuota emails) does not exist yet —
+  `cuota_reminder` is in `mine`.
+- **Left for later:** SEPA remesa, Stripe, event payments in a money view; a reminder
+  whose send fails after its record is written is not retried; no Maestro flow for the
+  cuota screens (unit-tested, see `e2e/native/uncovered.json`).
 
 ## Phase 4 — Messaging
 

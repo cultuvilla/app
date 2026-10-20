@@ -1,6 +1,7 @@
 import type { NotificationData } from './NotificationDataModel';
 import {
   entityPath,
+  groupPath,
   villagePath,
   villageSectionPath,
   wordPath,
@@ -46,6 +47,8 @@ export function notificationRoute(
   n: NotificationRouteInput,
   villageSlug: string | null,
 ): string | null {
+  // The group's private side, which is not village-scoped and needs no slug.
+  if (n.type === 'cuota_reminder' && n.entityId) return groupPath(n.entityId);
   if (!villageSlug) return null;
   const at = (kind: UrlEntityKind, id: string) => entityPath(kind, { id, title: '', villageSlug });
 

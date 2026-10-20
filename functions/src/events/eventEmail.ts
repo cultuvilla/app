@@ -12,20 +12,15 @@
 import { logger } from "firebase-functions/v2";
 import { getFirestore } from "firebase-admin/firestore";
 import { userDoc } from "@cultuvilla/shared/firebase/refs/admin";
-import { Resend } from "resend";
-import { RESEND_API_KEY } from "../auth/secret";
-import { isFunctionsEmulator } from "../shared/runtime";
 import {
   registrationEmailSubject,
   renderRegistrationEmailHtml,
   renderRegistrationEmailText,
   type RegistrationEmailContent,
 } from "@cultuvilla/shared/email";
+import { sendEmail } from "../shared/email";
 
 const db = getFirestore();
-
-const FROM = "Cultuvilla <hola@acceso.cultuvilla.es>";
-const REPLY_TO = "cultuvilla.app@gmail.com";
 
 export interface SendEventEmailArgs {
   handler: string;
@@ -67,55 +62,17 @@ export async function sendEventEmail(args: SendEventEmailArgs): Promise<void> {
     return;
   }
 
-  // The emulator has no RESEND_API_KEY, so every send failed with "Missing API
-  // key" at error severity and buried real failures in E2E logs. No mail
-  // leaves an emulator anyway.
-  if (isFunctionsEmulator()) {
-    logger.info("Event email skipped (functions emulator)", {
-      handler,
-      eventId,
-      userId,
-      kind: content.kind,
-    });
-    return;
-  }
-
-  try {
-    const resend = new Resend(RESEND_API_KEY.value());
-    // The Resend SDK resolves with { data: null, error } on API-level failures
-    // rather than throwing, so an unchecked `error` would look like a success.
-    const { error } = await resend.emails.send({
-      from: FROM,
+  await sendEmail(
+    {
       to: email,
-      replyTo: REPLY_TO,
       subject: registrationEmailSubject(content),
       html: renderRegistrationEmailHtml(content),
       text: renderRegistrationEmailText(content),
-    });
-    if (error) {
-      logger.error("resend send failed", {
-        handler,
-        eventId,
-        userId,
-        error: error.message,
-      });
-      return;
-    }
-  } catch (err) {
-    logger.error("resend send failed", {
+    },
+    {
       handler,
-      eventId,
-      userId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return;
-  }
-
-  logger.info("Event email sent", {
-    handler,
-    eventId,
-    userId,
-    kind: content.kind,
-    attendeeCount: content.attendees.length,
-  });
+      label: "Event email",
+      fields: { eventId, userId, kind: content.kind, attendeeCount: content.attendees.length },
+    },
+  );
 }

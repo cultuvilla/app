@@ -7,7 +7,7 @@
  * while the CSV serializer below renders the same model as es-ES text. Adding
  * a column here adds it to both outputs.
  */
-import { formatDate, formatPartialDate } from '../utils/format';
+import { formatDate, formatPartialDate, formatPrice } from '../utils/format';
 import { OPEN_SEAT_NAME } from '../models/event/RegistrationDataModel';
 import type { PartialDate } from '../models/person/PersonDataModel';
 import type { RegistrationData } from '../models/event/RegistrationDataModel';
@@ -24,9 +24,9 @@ export type RosterCell = string | number | boolean | Date | null;
  * `date` is a timestamp (a sign-up moment, a check-in); `dateOnly` is a
  * calendar day whose time of day is meaningless — printing "12/03/1980, 0:00"
  * for a birth date reads as a bug, so the two render differently in both
- * outputs.
+ * outputs. `euros` is a number of euros, printed as money in both.
  */
-export type RosterColumnType = 'text' | 'number' | 'date' | 'dateOnly' | 'boolean';
+export type RosterColumnType = 'text' | 'number' | 'euros' | 'date' | 'dateOnly' | 'boolean';
 
 export interface RosterColumn {
   key: string;
@@ -46,8 +46,8 @@ export interface RosterExportModel {
   sheetName: string;
   columns: RosterColumn[];
   rows: RosterCell[][];
-  /** Confirmed / waitlisted / total, rendered as a summary line under the table. */
-  totals: { confirmed: number; waitlisted: number; total: number };
+  /** The line printed under the table in the xlsx sheet. */
+  summary: string;
 }
 
 export interface RosterExportInput {
@@ -261,11 +261,7 @@ export function buildRosterExport(input: RosterExportInput): RosterExportModel {
     sheetName: safeName(eventTitle, 31) || 'Asistentes',
     columns,
     rows,
-    totals: {
-      confirmed,
-      waitlisted: registrations.length - confirmed,
-      total: registrations.length,
-    },
+    summary: `Confirmados: ${String(confirmed)}   ·   Lista de espera: ${String(registrations.length - confirmed)}   ·   Total: ${String(registrations.length)}`,
   };
 }
 
@@ -274,6 +270,7 @@ function renderCell(value: RosterCell, type: RosterColumnType): string {
   if (type === 'date' && value instanceof Date) return formatDate(value, 'datetime');
   if (type === 'dateOnly' && value instanceof Date) return formatDate(value, 'short', 'UTC');
   if (type === 'boolean') return value ? 'Sí' : 'No';
+  if (type === 'euros' && typeof value === 'number') return formatPrice(value);
   return String(value);
 }
 

@@ -17,6 +17,11 @@
 import { describe, it, expect } from 'vitest';
 import { buildOrganizationData } from '../../src/models/organization/OrganizationDataModel';
 import { buildOrgMemberData } from '../../src/models/organization/OrgMemberDataModel';
+import {
+  buildCuotaAssignmentData,
+  buildCuotaPaymentData,
+  buildCuotaSettingsData,
+} from '../../src/models/organization/CuotaDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
 import { buildPlaceData, buildBarrioData } from '../../src/models/municipality/MunicipalityDataModel';
@@ -31,6 +36,31 @@ interface ShapeContract {
 }
 
 const SHAPE_CONTRACTS: ShapeContract[] = [
+  {
+    label: 'organizations/{orgId}/cuotaSettings — isValidCuotaSettings',
+    build: () =>
+      buildCuotaSettingsData({
+        amountCents: 3000, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 30, startPeriod: '2026', configuredBy: 'u1',
+      }),
+    ruleKeys: [
+      'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+      'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
+    ],
+  },
+  {
+    label: 'organizations/{orgId}/cuotaAssignments — isValidCuotaAssignment',
+    build: () => buildCuotaAssignmentData({ updatedBy: 'u1' }),
+    ruleKeys: ['tierId', 'exempt', 'customAmountCents', 'updatedBy', 'updatedAt'],
+  },
+  {
+    label: 'organizations/{orgId}/cuotaPayments — isValidCuotaPayment',
+    build: () =>
+      buildCuotaPaymentData({ socioId: 's1', periodKey: '2026', amountCents: 3000, method: 'bizum', paidOn: '2026-02-20', recordedBy: 'u1' }),
+    ruleKeys: [
+      'socioId', 'periodKey', 'kind', 'reversesId', 'amountCents', 'method', 'paidOn',
+      'note', 'recordedBy', 'recordedAt',
+    ],
+  },
   {
     label: 'organizations — isValidOrganizationCreate',
     build: () =>
