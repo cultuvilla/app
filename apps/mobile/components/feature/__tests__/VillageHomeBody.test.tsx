@@ -309,6 +309,7 @@ describe('VillageHomeBody', () => {
     attendeesVisibility: 'members' as const,
     visibility: 'public' as const,
     visibilityOrgId: null,
+    series: null,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,

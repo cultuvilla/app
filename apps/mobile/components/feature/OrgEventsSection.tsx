@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import { upcomingThenPast, type EventData } from '@cultuvilla/shared/models/event/EventDataModel';
+import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Section, EntityCard } from './VillageSections';
 import { useWatch } from '../../lib/hooks/useWatch';
@@ -23,7 +24,7 @@ export function OrgEventsSection({ orgId, includePrivate }: { orgId: string; inc
     `${orgId}|${includePrivate}`,
     (next, error) => watchEventsByOrganization(orgId, { includePrivate }, next, error),
   );
-  const events = useMemo(() => upcomingThenPast(data ?? [], new Date()), [data]);
+  const events = useMemo(() => firstOfEachSeries(upcomingThenPast(data ?? [], new Date())), [data]);
 
   return (
     // Bleed past the detail body's padding: the row scrolls edge to edge, as

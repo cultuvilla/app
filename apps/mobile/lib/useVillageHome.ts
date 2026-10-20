@@ -37,6 +37,7 @@ import {
 } from '@cultuvilla/shared/services/vocabularyService';
 import { pickWordOfTheDay } from '@cultuvilla/shared/utils/wordOfTheDay';
 import { upcomingThenPast } from '@cultuvilla/shared/models/event/EventDataModel';
+import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import type { MunicipalityData } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
 import type { BarrioData, PlaceData } from '@cultuvilla/shared/models/municipality';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization';
@@ -210,9 +211,9 @@ export function useVillageHome(municipalityId: string | null) {
   return useMemo<VillageHomeState & { reload: () => Promise<void> }>(() => {
     if (!id) return { ...EMPTY, reload: chrome.reload };
 
-    const events = upcomingThenPast(
-      [...(publicEvents.data ?? NO_ROWS), ...(privateEvents.data ?? NO_ROWS)],
-      new Date(),
+    // One card per weekly series — its next date — rather than one per week.
+    const events = firstOfEachSeries(
+      upcomingThenPast([...(publicEvents.data ?? NO_ROWS), ...(privateEvents.data ?? NO_ROWS)], new Date()),
     );
 
     return {

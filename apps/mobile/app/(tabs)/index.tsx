@@ -40,6 +40,7 @@ import {
 import { watchAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
 import { getActiveCommunities } from '@cultuvilla/shared/services/municipalityService';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
+import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import {
   NEWS_POST_CATEGORIES,
   type NewsPostData,
@@ -225,7 +226,9 @@ export default function FeedScreen() {
           : Number.POSITIVE_INFINITY;
       list = [...list].sort((a, b) => dist(a) - dist(b));
     }
-    return list;
+    // After the filters, so a date filter still finds the matching occurrence
+    // of a weekly series; then one card per series.
+    return firstOfEachSeries(list);
   }, [events, villageFilter, dateFilter, query, sortByProximity, referenceCoords]);
 
   const visibleNews = useMemo(() => {

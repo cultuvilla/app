@@ -2,7 +2,15 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import NewEventScreen from '../evento';
 import { pickImageAsBlob } from '../../../lib/images';
-import { createEvent, updateEvent, getEvent } from '@cultuvilla/shared/services/eventService';
+import {
+  cancelSeriesFrom,
+  createEvent,
+  createEventSeries,
+  getEvent,
+  setEventsImage,
+  updateEvent,
+} from '@cultuvilla/shared/services/eventService';
+import { Alert } from 'react-native';
 import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
 import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { showConfirm } from '../../../lib/dialogs';
@@ -52,6 +60,10 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
   createEvent: jest.fn().mockResolvedValue('e-1'),
+  createEventSeries: jest.fn().mockResolvedValue(['s-0', 's-1', 's-2']),
+  setEventsImage: jest.fn(),
+  cancelSeriesFrom: jest.fn().mockResolvedValue(2),
+  updateEventStatus: jest.fn().mockResolvedValue(undefined),
   updateEvent: jest.fn(),
   getEvent: jest.fn(),
 }));
@@ -124,6 +136,14 @@ jest.mock('../../../components/primitives/DateTimeField', () => ({
         <Text testID={`${testID}-value`}>{value ? value.toISOString() : ''}</Text>
       </Pressable>
     );
+  },
+}));
+
+const mockUntil = { current: '2026-08-29T00:00' };
+jest.mock('../../../components/primitives/DateField', () => ({
+  DateField: ({ onChange, testID }: { onChange: (d: Date) => void; testID?: string }) => {
+    const { Pressable } = require('react-native');
+    return <Pressable testID={testID} onPress={() => onChange(new Date(mockUntil.current))} />;
   },
 }));
 
@@ -910,5 +930,178 @@ describe('NewEventScreen — private events', () => {
       visibility: 'public',
       visibilityOrgId: null,
     });
+  });
+});
+
+describe('NewEventScreen — weekly series', () => {
+  beforeEach(() => {
+    jest.mocked(createEvent).mockClear();
+    jest.mocked(createEventSeries).mockClear();
+    jest.mocked(setEventsImage).mockClear();
+    jest.mocked(uploadEventImage).mockReset();
+    jest.mocked(pickImageAsBlob).mockReset();
+  });
+
+  async function toWhenStep(utils: ReturnType<typeof render>) {
+    const { getByText, getByLabelText, getByTestId } = utils;
+    await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());
+    fireEvent.changeText(getByLabelText('event.title'), 'Yoga');
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('startDate')).toBeTruthy());
+  }
+
+  async function submitSeries(utils: ReturnType<typeof render>) {
+    const { getByText, getByTestId } = utils;
+    await toWhenStep(utils);
+    fireEvent.press(getByTestId('startDate')); // Saturday 1 Aug 2026, 18:00
+    fireEvent.press(getByTestId('repeats-weekly'));
+    fireEvent.press(getByTestId('repeat-day-2')); // add Tuesdays
+    fireEvent.press(getByTestId('repeat-until'));
+    fireEvent.press(getByTestId('location-field'));
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('signup-enabled')).toBeTruthy());
+    fireEvent.press(getByTestId('event-form-primary'));
+  }
+
+  it('hides the repeat controls until the switch is on', async () => {
+    const utils = render(<NewEventScreen />);
+    await toWhenStep(utils);
+    expect(utils.queryByTestId('repeat-day-1')).toBeNull();
+    expect(utils.queryByTestId('repeat-until')).toBeNull();
+    fireEvent.press(utils.getByTestId('startDate'));
+    fireEvent.press(utils.getByTestId('repeats-weekly'));
+    // Seeded with the first day's own weekday (Saturday).
+    expect(utils.getByTestId('repeat-day-6').props.accessibilityState.checked).toBe(true);
+    expect(utils.getByTestId('repeat-until')).toBeTruthy();
+  });
+
+  it('refuses to go on without a day, a valid last date or a slot that ends after it starts', async () => {
+    const utils = render(<NewEventScreen />);
+    const { getByText, getByTestId, queryByTestId } = utils;
+    await toWhenStep(utils);
+    fireEvent.press(getByTestId('startDate')); // Saturday 1 Aug 2026, 18:00
+    fireEvent.press(getByTestId('repeats-weekly'));
+    fireEvent.press(getByTestId('location-field'));
+
+    fireEvent.press(getByTestId('repeat-day-6')); // untick the seeded Saturday
+    expect(getByTestId('repeat-days-error')).toBeTruthy();
+    fireEvent.press(getByTestId('repeat-day-6'));
+    expect(queryByTestId('repeat-days-error')).toBeNull();
+
+    // The end-time mock answers 18:00 — the same instant the slot starts.
+    fireEvent.press(getByTestId('endDate'));
+    expect(getByTestId('end-time-error')).toBeTruthy();
+
+    // No "hasta" yet: Next stays on this step.
+    fireEvent.press(getByText('common.stepper.next'));
+    expect(queryByTestId('signup-enabled')).toBeNull();
+  });
+
+  it('flags a last date more than six months after the first day', async () => {
+    mockUntil.current = '2027-06-01T00:00';
+    try {
+      const utils = render(<NewEventScreen />);
+      await toWhenStep(utils);
+      fireEvent.press(utils.getByTestId('startDate'));
+      fireEvent.press(utils.getByTestId('repeats-weekly'));
+      fireEvent.press(utils.getByTestId('repeat-until'));
+      expect(utils.getByTestId('repeat-until-error')).toBeTruthy();
+    } finally {
+      mockUntil.current = '2026-08-29T00:00';
+    }
+  });
+
+  it('creates every occurrence through createEventSeries and opens the first', async () => {
+    const { router } = jest.requireMock('expo-router') as { router: { replace: jest.Mock } };
+    await submitSeries(render(<NewEventScreen />));
+    await waitFor(() => expect(createEventSeries).toHaveBeenCalledTimes(1));
+    expect(createEvent).not.toHaveBeenCalled();
+    const [input, rule] = jest.mocked(createEventSeries).mock.calls[0]!;
+    expect(input).toMatchObject({ title: 'Yoga', endDate: null });
+    expect(rule.weekdays).toEqual([6, 2]);
+    expect(rule.until).toEqual(new Date('2026-08-29T00:00'));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/pueblo/evento/yoga_s-0'));
+  });
+
+  it('uploads one cover and points every occurrence at it', async () => {
+    jest.mocked(pickImageAsBlob).mockResolvedValue({
+      blob: { type: 'image/jpeg' } as Blob,
+      filename: 'pic.jpg',
+      contentType: 'image/jpeg',
+      previewUri: 'file:///tmp/pic.jpg',
+    });
+    jest.mocked(uploadEventImage).mockResolvedValue('https://cdn.test/cover.jpg');
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByLabelText('event.addImage')).toBeTruthy());
+    fireEvent.press(utils.getByLabelText('event.addImage'));
+    await waitFor(() => expect(pickImageAsBlob).toHaveBeenCalled());
+    await submitSeries(utils);
+    await waitFor(() => expect(setEventsImage).toHaveBeenCalledWith(['s-0', 's-1', 's-2'], 'https://cdn.test/cover.jpg'));
+    expect(uploadEventImage).toHaveBeenCalledTimes(1);
+    expect(uploadEventImage).toHaveBeenCalledWith('m-1', 's-0', expect.anything());
+  });
+});
+
+describe('NewEventScreen — editing one occurrence of a series', () => {
+  const OCCURRENCE = {
+    id: 's-1',
+    municipalityId: 'm-1',
+    villageSlug: 'villa',
+    villageName: 'Pueblo',
+    villageCoordinates: { lat: 1, lng: 2 },
+    title: 'Yoga',
+    description: '',
+    startDate: new Date('2026-08-04T18:00'),
+    endDate: null,
+    location: { coordinates: { lat: 1, lng: 2 }, displayName: 'Plaza' },
+    maxAttendees: null,
+    telephoneRequired: false,
+    requiresPayment: false,
+    signupGroupSize: 1,
+    signupEnabled: true,
+    signupInfo: null,
+    attendeesVisibility: 'members' as const,
+    signupFields: [],
+    totalCount: 0,
+    organizerUserIds: ['uid-1'],
+    organizerOrgIds: [],
+    createdBy: 'uid-1',
+    imageURL: null,
+    visibilityOrgId: null,
+    series: { id: 's-0', index: 1, weekdays: [2, 6], until: new Date('2026-08-29T00:00') },
+  };
+
+  beforeEach(() => {
+    mockParams.eventId = 's-1';
+    (getEvent as jest.Mock).mockResolvedValue(OCCURRENCE);
+    jest.mocked(cancelSeriesFrom).mockClear();
+  });
+
+  afterEach(() => {
+    delete mockParams.eventId;
+  });
+
+  it('says the edit touches only this day, and offers no repeat switch', async () => {
+    const { getByText, getByTestId, queryByTestId } = render(<NewEventScreen />);
+    await waitFor(() => expect(getByTestId('organizer-picker')).toBeTruthy());
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('series-edit-notice')).toBeTruthy());
+    expect(queryByTestId('repeats-weekly')).toBeNull();
+  });
+
+  it('cancels this day and the following ones on request', async () => {
+    const spy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, btns) => {
+      btns?.find((b) => b.text === 'event.cancelSeriesFollowing')?.onPress?.();
+    });
+    const { getByTestId } = render(<NewEventScreen />);
+    await waitFor(() => expect(getByTestId('event-delete')).toBeTruthy());
+    fireEvent.press(getByTestId('event-delete'));
+    expect(spy).toHaveBeenCalledWith('event.cancelTitle', 'event.cancelSeriesConfirm', expect.any(Array));
+    await waitFor(() =>
+      expect(cancelSeriesFrom).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 's-1', series: OCCURRENCE.series, startDate: OCCURRENCE.startDate }),
+      ),
+    );
+    spy.mockRestore();
   });
 });

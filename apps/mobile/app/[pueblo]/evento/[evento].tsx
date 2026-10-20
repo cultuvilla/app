@@ -21,6 +21,7 @@ import { EntityDetailScaffold } from '../../../components/feature/EntityDetailSc
 import type { EntityDetailAction } from '../../../components/feature/EntityDetailHeader';
 import { DetailInfoCard } from '../../../components/feature/DetailInfoCard';
 import { birthYearRangeLabel } from '../../../lib/events/birthYearLabel';
+import { seriesSummary } from '../../../lib/events/seriesLabel';
 import { EntityComments } from '../../../components/feature/EntityComments';
 import { ENTITY_FALLBACK_ICON } from '../../../lib/entities/registry';
 import { useAuth } from '../../../lib/auth/useAuth';
@@ -206,6 +207,12 @@ export default function EventDetailScreen() {
               />
             ) : null}
           </HStack>
+          {event.series ? (
+            <VStack gap={2}>
+              <DetailSectionHeading>{t('event.seriesLabel')}</DetailSectionHeading>
+              <Text testID="event-series-summary">{seriesSummary(event.series, t)}</Text>
+            </VStack>
+          ) : null}
           {/* Advertised birth-year window. Shown before the sign-up sheet so the
               restriction reaches people who read the event and never tap the
               FAB — the confirm modal only reaches those who do. */}
