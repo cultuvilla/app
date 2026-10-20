@@ -150,7 +150,7 @@ what is going on; whether members can create tasks is a later setting.)*
 
 ## Decisions — socios, roles, contact data
 
-Decided 2026-10-20 (user): his answers on socios; the agent's picks on the rest.
+Decided 2026-10-20 (user): the user's answers on socios; the agent's picks on the rest.
 
 - **Every member is a socio** (user, 2026-10-20). Joining the group makes you a
   socio: you owe the cuota and appear in the libro de socios. The roster lives at
