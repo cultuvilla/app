@@ -70,6 +70,15 @@ export function formatDate(date: Date, style: DateStyle = 'short', timeZone?: st
 }
 
 /**
+ * A calendar day held as a `YYYY-MM-DD` key (a due date, a payment day). It
+ * names a day, not an instant, so it is formatted in UTC and reads the same on
+ * every phone and in Cloud Functions.
+ */
+export function formatDayKey(day: string, style: DateStyle = 'short'): string {
+  return formatDate(new Date(`${day}T12:00:00Z`), style, 'UTC');
+}
+
+/**
  * Whole-calendar-day offset of `date` from `now`: 0 = today, 1 = tomorrow,
  * -1 = yesterday. Compares calendar days (local time), not 24h spans, so a
  * time later today is still 0 and any time tomorrow is 1. Callers map the

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatDate,
+  formatDayKey,
   formatPrice,
   formatCompactRelativeTime,
   formatRelativeTime,
@@ -141,5 +142,12 @@ describe('formatCompactRelativeTime', () => {
 
   it('formats future dates by magnitude, without a direction prefix', () => {
     expect(formatCompactRelativeTime(new Date(NOW.getTime() + 2 * HOUR), NOW)).toBe('2h');
+  });
+});
+
+describe('formatDayKey', () => {
+  it('formats a calendar day the same in every zone', () => {
+    expect(formatDayKey('2026-03-01')).toBe('01/03/2026');
+    expect(formatDayKey('2026-03-01', 'long')).toBe('domingo, 1 de marzo de 2026');
   });
 });

@@ -377,6 +377,80 @@ service cloud.firestore {
         && p.get('deathDate', null) == null
         && p.get('burialPlace', null) == null;
     }
+    // ── Cuota de socios (cuotaSettings, cuotaAssignments, cuotaPayments) ──────
+    // The socio row a cuota doc points at. Members read the cuota docs of the
+    // rows they are (uid) or answer for (responsibleUid, a persona a cargo).
+    function socioRow(orgId, socioId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data;
+    }
+    function isMySocioRow(orgId, socioId) {
+      let row = socioRow(orgId, socioId);
+      return isAuthenticated()
+        && (row.uid == request.auth.uid || row.responsibleUid == request.auth.uid);
+    }
+    function isCents(v) {
+      return v is int && v >= 0 && v <= 1000000;
+    }
+    function isPeriodKey(v) {
+      return v is string && v.matches('^[0-9]{4}(-(0[1-9]|1[0-2]))?$');
+    }
+    function isDayKey(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+    function isNullOrShortString(v, max) {
+      return v == null || (v is string && v.size() <= max);
+    }
+    function isValidCuotaSettings(d) {
+      return d.keys().hasOnly([
+              'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+              'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
+            ])
+          && d.keys().hasAll([
+              'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+              'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
+            ])
+          && isCents(d.amountCents)
+          && d.periodicity in ['yearly', 'monthly']
+          && d.dueMonth is int && d.dueMonth >= 1 && d.dueMonth <= 12
+          && d.dueDay is int && d.dueDay >= 1 && d.dueDay <= 31
+          && d.graceDays is int && d.graceDays >= 0 && d.graceDays <= 365
+          && isPeriodKey(d.startPeriod)
+          && d.tiers is list && d.tiers.size() <= 10
+          && isNullOrShortString(d.bizum, 40)
+          && isNullOrShortString(d.iban, 40)
+          && isNullOrShortString(d.payInstructions, 500)
+          && d.remindersEnabled is bool
+          && d.configuredBy == request.auth.uid
+          && d.updatedAt == request.time;
+    }
+    function isValidCuotaAssignment(d) {
+      return d.keys().hasOnly(['tierId', 'exempt', 'customAmountCents', 'updatedBy', 'updatedAt'])
+          && d.keys().hasAll(['tierId', 'exempt', 'customAmountCents', 'updatedBy', 'updatedAt'])
+          && isNullOrShortString(d.tierId, 40)
+          && d.exempt is bool
+          && (d.customAmountCents == null || isCents(d.customAmountCents))
+          && d.updatedBy == request.auth.uid
+          && d.updatedAt == request.time;
+    }
+    function isValidCuotaPayment(d) {
+      return d.keys().hasOnly([
+              'socioId', 'periodKey', 'kind', 'reversesId', 'amountCents', 'method', 'paidOn',
+              'note', 'recordedBy', 'recordedAt',
+            ])
+          && d.keys().hasAll([
+              'socioId', 'periodKey', 'kind', 'reversesId', 'amountCents', 'method', 'paidOn',
+              'note', 'recordedBy', 'recordedAt',
+            ])
+          && d.socioId is string
+          && isPeriodKey(d.periodKey)
+          && isCents(d.amountCents) && d.amountCents > 0
+          && d.method in ['efectivo', 'bizum', 'transferencia', 'domiciliacion']
+          && isDayKey(d.paidOn)
+          && isNullOrShortString(d.note, 500)
+          && d.recordedBy == request.auth.uid
+          && d.recordedAt == request.time;
+    }
+
     function isValidSocioPrivate(d) {
       return d.keys().hasOnly(['phone', 'email', 'consentAnsweredAt'])
           && d.keys().hasAll(['phone', 'email', 'consentAnsweredAt'])
@@ -1478,6 +1552,55 @@ service cloud.firestore {
                  && request.resource.data.consentAnsweredAt is timestamp)
              );
         allow delete: if false;
+      }
+
+      // The cuota de socios (see CuotaDataModel). Cultuvilla moves no money:
+      // admins configure the cuota and record payments made off-app. The
+      // settings carry how to pay, so members read them; status is computed on
+      // read, never stored.
+      match /cuotaSettings/{docId} {
+        allow read: if isOrgMember(orgId);
+        allow create, update: if isOrgAdmin(orgId)
+          && docId == 'current'
+          && orgHasSocioRoster(orgId)
+          && isValidCuotaSettings(request.resource.data);
+        allow delete: if false;
+      }
+
+      // A socio's tier, exemption or custom amount, keyed by socio id.
+      match /cuotaAssignments/{socioId} {
+        allow read: if isOrgAdmin(orgId) || isMySocioRow(orgId, socioId);
+        allow create, update: if isOrgAdmin(orgId)
+          && exists(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId))
+          && isValidCuotaAssignment(request.resource.data);
+        allow delete: if false;
+      }
+
+      // The payment ledger. Append-only: no entry is ever edited or deleted. A
+      // mistake is cancelled by a reversal at `rev_<paymentId>` that copies the
+      // payment — the fixed id means a payment can be reversed only once.
+      match /cuotaPayments/{paymentId} {
+        allow read: if isOrgAdmin(orgId) || isMySocioRow(orgId, resource.data.socioId);
+        allow create: if isOrgAdmin(orgId)
+          && isValidCuotaPayment(request.resource.data)
+          && exists(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId))
+          && (
+               (request.resource.data.kind == 'payment' && request.resource.data.reversesId == null)
+               || (request.resource.data.kind == 'reversal'
+                 && request.resource.data.reversesId is string
+                 && paymentId == 'rev_' + request.resource.data.reversesId
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/cuotaPayments/$(request.resource.data.reversesId)).data.kind == 'payment'
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/cuotaPayments/$(request.resource.data.reversesId)).data.socioId == request.resource.data.socioId
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/cuotaPayments/$(request.resource.data.reversesId)).data.periodKey == request.resource.data.periodKey
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/cuotaPayments/$(request.resource.data.reversesId)).data.amountCents == request.resource.data.amountCents)
+             );
+        allow update, delete: if false;
+      }
+
+      // What the sendCuotaReminders job sent, per socio per period. Function-owned.
+      match /cuotaReminders/{reminderId} {
+        allow read: if isOrgAdmin(orgId);
+        allow write: if false;
       }
 
       // A pending request to join an `approval` org, keyed by the requester's

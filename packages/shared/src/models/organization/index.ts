@@ -3,3 +3,5 @@ export * from './OrgMemberDataModel';
 export * from './OrgJoinRequestDataModel';
 export * from './OrgRequestFormSchema';
 export * from './SocioDataModel';
+export * from './CuotaDataModel';
+export * from './cuotaStatus';
