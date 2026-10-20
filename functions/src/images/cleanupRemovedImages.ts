@@ -54,7 +54,11 @@ export const ENTITY_IMAGE_SOURCES = {
     handler: 'cleanupRemovedEventImages',
     document: 'events/{entityId}',
     ownedPath: ({ entityId }) => new RegExp(`^municipalities/[^/]+/events/${entityId}/image/[^/]+$`),
-    references: (data) => [data['imageURL']],
+    // Every occurrence of a weekly series points at the cover uploaded under
+    // its first occurrence, so that occurrence dropping or replacing it must
+    // not delete an image its siblings still show. A series' covers are left
+    // in Storage instead — a few orphaned files beat broken flyers.
+    references: (data) => (isRecord(data['series']) ? [] : [data['imageURL']]),
   },
   organizations: {
     handler: 'cleanupRemovedOrganizationImages',

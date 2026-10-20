@@ -459,13 +459,32 @@ service cloud.firestore {
           || after.get('signupGroupSize', 1) == before.get('signupGroupSize', 1);
     }
 
+    // One occurrence of a weekly series (EventSeriesModel). Rules cannot
+    // iterate, so the weekday list is checked by membership and size; the
+    // 183-day cap mirrors MAX_SERIES_DAYS (one day of slack, since `until` is
+    // a calendar day and the occurrence a time on it). Keep the two in step.
+    function isValidEventSeries(d, s) {
+      return s == null || (
+        s is map
+          && s.keys().hasOnly(['id', 'index', 'weekdays', 'until'])
+          && s.keys().hasAll(['id', 'index', 'weekdays', 'until'])
+          && isString(s.id) && s.id.size() > 0
+          && s.index is int && s.index >= 0 && s.index <= 200
+          && s.weekdays is list && s.weekdays.size() >= 1 && s.weekdays.size() <= 7
+          && s.weekdays.hasOnly([1, 2, 3, 4, 5, 6, 7])
+          && isTimestamp(s.until)
+          && d.startDate < s.until + duration.value(1, 'd')
+          && s.until < d.startDate + duration.value(184, 'd')
+      );
+    }
+
     function isValidEventCreate(d) {
       return d.keys().hasOnly([
               'title', 'description', 'startDate', 'endDate', 'endBoundary', 'location',
               'imageURL', 'maxAttendees', 'telephoneRequired', 'requiresPayment',
               'signupFields', 'signupEnabled', 'signupInfo', 'attendeesVisibility', 'signupGroupSize',
               'minBirthYear', 'maxBirthYear',
-              'visibility', 'visibilityOrgId',
+              'visibility', 'visibilityOrgId', 'series',
               'status', 'organizerUserIds', 'organizerOrgIds', 'createdBy',
               'createdAt', 'updatedAt', 'municipalityId', 'villageName', 'villageSlug',
               'villageCoverImage', 'villageCoordinates',
@@ -535,6 +554,9 @@ service cloud.firestore {
           && d.visibility in ['public', 'organization']
           && isStringOrNull(d.visibilityOrgId)
           && (d.visibility == 'organization') == (d.visibilityOrgId != null)
+          // Optional, not in hasAll: binaries that predate weekly series never
+          // send it, and their creates must keep working.
+          && isValidEventSeries(d, d.get('series', null))
           && d.status in ['published', 'cancelled', 'completed']
           && d.organizerUserIds is list
           && d.organizerOrgIds is list
@@ -1351,7 +1373,7 @@ service cloud.firestore {
       )
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.municipalityId == resource.data.municipalityId
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentCount', 'readCount', 'villageSlug'])
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentCount', 'readCount', 'villageSlug', 'series'])
         && isAdditiveSignupFieldsChange(resource.data, request.resource.data)
         && isFrozenGroupSizeChange(resource.data, request.resource.data)
         && isValidVisibilityChange(resource.data, request.resource.data);
