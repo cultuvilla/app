@@ -415,11 +415,16 @@ with no extra reads and no visible reshuffle.
 row must exist exactly as long as their membership — and then outlive it, with a
 baja. `syncOrgSocioRoster`
 ([functions/src/organizations/syncOrgSocioRoster.ts](../../functions/src/organizations/syncOrgSocioRoster.ts))
-watches the members subcollection: a create gives the alta (reusing an active
-row that already names the uid, or adopting the active `persona` row of the
-member's own `persons` doc), a delete stamps `bajaAt` on the member's row and on
-the personas a cargo they answered for, and an admin → member demotion clears
-`adminTitle`. It is a no-op for the ayuntamiento and for an org already deleted.
+watches the members subcollection and, on every event, reconciles the member's
+rows against the member doc **as it is now**, inside one transaction — trigger
+events arrive at least once and in no guaranteed order, so the event itself is
+never trusted. Not a member: their active row and their personas a cargo get the
+baja. A member: the row whose `memberJoinedAt` equals the member doc's
+`joinedAt` is this membership's; an active row of an earlier membership gets the
+baja at the rejoin date, and if no row matches, the member's own persona row is
+adopted (keeping its alta) or a new one opens. A member who is not an admin
+loses `adminTitle`. It is a no-op for the ayuntamiento and for an org already
+deleted.
 
 - **Not a full projection.** Rows are never rewritten wholesale; the trigger
   only adds rows and patches fields, so persona and typed rows written by clients

@@ -14,6 +14,7 @@ import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   organizationSociosCollection,
   organizationSocioDoc,
+  organizationSocioPersonaLockDoc,
   organizationSocioPrivateCollection,
   organizationSocioPrivateDoc,
 } from '../firebase/refs/client';
@@ -123,14 +124,20 @@ export async function updateTypedSocio(
   await batch.commit();
 }
 
-/** Member: make one of their personas a cargo a socio. Returns the new socio id. */
+/**
+ * Member: make one of their personas a cargo a socio. Returns the new socio id.
+ * Writes the persona's lock in the same batch, so the rules refuse a second
+ * active row for the same persona — added twice from two devices, one fails.
+ */
 export async function addPersonaSocio(
   orgId: string,
   persona: { id: string; displayName: string },
   responsibleUid: string,
 ): Promise<string> {
-  const ref = doc(organizationSociosCollection(getDb(), orgId));
-  await setDoc(
+  const db = getDb();
+  const ref = doc(organizationSociosCollection(db, orgId));
+  const batch = writeBatch(db);
+  batch.set(
     ref,
     buildSocioData({
       kind: 'persona',
@@ -140,16 +147,28 @@ export async function addPersonaSocio(
       createdBy: responsibleUid,
     }),
   );
+  batch.set(organizationSocioPersonaLockDoc(db, orgId, persona.id), { socioId: ref.id });
+  await batch.commit();
   return ref.id;
 }
 
 /**
- * Give a socio the baja. The row stays — it is the libro de socios. A member's
- * own row takes its baja from leaving the org (the `syncOrgSocioRoster`
- * trigger), never from here; rules allow this on persona and typed rows only.
+ * Give a socio the baja. The row stays — it is the libro de socios. A persona's
+ * lock goes with it, so the persona can be added again later. A member's own
+ * row takes its baja from leaving the org (the `syncOrgSocioRoster` trigger),
+ * never from here; rules allow this on persona and typed rows only.
  */
-export async function setSocioBaja(orgId: string, socioId: string): Promise<void> {
-  await updateDoc(organizationSocioDoc(getDb(), orgId, socioId), { bajaAt: serverTimestamp() });
+export async function setSocioBaja(
+  orgId: string,
+  socio: Pick<Socio, 'id' | 'kind' | 'personId'>,
+): Promise<void> {
+  const db = getDb();
+  const batch = writeBatch(db);
+  batch.update(organizationSocioDoc(db, orgId, socio.id), { bajaAt: serverTimestamp() });
+  if (socio.kind === 'persona' && socio.personId) {
+    batch.delete(organizationSocioPersonaLockDoc(db, orgId, socio.personId));
+  }
+  await batch.commit();
 }
 
 /** Admin: set or clear an org admin's display title (presidente, tesorero…). */

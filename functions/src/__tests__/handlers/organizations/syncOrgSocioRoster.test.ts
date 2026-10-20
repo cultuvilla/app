@@ -51,7 +51,7 @@ async function seedUser(uid: string, personId: string | null, displayName = 'Ana
 function socioRow(overrides: Record<string, unknown>) {
   return {
     kind: 'member', displayName: 'X', uid: null, personId: null, responsibleUid: null, adminTitle: null,
-    altaAt: new Date('2025-01-01'), bajaAt: null, createdBy: 'x', ...overrides,
+    altaAt: new Date('2025-01-01'), bajaAt: null, memberJoinedAt: null, createdBy: 'x', ...overrides,
   };
 }
 
@@ -68,45 +68,57 @@ afterAll(() => {
   ft.cleanup();
 });
 
+const REJOINED = new Date('2026-09-01T10:00:00Z');
+
+async function seedMember(overrides: Partial<MemberShape> = {}) {
+  const m = member(overrides);
+  await admin.firestore().doc(`organizations/${ORG_ID}/members/${m.userId}`).set(m);
+  return m;
+}
+
 describe('syncOrgSocioRoster', () => {
-  it('gives a joining member a socio row with alta on the join date', async () => {
+  it('gives a joining member a socio row with alta on the join date, tied to that membership', async () => {
     await seedOrg();
     await seedUser('user-1', 'person-1');
-    await fire(null, member());
+    await fire(null, await seedMember());
 
     const rows = await socios();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ kind: 'member', uid: 'user-1', personId: 'person-1', displayName: 'Ana García', bajaAt: null });
     expect((rows[0].altaAt as admin.firestore.Timestamp).toDate()).toEqual(JOINED);
+    expect((rows[0].memberJoinedAt as admin.firestore.Timestamp).toDate()).toEqual(JOINED);
   });
 
   it('is idempotent: a retry does not add a second row', async () => {
     await seedOrg();
     await seedUser('user-1', null);
-    await fire(null, member());
-    await fire(null, member());
+    const m = await seedMember();
+    await fire(null, m);
+    await fire(null, m);
     expect(await socios()).toHaveLength(1);
   });
 
-  it('a persona a cargo who joins with their own account takes over the persona row and its alta', async () => {
+  it('a persona a cargo who joins with their own account takes over the persona row, its alta, and frees its lock', async () => {
     await seedOrg();
     await seedUser('user-1', 'person-1');
-    await admin.firestore().doc(`organizations/${ORG_ID}/socios/p1`).set(
-      socioRow({ kind: 'persona', personId: 'person-1', responsibleUid: 'parent' }),
-    );
-    await fire(null, member());
+    const db = admin.firestore();
+    await db.doc(`organizations/${ORG_ID}/socios/p1`).set(socioRow({ kind: 'persona', personId: 'person-1', responsibleUid: 'parent' }));
+    await db.doc(`organizations/${ORG_ID}/socioPersonaLocks/person-1`).set({ socioId: 'p1' });
+    await fire(null, await seedMember());
 
     const rows = await socios();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ id: 'p1', kind: 'member', uid: 'user-1', responsibleUid: null });
     expect((rows[0].altaAt as admin.firestore.Timestamp).toDate()).toEqual(new Date('2025-01-01'));
+    expect((await db.doc(`organizations/${ORG_ID}/socioPersonaLocks/person-1`).get()).exists).toBe(false);
   });
 
   it('leaving gives the baja to the member and the personas they answer for, keeping the rows', async () => {
     await seedOrg();
     const db = admin.firestore();
-    await db.doc(`organizations/${ORG_ID}/socios/m1`).set(socioRow({ uid: 'user-1' }));
+    await db.doc(`organizations/${ORG_ID}/socios/m1`).set(socioRow({ uid: 'user-1', memberJoinedAt: JOINED }));
     await db.doc(`organizations/${ORG_ID}/socios/p1`).set(socioRow({ kind: 'persona', personId: 'kid', responsibleUid: 'user-1' }));
+    await db.doc(`organizations/${ORG_ID}/socioPersonaLocks/kid`).set({ socioId: 'p1' });
     await db.doc(`organizations/${ORG_ID}/socios/other`).set(socioRow({ uid: 'user-2' }));
     await fire(member(), null);
 
@@ -115,21 +127,73 @@ describe('syncOrgSocioRoster', () => {
     expect(byId.get('m1')?.bajaAt).not.toBeNull();
     expect(byId.get('p1')?.bajaAt).not.toBeNull();
     expect(byId.get('other')?.bajaAt).toBeNull();
+    expect((await db.doc(`organizations/${ORG_ID}/socioPersonaLocks/kid`).get()).exists).toBe(false);
   });
 
   it('rejoining after a baja opens a new row; the old one stays in the libro', async () => {
     await seedOrg();
     await seedUser('user-1', null);
-    await admin.firestore().doc(`organizations/${ORG_ID}/socios/old`).set(socioRow({ uid: 'user-1', bajaAt: new Date('2025-06-01') }));
-    await fire(null, member());
+    await admin.firestore().doc(`organizations/${ORG_ID}/socios/old`).set(
+      socioRow({ uid: 'user-1', bajaAt: new Date('2025-06-01'), memberJoinedAt: JOINED }),
+    );
+    await fire(null, await seedMember({ joinedAt: REJOINED }));
     const rows = await socios();
     expect(rows).toHaveLength(2);
     expect(rows.filter((r) => r.bajaAt === null)).toHaveLength(1);
   });
 
+  describe('out-of-order and stale deliveries', () => {
+    it('a join delivered after the leave that followed it creates nothing', async () => {
+      await seedOrg();
+      await seedUser('user-1', null);
+      // The member already left: no member doc. The leave ran first and found no row.
+      await fire(member(), null);
+      await fire(null, member());
+      expect(await socios()).toHaveLength(0);
+    });
+
+    it("a leave delivered after the rejoin leaves the current membership's row active", async () => {
+      await seedOrg();
+      await seedUser('user-1', null);
+      const rejoined = await seedMember({ joinedAt: REJOINED });
+      await fire(null, rejoined);
+      await fire(member(), null); // the earlier leave, late
+      const rows = await socios();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].bajaAt).toBeNull();
+    });
+
+    it("a rejoin whose leave never landed closes the earlier membership's row and opens a new one", async () => {
+      await seedOrg();
+      await seedUser('user-1', null);
+      await admin.firestore().doc(`organizations/${ORG_ID}/socios/old`).set(socioRow({ uid: 'user-1', memberJoinedAt: JOINED }));
+      await fire(null, await seedMember({ joinedAt: REJOINED }));
+
+      const byId = new Map((await socios()).map((r) => [r.id, r]));
+      expect(byId.size).toBe(2);
+      expect((byId.get('old')?.bajaAt as admin.firestore.Timestamp).toDate()).toEqual(REJOINED);
+      const current = [...byId.values()].find((r) => r.id !== 'old');
+      expect(current?.bajaAt).toBeNull();
+      expect((current?.memberJoinedAt as admin.firestore.Timestamp).toDate()).toEqual(REJOINED);
+    });
+
+    it('a stale role change after a demotion still clears the title', async () => {
+      await seedOrg();
+      await seedMember({ role: 'member' });
+      await admin.firestore().doc(`organizations/${ORG_ID}/socios/m1`).set(
+        socioRow({ uid: 'user-1', adminTitle: 'tesorero', memberJoinedAt: JOINED }),
+      );
+      await fire(member({ role: 'member' }), member({ role: 'admin' })); // a promotion delivered late
+      expect((await socios())[0].adminTitle).toBeNull();
+    });
+  });
+
   it('a demoted admin loses their title', async () => {
     await seedOrg();
-    await admin.firestore().doc(`organizations/${ORG_ID}/socios/m1`).set(socioRow({ uid: 'user-1', adminTitle: 'tesorero' }));
+    await seedMember({ role: 'member' });
+    await admin.firestore().doc(`organizations/${ORG_ID}/socios/m1`).set(
+      socioRow({ uid: 'user-1', adminTitle: 'tesorero', memberJoinedAt: JOINED }),
+    );
     await fire(member({ role: 'admin' }), member({ role: 'member' }));
     expect((await socios())[0].adminTitle).toBeNull();
   });
@@ -137,7 +201,7 @@ describe('syncOrgSocioRoster', () => {
   it('the ayuntamiento keeps no roster', async () => {
     await seedOrg('ayuntamiento');
     await seedUser('user-1', null);
-    await fire(null, member());
+    await fire(null, await seedMember());
     expect(await socios()).toHaveLength(0);
   });
 

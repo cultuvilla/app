@@ -79,7 +79,7 @@ export function MyPersonasSocios({ orgId, uid }: { orgId: string; uid: string })
                   showConfirm(
                     t('groups.personas.confirmRemoveTitle'),
                     t('groups.personas.confirmRemoveBody', { name }),
-                    () => run(p.id, () => setSocioBaja(orgId, row.id)),
+                    () => run(p.id, () => setSocioBaja(orgId, row)),
                     { confirmText: t('groups.personas.remove'), cancelText: t('common.cancel') },
                   )
                 }

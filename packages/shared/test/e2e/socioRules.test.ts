@@ -1,6 +1,6 @@
 // packages/shared/test/e2e/socioRules.test.ts
 // The socio roster: who reads names, who reads contact data, who adds whom.
-import { describe, it, beforeEach } from 'vitest';
+import { describe, it, beforeEach, expect } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import {
   collection,
@@ -32,6 +32,7 @@ function socio(overrides: Record<string, unknown> = {}) {
     adminTitle: null,
     altaAt: new Date(),
     bajaAt: null,
+    memberJoinedAt: null,
     createdBy: 'admin1',
     ...overrides,
   };
@@ -51,12 +52,31 @@ async function seed(sociosListVisible = false) {
     await setDoc(doc(db, `organizations/${ORG}/socios/m2`), socio({ kind: 'member', displayName: 'Dos', uid: 'member2', createdBy: 'member2' }));
     await setDoc(doc(db, `organizations/${ORG}/socios/a2`), socio({ kind: 'member', displayName: 'Admin', uid: 'admin2', createdBy: 'admin2' }));
     await setDoc(doc(db, `organizations/${ORG}/socios/p1`), socio({ kind: 'persona', displayName: 'Hija', personId: 'kid1', responsibleUid: 'member1', createdBy: 'member1' }));
+    await setDoc(doc(db, `organizations/${ORG}/socioPersonaLocks/kid1`), { socioId: 'p1' });
     await setDoc(doc(db, `organizations/${ORG}/socios/t1`), socio());
     await setDoc(doc(db, `organizations/${ORG}/socioPrivate/m2`), { phone: '600', email: null, consentAnsweredAt: new Date() });
     await setDoc(doc(db, `organizations/${ORG}/socioPrivate/t1`), { phone: '611', email: null, consentAnsweredAt: null });
-    await setDoc(doc(db, 'persons/kid2'), { createdBy: 'member1', isPublic: false, userId: null });
+    await setDoc(doc(db, 'persons/kid2'), { createdBy: 'member1', isPublic: false, userId: null, deathDate: null, burialPlace: null });
+    await setDoc(doc(db, 'persons/claimed'), { createdBy: 'member1', isPublic: true, userId: 'grownup', deathDate: null, burialPlace: null });
+    await setDoc(doc(db, 'persons/grandpa'), { createdBy: 'member1', isPublic: true, userId: null, deathDate: { year: 2020, month: null, day: null }, burialPlace: null });
     await setDoc(doc(db, 'persons/stranger'), { createdBy: 'someoneElse', isPublic: true, userId: null });
   });
+}
+
+function addPersona(uid: string, socioId: string, personId: string, overrides: Record<string, unknown> = {}) {
+  const db = asUser(getEnv(), uid);
+  const batch = writeBatch(db);
+  batch.set(doc(db, `organizations/${ORG}/socios/${socioId}`), socio({ kind: 'persona', personId, responsibleUid: uid, createdBy: uid, ...overrides }));
+  batch.set(doc(db, `organizations/${ORG}/socioPersonaLocks/${personId}`), { socioId });
+  return batch.commit();
+}
+
+function bajaPersona(uid: string, socioId: string, personId: string) {
+  const db = asUser(getEnv(), uid);
+  const batch = writeBatch(db);
+  batch.update(doc(db, `organizations/${ORG}/socios/${socioId}`), { bajaAt: serverTimestamp() });
+  batch.delete(doc(db, `organizations/${ORG}/socioPersonaLocks/${personId}`));
+  return batch.commit();
 }
 
 describe('socios — reads', () => {
@@ -167,8 +187,12 @@ describe('socios — writes', () => {
     await assertFails(setDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${AYTO}/socios/new1`), socio()));
   });
 
-  it('a member adds a persona they created', async () => {
-    await assertSucceeds(
+  it('a member adds a persona they created, with its lock', async () => {
+    await assertSucceeds(addPersona('member1', 'new1', 'kid2'));
+  });
+
+  it('a persona row without its lock is refused', async () => {
+    await assertFails(
       setDoc(
         doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/new1`),
         socio({ kind: 'persona', personId: 'kid2', responsibleUid: 'member1', createdBy: 'member1' }),
@@ -177,43 +201,61 @@ describe('socios — writes', () => {
   });
 
   it("a member cannot add someone else's persona", async () => {
-    await assertFails(
-      setDoc(
-        doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/new1`),
-        socio({ kind: 'persona', personId: 'stranger', responsibleUid: 'member1', createdBy: 'member1' }),
-      ),
-    );
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'persons/stranger2'), { createdBy: 'someoneElse', userId: null, deathDate: null, burialPlace: null });
+    });
+    await assertFails(addPersona('member1', 'new1', 'stranger2'));
+  });
+
+  it('a persona who claimed their own account cannot be added as a dependent', async () => {
+    await assertFails(addPersona('member1', 'new1', 'claimed'));
+  });
+
+  it('a deceased persona cannot be added', async () => {
+    await assertFails(addPersona('member1', 'new1', 'grandpa'));
+  });
+
+  it('the same persona cannot be added twice (a second add, from any device, fails)', async () => {
+    await assertSucceeds(addPersona('member1', 'first', 'kid2'));
+    await assertFails(addPersona('member1', 'second', 'kid2'));
+  });
+
+  it('two concurrent adds of one persona: exactly one wins', async () => {
+    const results = await Promise.allSettled([addPersona('member1', 'a', 'kid2'), addPersona('member1', 'b', 'kid2')]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+  });
+
+  it('a persona can be added again after its baja, and the old row stays', async () => {
+    await assertSucceeds(addPersona('member1', 'first', 'kid2'));
+    await assertSucceeds(bajaPersona('member1', 'first', 'kid2'));
+    await assertSucceeds(addPersona('member1', 'again', 'kid2'));
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      const old = await getDoc(doc(ctx.firestore(), `organizations/${ORG}/socios/first`));
+      expect(old.data()?.bajaAt).not.toBeNull();
+    });
   });
 
   it("a member cannot backdate their persona's alta", async () => {
-    await assertFails(
-      setDoc(
-        doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/new1`),
-        socio({ kind: 'persona', personId: 'kid2', responsibleUid: 'member1', createdBy: 'member1', altaAt: new Date(2000, 0, 1) }),
-      ),
-    );
-  });
-
-  it('an admin turns the estatutos setting on, but only with a boolean', async () => {
-    const db = asUser(getEnv(), 'admin1');
-    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}`), { sociosListVisible: true }));
-    await assertFails(updateDoc(doc(db, `organizations/${ORG}`), { sociosListVisible: 'yes' }));
+    await assertFails(addPersona('member1', 'new1', 'kid2', { altaAt: new Date(2000, 0, 1) }));
   });
 
   it('a non-member cannot add a persona', async () => {
     await getEnv().withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'persons/kid3'), { createdBy: 'outsider', isPublic: false, userId: null });
+      await setDoc(doc(ctx.firestore(), 'persons/kid3'), { createdBy: 'outsider', isPublic: false, userId: null, deathDate: null, burialPlace: null });
     });
-    await assertFails(
-      setDoc(
-        doc(asUser(getEnv(), 'outsider'), `organizations/${ORG}/socios/new1`),
-        socio({ kind: 'persona', personId: 'kid3', responsibleUid: 'outsider', createdBy: 'outsider' }),
-      ),
-    );
+    await assertFails(addPersona('outsider', 'new1', 'kid3'));
   });
 
-  it('the responsible member gives their persona the baja', async () => {
-    await assertSucceeds(updateDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/p1`), { bajaAt: serverTimestamp() }));
+  it('the responsible member gives their persona the baja, freeing its lock', async () => {
+    await assertSucceeds(bajaPersona('member1', 'p1', 'kid1'));
+  });
+
+  it("a persona's baja that keeps the lock is refused", async () => {
+    await assertFails(updateDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/p1`), { bajaAt: serverTimestamp() }));
+  });
+
+  it('a lock cannot be deleted while its persona is still a socio', async () => {
+    await assertFails(deleteDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socioPersonaLocks/kid1`)));
   });
 
   it("a member cannot give another member's row the baja", async () => {

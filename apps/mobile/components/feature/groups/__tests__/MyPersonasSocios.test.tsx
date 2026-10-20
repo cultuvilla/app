@@ -2,7 +2,7 @@ import { Alert } from 'react-native';
 import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import { buildSocioData } from '@cultuvilla/shared/models/organization';
 import { addPersonaSocio, setSocioBaja } from '@cultuvilla/shared/services/socioService';
-import { resetWatchers, setWatched } from '../../../../test/watchers';
+import { emitWatched, resetWatchers, setWatched } from '../../../../test/watchers';
 import { MyPersonasSocios } from '../MyPersonasSocios';
 
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -47,6 +47,29 @@ describe('MyPersonasSocios', () => {
     );
   });
 
+  it('says so when the persona is already a socio (added from another device), and recovers', async () => {
+    jest.mocked(addPersonaSocio).mockRejectedValueOnce(new Error('permission-denied'));
+    setWatched('persons', [person('kid', 'Lucía')]);
+    setWatched('mySocios', []);
+    const { getByTestId, queryByTestId } = render(<MyPersonasSocios orgId="org1" uid="u1" />);
+    fireEvent.press(getByTestId('persona-socio-add-kid'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.personas.error'));
+    expect(queryByTestId('persona-socio-add-kid-spinner')).toBeNull();
+    expect(getByTestId('persona-socio-add-kid')).toBeTruthy();
+  });
+
+  it('a successful add shows the persona as a socio once the roster delivers it', async () => {
+    setWatched('persons', [person('kid', 'Lucía')]);
+    setWatched('mySocios', []);
+    const { getByTestId, findByTestId } = render(<MyPersonasSocios orgId="org1" uid="u1" />);
+    fireEvent.press(getByTestId('persona-socio-add-kid'));
+    await act(async () => {});
+    emitWatched('mySocios', [
+      { id: 's-kid', ...buildSocioData({ kind: 'persona', displayName: 'Lucía', personId: 'kid', responsibleUid: 'u1', createdBy: 'u1' }) },
+    ]);
+    expect(await findByTestId('persona-socio-remove-kid')).toBeTruthy();
+  });
+
   it('gives a persona socio the baja after confirming', async () => {
     setWatched('persons', [person('kid', 'Lucía')]);
     setWatched('mySocios', [
@@ -56,7 +79,7 @@ describe('MyPersonasSocios', () => {
     fireEvent.press(getByTestId('persona-socio-remove-kid'));
     const buttons = (jest.mocked(Alert.alert).mock.calls.at(-1)?.[2] ?? []) as { onPress?: () => void }[];
     buttons.at(-1)?.onPress?.();
-    expect(setSocioBaja).toHaveBeenCalledWith('org1', 's-kid');
+    expect(setSocioBaja).toHaveBeenCalledWith('org1', expect.objectContaining({ id: 's-kid', personId: 'kid' }));
     await act(async () => {});
   });
 });

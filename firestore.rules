@@ -350,11 +350,11 @@ service cloud.firestore {
     function isValidSocioCreate(d) {
       return d.keys().hasOnly([
               'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
-              'altaAt', 'bajaAt', 'createdBy',
+              'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
             ])
           && d.keys().hasAll([
               'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
-              'altaAt', 'bajaAt', 'createdBy',
+              'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
             ])
           && d.kind in ['persona', 'typed']
           && isString(d.displayName) && d.displayName.size() > 0 && d.displayName.size() <= 200
@@ -364,7 +364,18 @@ service cloud.firestore {
           && d.adminTitle == null
           && isTimestamp(d.altaAt)
           && d.bajaAt == null
+          && d.memberJoinedAt == null
           && d.createdBy == request.auth.uid;
+    }
+    // A persona a cargo may be a socio only while it is one: created by the
+    // caller, with no account of its own (one who claimed it joins as a member)
+    // and alive — the same test MyPersonasSocios applies.
+    function isEligiblePersona(personId) {
+      let p = get(/databases/$(database)/documents/persons/$(personId)).data;
+      return p.createdBy == request.auth.uid
+        && p.get('userId', null) == null
+        && p.get('deathDate', null) == null
+        && p.get('burialPlace', null) == null;
     }
     function isValidSocioPrivate(d) {
       return d.keys().hasOnly(['phone', 'email', 'consentAnsweredAt'])
@@ -1372,7 +1383,10 @@ service cloud.firestore {
                  // A member writes the alta of their own persona: keep it to now.
                  && request.resource.data.altaAt > request.time - duration.value(5, 'm')
                  && request.resource.data.altaAt < request.time + duration.value(5, 'm')
-                 && get(/databases/$(database)/documents/persons/$(request.resource.data.personId)).data.createdBy == request.auth.uid)
+                 && isEligiblePersona(request.resource.data.personId)
+                 // One active row per persona: its lock is created in the same
+                 // batch, and a lock create fails while another row holds it.
+                 && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(request.resource.data.personId)).data.socioId == socioId)
              );
         allow update: if isAuthenticated() && resource.data.bajaAt == null && (
              // Baja: a persona by its responsible member or an admin; a typed
@@ -1380,7 +1394,9 @@ service cloud.firestore {
              (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bajaAt'])
                && request.resource.data.bajaAt == request.time
                && ((resource.data.kind == 'persona'
-                     && (resource.data.responsibleUid == request.auth.uid || isOrgAdmin(orgId)))
+                     && (resource.data.responsibleUid == request.auth.uid || isOrgAdmin(orgId))
+                     // The baja frees the persona's lock in the same write.
+                     && !existsAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(resource.data.personId)))
                    || (resource.data.kind == 'typed' && isOrgAdmin(orgId))))
              // An admin corrects a typed-in socio's name.
           || (resource.data.kind == 'typed'
@@ -1398,6 +1414,25 @@ service cloud.firestore {
                        && get(/databases/$(database)/documents/organizations/$(orgId)/members/$(resource.data.uid)).data.role == 'admin')))
         );
         allow delete: if false;
+      }
+
+      // While a persona is an active socio, its lock names the row (see
+      // SocioPersonaLockDataSchema). Written only in the batch that creates or
+      // gives the baja to that row; never updated, so a second add fails.
+      match /socioPersonaLocks/{personId} {
+        allow read: if isOrgAdmin(orgId);
+        allow create: if isAuthenticated()
+          && request.resource.data.keys().hasOnly(['socioId'])
+          && request.resource.data.socioId is string
+          && !exists(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId))
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.kind == 'persona'
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.personId == personId
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.responsibleUid == request.auth.uid;
+        allow update: if false;
+        allow delete: if isAuthenticated()
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(resource.data.socioId)).data.bajaAt != null
+          && (get(/databases/$(database)/documents/organizations/$(orgId)/socios/$(resource.data.socioId)).data.responsibleUid == request.auth.uid
+              || isOrgAdmin(orgId));
       }
 
       // A socio's phone and email. Only the org's admins and the socio read it

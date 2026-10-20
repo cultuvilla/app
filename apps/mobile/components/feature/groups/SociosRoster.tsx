@@ -83,7 +83,7 @@ export function SociosRoster({
       t('groups.socios.confirmBajaTitle'),
       t('groups.socios.confirmBajaBody', { name: s.displayName }),
       () => {
-        setSocioBaja(orgId, s.id).catch(fail);
+        setSocioBaja(orgId, s).catch(fail);
       },
       { confirmText: t('groups.socios.giveBaja'), cancelText: t('common.cancel') },
     );

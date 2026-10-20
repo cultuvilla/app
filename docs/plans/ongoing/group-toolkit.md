@@ -79,17 +79,23 @@ Shipped in one PR (`feat/group-toolkit-phase1`). Later phases build on this mode
   (`member` | `persona` | `typed`), `displayName` (point-in-time copy), `uid`
   (member rows), `personId`, `responsibleUid` (persona rows), `adminTitle`
   (`presidente` | `secretario` | `tesorero` | `vocal` | `otro`, display only),
-  `altaAt`, `bajaAt` (null = active; rows are never deleted), `createdBy`. Auto ids.
-  Rejoining after a baja opens a new row; the old one stays.
+  `altaAt`, `bajaAt` (null = active; rows are never deleted), `memberJoinedAt`
+  (member rows: the member doc's `joinedAt`, i.e. which membership the row belongs
+  to), `createdBy`. Auto ids. Rejoining after a baja opens a new row; the old one stays.
+- **Persona uniqueness:** `organizations/{orgId}/socioPersonaLocks/{personId}` =
+  `{ socioId }` while that persona is an active socio, written and deleted in the
+  same batch as the row's alta and baja; rules refuse a second create. A persona must
+  be the caller's, accountless and alive.
 - **Contact:** `organizations/{orgId}/socioPrivate/{socioId}` — `phone`, `email`,
   `consentAnsweredAt`. Org admins and the socio read it. A member writes their own
   (the consent card, shown on the org page right after joining and in the Grupos
   tab); an admin writes a typed socio's. Persona rows have none — contact goes to
   `responsibleUid`.
-- **Functions:** `syncOrgSocioRoster` (trigger on `organizations/{orgId}/members/{uid}`:
-  alta on create — reusing an active row with that uid or adopting the active persona
-  row of the user's own `personId` —, baja on delete for the member and their
-  personas, title cleared on demotion; no-op for the ayuntamiento) and
+- **Functions:** `syncOrgSocioRoster` (trigger on `organizations/{orgId}/members/{uid}`;
+  every event reconciles transactionally against the current member doc: alta if
+  needed — adopting the active persona row of the user's own `personId` —, baja for a
+  non-member and their personas, baja of an earlier membership's row on rejoin,
+  title cleared for a non-admin; no-op for the ayuntamiento) and
   `linkSocioToMember` (callable, org admins: merges a typed row into the member's
   row, keeps the earlier alta, the member's own consent answer wins).
 - **Setting:** `organizations.sociosListVisible` (default false) — members read all

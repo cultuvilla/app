@@ -8,18 +8,19 @@ import { linkSocioToMember } from '../../../organizations/linkSocioToMember';
 
 const ft = functionsTestFactory({ projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test' });
 const ORG_ID = 'org-1';
+const PACO_JOINED = new Date('2026-10-01T09:00:00Z');
 
 function socioRow(overrides: Record<string, unknown>) {
   return {
     kind: 'typed', displayName: 'Paco', uid: null, personId: null, responsibleUid: null, adminTitle: null,
-    altaAt: new Date('2024-01-01'), bajaAt: null, createdBy: 'admin', ...overrides,
+    altaAt: new Date('2024-01-01'), bajaAt: null, memberJoinedAt: null, createdBy: 'admin', ...overrides,
   };
 }
 
 async function seed() {
   const db = admin.firestore();
   await db.doc(`organizations/${ORG_ID}/members/admin`).set({ userId: 'admin', joinedAt: new Date(), role: 'admin' });
-  await db.doc(`organizations/${ORG_ID}/members/paco`).set({ userId: 'paco', joinedAt: new Date(), role: 'member' });
+  await db.doc(`organizations/${ORG_ID}/members/paco`).set({ userId: 'paco', joinedAt: PACO_JOINED, role: 'member' });
   await db.doc(`organizations/${ORG_ID}/socios/typed`).set(socioRow({}));
   await db.doc(`organizations/${ORG_ID}/socioPrivate/typed`).set({ phone: '600', email: null, consentAnsweredAt: null });
   await db.doc(`organizations/${ORG_ID}/socios/dup`).set(
@@ -48,6 +49,7 @@ describe('linkSocioToMember (callable)', () => {
     const typed = (await db.doc(`organizations/${ORG_ID}/socios/typed`).get()).data();
     expect(typed).toMatchObject({ kind: 'member', uid: 'paco', personId: 'person-paco', displayName: 'Francisco Pérez', bajaAt: null });
     expect((typed?.altaAt as admin.firestore.Timestamp).toDate()).toEqual(new Date('2024-01-01'));
+    expect((typed?.memberJoinedAt as admin.firestore.Timestamp).toDate()).toEqual(PACO_JOINED);
     expect((await db.doc(`organizations/${ORG_ID}/socios/dup`).get()).exists).toBe(false);
     expect((await db.doc(`organizations/${ORG_ID}/socioPrivate/typed`).get()).data()?.phone).toBe('600');
   });

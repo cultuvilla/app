@@ -42,6 +42,11 @@ export const SocioDataSchema = z.object({
   adminTitle: OrgAdminTitleSchema.nullable(),
   altaAt: z.date(),
   bajaAt: z.date().nullable(),
+  /** On a `member` row: the `joinedAt` of the membership it belongs to. A row
+   * whose stamp differs from the member doc's is a previous membership's, so
+   * the roster trigger can tell a rejoin from a late-delivered event. Null on
+   * persona and typed rows. */
+  memberJoinedAt: z.date().nullable(),
   createdBy: z.string(),
 });
 export type SocioData = z.infer<typeof SocioDataSchema>;
@@ -54,6 +59,7 @@ export interface SocioDataInput {
   responsibleUid?: string | null;
   adminTitle?: OrgAdminTitle | null;
   altaAt?: Date;
+  memberJoinedAt?: Date | null;
   createdBy: string;
 }
 
@@ -67,6 +73,7 @@ export function buildSocioData(input: SocioDataInput): SocioData {
     adminTitle: input.adminTitle ?? null,
     altaAt: input.altaAt ?? new Date(),
     bajaAt: null,
+    memberJoinedAt: input.memberJoinedAt ?? null,
     createdBy: input.createdBy,
   };
 }
@@ -106,6 +113,18 @@ export function buildSocioPrivateData(input: SocioPrivateDataInput): SocioPrivat
     consentAnsweredAt: input.consentAnsweredAt ?? null,
   };
 }
+
+/**
+ * While a persona is an active socio, `organizations/{orgId}/socioPersonaLocks/{personId}`
+ * names its row. Created with the row and deleted with its baja, in the same
+ * write; rules refuse a second create, so two devices adding the same persona
+ * cannot both succeed, and a persona can be re-added once the lock is gone —
+ * the old row and its baja stay in the libro.
+ */
+export const SocioPersonaLockDataSchema = z.object({
+  socioId: z.string(),
+});
+export type SocioPersonaLockData = z.infer<typeof SocioPersonaLockDataSchema>;
 
 export function isActiveSocio(socio: Pick<SocioData, 'bajaAt'>): boolean {
   return socio.bajaAt === null;

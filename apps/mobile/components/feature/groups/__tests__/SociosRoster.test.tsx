@@ -91,6 +91,49 @@ describe('SociosRoster — admin', () => {
     );
   });
 
+  it('closes the sheet once the new socio is saved', async () => {
+    const { getByTestId, queryByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('socios-add'));
+    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-save'));
+    await waitFor(() => expect(addTypedSocio).toHaveBeenCalled());
+    await act(async () => {});
+    expect(queryByTestId('typed-socio-sheet')).toBeNull();
+  });
+
+  it('keeps the sheet open and says so when the write is refused', async () => {
+    jest.mocked(addTypedSocio).mockRejectedValueOnce(new Error('permission-denied'));
+    const { getByTestId, queryByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('socios-add'));
+    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-save'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.socios.error'));
+    expect(getByTestId('typed-socio-sheet')).toBeTruthy();
+    expect(queryByTestId('typed-socio-save-spinner')).toBeNull();
+    expect(getByTestId('typed-socio-name').props.value).toBe('Lola');
+  });
+
+  it('tells the admin when a link, a title or a baja is refused', async () => {
+    jest.mocked(linkSocioToMember).mockRejectedValueOnce(new Error('failed-precondition'));
+    jest.mocked(setSocioAdminTitle).mockRejectedValueOnce(new Error('permission-denied'));
+    jest.mocked(setSocioBaja).mockRejectedValueOnce(new Error('permission-denied'));
+    const { getByTestId, queryByTestId } = renderAdmin();
+
+    fireEvent.press(getByTestId('socio-link-Paco'));
+    fireEvent.press(getByTestId('socio-link-sheet-u-ana'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.socios.error'));
+    expect(queryByTestId('socio-link-sheet')).toBeNull();
+
+    fireEvent.press(getByTestId('socio-title-Tesorera'));
+    fireEvent.press(getByTestId('socio-title-sheet-none'));
+    expect(setSocioAdminTitle).toHaveBeenCalledWith('org1', 'Tesorera', null);
+    await waitFor(() => expect(jest.mocked(Alert.alert).mock.calls.filter((c) => c[0] === 'groups.socios.error')).toHaveLength(2));
+
+    fireEvent.press(getByTestId('socio-baja-Paco'));
+    pressConfirm();
+    await waitFor(() => expect(jest.mocked(Alert.alert).mock.calls.filter((c) => c[0] === 'groups.socios.error')).toHaveLength(3));
+  });
+
   it('corrects a typed-in socio', async () => {
     const { getByTestId } = renderAdmin();
     fireEvent.press(getByTestId('socio-edit-Paco'));
@@ -124,7 +167,7 @@ describe('SociosRoster — admin', () => {
     fireEvent.press(getByTestId('socio-baja-Hija'));
     expect(setSocioBaja).not.toHaveBeenCalled();
     pressConfirm();
-    expect(setSocioBaja).toHaveBeenCalledWith('org1', 'Hija');
+    expect(setSocioBaja).toHaveBeenCalledWith('org1', expect.objectContaining({ id: 'Hija', kind: 'persona' }));
   });
 });
 
@@ -141,11 +184,27 @@ describe('SociosRoster — member with the estatutos setting on', () => {
 });
 
 describe('GroupSettings', () => {
-  it('turns on the estatutos setting', async () => {
-    const { getByTestId } = render(<GroupSettings orgId="org1" sociosListVisible={false} />);
-    expect(getByTestId('group-settings')).toBeTruthy();
-    fireEvent.press(getByTestId('group-settings-socios-list-visible'));
+  const toggle = (r: ReturnType<typeof render>) => r.getByTestId('group-settings-socios-list-visible');
+
+  it('turns on the estatutos setting: frozen while saving, then shows the stored value', async () => {
+    let finish!: () => void;
+    jest.mocked(updateOrganization).mockReturnValueOnce(new Promise<void>((res) => (finish = res)));
+    const r = render(<GroupSettings orgId="org1" sociosListVisible={false} />);
+    expect(r.getByTestId('group-settings')).toBeTruthy();
+    fireEvent.press(toggle(r));
     expect(updateOrganization).toHaveBeenCalledWith('org1', { sociosListVisible: true });
-    await act(async () => {});
+    expect(toggle(r).props.accessibilityState).toMatchObject({ disabled: true });
+    await act(async () => finish());
+    // The org listener delivers the stored value.
+    r.rerender(<GroupSettings orgId="org1" sociosListVisible />);
+    expect(toggle(r).props.accessibilityState).toEqual({ checked: true, disabled: false });
+  });
+
+  it('on a refused write: says so, unfreezes, and keeps the stored value', async () => {
+    jest.mocked(updateOrganization).mockRejectedValueOnce(new Error('permission-denied'));
+    const r = render(<GroupSettings orgId="org1" sociosListVisible={false} />);
+    fireEvent.press(toggle(r));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.settings.error'));
+    expect(toggle(r).props.accessibilityState).toEqual({ checked: false, disabled: false });
   });
 });

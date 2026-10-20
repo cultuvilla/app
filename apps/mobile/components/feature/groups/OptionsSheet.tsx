@@ -1,3 +1,4 @@
+import { ScrollView } from 'react-native';
 import { BottomSheet, Pressable, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 
@@ -30,7 +31,10 @@ export function OptionsSheet({
   const { t } = useT();
   return (
     <BottomSheet visible={visible} onClose={onClose} title={title} closeLabel={t('common.close')} testID={testID}>
-      <VStack gap={1}>
+      {/* flexShrink, not a fixed height: the sheet caps itself, and a group with
+          more members than fit on screen must still reach the last one. */}
+      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID={testID ? `${testID}-scroll` : undefined}>
+      <VStack gap={1} className="px-5">
         {hint ? (
           <Text tone="muted" variant="bodySm" className="pb-2">
             {hint}
@@ -50,6 +54,7 @@ export function OptionsSheet({
           </Pressable>
         ))}
       </VStack>
+      </ScrollView>
     </BottomSheet>
   );
 }

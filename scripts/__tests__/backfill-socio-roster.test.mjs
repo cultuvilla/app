@@ -30,7 +30,7 @@ test('the member row takes the name and profile from the user doc, alta on joine
   const joinedAt = new Date('2025-05-01');
   assert.deepEqual(memberSocioRow('a', { displayName: ' Ana ', personId: 'p' }, joinedAt), {
     kind: 'member', displayName: 'Ana', uid: 'a', personId: 'p', responsibleUid: null,
-    adminTitle: null, altaAt: joinedAt, bajaAt: null, createdBy: 'a',
+    adminTitle: null, altaAt: joinedAt, bajaAt: null, memberJoinedAt: joinedAt, createdBy: 'a',
   });
 });
 

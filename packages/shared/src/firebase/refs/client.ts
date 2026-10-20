@@ -16,7 +16,7 @@ import { registrationEventConverterClient } from '../converters/registrationEven
 import { organizationConverterClient } from '../converters/organizationConverter.client';
 import { orgMemberConverterClient } from '../converters/orgMemberConverter.client';
 import { orgJoinRequestConverterClient } from '../converters/orgJoinRequestConverter.client';
-import { socioConverterClient, socioPrivateConverterClient } from '../converters/socioConverter.client';
+import { socioConverterClient, socioPersonaLockConverterClient, socioPrivateConverterClient } from '../converters/socioConverter.client';
 import { organizerRequestConverterClient } from '../converters/organizerRequestConverter.client';
 import { personConverterClient } from '../converters/personConverter.client';
 import { userConverterClient } from '../converters/userConverter.client';
@@ -140,6 +140,9 @@ export const organizationSocioPrivateCollection = (db: Firestore, organizationId
 
 export const organizationSocioPrivateDoc = (db: Firestore, organizationId: string, socioId: string) =>
   doc(db, 'organizations', organizationId, 'socioPrivate', socioId).withConverter(socioPrivateConverterClient);
+
+export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
+  doc(db, 'organizations', organizationId, 'socioPersonaLocks', personId).withConverter(socioPersonaLockConverterClient);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);

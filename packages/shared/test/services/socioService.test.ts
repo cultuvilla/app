@@ -3,12 +3,13 @@
 // vi.mock factories fake the firebase/firestore SDK shape.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const batch = { set: vi.fn(), update: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
+const batch = { set: vi.fn(), update: vi.fn(), delete: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
 
 vi.mock('../../src/firebase', () => ({ getDb: vi.fn(() => ({})), getFirebaseFunctions: vi.fn(() => ({})) }));
 vi.mock('../../src/firebase/refs/client', () => ({
   organizationSociosCollection: vi.fn((_db, orgId: string) => ({ _coll: `organizations/${orgId}/socios` })),
   organizationSocioDoc: vi.fn((_db, orgId: string, id: string) => ({ _path: `organizations/${orgId}/socios/${id}` })),
+  organizationSocioPersonaLockDoc: vi.fn((_db, orgId: string, id: string) => ({ _path: `organizations/${orgId}/socioPersonaLocks/${id}` })),
   organizationSocioPrivateDoc: vi.fn((_db, orgId: string, id: string) => ({ _path: `organizations/${orgId}/socioPrivate/${id}` })),
 }));
 vi.mock('firebase/firestore', () => ({
@@ -52,15 +53,25 @@ describe('socioService', () => {
     expect(batch.commit).toHaveBeenCalled();
   });
 
-  it('addPersonaSocio makes the member answerable for the persona', async () => {
-    await addPersonaSocio('org1', { id: 'p1', displayName: 'Lucía' }, 'u1');
-    const row = vi.mocked(setDoc).mock.calls[0][1];
+  it('addPersonaSocio writes the row and the persona lock in one batch', async () => {
+    const id = await addPersonaSocio('org1', { id: 'p1', displayName: 'Lucía' }, 'u1');
+    const [, row] = batch.set.mock.calls[0];
     expect(row).toMatchObject({ kind: 'persona', personId: 'p1', responsibleUid: 'u1', createdBy: 'u1', uid: null });
+    const [lockRef, lock] = batch.set.mock.calls[1];
+    expect(lockRef._path).toBe('organizations/org1/socioPersonaLocks/p1');
+    expect(lock).toEqual({ socioId: id });
+    expect(batch.commit).toHaveBeenCalled();
   });
 
-  it('setSocioBaja stamps a server time and never deletes', async () => {
-    await setSocioBaja('org1', 's1');
-    expect(updateDoc).toHaveBeenCalledWith({ _path: 'organizations/org1/socios/s1' }, { bajaAt: 'SERVER_TS' });
+  it('setSocioBaja stamps a server time, never deletes the row, and frees a persona lock', async () => {
+    await setSocioBaja('org1', { id: 's1', kind: 'persona', personId: 'p1' });
+    expect(batch.update).toHaveBeenCalledWith({ _path: 'organizations/org1/socios/s1' }, { bajaAt: 'SERVER_TS' });
+    expect(batch.delete).toHaveBeenCalledWith({ _path: 'organizations/org1/socioPersonaLocks/p1' });
+  });
+
+  it('setSocioBaja on a typed socio touches no lock', async () => {
+    await setSocioBaja('org1', { id: 't1', kind: 'typed', personId: null });
+    expect(batch.delete).not.toHaveBeenCalled();
   });
 
   it('setSocioAdminTitle can clear the title', async () => {

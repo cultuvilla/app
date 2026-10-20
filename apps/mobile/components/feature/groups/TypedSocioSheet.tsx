@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ScrollView } from 'react-native';
 import { BottomSheet, Button, Input, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
@@ -58,12 +59,17 @@ export function TypedSocioSheet({
       closeLabel={t('common.close')}
       testID="typed-socio-sheet"
       footer={
-        <Button onPress={save} loading={saving} fullWidth testID="typed-socio-save">
-          {t('groups.socios.save')}
-        </Button>
+        <VStack className="px-5 pt-3">
+          <Button onPress={save} loading={saving} fullWidth testID="typed-socio-save">
+            {t('groups.socios.save')}
+          </Button>
+        </VStack>
       }
     >
-      <VStack gap={3}>
+      {/* Scrolls inside the sheet: with the keyboard up the sheet shrinks to the
+          space left, and the lower fields must stay reachable. */}
+      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID="typed-socio-scroll">
+      <VStack gap={3} className="px-5">
         <Input
           label={t('groups.socios.name')}
           value={values.displayName}
@@ -87,6 +93,7 @@ export function TypedSocioSheet({
           testID="typed-socio-email"
         />
       </VStack>
+      </ScrollView>
     </BottomSheet>
   );
 }

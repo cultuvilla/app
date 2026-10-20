@@ -20,7 +20,7 @@ describe('hasSocioRoster', () => {
 describe('buildSocioData', () => {
   it('builds a member row: own uid, no responsible, active', () => {
     const altaAt = new Date('2026-01-01');
-    const row = buildSocioData({ kind: 'member', displayName: 'Ana', uid: 'u1', createdBy: 'u1', altaAt });
+    const row = buildSocioData({ kind: 'member', displayName: 'Ana', uid: 'u1', createdBy: 'u1', altaAt, memberJoinedAt: altaAt });
     expect(row).toEqual({
       kind: 'member',
       displayName: 'Ana',
@@ -30,6 +30,7 @@ describe('buildSocioData', () => {
       adminTitle: null,
       altaAt,
       bajaAt: null,
+      memberJoinedAt: altaAt,
       createdBy: 'u1',
     });
     expect(SocioDataSchema.parse(row)).toEqual(row);

@@ -92,6 +92,7 @@
   "typed-socio-name": "unit-tested: components/feature/groups/__tests__/SociosRoster.test.tsx",
   "typed-socio-phone": "unit-tested: components/feature/groups/__tests__/SociosRoster.test.tsx",
   "typed-socio-save": "unit-tested: components/feature/groups/__tests__/SociosRoster.test.tsx",
+  "typed-socio-scroll": "unit-tested: components/feature/groups/__tests__/TypedSocioSheet.test.tsx",
   "typed-socio-sheet": "unit-tested: components/feature/groups/__tests__/SociosRoster.test.tsx",
   "village-description": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
   "village-join-dormant": "unit-tested: app/(tabs)/__tests__/mi-pueblo.test.tsx",

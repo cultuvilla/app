@@ -3,6 +3,8 @@ import { logger } from 'firebase-functions/v2';
 import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
   organizationDoc,
+  organizationMemberDoc,
+  organizationSocioPersonaLockDoc,
   organizationSociosCollection,
   userDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
@@ -10,35 +12,79 @@ import { buildSocioData, hasSocioRoster } from '@cultuvilla/shared/models';
 
 const db = getFirestore();
 
+export type RosterOutcome = 'alta' | 'adopted' | 'unchanged' | 'baja';
+
 /**
- * Gives a joining member their socio row. Reuses an active row that already
- * names them — idempotent on a retry — and otherwise takes over the active
- * persona row of their own profile (a persona a cargo who joined with their own
- * account), keeping its alta. Otherwise a new row, alta on the join date.
+ * Brings the member's socio rows in line with their CURRENT membership, read
+ * in the same transaction — never with what the triggering event claims.
+ * Firestore delivers trigger events at least once and in no guaranteed order,
+ * so a join can arrive after the leave that followed it, or a leave after the
+ * rejoin. Reconciling against the member doc makes every delivery converge:
+ *
+ * - Not a member: their active row and the personas they answer for get the
+ *   baja (and the personas' locks go).
+ * - A member: the row of THIS membership is the one whose `memberJoinedAt`
+ *   matches the member doc's `joinedAt`. An active row of an earlier
+ *   membership (its leave was never applied) gets the baja at the rejoin
+ *   date; if no row matches, the member's own persona row is adopted (keeping
+ *   its alta) or a new row opens. A member who is no longer an admin loses
+ *   their title.
  */
-export async function giveSocioAlta(
+export async function reconcileSocioMembership(
   firestore: Firestore,
   orgId: string,
   uid: string,
-  joinedAt: Date,
-): Promise<'exists' | 'adopted' | 'created'> {
+): Promise<RosterOutcome> {
   const socios = organizationSociosCollection(firestore, orgId);
   const user = (await userDoc(firestore, uid).get()).data();
   const personId = user?.personId ?? null;
 
   return firestore.runTransaction(async (tx) => {
-    const own = await tx.get(socios.where('uid', '==', uid).where('bajaAt', '==', null));
-    if (!own.empty) return 'exists';
+    const [member, own, personas, adoptable] = await Promise.all([
+      tx.get(organizationMemberDoc(firestore, orgId, uid)),
+      tx.get(socios.where('uid', '==', uid).where('bajaAt', '==', null)),
+      tx.get(socios.where('responsibleUid', '==', uid).where('bajaAt', '==', null)),
+      personId
+        ? tx.get(socios.where('personId', '==', personId).where('kind', '==', 'persona').where('bajaAt', '==', null))
+        : Promise.resolve(null),
+    ]);
+    const membership = member.data();
 
-    if (personId) {
-      const persona = await tx.get(
-        socios.where('personId', '==', personId).where('kind', '==', 'persona').where('bajaAt', '==', null),
+    if (!membership) {
+      const rows = [...own.docs, ...personas.docs];
+      const locks = await Promise.all(
+        personas.docs.map((row) => {
+          const pid = row.data().personId;
+          return pid ? tx.get(organizationSocioPersonaLockDoc(firestore, orgId, pid)) : Promise.resolve(null);
+        }),
       );
-      const row = persona.empty ? undefined : persona.docs[0];
-      if (row) {
-        tx.update(row.ref, { kind: 'member', uid, responsibleUid: null });
-        return 'adopted';
+      for (const row of rows) tx.update(row.ref, { bajaAt: FieldValue.serverTimestamp() });
+      locks.forEach((lock, i) => {
+        if (lock?.exists && lock.data()?.socioId === personas.docs[i]?.id) tx.delete(lock.ref);
+      });
+      return rows.length > 0 ? 'baja' : 'unchanged';
+    }
+
+    const joinedAt = membership.joinedAt;
+    const isCurrent = (row: (typeof own.docs)[number]) =>
+      row.data().memberJoinedAt?.getTime() === joinedAt.getTime();
+    const current = own.docs.find(isCurrent);
+    for (const stale of own.docs.filter((row) => !isCurrent(row))) {
+      tx.update(stale.ref, { bajaAt: joinedAt });
+    }
+
+    if (current) {
+      if (membership.role !== 'admin' && current.data().adminTitle !== null) {
+        tx.update(current.ref, { adminTitle: null });
       }
+      return 'unchanged';
+    }
+
+    const persona = adoptable && !adoptable.empty ? adoptable.docs[0] : undefined;
+    if (persona && personId) {
+      tx.update(persona.ref, { kind: 'member', uid, responsibleUid: null, memberJoinedAt: joinedAt });
+      tx.delete(organizationSocioPersonaLockDoc(firestore, orgId, personId));
+      return 'adopted';
     }
 
     tx.set(
@@ -49,69 +95,34 @@ export async function giveSocioAlta(
         uid,
         personId,
         altaAt: joinedAt,
+        memberJoinedAt: joinedAt,
         createdBy: uid,
       }),
     );
-    return 'created';
+    return 'alta';
   });
-}
-
-/** A member left: their row and the personas a cargo they answered for get the baja. */
-async function giveSocioBaja(firestore: Firestore, orgId: string, uid: string): Promise<number> {
-  const socios = organizationSociosCollection(firestore, orgId);
-  const [own, personas] = await Promise.all([
-    socios.where('uid', '==', uid).where('bajaAt', '==', null).get(),
-    socios.where('responsibleUid', '==', uid).where('bajaAt', '==', null).get(),
-  ]);
-  const rows = [...own.docs, ...personas.docs];
-  if (rows.length === 0) return 0;
-  const batch = firestore.batch();
-  for (const row of rows) batch.update(row.ref, { bajaAt: FieldValue.serverTimestamp() });
-  await batch.commit();
-  return rows.length;
-}
-
-/** A demoted admin keeps no title: titles belong to the junta only. */
-async function clearAdminTitle(firestore: Firestore, orgId: string, uid: string): Promise<void> {
-  const own = await organizationSociosCollection(firestore, orgId)
-    .where('uid', '==', uid)
-    .where('bajaAt', '==', null)
-    .get();
-  const batch = firestore.batch();
-  for (const row of own.docs) {
-    if (row.data().adminTitle !== null) batch.update(row.ref, { adminTitle: null });
-  }
-  await batch.commit();
 }
 
 /**
  * Keeps `organizations/{orgId}/socios` in step with the org's members: joining
  * is the alta, leaving the baja (the row stays — it is the libro de socios), and
- * losing the admin role drops the display title. The ayuntamiento keeps no
- * roster. A write under an org that is already gone (the delete cascade) is a
- * no-op, so it does not recreate the org's subcollection.
+ * losing the admin role drops the display title. Every event — create, delete,
+ * role change, a retry, a late delivery — runs the same reconcile against the
+ * member doc as it is now. The ayuntamiento keeps no roster. A write under an
+ * org that is already gone (the delete cascade) is a no-op, so it does not
+ * recreate the org's subcollection.
  */
 export const syncOrgSocioRoster = onDocumentWritten(
   { document: 'organizations/{orgId}/members/{userId}', region: 'us-central1' },
   async (event) => {
     const handler = 'syncOrgSocioRoster';
     const { orgId, userId } = event.params;
-    const before = event.data?.before;
-    const after = event.data?.after;
-
     const org = (await organizationDoc(db, orgId).get()).data();
     if (!org || !hasSocioRoster(org.type)) return;
 
-    if (!before?.exists && after?.exists) {
-      const joinedAt = (after.get('joinedAt') as FirebaseFirestore.Timestamp | undefined)?.toDate() ?? new Date();
-      const outcome = await giveSocioAlta(db, orgId, userId, joinedAt);
-      logger.info('socio alta', { handler, orgId, userId, outcome });
-    } else if (before?.exists && !after?.exists) {
-      const count = await giveSocioBaja(db, orgId, userId);
-      logger.info('socio baja', { handler, orgId, userId, count });
-    } else if (before?.get('role') === 'admin' && after?.get('role') !== 'admin') {
-      await clearAdminTitle(db, orgId, userId);
-      logger.info('socio admin title cleared', { handler, orgId, userId });
-    }
+    // The event says only that this membership changed; what it changed to is
+    // read fresh inside the reconcile (see reconcileSocioMembership).
+    const outcome = await reconcileSocioMembership(db, orgId, userId);
+    logger.info('socio roster reconciled', { handler, orgId, userId, outcome });
   },
 );

@@ -47,7 +47,8 @@ export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: tru
         tx.get(organizationSociosCollection(db, orgId).where('uid', '==', memberUid).where('bajaAt', '==', null)),
       ]);
       if (caller.data()?.role !== 'admin') throw new HttpsError('permission-denied', 'No autorizado.');
-      if (!member.exists) throw new HttpsError('failed-precondition', 'Esa persona no es miembro del grupo.');
+      const membership = member.data();
+      if (!membership) throw new HttpsError('failed-precondition', 'Esa persona no es miembro del grupo.');
       const typedData = typed.data();
       if (!typedData || typedData.kind !== 'typed' || typedData.bajaAt !== null) {
         throw new HttpsError('failed-precondition', 'Solo se puede vincular un socio añadido a mano y en alta.');
@@ -71,6 +72,9 @@ export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: tru
         personId: memberData?.personId ?? null,
         adminTitle: memberData?.adminTitle ?? null,
         altaAt,
+        // Ties the row to this membership, so syncOrgSocioRoster treats it as
+        // current even if it runs after the merge.
+        memberJoinedAt: membership.joinedAt,
       });
       if (memberPrivate?.consentAnsweredAt) {
         tx.set(organizationSocioPrivateDoc(db, orgId, socioId), memberPrivate);

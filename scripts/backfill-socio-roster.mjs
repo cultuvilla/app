@@ -8,7 +8,9 @@
  * It reconciles rather than only seeding, so a re-run also closes the gap
  * between this backfill and the trigger's deploy: a member with no active row
  * gets one, and an active member row (or persona a cargo) whose member has left
- * gets the baja. Rows are never deleted. The ayuntamiento keeps no roster.
+ * gets the baja (a persona's lock in socioPersonaLocks goes with it, as the
+ * app and the trigger do). Rows are never deleted. The ayuntamiento keeps no
+ * roster.
  *
  * `pre-deploy` so the Grupos tab never ships against an empty roster.
  * Idempotent — a member who already has an active row is never touched.
@@ -65,6 +67,7 @@ export function memberSocioRow(uid, user, joinedAt) {
     adminTitle: null,
     altaAt: joinedAt,
     bajaAt: null,
+    memberJoinedAt: joinedAt,
     createdBy: uid,
   };
 }
@@ -91,8 +94,13 @@ export async function run({ db, FieldValue, apply, log }) {
       const user = (await db.doc(`users/${uid}`).get()).data();
       await writer.set(org.ref.collection('socios').doc(), memberSocioRow(uid, user, joinedAt.get(uid)));
     }
+    const personIdOf = new Map(active.docs.map((d) => [d.id, d.get('personId')]));
     for (const id of plan.baja) {
       await writer.update(org.ref.collection('socios').doc(id), { bajaAt: FieldValue.serverTimestamp() });
+      const personId = personIdOf.get(id);
+      if (!personId) continue;
+      const lock = org.ref.collection('socioPersonaLocks').doc(personId);
+      if ((await lock.get()).get('socioId') === id) await writer.delete(lock);
     }
     altas += plan.alta.length;
     bajas += plan.baja.length;

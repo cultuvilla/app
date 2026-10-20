@@ -13,7 +13,7 @@ import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel'
 import { organizationConverterAdmin } from '../converters/organizationConverter.admin';
 import { orgMemberConverterAdmin } from '../converters/orgMemberConverter.admin';
 import { orgJoinRequestConverterAdmin } from '../converters/orgJoinRequestConverter.admin';
-import { socioConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
+import { socioConverterAdmin, socioPersonaLockConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
 import { organizerRequestConverterAdmin } from '../converters/organizerRequestConverter.admin';
 import { personConverterAdmin } from '../converters/personConverter.admin';
 import { userConverterAdmin } from '../converters/userConverter.admin';
@@ -139,6 +139,12 @@ export const organizationSocioPrivateCollection = (db: Firestore, organizationId
 
 export const organizationSocioPrivateDoc = (db: Firestore, organizationId: string, socioId: string) =>
   db.collection('organizations').doc(organizationId).collection('socioPrivate').doc(socioId).withConverter(socioPrivateConverterAdmin);
+
+export const organizationSocioPersonaLocksCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('socioPersonaLocks').withConverter(socioPersonaLockConverterAdmin);
+
+export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
+  db.collection('organizations').doc(organizationId).collection('socioPersonaLocks').doc(personId).withConverter(socioPersonaLockConverterAdmin);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);
