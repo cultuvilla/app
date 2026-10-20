@@ -30,9 +30,13 @@ teacher is ill, without touching the rest.
   the batch lands (`getAfter`), with the same creator, village and visibility.
   Otherwise any member could slot an earlier-dated "occurrence" into someone
   else's series and replace its card in every collapsed list, or a later one
-  that breaks the organizer's "este y los siguientes" batch. A batch at the cap
-  (184 occurrences) stays inside the per-request document-access budget —
-  pinned by a rules test.
+  that breaks the organizer's "este y los siguientes" batch. The occurrence
+  must also restate the root's `until` and `weekdays`, so the series cannot be
+  stretched past the cap one hop at a time. Every occurrence in the batch reads
+  the same root and member doc; the per-request access cap holds only because
+  repeated reads of one path are cached — the emulator does not enforce that
+  cap on batches, so a cap-length series must be tried against a real project
+  before relying on it.
 - **One visibility per series.** The update rule refuses a visibility change on
   an occurrence, and the form hides the switch: "este y los siguientes" looks
   for siblings in the occurrence's own visibility partition.
@@ -75,7 +79,7 @@ teacher is ill, without touching the rest.
 - A query over a series must pin `visibility` / `visibilityOrgId` like every
   `events` list (see `publicOnly` in eventService).
 - `MAX_SERIES_DAYS` and the 184-day bound in `isValidEventSeries` move together.
-  The last-day bound allows 26 h past `until` (the start of that day), because
+  The last-day bound allows 25 h past `until` (the start of that day), because
   a Madrid day lasts 25 h when clocks go back.
 
 ## Revisit when

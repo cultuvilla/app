@@ -65,9 +65,10 @@ describe('firestore.rules — weekly event series', () => {
     await assertSucceeds(batch.commit());
   });
 
-  // Every occurrence runs the create rule, and each one reads the root and
-  // the member doc — this pins that a long series stays inside the per-request
-  // document-access budget.
+  // Every occurrence runs the create rule and reads the same root and member
+  // doc. The emulator does not enforce the per-request access cap on batches,
+  // so this pins the rules' verdict at the cap's length, not the production
+  // budget — that relies on repeated reads of one path being cached.
   it('creates the longest series the cap allows — a daily one, 184 occurrences — in one batch', async () => {
     const db = asUser(getEnv(), 'member');
     const batch = writeBatch(db);
@@ -87,10 +88,47 @@ describe('firestore.rules — weekly event series', () => {
     );
     // Nor can it claim to be the root under a different id.
     await assertFails(setDoc(doc(db, 'events/impostor0'), occurrence('rival', series({ index: 0 }))));
+    // Nor can the creator stretch the series by restating its rule.
+    const member = asUser(getEnv(), 'member');
+    await assertFails(
+      setDoc(doc(member, 'events/stretch'), occurrence('member', series({ index: 9, until: new Date('2027-04-01T00:00:00Z') }), new Date('2027-03-30T17:00:00Z'))),
+    );
+    await assertFails(setDoc(doc(member, 'events/otherdays'), occurrence('member', series({ index: 9, weekdays: [1] }))));
     // Pointing at a root that does not exist is refused too.
     await assertFails(
       setDoc(doc(db, 'events/orphan'), occurrence('rival', series({ id: 'nope', index: 1 }))),
     );
+  });
+
+  it('refuses an occurrence whose village or visibility differs from its root', async () => {
+    const db = asUser(getEnv(), 'member');
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      const admin = ctx.firestore();
+      await setDoc(doc(admin, 'municipalities/m2/members/member'), { role: 'member', joinedAt: new Date() });
+      // A vetted member of an approval peña, so a private occurrence is refused
+      // for its mismatch with the root alone.
+      await setDoc(doc(admin, 'organizations/pena'), { joinPolicy: 'approval', municipalityId: M });
+      await setDoc(doc(admin, 'organizations/pena/members/member'), { role: 'member', joinedAt: new Date() });
+    });
+    await assertSucceeds(
+      setDoc(doc(db, 'events/pena0'), {
+        ...occurrence('member', series({ id: 'pena0' })),
+        visibility: 'organization',
+        visibilityOrgId: 'pena',
+      }),
+    );
+    await assertFails(
+      setDoc(doc(db, 'events/elsewhere'), { ...occurrence('member', series({ index: 2 })), municipalityId: 'm2' }),
+    );
+    await assertFails(
+      setDoc(doc(db, 'events/hidden'), {
+        ...occurrence('member', series({ index: 2 })),
+        visibility: 'organization',
+        visibilityOrgId: 'pena',
+      }),
+    );
+    // The same occurrence, matching its root, is fine.
+    await assertSucceeds(setDoc(doc(db, 'events/fine'), occurrence('member', series({ index: 2 }))));
   });
 
   it('accepts a late slot on the last day across the autumn clock change', async () => {

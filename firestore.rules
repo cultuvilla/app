@@ -474,9 +474,9 @@ service cloud.firestore {
           && s.weekdays.hasOnly([1, 2, 3, 4, 5, 6, 7])
           && isTimestamp(s.until)
           // `until` is the start of the last calendar day, and a Madrid day
-          // runs 25 hours on the night clocks go back — 26 h of slack keeps a
-          // late occurrence on that day valid.
-          && d.startDate < s.until + duration.value(26, 'h')
+          // runs 25 hours on the night clocks go back — 25 h keeps a late
+          // occurrence on that day valid (and lets nothing past 01:00 after it).
+          && d.startDate < s.until + duration.value(25, 'h')
           && s.until < d.startDate + duration.value(184, 'd')
       );
     }
@@ -508,7 +508,11 @@ service cloud.firestore {
         && rs.index == 0
         && root.createdBy == d.createdBy
         && root.municipalityId == d.municipalityId
-        && root.visibilityOrgId == d.visibilityOrgId;
+        && root.visibilityOrgId == d.visibilityOrgId
+        // The rule is the root's: a sliding `until` would let a series grow
+        // past MAX_SERIES_DAYS one hop at a time.
+        && rs.until == d.series.until
+        && rs.weekdays == d.series.weekdays;
     }
 
     function isValidEventCreate(d) {
