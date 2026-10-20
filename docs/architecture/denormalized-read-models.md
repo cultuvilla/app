@@ -409,6 +409,28 @@ with no extra reads and no visible reshuffle.
   recompute the true count from the source and write it; they double as repair
   tools if a trigger ever drifts.
 
+### socio roster `member` rows ← `organizations/{orgId}/members/`
+
+`organizations/{orgId}/socios/` is the group's libro de socios, so a member's
+row must exist exactly as long as their membership — and then outlive it, with a
+baja. `syncOrgSocioRoster`
+([functions/src/organizations/syncOrgSocioRoster.ts](../../functions/src/organizations/syncOrgSocioRoster.ts))
+watches the members subcollection: a create gives the alta (reusing an active
+row that already names the uid, or adopting the active `persona` row of the
+member's own `persons` doc), a delete stamps `bajaAt` on the member's row and on
+the personas a cargo they answered for, and an admin → member demotion clears
+`adminTitle`. It is a no-op for the ayuntamiento and for an org already deleted.
+
+- **Not a full projection.** Rows are never rewritten wholesale; the trigger
+  only adds rows and patches fields, so persona and typed rows written by clients
+  are never clobbered.
+- **`displayName` is a point-in-time copy** of `users/{uid}.displayName`, like a
+  registration's name: a private persona's doc is unreadable to the admins who
+  list the roster, so the name has to live on the row.
+- **Backfill / repair:** [scripts/backfill-socio-roster.mjs](../../scripts/backfill-socio-roster.mjs)
+  reconciles: an alta for every member with no active row, a baja for an active
+  row whose member has left.
+
 ### `villageSlug` ← `municipalities/{id}.slug`
 
 Every URL starts with its pueblo (`/matabuena/evento/…`), and a feed card has to

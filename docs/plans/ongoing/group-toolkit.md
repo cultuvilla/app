@@ -1,6 +1,9 @@
 # Mis grupos — the toolkit for running an asociación
 
 **Priority:** high
+**Landed:** none
+**Gate:** none
+**Next:** Phase 3 (cuota de socios) — write its plan section against the Phase 1 roster model below, then build it
 
 Decided 2026-10-20 (user): build all five phases, taking the agent's picks on the
 open questions (recorded under *Decisions* below).
@@ -67,6 +70,48 @@ stops keeping a parallel paper list.
 - Only the *private* side of the group lives here. The public org page
   (`entidad/[entidad]`) stays as it is; nothing in Phases 1–5 is public, so none of
   it needs a read-site page.
+
+### Phase 1 — as built
+
+Shipped in one PR (`feat/group-toolkit-phase1`). Later phases build on this model:
+
+- **Roster:** `organizations/{orgId}/socios/{socioId}` (`SocioDataModel`): `kind`
+  (`member` | `persona` | `typed`), `displayName` (point-in-time copy), `uid`
+  (member rows), `personId`, `responsibleUid` (persona rows), `adminTitle`
+  (`presidente` | `secretario` | `tesorero` | `vocal` | `otro`, display only),
+  `altaAt`, `bajaAt` (null = active; rows are never deleted), `createdBy`. Auto ids.
+  Rejoining after a baja opens a new row; the old one stays.
+- **Contact:** `organizations/{orgId}/socioPrivate/{socioId}` — `phone`, `email`,
+  `consentAnsweredAt`. Org admins and the socio read it. A member writes their own
+  (the consent card, shown on the org page right after joining and in the Grupos
+  tab); an admin writes a typed socio's. Persona rows have none — contact goes to
+  `responsibleUid`.
+- **Functions:** `syncOrgSocioRoster` (trigger on `organizations/{orgId}/members/{uid}`:
+  alta on create — reusing an active row with that uid or adopting the active persona
+  row of the user's own `personId` —, baja on delete for the member and their
+  personas, title cleared on demotion; no-op for the ayuntamiento) and
+  `linkSocioToMember` (callable, org admins: merges a typed row into the member's
+  row, keeps the earlier alta, the member's own consent answer wins).
+- **Setting:** `organizations.sociosListVisible` (default false) — members read all
+  roster rows (names only) when on.
+- **Backfills:** `socio-roster` (reconciling: alta for members with no active row,
+  baja for rows whose member left) and `org-socios-list-visible`; both `pre-deploy`,
+  auto-applied.
+- **App:** `app/(tabs)/grupos.tsx` (tab hidden with `href: null` unless
+  `watchUserOrgMemberships` finds a group), components under
+  `components/feature/groups/`, last group in AsyncStorage (`lib/orgs/lastGroup.ts`).
+- **Left for later:** cuota, tiers and households (Phase 3); messaging and notices
+  (Phase 4); tasks (Phase 2); actas and libro export (Phase 5). The member home shows
+  no cuota/tasks/notice placeholders until those exist. `displayName` on member rows
+  is not re-synced when a user renames. A Maestro flow for the tab (its testIDs are
+  unit-tested only, see `e2e/native/uncovered.json`).
+
+## Handoff
+
+The `socio-roster` backfill auto-applies before each env's deploy, i.e. before the
+trigger exists there: a member who joins or leaves in that window is missed until
+the backfill is re-run (`pnpm backfills:run --id=socio-roster --env=<env> --apply`;
+it reconciles both ways). Re-run it on each env right after the promotion deploys.
 
 ## Phase 2 — Tasks
 
