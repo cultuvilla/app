@@ -8,7 +8,7 @@ const docs = vi.hoisted(() => ({ rows: [] as { id: string; data: () => Record<st
 let nextId = 0;
 
 vi.mock('../../src/firebase', () => ({ getDb: vi.fn(() => ({})) }));
-vi.mock('../../src/services/municipalityService', () => ({ getVillageSlug: vi.fn(async () => 'villa') }));
+vi.mock('../../src/services/municipalityService', () => ({ getVillageSlug: vi.fn(() => Promise.resolve('villa')) }));
 vi.mock('../../src/firebase/refs/client', () => ({
   eventsCollection: vi.fn(() => ({ kind: 'events' })),
   eventDoc: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('../../src/firebase/refs/client', () => ({
 vi.mock('../../src/firebase/sdk/firestore', () => ({
   doc: vi.fn((_parent: unknown, _coll?: string, id?: string) => ({ id: id ?? `new-${String(nextId++)}` })),
   writeBatch: vi.fn(() => batch),
-  getDocs: vi.fn(async () => ({ docs: docs.rows })),
+  getDocs: vi.fn(() => Promise.resolve({ docs: docs.rows })),
   query: vi.fn(() => ({})),
   where: vi.fn((field: string, op: string, value: unknown) => ({ field, op, value })),
   orderBy: vi.fn(),
