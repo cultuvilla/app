@@ -8,6 +8,7 @@ vi.mock('../../src/firebase/refs/client', () => ({
   organizationCuotaAssignmentsCollection: vi.fn(),
   organizationCuotaPaymentsCollection: vi.fn((_db, orgId: string) => ({ _coll: `organizations/${orgId}/cuotaPayments` })),
   organizationCuotaRemindersCollection: vi.fn(),
+  organizationCuotaWriteDoc: vi.fn((_db, orgId: string, coll: string, id: string) => ({ _path: `organizations/${orgId}/${coll}/${id}` })),
 }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((...args: unknown[]) => (args.length === 1 ? { id: 'new-payment' } : { _path: args.slice(1).join('/') })),

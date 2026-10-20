@@ -2,6 +2,7 @@
 import { doc, query, serverTimestamp, setDoc, where } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import {
+  organizationCuotaWriteDoc,
   organizationCuotaAssignmentDoc,
   organizationCuotaAssignmentsCollection,
   organizationCuotaPaymentsCollection,
@@ -36,8 +37,8 @@ export type CuotaReminder = CuotaReminderData & { id: string };
 // Writes go through unconverted refs so the server stamps the time
 // (`serverTimestamp()`, which rules check against `request.time`); the strict
 // schema still validates each payload first, with a stand-in Date.
-const rawDoc = (orgId: string, collection: string, id: string) =>
-  doc(getDb(), 'organizations', orgId, collection, id);
+const rawDoc = (orgId: string, collection: 'cuotaSettings' | 'cuotaAssignments' | 'cuotaPayments', id: string) =>
+  organizationCuotaWriteDoc(getDb(), orgId, collection, id);
 
 // =============================================================================
 // SETTINGS

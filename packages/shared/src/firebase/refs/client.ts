@@ -167,6 +167,18 @@ export const organizationCuotaPaymentsCollection = (db: Firestore, organizationI
 export const organizationCuotaRemindersCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'cuotaReminders').withConverter(cuotaReminderConverterClient);
 
+/**
+ * Unconverted, for cuota writes only: they stamp `serverTimestamp()` (which
+ * rules compare with `request.time`) and the strict converter refuses the
+ * sentinel. The service validates each payload with its schema first.
+ */
+export const organizationCuotaWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  collectionName: 'cuotaSettings' | 'cuotaAssignments' | 'cuotaPayments',
+  id: string,
+) => doc(db, 'organizations', organizationId, collectionName, id);
+
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);
 
