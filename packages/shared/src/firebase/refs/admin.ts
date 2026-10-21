@@ -19,6 +19,7 @@ import {
   cuotaReminderConverterAdmin,
   cuotaSettingsConverterAdmin,
 } from '../converters/cuotaConverter.admin';
+import { groupTaskConverterAdmin, taskReminderConverterAdmin, taskTemplateConverterAdmin } from '../converters/groupTaskConverter.admin';
 import { socioConverterAdmin, socioPersonaLockConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
 import { organizerRequestConverterAdmin } from '../converters/organizerRequestConverter.admin';
 import { personConverterAdmin } from '../converters/personConverter.admin';
@@ -177,6 +178,25 @@ export const organizationCuotaRemindersCollection = (db: Firestore, organization
 
 export const organizationCuotaReminderDoc = (db: Firestore, organizationId: string, reminderId: string) =>
   db.collection('organizations').doc(organizationId).collection('cuotaReminders').doc(reminderId).withConverter(cuotaReminderConverterAdmin);
+
+// Group tasks, shifts and checklist templates (see GroupTaskDataModel).
+export const organizationTasksCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('tasks').withConverter(groupTaskConverterAdmin);
+
+export const organizationTaskDoc = (db: Firestore, organizationId: string, taskId: string) =>
+  db.collection('organizations').doc(organizationId).collection('tasks').doc(taskId).withConverter(groupTaskConverterAdmin);
+
+/** Every org's tasks — the reminder job's starting point. */
+export const groupTasksGroup = (db: Firestore) => db.collectionGroup('tasks').withConverter(groupTaskConverterAdmin);
+
+export const organizationTaskTemplatesCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('taskTemplates').withConverter(taskTemplateConverterAdmin);
+
+export const organizationTaskRemindersCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('taskReminders').withConverter(taskReminderConverterAdmin);
+
+export const organizationTaskReminderDoc = (db: Firestore, organizationId: string, reminderId: string) =>
+  db.collection('organizations').doc(organizationId).collection('taskReminders').doc(reminderId).withConverter(taskReminderConverterAdmin);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);

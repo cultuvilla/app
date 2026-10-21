@@ -5,3 +5,5 @@ export * from './OrgRequestFormSchema';
 export * from './SocioDataModel';
 export * from './CuotaDataModel';
 export * from './cuotaStatus';
+export * from './GroupTaskDataModel';
+export * from './groupTaskLogic';

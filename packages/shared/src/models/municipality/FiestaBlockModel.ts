@@ -66,6 +66,12 @@ function madridMidnight(year: number, month: number, day: number): Date {
   return new Date(guess - madridOffsetMs(new Date(guess)));
 }
 
+/** The instant of a Madrid wall-clock time (`HH:MM`) on a calendar day — a shift's start. */
+export function madridInstant(day: string, time: string): Date {
+  const guess = Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)), Number(time.slice(0, 2)), Number(time.slice(3, 5)));
+  return new Date(guess - madridOffsetMs(new Date(guess)));
+}
+
 /** Year, month and day of a `YYYY-MM-DD` key. Sliced rather than split, so each is a plain number under every tsconfig. */
 function dayParts(key: string): { y: number; m: number; d: number } {
   return { y: Number(key.slice(0, 4)), m: Number(key.slice(5, 7)), d: Number(key.slice(8, 10)) };

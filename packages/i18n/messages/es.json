@@ -1768,6 +1768,130 @@
         "custom": "Importe propio",
         "save": "Guardar"
       }
+    },
+    "tasks": {
+      "myTitle": "Mis tareas",
+      "shiftsTitle": "Turnos de voluntarios",
+      "adminTitle": "Tareas",
+      "new": "Nueva tarea",
+      "openTitle": "Pendientes",
+      "noOpen": "No hay tareas pendientes.",
+      "doneTitle": "Hechas este año",
+      "noDone": "Aún no se ha hecho ninguna este año.",
+      "due": "Para el {date}",
+      "dueAt": "{date} a las {time}",
+      "overdue": "Vencida",
+      "noDate": "Sin fecha",
+      "unassigned": "Sin asignar",
+      "assignedTo": "Para {names}",
+      "markDone": "Marcar como hecha",
+      "doneBy": "Hecha por {name} el {date}",
+      "recurs": {
+        "calendar": {
+          "month": "{n, plural, one {Cada mes} other {Cada # meses}}",
+          "year": "{n, plural, one {Cada año} other {Cada # años}}"
+        },
+        "afterDone": {
+          "month": "{n, plural, one {Un mes} other {# meses}} después de hacerla",
+          "year": "{n, plural, one {Un año} other {# años}} después de hacerla"
+        }
+      },
+      "error": "No se ha podido guardar. Inténtalo de nuevo.",
+      "deleteConfirm": "¿Eliminar esta tarea?",
+      "shift": {
+        "slots": "{claimed} de {slots} plazas",
+        "full": "Completo",
+        "claim": "Me apunto",
+        "decline": "No puedo",
+        "withdraw": "Quitarme",
+        "leaveWaitlist": "Salir de la lista",
+        "joinWaitlist": "Lista de espera",
+        "state": {
+          "claimed": "Estás apuntado",
+          "waitlisted": "En lista de espera ({position}º)",
+          "declined": "Has dicho que no puedes"
+        },
+        "volunteers": "Apuntados: {names}",
+        "waiting": "En espera: {names}",
+        "noVolunteers": "Nadie apuntado todavía."
+      },
+      "form": {
+        "titleNew": "Nueva tarea",
+        "titleEdit": "Editar tarea",
+        "name": "Qué hay que hacer",
+        "nameRequired": "Escribe qué hay que hacer.",
+        "notes": "Notas",
+        "due": "Fecha",
+        "time": "Hora (por ejemplo 10:00)",
+        "timeInvalid": "Escribe la hora como 10:00.",
+        "assignees": "Quién se encarga",
+        "isShift": "Es un turno de voluntarios",
+        "slots": "Personas que hacen falta",
+        "slotsInvalid": "Escribe cuántas personas hacen falta, de 1 a 100.",
+        "shiftNeedsDate": "Un turno necesita fecha.",
+        "slotsBelowClaimed": "Ya hay {count} apuntados: no puede haber menos plazas.",
+        "repeat": "Se repite",
+        "repeatNone": "No",
+        "repeatCalendar": "En fecha fija",
+        "repeatAfterDone": "Tras hacerla",
+        "every": "Cada cuántos",
+        "unit": {
+          "month": "Meses",
+          "year": "Años"
+        },
+        "intervalInvalid": "Escribe un número del 1 al 24.",
+        "calendarNeedsDate": "Para repetir en fecha fija, pon una fecha.",
+        "save": "Guardar",
+        "delete": "Eliminar tarea"
+      },
+      "templates": {
+        "title": "Plantillas",
+        "none": "Aún no hay plantillas. Crea una, o guarda como plantilla las tareas de un evento.",
+        "new": "Nueva plantilla",
+        "items": "{count, plural, one {1 tarea} other {# tareas}}",
+        "apply": "Aplicar",
+        "deleteConfirm": "¿Eliminar la plantilla? Las tareas que ya creó se quedan.",
+        "titleNew": "Nueva plantilla",
+        "titleEdit": "Editar plantilla",
+        "name": "Nombre (por ejemplo, Fiestas de agosto)",
+        "nameRequired": "Ponle un nombre.",
+        "item": "Tarea",
+        "offset": "Días respecto a la fecha (-60 = 60 días antes)",
+        "offsetInvalid": "Escribe un número de días entre -730 y 730.",
+        "slots": "Plazas, si es un turno",
+        "addItem": "Añadir tarea",
+        "removeItem": "Quitar",
+        "itemsRequired": "Añade al menos una tarea.",
+        "save": "Guardar plantilla",
+        "delete": "Eliminar plantilla",
+        "applyTitle": "Aplicar «{name}»",
+        "applyToEvent": "A un evento",
+        "applyToDate": "A una fecha",
+        "date": "Fecha de referencia",
+        "noEvents": "El grupo no tiene eventos próximos.",
+        "applied": "{count, plural, one {Se ha creado 1 tarea.} other {Se han creado # tareas.}}",
+        "offsetBefore": "{n, plural, one {1 día antes} other {# días antes}}",
+        "offsetAfter": "{n, plural, one {1 día después} other {# días después}}",
+        "offsetSame": "El mismo día"
+      },
+      "checklists": {
+        "title": "Tareas por evento",
+        "none": "No hay eventos próximos.",
+        "progress": "{done} de {total} hechas",
+        "empty": "Sin tareas",
+        "sheetTitle": "Tareas de «{event}»",
+        "noTasks": "Este evento aún no tiene tareas.",
+        "applyTemplate": "Aplicar una plantilla",
+        "saveAsTemplate": "Guardar como plantilla",
+        "templateName": "Nombre de la plantilla",
+        "saved": "Plantilla guardada.",
+        "addTask": "Añadir tarea"
+      },
+      "fairShare": {
+        "title": "Reparto del trabajo {year}",
+        "hint": "Tareas hechas por cada miembro este año. Solo lo ven los administradores.",
+        "count": "{count, plural, one {1 tarea} other {# tareas}}"
+      }
     }
   }
 }

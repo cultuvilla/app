@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** none
 **Gate:** none
-**Next:** Phase 4 (messaging) — build it on the Phase 3 reminder plumbing (shared `sendEmail` transport, `cuota_reminder`-style notification docs, per-recipient grouping) described under *Phase 3 — as built*
+**Next:** Phase 5 (records) once Phase 4 (messaging) has landed — libro de socios, actas, yearly summary; its *asamblea anual* is a Phase 2 calendar-recurring task created by default (see *Phase 2 — as built*)
 
 Decided 2026-10-20 (user): build all five phases, taking the agent's picks on the
 open questions (recorded under *Decisions* below).
@@ -143,6 +143,65 @@ what is going on; whether members can create tasks is a later setting.)*
   the existing push pipeline and quiet hours.
 - **Fair share** (Sweepy): an admin view of tasks done per member this year. Members
   don't see it. *(My call: a public ranking reads as shaming in a village.)*
+
+### Phase 2 — as built
+
+Shipped in one PR (`feat/group-toolkit-phase2-tasks`), for every org type (the
+ayuntamiento included — tasks key on `uid`, not on the socio roster).
+
+- **Data** (`GroupTaskDataModel`; days are Madrid day keys like the cuota's):
+  - `organizations/{orgId}/tasks/{taskId}` — `title`, `notes`, `assigneeUids`,
+    `dueOn`, `time` (`HH:MM`), `slots` (set = a volunteer shift; needs `dueOn`),
+    `claimedUids` / `waitlistUids` / `declinedUids` (function-owned), `recurrence`
+    (`{ kind: 'calendar' | 'afterDone', unit: 'month' | 'year', interval 1–24,
+    anchorOn }` — `anchorOn` is the series' first day, so "the 31st" survives
+    February), `nextTaskId` (function-owned), `eventId` (the checklist it is on),
+    `doneAt` (server time) / `doneBy`, `createdBy`, `createdAt`. Members read all;
+    admins create/edit/delete; an assignee may only flip `doneAt`/`doneBy` on their
+    own task. Rules keep the answer lists and `nextTaskId` untouchable by clients
+    and `slots` ≥ the people already in.
+  - `taskTemplates/{id}` — `name`, `items[]` (`title`, `notes`, `offsetDays`
+    ±730, `time`, `slots`), `updatedBy`, `updatedAt`. Admins only. No assignees:
+    people change year to year.
+  - `taskReminders/{taskId}_{stage}_{uid}` — function-owned send record
+    (`stage` `before` | `overdue` | `shift`); admins read it.
+- **Logic** (pure, unit-tested): `packages/shared/src/models/organization/groupTaskLogic.ts`
+  — `nextDueOn` / `nextOccurrence` (calendar: first series date after both the
+  due day and the done day; afterDone: N after the done day), `tasksFromTemplate`,
+  `templateItemsFromTasks`, `answerShift` / `promoteWaitlist`, `shiftStartsAt`
+  (`madridInstant`, added to FiestaBlockModel), `dueTaskReminders`,
+  `fairShareCounts` (shift → volunteers, else assignees, else who ticked it).
+- **Functions** (functions/src/organizations/):
+  - `onGroupTaskUpdated` (trigger): a done recurring task with no `nextTaskId` gets
+    its next occurrence and the id, in one transaction — once, even across
+    undo/redo; a shift with free slots and a waiting list (admin raised `slots`)
+    promotes from its head.
+  - `respondToTaskShift` (callable, members): `claim` | `decline` | `withdraw`, in
+    a transaction (cap held, waiting list when full, a freed slot promotes the
+    head); refuses a done or past shift.
+  - `sendGroupTaskReminders` (`onSchedule` `every day 10:00` Europe/Madrid, the
+    single group-tasks schedule): one collection-group query (`doneAt == null`,
+    `dueOn` in [today−7, today+2]; composite index `tasks` doneAt+dueOn,
+    COLLECTION_GROUP) covers `before` (two days up to the due day: assignees, or a
+    shift's volunteers), `overdue` (once, within a week: assignees; never a
+    shift) and `shift` (a shift short of people starting within 48 h: every member
+    who has not answered). Records are claimed in a transaction before sending.
+  - Notifications are one type, `group_task` (category `mine`, routed to
+    `/grupos?grupo=<orgId>` like `cuota_reminder`), written by
+    `groupTaskNotify.ts`; the 10:00 schedule keeps reminders out of quiet hours.
+    Push only — no email for tasks.
+- **App:** `MyTasks` on the group home (my open tasks with a tick; upcoming
+  shifts with Me apunto / No puedo / lista de espera — admins also see names);
+  `TasksAdmin` first in Gestionar (open tasks, done this year, per-event
+  checklists of the group's upcoming events with add / apply template / save as
+  template, templates, fair share). Sheets: `TaskSheet`, `TemplateSheet`,
+  `ApplyTemplateSheet`. Member names come from `lib/orgs/useOrgMembers.ts`.
+- **Left for later:** members creating tasks (a setting); a notification when
+  someone is assigned; email reminders for tasks; overdue reminders for unassigned
+  tasks (admins see them in the list); a shift reminder more precise than the
+  daily run (it lands 24–48 h ahead); editing a template item's notes/time in the
+  form (kept from a saved checklist, not editable); a checklist for a past event;
+  no Maestro flow for the task screens (unit-tested, see `e2e/native/uncovered.json`).
 
 ## Phase 3 — Cuota de socios
 

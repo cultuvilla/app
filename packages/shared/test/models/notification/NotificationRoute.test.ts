@@ -42,6 +42,11 @@ describe('notificationRoute', () => {
     expect(notificationRoute(n, null)).toBe('/grupos?grupo=org1');
   });
 
+  it('opens a group task notification on the group too', () => {
+    const n = { ...base, type: 'group_task' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, null)).toBe('/grupos?grupo=org1');
+  });
+
   it('cannot address anything without the pueblo slug', () => {
     expect(notificationRoute({ ...base, type: 'event_cancelled', eventId: 'ev1' }, null)).toBeNull();
     expect(notificationRoute({ ...base, entityKind: 'place', entityId: 'x' }, null)).toBeNull();

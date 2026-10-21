@@ -38,6 +38,9 @@ export { syncOrgMemberCount } from './organizations/syncOrgMemberCount';
 export { syncOrgSocioRoster } from './organizations/syncOrgSocioRoster';
 export { linkSocioToMember } from './organizations/linkSocioToMember';
 export { sendCuotaReminders } from './organizations/sendCuotaReminders';
+export { onGroupTaskUpdated } from './organizations/onGroupTaskUpdated';
+export { respondToTaskShift } from './organizations/respondToTaskShift';
+export { sendGroupTaskReminders } from './organizations/sendGroupTaskReminders';
 export { onOrganizationUpdated } from './organizations/notificationTriggers';
 
 // Push notifications. onNotificationCreated is the ONLY seam between the

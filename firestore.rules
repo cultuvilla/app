@@ -451,6 +451,74 @@ service cloud.firestore {
           && d.recordedAt == request.time;
     }
 
+    // ── Group tasks (tasks, taskTemplates) ──────────────────────────────────
+    // See GroupTaskDataModel. The three shift answer lists and nextTaskId are
+    // function-owned (respondToTaskShift, onGroupTaskUpdated).
+    function isTimeOfDay(v) {
+      return v is string && v.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+    }
+    function isValidTaskRecurrence(r) {
+      return r == null
+        || (r is map
+          && r.keys().hasOnly(['kind', 'unit', 'interval', 'anchorOn'])
+          && r.keys().hasAll(['kind', 'unit', 'interval', 'anchorOn'])
+          && r.unit in ['month', 'year']
+          && r.interval is int && r.interval >= 1 && r.interval <= 24
+          && ((r.kind == 'calendar' && isDayKey(r.anchorOn))
+            || (r.kind == 'afterDone' && (r.anchorOn == null || isDayKey(r.anchorOn)))));
+    }
+    function groupTaskKeys() {
+      return [
+        'title', 'notes', 'assigneeUids', 'dueOn', 'time', 'slots', 'claimedUids', 'waitlistUids',
+        'declinedUids', 'recurrence', 'nextTaskId', 'eventId', 'doneAt', 'doneBy', 'createdBy', 'createdAt',
+      ];
+    }
+    // The fields an admin edits, and how they hang together.
+    function isValidGroupTaskFields(d) {
+      return d.keys().hasOnly(groupTaskKeys())
+          && d.keys().hasAll(groupTaskKeys())
+          && d.title is string && d.title.size() >= 1 && d.title.size() <= 120
+          && isNullOrShortString(d.notes, 1000)
+          && d.assigneeUids is list && d.assigneeUids.size() <= 20
+          && (d.dueOn == null || isDayKey(d.dueOn))
+          && (d.time == null || isTimeOfDay(d.time))
+          && (d.slots == null || (d.slots is int && d.slots >= 1 && d.slots <= 100 && d.dueOn != null))
+          && isValidTaskRecurrence(d.recurrence)
+          && (d.recurrence == null || d.recurrence.kind != 'calendar' || d.dueOn != null)
+          && (d.eventId == null || d.eventId is string)
+          && d.claimedUids is list && d.waitlistUids is list && d.declinedUids is list;
+    }
+    function isValidGroupTaskCreate(d) {
+      return isValidGroupTaskFields(d)
+          && d.claimedUids.size() == 0 && d.waitlistUids.size() == 0 && d.declinedUids.size() == 0
+          && d.nextTaskId == null
+          && d.doneAt == null && d.doneBy == null
+          && d.createdBy == request.auth.uid
+          && d.createdAt == request.time;
+    }
+    // Ticking done stamps the server time and the ticker; undoing clears both.
+    function isGroupTaskDoneTick(n) {
+      return (n.doneAt == request.time && n.doneBy == request.auth.uid)
+          || (n.doneAt == null && n.doneBy == null);
+    }
+    function isValidGroupTaskAdminUpdate(n, o) {
+      return isValidGroupTaskFields(n)
+          && !n.diff(o).affectedKeys().hasAny(['claimedUids', 'waitlistUids', 'declinedUids', 'nextTaskId', 'createdBy', 'createdAt'])
+          && ((n.doneAt == o.doneAt && n.doneBy == o.doneBy) || isGroupTaskDoneTick(n))
+          // A shift keeps room for the people already in it.
+          && (n.slots == null
+            ? (o.claimedUids.size() == 0 && o.waitlistUids.size() == 0)
+            : n.slots >= o.claimedUids.size());
+    }
+    function isValidTaskTemplate(d) {
+      return d.keys().hasOnly(['name', 'items', 'updatedBy', 'updatedAt'])
+          && d.keys().hasAll(['name', 'items', 'updatedBy', 'updatedAt'])
+          && d.name is string && d.name.size() >= 1 && d.name.size() <= 80
+          && d.items is list && d.items.size() >= 1 && d.items.size() <= 50
+          && d.updatedBy == request.auth.uid
+          && d.updatedAt == request.time;
+    }
+
     function isValidSocioPrivate(d) {
       return d.keys().hasOnly(['phone', 'email', 'consentAnsweredAt'])
           && d.keys().hasAll(['phone', 'email', 'consentAnsweredAt'])
@@ -1599,6 +1667,32 @@ service cloud.firestore {
 
       // What the sendCuotaReminders job sent, per socio per period. Function-owned.
       match /cuotaReminders/{reminderId} {
+        allow read: if isOrgAdmin(orgId);
+        allow write: if false;
+      }
+
+      // The group's tasks (see GroupTaskDataModel), every org type. Members
+      // see them all; admins create, edit and delete; an assignee ticks their
+      // own done or undone. Shift answers go through respondToTaskShift.
+      match /tasks/{taskId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgAdmin(orgId) && isValidGroupTaskCreate(request.resource.data);
+        allow update: if (isOrgAdmin(orgId) && isValidGroupTaskAdminUpdate(request.resource.data, resource.data))
+          || (isOrgMember(orgId)
+            && request.auth.uid in resource.data.assigneeUids
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doneAt', 'doneBy'])
+            && isGroupTaskDoneTick(request.resource.data));
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Checklists dated relative to an anchor. Admins only.
+      match /taskTemplates/{templateId} {
+        allow read, delete: if isOrgAdmin(orgId);
+        allow create, update: if isOrgAdmin(orgId) && isValidTaskTemplate(request.resource.data);
+      }
+
+      // What the sendGroupTaskReminders job sent, per task, stage and member. Function-owned.
+      match /taskReminders/{reminderId} {
         allow read: if isOrgAdmin(orgId);
         allow write: if false;
       }
