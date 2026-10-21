@@ -50,6 +50,11 @@ export const NotificationTypeSchema = z.enum([
   // persona's responsible member). Carries entityKind 'organization' +
   // entityId (the org), so a client that predates the type still opens the group.
   'cuota_reminder',
+  // A group task or volunteer shift: due soon, overdue, a shift still short of
+  // people within 48 h (sendGroupTaskReminders, 10:00 Madrid), or a slot freed
+  // up for someone on its waiting list (respondToTaskShift). Carries
+  // entityKind 'organization' + entityId (the org), routed to the Grupos tab.
+  'group_task',
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 

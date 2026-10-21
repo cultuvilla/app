@@ -34,6 +34,8 @@ jest.mock('../../../components/feature/groups/MyPersonasSocios', () => mockStub(
 jest.mock('../../../components/feature/groups/GroupSettings', () => mockStub('GroupSettings'));
 jest.mock('../../../components/feature/groups/MyCuota', () => mockStub('MyCuota'));
 jest.mock('../../../components/feature/groups/CuotaAdmin', () => mockStub('CuotaAdmin'));
+jest.mock('../../../components/feature/groups/MyTasks', () => mockStub('MyTasks'));
+jest.mock('../../../components/feature/groups/TasksAdmin', () => mockStub('TasksAdmin'));
 jest.mock('../../../components/feature/OrgEventsSection', () => mockStub('OrgEventsSection'));
 jest.mock('../../../components/feature/OrgJoinRequests', () => mockStub('OrgJoinRequests'));
 jest.mock('../../../components/feature/OrgMembersList', () => mockStub('OrgMembersList'));
@@ -103,6 +105,8 @@ describe('Grupos tab', () => {
     expect(queryByTestId('group-manage')).toBeNull();
     expect(queryByTestId('stub-CuotaAdmin')).toBeNull();
     expect(queryByTestId('stub-SociosRoster-names')).toBeNull();
+    expect(getByTestId('stub-MyTasks')).toBeTruthy();
+    expect(queryByTestId('stub-TasksAdmin')).toBeNull();
   });
 
   it('a member sees the names when the estatutos allow it', async () => {
@@ -120,6 +124,7 @@ describe('Grupos tab', () => {
     expect(getByTestId('stub-OrgMembersList')).toBeTruthy();
     expect(getByTestId('stub-GroupSettings')).toBeTruthy();
     expect(getByTestId('stub-CuotaAdmin')).toBeTruthy();
+    expect(getByTestId('stub-TasksAdmin')).toBeTruthy();
   });
 
   it('opens on the group a cuota reminder names, and remembers it', async () => {
@@ -142,5 +147,8 @@ describe('Grupos tab', () => {
     expect(queryByTestId('stub-CuotaAdmin')).toBeNull();
     expect(queryByTestId('stub-MyCuota')).toBeNull();
     expect(getByTestId('stub-OrgMembersList')).toBeTruthy();
+    // Tasks are for every org type.
+    expect(getByTestId('stub-MyTasks')).toBeTruthy();
+    expect(getByTestId('stub-TasksAdmin')).toBeTruthy();
   });
 });

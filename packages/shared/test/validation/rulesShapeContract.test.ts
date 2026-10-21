@@ -22,6 +22,7 @@ import {
   buildCuotaPaymentData,
   buildCuotaSettingsData,
 } from '../../src/models/organization/CuotaDataModel';
+import { buildGroupTaskData, buildTaskTemplateData } from '../../src/models/organization/GroupTaskDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
 import { buildPlaceData, buildBarrioData } from '../../src/models/municipality/MunicipalityDataModel';
@@ -36,6 +37,20 @@ interface ShapeContract {
 }
 
 const SHAPE_CONTRACTS: ShapeContract[] = [
+  {
+    label: 'organizations/{orgId}/tasks — isValidGroupTaskCreate (groupTaskKeys)',
+    build: () => buildGroupTaskData({ title: 'Asamblea', createdBy: 'u1' }),
+    ruleKeys: [
+      'title', 'notes', 'assigneeUids', 'dueOn', 'time', 'slots', 'claimedUids', 'waitlistUids',
+      'declinedUids', 'recurrence', 'nextTaskId', 'eventId', 'doneAt', 'doneBy', 'createdBy', 'createdAt',
+    ],
+  },
+  {
+    label: 'organizations/{orgId}/taskTemplates — isValidTaskTemplate',
+    build: () =>
+      buildTaskTemplateData({ name: 'Fiestas', items: [{ title: 'Orquesta', notes: null, offsetDays: -60, time: null, slots: null }], updatedBy: 'u1' }),
+    ruleKeys: ['name', 'items', 'updatedBy', 'updatedAt'],
+  },
   {
     label: 'organizations/{orgId}/cuotaSettings — isValidCuotaSettings',
     build: () =>

@@ -31,6 +31,10 @@ export const NOTIFICATION_CATEGORY: Record<NotificationType, NotificationCategor
   // Your own debt to your group. The job only runs at 10:00 Madrid, so it
   // never lands in quiet hours even though `mine` would bypass them.
   cuota_reminder: 'mine',
+  // A task you hold or a shift you are asked to fill. The reminders run at
+  // 10:00 Madrid; a waiting-list promotion is a seat you asked for, like
+  // waitlist_promoted.
+  group_task: 'mine',
 
   village_entity_published: 'village',
   // Addressed to village admins, but it is about the pueblo, not about them,

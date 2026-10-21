@@ -22,6 +22,7 @@ import {
   cuotaReminderConverterClient,
   cuotaSettingsConverterClient,
 } from '../converters/cuotaConverter.client';
+import { groupTaskConverterClient, taskTemplateConverterClient } from '../converters/groupTaskConverter.client';
 import { socioConverterClient, socioPersonaLockConverterClient, socioPrivateConverterClient } from '../converters/socioConverter.client';
 import { organizerRequestConverterClient } from '../converters/organizerRequestConverter.client';
 import { personConverterClient } from '../converters/personConverter.client';
@@ -176,6 +177,28 @@ export const organizationCuotaWriteDoc = (
   db: Firestore,
   organizationId: string,
   collectionName: 'cuotaSettings' | 'cuotaAssignments' | 'cuotaPayments',
+  id: string,
+) => doc(db, 'organizations', organizationId, collectionName, id);
+
+// Group tasks, shifts and checklist templates (see GroupTaskDataModel).
+export const organizationTasksCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'tasks').withConverter(groupTaskConverterClient);
+
+export const organizationTaskDoc = (db: Firestore, organizationId: string, taskId: string) =>
+  doc(db, 'organizations', organizationId, 'tasks', taskId).withConverter(groupTaskConverterClient);
+
+export const organizationTaskTemplatesCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'taskTemplates').withConverter(taskTemplateConverterClient);
+
+/**
+ * Unconverted, for task and template writes only: they stamp
+ * `serverTimestamp()` (rules compare it with `request.time`), which the strict
+ * converter refuses. The service validates each payload with its schema first.
+ */
+export const organizationTaskWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  collectionName: 'tasks' | 'taskTemplates',
   id: string,
 ) => doc(db, 'organizations', organizationId, collectionName, id);
 
