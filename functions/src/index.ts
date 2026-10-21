@@ -41,6 +41,8 @@ export { sendCuotaReminders } from './organizations/sendCuotaReminders';
 export { onGroupTaskUpdated } from './organizations/onGroupTaskUpdated';
 export { respondToTaskShift } from './organizations/respondToTaskShift';
 export { sendGroupTaskReminders } from './organizations/sendGroupTaskReminders';
+export { sendGroupMessage } from './organizations/sendGroupMessage';
+export { nudgeGroupMessage } from './organizations/nudgeGroupMessage';
 export { onOrganizationUpdated } from './organizations/notificationTriggers';
 
 // Push notifications. onNotificationCreated is the ONLY seam between the
