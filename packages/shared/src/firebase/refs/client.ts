@@ -23,6 +23,7 @@ import {
   cuotaSettingsConverterClient,
 } from '../converters/cuotaConverter.client';
 import { groupTaskConverterClient, taskTemplateConverterClient } from '../converters/groupTaskConverter.client';
+import { actaConverterClient, ledgerEntryConverterClient } from '../converters/recordsConverter.client';
 import { socioConverterClient, socioPersonaLockConverterClient, socioPrivateConverterClient } from '../converters/socioConverter.client';
 import { organizerRequestConverterClient } from '../converters/organizerRequestConverter.client';
 import { personConverterClient } from '../converters/personConverter.client';
@@ -242,6 +243,25 @@ export const organizationMessageWriteDoc = (
   sub: 'reads' | 'votes' | 'deliveries',
   id: string,
 ) => doc(db, 'organizations', organizationId, 'messages', messageId, sub, id);
+
+// The group's records (see RecordsDataModel): actas and the income/expense ledger.
+export const organizationActasCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'actas').withConverter(actaConverterClient);
+
+export const organizationLedgerEntriesCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'ledgerEntries').withConverter(ledgerEntryConverterClient);
+
+/**
+ * Unconverted, for records writes only: they stamp `serverTimestamp()` (rules
+ * compare it with `request.time`), which the strict converter refuses. The
+ * service validates each payload with its schema first.
+ */
+export const organizationRecordsWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  collectionName: 'actas' | 'ledgerEntries',
+  id: string,
+) => doc(db, 'organizations', organizationId, collectionName, id);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);

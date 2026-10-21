@@ -20,6 +20,7 @@ import {
   cuotaSettingsConverterAdmin,
 } from '../converters/cuotaConverter.admin';
 import { groupTaskConverterAdmin, taskReminderConverterAdmin, taskTemplateConverterAdmin } from '../converters/groupTaskConverter.admin';
+import { actaConverterAdmin, ledgerEntryConverterAdmin } from '../converters/recordsConverter.admin';
 import { socioConverterAdmin, socioPersonaLockConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
 import { organizerRequestConverterAdmin } from '../converters/organizerRequestConverter.admin';
 import { personConverterAdmin } from '../converters/personConverter.admin';
@@ -197,6 +198,13 @@ export const groupTasksGroup = (db: Firestore) => db.collectionGroup('tasks').wi
 
 export const organizationTaskTemplatesCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('taskTemplates').withConverter(taskTemplateConverterAdmin);
+
+// The group's records (see RecordsDataModel).
+export const organizationActasCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('actas').withConverter(actaConverterAdmin);
+
+export const organizationLedgerEntriesCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('ledgerEntries').withConverter(ledgerEntryConverterAdmin);
 
 export const organizationTaskRemindersCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('taskReminders').withConverter(taskReminderConverterAdmin);
