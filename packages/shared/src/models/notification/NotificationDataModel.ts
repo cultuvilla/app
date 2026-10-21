@@ -55,6 +55,10 @@ export const NotificationTypeSchema = z.enum([
   // up for someone on its waiting list (respondToTaskShift). Carries
   // entityKind 'organization' + entityId (the org), routed to the Grupos tab.
   'group_task',
+  // A message the junta of a group sent through `sendGroupMessage` (or pushed
+  // again to the unread by `nudgeGroupMessage`). entityKind 'organization' +
+  // entityId (the org), like cuota_reminder; muted per group.
+  'group_message',
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 

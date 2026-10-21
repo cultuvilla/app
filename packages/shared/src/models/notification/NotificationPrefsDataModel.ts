@@ -59,13 +59,37 @@ export function buildNotificationPrefsData(
   };
 }
 
-/** Whether push for `category` is allowed under `prefs`. */
+/** The categories muted as a whole, here. `groups` is muted per group instead (`GroupNotificationPrefsData`). */
+export type NotificationPrefKey = Exclude<NotificationCategory, 'groups'>;
+
+/**
+ * Whether push for `category` is allowed under `prefs`. A group message is
+ * gated by its group's own preference, which the caller checks.
+ */
 export function allowsPush(
   prefs: NotificationPrefsData,
   category: NotificationCategory,
 ): boolean {
-  return prefs[category];
+  return category === 'groups' ? true : prefs[category];
 }
 
-/** Exhaustiveness guard: every category must be a togglable preference key. */
-export const NOTIFICATION_PREF_KEYS: readonly NotificationCategory[] = NOTIFICATION_CATEGORIES;
+/** Every category the settings screen toggles, in its order. */
+export const NOTIFICATION_PREF_KEYS: readonly NotificationPrefKey[] = NOTIFICATION_CATEGORIES.filter(
+  (c): c is NotificationPrefKey => c !== 'groups',
+);
+
+/**
+ * A member's push preference for one group's messages, at
+ * `users/{uid}/groupPrefs/{orgId}`. Optional like the account's prefs: no doc
+ * means the group's messages push. Gates `group_message` pushes only — the
+ * Buzón keeps them, and the cuota reminders (push and email) never read it.
+ */
+export const GroupNotificationPrefsDataSchema = z.object({
+  messagesMuted: z.boolean(),
+  updatedAt: z.date(),
+});
+export type GroupNotificationPrefsData = z.infer<typeof GroupNotificationPrefsDataSchema>;
+
+export function buildGroupNotificationPrefsData(input: { messagesMuted: boolean; updatedAt?: Date }): GroupNotificationPrefsData {
+  return { messagesMuted: input.messagesMuted, updatedAt: input.updatedAt ?? new Date() };
+}

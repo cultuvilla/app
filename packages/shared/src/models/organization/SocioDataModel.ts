@@ -19,6 +19,15 @@ export const OrgAdminTitleSchema = z.enum(['presidente', 'secretario', 'tesorero
 export type OrgAdminTitle = z.infer<typeof OrgAdminTitleSchema>;
 export const ORG_ADMIN_TITLES: readonly OrgAdminTitle[] = OrgAdminTitleSchema.options;
 
+/** How a title reads under a signature. Display only, like the title itself. */
+export const ORG_ADMIN_TITLE_SIGNATURE: Record<OrgAdminTitle, string> = {
+  presidente: 'Presidencia',
+  secretario: 'Secretaría',
+  tesorero: 'Tesorería',
+  vocal: 'Vocal',
+  otro: 'Junta',
+};
+
 /**
  * One socio of a group, at `organizations/{orgId}/socios/{socioId}`. Holds no
  * contact data: phone and email live in `socioPrivate/{socioId}`, which only the

@@ -30,7 +30,13 @@ import { userConverterClient } from '../converters/userConverter.client';
 import { publicProfileConverterClient } from '../converters/publicProfileConverter.client';
 import { notificationConverterClient } from '../converters/notificationConverter.client';
 import { deviceTokenConverterClient } from '../converters/deviceTokenConverter.client';
-import { notificationPrefsConverterClient } from '../converters/notificationPrefsConverter.client';
+import { groupNotificationPrefsConverterClient, notificationPrefsConverterClient } from '../converters/notificationPrefsConverter.client';
+import {
+  groupMessageConverterClient,
+  groupMessageDeliveryConverterClient,
+  groupMessageReadConverterClient,
+  groupPollVoteConverterClient,
+} from '../converters/groupMessageConverter.client';
 import { newsPostConverterClient } from '../converters/newsPostConverter.client';
 import { commentConverterClient } from '../converters/commentConverter.client';
 import { occupationConverterClient } from '../converters/occupationConverter.client';
@@ -202,6 +208,41 @@ export const organizationTaskWriteDoc = (
   id: string,
 ) => doc(db, 'organizations', organizationId, collectionName, id);
 
+// A group's messages (see GroupMessageDataModel) and their per-recipient halves.
+export const organizationMessagesCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'messages').withConverter(groupMessageConverterClient);
+
+export const organizationMessageDoc = (db: Firestore, organizationId: string, messageId: string) =>
+  doc(db, 'organizations', organizationId, 'messages', messageId).withConverter(groupMessageConverterClient);
+
+export const organizationMessageDeliveriesCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  collection(db, 'organizations', organizationId, 'messages', messageId, 'deliveries').withConverter(groupMessageDeliveryConverterClient);
+
+export const organizationMessageReadsCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  collection(db, 'organizations', organizationId, 'messages', messageId, 'reads').withConverter(groupMessageReadConverterClient);
+
+export const organizationMessageReadDoc = (db: Firestore, organizationId: string, messageId: string, uid: string) =>
+  doc(db, 'organizations', organizationId, 'messages', messageId, 'reads', uid).withConverter(groupMessageReadConverterClient);
+
+export const organizationMessageVotesCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  collection(db, 'organizations', organizationId, 'messages', messageId, 'votes').withConverter(groupPollVoteConverterClient);
+
+export const organizationMessageVoteDoc = (db: Firestore, organizationId: string, messageId: string, uid: string) =>
+  doc(db, 'organizations', organizationId, 'messages', messageId, 'votes', uid).withConverter(groupPollVoteConverterClient);
+
+/**
+ * Unconverted, for the message writes a client makes (a read, a vote, a
+ * WhatsApp tick): they stamp `serverTimestamp()`, which rules compare with
+ * `request.time` and the strict converter refuses.
+ */
+export const organizationMessageWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  messageId: string,
+  sub: 'reads' | 'votes' | 'deliveries',
+  id: string,
+) => doc(db, 'organizations', organizationId, 'messages', messageId, sub, id);
+
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);
 
@@ -256,6 +297,10 @@ export const userDeviceDoc = (db: Firestore, userId: string, token: string) =>
 // Optional: absent means DEFAULT_NOTIFICATION_PREFS. Fixed doc id so there is
 // exactly one preferences document per account.
 export const NOTIFICATION_PREFS_DOC_ID = 'notifications';
+
+// Optional, one per group: absent means the group's messages push.
+export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId: string) =>
+  doc(db, 'users', userId, 'groupPrefs', organizationId).withConverter(groupNotificationPrefsConverterClient);
 
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
   doc(db, 'users', userId, 'preferences', NOTIFICATION_PREFS_DOC_ID)

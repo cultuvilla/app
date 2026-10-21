@@ -6,21 +6,12 @@
  * fact (the amount, the due day, how to pay, the concept).
  */
 import type { CuotaReminderStage } from '../models/organization/CuotaDataModel';
-import type { OrgAdminTitle } from '../models/organization/SocioDataModel';
+import { ORG_ADMIN_TITLE_SIGNATURE, type OrgAdminTitle } from '../models/organization/SocioDataModel';
 import { escapeHtml } from './html';
 
 const BRAND_GREEN = '#2f5233';
 const PAGE_BG = '#f4f1ec';
 const FOOTER_TEXT = 'Enviado con Cultuvilla en nombre de la junta. Cultuvilla no cobra ni guarda ningún pago.';
-
-/** How a title reads under a signature. Display only, like the title itself. */
-export const ORG_ADMIN_TITLE_SIGNATURE: Record<OrgAdminTitle, string> = {
-  presidente: 'Presidencia',
-  secretario: 'Secretaría',
-  tesorero: 'Tesorería',
-  vocal: 'Vocal',
-  otro: 'Junta',
-};
 
 export interface CuotaReminderLine {
   /** The socio's name — the member themself or a persona a cargo. */
