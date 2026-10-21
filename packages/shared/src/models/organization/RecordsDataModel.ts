@@ -82,7 +82,13 @@ export function buildActaFields(input: ActaInput): Omit<ActaData, 'createdBy' | 
     title: blankToNull(input.title),
     heldOn: input.heldOn,
     place: blankToNull(input.place),
-    attendees: (input.attendees ?? []).filter((a) => !seen.has(a.socioId) && seen.add(a.socioId)).map((a) => ({ ...a, name: a.name.trim() })),
+    attendees: (input.attendees ?? [])
+      .filter((a) => {
+        if (seen.has(a.socioId)) return false;
+        seen.add(a.socioId);
+        return true;
+      })
+      .map((a) => ({ ...a, name: a.name.trim() })),
     otherAttendees: input.otherAttendees ?? 0,
     agenda: cleanItems(input.agenda),
     agreements: cleanItems(input.agreements),

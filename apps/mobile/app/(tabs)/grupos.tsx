@@ -16,6 +16,8 @@ import { MyTasks } from '../../components/feature/groups/MyTasks';
 import { TasksAdmin } from '../../components/feature/groups/TasksAdmin';
 import { GroupNotices } from '../../components/feature/groups/GroupNotices';
 import { GroupMessagesAdmin } from '../../components/feature/groups/GroupMessagesAdmin';
+import { RecordsAdmin } from '../../components/feature/groups/RecordsAdmin';
+import { MyActas } from '../../components/feature/groups/MyActas';
 import { OrgEventsSection } from '../../components/feature/OrgEventsSection';
 import { OrgJoinRequests } from '../../components/feature/OrgJoinRequests';
 import { OrgMembersList } from '../../components/feature/OrgMembersList';
@@ -118,6 +120,8 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
 
         {roster ? <MyPersonasSocios orgId={org.id} uid={uid} /> : null}
 
+        {roster && !isAdmin ? <MyActas orgId={org.id} orgName={org.name} /> : null}
+
         {roster && !isAdmin && org.sociosListVisible ? (
           <SociosRoster orgId={org.id} canManage={false} adminUids={[]} currentUid={uid} />
         ) : null}
@@ -127,12 +131,13 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
             <Text variant="h3" className="mt-4">
               {t('groups.manage')}
             </Text>
-            <TasksAdmin orgId={org.id} uid={uid} includePrivateEvents={org.joinPolicy === 'approval'} />
+            <TasksAdmin orgId={org.id} uid={uid} includePrivateEvents={org.joinPolicy === 'approval'} suggestAsamblea={roster} />
             {roster ? (
               <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents={org.joinPolicy === 'approval'} />
             ) : null}
             {roster ? <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} /> : null}
             {roster ? <SociosRoster orgId={org.id} canManage adminUids={adminUids} currentUid={uid} /> : null}
+            {roster ? <RecordsAdmin orgId={org.id} orgName={org.name} uid={uid} /> : null}
             {org.joinPolicy === 'approval' ? <OrgJoinRequests orgId={org.id} /> : null}
             <OrgMembersList orgId={org.id} canManage currentUserId={uid} />
             {roster ? <GroupSettings orgId={org.id} sociosListVisible={org.sociosListVisible} /> : null}

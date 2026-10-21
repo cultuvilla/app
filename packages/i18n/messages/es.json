@@ -1908,6 +1908,110 @@
         "title": "Reparto del trabajo {year}",
         "hint": "Tareas hechas por cada miembro este año. Solo lo ven los administradores.",
         "count": "{count, plural, one {1 tarea} other {# tareas}}"
+      },
+      "asamblea": {
+        "suggestionTitle": "Asamblea anual",
+        "suggestionBody": "La asamblea general se reúne al menos una vez al año. Crea la tarea y se repetirá cada año, con el orden del día en las notas. Después puedes cambiar la fecha.",
+        "create": "Crear asamblea anual",
+        "title": "Asamblea general anual",
+        "agenda": "Orden del día:\n1. Lectura y aprobación, si procede, del acta de la asamblea anterior.\n2. Examen y aprobación, si procede, de las cuentas del año.\n3. Aprobación, si procede, del presupuesto y de la cuota.\n4. Memoria de actividades y plan para el próximo año.\n5. Renovación de la junta directiva, si corresponde.\n6. Ruegos y preguntas."
+      }
+    },
+    "records": {
+      "title": "Registros",
+      "error": "No se ha podido guardar. Inténtalo de nuevo.",
+      "libro": {
+        "title": "Libro de socios",
+        "summary": "{active, plural, one {1 socio de alta} other {# socios de alta}} · {bajas, plural, one {1 baja} other {# bajas}}",
+        "show": "Ver el libro",
+        "hide": "Ocultar el libro",
+        "alta": "Alta el {alta}",
+        "altaBaja": "Alta el {alta} · Baja el {baja}",
+        "empty": "Todavía no hay socios.",
+        "exportTitle": "Exportar el libro de socios",
+        "exportBody": "{count, plural, one {1 socio} other {# socios}}, con su alta y su baja, por fecha de alta."
+      },
+      "actas": {
+        "title": "Actas",
+        "new": "Nueva acta",
+        "empty": "Todavía no hay actas.",
+        "body": {
+          "asamblea_general": "Asamblea general",
+          "junta_directiva": "Junta directiva",
+          "otro": "Otra reunión"
+        },
+        "visible": "Visible para los socios",
+        "hidden": "Solo la junta",
+        "attendees": "{count, plural, one {1 asistente} other {# asistentes}}",
+        "share": "Compartir",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "deleteConfirmTitle": "Eliminar el acta",
+        "deleteConfirmBody": "Se borrará el acta del {date}. No se puede deshacer.",
+        "detail": {
+          "date": "Fecha",
+          "place": "Lugar",
+          "attendees": "Asistentes",
+          "others": "{count, plural, one {Y 1 persona más} other {Y # personas más}}",
+          "agenda": "Orden del día",
+          "agreements": "Acuerdos",
+          "none": "Ninguno",
+          "updated": "Última edición el {date}"
+        },
+        "form": {
+          "titleNew": "Nueva acta",
+          "titleEdit": "Editar acta",
+          "body": "Órgano",
+          "heading": "Título (opcional)",
+          "date": "Fecha",
+          "place": "Lugar",
+          "attendees": "Socios presentes",
+          "all": "Todos",
+          "none": "Ninguno",
+          "others": "Otras personas presentes",
+          "othersInvalid": "Escribe un número.",
+          "agenda": "Orden del día (un punto por línea)",
+          "agreements": "Acuerdos (uno por línea)",
+          "visible": "Visible para los socios",
+          "visibleHint": "Si lo activas, todos los socios del grupo podrán leer esta acta.",
+          "save": "Guardar acta"
+        }
+      },
+      "year": {
+        "title": "Cuentas del año",
+        "prev": "Año anterior",
+        "next": "Año siguiente",
+        "income": "Ingresos",
+        "cuotas": "Cuotas de socios",
+        "otherIncome": "Otros ingresos",
+        "expenses": "Gastos",
+        "balance": "Saldo",
+        "cuotaPeriod": "Cuotas {period}: {amount}",
+        "entries": "Anotaciones",
+        "noEntries": "No hay otros ingresos ni gastos este año.",
+        "add": "Anotar ingreso o gasto",
+        "reverse": "Anular",
+        "reversed": "Anulado",
+        "confirmReverseTitle": "Anular la anotación",
+        "confirmReverseBody": "Se anotará una anulación de {amount}. La anotación queda en el historial.",
+        "eventsNote": "Lo cobrado en los eventos no se suma solo: anótalo como ingreso.",
+        "exportTitle": "Exportar las cuentas",
+        "exportBody": "Ingresos y gastos de {year}, para que los apruebe la asamblea.",
+        "noCategory": "Sin categoría",
+        "form": {
+          "title": "Anotar ingreso o gasto",
+          "kind": {
+            "income": "Ingreso",
+            "expense": "Gasto"
+          },
+          "amount": "Importe (€)",
+          "amountInvalid": "Escribe un importe mayor que cero.",
+          "date": "Fecha",
+          "concept": "Concepto",
+          "conceptRequired": "Escribe el concepto.",
+          "category": "Categoría (opcional)",
+          "save": "Anotar"
+        }
       }
     },
     "messages": {

@@ -87,9 +87,11 @@ type WithId<T> = T & { id: string };
  * leaves no trace in either year. Cuota payments count in the year they were
  * paid (`paidOn`), whichever period they were for.
  */
-export function buildYearSummary<C extends WithId<Pick<CuotaPaymentData, 'kind' | 'reversesId' | 'periodKey' | 'paidOn' | 'amountCents'>>, L extends WithId<LedgerEntryData>>(input: {
+type CuotaYearPayment = WithId<Pick<CuotaPaymentData, 'kind' | 'reversesId' | 'periodKey' | 'paidOn' | 'amountCents'>>;
+
+export function buildYearSummary<L extends WithId<LedgerEntryData>>(input: {
   year: string;
-  cuotaPayments: readonly C[];
+  cuotaPayments: readonly CuotaYearPayment[];
   ledgerEntries: readonly L[];
 }): YearSummary<L> {
   const { year } = input;
