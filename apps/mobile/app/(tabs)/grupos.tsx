@@ -14,6 +14,8 @@ import { MyCuota } from '../../components/feature/groups/MyCuota';
 import { CuotaAdmin } from '../../components/feature/groups/CuotaAdmin';
 import { MyTasks } from '../../components/feature/groups/MyTasks';
 import { TasksAdmin } from '../../components/feature/groups/TasksAdmin';
+import { GroupNotices } from '../../components/feature/groups/GroupNotices';
+import { GroupMessagesAdmin } from '../../components/feature/groups/GroupMessagesAdmin';
 import { OrgEventsSection } from '../../components/feature/OrgEventsSection';
 import { OrgJoinRequests } from '../../components/feature/OrgJoinRequests';
 import { OrgMembersList } from '../../components/feature/OrgMembersList';
@@ -105,6 +107,8 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
 
         {roster ? <SocioConsentCard orgId={org.id} /> : null}
 
+        {roster ? <GroupNotices orgId={org.id} uid={uid} /> : null}
+
         {/* Rules let only an approval org's members read its private events. */}
         <OrgEventsSection orgId={org.id} includePrivate={org.joinPolicy === 'approval'} />
 
@@ -124,6 +128,9 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
               {t('groups.manage')}
             </Text>
             <TasksAdmin orgId={org.id} uid={uid} includePrivateEvents={org.joinPolicy === 'approval'} />
+            {roster ? (
+              <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents={org.joinPolicy === 'approval'} />
+            ) : null}
             {roster ? <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} /> : null}
             {roster ? <SociosRoster orgId={org.id} canManage adminUids={adminUids} currentUid={uid} /> : null}
             {org.joinPolicy === 'approval' ? <OrgJoinRequests orgId={org.id} /> : null}
