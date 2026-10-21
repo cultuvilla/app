@@ -19,7 +19,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | dev | 3 cycles ago | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
 | [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago \* | after 1.7.1's first full day (check the `events_20261008` table on 2026-10-09), look for `ANDROID`/`IOS` rows; if there are none, check the stream boxes on GA4 Admin → BigQuery links; in parallel, apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) |
 | [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` | medium | — | 1 cycle ago | — |
-| [group-toolkit](ongoing/group-toolkit.md) | high | none | this cycle | Phase 5 (records) once Phase 4 (messaging) has landed — libro de socios, actas, yearly summary; its *asamblea anual* is a Phase 2 calendar-recurring task created by default (see *Phase 2 — as built*) |
+| [group-toolkit](ongoing/group-toolkit.md) | high | none | this cycle | Phase 5 (records) — libro de socios, actas, yearly summary; its *asamblea anual* is a Phase 2 calendar-recurring task created by default (see *Phase 2 — as built*), and it builds on the roster, cuota and messaging models described under each *as built* |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | this cycle | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
 
 ## Soaking
