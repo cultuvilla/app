@@ -1,15 +1,20 @@
 import type { NotificationType } from './NotificationDataModel';
 
 /**
- * The three buckets a notification can fall into. This is the ONLY axis a user
- * can mute, and on Android it is also the set of OS notification channels — so
- * keep it small and keep it meaningful to a villager, not to the schema.
+ * The buckets a notification can fall into. On Android they are the set of OS
+ * notification channels, and every one but `groups` is a togglable preference
+ * (see NotificationPrefsDataModel) — so keep it small and keep it meaningful to
+ * a villager, not to the schema.
+ *
+ * `groups` is the messages a member's groups send them. It is muted per group
+ * (`users/{uid}/groupPrefs/{orgId}`), not as a whole, because one noisy peña is
+ * no reason to miss the asociación's asamblea.
  *
  * Deliberately NOT a field on the notification doc. Deriving it from `type`
  * means adding a category can never require a backfill, and the mapping cannot
  * drift from the type the way a stored copy would.
  */
-export const NOTIFICATION_CATEGORIES = ['mine', 'village', 'social'] as const;
+export const NOTIFICATION_CATEGORIES = ['mine', 'village', 'social', 'groups'] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
 
 /**
@@ -52,6 +57,10 @@ export const NOTIFICATION_CATEGORY: Record<NotificationType, NotificationCategor
   org_join_request_approved: 'social',
   org_join_request_rejected: 'social',
   comment_reply: 'social',
+
+  // A message from the junta of one of the user's groups. Never the cuota
+  // reminder, which is `mine`: muting a group must not hide what you owe it.
+  group_message: 'groups',
 };
 
 export function notificationCategory(type: NotificationType): NotificationCategory {
@@ -81,4 +90,5 @@ export const ANDROID_CHANNELS: Record<NotificationCategory, AndroidChannelSpec> 
   mine: { id: 'mine', importance: 'high', vibrate: true },
   village: { id: 'village', importance: 'default', vibrate: false },
   social: { id: 'social', importance: 'default', vibrate: false },
+  groups: { id: 'groups', importance: 'default', vibrate: false },
 };

@@ -86,6 +86,8 @@ import {
   contentReportsCollection,
   villageWrappedCollection,
   villageRankingsCollection,
+  organizationMessagesCollection,
+  userGroupPrefsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 
 // `--env dev|beta|prod` (default dev). Read-only check — safe against any env,
@@ -159,6 +161,7 @@ const REGISTRY = [
       { name: 'tasks', coll: (db, id) => organizationTasksCollection(db, id) },
       { name: 'taskTemplates', coll: (db, id) => organizationTaskTemplatesCollection(db, id) },
       { name: 'taskReminders', coll: (db, id) => organizationTaskRemindersCollection(db, id) },
+      { name: 'messages', coll: (db, id) => organizationMessagesCollection(db, id) },
     ],
   },
   { name: 'festivalPosters', coll: (db) => festivalPostersCollection(db) },
@@ -171,6 +174,7 @@ const REGISTRY = [
       { name: 'notifications', coll: (db, id) => userNotificationsCollection(db, id) },
       { name: 'devices', coll: (db, id) => userDevicesCollection(db, id) },
       { name: 'preferences', coll: (db, id) => userPreferencesCollection(db, id) },
+      { name: 'groupPrefs', coll: (db, id) => userGroupPrefsCollection(db, id) },
     ],
   },
   { name: 'publicProfiles', coll: (db) => publicProfilesCollection(db) },

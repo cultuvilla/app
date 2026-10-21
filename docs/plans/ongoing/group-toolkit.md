@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** none
 **Gate:** none
-**Next:** Phase 5 (records) once Phase 4 (messaging) has landed — libro de socios, actas, yearly summary; its *asamblea anual* is a Phase 2 calendar-recurring task created by default (see *Phase 2 — as built*)
+**Next:** Phase 5 (records) — libro de socios, actas, yearly summary; its *asamblea anual* is a Phase 2 calendar-recurring task created by default (see *Phase 2 — as built*), and it builds on the roster, cuota and messaging models described under each *as built*
 
 Decided 2026-10-20 (user): build all five phases, taking the agent's picks on the
 open questions (recorded under *Decisions* below).
@@ -320,6 +320,69 @@ Shipped in one PR (`feat/group-toolkit-phase3-cuota`). Only orgs with a socio ro
 - Every sent message is kept in the group's history with its recipients and
   channels.
 - Members can mute a group's pushes but not its emails about their own cuota.
+
+### Phase 4 — as built
+
+Shipped in one PR (`feat/group-toolkit-phase4-messaging`). Only orgs with a socio
+roster (`hasSocioRoster`) message; the ayuntamiento has vecinos and the village's
+own notifications.
+
+- **Data** (`GroupMessageDataModel`):
+  - `organizations/{orgId}/messages/{messageId}` — `title`, `body`, `audience`
+    (`kind` `all` | `junta` | `cuota` | `event`, `eventId`, `eventTitle` copy),
+    `channels` (`push`, `email`, `whatsapp` `none` | `fallback` | `all`), `pinned`,
+    `poll` (`question`, `kind` `yes_no` | `choice`, `options[]` labels — a yes/no
+    poll stores the localized "Sí"/"No"), `recipientUids` (the accounts reached in
+    the app — what lets a recipient read it), `recipientCount`, `pushCount`,
+    `emailCount`, `whatsappCount`, `sentBy`, `signerName`, `signerTitle`, `sentAt`,
+    `nudgeCount`, `lastNudgedAt`. The id is minted by the composer, so a retried
+    call sends nothing twice. Function-written; an admin may only flip `pinned`.
+  - `messages/{id}/deliveries/{uid | typed_<socioId>}` — `uid`, `socioIds`,
+    `names`, `push`, `email` (`pending` | `sent` | `failed` | `skipped` | null),
+    `whatsappSocioId` (whose shared phone the link uses; null = no WhatsApp),
+    `whatsappSentAt` / `whatsappSentBy` (the admin's tick, the only client write).
+    Admins only. This and the message are the per-org send log.
+  - `messages/{id}/reads/{uid}` (`readAt`, created once by the recipient) and
+    `messages/{id}/votes/{uid}` (`option` index, `votedAt`; one per account,
+    replaceable). Admins read all; a member reads only their own — voter identities
+    stay with the junta.
+  - `users/{uid}/groupPrefs/{orgId}` — `messagesMuted`, `updatedAt`. Optional like
+    the account's prefs (no doc = pushes).
+- **Callables:** `sendGroupMessage` (admins; RESEND secret, 300 s) resolves the
+  audience — active socios, the junta (admin member rows), the socios whose current
+  period is pendiente or vencida (`computeCuotaStatuses`), or one org event's
+  registrations grouped per `userId` — grouping rows per account like the cuota
+  reminders (persona → `responsibleUid`, typed → `typed_<socioId>`), writes the
+  message, deliveries and one `group_message` notification per account (the sender
+  excepted; `onNotificationCreated` pushes), then emails everyone with an address
+  (the socio's shared one, else the account's) through `sendEmailBatch` (Resend's
+  batch API, 100 per request — added to `functions/src/shared/email.ts`), From
+  "<org> (vía Cultuvilla)", signed by the sending admin and their `adminTitle`
+  (`groupMessageEmailTemplate.ts`). WhatsApp: `whatsappSocioId` is set when the
+  contact row has a phone `normalizeLeadPhone` accepts and the mode asks for it
+  (`fallback` = reached by neither push nor email). An event registrant who is not a
+  socio gets push and their account email, never WhatsApp. `nudgeGroupMessage`
+  (admins) pushes the unread with the app again (`…_nudge<n>` ids), at most every
+  12 h per message (`GROUP_MESSAGE_NUDGE_INTERVAL_MS`), and spends nothing when all
+  have read.
+- **Push category:** a fourth category `groups` (Android channel "Mis grupos") for
+  `group_message`. It is not a key of the account prefs doc — adding one would make
+  installed clients' full-doc prefs writes fail rules or the strict converter — so
+  `allowsPush` passes it and `onNotificationCreated` checks the group's
+  `groupPrefs` instead. `cuota_reminder` stays `mine` and never reads it.
+  `NOTIFICATION_PREF_KEYS` is the three account toggles.
+- **App:** `GroupMessagesAdmin` in Gestionar (composer `ComposeMessageSheet`,
+  history, `MessageDetailSheet`: read by x of y with the unread names and the nudge,
+  poll results with voters, the WhatsApp list — `wa.me` link with the text from
+  `groupMessageWhatsappText`, ticked on open, untickable — and every recipient's
+  channels, pin/unpin); `GroupNotices` on the member home (messages that reached
+  them, pinned first, marked read when shown, poll answered with one tap, the
+  group's mute toggle). Composer logic is `lib/orgs/messaging.ts`.
+- **Left for later:** members do not see poll totals; no edit or delete of a sent
+  message (unpin only); a message's emails are not retried if the batch fails
+  (recorded as `failed` on the delivery); the WhatsApp text is sent in Spanish;
+  messaging for the ayuntamiento; no read-site page (private, as planned); no
+  Maestro flow (unit-tested, see `e2e/native/uncovered.json`).
 
 ## Phase 5 — Records (libro de socios, actas, cuentas)
 

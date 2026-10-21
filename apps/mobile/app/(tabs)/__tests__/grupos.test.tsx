@@ -36,6 +36,8 @@ jest.mock('../../../components/feature/groups/MyCuota', () => mockStub('MyCuota'
 jest.mock('../../../components/feature/groups/CuotaAdmin', () => mockStub('CuotaAdmin'));
 jest.mock('../../../components/feature/groups/MyTasks', () => mockStub('MyTasks'));
 jest.mock('../../../components/feature/groups/TasksAdmin', () => mockStub('TasksAdmin'));
+jest.mock('../../../components/feature/groups/GroupNotices', () => mockStub('GroupNotices'));
+jest.mock('../../../components/feature/groups/GroupMessagesAdmin', () => mockStub('GroupMessagesAdmin'));
 jest.mock('../../../components/feature/OrgEventsSection', () => mockStub('OrgEventsSection'));
 jest.mock('../../../components/feature/OrgJoinRequests', () => mockStub('OrgJoinRequests'));
 jest.mock('../../../components/feature/OrgMembersList', () => mockStub('OrgMembersList'));
@@ -102,6 +104,8 @@ describe('Grupos tab', () => {
     expect(getByTestId('stub-SocioConsentCard')).toBeTruthy();
     expect(getByTestId('stub-MyPersonasSocios')).toBeTruthy();
     expect(getByTestId('stub-MyCuota')).toBeTruthy();
+    expect(getByTestId('stub-GroupNotices')).toBeTruthy();
+    expect(queryByTestId('stub-GroupMessagesAdmin')).toBeNull();
     expect(queryByTestId('group-manage')).toBeNull();
     expect(queryByTestId('stub-CuotaAdmin')).toBeNull();
     expect(queryByTestId('stub-SociosRoster-names')).toBeNull();
@@ -125,6 +129,7 @@ describe('Grupos tab', () => {
     expect(getByTestId('stub-GroupSettings')).toBeTruthy();
     expect(getByTestId('stub-CuotaAdmin')).toBeTruthy();
     expect(getByTestId('stub-TasksAdmin')).toBeTruthy();
+    expect(getByTestId('stub-GroupMessagesAdmin')).toBeTruthy();
   });
 
   it('opens on the group a cuota reminder names, and remembers it', async () => {
@@ -146,6 +151,7 @@ describe('Grupos tab', () => {
     expect(queryByTestId('stub-GroupSettings')).toBeNull();
     expect(queryByTestId('stub-CuotaAdmin')).toBeNull();
     expect(queryByTestId('stub-MyCuota')).toBeNull();
+    expect(queryByTestId('stub-GroupNotices')).toBeNull();
     expect(getByTestId('stub-OrgMembersList')).toBeTruthy();
     // Tasks are for every org type.
     expect(getByTestId('stub-MyTasks')).toBeTruthy();

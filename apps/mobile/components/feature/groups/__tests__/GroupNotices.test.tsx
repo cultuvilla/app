@@ -1,0 +1,91 @@
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { resetWatchers, setWatched } from '../../../../test/watchers';
+import { GroupNotices } from '../GroupNotices';
+
+jest.mock('../../../../lib/i18n', () => ({
+  useT: () => ({
+    locale: 'es',
+    t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
+  }),
+}));
+const mockMarkRead = jest.fn(() => Promise.resolve());
+const mockVote = jest.fn(() => Promise.resolve());
+const mockMute = jest.fn(() => Promise.resolve());
+jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
+  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+  return {
+    watchMyGroupMessages: mockWatcher('messages'),
+    watchMyGroupMessageReads: mockWatcher('reads'),
+    watchMyGroupPollVotes: mockWatcher('votes'),
+    watchGroupNotificationPrefs: mockWatcher('prefs'),
+    markGroupMessageRead: (...a: unknown[]) => mockMarkRead(...(a as [])),
+    castGroupPollVote: (...a: unknown[]) => mockVote(...(a as [])),
+    setGroupMessagesMuted: (...a: unknown[]) => mockMute(...(a as [])),
+  };
+});
+
+const message = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  title: `T-${id}`,
+  body: `Body ${id}`,
+  audience: { kind: 'all', eventId: null, eventTitle: null },
+  channels: { push: true, email: true, whatsapp: 'none' },
+  pinned: false,
+  poll: null,
+  recipientUids: ['admin', 'u1'],
+  recipientCount: 2,
+  pushCount: 1,
+  emailCount: 1,
+  whatsappCount: 0,
+  sentBy: 'admin',
+  signerName: 'Luis',
+  signerTitle: null,
+  sentAt: new Date('2026-10-20T10:00:00Z'),
+  nudgeCount: 0,
+  lastNudgedAt: null,
+  ...over,
+});
+
+beforeEach(() => {
+  resetWatchers();
+  jest.clearAllMocks();
+  setWatched('prefs', null);
+  setWatched('votes', []);
+});
+
+describe('GroupNotices', () => {
+  it('shows nothing while no message reached the member', () => {
+    setWatched('messages', []);
+    const { queryByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
+    expect(queryByTestId('group-notices')).toBeNull();
+  });
+
+  it('puts pinned notices first and marks the unread ones read once shown', async () => {
+    setWatched('messages', [message('new'), message('old', { pinned: true, sentAt: new Date('2026-01-01') })]);
+    setWatched('reads', [{ id: 'old', readAt: new Date() }]);
+    const { getAllByTestId, getByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
+    expect(getAllByTestId(/^group-notice-(new|old)$/).map((n) => n.props.testID)).toEqual(['group-notice-old', 'group-notice-new']);
+    expect(getByTestId('group-notice-new')).toHaveTextContent(/groups\.messages\.newBadge/);
+    expect(getByTestId('group-notice-old')).toHaveTextContent(/groups\.messages\.pinnedBadge/);
+    await waitFor(() => expect(mockMarkRead).toHaveBeenCalledWith('org1', 'new', 'u1'));
+    expect(mockMarkRead).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers a poll with one tap and shows the answer', () => {
+    setWatched('messages', [message('p', { poll: { question: '¿12 o 19?', kind: 'choice', options: ['12', '19'] } })]);
+    setWatched('reads', [{ id: 'p', readAt: new Date() }]);
+    setWatched('votes', [{ id: 'p', option: 1, votedAt: new Date() }]);
+    const { getByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
+    expect(getByTestId('group-notice-poll-p')).toHaveTextContent(/groups\.messages\.yourVote:19/);
+    fireEvent.press(getByTestId('group-notice-vote-p-0'));
+    expect(mockVote).toHaveBeenCalledWith('org1', 'p', 'u1', 0);
+  });
+
+  it('mutes the group’s pushes', () => {
+    setWatched('messages', [message('a')]);
+    setWatched('reads', [{ id: 'a', readAt: new Date() }]);
+    const { getByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
+    fireEvent.press(getByTestId('group-notices-mute'));
+    expect(mockMute).toHaveBeenCalledWith('u1', 'org1', true);
+  });
+});

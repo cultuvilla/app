@@ -27,7 +27,13 @@ import { userConverterAdmin } from '../converters/userConverter.admin';
 import { publicProfileConverterAdmin } from '../converters/publicProfileConverter.admin';
 import { notificationConverterAdmin } from '../converters/notificationConverter.admin';
 import { deviceTokenConverterAdmin } from '../converters/deviceTokenConverter.admin';
-import { notificationPrefsConverterAdmin } from '../converters/notificationPrefsConverter.admin';
+import { groupNotificationPrefsConverterAdmin, notificationPrefsConverterAdmin } from '../converters/notificationPrefsConverter.admin';
+import {
+  groupMessageConverterAdmin,
+  groupMessageDeliveryConverterAdmin,
+  groupMessageReadConverterAdmin,
+  groupPollVoteConverterAdmin,
+} from '../converters/groupMessageConverter.admin';
 import { pushQueueConverterAdmin } from '../converters/pushQueueConverter.admin';
 import { newsPostConverterAdmin } from '../converters/newsPostConverter.admin';
 import { commentConverterAdmin } from '../converters/commentConverter.admin';
@@ -198,6 +204,22 @@ export const organizationTaskRemindersCollection = (db: Firestore, organizationI
 export const organizationTaskReminderDoc = (db: Firestore, organizationId: string, reminderId: string) =>
   db.collection('organizations').doc(organizationId).collection('taskReminders').doc(reminderId).withConverter(taskReminderConverterAdmin);
 
+// A group's messages (see GroupMessageDataModel).
+export const organizationMessagesCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('messages').withConverter(groupMessageConverterAdmin);
+
+export const organizationMessageDoc = (db: Firestore, organizationId: string, messageId: string) =>
+  organizationMessagesCollection(db, organizationId).doc(messageId);
+
+export const organizationMessageDeliveriesCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('deliveries').withConverter(groupMessageDeliveryConverterAdmin);
+
+export const organizationMessageReadsCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('reads').withConverter(groupMessageReadConverterAdmin);
+
+export const organizationMessageVotesCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('votes').withConverter(groupPollVoteConverterAdmin);
+
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);
 
@@ -254,6 +276,13 @@ export const userDeviceDoc = (db: Firestore, userId: string, token: string) =>
 export const userPreferencesCollection = (db: Firestore, userId: string) =>
   db.collection('users').doc(userId).collection('preferences')
     .withConverter(notificationPrefsConverterAdmin);
+
+// Optional, one per group: absent means the group's messages push.
+export const userGroupPrefsCollection = (db: Firestore, userId: string) =>
+  db.collection('users').doc(userId).collection('groupPrefs').withConverter(groupNotificationPrefsConverterAdmin);
+
+export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId: string) =>
+  userGroupPrefsCollection(db, userId).doc(organizationId);
 
 // Optional: absent means DEFAULT_NOTIFICATION_PREFS.
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>

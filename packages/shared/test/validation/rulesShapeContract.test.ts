@@ -23,6 +23,7 @@ import {
   buildCuotaSettingsData,
 } from '../../src/models/organization/CuotaDataModel';
 import { buildGroupTaskData, buildTaskTemplateData } from '../../src/models/organization/GroupTaskDataModel';
+import { buildGroupNotificationPrefsData } from '../../src/models/notification/NotificationPrefsDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
 import { buildPlaceData, buildBarrioData } from '../../src/models/municipality/MunicipalityDataModel';
@@ -50,6 +51,11 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     build: () =>
       buildTaskTemplateData({ name: 'Fiestas', items: [{ title: 'Orquesta', notes: null, offsetDays: -60, time: null, slots: null }], updatedBy: 'u1' }),
     ruleKeys: ['name', 'items', 'updatedBy', 'updatedAt'],
+  },
+  {
+    label: 'users/{uid}/groupPrefs/{orgId} — inline in match /groupPrefs',
+    build: () => buildGroupNotificationPrefsData({ messagesMuted: true }),
+    ruleKeys: ['messagesMuted', 'updatedAt'],
   },
   {
     label: 'organizations/{orgId}/cuotaSettings — isValidCuotaSettings',

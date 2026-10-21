@@ -7,3 +7,4 @@ export * from './CuotaDataModel';
 export * from './cuotaStatus';
 export * from './GroupTaskDataModel';
 export * from './groupTaskLogic';
+export * from './GroupMessageDataModel';

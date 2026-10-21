@@ -377,6 +377,21 @@ service cloud.firestore {
         && p.get('deathDate', null) == null
         && p.get('burialPlace', null) == null;
     }
+    // ── Group messages (organizations/{orgId}/messages) ──────────────────────
+    function groupMessage(orgId, messageId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/messages/$(messageId)).data;
+    }
+    function isValidGroupPollVote(message, uid, d) {
+      return message.poll != null
+          && uid in message.recipientUids
+          && d.keys().hasOnly(['option', 'votedAt'])
+          && d.keys().hasAll(['option', 'votedAt'])
+          && d.option is int
+          && d.option >= 0
+          && d.option < message.poll.options.size()
+          && d.votedAt == request.time;
+    }
+
     // ── Cuota de socios (cuotaSettings, cuotaAssignments, cuotaPayments) ──────
     // The socio row a cuota doc points at. Members read the cuota docs of the
     // rows they are (uid) or answer for (responsibleUid, a persona a cargo).
@@ -1239,6 +1254,17 @@ service cloud.firestore {
           && isValidNotificationPrefsWrite(request.resource.data);
       }
 
+      // One group's message pushes muted or not (GroupNotificationPrefsData).
+      // Optional like the account's prefs; the doc id is the org.
+      match /groupPrefs/{orgId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['messagesMuted', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['messagesMuted', 'updatedAt'])
+          && request.resource.data.messagesMuted is bool
+          && isTimestamp(request.resource.data.updatedAt);
+      }
+
       // Per-user block list. Owner-only in BOTH directions: a readable list
       // would disclose who blocked whom, which is itself harassment material.
       // The doc id is the blocked uid, so blocking twice is one doc.
@@ -1695,6 +1721,52 @@ service cloud.firestore {
       match /taskReminders/{reminderId} {
         allow read: if isOrgAdmin(orgId);
         allow write: if false;
+      }
+
+      // A group's messages (see GroupMessageDataModel). Written only by the
+      // sendGroupMessage / nudgeGroupMessage callables; an admin may only
+      // (un)pin one. A recipient with the app reads it while still a member —
+      // `recipientUids` is what the member's array-contains query proves.
+      match /messages/{messageId} {
+        allow read: if isOrgAdmin(orgId)
+          || (isOrgMember(orgId) && request.auth.uid in resource.data.recipientUids);
+        allow update: if isOrgAdmin(orgId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned'])
+          && request.resource.data.pinned is bool;
+        allow create, delete: if false;
+
+        // Per recipient: names socios and their channels, so admins only. The
+        // one client write is the WhatsApp tick the admin makes by hand.
+        match /deliveries/{recipientKey} {
+          allow read: if isOrgAdmin(orgId);
+          allow update: if isOrgAdmin(orgId)
+            && resource.data.whatsappSocioId != null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['whatsappSentAt', 'whatsappSentBy'])
+            && ((request.resource.data.whatsappSentAt == request.time && request.resource.data.whatsappSentBy == request.auth.uid)
+                || (request.resource.data.whatsappSentAt == null && request.resource.data.whatsappSentBy == null));
+          allow create, delete: if false;
+        }
+
+        // A recipient opened it. Once: a read is never undone.
+        match /reads/{uid} {
+          allow read: if isOrgAdmin(orgId) || isOwner(uid);
+          allow create: if isOwner(uid)
+            && isOrgMember(orgId)
+            && uid in groupMessage(orgId, messageId).recipientUids
+            && request.resource.data.keys().hasOnly(['readAt'])
+            && request.resource.data.readAt == request.time;
+          allow update, delete: if false;
+        }
+
+        // One vote per account; a second vote replaces the first. Who voted
+        // what is the junta's to see (admins), never the other socios'.
+        match /votes/{uid} {
+          allow read: if isOrgAdmin(orgId) || isOwner(uid);
+          allow create, update: if isOwner(uid)
+            && isOrgMember(orgId)
+            && isValidGroupPollVote(groupMessage(orgId, messageId), uid, request.resource.data);
+          allow delete: if false;
+        }
       }
 
       // A pending request to join an `approval` org, keyed by the requester's
