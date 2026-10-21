@@ -38,6 +38,8 @@ jest.mock('../../../components/feature/groups/MyTasks', () => mockStub('MyTasks'
 jest.mock('../../../components/feature/groups/TasksAdmin', () => mockStub('TasksAdmin'));
 jest.mock('../../../components/feature/groups/GroupNotices', () => mockStub('GroupNotices'));
 jest.mock('../../../components/feature/groups/GroupMessagesAdmin', () => mockStub('GroupMessagesAdmin'));
+jest.mock('../../../components/feature/groups/RecordsAdmin', () => mockStub('RecordsAdmin'));
+jest.mock('../../../components/feature/groups/MyActas', () => mockStub('MyActas'));
 jest.mock('../../../components/feature/OrgEventsSection', () => mockStub('OrgEventsSection'));
 jest.mock('../../../components/feature/OrgJoinRequests', () => mockStub('OrgJoinRequests'));
 jest.mock('../../../components/feature/OrgMembersList', () => mockStub('OrgMembersList'));
@@ -111,6 +113,8 @@ describe('Grupos tab', () => {
     expect(queryByTestId('stub-SociosRoster-names')).toBeNull();
     expect(getByTestId('stub-MyTasks')).toBeTruthy();
     expect(queryByTestId('stub-TasksAdmin')).toBeNull();
+    expect(getByTestId('stub-MyActas')).toBeTruthy();
+    expect(queryByTestId('stub-RecordsAdmin')).toBeNull();
   });
 
   it('a member sees the names when the estatutos allow it', async () => {
@@ -130,6 +134,7 @@ describe('Grupos tab', () => {
     expect(getByTestId('stub-CuotaAdmin')).toBeTruthy();
     expect(getByTestId('stub-TasksAdmin')).toBeTruthy();
     expect(getByTestId('stub-GroupMessagesAdmin')).toBeTruthy();
+    expect(getByTestId('stub-RecordsAdmin')).toBeTruthy();
   });
 
   it('opens on the group a cuota reminder names, and remembers it', async () => {
@@ -152,6 +157,7 @@ describe('Grupos tab', () => {
     expect(queryByTestId('stub-CuotaAdmin')).toBeNull();
     expect(queryByTestId('stub-MyCuota')).toBeNull();
     expect(queryByTestId('stub-GroupNotices')).toBeNull();
+    expect(queryByTestId('stub-RecordsAdmin')).toBeNull();
     expect(getByTestId('stub-OrgMembersList')).toBeTruthy();
     // Tasks are for every org type.
     expect(getByTestId('stub-MyTasks')).toBeTruthy();

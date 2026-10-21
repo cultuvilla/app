@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
-import { compareTasksByDue, templateItemsFromTasks, type TaskTemplateItem } from '@cultuvilla/shared/models/organization';
+import {
+  asambleaTaskInput,
+  compareTasksByDue,
+  isAsambleaTask,
+  templateItemsFromTasks,
+  type TaskTemplateItem,
+} from '@cultuvilla/shared/models/organization';
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import {
+  createGroupTask,
   setGroupTaskDone,
   watchEventGroupTasks,
   watchGroupTasksDoneSince,
@@ -41,9 +48,20 @@ const RECENT_DONE = 10;
 /**
  * Admins, in Gestionar: every open task (tap to edit), what was done this
  * year, each upcoming event's checklist (apply a template, save it as one),
- * the templates, and the fair-share count.
+ * the templates, and the fair-share count. A group with a socio roster that
+ * tracks no asamblea yet is offered one, recurring yearly — never created for it.
  */
-export function TasksAdmin({ orgId, uid, includePrivateEvents }: { orgId: string; uid: string; includePrivateEvents: boolean }) {
+export function TasksAdmin({
+  orgId,
+  uid,
+  includePrivateEvents,
+  suggestAsamblea,
+}: {
+  orgId: string;
+  uid: string;
+  includePrivateEvents: boolean;
+  suggestAsamblea: boolean;
+}) {
   const { t } = useT();
   const { members, nameOf } = useOrgMembers(orgId);
   const year = madridDayKey(new Date()).slice(0, 4);
@@ -74,6 +92,16 @@ export function TasksAdmin({ orgId, uid, includePrivateEvents }: { orgId: string
   );
   const templateList = useMemo(() => [...(templates.data ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'es')), [templates.data]);
 
+  const [creatingAsamblea, setCreatingAsamblea] = useState(false);
+  const showAsamblea =
+    suggestAsamblea && open.status === 'ready' && done.status === 'ready' && ![...openTasks, ...doneTasks].some(isAsambleaTask);
+  const createAsamblea = () => {
+    setCreatingAsamblea(true);
+    createGroupTask(orgId, asambleaTaskInput(today, { title: t('groups.tasks.asamblea.title'), agenda: t('groups.tasks.asamblea.agenda') }), uid)
+      .catch(() => showAlert(t('groups.tasks.error')))
+      .finally(() => setCreatingAsamblea(false));
+  };
+
   const tick = (task: GroupTask, isDone: boolean) => {
     setGroupTaskDone(orgId, task.id, isDone, uid).catch(() => showAlert(t('groups.tasks.error')));
   };
@@ -87,6 +115,22 @@ export function TasksAdmin({ orgId, uid, includePrivateEvents }: { orgId: string
           {t('groups.tasks.new')}
         </Button>
       </HStack>
+
+      {showAsamblea ? (
+        <Card testID="asamblea-suggestion">
+          <VStack gap={2}>
+            <Text className="font-bold">{t('groups.tasks.asamblea.suggestionTitle')}</Text>
+            <Text variant="bodySm" tone="muted">
+              {t('groups.tasks.asamblea.suggestionBody')}
+            </Text>
+            <HStack>
+              <Button size="md" onPress={createAsamblea} loading={creatingAsamblea} testID="asamblea-create">
+                {t('groups.tasks.asamblea.create')}
+              </Button>
+            </HStack>
+          </VStack>
+        </Card>
+      ) : null}
 
       <Text className="font-bold">{t('groups.tasks.openTitle')}</Text>
       {openTasks.length === 0 ? (

@@ -1,9 +1,9 @@
 # Mis grupos — the toolkit for running an asociación
 
 **Priority:** high
-**Landed:** none
+**Landed:** dev
 **Gate:** none
-**Next:** Phase 5 (records) — libro de socios, actas, yearly summary; its *asamblea anual* is a Phase 2 calendar-recurring task created by default (see *Phase 2 — as built*), and it builds on the roster, cuota and messaging models described under each *as built*
+**Next:** the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later*
 
 Decided 2026-10-20 (user): build all five phases, taking the agent's picks on the
 open questions (recorded under *Decisions* below).
@@ -395,6 +395,64 @@ own notifications.
   agreements — kept in date order and exportable as PDF.
 - **Yearly summary:** income (cuotas, event payments, other entries an admin adds)
   and expenses, exportable for the asamblea to approve. A summary, not bookkeeping.
+
+### Phase 5 — as built
+
+Shipped in one PR (`feat/group-toolkit-phase5-records`), for orgs with a socio
+roster (`hasSocioRoster`; rules check it on every create). New collections only —
+no backfill.
+
+- **Libro de socios:** no collection of its own — the `socios` roster never deletes
+  a row, so `libroDeSocios` (models/organization/recordsLogic.ts) orders every row by
+  `altaAt` and `buildLibroSociosExport` (packages/shared/src/export/recordsExport.ts)
+  prints Nº, socio, tipo, a cargo de, cargo, alta, baja. `membershipEvents` was not
+  used: it logs role changes and approvals, not joins and leaves, so it adds no
+  history the roster lacks (rows from before Phase 1's `socio-roster` backfill are
+  simply absent).
+- **Asamblea anual:** *suggested*, not created: `TasksAdmin` (prop `suggestAsamblea`)
+  shows a one-tap "Crear asamblea anual" card while the group has no yearly calendar
+  task titled "Asamblea…" (`isAsambleaTask`), open or done this year. It creates a
+  Phase 2 task (`asambleaTaskInput`): every year, first on the next 15 March, the
+  agenda (acta anterior, cuentas, presupuesto y cuota, memoria, junta, ruegos) in the
+  notes. No doc is written into any org that does not tap it.
+- **Data** (`RecordsDataModel`):
+  - `organizations/{orgId}/actas/{actaId}` — `body` (`asamblea_general` |
+    `junta_directiva` | `otro`), `title` (optional heading), `heldOn` (Madrid day
+    key), `place`, `attendees[]` (`{ socioId, name }`, point-in-time names: socios
+    who may read an acta may not read the roster), `otherAttendees` (count),
+    `agenda[]`, `agreements[]` (≤ 50 each), `visibleToSocios` (default false),
+    `createdBy`/`createdAt`, `updatedBy`/`updatedAt` (server time). Admins create,
+    edit (author fields frozen) and delete; a member reads only shared ones and must
+    query `visibleToSocios == true` (`watchSocioVisibleActas`).
+  - `organizations/{orgId}/ledgerEntries/{entryId}` — `kind` (`income` |
+    `expense`), `amountCents` (1 – 100 000 000), `on` (Madrid day key), `concept`,
+    `category` (optional), `reversesId`, `recordedBy`, `recordedAt`. Admins only;
+    append-only like `cuotaPayments`: a reversal at `rev_<entryId>` copies kind,
+    amount and day (so it nets out in the same year), a reversal is never reversed.
+  - No composite index: every query is one equality or one field's range.
+- **Yearly summary:** `buildYearSummary` on read — cuota income from
+  `cuotaService.watchCuotaPaymentsForYear` (payments with `paidOn` in the year, plus
+  every reversal, since a reversal is dated when recorded), per period paid for, net
+  of anulaciones; manual income and expenses from the year's `ledgerEntries`, by
+  category; balance. **Event payments are not included:** events carry no price
+  (`requiresPayment` + `registration.paidAt` only) and org admins cannot read the
+  registrations of org events, so the screen tells the treasurer to note them as
+  income. Export: `buildYearSummaryExport` (one row per cuota period, then each live
+  entry; totals in the summary line).
+- **Export format:** Excel/CSV through the generic `ExportButton` for the libro and
+  the year; an acta is shared as plain text (`actaText`, the system share sheet).
+  **No PDF:** nothing in the app writes one, and `expo-print` is a native module
+  (a store build, no OTA), so it was left out.
+- **App:** Gestionar → *Registros* (`RecordsAdmin`: `LibroSocios`, `ActasAdmin`,
+  `YearSummaryAdmin`; sheets `ActaSheet`, `ActaDetailSheet`, `LedgerEntrySheet`). A
+  socio sees the shared actas on the group home (`MyActas`). The acta detail is a
+  sheet, not a route — nothing here is public, so no read-site page.
+- **Left for later:** PDF of actas and the libro (needs `expo-print` in a native
+  build); event income derived automatically (needs a price on events and admin
+  read of org-event registrations); an org-level default for acta visibility (it is
+  per acta); signatures / approval of an acta at the next meeting; a budget
+  (presupuesto) next to the summary; no Maestro flow (unit-tested, see
+  `e2e/native/uncovered.json`).
 
 ## Decisions — socios, roles, contact data
 

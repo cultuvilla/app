@@ -75,9 +75,40 @@ beforeEach(() => {
   setWatched('eventTasks', [task('escenario', { eventId: 'ev1', dueOn: `${String(YEAR + 1)}-08-10` })]);
 });
 
+describe('TasksAdmin — asamblea anual', () => {
+  const yearly = { kind: 'calendar' as const, unit: 'year' as const, interval: 1, anchorOn: `${String(YEAR + 1)}-03-15` };
+
+  it('offers a yearly asamblea with its agenda to a roster group that tracks none', async () => {
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea />);
+    fireEvent.press(getByTestId('asamblea-create'));
+    await waitFor(() =>
+      expect(createGroupTask).toHaveBeenCalledWith(
+        'org1',
+        expect.objectContaining({
+          title: 'groups.tasks.asamblea.title',
+          notes: 'groups.tasks.asamblea.agenda',
+          recurrence: expect.objectContaining({ kind: 'calendar', unit: 'year', interval: 1 }),
+        }),
+        'admin',
+      ),
+    );
+  });
+
+  it('stays quiet once an asamblea recurs, and for a group without a roster', () => {
+    setWatched('open', [task('Asamblea general', { dueOn: yearly.anchorOn, recurrence: yearly })]);
+    const tracked = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea />);
+    expect(tracked.queryByTestId('asamblea-suggestion')).toBeNull();
+    tracked.unmount();
+
+    setWatched('open', []);
+    const ayto = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
+    expect(ayto.queryByTestId('asamblea-suggestion')).toBeNull();
+  });
+});
+
 describe('TasksAdmin', () => {
   it('lists open and done tasks and counts the fair share', () => {
-    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     expect(getByTestId('task-row-asamblea')).toBeTruthy();
     expect(getByTestId('task-row-extintores')).toHaveTextContent(/groups\.tasks\.doneBy:u-luis/);
     expect(getByTestId('fair-share-u-luis')).toHaveTextContent('Luisgroups.tasks.fairShare.count:1');
@@ -85,7 +116,7 @@ describe('TasksAdmin', () => {
   });
 
   it('creates a yearly task on a fixed date', async () => {
-    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('tasks-new'));
     fireEvent.changeText(getByTestId('task-title'), 'Renovar el seguro');
     fireEvent.press(getByTestId('task-assignee-u-ana'));
@@ -115,7 +146,7 @@ describe('TasksAdmin', () => {
   });
 
   it('turns a task into a shift and validates the slots and time', async () => {
-    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('task-edit-asamblea'));
     fireEvent(getByTestId('task-is-shift'), 'onValueChange', true);
     fireEvent.changeText(getByTestId('task-slots'), '0');
@@ -131,7 +162,7 @@ describe('TasksAdmin', () => {
   });
 
   it("applies a template to an event from its checklist, dated from the event's start", async () => {
-    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('checklist-toggle-ev1'));
     expect(getByTestId('task-row-escenario')).toBeTruthy();
     fireEvent.press(getByTestId('checklist-apply-ev1'));
@@ -143,7 +174,7 @@ describe('TasksAdmin', () => {
   });
 
   it("saves an event's checklist as a template, as offsets from its start", async () => {
-    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('checklist-toggle-ev1'));
     fireEvent.press(getByTestId('checklist-save-ev1'));
     expect(getByTestId('template-item-offset-0').props.value).toBe('-4');
@@ -159,7 +190,7 @@ describe('TasksAdmin', () => {
   });
 
   it('applies a template to a bare date', async () => {
-    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('template-apply-tpl'));
     fireEvent.press(getByTestId('apply-template-target-date'));
     fireEvent.press(getByTestId('apply-template-save'));
@@ -168,7 +199,7 @@ describe('TasksAdmin', () => {
   });
 
   it('adds a task straight onto an event, and deletes one after confirming', async () => {
-    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     expect(getByTestId('tasks-admin')).toBeTruthy();
     expect(getByTestId('fair-share')).toBeTruthy();
     fireEvent.press(getByTestId('checklist-toggle-ev1'));
@@ -189,7 +220,7 @@ describe('TasksAdmin', () => {
   });
 
   it('writes a new template, and deletes one', async () => {
-    const { getByTestId, queryByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId, queryByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('templates-new'));
     expect(getByTestId('template-sheet')).toBeTruthy();
     fireEvent.changeText(getByTestId('template-item-title-0'), 'Montar el escenario');
@@ -219,7 +250,7 @@ describe('TasksAdmin', () => {
   });
 
   it('the apply sheet offers an event or a date', () => {
-    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} />);
+    const { getByTestId } = render(<TasksAdmin orgId="org1" uid="admin" includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('template-apply-tpl'));
     expect(getByTestId('apply-template-sheet')).toBeTruthy();
     expect(getByTestId('apply-template-target')).toBeTruthy();

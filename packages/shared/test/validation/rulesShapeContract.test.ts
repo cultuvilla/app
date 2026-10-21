@@ -24,6 +24,7 @@ import {
 } from '../../src/models/organization/CuotaDataModel';
 import { buildGroupTaskData, buildTaskTemplateData } from '../../src/models/organization/GroupTaskDataModel';
 import { buildGroupNotificationPrefsData } from '../../src/models/notification/NotificationPrefsDataModel';
+import { buildActaData, buildLedgerEntryData } from '../../src/models/organization/RecordsDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
 import { buildPlaceData, buildBarrioData } from '../../src/models/municipality/MunicipalityDataModel';
@@ -38,6 +39,19 @@ interface ShapeContract {
 }
 
 const SHAPE_CONTRACTS: ShapeContract[] = [
+  {
+    label: 'organizations/{orgId}/actas — isValidActaFields (actaKeys)',
+    build: () => buildActaData({ body: 'asamblea_general', heldOn: '2026-03-15', createdBy: 'u1' }),
+    ruleKeys: [
+      'body', 'title', 'heldOn', 'place', 'attendees', 'otherAttendees', 'agenda', 'agreements',
+      'visibleToSocios', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt',
+    ],
+  },
+  {
+    label: 'organizations/{orgId}/ledgerEntries — isValidLedgerEntry',
+    build: () => buildLedgerEntryData({ kind: 'expense', amountCents: 12000, on: '2026-08-14', concept: 'Orquesta', recordedBy: 'u1' }),
+    ruleKeys: ['kind', 'amountCents', 'on', 'concept', 'category', 'reversesId', 'recordedBy', 'recordedAt'],
+  },
   {
     label: 'organizations/{orgId}/tasks — isValidGroupTaskCreate (groupTaskKeys)',
     build: () => buildGroupTaskData({ title: 'Asamblea', createdBy: 'u1' }),

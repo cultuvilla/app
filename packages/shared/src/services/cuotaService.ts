@@ -27,6 +27,7 @@ import {
   type CuotaSettingsInput,
 } from '../models/organization/CuotaDataModel';
 import { madridDayKey } from '../models/event/EventDataModel';
+import { yearDayRange } from '../models/organization/recordsLogic';
 import { watchDoc, watchDocsByIds, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type CuotaSettings = CuotaSettingsData & { id: string };
@@ -131,6 +132,30 @@ export function watchSocioCuotaPayments(
   return watchMerged<CuotaPayment>(
     socioIds.map((id) => (next, error) => watchQuery(query(coll, where('socioId', '==', id)), next, error)),
     (rows) => [...rows].sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime()),
+    onNext,
+    onError,
+  );
+}
+
+/**
+ * Admin: the payments paid in one calendar year (by `paidOn`), plus every
+ * reversal — a reversal is dated the day it was recorded, which can be a later
+ * year than the payment it cancels. Feeds the yearly summary.
+ */
+export function watchCuotaPaymentsForYear(
+  orgId: string,
+  year: string,
+  onNext: (rows: CuotaPayment[]) => void,
+  onError: WatchError,
+): Unwatch {
+  const coll = organizationCuotaPaymentsCollection(getDb(), orgId);
+  const { from, to } = yearDayRange(year);
+  return watchMerged<CuotaPayment>(
+    [
+      (next, error) => watchQuery(query(coll, where('paidOn', '>=', from), where('paidOn', '<=', to)), next, error),
+      (next, error) => watchQuery(query(coll, where('kind', '==', 'reversal')), next, error),
+    ],
+    (rows) => [...new Map(rows.map((r) => [r.id, r])).values()],
     onNext,
     onError,
   );

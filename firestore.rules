@@ -534,6 +534,48 @@ service cloud.firestore {
           && d.updatedAt == request.time;
     }
 
+    // ── Records (actas, ledgerEntries) ──────────────────────────────────────
+    // See RecordsDataModel. Only orgs with a socio roster keep them.
+    function actaKeys() {
+      return [
+        'body', 'title', 'heldOn', 'place', 'attendees', 'otherAttendees', 'agenda', 'agreements',
+        'visibleToSocios', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt',
+      ];
+    }
+    // Every write stamps who last touched the acta and the server time.
+    function isValidActaFields(d) {
+      return d.keys().hasOnly(actaKeys())
+          && d.keys().hasAll(actaKeys())
+          && d.body in ['asamblea_general', 'junta_directiva', 'otro']
+          && isNullOrShortString(d.title, 120)
+          && isDayKey(d.heldOn)
+          && isNullOrShortString(d.place, 200)
+          && d.attendees is list && d.attendees.size() <= 500
+          && d.otherAttendees is int && d.otherAttendees >= 0 && d.otherAttendees <= 10000
+          && d.agenda is list && d.agenda.size() <= 50
+          && d.agreements is list && d.agreements.size() <= 50
+          && d.visibleToSocios is bool
+          && d.updatedBy == request.auth.uid
+          && d.updatedAt == request.time;
+    }
+    function isValidActaCreate(d) {
+      return isValidActaFields(d)
+          && d.createdBy == request.auth.uid
+          && d.createdAt == request.time;
+    }
+    function isValidLedgerEntry(d) {
+      return d.keys().hasOnly(['kind', 'amountCents', 'on', 'concept', 'category', 'reversesId', 'recordedBy', 'recordedAt'])
+          && d.keys().hasAll(['kind', 'amountCents', 'on', 'concept', 'category', 'reversesId', 'recordedBy', 'recordedAt'])
+          && d.kind in ['income', 'expense']
+          && d.amountCents is int && d.amountCents >= 1 && d.amountCents <= 100000000
+          && isDayKey(d.on)
+          && d.concept is string && d.concept.size() >= 1 && d.concept.size() <= 200
+          && isNullOrShortString(d.category, 60)
+          && (d.reversesId == null || d.reversesId is string)
+          && d.recordedBy == request.auth.uid
+          && d.recordedAt == request.time;
+    }
+
     function isValidSocioPrivate(d) {
       return d.keys().hasOnly(['phone', 'email', 'consentAnsweredAt'])
           && d.keys().hasAll(['phone', 'email', 'consentAnsweredAt'])
@@ -1767,6 +1809,40 @@ service cloud.firestore {
             && isValidGroupPollVote(groupMessage(orgId, messageId), uid, request.resource.data);
           allow delete: if false;
         }
+      }
+
+      // Meeting minutes (see ActaDataSchema in RecordsDataModel). Admins write
+      // and correct them; a socio reads one only once an admin shares it.
+      // Members must query with `visibleToSocios == true` for the list to pass.
+      match /actas/{actaId} {
+        allow read: if isOrgAdmin(orgId)
+          || (isOrgMember(orgId) && resource.data.visibleToSocios == true);
+        allow create: if isOrgAdmin(orgId)
+          && orgHasSocioRoster(orgId)
+          && isValidActaCreate(request.resource.data);
+        allow update: if isOrgAdmin(orgId)
+          && isValidActaFields(request.resource.data)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdBy', 'createdAt']);
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Income and expenses beyond the cuota. Append-only like cuotaPayments: a
+      // mistake is cancelled by a reversal at `rev_<entryId>` that copies the
+      // entry, so an entry is reversed at most once and a reversal never.
+      match /ledgerEntries/{entryId} {
+        allow read: if isOrgAdmin(orgId);
+        allow create: if isOrgAdmin(orgId)
+          && orgHasSocioRoster(orgId)
+          && isValidLedgerEntry(request.resource.data)
+          && (
+               request.resource.data.reversesId == null
+               || (entryId == 'rev_' + request.resource.data.reversesId
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.reversesId == null
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.kind == request.resource.data.kind
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.amountCents == request.resource.data.amountCents
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.on == request.resource.data.on)
+             );
+        allow update, delete: if false;
       }
 
       // A pending request to join an `approval` org, keyed by the requester's
