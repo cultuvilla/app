@@ -269,14 +269,6 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
                     {email}
                   </Text>
                 ) : null}
-                <Pressable
-                  onPress={() => close(() => router.push(routes.profile))}
-                  className="mt-2 self-start px-3 py-1 rounded-md border border-strong"
-                >
-                  <Text variant="caption" className="font-semibold">
-                    {t('menu.editProfile')}
-                  </Text>
-                </Pressable>
               </View>
             </View>
 
