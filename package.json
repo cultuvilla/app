@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "help": "node scripts/help.js",
+    "notify:setup": "bash scripts/setup-notify-pubsub.sh",
     "shared:build": "pnpm --filter @cultuvilla/shared build",
     "shared:test": "pnpm --filter @cultuvilla/shared test",
     "shared:typecheck": "pnpm --filter @cultuvilla/shared typecheck",

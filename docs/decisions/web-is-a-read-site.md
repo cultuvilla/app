@@ -103,6 +103,11 @@ consent). It is a *lead* for the team to call back, not an app flow on the web:
   read the collection, and no client writes it.
 - The form carries its own data-protection notice; the privacy policy itself
   is a legal text the user updates.
+- Each lead is posted, name and phone included, to the founders' *Cultuvilla
+  Overview* Telegram group (`onAmbassadorLeadCreated`; decided by the user on
+  2026-10-22, so the call-back happens without anyone opening the console).
+  Telegram is therefore a recipient of that data, which the privacy record must
+  name.
 
 This is the exception, not a precedent: the next web write needs its own yes.
 
