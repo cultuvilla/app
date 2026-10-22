@@ -80,6 +80,13 @@ Requests are created from in-context screens; outcomes arrive as notifications.
 | Organization (create peña/asociación/ayuntamiento) | `organizations/` (status `pending`) | village member | village admin (own village) or super admin (`approveOrganization` callable; `rejectOrganization` stays a client write) |
 | Join an `approval` org | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
 
+Every Embajador request and every `/embajadores` web lead (`ambassadorLeads/`) is
+posted to the founders' *Cultuvilla Overview* Telegram group by
+`onOrganizerRequestCreated` / `onAmbassadorLeadCreated`: an envelope on the
+project's `notify` Pub/Sub topic ([publishNotify](functions/src/notify/publishNotify.ts)),
+which the homelab notify-gateway pulls from prod only. Topics and the prod
+subscription: `pnpm notify:setup <project>`.
+
 **Joining a peña/asociación depends on its `joinPolicy`.** An `open` org (the
 default) is instant self-service: the org detail FAB does a direct client write of
 `organizations/{orgId}/members/{uid}` (role `member`, function-owned), and a user

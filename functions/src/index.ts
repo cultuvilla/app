@@ -17,6 +17,8 @@ export { startVillage } from './village/startVillage';
 export { updateVillageInfo } from './village/updateVillageInfo';
 export { requestOrganizeVillage } from './village/requestOrganizeVillage';
 export { respondToOrganizerRequest } from './village/respondToOrganizerRequest';
+// Telegram alert to the founders for every Embajador request (app) and lead (web).
+export { onOrganizerRequestCreated, onAmbassadorLeadCreated } from './village/onAmbassadorRequestCreated';
 export { changeVillageMemberRole } from './village/changeVillageMemberRole';
 export { transferVillageAmbassador } from './village/transferVillageAmbassador';
 export { syncVillageDenormalization } from './village/syncVillageDenormalization';
