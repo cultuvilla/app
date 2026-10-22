@@ -22,6 +22,12 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | this cycle | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
 
+## Waiting on release 1.11.0
+
+| Plan | Pri | Landed | Advanced | Next |
+|---|---|---|---|---|
+| [sign-in-account-loss](ongoing/sign-in-account-loss.md) | high | dev | this cycle | cut 1.11.0 with `f43f7d8a` in it; once it is live on prod, run the audit below on prod and beta and record the result here |
+
 ## Soaking
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
