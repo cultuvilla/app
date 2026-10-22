@@ -1089,6 +1089,34 @@ describe('NewEventScreen — editing one occurrence of a series', () => {
     expect(queryByTestId('repeats-weekly')).toBeNull();
   });
 
+  it('keeps a private series day private when its organizing orgs change', async () => {
+    (getEvent as jest.Mock).mockResolvedValue({
+      ...OCCURRENCE,
+      organizerOrgIds: ['org-1'],
+      visibility: 'organization',
+      visibilityOrgId: 'org-1',
+    });
+    jest.mocked(updateEvent).mockClear();
+    const { getByTestId, queryByTestId, getByLabelText } = render(<NewEventScreen />);
+    await waitFor(() => expect(getByTestId('organizer-picker')).toBeTruthy());
+    // One organizing org would normally offer the switch; a series day does not.
+    expect(queryByTestId('private-to-org')).toBeNull();
+
+    fireEvent.press(getByTestId('pick-two-orgs'));
+    fireEvent.changeText(getByLabelText('event.title'), 'Yoga al aire libre');
+    // Edit mode reaches every step; the primary button saves from the last one.
+    fireEvent.press(getByTestId('event-form-primary'));
+    fireEvent.press(getByTestId('event-form-primary'));
+    fireEvent.press(getByTestId('event-form-primary'));
+    await waitFor(() => expect(updateEvent).toHaveBeenCalled());
+    expect(jest.mocked(updateEvent).mock.calls[0]?.[1]).toMatchObject({
+      title: 'Yoga al aire libre',
+      organizerOrgIds: ['org-1', 'org-2'],
+      visibility: 'organization',
+      visibilityOrgId: 'org-1',
+    });
+  });
+
   it('cancels this day and the following ones on request', async () => {
     const spy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, btns) => {
       btns?.find((b) => b.text === 'event.cancelSeriesFollowing')?.onPress?.();

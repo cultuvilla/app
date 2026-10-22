@@ -262,6 +262,37 @@ describe('FeedScreen live listener', () => {
     expect(watchUpcomingFeed).toHaveBeenCalledTimes(1);
   });
 
+  const occurrence = (i: number, seriesId = 'yoga') => ({
+    ...event,
+    id: `${seriesId}-${String(i)}`,
+    title: seriesId === 'yoga' ? 'Yoga' : 'Mercadillo',
+    startDate: new Date(Date.UTC(2099, 5, 1 + i, 18)),
+    endBoundary: new Date(Date.UTC(2099, 5, 1 + i, 18)),
+    series: { id: seriesId, index: i, weekdays: [1, 2, 3, 4, 5, 6, 7], until: new Date('2099-12-01') },
+  });
+
+  it('shows a weekly series as one card, at its next date', async () => {
+    const { findByText, findAllByText } = render(<FeedScreen />);
+    act(() => current().next([occurrence(0), occurrence(1), event, occurrence(2)]));
+    expect(await findByText('Verbena')).toBeTruthy();
+    expect(await findAllByText('Yoga')).toHaveLength(1);
+  });
+
+  it('reads further when one series fills the page, keeping the cards up meanwhile', async () => {
+    const { findByText, getByText } = render(<FeedScreen />);
+    const page = Array.from({ length: 50 }, (_, i) => occurrence(i));
+    act(() => current().next(page));
+    expect(await findByText('Yoga')).toBeTruthy();
+
+    // The full page made a single card, so the listener re-opens twice as big…
+    expect(watchUpcomingFeed).toHaveBeenLastCalledWith(100, expect.any(Function), expect.any(Function));
+    expect(getByText('Yoga')).toBeTruthy();
+
+    // …and the event the daily series had pushed out of the first page shows.
+    act(() => current().next([...page, { ...event, startDate: new Date('2099-08-01'), endBoundary: new Date('2099-08-01') }]));
+    expect(await findByText('Verbena')).toBeTruthy();
+  });
+
   it('re-opens a failed listener from the error state and recovers', async () => {
     const { findByText } = render(<FeedScreen />);
     act(() => current().fail(new Error('unavailable')));
