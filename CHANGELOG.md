@@ -4,6 +4,14 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+<!-- store-notes -->
+- **Nueva pestaña Grupos**: si estás en una peña o asociación, gestiona socios, cuotas, tareas, mensajes y actas desde la app.
+- **Eventos semanales**: un evento puede repetirse cada semana.
+- **Descubre otros pueblos** al final de cada pueblo, y la descripción del pueblo en su portada.
+- Descarga las tarjetas del resumen de fiestas.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
 ## v1.10.0 — 2026-10-09
 
 <!-- store-notes -->
