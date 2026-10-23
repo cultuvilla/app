@@ -1,1 +1,0 @@
-- Changed: the account menu no longer shows a second "Editar perfil" button under your email; the one in the Cuenta section is the way in.

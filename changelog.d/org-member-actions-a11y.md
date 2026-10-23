@@ -1,1 +1,0 @@
-- Screen readers now say whose row a group member's "Hacer administrador" or "Eliminar" button acts on.

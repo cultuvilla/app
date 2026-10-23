@@ -1,1 +1,0 @@
-- Added: the founders get a Telegram message for every Embajador request from the app and every lead from the /embajadores form. **Migration:** `pnpm notify:setup cultuvilla-prod --apply` before the prod deploy, then the homelab notify-gateway subscription.

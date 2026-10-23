@@ -1,1 +1,0 @@
-- Fixed: when the app could not read your profile right after signing in (a bad connection), it treated you as a brand-new account and sent you to "Completa tu perfil", where cancelling could delete your account. It now waits and tries the read again.

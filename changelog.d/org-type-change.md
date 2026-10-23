@@ -1,1 +1,0 @@
-- Fixed: changing a group's type (peña, asociación, otros) on its edit screen made the whole save fail. The type can now be changed between those three; the ayuntamiento stays fixed.

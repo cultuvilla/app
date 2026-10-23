@@ -4,6 +4,8 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.11.0 — 2026-10-23
+
 <!-- store-notes -->
 - **Nueva pestaña Grupos**: si estás en una peña o asociación, gestiona socios, cuotas, tareas, mensajes y actas desde la app.
 - **Eventos semanales**: un evento puede repetirse cada semana.
@@ -11,6 +13,38 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 - Descarga las tarjetas del resumen de fiestas.
 - Correcciones y mejoras.
 <!-- /store-notes -->
+
+- Added: the founders get a Telegram message for every Embajador request from the app and every lead from the /embajadores form. **Migration:** `pnpm notify:setup cultuvilla-prod --apply` before the prod deploy, then the homelab notify-gateway subscription.
+- Fixed: VoiceOver read the village home cards by name alone; it now also reads their second line and their count (comments, people signed up, people buried).
+- Fixed: when the list of villagers or groups failed to load, the "Añadir persona" and "Añadir grupo" pickers stayed empty for good; opening them now loads the list again.
+- Fixed: on iPhone, after typing a group's description the keyboard covered the "Proponer" button and could not be closed; the form now scrolls and a tap outside the field closes the keyboard.
+- New: the **cuota de socios** in the Grupos tab. An admin sets the cuota (amount, yearly or monthly, due date, days of grace), how to pay it (Bizum, IBAN, other instructions) and optional tarifas — reducida, or familiar covering a member and their personas a cargo — and can exempt a socio or give them their own amount. Each period lists every socio as al día, pendiente or vencida, with a filter; the treasurer records each payment (efectivo, Bizum, transferencia or domiciliación, with date and note) and cancels a wrong one with an anulación, never by editing it. The period exports to Excel or CSV. Socios see their own cuota and their personas', the payment history and how to pay with a suggested concept. Optional reminders go out by notification and email a week before the due date and once it is vencida, signed by the tesorería (or the admin who set up the cuota). Cultuvilla never handles the money. **Migration:** none (new collections only).
+- New: **messages** in the Grupos tab. An admin writes a message in Gestionar — to every socio, the junta, the socios whose cuota is pendiente or vencida, or the people signed up to one of the group's events — and it goes out as a notification in the app and by email, signed by that admin with their cargo. For socios without the app or an email, Cultuvilla lists one-tap WhatsApp links the admin sends from their own phone, ticking each one as sent. A message can be pinned to the top of the group and carry a yes/no or multiple-choice poll (one answer per account; only the junta sees who answered what). The admin sees who has read it and can remind only those who haven't, at most every 12 hours. Every message stays in the group's history with its recipients and channels. Socios see the messages sent to them on the group's page, and can silence a group's message notifications — never the cuota reminders. On Android, group messages get their own "Mis grupos" notification channel. **Migration:** none (new collections only).
+- New: a **Grupos** tab for anyone who belongs to a peña, asociación or other group. It opens on the group last used (with a switcher when there are several), shows its events, and asks each member once which contact details the junta may see. Members can make their personas a cargo socios. Admins get a **Gestionar** section: the socio roster (socios with the app, personas a cargo, and socios typed in by hand, with alta and baja dates and the contact details they shared), members and admins, display titles for the junta (presidencia, tesorería…) and the setting "los estatutos permiten ver la lista de socios". **Migration:** `scripts/backfill-socio-roster.mjs` creates the roster rows of existing members and `scripts/backfill-org-socios-list-visible.mjs` sets `organizations.sociosListVisible: false` (both registered, `pre-deploy`, auto-applied, per env).
+- New: **Registros** in the Grupos tab for peñas, asociaciones and otros. The admins keep the **libro de socios** (every socio ever, with alta and baja, exported to Excel or CSV), write the **actas** of their meetings (asamblea general, junta directiva or other: date, place, the socios present plus others, the agenda and the acuerdos), share an acta as text, and can make one visible to all the socios, who then read it on the group home. **Cuentas del año** adds up the cuotas paid that year (net of anulaciones) and the other income and expenses the treasurer notes, with the balance, exported for the asamblea to approve; a wrong entry is cancelled with an anulación, never edited. Groups that don't track one yet are offered a yearly **asamblea anual** task with its orden del día. **Migration:** none (new collections only).
+- New: **tareas del grupo** in the Grupos tab, for every kind of group, the ayuntamiento included. Admins create tasks with notes, a date, the members in charge and an optional repeat — on a fixed date (every month or year) or some months after it was last done; closing one creates the next. A task can be a **turno de voluntarios** with a number of places and a time: members answer "Me apunto" or "No puedo", a full turno keeps a waiting list, and a freed place goes to the next in line, who is told. Members see "Mis tareas" and the open turnos on the group home and tick their own tasks done. **Plantillas** hold tasks dated relative to one day ("60 días antes"): apply one to an upcoming event of the group or to a date to create its checklist, and save an event's checklist as a plantilla for next year. Reminders arrive as notifications two days before a task is due, once when it is overdue, and to members who haven't answered a turno still short of people 48 hours ahead. Admins see how many tasks each member did this year. **Migration:** none (new collections only).
+- Changed: the account menu no longer shows a second "Editar perfil" button under your email; the one in the Cuenta section is the way in.
+- Fixed: a co-writer of a news article was shown a delete button that did nothing; only the author or a village admin can delete an article, and only they now see the button.
+- Fixed: a group's own admins were shown a delete button that did nothing; deleting a group is for the pueblo's team, and only they now see it.
+- Screen readers now say whose row a group member's "Hacer administrador" or "Eliminar" button acts on.
+- Fixed: changing a group's type (peña, asociación, otros) on its edit screen made the whole save fail. The type can now be changed between those three; the ayuntamiento stays fixed.
+- New: every village page now ends with "Descubre otros pueblos" — the five other pueblos with the most to show (complete profiles, events, news, peñas, places…), ranked nightly. Tap one to open its page, or "Ver todos" for the full directory. The public web page of each pueblo shows the same suggestions. **Migration:** none — the nightly `refreshVillageRanking` job writes `villageRankings/top` on its first run; until then the section stays hidden.
+- Fixed: when adding a photo failed (no connection, no permission, a file too large), the photo silently disappeared. The app now says what went wrong.
+- Fixed: editing a festival poster showed only its photos; the year, title, dates, contributors and the save button sat a screen below them.
+- Fixed: when the app could not read your profile right after signing in (a bad connection), it treated you as a brand-new account and sent you to "Completa tu perfil", where cancelling could delete your account. It now waits and tries the read again.
+- Fixed: editing a pueblo's description and tapping "Listo" straight away lost the change; it now saves as soon as you stop typing.
+- New: the village home now shows the description the village team writes, under the escudo and name, to every visitor.
+- New: visitors see how many people a village has again. The count had shown
+  as "—" to anyone who was not a member since July; it is now kept on the
+  village itself, so every viewer sees the same number. **Migration:**
+  `scripts/backfill-village-people-count.mjs` sets `municipalities.peopleCount`
+  (auto-applied per env by the deploy).
+- New: events can repeat every week. When creating an event, switch on "Se repite cada semana", pick the days (L M X J V S D), the time slot and the last date (up to six months ahead): every day becomes its own event with its own sign-ups. Lists show only the next date of each series, and the village is notified once. Cancelling a date asks whether to cancel just that day or that day and the following ones. **Migration:** `scripts/backfill-event-series.mjs` sets `events.series` to null on existing events (registered, auto-applied per env).
+- Feature: each card of a fiestas summary has a download button next to share,
+  which saves the image straight to the phone's photos (needs a new store
+  build: it adds the native `expo-media-library` module). **Migration:** none.
+- Change: on "Editar pueblo" the fiestas-summary button now sits under the
+  fiestas instead of in the sticky footer. **Migration:** none.
 
 ## v1.10.0 — 2026-10-09
 
