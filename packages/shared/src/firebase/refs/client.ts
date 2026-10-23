@@ -16,13 +16,28 @@ import { registrationEventConverterClient } from '../converters/registrationEven
 import { organizationConverterClient } from '../converters/organizationConverter.client';
 import { orgMemberConverterClient } from '../converters/orgMemberConverter.client';
 import { orgJoinRequestConverterClient } from '../converters/orgJoinRequestConverter.client';
+import {
+  cuotaAssignmentConverterClient,
+  cuotaPaymentConverterClient,
+  cuotaReminderConverterClient,
+  cuotaSettingsConverterClient,
+} from '../converters/cuotaConverter.client';
+import { groupTaskConverterClient, taskTemplateConverterClient } from '../converters/groupTaskConverter.client';
+import { actaConverterClient, ledgerEntryConverterClient } from '../converters/recordsConverter.client';
+import { socioConverterClient, socioPersonaLockConverterClient, socioPrivateConverterClient } from '../converters/socioConverter.client';
 import { organizerRequestConverterClient } from '../converters/organizerRequestConverter.client';
 import { personConverterClient } from '../converters/personConverter.client';
 import { userConverterClient } from '../converters/userConverter.client';
 import { publicProfileConverterClient } from '../converters/publicProfileConverter.client';
 import { notificationConverterClient } from '../converters/notificationConverter.client';
 import { deviceTokenConverterClient } from '../converters/deviceTokenConverter.client';
-import { notificationPrefsConverterClient } from '../converters/notificationPrefsConverter.client';
+import { groupNotificationPrefsConverterClient, notificationPrefsConverterClient } from '../converters/notificationPrefsConverter.client';
+import {
+  groupMessageConverterClient,
+  groupMessageDeliveryConverterClient,
+  groupMessageReadConverterClient,
+  groupPollVoteConverterClient,
+} from '../converters/groupMessageConverter.client';
 import { newsPostConverterClient } from '../converters/newsPostConverter.client';
 import { commentConverterClient } from '../converters/commentConverter.client';
 import { occupationConverterClient } from '../converters/occupationConverter.client';
@@ -30,6 +45,7 @@ import { adminConverterClient } from '../converters/adminConverter.client';
 import { membershipEventConverterClient } from '../converters/membershipEventConverter.client';
 import { festivalPosterConverterClient } from '../converters/festivalPosterConverter.client';
 import { villageWrappedConverterClient } from '../converters/villageWrappedConverter.client';
+import { villageRankingConverterClient } from '../converters/villageRankingConverter.client';
 import { municipalityPersonConverterClient } from '../converters/municipalityPersonConverter.client';
 import { contentReportConverterClient } from '../converters/contentReportConverter.client';
 import { blockedUserConverterClient } from '../converters/blockedUserConverter.client';
@@ -126,6 +142,127 @@ export const organizationMembersCollection = (db: Firestore, organizationId: str
 export const organizationMemberDoc = (db: Firestore, organizationId: string, memberId: string) =>
   doc(db, 'organizations', organizationId, 'members', memberId).withConverter(orgMemberConverterClient);
 
+// The socio roster and its admin-only contact half (see SocioDataModel).
+export const organizationSociosCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'socios').withConverter(socioConverterClient);
+
+export const organizationSocioDoc = (db: Firestore, organizationId: string, socioId: string) =>
+  doc(db, 'organizations', organizationId, 'socios', socioId).withConverter(socioConverterClient);
+
+export const organizationSocioPrivateCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'socioPrivate').withConverter(socioPrivateConverterClient);
+
+export const organizationSocioPrivateDoc = (db: Firestore, organizationId: string, socioId: string) =>
+  doc(db, 'organizations', organizationId, 'socioPrivate', socioId).withConverter(socioPrivateConverterClient);
+
+export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
+  doc(db, 'organizations', organizationId, 'socioPersonaLocks', personId).withConverter(socioPersonaLockConverterClient);
+
+// The cuota de socios (see CuotaDataModel): settings, per-socio assignment,
+// the append-only payment ledger, and the reminders the job sent.
+export const organizationCuotaSettingsDoc = (db: Firestore, organizationId: string) =>
+  doc(db, 'organizations', organizationId, 'cuotaSettings', 'current').withConverter(cuotaSettingsConverterClient);
+
+export const organizationCuotaAssignmentsCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'cuotaAssignments').withConverter(cuotaAssignmentConverterClient);
+
+export const organizationCuotaAssignmentDoc = (db: Firestore, organizationId: string, socioId: string) =>
+  doc(db, 'organizations', organizationId, 'cuotaAssignments', socioId).withConverter(cuotaAssignmentConverterClient);
+
+export const organizationCuotaPaymentsCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'cuotaPayments').withConverter(cuotaPaymentConverterClient);
+
+export const organizationCuotaRemindersCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'cuotaReminders').withConverter(cuotaReminderConverterClient);
+
+/**
+ * Unconverted, for cuota writes only: they stamp `serverTimestamp()` (which
+ * rules compare with `request.time`) and the strict converter refuses the
+ * sentinel. The service validates each payload with its schema first.
+ */
+export const organizationCuotaWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  collectionName: 'cuotaSettings' | 'cuotaAssignments' | 'cuotaPayments',
+  id: string,
+) => doc(db, 'organizations', organizationId, collectionName, id);
+
+// Group tasks, shifts and checklist templates (see GroupTaskDataModel).
+export const organizationTasksCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'tasks').withConverter(groupTaskConverterClient);
+
+export const organizationTaskDoc = (db: Firestore, organizationId: string, taskId: string) =>
+  doc(db, 'organizations', organizationId, 'tasks', taskId).withConverter(groupTaskConverterClient);
+
+export const organizationTaskTemplatesCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'taskTemplates').withConverter(taskTemplateConverterClient);
+
+/**
+ * Unconverted, for task and template writes only: they stamp
+ * `serverTimestamp()` (rules compare it with `request.time`), which the strict
+ * converter refuses. The service validates each payload with its schema first.
+ */
+export const organizationTaskWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  collectionName: 'tasks' | 'taskTemplates',
+  id: string,
+) => doc(db, 'organizations', organizationId, collectionName, id);
+
+// A group's messages (see GroupMessageDataModel) and their per-recipient halves.
+export const organizationMessagesCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'messages').withConverter(groupMessageConverterClient);
+
+export const organizationMessageDoc = (db: Firestore, organizationId: string, messageId: string) =>
+  doc(db, 'organizations', organizationId, 'messages', messageId).withConverter(groupMessageConverterClient);
+
+export const organizationMessageDeliveriesCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  collection(db, 'organizations', organizationId, 'messages', messageId, 'deliveries').withConverter(groupMessageDeliveryConverterClient);
+
+export const organizationMessageReadsCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  collection(db, 'organizations', organizationId, 'messages', messageId, 'reads').withConverter(groupMessageReadConverterClient);
+
+export const organizationMessageReadDoc = (db: Firestore, organizationId: string, messageId: string, uid: string) =>
+  doc(db, 'organizations', organizationId, 'messages', messageId, 'reads', uid).withConverter(groupMessageReadConverterClient);
+
+export const organizationMessageVotesCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  collection(db, 'organizations', organizationId, 'messages', messageId, 'votes').withConverter(groupPollVoteConverterClient);
+
+export const organizationMessageVoteDoc = (db: Firestore, organizationId: string, messageId: string, uid: string) =>
+  doc(db, 'organizations', organizationId, 'messages', messageId, 'votes', uid).withConverter(groupPollVoteConverterClient);
+
+/**
+ * Unconverted, for the message writes a client makes (a read, a vote, a
+ * WhatsApp tick): they stamp `serverTimestamp()`, which rules compare with
+ * `request.time` and the strict converter refuses.
+ */
+export const organizationMessageWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  messageId: string,
+  sub: 'reads' | 'votes' | 'deliveries',
+  id: string,
+) => doc(db, 'organizations', organizationId, 'messages', messageId, sub, id);
+
+// The group's records (see RecordsDataModel): actas and the income/expense ledger.
+export const organizationActasCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'actas').withConverter(actaConverterClient);
+
+export const organizationLedgerEntriesCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'ledgerEntries').withConverter(ledgerEntryConverterClient);
+
+/**
+ * Unconverted, for records writes only: they stamp `serverTimestamp()` (rules
+ * compare it with `request.time`), which the strict converter refuses. The
+ * service validates each payload with its schema first.
+ */
+export const organizationRecordsWriteDoc = (
+  db: Firestore,
+  organizationId: string,
+  collectionName: 'actas' | 'ledgerEntries',
+  id: string,
+) => doc(db, 'organizations', organizationId, collectionName, id);
+
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);
 
@@ -180,6 +317,10 @@ export const userDeviceDoc = (db: Firestore, userId: string, token: string) =>
 // Optional: absent means DEFAULT_NOTIFICATION_PREFS. Fixed doc id so there is
 // exactly one preferences document per account.
 export const NOTIFICATION_PREFS_DOC_ID = 'notifications';
+
+// Optional, one per group: absent means the group's messages push.
+export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId: string) =>
+  doc(db, 'users', userId, 'groupPrefs', organizationId).withConverter(groupNotificationPrefsConverterClient);
 
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
   doc(db, 'users', userId, 'preferences', NOTIFICATION_PREFS_DOC_ID)
@@ -284,3 +425,10 @@ export const villageWrappedCollection = (db: Firestore) =>
 
 export const villageWrappedDoc = (db: Firestore, wrappedId: string) =>
   doc(db, 'villageWrapped', wrappedId).withConverter(villageWrappedConverterClient);
+
+/** The nightly "most to show" ranking of active pueblos. Function-owned. */
+export const villageRankingsCollection = (db: Firestore) =>
+  collection(db, 'villageRankings').withConverter(villageRankingConverterClient);
+
+export const villageRankingDoc = (db: Firestore, rankingId: string) =>
+  doc(db, 'villageRankings', rankingId).withConverter(villageRankingConverterClient);

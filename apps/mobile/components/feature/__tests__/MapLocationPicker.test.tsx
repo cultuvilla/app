@@ -229,4 +229,32 @@ describe('MapLocationPicker', () => {
 
     expect(await findByTestId('address-search-empty')).toHaveTextContent(/event\.noAddressResults.*zzzz/);
   });
+
+  it('says it is searching while a query is in flight, then that it failed', async () => {
+    const pending: { reject?: (e: Error) => void } = {};
+    mockSearch.mockImplementation(
+      () => new Promise((_, reject) => { pending.reject = reject; }),
+    );
+    const { getByTestId, findByTestId } = render(
+      <MapLocationPicker initialCoords={PLAZA} initialLabel="Plaza Mayor" onConfirm={jest.fn()} onClose={jest.fn()} />,
+    );
+
+    expect(getByTestId('address-search-bar')).toBeTruthy();
+    fireEvent(getByTestId('address-search-input'), 'focus');
+    fireEvent.changeText(getByTestId('address-search-input'), 'ermita');
+    expect(await findByTestId('address-search-searching')).toBeTruthy();
+
+    await waitFor(() => expect(pending.reject).toBeDefined());
+    pending.reject?.(new Error('geocoder down'));
+    expect(await findByTestId('address-search-error')).toBeTruthy();
+  });
+
+  it('closes from its back button', () => {
+    const onClose = jest.fn();
+    const { getByTestId } = render(
+      <MapLocationPicker initialCoords={PLAZA} initialLabel="Plaza Mayor" onConfirm={jest.fn()} onClose={onClose} />,
+    );
+    fireEvent.press(getByTestId('location-back'));
+    expect(onClose).toHaveBeenCalled();
+  });
 });

@@ -22,6 +22,7 @@ import { VillagesScroll } from './VillagesScroll';
 import { CreatedNewsScroll } from './CreatedNewsScroll';
 import { useProfileData } from '../../../lib/profile/useProfileData';
 import { useAmbassadorVillages } from '../../../lib/hooks/useAmbassadorVillages';
+import { useCallableErrorHandler } from '../../../lib/callableError';
 
 export interface ProfileViewProps {
   uid: string;
@@ -40,6 +41,7 @@ export function ProfileView({
   onSelectVillage,
 }: ProfileViewProps) {
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const share = useShareDeepLink();
   const [uploading, setUploading] = useState(false);
   const ambassadorVillages = useAmbassadorVillages(uid);
@@ -71,6 +73,8 @@ export function ProfileView({
       // listener picks the new photo up on its own.
       const url = await uploadUserPhoto(uid, picked);
       await updatePerson(selfPerson.id, { photoURL: url });
+    } catch (e) {
+      showCallableError(e, { operation: 'profile:uploadImage' });
     } finally {
       setUploading(false);
     }

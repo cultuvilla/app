@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Unwatch, WatchError } from '@cultuvilla/shared/services/watch';
-import { reportFirestoreError } from '../firestoreErrorLog';
+import { reportWatchError, reportWatchStall } from '../firestoreErrorLog';
 
 export type WatchStatus = 'loading' | 'ready' | 'error';
 
@@ -13,6 +13,13 @@ export interface WatchState<T> {
 }
 
 const IDLE = { data: undefined, status: 'ready', error: null } as const;
+
+/**
+ * A listener answers from the device cache at once and from the server within
+ * seconds. One silent this long leaves its screen on a spinner, which no error
+ * path ever reports (the iOS news list in CI, 2026-10-10).
+ */
+const STALL_MS = 20_000;
 
 /**
  * Subscribes to a service `watch*` function for as long as `key` is unchanged.
@@ -40,13 +47,29 @@ export function useWatch<T>(label: string, key: string | null, watcher: Watcher<
         ? prev
         : { key, value: { data: undefined, status: 'loading', error: null } },
     );
-    return watcher(
-      (data) => setState({ key, value: { data, status: 'ready', error: null } }),
+    let answered = false;
+    const stall = setTimeout(() => {
+      if (!answered) reportWatchStall(label, STALL_MS);
+    }, STALL_MS);
+    const answer = () => {
+      answered = true;
+      clearTimeout(stall);
+    };
+    const unwatch = watcher(
+      (data) => {
+        answer();
+        setState({ key, value: { data, status: 'ready', error: null } });
+      },
       (error) => {
-        reportFirestoreError(label, error);
+        answer();
+        reportWatchError(label, error);
         setState({ key, value: { data: undefined, status: 'error', error } });
       },
     );
+    return () => {
+      clearTimeout(stall);
+      unwatch();
+    };
     // The watcher is a fresh closure every render; `key` is what identifies it.
   }, [key, label]);
 

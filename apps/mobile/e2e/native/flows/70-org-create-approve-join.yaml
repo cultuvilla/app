@@ -1,9 +1,9 @@
-# Three actors: a villager proposes a peña (pending), the village admin approves
-# it from the Buzón, and a third user joins it. Each hop is asserted on
-# Firestore.
-#
-# Joining is instant self-service for an `open` org (the default): the FAB
-# writes the joiner's own member doc, gated by rules (AGENTS.md).
+# A villager proposes two groups — one with every field set (its photo picked
+# on Android only, as in flow 60), one bare — and the
+# village admin approves the first and rejects the second from the Buzón. A
+# third user then joins the approved one, which is `open`, so joining is
+# instant self-service: the FAB writes the joiner's own member doc, gated by
+# rules (AGENTS.md). Flow 74 edits the approved group.
 #
 # Each actor switch is the login subflow, whose `clearState` is the sign-out.
 appId: com.cultuvilla.app.dev
@@ -12,10 +12,31 @@ env:
   VILLAGE_ID: e2e-village-altozano
   VILLAGE_SLUG: altozano-de-prueba
   JOINER_UID: e2e-joiner
+  ORG_NAME: 'Grupo completo E2E'
+  ORG_DESCRIPTION: 'Amigos que organizan la paella'
+  ORG_EDIT_NAME: 'Asociacion editada E2E'
+  REJECTED_NAME: 'Grupo rechazado E2E'
 ---
-- evalScript: ${output.orgName = 'Peña nativa ' + Date.now()}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: organizations
+      FIELD: name
+      VALUE: ${ORG_NAME}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: organizations
+      FIELD: name
+      VALUE: ${ORG_EDIT_NAME}
+- runScript:
+    file: ../scripts/deleteWhere.js
+    env:
+      COLLECTION_PATH: organizations
+      FIELD: name
+      VALUE: ${REJECTED_NAME}
 
-# ── The villager proposes the peña. ──
+# ── The villager proposes a group with every field set. ──
 - runFlow:
     file: ../subflows/login.yaml
     env:
@@ -27,14 +48,52 @@ env:
       id: 'org-name-input'
     timeout: 45000
 - runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: 'org-images-add'
+      - runFlow:
+          file: ../subflows/pick-photo.yaml
+          env:
+            INDEX: '0'
+      - extendedWaitUntil:
+          visible:
+            id: 'org-images-remove-0'
+          timeout: 60000
+- runFlow:
     file: ../subflows/type-into.yaml
     env:
       INPUT: 'org-name-input'
-      TEXT: ${output.orgName}
+      TEXT: ${ORG_NAME}
 - runFlow:
-    file: ../subflows/reveal.yaml
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-description'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'org-description'
+      TEXT: ${ORG_DESCRIPTION}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-type-otros'
+- tapOn:
+    id: 'org-type-otros'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-members-public-toggle'
+- tapOn:
+    id: 'org-members-public-toggle'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'org-submit'
+# The centring swipe can start on the description and focus it again on iOS,
+# and the keyboard then sits over the submit.
+- runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'org-submit'
 - runScript:
@@ -42,14 +101,74 @@ env:
     env:
       COLLECTION_PATH: organizations
       FIELD: name
-      VALUE: ${output.orgName}
+      VALUE: ${ORG_NAME}
       FIELD2: status
       VALUE2: pending
       MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.orgId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      EXPECT_JSON: >-
+        {
+          'name': 'Grupo completo E2E',
+          'description': 'Amigos que organizan la paella',
+          'type': 'otros',
+          'status': 'pending',
+          'municipalityId': 'e2e-village-altozano',
+          'requestedBy': 'e2e-user',
+          'membersPublic': false,
+          'joinPolicy': 'open'
+        }
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runScript:
+          file: ../scripts/assertDoc.js
+          env:
+            DOC_PATH: 'organizations/${output.orgId}'
+            EXPECT_JSON: "{ 'images': { 'length': 1 } }"
 
-# ── The village admin approves it from the Buzón's actionable section. ──
+# ── And a bare one, to be rejected. ──
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidades'
+- extendedWaitUntil:
+    visible:
+      id: 'org-name-input'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'org-name-input'
+      TEXT: ${REJECTED_NAME}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-submit'
+# The centring swipe can start on the description and focus it again on iOS,
+# and the keyboard then sits over the submit.
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'org-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: organizations
+      FIELD: name
+      VALUE: ${REJECTED_NAME}
+      FIELD2: status
+      VALUE2: pending
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.rejectedId = output.id}
+
+# ── The village admin approves one and rejects the other. ──
 - runFlow:
     file: ../subflows/login.yaml
     env:
@@ -62,15 +181,39 @@ env:
     timeout: 45000
 - tapOn:
     id: 'approve-org-${output.orgId}'
+# approveOrganization is a callable; its first call boots the worker.
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      TIMEOUT_MS: '180000'
+      EXPECT_JSON: "{ 'status': 'approved', 'reviewedBy': 'e2e-admin' }"
 - runScript:
     file: ../scripts/docField.js
     env:
-      DOC_PATH: 'organizations/${output.orgId}'
-      FIELD: status
-      EXPECT: approved
+      DOC_PATH: 'organizations/${output.orgId}/members/e2e-user'
+      FIELD: role
+      EXPECT: admin
 - assertTrue: ${output.ok == 'true'}
+- scrollUntilVisible:
+    element:
+      id: 'reject-org-${output.rejectedId}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'reject-org-${output.rejectedId}'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.rejectedId}'
+      FIELD: status
+      EXPECT: rejected
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+- assertNotVisible:
+    id: 'reject-org-${output.rejectedId}'
 
-# ── A third user joins from the org detail screen. ──
+# ── A third user joins the approved group. ──
 - runFlow:
     file: ../subflows/login.yaml
     env:
@@ -81,11 +224,13 @@ env:
     visible:
       id: 'join-org-fab'
     timeout: 45000
+- assertVisible: '.*${ORG_DESCRIPTION}.*'
 - tapOn:
     id: 'join-org-fab'
 - runScript:
     file: ../scripts/docField.js
     env:
       DOC_PATH: 'organizations/${output.orgId}/members/${JOINER_UID}'
-      EXPECT: present
+      FIELD: role
+      EXPECT: member
 - assertTrue: ${output.ok == 'true'}

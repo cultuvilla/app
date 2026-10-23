@@ -180,6 +180,40 @@ describe('readSite', () => {
     expect(body).not.toContain('Así se vive Matabuena');
   });
 
+  it('suggests the best-ranked other pueblos, never the one being viewed', async () => {
+    const ranked = (id: string, name: string, slug: string, score: number) => ({
+      id,
+      name,
+      slug,
+      province: 'Segovia',
+      escudoUrl: null,
+      manualEscudo: false,
+      score,
+    });
+    await db()
+      .doc('villageRankings/top')
+      .set({
+        computedAt: ts('2026-08-01T02:00:00Z'),
+        villages: [
+          ranked('m1', 'Matabuena', 'matabuena', 30),
+          ...['Alfa', 'Beta', 'Gamma', 'Delta', 'Épsilon', 'Zeta'].map((n, i) => ranked(`r${String(i)}`, n, n.toLowerCase(), 20 - i)),
+        ],
+      });
+
+    const active = (await html('/matabuena')).body;
+    expect(active).toContain('Descubre otros pueblos');
+    expect(active).toContain('href="/alfa"');
+    expect(active).toContain('href="/épsilon"');
+    expect(active).not.toContain('href="/zeta"');
+
+    // A dormant pueblo's page gets the suggestions too — it has nothing else to offer.
+    expect((await html('/vacio')).body).toContain('href="/matabuena"');
+  });
+
+  it('omits the suggestions until the ranking has been computed', async () => {
+    expect((await html('/matabuena')).body).not.toContain('Descubre otros pueblos');
+  });
+
   it('keeps a village without a community out of the index', async () => {
     const { body } = await html('/vacio');
     expect(body).toContain('noindex');

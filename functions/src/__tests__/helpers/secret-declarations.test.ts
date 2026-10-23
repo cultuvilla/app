@@ -109,11 +109,13 @@ describe('Cloud Functions secret declaration invariant', () => {
     expect(entryPoints.length).toBeGreaterThan(20);
 
     const consumers = sourceFiles.filter((f) => /RESEND_API_KEY\s*\.\s*value\s*\(/.test(sourceOf.get(f) ?? ''));
-    expect(consumers.map(relative).sort()).toContain('events/eventEmail.ts');
+    expect(consumers.map(relative).sort()).toContain('shared/email.ts');
 
     // cancelRegistration is the regression: it must reach the mail transport.
-    const cancel = resolve(FUNCTIONS_SRC, 'events/cancelRegistration.ts');
-    expect([...reachableFrom(cancel)].map(relative)).toContain('events/eventEmail.ts');
+    // So must the cuota reminders, the first scheduled sender.
+    for (const entry of ['events/cancelRegistration.ts', 'organizations/sendCuotaReminders.ts']) {
+      expect([...reachableFrom(resolve(FUNCTIONS_SRC, entry))].map(relative)).toContain('shared/email.ts');
+    }
 
     // Push is the same trap: a trigger that sends without declaring the APNs key
     // would deliver to Android and silently drop every iOS device.

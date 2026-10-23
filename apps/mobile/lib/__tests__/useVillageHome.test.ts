@@ -49,7 +49,7 @@ jest.mock('../orgs/useMyOrgIds', () => {
 });
 jest.mock('../firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
-  reportFirestoreError: jest.fn(),
+  reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn(),
 }));
 const mockFocusEffects: (() => void)[] = [];
 jest.mock('expo-router', () => ({ useFocusEffect: (fn: () => void) => mockFocusEffects.push(fn) }));
@@ -66,7 +66,7 @@ jest.mock('@cultuvilla/shared/services/membershipProfileService', () => ({
   getMyCensoAnswers: jest.fn(async () => ({ hijos: true })),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
-  getMunicipalityPeople: jest.fn(async () => [{ personId: 'p1' }, { personId: 'p2' }, { personId: 'p3' }]),
+  getMunicipalityPeople: jest.fn(async () => []),
 }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
   watchOrganizationsByMunicipality: mockWatcher('orgs'),
@@ -96,17 +96,13 @@ const VILLAGE = {
   province: 'Segovia',
   communityActive: true,
   community: { organizerId: null, description: null },
+  peopleCount: 3,
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
   for (const key of Object.keys(mockListeners)) delete mockListeners[key];
   mockFocusEffects.length = 0;
-  (getMunicipalityPeople as jest.Mock).mockImplementation(async () => [
-    { personId: 'p1' },
-    { personId: 'p2' },
-    { personId: 'p3' },
-  ]);
   (getVillageMembers as jest.Mock).mockImplementation(async () => [{ userId: 'u1' }, { userId: 'u2' }]);
   Object.assign(mockInitial, {
     municipality: VILLAGE,
@@ -166,14 +162,22 @@ describe('useVillageHome', () => {
     expect(latest('events').args[0]).toBe('m2');
   });
 
-  // Regression: the people directory used to share a Promise.all with the
-  // membership fetches. Its rows go through a strict converter, so a single doc
-  // predating a newly-added field threw and took isMember/villageAdmin down with
-  // the count — the village silently rendered as if you weren't a member.
-  it('keeps membership state when the people directory fails to load', async () => {
-    (getMunicipalityPeople as jest.Mock).mockRejectedValue(new Error('Invalid input: expected boolean'));
+  // The people directory is member-only, so the count comes off the public
+  // village doc — a visitor sees it too, and the home never reads the roster.
+  it('shows a non-member the people count from the village doc', async () => {
+    (getVillageMembers as jest.Mock).mockResolvedValue([{ userId: 'u2' }]);
     const { result } = renderHook(() => useVillageHome('m1'));
-    await waitFor(() => expect(result.current.isMember).toBe(true));
+    await waitFor(() => expect(getVillageMembers).toHaveBeenCalled());
+    expect(result.current.isMember).toBe(false);
+    expect(result.current.peopleCount).toBe(3);
+    emit('municipality', { ...VILLAGE, peopleCount: 4 });
+    expect(result.current.peopleCount).toBe(4);
+    expect(getMunicipalityPeople).not.toHaveBeenCalled();
+  });
+
+  it('renders the people count as unknown while the village doc loads', () => {
+    mockInitial['municipality'] = null;
+    const { result } = renderHook(() => useVillageHome('m1'));
     expect(result.current.peopleCount).toBeNull();
   });
 
@@ -191,6 +195,21 @@ describe('useVillageHome', () => {
     expect(result.current.isMember).toBe(false);
     expect(getMyCensoAnswers).not.toHaveBeenCalled();
     expect(result.current.myCensoAnswers).toEqual({});
+  });
+
+  // municipalityPeople is readable by members and app admins only; asking for
+  // it as anyone else was refused on every load (95 denials in prod over 30
+  // days). The home no longer reads it for anyone, member included.
+  it("never asks for the village's people, member or not", async () => {
+    const member = renderHook(() => useVillageHome('m1'));
+    await waitFor(() => expect(member.result.current.isMember).toBe(true));
+    expect(member.result.current.peopleCount).toBe(3);
+
+    (getVillageMembers as jest.Mock).mockResolvedValue([{ userId: 'u2' }]);
+    const visitor = renderHook(() => useVillageHome('m1'));
+    await waitFor(() => expect(getVillageMembers).toHaveBeenCalledTimes(2));
+    expect(visitor.result.current.peopleCount).toBe(3);
+    expect(getMunicipalityPeople).not.toHaveBeenCalled();
   });
 
   it('watches published + completed events, private ones per org, upcoming before past', () => {

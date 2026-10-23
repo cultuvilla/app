@@ -34,6 +34,7 @@ const validMunicipality = {
   escudoManualUrl: null,
   community: null,
   communityActive: false,
+  peopleCount: 0,
 };
 
 describe('MunicipalityDataSchema', () => {
@@ -61,6 +62,20 @@ describe('MunicipalityDataSchema', () => {
         communityActive: true,
       }),
     ).not.toThrow();
+  });
+
+  it('requires peopleCount, so pre-field docs are caught by the converter', () => {
+    const { peopleCount: _omitted, ...withoutCount } = validMunicipality;
+    expect(() => MunicipalityDataSchema.parse(withoutCount)).toThrow();
+  });
+
+  // Installed store binaries parse municipality docs with their own, older
+  // schema. Adding a field to the doc is safe for them only because an unknown
+  // key is stripped, not rejected — pin that, so a `.strict()` here is a
+  // deliberate breaking change rather than an accident.
+  it('strips a field it does not know instead of rejecting the doc', () => {
+    const parsed = MunicipalityDataSchema.parse({ ...validMunicipality, fieldFromTheFuture: 1 });
+    expect(parsed).not.toHaveProperty('fieldFromTheFuture');
   });
 
   it('rejects a missing required field', () => {
@@ -108,6 +123,7 @@ describe('buildMunicipalityData', () => {
     expect(built.locationLabel).toBeNull();
     expect(built.community).toBeNull();
     expect(built.communityActive).toBe(false);
+    expect(built.peopleCount).toBe(0);
     expect(() => MunicipalityDataSchema.parse(built)).not.toThrow();
   });
 

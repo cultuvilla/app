@@ -6,7 +6,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams, Redirect } from 'expo-router';
-import { Screen, Text, Input, DateTimeField, FieldLabel, InfoTooltip, Toggle, HStack, VStack, Pressable, ErrorState } from '../../components/primitives';
+import { Screen, Text, Input, DateField, DateTimeField, FieldLabel, InfoTooltip, Toggle, HStack, VStack, Pressable, ErrorState } from '../../components/primitives';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { EventCoverPicker } from '../../components/feature/EventCoverPicker';
 import { LocationField } from '../../components/feature/LocationField';
@@ -24,7 +24,15 @@ import { getOrganization } from '@cultuvilla/shared/services/organizationService
 import { escudoThumbDisplayUrl } from '@cultuvilla/shared/models/municipality';
 import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberService';
 import { haversineKm } from '@cultuvilla/shared/services/feedService';
-import { createEvent, updateEvent, getEvent, updateEventStatus } from '@cultuvilla/shared/services/eventService';
+import {
+  cancelSeriesFrom,
+  createEvent,
+  createEventSeries,
+  getEvent,
+  setEventsImage,
+  updateEvent,
+  updateEventStatus,
+} from '@cultuvilla/shared/services/eventService';
 import { useEntityCapabilities } from '../../lib/auth/useEntityCapabilities';
 import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
 import type { UploadableImage } from '@cultuvilla/shared/services/imageService';
@@ -37,7 +45,13 @@ import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { Stepper, type StepConfig } from '../../components/feature/Stepper';
 import { DeleteHeaderButton } from '../../components/feature/DeleteHeaderButton';
 import { roundUpToMinuteStep } from '../../lib/date/clockGrid';
-import { MAX_SIGNUP_GROUP_SIZE } from '@cultuvilla/shared/models/event/EventDataModel';
+import { MAX_SIGNUP_GROUP_SIZE, type EventData, type EventDataInput } from '@cultuvilla/shared/models/event/EventDataModel';
+import {
+  MAX_SERIES_DAYS,
+  isoWeekday,
+  seriesSpanDays,
+  weeklyOccurrences,
+} from '@cultuvilla/shared/models/event/EventSeriesModel';
 import {
   MAX_EVENT_BIRTH_YEAR,
   MIN_EVENT_BIRTH_YEAR,
@@ -46,6 +60,15 @@ import {
 /** Every real group size — parejas, tríos, grupos de cuatro. Size 1 isn't a
  *  choice here: it's what the "inscripción por grupos" toggle being off means. */
 const GROUP_SIZE_CHOICES = Array.from({ length: MAX_SIGNUP_GROUP_SIZE - 1 }, (_, i) => i + 2);
+
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
+
+/** `time`'s hour and minute on `day`'s calendar date. */
+function timeOnDay(day: Date, time: Date): Date {
+  const out = new Date(day);
+  out.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  return out;
+}
 
 /** Nearest joined village to a coordinate (by great-circle distance), or null. */
 function nearestVillage(c: LatLng, villages: VillageOption[]): VillageOption | null {
@@ -159,8 +182,19 @@ export default function NewEventScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(() => roundUpToMinuteStep(new Date(), 5));
-  // Optional multi-day end; null = single-day event.
+  // Optional multi-day end; null = single-day event. For a weekly series only
+  // its time is used — the end of each occurrence's slot, on that same day.
   const [endDate, setEndDate] = useState<Date | null>(null);
+  // Weekly series (create only): the chosen weekdays, ISO 1–7, and the last
+  // calendar day. Each occurrence becomes its own event doc on submit.
+  const [repeatsWeekly, setRepeatsWeekly] = useState(false);
+  const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([]);
+  const [repeatUntil, setRepeatUntil] = useState<Date | null>(null);
+  // Edit mode: the event as loaded, for the series notice and for cancelling
+  // "este y los siguientes" from the date it had before any edit.
+  const [loadedEvent, setLoadedEvent] = useState<
+    (Pick<EventData, 'series' | 'startDate' | 'visibilityOrgId'> & { id: string }) | null
+  >(null);
   const [coords, setCoords] = useState<LatLng | null>(null);
   const [locationName, setLocationName] = useState('');
   const [maxAttendees, setMaxAttendees] = useState('');
@@ -270,6 +304,12 @@ export default function NewEventScreen() {
           setLoadError('not-found');
           return;
         }
+        setLoadedEvent({
+          id: ev.id,
+          series: ev.series,
+          startDate: ev.startDate,
+          visibilityOrgId: ev.visibilityOrgId,
+        });
         setEditMunicipalityId(ev.municipalityId);
         setEditVillageSlug(ev.villageSlug);
         setEditVillage({
@@ -383,9 +423,33 @@ export default function NewEventScreen() {
     maxBirthYearNum !== null &&
     maxBirthYearNum < minBirthYearNum;
 
-  // Survives a failed cover upload so the retry patches the event that was
-  // already created instead of creating another one. See the create branch.
-  const createdEventIdRef = useRef<string | null>(null);
+  // A series' slot end is the picked time on the first day; every occurrence
+  // shifts both by the same number of days.
+  const slotEnd = repeatsWeekly && startDate && endDate ? timeOnDay(startDate, endDate) : null;
+  const seriesEndInvalid = slotEnd !== null && startDate !== null && slotEnd <= startDate;
+  const seriesUntilInvalid =
+    repeatsWeekly &&
+    (!repeatUntil ||
+      !startDate ||
+      seriesSpanDays(startDate, repeatUntil) < 0 ||
+      seriesSpanDays(startDate, repeatUntil) > MAX_SERIES_DAYS ||
+      (repeatWeekdays.length > 0 &&
+        weeklyOccurrences({ startDate, endDate: null }, { weekdays: repeatWeekdays, until: repeatUntil })
+          .length === 0));
+
+  function toggleRepeatsWeekly(on: boolean) {
+    setRepeatsWeekly(on);
+    // Seed the obvious answer: the first day's own weekday.
+    if (on && repeatWeekdays.length === 0 && startDate) setRepeatWeekdays([isoWeekday(startDate)]);
+  }
+
+  function toggleWeekday(day: number) {
+    setRepeatWeekdays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
+  }
+
+  // Survives a failed cover upload so the retry patches the events that were
+  // already created instead of creating more. See the create branch.
+  const createdEventIdsRef = useRef<string[] | null>(null);
 
   const { fire: submit, isPending } = useCallable({
     operation: editMode ? 'event:update' : 'event:create',
@@ -466,9 +530,9 @@ export default function NewEventScreen() {
       // has to finish *that* event — re-running createEvent would leave the
       // user with a duplicate for every failed attempt. The id survives in a
       // ref for exactly as long as the form does.
-      let newId = createdEventIdRef.current;
-      if (!newId) {
-        newId = await createEvent({
+      let newIds = createdEventIdsRef.current;
+      if (!newIds) {
+        const input: Omit<EventDataInput, 'villageSlug' | 'series'> = {
           title: title.trim(),
           description: description.trim(),
           startDate,
@@ -493,18 +557,29 @@ export default function NewEventScreen() {
           municipalityId,
           villageName: municipalityName,
           villageCoordinates: municipalityCoordinates,
-        });
-        createdEventIdRef.current = newId;
+        };
+        newIds =
+          repeatsWeekly && repeatUntil
+            ? await createEventSeries(
+                { ...input, endDate: slotEnd },
+                { weekdays: repeatWeekdays, until: repeatUntil },
+              )
+            : [await createEvent(input)];
+        createdEventIdsRef.current = newIds;
       }
+      const [firstId] = newIds;
+      if (!firstId) return;
       if (cover) {
-        const url = await uploadEventImage(municipalityId, newId, {
+        // One upload, under the first occurrence; the rest point at it.
+        const url = await uploadEventImage(municipalityId, firstId, {
           blob: cover.blob,
           filename: 'cover.jpg',
           contentType: cover.contentType,
         });
-        await updateEvent(newId, { imageURL: url });
+        if (newIds.length === 1) await updateEvent(firstId, { imageURL: url });
+        else await setEventsImage(newIds, url);
       }
-      return newId;
+      return firstId;
     },
     onSuccess: (id) => {
       if (id) router.replace(eventHref({ id, title, villageSlug, visibilityOrgId }));
@@ -543,6 +618,11 @@ export default function NewEventScreen() {
   const deleteEvent = () => {
     if (!eventId) return;
     return updateEventStatus(eventId, 'cancelled').then(() => router.replace('/(tabs)'));
+  };
+
+  const deleteSeriesFromHere = () => {
+    if (!loadedEvent) return;
+    return cancelSeriesFrom(loadedEvent).then(() => router.replace('/(tabs)'));
   };
 
   if (loading) {
@@ -671,15 +751,32 @@ export default function NewEventScreen() {
         const e: string[] = [];
         if (!startDate) e.push('startDate');
         // endDate is optional, but if set it must not precede startDate.
-        if (endDate && startDate && endDate < startDate) e.push('endDate');
+        if (!repeatsWeekly && endDate && startDate && endDate < startDate) e.push('endDate');
+        if (repeatsWeekly && repeatWeekdays.length === 0) e.push('repeatWeekdays');
+        if (seriesEndInvalid) e.push('endTime');
+        if (seriesUntilInvalid) e.push('repeatUntil');
         if (!coords) e.push('coords');
         if (!municipalityId) e.push('village');
         return e;
       },
       render: () => stepBody(
         <>
+          {loadedEvent?.series ? (
+            <Text tone="muted" variant="bodySm" testID="series-edit-notice">
+              {t('event.seriesEditNotice')}
+            </Text>
+          ) : null}
+          {editMode ? null : (
+            <ToggleField
+              label={t('event.repeatsWeekly')}
+              help={t('event.repeatsWeeklyHint')}
+              value={repeatsWeekly}
+              onValueChange={toggleRepeatsWeekly}
+              testID="repeats-weekly"
+            />
+          )}
           <DateTimeField
-            label={t('event.startDateTime')}
+            label={repeatsWeekly ? t('event.firstDateTime') : t('event.startDateTime')}
             value={startDate}
             onChange={setStartDate}
             minimumDate={new Date()}
@@ -688,14 +785,66 @@ export default function NewEventScreen() {
             testID="startDate"
           />
           <DateTimeField
-            label={t('event.endDateTime')}
+            label={repeatsWeekly ? t('event.endTime') : t('event.endDateTime')}
             value={endDate}
             onChange={setEndDate}
             minimumDate={startDate ?? new Date()}
+            timeOnly={repeatsWeekly}
             datePlaceholder={t('event.selectDate')}
             timePlaceholder={t('event.selectTime')}
             testID="endDate"
           />
+          {seriesEndInvalid ? (
+            <Text tone="danger" variant="bodySm" testID="end-time-error">
+              {t('event.endTimeInvalid')}
+            </Text>
+          ) : null}
+          {repeatsWeekly ? (
+            <VStack gap={1}>
+              <FieldLabel>{t('event.repeatDays')}</FieldLabel>
+              <HStack gap={1} className="items-center">
+                {WEEKDAYS.map((day) => {
+                  const active = repeatWeekdays.includes(day);
+                  return (
+                    <Pressable
+                      key={day}
+                      testID={`repeat-day-${String(day)}`}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={t(`event.weekdayLong.${String(day)}`)}
+                      accessibilityState={{ checked: active }}
+                      onPress={() => toggleWeekday(day)}
+                      className={`flex-1 items-center rounded-lg border py-2 ${
+                        active ? 'border-accent bg-surface' : 'border-subtle'
+                      }`}
+                    >
+                      <Text tone={active ? undefined : 'muted'}>{t(`event.weekdayShort.${String(day)}`)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </HStack>
+              {repeatWeekdays.length === 0 ? (
+                <Text tone="danger" variant="bodySm" testID="repeat-days-error">
+                  {t('event.repeatDaysRequired')}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
+          {repeatsWeekly ? (
+            <VStack gap={1}>
+              <DateField
+                label={t('event.repeatUntil')}
+                value={repeatUntil}
+                onChange={setRepeatUntil}
+                minimumDate={startDate ?? new Date()}
+                testID="repeat-until"
+              />
+              {repeatUntil && seriesUntilInvalid ? (
+                <Text tone="danger" variant="bodySm" testID="repeat-until-error">
+                  {t('event.repeatUntilInvalid')}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
           <LocationField
             value={coords}
             displayName={locationName}
@@ -924,10 +1073,15 @@ export default function NewEventScreen() {
               onConfirm={deleteEvent}
               accessibilityLabel={t('common.delete')}
               confirmTitle={t('event.cancelTitle')}
-              confirmMessage={t('event.cancelConfirm')}
-              confirmLabel={t('common.delete')}
+              confirmMessage={loadedEvent?.series ? t('event.cancelSeriesConfirm') : t('event.cancelConfirm')}
+              confirmLabel={loadedEvent?.series ? t('event.cancelSeriesOne') : t('common.delete')}
               cancelLabel={t('common.cancel')}
               deletingLabel={t('common.deleting.event')}
+              alternative={
+                loadedEvent?.series
+                  ? { label: t('event.cancelSeriesFollowing'), onConfirm: deleteSeriesFromHere }
+                  : undefined
+              }
             />
           ) : undefined
         }

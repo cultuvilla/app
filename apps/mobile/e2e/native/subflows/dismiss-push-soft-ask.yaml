@@ -15,7 +15,7 @@ appId: com.cultuvilla.app.dev
 - runFlow:
     when:
       visible:
-        id: 'push-soft-ask-decline'
+        id: 'push-soft-ask-sheet'
     commands:
       - tapOn:
           id: 'push-soft-ask-decline'

@@ -1,6 +1,9 @@
 import { render, fireEvent } from '@testing-library/react-native';
 import { ManagedEventsScroll, type ManagedEvent } from '../ManagedEventsScroll';
 
+// The cards speak their counts through useT (EntityCard's accessibility label).
+jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
+
 const NOW = new Date('2026-06-15T19:00:00Z');
 
 function makeEvent(over: Partial<ManagedEvent> & { id: string }): ManagedEvent {
@@ -19,6 +22,7 @@ function makeEvent(over: Partial<ManagedEvent> & { id: string }): ManagedEvent {
     attendeesVisibility: 'members' as const,
     visibility: 'public' as const,
     visibilityOrgId: null,
+    series: null,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,

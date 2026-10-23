@@ -5,12 +5,15 @@ import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
 import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
 import { useGuestActiveVillage } from '../../lib/village/GuestActiveVillageContext';
+import { useMyGroups } from '../../lib/orgs/useMyGroups';
 
 export default function TabsLayout() {
   const { user, loading } = useAuth();
   const { t } = useT();
   const gate = useRegisterGate();
   const { guestVillageId } = useGuestActiveVillage();
+  // Grupos is a tab only for someone in at least one group.
+  const { groups } = useMyGroups(user?.uid ?? null);
 
   if (loading) return null;
 
@@ -51,6 +54,16 @@ export default function TabsLayout() {
               gate.requireAuth(routes.myVillage, t('guest.village'));
             }
           },
+        }}
+      />
+      <Tabs.Screen
+        name="grupos"
+        options={{
+          title: t('tabs.groups'),
+          href: groups.length > 0 ? undefined : null,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

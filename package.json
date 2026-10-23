@@ -1,10 +1,12 @@
 {
   "name": "cultuvilla",
   "version": "1.0.0",
+  "license": "EUPL-1.2",
   "packageManager": "pnpm@10.24.0",
   "private": true,
   "scripts": {
     "help": "node scripts/help.js",
+    "notify:setup": "bash scripts/setup-notify-pubsub.sh",
     "shared:build": "pnpm --filter @cultuvilla/shared build",
     "shared:test": "pnpm --filter @cultuvilla/shared test",
     "shared:typecheck": "pnpm --filter @cultuvilla/shared typecheck",
@@ -44,7 +46,7 @@
     "backfills:run": "node scripts/backfills-cli.mjs run",
     "backfills:auto-apply": "node scripts/backfills-cli.mjs auto-apply",
     "backfills:lint": "node scripts/lint-backfill-meta.mjs",
-    "backfills:test": "node --test scripts/__tests__/backfill-registry.test.mjs scripts/__tests__/backfill-discovery.test.mjs scripts/__tests__/existing-village-settlements.test.mjs scripts/__tests__/backfill-village-fiestas-month.test.mjs scripts/__tests__/backfill-org-join-policy.test.mjs",
+    "backfills:test": "node --test scripts/__tests__/backfill-registry.test.mjs scripts/__tests__/backfill-discovery.test.mjs scripts/__tests__/existing-village-settlements.test.mjs scripts/__tests__/backfill-village-fiestas-month.test.mjs scripts/__tests__/backfill-org-join-policy.test.mjs scripts/__tests__/backfill-village-people-count.test.mjs",
     "check:index-drift": "FIREBASE_BIN='bash scripts/firebase.sh' node scripts/check-index-drift.mjs",
     "scripts:test": "node --test \"scripts/__tests__/*.test.mjs\"",
     "agents:test": "node --test \".agents/_shared/scripts/__tests__/*.test.mjs\"",

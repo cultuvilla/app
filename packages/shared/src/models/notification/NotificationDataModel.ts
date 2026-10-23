@@ -45,6 +45,20 @@ export const NotificationTypeSchema = z.enum([
   // A village's Wrapped went public, by an admin or by the grace timer. Sent to
   // every member; carries its `wrappedId` the same way and opens the viewer.
   'village_wrapped_published',
+  // The cuota de socios is about to fall due, or is vencida. Written by the
+  // scheduled `sendCuotaReminders` in the treasurer's name, to the member (or a
+  // persona's responsible member). Carries entityKind 'organization' +
+  // entityId (the org), so a client that predates the type still opens the group.
+  'cuota_reminder',
+  // A group task or volunteer shift: due soon, overdue, a shift still short of
+  // people within 48 h (sendGroupTaskReminders, 10:00 Madrid), or a slot freed
+  // up for someone on its waiting list (respondToTaskShift). Carries
+  // entityKind 'organization' + entityId (the org), routed to the Grupos tab.
+  'group_task',
+  // A message the junta of a group sent through `sendGroupMessage` (or pushed
+  // again to the unread by `nudgeGroupMessage`). entityKind 'organization' +
+  // entityId (the org), like cuota_reminder; muted per group.
+  'group_message',
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 

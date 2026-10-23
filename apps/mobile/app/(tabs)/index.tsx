@@ -40,6 +40,7 @@ import {
 import { watchAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
 import { getActiveCommunities } from '@cultuvilla/shared/services/municipalityService';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
+import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import {
   NEWS_POST_CATEGORIES,
   type NewsPostData,
@@ -225,7 +226,9 @@ export default function FeedScreen() {
           : Number.POSITIVE_INFINITY;
       list = [...list].sort((a, b) => dist(a) - dist(b));
     }
-    return list;
+    // After the filters, so a date filter still finds the matching occurrence
+    // of a weekly series; then one card per series.
+    return firstOfEachSeries(list);
   }, [events, villageFilter, dateFilter, query, sortByProximity, referenceCoords]);
 
   const visibleNews = useMemo(() => {
@@ -345,6 +348,7 @@ export default function FeedScreen() {
           <Ionicons name="search" size={15} color={ACCENT} />
           <TextInput
             autoFocus
+            testID="filter-search-input"
             value={search}
             onChangeText={setSearch}
             placeholder={t('feed.filter.searchPlaceholder')}
@@ -369,6 +373,7 @@ export default function FeedScreen() {
               setSearchOpen(false);
             }}
             accessibilityLabel={t('feed.filter.search')}
+            testID="filter-search-clear"
           >
             <Ionicons name="close-circle" size={16} color={ACCENT} />
           </Pressable>
@@ -559,6 +564,7 @@ export default function FeedScreen() {
 
       <FilterSheet
         visible={activeSheet === 'village'}
+        testID="filter-village-sheet"
         title={t('feed.filter.villageTitle')}
         options={villageOptions}
         selectedValue={villageFilter}
@@ -570,6 +576,7 @@ export default function FeedScreen() {
       />
       <FilterSheet
         visible={activeSheet === 'date'}
+        testID="filter-date-sheet"
         title={t('feed.filter.dateTitle')}
         options={dateOptions}
         selectedValue={dateFilter}
@@ -579,6 +586,7 @@ export default function FeedScreen() {
       />
       <FilterSheet
         visible={activeSheet === 'category'}
+        testID="filter-category-sheet"
         title={t('feed.filter.categoryTitle')}
         options={categoryOptions}
         selectedValue={categoryFilter}
@@ -588,6 +596,7 @@ export default function FeedScreen() {
       />
       <FilterSheet
         visible={activeSheet === 'sort'}
+        testID="filter-sort-sheet"
         title={t('feed.filter.sortTitle')}
         options={[{ value: 'proximity', label: t('feed.filter.sortProximity') }]}
         selectedValue={sortByProximity ? 'proximity' : null}

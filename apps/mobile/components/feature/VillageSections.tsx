@@ -93,6 +93,7 @@ export function SectionHeader({
 export function Section<T>({
   title,
   onManage,
+  actionLabel,
   isEmpty,
   status = 'ready',
   children,
@@ -106,6 +107,8 @@ export function Section<T>({
   testID?: string;
   /** When provided, renders the "Gestionar" link (admins only). */
   onManage?: () => void;
+  /** Replaces "Gestionar" when the header link does something else ("Ver todos"). */
+  actionLabel?: string;
   isEmpty: boolean;
   /**
    * Load state of this section's own fetch. 'loading' shows a skeleton row,
@@ -136,7 +139,7 @@ export function Section<T>({
     <VStack gap={3} className="pt-4">
       <SectionHeader
         title={title}
-        actionLabel={onManage ? t('village.admin.overview.manage') : undefined}
+        actionLabel={onManage ? (actionLabel ?? t('village.admin.overview.manage')) : undefined}
         onAction={onManage}
       />
       {showSkeleton ? (
@@ -178,6 +181,14 @@ export function Section<T>({
  * `EntityCard` are thin adapters over this one card so people, barrios, places,
  * organizations and peñas all share a single "big picture" style.
  */
+/** A count pill in a card's top-right corner, and how VoiceOver says it. */
+export interface StatBadge {
+  icon: keyof typeof Ionicons.glyphMap;
+  count: number;
+  spoken: 'burials' | 'attendees';
+  testID?: string;
+}
+
 function BigCard({
   label,
   imageUri,
@@ -212,18 +223,21 @@ function BigCard({
    */
   commentCount?: number;
   /** Alternate top-right count badge, used when the count is not comments. */
-  statBadge?: {
-    icon: keyof typeof Ionicons.glyphMap;
-    count: number;
-    testID?: string;
-  };
+  statBadge?: StatBadge;
   onPress?: () => void;
 }) {
+  const { t } = useT();
   const topRightBadge = statBadge && statBadge.count > 0
     ? statBadge
     : commentCount && commentCount > 0
-      ? { icon: 'chatbubble-outline' as const, count: commentCount, testID: 'entity-card-comment-count' }
+      ? { icon: 'chatbubble-outline' as const, count: commentCount, spoken: 'comments' as const, testID: 'entity-card-comment-count' }
       : null;
+  // The card is one accessibility element, so its badge and second line are
+  // spoken only if they are in its label.
+  const spokenCount = topRightBadge
+    ? t(`entityCard.a11y.${topRightBadge.spoken}.${topRightBadge.count === 1 ? 'one' : 'other'}`, { count: topRightBadge.count })
+    : null;
+  const accessibilityLabel = [label, secondary, spokenCount].filter(Boolean).join(', ');
 
   const body = crest ? (
     <View
@@ -341,7 +355,7 @@ function BigCard({
   );
   if (!onPress) return body;
   return (
-    <Pressable onPress={onPress} accessibilityLabel={label}>
+    <Pressable onPress={onPress} accessibilityLabel={accessibilityLabel}>
       {body}
     </Pressable>
   );
@@ -400,11 +414,7 @@ export function EntityCard({
   /** Comment count shown as a pill over the photo, when > 0. */
   commentCount?: number;
   /** Alternate top-right count badge, used when the count is not comments. */
-  statBadge?: {
-    icon: keyof typeof Ionicons.glyphMap;
-    count: number;
-    testID?: string;
-  };
+  statBadge?: StatBadge;
   onPress?: () => void;
 }) {
   return (

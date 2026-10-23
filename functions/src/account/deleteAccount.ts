@@ -15,6 +15,7 @@ import {
   userDoc,
   userNotificationsCollection,
   userDevicesCollection,
+  userGroupPrefsCollection,
   userNotificationPrefsDoc,
   pushQueueCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
@@ -303,17 +304,19 @@ async function deleteNotifications(uid: string): Promise<number> {
 
 /**
  * Device tokens address a push at a specific phone, so they are personal data
- * in their own right. The preferences doc and any queued-but-unsent pushes go
+ * in their own right. The preferences docs (account and per group) and any queued-but-unsent pushes go
  * with them; the queue entries carry the uid.
  */
 async function deletePushData(uid: string): Promise<number> {
-  const [devices, queued] = await Promise.all([
+  const [devices, queued, groupPrefs] = await Promise.all([
     raw(userDevicesCollection(db, uid)).get(),
     raw(pushQueueCollection(db)).where('userId', '==', uid).get(),
+    raw(userGroupPrefsCollection(db, uid)).get(),
   ]);
   return deleteRefsInChunks([
     ...devices.docs.map((doc) => doc.ref),
     ...queued.docs.map((doc) => doc.ref),
+    ...groupPrefs.docs.map((doc) => doc.ref),
     userNotificationPrefsDoc(db, uid).withConverter(null),
   ]);
 }

@@ -279,6 +279,25 @@ reactions/likes feature — it was removed in favor of this invisible counter.
 - **Not surfaced in the UI today** — it's tracked for future use (e.g.
   ranking, moderation signal), not rendered on any card or detail screen.
 
+### `villageRankings/top` ← `municipalities/` + every public content collection
+
+One doc listing the active pueblos with the most to show, best first (top
+`VILLAGE_RANKING_SIZE`), so "Descubre otros pueblos" on a village page costs one
+read instead of a count query per pueblo per view.
+
+- **Source of truth:** active `municipalities/` (profile completeness: manual
+  escudo, description, map, fiestas, Embajador) and the counts of each pueblo's
+  public events, news, carteles, approved orgs, places, history entries, words
+  and `municipalityPeople` rows, filtered the way the read site lists them.
+- **Writer:** [functions/src/village/refreshVillageRanking.ts](../../functions/src/village/refreshVillageRanking.ts)
+  — a scheduled job (04:00 Madrid, nightly) that recomputes the whole doc with
+  `count()` aggregations. Not a trigger: discovery tolerates a day's lag, and
+  per-write counters would put a trigger on six collections for one row.
+  Scoring lives in `VillageRankingDataModel.ts` (`villageRichnessScore`).
+- **Rules:** public read, no client writes.
+- **Backfill:** none — the next run rewrites it from scratch. Until the first
+  run the doc is missing and every reader shows nothing.
+
 ### `_card` / `_thumb` image renditions ← any uploaded Storage object
 
 Feed cards and section rows render into boxes a few hundred dp wide; the
@@ -333,6 +352,32 @@ without issuing one `persons` query per place in the village home scroll.
 - **Backfill:** [scripts/backfill-place-burial-count.mjs](../../scripts/backfill-place-burial-count.mjs)
   recalculates existing place counts from `persons/`.
 
+### `peopleCount` ← `municipalityPeople/`
+
+The village home shows how many people a village has to every viewer, but the
+`municipalityPeople` projection it is counted from is readable only by village
+members and app admins. The count is copied onto the public municipality doc.
+
+- **Source of truth:** the `municipalityPeople` rows carrying that
+  `municipalityId` (itself a projection of `persons/`, by
+  `syncMunicipalityPeople`).
+- **Trigger:** [functions/src/village/syncVillagePeopleCount.ts](../../functions/src/village/syncVillagePeopleCount.ts)
+  (`syncVillagePeopleCount`), an `onDocumentWritten` on `municipalityPeople/`.
+  It acts only when a row is created, deleted or changes `municipalityId` —
+  `syncMunicipalityPeople` rewrites rows with a full `set()` on every person
+  edit, and those are no-ops — and then **recounts** with an aggregate
+  `count()` rather than incrementing, so any drift (including rows written
+  between the backfill and the trigger's first deploy) heals on the next
+  roster change. The count and the write share a transaction that reads the
+  municipality doc, so overlapping invocations conflict and the later one
+  recounts; an early count can never overwrite a newer one. A missing
+  municipality doc is skipped.
+- **Rules:** `peopleCount` is on the village-admin diff-lock list in
+  `firestore.rules`; only the trigger (and app admins) can write it.
+- **Backfill:** [scripts/backfill-village-people-count.mjs](../../scripts/backfill-village-people-count.mjs)
+  (`village-people-count`, `pre-deploy`, auto-applied) recounts every
+  municipality from `municipalityPeople/`.
+
 ### `memberCount` ← `organizations/{orgId}/members/` and `residentCount` ← `persons/`
 
 Membership-size counters that back **ordering** on the village hub: peñas /
@@ -363,6 +408,33 @@ with no extra reads and no visible reshuffle.
   and [scripts/backfill-barrio-resident-count.mjs](../../scripts/backfill-barrio-resident-count.mjs)
   recompute the true count from the source and write it; they double as repair
   tools if a trigger ever drifts.
+
+### socio roster `member` rows ← `organizations/{orgId}/members/`
+
+`organizations/{orgId}/socios/` is the group's libro de socios, so a member's
+row must exist exactly as long as their membership — and then outlive it, with a
+baja. `syncOrgSocioRoster`
+([functions/src/organizations/syncOrgSocioRoster.ts](../../functions/src/organizations/syncOrgSocioRoster.ts))
+watches the members subcollection and, on every event, reconciles the member's
+rows against the member doc **as it is now**, inside one transaction — trigger
+events arrive at least once and in no guaranteed order, so the event itself is
+never trusted. Not a member: their active row and their personas a cargo get the
+baja. A member: the row whose `memberJoinedAt` equals the member doc's
+`joinedAt` is this membership's; an active row of an earlier membership gets the
+baja at the rejoin date, and if no row matches, the member's own persona row is
+adopted (keeping its alta) or a new one opens. A member who is not an admin
+loses `adminTitle`. It is a no-op for the ayuntamiento and for an org already
+deleted.
+
+- **Not a full projection.** Rows are never rewritten wholesale; the trigger
+  only adds rows and patches fields, so persona and typed rows written by clients
+  are never clobbered.
+- **`displayName` is a point-in-time copy** of `users/{uid}.displayName`, like a
+  registration's name: a private persona's doc is unreadable to the admins who
+  list the roster, so the name has to live on the row.
+- **Backfill / repair:** [scripts/backfill-socio-roster.mjs](../../scripts/backfill-socio-roster.mjs)
+  reconciles: an alta for every member with no active row, a baja for an active
+  row whose member has left.
 
 ### `villageSlug` ← `municipalities/{id}.slug`
 

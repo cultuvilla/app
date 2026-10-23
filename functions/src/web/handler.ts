@@ -23,6 +23,7 @@ import {
   loadTerm,
   loadVillageById,
   loadVillageBySlug,
+  loadOtherVillages,
   loadVillageHome,
   loadWrapped,
   type Village,
@@ -223,7 +224,11 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
     case 'village': {
       const v = await loadVillageBySlug(db, route.villageSlug);
       if (!v) return notFound(path);
-      return page(villagePage(v, v.active ? await loadVillageHome(db, bucket, v, deps.now) : null), path);
+      const [home, others] = await Promise.all([
+        v.active ? loadVillageHome(db, bucket, v, deps.now) : null,
+        loadOtherVillages(db, v.id),
+      ]);
+      return page(villagePage(v, home, others), path);
     }
     case 'section': {
       const v = await loadVillageBySlug(db, route.villageSlug);

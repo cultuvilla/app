@@ -264,3 +264,24 @@ test('an org with no members renders nothing, not even the heading', async () =>
   await waitFor(() => expect(mockGetOrgMembers).toHaveBeenCalled());
   await waitFor(() => expect(toJSON()).toBeNull());
 });
+
+// A row action labelled only "Eliminar" or "Hacer administrador" did not say
+// whose row it was, and on iOS it shared its label with the confirming
+// alert's button, which sits over it (E2E flow 74 tapped the icon instead).
+test('row actions name the member they act on', async () => {
+  mockGetOrgMembers.mockResolvedValue([
+    { id: 'admin1', userId: 'admin1', role: 'admin', joinedAt: new Date('2026-01-01') },
+    { id: 'user1', userId: 'user1', role: 'member', joinedAt: new Date('2026-02-01') },
+  ]);
+
+  render(<OrgMembersList orgId="o1" canManage currentUserId="admin1" />);
+  await waitFor(() => expect(screen.getByTestId('org-member-profile-user1')).toBeTruthy());
+  enterEditMode();
+
+  expect(screen.getByTestId('org-member-remove-user1').props.accessibilityLabel).toBe(
+    'Eliminar a Bruno Vecino del grupo',
+  );
+  expect(screen.getByTestId('org-member-row-user1').props.accessibilityLabel).toBe(
+    'Hacer administrador a Bruno Vecino',
+  );
+});

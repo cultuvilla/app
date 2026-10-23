@@ -25,7 +25,7 @@ const model: RosterExportModel = {
     [1, 'Ana Pérez', 'Confirmado', true, '600111222', new Date('2026-07-02T10:30:00Z')],
     [2, 'Luis Gómez', 'Lista de espera', false, null, new Date('2026-07-03T08:00:00Z')],
   ],
-  totals: { confirmed: 1, waitlisted: 1, total: 2 },
+  summary: 'Confirmados: 1   ·   Lista de espera: 1   ·   Total: 2',
 };
 
 /** Round-trip the bytes through ExcelJS: if Excel couldn't parse it, nor can this. */
@@ -83,7 +83,7 @@ describe('buildRosterWorkbook', () => {
   });
 
   it('handles an empty roster without an autofilter over zero rows', async () => {
-    const sheet = await readBack(await buildRosterWorkbook({ ...model, rows: [], totals: { confirmed: 0, waitlisted: 0, total: 0 } }));
+    const sheet = await readBack(await buildRosterWorkbook({ ...model, rows: [], summary: 'Confirmados: 0   ·   Lista de espera: 0   ·   Total: 0' }));
 
     expect(sheet.autoFilter).toBeUndefined();
     expect(String(sheet.getCell(6, 1).value)).toContain('Total: 0');

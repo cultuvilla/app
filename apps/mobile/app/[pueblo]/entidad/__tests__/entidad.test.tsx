@@ -50,6 +50,12 @@ jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
 }));
 jest.mock('../../../../components/feature/OrgJoinRequests', () => ({ OrgJoinRequests: () => null }));
 jest.mock('../../../../components/feature/OrgMembersList', () => ({ OrgMembersList: () => null }));
+jest.mock('../../../../components/feature/groups/SocioConsentCard', () => ({
+  SocioConsentCard: () => {
+    const { Text: RNText } = jest.requireActual<typeof import('react-native')>('react-native');
+    return <RNText testID="stub-socio-consent">consent</RNText>;
+  },
+}));
 jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getOrgViewLink: () => ({
     url: 'https://x/villa/entidad/pena-la-union_o1',
@@ -173,6 +179,32 @@ describe('OrgDetailScreen — join policy', () => {
     (hasPendingOrgJoinRequest as jest.Mock).mockResolvedValue(true);
     const { getByText } = render(<OrgDetailScreen />);
     await waitFor(() => getByText('organization.requestPending'));
+  });
+});
+
+describe('OrgDetailScreen — junta contact consent', () => {
+  afterEach(() => {
+    (isOrgMember as jest.Mock).mockResolvedValue(false);
+  });
+
+  it('is not asked of a non-member', async () => {
+    const { getByText, queryByTestId } = render(<OrgDetailScreen />);
+    await waitFor(() => getByText('Peña La Unión'));
+    expect(queryByTestId('stub-socio-consent')).toBeNull();
+  });
+
+  it('is asked of a member of a peña once they have joined', async () => {
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    const { findByTestId } = render(<OrgDetailScreen />);
+    expect(await findByTestId('stub-socio-consent')).toBeTruthy();
+  });
+
+  it('is never asked by an ayuntamiento, which keeps no socio roster', async () => {
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    setWatched('org', { ...OPEN_ORG, name: 'Ayuntamiento', type: 'ayuntamiento' });
+    const { findByTestId, queryByTestId } = render(<OrgDetailScreen />);
+    await findByTestId('org-leave-action');
+    expect(queryByTestId('stub-socio-consent')).toBeNull();
   });
 });
 

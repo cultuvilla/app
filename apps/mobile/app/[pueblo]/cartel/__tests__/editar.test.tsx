@@ -1,4 +1,5 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 const mockRedirect = jest.fn((_props: { href: string }) => null);
 jest.mock('react-native-safe-area-context', () => ({
@@ -23,6 +24,7 @@ jest.mock('@cultuvilla/shared/services/festivalPosterService', () => ({
 jest.mock('@cultuvilla/shared/services/moderationService', () => ({
   hideContent: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadFestivalPosterImage: jest.fn(),
 }));
@@ -31,6 +33,8 @@ jest.mock('../../../../components/feature/OrganizerPicker', () => ({ OrganizerPi
 import PosterEditScreen from '../[cartel]/editar';
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
 import { getFestivalPoster } from '@cultuvilla/shared/services/festivalPosterService';
+import { uploadFestivalPosterImage } from '@cultuvilla/shared/services/imageService';
+import { pickImageAsBlob } from '../../../../lib/images';
 
 function mockCaps(opts: { canManage: boolean; uid: string | null; canEdit: boolean }) {
   const caps = {
@@ -86,4 +90,19 @@ it('lets the creator edit their own poster without being a village admin', async
   await findByDisplayValue('2025');
   expect(mockRedirect).not.toHaveBeenCalled();
   expect(caps.canEdit).toHaveBeenCalledWith('creator');
+});
+
+// A failed upload used to vanish: the spinner stopped and the photo was gone.
+it('says so when the photo upload fails, and adds no photo', async () => {
+  mockCaps({ canManage: false, uid: 'creator', canEdit: true });
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  (pickImageAsBlob as jest.Mock).mockResolvedValueOnce({ blob: {} as Blob, filename: 'a.jpg', contentType: 'image/jpeg', previewUri: 'file://a.jpg' });
+  (uploadFestivalPosterImage as jest.Mock).mockRejectedValueOnce(
+    Object.assign(new Error('Max retry time exceeded'), { code: 'storage/retry-limit-exceeded' }),
+  );
+  const { findByTestId, queryByTestId } = render(<PosterEditScreen />);
+  fireEvent.press(await findByTestId('poster-edit-images-add'));
+  await waitFor(() => expect(alert).toHaveBeenCalledWith('Sin conexión', expect.any(String), expect.any(Array), expect.anything()));
+  expect(queryByTestId('poster-edit-images-remove-0')).toBeNull();
+  alert.mockRestore();
 });

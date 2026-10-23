@@ -37,6 +37,7 @@ export const RESERVED_ROOT_SEGMENTS = [
   'descubrir',
   'embajadores',
   'entrar',
+  'grupos',
   'legal',
   'mi-pueblo',
   'mis-inscripciones',
@@ -182,6 +183,11 @@ export function wrappedPath(villageSlug: string, year: number): string {
 
 export function personPath(personId: string): string {
   return `/persona/${personId}`;
+}
+
+/** The Grupos tab, opened on one group (the private side: cuota, socios). */
+export function groupPath(orgId: string): string {
+  return `/grupos?grupo=${encodeURIComponent(orgId)}`;
 }
 
 export function userPath(uid: string): string {

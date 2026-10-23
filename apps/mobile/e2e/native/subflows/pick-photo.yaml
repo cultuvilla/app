@@ -2,30 +2,74 @@
 # it with PICKER_IMAGES (scripts/lib/maestro-suite.mjs); ${INDEX} is 0 or 1, so
 # an edit can swap one for the other.
 #
-# Android only for now: the system Photo Picker names its cells by resource id.
-# iOS's PHPicker runs out of process and needs its own selector — until then a
-# flow guards this with `platform: Android` and asserts images there alone.
+# Android: the system Photo Picker names its cells by resource id.
+# iOS: PHPicker runs out of process. Its cells are labelled "Photo, <date>"
+# (or "Foto, …") when the hierarchy reaches them; when it does not, a tap on
+# the grid picks one. The tap sits at 45% height: iOS 18 opens the picker
+# with a "Private Access to Photos" banner above the grid on first use, which
+# a tap at 30% hits; at 45% it lands on the first row with the banner and on
+# the second without it. Which photo is picked on iOS does
+# not matter to any flow — only that one is.
 appId: com.cultuvilla.app.dev
 ---
-- extendedWaitUntil:
-    visible:
-      id: 'com.google.android.providers.media.module:id/icon_thumbnail'
-    timeout: 15000
 - runFlow:
     when:
-      true: ${INDEX == 0}
+      platform: Android
     commands:
-      - tapOn:
-          id: 'com.google.android.providers.media.module:id/icon_thumbnail'
-          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+          timeout: 15000
+      - runFlow:
+          when:
+            true: ${INDEX == 0}
+          commands:
+            - tapOn:
+                id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+                index: 0
+      - runFlow:
+          when:
+            true: ${INDEX == 1}
+          commands:
+            - tapOn:
+                id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+                index: 1
+      - extendedWaitUntil:
+          notVisible:
+            id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+          timeout: 15000
 - runFlow:
     when:
-      true: ${INDEX == 1}
+      platform: iOS
     commands:
-      - tapOn:
-          id: 'com.google.android.providers.media.module:id/icon_thumbnail'
-          index: 1
-- extendedWaitUntil:
-    notVisible:
-      id: 'com.google.android.providers.media.module:id/icon_thumbnail'
-    timeout: 15000
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - runFlow:
+          when:
+            visible:
+              text: '(Photo|Foto),.*'
+          commands:
+            - tapOn:
+                text: '(Photo|Foto),.*'
+                index: ${INDEX}
+      - runFlow:
+          when:
+            visible:
+              text: '(?i)(cancel|cancelar)'
+          commands:
+            - runFlow:
+                when:
+                  true: ${INDEX == 0}
+                commands:
+                  - tapOn:
+                      point: '17%,45%'
+            - runFlow:
+                when:
+                  true: ${INDEX == 1}
+                commands:
+                  - tapOn:
+                      point: '50%,45%'
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - assertNotVisible:
+          text: '(?i)(cancel|cancelar)'

@@ -57,6 +57,16 @@ export const users = {
     givenName: 'Vecino',
     firstSurname: 'Nuevo',
   },
+  // Onboarded, a plain member of nothing it would leave headless: the settings
+  // flow deletes this account for real, so nothing else may depend on it.
+  throwaway: {
+    uid: 'e2e-throwaway',
+    email: 'e2e-throwaway@cultuvilla.test',
+    displayName: 'E2E Throwaway',
+    personId: 'e2e-person-throwaway',
+    givenName: 'Cuenta',
+    firstSurname: 'Desechable',
+  },
   // Auth account ONLY — no persons/{id}, no users/{uid} profile. Signing in
   // diverts to complete-profile, which is exactly what the onboarding flow drives.
   fresh: {
@@ -128,6 +138,18 @@ export const event = {
   description: 'Evento de prueba para el flujo de inscripción end-to-end.',
   startOffsetDays: 7,
   maxAttendees: 100,
+  status: 'published',
+};
+
+// A public event in `joinVillage`, sooner than `event` but further from
+// `village`: the feed's date order puts it first and "Por cercanía" from
+// `village` puts it after (flow 52).
+export const farEvent = {
+  docId: 'e2e-event-lejana',
+  title: 'Fiesta Lejana E2E',
+  description: 'Evento en otro pueblo para comprobar el orden por cercanía.',
+  startOffsetDays: 3,
+  maxAttendees: 50,
   status: 'published',
 };
 
@@ -209,6 +231,36 @@ export const dependentPerson = {
   // birth-year confirm.
   birthday: { year: 2020, month: 5, day: 3 },
 };
+
+// A published news post of `village`, so the feed's category filter has
+// something to keep and something to drop.
+export const newsPost = {
+  docId: 'e2e-news-historia',
+  title: 'Noticia Sembrada E2E',
+  body: 'Historia sembrada para comprobar los filtros del feed.',
+  category: 'historia',
+};
+
+// A barrio of `village`, so the onboarding flow can pick one as residence.
+export const barrio = {
+  docId: 'e2e-barrio-alto',
+  name: 'Barrio Alto E2E',
+};
+
+// A cemetery of `village`, and two personas of `users.attendee` to bury there
+// (flow 93): one public, one private — a private burial shows only to its
+// creator. Separate from `dependentPerson`, whom the registration flows sign up.
+export const cemetery = {
+  docId: 'e2e-place-cementerio',
+  name: 'Cementerio E2E',
+  kind: 'cemetery',
+  description: 'Cementerio usado para comprobar los enterramientos.',
+};
+
+export const burialPersons = [
+  { docId: 'e2e-person-abuela', givenName: 'Abuela', firstSurname: 'Publica', isPublic: true },
+  { docId: 'e2e-person-abuelo', givenName: 'Abuelo', firstSurname: 'Privado', isPublic: false },
+];
 
 export const place = {
   docId: 'e2e-place-plaza',

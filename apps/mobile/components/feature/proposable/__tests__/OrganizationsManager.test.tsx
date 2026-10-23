@@ -1,4 +1,5 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert, ScrollView } from 'react-native';
 import { OrganizationsManager } from '../OrganizationsManager';
 import {
   requestOrganization, approveOrganization,
@@ -10,7 +11,7 @@ import { observability } from '@cultuvilla/shared';
 
 jest.mock('@cultuvilla/shared', () => ({
   ...jest.requireActual('@cultuvilla/shared'),
-  observability: { trackEvent: jest.fn() },
+  observability: { trackEvent: jest.fn(), captureError: jest.fn() },
 }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
   requestOrganization: jest.fn().mockResolvedValue('new-org'),
@@ -74,5 +75,31 @@ describe('<OrganizationsManager>', () => {
         expect.objectContaining({ images: ['https://example.com/org.jpg'] }),
       ),
     );
+  });
+
+  // On iOS the multiline description's keyboard covered the submit button and
+  // nothing dismissed it: return adds a line, and a tap outside an input
+  // dismisses nothing unless a ScrollView takes it (E2E flow 70).
+  it('lays the form out in a scroll view that lets a tap outside close the keyboard', () => {
+    const { UNSAFE_getAllByType, getByTestId } = render(<OrganizationsManager villageId="m1" />);
+    const scrolls = UNSAFE_getAllByType(ScrollView);
+    expect(scrolls.some((s) => s.props.keyboardShouldPersistTaps === 'handled')).toBe(true);
+    expect(getByTestId('org-submit')).toBeTruthy();
+  });
+});
+
+// A failed upload used to vanish: the spinner stopped and the photo was gone,
+// with only an unhandled rejection that a release build shows nobody.
+describe('<OrganizationsManager> photo upload', () => {
+  it('says so when the upload fails, and adds no photo', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (uploadOrganizationImage as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('User does not have permission'), { code: 'storage/unauthorized' }),
+    );
+    const { getByTestId, queryByTestId } = render(<OrganizationsManager villageId="m1" />);
+    fireEvent.press(getByTestId('org-images-add'));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('No puedes hacer eso', expect.any(String), expect.any(Array), expect.anything()));
+    expect(queryByTestId('org-images-remove-0')).toBeNull();
+    alert.mockRestore();
   });
 });

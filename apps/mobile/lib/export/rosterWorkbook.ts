@@ -18,12 +18,14 @@ const DATE_FORMAT = 'dd/mm/yyyy hh:mm';
 // on one would print every attendee as born at 0:00.
 const DATE_ONLY_FORMAT = 'dd/mm/yyyy';
 
+const EUROS_FORMAT = '#,##0.00 "€"';
+
 const TITLE_ROW = 1;
 const SUBTITLE_ROW = 2;
 const HEADER_ROW = 4;
 
 /**
- * Build the branded .xlsx for an event's attendee roster. ExcelJS loads on
+ * Build the branded .xlsx for an export model (an event's attendee roster, a cuota period). ExcelJS loads on
  * demand (see loadExcelJs), so pressing "Exportar" is what pays for it. The
  * function returns the raw bytes; handing them to the user is `downloadFile`'s
  * job.
@@ -33,7 +35,7 @@ export async function buildRosterWorkbook(model: RosterExportModel): Promise<Arr
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Cultuvilla';
-  workbook.title = `${model.title} — asistentes`;
+  workbook.title = model.title;
 
   const sheet = workbook.addWorksheet(model.sheetName, {
     views: [{ state: 'frozen', ySplit: HEADER_ROW }],
@@ -86,6 +88,7 @@ export async function buildRosterWorkbook(model: RosterExportModel): Promise<Arr
       if (column.type === 'date' && cell.value instanceof Date) cell.numFmt = DATE_FORMAT;
       // A partial birth date ('Marzo 1980') arrives as text and keeps it.
       if (column.type === 'dateOnly' && cell.value instanceof Date) cell.numFmt = DATE_ONLY_FORMAT;
+      if (column.type === 'euros' && typeof cell.value === 'number') cell.numFmt = EUROS_FORMAT;
       // Phone numbers are text: Excel would otherwise eat the leading zero of
       // a landline and render long numbers in scientific notation.
       if (column.key === 'phone') cell.alignment = { horizontal: 'left' };
@@ -104,7 +107,7 @@ export async function buildRosterWorkbook(model: RosterExportModel): Promise<Arr
   }
 
   const totalsCell = sheet.getCell(lastDataRow + 2, 1);
-  totalsCell.value = `Confirmados: ${model.totals.confirmed}   ·   Lista de espera: ${model.totals.waitlisted}   ·   Total: ${model.totals.total}`;
+  totalsCell.value = model.summary;
   totalsCell.font = { bold: true, color: { argb: argb(palette.olive) } };
   sheet.mergeCells(lastDataRow + 2, 1, lastDataRow + 2, Math.max(2, lastColumn));
 

@@ -17,6 +17,8 @@ export { startVillage } from './village/startVillage';
 export { updateVillageInfo } from './village/updateVillageInfo';
 export { requestOrganizeVillage } from './village/requestOrganizeVillage';
 export { respondToOrganizerRequest } from './village/respondToOrganizerRequest';
+// Telegram alert to the founders for every Embajador request (app) and lead (web).
+export { onOrganizerRequestCreated, onAmbassadorLeadCreated } from './village/onAmbassadorRequestCreated';
 export { changeVillageMemberRole } from './village/changeVillageMemberRole';
 export { transferVillageAmbassador } from './village/transferVillageAmbassador';
 export { syncVillageDenormalization } from './village/syncVillageDenormalization';
@@ -25,6 +27,8 @@ export { purgeMemberCensoAnswers } from './village/purgeMemberCensoAnswers';
 export { syncBarrioResidentCount } from './village/syncBarrioResidentCount';
 export { syncPlaceBurialCount } from './village/syncPlaceBurialCount';
 export { syncMunicipalityPeople } from './village/syncMunicipalityPeople';
+export { syncVillagePeopleCount } from './village/syncVillagePeopleCount';
+export { refreshVillageRanking } from './village/refreshVillageRanking';
 
 // Organizations (ayuntamiento singleton enforcement)
 export { requestAyuntamiento } from './organizations/requestAyuntamiento';
@@ -33,6 +37,14 @@ export { changeOrgMemberRole } from './organizations/changeOrgMemberRole';
 export { respondToOrgJoinRequest } from './organizations/respondToOrgJoinRequest';
 export { onOrgJoinRequestCreated } from './organizations/onOrgJoinRequestCreated';
 export { syncOrgMemberCount } from './organizations/syncOrgMemberCount';
+export { syncOrgSocioRoster } from './organizations/syncOrgSocioRoster';
+export { linkSocioToMember } from './organizations/linkSocioToMember';
+export { sendCuotaReminders } from './organizations/sendCuotaReminders';
+export { onGroupTaskUpdated } from './organizations/onGroupTaskUpdated';
+export { respondToTaskShift } from './organizations/respondToTaskShift';
+export { sendGroupTaskReminders } from './organizations/sendGroupTaskReminders';
+export { sendGroupMessage } from './organizations/sendGroupMessage';
+export { nudgeGroupMessage } from './organizations/nudgeGroupMessage';
 export { onOrganizationUpdated } from './organizations/notificationTriggers';
 
 // Push notifications. onNotificationCreated is the ONLY seam between the

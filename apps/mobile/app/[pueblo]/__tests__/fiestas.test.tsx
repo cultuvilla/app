@@ -18,6 +18,7 @@ const mockRead = getReadableWrapped as jest.Mock;
 const mockParams = useLocalSearchParams as jest.Mock;
 const shareLink = jest.fn();
 const shareCard = jest.fn();
+const saveCard = jest.fn();
 
 const published = {
   id: 'm1_2026',
@@ -31,7 +32,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Image, 'prefetch').mockResolvedValue(true);
   mockParams.mockReturnValue({ year: '2026' });
-  (useWrappedShare as jest.Mock).mockReturnValue({ shareLink, shareCard });
+  (useWrappedShare as jest.Mock).mockReturnValue({ shareLink, shareCard, saveCard });
 });
 
 describe('the public Wrapped screen', () => {
@@ -43,6 +44,8 @@ describe('the public Wrapped screen', () => {
     expect(mockRead).toHaveBeenCalledWith('m1', 2026);
     fireEvent.press(getByTestId('wrapped-share-card'));
     expect(shareCard).toHaveBeenCalledWith({ card: 'cover', url: published.images.cover });
+    fireEvent.press(getByTestId('wrapped-save-card'));
+    expect(saveCard).toHaveBeenCalledWith({ card: 'cover', url: published.images.cover });
   });
 
   it('says so when there is no published Wrapped for that year', async () => {

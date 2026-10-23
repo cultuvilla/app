@@ -19,11 +19,17 @@ branch without waiting for a promotion PR.
 
 [.github/workflows/ios-e2e.yml](../../../../.github/workflows/ios-e2e.yml) runs
 the same suite on an iOS Simulator, on a macOS runner (free: the repo is
-public). Same release-path gating, plus one trigger Android lacks: a `develop`
-PR that touches the iOS harness or anything under `e2e/native/` runs it too,
-because macOS is the only place it can run at all.
+public). Same release-path gating as Android: a `develop` PR never runs it, so
+harness work on a develop branch dispatches it by hand (`pnpm e2e:ci:ios`),
+since macOS is the only place it can run at all.
 
-### Shards (iOS)
+### Shards
+
+Both platforms split the suite across **four machines** the same way
+(`shardFlows`). On Android each shard builds its own APK (Gradle is cached)
+and boots its own AVD; a shard a dispatched `flows=` selection leaves empty
+stops after its *Plan this shard* step. Its artifact is
+`maestro-artifacts-android-shard-i`. iOS builds once and shares the app.
 
 One machine took ~2.5 h for the iOS suite: Maestro restarts its iOS driver for
 every flow. So `ios-e2e` builds the Simulator app **once** (`build` job, shared
@@ -62,22 +68,38 @@ instead of the whole shard.
 | `21-registration-organize` | The organizer's roster: every answer, the private name, paid, the call sheet, removing an attendee promotes the waitlisted one (trigger); then the attendee cancels through a native `Alert`. Depends on 20 (same tens group). |
 | `23-seat-claim` | A group booking leaves a seat open; a second user opens its claim link (`…/plaza/<token>`) and takes it. |
 | `30-village-join` | A rules-gated direct client write, and the UI flip that follows it. |
+| `31-village-settings` | A village's info description (callable), escudo (square crop), location (cleared) and description, by an app admin; an edit made right before "Listo" kept; a villager off the team turned away from the editor. Depends on 30. |
+| `32-village-roles` | A villager promoted onto the pueblo's team, demoted, then handed the Embajador title; member doc, audit log and roster badges checked each time. Depends on 30. |
+| `33-village-fiestas` | The same village's fiestas: two added, one removed, the other renamed and moved a month. Split from 31 to stay under the 15-minute limit on iOS. |
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
 | `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
-| `50-onboarding-complete-profile` | The three-step person form with native `Modal`/`FlatList` pickers and step gating. |
+| `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
+| `51-own-profile` | A user's own profile edited — nickname, sex, birthday, biography, an occupation — and read back. |
+| `54-dependents` | A dependent created with every field, renamed and made private, closed to another villager (a public one is not), then deleted. Split from 51 to stay under the 15-minute limit. |
+| `52-feed-discovery` | Explora's event search and each filter (village, date, proximity sort) narrowing the list and clearing again; the proximity sort proven by order. |
+| `55-news-filters` | The news tab's category filter keeping and dropping the seeded post. Quarantined on iOS (see run-ios-e2e.mjs). |
+| `53-vocabulary` | A word created with every field, found by search, given and stripped of a second villager's meaning, then emptied and deleted by its author. |
 | `60-event-create` | An event created with every field: cover, organizers (a villager + two orgs), dates, capacity, age range, phone, payment, groups, private roster, questions; every stored field and the detail screen asserted. Also the OS location permission and a real GPS fix (`setLocation`). |
 | `62-event-permissions` | 60's event as its other users see it: the co-organizer may edit; a villager may only read, and the edit link sends them back. Split from 60 to keep it under Maestro's 15-minute limit on a slow runner. |
 | `64-event-edit` | The same event with every field edited, down to private to the approval peña; the doc and the screen asserted again. Depends on 60 (same tens group). |
 | `65-event-private-and-cancel` | The now-private event: the villager gets "not found"; then the organizer cancels it. Depends on 60 and 64. |
-| `61-news-lifecycle` | Create → edit → hard-delete of a news post, the delete behind a native `Alert`. |
 | `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
-| `70-org-create-approve-join` | Three actors: a peña proposed, approved from the Buzón, then joined. |
-| `71-organizer-request-approval` | An Embajador request approved by a super admin; the requester becomes a village admin. |
-| `72-org-join-request` | Joining an `approval` peña: a join request, admitted by the org admin from the Buzón (callable). |
+| `70-org-create-approve-join` | A villager proposes a group with every field (photo, description, type, private roster) and a bare one; the village admin approves the first and rejects the second from the Buzón; a third user joins the approved one. Photos on Android only. |
+| `71-organizer-request-approval` | Two Embajador requests — one with a typed phone and a motivation — rejected and approved by a super admin; the approved requester becomes the village's admin and Embajador. |
+| `72-org-join-request` | Joining an `approval` peña: two join requests, one admitted and one turned down by the org admin from the Buzón (callable). |
 | `73-org-invite-link` | An org invite link (`…/unirse`) opens the org with the invitation banner; joining an open org is instant. |
+| `74-org-edit-and-members` | 70's group edited by its founder (photo swapped, every field, roster public, joining by approval); a member promoted, demoted and removed (callables); the removed member must now ask to join and cannot edit; the group deleted. Depends on 70. Photos on Android only. |
+| `80-news-lifecycle` | A news post with every field (cover, a text block, a captioned image block, a co-writer and a group); read by a villager who cannot edit it; every field edited by the co-writer, the cover swapped; hard-deleted through the callable behind a native `Alert`. Cover and image block on Android only. |
+| `81-place-lifecycle` | A place a villager creates with two photos, description, type, GPS location and contributors; another villager may only read it; the creator edits every field and clears the location, then withdraws it (a hard delete — an admin's is the soft-hide in 90). Photos on Android only. |
+| `82-barrio-lifecycle` | The same life for a barrio: photos and name, read-only for others, edited, withdrawn. Photos on Android only. |
+| `83-poster-lifecycle` | A festival poster: photo, year, title, start and end days on the calendar, contributors; edited (a second photo, new year, title and end day) and withdrawn. Quarantined on iOS (a poster needs a photo; see run-ios-e2e.mjs). |
+| `84-history-create` | A history entry: a captioned photo, a day-precise start, an end year, approximate, body and sources; read back, and read-only for another villager. |
+| `85-history-edit` | 84's entry edited to a BC year with no month or range, every text changed; then withdrawn. Depends on 84. Split from it to stay under Maestro's 15-minute limit. |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
+| `92-settings-and-delete-account` | Push allowed, a category muted and quiet hours on; a bad email refused and a good one sent to verify; then a throwaway account deleted for real. |
+| `93-place-burials` | The cemetery's burials: a public and a private persona buried with partial dates, a date edited, the joiner's view (the private one hidden, the count on the card), both removed. |
 | `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |
 
 Filename order is load-bearing: `21` organizes what `20` signed up. Every flow
@@ -88,7 +110,7 @@ fails the build if a flow is added without a numeric prefix.
 ## Running only some flows
 
 Both platforms take a comma-separated selection — numeric prefixes, names or
-filenames: `20,21`, `20-registration-signup`, `61-news-lifecycle.yaml`. It runs in
+filenames: `20,21`, `20-registration-signup`, `80-news-lifecycle.yaml`. It runs in
 **filename order** whatever order you typed (a pair like 20 → 21 still works),
 runs a quarantined flow if you name it, and fails fast on a name that matches
 nothing rather than passing on zero flows. Mind the pairs: `21` alone has
@@ -278,15 +300,17 @@ in `pnpm test` and fails when:
   proposable forms, `PersonForm`, …) has no `testID` at all.
 
 After a flow covers more, regenerate the list with
-`node scripts/lib/e2e-coverage.mjs --write`. Reasons are `todo: …` (debt),
-`unit-tested: <test>` (validation detail jest owns) or `device-only: <why>`
-(an OS share sheet, Google/Apple sign-in). A component that renders several
+`node scripts/lib/e2e-coverage.mjs --write`. A gap is either
+`unit-tested: <test>` (detail jest owns; the test must exist and name the id)
+or `device-only: <why>` (an OS permission dialog or share sheet). The
+regenerator writes `todo: <file>` for a new control, and the ratchet fails
+until a flow covers it or it is given one of those two reasons. A component that renders several
 controls takes one `testID` and derives the rest (`<id>-option-<x>`,
 `<id>-remove-<i>`); the ratchet tracks the caller's literal.
 
 The aim is one deep flow per feature — create with every field, assert each in
 Firestore *and* on screen, edit every field, view as another user, delete. See
-[the plan](../../../../docs/plans/ongoing/e2e-full-feature-coverage.md).
+[the decision record](../../../../docs/decisions/e2e-feature-coverage.md).
 
 ## iOS
 
@@ -319,8 +343,11 @@ What differs, and where:
 | The screen is narrower, so a horizontal row's third card can sit wholly past the right edge, where no vertical scroll reaches it. Swipe the row itself (it carries a `testID`). | `63-private-event-feed` |
 
 **iOS quarantine** (reasons in `run-ios-e2e.mjs`): `45-offline-cached-village`
-(airplane mode is Android-only in Maestro) and `50-onboarding-complete-profile`
-(keyboard choreography tuned to the AVD).
+(airplane mode is Android-only in Maestro), `55-news-filters` (the news list a
+non-admin villager loads on Android spins forever on the Simulator in CI) and
+`83-poster-lifecycle` (a poster needs a photo, and uploads through the iOS
+picker don't land on the shared macOS runners). The last two are open, to be
+reproduced on an iPhone. `iosE2e.test.ts` caps the list at three.
 
 Writing a flow: anything platform-specific goes in a `runFlow: when: platform:`
 branch, preferably in a subflow. `iosE2e.test.ts` fails the build on an

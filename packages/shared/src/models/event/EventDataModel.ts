@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { LocationDataSchema, LatLngSchema, type LatLng } from '../core/LocationDataModel';
 import { SignupFieldsSchema, type SignupFieldSpec } from './SignupFieldModel';
+import { EventSeriesSchema, type EventSeries } from './EventSeriesModel';
 
 /**
  * Upper bound on `signupGroupSize`. Groups are seated atomically, so a large
@@ -107,6 +108,11 @@ export const EventDataSchema = z.object({
   // by firestore.rules on create/update, and by isPrivateEvent below, which
   // reads the id rather than the enum so a half-written doc fails closed.
   visibilityOrgId: z.string().nullable().default(null),
+  // Non-null when the event is one occurrence of a weekly series (see
+  // EventSeriesModel). `.default(null)` so events created before series parse
+  // through the strict converter (existing docs are backfilled to null by
+  // `event-series`). Immutable after create — firestore.rules refuses a change.
+  series: EventSeriesSchema.nullable().default(null),
   status: EventStatusSchema,
   organizerUserIds: z.array(z.string()),
   organizerOrgIds: z.array(z.string()),
@@ -164,6 +170,7 @@ export interface EventDataInput {
   maxBirthYear?: number | null;
   visibility?: EventVisibility;
   visibilityOrgId?: string | null;
+  series?: EventSeries | null;
   status?: EventStatus;
   organizerUserIds: string[];
   organizerOrgIds: string[];
@@ -205,6 +212,7 @@ export function buildEventData(input: EventDataInput): EventData {
     maxBirthYear: input.maxBirthYear ?? null,
     visibility,
     visibilityOrgId,
+    series: input.series ?? null,
     status: input.status ?? 'published',
     organizerUserIds: input.organizerUserIds,
     organizerOrgIds: input.organizerOrgIds,

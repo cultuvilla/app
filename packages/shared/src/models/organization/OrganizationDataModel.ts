@@ -60,6 +60,11 @@ export const OrganizationDataSchema = z.object({
   // Defaults to `open` because installed binaries still create orgs without it
   // (the rules accept that too); existing docs are backfilled explicitly.
   joinPolicy: OrgJoinPolicySchema.default('open'),
+  // "Los estatutos permiten ver la lista de socios": when true, socios may read
+  // the roster's names (never contact data). Off unless an admin turns it on.
+  // Defaults because installed binaries create orgs without it; existing docs
+  // are backfilled by scripts/backfill-org-socios-list-visible.mjs.
+  sociosListVisible: z.boolean().default(false),
   // status + reviewedBy + reviewedAt
   ...reviewDecisionFields,
 });
@@ -82,6 +87,7 @@ export interface OrganizationDataInput {
   reviewedAt?: Date | null;
   membersPublic?: boolean;
   joinPolicy?: OrgJoinPolicy;
+  sociosListVisible?: boolean;
 }
 
 export function buildOrganizationData(input: OrganizationDataInput): OrganizationData {
@@ -102,6 +108,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     memberCount: 0,
     membersPublic: input.membersPublic ?? true,
     joinPolicy: input.joinPolicy ?? 'open',
+    sociosListVisible: input.sociosListVisible ?? false,
   };
 }
 

@@ -1,4 +1,5 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import OrgEditScreen from '../[entidad]/editar';
 
 const mockRedirect = jest.fn((_props: { href: string }) => null);
@@ -18,11 +19,15 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => ({
   }),
   updateOrganization: jest.fn(),
 }));
+jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadOrganizationImage: jest.fn(),
 }));
 
 import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
+import { getOrganization, updateOrganization } from '@cultuvilla/shared/services/organizationService';
+import { uploadOrganizationImage } from '@cultuvilla/shared/services/imageService';
+import { pickImageAsBlob } from '../../../../lib/images';
 
 describe('OrgEditScreen guard', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -42,5 +47,30 @@ describe('OrgEditScreen guard', () => {
     render(<OrgEditScreen />);
     await waitFor(() => expect(getOrganization).toHaveBeenCalled());
     expect(mockRedirect).not.toHaveBeenCalled();
+  });
+});
+
+// A failed upload used to vanish: the spinner stopped and the photo was gone.
+describe('OrgEditScreen photo upload', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getOrganization as jest.Mock).mockResolvedValue({
+      id: 'org1', name: 'Peña', description: null, type: 'peña', images: [], municipalityId: 'm1', villageSlug: 'villa',
+    });
+  });
+
+  it('says so when the upload fails, and keeps the org without the photo', async () => {
+    (useOrgCapabilities as jest.Mock).mockReturnValue({ canManage: true, canDelete: false, uid: 'boss', loading: false });
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (pickImageAsBlob as jest.Mock).mockResolvedValueOnce({ blob: {} as Blob, filename: 'a.jpg', contentType: 'image/jpeg', previewUri: 'file://a.jpg' });
+    (uploadOrganizationImage as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('Max retry time exceeded'), { code: 'storage/retry-limit-exceeded' }),
+    );
+    const { findByTestId, queryByTestId } = render(<OrgEditScreen />);
+    fireEvent.press(await findByTestId('org-edit-images-add'));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Sin conexión', expect.any(String), expect.any(Array), expect.anything()));
+    expect(updateOrganization).not.toHaveBeenCalled();
+    expect(queryByTestId('org-edit-images-remove-0')).toBeNull();
+    alert.mockRestore();
   });
 });

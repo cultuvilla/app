@@ -98,6 +98,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       mine: t('notifications.channels.mine'),
       village: t('notifications.channels.village'),
       social: t('notifications.channels.social'),
+      groups: t('notifications.channels.groups'),
     }).then(async () => setPermission(await getPushPermission()));
   }, [t]);
 

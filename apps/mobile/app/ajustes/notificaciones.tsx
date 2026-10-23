@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import {
-  NOTIFICATION_CATEGORIES,
-  type NotificationCategory,
+  NOTIFICATION_PREF_KEYS,
+  type NotificationPrefKey,
   type NotificationPrefsData,
 } from '@cultuvilla/shared/models/notification';
 import {
@@ -22,7 +22,7 @@ import { usePush } from '../../lib/push/PushProvider';
 import { openPushSettings } from '../../lib/push/pushClient';
 import { showAlert } from '../../lib/dialogs';
 
-type PrefKey = NotificationCategory | 'quietHours';
+type PrefKey = NotificationPrefKey | 'quietHours';
 
 /**
  * Per-category push toggles, plus the recovery path for a refused permission.
@@ -109,7 +109,7 @@ export default function NotificationSettingsScreen() {
           </View>
         ) : (
           <Card variant="flat" className="p-0">
-            {NOTIFICATION_CATEGORIES.map((category) => (
+            {NOTIFICATION_PREF_KEYS.map((category) => (
               <VStack key={category} gap={1} className="px-4 py-3 border-b border-subtle">
                 <Toggle
                   value={prefs[category]}

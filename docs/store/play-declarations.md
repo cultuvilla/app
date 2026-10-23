@@ -167,9 +167,17 @@ Prácticas de seguridad a declarar:
 fototeca vía selector del sistema. Bloqueados en
 [apps/mobile/app.config.ts](../../apps/mobile/app.config.ts):
 `ACCESS_BACKGROUND_LOCATION`, `CAMERA`, `RECORD_AUDIO`,
-`READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`. Desbloquear cualquiera de
-ellos obliga a rehacer el formulario de Data safety (y, en el caso de
-background location, a una declaración escrita más un vídeo de revisión).
+`READ_EXTERNAL_STORAGE` y los de lectura de medios (`READ_MEDIA_IMAGES`,
+`READ_MEDIA_VIDEO`, `READ_MEDIA_AUDIO`, `READ_MEDIA_VISUAL_USER_SELECTED`, que
+trae `expo-media-library` y que la política de fotos y vídeos de Play restringe).
+Desbloquear cualquiera de ellos obliga a rehacer el formulario de Data safety
+(y, en el caso de background location, a una declaración escrita más un vídeo
+de revisión).
+
+`WRITE_EXTERNAL_STORAGE` **sí** está declarado (Android lo ignora desde la 13): guardar
+una imagen del resumen de fiestas en la galería lo necesita por debajo de
+Android 13. Solo escribe en el dispositivo y no envía nada fuera, así que no es
+recogida de datos y no cambia Data safety.
 
 ## Store settings
 

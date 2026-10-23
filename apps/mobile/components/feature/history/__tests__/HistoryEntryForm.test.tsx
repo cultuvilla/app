@@ -1,4 +1,7 @@
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { uploadHistoryEntryImage } from '@cultuvilla/shared/services/imageService';
+import { pickImageAsBlob } from '../../../../lib/images';
 import { HistoryEntryForm } from '../HistoryEntryForm';
 
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -87,5 +90,17 @@ describe('HistoryEntryForm', () => {
     fireEvent.press(getByTestId('history-submit'));
     expect(await findByText('village.history.form.errors.endBeforeStart')).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('says so when the photo upload fails, instead of dropping the photo', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (pickImageAsBlob as jest.Mock).mockResolvedValueOnce({ blob: {} as Blob, filename: 'a.jpg', contentType: 'image/jpeg', previewUri: 'file://a.jpg' });
+    (uploadHistoryEntryImage as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('Max retry time exceeded'), { code: 'storage/retry-limit-exceeded' }),
+    );
+    const { getByTestId } = render(<HistoryEntryForm municipalityId="m1" entryId="h1" onSubmit={jest.fn()} />);
+    fireEvent.press(getByTestId('history-images-add'));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Sin conexión', expect.any(String), expect.any(Array), expect.anything()));
+    alert.mockRestore();
   });
 });

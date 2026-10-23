@@ -1,0 +1,14 @@
+# Set the person form's birthday; see pick-partial-date.yaml.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'birthday-year'
+- runFlow:
+    file: pick-partial-date.yaml
+    env:
+      FIELD: 'birthday'
+      YEAR: ${YEAR}
+      MONTH_OPTION: ${MONTH_OPTION}
+      DAY: ${DAY}

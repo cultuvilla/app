@@ -95,6 +95,7 @@ jest.mock('../../push/pushSession', () => ({
 jest.mock('@cultuvilla/shared', () => ({
   observability: {
     setUserContext: jest.fn(),
+    captureError: jest.fn(),
   },
 }));
 
@@ -203,6 +204,69 @@ describe('abandonSignUp', () => {
     });
 
     expect(fbSignOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+// A profile read that FAILS is not a profile that is missing. Read as missing,
+// it sent a signed-in user to "Completa tu perfil", whose abandon button then
+// deleted their account as a fresh sign-up (seen under a loaded emulator,
+// 2026-10-10).
+describe('a failed profile read', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchUserIdHash as jest.Mock).mockResolvedValue(FAKE_HASH);
+    mockAuthUser = { uid: FAKE_UID, email: 'a@b.com', delete: jest.fn().mockResolvedValue(undefined) };
+  });
+
+  it('leaves the profile unchecked, so nothing routes to onboarding', async () => {
+    (getUserProfile as jest.Mock).mockRejectedValue(new Error('unavailable'));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+    await act(async () => {});
+    expect(result.current.profileChecked).toBe(false);
+  });
+
+  it('never deletes the account from abandonSignUp', async () => {
+    (getUserProfile as jest.Mock).mockRejectedValue(new Error('unavailable'));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+    const deleteFn = mockAuthUser!.delete!;
+    await act(async () => {
+      await result.current.abandonSignUp();
+    });
+    expect(deleteFn).not.toHaveBeenCalled();
+    expect(fbSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  // An account switch while the first read is in flight: the old account's
+  // late "no profile" must not land in the new account's state, where
+  // abandonSignUp would take it for a fresh sign-up and delete the new account.
+  it('ignores a read that answers after its account is no longer signed in', async () => {
+    let answerFirst: (v: unknown) => void = () => {};
+    (getUserProfile as jest.Mock).mockReturnValueOnce(new Promise((r) => { answerFirst = r; }));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalledWith(FAKE_UID));
+
+    const deleteB = jest.fn().mockResolvedValue(undefined);
+    mockAuthUser = { uid: 'other-uid', email: 'b@b.com', delete: deleteB };
+    await act(async () => {
+      answerFirst(null);
+    });
+
+    expect(result.current.profileChecked).toBe(false);
+    await act(async () => {
+      await result.current.abandonSignUp();
+    });
+    expect(deleteB).not.toHaveBeenCalled();
+  });
+
+  it('tries again and loads the profile once the read succeeds', async () => {
+    (getUserProfile as jest.Mock)
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValue({ activeMunicipalityId: 'm1' });
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile).not.toBeNull(), { timeout: 5000 });
+    expect(result.current.profileChecked).toBe(true);
   });
 });
 

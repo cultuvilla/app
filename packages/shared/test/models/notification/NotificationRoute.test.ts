@@ -36,6 +36,22 @@ describe('notificationRoute', () => {
     ).toBe('/villa/palabra/esbardo');
   });
 
+  it('opens a cuota reminder on the group in the Grupos tab, slug or not', () => {
+    const n = { ...base, type: 'cuota_reminder' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, 'villa')).toBe('/grupos?grupo=org1');
+    expect(notificationRoute(n, null)).toBe('/grupos?grupo=org1');
+  });
+
+  it('opens a group task notification on the group too', () => {
+    const n = { ...base, type: 'group_task' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, null)).toBe('/grupos?grupo=org1');
+  });
+
+  it('opens a group message on the group in the Grupos tab', () => {
+    const n = { ...base, type: 'group_message' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, null)).toBe('/grupos?grupo=org1');
+  });
+
   it('cannot address anything without the pueblo slug', () => {
     expect(notificationRoute({ ...base, type: 'event_cancelled', eventId: 'ev1' }, null)).toBeNull();
     expect(notificationRoute({ ...base, entityKind: 'place', entityId: 'x' }, null)).toBeNull();

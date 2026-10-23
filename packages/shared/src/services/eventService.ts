@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   query,
   orderBy,
   where,
@@ -27,6 +28,7 @@ import {
   type EventDataInput,
   type EventStatus,
 } from '../models/event/EventDataModel';
+import { weeklyOccurrences, type WeeklyRule } from '../models/event/EventSeriesModel';
 import {
   forbiddenAsEmpty,
   watchDoc,
@@ -215,6 +217,81 @@ export async function createEvent(input: Omit<EventDataInput, 'villageSlug'>): P
   const villageSlug = await getVillageSlug(input.municipalityId);
   await setDoc(newRef, buildEventData({ ...input, villageSlug }));
   return newRef.id;
+}
+
+/**
+ * Creates every occurrence of a weekly series in one batch — all or nothing, so
+ * a dropped connection never leaves half a calendar — and returns their ids in
+ * date order. The first occurrence's id doubles as the series id. Throws when
+ * the rule yields no occurrence at all.
+ */
+export async function createEventSeries(
+  input: Omit<EventDataInput, 'villageSlug' | 'series'>,
+  rule: WeeklyRule,
+): Promise<string[]> {
+  const occurrences = weeklyOccurrences({ startDate: input.startDate, endDate: input.endDate ?? null }, rule);
+  if (occurrences.length === 0) throw new Error('event-series-empty');
+  const db = getDb();
+  const rows = occurrences.map((times) => ({ ref: doc(eventsCollection(db)), times }));
+  const seriesId = rows[0]?.ref.id ?? '';
+  const weekdays = [...new Set(rule.weekdays)].sort((a, b) => a - b);
+  const villageSlug = await getVillageSlug(input.municipalityId);
+  const batch = writeBatch(db);
+  rows.forEach(({ ref, times }, index) => {
+    batch.set(
+      ref,
+      buildEventData({
+        ...input,
+        ...times,
+        villageSlug,
+        series: { id: seriesId, index, weekdays, until: rule.until },
+      }),
+    );
+  });
+  await batch.commit();
+  return rows.map(({ ref }) => ref.id);
+}
+
+/** Points every given event at one cover, e.g. a series' shared flyer. */
+export async function setEventsImage(eventIds: string[], imageURL: string): Promise<void> {
+  const batch = writeBatch(getDb());
+  for (const id of eventIds) {
+    batch.update(doc(getDb(), 'events', id), { imageURL, updatedAt: serverTimestamp() });
+  }
+  await batch.commit();
+}
+
+/**
+ * Cancels one occurrence of a series and every later one still published —
+ * "este y los siguientes". Earlier and already-cancelled days are untouched.
+ *
+ * The query pins visibility the way every `events` list must (see publicOnly),
+ * and uses equality filters only, so it needs no composite index.
+ */
+export async function cancelSeriesFrom(
+  event: Pick<EventData, 'series' | 'startDate' | 'visibilityOrgId'> & { id: string },
+): Promise<number> {
+  if (!event.series) {
+    await updateEventStatus(event.id, 'cancelled');
+    return 1;
+  }
+  const visibility =
+    event.visibilityOrgId === null
+      ? publicOnly()
+      : where('visibilityOrgId', '==', event.visibilityOrgId);
+  const snap = await getDocs(
+    query(eventsCollection(getDb()), where('series.id', '==', event.series.id), visibility),
+  );
+  const targets = snap.docs.filter((d) => {
+    const e = d.data();
+    return e.status === 'published' && e.startDate.getTime() >= event.startDate.getTime();
+  });
+  const batch = writeBatch(getDb());
+  for (const d of targets) {
+    batch.update(doc(getDb(), 'events', d.id), { status: 'cancelled', updatedAt: serverTimestamp() });
+  }
+  await batch.commit();
+  return targets.length;
 }
 
 export async function updateEvent(

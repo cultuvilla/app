@@ -3,6 +3,7 @@ import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
   pushQueueDoc,
+  userGroupPrefsDoc,
   userNotificationPrefsDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
@@ -75,6 +76,20 @@ export const onNotificationCreated = onDocumentCreated(
         category,
       });
       return;
+    }
+
+    // A group message is muted per group, never as a category.
+    if (category === 'groups' && notification.entityId) {
+      const groupPrefs = (await userGroupPrefsDoc(db, userId, notification.entityId).get()).data();
+      if (groupPrefs?.messagesMuted) {
+        logger.info('Push suppressed by group mute', {
+          handler: 'onNotificationCreated',
+          userId,
+          notificationId: notifId,
+          orgId: notification.entityId,
+        });
+        return;
+      }
     }
 
     const now = new Date();

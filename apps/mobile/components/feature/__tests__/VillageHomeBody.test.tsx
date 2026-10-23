@@ -1,5 +1,6 @@
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { ScrollView } from 'react-native';
 import { VillageHomeBody } from '../VillageHomeBody';
 import type { VillageHomeState } from '../../../lib/useVillageHome';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
@@ -61,6 +62,13 @@ jest.mock('../wrapped/WrappedPrompt', () => {
   return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
 });
 const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+let mockRankedVillages: unknown[] = [];
+jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
+  watchRankedVillages: (next: (rows: unknown[]) => void) => {
+    next(mockRankedVillages);
+    return () => undefined;
+  },
+}));
 jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
   getPublishedVillageWrapped: (...a: unknown[]) => mockGetPublishedVillageWrapped(...a),
 }));
@@ -210,6 +218,25 @@ describe('VillageHomeBody', () => {
       expect(router.push).not.toHaveBeenCalled();
     });
 
+    // The recommendations sit below the invitation, so the dormant view has to
+    // scroll to reach them on a short screen.
+    it('ends with other pueblos to discover, inside a scrollable view', () => {
+      mockRankedVillages = [
+        { id: 'm1', name: 'Anaya', slug: 'anaya', province: 'Segovia', escudoUrl: null, manualEscudo: false, score: 9 },
+        { id: 'm2', name: 'Matabuena', slug: 'matabuena', province: 'Segovia', escudoUrl: null, manualEscudo: false, score: 8 },
+      ];
+      try {
+        const { UNSAFE_getByType } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
+        const scroll = within(UNSAFE_getByType(ScrollView));
+        expect(scroll.getByText('Descubre otros pueblos')).toBeTruthy();
+        expect(scroll.getByText('Matabuena')).toBeTruthy();
+        fireEvent.press(scroll.getByText('Matabuena'));
+        expect(router.push).toHaveBeenCalledWith('/matabuena');
+      } finally {
+        mockRankedVillages = [];
+      }
+    });
+
     it('sends a guest through the register gate instead of joining', () => {
       mockUser = null;
       const { getByTestId } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
@@ -282,6 +309,7 @@ describe('VillageHomeBody', () => {
     attendeesVisibility: 'members' as const,
     visibility: 'public' as const,
     visibilityOrgId: null,
+    series: null,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,
@@ -381,6 +409,31 @@ describe('VillageHomeBody', () => {
     fireEvent.press(getByText('Añadir contenido'));
     fireEvent.press(getByText('Peña'));
     expect(router.push).toHaveBeenCalledWith('/anaya/entidades?type=pena');
+  });
+
+  // The team writes the description in the app; every visitor reads it here,
+  // members or not, as they do on the web village page.
+  it('shows the village description under its name, to a non-member too', () => {
+    const described = {
+      ...village,
+      community: {
+        ...(village as unknown as { community: Record<string, unknown> }).community,
+        description: 'Pueblo serrano junto al río.',
+      },
+    } as unknown as VillageHomeState['village'];
+    const { getByTestId } = render(
+      <VillageHomeBody data={{ ...base, village: described, isMember: false }} reload={jest.fn()} />,
+    );
+    expect(getByTestId('village-description')).toHaveTextContent('Pueblo serrano junto al río.');
+  });
+
+  it('shows no description block when the team has written none', () => {
+    const blank = {
+      ...village,
+      community: { ...(village as unknown as { community: Record<string, unknown> }).community, description: '  ' },
+    } as unknown as VillageHomeState['village'];
+    const { queryByTestId } = render(<VillageHomeBody data={{ ...base, village: blank }} reload={jest.fn()} />);
+    expect(queryByTestId('village-description')).toBeNull();
   });
 
   it('shows the censo fill CTA to a villager of a village with a configured censo', () => {

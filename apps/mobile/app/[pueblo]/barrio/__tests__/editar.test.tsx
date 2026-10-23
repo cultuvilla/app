@@ -1,4 +1,5 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import BarrioEditScreen from '../[barrio]/editar';
 
 const mockRedirect = jest.fn((_props: { href: string }) => null);
@@ -24,12 +25,15 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
 jest.mock('@cultuvilla/shared/services/moderationService', () => ({
   hideContent: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadBarrioImage: jest.fn(),
 }));
 
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
-import { getBarrio } from '@cultuvilla/shared/services/municipalityService';
+import { getBarrio, updateBarrio } from '@cultuvilla/shared/services/municipalityService';
+import { uploadBarrioImage } from '@cultuvilla/shared/services/imageService';
+import { pickImageAsBlob } from '../../../../lib/images';
 
 function mockCaps(opts: { canManage: boolean; uid: string | null; canEdit: boolean }) {
   const caps = {
@@ -69,5 +73,30 @@ describe('BarrioEditScreen guard', () => {
     await findByDisplayValue('Centro');
     expect(mockRedirect).not.toHaveBeenCalled();
     expect(caps.canEdit).toHaveBeenCalledWith('creator');
+  });
+});
+
+// A failed upload used to vanish: the spinner stopped and the photo was gone.
+describe('BarrioEditScreen photo upload', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getBarrio as jest.Mock).mockResolvedValue({
+      id: 'b1', name: 'Centro', images: [], municipalityId: 'm1', proposedBy: 'creator', status: 'active',
+    });
+  });
+
+  it('says so when the upload fails, and keeps the barrio without the photo', async () => {
+    mockCaps({ canManage: false, uid: 'creator', canEdit: true });
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (pickImageAsBlob as jest.Mock).mockResolvedValueOnce({ blob: {} as Blob, filename: 'a.jpg', contentType: 'image/jpeg', previewUri: 'file://a.jpg' });
+    (uploadBarrioImage as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('User does not have permission'), { code: 'storage/unauthorized' }),
+    );
+    const { findByTestId, queryByTestId } = render(<BarrioEditScreen />);
+    fireEvent.press(await findByTestId('barrio-edit-images-add'));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('No puedes hacer eso', expect.any(String), expect.any(Array), expect.anything()));
+    expect(updateBarrio).not.toHaveBeenCalled();
+    expect(queryByTestId('barrio-edit-images-remove-0')).toBeNull();
+    alert.mockRestore();
   });
 });

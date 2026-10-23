@@ -21,13 +21,15 @@ import {
   PROPOSABLE_ORGANIZATION_TYPES,
   type OrganizationType,
 } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
+import { useCallableErrorHandler } from '../../../../lib/callableError';
 
 export default function OrgEditScreen() {
   const { pueblo: villageSlug, entidad: entidadRef } = useLocalSearchParams<{ pueblo: string; entidad: string }>();
   const orgId = parseEntityRef(entidadRef ?? '') ?? '';
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const [municipalityId, setMunicipalityId] = useState<string | undefined>(undefined);
-  const { canManage, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
+  const { canManage, canDelete, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<OrganizationType>('peña');
@@ -92,6 +94,8 @@ export default function OrgEditScreen() {
       const next = [...images, url];
       await updateOrganization(orgId, { images: next });
       setImages(next);
+    } catch (e) {
+      showCallableError(e, { operation: 'org:uploadImage' });
     } finally {
       setAddingImage(false);
     }
@@ -127,19 +131,23 @@ export default function OrgEditScreen() {
         accent
         title={t('organization.editTitle')}
         rightSlot={
-          <DeleteHeaderButton
-            testID="org-delete"
-            onAccent
-            onConfirm={() => {
-              if (orgId) return deleteOrganization(orgId).then(() => router.replace('/(tabs)'));
-            }}
-            accessibilityLabel={t('common.delete')}
-            confirmTitle={t('common.deleteConfirmTitle')}
-            confirmMessage={t('common.deleteConfirmMessage')}
-            confirmLabel={t('common.delete')}
-            cancelLabel={t('common.cancel')}
-            deletingLabel={t('common.deleting.organization')}
-          />
+          // The organizations delete rule admits a village or app admin, not an
+          // org admin, who may otherwise edit everything here.
+          canDelete ? (
+            <DeleteHeaderButton
+              testID="org-delete"
+              onAccent
+              onConfirm={() => {
+                if (orgId) return deleteOrganization(orgId).then(() => router.replace('/(tabs)'));
+              }}
+              accessibilityLabel={t('common.delete')}
+              confirmTitle={t('common.deleteConfirmTitle')}
+              confirmMessage={t('common.deleteConfirmMessage')}
+              confirmLabel={t('common.delete')}
+              cancelLabel={t('common.cancel')}
+              deletingLabel={t('common.deleting.organization')}
+            />
+          ) : undefined
         }
       />
       <ScrollView contentContainerClassName="p-4">

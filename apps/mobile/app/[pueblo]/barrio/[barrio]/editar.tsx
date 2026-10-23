@@ -16,12 +16,14 @@ import { getBarrio, updateBarrio, deleteBarrio } from '@cultuvilla/shared/servic
 import { hideContent } from '@cultuvilla/shared/services/moderationService';
 import { uploadBarrioImage } from '@cultuvilla/shared/services/imageService';
 import type { VisibilityStatus } from '@cultuvilla/shared/models';
+import { useCallableErrorHandler } from '../../../../lib/callableError';
 
 function BarrioEditScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { barrio: barrioRef } = useLocalSearchParams<{ barrio: string }>();
   const barrioId = parseEntityRef(barrioRef ?? '') ?? '';
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { canManage, canEdit, canDelete, loading: capLoading } = useEntityCapabilities(villageId);
   const [name, setName] = useState('');
   const [images, setImages] = useState<string[]>([]);
@@ -86,6 +88,8 @@ function BarrioEditScreen() {
       const next = [...images, url];
       await updateBarrio(villageId, barrioId, { images: next });
       setImages(next);
+    } catch (e) {
+      showCallableError(e, { operation: 'barrio:uploadImage' });
     } finally {
       setAddingImage(false);
     }

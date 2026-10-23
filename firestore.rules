@@ -311,6 +311,7 @@ service cloud.firestore {
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
+              'sociosListVisible',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -332,7 +333,255 @@ service cloud.firestore {
           && d.readCount == 0
           && d.memberCount == 0
           && d.membersPublic is bool
-          && d.get('joinPolicy', 'open') in ['open', 'approval'];
+          && d.get('joinPolicy', 'open') in ['open', 'approval']
+          && d.get('sociosListVisible', false) is bool;
+    }
+
+    // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
+    // Only peñas, asociaciones and otros keep one; the ayuntamiento has none.
+    function orgHasSocioRoster(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.type
+        in ['peña', 'asociación', 'otros'];
+    }
+    // "Los estatutos permiten ver la lista de socios" — names only, never contact.
+    function orgSociosListVisible(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('sociosListVisible', false) == true;
+    }
+    function isValidSocioCreate(d) {
+      return d.keys().hasOnly([
+              'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
+              'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
+            ])
+          && d.keys().hasAll([
+              'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
+              'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
+            ])
+          && d.kind in ['persona', 'typed']
+          && isString(d.displayName) && d.displayName.size() > 0 && d.displayName.size() <= 200
+          && d.uid == null
+          && isStringOrNull(d.personId)
+          && isStringOrNull(d.responsibleUid)
+          && d.adminTitle == null
+          && isTimestamp(d.altaAt)
+          && d.bajaAt == null
+          && d.memberJoinedAt == null
+          && d.createdBy == request.auth.uid;
+    }
+    // A persona a cargo may be a socio only while it is one: created by the
+    // caller, with no account of its own (one who claimed it joins as a member)
+    // and alive — the same test MyPersonasSocios applies.
+    function isEligiblePersona(personId) {
+      let p = get(/databases/$(database)/documents/persons/$(personId)).data;
+      return p.createdBy == request.auth.uid
+        && p.get('userId', null) == null
+        && p.get('deathDate', null) == null
+        && p.get('burialPlace', null) == null;
+    }
+    // ── Group messages (organizations/{orgId}/messages) ──────────────────────
+    function groupMessage(orgId, messageId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/messages/$(messageId)).data;
+    }
+    function isValidGroupPollVote(message, uid, d) {
+      return message.poll != null
+          && uid in message.recipientUids
+          && d.keys().hasOnly(['option', 'votedAt'])
+          && d.keys().hasAll(['option', 'votedAt'])
+          && d.option is int
+          && d.option >= 0
+          && d.option < message.poll.options.size()
+          && d.votedAt == request.time;
+    }
+
+    // ── Cuota de socios (cuotaSettings, cuotaAssignments, cuotaPayments) ──────
+    // The socio row a cuota doc points at. Members read the cuota docs of the
+    // rows they are (uid) or answer for (responsibleUid, a persona a cargo).
+    function socioRow(orgId, socioId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data;
+    }
+    function isMySocioRow(orgId, socioId) {
+      let row = socioRow(orgId, socioId);
+      return isAuthenticated()
+        && (row.uid == request.auth.uid || row.responsibleUid == request.auth.uid);
+    }
+    function isCents(v) {
+      return v is int && v >= 0 && v <= 1000000;
+    }
+    function isPeriodKey(v) {
+      return v is string && v.matches('^[0-9]{4}(-(0[1-9]|1[0-2]))?$');
+    }
+    function isDayKey(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+    function isNullOrShortString(v, max) {
+      return v == null || (v is string && v.size() <= max);
+    }
+    function isValidCuotaSettings(d) {
+      return d.keys().hasOnly([
+              'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+              'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
+            ])
+          && d.keys().hasAll([
+              'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+              'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
+            ])
+          && isCents(d.amountCents)
+          && d.periodicity in ['yearly', 'monthly']
+          && d.dueMonth is int && d.dueMonth >= 1 && d.dueMonth <= 12
+          && d.dueDay is int && d.dueDay >= 1 && d.dueDay <= 31
+          && d.graceDays is int && d.graceDays >= 0 && d.graceDays <= 365
+          && isPeriodKey(d.startPeriod)
+          && d.tiers is list && d.tiers.size() <= 10
+          && isNullOrShortString(d.bizum, 40)
+          && isNullOrShortString(d.iban, 40)
+          && isNullOrShortString(d.payInstructions, 500)
+          && d.remindersEnabled is bool
+          && d.configuredBy == request.auth.uid
+          && d.updatedAt == request.time;
+    }
+    function isValidCuotaAssignment(d) {
+      return d.keys().hasOnly(['tierId', 'exempt', 'customAmountCents', 'updatedBy', 'updatedAt'])
+          && d.keys().hasAll(['tierId', 'exempt', 'customAmountCents', 'updatedBy', 'updatedAt'])
+          && isNullOrShortString(d.tierId, 40)
+          && d.exempt is bool
+          && (d.customAmountCents == null || isCents(d.customAmountCents))
+          && d.updatedBy == request.auth.uid
+          && d.updatedAt == request.time;
+    }
+    function isValidCuotaPayment(d) {
+      return d.keys().hasOnly([
+              'socioId', 'periodKey', 'kind', 'reversesId', 'amountCents', 'method', 'paidOn',
+              'note', 'recordedBy', 'recordedAt',
+            ])
+          && d.keys().hasAll([
+              'socioId', 'periodKey', 'kind', 'reversesId', 'amountCents', 'method', 'paidOn',
+              'note', 'recordedBy', 'recordedAt',
+            ])
+          && d.socioId is string
+          && isPeriodKey(d.periodKey)
+          && isCents(d.amountCents) && d.amountCents > 0
+          && d.method in ['efectivo', 'bizum', 'transferencia', 'domiciliacion']
+          && isDayKey(d.paidOn)
+          && isNullOrShortString(d.note, 500)
+          && d.recordedBy == request.auth.uid
+          && d.recordedAt == request.time;
+    }
+
+    // ── Group tasks (tasks, taskTemplates) ──────────────────────────────────
+    // See GroupTaskDataModel. The three shift answer lists and nextTaskId are
+    // function-owned (respondToTaskShift, onGroupTaskUpdated).
+    function isTimeOfDay(v) {
+      return v is string && v.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+    }
+    function isValidTaskRecurrence(r) {
+      return r == null
+        || (r is map
+          && r.keys().hasOnly(['kind', 'unit', 'interval', 'anchorOn'])
+          && r.keys().hasAll(['kind', 'unit', 'interval', 'anchorOn'])
+          && r.unit in ['month', 'year']
+          && r.interval is int && r.interval >= 1 && r.interval <= 24
+          && ((r.kind == 'calendar' && isDayKey(r.anchorOn))
+            || (r.kind == 'afterDone' && (r.anchorOn == null || isDayKey(r.anchorOn)))));
+    }
+    function groupTaskKeys() {
+      return [
+        'title', 'notes', 'assigneeUids', 'dueOn', 'time', 'slots', 'claimedUids', 'waitlistUids',
+        'declinedUids', 'recurrence', 'nextTaskId', 'eventId', 'doneAt', 'doneBy', 'createdBy', 'createdAt',
+      ];
+    }
+    // The fields an admin edits, and how they hang together.
+    function isValidGroupTaskFields(d) {
+      return d.keys().hasOnly(groupTaskKeys())
+          && d.keys().hasAll(groupTaskKeys())
+          && d.title is string && d.title.size() >= 1 && d.title.size() <= 120
+          && isNullOrShortString(d.notes, 1000)
+          && d.assigneeUids is list && d.assigneeUids.size() <= 20
+          && (d.dueOn == null || isDayKey(d.dueOn))
+          && (d.time == null || isTimeOfDay(d.time))
+          && (d.slots == null || (d.slots is int && d.slots >= 1 && d.slots <= 100 && d.dueOn != null))
+          && isValidTaskRecurrence(d.recurrence)
+          && (d.recurrence == null || d.recurrence.kind != 'calendar' || d.dueOn != null)
+          && (d.eventId == null || d.eventId is string)
+          && d.claimedUids is list && d.waitlistUids is list && d.declinedUids is list;
+    }
+    function isValidGroupTaskCreate(d) {
+      return isValidGroupTaskFields(d)
+          && d.claimedUids.size() == 0 && d.waitlistUids.size() == 0 && d.declinedUids.size() == 0
+          && d.nextTaskId == null
+          && d.doneAt == null && d.doneBy == null
+          && d.createdBy == request.auth.uid
+          && d.createdAt == request.time;
+    }
+    // Ticking done stamps the server time and the ticker; undoing clears both.
+    function isGroupTaskDoneTick(n) {
+      return (n.doneAt == request.time && n.doneBy == request.auth.uid)
+          || (n.doneAt == null && n.doneBy == null);
+    }
+    function isValidGroupTaskAdminUpdate(n, o) {
+      return isValidGroupTaskFields(n)
+          && !n.diff(o).affectedKeys().hasAny(['claimedUids', 'waitlistUids', 'declinedUids', 'nextTaskId', 'createdBy', 'createdAt'])
+          && ((n.doneAt == o.doneAt && n.doneBy == o.doneBy) || isGroupTaskDoneTick(n))
+          // A shift keeps room for the people already in it.
+          && (n.slots == null
+            ? (o.claimedUids.size() == 0 && o.waitlistUids.size() == 0)
+            : n.slots >= o.claimedUids.size());
+    }
+    function isValidTaskTemplate(d) {
+      return d.keys().hasOnly(['name', 'items', 'updatedBy', 'updatedAt'])
+          && d.keys().hasAll(['name', 'items', 'updatedBy', 'updatedAt'])
+          && d.name is string && d.name.size() >= 1 && d.name.size() <= 80
+          && d.items is list && d.items.size() >= 1 && d.items.size() <= 50
+          && d.updatedBy == request.auth.uid
+          && d.updatedAt == request.time;
+    }
+
+    // ── Records (actas, ledgerEntries) ──────────────────────────────────────
+    // See RecordsDataModel. Only orgs with a socio roster keep them.
+    function actaKeys() {
+      return [
+        'body', 'title', 'heldOn', 'place', 'attendees', 'otherAttendees', 'agenda', 'agreements',
+        'visibleToSocios', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt',
+      ];
+    }
+    // Every write stamps who last touched the acta and the server time.
+    function isValidActaFields(d) {
+      return d.keys().hasOnly(actaKeys())
+          && d.keys().hasAll(actaKeys())
+          && d.body in ['asamblea_general', 'junta_directiva', 'otro']
+          && isNullOrShortString(d.title, 120)
+          && isDayKey(d.heldOn)
+          && isNullOrShortString(d.place, 200)
+          && d.attendees is list && d.attendees.size() <= 500
+          && d.otherAttendees is int && d.otherAttendees >= 0 && d.otherAttendees <= 10000
+          && d.agenda is list && d.agenda.size() <= 50
+          && d.agreements is list && d.agreements.size() <= 50
+          && d.visibleToSocios is bool
+          && d.updatedBy == request.auth.uid
+          && d.updatedAt == request.time;
+    }
+    function isValidActaCreate(d) {
+      return isValidActaFields(d)
+          && d.createdBy == request.auth.uid
+          && d.createdAt == request.time;
+    }
+    function isValidLedgerEntry(d) {
+      return d.keys().hasOnly(['kind', 'amountCents', 'on', 'concept', 'category', 'reversesId', 'recordedBy', 'recordedAt'])
+          && d.keys().hasAll(['kind', 'amountCents', 'on', 'concept', 'category', 'reversesId', 'recordedBy', 'recordedAt'])
+          && d.kind in ['income', 'expense']
+          && d.amountCents is int && d.amountCents >= 1 && d.amountCents <= 100000000
+          && isDayKey(d.on)
+          && d.concept is string && d.concept.size() >= 1 && d.concept.size() <= 200
+          && isNullOrShortString(d.category, 60)
+          && (d.reversesId == null || d.reversesId is string)
+          && d.recordedBy == request.auth.uid
+          && d.recordedAt == request.time;
+    }
+
+    function isValidSocioPrivate(d) {
+      return d.keys().hasOnly(['phone', 'email', 'consentAnsweredAt'])
+          && d.keys().hasAll(['phone', 'email', 'consentAnsweredAt'])
+          && (d.phone == null || (d.phone is string && d.phone.size() <= 40))
+          && (d.email == null || (d.email is string && d.email.size() <= 200))
+          && isTimestampOrNull(d.consentAnsweredAt);
     }
 
     function isValidPlaceCreate(d) {
@@ -459,13 +708,32 @@ service cloud.firestore {
           || after.get('signupGroupSize', 1) == before.get('signupGroupSize', 1);
     }
 
+    // One occurrence of a weekly series (EventSeriesModel). Rules cannot
+    // iterate, so the weekday list is checked by membership and size; the
+    // 183-day cap mirrors MAX_SERIES_DAYS (one day of slack, since `until` is
+    // a calendar day and the occurrence a time on it). Keep the two in step.
+    function isValidEventSeries(d, s) {
+      return s == null || (
+        s is map
+          && s.keys().hasOnly(['id', 'index', 'weekdays', 'until'])
+          && s.keys().hasAll(['id', 'index', 'weekdays', 'until'])
+          && isString(s.id) && s.id.size() > 0
+          && s.index is int && s.index >= 0 && s.index <= 200
+          && s.weekdays is list && s.weekdays.size() >= 1 && s.weekdays.size() <= 7
+          && s.weekdays.hasOnly([1, 2, 3, 4, 5, 6, 7])
+          && isTimestamp(s.until)
+          && d.startDate < s.until + duration.value(1, 'd')
+          && s.until < d.startDate + duration.value(184, 'd')
+      );
+    }
+
     function isValidEventCreate(d) {
       return d.keys().hasOnly([
               'title', 'description', 'startDate', 'endDate', 'endBoundary', 'location',
               'imageURL', 'maxAttendees', 'telephoneRequired', 'requiresPayment',
               'signupFields', 'signupEnabled', 'signupInfo', 'attendeesVisibility', 'signupGroupSize',
               'minBirthYear', 'maxBirthYear',
-              'visibility', 'visibilityOrgId',
+              'visibility', 'visibilityOrgId', 'series',
               'status', 'organizerUserIds', 'organizerOrgIds', 'createdBy',
               'createdAt', 'updatedAt', 'municipalityId', 'villageName', 'villageSlug',
               'villageCoverImage', 'villageCoordinates',
@@ -535,6 +803,9 @@ service cloud.firestore {
           && d.visibility in ['public', 'organization']
           && isStringOrNull(d.visibilityOrgId)
           && (d.visibility == 'organization') == (d.visibilityOrgId != null)
+          // Optional, not in hasAll: binaries that predate weekly series never
+          // send it, and their creates must keep working.
+          && isValidEventSeries(d, d.get('series', null))
           && d.status in ['published', 'cancelled', 'completed']
           && d.organizerUserIds is list
           && d.organizerOrgIds is list
@@ -1025,6 +1296,17 @@ service cloud.firestore {
           && isValidNotificationPrefsWrite(request.resource.data);
       }
 
+      // One group's message pushes muted or not (GroupNotificationPrefsData).
+      // Optional like the account's prefs; the doc id is the org.
+      match /groupPrefs/{orgId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['messagesMuted', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['messagesMuted', 'updatedAt'])
+          && request.resource.data.messagesMuted is bool
+          && isTimestamp(request.resource.data.updatedAt);
+      }
+
       // Per-user block list. Owner-only in BOTH directions: a readable list
       // would disclose who blocked whom, which is itself harassment material.
       // The doc id is the blocked uid, so blocking twice is one doc.
@@ -1062,7 +1344,8 @@ service cloud.firestore {
       // The INE reference fields and `communityActive` are identity, not
       // content — a village admin editing their pueblo must not be able to
       // rewrite which municipality it *is*, nor deactivate the community
-      // (that is startVillage's to own).
+      // (that is startVillage's to own). `peopleCount` is a denormalized
+      // counter owned by syncVillagePeopleCount.
       //
       // `community.organizerId` is diff-locked separately because
       // affectedKeys() only reports the top-level `community` key, and the
@@ -1074,7 +1357,7 @@ service cloud.firestore {
            isVillageAdmin(municipalityId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'name', 'nameLower', 'province', 'comunidadAutonoma', 'codigoINE',
-             'createdAt', 'communityActive',
+             'createdAt', 'communityActive', 'peopleCount',
            ])
         && organizerIdUnchanged(resource.data, request.resource.data)
       );
@@ -1258,9 +1541,9 @@ service cloud.firestore {
       // Approval (status -> 'approved') is function-owned: the approveOrganization
       // callable flips the status AND seeds the founding admin + audits it in one
       // transaction. Clients may edit other fields or reject, never approve.
-      // `type` is locked because create forbids seeding an ayuntamiento — the
-      // town hall is a per-village singleton that only requestAyuntamiento may
-      // mint. Left mutable, an approved peña could simply become one.
+      // `type` moves only among the self-service kinds. The ayuntamiento is a
+      // per-village singleton that only requestAyuntamiento may mint, so no
+      // group may become one and it may become nothing else.
       // `municipalityId` is locked because this rule derives village-admin
       // authority from it: rewriting it moves the org into another pueblo and
       // out of its own admins' reach.
@@ -1268,9 +1551,13 @@ service cloud.firestore {
         && (request.resource.data.status == resource.data.status
             || request.resource.data.status == 'rejected')
         && request.resource.data.get('joinPolicy', 'open') in ['open', 'approval']
+        && request.resource.data.get('sociosListVisible', false) is bool
+        && (request.resource.data.type == resource.data.type
+            || (resource.data.type in ['peña', 'asociación', 'otros']
+                && request.resource.data.type in ['peña', 'asociación', 'otros']))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'commentCount', 'readCount', 'memberCount',
-             'type', 'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
+             'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
            ]);
       allow delete: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
 
@@ -1299,6 +1586,263 @@ service cloud.firestore {
           || isOrgAdmin(orgId)
           || isVillageAdmin(orgMunicipalityId(orgId))
           || isAppAdmin();
+      }
+
+      // The socio roster — the libro de socios. Member rows are function-owned
+      // (syncOrgSocioRoster: alta on join, baja on leave; linkSocioToMember
+      // merges a typed row into one). A member adds and gives the baja to their
+      // own personas a cargo; an admin types in socios without an account. No
+      // row is ever deleted: leaving is a baja. Contact data is NOT here — see
+      // socioPrivate — so a socio may read names when the estatutos allow it.
+      match /socios/{socioId} {
+        allow read: if isOrgAdmin(orgId)
+          || (isAuthenticated()
+              && (resource.data.uid == request.auth.uid
+                  || resource.data.responsibleUid == request.auth.uid))
+          || (isOrgMember(orgId) && orgSociosListVisible(orgId));
+        allow create: if isAuthenticated()
+          && isValidSocioCreate(request.resource.data)
+          && orgHasSocioRoster(orgId)
+          && (
+               (request.resource.data.kind == 'typed'
+                 && isOrgAdmin(orgId)
+                 && request.resource.data.personId == null
+                 && request.resource.data.responsibleUid == null)
+               || (request.resource.data.kind == 'persona'
+                 && isOrgMember(orgId)
+                 && request.resource.data.responsibleUid == request.auth.uid
+                 && request.resource.data.personId is string
+                 // A member writes the alta of their own persona: keep it to now.
+                 && request.resource.data.altaAt > request.time - duration.value(5, 'm')
+                 && request.resource.data.altaAt < request.time + duration.value(5, 'm')
+                 && isEligiblePersona(request.resource.data.personId)
+                 // One active row per persona: its lock is created in the same
+                 // batch, and a lock create fails while another row holds it.
+                 && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(request.resource.data.personId)).data.socioId == socioId)
+             );
+        allow update: if isAuthenticated() && resource.data.bajaAt == null && (
+             // Baja: a persona by its responsible member or an admin; a typed
+             // socio by an admin. Stamped with the server's clock.
+             (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bajaAt'])
+               && request.resource.data.bajaAt == request.time
+               && ((resource.data.kind == 'persona'
+                     && (resource.data.responsibleUid == request.auth.uid || isOrgAdmin(orgId))
+                     // The baja frees the persona's lock in the same write.
+                     && !existsAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(resource.data.personId)))
+                   || (resource.data.kind == 'typed' && isOrgAdmin(orgId))))
+             // An admin corrects a typed-in socio's name.
+          || (resource.data.kind == 'typed'
+               && isOrgAdmin(orgId)
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+               && isString(request.resource.data.displayName)
+               && request.resource.data.displayName.size() > 0
+               && request.resource.data.displayName.size() <= 200)
+             // An admin gives an admin a display title (no powers), or clears it.
+          || (resource.data.kind == 'member'
+               && isOrgAdmin(orgId)
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adminTitle'])
+               && (request.resource.data.adminTitle == null
+                   || (request.resource.data.adminTitle in ['presidente', 'secretario', 'tesorero', 'vocal', 'otro']
+                       && get(/databases/$(database)/documents/organizations/$(orgId)/members/$(resource.data.uid)).data.role == 'admin')))
+        );
+        allow delete: if false;
+      }
+
+      // While a persona is an active socio, its lock names the row (see
+      // SocioPersonaLockDataSchema). Written only in the batch that creates or
+      // gives the baja to that row; never updated, so a second add fails.
+      match /socioPersonaLocks/{personId} {
+        allow read: if isOrgAdmin(orgId);
+        allow create: if isAuthenticated()
+          && request.resource.data.keys().hasOnly(['socioId'])
+          && request.resource.data.socioId is string
+          && !exists(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId))
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.kind == 'persona'
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.personId == personId
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId)).data.responsibleUid == request.auth.uid;
+        allow update: if false;
+        allow delete: if isAuthenticated()
+          && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(resource.data.socioId)).data.bajaAt != null
+          && (get(/databases/$(database)/documents/organizations/$(orgId)/socios/$(resource.data.socioId)).data.responsibleUid == request.auth.uid
+              || isOrgAdmin(orgId));
+      }
+
+      // A socio's phone and email. Only the org's admins and the socio read it
+      // (AEPD 0514/2009: socios don't see each other's contact data). A member
+      // writes their own answer to "what may the junta see"; an admin writes a
+      // typed-in socio's. getAfter so the typed row and this doc can land in one
+      // batch.
+      match /socioPrivate/{socioId} {
+        allow read: if isOrgAdmin(orgId)
+          || (isAuthenticated()
+              && get(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.uid == request.auth.uid);
+        allow create, update: if isAuthenticated()
+          && isValidSocioPrivate(request.resource.data)
+          && (
+               (getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.kind == 'typed'
+                 && isOrgAdmin(orgId)
+                 && request.resource.data.consentAnsweredAt == null)
+               || (getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.kind == 'member'
+                 && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.uid == request.auth.uid
+                 && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.bajaAt == null
+                 && request.resource.data.consentAnsweredAt is timestamp)
+             );
+        allow delete: if false;
+      }
+
+      // The cuota de socios (see CuotaDataModel). Cultuvilla moves no money:
+      // admins configure the cuota and record payments made off-app. The
+      // settings carry how to pay, so members read them; status is computed on
+      // read, never stored.
+      match /cuotaSettings/{docId} {
+        allow read: if isOrgMember(orgId);
+        allow create, update: if isOrgAdmin(orgId)
+          && docId == 'current'
+          && orgHasSocioRoster(orgId)
+          && isValidCuotaSettings(request.resource.data);
+        allow delete: if false;
+      }
+
+      // A socio's tier, exemption or custom amount, keyed by socio id.
+      match /cuotaAssignments/{socioId} {
+        allow read: if isOrgAdmin(orgId) || isMySocioRow(orgId, socioId);
+        allow create, update: if isOrgAdmin(orgId)
+          && exists(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId))
+          && isValidCuotaAssignment(request.resource.data);
+        allow delete: if false;
+      }
+
+      // The payment ledger. Append-only: no entry is ever edited or deleted. A
+      // mistake is cancelled by a reversal at `rev_<paymentId>` that copies the
+      // payment — the fixed id means a payment can be reversed only once.
+      match /cuotaPayments/{paymentId} {
+        allow read: if isOrgAdmin(orgId) || isMySocioRow(orgId, resource.data.socioId);
+        allow create: if isOrgAdmin(orgId)
+          && isValidCuotaPayment(request.resource.data)
+          && exists(/databases/$(database)/documents/organizations/$(orgId)/socios/$(request.resource.data.socioId))
+          && (
+               (request.resource.data.kind == 'payment' && request.resource.data.reversesId == null)
+               || (request.resource.data.kind == 'reversal'
+                 && request.resource.data.reversesId is string
+                 && paymentId == 'rev_' + request.resource.data.reversesId
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/cuotaPayments/$(request.resource.data.reversesId)).data.kind == 'payment'
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/cuotaPayments/$(request.resource.data.reversesId)).data.socioId == request.resource.data.socioId
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/cuotaPayments/$(request.resource.data.reversesId)).data.periodKey == request.resource.data.periodKey
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/cuotaPayments/$(request.resource.data.reversesId)).data.amountCents == request.resource.data.amountCents)
+             );
+        allow update, delete: if false;
+      }
+
+      // What the sendCuotaReminders job sent, per socio per period. Function-owned.
+      match /cuotaReminders/{reminderId} {
+        allow read: if isOrgAdmin(orgId);
+        allow write: if false;
+      }
+
+      // The group's tasks (see GroupTaskDataModel), every org type. Members
+      // see them all; admins create, edit and delete; an assignee ticks their
+      // own done or undone. Shift answers go through respondToTaskShift.
+      match /tasks/{taskId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgAdmin(orgId) && isValidGroupTaskCreate(request.resource.data);
+        allow update: if (isOrgAdmin(orgId) && isValidGroupTaskAdminUpdate(request.resource.data, resource.data))
+          || (isOrgMember(orgId)
+            && request.auth.uid in resource.data.assigneeUids
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doneAt', 'doneBy'])
+            && isGroupTaskDoneTick(request.resource.data));
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Checklists dated relative to an anchor. Admins only.
+      match /taskTemplates/{templateId} {
+        allow read, delete: if isOrgAdmin(orgId);
+        allow create, update: if isOrgAdmin(orgId) && isValidTaskTemplate(request.resource.data);
+      }
+
+      // What the sendGroupTaskReminders job sent, per task, stage and member. Function-owned.
+      match /taskReminders/{reminderId} {
+        allow read: if isOrgAdmin(orgId);
+        allow write: if false;
+      }
+
+      // A group's messages (see GroupMessageDataModel). Written only by the
+      // sendGroupMessage / nudgeGroupMessage callables; an admin may only
+      // (un)pin one. A recipient with the app reads it while still a member —
+      // `recipientUids` is what the member's array-contains query proves.
+      match /messages/{messageId} {
+        allow read: if isOrgAdmin(orgId)
+          || (isOrgMember(orgId) && request.auth.uid in resource.data.recipientUids);
+        allow update: if isOrgAdmin(orgId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned'])
+          && request.resource.data.pinned is bool;
+        allow create, delete: if false;
+
+        // Per recipient: names socios and their channels, so admins only. The
+        // one client write is the WhatsApp tick the admin makes by hand.
+        match /deliveries/{recipientKey} {
+          allow read: if isOrgAdmin(orgId);
+          allow update: if isOrgAdmin(orgId)
+            && resource.data.whatsappSocioId != null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['whatsappSentAt', 'whatsappSentBy'])
+            && ((request.resource.data.whatsappSentAt == request.time && request.resource.data.whatsappSentBy == request.auth.uid)
+                || (request.resource.data.whatsappSentAt == null && request.resource.data.whatsappSentBy == null));
+          allow create, delete: if false;
+        }
+
+        // A recipient opened it. Once: a read is never undone.
+        match /reads/{uid} {
+          allow read: if isOrgAdmin(orgId) || isOwner(uid);
+          allow create: if isOwner(uid)
+            && isOrgMember(orgId)
+            && uid in groupMessage(orgId, messageId).recipientUids
+            && request.resource.data.keys().hasOnly(['readAt'])
+            && request.resource.data.readAt == request.time;
+          allow update, delete: if false;
+        }
+
+        // One vote per account; a second vote replaces the first. Who voted
+        // what is the junta's to see (admins), never the other socios'.
+        match /votes/{uid} {
+          allow read: if isOrgAdmin(orgId) || isOwner(uid);
+          allow create, update: if isOwner(uid)
+            && isOrgMember(orgId)
+            && isValidGroupPollVote(groupMessage(orgId, messageId), uid, request.resource.data);
+          allow delete: if false;
+        }
+      }
+
+      // Meeting minutes (see ActaDataSchema in RecordsDataModel). Admins write
+      // and correct them; a socio reads one only once an admin shares it.
+      // Members must query with `visibleToSocios == true` for the list to pass.
+      match /actas/{actaId} {
+        allow read: if isOrgAdmin(orgId)
+          || (isOrgMember(orgId) && resource.data.visibleToSocios == true);
+        allow create: if isOrgAdmin(orgId)
+          && orgHasSocioRoster(orgId)
+          && isValidActaCreate(request.resource.data);
+        allow update: if isOrgAdmin(orgId)
+          && isValidActaFields(request.resource.data)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdBy', 'createdAt']);
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Income and expenses beyond the cuota. Append-only like cuotaPayments: a
+      // mistake is cancelled by a reversal at `rev_<entryId>` that copies the
+      // entry, so an entry is reversed at most once and a reversal never.
+      match /ledgerEntries/{entryId} {
+        allow read: if isOrgAdmin(orgId);
+        allow create: if isOrgAdmin(orgId)
+          && orgHasSocioRoster(orgId)
+          && isValidLedgerEntry(request.resource.data)
+          && (
+               request.resource.data.reversesId == null
+               || (entryId == 'rev_' + request.resource.data.reversesId
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.reversesId == null
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.kind == request.resource.data.kind
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.amountCents == request.resource.data.amountCents
+                 && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.on == request.resource.data.on)
+             );
+        allow update, delete: if false;
       }
 
       // A pending request to join an `approval` org, keyed by the requester's
@@ -1347,7 +1891,7 @@ service cloud.firestore {
       )
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.municipalityId == resource.data.municipalityId
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentCount', 'readCount', 'villageSlug'])
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentCount', 'readCount', 'villageSlug', 'series'])
         && isAdditiveSignupFieldsChange(resource.data, request.resource.data)
         && isFrozenGroupSizeChange(resource.data, request.resource.data)
         && isValidVisibilityChange(resource.data, request.resource.data);
@@ -1611,6 +2155,14 @@ service cloud.firestore {
     // fine.
     match /pushQueue/{queueId} {
       allow read, write: if false;
+    }
+
+    // The nightly ranking of active pueblos by how much they have to show
+    // (refreshVillageRanking). Public: a guest's village page lists other
+    // pueblos from it. Function-owned, so no client can rank its own pueblo up.
+    match /villageRankings/{rankingId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // Public read-only app config (force-update gate). Written by admin/seed

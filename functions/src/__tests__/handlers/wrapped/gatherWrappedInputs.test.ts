@@ -4,8 +4,9 @@
 // reach the inputs at all. It also reads raw fields, so a malformed doc has to
 // degrade to a default rather than fail the whole Wrapped.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as admin from 'firebase-admin';
+import { logger } from 'firebase-functions/v2';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { gatherWrappedInputs } from '../../../wrapped/gatherInputs';
 
@@ -211,6 +212,77 @@ describe('gatherWrappedInputs', () => {
 
     expect(g.news.map((n) => n.id)).toEqual(['opening', 'closing']);
     expect(g.news[0].imageURL).toBeNull();
+  });
+
+  describe('article covers', () => {
+    const COVER = 'news/covered/images/cover.jpg';
+
+    async function seedCoveredArticle(): Promise<void> {
+      await db()
+        .doc('news/covered')
+        .set({
+          municipalityId: MID,
+          title: 'covered',
+          status: 'active',
+          publishedAt: admin.firestore.Timestamp.fromDate(IN_WINDOW),
+          coverImage: { storagePath: COVER, width: 10, height: 10 },
+          images: [],
+        });
+    }
+
+    async function seedCoverFile(token: string | null): Promise<void> {
+      const file = admin.storage().bucket().file(COVER);
+      await file.save('cover-bytes', { contentType: 'image/jpeg' });
+      // Set explicitly rather than trusting the upload: the token is the whole
+      // point of these cases, so neither may depend on what the emulator adds.
+      await file.setMetadata({ metadata: { firebaseStorageDownloadTokens: token } });
+    }
+
+    it('builds a download URL from the cover file token', async () => {
+      await seedCoveredArticle();
+      await seedCoverFile('tok-1');
+
+      const g = await gather();
+
+      expect(g.news[0].imageURL).toContain(`/o/${encodeURIComponent(COVER)}?alt=media&token=tok-1`);
+    });
+
+    // A dropped cover used to come back null with no trace, which is how a
+    // prod Wrapped shipped blank article tiles behind a clean log.
+    it('warns when the cover file has no download token', async () => {
+      const warn = vi.spyOn(logger, 'warn');
+      await seedCoveredArticle();
+      await seedCoverFile(null);
+
+      const g = await gather();
+
+      expect(g.news[0].imageURL).toBeNull();
+      expect(warn).toHaveBeenCalledWith('wrapped news image dropped', {
+        handler: 'gatherWrappedInputs',
+        reason: 'no-token',
+        path: COVER,
+      });
+      warn.mockRestore();
+    });
+
+    // Missing object and missing `storage.objects.get` take the same path.
+    it('warns with the error when the cover metadata cannot be read', async () => {
+      const warn = vi.spyOn(logger, 'warn');
+      await seedCoveredArticle();
+      // resetEmulators clears Firestore only; the earlier cases left a file here.
+      await admin.storage().bucket().file(COVER).delete({ ignoreNotFound: true });
+
+      const g = await gather();
+
+      expect(g.news[0].imageURL).toBeNull();
+      expect(warn).toHaveBeenCalledWith('wrapped news image dropped', {
+        handler: 'gatherWrappedInputs',
+        reason: 'metadata',
+        path: COVER,
+        error: expect.stringMatching(/\S/),
+      });
+      warn.mockRestore();
+    });
   });
 
   it('resolves organizer orgs and creators of counted events only', async () => {

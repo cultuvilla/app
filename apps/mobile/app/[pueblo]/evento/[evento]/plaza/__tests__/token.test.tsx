@@ -1,6 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import ClaimSeatScreen from '../[token]';
 import { claimEventSeat } from '@cultuvilla/shared/services/registrationService';
+import { getEvent } from '@cultuvilla/shared/services/eventService';
 import { patchUserProfile } from '@cultuvilla/shared/services/userService';
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -94,5 +95,26 @@ describe('ClaimSeatScreen — phone', () => {
     rerender(<ClaimSeatScreen />);
 
     expect(getByTestId('claim-phone').props.value).toBe('600333444');
+  });
+});
+
+describe('ClaimSeatScreen — questions', () => {
+  it("asks the event's questions and sends the answers with the claim", async () => {
+    (getEvent as jest.Mock).mockResolvedValueOnce({
+      id: 'ev1',
+      title: 'Concurso de parejas',
+      startDate: new Date('2026-08-15T18:00:00Z'),
+      signupGroupSize: 2,
+      telephoneRequired: false,
+      signupFields: [{ id: 'talla', label: 'Talla', type: 'text', required: true, options: [] }],
+    });
+    mockClaim.mockResolvedValue(undefined);
+    const { findByTestId, getByTestId } = render(<ClaimSeatScreen />);
+
+    fireEvent.changeText(await findByTestId('claim-answer-talla'), 'M');
+    fireEvent.press(getByTestId('claim-confirm'));
+
+    await findByTestId('claim-success');
+    expect(mockClaim).toHaveBeenCalledWith('ev1', 'tok1', expect.objectContaining({ answers: { talla: 'M' } }));
   });
 });
