@@ -21,7 +21,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` ⚠️ | medium | — | 2 cycles ago | — |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | 1 cycle ago | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | 1 cycle ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
-| [web-studio](ready/web-studio.md) `ready` | medium | — | this cycle | — |
+| [web-studio](ongoing/web-studio.md) | medium | none | this cycle | once the PR deploys to dev, pair a real phone at villa-events.web.app/estudio and write, edit and delete an article, then edit it in the app and back |
 
 ## Waiting on release 1.11.0
 
