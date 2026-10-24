@@ -1,13 +1,11 @@
 import { render, fireEvent } from '@testing-library/react-native';
+import { BlockEditor, type EditorBlock, type EditorImageBlock } from '../BlockEditor';
 import {
-  BlockEditor,
   editorBlockToNewsText,
   newsTextToEditorBlock,
-  type EditorBlock,
   type EditorHeadingBlock,
-  type EditorImageBlock,
   type EditorTextBlock,
-} from '../BlockEditor';
+} from '@cultuvilla/shared/models/news/newsEditorBlocks';
 
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 
