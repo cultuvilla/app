@@ -111,6 +111,37 @@ consent). It is a *lead* for the team to call back, not an app flow on the web:
 
 This is the exception, not a precedent: the next web write needs its own yes.
 
+## The web studio: `/estudio` (2026-10-24)
+
+Decided by the user on 2026-10-24, when authors asked to write articles from a
+PC: a **separate, signed-in web app** for authoring, rather than writes on the
+read site ([web-studio.md](../plans/ongoing/web-studio.md)). It is the
+"non-anonymous web audience" this record named as the trigger to revisit, and it
+leaves the read site exactly as it was:
+
+- **Its own app, never the read site.** `apps/studio/` is a static React app
+  (Vite) that Hosting serves under `/estudio`, ahead of the `readSite`
+  catch-all. The read site still ships no Firebase SDK and stays anonymous.
+- **Accounts stay in the app.** The only sign-in is pairing with the signed-in
+  app: the studio shows a QR code, the app approves it, and the studio receives
+  a custom token for that user (`createStudioPairing` / `claimStudioPairing` /
+  `inspectStudioPairing` / `approveStudioPairing`). There is no web sign-up and
+  no password, so only people who already use the app can write. The QR code
+  carries only the pairing id; the token is redeemed with a secret that never
+  leaves the studio tab, and the app shows the studio's code so the user can
+  check they approve their own screen. The session lives in that tab only.
+- **Writes go through the rules as the real user.** The studio calls the same
+  shared services as the app (`createNewsPost`, `uploadNewsImage`, …); there is
+  no Admin-SDK write path, so authority is never duplicated.
+- **One content model, two editors.** The studio's rich-text document converts
+  to and from the stored `NewsBlock[]` in `packages/shared`
+  (`models/news/newsDocument.ts`), round-trip tested, so an article written on
+  either side edits on the other.
+- **The boundary:** the studio is for *authoring* by existing users. It is never
+  a second copy of the app — no feed, no sign-up, no event registration. It
+  started with articles; every other kind of content (events, carteles, village
+  info) needs its own yes.
+
 ## Operating notes
 
 - `/robots.txt` and `/favicon.ico` stay static files per env

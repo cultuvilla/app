@@ -37,6 +37,7 @@ export const RESERVED_ROOT_SEGMENTS = [
   'descubrir',
   'embajadores',
   'entrar',
+  'estudio',
   'grupos',
   'legal',
   'mi-pueblo',
@@ -103,6 +104,9 @@ export const SEAT_CLAIM_SEGMENT = 'plaza';
 export const WORD_SEGMENT = 'palabra';
 export const NEW_WORD_SEGMENT = 'nueva';
 export const WRAPPED_SEGMENT = 'fiestas';
+/** The web studio, a separate app Hosting serves under this segment. */
+export const STUDIO_SEGMENT = 'estudio';
+export const STUDIO_PAIRING_SEGMENT = 'vincular';
 
 /**
  * The first `_` splits a ref: slugs only ever contain `[a-z0-9-]`, while ids may
@@ -194,6 +198,15 @@ export function userPath(uid: string): string {
   return `/usuario/${uid}`;
 }
 
+/**
+ * Where the studio's QR code points: the app opens it to approve a studio
+ * sign-in, and the studio answers it on a phone without the app.
+ */
+export function studioPairingPath(pairingId: string): string {
+  if (!pairingId) throw new Error('urls: pairingId is required for a studio pairing');
+  return `/${STUDIO_SEGMENT}/${STUDIO_PAIRING_SEGMENT}/${pairingId}`;
+}
+
 export type ParsedAppPath =
   | { type: 'village'; villageSlug: string }
   | {
@@ -208,7 +221,8 @@ export type ParsedAppPath =
     }
   | { type: 'seatClaim'; villageSlug: string; ref: string; id: string; token: string }
   | { type: 'wrapped'; villageSlug: string; year: number }
-  | { type: 'user'; uid: string };
+  | { type: 'user'; uid: string }
+  | { type: 'studioPairing'; pairingId: string };
 
 /**
  * Recognises the shareable paths — the ones a link from outside the app may
@@ -223,6 +237,11 @@ export function parseAppPath(pathname: string): ParsedAppPath | null {
 
   if (first === 'usuario') {
     return segments.length === 2 && second ? { type: 'user', uid: second } : null;
+  }
+  if (first === STUDIO_SEGMENT) {
+    return segments.length === 3 && second === STUDIO_PAIRING_SEGMENT && third
+      ? { type: 'studioPairing', pairingId: third }
+      : null;
   }
   if (isReservedRootSegment(first)) return null;
 

@@ -1,4 +1,5 @@
-import type { NewsMention, MentionEntityType } from '@cultuvilla/shared/models/news/NewsPostDataModel';
+import type { NewsMention } from '@cultuvilla/shared/models/news/NewsPostDataModel';
+import type { MentionCandidate } from '@cultuvilla/shared/services/mentionCandidateService';
 
 export interface MentionRun {
   /** The characters of this run, as they appear in the block text. */
@@ -125,12 +126,6 @@ export function splitMentionsAtCaret<T extends Span>(
     // straddles the caret → dropped
   }
   return { before, after };
-}
-
-export interface MentionCandidate {
-  entityType: MentionEntityType;
-  entityId: string;
-  label: string;
 }
 
 export interface InsertMentionResult {

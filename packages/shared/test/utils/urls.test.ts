@@ -12,6 +12,7 @@ import {
   parseEntityRef,
   seatClaimPath,
   slugify,
+  studioPairingPath,
   userPath,
   villagePath,
   villageSectionPath,
@@ -102,6 +103,14 @@ describe('parseAppPath', () => {
       token: 'tok',
     });
     expect(parseAppPath(userPath('u1'))).toEqual({ type: 'user', uid: 'u1' });
+  });
+
+  it('round-trips a studio pairing, and reads nothing else under /estudio', () => {
+    expect(studioPairingPath('p1')).toBe('/estudio/vincular/p1');
+    expect(parseAppPath(studioPairingPath('p1'))).toEqual({ type: 'studioPairing', pairingId: 'p1' });
+    expect(parseAppPath('/estudio')).toBeNull();
+    expect(parseAppPath('/estudio/articulos/a1')).toBeNull();
+    expect(isReservedRootSegment('estudio')).toBe(true);
   });
 
   it('round-trips a fiestas Wrapped', () => {

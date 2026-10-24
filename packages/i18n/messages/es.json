@@ -2096,5 +2096,93 @@
       "muteError": "No se ha podido guardar el ajuste.",
       "actionError": "No se ha podido completar. Inténtalo de nuevo."
     }
+  },
+  "studio": {
+    "pairing": {
+      "title": "Entrar en el Estudio",
+      "intro": "Vas a abrir tu cuenta en el Estudio de Cultuvilla, en el ordenador que muestra este código.",
+      "compare": "Comprueba que este es el código que ves en la pantalla del ordenador:",
+      "approve": "Sí, entrar en el Estudio",
+      "cancel": "No es mi ordenador",
+      "warning": "Si no estás delante de ese ordenador, no confirmes: quien lo use podría escribir con tu cuenta.",
+      "done": "Listo. Ya puedes escribir en el ordenador.",
+      "cancelled": "No se ha abierto el Estudio.",
+      "signInReason": "Inicia sesión para abrir el Estudio en tu ordenador.",
+      "signIn": "Iniciar sesión",
+      "error": {
+        "expired": "Este código ha caducado. Recarga el Estudio en el ordenador y escanea el nuevo.",
+        "used": "Este código ya se ha usado. Recarga el Estudio en el ordenador y escanea el nuevo.",
+        "generic": "No se ha podido abrir el Estudio. Inténtalo de nuevo."
+      }
+    },
+    "web": {
+      "name": "Estudio de Cultuvilla",
+      "tagline": "Escribe los artículos de tu pueblo desde el ordenador.",
+      "signIn": {
+        "title": "Entra con tu móvil",
+        "step1": "Abre la cámara del móvil y apunta a este código.",
+        "step2": "Toca el enlace que aparece: se abrirá Cultuvilla.",
+        "step3": "Comprueba que el código coincide y confirma.",
+        "codeLabel": "Código",
+        "waiting": "Esperando a tu móvil…",
+        "signingIn": "Entrando…",
+        "expired": "Este código ha caducado.",
+        "renew": "Mostrar otro código",
+        "error": "No se ha podido preparar el código. Inténtalo de nuevo.",
+        "noApp": "¿Aún no usas Cultuvilla? Descarga la app, crea tu cuenta y vuelve aquí.",
+        "download": "Descargar la app",
+        "sessionNote": "La sesión se cierra al cerrar esta pestaña."
+      },
+      "phone": {
+        "title": "Abre este enlace con la app",
+        "body": "Este código sirve para entrar en el Estudio desde un ordenador. Ábrelo con la app de Cultuvilla para confirmarlo.",
+        "open": "Abrir en la app"
+      },
+      "signOut": "Cerrar sesión",
+      "articles": {
+        "title": "Mis artículos",
+        "new": "Nuevo artículo",
+        "empty": "Aún no has escrito ningún artículo. Empieza uno nuevo.",
+        "hidden": "Oculto",
+        "updated": "Editado {date}",
+        "loadError": "No se han podido cargar tus artículos."
+      },
+      "editor": {
+        "back": "Mis artículos",
+        "villageLabel": "Pueblo",
+        "villagePlaceholder": "Elige el pueblo…",
+        "noVillages": "Únete a un pueblo desde la app para escribir sus artículos.",
+        "titlePlaceholder": "Título del artículo",
+        "coverChange": "Cambiar portada",
+        "coverRemove": "Quitar portada",
+        "bodyPlaceholder": "Escribe aquí… usa @ para mencionar grupos, eventos, lugares, pueblos o artículos",
+        "linkPrompt": "Dirección del enlace (https://…)",
+        "linkInvalid": "El enlace debe empezar por http:// o https://",
+        "mentionEmpty": "Nada que mencionar con ese nombre",
+        "publish": "Publicar",
+        "saveChanges": "Guardar cambios",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "view": "Ver en la web",
+        "deleteConfirm": "¿Seguro que quieres eliminar este artículo? No se puede deshacer.",
+        "notFound": "Este artículo no existe o no puedes editarlo.",
+        "unsaved": "Tienes cambios sin guardar.",
+        "addPerson": "Añadir escritor",
+        "addGroup": "Añadir grupo",
+        "groupsLabel": "Grupos",
+        "remove": "Quitar",
+        "required": {
+          "village": "Elige el pueblo.",
+          "title": "Escribe un título.",
+          "category": "Elige una categoría.",
+          "content": "Escribe el cuerpo del artículo."
+        },
+        "error": {
+          "save": "No se ha podido guardar el artículo. Inténtalo de nuevo.",
+          "delete": "No se ha podido eliminar el artículo.",
+          "image": "Esa imagen no vale: debe ser una imagen de menos de 5 MB."
+        }
+      }
+    }
   }
 }
