@@ -101,6 +101,14 @@ export { sendAuthSignInEmail } from './auth/sendAuthSignInEmail';
 export { sendAuthOtpCode } from './auth/sendAuthOtpCode';
 export { verifyAuthOtpCode } from './auth/verifyAuthOtpCode';
 
+// Web studio sign-in: pairing a desktop browser with the signed-in app
+export {
+  createStudioPairing,
+  claimStudioPairing,
+  inspectStudioPairing,
+  approveStudioPairing,
+} from './studio/studioPairing';
+
 // Observability (client error ingestion + pseudonymized identity)
 export { logClientError } from './observability/logClientError';
 export { getBusinessSnapshot } from './business/getBusinessSnapshot';

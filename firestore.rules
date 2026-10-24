@@ -2157,6 +2157,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Web studio sign-in pairings (StudioPairing model). Only the pairing
+    // callables touch them: a readable pairing would hand its approved user's
+    // session to anyone holding the id, which rides in a public QR code.
+    match /studioPairings/{pairingId} {
+      allow read, write: if false;
+    }
+
     // The nightly ranking of active pueblos by how much they have to show
     // (refreshVillageRanking). Public: a guest's village page lists other
     // pueblos from it. Function-owned, so no client can rank its own pueblo up.
