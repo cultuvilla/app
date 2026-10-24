@@ -149,6 +149,15 @@ iOS and Android only — no Expo web export, no `.web.*` files, no
 `Platform.OS === 'web'` branches. A new entity needs a read page there as well
 as its app screen.
 
+The one signed-in web surface is the **web studio** (`apps/studio/`, served
+under `/estudio`): a separate React app where existing users write articles on a
+desktop. It signs in only by pairing with the app (no web accounts), writes
+through the shared services and the rules as the real user, and shares models
+and services with the app — never screens. Its auth boundary is
+[apps/studio/src/auth/StudioAuth.tsx](apps/studio/src/auth/StudioAuth.tsx), the
+counterpart of the app's `AuthContext.tsx`. It is for authoring only: never a
+second copy of the app.
+
 Read [docs/decisions/web-is-a-read-site.md](docs/decisions/web-is-a-read-site.md)
 before adding anything to the web, or proposing that web sign-up return.
 
