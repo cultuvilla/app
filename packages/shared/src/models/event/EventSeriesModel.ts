@@ -90,3 +90,19 @@ export function firstOfEachSeries<E extends { series: EventSeries | null }>(even
     return true;
   });
 }
+
+/**
+ * How many rows a feed that collapses series should ask for next. A page is
+ * counted in occurrence docs but read in cards, so one daily series can fill
+ * a whole page and leave a single card; the page doubles — up to `max` —
+ * while it came back full and still shows fewer than `targetCards` cards.
+ */
+export function grownFeedSize(
+  rows: readonly { series: EventSeries | null }[],
+  current: number,
+  { targetCards, max }: { targetCards: number; max: number },
+): number {
+  if (rows.length < current || current >= max) return current;
+  if (firstOfEachSeries(rows).length >= targetCards) return current;
+  return Math.min(current * 2, max);
+}

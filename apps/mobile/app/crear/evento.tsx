@@ -258,8 +258,14 @@ export default function NewEventScreen() {
   // left behind by adding a second org must not slip through. The same value is
   // saved AND used to build the event's URL, so a private event is never opened
   // at a URL that spells out its title.
-  const visibilityOrgId =
-    privateToOrg && organizerOrgIds.length === 1 ? (organizerOrgIds[0] ?? null) : null;
+  // A day of a weekly series keeps the series' stored visibility whatever the
+  // organizer set becomes: the rules refuse a change on one occurrence, and
+  // deriving it here would turn an unrelated edit into a refused save.
+  const visibilityOrgId = loadedEvent?.series
+    ? loadedEvent.visibilityOrgId
+    : privateToOrg && organizerOrgIds.length === 1
+      ? (organizerOrgIds[0] ?? null)
+      : null;
 
   // Only an org whose members are admitted by approval may hold a private
   // event (the rules refuse the rest). Loaded for the single organizing org,
@@ -721,7 +727,9 @@ export default function NewEventScreen() {
           {/* Only offered with exactly one organizing org: "private" has to
               name the single group whose membership is the guest list, and a
               two-org event has no such group. */}
-          {organizerOrgIds.length === 1 ? (
+          {/* A series shares one visibility (firestore.rules refuses a change
+              on one occurrence), so its days offer no switch. */}
+          {organizerOrgIds.length === 1 && !loadedEvent?.series ? (
             <VStack gap={1}>
               <ToggleField
                 label={t('event.privateToOrg')}

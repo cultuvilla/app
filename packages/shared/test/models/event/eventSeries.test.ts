@@ -3,6 +3,7 @@ import {
   EventSeriesSchema,
   MAX_SERIES_DAYS,
   firstOfEachSeries,
+  grownFeedSize,
   isoWeekday,
   seriesSpanDays,
   weeklyOccurrences,
@@ -119,5 +120,29 @@ describe('series on the event model', () => {
   it('rejects a weekday outside 1–7 and an empty weekday list', () => {
     expect(() => EventSeriesSchema.parse({ id: 's', index: 0, weekdays: [0], until: new Date() })).toThrow();
     expect(() => EventSeriesSchema.parse({ id: 's', index: 0, weekdays: [], until: new Date() })).toThrow();
+  });
+});
+
+describe('grownFeedSize', () => {
+  const daily = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ id: `d${String(i)}`, series: { id: 'daily', index: i, weekdays: [1], until: new Date() } }));
+  const solo = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${String(i)}`, series: null }));
+  const opts = { targetCards: 20, max: 400 };
+
+  it('doubles a full page that one series has crowded into too few cards', () => {
+    expect(grownFeedSize([...daily(49), ...solo(1)], 50, opts)).toBe(100);
+  });
+
+  it('stays put once the page shows enough cards', () => {
+    expect(grownFeedSize([...daily(30), ...solo(20)], 50, opts)).toBe(50);
+  });
+
+  it('stays put when the page was not full — there is nothing more to read', () => {
+    expect(grownFeedSize(daily(30), 50, opts)).toBe(50);
+  });
+
+  it('never passes the ceiling', () => {
+    expect(grownFeedSize(daily(400), 400, opts)).toBe(400);
+    expect(grownFeedSize(daily(300), 300, opts)).toBe(400);
   });
 });
