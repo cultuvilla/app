@@ -181,6 +181,19 @@ describe('selectors', () => {
     );
   });
 
+  // A post-deploy backfill corrects data the new code must already be live to
+  // keep right (a trigger's read model): run before the deploy, its work is
+  // undone by the old code in the window. The deploy applies it afterwards.
+  it('auto-applies a post-deploy backfill only in the post-deploy pass', () => {
+    const phased = [
+      meta({ id: 'before', phase: 'pre-deploy', autoApply: ['prod'] }),
+      meta({ id: 'whenever', phase: 'none', autoApply: ['prod'] }),
+      meta({ id: 'after', phase: 'post-deploy', autoApply: ['prod'] }),
+    ];
+    assert.deepEqual(ids(selectAutoApplicable(phased, 'prod')), ['before', 'whenever']);
+    assert.deepEqual(ids(selectAutoApplicable(phased, 'prod', { phase: 'post-deploy' })), ['after']);
+  });
+
   it('selects auto-applicable backfills only for their opted-in env', () => {
     assert.deepEqual(ids(selectAutoApplicable(registry, 'beta')), ['auto-beta']);
     assert.deepEqual(ids(selectAutoApplicable(registry, 'prod')), []);

@@ -36,7 +36,7 @@ const USAGE = `Usage:
   node scripts/backfills-cli.mjs list
   node scripts/backfills-cli.mjs verify     --env=${ENVS.join('|')}
   node scripts/backfills-cli.mjs run        --id=<id> --env=${ENVS.join('|')} [--apply] [--confirm] [--verbose]
-  node scripts/backfills-cli.mjs auto-apply --env=${ENVS.join('|')} [--apply] [--confirm] [--verbose]`;
+  node scripts/backfills-cli.mjs auto-apply --env=${ENVS.join('|')} [--phase=post-deploy] [--apply] [--confirm] [--verbose]`;
 
 function requireEnv(args) {
   if (!args.env || !ENVS.includes(args.env)) {
@@ -121,15 +121,21 @@ async function cmdRun(args) {
 /**
  * Run every backfill opted into `autoApply` for this env that has no marker
  * yet. A no-op unless a backfill opts in, and every opted-in backfill is
- * idempotent by validateMeta, so this is safe to call on every deploy.
+ * idempotent by validateMeta, so this is safe to call on every deploy. Without
+ * `--phase` it is the pass before the deploy (everything but post-deploy);
+ * `--phase=post-deploy` is the pass after it.
  */
 async function cmdAutoApply(args) {
   const env = requireEnv(args);
+  if (args.phase && args.phase !== 'post-deploy') {
+    console.error(`--phase must be post-deploy (the pass after the deploy), or omitted.\n\n${USAGE}`);
+    process.exit(2);
+  }
   requireConfirmForSharedEnv(env, args.confirm);
   const backfills = await loadBackfills();
-  const eligible = selectAutoApplicable(backfills.map((b) => b.meta), env);
+  const eligible = selectAutoApplicable(backfills.map((b) => b.meta), env, { phase: args.phase ?? undefined });
   if (eligible.length === 0) {
-    console.log(`No auto-applicable backfills for ${env} — nothing to do.`);
+    console.log(`No auto-applicable ${args.phase ?? 'pre-deploy'} backfills for ${env} — nothing to do.`);
     return;
   }
 

@@ -259,6 +259,16 @@ jobs:
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: firebase deploy --only functions --project ${{ inputs.firebase_alias }} --non-interactive --force
 
+      # The pass after the deploy: `post-deploy` backfills that opted into
+      # autoApply, which correct data only the new code keeps right — e.g. a
+      # recount of a read model whose trigger has just gone live (writes in the
+      # window between the pre-deploy backfill and this deploy were missed by
+      # the old code). Same marker rule as the pre-deploy pass. Order is locked
+      # by backfillGate.test.ts.
+      - name: Auto-apply opted-in post-deploy backfills
+        if: ${{ inputs.firebase_alias != 'dev' && steps.release.outputs.hold_backend != 'true' }}
+        run: node scripts/backfills-cli.mjs auto-apply --phase=post-deploy --env ${{ inputs.firebase_alias }} --confirm --apply
+
       # Belt-and-suspenders (fixture-login security model, Option 1C): a deployed
       # bundle must NEVER be built with the E2E emulator bypass enabled. The flag
       # is never set in this workflow; assert that positively so a future edit

@@ -76,6 +76,18 @@ describe('deploy backfill gate invariant', () => {
   });
 });
 
+describe('post-deploy auto-apply', () => {
+  // A reconcile of a trigger-maintained read model is only durable once the
+  // trigger is live, so it runs after the functions deploy, never before.
+  it('runs the post-deploy pass after Cloud Functions deploy', () => {
+    const postPos = deployWorkflow.indexOf('auto-apply --phase=post-deploy');
+    const functionsPos = deployWorkflow.indexOf('name: Deploy Cloud Functions');
+    expect(postPos, 'post-deploy auto-apply step not found').toBeGreaterThanOrEqual(0);
+    expect(functionsPos, 'functions deploy step not found').toBeGreaterThanOrEqual(0);
+    expect(postPos).toBeGreaterThan(functionsPos);
+  });
+});
+
 describe('release tag invariant', () => {
   const prodWorkflow = read('.github/workflows/deploy-prod.yml');
 
