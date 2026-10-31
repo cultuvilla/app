@@ -1614,6 +1614,35 @@
     "noUpcomingEvents": "No hay eventos próximos.",
     "openGroupPage": "Ver la página del grupo",
     "manage": "Gestionar",
+    "roleAdmin": "Admin",
+    "roleMember": "Miembro",
+    "summary": {
+      "title": "Lo próximo",
+      "cuota": "Cuota {period}",
+      "nothing": "Nada pendiente por ahora."
+    },
+    "sections": {
+      "avisos": "Avisos",
+      "eventos": "Eventos",
+      "tareas": "Tareas",
+      "cuota": "Mi cuota",
+      "actas": "Actas",
+      "mis-datos": "Mis datos",
+      "socios": "Socios",
+      "cobros": "Cuota",
+      "mensajes": "Mensajes",
+      "gestion-tareas": "Tareas",
+      "registros": "Registros",
+      "miembros": "Miembros",
+      "ajustes": "Ajustes",
+      "withCount": "{label}, {count} pendientes",
+      "empty": {
+        "avisos": "La junta no ha enviado avisos.",
+        "tareas": "No tienes tareas pendientes.",
+        "cuota": "El grupo aún no ha configurado la cuota.",
+        "actas": "La junta aún no ha compartido actas."
+      }
+    },
     "empty": "Ya no perteneces a ningún grupo.",
     "loadError": "No se han podido cargar tus grupos.",
     "consent": {

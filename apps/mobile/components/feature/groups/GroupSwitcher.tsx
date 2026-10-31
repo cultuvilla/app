@@ -1,45 +1,54 @@
 import { ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import type { MyGroup } from '../../../lib/orgs/useMyGroups';
-import { Pressable, Text } from '../../primitives';
+import { BottomSheet, HStack, Pressable, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 
-/** The user's groups as a row of chips. Not rendered with a single group. */
-export function GroupSwitcher({
+/** Every group the user belongs to, with their role in it; opened from the group's name in the header. */
+export function GroupSwitcherSheet({
+  visible,
   groups,
   selectedId,
   onSelect,
+  onClose,
 }: {
+  visible: boolean;
   groups: MyGroup[];
   selectedId: string | null;
   onSelect: (orgId: string) => void;
+  onClose: () => void;
 }) {
   const { t } = useT();
-  if (groups.length < 2) return null;
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      accessibilityLabel={t('groups.switcherLabel')}
-      contentContainerClassName="gap-2 px-4 py-2"
-      testID="group-switcher"
-    >
-      {groups.map(({ org }) => {
-        const selected = org.id === selectedId;
-        return (
-          <Pressable
-            key={org.id}
-            testID={`group-switcher-${org.id}`}
-            accessibilityRole="tab"
-            accessibilityState={{ selected }}
-            onPress={() => onSelect(org.id)}
-            className={`rounded-full px-4 py-2 border ${selected ? 'bg-accent border-accent' : 'bg-surface border-subtle'}`}
-          >
-            <Text variant="bodySm" tone={selected ? 'onAccent' : 'primary'}>
-              {org.name}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+    <BottomSheet visible={visible} onClose={onClose} title={t('groups.switcherLabel')} closeLabel={t('common.close')}>
+      <ScrollView style={{ flexShrink: 1 }}>
+        <VStack gap={1} className="px-5 pb-2">
+          {groups.map(({ org, role }) => {
+            const selected = org.id === selectedId;
+            return (
+              <Pressable
+                key={org.id}
+                testID={`group-switcher-${org.id}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => onSelect(org.id)}
+                className={`rounded-md px-3 py-3 ${selected ? 'bg-surface' : ''}`}
+              >
+                <HStack gap={3} align="center">
+                  <VStack gap={0} className="flex-1">
+                    <Text className={selected ? 'font-bold' : ''}>{org.name}</Text>
+                    <Text variant="bodySm" tone="muted">
+                      {t(role === 'admin' ? 'groups.roleAdmin' : 'groups.roleMember')}
+                    </Text>
+                  </VStack>
+                  {selected ? <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.fg.accent} /> : null}
+                </HStack>
+              </Pressable>
+            );
+          })}
+        </VStack>
+      </ScrollView>
+    </BottomSheet>
   );
 }

@@ -5,6 +5,8 @@ import {
   entityPath,
   eventLinkTarget,
   festivalPosterLinkTarget,
+  groupPath,
+  groupSectionPath,
   newWordPath,
   orgJoinPath,
   personPath,
@@ -15,6 +17,7 @@ import {
   wordPath,
   wrappedPath,
   type EntityLinkTarget,
+  type GroupSection,
   type UrlEntityKind,
   type VillageSection,
 } from '@cultuvilla/shared/utils';
@@ -65,6 +68,11 @@ export function myVillageHref(villageId?: string): HrefPath {
 }
 
 export const villageHref = (villageSlug: string): HrefPath => href(villagePath(villageSlug));
+
+/** The Grupos tab, opened on one group. */
+export const groupHref = (orgId: string): HrefPath => href(groupPath(orgId));
+
+export const groupSectionHref = (orgId: string, section: GroupSection): HrefPath => href(groupSectionPath(orgId, section));
 
 export const villageSectionHref = (villageSlug: string, section: VillageSection, query?: string): HrefPath =>
   href(`${villageSectionPath(villageSlug, section)}${query ? `?${query}` : ''}`);
