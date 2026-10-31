@@ -19,8 +19,8 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | dev | 4 cycles ago | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
 | [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) ⚠️ | high | prod | 2 cycles ago \* | after 1.7.1's first full day (check the `events_20261008` table on 2026-10-09), look for `ANDROID`/`IOS` rows; if there are none, check the stream boxes on GA4 Admin → BigQuery links; in parallel, apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go) |
 | [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` ⚠️ | medium | — | 2 cycles ago | — |
-| [group-toolkit](ongoing/group-toolkit.md) | high | dev | 1 cycle ago | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | 1 cycle ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
+| [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
 | [web-studio](ongoing/web-studio.md) | medium | none | this cycle | once the PR deploys to dev, pair a real phone at villa-events.web.app/estudio and write, edit and delete an article, then edit it in the app and back |
 
 ## Waiting on release 1.11.0
