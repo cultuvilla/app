@@ -112,6 +112,20 @@ Shipped in one PR (`feat/group-toolkit-phase1`). Later phases build on this mode
   is not re-synced when a user renames. A Maestro flow for the tab (its testIDs are
   unit-tested only, see `e2e/native/uncovered.json`).
 
+### Navigation — as rebuilt (2026-10-31)
+
+The tab's single scroll became a home plus one screen per feature
+(`feat/grupos-screens`): `app/(tabs)/grupos.tsx` shows the unanswered consent
+card, a "Lo próximo" summary (`GroupSummary`) and button grids
+(`GroupSectionGrid`); each button opens `app/grupos/[grupo]/[seccion].tsx`, which
+renders the existing component (`GroupSectionBody`). Which sections a viewer gets is
+`groupSections` (`lib/orgs/groupSections.ts`); paths are `groupSectionPath` in
+`packages/shared/src/utils/urls.ts`. The switcher is the group's name in the
+header (a sheet, `GroupSwitcherSheet`), on the home and on every section screen;
+switching keeps the section when the other group has it. Group notifications
+route to their section (`cuota`, `tareas`, `avisos`); WhatsApp and email links
+keep `/grupos?grupo=` so binaries without these routes still open the tab.
+
 ## Handoff
 
 The `socio-roster` backfill auto-applies before each env's deploy, i.e. before the
