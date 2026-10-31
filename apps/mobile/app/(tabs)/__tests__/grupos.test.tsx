@@ -95,28 +95,22 @@ describe('Grupos tab', () => {
     expect(await findByTestId('groups-empty')).toBeTruthy();
   });
 
-  it('names the single group in the header, with no switcher', async () => {
+  it('titles the header Grupos, with no switcher for a single group', async () => {
     mockGroups = [group('Anduela')];
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getByTestId('header-label').props.children).toBe('Anduela');
+    expect(getByTestId('header-label').props.children).toBe('tabs.groups');
     expect(queryByTestId('group-switcher-open')).toBeNull();
-  });
-
-  it("links to the group's public page", async () => {
-    mockGroups = [group('Anduela')];
-    const { findByTestId } = render(<GroupsTabScreen />);
-    fireEvent.press(await findByTestId('group-open-page'));
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/v/entidad/'));
   });
 
   it('reopens the last-used group and switches from the header sheet', async () => {
     mockGroups = [group('Anduela'), group('Peña')];
     mockRemembered = 'Peña';
-    const { findByTestId, getByTestId, getAllByText, queryByText } = render(<GroupsTabScreen />);
+    const { findByTestId, getByTestId, getAllByText, getByText, queryByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    // The header and the home's title.
-    expect(getAllByText('Peña')).toHaveLength(2);
+    // The home's title names the group; the header just says Grupos.
+    expect(getAllByText('Peña')).toHaveLength(1);
+    expect(getByText('tabs.groups')).toBeTruthy();
     expect(queryByText('Anduela')).toBeNull();
     fireEvent.press(getByTestId('group-switcher-open'));
     fireEvent.press(await findByTestId('group-switcher-Anduela'));
@@ -166,6 +160,29 @@ describe('Grupos tab', () => {
     expect(getByText('Matanza')).toBeTruthy();
   });
 
+  // Regression: the row cards carried `h-full`. Under Yoga on native height:100%
+  // resolves against the ScrollView viewport, so the Avisos card ran down the
+  // screen without end. Equal heights come from the row's stretch instead.
+  it('the notice and task cards declare no percentage height (breaks native layout)', async () => {
+    mockGroups = [group('Anduela')];
+    mockNotices = [{ id: 'm1', title: 'Cena', body: 'El sábado', pinned: false, signerName: 'La junta', sentAt: new Date(), sentBy: 'x' }];
+    mockMyTasks = [{ id: 't1', title: 'Comprar leña', dueOn: null, time: null, slots: null, claimedUids: [] }];
+    const { findByTestId, getByTestId } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    const classNames: string[] = [];
+    const walk = (node: unknown): void => {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) return node.forEach(walk);
+      const n = node as { props?: Record<string, unknown>; children?: unknown };
+      const cn = n.props?.['className'];
+      if (typeof cn === 'string') classNames.push(cn);
+      walk(n.children);
+    };
+    walk([getByTestId('group-home-notice-m1'), getByTestId('group-home-task-t1')].map((el) => el.children));
+    expect(classNames.length).toBeGreaterThan(0);
+    expect(classNames.join(' ')).not.toMatch(/\bh-full\b/);
+  });
+
   it("shows the member's cuota status, opening its screen", async () => {
     mockGroups = [group('Anduela')];
     mockCuota = { ...NO_CUOTA, periodKey: '2026', rows: [{ id: 's1', kind: 'member' }], statuses: [{ socioId: 's1', status: 'vencida' }] };
@@ -193,7 +210,7 @@ describe('Grupos tab', () => {
     mockParams = { grupo: 'Peña' };
     const { findByTestId, getAllByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getAllByText('Peña')).toHaveLength(2);
+    expect(getAllByText('Peña')).toHaveLength(1);
     expect(mockRemember).toHaveBeenCalledWith('Peña');
   });
 

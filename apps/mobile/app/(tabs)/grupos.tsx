@@ -20,7 +20,7 @@ import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGr
 import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCard';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
-import { eventHref, groupSectionHref, orgHref } from '../../lib/navigation/routes';
+import { eventHref, groupSectionHref } from '../../lib/navigation/routes';
 import { useWatch } from '../../lib/hooks/useWatch';
 import { CUOTA_STATUS_TONE } from '../../lib/orgs/cuota';
 import { useMyCuota } from '../../lib/orgs/useMyCuota';
@@ -69,7 +69,7 @@ export default function GroupsTabScreen() {
   return (
     <Screen padded={false} topInset={false} bottomInset={false}>
       <AppHeader
-        centerLabel={selected?.org.name ?? t('groups.title')}
+        centerLabel={t('tabs.groups')}
         onLabelPress={groups.length > 1 ? () => setSwitching(true) : undefined}
         labelAccessibilityLabel={t('groups.switcherLabel')}
         labelTestID="group-switcher-open"
@@ -140,11 +140,6 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
           <Text tone="muted" variant="bodySm">
             {t(`organization.${org.type}`)}
           </Text>
-          <Pressable testID="group-open-page" accessibilityRole="link" onPress={() => router.push(orgHref(org))} className="self-start pt-1">
-            <Text variant="bodySm" className="text-accent">
-              {t('groups.openGroupPage')}
-            </Text>
-          </Pressable>
         </VStack>
       </HStack>
 
