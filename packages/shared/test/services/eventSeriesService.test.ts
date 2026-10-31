@@ -57,7 +57,7 @@ beforeEach(() => {
 
 describe('createEventSeries', () => {
   it('writes every occurrence in one batch, linked by the first id', async () => {
-    const ids = await createEventSeries(input, { weekdays: [4, 2], until: at(2026, 10, 29) });
+    const ids = await createEventSeries(input, { frequency: 'weekly', weekdays: [4, 2], until: at(2026, 10, 29) });
 
     expect(ids).toEqual(['new-0', 'new-1', 'new-2', 'new-3']);
     expect(batch.commit).toHaveBeenCalledTimes(1);
@@ -65,14 +65,26 @@ describe('createEventSeries', () => {
     expect(written.map((e) => (e['startDate'] as Date).getDate())).toEqual([20, 22, 27, 29]);
     expect(written.map((e) => (e['series'] as { index: number }).index)).toEqual([0, 1, 2, 3]);
     for (const e of written) {
-      expect(e['series']).toMatchObject({ id: 'new-0', weekdays: [2, 4] });
+      expect(e['series']).toMatchObject({ id: 'new-0', frequency: 'weekly', weekdays: [2, 4] });
       expect(e['villageSlug']).toBe('villa');
       expect((e['endBoundary'] as Date).getHours()).toBe(19);
     }
   });
 
+  it("writes a monthly series on the first day's date, tagged monthly, with its weekday for older binaries", async () => {
+    const ids = await createEventSeries(input, { frequency: 'monthly', until: at(2027, 1, 20) });
+
+    expect(ids).toHaveLength(4);
+    const written = batch.set.mock.calls.map((c) => c[1] as Record<string, unknown>);
+    expect(written.map((e) => (e['startDate'] as Date).getDate())).toEqual([20, 20, 20, 20]);
+    for (const e of written) {
+      expect(e['series']).toMatchObject({ id: 'new-0', frequency: 'monthly', weekdays: [2] });
+      expect(e['repeatsYearly']).toBe(false);
+    }
+  });
+
   it('refuses a rule with no occurrence instead of writing nothing silently', async () => {
-    await expect(createEventSeries(input, { weekdays: [1], until: at(2026, 10, 21) })).rejects.toThrow(
+    await expect(createEventSeries(input, { frequency: 'weekly', weekdays: [1], until: at(2026, 10, 21) })).rejects.toThrow(
       'event-series-empty',
     );
     expect(batch.commit).not.toHaveBeenCalled();

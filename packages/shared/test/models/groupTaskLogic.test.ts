@@ -9,6 +9,8 @@ import {
   dueTaskReminders,
   fairShareCounts,
   GroupTaskDataSchema,
+  monthEndFrom,
+  yearlyEventTask,
   nextDueOn,
   nextOccurrence,
   promoteWaitlist,
@@ -238,5 +240,27 @@ describe('compareTasksByDue', () => {
   it('sorts by day and time, undated last', () => {
     const list = [task({ title: 'x' }), task({ title: 'b', dueOn: '2026-01-02' }), task({ title: 'a', dueOn: '2026-01-02', time: '09:00' }), task({ title: 'c', dueOn: '2026-01-01' })];
     expect([...list].sort(compareTasksByDue).map((t) => t.title)).toEqual(['c', 'b', 'a', 'x']);
+  });
+});
+
+describe("a yearly event's checklist", () => {
+  it('is due by the end of the next such month, this month included', () => {
+    expect(monthEndFrom(3, '2026-11-01')).toBe('2027-03-31');
+    expect(monthEndFrom(11, '2026-11-20')).toBe('2026-11-30');
+    expect(monthEndFrom(12, '2026-11-20')).toBe('2026-12-31');
+    expect(monthEndFrom(2, '2027-01-10')).toBe('2027-02-28');
+  });
+
+  it('comes back every year, on the event', () => {
+    const task = yearlyEventTask({ title: 'Contratar la orquesta', month: 3 }, { today: '2026-11-01', eventId: 'fiestas' });
+    expect(task).toEqual({
+      title: 'Contratar la orquesta',
+      dueOn: '2027-03-31',
+      recurrence: { kind: 'calendar', unit: 'year', interval: 1, anchorOn: '2027-03-31' },
+      eventId: 'fiestas',
+    });
+    const data = buildGroupTaskData({ ...task, createdBy: 'u' });
+    expect(GroupTaskDataSchema.parse(data)).toBeTruthy();
+    expect(nextDueOn(data, '2027-03-15')).toBe('2028-03-31');
   });
 });

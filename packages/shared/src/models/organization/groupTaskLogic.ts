@@ -111,6 +111,32 @@ export function nextOccurrence(task: GroupTaskData, doneDay: string, createdAt: 
   };
 }
 
+// ── A yearly event's checklist ───────────────────────────────────────────────
+
+/**
+ * The last day of the next `month` (1–12) from `today`, this month included:
+ * "en marzo" on a yearly event's checklist is due by the end of March.
+ */
+export function monthEndFrom(month: number, today: string): string {
+  const { y, m } = parts(today);
+  const year = month >= m ? y : y + 1;
+  return `${String(year)}-${pad(month)}-${pad(lastDayOfMonth(year, month))}`;
+}
+
+/** A task on a yearly event's checklist: due by the end of `month`, back every year. */
+export function yearlyEventTask(
+  task: { title: string; month: number },
+  opts: { today: string; eventId: string },
+): Omit<GroupTaskInput, 'createdBy' | 'createdAt'> {
+  const dueOn = monthEndFrom(task.month, opts.today);
+  return {
+    title: task.title,
+    dueOn,
+    recurrence: { kind: 'calendar', unit: 'year', interval: 1, anchorOn: dueOn },
+    eventId: opts.eventId,
+  };
+}
+
 // ── Templates ────────────────────────────────────────────────────────────────
 
 /** The tasks a template generates on an anchor day (an event's start, or a bare day). */
