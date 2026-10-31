@@ -1,37 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { hasSocioRoster, type OrgMemberData } from '@cultuvilla/shared/models/organization';
-import { watchOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
+import { Ionicons } from '@expo/vector-icons';
+import { hasSocioRoster } from '@cultuvilla/shared/models/organization';
+import type { GroupSection } from '@cultuvilla/shared/utils';
 import { Pressable, Screen, Text, VStack } from '../../components/primitives';
 import { AppHeader } from '../../components/layout/AppHeader';
-import { GroupSwitcher } from '../../components/feature/groups/GroupSwitcher';
+import { GroupSwitcherSheet } from '../../components/feature/groups/GroupSwitcher';
+import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGrid';
+import { GroupSummary } from '../../components/feature/groups/GroupSummary';
 import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCard';
-import { MyPersonasSocios } from '../../components/feature/groups/MyPersonasSocios';
-import { SociosRoster } from '../../components/feature/groups/SociosRoster';
-import { GroupSettings } from '../../components/feature/groups/GroupSettings';
-import { MyCuota } from '../../components/feature/groups/MyCuota';
-import { CuotaAdmin } from '../../components/feature/groups/CuotaAdmin';
-import { MyTasks } from '../../components/feature/groups/MyTasks';
-import { TasksAdmin } from '../../components/feature/groups/TasksAdmin';
-import { GroupNotices } from '../../components/feature/groups/GroupNotices';
-import { GroupMessagesAdmin } from '../../components/feature/groups/GroupMessagesAdmin';
-import { RecordsAdmin } from '../../components/feature/groups/RecordsAdmin';
-import { MyActas } from '../../components/feature/groups/MyActas';
-import { OrgEventsSection } from '../../components/feature/OrgEventsSection';
-import { OrgJoinRequests } from '../../components/feature/OrgJoinRequests';
-import { OrgMembersList } from '../../components/feature/OrgMembersList';
 import { useAuth } from '../../lib/auth/useAuth';
-import { useWatch } from '../../lib/hooks/useWatch';
 import { useT } from '../../lib/i18n';
-import { orgHref } from '../../lib/navigation/routes';
+import { groupSectionHref, orgHref } from '../../lib/navigation/routes';
+import { groupSections } from '../../lib/orgs/groupSections';
+import { useGroupNotices } from '../../lib/orgs/useGroupNotices';
 import { useMyGroups, type MyGroup } from '../../lib/orgs/useMyGroups';
+import { useMyOpenTasks } from '../../lib/orgs/useMyOpenTasks';
 import { pickGroupId, readLastGroupId, rememberLastGroupId } from '../../lib/orgs/lastGroup';
 
 /**
- * Mis grupos: the private side of the groups the user belongs to — what's on,
- * their socio data, and for admins the "Gestionar" section. The public org page
- * stays the org's face; nothing here is public.
+ * Mis grupos: the private side of the groups the user belongs to. The home is
+ * a summary and a grid of buttons; each feature opens its own screen
+ * (`/grupos/<orgId>/<section>`), and the group's name in the header switches
+ * group. The public org page stays the org's face; nothing here is public.
  */
 export default function GroupsTabScreen() {
   const { t } = useT();
@@ -39,7 +31,8 @@ export default function GroupsTabScreen() {
   const uid = user?.uid ?? null;
   const { groups, status } = useMyGroups(uid);
   const [remembered, setRemembered] = useState<string | null | undefined>(undefined);
-  // A cuota reminder opens the tab on its group (`/grupos?grupo=<orgId>`).
+  const [switching, setSwitching] = useState(false);
+  // `/grupos?grupo=<orgId>` opens the tab on that group (a WhatsApp link, a switch from a group screen).
   const { grupo } = useLocalSearchParams<{ grupo?: string }>();
 
   useEffect(() => {
@@ -56,14 +49,32 @@ export default function GroupsTabScreen() {
   const selected = groups.find((g) => g.org.id === selectedId) ?? null;
 
   const select = (orgId: string) => {
+    setSwitching(false);
     setRemembered(orgId);
     void rememberLastGroupId(orgId);
   };
 
   return (
     <Screen padded={false} topInset={false} bottomInset={false}>
-      <AppHeader centerLabel={t('groups.title')} />
-      <GroupSwitcher groups={groups} selectedId={selectedId} onSelect={select} />
+      <AppHeader
+        centerLabel={selected?.org.name ?? t('groups.title')}
+        onLabelPress={groups.length > 1 ? () => setSwitching(true) : undefined}
+        labelAccessibilityLabel={t('groups.switcherLabel')}
+        labelTestID="group-switcher-open"
+        extraRightSlot={
+          selected ? (
+            <Pressable
+              testID="group-open-page"
+              accessibilityRole="link"
+              accessibilityLabel={t('groups.openGroupPage')}
+              onPress={() => router.push(orgHref(selected.org))}
+              className="p-1"
+            >
+              <Ionicons name="open-outline" size={26} color="#f9f0e8" />
+            </Pressable>
+          ) : null
+        }
+      />
       {!uid ? null : status === 'loading' || remembered === undefined ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
@@ -76,6 +87,13 @@ export default function GroupsTabScreen() {
           <Text tone="muted">{t(status === 'error' ? 'groups.loadError' : 'groups.empty')}</Text>
         </View>
       )}
+      <GroupSwitcherSheet
+        visible={switching}
+        groups={groups}
+        selectedId={selectedId}
+        onSelect={select}
+        onClose={() => setSwitching(false)}
+      />
     </Screen>
   );
 }
@@ -83,64 +101,31 @@ export default function GroupsTabScreen() {
 function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
   const { t } = useT();
   const { org, role } = group;
-  const isAdmin = role === 'admin';
   const roster = hasSocioRoster(org.type);
-  const members = useWatch<(OrgMemberData & { id: string })[]>(
-    'groups:watchOrgMembers',
-    isAdmin && roster ? org.id : null,
-    isAdmin && roster ? (next, error) => watchOrgMembers(org.id, next, error) : null,
-  );
-  const adminUids = useMemo(
-    () => (members.data ?? []).filter((m) => m.role === 'admin').map((m) => m.userId),
-    [members.data],
-  );
+  const { member, admin } = groupSections(group);
+  const notices = useGroupNotices(org.id, roster ? uid : null);
+  const tasks = useMyOpenTasks(org.id, uid);
+  const badges: Partial<Record<GroupSection, number>> = {
+    avisos: notices.unreadCount,
+    tareas: tasks.mine.length,
+  };
+  const open = (section: GroupSection) => router.push(groupSectionHref(org.id, section));
 
   return (
-    <ScrollView contentContainerClassName="px-4 pt-2 pb-16" testID="group-home">
+    <ScrollView contentContainerClassName="px-4 pt-3 pb-16" testID="group-home">
       <VStack gap={4}>
-        <VStack gap={1}>
-          <Text variant="h2">{org.name}</Text>
-          <Pressable testID="group-open-page" accessibilityRole="link" onPress={() => router.push(orgHref(org))}>
-            <Text variant="bodySm" className="text-accent">
-              {t('groups.openGroupPage')}
-            </Text>
-          </Pressable>
-        </VStack>
+        {roster ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
 
-        {roster ? <SocioConsentCard orgId={org.id} /> : null}
+        <GroupSummary orgId={org.id} uid={uid} roster={roster} includePrivate={org.joinPolicy === 'approval'} onOpen={open} />
 
-        {roster ? <GroupNotices orgId={org.id} uid={uid} /> : null}
+        <GroupSectionGrid sections={member} badges={badges} onOpen={open} />
 
-        {/* Rules let only an approval org's members read its private events. */}
-        <OrgEventsSection orgId={org.id} includePrivate={org.joinPolicy === 'approval'} />
-
-        <MyTasks orgId={org.id} uid={uid} isAdmin={isAdmin} />
-
-        {roster ? <MyCuota orgId={org.id} uid={uid} /> : null}
-
-        {roster ? <MyPersonasSocios orgId={org.id} uid={uid} /> : null}
-
-        {roster && !isAdmin ? <MyActas orgId={org.id} orgName={org.name} /> : null}
-
-        {roster && !isAdmin && org.sociosListVisible ? (
-          <SociosRoster orgId={org.id} canManage={false} adminUids={[]} currentUid={uid} />
-        ) : null}
-
-        {isAdmin ? (
-          <VStack gap={4} testID="group-manage">
-            <Text variant="h3" className="mt-4">
+        {role === 'admin' ? (
+          <VStack gap={2} testID="group-manage">
+            <Text variant="caption" tone="muted" className="font-bold uppercase pt-2">
               {t('groups.manage')}
             </Text>
-            <TasksAdmin orgId={org.id} uid={uid} includePrivateEvents={org.joinPolicy === 'approval'} suggestAsamblea={roster} />
-            {roster ? (
-              <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents={org.joinPolicy === 'approval'} />
-            ) : null}
-            {roster ? <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} /> : null}
-            {roster ? <SociosRoster orgId={org.id} canManage adminUids={adminUids} currentUid={uid} /> : null}
-            {roster ? <RecordsAdmin orgId={org.id} orgName={org.name} uid={uid} /> : null}
-            {org.joinPolicy === 'approval' ? <OrgJoinRequests orgId={org.id} /> : null}
-            <OrgMembersList orgId={org.id} canManage currentUserId={uid} />
-            {roster ? <GroupSettings orgId={org.id} sociosListVisible={org.sociosListVisible} /> : null}
+            <GroupSectionGrid sections={admin} onOpen={open} admin />
           </VStack>
         ) : null}
       </VStack>

@@ -194,6 +194,34 @@ export function groupPath(orgId: string): string {
   return `/grupos?grupo=${encodeURIComponent(orgId)}`;
 }
 
+/** The screens of a group's private side, each opened from the group home. */
+export const GROUP_SECTIONS = [
+  'avisos',
+  'eventos',
+  'tareas',
+  'cuota',
+  'actas',
+  'mis-datos',
+  'socios',
+  'cobros',
+  'mensajes',
+  'gestion-tareas',
+  'registros',
+  'miembros',
+  'ajustes',
+] as const;
+
+export type GroupSection = (typeof GROUP_SECTIONS)[number];
+
+export function isGroupSection(value: string): value is GroupSection {
+  return (GROUP_SECTIONS as readonly string[]).includes(value);
+}
+
+/** One screen of a group — `/grupos/<orgId>/cuota`. */
+export function groupSectionPath(orgId: string, section: GroupSection): string {
+  return `/grupos/${encodeURIComponent(orgId)}/${section}`;
+}
+
 export function userPath(uid: string): string {
   return `/usuario/${uid}`;
 }

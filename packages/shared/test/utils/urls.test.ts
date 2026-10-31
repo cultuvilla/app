@@ -5,6 +5,8 @@ import {
   entityRef,
   eventLinkTarget,
   festivalPosterLinkTarget,
+  groupSectionPath,
+  isGroupSection,
   isReservedRootSegment,
   newWordPath,
   orgJoinPath,
@@ -56,6 +58,18 @@ describe('entity refs', () => {
   it('rejects an empty id', () => {
     expect(parseEntityRef('fiestas_')).toBeNull();
     expect(() => entityRef('x', '')).toThrow(/id/);
+  });
+});
+
+describe('group sections', () => {
+  it('nests each screen of a group under the Grupos tab', () => {
+    expect(groupSectionPath('org1', 'cuota')).toBe('/grupos/org1/cuota');
+    expect(groupSectionPath('a/b', 'gestion-tareas')).toBe('/grupos/a%2Fb/gestion-tareas');
+  });
+
+  it('knows its sections and nothing else', () => {
+    expect(isGroupSection('avisos')).toBe(true);
+    expect(isGroupSection('evento')).toBe(false);
   });
 });
 

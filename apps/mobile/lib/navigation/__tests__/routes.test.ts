@@ -1,7 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { GROUP_SECTIONS } from '@cultuvilla/shared/utils';
 import { resolveAuthRoute } from '../../auth/authRoute';
 import {
+  groupHref,
+  groupSectionHref,
   barrioHref,
   createEventHref,
   createNewsHref,
@@ -83,6 +86,8 @@ const built: [string, string][] = [
   ...Object.entries(routes),
   ['myVillageHref', myVillageHref('m1')],
   ['villageHref', villageHref('villa')],
+  ['groupHref', groupHref('o1')],
+  ...GROUP_SECTIONS.map((s): [string, string] => [`groupSectionHref(${s})`, groupSectionHref('o1', s)]),
   ...(['barrios', 'carteles', 'censo', 'comunidad', 'editar', 'entidades', 'historia', 'lugares', 'miembros', 'vocabulario'] as const).map(
     (s): [string, string] => [`villageSectionHref(${s})`, villageSectionHref('villa', s)],
   ),

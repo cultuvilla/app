@@ -6,7 +6,7 @@ import { formatDayKey } from '@cultuvilla/shared/utils';
 /**
  * The `group_task` notifications: one doc per recipient under
  * `users/{uid}/notifications`, which `onNotificationCreated` pushes (applying
- * the user's preferences). Routed to `/grupos?grupo=<orgId>`.
+ * the user's preferences). Routed to `/grupos/<orgId>/tareas`.
  */
 
 export type GroupTaskNotice = TaskReminderStage | 'promoted';
