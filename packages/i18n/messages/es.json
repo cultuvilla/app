@@ -1608,7 +1608,6 @@
     }
   },
   "groups": {
-    "title": "Mis grupos",
     "switcherLabel": "Cambiar de grupo",
     "upcomingEvents": "Próximos eventos",
     "noUpcomingEvents": "No hay eventos próximos.",

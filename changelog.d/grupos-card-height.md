@@ -1,1 +1,2 @@
 - Fixed: in Grupos, the cards in the Avisos and Mis tareas rows no longer run down the screen without end. The "Ver la página del grupo" link is gone from the group home.
+- Changed: the Grupos header says "Grupos"; the group's name stays as the home's title, and tapping the header still switches group.

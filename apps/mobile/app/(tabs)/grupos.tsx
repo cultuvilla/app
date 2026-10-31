@@ -69,7 +69,7 @@ export default function GroupsTabScreen() {
   return (
     <Screen padded={false} topInset={false} bottomInset={false}>
       <AppHeader
-        centerLabel={selected?.org.name ?? t('groups.title')}
+        centerLabel={t('tabs.groups')}
         onLabelPress={groups.length > 1 ? () => setSwitching(true) : undefined}
         labelAccessibilityLabel={t('groups.switcherLabel')}
         labelTestID="group-switcher-open"

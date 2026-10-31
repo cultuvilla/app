@@ -95,21 +95,22 @@ describe('Grupos tab', () => {
     expect(await findByTestId('groups-empty')).toBeTruthy();
   });
 
-  it('names the single group in the header, with no switcher', async () => {
+  it('titles the header Grupos, with no switcher for a single group', async () => {
     mockGroups = [group('Anduela')];
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getByTestId('header-label').props.children).toBe('Anduela');
+    expect(getByTestId('header-label').props.children).toBe('tabs.groups');
     expect(queryByTestId('group-switcher-open')).toBeNull();
   });
 
   it('reopens the last-used group and switches from the header sheet', async () => {
     mockGroups = [group('Anduela'), group('Peña')];
     mockRemembered = 'Peña';
-    const { findByTestId, getByTestId, getAllByText, queryByText } = render(<GroupsTabScreen />);
+    const { findByTestId, getByTestId, getAllByText, getByText, queryByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    // The header and the home's title.
-    expect(getAllByText('Peña')).toHaveLength(2);
+    // The home's title names the group; the header just says Grupos.
+    expect(getAllByText('Peña')).toHaveLength(1);
+    expect(getByText('tabs.groups')).toBeTruthy();
     expect(queryByText('Anduela')).toBeNull();
     fireEvent.press(getByTestId('group-switcher-open'));
     fireEvent.press(await findByTestId('group-switcher-Anduela'));
@@ -209,7 +210,7 @@ describe('Grupos tab', () => {
     mockParams = { grupo: 'Peña' };
     const { findByTestId, getAllByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getAllByText('Peña')).toHaveLength(2);
+    expect(getAllByText('Peña')).toHaveLength(1);
     expect(mockRemember).toHaveBeenCalledWith('Peña');
   });
 
