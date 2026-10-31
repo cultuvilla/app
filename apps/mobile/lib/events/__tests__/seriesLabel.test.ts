@@ -17,8 +17,14 @@ describe('weekdayList', () => {
 
 describe('seriesSummary', () => {
   it('names the days and the last date', () => {
-    expect(seriesSummary({ weekdays: [2, 4], until: new Date(2026, 11, 15) }, t)).toBe(
-      'event.seriesSummary:martes y jueves|15 de Diciembre',
-    );
+    expect(
+      seriesSummary({ frequency: 'weekly', weekdays: [2, 4], until: new Date(2026, 11, 15) }, new Date(2026, 10, 3), t),
+    ).toBe('event.seriesSummary:martes y jueves|15 de Diciembre');
+  });
+
+  it("names a monthly series' day of the month instead of its weekday", () => {
+    expect(
+      seriesSummary({ frequency: 'monthly', weekdays: [2], until: new Date(2027, 9, 20) }, new Date(2026, 9, 20), t),
+    ).toBe('event.seriesSummaryMonthly:20|20 de Octubre');
   });
 });

@@ -13,6 +13,17 @@ import { LocationField } from '../../components/feature/LocationField';
 import { MyVillagePicker, type VillageOption } from '../../components/feature/MyVillagePicker';
 import { OrganizerPicker } from '../../components/feature/OrganizerPicker';
 import { SignupQuestionsEditor } from '../../components/feature/signup/SignupQuestionsEditor';
+import { SegmentedToggle } from '../../components/feature/SegmentedToggle';
+import { SelectField } from '../../components/feature/groups/SelectField';
+import {
+  EventTasksEditor,
+  blankEventTask,
+  eventTasksMissingMonth,
+  type EventTaskDraft,
+} from '../../components/feature/EventTasksEditor';
+import { useMyGroups } from '../../lib/orgs/useMyGroups';
+import { createGroupTasks } from '@cultuvilla/shared/services/groupTaskService';
+import { yearlyEventTask } from '@cultuvilla/shared/models/organization';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
 import { useCallable } from '../../lib/useCallable';
@@ -45,12 +56,18 @@ import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { Stepper, type StepConfig } from '../../components/feature/Stepper';
 import { DeleteHeaderButton } from '../../components/feature/DeleteHeaderButton';
 import { roundUpToMinuteStep } from '../../lib/date/clockGrid';
-import { MAX_SIGNUP_GROUP_SIZE, type EventData, type EventDataInput } from '@cultuvilla/shared/models/event/EventDataModel';
 import {
-  MAX_SERIES_DAYS,
+  MAX_SIGNUP_GROUP_SIZE,
+  madridDayKey,
+  type EventData,
+  type EventDataInput,
+} from '@cultuvilla/shared/models/event/EventDataModel';
+import {
   isoWeekday,
+  maxSeriesDays,
+  seriesOccurrences,
   seriesSpanDays,
-  weeklyOccurrences,
+  type SeriesRule,
 } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import {
   MAX_EVENT_BIRTH_YEAR,
@@ -62,6 +79,16 @@ import {
 const GROUP_SIZE_CHOICES = Array.from({ length: MAX_SIGNUP_GROUP_SIZE - 1 }, (_, i) => i + 2);
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
+
+type Recurrence = 'weekly' | 'monthly' | 'yearly';
+const RECURRENCES: readonly Recurrence[] = ['weekly', 'monthly', 'yearly'];
+
+/** The same wall-clock moment a year later — the next edition of a yearly event. */
+function nextYear(d: Date): Date {
+  const out = new Date(d);
+  out.setFullYear(out.getFullYear() + 1);
+  return out;
+}
 
 /** `time`'s hour and minute on `day`'s calendar date. */
 function timeOnDay(day: Date, time: Date): Date {
@@ -149,7 +176,13 @@ export default function NewEventScreen() {
   // prefills every field, and saves via updateEvent. Otherwise it creates a new
   // event. A `villageId` param (e.g. from a village's "Próximos eventos" add
   // card) targets that village; otherwise fall back to the user's active one.
-  const { villageId, eventId } = useLocalSearchParams<{ villageId?: string; eventId?: string }>();
+  // A `copyFrom` param (a yearly event's "Repetir el año que viene") creates a
+  // new event prefilled from that one, its dates moved a year.
+  const { villageId, eventId, copyFrom } = useLocalSearchParams<{
+    villageId?: string;
+    eventId?: string;
+    copyFrom?: string;
+  }>();
   const editMode = !!eventId;
 
   const [loading, setLoading] = useState(true);
@@ -182,12 +215,15 @@ export default function NewEventScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(() => roundUpToMinuteStep(new Date(), 5));
-  // Optional multi-day end; null = single-day event. For a weekly series only
-  // its time is used — the end of each occurrence's slot, on that same day.
+  // Optional multi-day end; null = single-day event. For a series only its
+  // time is used — the end of each occurrence's slot, on that same day.
   const [endDate, setEndDate] = useState<Date | null>(null);
-  // Weekly series (create only): the chosen weekdays, ISO 1–7, and the last
-  // calendar day. Each occurrence becomes its own event doc on submit.
-  const [repeatsWeekly, setRepeatsWeekly] = useState(false);
+  // Recurrence (create only). A weekly or monthly one is a series: every
+  // occurrence through the last calendar day becomes its own event doc on
+  // submit, weekly ones on the chosen weekdays (ISO 1–7). A yearly one is a
+  // single edition flagged `repeatsYearly`.
+  const [recurring, setRecurring] = useState(false);
+  const [recurrence, setRecurrence] = useState<Recurrence>('monthly');
   const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([]);
   const [repeatUntil, setRepeatUntil] = useState<Date | null>(null);
   // Edit mode: the event as loaded, for the series notice and for cancelling
@@ -235,6 +271,12 @@ export default function NewEventScreen() {
   const [existingSignupCount, setExistingSignupCount] = useState(0);
   const [signupWasEnabled, setSignupWasEnabled] = useState(false);
   const [cover, setCover] = useState<UploadableImage | null>(null);
+  // The organizing group's checklist (create only, for a group the creator
+  // administers — only its admins may write its tasks).
+  const [tasksEnabled, setTasksEnabled] = useState(false);
+  const [taskRows, setTaskRows] = useState<EventTaskDraft[]>(() => [blankEventTask()]);
+  const [taskOrgId, setTaskOrgId] = useState<string | null>(null);
+  const [copyLoading, setCopyLoading] = useState(!!copyFrom && !eventId);
 
   // Picking a location auto-selects the nearest joined village (create mode,
   // until the user manually overrides the dropdown).
@@ -287,6 +329,12 @@ export default function NewEventScreen() {
       cancelled = true;
     };
   }, [soleOrgId]);
+
+  // The organizing groups whose tasks the creator may write.
+  const { groups: myGroups } = useMyGroups(editMode ? null : (user?.uid ?? null));
+  const taskOrgIds = organizerOrgIds.filter((id) => myGroups.some((g) => g.org.id === id && g.role === 'admin'));
+  const taskOrg = taskOrgIds.includes(taskOrgId ?? '') ? taskOrgId : (taskOrgIds[0] ?? null);
+  const tasksOffered = !editMode && taskOrg !== null;
 
   useEffect(() => {
     // Only auto-seed the creator when composing a new event. In edit mode the
@@ -369,6 +417,50 @@ export default function NewEventScreen() {
     };
   }, [editMode, eventId]);
 
+  // ── Copy mode: next year's edition of a yearly event ─────────────────────
+  // The village comes in as the `villageId` param, so the village list below
+  // selects it; sign-ups, roster and comments stay with last year's edition.
+  useEffect(() => {
+    if (editMode || !copyFrom || !user) return;
+    let cancelled = false;
+    void withFirestoreErrorLog('event:getEvent', () => getEvent(copyFrom))
+      .then((ev) => {
+        if (cancelled || !ev) return;
+        setTitle(ev.title);
+        setDescription(ev.description);
+        setStartDate(nextYear(ev.startDate));
+        setEndDate(ev.endDate ? nextYear(ev.endDate) : null);
+        setCoords(ev.location?.coordinates ?? null);
+        setLocationName(ev.location?.displayName ?? '');
+        setMaxAttendees(ev.maxAttendees != null ? String(ev.maxAttendees) : '');
+        setTelephoneRequired(!!ev.telephoneRequired);
+        setRequiresPayment(!!ev.requiresPayment);
+        setSignupGroupSize(ev.signupGroupSize);
+        setMinBirthYear(ev.minBirthYear == null ? '' : String(ev.minBirthYear));
+        setMaxBirthYear(ev.maxBirthYear == null ? '' : String(ev.maxBirthYear));
+        setBirthYearLimited(ev.minBirthYear != null || ev.maxBirthYear != null);
+        setSignupEnabled(ev.signupEnabled !== false);
+        setSignupInfo(ev.signupInfo ?? '');
+        setAttendeesPublic(ev.attendeesVisibility !== 'organizers');
+        setSignupFields(ev.signupFields ?? []);
+        setFormEnabled((ev.signupFields ?? []).length > 0);
+        setOrganizerUserIds([user.uid, ...(ev.organizerUserIds ?? []).filter((id) => id !== user.uid)]);
+        setOrganizerOrgIds(ev.organizerOrgIds ?? []);
+        setPrivateToOrg(ev.visibilityOrgId !== null);
+        setExistingImageURL(ev.imageURL ?? null);
+        setVillageManuallyPicked(true);
+        setRecurring(true);
+        setRecurrence('yearly');
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCopyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editMode, copyFrom, user]);
+
   // ── Create mode: load the villages the user can post to ───────────────────
   useEffect(() => {
     if (editMode) return;
@@ -429,24 +521,44 @@ export default function NewEventScreen() {
     maxBirthYearNum !== null &&
     maxBirthYearNum < minBirthYearNum;
 
+  const seriesFrequency = recurring && recurrence !== 'yearly' ? recurrence : null;
+  const isSeries = seriesFrequency !== null;
+  const weekly = seriesFrequency === 'weekly';
+  const repeatsYearly = recurring && recurrence === 'yearly';
+  const seriesRule: SeriesRule | null =
+    seriesFrequency === 'weekly' && repeatUntil
+      ? { frequency: 'weekly', weekdays: repeatWeekdays, until: repeatUntil }
+      : seriesFrequency === 'monthly' && repeatUntil
+        ? { frequency: 'monthly', until: repeatUntil }
+        : null;
+
   // A series' slot end is the picked time on the first day; every occurrence
   // shifts both by the same number of days.
-  const slotEnd = repeatsWeekly && startDate && endDate ? timeOnDay(startDate, endDate) : null;
+  const slotEnd = isSeries && startDate && endDate ? timeOnDay(startDate, endDate) : null;
   const seriesEndInvalid = slotEnd !== null && startDate !== null && slotEnd <= startDate;
   const seriesUntilInvalid =
-    repeatsWeekly &&
+    isSeries &&
     (!repeatUntil ||
       !startDate ||
       seriesSpanDays(startDate, repeatUntil) < 0 ||
-      seriesSpanDays(startDate, repeatUntil) > MAX_SERIES_DAYS ||
-      (repeatWeekdays.length > 0 &&
-        weeklyOccurrences({ startDate, endDate: null }, { weekdays: repeatWeekdays, until: repeatUntil })
-          .length === 0));
+      seriesSpanDays(startDate, repeatUntil) > maxSeriesDays(seriesFrequency) ||
+      (seriesRule !== null &&
+        (!weekly || repeatWeekdays.length > 0) &&
+        seriesOccurrences({ startDate, endDate: null }, seriesRule).length === 0));
 
-  function toggleRepeatsWeekly(on: boolean) {
-    setRepeatsWeekly(on);
+  function seedWeekdays() {
     // Seed the obvious answer: the first day's own weekday.
-    if (on && repeatWeekdays.length === 0 && startDate) setRepeatWeekdays([isoWeekday(startDate)]);
+    if (repeatWeekdays.length === 0 && startDate) setRepeatWeekdays([isoWeekday(startDate)]);
+  }
+
+  function toggleRecurring(on: boolean) {
+    setRecurring(on);
+    if (on && recurrence === 'weekly') seedWeekdays();
+  }
+
+  function pickRecurrence(next: Recurrence) {
+    setRecurrence(next);
+    if (next === 'weekly') seedWeekdays();
   }
 
   function toggleWeekday(day: number) {
@@ -456,6 +568,8 @@ export default function NewEventScreen() {
   // Survives a failed cover upload so the retry patches the events that were
   // already created instead of creating more. See the create branch.
   const createdEventIdsRef = useRef<string[] | null>(null);
+  // Same for the checklist: a retry never writes it twice.
+  const tasksCreatedRef = useRef(false);
 
   const { fire: submit, isPending } = useCallable({
     operation: editMode ? 'event:update' : 'event:create',
@@ -544,6 +658,9 @@ export default function NewEventScreen() {
           startDate,
           endDate,
           location,
+          // Copy mode reuses last year's flyer unless a new one is picked.
+          imageURL: cover ? null : existingImageURL,
+          repeatsYearly,
           maxAttendees: maxAttendeesValue,
           telephoneRequired,
           requiresPayment,
@@ -564,17 +681,28 @@ export default function NewEventScreen() {
           villageName: municipalityName,
           villageCoordinates: municipalityCoordinates,
         };
-        newIds =
-          repeatsWeekly && repeatUntil
-            ? await createEventSeries(
-                { ...input, endDate: slotEnd },
-                { weekdays: repeatWeekdays, until: repeatUntil },
-              )
-            : [await createEvent(input)];
+        newIds = seriesRule
+          ? await createEventSeries({ ...input, endDate: slotEnd }, seriesRule)
+          : [await createEvent(input)];
         createdEventIdsRef.current = newIds;
       }
       const [firstId] = newIds;
       if (!firstId) return;
+      // The checklist hangs off the first occurrence, the one the group plans.
+      const tasks = taskRows.filter((r) => r.title.trim() !== '');
+      if (tasksOffered && tasksEnabled && taskOrg && tasks.length > 0 && !tasksCreatedRef.current) {
+        const today = madridDayKey(new Date());
+        await createGroupTasks(
+          taskOrg,
+          tasks.map((r) =>
+            repeatsYearly && r.month !== null
+              ? yearlyEventTask({ title: r.title.trim(), month: r.month }, { today, eventId: firstId })
+              : { title: r.title.trim(), dueOn: r.dueOn ? madridDayKey(r.dueOn) : null, eventId: firstId },
+          ),
+          user.uid,
+        );
+        tasksCreatedRef.current = true;
+      }
       if (cover) {
         // One upload, under the first occurrence; the rest point at it.
         const url = await uploadEventImage(municipalityId, firstId, {
@@ -631,7 +759,7 @@ export default function NewEventScreen() {
     return cancelSeriesFrom(loadedEvent).then(() => router.replace('/(tabs)'));
   };
 
-  if (loading) {
+  if (loading || copyLoading) {
     return (
       <Screen padded={false} topInset={false}>
         <ScreenHeader accent title={headerTitle} />
@@ -759,8 +887,8 @@ export default function NewEventScreen() {
         const e: string[] = [];
         if (!startDate) e.push('startDate');
         // endDate is optional, but if set it must not precede startDate.
-        if (!repeatsWeekly && endDate && startDate && endDate < startDate) e.push('endDate');
-        if (repeatsWeekly && repeatWeekdays.length === 0) e.push('repeatWeekdays');
+        if (!isSeries && endDate && startDate && endDate < startDate) e.push('endDate');
+        if (weekly && repeatWeekdays.length === 0) e.push('repeatWeekdays');
         if (seriesEndInvalid) e.push('endTime');
         if (seriesUntilInvalid) e.push('repeatUntil');
         if (!coords) e.push('coords');
@@ -776,15 +904,35 @@ export default function NewEventScreen() {
           ) : null}
           {editMode ? null : (
             <ToggleField
-              label={t('event.repeatsWeekly')}
-              help={t('event.repeatsWeeklyHint')}
-              value={repeatsWeekly}
-              onValueChange={toggleRepeatsWeekly}
-              testID="repeats-weekly"
+              label={t('event.recurring')}
+              help={t('event.recurringHint')}
+              value={recurring}
+              onValueChange={toggleRecurring}
+              testID="event-recurring"
             />
           )}
+          {!editMode && recurring ? (
+            <VStack gap={1}>
+              <FieldLabel>{t('event.frequency')}</FieldLabel>
+              <SegmentedToggle
+                options={RECURRENCES.map((r) => ({ value: r, label: t(`event.frequencyOption.${r}`) }))}
+                value={recurrence}
+                onChange={pickRecurrence}
+                testID="event-recurrence"
+              />
+              {recurrence === 'yearly' ? (
+                <Text tone="muted" variant="bodySm" testID="event-recurrence-yearly-hint">
+                  {t('event.yearlyHint')}
+                </Text>
+              ) : recurrence === 'monthly' && startDate ? (
+                <Text tone="muted" variant="bodySm" testID="event-recurrence-monthly-hint">
+                  {t('event.monthlyHint', { day: startDate.getDate() })}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
           <DateTimeField
-            label={repeatsWeekly ? t('event.firstDateTime') : t('event.startDateTime')}
+            label={isSeries ? t('event.firstDateTime') : t('event.startDateTime')}
             value={startDate}
             onChange={setStartDate}
             minimumDate={new Date()}
@@ -793,11 +941,11 @@ export default function NewEventScreen() {
             testID="startDate"
           />
           <DateTimeField
-            label={repeatsWeekly ? t('event.endTime') : t('event.endDateTime')}
+            label={isSeries ? t('event.endTime') : t('event.endDateTime')}
             value={endDate}
             onChange={setEndDate}
             minimumDate={startDate ?? new Date()}
-            timeOnly={repeatsWeekly}
+            timeOnly={isSeries}
             datePlaceholder={t('event.selectDate')}
             timePlaceholder={t('event.selectTime')}
             testID="endDate"
@@ -807,7 +955,7 @@ export default function NewEventScreen() {
               {t('event.endTimeInvalid')}
             </Text>
           ) : null}
-          {repeatsWeekly ? (
+          {weekly ? (
             <VStack gap={1}>
               <FieldLabel>{t('event.repeatDays')}</FieldLabel>
               <HStack gap={1} className="items-center">
@@ -837,7 +985,7 @@ export default function NewEventScreen() {
               ) : null}
             </VStack>
           ) : null}
-          {repeatsWeekly ? (
+          {isSeries ? (
             <VStack gap={1}>
               <DateField
                 label={t('event.repeatUntil')}
@@ -848,7 +996,7 @@ export default function NewEventScreen() {
               />
               {repeatUntil && seriesUntilInvalid ? (
                 <Text tone="danger" variant="bodySm" testID="repeat-until-error">
-                  {t('event.repeatUntilInvalid')}
+                  {t(seriesFrequency === 'monthly' ? 'event.repeatUntilInvalidMonthly' : 'event.repeatUntilInvalid')}
                 </Text>
               ) : null}
             </VStack>
@@ -1044,6 +1192,15 @@ export default function NewEventScreen() {
           />
           </>
           ) : null}
+          {tasksOffered ? (
+            <ToggleField
+              label={t('event.tasksEnabled')}
+              help={t('event.tasksEnabledHint')}
+              value={tasksEnabled}
+              onValueChange={setTasksEnabled}
+              testID="tasks-enabled"
+            />
+          ) : null}
         </>,
       ),
     },
@@ -1063,6 +1220,30 @@ export default function NewEventScreen() {
           onChange={setSignupFields}
           lockedCount={lockedFieldCount}
         />,
+      ),
+    }] as StepConfig[]) : []),
+    ...(tasksOffered && tasksEnabled ? ([{
+      key: 'tasks',
+      title: t('event.stepTasks'),
+      icon: 'checkbox-outline',
+      // Blank rows are dropped on submit, like half-finished questions; only a
+      // yearly task without its month blocks, since it could not be dated.
+      validate: () => (repeatsYearly && eventTasksMissingMonth(taskRows) ? ['taskMonth'] : []),
+      render: () => stepBody(
+        <>
+          {taskOrgIds.length > 1 ? (
+            <SelectField
+              label={t('event.tasks.group')}
+              value={taskOrg ?? ''}
+              options={myGroups
+                .filter((g) => taskOrgIds.includes(g.org.id))
+                .map((g) => ({ value: g.org.id, label: g.org.name }))}
+              onChange={setTaskOrgId}
+              testID="event-tasks-group"
+            />
+          ) : null}
+          <EventTasksEditor rows={taskRows} onChange={setTaskRows} yearly={repeatsYearly} />
+        </>,
       ),
     }] as StepConfig[]) : []),
   ];
