@@ -115,8 +115,10 @@ Shipped in one PR (`feat/group-toolkit-phase1`). Later phases build on this mode
 ### Navigation — as rebuilt (2026-10-31)
 
 The tab's single scroll became a home plus one screen per feature
-(`feat/grupos-screens`): `app/(tabs)/grupos.tsx` shows the unanswered consent
-card, a "Lo próximo" summary (`GroupSummary`) and button grids
+(`feat/grupos-screens`, restyled in `feat/grupos-village-look`): `app/(tabs)/grupos.tsx`
+reads like the village home — the group's picture and name, a `StatsRow` (socios when
+the viewer may read the roster, miembros, eventos), the cuota status, horizontal
+`Section` rows of avisos, events and my tasks — and ends with the button grids
 (`GroupSectionGrid`); each button opens `app/grupos/[grupo]/[seccion].tsx`, which
 renders the existing component (`GroupSectionBody`). Which sections a viewer gets is
 `groupSections` (`lib/orgs/groupSections.ts`); paths are `groupSectionPath` in
@@ -125,6 +127,9 @@ header (a sheet, `GroupSwitcherSheet`), on the home and on every section screen;
 switching keeps the section when the other group has it. Group notifications
 route to their section (`cuota`, `tareas`, `avisos`); WhatsApp and email links
 keep `/grupos?grupo=` so binaries without these routes still open the tab.
+Long forms (cuota settings, compose, task, acta, template) are full-screen
+`FormModal`s like the app's other form screens, short ones stay bottom sheets, and a
+choice is a `SegmentedToggle` (2–4 short options) or a `SelectField` (a list).
 
 ## Handoff
 
