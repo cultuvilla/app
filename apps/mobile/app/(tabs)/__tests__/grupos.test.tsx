@@ -103,13 +103,6 @@ describe('Grupos tab', () => {
     expect(queryByTestId('group-switcher-open')).toBeNull();
   });
 
-  it("links to the group's public page", async () => {
-    mockGroups = [group('Anduela')];
-    const { findByTestId } = render(<GroupsTabScreen />);
-    fireEvent.press(await findByTestId('group-open-page'));
-    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/v/entidad/'));
-  });
-
   it('reopens the last-used group and switches from the header sheet', async () => {
     mockGroups = [group('Anduela'), group('Peña')];
     mockRemembered = 'Peña';
@@ -164,6 +157,29 @@ describe('Grupos tab', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/avisos');
     expect(getByTestId('group-home-events')).toBeTruthy();
     expect(getByText('Matanza')).toBeTruthy();
+  });
+
+  // Regression: the row cards carried `h-full`. Under Yoga on native height:100%
+  // resolves against the ScrollView viewport, so the Avisos card ran down the
+  // screen without end. Equal heights come from the row's stretch instead.
+  it('the notice and task cards declare no percentage height (breaks native layout)', async () => {
+    mockGroups = [group('Anduela')];
+    mockNotices = [{ id: 'm1', title: 'Cena', body: 'El sábado', pinned: false, signerName: 'La junta', sentAt: new Date(), sentBy: 'x' }];
+    mockMyTasks = [{ id: 't1', title: 'Comprar leña', dueOn: null, time: null, slots: null, claimedUids: [] }];
+    const { findByTestId, getByTestId } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    const classNames: string[] = [];
+    const walk = (node: unknown): void => {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) return node.forEach(walk);
+      const n = node as { props?: Record<string, unknown>; children?: unknown };
+      const cn = n.props?.['className'];
+      if (typeof cn === 'string') classNames.push(cn);
+      walk(n.children);
+    };
+    walk([getByTestId('group-home-notice-m1'), getByTestId('group-home-task-t1')].map((el) => el.children));
+    expect(classNames.length).toBeGreaterThan(0);
+    expect(classNames.join(' ')).not.toMatch(/\bh-full\b/);
   });
 
   it("shows the member's cuota status, opening its screen", async () => {

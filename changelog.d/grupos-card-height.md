@@ -1,0 +1,1 @@
+- Fixed: in Grupos, the cards in the Avisos and Mis tareas rows no longer run down the screen without end. The "Ver la página del grupo" link is gone from the group home.

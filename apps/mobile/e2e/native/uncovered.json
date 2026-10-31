@@ -155,7 +155,6 @@
   "group-notice-vote-*": "unit-tested: components/feature/groups/__tests__/GroupNotices.test.tsx",
   "group-notices": "unit-tested: components/feature/groups/__tests__/GroupNotices.test.tsx",
   "group-notices-mute": "unit-tested: components/feature/groups/__tests__/GroupNotices.test.tsx",
-  "group-open-page": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
   "group-phone": "unit-tested: components/feature/__tests__/RegisterFab.test.tsx",
   "group-remaining": "unit-tested: components/feature/__tests__/RegisterFab.test.tsx",
   "group-row-*": "unit-tested: components/feature/__tests__/RegisterFab.test.tsx",
