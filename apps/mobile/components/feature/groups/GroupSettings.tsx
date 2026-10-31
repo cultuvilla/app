@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { updateOrganization } from '@cultuvilla/shared/services/organizationService';
 import { Text, Toggle, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 
@@ -11,7 +10,6 @@ export function GroupSettings({ orgId, sociosListVisible }: { orgId: string; soc
   const [saving, setSaving] = useState(false);
   return (
     <VStack gap={2} testID="group-settings">
-      <DetailSectionHeading>{t('groups.settings.title')}</DetailSectionHeading>
       <Toggle
         testID="group-settings-socios-list-visible"
         value={sociosListVisible}

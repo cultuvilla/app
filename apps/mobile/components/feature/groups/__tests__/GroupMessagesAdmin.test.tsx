@@ -9,6 +9,7 @@ import {
 import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { GroupMessagesAdmin } from '../GroupMessagesAdmin';
 
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -88,18 +89,22 @@ describe('GroupMessagesAdmin', () => {
     expect(getByText('groups.messages.empty')).toBeTruthy();
     // No cuota configured: no cuota audience.
     fireEvent.press(getByTestId('group-msg-compose-open'));
-    expect(queryByTestId('group-msg-audience-cuota')).toBeNull();
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    expect(queryByTestId('group-msg-audience-options-cuota')).toBeNull();
+    fireEvent.press(getByTestId('group-msg-audience-options-all'));
 
     fireEvent.press(getByTestId('group-msg-send'));
     expect(getByText('groups.messages.subjectRequired')).toBeTruthy();
 
     fireEvent.changeText(getByTestId('group-msg-subject'), 'Cena');
     fireEvent.changeText(getByTestId('group-msg-body'), 'Elegid fecha.');
-    fireEvent.press(getByTestId('group-msg-audience-event'));
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    fireEvent.press(getByTestId('group-msg-audience-options-event'));
     fireEvent.press(getByTestId('group-msg-send'));
     expect(getByText('groups.messages.eventRequired')).toBeTruthy();
     fireEvent.press(getByTestId('group-msg-event-ev1'));
-    fireEvent.press(getByTestId('group-msg-whatsapp-fallback'));
+    fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
+    fireEvent.press(getByTestId('group-msg-whatsapp-options-fallback'));
     fireEvent.press(getByTestId('group-msg-pinned'));
     fireEvent.press(getByTestId('group-msg-poll-yes_no'));
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Vienes?');
@@ -176,17 +181,21 @@ describe('GroupMessagesAdmin', () => {
     expect(getByTestId('group-msg-compose')).toBeTruthy();
     expect(getByTestId('group-msg-compose-scroll')).toBeTruthy();
     expect(getByTestId('group-msg-audience')).toBeTruthy();
-    fireEvent.press(getByTestId('group-msg-audience-cuota'));
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    fireEvent.press(getByTestId('group-msg-audience-options-cuota'));
     expect(queryByTestId('group-msg-events')).toBeNull();
-    fireEvent.press(getByTestId('group-msg-audience-event'));
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    fireEvent.press(getByTestId('group-msg-audience-options-event'));
     expect(getByTestId('group-msg-events')).toBeTruthy();
-    fireEvent.press(getByTestId('group-msg-audience-cuota'));
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    fireEvent.press(getByTestId('group-msg-audience-options-cuota'));
     fireEvent.changeText(getByTestId('group-msg-subject'), 'Fecha de la cena');
     fireEvent.changeText(getByTestId('group-msg-body'), 'Votad.');
     fireEvent.press(getByTestId('group-msg-push'));
     fireEvent.press(getByTestId('group-msg-email'));
     expect(getByTestId('group-msg-whatsapp')).toBeTruthy();
-    fireEvent.press(getByTestId('group-msg-whatsapp-all'));
+    fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
+    fireEvent.press(getByTestId('group-msg-whatsapp-options-all'));
     expect(getByTestId('group-msg-poll')).toBeTruthy();
     fireEvent.press(getByTestId('group-msg-poll-choice'));
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Qué día?');

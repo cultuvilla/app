@@ -20,7 +20,6 @@ import {
 } from '@cultuvilla/shared/services/groupTaskService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, Card, HStack, Pressable, Text, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
@@ -109,8 +108,7 @@ export function TasksAdmin({
 
   return (
     <VStack gap={3} testID="tasks-admin">
-      <HStack justify="between" align="center">
-        <DetailSectionHeading>{t('groups.tasks.adminTitle')}</DetailSectionHeading>
+      <HStack justify="end" align="center">
         <Button size="md" variant="secondary" onPress={() => setSheet({ kind: 'task', task: null, eventId: null })} testID="tasks-new">
           {t('groups.tasks.new')}
         </Button>

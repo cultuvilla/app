@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { cuotaConcept, periodLabel, type SocioCuotaStatus } from '@cultuvilla/shared/models/organization';
 import { formatDayKey } from '@cultuvilla/shared/utils';
 import { Card, HStack, Text, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useT } from '../../../lib/i18n';
 import { centsLabel, CUOTA_STATUS_TONE } from '../../../lib/orgs/cuota';
 import { useMyCuota } from '../../../lib/orgs/useMyCuota';
@@ -33,7 +32,6 @@ export function MyCuota({ orgId, uid, empty }: { orgId: string; uid: string; emp
 
   return (
     <VStack gap={2} testID="my-cuota">
-      <DetailSectionHeading>{t('groups.cuota.myTitle')}</DetailSectionHeading>
       <Text tone="muted" variant="bodySm">
         {t('groups.cuota.periodTitle', { period: periodLabel(periodKey) })}
       </Text>

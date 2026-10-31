@@ -12,6 +12,7 @@ import { downloadFile } from '../../../../lib/export/downloadFile';
 import { latestWatcher, resetWatchers, setWatched } from '../../../../test/watchers';
 import { CuotaAdmin } from '../CuotaAdmin';
 
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -143,7 +144,8 @@ describe('CuotaAdmin', () => {
     const { getByTestId } = renderAdmin();
     fireEvent.press(getByTestId('cuota-record-Paco'));
     expect(getByTestId('cuota-payment-amount').props.value).toBe('30');
-    fireEvent.press(getByTestId('cuota-payment-method-transferencia'));
+    fireEvent.press(getByTestId('cuota-payment-method-trigger'));
+    fireEvent.press(getByTestId('cuota-payment-method-options-transferencia'));
     fireEvent.changeText(getByTestId('cuota-payment-note'), 'en la cena');
     fireEvent.press(getByTestId('cuota-payment-save'));
     await waitFor(() =>
@@ -196,14 +198,16 @@ describe('CuotaAdmin', () => {
     fireEvent.press(getByTestId('cuota-tier-covers-jub'));
     expect(getByTestId('cuota-settings-periodicity')).toBeTruthy();
     fireEvent.press(getByTestId('cuota-settings-periodicity-monthly'));
-    fireEvent.changeText(getByTestId('cuota-settings-grace'), '10');
+    expect(getByTestId('cuota-settings-grace')).toBeTruthy();
+    fireEvent.press(getByTestId('cuota-settings-grace-trigger'));
+    fireEvent.press(getByTestId('cuota-settings-grace-options-15'));
     fireEvent.changeText(getByTestId('cuota-settings-iban'), 'es12 3456');
     fireEvent.changeText(getByTestId('cuota-settings-instructions'), 'En mano');
     fireEvent.press(getByTestId('cuota-settings-reminders'));
     fireEvent.press(getByTestId('cuota-settings-save'));
     await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
     expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({
-      periodicity: 'monthly', startPeriod: TODAY.slice(0, 7), graceDays: 10, iban: 'es12 3456', payInstructions: 'En mano',
+      periodicity: 'monthly', startPeriod: TODAY.slice(0, 7), graceDays: 15, iban: 'es12 3456', payInstructions: 'En mano',
       remindersEnabled: false, tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1200, coversPersonas: true }],
     });
   });
@@ -225,7 +229,8 @@ describe('CuotaAdmin', () => {
     expect(getByTestId('cuota-payment-sheet')).toBeTruthy();
     expect(getByTestId('cuota-payment-scroll')).toBeTruthy();
     expect(getByTestId('cuota-payment-method')).toBeTruthy();
-    fireEvent.press(getByTestId('cuota-payment-method-domiciliacion'));
+    fireEvent.press(getByTestId('cuota-payment-method-trigger'));
+    fireEvent.press(getByTestId('cuota-payment-method-options-domiciliacion'));
     fireEvent.press(getByTestId('cuota-payment-save'));
     await waitFor(() => expect(jest.mocked(recordCuotaPayment).mock.calls[0]![1]).toMatchObject({ method: 'domiciliacion' }));
   });

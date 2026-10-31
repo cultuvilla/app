@@ -13,6 +13,7 @@ import {
 import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { TasksAdmin } from '../TasksAdmin';
 
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),

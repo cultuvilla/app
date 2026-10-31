@@ -8,6 +8,7 @@ import { latestWatcher, resetWatchers, setWatched } from '../../../../test/watch
 import { RecordsAdmin } from '../RecordsAdmin';
 import { MyActas } from '../MyActas';
 
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),

@@ -10,7 +10,6 @@ import {
 } from '@cultuvilla/shared/services/groupMessageService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Card, Pressable, Text, Toggle, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
@@ -52,7 +51,6 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
 
   return (
     <VStack gap={2} testID="group-notices">
-      <DetailSectionHeading>{t('groups.messages.noticesTitle')}</DetailSectionHeading>
       {notices.map((m) => {
         const fresh = readsStatus === 'ready' && !readIds.has(m.id) && m.sentBy !== uid;
         const myVote = voteOf.get(m.id);
