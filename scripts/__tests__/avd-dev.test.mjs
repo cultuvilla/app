@@ -30,7 +30,7 @@ function linuxBox({ imageInstalled = true, emulatorDies = false } = {}) {
   stub('platform-tools/adb', [
     'case "$1" in',
     '  devices) echo "List of devices attached" ;;',
-    `  shell) [ -f ${JSON.stringify(join(home, 'booted'))} ] && echo 1 ;;`,
+    `  shell) echo "adb $*" >> ${JSON.stringify(log)}; if [ -f ${JSON.stringify(join(home, 'booted'))} ]; then echo 1; fi ;;`,
     'esac',
   ].join('\n'));
   const run = (args, env = {}) => spawnSync('bash', [SCRIPT, ...args], {
@@ -53,7 +53,7 @@ test('on Linux, boot creates the missing AVD in ~/.android/avd and launches it',
   const r = box.run(['boot'], { AVD_BOOT_TIMEOUT: '20' });
   assert.equal(r.status, 0, r.stderr + r.stdout);
   const avdHome = join(box.home, '.android', 'avd');
-  const [create, launch] = box.calls();
+  const [create, launch] = box.calls().filter((line) => !line.startsWith('adb '));
   assert.equal(create, `avdmanager create avd --name Cultuvilla_Big --package ${IMAGE} --device pixel_7_pro avd_home=${avdHome}`);
   assert.equal(launch, `emulator @Cultuvilla_Big -no-snapshot-save avd_home=${avdHome}`);
   assert.doesNotMatch(r.stderr, /devices\.xml/, 'avdmanager\'s devices.xml noise is filtered');
@@ -62,7 +62,8 @@ test('on Linux, boot creates the missing AVD in ~/.android/avd and launches it',
 test('the AVD home is pinned even when a desktop session sets XDG_CONFIG_HOME', () => {
   const box = linuxBox();
   box.run(['boot'], { AVD_BOOT_TIMEOUT: '20' });
-  assert.ok(box.calls().every((line) => line.endsWith(`avd_home=${join(box.home, '.android', 'avd')}`)));
+  const tools = box.calls().filter((line) => !line.startsWith('adb '));
+  assert.ok(tools.length === 2 && tools.every((line) => line.endsWith(`avd_home=${join(box.home, '.android', 'avd')}`)));
 });
 
 test('on Linux, an emulator that exits fails boot at once instead of waiting forever', () => {
@@ -80,4 +81,12 @@ test('on Linux, a missing system image names the sdkmanager command and creates 
   assert.equal(r.status, 1);
   assert.match(r.stderr, new RegExp(`sdkmanager --install '${IMAGE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
   assert.deepEqual(box.calls(), []);
+});
+
+test('open deep-links through the dev launcher\'s exp+ scheme, never the app\'s own', () => {
+  const box = linuxBox();
+  const r = box.run(['open']);
+  assert.equal(r.status, 0, r.stderr);
+  const start = box.calls().find((line) => line.includes('am start'));
+  assert.match(start, /-d exp\+cultuvilla:\/\/expo-development-client\/\?url=http%3A%2F%2Flocalhost%3A8081$/);
 });
