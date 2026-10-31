@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { compareActas } from '@cultuvilla/shared/models/organization';
 import { watchSocioVisibleActas, type Acta } from '@cultuvilla/shared/services/recordsService';
 import { VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { ActaDetailSheet, ActaRow } from './ActaDetailSheet';
@@ -18,7 +17,6 @@ export function MyActas({ orgId, orgName, empty }: { orgId: string; orgName: str
 
   return (
     <VStack gap={1} testID="my-actas">
-      <DetailSectionHeading>{t('groups.records.actas.title')}</DetailSectionHeading>
       {rows.map((acta) => (
         <ActaRow key={acta.id} acta={acta} showVisibility={false} onOpen={() => setOpenId(acta.id)} />
       ))}

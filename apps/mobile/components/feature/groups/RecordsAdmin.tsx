@@ -1,5 +1,4 @@
 import { Card, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useT } from '../../../lib/i18n';
 import { ActasAdmin } from './ActasAdmin';
 import { LibroSocios } from './LibroSocios';
@@ -14,7 +13,6 @@ export function RecordsAdmin({ orgId, orgName, uid }: { orgId: string; orgName: 
   const { t } = useT();
   return (
     <VStack gap={3} testID="records-admin">
-      <DetailSectionHeading>{t('groups.records.title')}</DetailSectionHeading>
       <Card>
         <LibroSocios orgId={orgId} orgName={orgName} />
       </Card>

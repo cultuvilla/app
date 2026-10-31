@@ -13,7 +13,6 @@ import {
 } from '@cultuvilla/shared/services/socioService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, HStack, Pressable, Text, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { OptionsSheet } from './OptionsSheet';
 import { TypedSocioSheet, type TypedSocioValues } from './TypedSocioSheet';
 import { useWatch } from '../../../lib/hooks/useWatch';
@@ -96,17 +95,13 @@ export function SociosRoster({
 
   return (
     <VStack gap={2} testID="socios-roster">
-      <DetailSectionHeading
-        action={
-          canManage ? (
-            <Button variant="secondary" testID="socios-add" onPress={() => setSheet({ kind: 'typed', socio: null })}>
-              {t('groups.socios.add')}
-            </Button>
-          ) : undefined
-        }
-      >
-        {t('groups.socios.title')}
-      </DetailSectionHeading>
+      {canManage ? (
+        <HStack justify="end">
+          <Button variant="secondary" testID="socios-add" onPress={() => setSheet({ kind: 'typed', socio: null })}>
+            {t('groups.socios.add')}
+          </Button>
+        </HStack>
+      ) : null}
       <Text tone="muted" variant="bodySm">
         {t('groups.socios.count', { count: activeCount })}
       </Text>

@@ -4,11 +4,16 @@ import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { View } from 'react-native';
 import { FieldLabel, Pressable, Text } from '../../primitives';
 import { OptionsSheet } from './OptionsSheet';
-import type { Choice } from './ChoiceRow';
+
+export interface Choice<T extends string> {
+  value: T;
+  label: string;
+}
 
 /**
  * A form field showing the current choice; tapping it opens the list. For a
- * choice among many (a month) — a few options read better as a `ChoiceRow`.
+ * choice among many (a month, a payment method) — two or three short options
+ * read better as a `SegmentedToggle`.
  * The trigger matches `DateField`'s, so the two sit together in a form.
  */
 export function SelectField<T extends string>({

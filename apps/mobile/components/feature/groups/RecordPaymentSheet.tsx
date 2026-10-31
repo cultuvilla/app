@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { CUOTA_PAYMENT_METHODS, parseEuroCents, type CuotaPaymentMethod } from '@cultuvilla/shared/models/organization';
 import { BottomSheet, Button, DateField, Input, Text, VStack } from '../../primitives';
+import { SelectField } from './SelectField';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { centsInputValue, dayKeyOfPickedDate, pickedDateOfDayKey, todayKey } from '../../../lib/orgs/cuota';
-import { ChoiceRow } from './ChoiceRow';
 
 export interface PaymentValues {
   amountCents: number;
@@ -85,10 +85,8 @@ export function RecordPaymentSheet({
             error={error}
             testID="cuota-payment-amount"
           />
-          <Text variant="bodySm" className="font-bold">
-            {t('groups.cuota.payment.method')}
-          </Text>
-          <ChoiceRow
+          <SelectField
+            label={t('groups.cuota.payment.method')}
             testID="cuota-payment-method"
             value={method}
             options={CUOTA_PAYMENT_METHODS.map((m) => ({ value: m, label: t(`groups.cuota.methods.${m}`) }))}

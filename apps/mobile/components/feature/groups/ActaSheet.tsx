@@ -3,11 +3,12 @@ import { ScrollView } from 'react-native';
 import { ACTA_BODIES, isActiveSocio, type ActaAttendee, type ActaBody, type ActaInput } from '@cultuvilla/shared/models/organization';
 import type { Acta } from '@cultuvilla/shared/services/recordsService';
 import type { Socio } from '@cultuvilla/shared/services/socioService';
-import { BottomSheet, Button, Checkbox, DateField, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { Button, Checkbox, DateField, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { SegmentedToggle } from '../SegmentedToggle';
+import { FormModal } from '../../layout/FormModal';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { dayKeyOfPickedDate, pickedDateOfDayKey, todayKey } from '../../../lib/orgs/cuota';
-import { ChoiceRow } from './ChoiceRow';
 
 const lines = (text: string) => text.split('\n').map((l) => l.trim()).filter((l) => l !== '');
 
@@ -97,12 +98,10 @@ export function ActaSheet({
   };
 
   return (
-    <BottomSheet
+    <FormModal
       visible={visible}
       onClose={onClose}
       title={t(acta ? 'groups.records.actas.form.titleEdit' : 'groups.records.actas.form.titleNew')}
-      closeLabel={t('common.close')}
-      maxHeightRatio={0.92}
       testID="acta-sheet"
       footer={
         <VStack className="px-5 pt-3">
@@ -112,12 +111,12 @@ export function ActaSheet({
         </VStack>
       }
     >
-      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID="acta-scroll">
-        <VStack gap={3} className="px-5 pb-4">
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" testID="acta-scroll">
+        <VStack gap={3} className="px-4 pt-4 pb-6">
           <Text variant="bodySm" className="font-bold">
             {t('groups.records.actas.form.body')}
           </Text>
-          <ChoiceRow
+          <SegmentedToggle
             testID="acta-body"
             value={body}
             options={ACTA_BODIES.map((b) => ({ value: b, label: t(`groups.records.actas.body.${b}`) }))}
@@ -191,6 +190,6 @@ export function ActaSheet({
           </Text>
         </VStack>
       </ScrollView>
-    </BottomSheet>
+    </FormModal>
   );
 }

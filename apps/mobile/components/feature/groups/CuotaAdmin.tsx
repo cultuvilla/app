@@ -30,9 +30,8 @@ import { watchOrgSocios, type Socio } from '@cultuvilla/shared/services/socioSer
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { formatDate, formatDayKey } from '@cultuvilla/shared/utils';
 import { Button, HStack, Pressable, Text, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
+import { SegmentedToggle } from '../SegmentedToggle';
 import { ExportButton } from '../ExportButton';
-import { ChoiceRow } from './ChoiceRow';
 import { CuotaSettingsSheet } from './CuotaSettingsSheet';
 import { RecordPaymentSheet } from './RecordPaymentSheet';
 import { CuotaAssignmentSheet } from './CuotaAssignmentSheet';
@@ -136,7 +135,6 @@ export function CuotaAdmin({
   if (!cuota || !periodKey) {
     return (
       <VStack gap={2} testID="cuota-admin">
-        <DetailSectionHeading>{t('groups.cuota.title')}</DetailSectionHeading>
         <Text tone="muted" variant="bodySm">
           {t('groups.cuota.admin.notConfigured')}
         </Text>
@@ -170,27 +168,21 @@ export function CuotaAdmin({
 
   return (
     <VStack gap={2} testID="cuota-admin">
-      <DetailSectionHeading
-        action={
-          <HStack gap={4} align="center">
-            <ExportButton
-              buildModel={buildModel}
-              title={t('groups.cuota.admin.exportTitle')}
-              body={t('groups.cuota.admin.exportBody', { count: statuses.length, period: periodLabel(periodKey) })}
-              accessibilityLabel={t('groups.cuota.admin.exportTitle')}
-              testID="cuota-export"
-              xlsxTestID="cuota-export-xlsx"
-              csvTestID="cuota-export-csv"
-              scope="cuotaExport"
-            />
-            <Button variant="secondary" testID="cuota-edit-settings" onPress={() => setSheet({ kind: 'settings' })}>
-              {t('groups.cuota.admin.editSettings')}
-            </Button>
-          </HStack>
-        }
-      >
-        {t('groups.cuota.title')}
-      </DetailSectionHeading>
+      <HStack gap={4} align="center">
+        <ExportButton
+          buildModel={buildModel}
+          title={t('groups.cuota.admin.exportTitle')}
+          body={t('groups.cuota.admin.exportBody', { count: statuses.length, period: periodLabel(periodKey) })}
+          accessibilityLabel={t('groups.cuota.admin.exportTitle')}
+          testID="cuota-export"
+          xlsxTestID="cuota-export-xlsx"
+          csvTestID="cuota-export-csv"
+          scope="cuotaExport"
+        />
+        <Button variant="secondary" testID="cuota-edit-settings" onPress={() => setSheet({ kind: 'settings' })}>
+          {t('groups.cuota.admin.editSettings')}
+        </Button>
+      </HStack>
       <Text variant="bodySm" tone="muted">
         {t('groups.cuota.admin.summary', {
           amount: centsLabel(cuota.amountCents),
@@ -228,7 +220,7 @@ export function CuotaAdmin({
         </Pressable>
       </HStack>
 
-      <ChoiceRow
+      <SegmentedToggle
         testID="cuota-filter"
         value={filter}
         options={[

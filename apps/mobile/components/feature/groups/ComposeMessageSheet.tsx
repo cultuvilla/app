@@ -15,12 +15,14 @@ import { newGroupMessageId, sendGroupMessage } from '@cultuvilla/shared/services
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
 import { formatDate } from '@cultuvilla/shared/utils';
-import { BottomSheet, Button, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { Button, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { SelectField } from './SelectField';
+import { SegmentedToggle } from '../SegmentedToggle';
+import { FormModal } from '../../layout/FormModal';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { composerInput, emptyComposerForm, type ComposerError, type ComposerForm, type PollChoice } from '../../../lib/orgs/messaging';
-import { ChoiceRow } from './ChoiceRow';
 
 type Event = EventData & { id: string };
 
@@ -100,13 +102,11 @@ export function ComposeMessageSheet({
   };
 
   return (
-    <BottomSheet
+    <FormModal
       visible={visible}
       onClose={onClose}
       title={t('groups.messages.compose')}
-      closeLabel={t('common.close')}
       testID="group-msg-compose"
-      maxHeightRatio={0.92}
       footer={
         <VStack className="px-5 pt-3">
           <Button onPress={send} loading={sending} fullWidth testID="group-msg-send">
@@ -115,8 +115,8 @@ export function ComposeMessageSheet({
         </VStack>
       }
     >
-      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID="group-msg-compose-scroll">
-        <VStack gap={3} className="px-5 pb-4">
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" testID="group-msg-compose-scroll">
+        <VStack gap={3} className="px-4 pt-4 pb-6">
           <Input
             label={t('groups.messages.subject')}
             value={form.title}
@@ -135,11 +135,8 @@ export function ComposeMessageSheet({
             error={error === 'body' ? t(ERROR_KEY.body) : undefined}
             testID="group-msg-body"
           />
-
-          <Text variant="bodySm" className="font-bold">
-            {t('groups.messages.audienceLabel')}
-          </Text>
-          <ChoiceRow<GroupMessageAudienceKind>
+          <SelectField
+            label={t('groups.messages.audienceLabel')}
             testID="group-msg-audience"
             value={form.audience}
             options={audiences.map((a) => ({ value: a, label: t(`groups.messages.audience.${a}`) }))}
@@ -187,10 +184,8 @@ export function ComposeMessageSheet({
           </Text>
           <Toggle testID="group-msg-push" value={form.push} label={t('groups.messages.channelPush')} onValueChange={(v) => set('push', v)} />
           <Toggle testID="group-msg-email" value={form.email} label={t('groups.messages.channelEmail')} onValueChange={(v) => set('email', v)} />
-          <Text variant="bodySm" tone="muted">
-            {t('groups.messages.whatsappLabel')}
-          </Text>
-          <ChoiceRow
+          <SelectField
+            label={t('groups.messages.whatsappLabel')}
             testID="group-msg-whatsapp"
             value={form.whatsapp}
             options={GROUP_WHATSAPP_MODES.map((m) => ({ value: m, label: t(`groups.messages.whatsapp.${m}`) }))}
@@ -205,7 +200,7 @@ export function ComposeMessageSheet({
           <Text variant="bodySm" className="font-bold">
             {t('groups.messages.pollLabel')}
           </Text>
-          <ChoiceRow
+          <SegmentedToggle
             testID="group-msg-poll"
             value={form.poll}
             options={POLL_CHOICES.map((p) => ({ value: p, label: t(`groups.messages.poll.${p}`) }))}
@@ -255,6 +250,6 @@ export function ComposeMessageSheet({
           ) : null}
         </VStack>
       </ScrollView>
-    </BottomSheet>
+    </FormModal>
   );
 }

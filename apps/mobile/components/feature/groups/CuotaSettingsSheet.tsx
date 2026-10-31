@@ -10,11 +10,12 @@ import {
 } from '@cultuvilla/shared/models/organization';
 import type { CuotaSettings } from '@cultuvilla/shared/services/cuotaService';
 import { monthLongLabels } from '@cultuvilla/shared/utils';
-import { BottomSheet, Button, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { Button, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { SegmentedToggle } from '../SegmentedToggle';
+import { FormModal } from '../../layout/FormModal';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { centsInputValue } from '../../../lib/orgs/cuota';
-import { ChoiceRow } from './ChoiceRow';
 import { SelectField } from './SelectField';
 
 export type CuotaSettingsValues = Omit<CuotaSettingsInput, 'configuredBy' | 'updatedAt'>;
@@ -52,6 +53,16 @@ function draftOf(settings: CuotaSettings | null): Draft {
     remindersEnabled: settings?.remindersEnabled ?? false,
     tiers: (settings?.tiers ?? []).map((tier) => ({ ...tier, amount: centsInputValue(tier.amountCents) })),
   };
+}
+
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
+const GRACE_PRESETS = [0, 7, 15, 30, 45, 60, 90];
+
+/** The usual margins, plus the stored one if a group set another. */
+function graceOptions(current: string): string[] {
+  const days = new Set(GRACE_PRESETS);
+  if (/^\d+$/.test(current)) days.add(Number(current));
+  return [...days].sort((a, b) => a - b).map(String);
 }
 
 function newTierId(): string {
@@ -146,11 +157,10 @@ export function CuotaSettingsSheet({
   const months = monthLongLabels();
 
   return (
-    <BottomSheet
+    <FormModal
       visible={visible}
       onClose={onClose}
       title={t('groups.cuota.settings.title')}
-      closeLabel={t('common.close')}
       testID="cuota-settings-sheet"
       footer={
         <VStack className="px-5 pt-3">
@@ -160,8 +170,8 @@ export function CuotaSettingsSheet({
         </VStack>
       }
     >
-      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID="cuota-settings-scroll">
-        <VStack gap={3} className="px-5 pb-4">
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" testID="cuota-settings-scroll">
+        <VStack gap={3} className="px-4 pt-4 pb-6">
           <Input
             label={t('groups.cuota.settings.amount')}
             value={draft.amount}
@@ -173,7 +183,7 @@ export function CuotaSettingsSheet({
           <Text variant="bodySm" className="font-bold">
             {t('groups.cuota.settings.periodicity')}
           </Text>
-          <ChoiceRow
+          <SegmentedToggle
             testID="cuota-settings-periodicity"
             value={draft.periodicity}
             options={(['yearly', 'monthly'] as const).map((p) => ({ value: p, label: t(`groups.cuota.periodicity.${p}`) }))}
@@ -188,21 +198,19 @@ export function CuotaSettingsSheet({
               onChange={(m) => set('dueMonth', Number(m))}
             />
           ) : null}
-          <Input
+          <SelectField
             label={t('groups.cuota.settings.dueDay')}
-            value={draft.dueDay}
-            onChangeText={(v) => set('dueDay', v)}
-            keyboardType="number-pad"
-            error={errors.dueDay}
             testID="cuota-settings-day"
+            value={draft.dueDay}
+            options={DAYS.map((d) => ({ value: d, label: d }))}
+            onChange={(v) => set('dueDay', v)}
           />
-          <Input
+          <SelectField
             label={t('groups.cuota.settings.graceDays')}
-            value={draft.graceDays}
-            onChangeText={(v) => set('graceDays', v)}
-            keyboardType="number-pad"
-            error={errors.graceDays}
             testID="cuota-settings-grace"
+            value={draft.graceDays}
+            options={graceOptions(draft.graceDays).map((d) => ({ value: d, label: t('groups.cuota.settings.graceDaysValue', { count: Number(d) }) }))}
+            onChange={(v) => set('graceDays', v)}
           />
           <Input
             label={t('groups.cuota.settings.bizum')}
@@ -294,6 +302,6 @@ export function CuotaSettingsSheet({
           </VStack>
         </VStack>
       </ScrollView>
-    </BottomSheet>
+    </FormModal>
   );
 }
