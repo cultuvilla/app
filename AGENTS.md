@@ -649,15 +649,20 @@ only on the seed and on earlier flows of its own group. See
 [apps/mobile/e2e/native/README.md](apps/mobile/e2e/native/README.md); under WSL2
 it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 
-Still off-limits — these run indefinitely (the user owns that iteration loop) or
-bypass CI:
+**Metro is yours to run** (decided 2026-10-31, user) when the task needs the app on a
+device — to verify a change, read its logs, reproduce a bug. Check `:8081` is free
+first (`ss -ltn`; if the user's Metro already holds it, use theirs), run it in the
+background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when you
+are done: it is an indefinite server, so a Metro you leave running holds the port
+the user's next session needs.
 
-- `pnpm app:start` / `expo start` (Expo/Metro dev server)
+Still off-limits — these run indefinitely or bypass CI:
+
 - `firebase emulators:start` directly (standalone long-lived emulator session)
 - Any deploy script (`pnpm deploy:*`) — use the `firestore-deploy` skill instead
 
-If you need output from a long-lived server you can't start (Metro, a standalone
-emulator session), ask the user to run it and paste the relevant lines.
+If you need output from a long-lived server you can't start (a standalone emulator
+session), ask the user to run it and paste the relevant lines.
 
 ## Development workflow
 
