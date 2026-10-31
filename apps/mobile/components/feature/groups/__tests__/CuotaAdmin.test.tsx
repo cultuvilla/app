@@ -93,7 +93,8 @@ describe('CuotaAdmin', () => {
     fireEvent.press(getByTestId('cuota-configure'));
     fireEvent.changeText(getByTestId('cuota-settings-amount'), '25,50');
     fireEvent.changeText(getByTestId('cuota-settings-bizum'), '600111222');
-    fireEvent.press(getByTestId('cuota-settings-month-3'));
+    fireEvent.press(getByTestId('cuota-settings-month-trigger'));
+    fireEvent.press(getByTestId('cuota-settings-month-options-3'));
     fireEvent.press(getByTestId('cuota-tier-add'));
     fireEvent.press(getByTestId('cuota-settings-save'));
     // The new tier has no name yet: nothing is saved.

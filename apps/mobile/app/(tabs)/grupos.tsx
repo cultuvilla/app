@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { hasSocioRoster } from '@cultuvilla/shared/models/organization';
 import type { GroupSection } from '@cultuvilla/shared/utils';
 import { Pressable, Screen, Text, VStack } from '../../components/primitives';
@@ -61,19 +60,6 @@ export default function GroupsTabScreen() {
         onLabelPress={groups.length > 1 ? () => setSwitching(true) : undefined}
         labelAccessibilityLabel={t('groups.switcherLabel')}
         labelTestID="group-switcher-open"
-        extraRightSlot={
-          selected ? (
-            <Pressable
-              testID="group-open-page"
-              accessibilityRole="link"
-              accessibilityLabel={t('groups.openGroupPage')}
-              onPress={() => router.push(orgHref(selected.org))}
-              className="p-1"
-            >
-              <Ionicons name="open-outline" size={26} color="#f9f0e8" />
-            </Pressable>
-          ) : null
-        }
       />
       {!uid ? null : status === 'loading' || remembered === undefined ? (
         <View className="flex-1 items-center justify-center">
@@ -117,6 +103,12 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
         {roster ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
 
         <GroupSummary orgId={org.id} uid={uid} roster={roster} includePrivate={org.joinPolicy === 'approval'} onOpen={open} />
+
+        <Pressable testID="group-open-page" accessibilityRole="link" onPress={() => router.push(orgHref(org))} className="self-start -mt-2">
+          <Text variant="bodySm" className="text-accent">
+            {t('groups.openGroupPage')}
+          </Text>
+        </Pressable>
 
         <GroupSectionGrid sections={member} badges={badges} onOpen={open} />
 

@@ -15,6 +15,7 @@ import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { centsInputValue } from '../../../lib/orgs/cuota';
 import { ChoiceRow } from './ChoiceRow';
+import { SelectField } from './SelectField';
 
 export type CuotaSettingsValues = Omit<CuotaSettingsInput, 'configuredBy' | 'updatedAt'>;
 
@@ -179,17 +180,13 @@ export function CuotaSettingsSheet({
             onChange={(p) => set('periodicity', p)}
           />
           {draft.periodicity === 'yearly' ? (
-            <>
-              <Text variant="bodySm" className="font-bold">
-                {t('groups.cuota.settings.dueMonth')}
-              </Text>
-              <ChoiceRow
-                testID="cuota-settings-month"
-                value={String(draft.dueMonth)}
-                options={months.map((label, i) => ({ value: String(i + 1), label }))}
-                onChange={(m) => set('dueMonth', Number(m))}
-              />
-            </>
+            <SelectField
+              label={t('groups.cuota.settings.dueMonth')}
+              testID="cuota-settings-month"
+              value={String(draft.dueMonth)}
+              options={months.map((label, i) => ({ value: String(i + 1), label }))}
+              onChange={(m) => set('dueMonth', Number(m))}
+            />
           ) : null}
           <Input
             label={t('groups.cuota.settings.dueDay')}
