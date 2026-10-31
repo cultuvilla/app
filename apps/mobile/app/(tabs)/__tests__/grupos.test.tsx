@@ -8,7 +8,8 @@ let mockGroups: MyGroup[] = [];
 const mockRemember = jest.fn().mockResolvedValue(undefined);
 let mockRemembered: string | null = null;
 let mockUnread = 0;
-let mockMyTasks: { id: string }[] = [];
+let mockNotices: { id: string; title: string; body: string; pinned: boolean; signerName: string; sentAt: Date; sentBy: string }[] = [];
+let mockMyTasks: { id: string; title: string; dueOn: string | null; time: string | null; slots: number | null; claimedUids: string[] }[] = [];
 
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
@@ -22,8 +23,19 @@ jest.mock('../../../lib/orgs/lastGroup', () => ({
   readLastGroupId: () => Promise.resolve(mockRemembered),
   rememberLastGroupId: (id: string) => mockRemember(id),
 }));
-jest.mock('../../../lib/orgs/useGroupNotices', () => ({ useGroupNotices: () => ({ unreadCount: mockUnread }) }));
+jest.mock('../../../lib/orgs/useGroupNotices', () => ({
+  useGroupNotices: () => ({ unreadCount: mockUnread, notices: mockNotices, status: 'ready', readsStatus: 'ready', readIds: new Set() }),
+}));
 jest.mock('../../../lib/orgs/useMyOpenTasks', () => ({ useMyOpenTasks: () => ({ mine: mockMyTasks, shifts: [], status: 'ready' }) }));
+let mockEvents: { id: string; title: string; startDate: Date; endDate: Date | null; confirmedCount: number; imageURL: null; villageCoverImage: null; villageSlug: string }[] = [];
+jest.mock('../../../lib/hooks/useWatch', () => ({
+  useWatch: (label: string) => ({ data: label.includes('Events') ? mockEvents : [], status: 'ready', error: null }),
+}));
+const NO_CUOTA = { cuota: null, periodKey: null as string | null, rows: [] as { id: string; kind: string }[], payments: [], statuses: [] as { socioId: string; status: string }[], settled: true };
+let mockCuota = NO_CUOTA;
+jest.mock('../../../lib/orgs/useMyCuota', () => ({ useMyCuota: () => mockCuota }));
+jest.mock('@cultuvilla/shared/services/eventService', () => ({ watchEventsByOrganization: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/socioService', () => ({ watchOrgSocios: jest.fn() }));
 const mockPush = jest.fn();
 let mockParams: { grupo?: string } = {};
 jest.mock('expo-router', () => ({
@@ -45,12 +57,6 @@ jest.mock('../../../components/layout/AppHeader', () => ({
         {extraRightSlot}
       </>
     );
-  },
-}));
-jest.mock('../../../components/feature/groups/GroupSummary', () => ({
-  GroupSummary: ({ onOpen }: { onOpen: (s: string) => void }) => {
-    const { Pressable } = jest.requireActual<typeof import('react-native')>('react-native');
-    return <Pressable testID="stub-GroupSummary" onPress={() => onOpen('cuota')} />;
   },
 }));
 jest.mock('../../../components/feature/groups/SocioConsentCard', () => ({
@@ -75,6 +81,9 @@ beforeEach(() => {
   mockRemembered = null;
   mockUnread = 0;
   mockMyTasks = [];
+  mockNotices = [];
+  mockEvents = [];
+  mockCuota = NO_CUOTA;
   mockRemember.mockClear();
   mockPush.mockClear();
 });
@@ -104,9 +113,11 @@ describe('Grupos tab', () => {
   it('reopens the last-used group and switches from the header sheet', async () => {
     mockGroups = [group('Anduela'), group('Peña')];
     mockRemembered = 'Peña';
-    const { findByTestId, getByTestId, getByText } = render(<GroupsTabScreen />);
+    const { findByTestId, getByTestId, getAllByText, queryByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getByText('Peña')).toBeTruthy();
+    // The header and the home's title.
+    expect(getAllByText('Peña')).toHaveLength(2);
+    expect(queryByText('Anduela')).toBeNull();
     fireEvent.press(getByTestId('group-switcher-open'));
     fireEvent.press(await findByTestId('group-switcher-Anduela'));
     await waitFor(() => expect(mockRemember).toHaveBeenCalledWith('Anduela'));
@@ -124,18 +135,45 @@ describe('Grupos tab', () => {
     expect(queryByTestId('group-section-cobros')).toBeNull();
     fireEvent.press(getByTestId('group-section-cuota'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/cuota');
-    fireEvent.press(getByTestId('stub-GroupSummary'));
-    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/cuota');
   });
 
   it('badges the unread notices and my open tasks', async () => {
     mockGroups = [group('Anduela')];
     mockUnread = 2;
-    mockMyTasks = [{ id: 't1' }];
+    mockMyTasks = [{ id: 't1', title: 'Comprar leña', dueOn: null, time: null, slots: null, claimedUids: [] }];
     const { findByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     expect(getByTestId('group-section-avisos-badge')).toBeTruthy();
     expect(getByTestId('group-section-tareas-badge')).toBeTruthy();
+    // My task also shows in the home's row.
+    expect(getByTestId('group-home-task-t1')).toBeTruthy();
+  });
+
+  it('reads like the village home: stats, then rows of notices and events', async () => {
+    mockGroups = [group('Anduela')];
+    mockNotices = [{ id: 'm1', title: 'Cena', body: 'El sábado', pinned: true, signerName: 'La junta', sentAt: new Date(), sentBy: 'x' }];
+    mockEvents = [
+      { id: 'e1', title: 'Matanza', startDate: new Date(Date.now() + 86_400_000 * 10), endDate: null, confirmedCount: 3, imageURL: null, villageCoverImage: null, villageSlug: 'v' },
+    ];
+    const { findByTestId, getByTestId, getByText } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    expect(getByText('groups.stats.events')).toBeTruthy();
+    // A member of a group whose estatutos keep the roster private sees no socio count.
+    expect(() => getByText('groups.stats.socios')).toThrow();
+    fireEvent.press(getByTestId('group-home-notice-m1'));
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/avisos');
+    expect(getByTestId('group-home-events')).toBeTruthy();
+    expect(getByText('Matanza')).toBeTruthy();
+  });
+
+  it("shows the member's cuota status, opening its screen", async () => {
+    mockGroups = [group('Anduela')];
+    mockCuota = { ...NO_CUOTA, periodKey: '2026', rows: [{ id: 's1', kind: 'member' }], statuses: [{ socioId: 's1', status: 'vencida' }] };
+    const { findByTestId, getByTestId, getByText } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    expect(getByText('groups.cuota.status.vencida')).toBeTruthy();
+    fireEvent.press(getByTestId('group-home-cuota'));
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/cuota');
   });
 
   it('an admin gets the Gestionar buttons', async () => {
@@ -153,9 +191,9 @@ describe('Grupos tab', () => {
     mockGroups = [group('Anduela'), group('Peña')];
     mockRemembered = 'Anduela';
     mockParams = { grupo: 'Peña' };
-    const { findByTestId, getByText } = render(<GroupsTabScreen />);
+    const { findByTestId, getAllByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getByText('Peña')).toBeTruthy();
+    expect(getAllByText('Peña')).toHaveLength(2);
     expect(mockRemember).toHaveBeenCalledWith('Peña');
   });
 

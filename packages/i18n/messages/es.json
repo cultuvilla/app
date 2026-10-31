@@ -1617,9 +1617,16 @@
     "roleAdmin": "Admin",
     "roleMember": "Miembro",
     "summary": {
-      "title": "Lo próximo",
-      "cuota": "Cuota {period}",
-      "nothing": "Nada pendiente por ahora."
+      "cuota": "Cuota {period}"
+    },
+    "stats": {
+      "socios": "Socios",
+      "members": "Miembros",
+      "events": "Eventos"
+    },
+    "home": {
+      "myTasks": "Mis tareas",
+      "more": "Más"
     },
     "sections": {
       "avisos": "Avisos",
@@ -1782,6 +1789,7 @@
         "dueMonth": "Mes de vencimiento",
         "dueDayInvalid": "Escribe un día del 1 al 31.",
         "graceDays": "Días de margen hasta que esté vencida",
+        "graceDaysValue": "{count, plural, =0 {Sin margen} one {# día} other {# días}}",
         "graceDaysInvalid": "Escribe un número de días, de 0 a 365.",
         "bizum": "Número de Bizum (opcional)",
         "iban": "IBAN (opcional)",
