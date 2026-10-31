@@ -96,6 +96,8 @@
     "seed:dev:events:wipe": "node scripts/seed/events.mjs --wipe",
     "seed:dev:news": "node scripts/seed/news.mjs",
     "seed:dev:news:wipe": "node scripts/seed/news.mjs --wipe",
+    "seed:dev:group-demo": "pnpm shared:build && node scripts/seed/group-demo.mjs",
+    "seed:dev:group-demo:wipe": "node scripts/seed/group-demo.mjs --wipe",
     "seed:villages": "node scripts/seed-village-requests.mjs",
     "seed:villages:wipe": "node scripts/seed-village-requests.mjs --wipe",
     "seed:e2e": "pnpm shared:build && node scripts/seed/e2e.mjs",
