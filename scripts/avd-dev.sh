@@ -65,7 +65,10 @@ case "$HOST" in
   *) echo "AVD_DEV_HOST='$HOST' — expected wsl or linux" >&2; exit 2 ;;
 esac
 PKG=${PKG:-com.cultuvilla.app.dev}
-SCHEME=${SCHEME:-cultuvilla}
+# exp+<scheme> is the dev launcher's own scheme, the one `expo run:android` opens.
+# The app's `cultuvilla://` scheme goes to Expo Router, which reads
+# expo-development-client as a village slug ("No encontramos este pueblo").
+SCHEME=${SCHEME:-exp+cultuvilla}
 METRO_URL=${METRO_URL:-http://localhost:8081}
 DEFAULT_AVD=${DEFAULT_AVD:-Cultuvilla_Big}
 
