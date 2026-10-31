@@ -1,0 +1,1 @@
+- Changed: in Grupos the link to the group's public page is back on the home, under the summary, and the cuota's due month is picked from a list instead of twelve buttons. **Migration:** none.
