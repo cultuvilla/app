@@ -71,12 +71,10 @@ async function avisoThreadPushUids(
   const candidates = avisoChatPushUids({ avisoAuthorUid: aviso.sentBy, participantUids, writerUid, canRead: () => true });
   if (candidates.length === 0) return [];
   const memberSnaps = await db.getAll(...candidates.map((uid) => organizationMemberDoc(db, orgId, uid)));
-  const roleOf = new Map(memberSnaps.map((snap) => [snap.id, snap.data()?.role ?? null]));
   const recipients = new Set(aviso.recipientUids);
-  return candidates.filter((uid) => {
-    const role = roleOf.get(uid);
-    return role === 'admin' || (role != null && recipients.has(uid));
-  });
+  return memberSnaps
+    .filter((snap) => snap.exists && (snap.data()?.role === 'admin' || recipients.has(snap.id)))
+    .map((snap) => snap.id);
 }
 
 interface AvisoHead {
