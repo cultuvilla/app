@@ -135,10 +135,21 @@ jest.mock('../../../components/feature/MyVillagePicker', () => ({
 }));
 // Drive DateTimeField.onChange directly; also surface the incoming value for assertions.
 jest.mock('../../../components/primitives/DateTimeField', () => ({
-  DateTimeField: ({ onChange, testID, value }: { onChange: (d: Date) => void; testID?: string; value: Date | null }) => {
+  DateTimeField: ({
+    label,
+    onChange,
+    testID,
+    value,
+  }: {
+    label: string;
+    onChange: (d: Date) => void;
+    testID?: string;
+    value: Date | null;
+  }) => {
     const { Pressable, Text } = require('react-native');
     return (
       <Pressable testID={testID} onPress={() => onChange(new Date('2026-08-01T18:00'))}>
+        <Text>{label}</Text>
         <Text testID={`${testID}-value`}>{value ? value.toISOString() : ''}</Text>
       </Pressable>
     );
@@ -1311,6 +1322,82 @@ describe('NewEventScreen — monthly and yearly events, and the group checklist'
     fireEvent.press(utils.getByTestId('event-form-primary'));
     await waitFor(() => expect(createGroupTasksMock()).toHaveBeenCalledTimes(1));
     expect(createGroupTasksMock().mock.calls[0]![0]).toBe('org-2');
+  });
+
+  it.each([
+    ['monthly', { repeatsMonthly: true, repeatsYearly: false, repeatDateVaries: true }],
+    ['yearly', { repeatsMonthly: false, repeatsYearly: true, repeatDateVaries: true }],
+  ] as const)('creates a %s event with a varying date as one edition, asking only for the next date', async (recurrence, flags) => {
+    const utils = render(<NewEventScreen />);
+    await toWhenStep(utils);
+    fireEvent.press(utils.getByTestId('startDate'));
+    fireEvent.press(utils.getByTestId('event-recurring'));
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    fireEvent.press(utils.getByTestId(`event-recurrence-${recurrence}`));
+    fireEvent.press(utils.getByTestId('event-date-mode-trigger'));
+    expect(utils.getByTestId('event-date-mode')).toBeTruthy();
+    expect(utils.getByText('event.dateModeDescription.varying')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-date-mode-varying'));
+    expect(utils.getByTestId('event-date-varies-hint')).toBeTruthy();
+    expect(utils.getByText('event.nextDateTime')).toBeTruthy();
+    expect(utils.queryByTestId('repeat-until')).toBeNull();
+    fireEvent.press(utils.getByTestId('location-field'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    await waitFor(() => expect(utils.getByTestId('signup-enabled')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
+    expect(createEventSeries).not.toHaveBeenCalled();
+    expect(jest.mocked(createEvent).mock.calls[0]![0]).toMatchObject(flags);
+  });
+
+  it('offers no date choice on a weekly event', async () => {
+    const utils = render(<NewEventScreen />);
+    await toWhenStep(utils);
+    fireEvent.press(utils.getByTestId('event-recurring'));
+    expect(utils.getByTestId('event-date-mode-trigger')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    fireEvent.press(utils.getByTestId('event-recurrence-weekly'));
+    expect(utils.queryByTestId('event-date-mode-trigger')).toBeNull();
+  });
+
+  it('repeats a varying-date event with everything filled in but the date', async () => {
+    mockParams.copyFrom = 'taller-1';
+    mockParams.villageId = 'm-1';
+    (getEvent as jest.Mock).mockResolvedValue({
+      id: 'taller-1',
+      municipalityId: 'm-1',
+      title: 'Taller de bolillos',
+      description: '',
+      startDate: new Date('2026-08-14T20:00'),
+      endDate: new Date('2026-08-14T22:00'),
+      location: null,
+      maxAttendees: null,
+      telephoneRequired: false,
+      requiresPayment: false,
+      signupGroupSize: 1,
+      minBirthYear: null,
+      maxBirthYear: null,
+      signupEnabled: true,
+      signupInfo: null,
+      attendeesVisibility: 'members',
+      signupFields: [],
+      organizerUserIds: ['u-1'],
+      organizerOrgIds: [],
+      visibilityOrgId: null,
+      imageURL: null,
+      repeatsYearly: false,
+      repeatsMonthly: true,
+      repeatDateVaries: true,
+    });
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByLabelText('event.title').props.value).toBe('Taller de bolillos'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    await waitFor(() => expect(utils.getByTestId('startDate')).toBeTruthy());
+    expect(utils.getByTestId('startDate-value').props.children).toBe('');
+    expect(within(utils.getByTestId('event-recurrence-trigger')).getByText('event.frequencyOption.monthly')).toBeTruthy();
+    expect(within(utils.getByTestId('event-date-mode-trigger')).getByText('event.dateModeOption.varying')).toBeTruthy();
+    expect(utils.getByTestId('event-date-varies-hint')).toBeTruthy();
+    expect(utils.queryByTestId('repeat-until')).toBeNull();
   });
 
   it("prefills next year's edition from a yearly event, a year later, keeping its flyer", async () => {

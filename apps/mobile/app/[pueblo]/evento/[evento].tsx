@@ -207,22 +207,28 @@ export default function EventDetailScreen() {
               />
             ) : null}
           </HStack>
-          {event.series || event.repeatsYearly ? (
+          {event.series || event.repeatsYearly || event.repeatsMonthly ? (
             <VStack gap={2}>
               <DetailSectionHeading>{t('event.seriesLabel')}</DetailSectionHeading>
               <Text testID="event-series-summary">
-                {event.series ? seriesSummary(event.series, event.startDate, t) : t('event.yearlySummary')}
+                {event.series
+                  ? seriesSummary(event.series, event.startDate, t)
+                  : event.repeatsMonthly
+                    ? t('event.monthlySummary')
+                    : event.repeatDateVaries
+                      ? t('event.yearlySummaryVaries')
+                      : t('event.yearlySummary')}
               </Text>
-              {/* Next year's date is not known when the fiestas are created, so
-                  only this edition exists; once it is over its organizers copy
-                  it forward, dates moved a year and still editable. */}
-              {event.repeatsYearly && canOrganize && eventEndBoundary(event) < new Date() ? (
+              {/* The next date is not known when the event is created, so only
+                  this edition exists; once it is over its organizers copy it
+                  forward, with a fixed date moved a year and a varying one blank. */}
+              {(event.repeatsYearly || event.repeatsMonthly) && canOrganize && eventEndBoundary(event) < new Date() ? (
                 <Button
                   variant="secondary"
                   onPress={() => router.push(createEventHref({ copyFrom: event.id, villageId: event.municipalityId }))}
-                  testID="event-repeat-next-year"
+                  testID="event-repeat-next"
                 >
-                  {t('event.repeatNextYear')}
+                  {event.repeatsMonthly ? t('event.repeatNextMonth') : t('event.repeatNextYear')}
                 </Button>
               ) : null}
             </VStack>

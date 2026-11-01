@@ -79,6 +79,14 @@ teacher is ill, without touching the rest.
   same date (usually the wrong day), and a scheduled job doing it (a running
   cost for what one tap does). `cleanupRemovedEventImages` leaves a yearly
   event's cover alone, since the next edition shows it.
+- **A date that varies is one edition too** (decided 2026-11-01, user). Monthly
+  and yearly events choose *Fecha: Fija* or *Distinta cada vez*. Fixed keeps the
+  above. Varying stores `repeatDateVaries: true`, on a yearly edition or on one
+  flagged `repeatsMonthly: true`, and only the next date is asked for: repeating
+  it copies everything but the date. A fixed monthly stays a series, so
+  `repeatsMonthly` always varies. Weekly has no such choice, since re-entering a
+  date every week is more work than picking days. No reminder to repeat: it would
+  be a scheduled job, a running cost, for now.
 - **The group checklist.** When a group the creator belongs to organizes the
   event, the form's last option *Añadir lista de tareas* adds a Tareas step.
   The tasks are ordinary group tasks on the first occurrence (`eventId`). On a
