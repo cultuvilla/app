@@ -171,6 +171,12 @@ describe('series on the event model', () => {
     expect(buildEventData({ ...base, series, repeatsYearly: true }).repeatsYearly).toBe(false);
     const { repeatsYearly: _r, ...legacy } = buildEventData(base);
     expect(EventDataSchema.parse(legacy).repeatsYearly).toBe(false);
+    const { repeatsMonthly: _m, repeatDateVaries: _v, ...older } = buildEventData(base);
+    expect(EventDataSchema.parse(older)).toMatchObject({ repeatsMonthly: false, repeatDateVaries: false });
+    expect(buildEventData({ ...base, repeatsMonthly: true })).toMatchObject({ repeatsMonthly: true, repeatDateVaries: true });
+    expect(buildEventData({ ...base, repeatsYearly: true, repeatDateVaries: true }).repeatDateVaries).toBe(true);
+    expect(buildEventData({ ...base, repeatDateVaries: true }).repeatDateVaries).toBe(false);
+    expect(buildEventData({ ...base, series, repeatsMonthly: true })).toMatchObject({ repeatsMonthly: false, repeatDateVaries: false });
   });
 
   it('rejects a weekday outside 1–7 and an empty weekday list', () => {

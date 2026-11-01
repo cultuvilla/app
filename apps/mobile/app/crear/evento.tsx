@@ -83,6 +83,7 @@ const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
 
 type Recurrence = 'weekly' | 'monthly' | 'yearly';
 const RECURRENCES: readonly Recurrence[] = ['weekly', 'monthly', 'yearly'];
+const DATE_MODES = ['fixed', 'varying'] as const;
 
 /** The same wall-clock moment a year later — the next edition of a yearly event. */
 function nextYear(d: Date): Date {
@@ -136,11 +137,21 @@ function stepBody(children: React.ReactNode) {
  * inline pushed the controls themselves below the fold.
  */
 /** The label on the left, the current choice on the right; tapping it opens the options. */
-function RecurrenceField({ value, onChange }: { value: Recurrence; onChange: (next: Recurrence) => void }) {
-  const { t } = useT();
+function ChoiceRow<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  testID,
+}: {
+  label: string;
+  value: T;
+  options: readonly { key: T; label: string; description: string }[];
+  onChange: (next: T) => void;
+  testID: string;
+}) {
   const [open, setOpen] = useState(false);
-  const label = t('event.frequency');
-  const current = t(`event.frequencyOption.${value}`);
+  const current = options.find((o) => o.key === value)?.label ?? '';
   return (
     <>
       <HStack gap={2} className="items-center justify-between">
@@ -149,7 +160,7 @@ function RecurrenceField({ value, onChange }: { value: Recurrence; onChange: (ne
           onPress={() => setOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={`${label}: ${current}`}
-          testID="event-recurrence-trigger"
+          testID={`${testID}-trigger`}
           className="flex-row items-center py-1"
         >
           <Text className="mr-1 font-semibold">{current}</Text>
@@ -159,18 +170,13 @@ function RecurrenceField({ value, onChange }: { value: Recurrence; onChange: (ne
       <OptionsSheet
         visible={open}
         title={label}
-        options={RECURRENCES.map((r) => ({
-          key: r,
-          label: t(`event.frequencyOption.${r}`),
-          description: t(`event.frequencyDescription.${r}`),
-          selected: r === value,
-        }))}
+        options={options.map((o) => ({ ...o, selected: o.key === value }))}
         onPick={(key) => {
-          onChange(key as Recurrence);
+          onChange(key as T);
           setOpen(false);
         }}
         onClose={() => setOpen(false)}
-        testID="event-recurrence"
+        testID={testID}
       />
     </>
   );
@@ -218,7 +224,7 @@ export default function NewEventScreen() {
   // prefills every field, and saves via updateEvent. Otherwise it creates a new
   // event. A `villageId` param (e.g. from a village's "Próximos eventos" add
   // card) targets that village; otherwise fall back to the user's active one.
-  // A `copyFrom` param (a yearly event's "Repetir el año que viene") creates a
+  // A `copyFrom` param (a repeating event's "Repetir el año que viene") creates a
   // new event prefilled from that one, its dates moved a year.
   const { villageId, eventId, copyFrom } = useLocalSearchParams<{
     villageId?: string;
@@ -263,9 +269,11 @@ export default function NewEventScreen() {
   // Recurrence (create only). A weekly or monthly one is a series: every
   // occurrence through the last calendar day becomes its own event doc on
   // submit, weekly ones on the chosen weekdays (ISO 1–7). A yearly one is a
-  // single edition flagged `repeatsYearly`.
+  // single edition flagged `repeatsYearly`. With `dateVaries` a monthly one is
+  // a single edition too: its next day can't be derived, so there is no series.
   const [recurring, setRecurring] = useState(false);
   const [recurrence, setRecurrence] = useState<Recurrence>('yearly');
+  const [dateVaries, setDateVaries] = useState(false);
   const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([]);
   const [repeatUntil, setRepeatUntil] = useState<Date | null>(null);
   // Edit mode: the event as loaded, for the series notice and for cancelling
@@ -449,8 +457,9 @@ export default function NewEventScreen() {
         if (cancelled || !ev) return;
         setTitle(ev.title);
         setDescription(ev.description);
-        setStartDate(nextYear(ev.startDate));
-        setEndDate(ev.endDate ? nextYear(ev.endDate) : null);
+        // A date that varies is the one thing left for the organizer to fill in.
+        setStartDate(ev.repeatDateVaries ? null : nextYear(ev.startDate));
+        setEndDate(ev.endDate && !ev.repeatDateVaries ? nextYear(ev.endDate) : null);
         setCoords(ev.location?.coordinates ?? null);
         setLocationName(ev.location?.displayName ?? '');
         setMaxAttendees(ev.maxAttendees != null ? String(ev.maxAttendees) : '');
@@ -471,7 +480,8 @@ export default function NewEventScreen() {
         setExistingImageURL(ev.imageURL ?? null);
         setVillageManuallyPicked(true);
         setRecurring(true);
-        setRecurrence('yearly');
+        setRecurrence(ev.repeatsMonthly ? 'monthly' : 'yearly');
+        setDateVaries(ev.repeatDateVaries);
       })
       .catch(() => {})
       .finally(() => {
@@ -542,10 +552,12 @@ export default function NewEventScreen() {
     maxBirthYearNum !== null &&
     maxBirthYearNum < minBirthYearNum;
 
-  const seriesFrequency = recurring && recurrence !== 'yearly' ? recurrence : null;
+  const varyingDate = recurring && recurrence !== 'weekly' && dateVaries;
+  const seriesFrequency = !recurring || varyingDate || recurrence === 'yearly' ? null : recurrence;
   const isSeries = seriesFrequency !== null;
   const weekly = seriesFrequency === 'weekly';
   const repeatsYearly = recurring && recurrence === 'yearly';
+  const repeatsMonthly = varyingDate && recurrence === 'monthly';
   const seriesRule: SeriesRule | null =
     seriesFrequency === 'weekly' && repeatUntil
       ? { frequency: 'weekly', weekdays: repeatWeekdays, until: repeatUntil }
@@ -682,6 +694,8 @@ export default function NewEventScreen() {
           // Copy mode reuses last year's flyer unless a new one is picked.
           imageURL: cover ? null : existingImageURL,
           repeatsYearly,
+          repeatsMonthly,
+          repeatDateVaries: varyingDate,
           maxAttendees: maxAttendeesValue,
           telephoneRequired,
           requiresPayment,
@@ -924,8 +938,35 @@ export default function NewEventScreen() {
           )}
           {!editMode && recurring ? (
             <VStack gap={1}>
-              <RecurrenceField value={recurrence} onChange={pickRecurrence} />
-              {recurrence === 'yearly' ? (
+              <ChoiceRow
+                label={t('event.frequency')}
+                value={recurrence}
+                options={RECURRENCES.map((r) => ({
+                  key: r,
+                  label: t(`event.frequencyOption.${r}`),
+                  description: t(`event.frequencyDescription.${r}`),
+                }))}
+                onChange={pickRecurrence}
+                testID="event-recurrence"
+              />
+              {recurrence !== 'weekly' ? (
+                <ChoiceRow
+                  label={t('event.dateMode')}
+                  value={dateVaries ? 'varying' : 'fixed'}
+                  options={DATE_MODES.map((m) => ({
+                    key: m,
+                    label: t(`event.dateModeOption.${m}`),
+                    description: t(`event.dateModeDescription.${m}`),
+                  }))}
+                  onChange={(mode) => setDateVaries(mode === 'varying')}
+                  testID="event-date-mode"
+                />
+              ) : null}
+              {varyingDate ? (
+                <Text tone="muted" variant="bodySm" testID="event-date-varies-hint">
+                  {t('event.dateVariesHint')}
+                </Text>
+              ) : recurrence === 'yearly' ? (
                 <Text tone="muted" variant="bodySm" testID="event-recurrence-yearly-hint">
                   {t('event.yearlyHint')}
                 </Text>
@@ -937,7 +978,7 @@ export default function NewEventScreen() {
             </VStack>
           ) : null}
           <DateTimeField
-            label={isSeries ? t('event.firstDateTime') : t('event.startDateTime')}
+            label={isSeries ? t('event.firstDateTime') : varyingDate ? t('event.nextDateTime') : t('event.startDateTime')}
             value={startDate}
             onChange={setStartDate}
             minimumDate={new Date()}

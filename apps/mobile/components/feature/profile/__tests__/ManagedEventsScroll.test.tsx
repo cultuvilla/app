@@ -24,6 +24,8 @@ function makeEvent(over: Partial<ManagedEvent> & { id: string }): ManagedEvent {
     visibilityOrgId: null,
     series: null,
     repeatsYearly: false,
+    repeatsMonthly: false,
+    repeatDateVaries: false,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,

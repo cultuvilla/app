@@ -879,7 +879,7 @@
     "cancelSeriesOne": "Solo este día",
     "cancelSeriesFollowing": "Este y los siguientes",
     "recurring": "Evento recurrente",
-    "recurringHint": "Cada semana o cada mes se crea un evento por cada día, con sus propias inscripciones, y luego puedes cancelar días sueltos. Cada año se crea el de este año, y cuando pase lo repites para el siguiente.",
+    "recurringHint": "Cada semana o cada mes se crea un evento por cada día, con sus propias inscripciones, y luego puedes cancelar días sueltos. Cada año se crea el de este año, y cuando pase lo repites para el siguiente. Con fecha distinta cada vez, solo se crea el próximo.",
     "frequency": "Cada cuánto",
     "frequencyOption": {
       "weekly": "Semanal",
@@ -888,9 +888,20 @@
     },
     "frequencyDescription": {
       "weekly": "Los días que elijas, hasta una fecha.",
-      "monthly": "El mismo día de cada mes, hasta una fecha.",
-      "yearly": "Creas el de este año y luego lo repites."
+      "monthly": "Una vez al mes.",
+      "yearly": "Una vez al año."
     },
+    "dateMode": "Fecha",
+    "dateModeOption": {
+      "fixed": "Fija",
+      "varying": "Distinta cada vez"
+    },
+    "dateModeDescription": {
+      "fixed": "Siempre el mismo día.",
+      "varying": "Pones la próxima fecha cada vez."
+    },
+    "dateVariesHint": "Se crea solo el próximo. Cuando pase, podrás repetirlo poniendo la fecha siguiente.",
+    "nextDateTime": "Próxima fecha y hora de inicio",
     "monthlyHint": "El día {day} de cada mes. Si un mes no tiene ese día, el último del mes.",
     "yearlyHint": "Se crea el evento de este año. Cuando pase, podrás repetirlo para el año siguiente.",
     "repeatDays": "Qué días",
@@ -905,7 +916,10 @@
     "seriesSummary": "Cada {days} · hasta el {until}",
     "seriesSummaryMonthly": "El día {day} de cada mes · hasta el {until}",
     "yearlySummary": "Cada año",
+    "yearlySummaryVaries": "Cada año, con fecha distinta",
+    "monthlySummary": "Cada mes, con fecha distinta",
     "repeatNextYear": "Repetir el año que viene",
+    "repeatNextMonth": "Repetir el mes que viene",
     "seriesEditNotice": "Este evento se repite: los cambios se aplican solo a este día.",
     "weekdayShort": {
       "1": "L",
