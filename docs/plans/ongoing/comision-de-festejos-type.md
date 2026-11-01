@@ -17,8 +17,8 @@ for this one type.
      (label, home section, roster tier, rules). Nothing offers to create one. Ships
      by OTA to every binary built since 2026-10-06.
   2. **Enable:** the create/edit forms offer `comisión`. This release carries a
-     `Breaking-Client:` trailer that raises `minSupported` to step 1's version, for the
-     pre-OTA binaries that cannot read the type.
+     `Breaking-Client:` trailer, so the release raises `minSupported` to its own version,
+     walling the binaries that cannot read the type.
 - **Unlimited per village**, like a peña: client-side create, village admin approves.
   No callable, no cap. A cap later is a product rule and needs a yes.
 - **Feature tier v1 = the socio-roster tier** (avisos, cuota, actas, registros,

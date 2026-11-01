@@ -146,12 +146,11 @@ describe('firestore.rules — /organizations/{orgId} update + delete', () => {
       await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'otros' }));
     });
 
-    // Not until every supported binary can read the type (comisión rollout, step 2).
-    it('nobody can turn a group into a comisión yet', async () => {
+    it('an org admin can move a group to a comisión and back', async () => {
       await seedOrgAndMembers();
-      for (const db of [asUser(getEnv(), ORG_ADMIN), asUser(getEnv(), VILLAGE_ADMIN)]) {
-        await assertFails(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'comisión' }));
-      }
+      const db = asUser(getEnv(), ORG_ADMIN);
+      await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'comisión' }));
+      await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'asociación' }));
     });
 
     it('nobody can turn a group into the ayuntamiento', async () => {

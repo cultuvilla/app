@@ -15,6 +15,7 @@ export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
  */
 export const PROPOSABLE_ORGANIZATION_TYPES: readonly OrganizationType[] = [
   'peña',
+  'comisión',
   'asociación',
   'otros',
 ] as const;
