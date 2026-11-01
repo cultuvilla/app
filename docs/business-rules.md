@@ -39,7 +39,7 @@ para un municipio cuyo `community.active == true`.
 
 ## 2. Tipos de usuario y roles
 
-Los roles **se componen**: un miembro de organización es también miembro del
+Los roles **se componen**: un integrante de organización es también miembro del
 pueblo y también un usuario autenticado.
 
 | Rol | Definido por | Capacidad principal |
@@ -48,7 +48,8 @@ pueblo y también un usuario autenticado.
 | **Usuario autenticado** | con sesión iniciada | Todo lo anterior + inscribirse a **cualquier** evento de **cualquier** pueblo, gestionar su cuenta y Personas, publicar/comentar/reaccionar en noticias. |
 | **Miembro del pueblo** | `municipalities/{id}/members/{uid}` (`role: user`) | Miembro de un pueblo concreto. Ve los **nombres** de asistentes en los eventos de ese pueblo. Sujeto al censo de ese pueblo. |
 | **Equipo del pueblo** (y su **Embajador**) | `municipalities/{id}/members/{uid}` (`role: admin`) | Gestiona el pueblo: expulsa miembros, modera noticias, gestiona barrios/cementerios, edita/cancela cualquier evento del pueblo, aprueba solicitudes de creación de organizaciones. *(El ingreso es autoservicio — el administrador ya no lo aprueba.)* |
-| **Miembro de organización** | `organizations/{orgId}/members/{uid}` | Crea/gestiona los eventos de esa organización. |
+| **Seguidor de organización** | `organizations/{orgId}/followers/{uid}` | Sigue el grupo con un toque, sin aprobación: se entera de sus eventos públicos. No entra en su libro de socios. |
+| **Integrante de organización** | `organizations/{orgId}/members/{uid}` | Crea/gestiona los eventos de esa organización y ve los privados. Solo un administrador lo admite: nadie se añade a sí mismo. |
 | **Superadministrador** | `admins/{uid}` | Global. Crea municipios, aprueba solicitudes de embajador, gestiona los datos de referencia y tiene plenos poderes de administrador de pueblo en todas partes. |
 
 **Un Embajador por pueblo, un equipo detrás.** En la app, el rol `admin` se

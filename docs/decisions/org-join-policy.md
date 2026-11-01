@@ -1,54 +1,71 @@
-# Organization join policy: open or by approval
+# How someone belongs to an organization: seguidor or integrante
 
-An organization (peña, asociación, …) chooses how people become members:
-**`open`**, anyone joins on the spot, which was the only behaviour until now;
-or **`approval`**, people ask and an org admin admits them. Only `approval` orgs
-may hold private events.
+A group has two tiers. A **seguidor** follows it with a free tap. An **integrante**
+is a member, and only an admin makes one. There is no instant self-join.
 
 ## Problem
 
-Private events (`visibility: 'organization'`) are gated on membership of the
-organizing org, so that membership has to mean something: the org must decide
-who is in it. With self-service joining as the only mode, it didn't.
+An organization used to choose between `open`, where anyone joined on the spot, and
+`approval`. In a group with a socio roster, `syncOrgSocioRoster` makes every member a
+socio, so in an `open` group, the default, one tap wrote someone into the libro de
+socios and made them owe the cuota: "I like this peña" and "I belong to this peña"
+were the same action. The membership of an `open` group also vetted nobody, so private
+events had to be limited to `approval` groups. Decided 2026-11-01 (user): joining needs
+an admin's acceptance.
 
 ## Decision
 
-- **`organizations.joinPolicy: 'open' | 'approval'`**, default `open`. The org
-  admins switch it in the org settings. The model defaults it on read because
-  installed binaries still create orgs without it (the rules accept that);
-  existing docs are backfilled explicitly (`scripts/backfill-org-join-policy.mjs`:
-  orgs already holding a private event become `approval`, so their members keep
-  access; the rest `open`).
-- **Self-join only into `open` orgs.** The org-member create rule's owner branch
-  requires `joinPolicy == 'open'`; admins (org, village, app) can still add
-  anyone directly.
-- **`approval` orgs take join requests** at
-  `organizations/{orgId}/joinRequests/{uid}`, one per requester. The requester
-  files and withdraws it (rules check the shape, that the org is approved and
-  `approval`, and that they are not already a member). No client edits it: the
-  **`respondToOrgJoinRequest`** callable resolves it, with the same authority as
-  the member-create rule. It adds the member and its `membershipEvents` record
-  in the transaction that deletes the request, then notifies the requester
-  (`org_join_request_approved` / `_rejected`). The **`onOrgJoinRequestCreated`**
-  trigger tells the org's admins (`org_join_request_created`). Pending requests
-  show on the org page for whoever manages it and in the Buzón of the org's
-  admins; the requester sees theirs as a sent request.
-- **Private events need an admitted membership.** `isVettedOrgMember(org)` =
-  member **and** the org is `approval`. It gates creating a private event,
-  moving an event into an org, reading one, and seeing its roster, and
-  `assertMayJoinEvent` applies the same check to sign-ups (which the Admin SDK
-  writes past the rules). Organizers of the event and app admins keep access.
-- **Switching back to `open` fails closed.** The org's private events stop being
-  readable by its members until it requires approval again, rather than
-  becoming reachable by anyone who walks in. The settings screen warns before
-  the switch.
+- **Every membership is admitted.** The member-create rule has no self-join branch:
+  org admins, village admins and app admins add someone directly, and everyone else
+  files a join request at `organizations/{orgId}/joinRequests/{uid}`, one per
+  requester. No client edits a request: the **`respondToOrgJoinRequest`** callable
+  resolves it, adding the member and its `membershipEvents` record in the transaction
+  that deletes the request, then notifies the requester. **`onOrgJoinRequestCreated`**
+  tells the org's admins. Pending requests show on the org page for whoever manages it
+  and in the Buzón of the org's admins.
+- **Private events need membership, nothing else.** Any group may hold them.
+  `assertMayJoinEvent` applies the same check to sign-ups, which the Admin SDK writes
+  past the rules. Organizers of the event and app admins keep access.
+- **Following lives apart from membership**, at
+  `organizations/{orgId}/followers/{uid}`, so it never touches `members/`, its rules or
+  the roster trigger. Who follows is private (the follower, org, village and app
+  admins); the pueblo sees `organizations.followerCount`, kept by
+  `syncOrgFollowerCount`. A group's new public events reach its followers through the
+  village broadcast (`onEventPublished`), with the same notification id, so a follower
+  who is also a village member hears once.
+- **Asking follows.** `onOrgJoinRequestCreated` follows the group for the requester,
+  so they see its public life while they wait, and they keep following if they are
+  turned away. An approval removes the follow: an integrante already has more.
+- **The ayuntamiento works the same.** Vecinos follow it; its team are the integrantes.
+  It has no socio roster, so nothing else changes.
+- **Existing members stayed.** The backfill that closed the open groups removed nobody;
+  they were already in the libro, and an admin can give a baja to anyone they don't
+  recognise.
+
+## `joinPolicy` is a leftover for installed binaries
+
+Nothing reads `organizations.joinPolicy` any more, except binaries older than the
+release that stopped. Those offer an instant join on `open` and treat a missing value
+as `open`, so the field is kept at `approval`:
+
+- `org-join-by-approval` moved every org to it before the rules changed. Every binary
+  above `minSupported` (1.10.0 at the time; the field shipped in 1.7.1) then files a
+  request, which is why this needed neither a wall nor a `Breaking-Client:` trailer.
+- `approveOrganization` writes it, since those binaries still create orgs as `open`.
+- The update rule refuses a move to `open`. An old binary's admin who flips its switch
+  gets a failed save until the OTA reaches them, which beats an org whose join button
+  fails for every old binary.
+
+Dropping the field is a later *contract* commit, once `minSupported` has passed the
+release that stopped reading it.
 
 ## Rejected
 
-- **A per-member "confirmed" flag** with open joining left untouched: less
-  surface, but two classes of member in one org is harder to explain than a
-  single rule about how the org admits people.
-- **Admin-only private events**: smallest change, but it turns a members'
-  feature into an admins' one.
-- **Blocking the switch to `open` while private events exist**: rules cannot
-  query for them, and a client-side check is not a guarantee.
+- **A per-member "confirmed" flag** with open joining left untouched: less surface, but
+  two classes of member in one org is harder to explain than one way in.
+- **Admin-only private events**: smallest change, but it turns a members' feature into
+  an admins' one.
+- **Demoting the members of open groups to seguidores**: writes a baja for each of them
+  into the libro of every open group, for people nobody questioned.
+- **A count aggregate instead of `followerCount`**: it needs list access to `followers/`,
+  which would make who follows public.
