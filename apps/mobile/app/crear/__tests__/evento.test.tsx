@@ -1225,13 +1225,22 @@ describe('NewEventScreen — monthly and yearly events, and the group checklist'
     expect(jest.mocked(createEvent).mock.calls[0]![0]).toMatchObject({ repeatsYearly: true });
   });
 
-  it('offers a checklist only for an organizing group the creator administers', async () => {
-    mockMyGroups.current = [{ org: { id: 'org-1', name: 'Peña' }, role: 'member' }];
+  it('offers a checklist only for an organizing group the creator belongs to', async () => {
+    mockMyGroups.current = [{ org: { id: 'org-9', name: 'Otra' }, role: 'admin' }];
     const utils = render(<NewEventScreen />);
     await waitFor(() => expect(utils.getByTestId('organizer-picker')).toBeTruthy());
     fireEvent.press(utils.getByTestId('pick-one-org'));
     await toDetailsStep(utils, null);
     expect(utils.queryByTestId('tasks-enabled')).toBeNull();
+  });
+
+  it('offers it to a plain member of the organizing group too', async () => {
+    mockMyGroups.current = [{ org: { id: 'org-1', name: 'Peña' }, role: 'member' }];
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByTestId('organizer-picker')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('pick-one-org'));
+    await toDetailsStep(utils, null);
+    expect(utils.getByTestId('tasks-enabled')).toBeTruthy();
   });
 
   it("asks a yearly event's tasks for a month and writes them to the group, back every year", async () => {

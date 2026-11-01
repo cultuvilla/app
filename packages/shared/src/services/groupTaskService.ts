@@ -41,12 +41,12 @@ const rawDoc = (orgId: string, collection: 'tasks' | 'taskTemplates', id: string
 // TASKS
 // =============================================================================
 
-/** Every open task of the group — the member home (mine, open shifts) and the admin list. */
+/** Every open task of the group — the home's Próximas tareas and the Tareas screen. */
 export function watchOpenGroupTasks(orgId: string, onNext: (rows: GroupTask[]) => void, onError: WatchError): Unwatch {
   return watchQuery(query(organizationTasksCollection(getDb(), orgId), where('doneAt', '==', null)), onNext, onError);
 }
 
-/** Tasks closed since `since` — the admin's done list and the fair-share view. */
+/** Tasks closed since `since` — the done list and the fair-share view. */
 export function watchGroupTasksDoneSince(
   orgId: string,
   since: Date,
@@ -66,33 +66,33 @@ export function watchEventGroupTasks(
   return watchQuery(query(organizationTasksCollection(getDb(), orgId), where('eventId', '==', eventId)), onNext, onError);
 }
 
-function newTaskPayload(input: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>, adminUid: string) {
-  const data = GroupTaskDataSchema.parse(buildGroupTaskData({ ...input, createdBy: adminUid }));
+function newTaskPayload(input: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>, uid: string) {
+  const data = GroupTaskDataSchema.parse(buildGroupTaskData({ ...input, createdBy: uid }));
   return { ...data, createdAt: serverTimestamp() };
 }
 
-/** Admin: add a task (a shift when `slots` is set). Returns its id. */
+/** Any member: add a task (a shift when `slots` is set). Returns its id. */
 export async function createGroupTask(
   orgId: string,
   input: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>,
-  adminUid: string,
+  uid: string,
 ): Promise<string> {
   const id = doc(organizationTasksCollection(getDb(), orgId)).id;
-  await setDoc(rawDoc(orgId, 'tasks', id), newTaskPayload(input, adminUid));
+  await setDoc(rawDoc(orgId, 'tasks', id), newTaskPayload(input, uid));
   return id;
 }
 
-/** Admin: add several tasks at once (a template applied), all or none. */
+/** Any member: add several tasks at once (an event's checklist, a template applied), all or none. */
 export async function createGroupTasks(
   orgId: string,
   inputs: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>[],
-  adminUid: string,
+  uid: string,
 ): Promise<string[]> {
   if (inputs.length > MAX_TEMPLATE_ITEMS) throw new Error(`At most ${String(MAX_TEMPLATE_ITEMS)} tasks at once`);
   const batch = writeBatch(getDb());
   const ids = inputs.map((input) => {
     const id = doc(organizationTasksCollection(getDb(), orgId)).id;
-    batch.set(rawDoc(orgId, 'tasks', id), newTaskPayload(input, adminUid));
+    batch.set(rawDoc(orgId, 'tasks', id), newTaskPayload(input, uid));
     return id;
   });
   await batch.commit();
@@ -100,7 +100,7 @@ export async function createGroupTasks(
 }
 
 /**
- * Admin: change what a task is. Its answers, done state and next occurrence
+ * Any member: change what a task is. Its answers, done state and next occurrence
  * are not edited here: those belong to `setGroupTaskDone` and the functions.
  */
 export async function updateGroupTask(orgId: string, taskId: string, edit: GroupTaskEdit): Promise<void> {
@@ -114,14 +114,14 @@ export async function updateGroupTask(orgId: string, taskId: string, edit: Group
 }
 
 /**
- * Tick a task done or undone — an admin, or an assignee on their own task.
+ * Any member: tick a task done or undone.
  * Closing a recurring task makes `onGroupTaskUpdated` create the next one.
  */
 export async function setGroupTaskDone(orgId: string, taskId: string, done: boolean, uid: string): Promise<void> {
   await updateDoc(rawDoc(orgId, 'tasks', taskId), done ? { doneAt: serverTimestamp(), doneBy: uid } : { doneAt: null, doneBy: null });
 }
 
-/** Admin. */
+/** An admin, or the task's creator. */
 export async function deleteGroupTask(orgId: string, taskId: string): Promise<void> {
   await deleteDoc(rawDoc(orgId, 'tasks', taskId));
 }

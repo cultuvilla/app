@@ -4,7 +4,6 @@ import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { iconSizes } from '@cultuvilla/shared/design-system';
 import { router, useFocusEffect } from 'expo-router';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
@@ -21,13 +20,9 @@ export type AppHeaderProps = {
   centerLabel?: string;
   /** Extra content rendered in the right slot, before the notifications/menu icons. */
   extraRightSlot?: ReactNode;
-  /** Makes the label a button with a caret — e.g. the Grupos tab's group switcher. */
-  onLabelPress?: () => void;
-  labelAccessibilityLabel?: string;
-  labelTestID?: string;
 };
 
-export function AppHeader({ centerLabel, extraRightSlot, onLabelPress, labelAccessibilityLabel, labelTestID }: AppHeaderProps) {
+export function AppHeader({ centerLabel, extraRightSlot }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const activeMunicipalityId = useActiveVillageId();
@@ -69,35 +64,14 @@ export function AppHeader({ centerLabel, extraRightSlot, onLabelPress, labelAcce
         {/* pb is 2px under the pb-3 token (10px) to balance the perceived gap above vs below the row. */}
         <View className="flex-row items-center px-3 pt-1" style={{ paddingBottom: 10 }}>
           <View className="flex-1">
-            {onLabelPress ? (
-              <Pressable
-                onPress={onLabelPress}
-                accessibilityRole="button"
-                accessibilityLabel={labelAccessibilityLabel}
-                testID={labelTestID}
-                className="flex-row items-center gap-1 self-start max-w-full"
-              >
-                <Text
-                  variant="h3"
-                  tone="onAccent"
-                  numberOfLines={1}
-                  className="shrink"
-                  style={{ fontFamily: 'Fraunces_700Bold', letterSpacing: 0.3 }}
-                >
-                  {label}
-                </Text>
-                <Ionicons name="chevron-down" size={iconSizes.sm} color="#f9f0e8" />
-              </Pressable>
-            ) : (
-              <Text
-                variant="h3"
-                tone="onAccent"
-                numberOfLines={1}
-                style={{ fontFamily: 'Fraunces_700Bold', letterSpacing: 0.3 }}
-              >
-                {label}
-              </Text>
-            )}
+            <Text
+              variant="h3"
+              tone="onAccent"
+              numberOfLines={1}
+              style={{ fontFamily: 'Fraunces_700Bold', letterSpacing: 0.3 }}
+            >
+              {label}
+            </Text>
           </View>
 
           <View className="flex-row items-center gap-1">

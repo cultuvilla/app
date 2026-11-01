@@ -1640,7 +1640,6 @@
     "switcherLabel": "Cambiar de grupo",
     "upcomingEvents": "Próximos eventos",
     "noUpcomingEvents": "No hay eventos próximos.",
-    "manage": "Gestionar",
     "roleAdmin": "Admin",
     "roleMember": "Miembro",
     "summary": {
@@ -1652,8 +1651,8 @@
       "events": "Eventos"
     },
     "home": {
-      "myTasks": "Mis tareas",
-      "more": "Más"
+      "upcomingTasks": "Próximas tareas",
+      "actions": "Acciones"
     },
     "sections": {
       "avisos": "Avisos",
@@ -1664,15 +1663,14 @@
       "mis-datos": "Mis datos",
       "socios": "Socios",
       "cobros": "Cuota",
-      "mensajes": "Mensajes",
-      "gestion-tareas": "Tareas",
+      "mensajes": "Avisos",
       "registros": "Registros",
       "miembros": "Miembros",
       "ajustes": "Ajustes",
       "withCount": "{label}, {count} pendientes",
+      "adminHint": "Solo para quien gestiona el grupo",
       "empty": {
         "avisos": "La junta no ha enviado avisos.",
-        "tareas": "No tienes tareas pendientes.",
         "cuota": "El grupo aún no ha configurado la cuota.",
         "actas": "La junta aún no ha compartido actas."
       }

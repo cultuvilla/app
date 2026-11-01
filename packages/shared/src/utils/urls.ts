@@ -205,7 +205,6 @@ export const GROUP_SECTIONS = [
   'socios',
   'cobros',
   'mensajes',
-  'gestion-tareas',
   'registros',
   'miembros',
   'ajustes',

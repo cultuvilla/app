@@ -272,7 +272,7 @@ export default function NewEventScreen() {
   const [signupWasEnabled, setSignupWasEnabled] = useState(false);
   const [cover, setCover] = useState<UploadableImage | null>(null);
   // The organizing group's checklist (create only, for a group the creator
-  // administers — only its admins may write its tasks).
+  // belongs to).
   const [tasksEnabled, setTasksEnabled] = useState(false);
   const [taskRows, setTaskRows] = useState<EventTaskDraft[]>(() => [blankEventTask()]);
   const [taskOrgId, setTaskOrgId] = useState<string | null>(null);
@@ -330,9 +330,9 @@ export default function NewEventScreen() {
     };
   }, [soleOrgId]);
 
-  // The organizing groups whose tasks the creator may write.
+  // The organizing groups the creator belongs to: any member writes its tasks.
   const { groups: myGroups } = useMyGroups(editMode ? null : (user?.uid ?? null));
-  const taskOrgIds = organizerOrgIds.filter((id) => myGroups.some((g) => g.org.id === id && g.role === 'admin'));
+  const taskOrgIds = organizerOrgIds.filter((id) => myGroups.some((g) => g.org.id === id));
   const taskOrg = taskOrgIds.includes(taskOrgId ?? '') ? taskOrgId : (taskOrgIds[0] ?? null);
   const tasksOffered = !editMode && taskOrg !== null;
 
