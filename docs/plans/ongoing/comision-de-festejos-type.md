@@ -2,8 +2,8 @@
 
 **Priority:** medium
 **Landed:** dev
-**Gate:** soak:step 1 live in prod and delivered by OTA — then step 2 is a breaking release the user runs (Play managed publishing, `pnpm release:publish`)
-**Next:** cut the release that carries step 1; once it is live in prod and on phones, rebase draft PR #611 (step 2), mark it ready and run the breaking release
+**Gate:** soak:both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`)
+**Next:** after that release is live in prod, retire this plan
 
 Decided 2026-11-01 (user): add a `comisión` organization type, labelled
 "Comisión de festejos". Closes OQ-4 in [business-rules.md](../../business-rules.md)
@@ -11,14 +11,16 @@ for this one type.
 
 ## Decisions
 
-- **Two-step rollout.** Installed binaries parse `organizations` with a strict
-  `z.enum`, and one unknown `type` in a village makes the whole org list throw.
+- **Expand and enable ship in one release** (2026-11-01, user: finish it on develop
+  rather than wait for step 1 to reach prod first). Installed binaries parse
+  `organizations` with a strict `z.enum`, and one unknown `type` in a village makes the
+  whole org list throw.
   1. **Expand:** clients read an unknown `type` as `otros`, and know `comisión`
-     (label, home section, roster tier, rules). Nothing offers to create one. Ships
-     by OTA to every binary built since 2026-10-06.
-  2. **Enable:** the create/edit forms offer `comisión`. This release carries a
-     `Breaking-Client:` trailer, so the release raises `minSupported` to its own version,
-     walling the binaries that cannot read the type.
+     (label, home section, roster tier, rules).
+  2. **Enable:** the create/edit forms offer `comisión` and the rules accept it. This
+     commit carries a `Breaking-Client:` trailer, so the release holds its backend and
+     raises `minSupported` to its own version, walling the binaries that cannot read
+     the type. Every release cut from develop from now on is that release, until one ships.
 - **Unlimited per village**, like a peña: client-side create, village admin approves.
   No callable, no cap. A cap later is a product rule and needs a yes.
 - **Feature tier v1 = the socio-roster tier** (avisos, cuota, actas, registros,
@@ -49,9 +51,3 @@ themselves).
 - `packages/i18n/messages/es.json` type labels and the home section title
 - `VillageHomeBody.tsx`, `ProfileView.tsx`, read site (`functions/src/web/`)
 - `docs/business-rules.md` OQ-4, `docs/decisions/` record once shipped
-
-## Step 1 (expand) — done in code
-
-The enum knows `comisión` and reads any unknown type as `otros`; the roster tier,
-rules' `orgHasSocioRoster`, labels and the home sections (app and read site) know it.
-Rules still refuse creating or switching to one — that opening is step 2.
