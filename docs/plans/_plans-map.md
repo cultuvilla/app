@@ -22,7 +22,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | 1 cycle ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
 | [group-chat](ready/group-chat.md) `ready` | high | — | this cycle | — |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
-| [comision-de-festejos-type](ready/comision-de-festejos-type.md) `ready` | medium | — | this cycle | — |
 | [web-studio](ongoing/web-studio.md) | medium | none | this cycle | once the PR deploys to dev, pair a real phone at villa-events.web.app/estudio and write, edit and delete an article, then edit it in the app and back |
 
 ## Waiting on release 1.11.0
@@ -36,6 +35,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
 | [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) ⚠️ | low | dev | 2 cycles ago | the next `develop → beta → main` promotion runs the `--force` deploy on beta and prod | after the next promotions, check that the "Report index drift" step on Deploy beta and Deploy prod reports 0 orphaned and 0 missing, then retire this plan |
+| [comision-de-festejos-type](ongoing/comision-de-festejos-type.md) | medium | none | this cycle | step 1 live in prod and delivered by OTA — then step 2 is a breaking release the user runs (Play managed publishing, `pnpm release:publish`) | step 2 — offer `comisión` in `PROPOSABLE_ORGANIZATION_TYPES`, `OrgRequestFormSchema`, the `entidades.tsx` aliases and the rules' create/update type lists, with a `Breaking-Client:` trailer |
 
 ## Waiting on you
 
