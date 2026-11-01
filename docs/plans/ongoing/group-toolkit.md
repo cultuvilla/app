@@ -219,7 +219,13 @@ ayuntamiento included — tasks key on `uid`, not on the socio roster).
   checklists with add; admins also get apply / save as template, the templates
   and fair share. Sheets: `TaskSheet`, `TemplateSheet`, `ApplyTemplateSheet`.
   Member names come from `lib/orgs/useOrgMembers.ts`.
-- **Left for later:** a chat per task; a notification when
+- **Comments on a task** (decided 2026-11-01, user): the task's second tab, private
+  to the members. `organizations/{orgId}/tasks/{taskId}/chat/`, the group chat's
+  message shape and deletion, so `deleteAccount` already erases them (`comments/` is
+  public, so it could not hold them). `onTaskCommentCreated` pushes the creator and
+  the people on the task; `onGroupTaskDeleted` removes a deleted task's comments.
+- **Left for later:** a comment count on the task row; pushing who already commented;
+  a notification when
   someone is assigned; email reminders for tasks; overdue reminders for unassigned
   tasks (admins see them in the list); a shift reminder more precise than the
   daily run (it lands 24–48 h ahead); editing a template item's notes/time in the

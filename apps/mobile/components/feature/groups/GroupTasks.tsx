@@ -246,6 +246,7 @@ export function GroupTasks({
         eventId={sheet?.kind === 'task' ? sheet.eventId : null}
         members={members}
         canDelete={sheet?.kind === 'task' && (isAdmin || sheet.task?.createdBy === uid)}
+        isAdmin={isAdmin}
         onClose={close}
       />
       <TemplateSheet

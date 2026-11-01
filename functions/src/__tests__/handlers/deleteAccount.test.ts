@@ -214,6 +214,7 @@ describe('deleteAccount (callable)', () => {
     await seedComment(USER_ID);
     await db().doc('organizations/o1/chat/mine').set({ authorUid: USER_ID, authorName: 'Yo', body: 'Hola', createdAt: new Date() });
     await db().doc('organizations/o1/messages/m1/chat/mine').set({ authorUid: USER_ID, authorName: 'Yo', body: 'Voy', createdAt: new Date() });
+    await db().doc('organizations/o1/tasks/t1/chat/mine').set({ authorUid: USER_ID, authorName: 'Yo', body: 'Voy', createdAt: new Date() });
     await db().doc('organizations/o1/chat/theirs').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
     await seedStoragePhoto(USER_ID);
     await seedNotification(USER_ID);
@@ -264,6 +265,7 @@ describe('deleteAccount (callable)', () => {
     // Group chat messages, every thread; only their own.
     expect((await db().doc('organizations/o1/chat/mine').get()).exists).toBe(false);
     expect((await db().doc('organizations/o1/messages/m1/chat/mine').get()).exists).toBe(false);
+    expect((await db().doc('organizations/o1/tasks/t1/chat/mine').get()).exists).toBe(false);
     expect((await db().doc('organizations/o1/chat/theirs').get()).exists).toBe(true);
 
     // Storage photos (avatar + persona, all under users/{uid}/) purged.

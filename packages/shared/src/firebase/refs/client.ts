@@ -284,6 +284,14 @@ export const organizationChatReadDoc = (db: Firestore, organizationId: string, t
 export const organizationChatReadWriteDoc = (db: Firestore, organizationId: string, threadId: string, uid: string) =>
   doc(db, 'organizations', organizationId, 'chatThreads', threadId, 'reads', uid);
 
+// A task's comments share the chat's message shape (see GroupChatDataModel).
+export const organizationTaskCommentsCollection = (db: Firestore, organizationId: string, taskId: string) =>
+  collection(db, 'organizations', organizationId, 'tasks', taskId, 'chat').withConverter(groupChatMessageConverterClient);
+
+/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
+export const organizationTaskCommentsWriteCollection = (db: Firestore, organizationId: string, taskId: string) =>
+  collection(db, 'organizations', organizationId, 'tasks', taskId, 'chat');
+
 // The group's records (see RecordsDataModel): actas and the income/expense ledger.
 export const organizationActasCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'actas').withConverter(actaConverterClient);

@@ -1,12 +1,15 @@
 // packages/shared/src/services/groupTaskService.ts
-import { deleteDoc, doc, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from '../firebase/sdk/firestore';
+import { deleteDoc, doc, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from '../firebase/sdk/firestore';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
+  organizationTaskCommentsCollection,
+  organizationTaskCommentsWriteCollection,
   organizationTaskTemplatesCollection,
   organizationTasksCollection,
   organizationTaskWriteDoc,
 } from '../firebase/refs/client';
+import { GroupChatBodySchema, type GroupChatMessageData } from '../models/organization/GroupChatDataModel';
 import {
   buildGroupTaskData,
   buildTaskTemplateData,
@@ -30,6 +33,7 @@ import { watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type GroupTask = GroupTaskData & { id: string };
 export type TaskTemplate = TaskTemplateData & { id: string };
+export type TaskComment = GroupChatMessageData & { id: string };
 
 // Writes go through unconverted refs so the server stamps the time
 // (`serverTimestamp()`, which rules check against `request.time`); the strict
@@ -185,4 +189,45 @@ export async function saveTasksAsTemplate(
   adminUid: string,
 ): Promise<string> {
   return saveTaskTemplate(orgId, null, { name, items: templateItemsFromTasks(tasks, anchorOn).slice(0, MAX_TEMPLATE_ITEMS) }, adminUid);
+}
+
+// =============================================================================
+// COMMENTS
+// =============================================================================
+
+/** A task's latest `count` comments, newest first. Pages by asking again with a larger count. */
+export function watchTaskComments(
+  orgId: string,
+  taskId: string,
+  count: number,
+  onNext: (rows: TaskComment[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    query(organizationTaskCommentsCollection(getDb(), orgId, taskId), orderBy('createdAt', 'desc'), limit(count)),
+    onNext,
+    onError,
+  );
+}
+
+/**
+ * Any member comments, under their public name (`publicProfiles/{uid}.displayName`;
+ * the rules refuse any other). Throws on an empty or over-long body before writing.
+ */
+export async function addTaskComment(input: {
+  orgId: string;
+  taskId: string;
+  uid: string;
+  authorName: string;
+  body: string;
+}): Promise<string> {
+  const body = GroupChatBodySchema.parse(input.body);
+  const ref = doc(organizationTaskCommentsWriteCollection(getDb(), input.orgId, input.taskId));
+  await setDoc(ref, { authorUid: input.uid, authorName: input.authorName, body, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+/** The author removes their own comment; an admin removes anyone's. */
+export async function deleteTaskComment(orgId: string, taskId: string, commentId: string): Promise<void> {
+  await deleteDoc(doc(organizationTaskCommentsWriteCollection(getDb(), orgId, taskId), commentId));
 }

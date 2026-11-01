@@ -10,6 +10,9 @@ import { z } from 'zod';
  * - `organizations/{orgId}/messages/{messageId}/chat/{chatId}` — an aviso's
  *   thread. Whoever reads the aviso (its recipients, and the admins) reads and
  *   writes it.
+ * - `organizations/{orgId}/tasks/{taskId}/chat/{chatId}` — a task's comments.
+ *   Every member reads and writes them. They keep no thread summary: a task has
+ *   no unread badge, and `onTaskCommentCreated` only pushes.
  * - `organizations/{orgId}/chatThreads/{threadId}` — per thread, when it last
  *   moved and who has written in it. Function-owned (`onGroupChatMessageCreated`);
  *   the id is the aviso's or `general`.

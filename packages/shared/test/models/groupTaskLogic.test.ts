@@ -15,6 +15,7 @@ import {
   nextOccurrence,
   promoteWaitlist,
   shiftStartsAt,
+  taskCommentPushUids,
   shiftStateOf,
   TaskTemplateDataSchema,
   tasksFromTemplate,
@@ -262,5 +263,12 @@ describe("a yearly event's checklist", () => {
     const data = buildGroupTaskData({ ...task, createdBy: 'u' });
     expect(GroupTaskDataSchema.parse(data)).toBeTruthy();
     expect(nextDueOn(data, '2027-03-15')).toBe('2028-03-31');
+  });
+});
+
+describe('taskCommentPushUids', () => {
+  it('is the creator and the people on the task, once each, without the writer', () => {
+    expect(taskCommentPushUids({ createdBy: 'c', assigneeUids: ['a', 'c'], claimedUids: ['b'] }, 'x')).toEqual(['c', 'a', 'b']);
+    expect(taskCommentPushUids({ createdBy: 'c', assigneeUids: ['a'], claimedUids: [] }, 'a')).toEqual(['c']);
   });
 });

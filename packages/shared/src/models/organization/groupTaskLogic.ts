@@ -242,6 +242,19 @@ function pickLists(t: ShiftLists): ShiftLists {
 }
 
 /** When a shift starts: its day at its time (midnight when it has none), Madrid. */
+/**
+ * Who a task's new comment pushes: its creator and the people on it (assignees,
+ * or a shift's volunteers), minus the writer.
+ */
+export function taskCommentPushUids(
+  task: Pick<GroupTaskData, 'createdBy' | 'assigneeUids' | 'claimedUids'>,
+  writerUid: string,
+): string[] {
+  const out = new Set([task.createdBy, ...task.assigneeUids, ...task.claimedUids]);
+  out.delete(writerUid);
+  return [...out];
+}
+
 export function shiftStartsAt(task: Pick<GroupTaskData, 'dueOn' | 'time'>): Date | null {
   return task.dueOn ? madridInstant(task.dueOn, task.time ?? '00:00') : null;
 }
