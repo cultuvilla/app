@@ -40,21 +40,23 @@ user, Asociación La Anduela (~200 socios), wants the group to talk where it is 
 - Live reads: `watch*` service functions + `useWatch`, painted from Firestore's
   persistent cache (AGENTS.md *State and data fetching*) — a chat is exactly that shape.
 
-## Open decisions (agent's picks, to confirm with the user)
+## Decisions
+
+Decided 2026-11-01 (user): all five agent picks below.
 
 1. **Who sees whose name.** `sociosListVisible` (default off) hides the roster from
-   members; a chat shows every author's name to everyone who reads it. *Pick: writing in
+   members; a chat shows every author's name to everyone who reads it. *writing in
    a chat shows your name to that chat's readers — a socio who writes chooses to be
    seen; the roster setting keeps governing the list, not the chat.*
-2. **Who may write in the general chat.** *Pick: every member; a per-group setting
+2. **Who may write in the general chat.** *every member; a per-group setting
    "solo la junta escribe" (announcement-only) for groups that want it.*
-3. **Notifications.** A busy chat must not ring 200 phones per message. *Pick: aviso
+3. **Notifications.** A busy chat must not ring 200 phones per message. *aviso
    chats push only the aviso's author and people who already wrote in that thread; the
    general chat pushes nobody by default, with a per-group opt-in; an unread badge on the
    group either way.*
-4. **Moderation.** *Pick: authors delete their own messages; org admins delete anyone's
+4. **Moderation.** *authors delete their own messages; org admins delete anyone's
    (and village/app admins as the backstop, as for members); no editing at first.*
-5. **History.** *Pick: kept while the group exists; a member who leaves loses read
+5. **History.** *kept while the group exists; a member who leaves loses read
    access; their messages stay, under the name they had.*
 
 ## Left to the builder
