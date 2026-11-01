@@ -1,8 +1,7 @@
 // firestore.rules — how someone comes to belong to an organization.
 //
 // Nobody joins on their own: they file a join request, which an org admin resolves
-// through the respondToOrgJoinRequest callable. Following is the free tap, and it
-// gives no access to anything a member's doc gives.
+// through the respondToOrgJoinRequest callable.
 import { describe, it, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import {
@@ -78,69 +77,6 @@ describe('the stored join policy', () => {
 
   it('can only come to require approval', async () => {
     await assertSucceeds(policy('approval', OPEN));
-  });
-});
-
-describe('following an org', () => {
-  const path = (uid: string, orgId = CLOSED) => `organizations/${orgId}/followers/${uid}`;
-  const follower = (userId: string, orgId = CLOSED) => ({
-    userId,
-    orgId,
-    municipalityId: MID,
-    createdAt: new Date(),
-  });
-
-  beforeEach(async () => {
-    await seed(getEnv(), async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path('fan')), follower('fan'));
-    });
-  });
-
-  it('anyone may follow, for themselves only', async () => {
-    const db = asUser(getEnv(), 'joiner');
-    await assertSucceeds(setDoc(doc(db, path('joiner')), follower('joiner')));
-    await assertFails(setDoc(doc(db, path('victim')), follower('victim')));
-  });
-
-  it('a member does not follow', async () => {
-    await assertFails(setDoc(doc(asUser(getEnv(), 'socio'), path('socio')), follower('socio')));
-  });
-
-  it('a group that is not approved cannot be followed', async () => {
-    await seed(getEnv(), async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'organizations/pendingOrg'), {
-        name: 'Peña',
-        type: 'peña',
-        status: 'pending',
-        municipalityId: MID,
-        requestedBy: 'founder',
-      });
-    });
-    const db = asUser(getEnv(), 'joiner');
-    await assertFails(setDoc(doc(db, path('joiner', 'pendingOrg')), follower('joiner', 'pendingOrg')));
-  });
-
-  it('rejects an unknown field', async () => {
-    const db = asUser(getEnv(), 'joiner');
-    await assertFails(setDoc(doc(db, path('joiner')), { ...follower('joiner'), note: 'hola' }));
-  });
-
-  it('who follows is not public: only the follower and the org admins read it', async () => {
-    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'fan'), path('fan'))));
-    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'founder'), path('fan'))));
-    await assertFails(getDoc(doc(asUser(getEnv(), 'socio'), path('fan'))));
-    await assertFails(getDocs(collection(asUser(getEnv(), 'socio'), `organizations/${CLOSED}/followers`)));
-  });
-
-  it('the follower may stop following; nobody else may, and nobody edits', async () => {
-    await assertFails(updateDoc(doc(asUser(getEnv(), 'fan'), path('fan')), { createdAt: new Date() }));
-    await assertFails(deleteDoc(doc(asUser(getEnv(), 'socio'), path('fan'))));
-    await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'fan'), path('fan'))));
-  });
-
-  it('the follower count belongs to the functions', async () => {
-    const db = asUser(getEnv(), 'founder');
-    await assertFails(updateDoc(doc(db, `organizations/${CLOSED}`), { followerCount: 7 }));
   });
 });
 

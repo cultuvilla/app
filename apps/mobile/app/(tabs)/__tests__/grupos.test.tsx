@@ -206,6 +206,15 @@ describe('Grupos tab', () => {
     expect(await render(<GroupsTabScreen />).findByText('groups.chat.loadError')).toBeTruthy();
   });
 
+  it('keeps the Avisos row with nothing to show, and when the read fails', async () => {
+    mockGroups = [group('Anduela')];
+    const { findByText, unmount } = render(<GroupsTabScreen />);
+    expect(await findByText('groups.sections.empty.avisos')).toBeTruthy();
+    unmount();
+    mockNoticesStatus = 'error';
+    expect(await render(<GroupsTabScreen />).findByText('groups.chat.loadError')).toBeTruthy();
+  });
+
   it('shows only upcoming events under Próximos eventos', async () => {
     mockGroups = [group('Anduela')];
     mockEvents = [

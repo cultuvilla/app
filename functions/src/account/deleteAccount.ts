@@ -81,7 +81,6 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
     const pushDataDeleted = await deletePushData(uid);
 
     const membershipsRemoved = await removeMemberships(uid);
-    const followsRemoved = await removeFollows(uid);
     const personIds = await deletePersons(uid);
     const registrationsDeleted = await deleteRegistrations(uid);
     const notificationsDeleted = await deleteNotifications(uid);
@@ -100,7 +99,6 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
       commentsDeleted,
       chatMessagesDeleted,
       membershipsRemoved,
-      followsRemoved,
       personsDeleted: personIds.length,
       registrationsDeleted,
       notificationsDeleted,
@@ -163,14 +161,6 @@ interface MembershipToRemove {
   municipalityId: string;
   role: string | null;
   needsMunicipalityLookup: boolean;
-}
-
-async function removeFollows(uid: string): Promise<number> {
-  const snap = await db.collectionGroup('followers').where('userId', '==', uid).get();
-  const writer = db.bulkWriter();
-  for (const doc of snap.docs) void writer.delete(doc.ref);
-  await writer.close();
-  return snap.size;
 }
 
 /**

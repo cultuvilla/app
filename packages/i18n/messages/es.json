@@ -1064,11 +1064,7 @@
     "editTitle": "Editar grupo",
     "description": "Descripción",
     "membersCount": "{count, plural, one {1 integrante} other {# integrantes}}",
-    "followersCount": "{count, plural, one {1 seguidor} other {# seguidores}}",
     "events": "Eventos",
-    "follow": "Seguir",
-    "following": "Siguiendo",
-    "followError": "No se ha podido completar. Inténtalo de nuevo.",
     "signInToJoin": "Inicia sesión para unirte",
     "invitedBanner": "Te han invitado a unirte a este grupo",
     "name": "Nombre",
@@ -1666,7 +1662,6 @@
     "stats": {
       "socios": "Socios",
       "members": "Integrantes",
-      "followers": "Seguidores",
       "events": "Eventos"
     },
     "home": {

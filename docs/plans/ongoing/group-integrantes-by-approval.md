@@ -1,4 +1,4 @@
-# Seguidores and integrantes of a group
+# Integrantes of a group, by approval
 
 **Priority:** medium
 **Landed:** dev
@@ -11,8 +11,9 @@ plan is in [org-join-policy.md](../../decisions/org-join-policy.md).
 
 ## What shipped
 
-Join requests for every group, following, the rename to *integrante*, and private
-events in any group.
+Join requests for every group, the rename to *integrante*, and private events in any
+group. Seguidores were built too and removed the same day, before leaving dev: see the
+decision record.
 
 **The rollout got simpler than the idea's two breaking steps.** Every binary above
 `minSupported` (1.10.0) already understands `approval`, so the `org-join-by-approval`
@@ -22,16 +23,4 @@ Only dropping the field is left, and that waits for the wall to pass this releas
 ## Decided
 
 - Existing members of open groups stay integrantes.
-- Followers live at `organizations/{orgId}/followers/{uid}`.
-- The ayuntamiento works the same: vecinos follow, its team are the integrantes.
-- A join request follows the group, and being turned away keeps the follow.
-
-## Not built
-
-- **Avisos for seguidores.** The idea said seguidores would get "public avisos", but
-  avisos have no public kind: the audiences are all socios, junta, cuota and event.
-  Adding one widens a stored enum under installed binaries' strict converter, so it is
-  its own expand/contract, and whether the junta should reach seguidores at all needs
-  a yes.
-- **A list of the groups I follow.** A seguidor finds the state on the group's page
-  and hears through notifications. The Grupos tab stays for integrantes.
+- The ayuntamiento works the same: its team are the integrantes.

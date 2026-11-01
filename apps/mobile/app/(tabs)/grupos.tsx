@@ -206,7 +206,6 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
                   value: org.memberCount,
                   onPress: isAdmin ? () => open('miembros') : undefined,
                 },
-            { label: t('groups.stats.followers'), value: org.followerCount },
             { label: t('groups.stats.events'), value: events.status === 'ready' ? eventRows.length : null, onPress: () => open('eventos') },
           ]}
         />

@@ -9,7 +9,6 @@ import {
   hasPendingOrgJoinRequest,
   requestToJoinOrganization,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
-import { followOrganization, unfollowOrganization } from '@cultuvilla/shared/services/orgFollowerService';
 import OrgDetailScreen from '../[entidad]/index';
 import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../../test/watchers';
 
@@ -41,11 +40,6 @@ jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
   removeOrgMember: jest.fn().mockResolvedValue(undefined),
   getOrgMembers: jest.fn().mockResolvedValue([]),
   getUserOrgIds: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/orgFollowerService', () => ({
-  isFollowingOrganization: jest.fn().mockResolvedValue(false),
-  followOrganization: jest.fn().mockResolvedValue(undefined),
-  unfollowOrganization: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
   hasPendingOrgJoinRequest: jest.fn().mockResolvedValue(false),
@@ -83,7 +77,6 @@ const OPEN_ORG = {
   description: 'd',
   municipalityId: 'm1',
   villageSlug: 'villa',
-  followerCount: 0,
 };
 
 beforeEach(() => {
@@ -99,30 +92,6 @@ describe('OrgDetailScreen', () => {
     await waitFor(() => getByText('Peña La Unión'));
     getByTestId('join-org-fab');
     getByText('organization.requestToJoin');
-  });
-
-  it('follows the group with a tap, and shows it', async () => {
-    const { findByTestId, findByText, getByTestId } = render(<OrgDetailScreen />);
-    fireEvent.press(await findByTestId('org-follow-button'));
-    await waitFor(() => expect(followOrganization).toHaveBeenCalledWith('o1', 'm1', 'u2'));
-    await findByText('organization.following');
-
-    fireEvent.press(getByTestId('org-follow-button'));
-    await waitFor(() => expect(unfollowOrganization).toHaveBeenCalledWith('o1', 'u2'));
-    await findByText('organization.follow');
-  });
-
-  it('shows the follower count next to the integrantes', async () => {
-    setWatched('org', { ...OPEN_ORG, followerCount: 3 });
-    const { findByText } = render(<OrgDetailScreen />);
-    await findByText('organization.followersCount');
-  });
-
-  it('offers a member no follow button', async () => {
-    (isOrgMember as jest.Mock).mockResolvedValue(true);
-    const { findByTestId, queryByTestId } = render(<OrgDetailScreen />);
-    await findByTestId('org-leave-action');
-    expect(queryByTestId('org-follow-button')).toBeNull();
   });
 
   it('shows an update the moment the listener delivers it, without refetching membership', async () => {
