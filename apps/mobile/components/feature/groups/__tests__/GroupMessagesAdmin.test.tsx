@@ -3,12 +3,13 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
   nudgeGroupMessage,
   sendGroupMessage,
-  setGroupMessagePinned,
   setWhatsappSent,
 } from '@cultuvilla/shared/services/groupMessageService';
 import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { GroupMessagesAdmin } from '../GroupMessagesAdmin';
 
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: (href: unknown) => mockPush(href) } }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -29,7 +30,6 @@ jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
     newGroupMessageId: () => 'Msg0000000001',
     sendGroupMessage: jest.fn().mockResolvedValue({ messageId: 'Msg0000000001', recipientCount: 3, pushCount: 2, emailCount: 2, whatsappCount: 1 }),
     nudgeGroupMessage: jest.fn().mockResolvedValue({ nudged: 1 }),
-    setGroupMessagePinned: jest.fn().mockResolvedValue(undefined),
     setWhatsappSent: jest.fn().mockResolvedValue(undefined),
   };
 });
@@ -66,7 +66,7 @@ const MESSAGE = {
 };
 
 const delivery = (id: string, over: Record<string, unknown>) => ({
-  id, uid: id, socioIds: [id], names: [id], push: true, email: 'sent', whatsappSocioId: null, whatsappSentAt: null, whatsappSentBy: null, ...over,
+  id, uid: id, socioIds: [id], names: [id], push: true, email: 'sent', whatsappSocioId: null, whatsappSentAt: null, whatsappSentBy: null, personal: null, ...over,
 });
 
 beforeEach(() => {
@@ -88,19 +88,22 @@ describe('GroupMessagesAdmin', () => {
     expect(getByText('groups.messages.empty')).toBeTruthy();
     // No cuota configured: no cuota audience.
     fireEvent.press(getByTestId('group-msg-compose-open'));
-    expect(queryByTestId('group-msg-audience-cuota')).toBeNull();
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    expect(queryByTestId('group-msg-audience-options-cuota')).toBeNull();
+    fireEvent.press(getByTestId('group-msg-audience-options-all'));
 
     fireEvent.press(getByTestId('group-msg-send'));
     expect(getByText('groups.messages.subjectRequired')).toBeTruthy();
 
     fireEvent.changeText(getByTestId('group-msg-subject'), 'Cena');
     fireEvent.changeText(getByTestId('group-msg-body'), 'Elegid fecha.');
-    fireEvent.press(getByTestId('group-msg-audience-event'));
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    fireEvent.press(getByTestId('group-msg-audience-options-event'));
     fireEvent.press(getByTestId('group-msg-send'));
     expect(getByText('groups.messages.eventRequired')).toBeTruthy();
     fireEvent.press(getByTestId('group-msg-event-ev1'));
-    fireEvent.press(getByTestId('group-msg-whatsapp-fallback'));
-    fireEvent.press(getByTestId('group-msg-pinned'));
+    fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
+    fireEvent.press(getByTestId('group-msg-whatsapp-options-fallback'));
     fireEvent.press(getByTestId('group-msg-poll-yes_no'));
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Vienes?');
     fireEvent.press(getByTestId('group-msg-send'));
@@ -113,7 +116,7 @@ describe('GroupMessagesAdmin', () => {
       body: 'Elegid fecha.',
       audience: { kind: 'event', eventId: 'ev1' },
       channels: { push: true, email: true, whatsapp: 'fallback' },
-      pinned: true,
+      pinned: false,
       poll: { question: '¿Vienes?', kind: 'yes_no', options: ['groups.messages.yes', 'groups.messages.no'] },
     });
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(expect.stringContaining('groups.messages.sent:3')));
@@ -125,7 +128,7 @@ describe('GroupMessagesAdmin', () => {
     setWatched('reads', [{ id: 'u-eva', readAt: new Date() }]);
     setWatched('votes', [{ id: 'u-eva', option: 1, votedAt: new Date() }]);
     setWatched('privates', []);
-    const { getByTestId } = renderAdmin();
+    const { getByTestId, queryByTestId } = renderAdmin();
     expect(getByTestId('group-msg-row-m1')).toHaveTextContent(/groups\.messages\.counts:4\|2\|3/);
     fireEvent.press(getByTestId('group-msg-row-m1'));
 
@@ -137,8 +140,7 @@ describe('GroupMessagesAdmin', () => {
     expect(getByTestId('group-msg-detail-option-1')).toHaveTextContent(/groups\.messages\.votes:1/);
     expect(getByTestId('group-msg-detail-option-1')).toHaveTextContent(/Eva/);
 
-    fireEvent.press(getByTestId('group-msg-detail-pin'));
-    expect(setGroupMessagePinned).toHaveBeenCalledWith('org1', 'm1', true);
+    expect(queryByTestId('group-msg-detail-pin')).toBeNull();
   });
 
   it('waits before another nudge', () => {
@@ -167,6 +169,68 @@ describe('GroupMessagesAdmin', () => {
     await waitFor(() => expect(setWhatsappSent).toHaveBeenCalledWith('org1', 'm1', 'typed_Pepa', 'admin', true));
   });
 
+  it("puts the recipient's own values in their WhatsApp link, and the app link at the end", () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    setWatched('messages', [{ ...MESSAGE, poll: null, title: 'Hola {nombre}', body: 'Tu nº es {nº socio}.\nHay cena.' }]);
+    setWatched('deliveries', [
+      delivery('typed_Pepa', { uid: null, push: false, email: null, names: ['Pepa'], whatsappSocioId: 'Pepa', personal: { nombre: 'Pepa', numero: 58, cuotaCents: null } }),
+    ]);
+    setWatched('reads', []);
+    setWatched('votes', []);
+    setWatched('privates', [{ id: 'Pepa', phone: '600 111 222', email: null, consentAnsweredAt: null }]);
+    const { getByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-row-m1'));
+    fireEvent.press(getByTestId('group-msg-wa-open-typed_Pepa'));
+    const text = decodeURIComponent(String(open.mock.calls[0]?.[0]).split('text=')[1] ?? '');
+    expect(text).toContain('*Hola Pepa*');
+    expect(text).toContain('Tu nº es 58.');
+    expect(text).toMatch(/Míralo en la app: https:\/\/cultuvilla\.es\/grupos\?grupo=org1&aviso=\w+$/);
+  });
+
+  it('opens the aviso’s conversation from its detail', () => {
+    setWatched('messages', [MESSAGE]);
+    setWatched('cuota', null);
+    setWatched('deliveries', []);
+    setWatched('reads', []);
+    setWatched('votes', []);
+    const { getByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-row-m1'));
+    fireEvent.press(getByTestId('group-msg-detail-chat'));
+    expect(mockPush).toHaveBeenCalledWith('/grupos/org1/aviso/m1');
+  });
+
+  it('shares to the group chat with no number and no personal lines', () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    setWatched('messages', [{ ...MESSAGE, poll: null, title: 'Cena', body: 'Hola {nombre},\n\nEl sábado.\n\nDebes {cuota pendiente}.' }]);
+    setWatched('deliveries', []);
+    setWatched('reads', []);
+    setWatched('votes', []);
+    const { getByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-row-m1'));
+    fireEvent.press(getByTestId('group-msg-detail-share'));
+    const url = String(open.mock.calls[0]?.[0]);
+    expect(url.startsWith('https://wa.me/?text=')).toBe(true);
+    const text = decodeURIComponent(url.split('text=')[1] ?? '');
+    expect(text).toContain('Hola,\n\nEl sábado.');
+    expect(text).not.toContain('Debes');
+    expect(text).toMatch(/Míralo en la app: /);
+  });
+
+  it('the placeholder chips write into the field last touched; no cuota chip without a cuota', () => {
+    setWatched('messages', []);
+    setWatched('cuota', null);
+    const { getByTestId, queryByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-compose-open'));
+    expect(getByTestId('group-msg-placeholders')).toBeTruthy();
+    expect(queryByTestId('group-msg-placeholder-cuota')).toBeNull();
+    fireEvent.changeText(getByTestId('group-msg-body'), 'Hola');
+    fireEvent.press(getByTestId('group-msg-placeholder-nombre'));
+    expect(getByTestId('group-msg-body').props.value).toBe('Hola {nombre}');
+    fireEvent(getByTestId('group-msg-subject'), 'focus');
+    fireEvent.press(getByTestId('group-msg-placeholder-numero'));
+    expect(getByTestId('group-msg-subject').props.value).toBe('{nº socio}');
+  });
+
   it('edits a multiple-choice poll and the channels, to everyone with WhatsApp', async () => {
     setWatched('messages', []);
     setWatched('cuota', { id: 'current' });
@@ -176,17 +240,21 @@ describe('GroupMessagesAdmin', () => {
     expect(getByTestId('group-msg-compose')).toBeTruthy();
     expect(getByTestId('group-msg-compose-scroll')).toBeTruthy();
     expect(getByTestId('group-msg-audience')).toBeTruthy();
-    fireEvent.press(getByTestId('group-msg-audience-cuota'));
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    fireEvent.press(getByTestId('group-msg-audience-options-cuota'));
     expect(queryByTestId('group-msg-events')).toBeNull();
-    fireEvent.press(getByTestId('group-msg-audience-event'));
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    fireEvent.press(getByTestId('group-msg-audience-options-event'));
     expect(getByTestId('group-msg-events')).toBeTruthy();
-    fireEvent.press(getByTestId('group-msg-audience-cuota'));
+    fireEvent.press(getByTestId('group-msg-audience-trigger'));
+    fireEvent.press(getByTestId('group-msg-audience-options-cuota'));
     fireEvent.changeText(getByTestId('group-msg-subject'), 'Fecha de la cena');
     fireEvent.changeText(getByTestId('group-msg-body'), 'Votad.');
     fireEvent.press(getByTestId('group-msg-push'));
     fireEvent.press(getByTestId('group-msg-email'));
     expect(getByTestId('group-msg-whatsapp')).toBeTruthy();
-    fireEvent.press(getByTestId('group-msg-whatsapp-all'));
+    fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
+    fireEvent.press(getByTestId('group-msg-whatsapp-options-all'));
     expect(getByTestId('group-msg-poll')).toBeTruthy();
     fireEvent.press(getByTestId('group-msg-poll-choice'));
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Qué día?');

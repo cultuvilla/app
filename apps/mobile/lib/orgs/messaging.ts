@@ -17,7 +17,6 @@ export interface ComposerForm {
   push: boolean;
   email: boolean;
   whatsapp: GroupWhatsappMode;
-  pinned: boolean;
   poll: PollChoice;
   question: string;
   /** The choices of a multiple-choice poll, as typed (blank ones are dropped). */
@@ -32,12 +31,17 @@ export function emptyComposerForm(): ComposerForm {
     eventId: null,
     push: true,
     email: true,
-    whatsapp: 'none',
-    pinned: false,
+    // Most of a village group has no app at first: offer links for whoever nothing else reaches.
+    whatsapp: 'fallback',
     poll: 'none',
     question: '',
     options: ['', ''],
   };
+}
+
+/** A placeholder chip's tap: the token at the end of the text, spaced off what is there. */
+export function appendPlaceholder(text: string, token: string): string {
+  return text === '' || /\s$/.test(text) ? `${text}${token}` : `${text} ${token}`;
 }
 
 export type ComposerError = 'subject' | 'body' | 'event' | 'poll';
@@ -74,7 +78,9 @@ export function composerInput(
       body,
       audience: { kind: form.audience, eventId: form.audience === 'event' ? form.eventId : null },
       channels: { push: form.push, email: form.email, whatsapp: form.whatsapp },
-      pinned: form.pinned,
+      // Avisos are no longer pinned (decided 2026-11-01, user); the field stays
+      // in the callable's input for the binaries that still offer it.
+      pinned: false,
       poll,
     },
   };

@@ -22,7 +22,7 @@ interface LinkSocioToMemberData {
  * A socio an admin typed in has since joined with the app, so the roster holds
  * them twice: the typed row and the member row `syncOrgSocioRoster` made on
  * join. Merges them into the typed row, which becomes the member row and keeps
- * the earlier alta. The duplicate is deleted — it is not a baja, nobody left.
+ * the earlier alta and the typed row's socio number. The duplicate is deleted — it is not a baja, nobody left.
  *
  * Contact data: the member's own answer, if they gave one, replaces what the
  * admin typed (it is theirs to give); otherwise the typed contact stays.
@@ -55,7 +55,7 @@ export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: tru
       ]);
       if (caller.data()?.role !== 'admin') throw new HttpsError('permission-denied', 'No autorizado.');
       const membership = member.data();
-      if (!membership) throw new HttpsError('failed-precondition', 'Esa persona no es miembro del grupo.');
+      if (!membership) throw new HttpsError('failed-precondition', 'Esa persona no es integrante del grupo.');
       const typedData = typed.data();
       if (!typedData || typedData.kind !== 'typed' || typedData.bajaAt !== null) {
         throw new HttpsError('failed-precondition', 'Solo se puede vincular un socio añadido a mano y en alta.');
@@ -84,6 +84,9 @@ export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: tru
         personId: memberData?.personId ?? null,
         adminTitle: memberData?.adminTitle ?? null,
         altaAt,
+        // The number the group gave the typed-in socio is theirs from the paper
+        // libro; the member row's (assigned on join) only fills a gap.
+        socioNumber: typedData.socioNumber ?? memberData?.socioNumber ?? null,
         // Ties the row to this membership, so syncOrgSocioRoster treats it as
         // current even if it runs after the merge.
         memberJoinedAt: membership.joinedAt,

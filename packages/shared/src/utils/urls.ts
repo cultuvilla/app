@@ -87,6 +87,7 @@ export const VILLAGE_SECTIONS = [
   'carteles',
   'censo',
   'comunidad',
+  'denuncias',
   'editar',
   'entidades',
   'historia',
@@ -192,6 +193,57 @@ export function personPath(personId: string): string {
 /** The Grupos tab, opened on one group (the private side: cuota, socios). */
 export function groupPath(orgId: string): string {
   return `/grupos?grupo=${encodeURIComponent(orgId)}`;
+}
+
+/** The screens of a group's private side, each opened from the group home. */
+export const GROUP_SECTIONS = [
+  'avisos',
+  'charla',
+  'eventos',
+  'tareas',
+  'cuota',
+  'actas',
+  'socios',
+  'cobros',
+  'mensajes',
+  'registros',
+  'miembros',
+  'ajustes',
+] as const;
+
+export type GroupSection = (typeof GROUP_SECTIONS)[number];
+
+export function isGroupSection(value: string): value is GroupSection {
+  return (GROUP_SECTIONS as readonly string[]).includes(value);
+}
+
+/** One screen of a group — `/grupos/<orgId>/cuota`. */
+export function groupSectionPath(orgId: string, section: GroupSection): string {
+  return `/grupos/${encodeURIComponent(orgId)}/${section}`;
+}
+
+/** One aviso and its chat, inside the app — `/grupos/<orgId>/aviso/<messageId>`. */
+export function groupAvisoPath(orgId: string, messageId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/aviso/${encodeURIComponent(messageId)}`;
+}
+
+/** One of a group's events from the organizing side — `/grupos/<orgId>/evento/<eventId>`. */
+export function groupEventPath(orgId: string, eventId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/evento/${encodeURIComponent(eventId)}`;
+}
+
+/** One task of a group — `/grupos/<orgId>/tarea/<taskId>`. */
+export function groupTaskPath(orgId: string, taskId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/tarea/${encodeURIComponent(taskId)}`;
+}
+
+/**
+ * The link an aviso's WhatsApp text and email carry. A query on the tab rather
+ * than `groupAvisoPath`: those messages outlive app versions, and a binary with
+ * no aviso route still opens the group from this one.
+ */
+export function groupAvisoLinkPath(orgId: string, messageId: string): string {
+  return `${groupPath(orgId)}&aviso=${encodeURIComponent(messageId)}`;
 }
 
 export function userPath(uid: string): string {

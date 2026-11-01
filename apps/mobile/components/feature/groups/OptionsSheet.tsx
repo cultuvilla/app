@@ -5,6 +5,8 @@ import { useT } from '../../../lib/i18n';
 export interface SheetOption {
   key: string;
   label: string;
+  /** One short line under the label, for choices the label alone doesn't explain. */
+  description?: string;
   selected?: boolean;
 }
 
@@ -51,6 +53,11 @@ export function OptionsSheet({
             className="py-3"
           >
             <Text className={o.selected ? 'font-bold' : ''}>{o.label}</Text>
+            {o.description ? (
+              <Text tone="muted" variant="bodySm">
+                {o.description}
+              </Text>
+            ) : null}
           </Pressable>
         ))}
       </VStack>

@@ -1,74 +1,25 @@
-import { useMemo } from 'react';
-import {
-  computeCuotaStatuses,
-  cuotaConcept,
-  currentPeriodKey,
-  isActiveSocio,
-  periodLabel,
-  type SocioCuotaStatus,
-} from '@cultuvilla/shared/models/organization';
-import {
-  watchCuotaAssignmentsOf,
-  watchCuotaSettings,
-  watchSocioCuotaPayments,
-  type CuotaAssignment,
-  type CuotaPayment,
-  type CuotaSettings,
-} from '@cultuvilla/shared/services/cuotaService';
-import { watchMySocios, type Socio } from '@cultuvilla/shared/services/socioService';
+import type { ReactNode } from 'react';
+import { cuotaConcept, periodLabel, type SocioCuotaStatus } from '@cultuvilla/shared/models/organization';
 import { formatDayKey } from '@cultuvilla/shared/utils';
 import { Card, HStack, Text, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
-import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
-import { centsLabel, CUOTA_STATUS_TONE, todayKey } from '../../../lib/orgs/cuota';
+import { centsLabel, CUOTA_STATUS_TONE } from '../../../lib/orgs/cuota';
+import { useMyCuota } from '../../../lib/orgs/useMyCuota';
 
 /**
  * A member's cuota: the status of their own row and of the personas a cargo
- * they answer for, how to pay, and every entry the treasurer recorded. Hidden
- * until an admin configures the cuota.
+ * they answer for, how to pay, and every entry the treasurer recorded. Hidden (or
+ * `empty`) until an admin configures the cuota.
  */
-export function MyCuota({ orgId, uid }: { orgId: string; uid: string }) {
+export function MyCuota({ orgId, uid, empty }: { orgId: string; uid: string; empty?: ReactNode }) {
   const { t } = useT();
-  const settings = useWatch<CuotaSettings | null>('groups:watchCuotaSettings', orgId, (next, error) =>
-    watchCuotaSettings(orgId, next, error),
-  );
-  const mine = useWatch<Socio[]>('groups:watchMySocios', `${orgId}|${uid}`, (next, error) =>
-    watchMySocios(orgId, uid, next, error),
-  );
-  const rows = useMemo(() => (mine.data ?? []).filter(isActiveSocio), [mine.data]);
-  const ids = useMemo(() => rows.map((r) => r.id).sort(), [rows]);
-  const idsKey = ids.join(',');
-  const assignments = useWatch<CuotaAssignment[]>(
-    'groups:watchCuotaAssignmentsOf',
-    settings.data && ids.length > 0 ? `${orgId}|${idsKey}` : null,
-    settings.data && ids.length > 0 ? (next, error) => watchCuotaAssignmentsOf(orgId, ids, next, error) : null,
-  );
-  const payments = useWatch<CuotaPayment[]>(
-    'groups:watchSocioCuotaPayments',
-    settings.data && ids.length > 0 ? `${orgId}|${idsKey}` : null,
-    settings.data && ids.length > 0 ? (next, error) => watchSocioCuotaPayments(orgId, ids, next, error) : null,
-  );
+  const { cuota, periodKey, rows, payments, statuses, settled } = useMyCuota(orgId, uid);
 
-  const cuota = settings.data;
-  const periodKey = cuota ? currentPeriodKey(cuota.periodicity) : null;
-  const statuses = useMemo<SocioCuotaStatus[]>(() => {
-    if (!cuota || !periodKey) return [];
-    return computeCuotaStatuses({
-      settings: cuota,
-      periodKey,
-      today: todayKey(),
-      socios: rows,
-      assignments: Object.fromEntries((assignments.data ?? []).map((a) => [a.id, a])),
-      payments: payments.data ?? [],
-    });
-  }, [cuota, periodKey, rows, assignments.data, payments.data]);
-
-  if (!cuota || !periodKey || rows.length === 0 || payments.status !== 'ready') return null;
+  if (!cuota || !periodKey || rows.length === 0 || !settled) return settled && empty ? <>{empty}</> : null;
 
   const nameOf = (socioId: string | null) => rows.find((r) => r.id === socioId)?.displayName ?? '';
   const own = rows.find((r) => r.kind === 'member') ?? rows[0];
-  const reversed = new Set((payments.data ?? []).filter((p) => p.kind === 'reversal').map((p) => p.reversesId));
+  const reversed = new Set(payments.filter((p) => p.kind === 'reversal').map((p) => p.reversesId));
 
   const statusLine = (s: SocioCuotaStatus): string => {
     if (s.basis === 'household') return t('groups.cuota.household', { name: nameOf(s.householdOf) });
@@ -81,7 +32,6 @@ export function MyCuota({ orgId, uid }: { orgId: string; uid: string }) {
 
   return (
     <VStack gap={2} testID="my-cuota">
-      <DetailSectionHeading>{t('groups.cuota.myTitle')}</DetailSectionHeading>
       <Text tone="muted" variant="bodySm">
         {t('groups.cuota.periodTitle', { period: periodLabel(periodKey) })}
       </Text>
@@ -116,12 +66,12 @@ export function MyCuota({ orgId, uid }: { orgId: string; uid: string }) {
       ) : null}
 
       <Text className="font-bold pt-2">{t('groups.cuota.history')}</Text>
-      {(payments.data ?? []).length === 0 ? (
+      {payments.length === 0 ? (
         <Text tone="muted" variant="bodySm">
           {t('groups.cuota.noHistory')}
         </Text>
       ) : (
-        (payments.data ?? []).map((p) => (
+        payments.map((p) => (
           <Text key={p.id} variant="bodySm" tone={reversed.has(p.id) ? 'muted' : 'primary'} testID={`my-cuota-entry-${p.id}`}>
             {[
               rows.length > 1 ? nameOf(p.socioId) : null,

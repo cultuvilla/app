@@ -15,6 +15,7 @@ import type {
   CuotaPeriodicity,
   CuotaReminderStage,
   CuotaSettingsData,
+  CuotaTier,
   PeriodKey,
 } from './CuotaDataModel';
 
@@ -43,8 +44,6 @@ export interface SocioCuotaStatus {
   paidCents: number;
   /** The due day for this socio: the period's, or their alta when it came later. */
   dueOn: string;
-  /** The last day of grace; from the day after, an unpaid cuota is vencida. */
-  overdueAfter: string;
   /** For `household`: the socio row whose payment covers this one. */
   householdOf: string | null;
 }
@@ -127,16 +126,23 @@ export function cuotaConcept(key: PeriodKey, name: string): string {
 
 // ── Amounts ──────────────────────────────────────────────────────────────────
 
+/** The period's price of the base cuota or of a tier: its year's, else the usual one. */
+export function cuotaPriceFor(priced: Pick<CuotaTier, 'amountCents' | 'yearAmounts'>, key: PeriodKey): number {
+  const year = key.slice(0, 4);
+  return priced.yearAmounts.find((y) => y.year === year)?.amountCents ?? priced.amountCents;
+}
+
 /** What a socio owes for one period, before any household cover. */
 export function owedCents(
-  settings: Pick<CuotaSettingsData, 'amountCents' | 'tiers'>,
+  settings: Pick<CuotaSettingsData, 'amountCents' | 'yearAmounts' | 'tiers'>,
   assignment: Pick<CuotaAssignmentData, 'tierId' | 'exempt' | 'customAmountCents'> | undefined,
+  key: PeriodKey,
 ): number {
-  if (!assignment) return settings.amountCents;
+  if (!assignment) return cuotaPriceFor(settings, key);
   if (assignment.exempt) return 0;
   if (assignment.customAmountCents !== null) return assignment.customAmountCents;
   const tier = settings.tiers.find((t) => t.id === assignment.tierId);
-  return tier ? tier.amountCents : settings.amountCents;
+  return cuotaPriceFor(tier ?? settings, key);
 }
 
 /** Net paid per socio: payments minus the ones a reversal cancelled. */
@@ -183,7 +189,7 @@ function wasSocioDuring(socio: CuotaSocio, bounds: { first: string; last: string
 /**
  * Status of every socio who was one during the period. Al día when paid (net of
  * reversals) at least what they owe, or exempt; otherwise pendiente until the
- * grace period ends and vencida after it. A persona a cargo whose responsible
+ * due day ends and vencida after it. A persona a cargo whose responsible
  * member is on a tier that covers personas follows that member: one household
  * payment marks them all paid. A period before `startPeriod` owes nothing.
  */
@@ -199,19 +205,17 @@ export function computeCuotaStatuses(input: CuotaStatusInput): SocioCuotaStatus[
   const own = (s: CuotaSocio): SocioCuotaStatus => {
     const altaDay = madridDayKey(s.altaAt);
     const dueOn = altaDay > periodDue ? altaDay : periodDue;
-    const overdueAfter = addDays(dueOn, settings.graceDays);
     const assignment = assignments[s.id];
-    const owed = owedCents(settings, assignment);
+    const owed = owedCents(settings, assignment, periodKey);
     const paidCents = paid.get(s.id) ?? 0;
     const settled = paidCents >= owed;
     return {
       socioId: s.id,
-      status: settled ? 'al_dia' : today > overdueAfter ? 'vencida' : 'pendiente',
+      status: settled ? 'al_dia' : today > dueOn ? 'vencida' : 'pendiente',
       basis: settled ? (owed === 0 ? 'exempt' : 'paid') : 'unpaid',
       owedCents: owed,
       paidCents,
       dueOn,
-      overdueAfter,
       householdOf: null,
     };
   };
@@ -236,7 +240,6 @@ export function computeCuotaStatuses(input: CuotaStatusInput): SocioCuotaStatus[
       basis: 'household',
       owedCents: 0,
       dueOn: headStatus.dueOn,
-      overdueAfter: headStatus.overdueAfter,
       householdOf: head.id,
     });
   }
@@ -263,6 +266,8 @@ export function cuotaReminderStage(status: SocioCuotaStatus, today: string): Cuo
 // ── Signer ───────────────────────────────────────────────────────────────────
 
 export interface CuotaSigner {
+  /** The admin's account, whose address a reminder's replies go to. */
+  uid: string | null;
   name: string;
   title: OrgAdminTitle | null;
 }
@@ -282,5 +287,5 @@ export function cuotaSigner(socios: CuotaSocio[], adminUids: readonly string[], 
     rows.find((s) => s.uid === configuredBy) ??
     rows.find((s) => s.adminTitle !== null) ??
     (rows.length > 0 ? rows[0] : undefined);
-  return pick ? { name: pick.displayName.trim(), title: pick.adminTitle } : null;
+  return pick ? { uid: pick.uid, name: pick.displayName.trim(), title: pick.adminTitle } : null;
 }

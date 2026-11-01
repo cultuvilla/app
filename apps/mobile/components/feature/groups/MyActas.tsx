@@ -1,24 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { compareActas } from '@cultuvilla/shared/models/organization';
 import { watchSocioVisibleActas, type Acta } from '@cultuvilla/shared/services/recordsService';
 import { VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { ActaDetailSheet, ActaRow } from './ActaDetailSheet';
 
-/** A socio's view of the actas the junta shared, newest first. Hidden while there are none. */
-export function MyActas({ orgId, orgName }: { orgId: string; orgName: string }) {
+/** A socio's view of the actas the junta shared, newest first. Hidden (or `empty`) while there are none. */
+export function MyActas({ orgId, orgName, empty }: { orgId: string; orgName: string; empty?: ReactNode }) {
   const { t } = useT();
   const actas = useWatch<Acta[]>('groups:watchSocioVisibleActas', orgId, (next, error) => watchSocioVisibleActas(orgId, next, error));
   const [openId, setOpenId] = useState<string | null>(null);
   const rows = useMemo(() => [...(actas.data ?? [])].sort(compareActas), [actas.data]);
 
-  if (rows.length === 0) return null;
+  if (rows.length === 0) return actas.status === 'ready' && empty ? <>{empty}</> : null;
 
   return (
     <VStack gap={1} testID="my-actas">
-      <DetailSectionHeading>{t('groups.records.actas.title')}</DetailSectionHeading>
       {rows.map((acta) => (
         <ActaRow key={acta.id} acta={acta} showVisibility={false} onOpen={() => setOpenId(acta.id)} />
       ))}

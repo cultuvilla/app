@@ -10,7 +10,7 @@ import { useT } from '../../../lib/i18n';
 
 /**
  * The libro de socios: every roster row ever — the roster never deletes one —
- * numbered by alta, with its baja. Collapsed to a count until opened; the
+ * in alta order with its socio number and its baja. Collapsed to a count until opened; the
  * export is the libro to print or hand on.
  */
 export function LibroSocios({ orgId, orgName }: { orgId: string; orgName: string }) {
@@ -62,9 +62,13 @@ export function LibroSocios({ orgId, orgName }: { orgId: string; orgName: string
         </>
       )}
       {open
-        ? rows.map((s, i) => (
+        ? rows.map((s) => (
             <VStack key={s.id} className="py-1 border-b border-subtle" testID={`libro-row-${s.id}`}>
-              <Text className={s.bajaAt ? 'text-muted' : ''}>{`${String(i + 1)}. ${s.displayName}`}</Text>
+              <Text className={s.bajaAt ? 'text-muted' : ''}>
+                {s.socioNumber !== null
+                  ? t('groups.records.libro.numbered', { number: String(s.socioNumber), name: s.displayName })
+                  : s.displayName}
+              </Text>
               <Text variant="caption" tone="muted">
                 {s.bajaAt
                   ? t('groups.records.libro.altaBaja', { alta: formatDate(s.altaAt), baja: formatDate(s.bajaAt) })

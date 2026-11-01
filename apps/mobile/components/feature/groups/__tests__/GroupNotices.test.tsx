@@ -8,19 +8,23 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
+jest.mock('../../../../lib/orgs/useGroupChatUnread', () => ({
+  useGroupChatUnread: () => ({ generalUnread: false, unreadAvisoIds: new Set(['chatty']) }),
+}));
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ router: { push: (href: unknown) => mockPush(href) } }));
+const mockValues = { nombre: null as string | null, numero: null as number | null, cuotaCents: null as number | null };
+jest.mock('../../../../lib/orgs/useMyMessageValues', () => ({ useMyMessageValues: () => mockValues }));
 const mockMarkRead = jest.fn(() => Promise.resolve());
 const mockVote = jest.fn(() => Promise.resolve());
-const mockMute = jest.fn(() => Promise.resolve());
 jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
   const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
   return {
     watchMyGroupMessages: mockWatcher('messages'),
     watchMyGroupMessageReads: mockWatcher('reads'),
     watchMyGroupPollVotes: mockWatcher('votes'),
-    watchGroupNotificationPrefs: mockWatcher('prefs'),
     markGroupMessageRead: (...a: unknown[]) => mockMarkRead(...(a as [])),
     castGroupPollVote: (...a: unknown[]) => mockVote(...(a as [])),
-    setGroupMessagesMuted: (...a: unknown[]) => mockMute(...(a as [])),
   };
 });
 
@@ -49,7 +53,6 @@ const message = (id: string, over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   resetWatchers();
   jest.clearAllMocks();
-  setWatched('prefs', null);
   setWatched('votes', []);
 });
 
@@ -60,13 +63,24 @@ describe('GroupNotices', () => {
     expect(queryByTestId('group-notices')).toBeNull();
   });
 
-  it('puts pinned notices first and marks the unread ones read once shown', async () => {
-    setWatched('messages', [message('new'), message('old', { pinned: true, sentAt: new Date('2026-01-01') })]);
+  it("shows the reader's own values in place of the placeholders, and drops what they lack", () => {
+    mockValues.nombre = 'Ana';
+    setWatched('messages', [message('p', { title: 'Hola {nombre}', body: 'Hola {nombre}.\nTu nº es {nº socio}.\nHay cena.' })]);
+    setWatched('reads', []);
+    const { getByText, queryByText } = render(<GroupNotices orgId="org1" uid="u1" />);
+    mockValues.nombre = null;
+    expect(getByText('Hola Ana')).toBeTruthy();
+    expect(getByText('Hola Ana.\nHay cena.')).toBeTruthy();
+    expect(queryByText(/\{/)).toBeNull();
+  });
+
+  it('lists newest first, with no pinned or sender line, and marks the unread ones read once shown', async () => {
+    setWatched('messages', [message('old', { pinned: true, sentAt: new Date('2026-01-01') }), message('new')]);
     setWatched('reads', [{ id: 'old', readAt: new Date() }]);
     const { getAllByTestId, getByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
-    expect(getAllByTestId(/^group-notice-(new|old)$/).map((n) => n.props.testID)).toEqual(['group-notice-old', 'group-notice-new']);
+    expect(getAllByTestId(/^group-notice-(new|old)$/).map((n) => n.props.testID)).toEqual(['group-notice-new', 'group-notice-old']);
     expect(getByTestId('group-notice-new')).toHaveTextContent(/groups\.messages\.newBadge/);
-    expect(getByTestId('group-notice-old')).toHaveTextContent(/groups\.messages\.pinnedBadge/);
+    expect(getByTestId('group-notice-old')).not.toHaveTextContent(/groups\.messages\.(pinnedBadge|sentBy)|Luis/);
     await waitFor(() => expect(mockMarkRead).toHaveBeenCalledWith('org1', 'new', 'u1'));
     expect(mockMarkRead).toHaveBeenCalledTimes(1);
   });
@@ -81,11 +95,14 @@ describe('GroupNotices', () => {
     expect(mockVote).toHaveBeenCalledWith('org1', 'p', 'u1', 0);
   });
 
-  it('mutes the group’s pushes', () => {
-    setWatched('messages', [message('a')]);
-    setWatched('reads', [{ id: 'a', readAt: new Date() }]);
-    const { getByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
-    fireEvent.press(getByTestId('group-notices-mute'));
-    expect(mockMute).toHaveBeenCalledWith('u1', 'org1', true);
+  it('each notice opens its conversation, and says when it has something new', () => {
+    setWatched('messages', [message('quiet'), message('chatty')]);
+    setWatched('reads', []);
+      const r = render(<GroupNotices orgId="org1" uid="u1" />);
+    expect(r.getByText('groups.chat.openNew')).toBeTruthy();
+    expect(r.getByText('groups.chat.open')).toBeTruthy();
+    fireEvent.press(r.getByTestId('group-notice-open-quiet'));
+    fireEvent.press(r.getByTestId('group-notice-chat-quiet'));
+    expect(mockPush).toHaveBeenCalledWith('/grupos/org1/aviso/quiet');
   });
 });

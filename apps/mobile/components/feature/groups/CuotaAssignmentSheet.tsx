@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
-import { parseEuroCents, type CuotaSettingsData } from '@cultuvilla/shared/models/organization';
+import { cuotaPriceFor, parseEuroCents, type CuotaSettingsData, type PeriodKey } from '@cultuvilla/shared/models/organization';
 import type { CuotaAssignment } from '@cultuvilla/shared/services/cuotaService';
-import { BottomSheet, Button, Input, VStack } from '../../primitives';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
+import { BottomSheet, Button, HStack, Input, Pressable, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { centsInputValue, centsLabel } from '../../../lib/orgs/cuota';
-import { ChoiceRow } from './ChoiceRow';
 
 export interface AssignmentValues {
   tierId: string | null;
@@ -30,13 +31,15 @@ export function CuotaAssignmentSheet({
   visible,
   socioName,
   settings,
+  periodKey,
   assignment,
   onSave,
   onClose,
 }: {
   visible: boolean;
   socioName: string;
-  settings: Pick<CuotaSettingsData, 'amountCents' | 'tiers'>;
+  settings: Pick<CuotaSettingsData, 'amountCents' | 'yearAmounts' | 'tiers'>;
+  periodKey: PeriodKey;
   assignment: CuotaAssignment | undefined;
   onSave: (values: AssignmentValues) => Promise<void>;
   onClose: () => void;
@@ -56,8 +59,8 @@ export function CuotaAssignmentSheet({
   }, [visible]);
 
   const options = [
-    { value: GENERAL, label: t('groups.cuota.assignment.general', { amount: centsLabel(settings.amountCents) }) },
-    ...settings.tiers.map((tier) => ({ value: tier.id, label: t('groups.cuota.assignment.tier', { name: tier.name, amount: centsLabel(tier.amountCents) }) })),
+    { value: GENERAL, label: t('groups.cuota.assignment.general', { amount: centsLabel(cuotaPriceFor(settings, periodKey)) }) },
+    ...settings.tiers.map((tier) => ({ value: tier.id, label: t('groups.cuota.assignment.tier', { name: tier.name, amount: centsLabel(cuotaPriceFor(tier, periodKey)) }) })),
     { value: EXEMPT, label: t('groups.cuota.assignment.exempt') },
     { value: CUSTOM, label: t('groups.cuota.assignment.custom') },
   ];
@@ -97,7 +100,26 @@ export function CuotaAssignmentSheet({
     >
       <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID="cuota-assignment-scroll">
         <VStack gap={3} className="px-5 pb-4">
-          <ChoiceRow testID="cuota-assignment-choice" value={choice} options={options} onChange={setChoice} />
+          <VStack gap={0} testID="cuota-assignment-choice">
+            {options.map((o) => {
+              const selected = o.value === choice;
+              return (
+                <Pressable
+                  key={o.value}
+                  testID={`cuota-assignment-choice-${o.value}`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  onPress={() => setChoice(o.value)}
+                  className="py-3 border-b border-subtle"
+                >
+                  <HStack gap={3} align="center">
+                    <Text className={`flex-1 ${selected ? 'font-bold' : ''}`}>{o.label}</Text>
+                    {selected ? <Ionicons name="checkmark" size={iconSizes.md} color={colors.light.fg.accent} /> : null}
+                  </HStack>
+                </Pressable>
+              );
+            })}
+          </VStack>
           {choice === CUSTOM ? (
             <Input
               label={t('groups.cuota.payment.amount')}

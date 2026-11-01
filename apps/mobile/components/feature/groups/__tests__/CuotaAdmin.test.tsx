@@ -12,6 +12,7 @@ import { downloadFile } from '../../../../lib/export/downloadFile';
 import { latestWatcher, resetWatchers, setWatched } from '../../../../test/watchers';
 import { CuotaAdmin } from '../CuotaAdmin';
 
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -47,7 +48,7 @@ jest.mock('@cultuvilla/shared/services/socioService', () => ({
 
 const TODAY = madridDayKey(new Date());
 const YEAR = TODAY.slice(0, 4);
-// Due 1 January with no grace: vencida from the 2nd, pendiente on the day itself.
+// Due 1 January: vencida from the 2nd, pendiente on the day itself.
 const UNPAID = TODAY > `${YEAR}-01-01` ? 'vencida' : 'pendiente';
 
 function socio(id: string, input: Partial<SocioDataInput>) {
@@ -55,8 +56,8 @@ function socio(id: string, input: Partial<SocioDataInput>) {
 }
 
 const SETTINGS = {
-  id: 'current', amountCents: 3000, periodicity: 'yearly', dueMonth: 1, dueDay: 1, graceDays: 0, startPeriod: YEAR,
-  tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1500, coversPersonas: false }],
+  id: 'current', amountCents: 3000, yearAmounts: [], periodicity: 'yearly', dueMonth: 1, dueDay: 1, graceDays: 0, startPeriod: YEAR,
+  tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1500, yearAmounts: [], coversPersonas: false }],
   bizum: null, iban: null, payInstructions: null, remindersEnabled: true, configuredBy: 'u-admin', updatedAt: new Date(),
 };
 
@@ -93,7 +94,8 @@ describe('CuotaAdmin', () => {
     fireEvent.press(getByTestId('cuota-configure'));
     fireEvent.changeText(getByTestId('cuota-settings-amount'), '25,50');
     fireEvent.changeText(getByTestId('cuota-settings-bizum'), '600111222');
-    fireEvent.press(getByTestId('cuota-settings-month-3'));
+    fireEvent.press(getByTestId('cuota-settings-month-trigger'));
+    fireEvent.press(getByTestId('cuota-settings-month-options-3'));
     fireEvent.press(getByTestId('cuota-tier-add'));
     fireEvent.press(getByTestId('cuota-settings-save'));
     // The new tier has no name yet: nothing is saved.
@@ -108,10 +110,48 @@ describe('CuotaAdmin', () => {
     expect(orgId).toBe('org1');
     expect(uid).toBe('u-admin');
     expect(values).toMatchObject({
-      amountCents: 2550, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 30, startPeriod: YEAR,
+      amountCents: 2550, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 0, startPeriod: YEAR,
       bizum: '600111222', remindersEnabled: false,
-      tiers: [expect.objectContaining({ name: 'Familiar', amountCents: 4000, coversPersonas: true })],
+      tiers: [expect.objectContaining({ name: 'Familiar', amountCents: 4000, yearAmounts: [], coversPersonas: true })],
     });
+  });
+
+  it('prices the base cuota and a tier by year, and shows the viewed year its own', async () => {
+    setWatched('settings', { ...SETTINGS, yearAmounts: [{ year: YEAR, amountCents: 3500 }] });
+    const { getAllByText, getByTestId, getByText, queryByTestId } = renderAdmin();
+    expect(getAllByText(/35,00/).length).toBeGreaterThan(0);
+    fireEvent.press(getByTestId('cuota-edit-settings'));
+    expect(getByTestId('cuota-settings-years')).toBeTruthy();
+    expect(getByTestId('cuota-tier-years-jub')).toBeTruthy();
+    expect(getByTestId('cuota-settings-years-year-0').props.value).toBe(YEAR);
+
+    fireEvent.press(getByTestId('cuota-settings-years-add'));
+    fireEvent.changeText(getByTestId('cuota-settings-years-year-1'), YEAR);
+    fireEvent.changeText(getByTestId('cuota-settings-years-amount-1'), '40');
+    fireEvent.press(getByTestId('cuota-settings-save'));
+    expect(getByText('groups.cuota.settings.yearsInvalid')).toBeTruthy();
+    expect(saveCuotaSettings).not.toHaveBeenCalled();
+    fireEvent.press(getByTestId('cuota-settings-years-remove-1'));
+
+    fireEvent.press(getByTestId('cuota-tier-years-jub-toggle'));
+    fireEvent.changeText(getByTestId('cuota-tier-years-jub-amount-0'), '18');
+    fireEvent.press(getByTestId('cuota-settings-save'));
+    await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
+    expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({
+      yearAmounts: [{ year: YEAR, amountCents: 3500 }],
+      tiers: [expect.objectContaining({ id: 'jub', yearAmounts: [{ year: YEAR, amountCents: 1800 }] })],
+    });
+    expect(queryByTestId('cuota-settings-years-remove-1')).toBeNull();
+  });
+
+  it('switching the price by year off forgets the years', async () => {
+    setWatched('settings', { ...SETTINGS, yearAmounts: [{ year: YEAR, amountCents: 3500 }] });
+    const { getByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('cuota-edit-settings'));
+    fireEvent.press(getByTestId('cuota-settings-years-toggle'));
+    fireEvent.press(getByTestId('cuota-settings-save'));
+    await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
+    expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({ yearAmounts: [] });
   });
 
   it('refuses an amount that is not money', () => {
@@ -142,7 +182,8 @@ describe('CuotaAdmin', () => {
     const { getByTestId } = renderAdmin();
     fireEvent.press(getByTestId('cuota-record-Paco'));
     expect(getByTestId('cuota-payment-amount').props.value).toBe('30');
-    fireEvent.press(getByTestId('cuota-payment-method-transferencia'));
+    fireEvent.press(getByTestId('cuota-payment-method-trigger'));
+    fireEvent.press(getByTestId('cuota-payment-method-options-transferencia'));
     fireEvent.changeText(getByTestId('cuota-payment-note'), 'en la cena');
     fireEvent.press(getByTestId('cuota-payment-save'));
     await waitFor(() =>
@@ -195,15 +236,13 @@ describe('CuotaAdmin', () => {
     fireEvent.press(getByTestId('cuota-tier-covers-jub'));
     expect(getByTestId('cuota-settings-periodicity')).toBeTruthy();
     fireEvent.press(getByTestId('cuota-settings-periodicity-monthly'));
-    fireEvent.changeText(getByTestId('cuota-settings-grace'), '10');
     fireEvent.changeText(getByTestId('cuota-settings-iban'), 'es12 3456');
     fireEvent.changeText(getByTestId('cuota-settings-instructions'), 'En mano');
-    fireEvent.press(getByTestId('cuota-settings-reminders'));
     fireEvent.press(getByTestId('cuota-settings-save'));
     await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
     expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({
-      periodicity: 'monthly', startPeriod: TODAY.slice(0, 7), graceDays: 10, iban: 'es12 3456', payInstructions: 'En mano',
-      remindersEnabled: false, tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1200, coversPersonas: true }],
+      periodicity: 'monthly', startPeriod: TODAY.slice(0, 7), graceDays: 0, iban: 'es12 3456', payInstructions: 'En mano',
+      remindersEnabled: true, tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1200, yearAmounts: [], coversPersonas: true }],
     });
   });
 
@@ -224,7 +263,8 @@ describe('CuotaAdmin', () => {
     expect(getByTestId('cuota-payment-sheet')).toBeTruthy();
     expect(getByTestId('cuota-payment-scroll')).toBeTruthy();
     expect(getByTestId('cuota-payment-method')).toBeTruthy();
-    fireEvent.press(getByTestId('cuota-payment-method-domiciliacion'));
+    fireEvent.press(getByTestId('cuota-payment-method-trigger'));
+    fireEvent.press(getByTestId('cuota-payment-method-options-domiciliacion'));
     fireEvent.press(getByTestId('cuota-payment-save'));
     await waitFor(() => expect(jest.mocked(recordCuotaPayment).mock.calls[0]![1]).toMatchObject({ method: 'domiciliacion' }));
   });

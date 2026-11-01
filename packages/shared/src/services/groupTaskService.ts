@@ -1,12 +1,16 @@
 // packages/shared/src/services/groupTaskService.ts
-import { deleteDoc, doc, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from '../firebase/sdk/firestore';
+import { deleteDoc, doc, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from '../firebase/sdk/firestore';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
+  organizationTaskCommentsCollection,
+  organizationTaskCommentsWriteCollection,
+  organizationTaskDoc,
   organizationTaskTemplatesCollection,
   organizationTasksCollection,
   organizationTaskWriteDoc,
 } from '../firebase/refs/client';
+import { GroupChatBodySchema, type GroupChatMessageData } from '../models/organization/GroupChatDataModel';
 import {
   buildGroupTaskData,
   buildTaskTemplateData,
@@ -26,10 +30,11 @@ import {
   type ShiftAnswer,
   type ShiftState,
 } from '../models/organization/groupTaskLogic';
-import { watchQuery, type Unwatch, type WatchError } from './watch';
+import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type GroupTask = GroupTaskData & { id: string };
 export type TaskTemplate = TaskTemplateData & { id: string };
+export type TaskComment = GroupChatMessageData & { id: string };
 
 // Writes go through unconverted refs so the server stamps the time
 // (`serverTimestamp()`, which rules check against `request.time`); the strict
@@ -41,12 +46,12 @@ const rawDoc = (orgId: string, collection: 'tasks' | 'taskTemplates', id: string
 // TASKS
 // =============================================================================
 
-/** Every open task of the group — the member home (mine, open shifts) and the admin list. */
+/** Every open task of the group — the home's Próximas tareas and the Tareas screen. */
 export function watchOpenGroupTasks(orgId: string, onNext: (rows: GroupTask[]) => void, onError: WatchError): Unwatch {
   return watchQuery(query(organizationTasksCollection(getDb(), orgId), where('doneAt', '==', null)), onNext, onError);
 }
 
-/** Tasks closed since `since` — the admin's done list and the fair-share view. */
+/** Tasks closed since `since` — the done list and the fair-share view. */
 export function watchGroupTasksDoneSince(
   orgId: string,
   since: Date,
@@ -66,33 +71,53 @@ export function watchEventGroupTasks(
   return watchQuery(query(organizationTasksCollection(getDb(), orgId), where('eventId', '==', eventId)), onNext, onError);
 }
 
-function newTaskPayload(input: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>, adminUid: string) {
-  const data = GroupTaskDataSchema.parse(buildGroupTaskData({ ...input, createdBy: adminUid }));
+/** The checklists of several events at once. Firestore takes up to 30 ids, so the caller passes the first 30. */
+export function watchGroupTasksOfEvents(
+  orgId: string,
+  eventIds: string[],
+  onNext: (rows: GroupTask[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(query(organizationTasksCollection(getDb(), orgId), where('eventId', 'in', eventIds)), onNext, onError);
+}
+
+/** One task — its own screen. */
+export function watchGroupTask(
+  orgId: string,
+  taskId: string,
+  onNext: (task: GroupTask | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(organizationTaskDoc(getDb(), orgId, taskId), onNext, onError);
+}
+
+function newTaskPayload(input: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>, uid: string) {
+  const data = GroupTaskDataSchema.parse(buildGroupTaskData({ ...input, createdBy: uid }));
   return { ...data, createdAt: serverTimestamp() };
 }
 
-/** Admin: add a task (a shift when `slots` is set). Returns its id. */
+/** Any member: add a task (a shift when `slots` is set). Returns its id. */
 export async function createGroupTask(
   orgId: string,
   input: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>,
-  adminUid: string,
+  uid: string,
 ): Promise<string> {
   const id = doc(organizationTasksCollection(getDb(), orgId)).id;
-  await setDoc(rawDoc(orgId, 'tasks', id), newTaskPayload(input, adminUid));
+  await setDoc(rawDoc(orgId, 'tasks', id), newTaskPayload(input, uid));
   return id;
 }
 
-/** Admin: add several tasks at once (a template applied), all or none. */
+/** Any member: add several tasks at once (an event's checklist, a template applied), all or none. */
 export async function createGroupTasks(
   orgId: string,
   inputs: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>[],
-  adminUid: string,
+  uid: string,
 ): Promise<string[]> {
   if (inputs.length > MAX_TEMPLATE_ITEMS) throw new Error(`At most ${String(MAX_TEMPLATE_ITEMS)} tasks at once`);
   const batch = writeBatch(getDb());
   const ids = inputs.map((input) => {
     const id = doc(organizationTasksCollection(getDb(), orgId)).id;
-    batch.set(rawDoc(orgId, 'tasks', id), newTaskPayload(input, adminUid));
+    batch.set(rawDoc(orgId, 'tasks', id), newTaskPayload(input, uid));
     return id;
   });
   await batch.commit();
@@ -100,7 +125,7 @@ export async function createGroupTasks(
 }
 
 /**
- * Admin: change what a task is. Its answers, done state and next occurrence
+ * Any member: change what a task is. Its answers, done state and next occurrence
  * are not edited here: those belong to `setGroupTaskDone` and the functions.
  */
 export async function updateGroupTask(orgId: string, taskId: string, edit: GroupTaskEdit): Promise<void> {
@@ -114,14 +139,14 @@ export async function updateGroupTask(orgId: string, taskId: string, edit: Group
 }
 
 /**
- * Tick a task done or undone — an admin, or an assignee on their own task.
+ * Any member: tick a task done or undone.
  * Closing a recurring task makes `onGroupTaskUpdated` create the next one.
  */
 export async function setGroupTaskDone(orgId: string, taskId: string, done: boolean, uid: string): Promise<void> {
   await updateDoc(rawDoc(orgId, 'tasks', taskId), done ? { doneAt: serverTimestamp(), doneBy: uid } : { doneAt: null, doneBy: null });
 }
 
-/** Admin. */
+/** An admin, or the task's creator. */
 export async function deleteGroupTask(orgId: string, taskId: string): Promise<void> {
   await deleteDoc(rawDoc(orgId, 'tasks', taskId));
 }
@@ -185,4 +210,45 @@ export async function saveTasksAsTemplate(
   adminUid: string,
 ): Promise<string> {
   return saveTaskTemplate(orgId, null, { name, items: templateItemsFromTasks(tasks, anchorOn).slice(0, MAX_TEMPLATE_ITEMS) }, adminUid);
+}
+
+// =============================================================================
+// COMMENTS
+// =============================================================================
+
+/** A task's latest `count` comments, newest first. Pages by asking again with a larger count. */
+export function watchTaskComments(
+  orgId: string,
+  taskId: string,
+  count: number,
+  onNext: (rows: TaskComment[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    query(organizationTaskCommentsCollection(getDb(), orgId, taskId), orderBy('createdAt', 'desc'), limit(count)),
+    onNext,
+    onError,
+  );
+}
+
+/**
+ * Any member comments, under their public name (`publicProfiles/{uid}.displayName`;
+ * the rules refuse any other). Throws on an empty or over-long body before writing.
+ */
+export async function addTaskComment(input: {
+  orgId: string;
+  taskId: string;
+  uid: string;
+  authorName: string;
+  body: string;
+}): Promise<string> {
+  const body = GroupChatBodySchema.parse(input.body);
+  const ref = doc(organizationTaskCommentsWriteCollection(getDb(), input.orgId, input.taskId));
+  await setDoc(ref, { authorUid: input.uid, authorName: input.authorName, body, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+/** The author removes their own comment; an admin removes anyone's. */
+export async function deleteTaskComment(orgId: string, taskId: string, commentId: string): Promise<void> {
+  await deleteDoc(doc(organizationTaskCommentsWriteCollection(getDb(), orgId, taskId), commentId));
 }

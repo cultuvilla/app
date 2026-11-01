@@ -1,0 +1,1 @@
+- Changed: every member of a group has the Socios screen, where they add their personas a cargo and choose the contact data the junta sees. The Mis datos button is gone. The list of names still shows only if the junta turned it on in Ajustes.

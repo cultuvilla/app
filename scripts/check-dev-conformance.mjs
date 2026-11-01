@@ -54,6 +54,7 @@ import {
   organizationSociosCollection,
   organizationSocioPrivateCollection,
   organizationSocioPersonaLocksCollection,
+  organizationSocioNumberingCollection,
   organizationCuotaSettingsCollection,
   organizationCuotaAssignmentsCollection,
   organizationCuotaPaymentsCollection,
@@ -89,6 +90,8 @@ import {
   villageWrappedCollection,
   villageRankingsCollection,
   organizationMessagesCollection,
+  organizationGeneralChatCollection,
+  organizationChatThreadsCollection,
   userGroupPrefsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 
@@ -156,6 +159,7 @@ const REGISTRY = [
       { name: 'socios', coll: (db, id) => organizationSociosCollection(db, id) },
       { name: 'socioPrivate', coll: (db, id) => organizationSocioPrivateCollection(db, id) },
       { name: 'socioPersonaLocks', coll: (db, id) => organizationSocioPersonaLocksCollection(db, id) },
+      { name: 'socioNumbering', coll: (db, id) => organizationSocioNumberingCollection(db, id) },
       { name: 'cuotaSettings', coll: (db, id) => organizationCuotaSettingsCollection(db, id) },
       { name: 'cuotaAssignments', coll: (db, id) => organizationCuotaAssignmentsCollection(db, id) },
       { name: 'cuotaPayments', coll: (db, id) => organizationCuotaPaymentsCollection(db, id) },
@@ -164,6 +168,8 @@ const REGISTRY = [
       { name: 'taskTemplates', coll: (db, id) => organizationTaskTemplatesCollection(db, id) },
       { name: 'taskReminders', coll: (db, id) => organizationTaskRemindersCollection(db, id) },
       { name: 'messages', coll: (db, id) => organizationMessagesCollection(db, id) },
+      { name: 'chat', coll: (db, id) => organizationGeneralChatCollection(db, id) },
+      { name: 'chatThreads', coll: (db, id) => organizationChatThreadsCollection(db, id) },
       { name: 'actas', coll: (db, id) => organizationActasCollection(db, id) },
       { name: 'ledgerEntries', coll: (db, id) => organizationLedgerEntriesCollection(db, id) },
     ],

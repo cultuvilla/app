@@ -11,8 +11,10 @@ import { httpsCallable } from 'firebase/functions';
 import {
   addComment,
   deleteComment,
+  getComment,
   getComments,
   getReplies,
+  newCommentId,
   recordEntityView,
 } from '../../src/services/commentsService';
 
@@ -35,6 +37,25 @@ describe('commentsService — comments', () => {
     expect(snap['entityKind']).toBe('event');
     expect(snap['entityId']).toBe('e1');
     expect(snap['body']).toBe('Nos vemos allí!');
+  });
+
+  it('addComment writes under a caller-chosen id from newCommentId', async () => {
+    const chosen = newCommentId();
+    const id = await addComment({
+      id: chosen, entityKind: 'event', entityId: 'e1', municipalityId: 'm1', authorUserId: 'u1', body: 'X',
+    });
+    expect(id).toBe(chosen);
+    expect(fakeStore()[`comments/${chosen}`]).toBeDefined();
+    expect(fakeStore()[`comments/${chosen}`]['id']).toBeUndefined();
+  });
+
+  it('getComment returns the comment, or null once it is gone', async () => {
+    const id = await addComment({
+      entityKind: 'event', entityId: 'e1', municipalityId: 'm1', authorUserId: 'u1', body: 'X',
+    });
+    expect(await getComment(id)).toMatchObject({ id, municipalityId: 'm1', body: 'X' });
+    await deleteComment(id);
+    expect(await getComment(id)).toBeNull();
   });
 
   it('deleteComment removes the comment doc', async () => {

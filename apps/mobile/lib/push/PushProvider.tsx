@@ -28,6 +28,7 @@ import {
 import { recordSoftAsk, shouldOfferSoftAsk, type SoftAskTrigger } from './softAskPolicy';
 import { loadSoftAskState, saveSoftAskState } from './softAskStore';
 import { rememberRegisteredToken } from './pushSession';
+import { purgeRunawayQueueOnce } from './purgeRunawayQueue';
 
 export interface OfferPushContext {
   villageName?: string;
@@ -64,7 +65,7 @@ function routeFromTap(data: PushTapData): string {
 
 export function PushProvider({ children }: { children: ReactNode }) {
   const { t } = useT();
-  const { user, profile, profileChecked } = useAuth();
+  const { user, profile, profileChecked, loading: authLoading } = useAuth();
   const uid = user?.uid ?? null;
   const navReady = Boolean(useRootNavigationState()?.key);
   // AuthGate redirects a signed-in user with no profile to onboarding; a push
@@ -79,9 +80,16 @@ export function PushProvider({ children }: { children: ReactNode }) {
   const uidRef = useRef(uid);
   uidRef.current = uid;
 
-  const register = useCallback(async (forUid: string) => {
-    const registration = await getPushRegistration();
+  const writtenRegistration = useRef<string | null>(null);
+
+  const register = useCallback(async (forUid: string, knownToken?: string) => {
+    const registration = await getPushRegistration(knownToken);
     if (!registration) return;
+    // The launch's own token fetch echoes back through the refresh listener, in
+    // either order, and one row per launch is all this needs.
+    const key = `${forUid}:${registration.token}`;
+    if (writtenRegistration.current === key) return;
+    writtenRegistration.current = key;
     try {
       await registerDevice(forUid, registration);
       rememberRegisteredToken(forUid, registration.token);
@@ -107,10 +115,15 @@ export function PushProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!uid) return;
     void register(uid);
-    return onPushTokenRefresh(() => {
-      void register(uid);
+    return onPushTokenRefresh((token) => {
+      void register(uid, token);
     });
   }, [uid, register]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    void purgeRunawayQueueOnce(uidRef.current !== null).catch(() => undefined);
+  }, [authLoading]);
 
   // Taps. The notification id rides in the payload, so the tap can mark it read
   // without a lookup — opening a push and still seeing it unread in the Buzón

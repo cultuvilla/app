@@ -1,0 +1,1 @@
+- Changed: when creating a recurring event, "Cada cuánto" now defaults to Anual. Tapping it opens a sheet with the three options, each with a one-line explanation.

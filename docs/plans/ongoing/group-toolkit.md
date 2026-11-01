@@ -63,7 +63,7 @@ stops keeping a parallel paper list.
   libro de socios and actas for `asociación`, `peña` and `otros`, not `ayuntamiento`.
   *(My call.)*
 - **Group home** for a member: what's next (my tasks, upcoming events, my volunteer
-  shifts), my cuota status, pinned notices.
+  shifts), my cuota status, the latest notices.
 - **Admin panel** (admins only, same tab, a "Gestionar" section): members and roles
   (reusing `OrgMembersList` / `OrgJoinRequests`), the cuota settings, messaging,
   task templates, records. Settings live on the org or under it, never on the user.
@@ -111,6 +111,27 @@ Shipped in one PR (`feat/group-toolkit-phase1`). Later phases build on this mode
   no cuota/tasks/notice placeholders until those exist. `displayName` on member rows
   is not re-synced when a user renames. A Maestro flow for the tab (its testIDs are
   unit-tested only, see `e2e/native/uncovered.json`).
+
+### Navigation — as rebuilt (2026-10-31)
+
+The tab's single scroll became a home plus one screen per feature
+(`feat/grupos-screens`, restyled in `feat/grupos-village-look`): `app/(tabs)/grupos.tsx`
+reads like the village home — the group's picture and name, a `StatsRow` (socios when
+the viewer may read the roster, miembros, eventos), avisos first, the cuota status,
+horizontal `Section` rows of próximos eventos and próximas tareas (every open task)
+— and ends with one *Acciones* grid (`GroupSectionGrid`: the member buttons, then an
+admin's own in the secondary colour); each button opens `app/grupos/[grupo]/[seccion].tsx`, which
+renders the existing component (`GroupSectionBody`). Which sections a viewer gets is
+`groupSections` (`lib/orgs/groupSections.ts`); paths are `groupSectionPath` in
+`packages/shared/src/utils/urls.ts`. The switcher is an arrow beside the group's
+name on the home, and the group's name on every section screen (a sheet,
+`GroupSwitcherSheet`);
+switching keeps the section when the other group has it. Group notifications
+route to their section (`cuota`, `tareas`, `avisos`); WhatsApp and email links
+keep `/grupos?grupo=` so binaries without these routes still open the tab.
+Long forms (cuota settings, compose, task, acta, template) are full-screen
+`FormModal`s like the app's other form screens, short ones stay bottom sheets, and a
+choice is a `SegmentedToggle` (2–4 short options) or a `SelectField` (a list).
 
 ## Handoff
 
@@ -190,13 +211,21 @@ ayuntamiento included — tasks key on `uid`, not on the socio roster).
     `/grupos?grupo=<orgId>` like `cuota_reminder`), written by
     `groupTaskNotify.ts`; the 10:00 schedule keeps reminders out of quiet hours.
     Push only — no email for tasks.
-- **App:** `MyTasks` on the group home (my open tasks with a tick; upcoming
-  shifts with Me apunto / No puedo / lista de espera — admins also see names);
-  `TasksAdmin` first in Gestionar (open tasks, done this year, per-event
-  checklists of the group's upcoming events with add / apply template / save as
-  template, templates, fair share). Sheets: `TaskSheet`, `TemplateSheet`,
-  `ApplyTemplateSheet`. Member names come from `lib/orgs/useOrgMembers.ts`.
-- **Left for later:** members creating tasks (a setting); a notification when
+- **App:** the home's *Próximas tareas* row shows every open task (day, event,
+  faces of the assignees or a shift's volunteers). The *Tareas* screen is for
+  every member (decided 2026-11-01, user: everyone creates, edits and ticks
+  tasks; admins and the creator delete): upcoming shifts to answer (`MyTasks`
+  `shiftsOnly`), then `GroupTasks` — open tasks, done this year, per-event
+  checklists with add; admins also get apply / save as template, the templates
+  and fair share. Sheets: `TaskSheet`, `TemplateSheet`, `ApplyTemplateSheet`.
+  Member names come from `lib/orgs/useOrgMembers.ts`.
+- **Comments on a task** (decided 2026-11-01, user): the task's second tab, private
+  to the members. `organizations/{orgId}/tasks/{taskId}/chat/`, the group chat's
+  message shape and deletion, so `deleteAccount` already erases them (`comments/` is
+  public, so it could not hold them). `onTaskCommentCreated` pushes the creator and
+  the people on the task; `onGroupTaskDeleted` removes a deleted task's comments.
+- **Left for later:** a comment count on the task row; pushing who already commented;
+  a notification when
   someone is assigned; email reminders for tasks; overdue reminders for unassigned
   tasks (admins see them in the list); a shift reminder more precise than the
   daily run (it lands 24–48 h ahead); editing a template item's notes/time in the
@@ -313,8 +342,10 @@ Shipped in one PR (`feat/group-toolkit-phase3-cuota`). Only orgs with a socio ro
   after another, each ticked off as sent. No WhatsApp Business API: it needs
   pre-approved templates, opt-in and pays per message. *(Revisit if a group outgrows
   hand-sending.)*
-- **Pinned notices** (BAND): a message can be pinned to the group home; admins see
-  who has read it and can nudge only those who haven't.
+- **Read receipts** (BAND): admins see who has read a notice and can nudge only those
+  who haven't. Notices are not pinned (decided 2026-11-01, user): the home shows the
+  newest, each card just title, text cut to fit, and day. The stored `pinned` field
+  stays for older binaries until `minSupported` passes them.
 - **Polls:** a yes/no or multiple-choice question attached to a notice ("¿Fecha de
   la cena: 12 o 19?").
 - Every sent message is kept in the group's history with its recipients and
@@ -384,6 +415,74 @@ own notifications.
   messaging for the ayuntamiento; no read-site page (private, as planned); no
   Maestro flow (unit-tested, see `e2e/native/uncovered.json`).
 
+### Phase 4 — Decided 2026-11-01 (user), for La Anduela
+
+La Anduela has ~200 socios and most will not have the app at first, so the junta
+loads them as typed socios and reaches them by email and WhatsApp. Build all of:
+
+1. **Per-recipient placeholders** in a message's title and body (nombre, nº de
+   socio, cuota pendiente), offered as tappable chips in the composer and
+   substituted per recipient in the email and in each `wa.me` link. A household
+   recipient (member + personas a cargo) uses the account holder's own name and
+   number.
+2. **A stored socio number** (`socioNumber`) on socio rows: admin-editable, loaded
+   by the import, the next one for new rows assigned by a function.
+3. **Sender name**: message and cuota-reminder emails come from "<org>" alone (no
+   "(vía Cultuvilla)"). The Reply-To stays as is — still open with the user.
+4. **A bulk import script** `scripts/import-socios.mjs` (CSV/XLSX → typed socios).
+5. **"Compartir en WhatsApp"**: one `wa.me/?text=` link for the group's own chat,
+   with the placeholders rendered neutrally (not personalized).
+6. Per-person WhatsApp links default to `fallback` in the composer.
+
+Also decided 2026-11-01 (user), app-first — email and WhatsApp are bridges into the
+app: every WhatsApp text ends with an app link, and group-message emails reply to
+the sending admin (Reply-To = their account email, else the current address).
+
+**As built (items 1, 3, 5, 6 and the two above):**
+
+- Tokens `{nombre}`, `{nº socio}`, `{cuota pendiente}`, inserted by composer chips
+  into the field last touched (at the end of the text; the cuota chip only with a
+  cuota). Typed by hand, `{numero}`, `{cuota}` and other spellings work; any other
+  `{…}` stays as written. Logic and tests: `groupMessagePlaceholders.ts`.
+- **Who sees what.** Email and push: that recipient's values at send time. WhatsApp
+  link: the same, from `deliveries.personal`. In the app (`GroupNotices`, the home's
+  cards): the reader's own values, live (`useMyMessageValues`), so a cuota paid since
+  disappears. The admin's history shows the placeholders as written. A nudge has one
+  title for everyone, so it renders neutrally. A household gets the holder's name and
+  number and the sum of what its rows still owe (`owedCents - paidCents`, rows not
+  `al_dia`).
+- **The neutral rule**, for the group-chat share and for a recipient missing a value:
+  a missing name leaves its sentence ("Hola {nombre}," → "Hola,"); a line needing a
+  missing number or cuota is dropped; a title loses the token but never its line.
+- **The app link** is the group (`groupPath`, as the email): no route opens one aviso.
+- Reply-To: the sender's account email on group messages; the signing admin's
+  (`cuotaSigner`, now with `uid`) on cuota reminders. Auth and event mail are unchanged.
+
+**As built (items 2 and 4):**
+
+- `socioNumber` (nullable int, 1–99999, never reused: a baja keeps it). Admins set
+  it on any row (`setSocioNumber`; a typed socio's with its name); the app refuses
+  a number another row has (rules cannot check uniqueness). A row created without
+  one is numbered by the `assignSocioNumber` trigger: one past both the
+  function-owned counter `socioNumbering/current` and the highest number on the
+  roster, in a transaction that writes the counter, so concurrent creates never
+  share a number. `linkSocioToMember` keeps the typed row's number. The libro and
+  its export show it (the export's "Nº socio" column replaces the alta-order row
+  counter).
+- Backfill `socio-number` writes **null**, not numbers by alta order: a group
+  brings its own numbering (La Anduela's paper libro), and alta-order numbers would
+  collide with it. Unnumbered rows show without a number until an admin or the
+  import gives them one.
+- `scripts/import-socios.mjs --file --org [--env] [--apply] [--confirm]`: columns by
+  header (name + surnames, nº, phone, email, fecha de alta); phones through
+  `normalizeLeadPhone`. Matches by number (a different name there is a conflict),
+  else by name with no contradicting number/contact (preferring a shared phone or
+  email) — phone or email alone never match, since a household shares one. Only
+  fills in what a matched row lacks; skips and reports conflicts; numberless new
+  lines get the next numbers. Logic in `scripts/lib/socio-import.mjs`.
+- **Left for later:** importing the cuota status or payments; a numberless
+  homonym without contact data cannot be re-matched (reported, asks for its nº).
+
 ## Phase 5 — Records (libro de socios, actas, cuentas)
 
 - **Libro de socios:** each socio's alta and baja with dates. A socio who leaves is
@@ -409,7 +508,7 @@ no backfill.
   used: it logs role changes and approvals, not joins and leaves, so it adds no
   history the roster lacks (rows from before Phase 1's `socio-roster` backfill are
   simply absent).
-- **Asamblea anual:** *suggested*, not created: `TasksAdmin` (prop `suggestAsamblea`)
+- **Asamblea anual:** *suggested*, not created: `GroupTasks` (prop `suggestAsamblea`, admins)
   shows a one-tap "Crear asamblea anual" card while the group has no yearly calendar
   task titled "Asamblea…" (`isAsambleaTask`), open or done this year. It creates a
   Phase 2 task (`asambleaTaskInput`): every year, first on the next 15 March, the

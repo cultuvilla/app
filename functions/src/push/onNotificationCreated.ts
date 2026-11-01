@@ -78,8 +78,9 @@ export const onNotificationCreated = onDocumentCreated(
       return;
     }
 
-    // A group message is muted per group, never as a category.
-    if (category === 'groups' && notification.entityId) {
+    // A group message is muted per group, never as a category. A chat message
+    // has its own switch, `chatPush`, which decided whether this doc exists at all.
+    if (category === 'groups' && notification.entityId && !notification.chatThreadId) {
       const groupPrefs = (await userGroupPrefsDoc(db, userId, notification.entityId).get()).data();
       if (groupPrefs?.messagesMuted) {
         logger.info('Push suppressed by group mute', {

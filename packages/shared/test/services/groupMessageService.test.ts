@@ -13,7 +13,9 @@ vi.mock('../../src/firebase/refs/client', () => ({
   organizationMessageWriteDoc: vi.fn((_db, orgId: string, messageId: string, sub: string, id: string) => ({
     _path: `organizations/${orgId}/messages/${messageId}/${sub}/${id}`,
   })),
-  userGroupPrefsDoc: vi.fn((_db, uid: string, orgId: string) => ({ _path: `users/${uid}/groupPrefs/${orgId}` })),
+  userGroupPrefsDoc: vi.fn((_db, uid: string, orgId: string) => ({
+    withConverter: () => ({ _path: `users/${uid}/groupPrefs/${orgId}` }),
+  })),
 }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
@@ -34,7 +36,6 @@ import {
   castGroupPollVote,
   markGroupMessageRead,
   nudgeGroupMessage,
-  setGroupMessagePinned,
   setGroupMessagesMuted,
   setWhatsappSent,
 } from '../../src/services/groupMessageService';
@@ -71,16 +72,14 @@ describe('groupMessageService', () => {
     expect(call(updateDoc, 1).data).toEqual({ whatsappSentAt: null, whatsappSentBy: null });
   });
 
-  it('pins by touching only `pinned`', async () => {
-    await setGroupMessagePinned('org1', 'm1', true);
-    expect(call(updateDoc)).toEqual({ path: 'organizations/org1/messages/m1', data: { pinned: true } });
-  });
-
   it('mutes one group for one account', async () => {
     await setGroupMessagesMuted('u1', 'org1', true);
     const { path, data } = call(setDoc);
     expect(path).toBe('users/u1/groupPrefs/org1');
     expect(data).toMatchObject({ messagesMuted: true });
+    // A merge that never names the chat opt-in, so muting keeps it.
+    expect(data).not.toHaveProperty('chatPush');
+    expect(vi.mocked(setDoc).mock.calls[0]?.[2]).toEqual({ merge: true });
   });
 
   it('nudges through the callable', async () => {

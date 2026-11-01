@@ -108,7 +108,25 @@
       "reviewedTab": "Revisadas",
       "markReviewed": "Marcar como revisada",
       "dismiss": "Descartar",
-      "target": "{kind} · {id}",
+      "deleteMessage": "Borrar el mensaje",
+      "confirmDeleteMessageTitle": "¿Borrar este mensaje del chat?",
+      "deleteMessageError": "No se pudo borrar el mensaje. Puede que ya no exista.",
+      "deleteComment": "Borrar el comentario",
+      "confirmDeleteCommentTitle": "¿Borrar este comentario?",
+      "deleteCommentError": "No se pudo borrar el comentario. Puede que ya no exista.",
+      "kind": {
+        "chatMessage": "Mensaje de chat",
+        "comment": "Comentario",
+        "person": "Persona",
+        "event": "Evento",
+        "festivalPoster": "Cartel",
+        "place": "Lugar",
+        "barrio": "Barrio",
+        "organization": "Grupo",
+        "news": "Noticia",
+        "vocabularyTerm": "Palabra",
+        "historyEntry": "Acontecimiento"
+      },
       "noVillage": "Elige un pueblo activo para ver sus denuncias."
     }
   },
@@ -223,6 +241,8 @@
     "title": "Menú",
     "close": "Cerrar",
     "signOut": "Cerrar sesión",
+    "signOutConfirmTitle": "¿Cerrar sesión?",
+    "signOutConfirmBody": "Tendrás que volver a entrar para usar tu cuenta en este teléfono.",
     "editProfile": "Editar perfil",
     "mySignups": "Mis inscripciones",
     "settings": "Ajustes",
@@ -762,14 +782,28 @@
     "requiresPayment": "Se paga en el evento",
     "attendeesPublic": "Lista de asistentes visible",
     "attendeesPublicHint": "Quien sea del pueblo podrá ver quién se ha apuntado. Los datos de contacto y las respuestas del formulario siguen siendo solo para ti.",
-    "privateToOrg": "Solo para miembros",
-    "privateToOrgHint": "El evento solo será visible para los miembros de la organización, y solo ellos podrán apuntarse.",
+    "privateToOrg": "Solo para integrantes",
+    "privateToOrgHint": "El evento solo será visible para los integrantes de la organización, y solo ellos podrán apuntarse.",
     "privateBadge": "Privado",
-    "privateNotice": "Este evento es privado: solo lo ven los miembros de la organización.",
+    "privateNotice": "Este evento es privado: solo lo ven los integrantes de la organización.",
     "signupEnabled": "Inscripciones por la app",
     "signupEnabledHint": "Desactívalo si el evento es de entrada libre o si las inscripciones se hacen por otro sitio.",
     "formEnabled": "Añadir un formulario",
     "formEnabledHint": "Actívalo para hacer preguntas a quien se apunte (talla de camiseta, alergias…). Las preguntas se configuran en el siguiente paso.",
+    "tasksEnabled": "Añadir lista de tareas",
+    "tasksEnabledHint": "Apunta lo que hay que hacer para este evento. Las tareas se escriben en el siguiente paso y aparecen en las tareas del grupo, donde luego puedes asignarlas.",
+    "tasks": {
+      "group": "Grupo",
+      "title": "Tarea {n}",
+      "titlePlaceholder": "Contratar la orquesta",
+      "month": "Mes",
+      "monthPlaceholder": "Elige el mes",
+      "date": "Fecha (opcional)",
+      "add": "Añadir tarea",
+      "remove": "Quitar la tarea",
+      "yearlyHint": "Cada tarea vuelve cada año, para el final de su mes.",
+      "monthRequired": "Elige el mes de cada tarea."
+    },
     "signupDisableTitle": "Desactivar las inscripciones",
     "signupDisableBody": "Se {count, plural, one {eliminará la inscripción que ya hay} other {eliminarán las # inscripciones que ya hay}} y se avisará a quienes se apuntaron. Esta acción no se puede deshacer.",
     "signupDisableConfirm": "Desactivar y eliminar",
@@ -843,8 +877,32 @@
     "cancelSeriesConfirm": "Este evento se repite cada semana. ¿Cancelas solo este día o también los siguientes?",
     "cancelSeriesOne": "Solo este día",
     "cancelSeriesFollowing": "Este y los siguientes",
-    "repeatsWeekly": "Se repite cada semana",
-    "repeatsWeeklyHint": "Se crea un evento por cada día, con sus propias inscripciones. Luego puedes cancelar días sueltos.",
+    "recurring": "Evento recurrente",
+    "recurringHint": "Cada semana o cada mes se crea un evento por cada día, con sus propias inscripciones, y luego puedes cancelar días sueltos. Cada año se crea el de este año, y cuando pase lo repites para el siguiente. Con fecha distinta cada vez, solo se crea el próximo.",
+    "frequency": "Cada cuánto",
+    "frequencyOption": {
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "frequencyDescription": {
+      "weekly": "Los días que elijas, hasta una fecha.",
+      "monthly": "Una vez al mes.",
+      "yearly": "Una vez al año."
+    },
+    "dateMode": "Fecha",
+    "dateModeOption": {
+      "fixed": "Fija",
+      "varying": "Distinta cada vez"
+    },
+    "dateModeDescription": {
+      "fixed": "Siempre el mismo día.",
+      "varying": "Pones la próxima fecha cada vez."
+    },
+    "dateVariesHint": "Se crea solo el próximo. Cuando pase, podrás repetirlo poniendo la fecha siguiente.",
+    "nextDateTime": "Próxima fecha y hora de inicio",
+    "monthlyHint": "El día {day} de cada mes. Si un mes no tiene ese día, el último del mes.",
+    "yearlyHint": "Se crea el evento de este año. Cuando pase, podrás repetirlo para el año siguiente.",
     "repeatDays": "Qué días",
     "repeatDaysRequired": "Elige al menos un día.",
     "firstDateTime": "Primer día y hora de inicio",
@@ -852,9 +910,16 @@
     "endTimeInvalid": "La hora de fin tiene que ser posterior a la de inicio.",
     "repeatUntil": "Hasta",
     "repeatUntilInvalid": "Elige una fecha final a partir del primer día y como mucho seis meses después.",
+    "repeatUntilInvalidMonthly": "Elige una fecha final a partir del primer día y como mucho un año después.",
     "seriesLabel": "Se repite",
     "seriesSummary": "Cada {days} · hasta el {until}",
-    "seriesEditNotice": "Este evento se repite cada semana: los cambios se aplican solo a este día.",
+    "seriesSummaryMonthly": "El día {day} de cada mes · hasta el {until}",
+    "yearlySummary": "Cada año",
+    "yearlySummaryVaries": "Cada año, con fecha distinta",
+    "monthlySummary": "Cada mes, con fecha distinta",
+    "repeatNextYear": "Repetir el año que viene",
+    "repeatNextMonth": "Repetir el mes que viene",
+    "seriesEditNotice": "Este evento se repite: los cambios se aplican solo a este día.",
     "weekdayShort": {
       "1": "L",
       "2": "M",
@@ -883,6 +948,7 @@
     "stepWhen": "Cuándo y dónde",
     "stepDetails": "Detalles",
     "stepQuestions": "Preguntas",
+    "stepTasks": "Tareas",
     "locationName": "Lugar",
     "village": "Pueblo",
     "villageAutoHint": "Detectado por la ubicación",
@@ -1005,17 +1071,14 @@
       "waitlisted": "En espera",
       "waitlistedMany": "En espera ×{count}",
       "waitlistedCount": "En espera ×{count}"
-    },
-    "privateToOrgNeedsApproval": "Solo los grupos en los que unirse requiere aprobación pueden tener eventos privados. Cámbialo en los ajustes del grupo."
+    }
   },
   "organization": {
     "title": "Grupo",
     "editTitle": "Editar grupo",
     "description": "Descripción",
-    "membersCount": "{count} miembros",
+    "membersCount": "{count, plural, one {1 integrante} other {# integrantes}}",
     "events": "Eventos",
-    "join": "Unirme a este grupo",
-    "joinPeña": "Unirme a esta peña",
     "signInToJoin": "Inicia sesión para unirte",
     "invitedBanner": "Te han invitado a unirte a este grupo",
     "name": "Nombre",
@@ -1026,6 +1089,7 @@
     "peña": "Peña",
     "asociación": "Asociación",
     "otros": "Otros",
+    "comisión": "Comisión de festejos",
     "requestOrg": "Solicitar grupo",
     "submitRequest": "Enviar solicitud",
     "pending": "Pendiente",
@@ -1033,38 +1097,40 @@
     "rejected": "Rechazada",
     "approve": "Aprobar",
     "reject": "Rechazar",
-    "members": "Miembros",
+    "members": "Integrantes",
     "privacy": "Privacidad",
-    "membersPublicLabel": "Los miembros del grupo son visibles para el pueblo",
-    "membersPrivateHint": "Solo los miembros del grupo verán quién forma parte.",
+    "membersPublicLabel": "Los integrantes del grupo son visibles para el pueblo",
+    "membersPrivateHint": "Solo los integrantes del grupo verán quién forma parte.",
     "adminBadge": "Admin",
     "membersList": {
       "promote": "Hacer administrador",
       "demote": "Quitar administrador",
       "remove": "Eliminar",
       "confirmPromoteTitle": "Hacer administrador",
-      "confirmPromoteBody": "¿Dar permisos de administrador a {name}? Podrá editar el grupo y gestionar a otros miembros.",
+      "confirmPromoteBody": "¿Dar permisos de administrador a {name}? Podrá editar el grupo y gestionar a otros integrantes.",
       "confirmDemoteTitle": "Quitar administrador",
       "confirmDemoteBody": "¿Retirar los permisos de administrador a {name}?",
-      "confirmRemoveTitle": "Eliminar miembro",
+      "confirmRemoveTitle": "Eliminar integrante",
       "confirmRemoveBody": "¿Eliminar a {name} del grupo?",
       "roleChangeError": "No se pudo cambiar el rol. Inténtalo de nuevo.",
-      "removeError": "No se pudo eliminar al miembro. Inténtalo de nuevo.",
+      "removeError": "No se pudo eliminar al integrante. Inténtalo de nuevo.",
       "promoteMember": "Hacer administrador a {name}",
       "demoteMember": "Quitar administrador a {name}",
       "removeMember": "Eliminar a {name} del grupo"
     },
+    "join": "Unirme a este grupo",
+    "joinPeña": "Unirme a esta peña",
     "requestToJoin": "Solicitar unirme",
     "requestPending": "Solicitud enviada",
-    "cancelRequestTitle": "Retirar solicitud",
-    "cancelRequestBody": "¿Quieres retirar tu solicitud para unirte a {name}?",
     "joinPolicy": {
       "label": "Unirse requiere aprobación",
-      "approvalHint": "Quien quiera unirse lo solicita y un administrador del grupo lo acepta. Solo los grupos así pueden tener eventos privados.",
+      "approvalHint": "Quien quiera unirse lo solicita y un administrador del grupo lo acepta.",
       "openHint": "Cualquiera puede unirse al momento.",
       "switchToOpenTitle": "Abrir el grupo",
-      "switchToOpenBody": "Cualquiera podrá unirse sin aprobación, y los eventos privados del grupo dejarán de verse hasta que vuelvas a exigir aprobación."
+      "switchToOpenBody": "Cualquiera podrá unirse sin aprobación. Entrará al momento en el libro de socios, y podrá leer el chat y las tareas del grupo y ver sus eventos privados."
     },
+    "cancelRequestTitle": "Retirar solicitud",
+    "cancelRequestBody": "¿Quieres retirar tu solicitud para unirte a {name}?",
     "joinRequests": {
       "title": "Solicitudes para unirse",
       "wantsToJoin": "quiere unirse",
@@ -1076,7 +1142,7 @@
       "body": "¿Quieres salir de {name}? Puedes volver a unirte cuando quieras.",
       "bodyApproval": "¿Quieres salir de {name}? Para volver tendrás que solicitarlo de nuevo.",
       "confirm": "Salir",
-      "soleAdminBody": "Eres el único administrador del grupo. Haz administrador a otro miembro antes de salir.",
+      "soleAdminBody": "Eres el único administrador del grupo. Haz administrador a otro integrante antes de salir.",
       "error": "No se pudo salir del grupo. Inténtalo de nuevo."
     }
   },
@@ -1123,7 +1189,7 @@
     },
     "orgRole": {
       "admin": "Administrador",
-      "member": "Miembro"
+      "member": "Integrante"
     },
     "villagesEntry": "Mis pueblos",
     "villagesSection": {
@@ -1567,6 +1633,7 @@
     "countLabel": "{count, plural, one {# comentario} other {# comentarios}}",
     "placeholder": "Añade un comentario…",
     "send": "Enviar",
+    "sendError": "No se ha podido publicar el comentario.",
     "signInToComment": "Inicia sesión para comentar",
     "delete": "Eliminar",
     "deleteConfirmTitle": "Eliminar comentario",
@@ -1608,12 +1675,44 @@
     }
   },
   "groups": {
-    "title": "Mis grupos",
     "switcherLabel": "Cambiar de grupo",
-    "upcomingEvents": "Próximos eventos",
     "noUpcomingEvents": "No hay eventos próximos.",
-    "openGroupPage": "Ver la página del grupo",
-    "manage": "Gestionar",
+    "roleAdmin": "Admin",
+    "roleMember": "Integrante",
+    "summary": {
+      "cuota": "Cuota {period}"
+    },
+    "stats": {
+      "socios": "Socios",
+      "members": "Integrantes",
+      "events": "Eventos"
+    },
+    "home": {
+      "avisosWithNew": "Avisos ({count} sin leer)",
+      "actions": "Acciones"
+    },
+    "sections": {
+      "avisos": "Avisos",
+      "charla": "Charla",
+      "eventos": "Eventos",
+      "tareas": "Tareas",
+      "cuota": "Mi cuota",
+      "actas": "Actas",
+      "socios": "Socios",
+      "cobros": "Cuota",
+      "mensajes": "Avisos",
+      "registros": "Registros",
+      "miembros": "Integrantes",
+      "ajustes": "Ajustes",
+      "withCount": "{label}, {count} pendientes",
+      "adminHint": "Solo para quien gestiona el grupo",
+      "empty": {
+        "avisos": "La junta no ha enviado avisos.",
+        "eventos": "El grupo aún no tiene eventos.",
+        "cuota": "El grupo aún no ha configurado la cuota.",
+        "actas": "La junta aún no ha compartido actas."
+      }
+    },
     "empty": "Ya no perteneces a ningún grupo.",
     "loadError": "No se han podido cargar tus grupos.",
     "consent": {
@@ -1636,11 +1735,13 @@
       "add": "Hacer socio/a",
       "remove": "Dar de baja",
       "isSocio": "Socio/a",
+      "new": "Añadir persona a cargo",
       "confirmRemoveTitle": "Dar de baja",
       "confirmRemoveBody": "{name} dejará de ser socio/a. Quedará en el libro de socios con la fecha de baja.",
       "error": "No se ha podido completar. Inténtalo de nuevo."
     },
     "socios": {
+      "listHidden": "La junta no muestra la lista de socios.",
       "title": "Socios",
       "count": "{count, plural, one {1 socio} other {# socios}}",
       "add": "Añadir socio",
@@ -1664,15 +1765,24 @@
       "confirmBajaTitle": "Dar de baja",
       "confirmBajaBody": "{name} quedará en el libro de socios con la fecha de baja de hoy.",
       "memberBajaHint": "Un socio con la app se da de baja al salir del grupo.",
-      "link": "Vincular con un miembro",
+      "link": "Vincular con un integrante",
       "linkTitle": "¿Quién es {name} en la app?",
       "linkHint": "Se unirán en una sola ficha, con la fecha de alta más antigua.",
-      "linkEmpty": "No hay miembros con la app para vincular.",
+      "linkEmpty": "No hay integrantes con la app para vincular.",
       "titleLabel": "Cargo",
       "setTitle": "Poner cargo",
       "noTitle": "Sin cargo",
       "error": "No se ha podido completar. Inténtalo de nuevo.",
-      "unnamed": "Sin nombre"
+      "unnamed": "Sin nombre",
+      "socioNumber": "Nº de socio (opcional)",
+      "socioNumberHint": "Si lo dejas vacío, se le da el siguiente.",
+      "socioNumberInvalid": "Escribe un número entre 1 y 99999.",
+      "socioNumberTaken": "Ese número ya lo tiene otro socio.",
+      "numberShort": "Nº {number}",
+      "setNumber": "Nº de socio",
+      "numberTitle": "Nº de socio de {name}",
+      "numberLabel": "Nº de socio",
+      "numberClearHint": "Déjalo vacío para quitarle el número."
     },
     "titles": {
       "presidente": "Presidencia",
@@ -1683,8 +1793,13 @@
     },
     "settings": {
       "title": "Ajustes del grupo",
+      "userTitle": "Ajustes de usuario",
+      "cuotaReminders": "Enviar recordatorios de la cuota",
+      "cuotaRemindersHint": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email. Actívalos cuando hayas anotado los pagos que ya tienes.",
       "sociosListVisible": "Los estatutos permiten ver la lista de socios",
       "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
+      "chatAdminsOnly": "Solo la junta escribe en la Charla",
+      "chatAdminsOnlyHint": "Los demás podrán leerla, pero no escribir. Los chats de los avisos siguen abiertos a quienes los reciben.",
       "error": "No se ha podido guardar el ajuste."
     },
     "cuota": {
@@ -1752,14 +1867,9 @@
         "dueDay": "Día de vencimiento",
         "dueMonth": "Mes de vencimiento",
         "dueDayInvalid": "Escribe un día del 1 al 31.",
-        "graceDays": "Días de margen hasta que esté vencida",
-        "graceDaysInvalid": "Escribe un número de días, de 0 a 365.",
         "bizum": "Número de Bizum (opcional)",
         "iban": "IBAN (opcional)",
         "payInstructions": "Otras indicaciones (opcional)",
-        "reminders": "Enviar recordatorios",
-        "remindersHint": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email, firmados por {name}. Actívalos cuando hayas anotado los pagos que ya tienes.",
-        "remindersHintNoSigner": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email, firmados por la junta.",
         "tiers": "Tarifas",
         "tiersHint": "Opcional: por ejemplo, reducida para jubilados o familiar.",
         "addTier": "Añadir tarifa",
@@ -1767,6 +1877,12 @@
         "tierNameRequired": "Pon un nombre a la tarifa.",
         "tierCovers": "Cubre a las personas a su cargo",
         "removeTier": "Quitar tarifa",
+        "byYear": "El precio cambia según el año",
+        "byYearHint": "Los años que no pongas pagan el importe de arriba.",
+        "year": "Año",
+        "addYear": "Añadir año",
+        "removeYear": "Quitar el año {year}",
+        "yearsInvalid": "Revisa los años: cuatro cifras, sin repetir y con su importe.",
         "save": "Guardar"
       },
       "payment": {
@@ -1786,7 +1902,38 @@
         "save": "Guardar"
       }
     },
+    "events": {
+      "filter": {
+        "upcoming": "Próximos",
+        "past": "Pasados",
+        "all": "Todos"
+      }
+    },
     "tasks": {
+      "filter": {
+        "open": "Pendientes",
+        "mine": "Mías",
+        "done": "Hechas"
+      },
+      "detail": {
+        "title": "Tarea",
+        "people": "Quién está",
+        "event": "Evento: {title}",
+        "markDone": "Marcar como hecha",
+        "reopen": "Reabrir",
+        "unavailable": "Esta tarea ya no existe."
+      },
+      "comments": {
+        "tabDetails": "Detalles",
+        "tabComments": "Comentarios",
+        "empty": "Aún no hay comentarios. ¿Alguna duda sobre la tarea?",
+        "placeholder": "Escribe un comentario",
+        "send": "Enviar",
+        "older": "Ver anteriores",
+        "delete": "Borrar comentario",
+        "deleteConfirm": "¿Borrar este comentario?",
+        "error": "No se ha podido. Inténtalo de nuevo."
+      },
       "myTitle": "Mis tareas",
       "shiftsTitle": "Turnos de voluntarios",
       "adminTitle": "Tareas",
@@ -1902,11 +2049,13 @@
         "saveAsTemplate": "Guardar como plantilla",
         "templateName": "Nombre de la plantilla",
         "saved": "Plantilla guardada.",
-        "addTask": "Añadir tarea"
+        "addTask": "Añadir tarea",
+        "viewEventPage": "Ver la página del evento",
+        "eventUnavailable": "Este evento ya no está disponible."
       },
       "fairShare": {
         "title": "Reparto del trabajo {year}",
-        "hint": "Tareas hechas por cada miembro este año. Solo lo ven los administradores.",
+        "hint": "Tareas hechas por cada integrante este año. Solo lo ven los administradores.",
         "count": "{count, plural, one {1 tarea} other {# tareas}}"
       },
       "asamblea": {
@@ -1929,7 +2078,8 @@
         "altaBaja": "Alta el {alta} · Baja el {baja}",
         "empty": "Todavía no hay socios.",
         "exportTitle": "Exportar el libro de socios",
-        "exportBody": "{count, plural, one {1 socio} other {# socios}}, con su alta y su baja, por fecha de alta."
+        "exportBody": "{count, plural, one {1 socio} other {# socios}}, con su alta y su baja, por fecha de alta.",
+        "numbered": "Nº {number} · {name}"
       },
       "actas": {
         "title": "Actas",
@@ -2014,6 +2164,26 @@
         }
       }
     },
+    "chat": {
+      "avisoTitle": "Aviso",
+      "avisoUnavailable": "Este aviso no está disponible.",
+      "open": "Ver la conversación",
+      "openNew": "Ver la conversación · mensajes nuevos",
+      "empty": "Todavía no ha escrito nadie. Lo que escribas lo verá el grupo, con tu nombre.",
+      "placeholder": "Escribe un mensaje",
+      "send": "Enviar",
+      "sendError": "No se ha podido enviar el mensaje.",
+      "loadError": "No se han podido cargar los mensajes.",
+      "adminsOnly": "En este grupo solo la junta escribe en la Charla.",
+      "options": "Opciones del mensaje",
+      "delete": "Borrar el mensaje",
+      "deleteTitle": "¿Borrar este mensaje?",
+      "deleteBody": "Desaparecerá para todo el grupo.",
+      "deleteError": "No se ha podido borrar el mensaje.",
+      "report": "Denunciar o bloquear",
+      "mute": "Silenciar los mensajes de los chats",
+      "muteHint": "Para este grupo: su Charla y los chats de sus avisos."
+    },
     "messages": {
       "title": "Mensajes",
       "compose": "Nuevo mensaje",
@@ -2041,8 +2211,6 @@
         "fallback": "A quien no le llegue de otra forma",
         "all": "A todos los que tengan teléfono"
       },
-      "pinned": "Fijar en el inicio del grupo",
-      "pinnedHint": "Lo verán arriba del todo hasta que lo quites.",
       "pollLabel": "Encuesta",
       "poll": {
         "none": "Sin encuesta",
@@ -2063,7 +2231,6 @@
       "summary": "{date} · {audience}",
       "counts": "{recipients, plural, one {1 destinatario} other {# destinatarios}} · {push} en la app · {email} por email",
       "whatsappCount": "WhatsApp: {sent} de {total} enviados",
-      "pinnedBadge": "Fijado",
       "newBadge": "Nuevo",
       "sentBy": "Enviado por {name} el {date}",
       "readBy": "Leído por {read} de {total}",
@@ -2084,8 +2251,6 @@
       "channelInApp": "App",
       "channelEmailShort": "Email",
       "emailFailed": "Email no entregado",
-      "pin": "Fijar en el inicio",
-      "unpin": "Quitar de fijados",
       "close": "Cerrar",
       "noticesTitle": "Avisos",
       "tapToVote": "Toca una opción para responder.",
@@ -2093,8 +2258,14 @@
       "voteError": "No se ha podido guardar tu respuesta.",
       "mute": "Silenciar los avisos de este grupo",
       "muteHint": "No te llegarán al móvil, pero seguirán aquí. Los recordatorios de tu cuota te siguen llegando.",
-      "muteError": "No se ha podido guardar el ajuste.",
-      "actionError": "No se ha podido completar. Inténtalo de nuevo."
+      "actionError": "No se ha podido completar. Inténtalo de nuevo.",
+      "placeholder": {
+        "nombre": "Nombre",
+        "numero": "Nº de socio",
+        "cuota": "Cuota pendiente"
+      },
+      "placeholderHint": "Toca para añadirlo. A cada socio le llega con sus datos; lo que no tenga, o lo que no sea para todos, se quita.",
+      "whatsappShare": "Compartir en WhatsApp"
     }
   },
   "studio": {

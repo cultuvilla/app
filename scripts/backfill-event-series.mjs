@@ -33,7 +33,7 @@ export const meta = {
   dependsOn: [],
 };
 
-function eventPatch(data) {
+export function eventPatch(data) {
   return data.series === undefined ? { series: null } : null;
 }
 

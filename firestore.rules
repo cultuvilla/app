@@ -34,16 +34,13 @@ service cloud.firestore {
     function orgMunicipalityId(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.municipalityId;
     }
-    // `open` orgs are instant self-service; `approval` orgs admit members only
-    // through an admin (a resolved join request or a direct add). Orgs written
-    // before the field existed are open.
+    // Whether a group takes anyone on the spot is its admin's choice. A group
+    // that says nothing requires acceptance.
     function orgJoinPolicy(orgId) {
-      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('joinPolicy', 'open');
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('joinPolicy', 'approval');
     }
-    // Membership of an approval org is vetted, so it can gate private content.
-    // Anyone can walk into an open org, so there it proves nothing.
-    function isVettedOrgMember(orgId) {
-      return isOrgMember(orgId) && orgJoinPolicy(orgId) == 'approval';
+    function orgStatus(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.status;
     }
     // Organizer of an event: a user in the event's organizerUserIds, a village
     // admin of the event's municipality, or an app admin. Used to gate the
@@ -73,7 +70,7 @@ service cloud.firestore {
         // cannot see the event, so it must not see who is going to it either.
         // An attendee from outside the org still reaches their own row through
         // the per-document branch below.
-        && (event.get('visibilityOrgId', null) == null || isVettedOrgMember(event.visibilityOrgId));
+        && (event.get('visibilityOrgId', null) == null || isOrgMember(event.visibilityOrgId));
     }
 
     // Who may see a private event at all. Village admins are deliberately
@@ -84,7 +81,7 @@ service cloud.firestore {
     // Cheapest branch first: a public event costs no document reads at all.
     function canReadEvent(event) {
       return event.get('visibilityOrgId', null) == null
-        || isVettedOrgMember(event.visibilityOrgId)
+        || isOrgMember(event.visibilityOrgId)
         || (isAuthenticated() && request.auth.uid in event.organizerUserIds)
         || isAppAdmin();
     }
@@ -101,7 +98,7 @@ service cloud.firestore {
              afterOrg == beforeOrg
              || (
                   ((isAuthenticated() && request.auth.uid in before.organizerUserIds) || isAppAdmin())
-                  && (afterOrg == null || isVettedOrgMember(afterOrg) || (isAppAdmin() && orgJoinPolicy(afterOrg) == 'approval'))
+                  && (afterOrg == null || isOrgMember(afterOrg) || isAppAdmin())
                 )
            );
     }
@@ -311,7 +308,7 @@ service cloud.firestore {
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
-              'sociosListVisible',
+              'sociosListVisible', 'chatAdminsOnly',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -321,7 +318,7 @@ service cloud.firestore {
           && isString(d.name)
           && isStringOrNull(d.description)
           && isList(d.images) && d.images.size() <= 5
-          && d.type in ['ayuntamiento', 'peña', 'asociación', 'otros']
+          && d.type in ['ayuntamiento', 'peña', 'asociación', 'otros', 'comisión']
           && d.status in ['pending', 'approved', 'rejected']
           && isString(d.municipalityId)
           && isString(d.villageSlug)
@@ -333,30 +330,39 @@ service cloud.firestore {
           && d.readCount == 0
           && d.memberCount == 0
           && d.membersPublic is bool
+          // Installed binaries still send `open`; approveOrganization overwrites
+          // it, so every group starts out requiring acceptance.
           && d.get('joinPolicy', 'open') in ['open', 'approval']
-          && d.get('sociosListVisible', false) is bool;
+          && d.get('sociosListVisible', false) is bool
+          && d.get('chatAdminsOnly', false) is bool;
     }
 
     // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
-    // Only peñas, asociaciones and otros keep one; the ayuntamiento has none.
+    // Only peñas, asociaciones, otros and comisiones keep one; the ayuntamiento has none.
     function orgHasSocioRoster(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.type
-        in ['peña', 'asociación', 'otros'];
+        in ['peña', 'asociación', 'otros', 'comisión'];
     }
     // "Los estatutos permiten ver la lista de socios" — names only, never contact.
     function orgSociosListVisible(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('sociosListVisible', false) == true;
     }
+    // The group's "nº de socio" (SOCIO_NUMBER_MAX). Uniqueness is the admins'
+    // care: rules cannot see the other rows.
+    function isValidSocioNumber(n) {
+      return n == null || (n is int && n >= 1 && n <= 99999);
+    }
     function isValidSocioCreate(d) {
       return d.keys().hasOnly([
-              'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
+              'kind', 'socioNumber', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
               'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
             ])
           && d.keys().hasAll([
-              'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
+              'kind', 'socioNumber', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
               'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
             ])
           && d.kind in ['persona', 'typed']
+          && isValidSocioNumber(d.socioNumber)
           && isString(d.displayName) && d.displayName.size() > 0 && d.displayName.size() <= 200
           && d.uid == null
           && isStringOrNull(d.personId)
@@ -392,6 +398,39 @@ service cloud.firestore {
           && d.votedAt == request.time;
     }
 
+    // ── Group chat (see GroupChatDataModel) ───────────────────────────────────
+    // An aviso's thread is read by whoever reads the aviso: the admins and its
+    // recipients, while still members. The general thread is every member's.
+    function canReadAvisoChat(orgId, messageId) {
+      return isOrgAdmin(orgId)
+        || (isOrgMember(orgId) && request.auth.uid in groupMessage(orgId, messageId).recipientUids);
+    }
+    function canReadGroupChatThread(orgId, threadId) {
+      return threadId == 'general' ? isOrgMember(orgId) : canReadAvisoChat(orgId, threadId);
+    }
+    // "Solo la junta escribe" — the general thread only.
+    function orgChatAdminsOnly(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('chatAdminsOnly', false) == true;
+    }
+    // The author writes as themself, under their public name, now.
+    function isValidGroupChatMessageCreate(d) {
+      return d.keys().hasOnly(['authorUid', 'authorName', 'body', 'createdAt'])
+          && d.keys().hasAll(['authorUid', 'authorName', 'body', 'createdAt'])
+          && d.authorUid == request.auth.uid
+          && isString(d.authorName) && d.authorName.size() > 0
+          && d.authorName == get(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.displayName
+          && isString(d.body) && d.body.size() > 0 && d.body.size() <= 2000
+          && d.createdAt == request.time;
+    }
+    // Authors delete their own; the group's admins anyone's, with the village's
+    // and the app's admins as the backstop. No message is ever edited.
+    function canDeleteGroupChatMessage(orgId, message) {
+      return isOwner(message.authorUid)
+        || isOrgAdmin(orgId)
+        || isVillageAdmin(orgMunicipalityId(orgId))
+        || isAppAdmin();
+    }
+
     // ── Cuota de socios (cuotaSettings, cuotaAssignments, cuotaPayments) ──────
     // The socio row a cuota doc points at. Members read the cuota docs of the
     // rows they are (uid) or answer for (responsibleUid, a persona a cargo).
@@ -417,7 +456,7 @@ service cloud.firestore {
     }
     function isValidCuotaSettings(d) {
       return d.keys().hasOnly([
-              'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+              'amountCents', 'yearAmounts', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
               'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
             ])
           && d.keys().hasAll([
@@ -425,6 +464,7 @@ service cloud.firestore {
               'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
             ])
           && isCents(d.amountCents)
+          && (!('yearAmounts' in d) || (d.yearAmounts is list && d.yearAmounts.size() <= 30))
           && d.periodicity in ['yearly', 'monthly']
           && d.dueMonth is int && d.dueMonth >= 1 && d.dueMonth <= 12
           && d.dueDay is int && d.dueDay >= 1 && d.dueDay <= 31
@@ -516,7 +556,7 @@ service cloud.firestore {
       return (n.doneAt == request.time && n.doneBy == request.auth.uid)
           || (n.doneAt == null && n.doneBy == null);
     }
-    function isValidGroupTaskAdminUpdate(n, o) {
+    function isValidGroupTaskUpdate(n, o) {
       return isValidGroupTaskFields(n)
           && !n.diff(o).affectedKeys().hasAny(['claimedUids', 'waitlistUids', 'declinedUids', 'nextTaskId', 'createdBy', 'createdAt'])
           && ((n.doneAt == o.doneAt && n.doneBy == o.doneBy) || isGroupTaskDoneTick(n))
@@ -708,23 +748,78 @@ service cloud.firestore {
           || after.get('signupGroupSize', 1) == before.get('signupGroupSize', 1);
     }
 
-    // One occurrence of a weekly series (EventSeriesModel). Rules cannot
-    // iterate, so the weekday list is checked by membership and size; the
-    // 183-day cap mirrors MAX_SERIES_DAYS (one day of slack, since `until` is
-    // a calendar day and the occurrence a time on it). Keep the two in step.
+    // One occurrence of a weekly or monthly series (EventSeriesModel). Rules
+    // cannot iterate, so the weekday list is checked by membership and size;
+    // the 183-day cap mirrors MAX_SERIES_DAYS and the 366-day one
+    // MAX_MONTHLY_SERIES_DAYS (one day of slack, since `until` is a calendar
+    // day and the occurrence a time on it). Keep them in step. `frequency` is
+    // optional: binaries that predate monthly series never send it.
     function isValidEventSeries(d, s) {
       return s == null || (
         s is map
-          && s.keys().hasOnly(['id', 'index', 'weekdays', 'until'])
+          && s.keys().hasOnly(['id', 'index', 'frequency', 'weekdays', 'until'])
+          && s.get('frequency', 'weekly') in ['weekly', 'monthly']
           && s.keys().hasAll(['id', 'index', 'weekdays', 'until'])
           && isString(s.id) && s.id.size() > 0
           && s.index is int && s.index >= 0 && s.index <= 200
           && s.weekdays is list && s.weekdays.size() >= 1 && s.weekdays.size() <= 7
           && s.weekdays.hasOnly([1, 2, 3, 4, 5, 6, 7])
           && isTimestamp(s.until)
-          && d.startDate < s.until + duration.value(1, 'd')
-          && s.until < d.startDate + duration.value(184, 'd')
+          // `until` is the start of the last calendar day, and a Madrid day
+          // runs 25 hours on the night clocks go back — 25 h keeps a late
+          // occurrence on that day valid (and lets nothing past 01:00 after it).
+          && d.startDate < s.until + duration.value(25, 'h')
+          && s.until < d.startDate + duration.value(s.get('frequency', 'weekly') == 'monthly' ? 367 : 184, 'd')
       );
+    }
+
+    // A yearly event, or a monthly one whose date varies, is one edition, never
+    // a series. A monthly one on a fixed day IS a series, so `repeatsMonthly`
+    // always varies. Optional: binaries that predate them never send the fields.
+    function isValidRepeat(d) {
+      let yearly = d.get('repeatsYearly', false);
+      let monthly = d.get('repeatsMonthly', false);
+      let varies = d.get('repeatDateVaries', false);
+      return yearly is bool && monthly is bool && varies is bool
+        && !(yearly && monthly)
+        && (!(yearly || monthly) || d.get('series', null) == null)
+        && (!monthly || varies)
+        && (!varies || yearly || monthly);
+    }
+
+    // Who may put an occurrence into a series. The first occurrence (index 0)
+    // IS the series: its id is the series id, so nobody can claim an id
+    // already taken. Every later one must point at a root that exists once the
+    // request lands (`getAfter`: the whole series is one batch), made by the
+    // same creator in the same village, with the same visibility. Without this
+    // any member could slot an earlier-dated "occurrence" into someone else's
+    // series — replacing its card in every collapsed list — or a later one that
+    // makes the organizer's "este y los siguientes" batch fail.
+    function isOwnSeriesOccurrence(eventId, d) {
+      let s = d.get('series', null);
+      return s == null
+        || (s.index == 0 && s.id == eventId)
+        || (s.index > 0 && s.id != eventId && isOwnSeriesRoot(s.id, d));
+    }
+
+    function isOwnSeriesRoot(rootId, d) {
+      let path = /databases/$(database)/documents/events/$(rootId);
+      return existsAfter(path) && isSeriesRootOf(getAfter(path).data, rootId, d);
+    }
+
+    function isSeriesRootOf(root, rootId, d) {
+      let rs = root.get('series', null);
+      return rs != null
+        && rs.id == rootId
+        && rs.index == 0
+        && root.createdBy == d.createdBy
+        && root.municipalityId == d.municipalityId
+        && root.visibilityOrgId == d.visibilityOrgId
+        // The rule is the root's: a sliding `until` would let a series grow
+        // past MAX_SERIES_DAYS one hop at a time.
+        && rs.until == d.series.until
+        && rs.get('frequency', 'weekly') == d.series.get('frequency', 'weekly')
+        && rs.weekdays == d.series.weekdays;
     }
 
     function isValidEventCreate(d) {
@@ -733,7 +828,7 @@ service cloud.firestore {
               'imageURL', 'maxAttendees', 'telephoneRequired', 'requiresPayment',
               'signupFields', 'signupEnabled', 'signupInfo', 'attendeesVisibility', 'signupGroupSize',
               'minBirthYear', 'maxBirthYear',
-              'visibility', 'visibilityOrgId', 'series',
+              'visibility', 'visibilityOrgId', 'series', 'repeatsYearly', 'repeatsMonthly', 'repeatDateVaries',
               'status', 'organizerUserIds', 'organizerOrgIds', 'createdBy',
               'createdAt', 'updatedAt', 'municipalityId', 'villageName', 'villageSlug',
               'villageCoverImage', 'villageCoordinates',
@@ -806,6 +901,7 @@ service cloud.firestore {
           // Optional, not in hasAll: binaries that predate weekly series never
           // send it, and their creates must keep working.
           && isValidEventSeries(d, d.get('series', null))
+          && isValidRepeat(d)
           && d.status in ['published', 'cancelled', 'completed']
           && d.organizerUserIds is list
           && d.organizerOrgIds is list
@@ -841,7 +937,7 @@ service cloud.firestore {
     }
 
     function isValidContentReportCreate(d) {
-      return d.keys().hasOnly(['municipalityId', 'targetKind', 'targetId', 'targetAuthorUserId', 'reporterUserId', 'reason', 'note', 'status', 'createdAt'])
+      return d.keys().hasOnly(['municipalityId', 'targetKind', 'targetId', 'targetAuthorUserId', 'reporterUserId', 'reason', 'note', 'targetText', 'status', 'createdAt'])
           && d.keys().hasAll(['municipalityId', 'targetKind', 'targetId', 'targetAuthorUserId', 'reporterUserId', 'reason', 'note', 'status', 'createdAt'])
           && isString(d.municipalityId)
           && d.targetKind in ['event', 'festivalPoster', 'place', 'barrio', 'organization', 'news', 'vocabularyTerm', 'historyEntry', 'comment', 'person']
@@ -850,6 +946,7 @@ service cloud.firestore {
           && isString(d.reporterUserId)
           && d.reason in ['spam', 'harassment', 'hate', 'sexual', 'violence', 'falseInfo', 'other']
           && (d.note == null || (isString(d.note) && d.note.size() <= 500))
+          && (d.get('targetText', null) == null || (isString(d.targetText) && d.targetText.size() <= 2000))
           && d.status == 'open'
           && isTimestamp(d.createdAt);
     }
@@ -1301,9 +1398,11 @@ service cloud.firestore {
       match /groupPrefs/{orgId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId)
-          && request.resource.data.keys().hasOnly(['messagesMuted', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['messagesMuted', 'chatPush', 'orgId', 'updatedAt'])
           && request.resource.data.keys().hasAll(['messagesMuted', 'updatedAt'])
           && request.resource.data.messagesMuted is bool
+          && request.resource.data.get('chatPush', false) is bool
+          && request.resource.data.get('orgId', orgId) == orgId
           && isTimestamp(request.resource.data.updatedAt);
       }
 
@@ -1550,11 +1649,15 @@ service cloud.firestore {
       allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin() || isOrgAdmin(orgId))
         && (request.resource.data.status == resource.data.status
             || request.resource.data.status == 'rejected')
-        && request.resource.data.get('joinPolicy', 'open') in ['open', 'approval']
+        && request.resource.data.get('joinPolicy', 'approval') in ['open', 'approval']
+        // The ayuntamiento's integrantes are its team, so it never opens.
+        && (request.resource.data.get('joinPolicy', 'approval') == 'approval'
+            || request.resource.data.type != 'ayuntamiento')
         && request.resource.data.get('sociosListVisible', false) is bool
+        && request.resource.data.get('chatAdminsOnly', false) is bool
         && (request.resource.data.type == resource.data.type
-            || (resource.data.type in ['peña', 'asociación', 'otros']
-                && request.resource.data.type in ['peña', 'asociación', 'otros']))
+            || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']
+                && request.resource.data.type in ['peña', 'asociación', 'otros', 'comisión']))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'commentCount', 'readCount', 'memberCount',
              'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
@@ -1564,17 +1667,16 @@ service cloud.firestore {
       match /members/{userId} {
         allow read: if true;
         // `role` is function-owned: every client-created member is a plain
-        // 'member'. Orgs are open self-service join — a user adds only THEMSELVES
-        // (isOwner); admins (org/village/app) may add anyone. Users cannot add
-        // other users (no member-adds-member), so a self-join can't be leveraged
-        // to spam-add third parties. The founding admin is seeded server-side by
+        // 'member'. A user adds only THEMSELVES, and only to a group its admin
+        // opened; otherwise it takes an admin — a direct add here, or a join
+        // request resolved by respondToOrgJoinRequest. The founding admin is seeded server-side by
         // approveOrganization, and promotions go through the changeOrgMemberRole
         // callable — both audited via admin SDK.
         allow create: if isValidOrgMemberCreate(request.resource.data)
           && request.resource.data.userId == userId
           && request.resource.data.role == 'member'
           && (
-               (isOwner(userId) && orgJoinPolicy(orgId) == 'open')
+               (isOwner(userId) && orgJoinPolicy(orgId) == 'open' && orgStatus(orgId) == 'approved')
                || isOrgAdmin(orgId)
                || isVillageAdmin(orgMunicipalityId(orgId))
                || isAppAdmin()
@@ -1612,6 +1714,9 @@ service cloud.firestore {
                  && isOrgMember(orgId)
                  && request.resource.data.responsibleUid == request.auth.uid
                  && request.resource.data.personId is string
+                 // The junta numbers socios; a member's persona waits for
+                 // assignSocioNumber.
+                 && request.resource.data.socioNumber == null
                  // A member writes the alta of their own persona: keep it to now.
                  && request.resource.data.altaAt > request.time - duration.value(5, 'm')
                  && request.resource.data.altaAt < request.time + duration.value(5, 'm')
@@ -1620,7 +1725,13 @@ service cloud.firestore {
                  // batch, and a lock create fails while another row holds it.
                  && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(request.resource.data.personId)).data.socioId == socioId)
              );
-        allow update: if isAuthenticated() && resource.data.bajaAt == null && (
+        allow update: if (
+             // An admin numbers or renumbers any row, bajas included: the libro
+             // is theirs to correct.
+             isOrgAdmin(orgId)
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['socioNumber'])
+               && isValidSocioNumber(request.resource.data.socioNumber)
+        ) || (isAuthenticated() && resource.data.bajaAt == null && (
              // Baja: a persona by its responsible member or an admin; a typed
              // socio by an admin. Stamped with the server's clock.
              (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bajaAt'])
@@ -1630,10 +1741,11 @@ service cloud.firestore {
                      // The baja frees the persona's lock in the same write.
                      && !existsAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(resource.data.personId)))
                    || (resource.data.kind == 'typed' && isOrgAdmin(orgId))))
-             // An admin corrects a typed-in socio's name.
+             // An admin corrects a typed-in socio's name (and number).
           || (resource.data.kind == 'typed'
                && isOrgAdmin(orgId)
-               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'socioNumber'])
+               && isValidSocioNumber(request.resource.data.socioNumber)
                && isString(request.resource.data.displayName)
                && request.resource.data.displayName.size() > 0
                && request.resource.data.displayName.size() <= 200)
@@ -1644,8 +1756,13 @@ service cloud.firestore {
                && (request.resource.data.adminTitle == null
                    || (request.resource.data.adminTitle in ['presidente', 'secretario', 'tesorero', 'vocal', 'otro']
                        && get(/databases/$(database)/documents/organizations/$(orgId)/members/$(resource.data.uid)).data.role == 'admin')))
-        );
+        ));
         allow delete: if false;
+      }
+
+      // The last socio number assignSocioNumber handed out. Function-owned.
+      match /socioNumbering/{docId} {
+        allow read, write: if false;
       }
 
       // While a persona is an active socio, its lock names the row (see
@@ -1739,18 +1856,25 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // The group's tasks (see GroupTaskDataModel), every org type. Members
-      // see them all; admins create, edit and delete; an assignee ticks their
-      // own done or undone. Shift answers go through respondToTaskShift.
+      // The group's tasks (see GroupTaskDataModel), every org type. Every
+      // member sees, creates, edits and ticks them (decided 2026-11-01, user);
+      // deleting one is for admins and whoever created it. The answer lists
+      // and the next occurrence stay function-owned.
       match /tasks/{taskId} {
         allow read: if isOrgMember(orgId);
-        allow create: if isOrgAdmin(orgId) && isValidGroupTaskCreate(request.resource.data);
-        allow update: if (isOrgAdmin(orgId) && isValidGroupTaskAdminUpdate(request.resource.data, resource.data))
-          || (isOrgMember(orgId)
-            && request.auth.uid in resource.data.assigneeUids
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doneAt', 'doneBy'])
-            && isGroupTaskDoneTick(request.resource.data));
-        allow delete: if isOrgAdmin(orgId);
+        allow create: if isOrgMember(orgId) && isValidGroupTaskCreate(request.resource.data);
+        allow update: if isOrgMember(orgId) && isValidGroupTaskUpdate(request.resource.data, resource.data);
+        allow delete: if isOrgAdmin(orgId) || (isOrgMember(orgId) && resource.data.createdBy == request.auth.uid);
+      }
+
+      // A task's comments: the same message shape and deletion as the group's
+      // chat, private to the members like the task itself (decided 2026-11-01,
+      // user). onTaskCommentCreated pushes; never edited.
+      match /tasks/{taskId}/chat/{chatId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId) && isValidGroupChatMessageCreate(request.resource.data);
+        allow update: if false;
+        allow delete: if canDeleteGroupChatMessage(orgId, resource.data);
       }
 
       // Checklists dated relative to an anchor. Admins only.
@@ -1807,6 +1931,41 @@ service cloud.firestore {
           allow create, update: if isOwner(uid)
             && isOrgMember(orgId)
             && isValidGroupPollVote(groupMessage(orgId, messageId), uid, request.resource.data);
+          allow delete: if false;
+        }
+      }
+
+      // The group's chat (see GroupChatDataModel). Both threads are written by
+      // clients directly; onGroupChatMessageCreated keeps chatThreads and pushes.
+      match /chat/{chatId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId)
+          && isValidGroupChatMessageCreate(request.resource.data)
+          && (!orgChatAdminsOnly(orgId) || isOrgAdmin(orgId));
+        allow update: if false;
+        allow delete: if canDeleteGroupChatMessage(orgId, resource.data);
+      }
+
+      match /messages/{messageId}/chat/{chatId} {
+        allow read: if canReadAvisoChat(orgId, messageId);
+        allow create: if canReadAvisoChat(orgId, messageId)
+          && isValidGroupChatMessageCreate(request.resource.data);
+        allow update: if false;
+        allow delete: if canDeleteGroupChatMessage(orgId, resource.data);
+      }
+
+      // Per thread (an aviso's id, or `general`): when it last moved and who
+      // wrote last. Function-owned. A reader's last open moves forward only.
+      match /chatThreads/{threadId} {
+        allow read: if canReadGroupChatThread(orgId, threadId);
+        allow write: if false;
+
+        match /reads/{uid} {
+          allow read: if isOwner(uid);
+          allow create, update: if isOwner(uid)
+            && canReadGroupChatThread(orgId, threadId)
+            && request.resource.data.keys().hasOnly(['readAt'])
+            && request.resource.data.readAt == request.time;
           allow delete: if false;
         }
       }
@@ -1874,15 +2033,15 @@ service cloud.firestore {
       allow read: if resource == null || canReadEvent(resource.data);
       allow create: if isAuthenticated()
         && isValidEventCreate(request.resource.data)
+        && isOwnSeriesOccurrence(eventId, request.resource.data)
         && request.resource.data.municipalityId is string
         && request.resource.data.createdBy == request.auth.uid
         && isVillageMember(request.resource.data.municipalityId)
         && (request.auth.uid in request.resource.data.organizerUserIds)
-        // You can only make an event private to an approval org you belong to
-        // — otherwise anyone could park content inside someone else's peña,
-        // and an open org's membership would admit anyone to it.
+        // You can only make an event private to an org you belong to —
+        // otherwise anyone could park content inside someone else's peña.
         && (request.resource.data.visibilityOrgId == null
-            || isVettedOrgMember(request.resource.data.visibilityOrgId));
+            || isOrgMember(request.resource.data.visibilityOrgId));
       allow update: if (
            isOwner(resource.data.createdBy)
         || (request.auth.uid in resource.data.organizerUserIds)
@@ -1894,7 +2053,12 @@ service cloud.firestore {
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentCount', 'readCount', 'villageSlug', 'series'])
         && isAdditiveSignupFieldsChange(resource.data, request.resource.data)
         && isFrozenGroupSizeChange(resource.data, request.resource.data)
-        && isValidVisibilityChange(resource.data, request.resource.data);
+        && isValidVisibilityChange(resource.data, request.resource.data)
+        && isValidRepeat(request.resource.data)
+        // A series shares one visibility: "este y los siguientes" finds its
+        // siblings within it, and a day made private on its own would split it.
+        && (resource.data.get('series', null) == null
+            || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['visibility', 'visibilityOrgId']));
       allow delete: if isOwner(resource.data.createdBy)
         || (request.auth.uid in resource.data.organizerUserIds)
         || isVillageAdmin(resource.data.municipalityId)

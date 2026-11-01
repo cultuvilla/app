@@ -4,7 +4,6 @@ import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   organizationMessageDeliveriesCollection,
-  organizationMessageDoc,
   organizationMessageReadDoc,
   organizationMessageReadsCollection,
   organizationMessagesCollection,
@@ -99,21 +98,12 @@ export function watchGroupPollVotes(
   return watchQuery(organizationMessageVotesCollection(getDb(), orgId, messageId), onNext, onError);
 }
 
-/** Admin: pin a message to its recipients' group home, or take it down. */
-export async function setGroupMessagePinned(orgId: string, messageId: string, pinned: boolean): Promise<void> {
-  await updateDoc(organizationMessageWriteDocFor(orgId, messageId), { pinned });
-}
-
 /** Admin: tick (or untick) a recipient's WhatsApp as sent by hand. */
 export async function setWhatsappSent(orgId: string, messageId: string, recipientKey: string, adminUid: string, sent: boolean): Promise<void> {
   await updateDoc(organizationMessageWriteDoc(getDb(), orgId, messageId, 'deliveries', recipientKey), {
     whatsappSentAt: sent ? serverTimestamp() : null,
     whatsappSentBy: sent ? adminUid : null,
   });
-}
-
-function organizationMessageWriteDocFor(orgId: string, messageId: string) {
-  return organizationMessageDoc(getDb(), orgId, messageId).withConverter(null);
 }
 
 // =============================================================================
@@ -210,7 +200,11 @@ export function watchGroupNotificationPrefs(
   return watchDoc(userGroupPrefsDoc(getDb(), uid, orgId), onNext, onError);
 }
 
-/** Mute or unmute this group's message pushes. The cuota reminders never read it. */
+/**
+ * Mute or unmute this group's message and chat pushes. The cuota reminders never
+ * read it. A merge, so the general chat's opt-in (groupChatService) survives.
+ */
 export async function setGroupMessagesMuted(uid: string, orgId: string, muted: boolean): Promise<void> {
-  await setDoc(userGroupPrefsDoc(getDb(), uid, orgId), buildGroupNotificationPrefsData({ messagesMuted: muted }));
+  const { messagesMuted, updatedAt } = buildGroupNotificationPrefsData({ messagesMuted: muted });
+  await setDoc(userGroupPrefsDoc(getDb(), uid, orgId).withConverter(null), { messagesMuted, updatedAt }, { merge: true });
 }

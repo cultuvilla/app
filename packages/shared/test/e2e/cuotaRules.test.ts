@@ -24,7 +24,7 @@ const AYTO = 'ayto1';
 
 function socio(overrides: Record<string, unknown> = {}) {
   return {
-    kind: 'typed', displayName: 'Paco', uid: null, personId: null, responsibleUid: null, adminTitle: null,
+    kind: 'typed', socioNumber: null, displayName: 'Paco', uid: null, personId: null, responsibleUid: null, adminTitle: null,
     altaAt: new Date(), bajaAt: null, memberJoinedAt: null, createdBy: 'admin1', ...overrides,
   };
 }
@@ -88,6 +88,10 @@ describe('cuotaSettings', () => {
     await assertFails(setDoc(doc(db, `organizations/${ORG}/cuotaSettings/current`), settings('admin1', { amountCents: 30.5 })));
     await assertFails(setDoc(doc(db, `organizations/${ORG}/cuotaSettings/current`), settings('admin1', { periodicity: 'weekly' })));
     await assertFails(setDoc(doc(db, `organizations/${ORG}/cuotaSettings/current`), settings('admin1', { extra: true })));
+    await assertSucceeds(
+      setDoc(doc(db, `organizations/${ORG}/cuotaSettings/current`), settings('admin1', { yearAmounts: [{ year: '2027', amountCents: 3500 }] })),
+    );
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/cuotaSettings/current`), settings('admin1', { yearAmounts: 3500 })));
     await assertFails(deleteDoc(doc(db, `organizations/${ORG}/cuotaSettings/current`)));
   });
 

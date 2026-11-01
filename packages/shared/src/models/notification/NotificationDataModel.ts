@@ -22,7 +22,7 @@ export const NotificationTypeSchema = z.enum([
   'organizer_request_created',
   'organizer_request_approved',
   'organizer_request_rejected',
-  // Joining an org whose joinPolicy is `approval`: `created` goes to its
+  // Joining an org: `created` goes to its
   // admins, `approved` / `rejected` to the requester. All carry
   // entityKind 'organization' + entityId so they open the org.
   'org_join_request_created',
@@ -76,6 +76,9 @@ export const NotificationDataSchema = z.object({
   // village_wrapped_* types set entityId alone, to the wrappedId.
   entityKind: EntityKindSchema.nullable(),
   entityId: z.string().nullable(),
+  // On a chat message's `group_message`: the thread it opens (an aviso's id, or
+  // `general`). A binary that predates it drops the field and opens the avisos.
+  chatThreadId: z.string().nullable().default(null),
   read: z.boolean(),
   createdAt: z.date(),
 });
@@ -90,6 +93,7 @@ export interface NotificationDataInput {
   requesterUid?: string | null;
   entityKind?: z.infer<typeof EntityKindSchema> | null;
   entityId?: string | null;
+  chatThreadId?: string | null;
   read?: boolean;
   createdAt?: Date;
 }
@@ -104,6 +108,7 @@ export function buildNotificationData(input: NotificationDataInput): Notificatio
     requesterUid: input.requesterUid ?? null,
     entityKind: input.entityKind ?? null,
     entityId: input.entityId ?? null,
+    chatThreadId: input.chatThreadId ?? null,
     read: input.read ?? false,
     createdAt: input.createdAt ?? new Date(),
   };

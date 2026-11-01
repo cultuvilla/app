@@ -7,7 +7,8 @@ import {
   type TaskTemplateItem,
 } from '@cultuvilla/shared/models/organization';
 import { deleteTaskTemplate, saveTaskTemplate, type TaskTemplate } from '@cultuvilla/shared/services/groupTaskService';
-import { BottomSheet, Button, Card, Input, Text, VStack } from '../../primitives';
+import { Button, Card, Input, Text, VStack } from '../../primitives';
+import { FormModal } from '../../layout/FormModal';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { parseIntIn } from '../../../lib/orgs/tasks';
@@ -104,11 +105,10 @@ export function TemplateSheet({
   };
 
   return (
-    <BottomSheet
+    <FormModal
       visible={visible}
       onClose={onClose}
       title={t(template ? 'groups.tasks.templates.titleEdit' : 'groups.tasks.templates.titleNew')}
-      closeLabel={t('common.close')}
       testID="template-sheet"
       footer={
         <VStack gap={2} className="px-5 pt-3">
@@ -128,8 +128,8 @@ export function TemplateSheet({
         </VStack>
       }
     >
-      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
-        <VStack gap={3} className="px-5 pb-4">
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+        <VStack gap={3} className="px-4 pt-4 pb-6">
           <Input label={t('groups.tasks.templates.name')} value={name} onChangeText={setName} testID="template-name" />
           {drafts.map((d, i) => (
             <Card key={d.key} testID={`template-item-${String(i)}`}>
@@ -162,6 +162,6 @@ export function TemplateSheet({
           ) : null}
         </VStack>
       </ScrollView>
-    </BottomSheet>
+    </FormModal>
   );
 }

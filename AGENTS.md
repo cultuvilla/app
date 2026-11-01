@@ -78,7 +78,7 @@ Requests are created from in-context screens; outcomes arrive as notifications.
 |---|---|---|---|
 | Organizer (be the pueblo's **Embajador**) | `organizerRequests/` | any user | super admin (`respondToOrganizerRequest` callable) |
 | Organization (create peña/asociación/ayuntamiento) | `organizations/` (status `pending`) | village member | village admin (own village) or super admin (`approveOrganization` callable; `rejectOrganization` stays a client write) |
-| Join an `approval` org | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
+| Join a group | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
 
 Every Embajador request and every `/embajadores` web lead (`ambassadorLeads/`) is
 posted to the founders' *Cultuvilla Overview* Telegram group by
@@ -87,12 +87,13 @@ project's `notify` Pub/Sub topic ([publishNotify](functions/src/notify/publishNo
 which the homelab notify-gateway pulls from prod only. Topics and the prod
 subscription: `pnpm notify:setup <project>`.
 
-**Joining a peña/asociación depends on its `joinPolicy`.** An `open` org (the
-default) is instant self-service: the org detail FAB does a direct client write of
-`organizations/{orgId}/members/{uid}` (role `member`, function-owned), and a user
-may add only themselves, mirroring village join. An `approval` org takes a join
-request instead (table above). **Private events require an `approval` org**:
-anyone can walk into an open one, so its membership vets nobody. Read
+**A group has integrantes.** An *integrante* is a member,
+`organizations/{orgId}/members/{uid}`. **The group's admin picks how someone becomes
+one** (`joinPolicy`): by a join request an admin accepts (table above), the default and
+the only way into an ayuntamiento, or on the spot if the admin opened the group. In a
+group with a socio roster every integrante is a socio, and any group may hold private
+events, open or not. User-facing copy says
+*integrante*, never *miembro*; the code names stay. Read
 [docs/decisions/org-join-policy.md](docs/decisions/org-join-policy.md).
 
 **Membership roles & the audit log.** Villages and orgs are the same abstraction —
@@ -649,15 +650,20 @@ only on the seed and on earlier flows of its own group. See
 [apps/mobile/e2e/native/README.md](apps/mobile/e2e/native/README.md); under WSL2
 it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 
-Still off-limits — these run indefinitely (the user owns that iteration loop) or
-bypass CI:
+**Metro is yours to run** (decided 2026-10-31, user) when the task needs the app on a
+device — to verify a change, read its logs, reproduce a bug. Check `:8081` is free
+first (`ss -ltn`; if the user's Metro already holds it, use theirs), run it in the
+background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when you
+are done: it is an indefinite server, so a Metro you leave running holds the port
+the user's next session needs.
 
-- `pnpm app:start` / `expo start` (Expo/Metro dev server)
+Still off-limits — these run indefinitely or bypass CI:
+
 - `firebase emulators:start` directly (standalone long-lived emulator session)
 - Any deploy script (`pnpm deploy:*`) — use the `firestore-deploy` skill instead
 
-If you need output from a long-lived server you can't start (Metro, a standalone
-emulator session), ask the user to run it and paste the relevant lines.
+If you need output from a long-lived server you can't start (a standalone emulator
+session), ask the user to run it and paste the relevant lines.
 
 ## Development workflow
 

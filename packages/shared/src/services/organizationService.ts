@@ -147,8 +147,9 @@ export async function requestOrganization(
     readCount: 0,
     memberCount: 0,
     membersPublic: input.membersPublic ?? true,
-    joinPolicy: input.joinPolicy ?? 'open',
+    joinPolicy: 'approval',
     sociosListVisible: input.sociosListVisible ?? false,
+    chatAdminsOnly: input.chatAdminsOnly ?? false,
   };
   await setDoc(newRef, data);
   return newRef.id;

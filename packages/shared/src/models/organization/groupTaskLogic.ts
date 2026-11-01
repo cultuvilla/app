@@ -111,6 +111,32 @@ export function nextOccurrence(task: GroupTaskData, doneDay: string, createdAt: 
   };
 }
 
+// ── A yearly event's checklist ───────────────────────────────────────────────
+
+/**
+ * The last day of the next `month` (1–12) from `today`, this month included:
+ * "en marzo" on a yearly event's checklist is due by the end of March.
+ */
+export function monthEndFrom(month: number, today: string): string {
+  const { y, m } = parts(today);
+  const year = month >= m ? y : y + 1;
+  return `${String(year)}-${pad(month)}-${pad(lastDayOfMonth(year, month))}`;
+}
+
+/** A task on a yearly event's checklist: due by the end of `month`, back every year. */
+export function yearlyEventTask(
+  task: { title: string; month: number },
+  opts: { today: string; eventId: string },
+): Omit<GroupTaskInput, 'createdBy' | 'createdAt'> {
+  const dueOn = monthEndFrom(task.month, opts.today);
+  return {
+    title: task.title,
+    dueOn,
+    recurrence: { kind: 'calendar', unit: 'year', interval: 1, anchorOn: dueOn },
+    eventId: opts.eventId,
+  };
+}
+
 // ── Templates ────────────────────────────────────────────────────────────────
 
 /** The tasks a template generates on an anchor day (an event's start, or a bare day). */
@@ -216,6 +242,19 @@ function pickLists(t: ShiftLists): ShiftLists {
 }
 
 /** When a shift starts: its day at its time (midnight when it has none), Madrid. */
+/**
+ * Who a task's new comment pushes: its creator and the people on it (assignees,
+ * or a shift's volunteers), minus the writer.
+ */
+export function taskCommentPushUids(
+  task: Pick<GroupTaskData, 'createdBy' | 'assigneeUids' | 'claimedUids'>,
+  writerUid: string,
+): string[] {
+  const out = new Set([task.createdBy, ...task.assigneeUids, ...task.claimedUids]);
+  out.delete(writerUid);
+  return [...out];
+}
+
 export function shiftStartsAt(task: Pick<GroupTaskData, 'dueOn' | 'time'>): Date | null {
   return task.dueOn ? madridInstant(task.dueOn, task.time ?? '00:00') : null;
 }
@@ -234,6 +273,19 @@ export function compareTasksByDue(
   const ka = a.dueOn ? `${a.dueOn} ${a.time ?? ''}` : '~';
   const kb = b.dueOn ? `${b.dueOn} ${b.time ?? ''}` : '~';
   return ka === kb ? a.title.localeCompare(b.title, 'es') : ka < kb ? -1 : 1;
+}
+
+/** How far each event's checklist has got: the events with no task are absent. */
+export function eventTaskProgress(
+  tasks: Pick<GroupTaskData, 'eventId' | 'doneAt'>[],
+): Map<string, { done: number; total: number }> {
+  const progress = new Map<string, { done: number; total: number }>();
+  for (const { eventId, doneAt } of tasks) {
+    if (eventId === null) continue;
+    const entry = progress.get(eventId) ?? { done: 0, total: 0 };
+    progress.set(eventId, { done: entry.done + (doneAt === null ? 0 : 1), total: entry.total + 1 });
+  }
+  return progress;
 }
 
 // ── Reminders ────────────────────────────────────────────────────────────────

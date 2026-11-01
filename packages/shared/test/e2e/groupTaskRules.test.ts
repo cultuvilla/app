@@ -1,6 +1,6 @@
 // packages/shared/test/e2e/groupTaskRules.test.ts
-// Group tasks: members read, admins write, an assignee ticks their own task,
-// and the shift answer lists stay function-owned.
+// Group tasks: every member reads, creates, edits and ticks them; admins and
+// the creator delete; the shift answer lists stay function-owned.
 import { describe, it, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { deleteDoc, doc, getDoc, getDocs, collection, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
@@ -87,19 +87,26 @@ describe('tasks', () => {
     }
   });
 
-  it('a member cannot create, edit or delete a task', async () => {
-    await assertFails(setDoc(taskDoc('member1', 'n1'), task('member1')));
-    await assertFails(updateDoc(taskDoc('member1', 't1'), { title: 'Otro' }));
-    await assertFails(deleteDoc(taskDoc('member1', 't1')));
+  it('any member creates and edits a task, signed as themselves; an outsider cannot', async () => {
+    await assertSucceeds(setDoc(taskDoc('member1', 'n1'), task('member1')));
+    await assertFails(setDoc(taskDoc('member1', 'n2'), task('member2')));
+    await assertSucceeds(updateDoc(taskDoc('member2', 't1'), { title: 'Otro', assigneeUids: ['member2'] }));
+    await assertFails(setDoc(taskDoc('stranger', 'n3'), task('stranger')));
+    await assertFails(updateDoc(taskDoc('stranger', 't1'), { title: 'Otro' }));
   });
 
-  it('an assignee ticks their own task done and undone; another member cannot', async () => {
-    await assertSucceeds(updateDoc(taskDoc('member1', 't1'), { doneAt: serverTimestamp(), doneBy: 'member1' }));
+  it('only an admin or its creator deletes a task', async () => {
+    await assertSucceeds(setDoc(taskDoc('member1', 'mine'), task('member1')));
+    await assertFails(deleteDoc(taskDoc('member2', 'mine')));
+    await assertFails(deleteDoc(taskDoc('member1', 't1')));
+    await assertSucceeds(deleteDoc(taskDoc('member1', 'mine')));
+  });
+
+  it('any member ticks a task done and undone, stamped as themselves by the server', async () => {
+    await assertSucceeds(updateDoc(taskDoc('member2', 't1'), { doneAt: serverTimestamp(), doneBy: 'member2' }));
     await assertSucceeds(updateDoc(taskDoc('member1', 't1'), { doneAt: null, doneBy: null }));
     await assertFails(updateDoc(taskDoc('member1', 't1'), { doneAt: serverTimestamp(), doneBy: 'member2' }));
     await assertFails(updateDoc(taskDoc('member1', 't1'), { doneAt: new Date(2020, 0, 1), doneBy: 'member1' }));
-    await assertFails(updateDoc(taskDoc('member1', 't1'), { doneAt: serverTimestamp(), doneBy: 'member1', title: 'x' }));
-    await assertFails(updateDoc(taskDoc('member2', 't1'), { doneAt: serverTimestamp(), doneBy: 'member2' }));
   });
 
   it('an admin edits and closes a task but never touches the answers or the next occurrence', async () => {
@@ -117,8 +124,10 @@ describe('tasks', () => {
     await assertFails(updateDoc(taskDoc('admin1', 'shift'), { slots: null }));
   });
 
-  it('a member cannot claim a slot by writing the list', async () => {
+  it('a member cannot claim a slot by writing the list, nor set the next occurrence', async () => {
     await assertFails(updateDoc(taskDoc('member2', 'shift'), { waitlistUids: ['x', 'member2'] }));
+    await assertFails(updateDoc(taskDoc('member2', 'shift'), { claimedUids: ['member2'] }));
+    await assertFails(updateDoc(taskDoc('member1', 't1'), { nextTaskId: 'x' }));
   });
 });
 
@@ -147,5 +156,45 @@ describe('taskReminders', () => {
     await assertSucceeds(getDoc(doc(asUser(getEnv(), 'admin1'), path)));
     await assertFails(getDoc(doc(asUser(getEnv(), 'member1'), path)));
     await assertFails(setDoc(doc(asUser(getEnv(), 'admin1'), path), { taskId: 't1' }));
+  });
+});
+
+describe('a task\'s comments', () => {
+  const NAMES: Record<string, string> = { admin1: 'Ana', member1: 'Paco', member2: 'Pepa', stranger: 'Luis' };
+  const COMMENTS = `organizations/${ORG}/tasks/t1/chat`;
+  const comment = (uid: string, overrides: Record<string, unknown> = {}) => ({
+    authorUid: uid, authorName: NAMES[uid], body: '¿Quién trae la llave?', createdAt: serverTimestamp(), ...overrides,
+  });
+
+  beforeEach(async () => {
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      for (const [uid, name] of Object.entries(NAMES)) await setDoc(doc(db, `publicProfiles/${uid}`), { displayName: name, activeMunicipalityId: 'mun1' });
+      await setDoc(doc(db, `${COMMENTS}/c1`), { ...comment('member1'), createdAt: new Date() });
+    });
+  });
+
+  it('members read and write them; an outsider does neither', async () => {
+    await assertSucceeds(getDocs(collection(asUser(getEnv(), 'member2'), COMMENTS)));
+    await assertSucceeds(setDoc(doc(asUser(getEnv(), 'member2'), `${COMMENTS}/c2`), comment('member2')));
+    await assertFails(getDocs(collection(asUser(getEnv(), 'stranger'), COMMENTS)));
+    await assertFails(setDoc(doc(asUser(getEnv(), 'stranger'), `${COMMENTS}/c3`), comment('stranger')));
+  });
+
+  it('a comment is written as its author, under their public name', async () => {
+    const db = asUser(getEnv(), 'member2');
+    await assertFails(setDoc(doc(db, `${COMMENTS}/c2`), comment('member1')));
+    await assertFails(setDoc(doc(db, `${COMMENTS}/c2`), comment('member2', { authorName: 'La junta' })));
+    await assertFails(setDoc(doc(db, `${COMMENTS}/c2`), comment('member2', { body: '' })));
+  });
+
+  it('never edited; deleted by its author or an admin, not by another member', async () => {
+    await assertFails(updateDoc(doc(asUser(getEnv(), 'member1'), `${COMMENTS}/c1`), { body: 'Otra cosa' }));
+    await assertFails(deleteDoc(doc(asUser(getEnv(), 'member2'), `${COMMENTS}/c1`)));
+    await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'member1'), `${COMMENTS}/c1`)));
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${COMMENTS}/c1`), { ...comment('member1'), createdAt: new Date() });
+    });
+    await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'admin1'), `${COMMENTS}/c1`)));
   });
 });

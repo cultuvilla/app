@@ -13,6 +13,7 @@ import {
   addDays,
   computeCuotaStatuses,
   cuotaConcept,
+  cuotaPriceFor,
   cuotaReminderStage,
   cuotaSigner,
   netPaidBySocio,
@@ -111,15 +112,64 @@ describe('periods', () => {
 describe('owedCents', () => {
   const s = settings();
   it('is the base cuota without an assignment', () => {
-    expect(owedCents(s, undefined)).toBe(3000);
+    expect(owedCents(s, undefined, '2026')).toBe(3000);
   });
   it('is the tier price, a custom amount over it, and zero when exempt', () => {
-    expect(owedCents(s, assignment({ tierId: 'jub' }))).toBe(1500);
-    expect(owedCents(s, assignment({ tierId: 'jub', customAmountCents: 1000 }))).toBe(1000);
-    expect(owedCents(s, assignment({ tierId: 'fam', exempt: true }))).toBe(0);
+    expect(owedCents(s, assignment({ tierId: 'jub' }), '2026')).toBe(1500);
+    expect(owedCents(s, assignment({ tierId: 'jub', customAmountCents: 1000 }), '2026')).toBe(1000);
+    expect(owedCents(s, assignment({ tierId: 'fam', exempt: true }), '2026')).toBe(0);
   });
   it('falls back to the base cuota for a tier that was deleted', () => {
-    expect(owedCents(s, assignment({ tierId: 'gone' }))).toBe(3000);
+    expect(owedCents(s, assignment({ tierId: 'gone' }), '2026')).toBe(3000);
+  });
+});
+
+describe('prices by year', () => {
+  const s = settings({
+    yearAmounts: [{ year: '2027', amountCents: 3500 }],
+    tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1500, yearAmounts: [{ year: '2027', amountCents: 1800 }], coversPersonas: false }],
+  });
+
+  it('charges the year its own price, and any other year the usual one', () => {
+    expect(owedCents(s, undefined, '2027')).toBe(3500);
+    expect(owedCents(s, undefined, '2026')).toBe(s.amountCents);
+    expect(owedCents(s, assignment({ tierId: 'jub' }), '2027')).toBe(1800);
+    expect(owedCents(s, assignment({ tierId: 'jub' }), '2026')).toBe(1500);
+  });
+
+  it('applies to every month of a monthly cuota', () => {
+    expect(cuotaPriceFor(s, '2027-03')).toBe(3500);
+    expect(cuotaPriceFor(s, '2026-12')).toBe(s.amountCents);
+  });
+
+  it('never moves a custom amount or an exemption', () => {
+    expect(owedCents(s, assignment({ customAmountCents: 1000 }), '2027')).toBe(1000);
+    expect(owedCents(s, assignment({ exempt: true }), '2027')).toBe(0);
+  });
+
+  it('marks a socio al día only for what that year costs', () => {
+    const [row] = computeCuotaStatuses({
+      settings: s,
+      periodKey: '2027',
+      today: '2027-01-01',
+      socios: [{ id: 'a', kind: 'typed', displayName: 'Ana', uid: null, responsibleUid: null, adminTitle: null, altaAt: new Date('2020-01-01'), bajaAt: null }],
+      assignments: {},
+      payments: [{ ...buildCuotaPaymentData({ socioId: 'a', periodKey: '2027', amountCents: s.amountCents, method: 'bizum', paidOn: '2027-01-01', recordedBy: 'u' }), id: 'p' }],
+    });
+    expect(row.owedCents).toBe(3500);
+    expect(row.basis).toBe('unpaid');
+  });
+
+  it('stores the years in order, and reads a doc saved without them', () => {
+    const built = buildCuotaSettingsData({
+      amountCents: 3000, periodicity: 'yearly', dueMonth: 1, dueDay: 1, graceDays: 0, startPeriod: '2026', configuredBy: 'u',
+      yearAmounts: [{ year: '2028', amountCents: 1 }, { year: '2027', amountCents: 2 }],
+      tiers: [{ id: 't', name: 'T', amountCents: 5, coversPersonas: false }],
+    });
+    expect(built.yearAmounts.map((y) => y.year)).toEqual(['2027', '2028']);
+    expect(built.tiers[0]?.yearAmounts).toEqual([]);
+    const { yearAmounts: _dropped, ...saved } = built;
+    expect(CuotaSettingsDataSchema.parse(saved).yearAmounts).toEqual([]);
   });
 });
 
@@ -142,12 +192,12 @@ describe('computeCuotaStatuses', () => {
   };
   const statusOf = (rows: ReturnType<typeof computeCuotaStatuses>, id: string) => rows.find((r) => r.socioId === id);
 
-  it('is pendiente until the grace period ends, then vencida', () => {
+  it('is pendiente through its due day, then vencida', () => {
     const socios = [socio('ana')];
     const before = computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-02-01' });
-    expect(statusOf(before, 'ana')).toMatchObject({ status: 'pendiente', basis: 'unpaid', owedCents: 3000, paidCents: 0, dueOn: '2026-03-01', overdueAfter: '2026-03-31' });
-    expect(statusOf(computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-03-31' }), 'ana')?.status).toBe('pendiente');
-    expect(statusOf(computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-04-01' }), 'ana')?.status).toBe('vencida');
+    expect(statusOf(before, 'ana')).toMatchObject({ status: 'pendiente', basis: 'unpaid', owedCents: 3000, paidCents: 0, dueOn: '2026-03-01' });
+    expect(statusOf(computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-03-01' }), 'ana')?.status).toBe('pendiente');
+    expect(statusOf(computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-03-02' }), 'ana')?.status).toBe('vencida');
   });
 
   it('is al día once the payments cover what is owed, and not for a partial payment', () => {
@@ -213,9 +263,9 @@ describe('computeCuotaStatuses', () => {
       ...base,
       socios: [socio('new', { altaAt: new Date('2026-09-10T10:00:00Z') })],
       payments: [],
-      today: '2026-09-20',
+      today: '2026-09-10',
     });
-    expect(statusOf(rows, 'new')).toMatchObject({ status: 'pendiente', dueOn: '2026-09-10', overdueAfter: '2026-10-10' });
+    expect(statusOf(rows, 'new')).toMatchObject({ status: 'pendiente', dueOn: '2026-09-10' });
   });
 
   it('owes nothing for a period before the group started tracking', () => {
@@ -233,8 +283,7 @@ describe('cuotaReminderStage', () => {
     expect(cuotaReminderStage(statusAt('2026-02-21'), '2026-02-21')).toBeNull();
     expect(cuotaReminderStage(statusAt('2026-02-22'), '2026-02-22')).toBe('before');
     expect(cuotaReminderStage(statusAt('2026-03-01'), '2026-03-01')).toBe('before');
-    expect(cuotaReminderStage(statusAt('2026-03-15'), '2026-03-15')).toBeNull();
-    expect(cuotaReminderStage(statusAt('2026-04-01'), '2026-04-01')).toBe('after');
+    expect(cuotaReminderStage(statusAt('2026-03-02'), '2026-03-02')).toBe('after');
   });
 
   it('never reminds a socio who is al día, or a persona the household covers', () => {
@@ -258,18 +307,18 @@ describe('cuotaSigner', () => {
     socio('eva', { displayName: 'Eva' }),
   ];
   it('is the tesorero when an admin carries that title', () => {
-    expect(cuotaSigner(rows, ['ana', 'luis', 'eva'], 'eva')).toEqual({ name: 'Luis', title: 'tesorero' });
+    expect(cuotaSigner(rows, ['ana', 'luis', 'eva'], 'eva')).toEqual({ uid: 'luis', name: 'Luis', title: 'tesorero' });
   });
   it('else the admin who configured the cuota', () => {
-    expect(cuotaSigner(rows, ['ana', 'eva'], 'eva')).toEqual({ name: 'Eva', title: null });
+    expect(cuotaSigner(rows, ['ana', 'eva'], 'eva')).toEqual({ uid: 'eva', name: 'Eva', title: null });
   });
   it('else any admin, and null with none', () => {
-    expect(cuotaSigner(rows, ['ana'], 'gone')).toEqual({ name: 'Ana', title: 'presidente' });
+    expect(cuotaSigner(rows, ['ana'], 'gone')).toEqual({ uid: 'ana', name: 'Ana', title: 'presidente' });
     expect(cuotaSigner(rows, [], 'gone')).toBeNull();
   });
   it('ignores bajas and former admins', () => {
     const left = [socio('luis', { displayName: 'Luis', adminTitle: 'tesorero', bajaAt: new Date() }), socio('eva', { displayName: 'Eva' })];
-    expect(cuotaSigner(left, ['luis', 'eva'], 'eva')).toEqual({ name: 'Eva', title: null });
+    expect(cuotaSigner(left, ['luis', 'eva'], 'eva')).toEqual({ uid: 'eva', name: 'Eva', title: null });
   });
 });
 

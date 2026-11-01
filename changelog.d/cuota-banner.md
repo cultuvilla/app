@@ -1,0 +1,2 @@
+- Changed: in Grupos, the member's cuota closes the group's screen as an illustrated banner, like the village's fiestas button, in place of its card and button. The Avisos row always shows, even with no notices.
+- Fix: the faces of the people on a task no longer get cut off in Próximas tareas.

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 167" preserveAspectRatio="xMidYMid slice">
+  <rect width="500" height="167" fill="#c8714f"/>
+  <!-- Soft hills behind -->
+  <circle cx="400" cy="205" r="150" fill="#d08f70" opacity="0.45"/>
+  <circle cx="515" cy="30" r="72" fill="#d08f70" opacity="0.35"/>
+  <!-- Socio card, stamped -->
+  <g transform="rotate(-7 345 76)">
+    <rect x="266" y="26" width="158" height="102" rx="10" fill="#566047" opacity="0.35" transform="translate(4 5)"/>
+    <rect x="266" y="26" width="158" height="102" rx="10" fill="#f9f0e8"/>
+    <path d="M266 36 a10 10 0 0 1 10 -10 h138 a10 10 0 0 1 10 10 v14 h-158 z" fill="#566047"/>
+    <circle cx="283" cy="38" r="5" fill="#f9f0e8"/>
+    <rect x="295" y="35" width="66" height="6" rx="3" fill="#f9f0e8" opacity="0.85"/>
+    <circle cx="295" cy="82" r="17" fill="#dcab93"/>
+    <circle cx="295" cy="76" r="6.5" fill="#f9f0e8"/>
+    <path d="M283.5 94 a11.5 10 0 0 1 23 0 z" fill="#f9f0e8"/>
+    <rect x="322" y="66" width="52" height="6" rx="3" fill="#a6a897"/>
+    <rect x="322" y="79" width="36" height="6" rx="3" fill="#a6a897" opacity="0.65"/>
+    <rect x="278" y="110" width="92" height="5" rx="2.5" fill="#a6a897" opacity="0.45"/>
+    <!-- The stamp -->
+    <g transform="rotate(-12 392 92)">
+      <circle cx="392" cy="92" r="21" fill="none" stroke="#c8714f" stroke-width="3"/>
+      <circle cx="392" cy="92" r="15.5" fill="none" stroke="#c8714f" stroke-width="1.5" stroke-dasharray="2.5 3"/>
+      <path d="M384 92 l6 6 l11 -12" fill="none" stroke="#c8714f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <!-- Stack of coins -->
+  <g>
+    <g fill="#f9f0e8" stroke="#c8714f" stroke-width="1.5">
+      <ellipse cx="456" cy="152" rx="27" ry="9"/>
+      <ellipse cx="456" cy="143" rx="27" ry="9"/>
+      <ellipse cx="456" cy="134" rx="27" ry="9"/>
+      <ellipse cx="456" cy="125" rx="27" ry="9"/>
+      <ellipse cx="456" cy="116" rx="27" ry="9"/>
+    </g>
+    <ellipse cx="456" cy="116" rx="19" ry="5.5" fill="#dcab93"/>
+  </g>
+  <!-- Falling coin -->
+  <g transform="translate(462 52)">
+    <circle r="19" fill="#f9f0e8"/>
+    <circle r="14" fill="none" stroke="#dcab93" stroke-width="2.5"/>
+    <path d="M6 -6 a8 8 0 1 0 0 12 M-11 -2 h11 M-11 3 h11" fill="none" stroke="#566047" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+  <!-- Sparkles and confetti -->
+  <g fill="#f9f0e8">
+    <path d="M228 34 q2 9 11 11 q-9 2 -11 11 q-2 -9 -11 -11 q9 -2 11 -11 z"/>
+    <path d="M426 12 q1.200 5 6 6 q-4.800 1 -6 6 q-1.200 -5 -6 -6 q4.800 -1 6 -6 z"/>
+    <circle cx="186" cy="26" r="3"/>
+    <circle cx="250" cy="96" r="2.500"/>
+  </g>
+  <g>
+    <circle cx="148" cy="44" r="3" fill="#566047"/>
+    <circle cx="96" cy="22" r="3.500" fill="#dcab93"/>
+    <circle cx="36" cy="40" r="2.500" fill="#f9f0e8"/>
+    <rect x="58" y="52" width="8" height="3" rx="1" transform="rotate(30 62 53)" fill="#f9f0e8"/>
+    <rect x="200" y="70" width="8" height="3" rx="1" transform="rotate(-25 204 71)" fill="#566047"/>
+    <rect x="128" y="14" width="8" height="3" rx="1" transform="rotate(60 132 15)" fill="#f9f0e8"/>
+  </g>
+</svg>

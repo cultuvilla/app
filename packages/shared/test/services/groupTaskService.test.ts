@@ -9,11 +9,16 @@ vi.mock('../../src/firebase', () => ({ getDb: vi.fn(() => ({})), getFirebaseFunc
 vi.mock('../../src/firebase/refs/client', () => ({
   organizationTasksCollection: vi.fn((_db, orgId: string) => ({ _coll: `organizations/${orgId}/tasks` })),
   organizationTaskTemplatesCollection: vi.fn((_db, orgId: string) => ({ _coll: `organizations/${orgId}/taskTemplates` })),
+  organizationTaskCommentsCollection: vi.fn((_db, orgId: string, taskId: string) => ({ _coll: `organizations/${orgId}/tasks/${taskId}/chat` })),
+  organizationTaskCommentsWriteCollection: vi.fn((_db, orgId: string, taskId: string) => ({ _coll: `organizations/${orgId}/tasks/${taskId}/chat` })),
+  organizationTaskDoc: vi.fn((_db, orgId: string, id: string) => ({ _path: `organizations/${orgId}/tasks/${id}` })),
   organizationTaskWriteDoc: vi.fn((_db, orgId: string, coll: string, id: string) => ({ _path: `organizations/${orgId}/${coll}/${id}` })),
 }));
 vi.mock('firebase/firestore', () => ({
-  doc: vi.fn(() => ({ id: `new-${String(++newId)}` })),
+  doc: vi.fn((coll: { _coll?: string } | undefined, id?: string) => ({ id: id ?? `new-${String(++newId)}`, _path: `${coll?._coll ?? ''}/${id ?? 'new'}` })),
   deleteDoc: vi.fn(),
+  limit: vi.fn(),
+  orderBy: vi.fn(),
   query: vi.fn(),
   serverTimestamp: vi.fn(() => 'SERVER_TS'),
   setDoc: vi.fn(),
@@ -24,11 +29,15 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: { state: 'waitlisted' } }))) }));
 
-import { setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, onSnapshot, setDoc, updateDoc, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
+  watchGroupTask,
+  watchGroupTasksOfEvents,
+  addTaskComment,
   applyTaskTemplate,
   createGroupTask,
+  deleteTaskComment,
   respondToTaskShift,
   saveTasksAsTemplate,
   setGroupTaskDone,
@@ -94,8 +103,35 @@ describe('groupTaskService', () => {
     expect(data).toMatchObject({ name: 'Fiestas', items: [{ title: 'Orquesta', offsetDays: -60 }], updatedBy: 'admin1', updatedAt: 'SERVER_TS' });
   });
 
+  it('watchGroupTasksOfEvents asks for the checklists of those events', () => {
+    watchGroupTasksOfEvents('org1', ['e1', 'e2'], vi.fn(), vi.fn());
+    expect(where).toHaveBeenCalledWith('eventId', 'in', ['e1', 'e2']);
+  });
+
+  it('watchGroupTask listens to the one task', () => {
+    watchGroupTask('org1', 't1', vi.fn(), vi.fn());
+    expect(onSnapshot).toHaveBeenCalledWith(expect.objectContaining({ _path: 'organizations/org1/tasks/t1' }), expect.anything(), expect.anything());
+  });
+
   it('respondToTaskShift goes through the callable', async () => {
     await expect(respondToTaskShift('org1', 't1', 'claim')).resolves.toBe('waitlisted');
     expect(vi.mocked(httpsCallable).mock.calls[0]?.[1]).toBe('respondToTaskShift');
+  });
+
+  it('addTaskComment writes under the task, trimmed and stamped by the server', async () => {
+    await addTaskComment({ orgId: 'org1', taskId: 't1', uid: 'u1', authorName: 'Ana', body: ' Voy yo ' });
+    const [ref, data] = vi.mocked(setDoc).mock.calls[0];
+    expect(pathOf(ref)).toBe('organizations/org1/tasks/t1/chat/new');
+    expect(data).toEqual({ authorUid: 'u1', authorName: 'Ana', body: 'Voy yo', createdAt: 'SERVER_TS' });
+  });
+
+  it('addTaskComment refuses an empty comment before writing', async () => {
+    await expect(addTaskComment({ orgId: 'org1', taskId: 't1', uid: 'u1', authorName: 'Ana', body: '  ' })).rejects.toThrow();
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  it('deleteTaskComment removes that comment', async () => {
+    await deleteTaskComment('org1', 't1', 'c1');
+    expect(pathOf(vi.mocked(deleteDoc).mock.calls[0]?.[0])).toBe('organizations/org1/tasks/t1/chat/c1');
   });
 });

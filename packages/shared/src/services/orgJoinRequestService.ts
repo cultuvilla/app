@@ -15,8 +15,9 @@ import {
 export type OrgJoinDecision = 'approved' | 'rejected';
 
 /**
- * Ask to join an organization whose joinPolicy is `approval`. The rules refuse
- * it for an open org (join directly with `addOrgMember`) and for a member.
+ * Ask to join an organization. The rules refuse it for a member. Asking also
+ * follows the group (`onOrgJoinRequestCreated`), so the requester sees its public
+ * life while they wait.
  */
 export async function requestToJoinOrganization(
   orgId: string,

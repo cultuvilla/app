@@ -21,10 +21,12 @@ import { asUser } from '../helpers/roles';
 const getEnv = useRulesTestEnv();
 const ORG = 'org1';
 const AYTO = 'ayto1';
+const COMISION = 'comision1';
 
 function socio(overrides: Record<string, unknown> = {}) {
   return {
     kind: 'typed',
+    socioNumber: null,
     displayName: 'Paco',
     uid: null,
     personId: null,
@@ -48,6 +50,8 @@ async function seed(sociosListVisible = false) {
       await setDoc(doc(db, `organizations/${ORG}/members/${uid}`), { userId: uid, joinedAt: new Date(), role });
     }
     await setDoc(doc(db, `organizations/${AYTO}/members/admin1`), { userId: 'admin1', joinedAt: new Date(), role: 'admin' });
+    await setDoc(doc(db, `organizations/${COMISION}`), { ...org, type: 'comisión' });
+    await setDoc(doc(db, `organizations/${COMISION}/members/admin1`), { userId: 'admin1', joinedAt: new Date(), role: 'admin' });
     await setDoc(doc(db, `organizations/${ORG}/socios/m1`), socio({ kind: 'member', displayName: 'Uno', uid: 'member1', createdBy: 'member1' }));
     await setDoc(doc(db, `organizations/${ORG}/socios/m2`), socio({ kind: 'member', displayName: 'Dos', uid: 'member2', createdBy: 'member2' }));
     await setDoc(doc(db, `organizations/${ORG}/socios/a2`), socio({ kind: 'member', displayName: 'Admin', uid: 'admin2', createdBy: 'admin2' }));
@@ -187,6 +191,10 @@ describe('socios — writes', () => {
     await assertFails(setDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${AYTO}/socios/new1`), socio()));
   });
 
+  it('a comisión de festejos keeps one', async () => {
+    await assertSucceeds(setDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${COMISION}/socios/new1`), socio()));
+  });
+
   it('a member adds a persona they created, with its lock', async () => {
     await assertSucceeds(addPersona('member1', 'new1', 'kid2'));
   });
@@ -284,6 +292,49 @@ describe('socios — writes', () => {
 
   it('a plain member cannot set a title', async () => {
     await assertFails(updateDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/a2`), { adminTitle: 'presidente' }));
+  });
+
+  it('an admin types in a socio with their number; a member cannot number their persona', async () => {
+    await assertSucceeds(setDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${ORG}/socios/new1`), socio({ socioNumber: 57 })));
+    await assertFails(addPersona('member1', 'new2', 'kid2', { socioNumber: 3 }));
+  });
+
+  it('a socio row is created only with a whole number in range, or none', async () => {
+    const db = asUser(getEnv(), 'admin1');
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/socios/new1`), socio({ socioNumber: 0 })));
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/socios/new1`), socio({ socioNumber: 1.5 })));
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/socios/new1`), socio({ socioNumber: '7' })));
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/socios/new1`), socio({ socioNumber: 100000 })));
+    const { socioNumber: _missing, ...legacy } = socio();
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/socios/new1`), legacy));
+  });
+
+  it('an admin numbers any row, a baja included, and clears a number', async () => {
+    const db = asUser(getEnv(), 'admin1');
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}/socios/m1`), { socioNumber: 12 }));
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}/socios/p1`), { socioNumber: 13 }));
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}/socios/t1`), { bajaAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}/socios/t1`), { socioNumber: 14 }));
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}/socios/m1`), { socioNumber: null }));
+    await assertFails(updateDoc(doc(db, `organizations/${ORG}/socios/m1`), { socioNumber: -1 }));
+    await assertFails(updateDoc(doc(db, `organizations/${ORG}/socios/m1`), { socioNumber: 15, displayName: 'Otro' }));
+  });
+
+  it('an admin corrects a typed socio\'s name and number in one write', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${ORG}/socios/t1`), { displayName: 'Paco Pérez', socioNumber: 9 }),
+    );
+  });
+
+  it('a member cannot number a row, not even their own', async () => {
+    await assertFails(updateDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/m1`), { socioNumber: 1 }));
+    await assertFails(updateDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socios/p1`), { socioNumber: 1 }));
+  });
+
+  it('nobody reads or writes the number counter from the client', async () => {
+    const db = asUser(getEnv(), 'admin1');
+    await assertFails(getDoc(doc(db, `organizations/${ORG}/socioNumbering/current`)));
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/socioNumbering/current`), { lastNumber: 1 }));
   });
 
   it('an unknown title is rejected', async () => {

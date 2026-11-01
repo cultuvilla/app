@@ -476,7 +476,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           ))}
         </Section>
 
-        {/* ── Agrupaciones (ayuntamiento + asociación) ─────────── */}
+        {/* ── Agrupaciones (everything but peñas) ──────────────── */}
         <Section
           title={t('village.hub.organizations')}
           isEmpty={agrupaciones.length === 0}
@@ -486,8 +486,12 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             <EntityCard
               key={o.id}
               label={o.name}
-              sub={t('village.hub.memberCount', { count: o.memberCount })}
-              icon="business-outline"
+              sub={
+                o.type === 'comisión'
+                  ? t('organization.comisión')
+                  : t('village.hub.memberCount', { count: o.memberCount })
+              }
+              icon={o.type === 'comisión' ? 'sparkles-outline' : 'business-outline'}
               imageUri={o.images[0] ?? null}
               commentCount={o.commentCount}
               onPress={() => router.push(orgHref({ ...o, villageSlug }))}
@@ -541,6 +545,13 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               <ActionPill
                 label={t('village.censo.configure')}
                 onPress={() => router.push(villageSectionHref(villageSlug, 'censo', 'mode=configure'))}
+              />
+            ) : null}
+            {canManage ? (
+              <ActionPill
+                label={t('admin.reports.title')}
+                onPress={() => router.push(villageSectionHref(villageSlug, 'denuncias'))}
+                testID="village-reports-action"
               />
             ) : null}
           </HStack>

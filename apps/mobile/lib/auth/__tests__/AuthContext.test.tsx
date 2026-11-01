@@ -10,6 +10,9 @@ import { signInWithCredential, signInWithCustomToken } from '@cultuvilla/shared/
 import { verifyAuthOtpCode } from '@cultuvilla/shared/services/authEmailService';
 import { clearPendingToken } from '../otpTokenCache';
 import { unregisterPushForSignOut } from '../../push/pushSession';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { discardLegacySession, restoreLegacySession } from '../legacySession';
+import { markSessionOpen } from '../sessionMarker';
 
 const FAKE_UID = 'user-raw-uid-123';
 const FAKE_HASH = 'a'.repeat(64);
@@ -88,6 +91,11 @@ jest.mock('../../observability/errorBridge', () => ({
   fetchUserIdHash: jest.fn(),
 }));
 
+jest.mock('../legacySession', () => ({
+  restoreLegacySession: jest.fn().mockResolvedValue(undefined),
+  discardLegacySession: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../push/pushSession', () => ({
   unregisterPushForSignOut: jest.fn().mockResolvedValue(undefined),
 }));
@@ -106,11 +114,51 @@ describe('AuthProvider', () => {
     (getUserProfile as jest.Mock).mockResolvedValue({ activeMunicipalityId: 'm1' });
   });
 
-  it('exposes a null user before sign-in', () => {
+  it('exposes a null user before sign-in', async () => {
     mockAuthUser = null;
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
     expect(result.current.user).toBeNull();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.profileChecked).toBe(true);
+  });
+
+  it('holds the signed-out state until a pre-native session has had its chance', async () => {
+    mockAuthUser = null;
+    let finishRestore: () => void = () => undefined;
+    (restoreLegacySession as jest.Mock).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishRestore = resolve;
+      }),
+    );
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.profileChecked).toBe(false);
+
+    await act(async () => finishRestore());
+
     expect(result.current.loading).toBe(false);
+    expect(result.current.profileChecked).toBe(true);
+  });
+
+  it('shows the app signed out when restoring a pre-native session fails', async () => {
+    mockAuthUser = null;
+    const failure = new Error('offline');
+    (restoreLegacySession as jest.Mock).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(observability.captureError).toHaveBeenCalledWith(failure, {
+      operation: 'auth:restoreLegacySession',
+    });
+  });
+
+  it('drops a pre-native session, without using it, when the native SDK has a user', async () => {
+    renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(discardLegacySession).toHaveBeenCalled());
+    expect(restoreLegacySession).not.toHaveBeenCalled();
   });
 
   it('never forwards the raw uid to observability.setUserContext — only the resolved hash', async () => {
@@ -452,6 +500,16 @@ describe('signOut', () => {
     await waitFor(() => expect(fbSignOut).toHaveBeenCalledTimes(1));
     await signingOut;
     expect(settled).toBe(true);
+  });
+
+  it('marks the session as ended on purpose, so it is not reported as lost', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile).not.toBeNull());
+    await markSessionOpen(['google.com']);
+
+    await act(async () => result.current.signOut());
+
+    expect(await AsyncStorage.getItem('cultuvilla.sessionMarker')).toBeNull();
   });
 
   it('waits for the push-row delete when it settles promptly', async () => {

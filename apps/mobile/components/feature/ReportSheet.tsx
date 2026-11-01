@@ -39,6 +39,8 @@ export type ReportTarget = {
   municipalityId: string;
   /** Author of the reported content; enables the "block this person" row. */
   authorUserId?: string | null;
+  /** The reported words, so moderators can read them from the queue. */
+  text?: string | null;
 };
 
 /**
@@ -85,6 +87,7 @@ export function ReportSheet({
           targetKind: target.kind,
           targetId: target.id,
           targetAuthorUserId: target.authorUserId ?? null,
+          ...(target.text ? { targetText: target.text } : {}),
           reporterUserId,
           reason,
         });

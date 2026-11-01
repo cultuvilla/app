@@ -21,7 +21,7 @@ import {
 } from '../converters/cuotaConverter.admin';
 import { groupTaskConverterAdmin, taskReminderConverterAdmin, taskTemplateConverterAdmin } from '../converters/groupTaskConverter.admin';
 import { actaConverterAdmin, ledgerEntryConverterAdmin } from '../converters/recordsConverter.admin';
-import { socioConverterAdmin, socioPersonaLockConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
+import { socioConverterAdmin, socioNumberingConverterAdmin, socioPersonaLockConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
 import { organizerRequestConverterAdmin } from '../converters/organizerRequestConverter.admin';
 import { personConverterAdmin } from '../converters/personConverter.admin';
 import { userConverterAdmin } from '../converters/userConverter.admin';
@@ -35,6 +35,11 @@ import {
   groupMessageReadConverterAdmin,
   groupPollVoteConverterAdmin,
 } from '../converters/groupMessageConverter.admin';
+import {
+  groupChatMessageConverterAdmin,
+  groupChatReadConverterAdmin,
+  groupChatThreadConverterAdmin,
+} from '../converters/groupChatConverter.admin';
 import { pushQueueConverterAdmin } from '../converters/pushQueueConverter.admin';
 import { newsPostConverterAdmin } from '../converters/newsPostConverter.admin';
 import { commentConverterAdmin } from '../converters/commentConverter.admin';
@@ -160,6 +165,13 @@ export const organizationSocioPersonaLocksCollection = (db: Firestore, organizat
 export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
   db.collection('organizations').doc(organizationId).collection('socioPersonaLocks').doc(personId).withConverter(socioPersonaLockConverterAdmin);
 
+// The socio-number counter (see SocioNumberingDataSchema). Function-owned.
+export const organizationSocioNumberingDoc = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('socioNumbering').doc('current').withConverter(socioNumberingConverterAdmin);
+
+export const organizationSocioNumberingCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('socioNumbering').withConverter(socioNumberingConverterAdmin);
+
 // The cuota de socios (see CuotaDataModel).
 export const organizationCuotaSettingsDoc = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('cuotaSettings').doc('current').withConverter(cuotaSettingsConverterAdmin);
@@ -227,6 +239,23 @@ export const organizationMessageReadsCollection = (db: Firestore, organizationId
 
 export const organizationMessageVotesCollection = (db: Firestore, organizationId: string, messageId: string) =>
   db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('votes').withConverter(groupPollVoteConverterAdmin);
+
+// A group's chat (see GroupChatDataModel). The general thread's messages; an
+// aviso's live under its message.
+export const organizationGeneralChatCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('chat').withConverter(groupChatMessageConverterAdmin);
+
+export const organizationAvisoChatCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('chat').withConverter(groupChatMessageConverterAdmin);
+
+export const organizationChatThreadsCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('chatThreads').withConverter(groupChatThreadConverterAdmin);
+
+export const organizationChatThreadDoc = (db: Firestore, organizationId: string, threadId: string) =>
+  organizationChatThreadsCollection(db, organizationId).doc(threadId);
+
+export const organizationChatReadsCollection = (db: Firestore, organizationId: string, threadId: string) =>
+  organizationChatThreadDoc(db, organizationId, threadId).collection('reads').withConverter(groupChatReadConverterAdmin);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);

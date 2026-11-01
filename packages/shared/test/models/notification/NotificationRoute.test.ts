@@ -36,20 +36,27 @@ describe('notificationRoute', () => {
     ).toBe('/villa/palabra/esbardo');
   });
 
-  it('opens a cuota reminder on the group in the Grupos tab, slug or not', () => {
+  it('opens a cuota reminder on the group\'s cuota screen, slug or not', () => {
     const n = { ...base, type: 'cuota_reminder' as const, entityKind: 'organization' as const, entityId: 'org1' };
-    expect(notificationRoute(n, 'villa')).toBe('/grupos?grupo=org1');
-    expect(notificationRoute(n, null)).toBe('/grupos?grupo=org1');
+    expect(notificationRoute(n, 'villa')).toBe('/grupos/org1/cuota');
+    expect(notificationRoute(n, null)).toBe('/grupos/org1/cuota');
   });
 
-  it('opens a group task notification on the group too', () => {
+  it('opens a group task notification on the group\'s tasks', () => {
     const n = { ...base, type: 'group_task' as const, entityKind: 'organization' as const, entityId: 'org1' };
-    expect(notificationRoute(n, null)).toBe('/grupos?grupo=org1');
+    expect(notificationRoute(n, null)).toBe('/grupos/org1/tareas');
   });
 
-  it('opens a group message on the group in the Grupos tab', () => {
+  it('a chat message opens its thread: the Charla, or the aviso', () => {
     const n = { ...base, type: 'group_message' as const, entityKind: 'organization' as const, entityId: 'org1' };
-    expect(notificationRoute(n, null)).toBe('/grupos?grupo=org1');
+    expect(notificationRoute({ ...n, chatThreadId: 'general' }, null)).toBe('/grupos/org1/charla');
+    expect(notificationRoute({ ...n, chatThreadId: 'm1' }, null)).toBe('/grupos/org1/aviso/m1');
+    expect(notificationRoute({ ...n, chatThreadId: null }, null)).toBe('/grupos/org1/avisos');
+  });
+
+  it('opens a group message on the group\'s notices', () => {
+    const n = { ...base, type: 'group_message' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, null)).toBe('/grupos/org1/avisos');
   });
 
   it('cannot address anything without the pueblo slug', () => {

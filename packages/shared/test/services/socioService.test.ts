@@ -34,6 +34,8 @@ import {
   saveSocioContactSharing,
   setSocioAdminTitle,
   setSocioBaja,
+  setSocioNumber,
+  updateTypedSocio,
 } from '../../src/services/socioService';
 
 beforeEach(() => {
@@ -42,11 +44,11 @@ beforeEach(() => {
 
 describe('socioService', () => {
   it('addTypedSocio writes the row and its private contact in one batch', async () => {
-    const id = await addTypedSocio('org1', { displayName: ' Paco ', phone: '600', email: '' }, 'admin1');
+    const id = await addTypedSocio('org1', { displayName: ' Paco ', socioNumber: 57, phone: '600', email: '' }, 'admin1');
     expect(id).toBe('new-socio');
     expect(batch.set).toHaveBeenCalledTimes(2);
     const [, row] = batch.set.mock.calls[0];
-    expect(row).toMatchObject({ kind: 'typed', displayName: 'Paco', uid: null, bajaAt: null, createdBy: 'admin1' });
+    expect(row).toMatchObject({ kind: 'typed', socioNumber: 57, displayName: 'Paco', uid: null, bajaAt: null, createdBy: 'admin1' });
     const [privateRef, contact] = batch.set.mock.calls[1];
     expect(privateRef._path).toBe('organizations/org1/socioPrivate/new-socio');
     expect(contact).toEqual({ phone: '600', email: null, consentAnsweredAt: null });
@@ -72,6 +74,16 @@ describe('socioService', () => {
   it('setSocioBaja on a typed socio touches no lock', async () => {
     await setSocioBaja('org1', { id: 't1', kind: 'typed', personId: null });
     expect(batch.delete).not.toHaveBeenCalled();
+  });
+
+  it('updateTypedSocio corrects the name and number together', async () => {
+    await updateTypedSocio('org1', 't1', { displayName: ' Paco P ', socioNumber: null, phone: '', email: 'p@x.es' });
+    expect(batch.update.mock.calls[0][1]).toEqual({ displayName: 'Paco P', socioNumber: null });
+  });
+
+  it('setSocioNumber writes only the number', async () => {
+    await setSocioNumber('org1', 's1', 12);
+    expect(vi.mocked(updateDoc).mock.calls[0][1]).toEqual({ socioNumber: 12 });
   });
 
   it('setSocioAdminTitle can clear the title', async () => {

@@ -35,7 +35,7 @@ async function seedUser(uid: string) {
 
 async function seedSocio(id: string, overrides: Record<string, unknown> = {}) {
   await db().doc(`organizations/${ORG_ID}/socios/${id}`).set({
-    kind: 'member', displayName: id, uid: null, personId: null, responsibleUid: null, adminTitle: null,
+    kind: 'member', socioNumber: null, displayName: id, uid: null, personId: null, responsibleUid: null, adminTitle: null,
     altaAt: new Date('2025-01-01T10:00:00Z'), bajaAt: null, memberJoinedAt: null, createdBy: 'x', ...overrides,
   });
 }
@@ -117,10 +117,97 @@ describe('sendGroupMessage', () => {
     expect(paco).toMatchObject({ id: 'group_message_Msg0000000001', type: 'group_message', entityKind: 'organization', entityId: ORG_ID, title: 'La Anduela · Asamblea' });
     expect(await notificationsOf('u-ido')).toEqual([]);
 
-    const emails = sendEmailBatchMock.mock.calls[0]?.[0] as { to: string; fromName: string; text: string }[];
+    const emails = sendEmailBatchMock.mock.calls[0]?.[0] as { to: string; fromName: string; text: string; replyTo?: string }[];
     expect(emails.map((e) => e.to).sort()).toEqual(['paco@compartido.es', 'u-eva@x.es', 'u-luis@x.es']);
-    expect(emails[0]?.fromName).toBe('La Anduela (vía Cultuvilla)');
+    expect(emails[0]?.fromName).toBe('La Anduela');
     expect(emails[0]?.text).toContain('Luis\nPresidencia · La Anduela');
+    // A reply reaches the admin who wrote it.
+    expect(new Set(emails.map((e) => e.replyTo))).toEqual(new Set(['u-luis@x.es']));
+    // No placeholders, nothing personal stored.
+    expect(rows['u-paco']).toMatchObject({ personal: null });
+  });
+
+  it('links each email to the aviso, not just the group', async () => {
+    await runSendGroupMessage(db(), 'u-luis', input(), NOW);
+    const emails = sendEmailBatchMock.mock.calls[0]?.[0] as { text: string }[];
+    expect(emails[0]?.text).toContain(`/grupos?grupo=${ORG_ID}&aviso=Msg0000000001`);
+  });
+
+  it('leaves the default Reply-To when the sending admin has no address', async () => {
+    await db().doc('users/u-luis').update({ email: '' });
+    await runSendGroupMessage(db(), 'u-luis', input(), NOW);
+    const emails = sendEmailBatchMock.mock.calls[0]?.[0] as { replyTo?: string }[];
+    expect(emails.every((e) => e.replyTo === undefined)).toBe(true);
+  });
+
+  describe('placeholders', () => {
+    const PERSONAL = {
+      title: 'Hola {nombre}',
+      body: 'Hola {nombre},\n\nEl sábado hay asamblea.\n\nTu nº de socio es el {nº socio}.\nTienes pendiente {cuota pendiente}.',
+    };
+    const emailTo = (to: string) =>
+      (sendEmailBatchMock.mock.calls[0]?.[0] as { to: string; subject: string; text: string }[]).find((e) => e.to === to);
+
+    beforeEach(async () => {
+      await db().doc(`organizations/${ORG_ID}/cuotaSettings/current`).set({
+        amountCents: 3000, periodicity: 'yearly', dueMonth: 1, dueDay: 1, graceDays: 30, startPeriod: '2020', tiers: [],
+        bizum: null, iban: null, payInstructions: null, remindersEnabled: false, configuredBy: 'u-luis', updatedAt: new Date(),
+      });
+      await db().doc(`organizations/${ORG_ID}/socios/Paco`).update({ socioNumber: 57 });
+      await db().doc(`organizations/${ORG_ID}/socios/Pepa`).update({ socioNumber: 58 });
+    });
+
+    it('a household hears as its holder: own name and number, what it all owes', async () => {
+      await runSendGroupMessage(db(), 'u-luis', input(PERSONAL), NOW);
+      const paco = emailTo('paco@compartido.es');
+      expect(paco?.subject).toBe('Hola Paco · La Anduela');
+      expect(paco?.text).toContain('Hola Paco,');
+      expect(paco?.text).toContain('Tu nº de socio es el 57.');
+      // Paco's cuota and his persona's, the base amount each.
+      expect(paco?.text).toMatch(/Tienes pendiente 60,00\s€\./);
+
+      const rows = await deliveries();
+      expect(rows['u-paco']['personal']).toEqual({ nombre: 'Paco', numero: 57, cuotaCents: 6000 });
+      // The WhatsApp link is built later, from these stored values.
+      expect(rows['typed_Pepa']['personal']).toEqual({ nombre: 'Pepa', numero: 58, cuotaCents: 3000 });
+
+      const [notice] = await notificationsOf('u-paco');
+      expect(notice).toMatchObject({ title: 'La Anduela · Hola Paco' });
+      expect(String(notice['body'])).toContain('Hola Paco,');
+    });
+
+    it('someone without a number or a debt loses just those lines', async () => {
+      await db().doc(`organizations/${ORG_ID}/cuotaAssignments/Eva`).set({ tierId: null, exempt: true, customAmountCents: null, updatedBy: 'u-luis', updatedAt: new Date() });
+      await runSendGroupMessage(db(), 'u-luis', input(PERSONAL), NOW);
+      const eva = emailTo('u-eva@x.es');
+      expect(eva?.text).toContain('Hola Eva,');
+      expect(eva?.text).not.toContain('nº de socio');
+      expect(eva?.text).not.toContain('pendiente');
+    });
+
+    it('keeps the placeholders on the stored message, the history', async () => {
+      await runSendGroupMessage(db(), 'u-luis', input(PERSONAL), NOW);
+      const message = (await db().doc(`organizations/${ORG_ID}/messages/Msg0000000001`).get()).data();
+      expect(message?.['title']).toBe('Hola {nombre}');
+      expect(String(message?.['body'])).toContain('{cuota pendiente}');
+    });
+
+    it('a member with no socio row of their own gets their account name', async () => {
+      await seedUser('u-visit');
+      await db().doc('users/u-visit').update({ displayName: 'Visitante' });
+      await db().doc('events/e-1').set(
+        buildEventData({
+          title: 'Cena', description: '', startDate: new Date('2026-11-01T18:00:00Z'), location: { coordinates: { lat: 40.4, lng: -3.7 }, displayName: 'local' },
+          organizerUserIds: ['u-luis'], organizerOrgIds: [ORG_ID], createdBy: 'u-luis', municipalityId: 'mun-1', villageName: 'Villa', villageSlug: 'villa',
+          villageCoordinates: null,
+        }),
+      );
+      await db().doc('events/e-1/registrations/r-1').set(
+        buildRegistrationData({ userId: 'u-visit', personId: 'p-hijo', name: 'Hijo de Visitante', status: 'confirmed', position: 1, isMember: true }),
+      );
+      await runSendGroupMessage(db(), 'u-luis', input({ ...PERSONAL, audience: { kind: 'event', eventId: 'e-1' } }), NOW);
+      expect(emailTo('u-visit@x.es')?.subject).toBe('Hola Visitante · La Anduela');
+    });
   });
 
   it('sends nothing twice for a retried call', async () => {

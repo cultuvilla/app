@@ -6,15 +6,18 @@ import {
   parseEuroCents,
   type CuotaPeriodicity,
   type CuotaSettingsInput,
-  type CuotaTier,
+  type CuotaTierInput,
 } from '@cultuvilla/shared/models/organization';
 import type { CuotaSettings } from '@cultuvilla/shared/services/cuotaService';
 import { monthLongLabels } from '@cultuvilla/shared/utils';
-import { BottomSheet, Button, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { Button, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { SegmentedToggle } from '../SegmentedToggle';
+import { FormModal } from '../../layout/FormModal';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { centsInputValue } from '../../../lib/orgs/cuota';
-import { ChoiceRow } from './ChoiceRow';
+import { SelectField } from './SelectField';
+import { CuotaYearAmountsField, parseYearDrafts, yearDraftsOf, type YearDraft } from './CuotaYearAmountsField';
 
 export type CuotaSettingsValues = Omit<CuotaSettingsInput, 'configuredBy' | 'updatedAt'>;
 
@@ -22,36 +25,37 @@ interface TierDraft {
   id: string;
   name: string;
   amount: string;
+  years: YearDraft[];
   coversPersonas: boolean;
 }
 
 interface Draft {
   amount: string;
+  years: YearDraft[];
   periodicity: CuotaPeriodicity;
   dueMonth: number;
   dueDay: string;
-  graceDays: string;
   bizum: string;
   iban: string;
   payInstructions: string;
-  remindersEnabled: boolean;
   tiers: TierDraft[];
 }
 
 function draftOf(settings: CuotaSettings | null): Draft {
   return {
     amount: settings ? centsInputValue(settings.amountCents) : '',
+    years: yearDraftsOf(settings?.yearAmounts ?? []),
     periodicity: settings?.periodicity ?? 'yearly',
     dueMonth: settings?.dueMonth ?? 1,
     dueDay: String(settings?.dueDay ?? 1),
-    graceDays: String(settings?.graceDays ?? 30),
     bizum: settings?.bizum ?? '',
     iban: settings?.iban ?? '',
     payInstructions: settings?.payInstructions ?? '',
-    remindersEnabled: settings?.remindersEnabled ?? false,
-    tiers: (settings?.tiers ?? []).map((tier) => ({ ...tier, amount: centsInputValue(tier.amountCents) })),
+    tiers: (settings?.tiers ?? []).map((tier) => ({ ...tier, amount: centsInputValue(tier.amountCents), years: yearDraftsOf(tier.yearAmounts) })),
   };
 }
+
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
 function newTierId(): string {
   return `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -63,25 +67,22 @@ function intIn(text: string, min: number, max: number): number | null {
   return n >= min && n <= max ? n : null;
 }
 
-type Errors = Partial<Record<'amount' | 'dueDay' | 'graceDays' | `tier-${string}`, string>>;
+type Errors = Partial<Record<'amount' | 'years' | 'dueDay' | `tier-${string}` | `tierYears-${string}`, string>>;
 
 /**
- * Configure the cuota: amount, period, due date, grace, how to pay, tiers and
- * the reminders. A first configuration starts tracking at the current period
- * with the reminders off, so no socio is reminded before the treasurer has
- * recorded the payments already collected on paper.
+ * Configure the cuota: amount, period, due date, how to pay and tiers. A first
+ * configuration starts tracking at the current period with the reminders off:
+ * they are switched on in the group's Ajustes, once the treasurer has recorded
+ * the payments already collected on paper.
  */
 export function CuotaSettingsSheet({
   visible,
   settings,
-  signerName,
   onSave,
   onClose,
 }: {
   visible: boolean;
   settings: CuotaSettings | null;
-  /** Who the reminders would be signed by today, for the hint. */
-  signerName: string | null;
   onSave: (values: CuotaSettingsValues) => Promise<void>;
   onClose: () => void;
 }) {
@@ -106,19 +107,21 @@ export function CuotaSettingsSheet({
     const next: Errors = {};
     const amountCents = parseEuroCents(draft.amount);
     if (amountCents === null) next.amount = t('groups.cuota.settings.amountInvalid');
+    const yearAmounts = parseYearDrafts(draft.years);
+    if (yearAmounts === null) next.years = t('groups.cuota.settings.yearsInvalid');
     const dueDay = intIn(draft.dueDay, 1, 31);
     if (dueDay === null) next.dueDay = t('groups.cuota.settings.dueDayInvalid');
-    const graceDays = intIn(draft.graceDays, 0, 365);
-    if (graceDays === null) next.graceDays = t('groups.cuota.settings.graceDaysInvalid');
-    const tiers: CuotaTier[] = [];
+    const tiers: CuotaTierInput[] = [];
     for (const tier of draft.tiers) {
       const cents = parseEuroCents(tier.amount);
+      const tierYears = parseYearDrafts(tier.years);
+      if (tierYears === null) next[`tierYears-${tier.id}`] = t('groups.cuota.settings.yearsInvalid');
       if (!tier.name.trim()) next[`tier-${tier.id}`] = t('groups.cuota.settings.tierNameRequired');
       else if (cents === null) next[`tier-${tier.id}`] = t('groups.cuota.settings.amountInvalid');
-      else tiers.push({ id: tier.id, name: tier.name.trim(), amountCents: cents, coversPersonas: tier.coversPersonas });
+      else if (tierYears) tiers.push({ id: tier.id, name: tier.name.trim(), amountCents: cents, yearAmounts: tierYears, coversPersonas: tier.coversPersonas });
     }
     setErrors(next);
-    if (amountCents === null || dueDay === null || graceDays === null || Object.keys(next).length > 0) return;
+    if (amountCents === null || yearAmounts === null || dueDay === null || Object.keys(next).length > 0) return;
 
     // A changed period restarts tracking now: a yearly '2026' and a monthly
     // '2026-10' are different calendars.
@@ -126,16 +129,17 @@ export function CuotaSettingsSheet({
     setSaving(true);
     onSave({
       amountCents,
+      yearAmounts,
       periodicity: draft.periodicity,
       dueMonth: draft.dueMonth,
       dueDay,
-      graceDays,
+      graceDays: 0,
       startPeriod: keepStart ? settings.startPeriod : currentPeriodKey(draft.periodicity),
       tiers,
       bizum: draft.bizum,
       iban: draft.iban,
       payInstructions: draft.payInstructions,
-      remindersEnabled: draft.remindersEnabled,
+      remindersEnabled: settings?.remindersEnabled ?? false,
     })
       .then(onClose)
       .catch(() => showAlert(t('groups.cuota.error')))
@@ -145,11 +149,10 @@ export function CuotaSettingsSheet({
   const months = monthLongLabels();
 
   return (
-    <BottomSheet
+    <FormModal
       visible={visible}
       onClose={onClose}
       title={t('groups.cuota.settings.title')}
-      closeLabel={t('common.close')}
       testID="cuota-settings-sheet"
       footer={
         <VStack className="px-5 pt-3">
@@ -159,8 +162,8 @@ export function CuotaSettingsSheet({
         </VStack>
       }
     >
-      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID="cuota-settings-scroll">
-        <VStack gap={3} className="px-5 pb-4">
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" testID="cuota-settings-scroll">
+        <VStack gap={3} className="px-4 pt-4 pb-6">
           <Input
             label={t('groups.cuota.settings.amount')}
             value={draft.amount}
@@ -169,43 +172,36 @@ export function CuotaSettingsSheet({
             error={errors.amount}
             testID="cuota-settings-amount"
           />
+          <CuotaYearAmountsField
+            testID="cuota-settings-years"
+            rows={draft.years}
+            error={errors.years}
+            onChange={(years) => set('years', years)}
+          />
           <Text variant="bodySm" className="font-bold">
             {t('groups.cuota.settings.periodicity')}
           </Text>
-          <ChoiceRow
+          <SegmentedToggle
             testID="cuota-settings-periodicity"
             value={draft.periodicity}
             options={(['yearly', 'monthly'] as const).map((p) => ({ value: p, label: t(`groups.cuota.periodicity.${p}`) }))}
             onChange={(p) => set('periodicity', p)}
           />
           {draft.periodicity === 'yearly' ? (
-            <>
-              <Text variant="bodySm" className="font-bold">
-                {t('groups.cuota.settings.dueMonth')}
-              </Text>
-              <ChoiceRow
-                testID="cuota-settings-month"
-                value={String(draft.dueMonth)}
-                options={months.map((label, i) => ({ value: String(i + 1), label }))}
-                onChange={(m) => set('dueMonth', Number(m))}
-              />
-            </>
+            <SelectField
+              label={t('groups.cuota.settings.dueMonth')}
+              testID="cuota-settings-month"
+              value={String(draft.dueMonth)}
+              options={months.map((label, i) => ({ value: String(i + 1), label }))}
+              onChange={(m) => set('dueMonth', Number(m))}
+            />
           ) : null}
-          <Input
+          <SelectField
             label={t('groups.cuota.settings.dueDay')}
-            value={draft.dueDay}
-            onChangeText={(v) => set('dueDay', v)}
-            keyboardType="number-pad"
-            error={errors.dueDay}
             testID="cuota-settings-day"
-          />
-          <Input
-            label={t('groups.cuota.settings.graceDays')}
-            value={draft.graceDays}
-            onChangeText={(v) => set('graceDays', v)}
-            keyboardType="number-pad"
-            error={errors.graceDays}
-            testID="cuota-settings-grace"
+            value={draft.dueDay}
+            options={DAYS.map((d) => ({ value: d, label: d }))}
+            onChange={(v) => set('dueDay', v)}
           />
           <Input
             label={t('groups.cuota.settings.bizum')}
@@ -251,6 +247,12 @@ export function CuotaSettingsSheet({
                 keyboardType="decimal-pad"
                 testID={`cuota-tier-amount-${tier.id}`}
               />
+              <CuotaYearAmountsField
+                testID={`cuota-tier-years-${tier.id}`}
+                rows={tier.years}
+                error={errors[`tierYears-${tier.id}`]}
+                onChange={(years) => setTier(tier.id, { years })}
+              />
               <Toggle
                 testID={`cuota-tier-covers-${tier.id}`}
                 value={tier.coversPersonas}
@@ -274,29 +276,15 @@ export function CuotaSettingsSheet({
                 variant="secondary"
                 testID="cuota-tier-add"
                 onPress={() =>
-                  setDraft((d) => ({ ...d, tiers: [...d.tiers, { id: newTierId(), name: '', amount: '', coversPersonas: false }] }))
+                  setDraft((d) => ({ ...d, tiers: [...d.tiers, { id: newTierId(), name: '', amount: '', years: [], coversPersonas: false }] }))
                 }
               >
                 {t('groups.cuota.settings.addTier')}
               </Button>
             </HStack>
           ) : null}
-
-          <VStack gap={1} className="pt-2">
-            <Toggle
-              testID="cuota-settings-reminders"
-              value={draft.remindersEnabled}
-              label={t('groups.cuota.settings.reminders')}
-              onValueChange={(v) => set('remindersEnabled', v)}
-            />
-            <Text variant="bodySm" tone="muted">
-              {signerName
-                ? t('groups.cuota.settings.remindersHint', { name: signerName })
-                : t('groups.cuota.settings.remindersHintNoSigner')}
-            </Text>
-          </VStack>
         </VStack>
       </ScrollView>
-    </BottomSheet>
+    </FormModal>
   );
 }

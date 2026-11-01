@@ -9,8 +9,8 @@ import { buildSocioData } from '../../src/models/organization/SocioDataModel';
 const generatedAt = new Date('2026-10-21T10:00:00Z');
 
 describe('buildLibroSociosExport', () => {
-  it('lists every row ever by alta, with kind, cargo, who answers for a persona, alta and baja', () => {
-    const ana = { id: 'a', ...buildSocioData({ kind: 'member', displayName: 'Ana', uid: 'u-ana', adminTitle: 'tesorero', altaAt: new Date('2025-03-01T10:00:00Z'), createdBy: 'u-ana' }) };
+  it('lists every row ever by alta, with socio number, kind, cargo, who answers for a persona, alta and baja', () => {
+    const ana = { id: 'a', ...buildSocioData({ kind: 'member', socioNumber: 57, displayName: 'Ana', uid: 'u-ana', adminTitle: 'tesorero', altaAt: new Date('2025-03-01T10:00:00Z'), createdBy: 'u-ana' }) };
     const nene = { id: 'n', ...buildSocioData({ kind: 'persona', displayName: 'Nene', responsibleUid: 'u-ana', altaAt: new Date('2025-04-01T10:00:00Z'), createdBy: 'u-ana' }) };
     const gone = {
       id: 'g',
@@ -21,10 +21,10 @@ describe('buildLibroSociosExport', () => {
     expect(model.fileName).toBe('libro-socios-la-anduela');
     expect(model.summary).toBe('Altas: 2   ·   Bajas: 1   ·   Total: 3');
     const csv = toCsv(model, { bom: false }).split('\r\n');
-    expect(csv[0]).toBe('Nº;Socio;Tipo;A cargo de;Cargo;Alta;Baja');
-    expect(csv[1]).toBe('1;Benito;Sin la app;;;10/01/2024;01/02/2026');
-    expect(csv[2]).toBe('2;Ana;Con la app;;Tesorería;01/03/2025;');
-    expect(csv[3]).toBe('3;Nene;A cargo de otro socio;Ana;;01/04/2025;');
+    expect(csv[0]).toBe('Nº socio;Socio;Tipo;A cargo de;Cargo;Alta;Baja');
+    expect(csv[1]).toBe(';Benito;Sin la app;;;10/01/2024;01/02/2026');
+    expect(csv[2]).toBe('57;Ana;Con la app;;Tesorería;01/03/2025;');
+    expect(csv[3]).toBe(';Nene;A cargo de otro socio;Ana;;01/04/2025;');
   });
 });
 

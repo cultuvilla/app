@@ -3,7 +3,6 @@ import { watchCuotaSettings, type CuotaSettings } from '@cultuvilla/shared/servi
 import { watchGroupMessages, type GroupMessage } from '@cultuvilla/shared/services/groupMessageService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, Pressable, Text, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
@@ -41,7 +40,6 @@ export function GroupMessagesAdmin({
 
   return (
     <VStack gap={2} testID="group-msg-admin">
-      <DetailSectionHeading>{t('groups.messages.title')}</DetailSectionHeading>
       <Button onPress={() => setComposing(true)} testID="group-msg-compose-open">
         {t('groups.messages.compose')}
       </Button>
@@ -59,11 +57,6 @@ export function GroupMessagesAdmin({
           className="py-2 border-b border-subtle"
         >
           <Text className="font-bold">{m.title}</Text>
-          {m.pinned ? (
-            <Text variant="caption" className="text-accent">
-              {t('groups.messages.pinnedBadge')}
-            </Text>
-          ) : null}
           <Text variant="caption" tone="muted">
             {t('groups.messages.summary', {
               date: formatDate(m.sentAt),

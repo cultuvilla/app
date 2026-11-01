@@ -17,7 +17,7 @@ import { showAlert } from '../../../lib/dialogs';
  * Asks a member, once, which contact data the junta may see, and stores the
  * answer on their own roster row (`socioPrivate`). Appears as soon as the
  * `syncOrgSocioRoster` trigger has given them a row — seconds after joining.
- * `onlyWhenUnanswered` hides it once answered (the org page); the Grupos tab
+ * `onlyWhenUnanswered` hides it once answered (the org page, the group home); the Socios screen
  * keeps a one-line summary with a way to change it.
  */
 export function SocioConsentCard({ orgId, onlyWhenUnanswered = false }: { orgId: string; onlyWhenUnanswered?: boolean }) {

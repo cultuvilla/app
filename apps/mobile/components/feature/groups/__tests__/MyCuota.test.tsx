@@ -29,8 +29,8 @@ function socio(id: string, input: Partial<SocioDataInput>) {
 }
 
 const SETTINGS = {
-  id: 'current', amountCents: 3000, periodicity: 'yearly', dueMonth: 12, dueDay: 31, graceDays: 0, startPeriod: '2020',
-  tiers: [{ id: 'fam', name: 'Familiar', amountCents: 5000, coversPersonas: true }],
+  id: 'current', amountCents: 3000, yearAmounts: [], periodicity: 'yearly', dueMonth: 12, dueDay: 31, graceDays: 0, startPeriod: '2020',
+  tiers: [{ id: 'fam', name: 'Familiar', amountCents: 5000, yearAmounts: [], coversPersonas: true }],
   bizum: '600111222', iban: 'ES12 3456', payInstructions: 'En mano al tesorero', remindersEnabled: true,
   configuredBy: 'admin', updatedAt: new Date(),
 };

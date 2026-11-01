@@ -1,5 +1,5 @@
 // apps/mobile/app/event/__tests__/new.test.tsx
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import NewEventScreen from '../evento';
 import { pickImageAsBlob } from '../../../lib/images';
 import {
@@ -12,7 +12,6 @@ import {
 } from '@cultuvilla/shared/services/eventService';
 import { Alert } from 'react-native';
 import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { showConfirm } from '../../../lib/dialogs';
 
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -22,7 +21,7 @@ jest.mock('../../../lib/auth/useAuth', () => ({
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
 }));
-const mockParams: { eventId?: string; villageId?: string } = {};
+const mockParams: { eventId?: string; villageId?: string; copyFrom?: string } = {};
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => mockParams,
@@ -56,7 +55,6 @@ jest.mock('@cultuvilla/shared/services/feedService', () => ({
   haversineKm: () => 0,
 }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganization: jest.fn().mockResolvedValue({ id: 'org-1', joinPolicy: 'approval' }),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
   createEvent: jest.fn().mockResolvedValue('e-1'),
@@ -66,6 +64,14 @@ jest.mock('@cultuvilla/shared/services/eventService', () => ({
   updateEventStatus: jest.fn().mockResolvedValue(undefined),
   updateEvent: jest.fn(),
   getEvent: jest.fn(),
+}));
+// The groups the creator administers decide whether a checklist is offered.
+const mockMyGroups: { current: { org: { id: string; name: string }; role: 'admin' | 'member' }[] } = { current: [] };
+jest.mock('../../../lib/orgs/useMyGroups', () => ({
+  useMyGroups: () => ({ groups: mockMyGroups.current, status: 'ready' }),
+}));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
+  createGroupTasks: jest.fn().mockResolvedValue(['t-1']),
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadEventImage: jest.fn(),
@@ -129,10 +135,21 @@ jest.mock('../../../components/feature/MyVillagePicker', () => ({
 }));
 // Drive DateTimeField.onChange directly; also surface the incoming value for assertions.
 jest.mock('../../../components/primitives/DateTimeField', () => ({
-  DateTimeField: ({ onChange, testID, value }: { onChange: (d: Date) => void; testID?: string; value: Date | null }) => {
+  DateTimeField: ({
+    label,
+    onChange,
+    testID,
+    value,
+  }: {
+    label: string;
+    onChange: (d: Date) => void;
+    testID?: string;
+    value: Date | null;
+  }) => {
     const { Pressable, Text } = require('react-native');
     return (
       <Pressable testID={testID} onPress={() => onChange(new Date('2026-08-01T18:00'))}>
+        <Text>{label}</Text>
         <Text testID={`${testID}-value`}>{value ? value.toISOString() : ''}</Text>
       </Pressable>
     );
@@ -843,25 +860,10 @@ describe('NewEventScreen — private events', () => {
     await waitFor(() => expect(createEvent).toHaveBeenCalled());
   }
 
-  // The switch only turns on once the org's join policy has loaded.
-  async function pickApprovalOrg(u: ReturnType<typeof render>) {
+  async function pickOrg(u: ReturnType<typeof render>) {
     fireEvent.press(u.getByTestId('pick-one-org'));
-    await waitFor(() => expect(getOrganization).toHaveBeenCalledWith('org-1'));
     await waitFor(() => expect(u.getByTestId('private-to-org')).toBeEnabled());
   }
-
-  it('cannot make an event private to an open org, and says why', async () => {
-    jest.mocked(getOrganization).mockResolvedValueOnce({ id: 'org-1', joinPolicy: 'open' } as never);
-    await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      fireEvent.press(u.getByTestId('pick-one-org'));
-      await waitFor(() => expect(u.getByText('event.privateToOrgNeedsApproval')).toBeTruthy());
-      fireEvent.press(u.getByTestId('private-to-org'));
-    });
-    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
-      visibility: 'public',
-      visibilityOrgId: null,
-    });
-  });
 
   it('offers the switch only when exactly one org organizes the event', async () => {
     const { getByLabelText, getByTestId, queryByTestId } = render(<NewEventScreen />);
@@ -886,7 +888,7 @@ describe('NewEventScreen — private events', () => {
 
   it('creates an event restricted to the organizing org when the switch is on', async () => {
     await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      await pickApprovalOrg(u);
+      await pickOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
     });
     expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
@@ -900,7 +902,7 @@ describe('NewEventScreen — private events', () => {
   it('opens a new private event at a URL without its title', async () => {
     const { router } = jest.requireMock('expo-router') as { router: { replace: jest.Mock } };
     await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      await pickApprovalOrg(u);
+      await pickOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
     });
     await waitFor(() => expect(router.replace).toHaveBeenCalled());
@@ -922,7 +924,7 @@ describe('NewEventScreen — private events', () => {
   // membership to gate on, so the submit path has to drop it.
   it('falls back to public when a second org joins after the switch was set', async () => {
     await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      await pickApprovalOrg(u);
+      await pickOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
       fireEvent.press(u.getByTestId('pick-two-orgs'));
     });
@@ -954,7 +956,9 @@ describe('NewEventScreen — weekly series', () => {
     const { getByText, getByTestId } = utils;
     await toWhenStep(utils);
     fireEvent.press(getByTestId('startDate')); // Saturday 1 Aug 2026, 18:00
-    fireEvent.press(getByTestId('repeats-weekly'));
+    fireEvent.press(getByTestId('event-recurring'));
+    fireEvent.press(getByTestId('event-recurrence-trigger'));
+    fireEvent.press(getByTestId('event-recurrence-weekly'));
     fireEvent.press(getByTestId('repeat-day-2')); // add Tuesdays
     fireEvent.press(getByTestId('repeat-until'));
     fireEvent.press(getByTestId('location-field'));
@@ -969,7 +973,9 @@ describe('NewEventScreen — weekly series', () => {
     expect(utils.queryByTestId('repeat-day-1')).toBeNull();
     expect(utils.queryByTestId('repeat-until')).toBeNull();
     fireEvent.press(utils.getByTestId('startDate'));
-    fireEvent.press(utils.getByTestId('repeats-weekly'));
+    fireEvent.press(utils.getByTestId('event-recurring'));
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    fireEvent.press(utils.getByTestId('event-recurrence-weekly'));
     // Seeded with the first day's own weekday (Saturday).
     expect(utils.getByTestId('repeat-day-6').props.accessibilityState.checked).toBe(true);
     expect(utils.getByTestId('repeat-until')).toBeTruthy();
@@ -980,7 +986,9 @@ describe('NewEventScreen — weekly series', () => {
     const { getByText, getByTestId, queryByTestId } = utils;
     await toWhenStep(utils);
     fireEvent.press(getByTestId('startDate')); // Saturday 1 Aug 2026, 18:00
-    fireEvent.press(getByTestId('repeats-weekly'));
+    fireEvent.press(getByTestId('event-recurring'));
+    fireEvent.press(getByTestId('event-recurrence-trigger'));
+    fireEvent.press(getByTestId('event-recurrence-weekly'));
     fireEvent.press(getByTestId('location-field'));
 
     fireEvent.press(getByTestId('repeat-day-6')); // untick the seeded Saturday
@@ -1003,7 +1011,9 @@ describe('NewEventScreen — weekly series', () => {
       const utils = render(<NewEventScreen />);
       await toWhenStep(utils);
       fireEvent.press(utils.getByTestId('startDate'));
-      fireEvent.press(utils.getByTestId('repeats-weekly'));
+      fireEvent.press(utils.getByTestId('event-recurring'));
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    fireEvent.press(utils.getByTestId('event-recurrence-weekly'));
       fireEvent.press(utils.getByTestId('repeat-until'));
       expect(utils.getByTestId('repeat-until-error')).toBeTruthy();
     } finally {
@@ -1018,7 +1028,7 @@ describe('NewEventScreen — weekly series', () => {
     expect(createEvent).not.toHaveBeenCalled();
     const [input, rule] = jest.mocked(createEventSeries).mock.calls[0]!;
     expect(input).toMatchObject({ title: 'Yoga', endDate: null });
-    expect(rule.weekdays).toEqual([6, 2]);
+    expect(rule).toMatchObject({ frequency: 'weekly', weekdays: [6, 2] });
     expect(rule.until).toEqual(new Date('2026-08-29T00:00'));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/pueblo/evento/yoga_s-0'));
   });
@@ -1086,7 +1096,35 @@ describe('NewEventScreen — editing one occurrence of a series', () => {
     await waitFor(() => expect(getByTestId('organizer-picker')).toBeTruthy());
     fireEvent.press(getByText('common.stepper.next'));
     await waitFor(() => expect(getByTestId('series-edit-notice')).toBeTruthy());
-    expect(queryByTestId('repeats-weekly')).toBeNull();
+    expect(queryByTestId('event-recurring')).toBeNull();
+  });
+
+  it('keeps a private series day private when its organizing orgs change', async () => {
+    (getEvent as jest.Mock).mockResolvedValue({
+      ...OCCURRENCE,
+      organizerOrgIds: ['org-1'],
+      visibility: 'organization',
+      visibilityOrgId: 'org-1',
+    });
+    jest.mocked(updateEvent).mockClear();
+    const { getByTestId, queryByTestId, getByLabelText } = render(<NewEventScreen />);
+    await waitFor(() => expect(getByTestId('organizer-picker')).toBeTruthy());
+    // One organizing org would normally offer the switch; a series day does not.
+    expect(queryByTestId('private-to-org')).toBeNull();
+
+    fireEvent.press(getByTestId('pick-two-orgs'));
+    fireEvent.changeText(getByLabelText('event.title'), 'Yoga al aire libre');
+    // Edit mode reaches every step; the primary button saves from the last one.
+    fireEvent.press(getByTestId('event-form-primary'));
+    fireEvent.press(getByTestId('event-form-primary'));
+    fireEvent.press(getByTestId('event-form-primary'));
+    await waitFor(() => expect(updateEvent).toHaveBeenCalled());
+    expect(jest.mocked(updateEvent).mock.calls[0]?.[1]).toMatchObject({
+      title: 'Yoga al aire libre',
+      organizerOrgIds: ['org-1', 'org-2'],
+      visibility: 'organization',
+      visibilityOrgId: 'org-1',
+    });
   });
 
   it('cancels this day and the following ones on request', async () => {
@@ -1103,5 +1141,309 @@ describe('NewEventScreen — editing one occurrence of a series', () => {
       ),
     );
     spy.mockRestore();
+  });
+});
+
+describe('NewEventScreen — monthly and yearly events, and the group checklist', () => {
+  beforeEach(() => {
+    jest.mocked(createEvent).mockClear();
+    jest.mocked(createEventSeries).mockClear();
+    const { createGroupTasks } = jest.requireMock('@cultuvilla/shared/services/groupTaskService') as {
+      createGroupTasks: jest.Mock;
+    };
+    createGroupTasks.mockClear();
+    mockMyGroups.current = [];
+    mockUntil.current = '2026-08-29T00:00';
+  });
+
+  afterEach(() => {
+    delete mockParams.copyFrom;
+    delete mockParams.villageId;
+  });
+
+  async function toWhenStep(utils: ReturnType<typeof render>) {
+    const { getByText, getByLabelText, getByTestId } = utils;
+    await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());
+    fireEvent.changeText(getByLabelText('event.title'), 'Fiestas');
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('startDate')).toBeTruthy());
+  }
+
+  async function toDetailsStep(utils: ReturnType<typeof render>, recurrence: 'monthly' | 'yearly' | null) {
+    await toWhenStep(utils);
+    const { getByText, getByTestId } = utils;
+    fireEvent.press(getByTestId('startDate')); // Saturday 1 Aug 2026, 18:00
+    if (recurrence) {
+      fireEvent.press(getByTestId('event-recurring'));
+      fireEvent.press(getByTestId('event-recurrence-trigger'));
+      fireEvent.press(getByTestId(`event-recurrence-${recurrence}`));
+    }
+    if (recurrence === 'monthly') fireEvent.press(getByTestId('repeat-until'));
+    fireEvent.press(getByTestId('location-field'));
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('signup-enabled')).toBeTruthy());
+  }
+
+  const createGroupTasksMock = () =>
+    (jest.requireMock('@cultuvilla/shared/services/groupTaskService') as { createGroupTasks: jest.Mock })
+      .createGroupTasks;
+
+  it('creates a monthly series on the first day of the month it falls on', async () => {
+    const utils = render(<NewEventScreen />);
+    await toWhenStep(utils);
+    fireEvent.press(utils.getByTestId('startDate'));
+    fireEvent.press(utils.getByTestId('event-recurring'));
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    fireEvent.press(utils.getByTestId('event-recurrence-monthly'));
+    // No weekday row on a monthly event.
+    expect(utils.getByTestId('event-recurrence-monthly-hint')).toBeTruthy();
+    expect(utils.queryByTestId('repeat-day-1')).toBeNull();
+    fireEvent.press(utils.getByTestId('repeat-until'));
+    fireEvent.press(utils.getByTestId('location-field'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    await waitFor(() => expect(utils.getByTestId('signup-enabled')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    await waitFor(() => expect(createEventSeries).toHaveBeenCalledTimes(1));
+    const [, rule] = jest.mocked(createEventSeries).mock.calls[0]!;
+    expect(rule).toEqual({ frequency: 'monthly', until: new Date('2026-08-29T00:00') });
+  });
+
+  it('creates a yearly event as one edition, with no last date to pick', async () => {
+    const utils = render(<NewEventScreen />);
+    await toWhenStep(utils);
+    fireEvent.press(utils.getByTestId('event-recurring'));
+    // Yearly is the default once the event recurs, shown on the field's right.
+    expect(within(utils.getByTestId('event-recurrence-trigger')).getByText('event.frequencyOption.yearly')).toBeTruthy();
+    expect(utils.getByTestId('event-recurrence-yearly-hint')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    expect(utils.getByText('event.frequencyDescription.weekly')).toBeTruthy();
+    expect(utils.getByText('event.frequencyDescription.monthly')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-recurrence-yearly'));
+    expect(utils.queryByTestId('event-recurrence')).toBeNull();
+    expect(utils.queryByTestId('repeat-until')).toBeNull();
+    fireEvent.press(utils.getByTestId('startDate'));
+    fireEvent.press(utils.getByTestId('location-field'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    await waitFor(() => expect(utils.getByTestId('signup-enabled')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
+    expect(createEventSeries).not.toHaveBeenCalled();
+    expect(jest.mocked(createEvent).mock.calls[0]![0]).toMatchObject({ repeatsYearly: true });
+  });
+
+  it('offers a checklist only for an organizing group the creator belongs to', async () => {
+    mockMyGroups.current = [{ org: { id: 'org-9', name: 'Otra' }, role: 'admin' }];
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByTestId('organizer-picker')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('pick-one-org'));
+    await toDetailsStep(utils, null);
+    expect(utils.queryByTestId('tasks-enabled')).toBeNull();
+  });
+
+  it('offers it to a plain member of the organizing group too', async () => {
+    mockMyGroups.current = [{ org: { id: 'org-1', name: 'Peña' }, role: 'member' }];
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByTestId('organizer-picker')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('pick-one-org'));
+    await toDetailsStep(utils, null);
+    expect(utils.getByTestId('tasks-enabled')).toBeTruthy();
+  });
+
+  it("asks a yearly event's tasks for a month and writes them to the group, back every year", async () => {
+    mockMyGroups.current = [{ org: { id: 'org-1', name: 'Peña' }, role: 'admin' }];
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByTestId('organizer-picker')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('pick-one-org'));
+    await toDetailsStep(utils, 'yearly');
+    fireEvent.press(utils.getByTestId('tasks-enabled'));
+    fireEvent.press(utils.getByTestId('event-form-primary')); // Next: the Tareas step
+    await waitFor(() => expect(utils.getByTestId('event-task-title-0')).toBeTruthy());
+    fireEvent.changeText(utils.getByTestId('event-task-title-0'), 'Contratar la orquesta');
+    expect(utils.getByTestId('event-tasks-month-error')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    expect(createEvent).not.toHaveBeenCalled();
+
+    fireEvent.press(utils.getByTestId('event-task-month-0-trigger'));
+    fireEvent.press(utils.getByTestId('event-task-month-0-options-3'));
+    fireEvent.press(utils.getByTestId('event-task-add'));
+    fireEvent.press(utils.getByTestId('event-task-remove-1'));
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+
+    await waitFor(() => expect(createGroupTasksMock()).toHaveBeenCalledTimes(1));
+    const [orgId, inputs, uid] = createGroupTasksMock().mock.calls[0]!;
+    expect(orgId).toBe('org-1');
+    expect(uid).toBe('uid-1');
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]).toMatchObject({
+      title: 'Contratar la orquesta',
+      eventId: 'e-1',
+      recurrence: { kind: 'calendar', unit: 'year', interval: 1 },
+    });
+    expect(inputs[0].dueOn).toMatch(/^\d{4}-03-31$/);
+  });
+
+  it("dates a one-off event's tasks by an optional day and drops blank rows", async () => {
+    mockMyGroups.current = [{ org: { id: 'org-1', name: 'Peña' }, role: 'admin' }];
+    mockUntil.current = '2026-07-20T00:00';
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByTestId('organizer-picker')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('pick-one-org'));
+    await toDetailsStep(utils, null);
+    fireEvent.press(utils.getByTestId('tasks-enabled'));
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    await waitFor(() => expect(utils.getByTestId('event-task-title-0')).toBeTruthy());
+    expect(utils.queryByTestId('event-task-month-0')).toBeNull();
+    fireEvent.changeText(utils.getByTestId('event-task-title-0'), 'Comprar bebida');
+    fireEvent.press(utils.getByTestId('event-task-date-0'));
+    fireEvent.press(utils.getByTestId('event-task-add'));
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+
+    await waitFor(() => expect(createGroupTasksMock()).toHaveBeenCalledTimes(1));
+    expect(createGroupTasksMock().mock.calls[0]![1]).toEqual([
+      { title: 'Comprar bebida', dueOn: '2026-07-20', eventId: 'e-1' },
+    ]);
+  });
+
+  it('asks which group when the creator administers two of the organizers', async () => {
+    mockMyGroups.current = [
+      { org: { id: 'org-1', name: 'Peña' }, role: 'admin' },
+      { org: { id: 'org-2', name: 'Asociación' }, role: 'admin' },
+    ];
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByTestId('organizer-picker')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('pick-two-orgs'));
+    await toDetailsStep(utils, null);
+    fireEvent.press(utils.getByTestId('tasks-enabled'));
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    await waitFor(() => expect(utils.getByTestId('event-tasks-group')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('event-tasks-group-trigger'));
+    fireEvent.press(utils.getByTestId('event-tasks-group-options-org-2'));
+    fireEvent.changeText(utils.getByTestId('event-task-title-0'), 'Montar el escenario');
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    await waitFor(() => expect(createGroupTasksMock()).toHaveBeenCalledTimes(1));
+    expect(createGroupTasksMock().mock.calls[0]![0]).toBe('org-2');
+  });
+
+  it.each([
+    ['monthly', { repeatsMonthly: true, repeatsYearly: false, repeatDateVaries: true }],
+    ['yearly', { repeatsMonthly: false, repeatsYearly: true, repeatDateVaries: true }],
+  ] as const)('creates a %s event with a varying date as one edition, asking only for the next date', async (recurrence, flags) => {
+    const utils = render(<NewEventScreen />);
+    await toWhenStep(utils);
+    fireEvent.press(utils.getByTestId('startDate'));
+    fireEvent.press(utils.getByTestId('event-recurring'));
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    fireEvent.press(utils.getByTestId(`event-recurrence-${recurrence}`));
+    fireEvent.press(utils.getByTestId('event-date-mode-trigger'));
+    expect(utils.getByTestId('event-date-mode')).toBeTruthy();
+    expect(utils.getByText('event.dateModeDescription.varying')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-date-mode-varying'));
+    expect(utils.getByTestId('event-date-varies-hint')).toBeTruthy();
+    expect(utils.getByText('event.nextDateTime')).toBeTruthy();
+    expect(utils.queryByTestId('repeat-until')).toBeNull();
+    fireEvent.press(utils.getByTestId('location-field'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    await waitFor(() => expect(utils.getByTestId('signup-enabled')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
+    expect(createEventSeries).not.toHaveBeenCalled();
+    expect(jest.mocked(createEvent).mock.calls[0]![0]).toMatchObject(flags);
+  });
+
+  it('offers no date choice on a weekly event', async () => {
+    const utils = render(<NewEventScreen />);
+    await toWhenStep(utils);
+    fireEvent.press(utils.getByTestId('event-recurring'));
+    expect(utils.getByTestId('event-date-mode-trigger')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    fireEvent.press(utils.getByTestId('event-recurrence-weekly'));
+    expect(utils.queryByTestId('event-date-mode-trigger')).toBeNull();
+  });
+
+  it('repeats a varying-date event with everything filled in but the date', async () => {
+    mockParams.copyFrom = 'taller-1';
+    mockParams.villageId = 'm-1';
+    (getEvent as jest.Mock).mockResolvedValue({
+      id: 'taller-1',
+      municipalityId: 'm-1',
+      title: 'Taller de bolillos',
+      description: '',
+      startDate: new Date('2026-08-14T20:00'),
+      endDate: new Date('2026-08-14T22:00'),
+      location: null,
+      maxAttendees: null,
+      telephoneRequired: false,
+      requiresPayment: false,
+      signupGroupSize: 1,
+      minBirthYear: null,
+      maxBirthYear: null,
+      signupEnabled: true,
+      signupInfo: null,
+      attendeesVisibility: 'members',
+      signupFields: [],
+      organizerUserIds: ['u-1'],
+      organizerOrgIds: [],
+      visibilityOrgId: null,
+      imageURL: null,
+      repeatsYearly: false,
+      repeatsMonthly: true,
+      repeatDateVaries: true,
+    });
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByLabelText('event.title').props.value).toBe('Taller de bolillos'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    await waitFor(() => expect(utils.getByTestId('startDate')).toBeTruthy());
+    expect(utils.getByTestId('startDate-value').props.children).toBe('');
+    expect(within(utils.getByTestId('event-recurrence-trigger')).getByText('event.frequencyOption.monthly')).toBeTruthy();
+    expect(within(utils.getByTestId('event-date-mode-trigger')).getByText('event.dateModeOption.varying')).toBeTruthy();
+    expect(utils.getByTestId('event-date-varies-hint')).toBeTruthy();
+    expect(utils.queryByTestId('repeat-until')).toBeNull();
+  });
+
+  it("prefills next year's edition from a yearly event, a year later, keeping its flyer", async () => {
+    mockParams.copyFrom = 'fiestas-2026';
+    mockParams.villageId = 'm-1';
+    (getEvent as jest.Mock).mockResolvedValue({
+      id: 'fiestas-2026',
+      municipalityId: 'm-1',
+      title: 'Fiestas de agosto',
+      description: 'Las de siempre',
+      startDate: new Date('2026-08-14T20:00'),
+      endDate: new Date('2026-08-17T23:00'),
+      location: { coordinates: { lat: 1, lng: 2 }, displayName: 'Plaza' },
+      maxAttendees: null,
+      telephoneRequired: false,
+      requiresPayment: false,
+      signupGroupSize: 1,
+      signupEnabled: false,
+      signupInfo: 'Entrada libre',
+      attendeesVisibility: 'members',
+      signupFields: [],
+      organizerUserIds: ['uid-2'],
+      organizerOrgIds: [],
+      visibilityOrgId: null,
+      repeatsYearly: true,
+      imageURL: 'https://img/cartel.jpg',
+      minBirthYear: null,
+      maxBirthYear: null,
+    });
+    const utils = render(<NewEventScreen />);
+    await waitFor(() => expect(utils.getByLabelText('event.title').props.value).toBe('Fiestas de agosto'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    await waitFor(() => expect(utils.getByTestId('startDate')).toBeTruthy());
+    expect(utils.getByTestId('startDate-value').props.children).toBe(new Date('2027-08-14T20:00').toISOString());
+    expect(utils.getByTestId('event-recurrence-yearly-hint')).toBeTruthy();
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    await waitFor(() => expect(utils.getByTestId('signup-enabled')).toBeTruthy());
+    fireEvent.press(utils.getByTestId('event-form-primary'));
+    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
+    expect(jest.mocked(createEvent).mock.calls[0]![0]).toMatchObject({
+      title: 'Fiestas de agosto',
+      repeatsYearly: true,
+      imageURL: 'https://img/cartel.jpg',
+      endDate: new Date('2027-08-17T23:00'),
+      organizerUserIds: ['uid-1', 'uid-2'],
+      signupEnabled: false,
+    });
   });
 });

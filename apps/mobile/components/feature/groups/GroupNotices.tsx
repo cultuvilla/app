@@ -1,93 +1,81 @@
-import { useEffect, useMemo, useRef } from 'react';
-import type { GroupNotificationPrefsData } from '@cultuvilla/shared/models/notification';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   castGroupPollVote,
   markGroupMessageRead,
-  setGroupMessagesMuted,
-  watchGroupNotificationPrefs,
-  watchMyGroupMessageReads,
-  watchMyGroupMessages,
   watchMyGroupPollVotes,
-  type GroupMessage,
-  type GroupMessageRead,
   type GroupPollVote,
 } from '@cultuvilla/shared/services/groupMessageService';
+import { personalizeGroupMessage } from '@cultuvilla/shared/models/organization';
 import { formatDate } from '@cultuvilla/shared/utils';
-import { Card, Pressable, Text, Toggle, VStack } from '../../primitives';
-import { DetailSectionHeading } from '../DetailSectionHeading';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
+import { Card, HStack, Pressable, Text, VStack } from '../../primitives';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
-
-/** Pinned first, then newest. */
-function noticeOrder(a: GroupMessage, b: GroupMessage): number {
-  if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-  return b.sentAt.getTime() - a.sentAt.getTime();
-}
+import { groupAvisoHref } from '../../../lib/navigation/routes';
+import { useGroupChatUnread } from '../../../lib/orgs/useGroupChatUnread';
+import { useGroupNotices } from '../../../lib/orgs/useGroupNotices';
+import { useMyMessageValues } from '../../../lib/orgs/useMyMessageValues';
 
 /**
- * The member's side of messaging, on the group home: the notices that reached
- * them — pinned ones on top — each marked read once shown, with its poll to
+ * The member's side of messaging, on the group's notices screen: the notices that reached
+ * them, newest first, each marked read once shown, with its poll to
  * answer; and the switch that mutes this group's message pushes.
  */
-export function GroupNotices({ orgId, uid }: { orgId: string; uid: string }) {
+export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string; empty?: ReactNode }) {
   const { t } = useT();
-  const messages = useWatch<GroupMessage[]>('groups:watchMyGroupMessages', `${orgId}|${uid}`, (next, error) =>
-    watchMyGroupMessages(orgId, uid, next, error),
-  );
-  const notices = useMemo(() => [...(messages.data ?? [])].sort(noticeOrder), [messages.data]);
-  const ids = useMemo(() => notices.map((m) => m.id), [notices]);
-  const idsKey = ids.join(',');
+  const { notices, status, readsStatus, readIds } = useGroupNotices(orgId, uid);
+  const myValues = useMyMessageValues(orgId, uid);
+  const noticeIds = useMemo(() => notices.map((m) => m.id), [notices]);
+  const { unreadAvisoIds } = useGroupChatUnread(orgId, uid, noticeIds);
   const pollIds = useMemo(() => notices.filter((m) => m.poll).map((m) => m.id), [notices]);
   const pollKey = pollIds.join(',');
-  const reads = useWatch<GroupMessageRead[]>(
-    'groups:watchMyGroupMessageReads',
-    ids.length > 0 ? `${orgId}|${uid}|${idsKey}` : null,
-    ids.length > 0 ? (next, error) => watchMyGroupMessageReads(orgId, uid, ids, next, error) : null,
-  );
   const votes = useWatch<GroupPollVote[]>(
     'groups:watchMyGroupPollVotes',
     pollIds.length > 0 ? `${orgId}|${uid}|${pollKey}` : null,
     pollIds.length > 0 ? (next, error) => watchMyGroupPollVotes(orgId, uid, pollIds, next, error) : null,
   );
-  const prefs = useWatch<GroupNotificationPrefsData | null>('groups:watchGroupNotificationPrefs', `${uid}|${orgId}`, (next, error) =>
-    watchGroupNotificationPrefs(uid, orgId, next, error),
-  );
 
-  const readIds = useMemo(() => new Set((reads.data ?? []).map((r) => r.id)), [reads.data]);
   const voteOf = useMemo(() => new Map((votes.data ?? []).map((v) => [v.id, v.option])), [votes.data]);
   // Shown is read: mark each unread notice once, while its read list is loaded.
   const marked = useRef(new Set<string>());
   useEffect(() => {
-    if (reads.status !== 'ready') return;
+    if (readsStatus !== 'ready') return;
     for (const m of notices) {
       if (readIds.has(m.id) || m.sentBy === uid || marked.current.has(m.id)) continue;
       marked.current.add(m.id);
       void markGroupMessageRead(orgId, m.id, uid).catch(() => marked.current.delete(m.id));
     }
-  }, [reads.status, notices, readIds, orgId, uid]);
+  }, [readsStatus, notices, readIds, orgId, uid]);
 
-  if (messages.status !== 'ready' || notices.length === 0) return null;
+  if (status !== 'ready') return null;
+  if (notices.length === 0) return empty ? <>{empty}</> : null;
 
   return (
     <VStack gap={2} testID="group-notices">
-      <DetailSectionHeading>{t('groups.messages.noticesTitle')}</DetailSectionHeading>
       {notices.map((m) => {
-        const fresh = reads.status === 'ready' && !readIds.has(m.id) && m.sentBy !== uid;
+        const fresh = readsStatus === 'ready' && !readIds.has(m.id) && m.sentBy !== uid;
         const myVote = voteOf.get(m.id);
+        const text = personalizeGroupMessage({ title: m.title, body: m.body }, myValues);
         return (
           <Card key={m.id} testID={`group-notice-${m.id}`}>
             <VStack gap={1}>
-              {m.pinned || fresh ? (
+              {fresh ? (
                 <Text variant="caption" className="text-accent font-bold">
-                  {[m.pinned ? t('groups.messages.pinnedBadge') : null, fresh ? t('groups.messages.newBadge') : null].filter(Boolean).join(' · ')}
+                  {t('groups.messages.newBadge')}
                 </Text>
               ) : null}
-              <Text className="font-bold">{m.title}</Text>
-              <Text selectable>{m.body}</Text>
-              <Text variant="caption" tone="muted">
-                {t('groups.messages.sentBy', { name: m.signerName, date: formatDate(m.sentAt) })}
-              </Text>
+              <Pressable testID={`group-notice-open-${m.id}`} accessibilityRole="button" onPress={() => router.push(groupAvisoHref(orgId, m.id))}>
+                <VStack gap={1}>
+                  <Text className="font-bold">{text.title}</Text>
+                  <Text>{text.body}</Text>
+                  <Text variant="caption" tone="muted">
+                    {formatDate(m.sentAt, 'dayMonthShort')}
+                  </Text>
+                </VStack>
+              </Pressable>
               {m.poll ? (
                 <VStack gap={1} className="pt-2" testID={`group-notice-poll-${m.id}`}>
                   <Text className="font-bold">{m.poll.question}</Text>
@@ -115,23 +103,23 @@ export function GroupNotices({ orgId, uid }: { orgId: string; uid: string }) {
                   </Text>
                 </VStack>
               ) : null}
+              <Pressable
+                testID={`group-notice-chat-${m.id}`}
+                accessibilityRole="button"
+                onPress={() => router.push(groupAvisoHref(orgId, m.id))}
+                className="pt-2"
+              >
+                <HStack gap={1} align="center">
+                  <Ionicons name="chatbubble-ellipses-outline" size={iconSizes.sm} color={colors.light.fg.accent} />
+                  <Text variant="bodySm" className="text-accent font-bold">
+                    {t(unreadAvisoIds.has(m.id) ? 'groups.chat.openNew' : 'groups.chat.open')}
+                  </Text>
+                </HStack>
+              </Pressable>
             </VStack>
           </Card>
         );
       })}
-      {prefs.status === 'ready' ? (
-        <VStack gap={1}>
-          <Toggle
-            testID="group-notices-mute"
-            value={prefs.data?.messagesMuted ?? false}
-            label={t('groups.messages.mute')}
-            onValueChange={(muted) => void setGroupMessagesMuted(uid, orgId, muted).catch(() => showAlert(t('groups.messages.muteError')))}
-          />
-          <Text variant="caption" tone="muted">
-            {t('groups.messages.muteHint')}
-          </Text>
-        </VStack>
-      ) : null}
     </VStack>
   );
 }

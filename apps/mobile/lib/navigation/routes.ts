@@ -5,6 +5,11 @@ import {
   entityPath,
   eventLinkTarget,
   festivalPosterLinkTarget,
+  groupAvisoPath,
+  groupEventPath,
+  groupTaskPath,
+  groupPath,
+  groupSectionPath,
   newWordPath,
   orgJoinPath,
   personPath,
@@ -15,6 +20,7 @@ import {
   wordPath,
   wrappedPath,
   type EntityLinkTarget,
+  type GroupSection,
   type UrlEntityKind,
   type VillageSection,
 } from '@cultuvilla/shared/utils';
@@ -65,6 +71,18 @@ export function myVillageHref(villageId?: string): HrefPath {
 }
 
 export const villageHref = (villageSlug: string): HrefPath => href(villagePath(villageSlug));
+
+/** The Grupos tab, opened on one group. */
+export const groupHref = (orgId: string): HrefPath => href(groupPath(orgId));
+
+/** One aviso and its chat. */
+export const groupAvisoHref = (orgId: string, messageId: string): HrefPath => href(groupAvisoPath(orgId, messageId));
+
+export const groupEventHref = (orgId: string, eventId: string): HrefPath => href(groupEventPath(orgId, eventId));
+
+export const groupTaskHref = (orgId: string, taskId: string): HrefPath => href(groupTaskPath(orgId, taskId));
+
+export const groupSectionHref = (orgId: string, section: GroupSection): HrefPath => href(groupSectionPath(orgId, section));
 
 export const villageSectionHref = (villageSlug: string, section: VillageSection, query?: string): HrefPath =>
   href(`${villageSectionPath(villageSlug, section)}${query ? `?${query}` : ''}`);
@@ -122,7 +140,8 @@ export const personHref = (personId: string, query?: string): HrefPath =>
 export const userHref = (uid: string): HrefPath => href(userPath(uid));
 
 /** Create-or-edit screens take their subject as query params, not a path. */
-export function createEventHref(params: { villageId?: string; eventId?: string } = {}): HrefPath {
+/** `copyFrom` opens the create form prefilled from that event: its next edition. */
+export function createEventHref(params: { villageId?: string; eventId?: string; copyFrom?: string; organizerOrgId?: string } = {}): HrefPath {
   return href(`/crear/evento${toQuery(params)}`);
 }
 
