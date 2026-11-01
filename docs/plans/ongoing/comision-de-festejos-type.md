@@ -2,7 +2,7 @@
 
 **Priority:** medium
 **Landed:** none
-**Gate:** step 1 live in prod and reached by OTA; step 2 then needs the user to run a breaking release (Play managed publishing, `pnpm release:publish`)
+**Gate:** soak:step 1 live in prod and delivered by OTA — then step 2 is a breaking release the user runs (Play managed publishing, `pnpm release:publish`)
 **Next:** step 2 — offer `comisión` in `PROPOSABLE_ORGANIZATION_TYPES`, `OrgRequestFormSchema`, the `entidades.tsx` aliases and the rules' create/update type lists, with a `Breaking-Client:` trailer
 
 Decided 2026-11-01 (user): add a `comisión` organization type, labelled
