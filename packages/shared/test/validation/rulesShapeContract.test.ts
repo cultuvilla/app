@@ -103,7 +103,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     ruleKeys: [
       'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
       'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
-      'commentCount', 'readCount', 'memberCount', 'followerCount', 'membersPublic', 'joinPolicy', 'sociosListVisible',
+      'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy', 'sociosListVisible',
       'chatAdminsOnly',
     ],
   },

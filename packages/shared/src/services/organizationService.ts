@@ -146,7 +146,6 @@ export async function requestOrganization(
     commentCount: 0,
     readCount: 0,
     memberCount: 0,
-    followerCount: 0,
     membersPublic: input.membersPublic ?? true,
     joinPolicy: 'approval',
     sociosListVisible: input.sociosListVisible ?? false,

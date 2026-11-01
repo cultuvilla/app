@@ -287,15 +287,6 @@ service cloud.firestore {
           && isTimestamp(d.createdAt);
     }
 
-    function isValidOrgFollowerCreate(d, orgId, userId) {
-      return d.keys().hasOnly(['userId', 'orgId', 'municipalityId', 'createdAt'])
-          && d.keys().hasAll(['userId', 'orgId', 'municipalityId', 'createdAt'])
-          && d.userId == userId
-          && d.orgId == orgId
-          && d.municipalityId == orgMunicipalityId(orgId)
-          && isTimestamp(d.createdAt);
-    }
-
     function isValidOrgMemberCreate(d) {
       return d.keys().hasOnly(['userId', 'joinedAt', 'role'])
           && d.keys().hasAll(['userId', 'joinedAt', 'role'])
@@ -308,7 +299,7 @@ service cloud.firestore {
       return d.keys().hasOnly([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
-              'commentCount', 'readCount', 'memberCount', 'followerCount', 'membersPublic', 'joinPolicy',
+              'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
               'sociosListVisible', 'chatAdminsOnly',
             ])
           && d.keys().hasAll([
@@ -330,7 +321,6 @@ service cloud.firestore {
           && d.commentCount == 0
           && d.readCount == 0
           && d.memberCount == 0
-          && d.get('followerCount', 0) == 0
           && d.membersPublic is bool
           // Installed binaries still send `open`; approveOrganization overwrites
           // it, so no approved org is ever open.
@@ -1654,7 +1644,7 @@ service cloud.firestore {
             || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']
                 && request.resource.data.type in ['peña', 'asociación', 'otros', 'comisión']))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-             'commentCount', 'readCount', 'memberCount', 'followerCount',
+             'commentCount', 'readCount', 'memberCount',
              'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
            ]);
       allow delete: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
@@ -2017,22 +2007,6 @@ service cloud.firestore {
           || isOrgAdmin(orgId)
           || isVillageAdmin(orgMunicipalityId(orgId))
           || isAppAdmin();
-      }
-
-      // Following a group: a free tap, no approval, and no tie to the roster.
-      // Who follows is not public — the count on the org doc is what the pueblo
-      // sees. `followerCount` is function-owned (syncOrgFollowerCount).
-      match /followers/{userId} {
-        allow read: if isOwner(userId)
-          || isOrgAdmin(orgId)
-          || isVillageAdmin(orgMunicipalityId(orgId))
-          || isAppAdmin();
-        allow create: if isOwner(userId)
-          && isValidOrgFollowerCreate(request.resource.data, orgId, userId)
-          && get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'approved'
-          && !isOrgMember(orgId);
-        allow update: if false;
-        allow delete: if isOwner(userId);
       }
     }
 
