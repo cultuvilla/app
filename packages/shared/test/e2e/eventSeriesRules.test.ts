@@ -238,4 +238,25 @@ describe('firestore.rules — monthly series and yearly events', () => {
     await assertFails(updateDoc(doc(db, 'events/existing'), { repeatsYearly: true }));
     await assertSucceeds(updateDoc(doc(db, 'events/fiestas'), { repeatsYearly: false }));
   });
+
+  it('accepts a varying date only on one yearly or monthly edition', async () => {
+    const db = asUser(getEnv(), 'member');
+    const single = occurrence('member', null);
+    await assertSucceeds(setDoc(doc(db, 'events/v0'), { ...single, repeatsYearly: true, repeatDateVaries: true }));
+    await assertSucceeds(setDoc(doc(db, 'events/v1'), { ...single, repeatsMonthly: true, repeatDateVaries: true }));
+    // A monthly event on a fixed day is a series, and nothing else varies.
+    await assertFails(setDoc(doc(db, 'events/v2'), { ...single, repeatsMonthly: true }));
+    await assertFails(setDoc(doc(db, 'events/v3'), { ...single, repeatDateVaries: true }));
+    await assertFails(
+      setDoc(doc(db, 'events/v4'), { ...single, repeatsYearly: true, repeatsMonthly: true, repeatDateVaries: true }),
+    );
+    await assertFails(
+      setDoc(doc(db, 'events/v5'), {
+        ...occurrence('member', series({ id: 'v5' })),
+        repeatsMonthly: true,
+        repeatDateVaries: true,
+      }),
+    );
+    await assertFails(setDoc(doc(db, 'events/v6'), { ...single, repeatsMonthly: 'yes', repeatDateVaries: true }));
+  });
 });

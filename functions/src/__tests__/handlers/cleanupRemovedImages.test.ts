@@ -67,6 +67,12 @@ describe('ownedImagePaths', () => {
     expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.events, data, { entityId: 'e1' }).size).toBe(0);
   });
 
+  it("never claims a monthly event's cover, which the next edition reuses", () => {
+    const path = 'municipalities/m1/events/e1/image/x.jpg';
+    const data = { imageURL: url(path), series: null, repeatsMonthly: true };
+    expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.events, data, { entityId: 'e1' }).size).toBe(0);
+  });
+
   it('never claims an image stored under another entity', () => {
     // A copied URL or another entity's upload is not this doc's to delete.
     const foreign = [

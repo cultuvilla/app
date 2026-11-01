@@ -764,11 +764,18 @@ service cloud.firestore {
       );
     }
 
-    // A yearly event is one edition, never a series. Optional: binaries that
-    // predate it never send the field.
-    function isValidRepeatsYearly(d) {
-      return d.get('repeatsYearly', false) is bool
-        && (d.get('repeatsYearly', false) == false || d.get('series', null) == null);
+    // A yearly event, or a monthly one whose date varies, is one edition, never
+    // a series. A monthly one on a fixed day IS a series, so `repeatsMonthly`
+    // always varies. Optional: binaries that predate them never send the fields.
+    function isValidRepeat(d) {
+      let yearly = d.get('repeatsYearly', false);
+      let monthly = d.get('repeatsMonthly', false);
+      let varies = d.get('repeatDateVaries', false);
+      return yearly is bool && monthly is bool && varies is bool
+        && !(yearly && monthly)
+        && (!(yearly || monthly) || d.get('series', null) == null)
+        && (!monthly || varies)
+        && (!varies || yearly || monthly);
     }
 
     // Who may put an occurrence into a series. The first occurrence (index 0)
@@ -812,7 +819,7 @@ service cloud.firestore {
               'imageURL', 'maxAttendees', 'telephoneRequired', 'requiresPayment',
               'signupFields', 'signupEnabled', 'signupInfo', 'attendeesVisibility', 'signupGroupSize',
               'minBirthYear', 'maxBirthYear',
-              'visibility', 'visibilityOrgId', 'series', 'repeatsYearly',
+              'visibility', 'visibilityOrgId', 'series', 'repeatsYearly', 'repeatsMonthly', 'repeatDateVaries',
               'status', 'organizerUserIds', 'organizerOrgIds', 'createdBy',
               'createdAt', 'updatedAt', 'municipalityId', 'villageName', 'villageSlug',
               'villageCoverImage', 'villageCoordinates',
@@ -885,7 +892,7 @@ service cloud.firestore {
           // Optional, not in hasAll: binaries that predate weekly series never
           // send it, and their creates must keep working.
           && isValidEventSeries(d, d.get('series', null))
-          && isValidRepeatsYearly(d)
+          && isValidRepeat(d)
           && d.status in ['published', 'cancelled', 'completed']
           && d.organizerUserIds is list
           && d.organizerOrgIds is list
@@ -2038,7 +2045,7 @@ service cloud.firestore {
         && isAdditiveSignupFieldsChange(resource.data, request.resource.data)
         && isFrozenGroupSizeChange(resource.data, request.resource.data)
         && isValidVisibilityChange(resource.data, request.resource.data)
-        && isValidRepeatsYearly(request.resource.data)
+        && isValidRepeat(request.resource.data)
         // A series shares one visibility: "este y los siguientes" finds its
         // siblings within it, and a day made private on its own would split it.
         && (resource.data.get('series', null) == null

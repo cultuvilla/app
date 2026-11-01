@@ -118,14 +118,30 @@ describe('EventDetailScreen', () => {
     const { findByTestId, queryByTestId } = render(<EventDetailScreen />);
     expect(await findByTestId('event-series-summary')).toHaveTextContent('event.yearlySummary');
     // Not an organizer: nothing to repeat.
-    expect(queryByTestId('event-repeat-next-year')).toBeNull();
+    expect(queryByTestId('event-repeat-next')).toBeNull();
   });
 
   it("lets an organizer repeat a yearly event once it is over, into next year's form", async () => {
     mockCanEdit.current = true;
     setWatched('event', { ...EVENT, series: null, repeatsYearly: true, startDate: new Date('2025-08-14T20:00:00Z') });
     const { findByTestId } = render(<EventDetailScreen />);
-    fireEvent.press(await findByTestId('event-repeat-next-year'));
+    fireEvent.press(await findByTestId('event-repeat-next'));
+    expect(mockPush).toHaveBeenCalledWith('/crear/evento?copyFrom=e1&villageId=m1');
+  });
+
+  it('says a monthly event varies, and repeats it next month', async () => {
+    mockCanEdit.current = true;
+    setWatched('event', {
+      ...EVENT,
+      series: null,
+      repeatsMonthly: true,
+      repeatDateVaries: true,
+      startDate: new Date('2025-08-14T20:00:00Z'),
+    });
+    const { findByTestId, getByText } = render(<EventDetailScreen />);
+    expect(await findByTestId('event-series-summary')).toHaveTextContent('event.monthlySummary');
+    expect(getByText('event.repeatNextMonth')).toBeTruthy();
+    fireEvent.press(await findByTestId('event-repeat-next'));
     expect(mockPush).toHaveBeenCalledWith('/crear/evento?copyFrom=e1&villageId=m1');
   });
 
@@ -134,7 +150,7 @@ describe('EventDetailScreen', () => {
     setWatched('event', { ...EVENT, series: null, repeatsYearly: true, startDate: new Date('2099-08-14T20:00:00Z') });
     const { findByTestId, queryByTestId } = render(<EventDetailScreen />);
     await findByTestId('event-series-summary');
-    expect(queryByTestId('event-repeat-next-year')).toBeNull();
+    expect(queryByTestId('event-repeat-next')).toBeNull();
   });
 
   it('shows the not-found state for an event that does not exist', async () => {
