@@ -56,6 +56,7 @@ const ORG_TYPE: Readonly<Partial<Record<string, string>>> = {
   peña: 'Peña',
   asociación: 'Asociación',
   otros: 'Entidad',
+  comisión: 'Comisión de festejos',
 };
 const TERM_KIND: Readonly<Partial<Record<string, string>>> = {
   palabra: 'Palabra',
@@ -157,6 +158,7 @@ export function villagePage(v: Village, home: VillageHome | null, others: Card[]
 ${section('Eventos', home.events)}
 ${section('Noticias', home.news)}
 ${section('Carteles de fiestas', home.posters, villageSectionPath(v.slug, 'carteles'))}
+${section('Comisión de festejos', home.comisiones, villageSectionPath(v.slug, 'entidades'))}
 ${section('Peñas y asociaciones', home.orgs, villageSectionPath(v.slug, 'entidades'))}
 ${section('Lugares', home.places, villageSectionPath(v.slug, 'lugares'))}
 ${section('Barrios', home.barrios, villageSectionPath(v.slug, 'barrios'))}

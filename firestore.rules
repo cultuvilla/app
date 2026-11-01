@@ -338,10 +338,10 @@ service cloud.firestore {
     }
 
     // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
-    // Only peñas, asociaciones and otros keep one; the ayuntamiento has none.
+    // Only peñas, asociaciones, otros and comisiones keep one; the ayuntamiento has none.
     function orgHasSocioRoster(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.type
-        in ['peña', 'asociación', 'otros'];
+        in ['peña', 'asociación', 'otros', 'comisión'];
     }
     // "Los estatutos permiten ver la lista de socios" — names only, never contact.
     function orgSociosListVisible(orgId) {

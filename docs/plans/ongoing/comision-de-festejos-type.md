@@ -1,6 +1,9 @@
 # Comisión de festejos group type
 
 **Priority:** medium
+**Landed:** none
+**Gate:** step 1 live in prod and reached by OTA; step 2 then needs the user to run a breaking release (Play managed publishing, `pnpm release:publish`)
+**Next:** step 2 — offer `comisión` in `PROPOSABLE_ORGANIZATION_TYPES`, `OrgRequestFormSchema`, the `entidades.tsx` aliases and the rules' create/update type lists, with a `Breaking-Client:` trailer
 
 Decided 2026-11-01 (user): add a `comisión` organization type, labelled
 "Comisión de festejos". Closes OQ-4 in [business-rules.md](../../business-rules.md)
@@ -46,7 +49,8 @@ themselves).
 - `VillageHomeBody.tsx`, `ProfileView.tsx`, read site (`functions/src/web/`)
 - `docs/business-rules.md` OQ-4, `docs/decisions/` record once shipped
 
-## Gate
+## Step 1 (expand) — done in code
 
-Do not start until the uncommitted "tasks for everyone" work in the develop
-checkout has landed: it edits `firestore.rules`, `es.json` and the group screens.
+The enum knows `comisión` and reads any unknown type as `otros`; the roster tier,
+rules' `orgHasSocioRoster`, labels and the home sections (app and read site) know it.
+Rules still refuse creating or switching to one — that opening is step 2.

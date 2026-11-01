@@ -5,7 +5,7 @@ import {
   type ReviewStatus,
 } from '../core/ReviewableDataModel';
 
-export const OrganizationTypeSchema = z.enum(['ayuntamiento', 'peña', 'asociación', 'otros']);
+export const OrganizationTypeSchema = z.enum(['ayuntamiento', 'peña', 'asociación', 'otros', 'comisión']);
 export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
 
 /**
@@ -36,7 +36,10 @@ export const OrganizationDataSchema = z.object({
   /** Public download URLs for the organization's pictures (max 5). `images[0]`
    *  is the hero/cover shown in the detail scaffold. */
   images: z.array(z.string()).max(5),
-  type: OrganizationTypeSchema,
+  // A type this build doesn't know reads as `otros`: one unknown type in a
+  // village would otherwise make the strict converter throw and blank that
+  // village's whole group list on every installed binary older than the type.
+  type: OrganizationTypeSchema.catch('otros'),
   municipalityId: z.string(),
   /** The village's permanent URL slug, denormalized so a card can link without a read. */
   villageSlug: z.string(),

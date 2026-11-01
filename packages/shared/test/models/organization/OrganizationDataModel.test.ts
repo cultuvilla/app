@@ -36,6 +36,15 @@ describe('OrganizationDataSchema', () => {
     expect(() => OrganizationDataSchema.parse({ ...validOrg, status: 'archived' })).toThrow();
   });
 
+  it('parses a comisión de festejos', () => {
+    expect(OrganizationDataSchema.parse({ ...validOrg, type: 'comisión' }).type).toBe('comisión');
+  });
+
+  // An installed binary must not blank a village's group list over a type added after it.
+  it('reads a type it does not know as otros', () => {
+    expect(OrganizationDataSchema.parse({ ...validOrg, type: 'cofradía' }).type).toBe('otros');
+  });
+
   it('requires images on the persisted shape', () => {
     const { images: _omit, ...rest } = validOrg;
     expect(() => OrganizationDataSchema.parse(rest)).toThrow();

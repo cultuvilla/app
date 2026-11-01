@@ -547,6 +547,7 @@
     "hub": {
       "events": "Eventos",
       "organizations": "Grupos",
+      "comisiones": "Comisión de festejos",
       "penas": "Peñas",
       "censo": "Censo",
       "news": "Anuncios",
@@ -1053,6 +1054,7 @@
     "peña": "Peña",
     "asociación": "Asociación",
     "otros": "Otros",
+    "comisión": "Comisión de festejos",
     "requestOrg": "Solicitar grupo",
     "submitRequest": "Enviar solicitud",
     "pending": "Pendiente",

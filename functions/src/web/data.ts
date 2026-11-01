@@ -648,6 +648,7 @@ export interface VillageHome {
   events: Card[];
   news: Card[];
   posters: Card[];
+  comisiones: Card[];
   orgs: Card[];
   places: Card[];
   barrios: Card[];
@@ -679,7 +680,8 @@ export async function loadVillageHome(db: Firestore, bucket: string, v: Village,
     events: orderEvents(events, now).slice(0, HOME_LIMIT).map((e) => eventCard(e, slug)),
     news: news.map((n) => newsCard(n, slug)),
     posters: posters.slice(0, HOME_LIMIT).map((p) => posterCard(p, slug)),
-    orgs: orgs.slice(0, HOME_LIMIT).map((o) => orgCard(o, slug)),
+    comisiones: orgs.filter((o) => o.type === 'comisión').slice(0, HOME_LIMIT).map((o) => orgCard(o, slug)),
+    orgs: orgs.filter((o) => o.type !== 'comisión').slice(0, HOME_LIMIT).map((o) => orgCard(o, slug)),
     places: places.slice(0, HOME_LIMIT).map((p) => placeCard(p, slug)),
     barrios: barrios.slice(0, HOME_LIMIT).map((b) => barrioCard(b, slug)),
     history: history.slice(0, HOME_LIMIT).map((h) => historyCard(h, slug)),
