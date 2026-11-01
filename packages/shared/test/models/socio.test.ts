@@ -13,6 +13,7 @@ describe('hasSocioRoster', () => {
     expect(hasSocioRoster('asociación')).toBe(true);
     expect(hasSocioRoster('peña')).toBe(true);
     expect(hasSocioRoster('otros')).toBe(true);
+    expect(hasSocioRoster('comisión')).toBe(true);
     expect(hasSocioRoster('ayuntamiento')).toBe(false);
   });
 });

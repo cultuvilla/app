@@ -9,7 +9,21 @@ const mockRemember = jest.fn().mockResolvedValue(undefined);
 let mockRemembered: string | null = null;
 let mockUnread = 0;
 let mockNotices: { id: string; title: string; body: string; pinned: boolean; signerName: string; sentAt: Date; sentBy: string }[] = [];
-let mockMyTasks: { id: string; title: string; dueOn: string | null; time: string | null; slots: number | null; claimedUids: string[] }[] = [];
+type TaskRow = {
+  id: string;
+  title: string;
+  dueOn: string | null;
+  time: string | null;
+  slots: number | null;
+  claimedUids: string[];
+  assigneeUids: string[];
+  eventId: string | null;
+};
+const task = (over: Partial<TaskRow> & { id: string }): TaskRow => ({
+  title: 'Comprar leña', dueOn: null, time: null, slots: null, claimedUids: [], assigneeUids: [], eventId: null, ...over,
+});
+let mockMyTasks: TaskRow[] = [];
+let mockOpenTasks: TaskRow[] = [];
 
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
@@ -29,7 +43,15 @@ jest.mock('../../../lib/orgs/useGroupNotices', () => ({
 jest.mock('../../../lib/orgs/useMyOpenTasks', () => ({ useMyOpenTasks: () => ({ mine: mockMyTasks, shifts: [], status: 'ready' }) }));
 let mockEvents: { id: string; title: string; startDate: Date; endDate: Date | null; confirmedCount: number; imageURL: null; villageCoverImage: null; villageSlug: string }[] = [];
 jest.mock('../../../lib/hooks/useWatch', () => ({
-  useWatch: (label: string) => ({ data: label.includes('Events') ? mockEvents : [], status: 'ready', error: null }),
+  useWatch: (label: string) => ({
+    data: label.includes('Events') ? mockEvents : label.includes('OpenGroupTasks') ? mockOpenTasks : [],
+    status: 'ready',
+    error: null,
+  }),
+}));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({ watchOpenGroupTasks: jest.fn() }));
+jest.mock('../../../lib/orgs/useOrgMembers', () => ({
+  useMemberFaces: () => ({ a1: { name: 'Ana', photoURL: null }, a2: { name: 'Blas', photoURL: null } }),
 }));
 const NO_CUOTA = { cuota: null, periodKey: null as string | null, rows: [] as { id: string; kind: string }[], payments: [], statuses: [] as { socioId: string; status: string }[], settled: true };
 let mockCuota = NO_CUOTA;
@@ -43,17 +65,11 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock('../../../components/layout/AppHeader', () => ({
-  AppHeader: ({ centerLabel, onLabelPress, extraRightSlot }: { centerLabel: string; onLabelPress?: () => void; extraRightSlot?: ReactNode }) => {
-    const { Pressable, Text } = jest.requireActual<typeof import('react-native')>('react-native');
+  AppHeader: ({ centerLabel, extraRightSlot }: { centerLabel: string; extraRightSlot?: ReactNode }) => {
+    const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
     return (
       <>
-        {onLabelPress ? (
-          <Pressable testID="group-switcher-open" onPress={onLabelPress}>
-            <Text>{centerLabel}</Text>
-          </Pressable>
-        ) : (
-          <Text testID="header-label">{centerLabel}</Text>
-        )}
+        <Text testID="header-label">{centerLabel}</Text>
         {extraRightSlot}
       </>
     );
@@ -81,6 +97,7 @@ beforeEach(() => {
   mockRemembered = null;
   mockUnread = 0;
   mockMyTasks = [];
+  mockOpenTasks = [];
   mockNotices = [];
   mockEvents = [];
   mockCuota = NO_CUOTA;
@@ -103,13 +120,15 @@ describe('Grupos tab', () => {
     expect(queryByTestId('group-switcher-open')).toBeNull();
   });
 
-  it('reopens the last-used group and switches from the header sheet', async () => {
+  it("reopens the last-used group and switches from the arrow beside the group's name", async () => {
     mockGroups = [group('Anduela'), group('Peña')];
     mockRemembered = 'Peña';
     const { findByTestId, getByTestId, getAllByText, getByText, queryByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     // The home's title names the group; the header just says Grupos.
     expect(getAllByText('Peña')).toHaveLength(1);
+    expect(getByTestId('header-label').props.children).toBe('tabs.groups');
+    expect(getByTestId('group-switcher-open')).toHaveTextContent(/^Pe/);
     expect(getByText('tabs.groups')).toBeTruthy();
     expect(queryByText('Anduela')).toBeNull();
     fireEvent.press(getByTestId('group-switcher-open'));
@@ -117,7 +136,7 @@ describe('Grupos tab', () => {
     await waitFor(() => expect(mockRemember).toHaveBeenCalledWith('Anduela'));
   });
 
-  it("a member gets buttons for their screens and no Gestionar; each opens the group's screen", async () => {
+  it("a member gets their buttons under Acciones and no admin ones; each opens the group's screen", async () => {
     mockGroups = [group('Anduela')];
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
@@ -125,7 +144,7 @@ describe('Grupos tab', () => {
     for (const s of ['avisos', 'eventos', 'tareas', 'cuota', 'actas', 'mis-datos']) {
       expect(getByTestId(`group-section-${s}`)).toBeTruthy();
     }
-    expect(queryByTestId('group-manage')).toBeNull();
+    expect(getByTestId('group-actions')).toHaveTextContent(/groups\.home\.actions/);
     expect(queryByTestId('group-section-cobros')).toBeNull();
     fireEvent.press(getByTestId('group-section-cuota'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/cuota');
@@ -134,13 +153,50 @@ describe('Grupos tab', () => {
   it('badges the unread notices and my open tasks', async () => {
     mockGroups = [group('Anduela')];
     mockUnread = 2;
-    mockMyTasks = [{ id: 't1', title: 'Comprar leña', dueOn: null, time: null, slots: null, claimedUids: [] }];
+    mockMyTasks = [task({ id: 't1' })];
     const { findByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     expect(getByTestId('group-section-avisos-badge')).toBeTruthy();
     expect(getByTestId('group-section-tareas-badge')).toBeTruthy();
-    // My task also shows in the home's row.
-    expect(getByTestId('group-home-task-t1')).toBeTruthy();
+  });
+
+  it("lists every task the group still has to do, soonest first, with its day, event and people", async () => {
+    mockGroups = [group('Anduela')];
+    mockEvents = [
+      { id: 'e1', title: 'Matanza', startDate: new Date(Date.now() + 86_400_000 * 10), endDate: null, confirmedCount: 3, imageURL: null, villageCoverImage: null, villageSlug: 'v' },
+    ];
+    mockOpenTasks = [
+      task({ id: 'late', title: 'Limpiar', dueOn: null }),
+      task({ id: 'soon', title: 'Comprar vino', dueOn: '2026-12-06', assigneeUids: ['a1', 'a2'], eventId: 'e1' }),
+      task({ id: 'shift', title: 'Barra', dueOn: '2026-12-07', slots: 6, claimedUids: ['a1'] }),
+    ];
+    const { findByTestId, getByTestId, queryByText, getAllByTestId } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    expect(getByTestId('group-home-tasks')).toBeTruthy();
+    const ids = getAllByTestId(/^group-home-task-[a-z]+$/).map((el) => el.props.testID as string);
+    expect(ids).toEqual(['group-home-task-soon', 'group-home-task-shift', 'group-home-task-late']);
+    expect(getByTestId('group-home-task-soon-date')).toHaveTextContent('6 dic');
+    expect(getByTestId('group-home-task-soon-event')).toHaveTextContent('Matanza');
+    expect(getByTestId('group-home-task-soon-people')).toHaveTextContent('AB');
+    // A shift shows who took it, not how many slots are left.
+    expect(getByTestId('group-home-task-shift-people')).toHaveTextContent('A');
+    expect(queryByText('groups.tasks.shift.slots')).toBeNull();
+    expect(getByTestId('group-home-task-late-date')).toHaveTextContent('groups.tasks.noDate');
+    fireEvent.press(getByTestId('group-home-task-soon'));
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/tareas');
+  });
+
+  it('shows only upcoming events under Próximos eventos', async () => {
+    mockGroups = [group('Anduela')];
+    mockEvents = [
+      { id: 'old', title: 'Romería pasada', startDate: new Date(Date.now() - 86_400_000 * 30), endDate: null, confirmedCount: 0, imageURL: null, villageCoverImage: null, villageSlug: 'v' },
+      { id: 'next', title: 'Matanza', startDate: new Date(Date.now() + 86_400_000 * 10), endDate: null, confirmedCount: 0, imageURL: null, villageCoverImage: null, villageSlug: 'v' },
+    ];
+    const { findByTestId, queryByText, getByText } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    expect(getByText('groups.upcomingEvents')).toBeTruthy();
+    expect(getByText('Matanza')).toBeTruthy();
+    expect(queryByText('Romería pasada')).toBeNull();
   });
 
   it('reads like the village home: stats, then rows of notices and events', async () => {
@@ -166,7 +222,7 @@ describe('Grupos tab', () => {
   it('the notice and task cards declare no percentage height (breaks native layout)', async () => {
     mockGroups = [group('Anduela')];
     mockNotices = [{ id: 'm1', title: 'Cena', body: 'El sábado', pinned: false, signerName: 'La junta', sentAt: new Date(), sentBy: 'x' }];
-    mockMyTasks = [{ id: 't1', title: 'Comprar leña', dueOn: null, time: null, slots: null, claimedUids: [] }];
+    mockOpenTasks = [task({ id: 't1' })];
     const { findByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     const classNames: string[] = [];
@@ -193,13 +249,14 @@ describe('Grupos tab', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/cuota');
   });
 
-  it('an admin gets the Gestionar buttons', async () => {
+  it("an admin gets their own buttons after the members' ones, in the same Acciones list", async () => {
     mockGroups = [group('Anduela', { joinPolicy: 'approval' }, 'admin')];
-    const { findByTestId, getByTestId } = render(<GroupsTabScreen />);
-    await findByTestId('group-manage');
-    for (const s of ['cobros', 'mensajes', 'socios', 'gestion-tareas', 'registros', 'miembros', 'ajustes']) {
-      expect(getByTestId(`group-section-${s}`)).toBeTruthy();
-    }
+    const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
+    await findByTestId('group-actions');
+    const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
+    expect(order).toEqual(['avisos', 'eventos', 'tareas', 'cuota', 'mis-datos', 'cobros', 'mensajes', 'socios', 'registros', 'miembros', 'ajustes']);
+    expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
+    expect(getByTestId('group-section-tareas').props.accessibilityHint).toBeUndefined();
     fireEvent.press(getByTestId('group-section-registros'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/registros');
   });
@@ -217,7 +274,7 @@ describe('Grupos tab', () => {
   it('an ayuntamiento has no socio screens', async () => {
     mockGroups = [group('Ayto', { type: 'ayuntamiento' }, 'admin')];
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
-    await findByTestId('group-manage');
+    await findByTestId('group-actions');
     expect(queryByTestId('stub-consent-unanswered')).toBeNull();
     expect(queryByTestId('group-section-cuota')).toBeNull();
     expect(queryByTestId('group-section-cobros')).toBeNull();

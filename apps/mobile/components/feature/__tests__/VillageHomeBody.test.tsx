@@ -5,6 +5,7 @@ import { VillageHomeBody } from '../VillageHomeBody';
 import type { VillageHomeState } from '../../../lib/useVillageHome';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import { buildPlaceData } from '@cultuvilla/shared/models/municipality';
+import { buildOrganizationData, type OrganizationType } from '@cultuvilla/shared/models/organization';
 
 const mockRefreshProfile = jest.fn(async () => undefined);
 let mockUser: { uid: string } | null = { uid: 'u1' };
@@ -291,6 +292,35 @@ describe('VillageHomeBody', () => {
     expect(getByTestId('entity-card-burial-count')).toBeTruthy();
     expect(getByText('4')).toBeTruthy();
     expect(queryByTestId('entity-card-comment-count')).toBeNull();
+  });
+
+  it('gives the comisión de festejos its own section, apart from peñas and the other groups', () => {
+    const org = (id: string, name: string, type: OrganizationType) => ({
+      ...buildOrganizationData({ name, type, status: 'approved', municipalityId: 'm1', villageSlug: 'villa', requestedBy: 'u2' }),
+      id,
+    });
+    const { toJSON } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          organizations: [
+            org('c1', 'Comisión 2026', 'comisión'),
+            org('p1', 'Peña El Frontón', 'peña'),
+            org('a1', 'La Anduela', 'asociación'),
+          ],
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    const texts: string[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof node === 'string') texts.push(node);
+      else if (Array.isArray(node)) node.forEach(walk);
+      else if (node && typeof node === 'object' && 'children' in node) walk((node as { children: unknown }).children);
+    };
+    walk(toJSON());
+    const order = ['La Anduela', 'Comisión de festejos', 'Comisión 2026', 'Peñas', 'Peña El Frontón'];
+    expect(texts.filter((x) => order.includes(x))).toEqual(order);
   });
 
   it('shows event cards with a confirmed-attendee count badge', () => {

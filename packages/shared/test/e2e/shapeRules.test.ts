@@ -256,6 +256,13 @@ describe('shape enforcement — /organizations/{orgId}', () => {
     );
   });
 
+  // Installed binaries can't read a comisión yet; creation opens in step 2 of its rollout.
+  it('rejects a comisión until every supported binary can read one', async () => {
+    await seedMember('m1', 'alice');
+    const alice = asUser(getEnv(), 'alice');
+    await assertFails(setDoc(doc(alice, 'organizations/o1'), { ...validOrg, type: 'comisión' }));
+  });
+
   // ayuntamiento is a singleton per village; clients can't create one directly —
   // it goes through the requestAyuntamiento callable, which enforces the cap.
   it('rejects a client-side ayuntamiento create', async () => {

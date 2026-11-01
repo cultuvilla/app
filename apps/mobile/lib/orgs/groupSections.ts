@@ -16,7 +16,6 @@ export const GROUP_SECTION_ICONS: Record<GroupSection, IconName> = {
   socios: 'people-outline',
   cobros: 'cash-outline',
   mensajes: 'mail-outline',
-  'gestion-tareas': 'list-outline',
   registros: 'library-outline',
   miembros: 'person-add-outline',
   ajustes: 'settings-outline',
@@ -30,7 +29,8 @@ export interface GroupSectionLists {
 /**
  * Which screens a group offers its viewer, in display order. Cuota, socios,
  * messaging and records exist only for orgs with a socio roster (not the
- * ayuntamiento); tasks and members are for every org. An admin reads the actas
+ * ayuntamiento); tasks and members are for every org, and every member manages
+ * the tasks, so they have no Gestionar button. An admin reads the actas
  * and the socio list under Gestionar, so the member list leaves them out.
  */
 export function groupSections({ org, role }: MyGroup): GroupSectionLists {
@@ -48,7 +48,6 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
   const admin: GroupSection[] = isAdmin
     ? [
         ...(roster ? (['cobros', 'mensajes', 'socios'] as const) : []),
-        'gestion-tareas',
         ...(roster ? (['registros'] as const) : []),
         'miembros',
         ...(roster ? (['ajustes'] as const) : []),

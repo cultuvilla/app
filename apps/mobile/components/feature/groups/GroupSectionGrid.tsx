@@ -6,29 +6,35 @@ import { Pressable, Text } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 import { GROUP_SECTION_ICONS } from '../../../lib/orgs/groupSections';
 
-/** A group's screens as a grid of buttons, three to a row, each with an optional count badge. */
+/**
+ * A group's screens as a grid of buttons, three to a row, each with an
+ * optional count badge. `adminSections` follow the member ones, tinted in the
+ * secondary colour so an admin tells their own tools apart.
+ */
 export function GroupSectionGrid({
   sections,
+  adminSections = [],
   badges = {},
   onOpen,
-  admin = false,
 }: {
   sections: GroupSection[];
+  adminSections?: GroupSection[];
   badges?: Partial<Record<GroupSection, number>>;
   onOpen: (section: GroupSection) => void;
-  admin?: boolean;
 }) {
   const { t } = useT();
-  const tint = admin ? colors.light.fg.secondary : colors.light.fg.accent;
+  const tiles = [...sections.map((s) => ({ section: s, admin: false })), ...adminSections.map((s) => ({ section: s, admin: true }))];
   return (
     <View className="flex-row flex-wrap -mx-1">
-      {sections.map((section) => {
+      {tiles.map(({ section, admin }) => {
+        const tint = admin ? colors.light.fg.secondary : colors.light.fg.accent;
         const badge = badges[section] ?? 0;
         const label = t(`groups.sections.${section}`);
         return (
           <View key={section} className="w-1/3 p-1">
             <Pressable
               testID={`group-section-${section}`}
+              accessibilityHint={admin ? t('groups.sections.adminHint') : undefined}
               accessibilityRole="button"
               accessibilityLabel={badge > 0 ? t('groups.sections.withCount', { label, count: badge }) : label}
               onPress={() => onOpen(section)}

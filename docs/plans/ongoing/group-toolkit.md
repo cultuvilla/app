@@ -117,13 +117,15 @@ Shipped in one PR (`feat/group-toolkit-phase1`). Later phases build on this mode
 The tab's single scroll became a home plus one screen per feature
 (`feat/grupos-screens`, restyled in `feat/grupos-village-look`): `app/(tabs)/grupos.tsx`
 reads like the village home — the group's picture and name, a `StatsRow` (socios when
-the viewer may read the roster, miembros, eventos), the cuota status, horizontal
-`Section` rows of avisos, events and my tasks — and ends with the button grids
-(`GroupSectionGrid`); each button opens `app/grupos/[grupo]/[seccion].tsx`, which
+the viewer may read the roster, miembros, eventos), avisos first, the cuota status,
+horizontal `Section` rows of próximos eventos and próximas tareas (every open task)
+— and ends with one *Acciones* grid (`GroupSectionGrid`: the member buttons, then an
+admin's own in the secondary colour); each button opens `app/grupos/[grupo]/[seccion].tsx`, which
 renders the existing component (`GroupSectionBody`). Which sections a viewer gets is
 `groupSections` (`lib/orgs/groupSections.ts`); paths are `groupSectionPath` in
-`packages/shared/src/utils/urls.ts`. The switcher is the group's name in the
-header (a sheet, `GroupSwitcherSheet`), on the home and on every section screen;
+`packages/shared/src/utils/urls.ts`. The switcher is an arrow beside the group's
+name on the home, and the group's name on every section screen (a sheet,
+`GroupSwitcherSheet`);
 switching keeps the section when the other group has it. Group notifications
 route to their section (`cuota`, `tareas`, `avisos`); WhatsApp and email links
 keep `/grupos?grupo=` so binaries without these routes still open the tab.
@@ -209,13 +211,15 @@ ayuntamiento included — tasks key on `uid`, not on the socio roster).
     `/grupos?grupo=<orgId>` like `cuota_reminder`), written by
     `groupTaskNotify.ts`; the 10:00 schedule keeps reminders out of quiet hours.
     Push only — no email for tasks.
-- **App:** `MyTasks` on the group home (my open tasks with a tick; upcoming
-  shifts with Me apunto / No puedo / lista de espera — admins also see names);
-  `TasksAdmin` first in Gestionar (open tasks, done this year, per-event
-  checklists of the group's upcoming events with add / apply template / save as
-  template, templates, fair share). Sheets: `TaskSheet`, `TemplateSheet`,
-  `ApplyTemplateSheet`. Member names come from `lib/orgs/useOrgMembers.ts`.
-- **Left for later:** members creating tasks (a setting); a notification when
+- **App:** the home's *Próximas tareas* row shows every open task (day, event,
+  faces of the assignees or a shift's volunteers). The *Tareas* screen is for
+  every member (decided 2026-11-01, user: everyone creates, edits and ticks
+  tasks; admins and the creator delete): upcoming shifts to answer (`MyTasks`
+  `shiftsOnly`), then `GroupTasks` — open tasks, done this year, per-event
+  checklists with add; admins also get apply / save as template, the templates
+  and fair share. Sheets: `TaskSheet`, `TemplateSheet`, `ApplyTemplateSheet`.
+  Member names come from `lib/orgs/useOrgMembers.ts`.
+- **Left for later:** a chat per task; a notification when
   someone is assigned; email reminders for tasks; overdue reminders for unassigned
   tasks (admins see them in the list); a shift reminder more precise than the
   daily run (it lands 24–48 h ahead); editing a template item's notes/time in the
@@ -428,7 +432,7 @@ no backfill.
   used: it logs role changes and approvals, not joins and leaves, so it adds no
   history the roster lacks (rows from before Phase 1's `socio-roster` backfill are
   simply absent).
-- **Asamblea anual:** *suggested*, not created: `TasksAdmin` (prop `suggestAsamblea`)
+- **Asamblea anual:** *suggested*, not created: `GroupTasks` (prop `suggestAsamblea`, admins)
   shows a one-tap "Crear asamblea anual" card while the group has no yearly calendar
   task titled "Asamblea…" (`isAsambleaTask`), open or done this year. It creates a
   Phase 2 task (`asambleaTaskInput`): every year, first on the next 15 March, the

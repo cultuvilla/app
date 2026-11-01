@@ -28,7 +28,7 @@ interface Errors {
 }
 
 /**
- * Admin: create or edit one task — what, when, who, whether it is a volunteer
+ * Any member: create or edit one task — what, when, who, whether it is a volunteer
  * shift (and how many people it needs), and whether it repeats on a fixed date
  * or some time after it was done. A new task can be put on an event's checklist.
  */
@@ -39,6 +39,7 @@ export function TaskSheet({
   task,
   eventId = null,
   members,
+  canDelete = false,
   onClose,
 }: {
   visible: boolean;
@@ -48,6 +49,8 @@ export function TaskSheet({
   task: GroupTask | null;
   eventId?: string | null;
   members: GroupMember[];
+  /** An admin, or whoever created the task. */
+  canDelete?: boolean;
   onClose: () => void;
 }) {
   const { t } = useT();
@@ -157,7 +160,7 @@ export function TaskSheet({
           <Button onPress={save} loading={saving} fullWidth testID="task-save">
             {t('groups.tasks.form.save')}
           </Button>
-          {task ? (
+          {task && canDelete ? (
             <Button variant="ghost" onPress={remove} fullWidth testID="task-delete">
               {t('groups.tasks.form.delete')}
             </Button>

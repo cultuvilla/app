@@ -79,7 +79,7 @@ teacher is ill, without touching the rest.
   same date (usually the wrong day), and a scheduled job doing it (a running
   cost for what one tap does). `cleanupRemovedEventImages` leaves a yearly
   event's cover alone, since the next edition shows it.
-- **The group checklist.** When a group the creator administers organizes the
+- **The group checklist.** When a group the creator belongs to organizes the
   event, the form's last option *Añadir lista de tareas* adds a Tareas step.
   The tasks are ordinary group tasks on the first occurrence (`eventId`). On a
   yearly event each asks for a month instead of a date: due by that month's
