@@ -11,6 +11,7 @@ import { httpsCallable } from 'firebase/functions';
 import {
   addComment,
   deleteComment,
+  getComment,
   getComments,
   getReplies,
   newCommentId,
@@ -46,6 +47,15 @@ describe('commentsService — comments', () => {
     expect(id).toBe(chosen);
     expect(fakeStore()[`comments/${chosen}`]).toBeDefined();
     expect(fakeStore()[`comments/${chosen}`]['id']).toBeUndefined();
+  });
+
+  it('getComment returns the comment, or null once it is gone', async () => {
+    const id = await addComment({
+      entityKind: 'event', entityId: 'e1', municipalityId: 'm1', authorUserId: 'u1', body: 'X',
+    });
+    expect(await getComment(id)).toMatchObject({ id, municipalityId: 'm1', body: 'X' });
+    await deleteComment(id);
+    expect(await getComment(id)).toBeNull();
   });
 
   it('deleteComment removes the comment doc', async () => {

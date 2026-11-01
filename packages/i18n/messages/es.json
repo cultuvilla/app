@@ -111,6 +111,9 @@
       "deleteMessage": "Borrar el mensaje",
       "confirmDeleteMessageTitle": "¿Borrar este mensaje del chat?",
       "deleteMessageError": "No se pudo borrar el mensaje. Puede que ya no exista.",
+      "deleteComment": "Borrar el comentario",
+      "confirmDeleteCommentTitle": "¿Borrar este comentario?",
+      "deleteCommentError": "No se pudo borrar el comentario. Puede que ya no exista.",
       "kind": {
         "chatMessage": "Mensaje de chat",
         "comment": "Comentario",

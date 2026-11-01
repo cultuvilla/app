@@ -9,6 +9,7 @@ import {
   setReportStatus,
   type ContentReport,
 } from '@cultuvilla/shared/services/contentReportService';
+import { deleteComment, getComment } from '@cultuvilla/shared/services/commentsService';
 import { deleteGroupChatMessage } from '@cultuvilla/shared/services/groupChatService';
 import { parseGroupChatMessagePath } from '@cultuvilla/shared/models/organization/GroupChatDataModel';
 import { formatCompactRelativeTime } from '@cultuvilla/shared/utils';
@@ -46,6 +47,15 @@ export function ContentReportsInbox({ municipalityId }: { municipalityId: string
     }
   }
 
+  function removeTarget(report: ContentReport, remove: () => Promise<void>, errorKey: string) {
+    setBusyId(report.id);
+    remove()
+      .then(() => setReportStatus(report.id, 'reviewed'))
+      .then(load)
+      .catch(() => showAlert(t(errorKey)))
+      .finally(() => setBusyId(null));
+  }
+
   // A chat is closed to its moderators, so this is the only place they can act on
   // a message. The words shown are the reporter's copy, hence the confirm quoting them.
   function deleteReportedMessage(report: ContentReport) {
@@ -54,15 +64,32 @@ export function ContentReportsInbox({ municipalityId }: { municipalityId: string
     showConfirm(
       t('admin.reports.confirmDeleteMessageTitle'),
       report.targetText ?? '',
-      () => {
-        setBusyId(report.id);
-        deleteGroupChatMessage(target.orgId, target.threadId, target.chatId)
-          .then(() => setReportStatus(report.id, 'reviewed'))
-          .then(load)
-          .catch(() => showAlert(t('admin.reports.deleteMessageError')))
-          .finally(() => setBusyId(null));
-      },
+      () =>
+        removeTarget(
+          report,
+          () => deleteGroupChatMessage(target.orgId, target.threadId, target.chatId),
+          'admin.reports.deleteMessageError',
+        ),
       { confirmText: t('admin.reports.deleteMessage') },
+    );
+  }
+
+  // The reporter's app supplies both the quote and the id, so the confirm shows the
+  // comment that would actually go, read from the source.
+  async function deleteReportedComment(report: ContentReport) {
+    setBusyId(report.id);
+    const comment = await getComment(report.targetId)
+      .catch(() => null)
+      .finally(() => setBusyId(null));
+    if (comment?.municipalityId !== report.municipalityId) {
+      showAlert(t('admin.reports.deleteCommentError'));
+      return;
+    }
+    showConfirm(
+      t('admin.reports.confirmDeleteCommentTitle'),
+      comment.body,
+      () => removeTarget(report, () => deleteComment(comment.id), 'admin.reports.deleteCommentError'),
+      { confirmText: t('admin.reports.deleteComment') },
     );
   }
 
@@ -111,14 +138,18 @@ export function ContentReportsInbox({ municipalityId }: { municipalityId: string
                 </Text>
               ) : null}
               {item.note ? <Text>{item.note}</Text> : null}
-              {parseGroupChatMessagePath(item.targetId) ? (
+              {item.targetKind === 'comment' ? (
                 <Button
                   variant="secondary"
                   disabled={busyId === item.id}
-                  onPress={() => deleteReportedMessage(item)}
+                  onPress={() =>
+                    parseGroupChatMessagePath(item.targetId)
+                      ? deleteReportedMessage(item)
+                      : void deleteReportedComment(item)
+                  }
                   testID={`admin-report-delete-${item.id}`}
                 >
-                  {t('admin.reports.deleteMessage')}
+                  {t(parseGroupChatMessagePath(item.targetId) ? 'admin.reports.deleteMessage' : 'admin.reports.deleteComment')}
                 </Button>
               ) : null}
               <HStack gap={2}>

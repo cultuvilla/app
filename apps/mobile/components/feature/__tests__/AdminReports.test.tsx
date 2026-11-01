@@ -21,16 +21,22 @@ const mockRedirect = jest.fn((_props: { href: string }) => null);
 jest.mock('expo-router', () => ({ Redirect: (props: { href: string }) => mockRedirect(props) }));
 jest.mock('../../layout/ScreenHeader', () => ({ ScreenHeader: () => null }));
 jest.mock('../LiveOwnerChip', () => ({ LiveOwnerChip: () => null }));
-const report = (id: string, targetText: string | null, targetId = `organizations/o1/chat/${id}`) => ({
-  id, municipalityId: 'mun1', targetKind: 'comment', targetId, targetAuthorUserId: null,
+const report = (id: string, targetText: string | null, targetId = `organizations/o1/chat/${id}`, targetKind = 'comment') => ({
+  id, municipalityId: 'mun1', targetKind, targetId, targetAuthorUserId: null,
   reporterUserId: 'u1', reason: 'harassment', note: null, targetText, status: 'open', createdAt: new Date(),
 });
 jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
   getReportsByMunicipality: () =>
-    Promise.resolve([report('r1', 'Eres un idiota'), report('r2', null), report('r3', null, 'comment1')]),
+    Promise.resolve([report('r1', 'Eres un idiota'), report('r2', null), report('r3', 'Copia del denunciante', 'comment1'), report('r4', null, 'term1', 'vocabularyTerm')]),
   setReportStatus: (...args: unknown[]) => mockSetReportStatus(...args),
 }));
 const mockSetReportStatus = jest.fn((..._args: unknown[]) => Promise.resolve());
+const mockGetComment = jest.fn();
+const mockDeleteComment = jest.fn((..._args: unknown[]) => Promise.resolve());
+jest.mock('@cultuvilla/shared/services/commentsService', () => ({
+  getComment: (...args: unknown[]) => mockGetComment(...args),
+  deleteComment: (...args: unknown[]) => mockDeleteComment(...args),
+}));
 const mockDeleteMessage = jest.fn((..._args: unknown[]) => Promise.resolve());
 jest.mock('@cultuvilla/shared/services/groupChatService', () => ({
   deleteGroupChatMessage: (...args: unknown[]) => mockDeleteMessage(...args),
@@ -62,15 +68,46 @@ describe('AdminReportsScreen', () => {
     await waitFor(() => expect(mockSetReportStatus).toHaveBeenCalledWith('r1', 'reviewed'));
   });
 
-  it('offers no delete for a report of anything but a chat message', async () => {
+  it('confirms a reported comment with its real words, not the copy in the report', async () => {
+    mockGetComment.mockResolvedValueOnce({ id: 'comment1', municipalityId: 'mun1', body: 'Lo que dice de verdad' });
+    const spy = jest.spyOn(Alert, 'alert');
+    const r = render(<AdminReportsScreen />);
+    fireEvent.press(await r.findByTestId('admin-report-delete-r3'));
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    const [title, body, buttons] = spy.mock.calls.at(-1) ?? [];
+    expect(title).toBe('admin.reports.confirmDeleteCommentTitle');
+    expect(body).toBe('Lo que dice de verdad');
+    expect(mockDeleteComment).not.toHaveBeenCalled();
+    act(() => buttons?.[1]?.onPress?.());
+    await waitFor(() => expect(mockDeleteComment).toHaveBeenCalledWith('comment1'));
+    await waitFor(() => expect(mockSetReportStatus).toHaveBeenCalledWith('r3', 'reviewed'));
+    spy.mockRestore();
+  });
+
+  it.each([
+    ['is gone', null],
+    ['belongs to another village', { id: 'comment1', municipalityId: 'mun2', body: 'Otro pueblo' }],
+  ])('deletes nothing when the reported comment %s', async (_name, comment) => {
+    mockDeleteComment.mockClear();
+    mockGetComment.mockResolvedValueOnce(comment);
+    const spy = jest.spyOn(Alert, 'alert');
+    const r = render(<AdminReportsScreen />);
+    fireEvent.press(await r.findByTestId('admin-report-delete-r3'));
+    await waitFor(() => expect(spy.mock.calls.at(-1)?.[0]).toBe('admin.reports.deleteCommentError'));
+    expect(mockDeleteComment).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('offers no delete for a report of anything but a message or a comment', async () => {
     const r = render(<AdminReportsScreen />);
     await r.findByTestId('admin-report-delete-r1');
-    expect(r.queryByTestId('admin-report-delete-r3')).toBeNull();
+    expect(r.queryByTestId('admin-report-delete-r4')).toBeNull();
   });
 
   it('names what was reported instead of showing its internal path', async () => {
     const r = render(<AdminReportsScreen />);
     await r.findByTestId('admin-report-delete-r1');
+    expect(r.getByText('admin.reports.kind.vocabularyTerm')).toBeTruthy();
     expect(r.getAllByText('admin.reports.kind.chatMessage')).toHaveLength(2);
     expect(r.getByText('admin.reports.kind.comment')).toBeTruthy();
     expect(r.queryByText(/organizations\//)).toBeNull();

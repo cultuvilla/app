@@ -1,5 +1,6 @@
 import {
   doc,
+  getDoc,
   getDocs,
   setDoc,
   deleteDoc,
@@ -47,6 +48,11 @@ export async function addComment(input: AddCommentInput): Promise<string> {
     }),
   );
   return ref.id;
+}
+
+export async function getComment(commentId: string): Promise<(CommentData & { id: string }) | null> {
+  const snap = await getDoc(commentDoc(getDb(), commentId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
 export async function deleteComment(commentId: string): Promise<void> {
