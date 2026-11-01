@@ -130,7 +130,8 @@ export const personHref = (personId: string, query?: string): HrefPath =>
 export const userHref = (uid: string): HrefPath => href(userPath(uid));
 
 /** Create-or-edit screens take their subject as query params, not a path. */
-export function createEventHref(params: { villageId?: string; eventId?: string } = {}): HrefPath {
+/** `copyFrom` opens the create form prefilled from that event, a year later. */
+export function createEventHref(params: { villageId?: string; eventId?: string; copyFrom?: string } = {}): HrefPath {
   return href(`/crear/evento${toQuery(params)}`);
 }
 

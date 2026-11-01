@@ -39,7 +39,7 @@ import { buildNameWithNickname } from '@cultuvilla/shared/models/person/PersonDa
 import { formatDate, buildGoogleCalendarUrl } from '@cultuvilla/shared/utils';
 import { useT } from '../../../lib/i18n';
 import { useWatch } from '../../../lib/hooks/useWatch';
-import { isPrivateEvent } from '@cultuvilla/shared/models/event/EventDataModel';
+import { eventEndBoundary, isPrivateEvent } from '@cultuvilla/shared/models/event/EventDataModel';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import type { PersonData } from '@cultuvilla/shared/models/person/PersonDataModel';
 import type { MunicipalityData } from '@cultuvilla/shared/models/municipality';
@@ -207,10 +207,24 @@ export default function EventDetailScreen() {
               />
             ) : null}
           </HStack>
-          {event.series ? (
+          {event.series || event.repeatsYearly ? (
             <VStack gap={2}>
               <DetailSectionHeading>{t('event.seriesLabel')}</DetailSectionHeading>
-              <Text testID="event-series-summary">{seriesSummary(event.series, t)}</Text>
+              <Text testID="event-series-summary">
+                {event.series ? seriesSummary(event.series, event.startDate, t) : t('event.yearlySummary')}
+              </Text>
+              {/* Next year's date is not known when the fiestas are created, so
+                  only this edition exists; once it is over its organizers copy
+                  it forward, dates moved a year and still editable. */}
+              {event.repeatsYearly && canOrganize && eventEndBoundary(event) < new Date() ? (
+                <Button
+                  variant="secondary"
+                  onPress={() => router.push(createEventHref({ copyFrom: event.id, villageId: event.municipalityId }))}
+                  testID="event-repeat-next-year"
+                >
+                  {t('event.repeatNextYear')}
+                </Button>
+              ) : null}
             </VStack>
           ) : null}
           {/* Advertised birth-year window. Shown before the sign-up sheet so the

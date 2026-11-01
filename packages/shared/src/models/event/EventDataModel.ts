@@ -113,6 +113,11 @@ export const EventDataSchema = z.object({
   // through the strict converter (existing docs are backfilled to null by
   // `event-series`). Immutable after create — firestore.rules refuses a change.
   series: EventSeriesSchema.nullable().default(null),
+  // A yearly event (las fiestas): only this year's edition exists, since next
+  // year's date is not known yet; its organizers repeat it once it has passed.
+  // Never on a series. `.default(false)` for events that predate it
+  // (backfilled by `event-recurrence`) and for binaries that never send it.
+  repeatsYearly: z.boolean().default(false),
   status: EventStatusSchema,
   organizerUserIds: z.array(z.string()),
   organizerOrgIds: z.array(z.string()),
@@ -171,6 +176,7 @@ export interface EventDataInput {
   visibility?: EventVisibility;
   visibilityOrgId?: string | null;
   series?: EventSeries | null;
+  repeatsYearly?: boolean;
   status?: EventStatus;
   organizerUserIds: string[];
   organizerOrgIds: string[];
@@ -213,6 +219,7 @@ export function buildEventData(input: EventDataInput): EventData {
     visibility,
     visibilityOrgId,
     series: input.series ?? null,
+    repeatsYearly: (input.repeatsYearly ?? false) && !input.series,
     status: input.status ?? 'published',
     organizerUserIds: input.organizerUserIds,
     organizerOrgIds: input.organizerOrgIds,

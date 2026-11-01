@@ -58,6 +58,35 @@ teacher is ill, without touching the rest.
   docs, so replacing the first day's cover cannot delete the image its siblings
   still show; the cost is a few orphaned files in Storage.
 
+## Monthly series and yearly events (2026-11)
+
+- **"Evento recurrente" offers Semanal / Mensual / Anual.** Weekly is unchanged.
+- **Monthly is a series too**, `series.frequency: 'monthly'` (absent means
+  weekly: binaries before it never send the field, and the `event-recurrence`
+  backfill writes it on existing series). It repeats on the first day's day of
+  the month, a missing day (the 31st in April) falling on the month's last,
+  for at most `MAX_MONTHLY_SERIES_DAYS` (366) — 13 occurrences. It still
+  stores its first day's weekday in `weekdays`, because older binaries'
+  converters require one; they show it as a weekly series until they update.
+  The rules apply the cap by frequency and make occurrences restate the
+  root's frequency.
+- **Yearly is not a series.** Next year's date of las fiestas is not known
+  when they are created, so only this edition exists, flagged
+  `repeatsYearly: true` (never together with `series`). Once it is over, its
+  organizers get *Repetir el año que viene* on the detail screen: the create
+  form prefilled from it (`copyFrom`), dates a year later and editable, last
+  year's flyer reused. Rejected: creating next year's edition up front on the
+  same date (usually the wrong day), and a scheduled job doing it (a running
+  cost for what one tap does). `cleanupRemovedEventImages` leaves a yearly
+  event's cover alone, since the next edition shows it.
+- **The group checklist.** When a group the creator administers organizes the
+  event, the form's last option *Añadir lista de tareas* adds a Tareas step.
+  The tasks are ordinary group tasks on the first occurrence (`eventId`). On a
+  yearly event each asks for a month instead of a date: due by that month's
+  end (`monthEndFrom`), recurring every year (`yearlyEventTask`), so the
+  checklist comes back by itself. Assignees and shifts are set afterwards in
+  the group's Tareas screen.
+
 ## Rejected alternatives
 
 - **A rule doc expanded at read time** (virtual occurrences). Every feed query

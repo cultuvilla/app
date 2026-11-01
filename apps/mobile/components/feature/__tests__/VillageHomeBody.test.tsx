@@ -310,6 +310,7 @@ describe('VillageHomeBody', () => {
     visibility: 'public' as const,
     visibilityOrgId: null,
     series: null,
+    repeatsYearly: false,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,
