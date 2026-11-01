@@ -87,11 +87,9 @@ project's `notify` Pub/Sub topic ([publishNotify](functions/src/notify/publishNo
 which the homelab notify-gateway pulls from prod only. Topics and the prod
 subscription: `pnpm notify:setup <project>`.
 
-**A group has seguidores and integrantes.** A *seguidor* follows with a free tap
-(`organizations/{orgId}/followers/{uid}`, private; the pueblo sees
-`organizations.followerCount`), hears about its public events and is not in its
-libro de socios. An *integrante* is a member, `organizations/{orgId}/members/{uid}`,
-and **only an admin makes one**: nobody adds themselves, they file a join request
+**A group has integrantes.** An *integrante* is a member,
+`organizations/{orgId}/members/{uid}`, and **only an admin makes one**: nobody adds
+themselves, they file a join request
 (table above). In a group with a socio roster every integrante is a socio, and any
 group may hold private events, since membership always vets. User-facing copy says
 *integrante*, never *miembro*; the code names stay. Read

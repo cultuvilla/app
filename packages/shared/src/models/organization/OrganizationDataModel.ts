@@ -58,10 +58,6 @@ export const OrganizationDataSchema = z.object({
   // count-aggregate fan-out. Initialized to 0 at create (the founder is seeded
   // by approveOrganization, which fires the trigger).
   memberCount: z.number().int(),
-  // Denormalized follower count, kept in sync by
-  // functions/src/organizations/syncOrgFollowerCount.ts. Who follows is private;
-  // this is what the pueblo sees.
-  followerCount: z.number().int().default(0),
   // When false, the member roster is shown only to joined members (admins
   // included); when true, it is shown to everyone. Display preference, not a
   // security boundary — member identities are world-readable. Default true.
@@ -121,7 +117,6 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     commentCount: 0,
     readCount: 0,
     memberCount: 0,
-    followerCount: 0,
     membersPublic: input.membersPublic ?? true,
     joinPolicy: input.joinPolicy ?? 'approval',
     sociosListVisible: input.sociosListVisible ?? false,

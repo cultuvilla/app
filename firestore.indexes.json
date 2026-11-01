@@ -905,16 +905,6 @@
       ]
     },
     {
-      "collectionGroup": "followers",
-      "fieldPath": "userId",
-      "indexes": [
-        {
-          "queryScope": "COLLECTION_GROUP",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "joinRequests",
       "fieldPath": "userId",
       "indexes": [

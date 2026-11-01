@@ -5,7 +5,6 @@ import {
   adminDoc,
   municipalityMemberDoc,
   organizationDoc,
-  organizationFollowerDoc,
   organizationJoinRequestDoc,
   organizationMemberDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
@@ -76,8 +75,6 @@ export const respondToOrgJoinRequest = onCall<
     tx.delete(requestRef);
     if (decision === 'approved' && !targetSnap.exists) {
       tx.set(targetMemberRef, buildOrgMemberData({ userId, role: 'member' }));
-      // An integrante is no longer a seguidor, and asking made them one.
-      tx.delete(organizationFollowerDoc(db, orgId, userId));
       writeMembershipEvent(tx, db, {
         scopeType: 'org',
         scopeId: orgId,

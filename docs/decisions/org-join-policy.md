@@ -1,7 +1,7 @@
-# How someone belongs to an organization: seguidor or integrante
+# How someone belongs to an organization: integrante
 
-A group has two tiers. A **seguidor** follows it with a free tap. An **integrante**
-is a member, and only an admin makes one. There is no instant self-join.
+An **integrante** is a member of a group, and only an admin makes one. There is no
+instant self-join.
 
 ## Problem
 
@@ -26,18 +26,8 @@ an admin's acceptance.
 - **Private events need membership, nothing else.** Any group may hold them.
   `assertMayJoinEvent` applies the same check to sign-ups, which the Admin SDK writes
   past the rules. Organizers of the event and app admins keep access.
-- **Following lives apart from membership**, at
-  `organizations/{orgId}/followers/{uid}`, so it never touches `members/`, its rules or
-  the roster trigger. Who follows is private (the follower, org, village and app
-  admins); the pueblo sees `organizations.followerCount`, kept by
-  `syncOrgFollowerCount`. A group's new public events reach its followers through the
-  village broadcast (`onEventPublished`), with the same notification id, so a follower
-  who is also a village member hears once.
-- **Asking follows.** `onOrgJoinRequestCreated` follows the group for the requester,
-  so they see its public life while they wait, and they keep following if they are
-  turned away. An approval removes the follow: an integrante already has more.
-- **The ayuntamiento works the same.** Vecinos follow it; its team are the integrantes.
-  It has no socio roster, so nothing else changes.
+- **The ayuntamiento works the same.** Its team are the integrantes. It has no socio
+  roster, so nothing else changes.
 - **Existing members stayed.** The backfill that closed the open groups removed nobody;
   they were already in the libro, and an admin can give a baja to anyone they don't
   recognise.
@@ -65,7 +55,9 @@ release that stopped reading it.
   two classes of member in one org is harder to explain than one way in.
 - **Admin-only private events**: smallest change, but it turns a members' feature into
   an admins' one.
-- **Demoting the members of open groups to seguidores**: writes a baja for each of them
-  into the libro of every open group, for people nobody questioned.
-- **A count aggregate instead of `followerCount`**: it needs list access to `followers/`,
-  which would make who follows public.
+- **Demoting the members of open groups to a lighter tier**: writes a baja for each of
+  them into the libro of every open group, for people nobody questioned.
+- **A seguidor tier, a free tap to follow a group.** Built and removed on 2026-11-01
+  (user) before it left dev: every member of a pueblo already hears about every public
+  event there, so a follow only changed anything for someone outside the pueblo, at the
+  cost of a third way to relate to a group.

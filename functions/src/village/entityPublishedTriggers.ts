@@ -4,7 +4,6 @@ import { getFirestore } from 'firebase-admin/firestore';
 import {
   municipalityDoc,
   municipalityMembersCollection,
-  organizationFollowersCollection,
   userNotificationsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
@@ -23,8 +22,6 @@ export interface BroadcastInput {
   entityLabel: string | null;
   /** Excluded from the fan-out — nobody needs telling about their own post. */
   actorUid: string | null;
-  /** Told as well as the village's members: a follower may live elsewhere. */
-  extraRecipientUids?: readonly string[];
   /** For the log only. */
   handler: string;
 }
@@ -43,7 +40,7 @@ export interface BroadcastInput {
  * codebase knows that push exists.
  */
 export async function broadcastToVillage(input: BroadcastInput): Promise<void> {
-  const { kind, entityId, municipalityId, entityLabel, actorUid, extraRecipientUids = [], handler } = input;
+  const { kind, entityId, municipalityId, entityLabel, actorUid, handler } = input;
 
   // Projection reads: the broadcast needs the village's NAME and the members'
   // IDS, nothing else. `select()` fetches only that — member docs carry profile
@@ -56,8 +53,7 @@ export async function broadcastToVillage(input: BroadcastInput): Promise<void> {
   ]);
 
   if (!village.exists) return;
-  const recipients = new Set([...members.docs.map((m) => m.id), ...extraRecipientUids]);
-  if (recipients.size === 0) return;
+  if (members.empty) return;
 
   const rawName: unknown = village.get('name');
   const villageName = typeof rawName === 'string' && rawName.length > 0 ? rawName : 'tu pueblo';
@@ -68,7 +64,8 @@ export async function broadcastToVillage(input: BroadcastInput): Promise<void> {
   const writer = db.bulkWriter();
   let notified = 0;
 
-  for (const uid of recipients) {
+  for (const member of members.docs) {
+    const uid = member.id;
     if (uid === actorUid) continue;
     void writer.set(
       // Deterministic id: Eventarc delivers at least once, and an approval that
@@ -95,7 +92,6 @@ export async function broadcastToVillage(input: BroadcastInput): Promise<void> {
     entityId,
     municipalityId,
     memberCount: members.size,
-    followerCount: extraRecipientUids.length,
     notifiedCount: notified,
   });
 }
@@ -110,16 +106,6 @@ function str(d: FirebaseFirestore.DocumentData, key: string): string | null {
 /** `active` is the visible state for every moderatable entity; see VisibilityModel. */
 function isVisible(d: FirebaseFirestore.DocumentData): boolean {
   return d['status'] === undefined || d['status'] === 'active';
-}
-
-async function followersOfOrgs(orgIds: unknown): Promise<string[]> {
-  if (!Array.isArray(orgIds)) return [];
-  const snaps = await Promise.all(
-    orgIds
-      .filter((id): id is string => typeof id === 'string')
-      .map((id) => organizationFollowersCollection(db, id).withConverter(null).select().get()),
-  );
-  return snaps.flatMap((snap) => snap.docs.map((d) => d.id));
 }
 
 export const onEventPublished = onDocumentCreated('events/{eventId}', async (event) => {
@@ -143,7 +129,6 @@ export const onEventPublished = onDocumentCreated('events/{eventId}', async (eve
     municipalityId,
     entityLabel: str(d, 'title'),
     actorUid: str(d, 'createdBy'),
-    extraRecipientUids: await followersOfOrgs(d['organizerOrgIds']),
     handler: 'onEventPublished',
   });
 });
