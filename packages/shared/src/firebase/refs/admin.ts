@@ -13,6 +13,7 @@ import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel'
 import { organizationConverterAdmin } from '../converters/organizationConverter.admin';
 import { orgMemberConverterAdmin } from '../converters/orgMemberConverter.admin';
 import { orgJoinRequestConverterAdmin } from '../converters/orgJoinRequestConverter.admin';
+import { orgFollowerConverterAdmin } from '../converters/orgFollowerConverter.admin';
 import {
   cuotaAssignmentConverterAdmin,
   cuotaPaymentConverterAdmin,
@@ -256,6 +257,12 @@ export const organizationChatThreadDoc = (db: Firestore, organizationId: string,
 
 export const organizationChatReadsCollection = (db: Firestore, organizationId: string, threadId: string) =>
   organizationChatThreadDoc(db, organizationId, threadId).collection('reads').withConverter(groupChatReadConverterAdmin);
+
+export const organizationFollowersCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('followers').withConverter(orgFollowerConverterAdmin);
+
+export const organizationFollowerDoc = (db: Firestore, organizationId: string, userId: string) =>
+  db.collection('organizations').doc(organizationId).collection('followers').doc(userId).withConverter(orgFollowerConverterAdmin);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);
