@@ -7,9 +7,7 @@ import {
 } from '@cultuvilla/shared/services/groupMessageService';
 import { useWatch, type WatchStatus } from '../hooks/useWatch';
 
-/** Pinned first, then newest. */
 function noticeOrder(a: GroupMessage, b: GroupMessage): number {
-  if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
   return b.sentAt.getTime() - a.sentAt.getTime();
 }
 

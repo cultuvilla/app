@@ -200,12 +200,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
           onManage={() => open('avisos')}
         >
           {notices.notices.slice(0, 5).map((m) => (
-            <NoticeCard
-              key={m.id}
-              message={m}
-              unread={notices.readsStatus === 'ready' && !notices.readIds.has(m.id) && m.sentBy !== uid}
-              onPress={() => open('avisos')}
-            />
+            <NoticeCard key={m.id} message={m} onPress={() => open('avisos')} />
           ))}
         </Section>
       ) : null}

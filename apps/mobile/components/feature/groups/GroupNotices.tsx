@@ -17,7 +17,7 @@ import { useGroupNotices } from '../../../lib/orgs/useGroupNotices';
 
 /**
  * The member's side of messaging, on the group's notices screen: the notices that reached
- * them — pinned ones on top — each marked read once shown, with its poll to
+ * them, newest first, each marked read once shown, with its poll to
  * answer; and the switch that mutes this group's message pushes.
  */
 export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string; empty?: ReactNode }) {
@@ -57,15 +57,15 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
         return (
           <Card key={m.id} testID={`group-notice-${m.id}`}>
             <VStack gap={1}>
-              {m.pinned || fresh ? (
+              {fresh ? (
                 <Text variant="caption" className="text-accent font-bold">
-                  {[m.pinned ? t('groups.messages.pinnedBadge') : null, fresh ? t('groups.messages.newBadge') : null].filter(Boolean).join(' · ')}
+                  {t('groups.messages.newBadge')}
                 </Text>
               ) : null}
               <Text className="font-bold">{m.title}</Text>
               <Text selectable>{m.body}</Text>
               <Text variant="caption" tone="muted">
-                {t('groups.messages.sentBy', { name: m.signerName, date: formatDate(m.sentAt) })}
+                {formatDate(m.sentAt, 'dayMonthShort')}
               </Text>
               {m.poll ? (
                 <VStack gap={1} className="pt-2" testID={`group-notice-poll-${m.id}`}>

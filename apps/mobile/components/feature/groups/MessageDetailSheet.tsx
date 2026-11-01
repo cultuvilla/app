@@ -11,7 +11,6 @@ import {
 import { normalizeLeadPhone } from '@cultuvilla/shared/models/ambassadorLead';
 import {
   nudgeGroupMessage,
-  setGroupMessagePinned,
   setWhatsappSent,
   watchGroupMessageDeliveries,
   watchGroupMessageReads,
@@ -119,13 +118,6 @@ export function MessageDetailSheet({
             {t('groups.messages.sentBy', { name: message.signerName, date: formatDate(message.sentAt, 'long') })}
           </Text>
           <Text selectable>{message.body}</Text>
-          <Button
-            variant="secondary"
-            onPress={() => void setGroupMessagePinned(orgId, message.id, !message.pinned).catch(fail)}
-            testID="group-msg-detail-pin"
-          >
-            {t(message.pinned ? 'groups.messages.unpin' : 'groups.messages.pin')}
-          </Button>
 
           {inApp.length > 0 ? (
             <Card testID="group-msg-detail-reads">

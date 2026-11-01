@@ -8,32 +8,24 @@ import { Avatar, Card, HStack, Pressable, Text, VStack } from '../../primitives'
 import type { MemberFace } from '../../../lib/orgs/useOrgMembers';
 import { useT } from '../../../lib/i18n';
 
-/** A notice in the group home's Avisos row: what it says, at a glance.
+/** A notice in the group home's Avisos row: its title and text, cut to one
+ * box so every card is the same size, and the day it was sent.
  * The cards fill their row with `flex-1`, never `h-full`: on native Yoga
  * resolves height:100% against the ScrollView viewport, so a card grew
  * without end (same bug as DetailInfoCard). */
-export function NoticeCard({ message, unread, onPress }: { message: GroupMessage; unread: boolean; onPress: () => void }) {
-  const { t } = useT();
-  const badge = [message.pinned ? t('groups.messages.pinnedBadge') : null, unread ? t('groups.messages.newBadge') : null]
-    .filter(Boolean)
-    .join(' · ');
+export function NoticeCard({ message, onPress }: { message: GroupMessage; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-notice-${message.id}`} style={{ width: 260 }}>
       <Card className="flex-1">
-        <VStack gap={1}>
-          {badge ? (
-            <Text variant="caption" className="text-accent font-bold">
-              {badge}
+        <VStack gap={1} className="flex-1">
+          <Text variant="bodySm" numberOfLines={4} className="flex-1" testID={`group-home-notice-${message.id}-text`}>
+            <Text variant="bodySm" className="font-bold">
+              {message.title}
             </Text>
-          ) : null}
-          <Text className="font-bold" numberOfLines={2}>
-            {message.title}
-          </Text>
-          <Text variant="bodySm" numberOfLines={3}>
-            {message.body}
+            {`\n${message.body}`}
           </Text>
           <Text variant="caption" tone="muted" numberOfLines={1}>
-            {t('groups.messages.sentBy', { name: message.signerName, date: formatDate(message.sentAt) })}
+            {formatDate(message.sentAt, 'dayMonthShort')}
           </Text>
         </VStack>
       </Card>

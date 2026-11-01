@@ -210,6 +210,11 @@ describe('Grupos tab', () => {
     expect(getByText('groups.stats.events')).toBeTruthy();
     // A member of a group whose estatutos keep the roster private sees no socio count.
     expect(() => getByText('groups.stats.socios')).toThrow();
+    // A notice card is its title and text, cut at one box, and the day: no pinned badge, no sender.
+    const notice = getByTestId('group-home-notice-m1-text');
+    expect(notice.props.numberOfLines).toBe(4);
+    expect(notice).toHaveTextContent(/Cena\s*El sábado/);
+    expect(getByTestId('group-home-notice-m1')).not.toHaveTextContent(/groups\.messages\.(pinnedBadge|sentBy)|La junta/);
     fireEvent.press(getByTestId('group-home-notice-m1'));
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/avisos');
     expect(getByTestId('group-home-events')).toBeTruthy();
