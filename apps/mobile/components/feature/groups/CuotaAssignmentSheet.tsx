@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
-import { parseEuroCents, type CuotaSettingsData } from '@cultuvilla/shared/models/organization';
+import { cuotaPriceFor, parseEuroCents, type CuotaSettingsData, type PeriodKey } from '@cultuvilla/shared/models/organization';
 import type { CuotaAssignment } from '@cultuvilla/shared/services/cuotaService';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
@@ -31,13 +31,15 @@ export function CuotaAssignmentSheet({
   visible,
   socioName,
   settings,
+  periodKey,
   assignment,
   onSave,
   onClose,
 }: {
   visible: boolean;
   socioName: string;
-  settings: Pick<CuotaSettingsData, 'amountCents' | 'tiers'>;
+  settings: Pick<CuotaSettingsData, 'amountCents' | 'yearAmounts' | 'tiers'>;
+  periodKey: PeriodKey;
   assignment: CuotaAssignment | undefined;
   onSave: (values: AssignmentValues) => Promise<void>;
   onClose: () => void;
@@ -57,8 +59,8 @@ export function CuotaAssignmentSheet({
   }, [visible]);
 
   const options = [
-    { value: GENERAL, label: t('groups.cuota.assignment.general', { amount: centsLabel(settings.amountCents) }) },
-    ...settings.tiers.map((tier) => ({ value: tier.id, label: t('groups.cuota.assignment.tier', { name: tier.name, amount: centsLabel(tier.amountCents) }) })),
+    { value: GENERAL, label: t('groups.cuota.assignment.general', { amount: centsLabel(cuotaPriceFor(settings, periodKey)) }) },
+    ...settings.tiers.map((tier) => ({ value: tier.id, label: t('groups.cuota.assignment.tier', { name: tier.name, amount: centsLabel(cuotaPriceFor(tier, periodKey)) }) })),
     { value: EXEMPT, label: t('groups.cuota.assignment.exempt') },
     { value: CUSTOM, label: t('groups.cuota.assignment.custom') },
   ];

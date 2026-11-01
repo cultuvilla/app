@@ -456,7 +456,7 @@ service cloud.firestore {
     }
     function isValidCuotaSettings(d) {
       return d.keys().hasOnly([
-              'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+              'amountCents', 'yearAmounts', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
               'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
             ])
           && d.keys().hasAll([
@@ -464,6 +464,7 @@ service cloud.firestore {
               'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
             ])
           && isCents(d.amountCents)
+          && (!('yearAmounts' in d) || (d.yearAmounts is list && d.yearAmounts.size() <= 30))
           && d.periodicity in ['yearly', 'monthly']
           && d.dueMonth is int && d.dueMonth >= 1 && d.dueMonth <= 12
           && d.dueDay is int && d.dueDay >= 1 && d.dueDay <= 31
