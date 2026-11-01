@@ -1,5 +1,6 @@
 import {
   doc,
+  getDoc,
   getDocs,
   setDoc,
   deleteDoc,
@@ -15,6 +16,8 @@ import { buildCommentData, type CommentData } from '../models/interaction/Commen
 import type { EntityKind } from '../models/interaction/EntityKind';
 
 export interface AddCommentInput {
+  /** From `newCommentId`, for a caller that shows the comment before the write settles. */
+  id?: string;
   entityKind: EntityKind;
   entityId: string;
   municipalityId: string;
@@ -23,8 +26,15 @@ export interface AddCommentInput {
   parentCommentId?: string | null;
 }
 
+export function newCommentId(): string {
+  return doc(commentsCollection(getDb())).id;
+}
+
+// Resolves on the server's ack, not on the local write: offline, or behind a long
+// write queue, that is arbitrarily late. Don't block a UI on it.
 export async function addComment(input: AddCommentInput): Promise<string> {
-  const ref = doc(commentsCollection(getDb()));
+  const comments = commentsCollection(getDb());
+  const ref = input.id ? doc(comments, input.id) : doc(comments);
   await setDoc(
     ref,
     buildCommentData({
@@ -38,6 +48,11 @@ export async function addComment(input: AddCommentInput): Promise<string> {
     }),
   );
   return ref.id;
+}
+
+export async function getComment(commentId: string): Promise<(CommentData & { id: string }) | null> {
+  const snap = await getDoc(commentDoc(getDb(), commentId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
 export async function deleteComment(commentId: string): Promise<void> {

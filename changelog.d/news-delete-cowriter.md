@@ -1,1 +1,0 @@
-- Fixed: a co-writer of a news article was shown a delete button that did nothing; only the author or a village admin can delete an article, and only they now see the button.

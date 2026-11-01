@@ -52,6 +52,23 @@ describe('syncPublicProfile', () => {
     expect(snap.data()).toEqual({ displayName: 'Ana García', activeMunicipalityId: 'muni-1' });
   });
 
+  it('takes a new phone or email to the groups where it is shared, and only there', async () => {
+    const db = admin.firestore();
+    await db.doc(`organizations/org1/members/${USER_ID}`).set({ userId: USER_ID, joinedAt: new Date(), role: 'member' });
+    await db.doc('organizations/org1/socios/s1').set({
+      kind: 'member', socioNumber: null, displayName: 'Ana', uid: USER_ID, personId: null, responsibleUid: null,
+      adminTitle: null, altaAt: new Date(), bajaAt: null, memberJoinedAt: new Date(), createdBy: USER_ID,
+    });
+    await db.doc('organizations/org1/socioPrivate/s1').set({ phone: '600123456', email: null, consentAnsweredAt: new Date() });
+
+    await fireTrigger(user(), user({ telephone: '+34611000000', email: 'nueva@test' }));
+
+    expect((await db.doc('organizations/org1/socioPrivate/s1').get()).data()).toMatchObject({ phone: '+34611000000', email: null });
+
+    await fireTrigger(user({ telephone: '+34611000000' }), user({ telephone: null }));
+    expect((await db.doc('organizations/org1/socioPrivate/s1').get()).data()).toMatchObject({ phone: '+34611000000' });
+  });
+
   it('defaults a missing displayName and village so the strict converter parses', async () => {
     await fireTrigger(null, { email: 'ana@test', telephone: null });
 

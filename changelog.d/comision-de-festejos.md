@@ -1,0 +1,1 @@
+- New: **Comisión de festejos**, a new kind of group. It works like a peña or an asociación and appears under Grupos, marked as a comisión on its card. Any neighbour can propose one and the village's team approves it; an existing group can switch to it from its edit screen. **Migration:** none. The release raises the minimum app version, because older apps cannot read this type.

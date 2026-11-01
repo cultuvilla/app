@@ -54,7 +54,15 @@ export const ENTITY_IMAGE_SOURCES = {
     handler: 'cleanupRemovedEventImages',
     document: 'events/{entityId}',
     ownedPath: ({ entityId }) => new RegExp(`^municipalities/[^/]+/events/${entityId}/image/[^/]+$`),
-    references: (data) => [data['imageURL']],
+    // Every occurrence of a series points at the cover uploaded under its
+    // first occurrence, and the next edition of a repeating event at the last
+    // one's, so dropping or replacing it must not delete an image another
+    // event still shows. Those covers are left in Storage instead — a few
+    // orphaned files beat broken flyers.
+    references: (data) =>
+      isRecord(data['series']) || data['repeatsYearly'] === true || data['repeatsMonthly'] === true
+        ? []
+        : [data['imageURL']],
   },
   organizations: {
     handler: 'cleanupRemovedOrganizationImages',

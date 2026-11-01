@@ -10,15 +10,7 @@ import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { OrganizerPicker } from '../../components/feature/OrganizerPicker';
 import { Stepper, type StepConfig } from '../../components/feature/Stepper';
 import { DeleteHeaderButton } from '../../components/feature/DeleteHeaderButton';
-import {
-  BlockEditor,
-  editorBlockToNewsText,
-  emptyTextBlock,
-  newBlockId,
-  newsTextToEditorBlock,
-  type EditorBlock,
-  type EditorImageBlock,
-} from '../../components/feature/BlockEditor';
+import { BlockEditor, emptyTextBlock, type EditorBlock } from '../../components/feature/BlockEditor';
 import { pickImageWithSize } from '../../lib/images';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useEntityCapabilities } from '../../lib/auth/useEntityCapabilities';
@@ -33,6 +25,12 @@ import {
   type NewsPostImage,
   type NewsBlock,
 } from '@cultuvilla/shared/models/news/NewsPostDataModel';
+import {
+  editorBlockToNewsText,
+  flattenNewsBody,
+  newBlockId,
+  newsTextToEditorBlock,
+} from '@cultuvilla/shared/models/news/newsEditorBlocks';
 import type { VisibilityStatus } from '@cultuvilla/shared/models';
 
 // The dedicated card cover: either a freshly-picked image (uploaded on submit)
@@ -54,13 +52,9 @@ function stepBody(children: React.ReactNode) {
   );
 }
 
-/** Flatten the text blocks into the legacy plain-text `body` (search/previews). */
+/** The legacy plain-text `body` (search/previews) of the text and heading blocks. */
 function flattenBody(blocks: EditorBlock[]): string {
-  return blocks
-    .filter((b): b is Exclude<EditorBlock, EditorImageBlock> => b.type !== 'image')
-    .map((b) => b.text.trim())
-    .filter(Boolean)
-    .join('\n\n');
+  return flattenNewsBody(blocks.flatMap((b) => (b.type === 'image' ? [] : [editorBlockToNewsText(b)])));
 }
 
 const ACCENT = colors.light.fg.accent;

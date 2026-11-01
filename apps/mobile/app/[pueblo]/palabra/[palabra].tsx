@@ -181,6 +181,7 @@ function VocabularyTermScreen() {
                                   id: term.id,
                                   municipalityId: term.municipalityId,
                                   authorUserId: definition.createdBy,
+                                  text: `${term.term}: ${definition.definition}`,
                                 })
                           }
                           testID={`vocabulary-definition-action-${definition.id}`}

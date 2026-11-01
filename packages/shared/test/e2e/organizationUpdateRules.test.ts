@@ -146,6 +146,13 @@ describe('firestore.rules — /organizations/{orgId} update + delete', () => {
       await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'otros' }));
     });
 
+    it('an org admin can move a group to a comisión and back', async () => {
+      await seedOrgAndMembers();
+      const db = asUser(getEnv(), ORG_ADMIN);
+      await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'comisión' }));
+      await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'asociación' }));
+    });
+
     it('nobody can turn a group into the ayuntamiento', async () => {
       await seedOrgAndMembers();
       for (const db of [asUser(getEnv(), ORG_ADMIN), asUser(getEnv(), VILLAGE_ADMIN), await asAdmin(getEnv(), APP_ADMIN)]) {

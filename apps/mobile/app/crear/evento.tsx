@@ -6,13 +6,26 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams, Redirect } from 'expo-router';
-import { Screen, Text, Input, DateTimeField, FieldLabel, InfoTooltip, Toggle, HStack, VStack, Pressable, ErrorState } from '../../components/primitives';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
+import { Screen, Text, Input, DateField, DateTimeField, FieldLabel, InfoTooltip, Toggle, HStack, VStack, Pressable, ErrorState } from '../../components/primitives';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { EventCoverPicker } from '../../components/feature/EventCoverPicker';
 import { LocationField } from '../../components/feature/LocationField';
 import { MyVillagePicker, type VillageOption } from '../../components/feature/MyVillagePicker';
 import { OrganizerPicker } from '../../components/feature/OrganizerPicker';
 import { SignupQuestionsEditor } from '../../components/feature/signup/SignupQuestionsEditor';
+import { OptionsSheet } from '../../components/feature/groups/OptionsSheet';
+import { SelectField } from '../../components/feature/groups/SelectField';
+import {
+  EventTasksEditor,
+  blankEventTask,
+  eventTasksMissingMonth,
+  type EventTaskDraft,
+} from '../../components/feature/EventTasksEditor';
+import { useMyGroups } from '../../lib/orgs/useMyGroups';
+import { createGroupTasks } from '@cultuvilla/shared/services/groupTaskService';
+import { yearlyEventTask } from '@cultuvilla/shared/models/organization';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
 import { useCallable } from '../../lib/useCallable';
@@ -20,11 +33,18 @@ import { withFirestoreErrorLog } from '../../lib/firestoreErrorLog';
 import { showConfirm } from '../../lib/dialogs';
 import { pickImageAsBlob } from '../../lib/images';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { escudoThumbDisplayUrl } from '@cultuvilla/shared/models/municipality';
 import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberService';
 import { haversineKm } from '@cultuvilla/shared/services/feedService';
-import { createEvent, updateEvent, getEvent, updateEventStatus } from '@cultuvilla/shared/services/eventService';
+import {
+  cancelSeriesFrom,
+  createEvent,
+  createEventSeries,
+  getEvent,
+  setEventsImage,
+  updateEvent,
+  updateEventStatus,
+} from '@cultuvilla/shared/services/eventService';
 import { useEntityCapabilities } from '../../lib/auth/useEntityCapabilities';
 import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
 import type { UploadableImage } from '@cultuvilla/shared/services/imageService';
@@ -37,7 +57,19 @@ import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { Stepper, type StepConfig } from '../../components/feature/Stepper';
 import { DeleteHeaderButton } from '../../components/feature/DeleteHeaderButton';
 import { roundUpToMinuteStep } from '../../lib/date/clockGrid';
-import { MAX_SIGNUP_GROUP_SIZE } from '@cultuvilla/shared/models/event/EventDataModel';
+import {
+  MAX_SIGNUP_GROUP_SIZE,
+  madridDayKey,
+  type EventData,
+  type EventDataInput,
+} from '@cultuvilla/shared/models/event/EventDataModel';
+import {
+  isoWeekday,
+  maxSeriesDays,
+  seriesOccurrences,
+  seriesSpanDays,
+  type SeriesRule,
+} from '@cultuvilla/shared/models/event/EventSeriesModel';
 import {
   MAX_EVENT_BIRTH_YEAR,
   MIN_EVENT_BIRTH_YEAR,
@@ -46,6 +78,26 @@ import {
 /** Every real group size — parejas, tríos, grupos de cuatro. Size 1 isn't a
  *  choice here: it's what the "inscripción por grupos" toggle being off means. */
 const GROUP_SIZE_CHOICES = Array.from({ length: MAX_SIGNUP_GROUP_SIZE - 1 }, (_, i) => i + 2);
+
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
+
+type Recurrence = 'weekly' | 'monthly' | 'yearly';
+const RECURRENCES: readonly Recurrence[] = ['weekly', 'monthly', 'yearly'];
+const DATE_MODES = ['fixed', 'varying'] as const;
+
+/** The same wall-clock moment a year later — the next edition of a yearly event. */
+function nextYear(d: Date): Date {
+  const out = new Date(d);
+  out.setFullYear(out.getFullYear() + 1);
+  return out;
+}
+
+/** `time`'s hour and minute on `day`'s calendar date. */
+function timeOnDay(day: Date, time: Date): Date {
+  const out = new Date(day);
+  out.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  return out;
+}
 
 /** Nearest joined village to a coordinate (by great-circle distance), or null. */
 function nearestVillage(c: LatLng, villages: VillageOption[]): VillageOption | null {
@@ -84,6 +136,52 @@ function stepBody(children: React.ReactNode) {
  * control — the Detalles step is a list of decisions, and spelling each one out
  * inline pushed the controls themselves below the fold.
  */
+/** The label on the left, the current choice on the right; tapping it opens the options. */
+function ChoiceRow<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  testID,
+}: {
+  label: string;
+  value: T;
+  options: readonly { key: T; label: string; description: string }[];
+  onChange: (next: T) => void;
+  testID: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.key === value)?.label ?? '';
+  return (
+    <>
+      <HStack gap={2} className="items-center justify-between">
+        <FieldLabel>{label}</FieldLabel>
+        <Pressable
+          onPress={() => setOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: ${current}`}
+          testID={`${testID}-trigger`}
+          className="flex-row items-center py-1"
+        >
+          <Text className="mr-1 font-semibold">{current}</Text>
+          <Ionicons name="chevron-down" size={iconSizes.sm} color={colors.light.fg.accent} />
+        </Pressable>
+      </HStack>
+      <OptionsSheet
+        visible={open}
+        title={label}
+        options={options.map((o) => ({ ...o, selected: o.key === value }))}
+        onPick={(key) => {
+          onChange(key as T);
+          setOpen(false);
+        }}
+        onClose={() => setOpen(false)}
+        testID={testID}
+      />
+    </>
+  );
+}
+
 function ToggleField({
   label,
   help,
@@ -126,7 +224,15 @@ export default function NewEventScreen() {
   // prefills every field, and saves via updateEvent. Otherwise it creates a new
   // event. A `villageId` param (e.g. from a village's "Próximos eventos" add
   // card) targets that village; otherwise fall back to the user's active one.
-  const { villageId, eventId } = useLocalSearchParams<{ villageId?: string; eventId?: string }>();
+  // A `copyFrom` param (a repeating event's "Repetir el año que viene") creates a
+  // new event prefilled from that one, its dates moved a year.
+  // An `organizerOrgId` param (a group's "Crear evento") starts with that group organizing.
+  const { villageId, eventId, copyFrom, organizerOrgId } = useLocalSearchParams<{
+    villageId?: string;
+    eventId?: string;
+    copyFrom?: string;
+    organizerOrgId?: string;
+  }>();
   const editMode = !!eventId;
 
   const [loading, setLoading] = useState(true);
@@ -159,8 +265,24 @@ export default function NewEventScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(() => roundUpToMinuteStep(new Date(), 5));
-  // Optional multi-day end; null = single-day event.
+  // Optional multi-day end; null = single-day event. For a series only its
+  // time is used — the end of each occurrence's slot, on that same day.
   const [endDate, setEndDate] = useState<Date | null>(null);
+  // Recurrence (create only). A weekly or monthly one is a series: every
+  // occurrence through the last calendar day becomes its own event doc on
+  // submit, weekly ones on the chosen weekdays (ISO 1–7). A yearly one is a
+  // single edition flagged `repeatsYearly`. With `dateVaries` a monthly one is
+  // a single edition too: its next day can't be derived, so there is no series.
+  const [recurring, setRecurring] = useState(false);
+  const [recurrence, setRecurrence] = useState<Recurrence>('yearly');
+  const [dateVaries, setDateVaries] = useState(false);
+  const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([]);
+  const [repeatUntil, setRepeatUntil] = useState<Date | null>(null);
+  // Edit mode: the event as loaded, for the series notice and for cancelling
+  // "este y los siguientes" from the date it had before any edit.
+  const [loadedEvent, setLoadedEvent] = useState<
+    (Pick<EventData, 'series' | 'startDate' | 'visibilityOrgId'> & { id: string }) | null
+  >(null);
   const [coords, setCoords] = useState<LatLng | null>(null);
   const [locationName, setLocationName] = useState('');
   const [maxAttendees, setMaxAttendees] = useState('');
@@ -201,6 +323,12 @@ export default function NewEventScreen() {
   const [existingSignupCount, setExistingSignupCount] = useState(0);
   const [signupWasEnabled, setSignupWasEnabled] = useState(false);
   const [cover, setCover] = useState<UploadableImage | null>(null);
+  // The organizing group's checklist (create only, for a group the creator
+  // belongs to).
+  const [tasksEnabled, setTasksEnabled] = useState(false);
+  const [taskRows, setTaskRows] = useState<EventTaskDraft[]>(() => [blankEventTask()]);
+  const [taskOrgId, setTaskOrgId] = useState<string | null>(null);
+  const [copyLoading, setCopyLoading] = useState(!!copyFrom && !eventId);
 
   // Picking a location auto-selects the nearest joined village (create mode,
   // until the user manually overrides the dropdown).
@@ -218,35 +346,26 @@ export default function NewEventScreen() {
   // the first render the creator's uid is still seeded.
   const [organizerUserIds, setOrganizerUserIds] = useState<string[]>([]);
   const [createdBy, setCreatedBy] = useState<string | null>(null);
-  const [organizerOrgIds, setOrganizerOrgIds] = useState<string[]>([]);
+  const [organizerOrgIds, setOrganizerOrgIds] = useState<string[]>(organizerOrgId ? [organizerOrgId] : []);
   // A private event names exactly one org, and that org must be one of the
   // organizers — the switch is only offered in that case, but a stale toggle
   // left behind by adding a second org must not slip through. The same value is
   // saved AND used to build the event's URL, so a private event is never opened
   // at a URL that spells out its title.
-  const visibilityOrgId =
-    privateToOrg && organizerOrgIds.length === 1 ? (organizerOrgIds[0] ?? null) : null;
+  // A day of a weekly series keeps the series' stored visibility whatever the
+  // organizer set becomes: the rules refuse a change on one occurrence, and
+  // deriving it here would turn an unrelated edit into a refused save.
+  const visibilityOrgId = loadedEvent?.series
+    ? loadedEvent.visibilityOrgId
+    : privateToOrg && organizerOrgIds.length === 1
+      ? (organizerOrgIds[0] ?? null)
+      : null;
 
-  // Only an org whose members are admitted by approval may hold a private
-  // event (the rules refuse the rest). Loaded for the single organizing org,
-  // the only case the switch is offered in.
-  const soleOrgId = organizerOrgIds.length === 1 ? (organizerOrgIds[0] ?? null) : null;
-  const [soleOrgRequiresApproval, setSoleOrgRequiresApproval] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (!soleOrgId) return;
-    let cancelled = false;
-    setSoleOrgRequiresApproval(null);
-    void getOrganization(soleOrgId)
-      .then((org) => {
-        if (!cancelled) setSoleOrgRequiresApproval(org?.joinPolicy === 'approval');
-      })
-      .catch(() => {
-        if (!cancelled) setSoleOrgRequiresApproval(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [soleOrgId]);
+  // The organizing groups the creator belongs to: any member writes its tasks.
+  const { groups: myGroups } = useMyGroups(editMode ? null : (user?.uid ?? null));
+  const taskOrgIds = organizerOrgIds.filter((id) => myGroups.some((g) => g.org.id === id));
+  const taskOrg = taskOrgIds.includes(taskOrgId ?? '') ? taskOrgId : (taskOrgIds[0] ?? null);
+  const tasksOffered = !editMode && taskOrg !== null;
 
   useEffect(() => {
     // Only auto-seed the creator when composing a new event. In edit mode the
@@ -270,6 +389,12 @@ export default function NewEventScreen() {
           setLoadError('not-found');
           return;
         }
+        setLoadedEvent({
+          id: ev.id,
+          series: ev.series,
+          startDate: ev.startDate,
+          visibilityOrgId: ev.visibilityOrgId,
+        });
         setEditMunicipalityId(ev.municipalityId);
         setEditVillageSlug(ev.villageSlug);
         setEditVillage({
@@ -322,6 +447,52 @@ export default function NewEventScreen() {
       cancelled = true;
     };
   }, [editMode, eventId]);
+
+  // ── Copy mode: next year's edition of a yearly event ─────────────────────
+  // The village comes in as the `villageId` param, so the village list below
+  // selects it; sign-ups, roster and comments stay with last year's edition.
+  useEffect(() => {
+    if (editMode || !copyFrom || !user) return;
+    let cancelled = false;
+    void withFirestoreErrorLog('event:getEvent', () => getEvent(copyFrom))
+      .then((ev) => {
+        if (cancelled || !ev) return;
+        setTitle(ev.title);
+        setDescription(ev.description);
+        // A date that varies is the one thing left for the organizer to fill in.
+        setStartDate(ev.repeatDateVaries ? null : nextYear(ev.startDate));
+        setEndDate(ev.endDate && !ev.repeatDateVaries ? nextYear(ev.endDate) : null);
+        setCoords(ev.location?.coordinates ?? null);
+        setLocationName(ev.location?.displayName ?? '');
+        setMaxAttendees(ev.maxAttendees != null ? String(ev.maxAttendees) : '');
+        setTelephoneRequired(!!ev.telephoneRequired);
+        setRequiresPayment(!!ev.requiresPayment);
+        setSignupGroupSize(ev.signupGroupSize);
+        setMinBirthYear(ev.minBirthYear == null ? '' : String(ev.minBirthYear));
+        setMaxBirthYear(ev.maxBirthYear == null ? '' : String(ev.maxBirthYear));
+        setBirthYearLimited(ev.minBirthYear != null || ev.maxBirthYear != null);
+        setSignupEnabled(ev.signupEnabled !== false);
+        setSignupInfo(ev.signupInfo ?? '');
+        setAttendeesPublic(ev.attendeesVisibility !== 'organizers');
+        setSignupFields(ev.signupFields ?? []);
+        setFormEnabled((ev.signupFields ?? []).length > 0);
+        setOrganizerUserIds([user.uid, ...(ev.organizerUserIds ?? []).filter((id) => id !== user.uid)]);
+        setOrganizerOrgIds(ev.organizerOrgIds ?? []);
+        setPrivateToOrg(ev.visibilityOrgId !== null);
+        setExistingImageURL(ev.imageURL ?? null);
+        setVillageManuallyPicked(true);
+        setRecurring(true);
+        setRecurrence(ev.repeatsMonthly ? 'monthly' : 'yearly');
+        setDateVaries(ev.repeatDateVaries);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCopyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editMode, copyFrom, user]);
 
   // ── Create mode: load the villages the user can post to ───────────────────
   useEffect(() => {
@@ -383,9 +554,57 @@ export default function NewEventScreen() {
     maxBirthYearNum !== null &&
     maxBirthYearNum < minBirthYearNum;
 
-  // Survives a failed cover upload so the retry patches the event that was
-  // already created instead of creating another one. See the create branch.
-  const createdEventIdRef = useRef<string | null>(null);
+  const varyingDate = recurring && recurrence !== 'weekly' && dateVaries;
+  const seriesFrequency = !recurring || varyingDate || recurrence === 'yearly' ? null : recurrence;
+  const isSeries = seriesFrequency !== null;
+  const weekly = seriesFrequency === 'weekly';
+  const repeatsYearly = recurring && recurrence === 'yearly';
+  const repeatsMonthly = varyingDate && recurrence === 'monthly';
+  const seriesRule: SeriesRule | null =
+    seriesFrequency === 'weekly' && repeatUntil
+      ? { frequency: 'weekly', weekdays: repeatWeekdays, until: repeatUntil }
+      : seriesFrequency === 'monthly' && repeatUntil
+        ? { frequency: 'monthly', until: repeatUntil }
+        : null;
+
+  // A series' slot end is the picked time on the first day; every occurrence
+  // shifts both by the same number of days.
+  const slotEnd = isSeries && startDate && endDate ? timeOnDay(startDate, endDate) : null;
+  const seriesEndInvalid = slotEnd !== null && startDate !== null && slotEnd <= startDate;
+  const seriesUntilInvalid =
+    isSeries &&
+    (!repeatUntil ||
+      !startDate ||
+      seriesSpanDays(startDate, repeatUntil) < 0 ||
+      seriesSpanDays(startDate, repeatUntil) > maxSeriesDays(seriesFrequency) ||
+      (seriesRule !== null &&
+        (!weekly || repeatWeekdays.length > 0) &&
+        seriesOccurrences({ startDate, endDate: null }, seriesRule).length === 0));
+
+  function seedWeekdays() {
+    // Seed the obvious answer: the first day's own weekday.
+    if (repeatWeekdays.length === 0 && startDate) setRepeatWeekdays([isoWeekday(startDate)]);
+  }
+
+  function toggleRecurring(on: boolean) {
+    setRecurring(on);
+    if (on && recurrence === 'weekly') seedWeekdays();
+  }
+
+  function pickRecurrence(next: Recurrence) {
+    setRecurrence(next);
+    if (next === 'weekly') seedWeekdays();
+  }
+
+  function toggleWeekday(day: number) {
+    setRepeatWeekdays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
+  }
+
+  // Survives a failed cover upload so the retry patches the events that were
+  // already created instead of creating more. See the create branch.
+  const createdEventIdsRef = useRef<string[] | null>(null);
+  // Same for the checklist: a retry never writes it twice.
+  const tasksCreatedRef = useRef(false);
 
   const { fire: submit, isPending } = useCallable({
     operation: editMode ? 'event:update' : 'event:create',
@@ -466,14 +685,19 @@ export default function NewEventScreen() {
       // has to finish *that* event — re-running createEvent would leave the
       // user with a duplicate for every failed attempt. The id survives in a
       // ref for exactly as long as the form does.
-      let newId = createdEventIdRef.current;
-      if (!newId) {
-        newId = await createEvent({
+      let newIds = createdEventIdsRef.current;
+      if (!newIds) {
+        const input: Omit<EventDataInput, 'villageSlug' | 'series'> = {
           title: title.trim(),
           description: description.trim(),
           startDate,
           endDate,
           location,
+          // Copy mode reuses last year's flyer unless a new one is picked.
+          imageURL: cover ? null : existingImageURL,
+          repeatsYearly,
+          repeatsMonthly,
+          repeatDateVaries: varyingDate,
           maxAttendees: maxAttendeesValue,
           telephoneRequired,
           requiresPayment,
@@ -493,18 +717,40 @@ export default function NewEventScreen() {
           municipalityId,
           villageName: municipalityName,
           villageCoordinates: municipalityCoordinates,
-        });
-        createdEventIdRef.current = newId;
+        };
+        newIds = seriesRule
+          ? await createEventSeries({ ...input, endDate: slotEnd }, seriesRule)
+          : [await createEvent(input)];
+        createdEventIdsRef.current = newIds;
+      }
+      const [firstId] = newIds;
+      if (!firstId) return;
+      // The checklist hangs off the first occurrence, the one the group plans.
+      const tasks = taskRows.filter((r) => r.title.trim() !== '');
+      if (tasksOffered && tasksEnabled && taskOrg && tasks.length > 0 && !tasksCreatedRef.current) {
+        const today = madridDayKey(new Date());
+        await createGroupTasks(
+          taskOrg,
+          tasks.map((r) =>
+            repeatsYearly && r.month !== null
+              ? yearlyEventTask({ title: r.title.trim(), month: r.month }, { today, eventId: firstId })
+              : { title: r.title.trim(), dueOn: r.dueOn ? madridDayKey(r.dueOn) : null, eventId: firstId },
+          ),
+          user.uid,
+        );
+        tasksCreatedRef.current = true;
       }
       if (cover) {
-        const url = await uploadEventImage(municipalityId, newId, {
+        // One upload, under the first occurrence; the rest point at it.
+        const url = await uploadEventImage(municipalityId, firstId, {
           blob: cover.blob,
           filename: 'cover.jpg',
           contentType: cover.contentType,
         });
-        await updateEvent(newId, { imageURL: url });
+        if (newIds.length === 1) await updateEvent(firstId, { imageURL: url });
+        else await setEventsImage(newIds, url);
       }
-      return newId;
+      return firstId;
     },
     onSuccess: (id) => {
       if (id) router.replace(eventHref({ id, title, villageSlug, visibilityOrgId }));
@@ -545,7 +791,12 @@ export default function NewEventScreen() {
     return updateEventStatus(eventId, 'cancelled').then(() => router.replace('/(tabs)'));
   };
 
-  if (loading) {
+  const deleteSeriesFromHere = () => {
+    if (!loadedEvent) return;
+    return cancelSeriesFrom(loadedEvent).then(() => router.replace('/(tabs)'));
+  };
+
+  if (loading || copyLoading) {
     return (
       <Screen padded={false} topInset={false}>
         <ScreenHeader accent title={headerTitle} />
@@ -641,24 +892,16 @@ export default function NewEventScreen() {
           {/* Only offered with exactly one organizing org: "private" has to
               name the single group whose membership is the guest list, and a
               two-org event has no such group. */}
-          {organizerOrgIds.length === 1 ? (
-            <VStack gap={1}>
-              <ToggleField
-                label={t('event.privateToOrg')}
-                help={t('event.privateToOrgHint')}
-                value={privateToOrg}
-                onValueChange={setPrivateToOrg}
-                // An already-private event can always be opened up; only
-                // making one private needs an approval org.
-                disabled={!privateToOrg && soleOrgRequiresApproval !== true}
-                testID="private-to-org"
-              />
-              {!privateToOrg && soleOrgRequiresApproval === false ? (
-                <Text tone="muted" variant="caption">
-                  {t('event.privateToOrgNeedsApproval')}
-                </Text>
-              ) : null}
-            </VStack>
+          {/* A series shares one visibility (firestore.rules refuses a change
+              on one occurrence), so its days offer no switch. */}
+          {organizerOrgIds.length === 1 && !loadedEvent?.series ? (
+            <ToggleField
+              label={t('event.privateToOrg')}
+              help={t('event.privateToOrgHint')}
+              value={privateToOrg}
+              onValueChange={setPrivateToOrg}
+              testID="private-to-org"
+            />
           ) : null}
         </>,
       ),
@@ -671,15 +914,73 @@ export default function NewEventScreen() {
         const e: string[] = [];
         if (!startDate) e.push('startDate');
         // endDate is optional, but if set it must not precede startDate.
-        if (endDate && startDate && endDate < startDate) e.push('endDate');
+        if (!isSeries && endDate && startDate && endDate < startDate) e.push('endDate');
+        if (weekly && repeatWeekdays.length === 0) e.push('repeatWeekdays');
+        if (seriesEndInvalid) e.push('endTime');
+        if (seriesUntilInvalid) e.push('repeatUntil');
         if (!coords) e.push('coords');
         if (!municipalityId) e.push('village');
         return e;
       },
       render: () => stepBody(
         <>
+          {loadedEvent?.series ? (
+            <Text tone="muted" variant="bodySm" testID="series-edit-notice">
+              {t('event.seriesEditNotice')}
+            </Text>
+          ) : null}
+          {editMode ? null : (
+            <ToggleField
+              label={t('event.recurring')}
+              help={t('event.recurringHint')}
+              value={recurring}
+              onValueChange={toggleRecurring}
+              testID="event-recurring"
+            />
+          )}
+          {!editMode && recurring ? (
+            <VStack gap={1}>
+              <ChoiceRow
+                label={t('event.frequency')}
+                value={recurrence}
+                options={RECURRENCES.map((r) => ({
+                  key: r,
+                  label: t(`event.frequencyOption.${r}`),
+                  description: t(`event.frequencyDescription.${r}`),
+                }))}
+                onChange={pickRecurrence}
+                testID="event-recurrence"
+              />
+              {recurrence !== 'weekly' ? (
+                <ChoiceRow
+                  label={t('event.dateMode')}
+                  value={dateVaries ? 'varying' : 'fixed'}
+                  options={DATE_MODES.map((m) => ({
+                    key: m,
+                    label: t(`event.dateModeOption.${m}`),
+                    description: t(`event.dateModeDescription.${m}`),
+                  }))}
+                  onChange={(mode) => setDateVaries(mode === 'varying')}
+                  testID="event-date-mode"
+                />
+              ) : null}
+              {varyingDate ? (
+                <Text tone="muted" variant="bodySm" testID="event-date-varies-hint">
+                  {t('event.dateVariesHint')}
+                </Text>
+              ) : recurrence === 'yearly' ? (
+                <Text tone="muted" variant="bodySm" testID="event-recurrence-yearly-hint">
+                  {t('event.yearlyHint')}
+                </Text>
+              ) : recurrence === 'monthly' && startDate ? (
+                <Text tone="muted" variant="bodySm" testID="event-recurrence-monthly-hint">
+                  {t('event.monthlyHint', { day: startDate.getDate() })}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
           <DateTimeField
-            label={t('event.startDateTime')}
+            label={isSeries ? t('event.firstDateTime') : varyingDate ? t('event.nextDateTime') : t('event.startDateTime')}
             value={startDate}
             onChange={setStartDate}
             minimumDate={new Date()}
@@ -688,14 +989,66 @@ export default function NewEventScreen() {
             testID="startDate"
           />
           <DateTimeField
-            label={t('event.endDateTime')}
+            label={isSeries ? t('event.endTime') : t('event.endDateTime')}
             value={endDate}
             onChange={setEndDate}
             minimumDate={startDate ?? new Date()}
+            timeOnly={isSeries}
             datePlaceholder={t('event.selectDate')}
             timePlaceholder={t('event.selectTime')}
             testID="endDate"
           />
+          {seriesEndInvalid ? (
+            <Text tone="danger" variant="bodySm" testID="end-time-error">
+              {t('event.endTimeInvalid')}
+            </Text>
+          ) : null}
+          {weekly ? (
+            <VStack gap={1}>
+              <FieldLabel>{t('event.repeatDays')}</FieldLabel>
+              <HStack gap={1} className="items-center">
+                {WEEKDAYS.map((day) => {
+                  const active = repeatWeekdays.includes(day);
+                  return (
+                    <Pressable
+                      key={day}
+                      testID={`repeat-day-${String(day)}`}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={t(`event.weekdayLong.${String(day)}`)}
+                      accessibilityState={{ checked: active }}
+                      onPress={() => toggleWeekday(day)}
+                      className={`flex-1 items-center rounded-lg border py-2 ${
+                        active ? 'border-accent bg-surface' : 'border-subtle'
+                      }`}
+                    >
+                      <Text tone={active ? undefined : 'muted'}>{t(`event.weekdayShort.${String(day)}`)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </HStack>
+              {repeatWeekdays.length === 0 ? (
+                <Text tone="danger" variant="bodySm" testID="repeat-days-error">
+                  {t('event.repeatDaysRequired')}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
+          {isSeries ? (
+            <VStack gap={1}>
+              <DateField
+                label={t('event.repeatUntil')}
+                value={repeatUntil}
+                onChange={setRepeatUntil}
+                minimumDate={startDate ?? new Date()}
+                testID="repeat-until"
+              />
+              {repeatUntil && seriesUntilInvalid ? (
+                <Text tone="danger" variant="bodySm" testID="repeat-until-error">
+                  {t(seriesFrequency === 'monthly' ? 'event.repeatUntilInvalidMonthly' : 'event.repeatUntilInvalid')}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
           <LocationField
             value={coords}
             displayName={locationName}
@@ -887,6 +1240,15 @@ export default function NewEventScreen() {
           />
           </>
           ) : null}
+          {tasksOffered ? (
+            <ToggleField
+              label={t('event.tasksEnabled')}
+              help={t('event.tasksEnabledHint')}
+              value={tasksEnabled}
+              onValueChange={setTasksEnabled}
+              testID="tasks-enabled"
+            />
+          ) : null}
         </>,
       ),
     },
@@ -908,6 +1270,30 @@ export default function NewEventScreen() {
         />,
       ),
     }] as StepConfig[]) : []),
+    ...(tasksOffered && tasksEnabled ? ([{
+      key: 'tasks',
+      title: t('event.stepTasks'),
+      icon: 'checkbox-outline',
+      // Blank rows are dropped on submit, like half-finished questions; only a
+      // yearly task without its month blocks, since it could not be dated.
+      validate: () => (repeatsYearly && eventTasksMissingMonth(taskRows) ? ['taskMonth'] : []),
+      render: () => stepBody(
+        <>
+          {taskOrgIds.length > 1 ? (
+            <SelectField
+              label={t('event.tasks.group')}
+              value={taskOrg ?? ''}
+              options={myGroups
+                .filter((g) => taskOrgIds.includes(g.org.id))
+                .map((g) => ({ value: g.org.id, label: g.org.name }))}
+              onChange={setTaskOrgId}
+              testID="event-tasks-group"
+            />
+          ) : null}
+          <EventTasksEditor rows={taskRows} onChange={setTaskRows} yearly={repeatsYearly} />
+        </>,
+      ),
+    }] as StepConfig[]) : []),
   ];
 
   // bottomInset={false}: the Stepper's own bottom nav bar applies the safe-area inset.
@@ -924,10 +1310,15 @@ export default function NewEventScreen() {
               onConfirm={deleteEvent}
               accessibilityLabel={t('common.delete')}
               confirmTitle={t('event.cancelTitle')}
-              confirmMessage={t('event.cancelConfirm')}
-              confirmLabel={t('common.delete')}
+              confirmMessage={loadedEvent?.series ? t('event.cancelSeriesConfirm') : t('event.cancelConfirm')}
+              confirmLabel={loadedEvent?.series ? t('event.cancelSeriesOne') : t('common.delete')}
               cancelLabel={t('common.cancel')}
               deletingLabel={t('common.deleting.event')}
+              alternative={
+                loadedEvent?.series
+                  ? { label: t('event.cancelSeriesFollowing'), onConfirm: deleteSeriesFromHere }
+                  : undefined
+              }
             />
           ) : undefined
         }

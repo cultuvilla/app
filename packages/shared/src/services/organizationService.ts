@@ -25,7 +25,7 @@ import type {
   OrganizationDataInput,
   OrganizationStatus,
 } from '../models/organization/OrganizationDataModel';
-import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
+import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export async function getPendingOrganizations(): Promise<(OrganizationData & { id: string })[]> {
   const q = query(
@@ -60,6 +60,15 @@ export function watchOrganization(
   onError: WatchError,
 ): Unwatch {
   return watchDoc(organizationDoc(getDb(), orgId), onNext, onError);
+}
+
+/** Several organizations by id, in the order given; missing ones are dropped. */
+export function watchOrganizationsByIds(
+  orgIds: string[],
+  onNext: (orgs: (OrganizationData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDocsByIds(orgIds, (id, next, error) => watchOrganization(id, next, error), onNext, onError);
 }
 
 function municipalityOrganizationsQuery(municipalityId: string, status?: OrganizationStatus) {
@@ -138,7 +147,11 @@ export async function requestOrganization(
     readCount: 0,
     memberCount: 0,
     membersPublic: input.membersPublic ?? true,
-    joinPolicy: input.joinPolicy ?? 'open',
+    joinPolicy: 'approval',
+    sociosListVisible: input.sociosListVisible ?? false,
+    chatAdminsOnly: input.chatAdminsOnly ?? false,
+    socioPhoneRequired: false,
+    socioEmailRequired: false,
   };
   await setDoc(newRef, data);
   return newRef.id;

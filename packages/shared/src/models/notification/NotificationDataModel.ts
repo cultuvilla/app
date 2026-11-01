@@ -22,7 +22,7 @@ export const NotificationTypeSchema = z.enum([
   'organizer_request_created',
   'organizer_request_approved',
   'organizer_request_rejected',
-  // Joining an org whose joinPolicy is `approval`: `created` goes to its
+  // Joining an org: `created` goes to its
   // admins, `approved` / `rejected` to the requester. All carry
   // entityKind 'organization' + entityId so they open the org.
   'org_join_request_created',
@@ -45,6 +45,20 @@ export const NotificationTypeSchema = z.enum([
   // A village's Wrapped went public, by an admin or by the grace timer. Sent to
   // every member; carries its `wrappedId` the same way and opens the viewer.
   'village_wrapped_published',
+  // The cuota de socios is about to fall due, or is vencida. Written by the
+  // scheduled `sendCuotaReminders` in the treasurer's name, to the member (or a
+  // persona's responsible member). Carries entityKind 'organization' +
+  // entityId (the org), so a client that predates the type still opens the group.
+  'cuota_reminder',
+  // A group task or volunteer shift: due soon, overdue, a shift still short of
+  // people within 48 h (sendGroupTaskReminders, 10:00 Madrid), or a slot freed
+  // up for someone on its waiting list (respondToTaskShift). Carries
+  // entityKind 'organization' + entityId (the org), routed to the Grupos tab.
+  'group_task',
+  // A message the junta of a group sent through `sendGroupMessage` (or pushed
+  // again to the unread by `nudgeGroupMessage`). entityKind 'organization' +
+  // entityId (the org), like cuota_reminder; muted per group.
+  'group_message',
 ]);
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 
@@ -62,6 +76,9 @@ export const NotificationDataSchema = z.object({
   // village_wrapped_* types set entityId alone, to the wrappedId.
   entityKind: EntityKindSchema.nullable(),
   entityId: z.string().nullable(),
+  // On a chat message's `group_message`: the thread it opens (an aviso's id, or
+  // `general`). A binary that predates it drops the field and opens the avisos.
+  chatThreadId: z.string().nullable().default(null),
   read: z.boolean(),
   createdAt: z.date(),
 });
@@ -76,6 +93,7 @@ export interface NotificationDataInput {
   requesterUid?: string | null;
   entityKind?: z.infer<typeof EntityKindSchema> | null;
   entityId?: string | null;
+  chatThreadId?: string | null;
   read?: boolean;
   createdAt?: Date;
 }
@@ -90,6 +108,7 @@ export function buildNotificationData(input: NotificationDataInput): Notificatio
     requesterUid: input.requesterUid ?? null,
     entityKind: input.entityKind ?? null,
     entityId: input.entityId ?? null,
+    chatThreadId: input.chatThreadId ?? null,
     read: input.read ?? false,
     createdAt: input.createdAt ?? new Date(),
   };

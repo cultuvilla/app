@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatDate,
+  formatDayKey,
   formatPrice,
   formatCompactRelativeTime,
   formatRelativeTime,
@@ -20,6 +21,11 @@ describe('formatDate', () => {
     expect(out).toMatch(/martes/i);
     expect(out).toMatch(/mayo/i);
     expect(out).toMatch(/2026/);
+  });
+
+  it('formats a card date as day and short month, without a trailing period', () => {
+    expect(formatDate(new Date(2026, 11, 6, 12), 'dayMonthShort')).toBe('6 dic');
+    expect(formatDayKey('2026-12-06', 'dayMonthShort')).toBe('6 dic');
   });
 
   it('formats time-only', () => {
@@ -141,5 +147,12 @@ describe('formatCompactRelativeTime', () => {
 
   it('formats future dates by magnitude, without a direction prefix', () => {
     expect(formatCompactRelativeTime(new Date(NOW.getTime() + 2 * HOUR), NOW)).toBe('2h');
+  });
+});
+
+describe('formatDayKey', () => {
+  it('formats a calendar day the same in every zone', () => {
+    expect(formatDayKey('2026-03-01')).toBe('01/03/2026');
+    expect(formatDayKey('2026-03-01', 'long')).toBe('domingo, 1 de marzo de 2026');
   });
 });

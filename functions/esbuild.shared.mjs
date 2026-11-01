@@ -14,6 +14,8 @@ export const sharedBuildOptions = {
     'firebase-functions',
     'firebase-functions/*',
     'sharp',
+    // google-gax loads its .proto files from disk at runtime.
+    '@google-cloud/pubsub',
   ],
   // Fonts and the brand mark are inlined into the bundle. Only `functions/` is
   // uploaded and nothing copies loose assets into dist/, so reading one from disk

@@ -1,0 +1,2 @@
+- Changed: a group's home loses the Avisos, Eventos and Tareas buttons, since their rows open those screens, and those rows always show. The admin's button to send avisos is called Avisos. The group's screens no longer show the bar to change group.
+- Changed: a cuota has no days of margin any more: unpaid, it is vencida the day after it falls due. Its reminders are switched on in Ajustes del grupo.

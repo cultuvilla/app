@@ -1,0 +1,1 @@
+- Added: a group's cuota, and each of its tarifas, can have a different price for each calendar year. Years left out pay the usual price.

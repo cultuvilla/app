@@ -1,0 +1,4 @@
+- Changed: in a group with socios there is one button, Socios: the admin answers join requests, makes admins and removes people there. Integrantes stays only where a group has no socios.
+- Added: a group's Eventos and Tareas are two-column lists with filters on top and a button to create one. An event opens a screen for the organizers, with its tasks and a link to the public page, and its card shows the tasks done of the total. A task opens its own screen: who is on it, its comments, and closing or reopening it.
+- Changed: tapping an aviso, on the group's home or in Avisos, opens it with its chat, and opening it marks it read.
+- Changed: Ajustes is for every member of a group, in two parts: Ajustes de usuario, with silencing avisos and chat messages, moved here from those screens, and Ajustes del grupo, for admins. The two switches are now independent: silencing avisos no longer silences a chat you turned on.

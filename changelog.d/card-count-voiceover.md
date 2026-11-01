@@ -1,1 +1,0 @@
-- Fixed: VoiceOver read the village home cards by name alone; it now also reads their second line and their count (comments, people signed up, people buried).

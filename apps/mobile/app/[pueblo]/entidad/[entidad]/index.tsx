@@ -32,12 +32,15 @@ import {
   requestToJoinOrganization,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
 import { OrgJoinRequests } from '../../../../components/feature/OrgJoinRequests';
+import { SocioConsentCard } from '../../../../components/feature/groups/SocioConsentCard';
+import { SocioContactSheet } from '../../../../components/feature/groups/GroupContactGate';
 import { showAlert, showConfirm } from '../../../../lib/dialogs';
 import { getOrgViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { entityRefHref, orgEditHref } from '../../../../lib/navigation/routes';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { canViewOrgRoster } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
+import { hasSocioRoster, requiresSocioContact } from '@cultuvilla/shared/models/organization/SocioDataModel';
 import {
   isSoleAdminWithOthers,
   type OrgMemberData,
@@ -64,6 +67,7 @@ export default function OrgDetailScreen() {
   const [isMember, setIsMember] = useState<boolean>(false);
   const [membershipLoaded, setMembershipLoaded] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [acceptingContact, setAcceptingContact] = useState(false);
   const [requested, setRequested] = useState(false);
   const { canManage } = useOrgCapabilities(orgId as string, org?.municipalityId);
   // Until the viewer's membership is known, a member would see the join FAB flash.
@@ -71,7 +75,9 @@ export default function OrgDetailScreen() {
   // Keyed on these rather than `org`, so a snapshot that changes something else
   // (the view counter, say) does not refetch the membership.
   const orgExists = org !== null;
-  const joinPolicy = org?.joinPolicy;
+  const isOpen = org?.joinPolicy === 'open';
+  // A request filed before the admin opened the group no longer has to wait.
+  const awaitingAcceptance = requested && !isOpen;
   // An empty group shows neither the count nor the roster heading.
   const hasMembers = (membersCount ?? 0) > 0;
 
@@ -81,14 +87,10 @@ export default function OrgDetailScreen() {
     if (user) {
       const member = await isOrgMember(orgId as string, user.uid);
       setIsMember(member);
-      setRequested(
-        !member && joinPolicy === 'approval'
-          ? await hasPendingOrgJoinRequest(orgId as string, user.uid)
-          : false,
-      );
+      setRequested(!member && (await hasPendingOrgJoinRequest(orgId as string, user.uid)));
     }
     setMembershipLoaded(true);
-  }, [orgId, user, orgExists, joinPolicy]);
+  }, [orgId, user, orgExists]);
 
   useFocusEffect(
     useCallback(() => {
@@ -106,31 +108,16 @@ export default function OrgDetailScreen() {
     });
   }, [org?.id]);
 
-  const onJoin = useCallback(async () => {
-    if (!user) {
-      gate.requireAuth(entityRefHref('organization', pueblo, entidad), t('guest.org'));
-      return;
-    }
-    if (!orgId || !org) return;
-    if (requested) {
-      showConfirm(
-        t('organization.cancelRequestTitle'),
-        t('organization.cancelRequestBody', { name: org.name }),
-        () => {
-          void cancelOrgJoinRequest(orgId as string, user.uid).then(refresh);
-        },
-      );
-      return;
-    }
+  const join = useCallback(async () => {
+    if (!user || !orgId || !org) return;
     setJoining(true);
     let succeeded = false;
     try {
-      // An `approval` org takes a request its admins resolve; an open one is
-      // joined on the spot.
-      if (org.joinPolicy === 'approval') {
-        await requestToJoinOrganization(orgId as string, org.municipalityId, user.uid);
-      } else {
+      if (isOpen) {
         await addOrgMember(orgId as string, user.uid);
+        if (requested) await cancelOrgJoinRequest(orgId as string, user.uid);
+      } else {
+        await requestToJoinOrganization(orgId as string, org.municipalityId, user.uid);
       }
       succeeded = true;
       observability.trackEvent(OBSERVABILITY_EVENTS.ORG_JOIN_SUCCESS, {
@@ -149,7 +136,30 @@ export default function OrgDetailScreen() {
     } finally {
       setJoining(false);
     }
-  }, [user, orgId, org, requested, arrivedViaInvite, refresh, gate, t]);
+  }, [user, orgId, org, requested, arrivedViaInvite, refresh]);
+
+  const onJoin = useCallback(async () => {
+    if (!user) {
+      gate.requireAuth(entityRefHref('organization', pueblo, entidad), t('guest.org'));
+      return;
+    }
+    if (!orgId || !org) return;
+    if (awaitingAcceptance) {
+      showConfirm(
+        t('organization.cancelRequestTitle'),
+        t('organization.cancelRequestBody', { name: org.name }),
+        () => {
+          void cancelOrgJoinRequest(orgId as string, user.uid).then(refresh);
+        },
+      );
+      return;
+    }
+    if (hasSocioRoster(org.type) && requiresSocioContact(org)) {
+      setAcceptingContact(true);
+      return;
+    }
+    await join();
+  }, [user, orgId, org, awaitingAcceptance, join, refresh, gate, t]);
 
   const onLeave = useCallback(() => {
     if (!user || !org) return;
@@ -159,9 +169,7 @@ export default function OrgDetailScreen() {
     }
     showConfirm(
       t('organization.leave.title'),
-      t(org.joinPolicy === 'approval' ? 'organization.leave.bodyApproval' : 'organization.leave.body', {
-        name: org.name,
-      }),
+      t(isOpen ? 'organization.leave.body' : 'organization.leave.bodyApproval', { name: org.name }),
       () => {
         removeOrgMember(org.id, user.uid)
           .then(refresh)
@@ -208,11 +216,11 @@ export default function OrgDetailScreen() {
     : [];
   const joinLabel = !user
     ? t('organization.signInToJoin')
-    : requested
+    : awaitingAcceptance
       ? t('organization.requestPending')
-      : org?.joinPolicy === 'approval'
-        ? t('organization.requestToJoin')
-        : t(org?.type === 'peña' ? 'organization.joinPeña' : 'organization.join');
+      : isOpen
+        ? t(org?.type === 'peña' ? 'organization.joinPeña' : 'organization.join')
+        : t('organization.requestToJoin');
 
   return (
     <EntityDetailScaffold
@@ -244,7 +252,7 @@ export default function OrgDetailScreen() {
                 paddingVertical: 10,
                 paddingHorizontal: 22,
                 borderRadius: 999,
-                backgroundColor: requested ? '#8a7a70' : '#bb5d3a',
+                backgroundColor: awaitingAcceptance ? '#8a7a70' : '#bb5d3a',
                 opacity: joining ? 0.7 : 1,
                 elevation: 6,
                 shadowColor: '#000',
@@ -274,6 +282,8 @@ export default function OrgDetailScreen() {
               {t('organization.invitedBanner')}
             </Text>
           ) : null}
+          {/* Asked once, right after joining: what the junta may see. */}
+          {isMember && hasSocioRoster(org.type) ? <SocioConsentCard orgId={org.id} requirement={org} onlyWhenUnanswered /> : null}
           {org.description ? <Text>{org.description}</Text> : null}
           {org.images.length > 1 ? (
             <VStack gap={2} className="pt-2">
@@ -282,14 +292,10 @@ export default function OrgDetailScreen() {
               ))}
             </VStack>
           ) : null}
-          {/* Rules let only an approval org's members read its private events. */}
-          <OrgEventsSection orgId={org.id} includePrivate={isMember && org.joinPolicy === 'approval'} />
-          {canManage && org.joinPolicy === 'approval' ? (
-            <OrgJoinRequests orgId={org.id} onResolved={refresh} />
-          ) : null}
-          {hasMembers ? (
-            <Text tone="muted">{t('organization.membersCount', { count: membersCount ?? 0 })}</Text>
-          ) : null}
+          {/* Rules let only an org's members read its private events. */}
+          <OrgEventsSection orgId={org.id} includePrivate={isMember} />
+          {canManage ? <OrgJoinRequests orgId={org.id} onResolved={refresh} /> : null}
+          {hasMembers ? <Text tone="muted">{t('organization.membersCount', { count: membersCount ?? 0 })}</Text> : null}
           {hasMembers && canViewOrgRoster({ membersPublic: org.membersPublic, isMember }) ? (
             // Remount (re-fetch) when membership changes, so joining a public org
             // immediately shows yourself in the roster — the component self-fetches
@@ -309,6 +315,15 @@ export default function OrgDetailScreen() {
             canModerate={canManage}
           />
         </>
+      ) : null}
+      {org ? (
+        <SocioContactSheet
+          visible={acceptingContact}
+          orgName={org.name}
+          requirement={org}
+          onAccepted={join}
+          onClose={() => setAcceptingContact(false)}
+        />
       ) : null}
     </EntityDetailScaffold>
   );

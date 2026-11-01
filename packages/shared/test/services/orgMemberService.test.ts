@@ -17,10 +17,8 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
 
-import { setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
-  addOrgMember,
   setOrgMemberRole,
   getOrgAdminIds,
 } from '../../src/services/orgMemberService';
@@ -28,22 +26,6 @@ import {
 describe('orgMemberService roles', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('addOrgMember writes role member by default', async () => {
-    vi.mocked(setDoc).mockResolvedValue(undefined);
-    await addOrgMember('org1', 'u1');
-     
-    const arg = (setDoc as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1];
-    expect(arg).toMatchObject({ role: 'member' });
-  });
-
-  it('addOrgMember can seed an admin', async () => {
-    vi.mocked(setDoc).mockResolvedValue(undefined);
-    await addOrgMember('org1', 'creator', 'admin');
-     
-    const arg = (setDoc as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1];
-    expect(arg).toMatchObject({ role: 'admin' });
   });
 
   it('setOrgMemberRole invokes the changeOrgMemberRole callable', async () => {

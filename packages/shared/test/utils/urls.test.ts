@@ -5,6 +5,10 @@ import {
   entityRef,
   eventLinkTarget,
   festivalPosterLinkTarget,
+  groupAvisoLinkPath,
+  groupAvisoPath,
+  groupSectionPath,
+  isGroupSection,
   isReservedRootSegment,
   newWordPath,
   orgJoinPath,
@@ -12,6 +16,7 @@ import {
   parseEntityRef,
   seatClaimPath,
   slugify,
+  studioPairingPath,
   userPath,
   villagePath,
   villageSectionPath,
@@ -55,6 +60,18 @@ describe('entity refs', () => {
   it('rejects an empty id', () => {
     expect(parseEntityRef('fiestas_')).toBeNull();
     expect(() => entityRef('x', '')).toThrow(/id/);
+  });
+});
+
+describe('group sections', () => {
+  it('nests each screen of a group under the Grupos tab', () => {
+    expect(groupSectionPath('org1', 'cuota')).toBe('/grupos/org1/cuota');
+    expect(groupSectionPath('a/b', 'socios')).toBe('/grupos/a%2Fb/socios');
+  });
+
+  it('knows its sections and nothing else', () => {
+    expect(isGroupSection('avisos')).toBe(true);
+    expect(isGroupSection('evento')).toBe(false);
   });
 });
 
@@ -102,6 +119,14 @@ describe('parseAppPath', () => {
       token: 'tok',
     });
     expect(parseAppPath(userPath('u1'))).toEqual({ type: 'user', uid: 'u1' });
+  });
+
+  it('round-trips a studio pairing, and reads nothing else under /estudio', () => {
+    expect(studioPairingPath('p1')).toBe('/estudio/vincular/p1');
+    expect(parseAppPath(studioPairingPath('p1'))).toEqual({ type: 'studioPairing', pairingId: 'p1' });
+    expect(parseAppPath('/estudio')).toBeNull();
+    expect(parseAppPath('/estudio/articulos/a1')).toBeNull();
+    expect(isReservedRootSegment('estudio')).toBe(true);
   });
 
   it('round-trips a fiestas Wrapped', () => {
@@ -161,5 +186,12 @@ describe('link targets', () => {
   it('names an untitled cartel by its year', () => {
     const target = festivalPosterLinkTarget({ id: 'c1', title: null, year: 1987, villageSlug: 'matabuena' });
     expect(entityPath('festivalPoster', target)).toBe('/matabuena/cartel/cartel-1987_c1');
+  });
+});
+
+describe('group aviso links', () => {
+  it('the app route names the aviso; the shared link keeps the tab path older binaries can open', () => {
+    expect(groupAvisoPath('org 1', 'm1')).toBe('/grupos/org%201/aviso/m1');
+    expect(groupAvisoLinkPath('org1', 'm1')).toBe('/grupos?grupo=org1&aviso=m1');
   });
 });

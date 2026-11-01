@@ -6,8 +6,8 @@ import {
   insertMention,
   mentionRuns,
   splitMentionsAtCaret,
-  type MentionCandidate,
 } from '../mentionText';
+import type { MentionCandidate } from '@cultuvilla/shared/services/mentionCandidateService';
 import type { NewsMention, NewsLink } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 
 const peña: MentionCandidate = { entityType: 'organization', entityId: 'org1', label: 'Peña El Barrio' };

@@ -15,6 +15,7 @@ import {
   userDoc,
   userNotificationsCollection,
   userDevicesCollection,
+  userGroupPrefsCollection,
   userNotificationPrefsDoc,
   pushQueueCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
@@ -43,7 +44,8 @@ interface DeleteAccountResult {
  *     never trusted. Any blocker aborts BEFORE anything is deleted.
  *  3. Anonymize authored content that is KEPT (news + events): swap `createdBy`
  *     to the DELETED_USER_UID sentinel and pull the uid from `organizerUserIds`.
- *  4. Hard-delete free-text/PII interactions the user authored: comments.
+ *  4. Hard-delete free-text/PII interactions the user authored: comments and
+ *     group chat messages.
  *     Unlike posts these carry no editorial value once the author is gone.
  *  5. Delete personal data: push devices, preferences and queued pushes (first,
  *     so nothing reaches a phone while the rest is torn down), persons (self +
@@ -74,6 +76,7 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
     const anonymizedEvents = await anonymizeAuthoredContent(eventsCollection(db), uid);
 
     const commentsDeleted = await deleteUserComments(uid);
+    const chatMessagesDeleted = await deleteUserChatMessages(uid);
 
     const pushDataDeleted = await deletePushData(uid);
 
@@ -94,6 +97,7 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
       anonymizedNews,
       anonymizedEvents,
       commentsDeleted,
+      chatMessagesDeleted,
       membershipsRemoved,
       personsDeleted: personIds.length,
       registrationsDeleted,
@@ -266,6 +270,17 @@ async function deleteUserComments(uid: string): Promise<number> {
 }
 
 /**
+ * Hard-delete every group chat message the user wrote, in the general threads
+ * the avisos' and the tasks' comments. Leaving a group keeps them under the name they had; erasing
+ * the account does not — each one carries the name and free text. Needs the
+ * `chat.authorUid` collection-group override in firestore.indexes.json.
+ */
+async function deleteUserChatMessages(uid: string): Promise<number> {
+  const snap = await db.collectionGroup('chat').where('authorUid', '==', uid).get();
+  return deleteRefsInChunks(snap.docs.map((doc) => doc.ref));
+}
+
+/**
  * Delete the departing user's uploaded photos from Cloud Storage: their account
  * avatar and every persona photo they uploaded. Both onboarding and the person
  * editor write to `users/{uid}/photo/...` (via `uploadUserPhoto`), so that
@@ -303,17 +318,19 @@ async function deleteNotifications(uid: string): Promise<number> {
 
 /**
  * Device tokens address a push at a specific phone, so they are personal data
- * in their own right. The preferences doc and any queued-but-unsent pushes go
+ * in their own right. The preferences docs (account and per group) and any queued-but-unsent pushes go
  * with them; the queue entries carry the uid.
  */
 async function deletePushData(uid: string): Promise<number> {
-  const [devices, queued] = await Promise.all([
+  const [devices, queued, groupPrefs] = await Promise.all([
     raw(userDevicesCollection(db, uid)).get(),
     raw(pushQueueCollection(db)).where('userId', '==', uid).get(),
+    raw(userGroupPrefsCollection(db, uid)).get(),
   ]);
   return deleteRefsInChunks([
     ...devices.docs.map((doc) => doc.ref),
     ...queued.docs.map((doc) => doc.ref),
+    ...groupPrefs.docs.map((doc) => doc.ref),
     userNotificationPrefsDoc(db, uid).withConverter(null),
   ]);
 }

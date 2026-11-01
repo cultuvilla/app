@@ -15,6 +15,9 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  orderBy,
+  query,
+  where,
   type Firestore,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
@@ -127,6 +130,33 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
       await seedFixtures();
       const db = asUser(getEnv(), VILLAGE_ADMIN);
       await assertSucceeds(getDoc(doc(db, `contentReports/${REPORT}`)));
+    });
+
+    it("the village's admin can list their municipality's open reports, as the inbox does", async () => {
+      await seedFixtures();
+      const db = asUser(getEnv(), VILLAGE_ADMIN);
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'contentReports'),
+            where('municipalityId', '==', MUNI),
+            where('status', '==', 'open'),
+            orderBy('createdAt', 'desc'),
+          ),
+        ),
+      );
+    });
+
+    it("an admin of another village cannot list this municipality's reports", async () => {
+      await seed(getEnv(), async (ctx) => {
+        const db = ctx.firestore() as unknown as Firestore;
+        await setDoc(doc(db, `municipalities/${OTHER_MUNI}/members/${OUTSIDER}`), { role: 'admin' });
+      });
+      await seedFixtures();
+      const db = asUser(getEnv(), OUTSIDER);
+      await assertFails(
+        getDocs(query(collection(db, 'contentReports'), where('municipalityId', '==', MUNI))),
+      );
     });
 
     it('an app admin can read any report', async () => {

@@ -78,14 +78,22 @@ Requests are created from in-context screens; outcomes arrive as notifications.
 |---|---|---|---|
 | Organizer (be the pueblo's **Embajador**) | `organizerRequests/` | any user | super admin (`respondToOrganizerRequest` callable) |
 | Organization (create peña/asociación/ayuntamiento) | `organizations/` (status `pending`) | village member | village admin (own village) or super admin (`approveOrganization` callable; `rejectOrganization` stays a client write) |
-| Join an `approval` org | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
+| Join a group | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
 
-**Joining a peña/asociación depends on its `joinPolicy`.** An `open` org (the
-default) is instant self-service: the org detail FAB does a direct client write of
-`organizations/{orgId}/members/{uid}` (role `member`, function-owned), and a user
-may add only themselves, mirroring village join. An `approval` org takes a join
-request instead (table above). **Private events require an `approval` org**:
-anyone can walk into an open one, so its membership vets nobody. Read
+Every Embajador request and every `/embajadores` web lead (`ambassadorLeads/`) is
+posted to the founders' *Cultuvilla Overview* Telegram group by
+`onOrganizerRequestCreated` / `onAmbassadorLeadCreated`: an envelope on the
+project's `notify` Pub/Sub topic ([publishNotify](functions/src/notify/publishNotify.ts)),
+which the homelab notify-gateway pulls from prod only. Topics and the prod
+subscription: `pnpm notify:setup <project>`.
+
+**A group has integrantes.** An *integrante* is a member,
+`organizations/{orgId}/members/{uid}`. **The group's admin picks how someone becomes
+one** (`joinPolicy`): by a join request an admin accepts (table above), the default and
+the only way into an ayuntamiento, or on the spot if the admin opened the group. In a
+group with a socio roster every integrante is a socio, and any group may hold private
+events, open or not. User-facing copy says
+*integrante*, never *miembro*; the code names stay. Read
 [docs/decisions/org-join-policy.md](docs/decisions/org-join-policy.md).
 
 **Membership roles & the audit log.** Villages and orgs are the same abstraction —
@@ -141,6 +149,15 @@ and Hosting serves only its static files (`web/`). `apps/mobile/` builds for
 iOS and Android only — no Expo web export, no `.web.*` files, no
 `Platform.OS === 'web'` branches. A new entity needs a read page there as well
 as its app screen.
+
+The one signed-in web surface is the **web studio** (`apps/studio/`, served
+under `/estudio`): a separate React app where existing users write articles on a
+desktop. It signs in only by pairing with the app (no web accounts), writes
+through the shared services and the rules as the real user, and shares models
+and services with the app — never screens. Its auth boundary is
+[apps/studio/src/auth/StudioAuth.tsx](apps/studio/src/auth/StudioAuth.tsx), the
+counterpart of the app's `AuthContext.tsx`. It is for authoring only: never a
+second copy of the app.
 
 Read [docs/decisions/web-is-a-read-site.md](docs/decisions/web-is-a-read-site.md)
 before adding anything to the web, or proposing that web sign-up return.
@@ -641,15 +658,20 @@ only on the seed and on earlier flows of its own group. See
 [apps/mobile/e2e/native/README.md](apps/mobile/e2e/native/README.md); under WSL2
 it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 
-Still off-limits — these run indefinitely (the user owns that iteration loop) or
-bypass CI:
+**Metro is yours to run** (decided 2026-10-31, user) when the task needs the app on a
+device — to verify a change, read its logs, reproduce a bug. Check `:8081` is free
+first (`ss -ltn`; if the user's Metro already holds it, use theirs), run it in the
+background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when you
+are done: it is an indefinite server, so a Metro you leave running holds the port
+the user's next session needs.
 
-- `pnpm app:start` / `expo start` (Expo/Metro dev server)
+Still off-limits — these run indefinitely or bypass CI:
+
 - `firebase emulators:start` directly (standalone long-lived emulator session)
 - Any deploy script (`pnpm deploy:*`) — use the `firestore-deploy` skill instead
 
-If you need output from a long-lived server you can't start (Metro, a standalone
-emulator session), ask the user to run it and paste the relevant lines.
+If you need output from a long-lived server you can't start (a standalone emulator
+session), ask the user to run it and paste the relevant lines.
 
 ## Development workflow
 
@@ -738,6 +760,7 @@ Three rules settle the edges. **A yes written into a plan counts** ("Decided 202
 **The user is a decider, not a merge gate.** A change should cost them two messages: their request, and one decision. The `ship-a-feature` skill owns the procedure — front-load every business and technical question into ONE message with a recommended pick on each, take `go` as "all your picks", then implement and land without check-ins.
 
 - **`ship-a-feature` and `managing-plans-lifecycle` are shared, not local.** `ship-a-feature` is a symlink into the `.agents/_shared` submodule; `managing-plans-lifecycle` is vendored from agent-plans (see `.agents/README.md`). The [agent-skills](https://github.com/alvaro-francisco-gil/agent-skills) submodule is consumed by several repos. **Do not edit them to fix something about this repo** — they carry procedure only. Every Cultuvilla-specific value lives here and in `.agents/land.config.json`. Run `git submodule update --init` after cloning, or the skills are empty.
+- **Reviews are paused (2026-10-21, user: out of review credits, until the user says otherwise).** `land.config.json` has `reviewLabel: null` and `requireApprovingReview: false`, so `pr:land` opens PRs without the `ai-review` label and merges on CI green alone. Don't add the label by hand. The two bullets below describe the bar to restore.
 - **Merge bar: CI green + an approving `ai-review`. The agent merges to `develop` itself** — the user is not the gate (decided 2026-08-22). The reviewer has worked here since 2026-10-06 (powerreviewer reviewed #469), so `requireApprovingReview` is `true` in `land.config.json`; from 2026-08-22 until then the bar was CI alone. A `REQUEST_CHANGES` is a round: fix and re-run `pr:land` (exit `20`). After **2** rounds (`maxReviewRounds`, cut from 3 on 2026-10-07: fix the first review, and the second verdict ends it) the review conversation ends and the PR lands on CI green alone (`roundsExhausted: "merge"`) — don't stop to report that. The hard stops below still never self-merge, the vacuous-green guard still refuses to read "no run dispatched" as "tests passed", and `develop` is not a release branch — a bad merge is caught before it reaches `beta`.
 - **Always open a PR through `pnpm pr:land`, or add the `ai-review` label yourself.** The reviewer only picks up labelled PRs, and `pr:land` adds the label when it opens one. A PR opened with bare `gh pr create` is never reviewed: PRs #436–#468 went through that way while the merge bar was CI alone. Now that the bar requires a review, such a PR just waits until `reviewTimeoutMs` (40 min) and exits `30`.
 - **Reviews reach this repo by poll, and cannot reach it any other way.** ordago gets an immediate trigger from a `request-review` job that calls homelab's reusable workflow. That is impossible here: **this repo is public and homelab is private**, and a public repo cannot call a private repo's reusable workflow. GitHub resolves the callee when it *creates* the run, before evaluating any job-level `if` — so such a job is not inert-until-enabled, it fails the entire workflow to load and takes every other job down with it. Don't add one back; it was tried on 2026-08-22 and run `32594475090` completed with zero jobs. This repo is already registered in homelab's `personal/agent-review.yml`, so the 15-minute poll backstop is the path. The cost is latency, not capability: expect a review within a poll interval, not immediately, and leave `pr:land` waiting rather than re-running it in a tight loop.

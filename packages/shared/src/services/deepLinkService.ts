@@ -13,7 +13,7 @@ import {
 } from '../utils/urls';
 
 export type LinkKind = 'content' | 'invite';
-export type DeepLinkResource = UrlEntityKind | 'village' | 'user' | 'wrapped';
+export type DeepLinkResource = UrlEntityKind | 'village' | 'user' | 'wrapped' | 'studio';
 
 export interface DeepLink {
   url: string;
@@ -103,6 +103,8 @@ function interpret(pathname: string): ParsedDeepLink | null {
       return { path, kind: 'content', resource: 'wrapped' };
     case 'seatClaim':
       return { path, kind: 'invite', resource: 'event' };
+    case 'studioPairing':
+      return { path, kind: 'content', resource: 'studio' };
     case 'entity':
       return { path, kind: parsed.join ? 'invite' : 'content', resource: parsed.kind };
   }

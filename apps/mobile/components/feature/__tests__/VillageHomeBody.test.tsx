@@ -5,6 +5,7 @@ import { VillageHomeBody } from '../VillageHomeBody';
 import type { VillageHomeState } from '../../../lib/useVillageHome';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import { buildPlaceData } from '@cultuvilla/shared/models/municipality';
+import { buildOrganizationData, type OrganizationType } from '@cultuvilla/shared/models/organization';
 
 const mockRefreshProfile = jest.fn(async () => undefined);
 let mockUser: { uid: string } | null = { uid: 'u1' };
@@ -293,6 +294,35 @@ describe('VillageHomeBody', () => {
     expect(queryByTestId('entity-card-comment-count')).toBeNull();
   });
 
+  it('lists the comisión de festejos under Grupos, identified on its card', () => {
+    const org = (id: string, name: string, type: OrganizationType) => ({
+      ...buildOrganizationData({ name, type, status: 'approved', municipalityId: 'm1', villageSlug: 'villa', requestedBy: 'u2' }),
+      id,
+    });
+    const { toJSON } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          organizations: [
+            org('c1', 'Comisión 2026', 'comisión'),
+            org('p1', 'Peña El Frontón', 'peña'),
+            org('a1', 'La Anduela', 'asociación'),
+          ],
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    const texts: string[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof node === 'string') texts.push(node);
+      else if (Array.isArray(node)) node.forEach(walk);
+      else if (node && typeof node === 'object' && 'children' in node) walk((node as { children: unknown }).children);
+    };
+    walk(toJSON());
+    const order = ['Comisión 2026', 'Comisión de festejos', 'La Anduela', 'Peñas', 'Peña El Frontón'];
+    expect(texts.filter((x) => order.includes(x))).toEqual(order);
+  });
+
   it('shows event cards with a confirmed-attendee count badge', () => {
     const event: VillageHomeState['events'][number] = {
       id: 'event-1',
@@ -309,6 +339,10 @@ describe('VillageHomeBody', () => {
     attendeesVisibility: 'members' as const,
     visibility: 'public' as const,
     visibilityOrgId: null,
+    series: null,
+    repeatsYearly: false,
+    repeatsMonthly: false,
+    repeatDateVaries: false,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,
@@ -469,6 +503,14 @@ describe('VillageHomeBody', () => {
     // Admins still configure the censo, but filling requires being a villager.
     expect(queryByText('Rellenar censo')).toBeNull();
     expect(queryByText('Configurar censo')).toBeTruthy();
+  });
+
+  it("opens Denuncias from the pueblo's page, for its team only", () => {
+    const member = render(<VillageHomeBody data={base} reload={jest.fn()} />);
+    expect(member.queryByTestId('village-reports-action')).toBeNull();
+    const admin = render(<VillageHomeBody data={{ ...base, villageAdmin: true }} reload={jest.fn()} />);
+    fireEvent.press(admin.getByTestId('village-reports-action'));
+    expect(router.push).toHaveBeenCalledWith('/anaya/denuncias');
   });
 
   it('shows a skeleton row for a section whose fetch is still in flight', () => {

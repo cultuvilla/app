@@ -26,9 +26,9 @@ async function seed() {
 beforeEach(async () => { await seed(); });
 
 describe('org members — roles', () => {
-  it('a user can self-join an approved org as a plain member', async () => {
+  it('nobody joins an org on their own: they ask, and an admin admits them', async () => {
     const db = asUser(getEnv(), 'joiner');
-    await assertSucceeds(setDoc(doc(db, `organizations/${ORG}/members/joiner`), { userId: 'joiner', joinedAt: new Date(), role: 'member' }));
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/members/joiner`), { userId: 'joiner', joinedAt: new Date(), role: 'member' }));
   });
 
   it('a plain member cannot add a DIFFERENT user (no member-adds-member)', async () => {

@@ -1,11 +1,23 @@
 ---
 name: drive-android-avd
-description: Drive a Cultuvilla dev-client Android AVD or physical phone (USB or wireless) from WSL2 — boot the emulator, expose Metro to the device, deep-link into the dev client, screenshot, and tail logcat. Use whenever the task needs to actually run the mobile app and observe its behavior (e.g. capture `[firestore-deny]` lines, verify a UI change, reproduce a runtime bug). Encodes the WSL2/Windows adb split so you don't waste time on `adb devices` showing nothing.
+description: Drive a Cultuvilla dev-client Android AVD or physical phone (USB or wireless) from WSL2 or native Linux — boot the emulator, expose Metro to the device, deep-link into the dev client, screenshot, and tail logcat. Use whenever the task needs to actually run the mobile app and observe its behavior (e.g. capture `[firestore-deny]` lines, verify a UI change, reproduce a runtime bug). Encodes the WSL2/Windows adb split so you don't waste time on `adb devices` showing nothing.
 ---
 
-# Drive the Cultuvilla AVD from WSL
+# Drive the Cultuvilla AVD from WSL or Linux
 
 ## The one thing to know
+
+**On native Linux** none of the WSL split below applies: `scripts/avd-dev.sh` uses
+the SDK's own `adb` and `emulator` (`$ANDROID_HOME`, else `~/Android/Sdk`), `boot`
+creates `Cultuvilla_Big` the first time from an installed image
+(`CULTUVILLA_AVD_IMAGE`, default android-36 google_apis x86_64; `CULTUVILLA_AVD_DEVICE`,
+default `pixel_7_pro`), and it pins `ANDROID_AVD_HOME` to `~/.android/avd` — a desktop
+session sets `XDG_CONFIG_HOME`, and the new `avdmanager` then writes AVDs under
+`~/.config/.android/avd`, where the emulator never looks. Build and install the dev
+client with `pnpm --filter cultuvilla-mobile exec expo run:android --no-bundler`
+(Java 17: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk`).
+
+**Under WSL2:**
 
 Under WSL2 the Android emulator runs on the **Windows host**. The Linux-side `adb` cannot see it (and trying to start its own `adb` server fights the Windows one for port 5037). **Always use the Windows-side `adb.exe`**:
 

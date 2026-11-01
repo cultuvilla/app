@@ -281,9 +281,17 @@ jobs:
           fi
           echo "OK — USE_FIREBASE_EMULATOR is unset; deployed bundle excludes the E2E bypass."
 
+      # The web studio (apps/studio) is a static app Hosting serves under
+      # /estudio. One build serves every env: it reads its Firebase config
+      # from the project it is served by.
+      - name: Build web studio
+        if: ${{ steps.release.outputs.hold_backend != 'true' }}
+        run: pnpm --filter @cultuvilla/studio build
+
       # Hosting serves only static files — brand images, this env's deep-link
-      # identities and robots.txt — and rewrites every page to the `readSite`
-      # function deployed above (docs/decisions/web-is-a-read-site.md).
+      # identities, robots.txt and the web studio — and rewrites every other
+      # page to the `readSite` function deployed above
+      # (docs/decisions/web-is-a-read-site.md).
       - name: Assemble static web files
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
         run: node scripts/build-web-static.mjs ${{ inputs.firebase_alias }}

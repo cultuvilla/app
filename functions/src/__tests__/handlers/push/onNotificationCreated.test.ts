@@ -91,6 +91,31 @@ describe('onNotificationCreated', () => {
     expect((await queueDoc('n3')).exists).toBe(false);
   });
 
+  it('mutes one group’s messages, and only that group’s', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-15T10:00:00Z'));
+    await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
+    await fire('g1', notification('group_message', { entityKind: 'organization', entityId: 'org-muted' }));
+    expect(deliverPush).not.toHaveBeenCalled();
+    expect((await queueDoc('g1')).exists).toBe(false);
+
+    await fire('g2', notification('group_message', { entityKind: 'organization', entityId: 'org-other' }));
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+    expect((await queueDoc('g2')).data()).toMatchObject({ category: 'groups' });
+  });
+
+  it('silencing the avisos leaves a chat the member turned on', async () => {
+    await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
+    await fire('g3', notification('group_message', { entityKind: 'organization', entityId: 'org-muted', chatThreadId: 'general' }));
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+  });
+
+  it('never lets a group mute hold back the cuota reminder', async () => {
+    await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
+    await fire('c1', notification('cuota_reminder', { entityKind: 'organization', entityId: 'org-muted' }));
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+  });
+
   it('holds a village broadcast overnight until 08:00 Madrid', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-07-15T21:30:00Z')); // 23:30 CEST

@@ -17,6 +17,8 @@ export { startVillage } from './village/startVillage';
 export { updateVillageInfo } from './village/updateVillageInfo';
 export { requestOrganizeVillage } from './village/requestOrganizeVillage';
 export { respondToOrganizerRequest } from './village/respondToOrganizerRequest';
+// Telegram alert to the founders for every Embajador request (app) and lead (web).
+export { onOrganizerRequestCreated, onAmbassadorLeadCreated } from './village/onAmbassadorRequestCreated';
 export { changeVillageMemberRole } from './village/changeVillageMemberRole';
 export { transferVillageAmbassador } from './village/transferVillageAmbassador';
 export { syncVillageDenormalization } from './village/syncVillageDenormalization';
@@ -35,7 +37,23 @@ export { changeOrgMemberRole } from './organizations/changeOrgMemberRole';
 export { respondToOrgJoinRequest } from './organizations/respondToOrgJoinRequest';
 export { onOrgJoinRequestCreated } from './organizations/onOrgJoinRequestCreated';
 export { syncOrgMemberCount } from './organizations/syncOrgMemberCount';
+export { syncOrgSocioRoster } from './organizations/syncOrgSocioRoster';
+export { assignSocioNumber } from './organizations/assignSocioNumber';
+export { linkSocioToMember } from './organizations/linkSocioToMember';
+export { sendCuotaReminders } from './organizations/sendCuotaReminders';
+export { onGroupTaskUpdated } from './organizations/onGroupTaskUpdated';
+export { respondToTaskShift } from './organizations/respondToTaskShift';
+export { sendGroupTaskReminders } from './organizations/sendGroupTaskReminders';
+export { sendGroupMessage } from './organizations/sendGroupMessage';
+export { nudgeGroupMessage } from './organizations/nudgeGroupMessage';
 export { onOrganizationUpdated } from './organizations/notificationTriggers';
+export {
+  onGroupChatMessageCreated,
+  onAvisoChatMessageCreated,
+  onGroupChatMessageDeleted,
+  onAvisoChatMessageDeleted,
+} from './organizations/onGroupChatMessageCreated';
+export { onTaskCommentCreated, onGroupTaskDeleted } from './organizations/onTaskCommentCreated';
 
 // Push notifications. onNotificationCreated is the ONLY seam between the
 // notification log and a device: every producer just writes a notification doc.
@@ -90,6 +108,15 @@ export { reverseGeocode } from './maps/reverseGeocode';
 export { sendAuthSignInEmail } from './auth/sendAuthSignInEmail';
 export { sendAuthOtpCode } from './auth/sendAuthOtpCode';
 export { verifyAuthOtpCode } from './auth/verifyAuthOtpCode';
+export { restoreLegacySession } from './auth/restoreLegacySession';
+
+// Web studio sign-in: pairing a desktop browser with the signed-in app
+export {
+  createStudioPairing,
+  claimStudioPairing,
+  inspectStudioPairing,
+  approveStudioPairing,
+} from './studio/studioPairing';
 
 // Observability (client error ingestion + pseudonymized identity)
 export { logClientError } from './observability/logClientError';

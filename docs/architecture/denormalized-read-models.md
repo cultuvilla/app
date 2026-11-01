@@ -165,6 +165,10 @@ org's member list, `/usuario/{uid}`.
 - **Adding a field:** only if anyone, signed out included, may read it. Contact
   details never belong here.
 
+### `organizations/{orgId}/socioPrivate/{socioId}.phone|email` ← `users/{uid}.telephone|email`
+
+Admins can't read `users/{uid}`, so a socio's shared contact is a copy. `syncPublicProfile` updates a value the socio already shares, in every group where they're active; a value they don't share stays null. See [socio-contact-required.md](../decisions/socio-contact-required.md).
+
 ### `commentCount` ← `comments/`
 
 Every comment-capable kind (event, organization, festivalPoster, place, barrio,
@@ -412,6 +416,40 @@ with no extra reads and no visible reshuffle.
   and [scripts/backfill-barrio-resident-count.mjs](../../scripts/backfill-barrio-resident-count.mjs)
   recompute the true count from the source and write it; they double as repair
   tools if a trigger ever drifts.
+
+### socio roster `member` rows ← `organizations/{orgId}/members/`
+
+`organizations/{orgId}/socios/` is the group's libro de socios, so a member's
+row must exist exactly as long as their membership — and then outlive it, with a
+baja. `syncOrgSocioRoster`
+([functions/src/organizations/syncOrgSocioRoster.ts](../../functions/src/organizations/syncOrgSocioRoster.ts))
+watches the members subcollection and, on every event, reconciles the member's
+rows against the member doc **as it is now**, inside one transaction — trigger
+events arrive at least once and in no guaranteed order, so the event itself is
+never trusted. Not a member: their active row and their personas a cargo get the
+baja. A member: the row whose `memberJoinedAt` equals the member doc's
+`joinedAt` is this membership's; an active row of an earlier membership gets the
+baja at the rejoin date, and if no row matches, the member's own persona row is
+adopted (keeping its alta) or a new one opens. A member who is not an admin
+loses `adminTitle`. It is a no-op for the ayuntamiento and for an org already
+deleted.
+
+- **Not a full projection.** Rows are never rewritten wholesale; the trigger
+  only adds rows and patches fields, so persona and typed rows written by clients
+  are never clobbered.
+- **`displayName` is a point-in-time copy** of `users/{uid}.displayName`, like a
+  registration's name: a private persona's doc is unreadable to the admins who
+  list the roster, so the name has to live on the row.
+- **Backfill / repair:** [scripts/backfill-socio-roster.mjs](../../scripts/backfill-socio-roster.mjs)
+  reconciles: an alta for every member with no active row, a baja for an active
+  row whose member has left.
+
+### `chatThreads/{threadId}` ← `chat/` under the group or an aviso
+
+- **Source:** `organizations/{orgId}/chat/{id}` (general) and `organizations/{orgId}/messages/{messageId}/chat/{id}` (an aviso's).
+- **Read model:** `organizations/{orgId}/chatThreads/{threadId}` — `lastMessageAt`, `lastAuthorUid`. Lets the unread badge take one doc per thread instead of a listener on each thread's messages.
+- **Trigger:** `functions/src/organizations/onGroupChatMessageCreated.ts`, a transaction per message, creation only. A deleted message does not move it back: the badge may show a thread whose newest message is gone until it is opened.
+- **Backfill:** none. A thread's summary begins with its first message.
 
 ### `villageSlug` ← `municipalities/{id}.slug`
 

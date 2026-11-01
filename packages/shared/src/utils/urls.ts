@@ -37,6 +37,8 @@ export const RESERVED_ROOT_SEGMENTS = [
   'descubrir',
   'embajadores',
   'entrar',
+  'estudio',
+  'grupos',
   'legal',
   'mi-pueblo',
   'mis-inscripciones',
@@ -85,6 +87,7 @@ export const VILLAGE_SECTIONS = [
   'carteles',
   'censo',
   'comunidad',
+  'denuncias',
   'editar',
   'entidades',
   'historia',
@@ -102,6 +105,9 @@ export const SEAT_CLAIM_SEGMENT = 'plaza';
 export const WORD_SEGMENT = 'palabra';
 export const NEW_WORD_SEGMENT = 'nueva';
 export const WRAPPED_SEGMENT = 'fiestas';
+/** The web studio, a separate app Hosting serves under this segment. */
+export const STUDIO_SEGMENT = 'estudio';
+export const STUDIO_PAIRING_SEGMENT = 'vincular';
 
 /**
  * The first `_` splits a ref: slugs only ever contain `[a-z0-9-]`, while ids may
@@ -184,8 +190,73 @@ export function personPath(personId: string): string {
   return `/persona/${personId}`;
 }
 
+/** The Grupos tab, opened on one group (the private side: cuota, socios). */
+export function groupPath(orgId: string): string {
+  return `/grupos?grupo=${encodeURIComponent(orgId)}`;
+}
+
+/** The screens of a group's private side, each opened from the group home. */
+export const GROUP_SECTIONS = [
+  'avisos',
+  'charla',
+  'eventos',
+  'tareas',
+  'cuota',
+  'actas',
+  'socios',
+  'cobros',
+  'mensajes',
+  'registros',
+  'miembros',
+  'ajustes',
+] as const;
+
+export type GroupSection = (typeof GROUP_SECTIONS)[number];
+
+export function isGroupSection(value: string): value is GroupSection {
+  return (GROUP_SECTIONS as readonly string[]).includes(value);
+}
+
+/** One screen of a group — `/grupos/<orgId>/cuota`. */
+export function groupSectionPath(orgId: string, section: GroupSection): string {
+  return `/grupos/${encodeURIComponent(orgId)}/${section}`;
+}
+
+/** One aviso and its chat, inside the app — `/grupos/<orgId>/aviso/<messageId>`. */
+export function groupAvisoPath(orgId: string, messageId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/aviso/${encodeURIComponent(messageId)}`;
+}
+
+/** One of a group's events from the organizing side — `/grupos/<orgId>/evento/<eventId>`. */
+export function groupEventPath(orgId: string, eventId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/evento/${encodeURIComponent(eventId)}`;
+}
+
+/** One task of a group — `/grupos/<orgId>/tarea/<taskId>`. */
+export function groupTaskPath(orgId: string, taskId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/tarea/${encodeURIComponent(taskId)}`;
+}
+
+/**
+ * The link an aviso's WhatsApp text and email carry. A query on the tab rather
+ * than `groupAvisoPath`: those messages outlive app versions, and a binary with
+ * no aviso route still opens the group from this one.
+ */
+export function groupAvisoLinkPath(orgId: string, messageId: string): string {
+  return `${groupPath(orgId)}&aviso=${encodeURIComponent(messageId)}`;
+}
+
 export function userPath(uid: string): string {
   return `/usuario/${uid}`;
+}
+
+/**
+ * Where the studio's QR code points: the app opens it to approve a studio
+ * sign-in, and the studio answers it on a phone without the app.
+ */
+export function studioPairingPath(pairingId: string): string {
+  if (!pairingId) throw new Error('urls: pairingId is required for a studio pairing');
+  return `/${STUDIO_SEGMENT}/${STUDIO_PAIRING_SEGMENT}/${pairingId}`;
 }
 
 export type ParsedAppPath =
@@ -202,7 +273,8 @@ export type ParsedAppPath =
     }
   | { type: 'seatClaim'; villageSlug: string; ref: string; id: string; token: string }
   | { type: 'wrapped'; villageSlug: string; year: number }
-  | { type: 'user'; uid: string };
+  | { type: 'user'; uid: string }
+  | { type: 'studioPairing'; pairingId: string };
 
 /**
  * Recognises the shareable paths — the ones a link from outside the app may
@@ -217,6 +289,11 @@ export function parseAppPath(pathname: string): ParsedAppPath | null {
 
   if (first === 'usuario') {
     return segments.length === 2 && second ? { type: 'user', uid: second } : null;
+  }
+  if (first === STUDIO_SEGMENT) {
+    return segments.length === 3 && second === STUDIO_PAIRING_SEGMENT && third
+      ? { type: 'studioPairing', pairingId: third }
+      : null;
   }
   if (isReservedRootSegment(first)) return null;
 

@@ -2,6 +2,7 @@ export {
   calendarDayOffset,
   formatCompactRelativeTime,
   formatDate,
+  formatDayKey,
   formatPrice,
   formatRelativeTime,
   monthLongLabels,

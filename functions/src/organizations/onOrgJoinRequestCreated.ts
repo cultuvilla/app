@@ -11,8 +11,8 @@ import { notifyOrgJoinRequestCreated } from '../helpers/notifyRequests';
 const db = admin.firestore();
 
 /**
- * Tells an `approval` org's admins that someone asked to join, so the request
- * doesn't sit unseen until one of them happens to open the Buzón.
+ * Tells an org's admins that someone asked to join, so the request doesn't sit
+ * unseen until one of them happens to open the Buzón.
  */
 export const onOrgJoinRequestCreated = onDocumentCreated(
   { document: 'organizations/{orgId}/joinRequests/{userId}', region: 'us-central1' },
