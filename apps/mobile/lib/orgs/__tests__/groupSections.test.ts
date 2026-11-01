@@ -27,13 +27,13 @@ describe('groupSections', () => {
   it('moves actas and socios under Gestionar for an admin', () => {
     const { member, admin } = groupSections(group({}, 'admin'));
     expect(member).toEqual(['avisos', 'eventos', 'tareas', 'cuota', 'mis-datos']);
-    expect(admin).toEqual(['cobros', 'mensajes', 'socios', 'gestion-tareas', 'registros', 'miembros', 'ajustes']);
+    expect(admin).toEqual(['cobros', 'mensajes', 'socios', 'registros', 'miembros', 'ajustes']);
   });
 
   it('an ayuntamiento keeps only events, tasks and members', () => {
     expect(groupSections(group({ type: 'ayuntamiento' }, 'admin'))).toEqual({
       member: ['eventos', 'tareas'],
-      admin: ['gestion-tareas', 'miembros'],
+      admin: ['miembros'],
     });
   });
 

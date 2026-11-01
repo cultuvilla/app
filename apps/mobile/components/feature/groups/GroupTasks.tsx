@@ -45,19 +45,22 @@ function startOfYear(year: string): Date {
 const RECENT_DONE = 10;
 
 /**
- * Admins, in Gestionar: every open task (tap to edit), what was done this
- * year, each upcoming event's checklist (apply a template, save it as one),
- * the templates, and the fair-share count. A group with a socio roster that
- * tracks no asamblea yet is offered one, recurring yearly — never created for it.
+ * The group's tasks, for every member: each open task (tap to edit), what was
+ * done this year, and each upcoming event's checklist. Any member creates,
+ * edits and ticks tasks. Admins also keep the templates (apply one, save a
+ * checklist as one), see the fair-share count, and are offered a yearly
+ * asamblea when a group with a socio roster tracks none — never created for it.
  */
-export function TasksAdmin({
+export function GroupTasks({
   orgId,
   uid,
+  isAdmin,
   includePrivateEvents,
   suggestAsamblea,
 }: {
   orgId: string;
   uid: string;
+  isAdmin: boolean;
   includePrivateEvents: boolean;
   suggestAsamblea: boolean;
 }) {
@@ -68,7 +71,12 @@ export function TasksAdmin({
   const done = useWatch<GroupTask[]>('groups:watchGroupTasksDoneSince', `${orgId}|${year}`, (next, error) =>
     watchGroupTasksDoneSince(orgId, startOfYear(year), next, error),
   );
-  const templates = useWatch<TaskTemplate[]>('groups:watchTaskTemplates', orgId, (next, error) => watchTaskTemplates(orgId, next, error));
+  // Templates are admin-only in the rules: a member's read would be refused.
+  const templates = useWatch<TaskTemplate[]>(
+    'groups:watchTaskTemplates',
+    isAdmin ? orgId : null,
+    isAdmin ? (next, error) => watchTaskTemplates(orgId, next, error) : null,
+  );
   const orgEvents = useWatch<ChecklistEvent[]>('groups:watchEventsByOrganization', `${orgId}|${String(includePrivateEvents)}`, (next, error) =>
     watchEventsByOrganization(orgId, { includePrivate: includePrivateEvents }, next, error),
   );
@@ -93,7 +101,7 @@ export function TasksAdmin({
 
   const [creatingAsamblea, setCreatingAsamblea] = useState(false);
   const showAsamblea =
-    suggestAsamblea && open.status === 'ready' && done.status === 'ready' && ![...openTasks, ...doneTasks].some(isAsambleaTask);
+    isAdmin && suggestAsamblea && open.status === 'ready' && done.status === 'ready' && ![...openTasks, ...doneTasks].some(isAsambleaTask);
   const createAsamblea = () => {
     setCreatingAsamblea(true);
     createGroupTask(orgId, asambleaTaskInput(today, { title: t('groups.tasks.asamblea.title'), agenda: t('groups.tasks.asamblea.agenda') }), uid)
@@ -107,7 +115,7 @@ export function TasksAdmin({
   const close = () => setSheet(null);
 
   return (
-    <VStack gap={3} testID="tasks-admin">
+    <VStack gap={3} testID="group-tasks">
       <HStack justify="end" align="center">
         <Button size="md" variant="secondary" onPress={() => setSheet({ kind: 'task', task: null, eventId: null })} testID="tasks-new">
           {t('groups.tasks.new')}
@@ -176,18 +184,23 @@ export function TasksAdmin({
             nameOf={nameOf}
             onAddTask={() => setSheet({ kind: 'task', task: null, eventId: event.id })}
             onEditTask={(task) => setSheet({ kind: 'task', task, eventId: event.id })}
-            onApplyTemplate={() => setSheet({ kind: 'apply', template: null, event })}
-            onSaveAsTemplate={(tasks) =>
-              setSheet({
-                kind: 'template',
-                template: null,
-                initial: { name: event.title, items: templateItemsFromTasks(tasks, madridDayKey(event.startDate)) },
-              })
+            onApplyTemplate={isAdmin ? () => setSheet({ kind: 'apply', template: null, event }) : null}
+            onSaveAsTemplate={
+              isAdmin
+                ? (tasks) =>
+                    setSheet({
+                      kind: 'template',
+                      template: null,
+                      initial: { name: event.title, items: templateItemsFromTasks(tasks, madridDayKey(event.startDate)) },
+                    })
+                : null
             }
           />
         ))
       )}
 
+      {isAdmin ? (
+      <>
       <HStack justify="between" align="center" className="pt-2">
         <Text className="font-bold">{t('groups.tasks.templates.title')}</Text>
         <Button size="md" variant="ghost" onPress={() => setSheet({ kind: 'template', template: null, initial: null })} testID="templates-new">
@@ -222,6 +235,8 @@ export function TasksAdmin({
       <Card>
         <FairShare doneTasks={done.data ?? []} members={members} year={year} />
       </Card>
+      </>
+      ) : null}
 
       <TaskSheet
         visible={sheet?.kind === 'task'}
@@ -230,6 +245,7 @@ export function TasksAdmin({
         task={sheet?.kind === 'task' ? sheet.task : null}
         eventId={sheet?.kind === 'task' ? sheet.eventId : null}
         members={members}
+        canDelete={sheet?.kind === 'task' && (isAdmin || sheet.task?.createdBy === uid)}
         onClose={close}
       />
       <TemplateSheet
@@ -275,8 +291,9 @@ function EventChecklist({
   nameOf: (uid: string) => string;
   onAddTask: () => void;
   onEditTask: (task: GroupTask) => void;
-  onApplyTemplate: () => void;
-  onSaveAsTemplate: (tasks: GroupTask[]) => void;
+  /** Admins only: templates are theirs. */
+  onApplyTemplate: (() => void) | null;
+  onSaveAsTemplate: ((tasks: GroupTask[]) => void) | null;
 }) {
   const { t } = useT();
   const tasks = useWatch<GroupTask[]>('groups:watchEventGroupTasks', `${orgId}|${event.id}`, (next, error) =>
@@ -321,10 +338,12 @@ function EventChecklist({
               <Button size="md" variant="secondary" onPress={onAddTask} testID={`checklist-add-${event.id}`}>
                 {t('groups.tasks.checklists.addTask')}
               </Button>
-              <Button size="md" variant="secondary" onPress={onApplyTemplate} testID={`checklist-apply-${event.id}`}>
-                {t('groups.tasks.checklists.applyTemplate')}
-              </Button>
-              {rows.length > 0 ? (
+              {onApplyTemplate ? (
+                <Button size="md" variant="secondary" onPress={onApplyTemplate} testID={`checklist-apply-${event.id}`}>
+                  {t('groups.tasks.checklists.applyTemplate')}
+                </Button>
+              ) : null}
+              {onSaveAsTemplate && rows.length > 0 ? (
                 <Button size="md" variant="ghost" onPress={() => onSaveAsTemplate(rows)} testID={`checklist-save-${event.id}`}>
                   {t('groups.tasks.checklists.saveAsTemplate')}
                 </Button>
