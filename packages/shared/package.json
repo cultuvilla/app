@@ -87,7 +87,7 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "peerDependencies": {
     "@react-native-firebase/app": "^26.4.0",
