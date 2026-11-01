@@ -226,10 +226,12 @@ export default function NewEventScreen() {
   // card) targets that village; otherwise fall back to the user's active one.
   // A `copyFrom` param (a repeating event's "Repetir el año que viene") creates a
   // new event prefilled from that one, its dates moved a year.
-  const { villageId, eventId, copyFrom } = useLocalSearchParams<{
+  // An `organizerOrgId` param (a group's "Crear evento") starts with that group organizing.
+  const { villageId, eventId, copyFrom, organizerOrgId } = useLocalSearchParams<{
     villageId?: string;
     eventId?: string;
     copyFrom?: string;
+    organizerOrgId?: string;
   }>();
   const editMode = !!eventId;
 
@@ -344,7 +346,7 @@ export default function NewEventScreen() {
   // the first render the creator's uid is still seeded.
   const [organizerUserIds, setOrganizerUserIds] = useState<string[]>([]);
   const [createdBy, setCreatedBy] = useState<string | null>(null);
-  const [organizerOrgIds, setOrganizerOrgIds] = useState<string[]>([]);
+  const [organizerOrgIds, setOrganizerOrgIds] = useState<string[]>(organizerOrgId ? [organizerOrgId] : []);
   // A private event names exactly one org, and that org must be one of the
   // organizers — the switch is only offered in that case, but a stale toggle
   // left behind by adding a second org must not slip through. The same value is

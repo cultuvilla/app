@@ -275,6 +275,19 @@ export function compareTasksByDue(
   return ka === kb ? a.title.localeCompare(b.title, 'es') : ka < kb ? -1 : 1;
 }
 
+/** How far each event's checklist has got: the events with no task are absent. */
+export function eventTaskProgress(
+  tasks: Pick<GroupTaskData, 'eventId' | 'doneAt'>[],
+): Map<string, { done: number; total: number }> {
+  const progress = new Map<string, { done: number; total: number }>();
+  for (const { eventId, doneAt } of tasks) {
+    if (eventId === null) continue;
+    const entry = progress.get(eventId) ?? { done: 0, total: 0 };
+    progress.set(eventId, { done: entry.done + (doneAt === null ? 0 : 1), total: entry.total + 1 });
+  }
+  return progress;
+}
+
 // ── Reminders ────────────────────────────────────────────────────────────────
 
 /** Days before the due day an assignee is first reminded. */

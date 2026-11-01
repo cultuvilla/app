@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import type { GroupNotificationPrefsData } from '@cultuvilla/shared/models/notification';
 import {
   castGroupPollVote,
   markGroupMessageRead,
-  setGroupMessagesMuted,
-  watchGroupNotificationPrefs,
   watchMyGroupPollVotes,
   type GroupPollVote,
 } from '@cultuvilla/shared/services/groupMessageService';
@@ -13,7 +10,7 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
-import { Card, HStack, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { Card, HStack, Pressable, Text, VStack } from '../../primitives';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
@@ -39,9 +36,6 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
     'groups:watchMyGroupPollVotes',
     pollIds.length > 0 ? `${orgId}|${uid}|${pollKey}` : null,
     pollIds.length > 0 ? (next, error) => watchMyGroupPollVotes(orgId, uid, pollIds, next, error) : null,
-  );
-  const prefs = useWatch<GroupNotificationPrefsData | null>('groups:watchGroupNotificationPrefs', `${uid}|${orgId}`, (next, error) =>
-    watchGroupNotificationPrefs(uid, orgId, next, error),
   );
 
   const voteOf = useMemo(() => new Map((votes.data ?? []).map((v) => [v.id, v.option])), [votes.data]);
@@ -73,11 +67,15 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
                   {t('groups.messages.newBadge')}
                 </Text>
               ) : null}
-              <Text className="font-bold">{text.title}</Text>
-              <Text selectable>{text.body}</Text>
-              <Text variant="caption" tone="muted">
-                {formatDate(m.sentAt, 'dayMonthShort')}
-              </Text>
+              <Pressable testID={`group-notice-open-${m.id}`} accessibilityRole="button" onPress={() => router.push(groupAvisoHref(orgId, m.id))}>
+                <VStack gap={1}>
+                  <Text className="font-bold">{text.title}</Text>
+                  <Text>{text.body}</Text>
+                  <Text variant="caption" tone="muted">
+                    {formatDate(m.sentAt, 'dayMonthShort')}
+                  </Text>
+                </VStack>
+              </Pressable>
               {m.poll ? (
                 <VStack gap={1} className="pt-2" testID={`group-notice-poll-${m.id}`}>
                   <Text className="font-bold">{m.poll.question}</Text>
@@ -122,19 +120,6 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
           </Card>
         );
       })}
-      {prefs.status === 'ready' ? (
-        <VStack gap={1}>
-          <Toggle
-            testID="group-notices-mute"
-            value={prefs.data?.messagesMuted ?? false}
-            label={t('groups.messages.mute')}
-            onValueChange={(muted) => void setGroupMessagesMuted(uid, orgId, muted).catch(() => showAlert(t('groups.messages.muteError')))}
-          />
-          <Text variant="caption" tone="muted">
-            {t('groups.messages.muteHint')}
-          </Text>
-        </VStack>
-      ) : null}
     </VStack>
   );
 }

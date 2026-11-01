@@ -32,6 +32,7 @@ describe('TaskComments', () => {
   it('invites the first comment on an empty task', () => {
     setWatched('comments', []);
     const { getByTestId } = render(<TaskComments orgId="org1" taskId="t1" uid="u1" isAdmin={false} />);
+    expect(getByTestId('task-comments')).toBeTruthy();
     expect(getByTestId('task-comments-empty')).toBeTruthy();
   });
 

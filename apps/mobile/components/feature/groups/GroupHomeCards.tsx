@@ -65,18 +65,20 @@ export function TaskCard({
   task,
   eventTitle,
   faces,
+  width = 200,
   onPress,
 }: {
   task: GroupTask;
   eventTitle: string | null;
   faces: Record<string, MemberFace>;
+  width?: number;
   onPress: () => void;
 }) {
   const { t } = useT();
   const people = taskPeople(task);
   const shown = people.slice(0, MAX_FACES);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-task-${task.id}`} style={{ width: 200, minHeight: TASK_CARD_MIN_HEIGHT }}>
+    <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-task-${task.id}`} style={{ width, minHeight: TASK_CARD_MIN_HEIGHT }}>
       <Card className="flex-1">
         <VStack gap={2} className="flex-1">
           <HStack gap={1} align="center">
@@ -85,7 +87,7 @@ export function TaskCard({
               {task.dueOn ? formatDayKey(task.dueOn, 'dayMonthShort') : t('groups.tasks.noDate')}
             </Text>
           </HStack>
-          <Text className="font-bold" numberOfLines={2}>
+          <Text className={task.doneAt ? 'line-through' : 'font-bold'} tone={task.doneAt ? 'muted' : 'primary'} numberOfLines={2}>
             {task.title}
           </Text>
           {eventTitle ? (

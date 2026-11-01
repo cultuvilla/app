@@ -23,10 +23,11 @@ import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGr
 import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCard';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
-import { eventHref, groupAvisoHref, groupSectionHref } from '../../lib/navigation/routes';
+import { groupAvisoHref, groupEventHref, groupSectionHref, groupTaskHref } from '../../lib/navigation/routes';
 import { useWatch } from '../../lib/hooks/useWatch';
 import { useMyCuota } from '../../lib/orgs/useMyCuota';
 import { groupSections } from '../../lib/orgs/groupSections';
+import { useEventTaskBadges } from '../../lib/orgs/useEventTaskBadges';
 import { useGroupChatUnread } from '../../lib/orgs/useGroupChatUnread';
 import { useGroupNotices } from '../../lib/orgs/useGroupNotices';
 import { useMyMessageValues } from '../../lib/orgs/useMyMessageValues';
@@ -139,6 +140,8 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
     const now = new Date();
     return firstOfEachSeries(upcomingThenPast(events.data ?? [], now)).filter((e) => eventEndBoundary(e) >= now);
   }, [events.data]);
+  const eventRowIds = useMemo(() => eventRows.map((e) => e.id), [eventRows]);
+  const taskBadge = useEventTaskBadges(org.id, eventRowIds);
   // Every task of the group still to be done, not only mine.
   const openTasks = useWatch<GroupTask[]>('groups:watchOpenGroupTasks', org.id, (next, error) =>
     watchOpenGroupTasks(org.id, next, error),
@@ -221,7 +224,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
             <NoticePlaceholder text={t(notices.status === 'error' ? 'groups.chat.loadError' : 'groups.sections.empty.avisos')} onPress={() => open('avisos')} />
           ) : (
             notices.notices.slice(0, 5).map((m) => (
-              <NoticeCard key={m.id} message={personalizeGroupMessage(m, myValues)} onPress={() => open('avisos')} />
+              <NoticeCard key={m.id} message={personalizeGroupMessage(m, myValues)} onPress={() => router.push(groupAvisoHref(org.id, m.id))} />
             ))
           )}
         </Section>
@@ -236,6 +239,8 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
         testID="group-home-events"
         isEmpty={eventRows.length === 0}
         status={events.status}
+        actionLabel={t('village.home.seeAll')}
+        onManage={() => open('eventos')}
         data={eventRows}
         keyExtractor={(e) => e.id}
         renderItem={({ item: e }) => (
@@ -245,7 +250,8 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
             icon="calendar-outline"
             imageUri={e.imageURL ?? e.villageCoverImage}
             statBadge={{ icon: 'person-outline', count: e.confirmedCount, spoken: 'attendees' }}
-            onPress={() => router.push(eventHref(e))}
+            progressBadge={taskBadge(e.id)}
+            onPress={() => router.push(groupEventHref(org.id, e.id))}
           />
         )}
       />
@@ -264,7 +270,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
             task={task}
             eventTitle={task.eventId ? (eventTitles.get(task.eventId) ?? null) : null}
             faces={faces}
-            onPress={() => open('tareas')}
+            onPress={() => router.push(groupTaskHref(org.id, task.id))}
           />
         ))}
       </Section>

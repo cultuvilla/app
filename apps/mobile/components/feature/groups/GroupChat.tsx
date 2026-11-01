@@ -3,20 +3,17 @@ import { FlatList, Keyboard, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
-import type { GroupNotificationPrefsData } from '@cultuvilla/shared/models/notification';
 import { GROUP_CHAT_PAGE_SIZE, groupChatMessagePath } from '@cultuvilla/shared/models/organization';
 import { getBlockedUserIds } from '@cultuvilla/shared/services/blockedUserService';
 import {
   deleteGroupChatMessage,
   markGroupChatRead,
   sendGroupChatMessage,
-  setGroupChatPush,
   watchGroupChat,
   type GroupChatMessage,
 } from '@cultuvilla/shared/services/groupChatService';
-import { watchGroupNotificationPrefs } from '@cultuvilla/shared/services/groupMessageService';
 import { formatCompactRelativeTime } from '@cultuvilla/shared/utils';
-import { HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { HStack, Input, Pressable, Text, VStack } from '../../primitives';
 import { ReportSheet, type ReportTarget } from '../ReportSheet';
 import { OptionsSheet } from './OptionsSheet';
 import { useAuth } from '../../../lib/auth/useAuth';
@@ -58,28 +55,6 @@ function MessageBubble({
         <Ionicons name="ellipsis-vertical" size={iconSizes.sm} color={colors.light.fg.muted} />
       </Pressable>
     </HStack>
-  );
-}
-
-/** The one switch for chat notifications, general and avisos alike. Off until the member turns it on. */
-function ChatPushToggle({ orgId, uid }: { orgId: string; uid: string }) {
-  const { t } = useT();
-  const prefs = useWatch<GroupNotificationPrefsData | null>('groups:watchGroupNotificationPrefs', `${uid}|${orgId}`, (next, error) =>
-    watchGroupNotificationPrefs(uid, orgId, next, error),
-  );
-  if (prefs.status !== 'ready') return null;
-  return (
-    <VStack gap={1} className="pb-3">
-      <Toggle
-        testID="group-chat-push"
-        value={prefs.data?.chatPush ?? false}
-        label={t('groups.chat.push')}
-        onValueChange={(on) => void setGroupChatPush(uid, orgId, on, prefs.data ?? null).catch(() => showAlert(t('groups.chat.pushError')))}
-      />
-      <Text variant="caption" tone="muted">
-        {t('groups.chat.pushHint')}
-      </Text>
-    </VStack>
   );
 }
 
@@ -225,7 +200,6 @@ export function GroupChat({
         renderItem={({ item }) => <MessageBubble message={item} mine={item.authorUid === uid} onOptions={setOptionsFor} />}
         ListFooterComponent={
           <VStack gap={2} className="pb-2">
-            <ChatPushToggle orgId={orgId} uid={uid} />
             {head}
             {watch.status === 'error' ? (
               <Text tone="danger" testID="group-chat-error">

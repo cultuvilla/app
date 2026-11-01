@@ -46,7 +46,8 @@ jest.mock('../../../lib/orgs/useGroupChatUnread', () => ({ useGroupChatUnread: (
 jest.mock('../../../lib/orgs/useMyMessageValues', () => ({
   useMyMessageValues: () => ({ nombre: null, numero: null, cuotaCents: null }),
 }));
-jest.mock('../../../lib/orgs/useMyOpenTasks', () => ({ useMyOpenTasks: () => ({ mine: mockMyTasks, shifts: [], status: 'ready' }) }));
+jest.mock('../../../lib/orgs/useEventTaskBadges', () => ({ useEventTaskBadges: () => () => undefined }));
+jest.mock('../../../lib/orgs/useMyOpenTasks', () => ({ useMyOpenTasks: () => ({ mine: mockMyTasks, status: 'ready' }) }));
 let mockEvents: { id: string; title: string; startDate: Date; endDate: Date | null; confirmedCount: number; imageURL: null; villageCoverImage: null; villageSlug: string }[] = [];
 jest.mock('../../../lib/hooks/useWatch', () => ({
   useWatch: (label: string) => ({
@@ -193,7 +194,16 @@ describe('Grupos tab', () => {
     expect(queryByText('groups.tasks.shift.slots')).toBeNull();
     expect(getByTestId('group-home-task-late-date')).toHaveTextContent('groups.tasks.noDate');
     fireEvent.press(getByTestId('group-home-task-soon'));
-    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/tareas');
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/tarea/soon');
+  });
+
+  it('keeps the Avisos row with nothing to show, and when the read fails', async () => {
+    mockGroups = [group('Anduela')];
+    const { findByText, unmount } = render(<GroupsTabScreen />);
+    expect(await findByText('groups.sections.empty.avisos')).toBeTruthy();
+    unmount();
+    mockNoticesStatus = 'error';
+    expect(await render(<GroupsTabScreen />).findByText('groups.chat.loadError')).toBeTruthy();
   });
 
   it('keeps the Avisos row with nothing to show, and when the read fails', async () => {
@@ -235,7 +245,7 @@ describe('Grupos tab', () => {
     expect(notice).toHaveTextContent(/Cena\s*El sábado/);
     expect(getByTestId('group-home-notice-m1')).not.toHaveTextContent(/groups\.messages\.(pinnedBadge|sentBy)|La junta/);
     fireEvent.press(getByTestId('group-home-notice-m1'));
-    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/avisos');
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/aviso/m1');
     expect(getByTestId('group-home-events')).toBeTruthy();
     expect(getByText('Matanza')).toBeTruthy();
   });
@@ -281,7 +291,7 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
-    expect(order).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'mis-datos', 'cobros', 'mensajes', 'socios', 'registros', 'miembros', 'ajustes']);
+    expect(order).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'mis-datos', 'ajustes', 'cobros', 'mensajes', 'socios', 'registros']);
     expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
     expect(getByTestId('group-section-tareas').props.accessibilityHint).toBeUndefined();
     fireEvent.press(getByTestId('group-section-registros'));

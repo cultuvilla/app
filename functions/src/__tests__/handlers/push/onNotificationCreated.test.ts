@@ -104,6 +104,12 @@ describe('onNotificationCreated', () => {
     expect((await queueDoc('g2')).data()).toMatchObject({ category: 'groups' });
   });
 
+  it('silencing the avisos leaves a chat the member turned on', async () => {
+    await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
+    await fire('g3', notification('group_message', { entityKind: 'organization', entityId: 'org-muted', chatThreadId: 'general' }));
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+  });
+
   it('never lets a group mute hold back the cuota reminder', async () => {
     await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
     await fire('c1', notification('cuota_reminder', { entityKind: 'organization', entityId: 'org-muted' }));

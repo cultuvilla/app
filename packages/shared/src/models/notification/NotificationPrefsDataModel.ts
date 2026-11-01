@@ -87,8 +87,8 @@ export const NOTIFICATION_PREF_KEYS: readonly NotificationPrefKey[] = NOTIFICATI
 export const GroupNotificationPrefsDataSchema = z.object({
   messagesMuted: z.boolean(),
   // Chat messages notify nobody unless they opt in here, one switch for the
-  // group's general chat and its avisos' chats; `messagesMuted` still wins over
-  // it for the push. Defaults because installed binaries rewrite the whole doc
+  // group's general chat and its avisos' chats. Apart from `messagesMuted`, which
+  // silences only the avisos. Defaults because installed binaries rewrite the whole doc
   // without it when they (un)mute — which turns the opt-in off.
   chatPush: z.boolean().default(false),
   // The doc's own id, stored so the chat trigger can find a group's opted-in

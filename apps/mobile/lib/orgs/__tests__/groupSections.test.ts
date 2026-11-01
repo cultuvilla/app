@@ -15,7 +15,7 @@ function group(overrides: Partial<Parameters<typeof buildOrganizationData>[0]> =
 describe('groupSections', () => {
   it('gives a socio of an asociación their own screens and no Gestionar', () => {
     expect(groupSections(group())).toEqual({
-      member: ['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'actas', 'mis-datos'],
+      member: ['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'actas', 'mis-datos', 'ajustes'],
       admin: [],
     });
   });
@@ -26,14 +26,14 @@ describe('groupSections', () => {
 
   it('moves actas and socios under Gestionar for an admin', () => {
     const { member, admin } = groupSections(group({}, 'admin'));
-    expect(member).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'mis-datos']);
-    expect(admin).toEqual(['cobros', 'mensajes', 'socios', 'registros', 'miembros', 'ajustes']);
+    expect(member).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'mis-datos', 'ajustes']);
+    expect(admin).toEqual(['cobros', 'mensajes', 'socios', 'registros']);
   });
 
   it('an ayuntamiento keeps its chat, events, tasks, members and settings', () => {
     expect(groupSections(group({ type: 'ayuntamiento' }, 'admin'))).toEqual({
-      member: ['charla', 'eventos', 'tareas'],
-      admin: ['miembros', 'ajustes'],
+      member: ['charla', 'eventos', 'tareas', 'ajustes'],
+      admin: ['miembros'],
     });
   });
 

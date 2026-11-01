@@ -11,6 +11,7 @@ vi.mock('../../src/firebase/refs/client', () => ({
   organizationTaskTemplatesCollection: vi.fn((_db, orgId: string) => ({ _coll: `organizations/${orgId}/taskTemplates` })),
   organizationTaskCommentsCollection: vi.fn((_db, orgId: string, taskId: string) => ({ _coll: `organizations/${orgId}/tasks/${taskId}/chat` })),
   organizationTaskCommentsWriteCollection: vi.fn((_db, orgId: string, taskId: string) => ({ _coll: `organizations/${orgId}/tasks/${taskId}/chat` })),
+  organizationTaskDoc: vi.fn((_db, orgId: string, id: string) => ({ _path: `organizations/${orgId}/tasks/${id}` })),
   organizationTaskWriteDoc: vi.fn((_db, orgId: string, coll: string, id: string) => ({ _path: `organizations/${orgId}/${coll}/${id}` })),
 }));
 vi.mock('firebase/firestore', () => ({
@@ -28,9 +29,11 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: { state: 'waitlisted' } }))) }));
 
-import { deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, onSnapshot, setDoc, updateDoc, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
+  watchGroupTask,
+  watchGroupTasksOfEvents,
   addTaskComment,
   applyTaskTemplate,
   createGroupTask,
@@ -98,6 +101,16 @@ describe('groupTaskService', () => {
     const [ref, data] = vi.mocked(setDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(pathOf(ref)).toMatch(/^organizations\/org1\/taskTemplates\//);
     expect(data).toMatchObject({ name: 'Fiestas', items: [{ title: 'Orquesta', offsetDays: -60 }], updatedBy: 'admin1', updatedAt: 'SERVER_TS' });
+  });
+
+  it('watchGroupTasksOfEvents asks for the checklists of those events', () => {
+    watchGroupTasksOfEvents('org1', ['e1', 'e2'], vi.fn(), vi.fn());
+    expect(where).toHaveBeenCalledWith('eventId', 'in', ['e1', 'e2']);
+  });
+
+  it('watchGroupTask listens to the one task', () => {
+    watchGroupTask('org1', 't1', vi.fn(), vi.fn());
+    expect(onSnapshot).toHaveBeenCalledWith(expect.objectContaining({ _path: 'organizations/org1/tasks/t1' }), expect.anything(), expect.anything());
   });
 
   it('respondToTaskShift goes through the callable', async () => {
