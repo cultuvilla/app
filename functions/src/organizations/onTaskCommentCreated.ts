@@ -1,7 +1,12 @@
 import { onDocumentCreated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import { organizationMemberDoc, userNotificationsCollection } from '@cultuvilla/shared/firebase/refs/admin';
+import {
+  organizationDoc,
+  organizationMemberDoc,
+  organizationTaskDoc,
+  userNotificationsCollection,
+} from '@cultuvilla/shared/firebase/refs/admin';
 import {
   GroupChatMessageDataSchema,
   buildNotificationData,
@@ -35,8 +40,8 @@ export async function handleTaskComment(
   const comment = parsed.data;
 
   const [taskSnap, orgSnap] = await Promise.all([
-    db.doc(`organizations/${orgId}/tasks/${taskId}`).get(),
-    db.doc(`organizations/${orgId}`).get(),
+    db.doc(organizationTaskDoc(db, orgId, taskId).path).get(),
+    db.doc(organizationDoc(db, orgId).path).get(),
   ]);
   const taskTitle: unknown = taskSnap.get('title');
   const orgName: unknown = orgSnap.get('name');
