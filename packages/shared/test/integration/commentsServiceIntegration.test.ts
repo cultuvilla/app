@@ -40,16 +40,20 @@ afterAll(() => {
   vi.restoreAllMocks();
 });
 
+const TRIGGER_POLL_MS = 60_000;
+
 /**
  * Polls `read()` until `predicate` is satisfied or `timeoutMs` elapses.
  * Triggers run asynchronously in the emulator, so assertions on
  * function-written fields (commentCount) can't be made synchronously after
- * the service call that provoked them.
+ * the service call that provoked them. The limit is generous because the suite
+ * shares one emulator with the rules tests, whose seeds queue thousands of
+ * trigger runs: this waits out that backlog, it does not measure the trigger.
  */
 async function pollUntil<T>(
   read: () => Promise<T>,
   predicate: (value: T) => boolean,
-  { timeoutMs = 15_000, intervalMs = 250 }: { timeoutMs?: number; intervalMs?: number } = {},
+  { timeoutMs = TRIGGER_POLL_MS, intervalMs = 250 }: { timeoutMs?: number; intervalMs?: number } = {},
 ): Promise<T> {
   const start = Date.now();
   let last: T = await read();
@@ -239,7 +243,7 @@ describe('commentsService — real trigger round-trip (event parent)', () => {
       (v) => v.commentCount === 0,
     );
     expect(afterDelete.commentCount).toBe(0);
-  });
+  }, 2 * TRIGGER_POLL_MS + 10_000);
 });
 
 describe('commentsService — real trigger round-trip (nested place parent)', () => {
@@ -257,5 +261,5 @@ describe('commentsService — real trigger round-trip (nested place parent)', ()
       (v) => v === 1,
     );
     expect(count).toBe(1);
-  });
+  }, TRIGGER_POLL_MS + 10_000);
 });
