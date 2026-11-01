@@ -10,21 +10,21 @@ import { compareTasksByDue, hasSocioRoster, isActiveSocio, periodLabel, personal
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import { watchOrgSocios, type Socio } from '@cultuvilla/shared/services/socioService';
 import { formatDate } from '@cultuvilla/shared/utils';
-import { Card, Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '../../components/primitives';
+import { Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '../../components/primitives';
 import { StatsRow } from '../../components/feature/StatsRow';
 import { EntityCard, Section, SectionHeader } from '../../components/feature/VillageSections';
-import { NoticeCard, TaskCard, taskPeople } from '../../components/feature/groups/GroupHomeCards';
+import { NoticeCard, NoticePlaceholder, TaskCard, taskPeople } from '../../components/feature/groups/GroupHomeCards';
 import { useMemberFaces } from '../../lib/orgs/useOrgMembers';
 import { watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { AppHeader } from '../../components/layout/AppHeader';
 import { GroupSwitcherSheet } from '../../components/feature/groups/GroupSwitcher';
+import { CuotaBanner } from '../../components/feature/groups/CuotaBanner';
 import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGrid';
 import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCard';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
 import { eventHref, groupAvisoHref, groupSectionHref } from '../../lib/navigation/routes';
 import { useWatch } from '../../lib/hooks/useWatch';
-import { CUOTA_STATUS_TONE } from '../../lib/orgs/cuota';
 import { useMyCuota } from '../../lib/orgs/useMyCuota';
 import { groupSections } from '../../lib/orgs/groupSections';
 import { useGroupChatUnread } from '../../lib/orgs/useGroupChatUnread';
@@ -147,6 +147,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const eventTitles = useMemo(() => new Map((events.data ?? []).map((e) => [e.id, e.title])), [events.data]);
   const faces = useMemberFaces(upcomingTasks.flatMap(taskPeople));
   const ownStatus = cuota.statuses.find((s) => cuota.rows.find((r) => r.id === s.socioId)?.kind === 'member') ?? cuota.statuses[0];
+  const cuotaBanner = roster && ownStatus && cuota.periodKey ? { period: cuota.periodKey, status: ownStatus.status } : null;
 
   const badges: Partial<Record<GroupSection, number>> = {
     avisos: notices.unreadCount + chat.unreadAvisoIds.size,
@@ -208,36 +209,27 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
         />
       </View>
 
-      {/* Avisos are what the junta needs everyone to read: the first row. */}
+      {/* Avisos are what the junta needs everyone to read: the first row, there even with nothing to show. */}
       {roster ? (
         <Section
           title={t('groups.sections.avisos')}
-          isEmpty={notices.notices.length === 0}
-          status={notices.status}
+          isEmpty={false}
+          status={notices.status === 'loading' ? 'loading' : 'ready'}
           actionLabel={t('village.home.seeAll')}
           onManage={() => open('avisos')}
         >
-          {notices.notices.slice(0, 5).map((m) => (
-            <NoticeCard key={m.id} message={personalizeGroupMessage(m, myValues)} onPress={() => open('avisos')} />
-          ))}
+          {notices.notices.length === 0 ? (
+            <NoticePlaceholder text={t(notices.status === 'error' ? 'groups.chat.loadError' : 'groups.sections.empty.avisos')} onPress={() => open('avisos')} />
+          ) : (
+            notices.notices.slice(0, 5).map((m) => (
+              <NoticeCard key={m.id} message={personalizeGroupMessage(m, myValues)} onPress={() => open('avisos')} />
+            ))
+          )}
         </Section>
       ) : null}
 
       <VStack gap={3} className="px-4 pt-4">
         {roster ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
-        {roster && ownStatus && cuota.periodKey ? (
-          <Pressable testID="group-home-cuota" accessibilityRole="button" onPress={() => open('cuota')}>
-            <Card>
-              <HStack gap={2} align="center">
-                <Text className="flex-1 font-bold">{t('groups.summary.cuota', { period: periodLabel(cuota.periodKey) })}</Text>
-                <Text variant="bodySm" tone={CUOTA_STATUS_TONE[ownStatus.status]} className="font-bold">
-                  {t(`groups.cuota.status.${ownStatus.status}`)}
-                </Text>
-                <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.muted} />
-              </HStack>
-            </Card>
-          </Pressable>
-        ) : null}
       </VStack>
 
       <Section
@@ -282,9 +274,24 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
       <VStack gap={3} className="pt-4" testID="group-actions">
         <SectionHeader title={t('groups.home.actions')} />
         <View className="px-4">
-          <GroupSectionGrid sections={member} adminSections={admin} badges={badges} onOpen={open} />
+          {/* The banner below is the way into the cuota, so it needs no button of its own. */}
+          <GroupSectionGrid
+            sections={cuotaBanner ? member.filter((s) => s !== 'cuota') : member}
+            adminSections={admin}
+            badges={badges}
+            onOpen={open}
+          />
         </View>
       </VStack>
+
+      {/* ── The member's cuota, closing the page as the fiestas button closes the village's ── */}
+      {cuotaBanner ? (
+        <CuotaBanner
+          label={t('groups.summary.cuota', { period: periodLabel(cuotaBanner.period) })}
+          status={cuotaBanner.status}
+          onPress={() => open('cuota')}
+        />
+      ) : null}
     </ScrollView>
   );
 }
