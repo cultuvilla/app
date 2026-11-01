@@ -126,7 +126,6 @@ export function CuotaAdmin({
     <CuotaSettingsSheet
       visible={sheet?.kind === 'settings'}
       settings={cuota}
-      signerName={signer?.name ?? null}
       onSave={(values) => saveCuotaSettings(orgId, values, uid)}
       onClose={() => setSheet(null)}
     />

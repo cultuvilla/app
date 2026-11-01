@@ -1676,7 +1676,6 @@
   },
   "groups": {
     "switcherLabel": "Cambiar de grupo",
-    "upcomingEvents": "Próximos eventos",
     "noUpcomingEvents": "No hay eventos próximos.",
     "roleAdmin": "Admin",
     "roleMember": "Integrante",
@@ -1689,7 +1688,7 @@
       "events": "Eventos"
     },
     "home": {
-      "upcomingTasks": "Próximas tareas",
+      "avisosWithNew": "Avisos ({count} sin leer)",
       "actions": "Acciones"
     },
     "sections": {
@@ -1702,7 +1701,7 @@
       "mis-datos": "Mis datos",
       "socios": "Socios",
       "cobros": "Cuota",
-      "mensajes": "Enviar aviso",
+      "mensajes": "Avisos",
       "registros": "Registros",
       "miembros": "Integrantes",
       "ajustes": "Ajustes",
@@ -1794,6 +1793,8 @@
     "settings": {
       "title": "Ajustes del grupo",
       "userTitle": "Ajustes de usuario",
+      "cuotaReminders": "Enviar recordatorios de la cuota",
+      "cuotaRemindersHint": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email. Actívalos cuando hayas anotado los pagos que ya tienes.",
       "sociosListVisible": "Los estatutos permiten ver la lista de socios",
       "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
       "chatAdminsOnly": "Solo la junta escribe en la Charla",
@@ -1865,15 +1866,9 @@
         "dueDay": "Día de vencimiento",
         "dueMonth": "Mes de vencimiento",
         "dueDayInvalid": "Escribe un día del 1 al 31.",
-        "graceDays": "Días de margen hasta que esté vencida",
-        "graceDaysValue": "{count, plural, =0 {Sin margen} one {# día} other {# días}}",
-        "graceDaysInvalid": "Escribe un número de días, de 0 a 365.",
         "bizum": "Número de Bizum (opcional)",
         "iban": "IBAN (opcional)",
         "payInstructions": "Otras indicaciones (opcional)",
-        "reminders": "Enviar recordatorios",
-        "remindersHint": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email, firmados por {name}. Actívalos cuando hayas anotado los pagos que ya tienes.",
-        "remindersHintNoSigner": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email, firmados por la junta.",
         "tiers": "Tarifas",
         "tiersHint": "Opcional: por ejemplo, reducida para jubilados o familiar.",
         "addTier": "Añadir tarifa",

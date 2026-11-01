@@ -1,5 +1,5 @@
 import { buildOrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
-import { canOpenGroupSection, groupSections } from '../groupSections';
+import { canOpenGroupSection, groupSections, homeButtons } from '../groupSections';
 import type { MyGroup } from '../useMyGroups';
 
 function group(overrides: Partial<Parameters<typeof buildOrganizationData>[0]> = {}, role: 'admin' | 'member' = 'member'): MyGroup {
@@ -35,6 +35,12 @@ describe('groupSections', () => {
       member: ['charla', 'eventos', 'tareas', 'ajustes'],
       admin: ['miembros'],
     });
+  });
+
+  it('leaves the home without buttons for what its rows open, though they still open', () => {
+    const { member } = groupSections(group());
+    expect(homeButtons(member)).toEqual(['charla', 'cuota', 'actas', 'mis-datos', 'ajustes']);
+    expect(canOpenGroupSection(group(), 'tareas')).toBe(true);
   });
 
   it('refuses a member a Gestionar screen', () => {

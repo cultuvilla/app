@@ -33,8 +33,8 @@ export function NoticeCard({ message, onPress }: { message: GroupMessage; onPres
   );
 }
 
-/** Keeps the Avisos row in place when there is no notice to show. */
-export function NoticePlaceholder({ text, onPress }: { text: string; onPress: () => void }) {
+/** Keeps a row of the group's home in place when it has nothing to show. */
+export function RowPlaceholder({ text, onPress }: { text: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" style={{ width: 260 }}>
       <Card className="flex-1">

@@ -76,23 +76,11 @@ describe('a group screen', () => {
     expect(mockRedirect).toHaveBeenCalledWith({ href: '/grupos?grupo=Anduela' });
   });
 
-  it('switching group stays on the same screen when the other group has it', () => {
+  it('has no bar to change group', () => {
     mockGroups = [group('Anduela'), group('Peña')];
     mockParams = { grupo: 'Anduela', seccion: 'cuota' };
-    const { getByTestId } = render(<GroupSectionScreen />);
-    fireEvent.press(getByTestId('group-section-switcher'));
-    fireEvent.press(getByTestId('group-switcher-Peña'));
-    expect(mockSetParams).toHaveBeenCalledWith({ grupo: 'Peña' });
-    expect(mockRemember).toHaveBeenCalledWith('Peña');
-  });
-
-  it("goes to the other group's home when it lacks the screen", () => {
-    mockGroups = [group('Anduela'), group('Ayto', { type: 'ayuntamiento' })];
-    mockParams = { grupo: 'Anduela', seccion: 'cuota' };
-    const { getByTestId } = render(<GroupSectionScreen />);
-    fireEvent.press(getByTestId('group-section-switcher'));
-    fireEvent.press(getByTestId('group-switcher-Ayto'));
-    expect(mockSetParams).not.toHaveBeenCalled();
-    expect(mockDismissTo).toHaveBeenCalledWith('/grupos?grupo=Ayto');
+    const { queryByText } = render(<GroupSectionScreen />);
+    expect(queryByText('Peña')).toBeNull();
+    expect(queryByText('Anduela')).toBeNull();
   });
 });

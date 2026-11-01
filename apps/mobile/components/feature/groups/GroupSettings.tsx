@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GroupNotificationPrefsData } from '@cultuvilla/shared/models/notification';
+import { saveCuotaSettings, watchCuotaSettings, type CuotaSettings } from '@cultuvilla/shared/services/cuotaService';
 import { setGroupChatPush } from '@cultuvilla/shared/services/groupChatService';
 import { setGroupMessagesMuted, watchGroupNotificationPrefs } from '@cultuvilla/shared/services/groupMessageService';
 import { updateOrganization } from '@cultuvilla/shared/services/organizationService';
@@ -12,8 +13,8 @@ import { useWatch } from '../../../lib/hooks/useWatch';
 /**
  * A group's settings, in two parts. Everyone has their own: what this group
  * notifies them of (avisos exist only with a roster). An admin also has the
- * group's, on the org doc: whether socios see the roster's names, and who
- * writes in the Charla.
+ * group's: whether socios see the roster's names, who writes in the Charla, and
+ * once the cuota is configured, whether it sends reminders.
  */
 export function GroupSettings({
   orgId,
@@ -34,10 +35,24 @@ export function GroupSettings({
   const prefs = useWatch<GroupNotificationPrefsData | null>('groups:watchGroupNotificationPrefs', `${uid}|${orgId}`, (next, error) =>
     watchGroupNotificationPrefs(uid, orgId, next, error),
   );
+  const showsCuota = isAdmin && hasRoster;
+  const cuota = useWatch<CuotaSettings | null>(
+    'groups:watchCuotaSettings',
+    showsCuota ? orgId : null,
+    showsCuota ? (next, error) => watchCuotaSettings(orgId, next, error) : null,
+  );
   const [saving, setSaving] = useState(false);
   const save = (patch: { sociosListVisible: boolean } | { chatAdminsOnly: boolean }) => {
     setSaving(true);
     updateOrganization(orgId, patch)
+      .catch(() => showAlert(t('groups.settings.error')))
+      .finally(() => setSaving(false));
+  };
+  const setReminders = (remindersEnabled: boolean) => {
+    if (!cuota.data) return;
+    const { id: _id, configuredBy: _by, updatedAt: _at, ...settings } = cuota.data;
+    setSaving(true);
+    saveCuotaSettings(orgId, { ...settings, remindersEnabled }, uid)
       .catch(() => showAlert(t('groups.settings.error')))
       .finally(() => setSaving(false));
   };
@@ -101,6 +116,20 @@ export function GroupSettings({
           <Text tone="muted" variant="bodySm">
             {t('groups.settings.chatAdminsOnlyHint')}
           </Text>
+          {cuota.data ? (
+            <>
+              <Toggle
+                testID="group-settings-cuota-reminders"
+                value={cuota.data.remindersEnabled}
+                disabled={saving}
+                label={t('groups.settings.cuotaReminders')}
+                onValueChange={setReminders}
+              />
+              <Text tone="muted" variant="bodySm">
+                {t('groups.settings.cuotaRemindersHint')}
+              </Text>
+            </>
+          ) : null}
         </VStack>
       ) : null}
     </VStack>

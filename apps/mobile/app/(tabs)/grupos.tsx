@@ -13,7 +13,7 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '../../components/primitives';
 import { StatsRow } from '../../components/feature/StatsRow';
 import { EntityCard, Section, SectionHeader } from '../../components/feature/VillageSections';
-import { NoticeCard, NoticePlaceholder, TaskCard, taskPeople } from '../../components/feature/groups/GroupHomeCards';
+import { NoticeCard, RowPlaceholder, TaskCard, taskPeople } from '../../components/feature/groups/GroupHomeCards';
 import { useMemberFaces } from '../../lib/orgs/useOrgMembers';
 import { watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { AppHeader } from '../../components/layout/AppHeader';
@@ -26,13 +26,12 @@ import { useT } from '../../lib/i18n';
 import { groupAvisoHref, groupEventHref, groupSectionHref, groupTaskHref } from '../../lib/navigation/routes';
 import { useWatch } from '../../lib/hooks/useWatch';
 import { useMyCuota } from '../../lib/orgs/useMyCuota';
-import { groupSections } from '../../lib/orgs/groupSections';
+import { groupSections, homeButtons } from '../../lib/orgs/groupSections';
 import { useEventTaskBadges } from '../../lib/orgs/useEventTaskBadges';
 import { useGroupChatUnread } from '../../lib/orgs/useGroupChatUnread';
 import { useGroupNotices } from '../../lib/orgs/useGroupNotices';
 import { useMyMessageValues } from '../../lib/orgs/useMyMessageValues';
 import { useMyGroups, type MyGroup } from '../../lib/orgs/useMyGroups';
-import { useMyOpenTasks } from '../../lib/orgs/useMyOpenTasks';
 import { pickGroupId, readLastGroupId, rememberLastGroupId } from '../../lib/orgs/lastGroup';
 
 /**
@@ -121,7 +120,6 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const noticeIds = useMemo(() => notices.notices.map((m) => m.id), [notices.notices]);
   const chat = useGroupChatUnread(org.id, uid, noticeIds);
   const myValues = useMyMessageValues(org.id, roster ? uid : null);
-  const tasks = useMyOpenTasks(org.id, uid);
   const cuota = useMyCuota(org.id, roster ? uid : null);
   // Rules let members read the roster only while the estatutos allow it.
   const canReadRoster = roster && (isAdmin || org.sociosListVisible);
@@ -153,10 +151,9 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const cuotaBanner = roster && ownStatus && cuota.periodKey ? { period: cuota.periodKey, status: ownStatus.status } : null;
 
   const badges: Partial<Record<GroupSection, number>> = {
-    avisos: notices.unreadCount + chat.unreadAvisoIds.size,
     charla: chat.generalUnread ? 1 : 0,
-    tareas: tasks.mine.length,
   };
+  const newAvisos = notices.unreadCount + chat.unreadAvisoIds.size;
   const open = (section: GroupSection) => router.push(groupSectionHref(org.id, section));
 
   return (
@@ -211,17 +208,17 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
         />
       </View>
 
-      {/* Avisos are what the junta needs everyone to read: the first row, there even with nothing to show. */}
+      {/* Avisos are what the junta needs everyone to read: the first row. These rows stay with nothing to show: each is the way into its screen. */}
       {roster ? (
         <Section
-          title={t('groups.sections.avisos')}
+          title={newAvisos > 0 ? t('groups.home.avisosWithNew', { count: newAvisos }) : t('groups.sections.avisos')}
           isEmpty={false}
           status={notices.status === 'loading' ? 'loading' : 'ready'}
           actionLabel={t('village.home.seeAll')}
           onManage={() => open('avisos')}
         >
           {notices.notices.length === 0 ? (
-            <NoticePlaceholder text={t(notices.status === 'error' ? 'groups.chat.loadError' : 'groups.sections.empty.avisos')} onPress={() => open('avisos')} />
+            <RowPlaceholder text={t(notices.status === 'error' ? 'groups.chat.loadError' : 'groups.sections.empty.avisos')} onPress={() => open('avisos')} />
           ) : (
             notices.notices.slice(0, 5).map((m) => (
               <NoticeCard key={m.id} message={personalizeGroupMessage(m, myValues)} onPress={() => router.push(groupAvisoHref(org.id, m.id))} />
@@ -235,13 +232,13 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
       </VStack>
 
       <Section
-        title={t('groups.upcomingEvents')}
+        title={t('groups.sections.eventos')}
         testID="group-home-events"
-        isEmpty={eventRows.length === 0}
+        isEmpty={false}
         status={events.status}
         actionLabel={t('village.home.seeAll')}
         onManage={() => open('eventos')}
-        data={eventRows}
+        data={eventRows.length > 0 ? eventRows : undefined}
         keyExtractor={(e) => e.id}
         renderItem={({ item: e }) => (
           <EntityCard
@@ -254,25 +251,31 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
             onPress={() => router.push(groupEventHref(org.id, e.id))}
           />
         )}
-      />
+      >
+        <RowPlaceholder text={t('groups.sections.empty.eventos')} onPress={() => open('eventos')} />
+      </Section>
 
       <Section
-        title={t('groups.home.upcomingTasks')}
+        title={t('groups.sections.tareas')}
         testID="group-home-tasks"
-        isEmpty={upcomingTasks.length === 0}
+        isEmpty={false}
         status={openTasks.status}
         actionLabel={t('village.home.seeAll')}
         onManage={() => open('tareas')}
       >
-        {upcomingTasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            eventTitle={task.eventId ? (eventTitles.get(task.eventId) ?? null) : null}
-            faces={faces}
-            onPress={() => router.push(groupTaskHref(org.id, task.id))}
-          />
-        ))}
+        {upcomingTasks.length === 0 ? (
+          <RowPlaceholder text={t('groups.tasks.noOpen')} onPress={() => open('tareas')} />
+        ) : (
+          upcomingTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              eventTitle={task.eventId ? (eventTitles.get(task.eventId) ?? null) : null}
+              faces={faces}
+              onPress={() => router.push(groupTaskHref(org.id, task.id))}
+            />
+          ))
+        )}
       </Section>
 
       {/* One list for everyone; an admin's extra buttons follow, in their own colour. */}
@@ -281,7 +284,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
         <View className="px-4">
           {/* The banner below is the way into the cuota, so it needs no button of its own. */}
           <GroupSectionGrid
-            sections={cuotaBanner ? member.filter((s) => s !== 'cuota') : member}
+            sections={homeButtons(cuotaBanner ? member.filter((s) => s !== 'cuota') : member)}
             adminSections={admin}
             badges={badges}
             onOpen={open}

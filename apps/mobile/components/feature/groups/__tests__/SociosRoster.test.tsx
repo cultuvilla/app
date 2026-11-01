@@ -11,6 +11,7 @@ import {
 } from '@cultuvilla/shared/services/socioService';
 import { updateOrganization } from '@cultuvilla/shared/services/organizationService';
 import { removeOrgMember, setOrgMemberRole } from '@cultuvilla/shared/services/orgMemberService';
+import { saveCuotaSettings } from '@cultuvilla/shared/services/cuotaService';
 import { setGroupChatPush } from '@cultuvilla/shared/services/groupChatService';
 import { setGroupMessagesMuted } from '@cultuvilla/shared/services/groupMessageService';
 import { resetWatchers, setWatched } from '../../../../test/watchers';
@@ -34,6 +35,10 @@ jest.mock('@cultuvilla/shared/services/socioService', () => ({
   setSocioBaja: jest.fn().mockResolvedValue(undefined),
   setSocioNumber: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('@cultuvilla/shared/services/cuotaService', () => {
+  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+  return { saveCuotaSettings: jest.fn().mockResolvedValue(undefined), watchCuotaSettings: mockWatcher('cuota') };
+});
 jest.mock('@cultuvilla/shared/services/groupChatService', () => ({ setGroupChatPush: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
   const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
@@ -232,7 +237,21 @@ describe('SociosRoster — member with the estatutos setting on', () => {
 });
 
 describe('GroupSettings', () => {
-  beforeEach(() => setWatched('prefs', null));
+  beforeEach(() => {
+    setWatched('prefs', null);
+    setWatched('cuota', null);
+  });
+
+  it("an admin turns the cuota's reminders on once it is configured, keeping the rest", () => {
+    const none = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} />);
+    expect(none.queryByTestId('group-settings-cuota-reminders')).toBeNull();
+    none.unmount();
+
+    setWatched('cuota', { id: 'current', amountCents: 3000, remindersEnabled: false, configuredBy: 'x', updatedAt: new Date() });
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} />);
+    fireEvent.press(r.getByTestId('group-settings-cuota-reminders'));
+    expect(saveCuotaSettings).toHaveBeenCalledWith('org1', { amountCents: 3000, remindersEnabled: true }, 'u1');
+  });
 
   it('a member sees only their own part, and silences avisos and chats apart', () => {
     setWatched('prefs', { messagesMuted: false, chatPush: true, orgId: 'org1', updatedAt: new Date() });
