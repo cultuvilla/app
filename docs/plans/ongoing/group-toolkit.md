@@ -428,6 +428,30 @@ loads them as typed socios and reaches them by email and WhatsApp. Build all of:
    with the placeholders rendered neutrally (not personalized).
 6. Per-person WhatsApp links default to `fallback` in the composer.
 
+Also decided 2026-11-01 (user), app-first — email and WhatsApp are bridges into the
+app: every WhatsApp text ends with an app link, and group-message emails reply to
+the sending admin (Reply-To = their account email, else the current address).
+
+**As built (items 1, 3, 5, 6 and the two above):**
+
+- Tokens `{nombre}`, `{nº socio}`, `{cuota pendiente}`, inserted by composer chips
+  into the field last touched (at the end of the text; the cuota chip only with a
+  cuota). Typed by hand, `{numero}`, `{cuota}` and other spellings work; any other
+  `{…}` stays as written. Logic and tests: `groupMessagePlaceholders.ts`.
+- **Who sees what.** Email and push: that recipient's values at send time. WhatsApp
+  link: the same, from `deliveries.personal`. In the app (`GroupNotices`, the home's
+  cards): the reader's own values, live (`useMyMessageValues`), so a cuota paid since
+  disappears. The admin's history shows the placeholders as written. A nudge has one
+  title for everyone, so it renders neutrally. A household gets the holder's name and
+  number and the sum of what its rows still owe (`owedCents - paidCents`, rows not
+  `al_dia`).
+- **The neutral rule**, for the group-chat share and for a recipient missing a value:
+  a missing name leaves its sentence ("Hola {nombre}," → "Hola,"); a line needing a
+  missing number or cuota is dropped; a title loses the token but never its line.
+- **The app link** is the group (`groupPath`, as the email): no route opens one aviso.
+- Reply-To: the sender's account email on group messages; the signing admin's
+  (`cuotaSigner`, now with `uid`) on cuota reminders. Auth and event mail are unchanged.
+
 **As built (items 2 and 4):**
 
 - `socioNumber` (nullable int, 1–99999, never reused: a baja keeps it). Admins set

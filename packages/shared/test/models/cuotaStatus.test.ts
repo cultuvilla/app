@@ -258,18 +258,18 @@ describe('cuotaSigner', () => {
     socio('eva', { displayName: 'Eva' }),
   ];
   it('is the tesorero when an admin carries that title', () => {
-    expect(cuotaSigner(rows, ['ana', 'luis', 'eva'], 'eva')).toEqual({ name: 'Luis', title: 'tesorero' });
+    expect(cuotaSigner(rows, ['ana', 'luis', 'eva'], 'eva')).toEqual({ uid: 'luis', name: 'Luis', title: 'tesorero' });
   });
   it('else the admin who configured the cuota', () => {
-    expect(cuotaSigner(rows, ['ana', 'eva'], 'eva')).toEqual({ name: 'Eva', title: null });
+    expect(cuotaSigner(rows, ['ana', 'eva'], 'eva')).toEqual({ uid: 'eva', name: 'Eva', title: null });
   });
   it('else any admin, and null with none', () => {
-    expect(cuotaSigner(rows, ['ana'], 'gone')).toEqual({ name: 'Ana', title: 'presidente' });
+    expect(cuotaSigner(rows, ['ana'], 'gone')).toEqual({ uid: 'ana', name: 'Ana', title: 'presidente' });
     expect(cuotaSigner(rows, [], 'gone')).toBeNull();
   });
   it('ignores bajas and former admins', () => {
     const left = [socio('luis', { displayName: 'Luis', adminTitle: 'tesorero', bajaAt: new Date() }), socio('eva', { displayName: 'Eva' })];
-    expect(cuotaSigner(left, ['luis', 'eva'], 'eva')).toEqual({ name: 'Eva', title: null });
+    expect(cuotaSigner(left, ['luis', 'eva'], 'eva')).toEqual({ uid: 'eva', name: 'Eva', title: null });
   });
 });
 

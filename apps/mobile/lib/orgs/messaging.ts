@@ -31,11 +31,17 @@ export function emptyComposerForm(): ComposerForm {
     eventId: null,
     push: true,
     email: true,
-    whatsapp: 'none',
+    // Most of a village group has no app at first: offer links for whoever nothing else reaches.
+    whatsapp: 'fallback',
     poll: 'none',
     question: '',
     options: ['', ''],
   };
+}
+
+/** A placeholder chip's tap: the token at the end of the text, spaced off what is there. */
+export function appendPlaceholder(text: string, token: string): string {
+  return text === '' || /\s$/.test(text) ? `${text}${token}` : `${text} ${token}`;
 }
 
 export type ComposerError = 'subject' | 'body' | 'event' | 'poll';

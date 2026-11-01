@@ -263,6 +263,8 @@ export function cuotaReminderStage(status: SocioCuotaStatus, today: string): Cuo
 // ── Signer ───────────────────────────────────────────────────────────────────
 
 export interface CuotaSigner {
+  /** The admin's account, whose address a reminder's replies go to. */
+  uid: string | null;
   name: string;
   title: OrgAdminTitle | null;
 }
@@ -282,5 +284,5 @@ export function cuotaSigner(socios: CuotaSocio[], adminUids: readonly string[], 
     rows.find((s) => s.uid === configuredBy) ??
     rows.find((s) => s.adminTitle !== null) ??
     (rows.length > 0 ? rows[0] : undefined);
-  return pick ? { name: pick.displayName.trim(), title: pick.adminTitle } : null;
+  return pick ? { uid: pick.uid, name: pick.displayName.trim(), title: pick.adminTitle } : null;
 }

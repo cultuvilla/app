@@ -3,6 +3,8 @@ import { ScrollView } from 'react-native';
 import {
   GROUP_MESSAGE_AUDIENCE_KINDS,
   GROUP_MESSAGE_BODY_MAX,
+  GROUP_MESSAGE_PLACEHOLDER_TOKEN,
+  GROUP_MESSAGE_PLACEHOLDERS,
   GROUP_MESSAGE_TITLE_MAX,
   GROUP_POLL_MAX_OPTIONS,
   GROUP_WHATSAPP_MODES,
@@ -22,7 +24,7 @@ import { FormModal } from '../../layout/FormModal';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
-import { composerInput, emptyComposerForm, type ComposerError, type ComposerForm, type PollChoice } from '../../../lib/orgs/messaging';
+import { appendPlaceholder, composerInput, emptyComposerForm, type ComposerError, type ComposerForm, type PollChoice } from '../../../lib/orgs/messaging';
 
 type Event = EventData & { id: string };
 
@@ -61,6 +63,8 @@ export function ComposeMessageSheet({
   const [messageId, setMessageId] = useState('');
   const [error, setError] = useState<ComposerError | null>(null);
   const [sending, setSending] = useState(false);
+  // Where a placeholder chip writes: the field last touched, the body at first.
+  const [chipTarget, setChipTarget] = useState<'title' | 'body'>('body');
   const events = useWatch<Event[]>(
     'groups:watchEventsByOrganization',
     visible ? `${orgId}|${includePrivateEvents}` : null,
@@ -121,6 +125,7 @@ export function ComposeMessageSheet({
             label={t('groups.messages.subject')}
             value={form.title}
             onChangeText={(v) => set('title', v)}
+            onFocus={() => setChipTarget('title')}
             maxLength={GROUP_MESSAGE_TITLE_MAX}
             error={error === 'subject' ? t(ERROR_KEY.subject) : undefined}
             testID="group-msg-subject"
@@ -129,12 +134,31 @@ export function ComposeMessageSheet({
             label={t('groups.messages.body')}
             value={form.body}
             onChangeText={(v) => set('body', v)}
+            onFocus={() => setChipTarget('body')}
             multiline
             autoGrow
             maxLength={GROUP_MESSAGE_BODY_MAX}
             error={error === 'body' ? t(ERROR_KEY.body) : undefined}
             testID="group-msg-body"
           />
+          <VStack gap={1} testID="group-msg-placeholders">
+            <HStack gap={2} className="flex-wrap">
+              {GROUP_MESSAGE_PLACEHOLDERS.filter((p) => p !== 'cuota' || hasCuota).map((p) => (
+                <Pressable
+                  key={p}
+                  testID={`group-msg-placeholder-${p}`}
+                  accessibilityRole="button"
+                  onPress={() => set(chipTarget, appendPlaceholder(form[chipTarget], GROUP_MESSAGE_PLACEHOLDER_TOKEN[p]))}
+                  className="px-3 py-1 rounded-md border border-subtle bg-surface"
+                >
+                  <Text variant="bodySm">{t(`groups.messages.placeholder.${p}`)}</Text>
+                </Pressable>
+              ))}
+            </HStack>
+            <Text variant="caption" tone="muted">
+              {t('groups.messages.placeholderHint')}
+            </Text>
+          </VStack>
           <SelectField
             label={t('groups.messages.audienceLabel')}
             testID="group-msg-audience"

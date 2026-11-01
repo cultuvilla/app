@@ -4,9 +4,13 @@ import {
   canNudgeGroupMessage,
   GROUP_MESSAGE_NUDGE_INTERVAL_MS,
   groupMessageWhatsappText,
+  NEUTRAL_PERSONAL_VALUES,
+  personalizeGroupMessage,
   tallyGroupPoll,
   unreadRecipientUids,
+  type GroupMessagePersonalValues,
   whatsappLink,
+  whatsappShareLink,
 } from '@cultuvilla/shared/models/organization';
 import { normalizeLeadPhone } from '@cultuvilla/shared/models/ambassadorLead';
 import {
@@ -82,7 +86,8 @@ export function MessageDetailSheet({
   const inApp = message.recipientUids.filter((u) => u !== message.sentBy);
   const now = new Date();
   const appUrl = `https://${getDeepLinkHost()}${groupPath(orgId)}`;
-  const text = groupMessageWhatsappText({ ...message, orgName }, appUrl);
+  const textFor = (values: GroupMessagePersonalValues) =>
+    groupMessageWhatsappText({ ...personalizeGroupMessage(message, values), orgName }, appUrl);
   const whatsapp = rows.filter((d) => d.whatsappSocioId !== null);
   const tally = message.poll ? tallyGroupPoll(message.poll, votes.data ?? []) : [];
 
@@ -98,7 +103,7 @@ export function MessageDetailSheet({
     const raw = d.whatsappSocioId ? phoneOf.get(d.whatsappSocioId) : null;
     const phone = raw ? normalizeLeadPhone(raw) : null;
     if (!phone) return;
-    void Linking.openURL(whatsappLink(phone, text))
+    void Linking.openURL(whatsappLink(phone, textFor(d.personal ?? NEUTRAL_PERSONAL_VALUES)))
       .then(() => (d.whatsappSentAt ? undefined : setWhatsappSent(orgId, message.id, d.id, uid, true)))
       .catch(fail);
   };
@@ -118,6 +123,13 @@ export function MessageDetailSheet({
             {t('groups.messages.sentBy', { name: message.signerName, date: formatDate(message.sentAt, 'long') })}
           </Text>
           <Text selectable>{message.body}</Text>
+          <Button
+            variant="secondary"
+            onPress={() => void Linking.openURL(whatsappShareLink(textFor(NEUTRAL_PERSONAL_VALUES))).catch(fail)}
+            testID="group-msg-detail-share"
+          >
+            {t('groups.messages.whatsappShare')}
+          </Button>
 
           {inApp.length > 0 ? (
             <Card testID="group-msg-detail-reads">
