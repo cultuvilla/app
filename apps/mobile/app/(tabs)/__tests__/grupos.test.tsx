@@ -40,6 +40,8 @@ jest.mock('../../../lib/orgs/lastGroup', () => ({
 jest.mock('../../../lib/orgs/useGroupNotices', () => ({
   useGroupNotices: () => ({ unreadCount: mockUnread, notices: mockNotices, status: 'ready', readsStatus: 'ready', readIds: new Set() }),
 }));
+let mockChatUnread = { generalUnread: false, unreadAvisoIds: new Set<string>() };
+jest.mock('../../../lib/orgs/useGroupChatUnread', () => ({ useGroupChatUnread: () => mockChatUnread }));
 jest.mock('../../../lib/orgs/useMyMessageValues', () => ({
   useMyMessageValues: () => ({ nombre: null, numero: null, cuotaCents: null }),
 }));
@@ -62,9 +64,10 @@ jest.mock('../../../lib/orgs/useMyCuota', () => ({ useMyCuota: () => mockCuota }
 jest.mock('@cultuvilla/shared/services/eventService', () => ({ watchEventsByOrganization: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/socioService', () => ({ watchOrgSocios: jest.fn() }));
 const mockPush = jest.fn();
-let mockParams: { grupo?: string } = {};
+const mockSetParams = jest.fn();
+let mockParams: { grupo?: string; aviso?: string } = {};
 jest.mock('expo-router', () => ({
-  router: { push: (href: unknown) => mockPush(href) },
+  router: { push: (href: unknown) => mockPush(href), setParams: (p: unknown) => mockSetParams(p) },
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock('../../../components/layout/AppHeader', () => ({
@@ -262,7 +265,7 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
-    expect(order).toEqual(['avisos', 'eventos', 'tareas', 'cuota', 'mis-datos', 'cobros', 'mensajes', 'socios', 'registros', 'miembros', 'ajustes']);
+    expect(order).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'mis-datos', 'cobros', 'mensajes', 'socios', 'registros', 'miembros', 'ajustes']);
     expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
     expect(getByTestId('group-section-tareas').props.accessibilityHint).toBeUndefined();
     fireEvent.press(getByTestId('group-section-registros'));
@@ -288,5 +291,25 @@ describe('Grupos tab', () => {
     expect(queryByTestId('group-section-cobros')).toBeNull();
     expect(getByTestId('group-section-tareas')).toBeTruthy();
     expect(getByTestId('group-section-miembros')).toBeTruthy();
+  });
+
+  it('badges what is new in the chats: the Charla, and the avisos on top of unread notices', async () => {
+    mockGroups = [group('o1')];
+    mockUnread = 1;
+    mockChatUnread = { generalUnread: true, unreadAvisoIds: new Set(['a1', 'a2']) };
+    const r = render(<GroupsTabScreen />);
+    await waitFor(() => expect(r.getByTestId('group-section-charla-badge')).toBeTruthy());
+    expect(r.getByTestId('group-section-avisos-badge')).toHaveTextContent('3');
+    mockChatUnread = { generalUnread: false, unreadAvisoIds: new Set() };
+    mockUnread = 0;
+  });
+
+  it('an aviso’s link opens the group, with the aviso on top, once', async () => {
+    mockGroups = [group('o1')];
+    mockParams = { grupo: 'o1', aviso: 'm1' };
+    render(<GroupsTabScreen />);
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/grupos/o1/aviso/m1'));
+    expect(mockSetParams).toHaveBeenCalledWith({ aviso: undefined });
+    mockParams = {};
   });
 });

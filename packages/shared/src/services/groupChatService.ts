@@ -8,6 +8,7 @@ import {
   organizationChatThreadDoc,
   organizationChatWriteCollection,
   organizationChatWriteDoc,
+  organizationMessageDoc,
   userGroupPrefsDoc,
 } from '../firebase/refs/client';
 import {
@@ -16,6 +17,7 @@ import {
   type GroupChatReadData,
   type GroupChatThreadData,
 } from '../models/organization/GroupChatDataModel';
+import type { GroupMessageData } from '../models/organization/GroupMessageDataModel';
 import type { GroupNotificationPrefsData } from '../models/notification/NotificationPrefsDataModel';
 import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
 
@@ -79,6 +81,16 @@ export async function deleteGroupChatMessage(orgId: string, threadId: string, ch
   await deleteDoc(organizationChatWriteDoc(getDb(), orgId, threadId, chatId));
 }
 
+/** One aviso, the head of its thread. The rules refuse a member it did not reach. */
+export function watchGroupAviso(
+  orgId: string,
+  messageId: string,
+  onNext: (row: (GroupMessageData & { id: string }) | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(organizationMessageDoc(getDb(), orgId, messageId), onNext, onError);
+}
+
 // =============================================================================
 // UNREAD — thread summaries and the reader's last open
 // =============================================================================
@@ -127,15 +139,15 @@ export async function markGroupChatRead(orgId: string, threadId: string, uid: st
 }
 
 // =============================================================================
-// PUSH — the general chat's per-group opt-in
+// PUSH — the per-group opt-in
 // =============================================================================
 
 /**
- * Opt in to (or out of) pushes for the group's general chat. Keeps the
- * group's mute as `current` has it — pass the prefs `watchGroupNotificationPrefs`
- * last gave (null = never set).
+ * Opt in to (or out of) notifications for this group's chats, general and avisos
+ * alike. Keeps the group's mute as `current` has it — pass the prefs
+ * `watchGroupNotificationPrefs` last gave (null = never set).
  */
-export async function setGroupGeneralChatPush(
+export async function setGroupChatPush(
   uid: string,
   orgId: string,
   on: boolean,
@@ -143,7 +155,7 @@ export async function setGroupGeneralChatPush(
 ): Promise<void> {
   await setDoc(
     userGroupPrefsDoc(getDb(), uid, orgId).withConverter(null),
-    { messagesMuted: current?.messagesMuted ?? false, generalChatPush: on, updatedAt: new Date() },
+    { messagesMuted: current?.messagesMuted ?? false, chatPush: on, orgId, updatedAt: new Date() },
     { merge: true },
   );
 }

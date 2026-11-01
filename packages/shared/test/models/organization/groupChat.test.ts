@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   GENERAL_CHAT_THREAD_ID,
   GroupChatMessageDataSchema,
-  avisoChatPushUids,
   countUnreadGroupChatThreads,
+  groupChatMessagePath,
   groupChatPushBody,
   isGeneralChatThread,
   isGroupChatThreadUnread,
@@ -42,17 +42,10 @@ describe('isGroupChatThreadUnread', () => {
   });
 });
 
-describe('avisoChatPushUids', () => {
-  it('pushes the aviso’s author and the participants, never the writer, once each', () => {
-    expect(
-      avisoChatPushUids({ avisoAuthorUid: 'junta', participantUids: ['paco', 'junta', 'ana'], writerUid: 'ana', canRead: () => true }),
-    ).toEqual(['junta', 'paco']);
-  });
-
-  it('drops whoever may no longer read the thread', () => {
-    expect(
-      avisoChatPushUids({ avisoAuthorUid: 'junta', participantUids: ['paco'], writerUid: 'ana', canRead: (uid) => uid !== 'paco' }),
-    ).toEqual(['junta']);
+describe('groupChatMessagePath', () => {
+  it('names the message in either kind of thread', () => {
+    expect(groupChatMessagePath('o1', 'general', 'c1')).toBe('organizations/o1/chat/c1');
+    expect(groupChatMessagePath('o1', 'm1', 'c1')).toBe('organizations/o1/messages/m1/chat/c1');
   });
 });
 
@@ -77,8 +70,8 @@ describe('the chat’s stored shapes', () => {
   });
 
   it('a group prefs doc written by an older binary parses with the chat opt-in off', () => {
-    expect(GroupNotificationPrefsDataSchema.parse({ messagesMuted: true, updatedAt: t(0) }).generalChatPush).toBe(false);
-    expect(buildGroupNotificationPrefsData({ messagesMuted: false, generalChatPush: true }).generalChatPush).toBe(true);
+    expect(GroupNotificationPrefsDataSchema.parse({ messagesMuted: true, updatedAt: t(0) }).chatPush).toBe(false);
+    expect(buildGroupNotificationPrefsData({ messagesMuted: false, chatPush: true }).chatPush).toBe(true);
   });
 
   it('an org without the setting lets every member write', () => {

@@ -65,112 +65,88 @@ afterAll(() => {
   ft.cleanup();
 });
 
-describe('an aviso’s chat', () => {
-  it('pushes the aviso’s author, not the writer and not the other recipients', async () => {
-    await writeAviso('c1', 'ana', 1, 'Yo voy');
+const optIn = (uid: string, orgId = ORG_ID) =>
+  db().doc(`users/${uid}/groupPrefs/${orgId}`).set({ messagesMuted: false, chatPush: true, orgId, updatedAt: new Date() });
 
-    expect(await notificationsOf('junta')).toEqual([
+describe('notifications', () => {
+  it('by default, no chat notifies anyone: not the aviso’s author, not earlier writers', async () => {
+    await writeAviso('c1', 'ana', 1);
+    await writeAviso('c2', 'paco', 2);
+    await writeGeneral('c3', 'ana', 3);
+    for (const uid of ['junta', 'ana', 'paco', 'pepa']) expect(await notificationsOf(uid)).toEqual([]);
+  });
+
+  it('an opted-in member gets each message of the general chat, naming its thread', async () => {
+    await optIn('paco');
+    await writeGeneral('c1', 'ana', 1);
+    expect(await notificationsOf('paco')).toEqual([
       expect.objectContaining({
-        id: `group_chat_${AVISO_ID}_c1`,
-        type: 'group_message',
-        title: 'La Anduela · Asamblea',
-        body: 'ANA: Yo voy',
-        entityKind: 'organization',
-        entityId: ORG_ID,
-        municipalityId: 'mun-1',
+        id: 'group_chat_general_c1', type: 'group_message', title: 'La Anduela · Charla', body: 'ANA: Hola',
+        entityKind: 'organization', entityId: ORG_ID, municipalityId: 'mun-1', chatThreadId: 'general',
       }),
     ]);
-    expect(await notificationsOf('ana')).toEqual([]);
-    expect(await notificationsOf('paco')).toEqual([]);
+    expect(await notificationsOf('pepa')).toEqual([]);
   });
 
-  it('then also pushes whoever already wrote in the thread', async () => {
-    await writeAviso('c1', 'ana', 1);
-    await writeAviso('c2', 'paco', 2);
-
-    expect((await notificationsOf('ana')).map((n) => n.id)).toEqual([`group_chat_${AVISO_ID}_c2`]);
-    expect((await notificationsOf('junta')).map((n) => n.id).sort()).toEqual([`group_chat_${AVISO_ID}_c1`, `group_chat_${AVISO_ID}_c2`]);
-    expect(await notificationsOf('paco')).toEqual([]);
-  });
-
-  it('does not push a participant who has left the group', async () => {
-    await writeAviso('c1', 'ana', 1);
-    await db().doc(`organizations/${ORG_ID}/members/ana`).delete();
-    await writeAviso('c2', 'paco', 2);
-
-    expect(await notificationsOf('ana')).toEqual([]);
-  });
-
-  it('a redelivered event leaves one notification and one participant entry', async () => {
-    await writeAviso('c1', 'ana', 1);
-    await writeAviso('c1', 'ana', 1);
-
+  it('the one opt-in covers avisos, for those who can read the aviso', async () => {
+    await optIn('paco');
+    await optIn('junta');
+    await optIn('pepa');
+    await writeAviso('c1', 'ana', 1, 'Yo voy');
+    expect(await notificationsOf('paco')).toEqual([
+      expect.objectContaining({ id: `group_chat_${AVISO_ID}_c1`, title: 'La Anduela · Asamblea', body: 'ANA: Yo voy', chatThreadId: AVISO_ID }),
+    ]);
     expect(await notificationsOf('junta')).toHaveLength(1);
-    expect((await thread(AVISO_ID))?.['participantUids']).toEqual(['ana']);
+    // Opted in, but the aviso did not reach her.
+    expect(await notificationsOf('pepa')).toEqual([]);
+  });
+
+  it('never the writer, nor someone who left, nor an opt-in for another group or switched off', async () => {
+    await optIn('ana');
+    await optIn('gone');
+    await optIn('paco', 'other-org');
+    await db().doc(`users/pepa/groupPrefs/${ORG_ID}`).set({ messagesMuted: false, chatPush: false, orgId: ORG_ID, updatedAt: new Date() });
+    await writeGeneral('c1', 'ana', 1);
+    for (const uid of ['ana', 'gone', 'paco', 'pepa']) expect(await notificationsOf(uid)).toEqual([]);
+  });
+
+  it('a redelivered event leaves one notification', async () => {
+    await optIn('paco');
+    await writeGeneral('c1', 'ana', 1);
+    await writeGeneral('c1', 'ana', 1);
+    expect(await notificationsOf('paco')).toHaveLength(1);
   });
 
   it('records nothing under a missing aviso', async () => {
+    await optIn('paco');
     await db().doc(`organizations/${ORG_ID}/messages/${AVISO_ID}`).delete();
     await writeAviso('c1', 'ana', 1);
-
     expect(await thread(AVISO_ID)).toBeUndefined();
-    expect(await notificationsOf('junta')).toEqual([]);
-  });
-});
-
-describe('the general chat', () => {
-  it('pushes only the members who opted in, never the writer', async () => {
-    const prefs = (uid: string, generalChatPush: boolean) =>
-      db().doc(`users/${uid}/groupPrefs/${ORG_ID}`).set({ messagesMuted: false, generalChatPush, updatedAt: new Date() });
-    await prefs('paco', true);
-    await prefs('ana', true);
-    await prefs('pepa', false);
-    // Written by a binary that predates the opt-in.
-    await db().doc(`users/junta/groupPrefs/${ORG_ID}`).set({ messagesMuted: false, updatedAt: new Date() });
-    // Opted in, then left.
-    await prefs('gone', true);
-
-    await writeGeneral('c1', 'ana', 1);
-
-    expect(await notificationsOf('paco')).toEqual([
-      expect.objectContaining({ id: 'group_chat_general_c1', type: 'group_message', title: 'La Anduela · Charla', body: 'ANA: Hola' }),
-    ]);
-    for (const uid of ['ana', 'pepa', 'junta', 'gone']) expect(await notificationsOf(uid)).toEqual([]);
-  });
-
-  it('by default pushes nobody', async () => {
-    await writeGeneral('c1', 'ana', 1);
-    for (const uid of ['junta', 'paco', 'pepa']) expect(await notificationsOf(uid)).toEqual([]);
+    expect(await notificationsOf('paco')).toEqual([]);
   });
 });
 
 describe('the thread summary', () => {
-  it('tracks the last message and everyone who wrote, once each, in order', async () => {
+  it('tracks the last message', async () => {
     await writeGeneral('c1', 'ana', 1);
     await writeGeneral('c2', 'paco', 2);
-    await writeGeneral('c3', 'ana', 3);
-
     const row = await thread('general');
-    expect(row?.['lastAuthorUid']).toBe('ana');
-    expect((row?.['lastMessageAt'] as admin.firestore.Timestamp).toDate()).toEqual(at(3));
-    expect(row?.['participantUids']).toEqual(['ana', 'paco']);
+    expect(row?.['lastAuthorUid']).toBe('paco');
+    expect((row?.['lastMessageAt'] as admin.firestore.Timestamp).toDate()).toEqual(at(2));
   });
 
-  it('an older message delivered late does not move it back, but its author still counts', async () => {
+  it('an older message delivered late does not move it back', async () => {
     await writeGeneral('c2', 'paco', 5);
     await writeGeneral('c1', 'ana', 1);
-
     const row = await thread('general');
     expect(row?.['lastAuthorUid']).toBe('paco');
     expect((row?.['lastMessageAt'] as admin.firestore.Timestamp).toDate()).toEqual(at(5));
-    expect(row?.['participantUids']).toEqual(['paco', 'ana']);
   });
 
   it('skips a message that does not match the schema', async () => {
     const wrapped = ft.wrap(onGroupChatMessageCreated);
     const snap = ft.firestore.makeDocumentSnapshot({ authorUid: 'ana' }, `organizations/${ORG_ID}/chat/bad`);
     await wrapped({ data: snap, params: { orgId: ORG_ID, chatId: 'bad' } } as unknown as Parameters<typeof wrapped>[0]);
-
     expect(await thread('general')).toBeUndefined();
   });
 });

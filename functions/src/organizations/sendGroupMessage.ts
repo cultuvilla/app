@@ -48,7 +48,7 @@ import {
   renderGroupMessageEmailText,
   type GroupMessageEmailContent,
 } from '@cultuvilla/shared/email';
-import { groupPath, webOriginForProject } from '@cultuvilla/shared/utils';
+import { groupAvisoLinkPath, webOriginForProject } from '@cultuvilla/shared/utils';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendEmailBatch } from '../shared/email';
 
@@ -329,7 +329,7 @@ export async function runSendGroupMessage(
     orgName: org.name,
     signerName,
     signerTitle,
-    appUrl: `${webOriginForProject(process.env['GCLOUD_PROJECT'])}${groupPath(orgId)}`,
+    appUrl: `${webOriginForProject(process.env['GCLOUD_PROJECT'])}${groupAvisoLinkPath(orgId, messageId)}`,
   };
   const outcomes = await sendEmailBatch(
     emailed.map((p) => {

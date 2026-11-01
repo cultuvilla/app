@@ -5,6 +5,8 @@ import {
   entityRef,
   eventLinkTarget,
   festivalPosterLinkTarget,
+  groupAvisoLinkPath,
+  groupAvisoPath,
   groupSectionPath,
   isGroupSection,
   isReservedRootSegment,
@@ -184,5 +186,12 @@ describe('link targets', () => {
   it('names an untitled cartel by its year', () => {
     const target = festivalPosterLinkTarget({ id: 'c1', title: null, year: 1987, villageSlug: 'matabuena' });
     expect(entityPath('festivalPoster', target)).toBe('/matabuena/cartel/cartel-1987_c1');
+  });
+});
+
+describe('group aviso links', () => {
+  it('the app route names the aviso; the shared link keeps the tab path older binaries can open', () => {
+    expect(groupAvisoPath('org 1', 'm1')).toBe('/grupos/org%201/aviso/m1');
+    expect(groupAvisoLinkPath('org1', 'm1')).toBe('/grupos?grupo=org1&aviso=m1');
   });
 });

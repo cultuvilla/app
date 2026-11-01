@@ -8,7 +8,8 @@ import {
 import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { GroupMessagesAdmin } from '../GroupMessagesAdmin';
 
-jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: (href: unknown) => mockPush(href) } }));
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -183,7 +184,19 @@ describe('GroupMessagesAdmin', () => {
     const text = decodeURIComponent(String(open.mock.calls[0]?.[0]).split('text=')[1] ?? '');
     expect(text).toContain('*Hola Pepa*');
     expect(text).toContain('Tu nº es 58.');
-    expect(text).toMatch(/Míralo en la app: https:\/\/cultuvilla\.es\/grupos\?grupo=org1$/);
+    expect(text).toMatch(/Míralo en la app: https:\/\/cultuvilla\.es\/grupos\?grupo=org1&aviso=\w+$/);
+  });
+
+  it('opens the aviso’s conversation from its detail', () => {
+    setWatched('messages', [MESSAGE]);
+    setWatched('cuota', null);
+    setWatched('deliveries', []);
+    setWatched('reads', []);
+    setWatched('votes', []);
+    const { getByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-row-m1'));
+    fireEvent.press(getByTestId('group-msg-detail-chat'));
+    expect(mockPush).toHaveBeenCalledWith('/grupos/org1/aviso/m1');
   });
 
   it('shares to the group chat with no number and no personal lines', () => {

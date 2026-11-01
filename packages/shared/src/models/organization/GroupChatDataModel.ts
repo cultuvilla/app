@@ -11,8 +11,8 @@ import { z } from 'zod';
  *   thread. Whoever reads the aviso (its recipients, and the admins) reads and
  *   writes it.
  * - `organizations/{orgId}/chatThreads/{threadId}` — per thread, when it last
- *   moved and who has written in it. Function-owned (`onGroupChatMessageCreated`);
- *   the id is the aviso's or `general`.
+ *   moved and who wrote last. Function-owned (`onGroupChatMessageCreated`); the
+ *   id is the aviso's or `general`.
  * - `organizations/{orgId}/chatThreads/{threadId}/reads/{uid}` — when a reader
  *   last opened the thread. Moves forward on every open; the unread badge
  *   compares it with the thread's `lastMessageAt`.
@@ -20,11 +20,19 @@ import { z } from 'zod';
  * A message is never edited. Its author deletes it, and so may the group's
  * admins (and the village's and the app's). It carries the author's name as it
  * was when written, so it stays readable after the author leaves the group.
+ * Nothing notifies unless a member opts in (`groupPrefs.chatPush`).
  */
 
 export const GROUP_CHAT_BODY_MAX = 2000;
 /** The general thread's id in `chatThreads`. Aviso ids are 10–40 alphanumerics, so they never collide. */
 export const GENERAL_CHAT_THREAD_ID = 'general';
+/** A message's document path: what a report of it names, since its moderators cannot open it. */
+export function groupChatMessagePath(orgId: string, threadId: string, chatId: string): string {
+  return isGeneralChatThread(threadId)
+    ? `organizations/${orgId}/chat/${chatId}`
+    : `organizations/${orgId}/messages/${threadId}/chat/${chatId}`;
+}
+
 /** How many messages a thread shows before "ver anteriores". */
 export const GROUP_CHAT_PAGE_SIZE = 50;
 
@@ -44,8 +52,6 @@ export type GroupChatMessageData = z.infer<typeof GroupChatMessageDataSchema>;
 export const GroupChatThreadDataSchema = z.object({
   lastMessageAt: z.date(),
   lastAuthorUid: z.string(),
-  /** Everyone who has written in the thread, in order of first message. An aviso thread pushes them. */
-  participantUids: z.array(z.string()),
 });
 export type GroupChatThreadData = z.infer<typeof GroupChatThreadDataSchema>;
 
@@ -84,22 +90,6 @@ export function countUnreadGroupChatThreads(
   let unread = 0;
   for (const t of threads) if (isGroupChatThreadUnread(t, readById.get(t.id) ?? null, uid)) unread += 1;
   return unread;
-}
-
-/**
- * Who an aviso thread's new message pushes: the aviso's author and everyone who
- * already wrote in it, minus the writer — and only those who may still read
- * the thread (`canRead`, e.g. a current member who received the aviso).
- */
-export function avisoChatPushUids(input: {
-  avisoAuthorUid: string;
-  participantUids: readonly string[];
-  writerUid: string;
-  canRead: (uid: string) => boolean;
-}): string[] {
-  const out = new Set<string>([input.avisoAuthorUid, ...input.participantUids]);
-  out.delete(input.writerUid);
-  return [...out].filter(input.canRead);
 }
 
 /** The push's body: "Ana: …", the message cut to a preview. */

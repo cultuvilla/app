@@ -28,6 +28,7 @@ export interface CreateContentReportInput {
   reporterUserId: string;
   reason: ReportReason;
   note?: string | null;
+  targetText?: string | null;
 }
 
 /**

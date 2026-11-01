@@ -86,23 +86,28 @@ export const NOTIFICATION_PREF_KEYS: readonly NotificationPrefKey[] = NOTIFICATI
  */
 export const GroupNotificationPrefsDataSchema = z.object({
   messagesMuted: z.boolean(),
-  // The general chat ("Charla") pushes nobody unless they opt in here; an
-  // aviso's chat pushes its author and its participants regardless (both still
-  // under `messagesMuted`). Defaults because installed binaries rewrite the
-  // whole doc without it when they (un)mute — which turns the opt-in off.
-  generalChatPush: z.boolean().default(false),
+  // Chat messages notify nobody unless they opt in here, one switch for the
+  // group's general chat and its avisos' chats; `messagesMuted` still wins over
+  // it for the push. Defaults because installed binaries rewrite the whole doc
+  // without it when they (un)mute — which turns the opt-in off.
+  chatPush: z.boolean().default(false),
+  // The doc's own id, stored so the chat trigger can find a group's opted-in
+  // members with one collection-group query. Rules pin it to the path.
+  orgId: z.string().nullable().default(null),
   updatedAt: z.date(),
 });
 export type GroupNotificationPrefsData = z.infer<typeof GroupNotificationPrefsDataSchema>;
 
 export function buildGroupNotificationPrefsData(input: {
   messagesMuted: boolean;
-  generalChatPush?: boolean;
+  chatPush?: boolean;
+  orgId?: string | null;
   updatedAt?: Date;
 }): GroupNotificationPrefsData {
   return {
     messagesMuted: input.messagesMuted,
-    generalChatPush: input.generalChatPush ?? false,
+    chatPush: input.chatPush ?? false,
+    orgId: input.orgId ?? null,
     updatedAt: input.updatedAt ?? new Date(),
   };
 }

@@ -5,15 +5,12 @@ import {
   organizationChatThreadDoc,
   organizationDoc,
   organizationMemberDoc,
-  organizationMembersCollection,
   organizationMessageDoc,
-  userGroupPrefsDoc,
   userNotificationsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
   GENERAL_CHAT_THREAD_ID,
   GroupChatMessageDataSchema,
-  avisoChatPushUids,
   buildNotificationData,
   groupChatPushBody,
   type GroupChatMessageData,
@@ -25,75 +22,51 @@ const BATCH_SIZE = 400;
 /** The general thread's name in a push title; the app calls it the same. */
 const GENERAL_CHAT_TITLE = 'Charla';
 
-/**
- * Moves the thread's summary (when it last moved, who wrote last, who has
- * written) and returns who had written before this message. A transaction, so
- * two messages landing together both make the participant list, and a
- * redelivered event leaves the newest message as the last.
- */
-async function recordInThread(
-  db: Firestore,
-  orgId: string,
-  threadId: string,
-  message: GroupChatMessageData,
-): Promise<string[]> {
-  const ref = organizationChatThreadDoc(db, orgId, threadId);
-  return db.runTransaction(async (tx) => {
-    const prev = (await tx.get(ref)).data() ?? null;
-    const participants = prev?.participantUids ?? [];
-    const isNewest = !prev || prev.lastMessageAt.getTime() <= message.createdAt.getTime();
-    const next: GroupChatThreadData = {
-      lastMessageAt: isNewest ? message.createdAt : prev.lastMessageAt,
-      lastAuthorUid: isNewest ? message.authorUid : prev.lastAuthorUid,
-      participantUids: participants.includes(message.authorUid) ? participants : [...participants, message.authorUid],
-    };
-    tx.set(ref, next);
-    return participants;
-  });
-}
-
-/** The general chat pushes only the members who opted in for this group. */
-async function generalChatPushUids(db: Firestore, orgId: string, writerUid: string): Promise<string[]> {
-  const members = (await organizationMembersCollection(db, orgId).get()).docs.map((d) => d.id).filter((uid) => uid !== writerUid);
-  if (members.length === 0) return [];
-  const prefs = await db.getAll(...members.map((uid) => userGroupPrefsDoc(db, uid, orgId)));
-  return members.filter((_, i) => prefs[i]?.data()?.generalChatPush === true);
-}
-
-/** An aviso's chat pushes its author and whoever already wrote in it, while they may still read it. */
-async function avisoThreadPushUids(
-  db: Firestore,
-  orgId: string,
-  aviso: AvisoHead,
-  participantUids: string[],
-  writerUid: string,
-): Promise<string[]> {
-  const candidates = avisoChatPushUids({ avisoAuthorUid: aviso.sentBy, participantUids, writerUid, canRead: () => true });
-  if (candidates.length === 0) return [];
-  const memberSnaps = await db.getAll(...candidates.map((uid) => organizationMemberDoc(db, orgId, uid)));
-  const recipients = new Set(aviso.recipientUids);
-  return memberSnaps
-    .filter((snap) => snap.exists && (snap.data()?.role === 'admin' || recipients.has(snap.id)))
-    .map((snap) => snap.id);
-}
-
 interface AvisoHead {
   title: string;
-  sentBy: string;
   recipientUids: string[];
 }
 
 /**
- * Only the three fields the thread needs, read raw: the chat should not stop
+ * Only the two fields the thread needs, read raw: the chat should not stop
  * pushing because an unrelated aviso field changed shape.
  */
 async function readAviso(db: Firestore, orgId: string, messageId: string): Promise<AvisoHead | null> {
   const snap = await db.doc(organizationMessageDoc(db, orgId, messageId).path).get();
   const title: unknown = snap.get('title');
-  const sentBy: unknown = snap.get('sentBy');
   const recipientUids: unknown = snap.get('recipientUids');
-  if (!snap.exists || typeof title !== 'string' || typeof sentBy !== 'string' || !Array.isArray(recipientUids)) return null;
-  return { title, sentBy, recipientUids: recipientUids.filter((u): u is string => typeof u === 'string') };
+  if (!snap.exists || typeof title !== 'string' || !Array.isArray(recipientUids)) return null;
+  return { title, recipientUids: recipientUids.filter((u): u is string => typeof u === 'string') };
+}
+
+/**
+ * Moves the thread's summary. A transaction, so a message delivered late or
+ * twice never takes the thread back from a newer one.
+ */
+async function recordInThread(db: Firestore, orgId: string, threadId: string, message: GroupChatMessageData): Promise<void> {
+  const ref = organizationChatThreadDoc(db, orgId, threadId);
+  await db.runTransaction(async (tx) => {
+    const prev = (await tx.get(ref)).data() ?? null;
+    if (prev && prev.lastMessageAt.getTime() > message.createdAt.getTime()) return;
+    const next: GroupChatThreadData = { lastMessageAt: message.createdAt, lastAuthorUid: message.authorUid };
+    tx.set(ref, next);
+  });
+}
+
+/**
+ * Chat messages notify only the members who opted in for this group, and only
+ * in a thread they may still read. A query over the group's opted-in prefs, so
+ * a message costs what the opted-in cost, not what the group's size does.
+ */
+async function chatPushUids(db: Firestore, orgId: string, aviso: AvisoHead | null, writerUid: string): Promise<string[]> {
+  const prefs = await db.collectionGroup('groupPrefs').where('orgId', '==', orgId).where('chatPush', '==', true).select().get();
+  const optedIn = prefs.docs.flatMap((d) => d.ref.parent.parent?.id ?? []).filter((uid) => uid !== writerUid);
+  if (optedIn.length === 0) return [];
+  const members = await db.getAll(...optedIn.map((uid) => organizationMemberDoc(db, orgId, uid)));
+  const recipients = new Set(aviso?.recipientUids ?? []);
+  return members
+    .filter((snap) => snap.exists && (!aviso || snap.data()?.role === 'admin' || recipients.has(snap.id)))
+    .map((snap) => snap.id);
 }
 
 export async function handleGroupChatMessage(
@@ -134,10 +107,8 @@ export async function handleGroupChatMessage(
     return;
   }
 
-  const previousParticipants = await recordInThread(db, orgId, threadId, message);
-  const pushUids = aviso
-    ? await avisoThreadPushUids(db, orgId, aviso, previousParticipants, message.authorUid)
-    : await generalChatPushUids(db, orgId, message.authorUid);
+  await recordInThread(db, orgId, threadId, message);
+  const pushUids = await chatPushUids(db, orgId, aviso, message.authorUid);
 
   const notification = buildNotificationData({
     // The group category, routed to the group and muted per group: a client
@@ -148,6 +119,7 @@ export async function handleGroupChatMessage(
     municipalityId,
     entityKind: 'organization',
     entityId: orgId,
+    chatThreadId: threadId,
     createdAt: message.createdAt,
   });
   for (let start = 0; start < pushUids.length; start += BATCH_SIZE) {

@@ -202,6 +202,13 @@ describe('SociosRoster — member with the estatutos setting on', () => {
 describe('GroupSettings', () => {
   const toggle = (r: ReturnType<typeof render>) => r.getByTestId('group-settings-socios-list-visible');
 
+  it('an admin leaves the Charla to the junta; a group with no roster has no socios switch', () => {
+    const r = render(<GroupSettings orgId="org1" sociosListVisible={false} hasRoster={false} chatAdminsOnly={false} />);
+    expect(r.queryByTestId('group-settings-socios-list-visible')).toBeNull();
+    fireEvent.press(r.getByTestId('group-settings-chat-admins-only'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: true });
+  });
+
   it('turns on the estatutos setting: frozen while saving, then shows the stored value', async () => {
     let finish!: () => void;
     jest.mocked(updateOrganization).mockReturnValueOnce(new Promise<void>((res) => (finish = res)));

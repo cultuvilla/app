@@ -47,6 +47,13 @@ describe('notificationRoute', () => {
     expect(notificationRoute(n, null)).toBe('/grupos/org1/tareas');
   });
 
+  it('a chat message opens its thread: the Charla, or the aviso', () => {
+    const n = { ...base, type: 'group_message' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute({ ...n, chatThreadId: 'general' }, null)).toBe('/grupos/org1/charla');
+    expect(notificationRoute({ ...n, chatThreadId: 'm1' }, null)).toBe('/grupos/org1/aviso/m1');
+    expect(notificationRoute({ ...n, chatThreadId: null }, null)).toBe('/grupos/org1/avisos');
+  });
+
   it('opens a group message on the group\'s notices', () => {
     const n = { ...base, type: 'group_message' as const, entityKind: 'organization' as const, entityId: 'org1' };
     expect(notificationRoute(n, null)).toBe('/grupos/org1/avisos');

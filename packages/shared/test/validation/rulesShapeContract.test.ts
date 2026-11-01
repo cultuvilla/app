@@ -69,7 +69,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
   {
     label: 'users/{uid}/groupPrefs/{orgId} — inline in match /groupPrefs',
     build: () => buildGroupNotificationPrefsData({ messagesMuted: true }),
-    ruleKeys: ['messagesMuted', 'generalChatPush', 'updatedAt'],
+    ruleKeys: ['messagesMuted', 'chatPush', 'orgId', 'updatedAt'],
   },
   {
     label: 'organizations/{orgId}/cuotaSettings — isValidCuotaSettings',
