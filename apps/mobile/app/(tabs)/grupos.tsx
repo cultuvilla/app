@@ -4,16 +4,18 @@ import { router, useLocalSearchParams } from 'expo-router';
 import type { GroupSection } from '@cultuvilla/shared/utils';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
-import { upcomingThenPast, type EventData } from '@cultuvilla/shared/models/event/EventDataModel';
+import { eventEndBoundary, upcomingThenPast, type EventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
-import { hasSocioRoster, isActiveSocio, periodLabel } from '@cultuvilla/shared/models/organization';
+import { compareTasksByDue, hasSocioRoster, isActiveSocio, periodLabel } from '@cultuvilla/shared/models/organization';
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import { watchOrgSocios, type Socio } from '@cultuvilla/shared/services/socioService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Card, Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '../../components/primitives';
 import { StatsRow } from '../../components/feature/StatsRow';
-import { EntityCard, Section } from '../../components/feature/VillageSections';
-import { NoticeCard, TaskCard } from '../../components/feature/groups/GroupHomeCards';
+import { EntityCard, Section, SectionHeader } from '../../components/feature/VillageSections';
+import { NoticeCard, TaskCard, taskPeople } from '../../components/feature/groups/GroupHomeCards';
+import { useMemberFaces } from '../../lib/orgs/useOrgMembers';
+import { watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { AppHeader } from '../../components/layout/AppHeader';
 import { GroupSwitcherSheet } from '../../components/feature/groups/GroupSwitcher';
 import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGrid';
@@ -68,18 +70,18 @@ export default function GroupsTabScreen() {
 
   return (
     <Screen padded={false} topInset={false} bottomInset={false}>
-      <AppHeader
-        centerLabel={t('tabs.groups')}
-        onLabelPress={groups.length > 1 ? () => setSwitching(true) : undefined}
-        labelAccessibilityLabel={t('groups.switcherLabel')}
-        labelTestID="group-switcher-open"
-      />
+      <AppHeader centerLabel={t('tabs.groups')} />
       {!uid ? null : status === 'loading' || remembered === undefined ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
       ) : selected ? (
-        <GroupHome key={selected.org.id} group={selected} uid={uid} />
+        <GroupHome
+          key={selected.org.id}
+          group={selected}
+          uid={uid}
+          onSwitch={groups.length > 1 ? () => setSwitching(true) : null}
+        />
       ) : (
         // A failed read, or the user just left their last group (the tab hides next).
         <View className="flex-1 items-center justify-center px-4" testID="groups-empty">
@@ -99,7 +101,7 @@ export default function GroupsTabScreen() {
 
 type OrgEvent = EventData & { id: string };
 
-function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
+function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSwitch: (() => void) | null }) {
   const { t } = useT();
   const { org, role } = group;
   const isAdmin = role === 'admin';
@@ -121,8 +123,18 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
     `${org.id}|${includePrivate}`,
     (next, error) => watchEventsByOrganization(org.id, { includePrivate }, next, error),
   );
-  const eventRows = useMemo(() => firstOfEachSeries(upcomingThenPast(events.data ?? [], new Date())), [events.data]);
-  const myTasks = useMemo(() => [...tasks.mine, ...tasks.shifts], [tasks.mine, tasks.shifts]);
+  // Only what is still ahead: the row is "Próximos eventos".
+  const eventRows = useMemo(() => {
+    const now = new Date();
+    return firstOfEachSeries(upcomingThenPast(events.data ?? [], now)).filter((e) => eventEndBoundary(e) >= now);
+  }, [events.data]);
+  // Every task of the group still to be done, not only mine.
+  const openTasks = useWatch<GroupTask[]>('groups:watchOpenGroupTasks', org.id, (next, error) =>
+    watchOpenGroupTasks(org.id, next, error),
+  );
+  const upcomingTasks = useMemo(() => [...(openTasks.data ?? [])].sort(compareTasksByDue), [openTasks.data]);
+  const eventTitles = useMemo(() => new Map((events.data ?? []).map((e) => [e.id, e.title])), [events.data]);
+  const faces = useMemberFaces(upcomingTasks.flatMap(taskPeople));
   const ownStatus = cuota.statuses.find((s) => cuota.rows.find((r) => r.id === s.socioId)?.kind === 'member') ?? cuota.statuses[0];
 
   const badges: Partial<Record<GroupSection, number>> = { avisos: notices.unreadCount, tareas: tasks.mine.length };
@@ -136,7 +148,24 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
           <Escudo url={org.images[0] ?? null} size={88} fill fallbackInitial={org.name} accessibilityLabel={org.name} />
         </View>
         <VStack gap={0} className="flex-1">
-          <ScreenTitle numberOfLines={2}>{org.name}</ScreenTitle>
+          {/* The group's name is what changes: the switch sits right beside it. */}
+          {onSwitch ? (
+            <Pressable
+              onPress={onSwitch}
+              accessibilityRole="button"
+              accessibilityLabel={`${org.name}. ${t('groups.switcherLabel')}`}
+              testID="group-switcher-open"
+            >
+              <HStack gap={1} align="center">
+                <ScreenTitle numberOfLines={2} className="shrink">
+                  {org.name}
+                </ScreenTitle>
+                <Ionicons name="chevron-down" size={iconSizes.md} color={colors.light.fg.accent} />
+              </HStack>
+            </Pressable>
+          ) : (
+            <ScreenTitle numberOfLines={2}>{org.name}</ScreenTitle>
+          )}
           <Text tone="muted" variant="bodySm">
             {t(`organization.${org.type}`)}
           </Text>
@@ -161,23 +190,7 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
         />
       </View>
 
-      <VStack gap={3} className="px-4">
-        {roster ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
-        {roster && ownStatus && cuota.periodKey ? (
-          <Pressable testID="group-home-cuota" accessibilityRole="button" onPress={() => open('cuota')}>
-            <Card>
-              <HStack gap={2} align="center">
-                <Text className="flex-1 font-bold">{t('groups.summary.cuota', { period: periodLabel(cuota.periodKey) })}</Text>
-                <Text variant="bodySm" tone={CUOTA_STATUS_TONE[ownStatus.status]} className="font-bold">
-                  {t(`groups.cuota.status.${ownStatus.status}`)}
-                </Text>
-                <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.muted} />
-              </HStack>
-            </Card>
-          </Pressable>
-        ) : null}
-      </VStack>
-
+      {/* Avisos are what the junta needs everyone to read: the first row. */}
       {roster ? (
         <Section
           title={t('groups.sections.avisos')}
@@ -197,8 +210,25 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
         </Section>
       ) : null}
 
+      <VStack gap={3} className="px-4 pt-4">
+        {roster ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
+        {roster && ownStatus && cuota.periodKey ? (
+          <Pressable testID="group-home-cuota" accessibilityRole="button" onPress={() => open('cuota')}>
+            <Card>
+              <HStack gap={2} align="center">
+                <Text className="flex-1 font-bold">{t('groups.summary.cuota', { period: periodLabel(cuota.periodKey) })}</Text>
+                <Text variant="bodySm" tone={CUOTA_STATUS_TONE[ownStatus.status]} className="font-bold">
+                  {t(`groups.cuota.status.${ownStatus.status}`)}
+                </Text>
+                <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.muted} />
+              </HStack>
+            </Card>
+          </Pressable>
+        ) : null}
+      </VStack>
+
       <Section
-        title={t('groups.sections.eventos')}
+        title={t('groups.upcomingEvents')}
         testID="group-home-events"
         isEmpty={eventRows.length === 0}
         status={events.status}
@@ -217,32 +247,31 @@ function GroupHome({ group, uid }: { group: MyGroup; uid: string }) {
       />
 
       <Section
-        title={t('groups.home.myTasks')}
-        isEmpty={myTasks.length === 0}
-        status={tasks.status}
+        title={t('groups.home.upcomingTasks')}
+        testID="group-home-tasks"
+        isEmpty={upcomingTasks.length === 0}
+        status={openTasks.status}
         actionLabel={t('village.home.seeAll')}
         onManage={() => open('tareas')}
       >
-        {myTasks.map((task) => (
-          <TaskCard key={task.id} task={task} onPress={() => open('tareas')} />
+        {upcomingTasks.map((task) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            eventTitle={task.eventId ? (eventTitles.get(task.eventId) ?? null) : null}
+            faces={faces}
+            onPress={() => open('tareas')}
+          />
         ))}
       </Section>
 
-      <VStack gap={2} className="px-4 pt-6">
-        <Text variant="caption" tone="muted" className="font-bold uppercase">
-          {t('groups.home.more')}
-        </Text>
-        <GroupSectionGrid sections={member} badges={badges} onOpen={open} />
+      {/* One list for everyone; an admin's extra buttons follow, in their own colour. */}
+      <VStack gap={3} className="pt-4" testID="group-actions">
+        <SectionHeader title={t('groups.home.actions')} />
+        <View className="px-4">
+          <GroupSectionGrid sections={member} adminSections={admin} badges={badges} onOpen={open} />
+        </View>
       </VStack>
-
-      {isAdmin ? (
-        <VStack gap={2} className="px-4 pt-4" testID="group-manage">
-          <Text variant="caption" tone="muted" className="font-bold uppercase">
-            {t('groups.manage')}
-          </Text>
-          <GroupSectionGrid sections={admin} onOpen={open} admin />
-        </VStack>
-      ) : null}
     </ScrollView>
   );
 }

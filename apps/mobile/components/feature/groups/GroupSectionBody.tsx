@@ -17,7 +17,7 @@ import { MyTasks } from './MyTasks';
 import { RecordsAdmin } from './RecordsAdmin';
 import { SocioConsentCard } from './SocioConsentCard';
 import { SociosRoster } from './SociosRoster';
-import { TasksAdmin } from './TasksAdmin';
+import { GroupTasks } from './GroupTasks';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import type { MyGroup } from '../../../lib/orgs/useMyGroups';
@@ -55,7 +55,18 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
     case 'eventos':
       return <OrgEventsSection orgId={org.id} includePrivate={includePrivate} />;
     case 'tareas':
-      return <MyTasks orgId={org.id} uid={uid} isAdmin={isAdmin} empty={<Empty text={t('groups.sections.empty.tareas')} />} />;
+      return (
+        <VStack gap={4}>
+          <MyTasks orgId={org.id} uid={uid} isAdmin={isAdmin} shiftsOnly />
+          <GroupTasks
+            orgId={org.id}
+            uid={uid}
+            isAdmin={isAdmin}
+            includePrivateEvents={includePrivate}
+            suggestAsamblea={hasSocioRoster(org.type)}
+          />
+        </VStack>
+      );
     case 'cuota':
       return <MyCuota orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.cuota')} />} />;
     case 'actas':
@@ -73,8 +84,6 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
       return <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} />;
     case 'mensajes':
       return <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents={includePrivate} />;
-    case 'gestion-tareas':
-      return <TasksAdmin orgId={org.id} uid={uid} includePrivateEvents={includePrivate} suggestAsamblea={hasSocioRoster(org.type)} />;
     case 'registros':
       return <RecordsAdmin orgId={org.id} orgName={org.name} uid={uid} />;
     case 'miembros':

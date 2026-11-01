@@ -11,11 +11,26 @@ import { ShiftCard, TaskRow } from './TaskRows';
 /**
  * The member's side of the group's tasks: what is assigned to them, still
  * open, soonest first (ticked done here), and the upcoming volunteer shifts
- * they can answer. Hidden (or `empty`) while there is neither.
+ * they can answer. Hidden (or `empty`) while there is neither. `shiftsOnly`
+ * leaves out the assigned tasks, for a screen that lists every task anyway.
  */
-export function MyTasks({ orgId, uid, isAdmin, empty }: { orgId: string; uid: string; isAdmin: boolean; empty?: ReactNode }) {
+export function MyTasks({
+  orgId,
+  uid,
+  isAdmin,
+  shiftsOnly = false,
+  empty,
+}: {
+  orgId: string;
+  uid: string;
+  isAdmin: boolean;
+  shiftsOnly?: boolean;
+  empty?: ReactNode;
+}) {
   const { t } = useT();
-  const { mine, shifts, status } = useMyOpenTasks(orgId, uid);
+  const own = useMyOpenTasks(orgId, uid);
+  const { shifts, status } = own;
+  const mine = shiftsOnly ? [] : own.mine;
   const { nameOf } = useOrgMembers(orgId);
 
   if (mine.length === 0 && shifts.length === 0) return status === 'ready' && empty ? <>{empty}</> : null;

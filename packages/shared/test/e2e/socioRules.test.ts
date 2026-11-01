@@ -21,6 +21,7 @@ import { asUser } from '../helpers/roles';
 const getEnv = useRulesTestEnv();
 const ORG = 'org1';
 const AYTO = 'ayto1';
+const COMISION = 'comision1';
 
 function socio(overrides: Record<string, unknown> = {}) {
   return {
@@ -49,6 +50,8 @@ async function seed(sociosListVisible = false) {
       await setDoc(doc(db, `organizations/${ORG}/members/${uid}`), { userId: uid, joinedAt: new Date(), role });
     }
     await setDoc(doc(db, `organizations/${AYTO}/members/admin1`), { userId: 'admin1', joinedAt: new Date(), role: 'admin' });
+    await setDoc(doc(db, `organizations/${COMISION}`), { ...org, type: 'comisión' });
+    await setDoc(doc(db, `organizations/${COMISION}/members/admin1`), { userId: 'admin1', joinedAt: new Date(), role: 'admin' });
     await setDoc(doc(db, `organizations/${ORG}/socios/m1`), socio({ kind: 'member', displayName: 'Uno', uid: 'member1', createdBy: 'member1' }));
     await setDoc(doc(db, `organizations/${ORG}/socios/m2`), socio({ kind: 'member', displayName: 'Dos', uid: 'member2', createdBy: 'member2' }));
     await setDoc(doc(db, `organizations/${ORG}/socios/a2`), socio({ kind: 'member', displayName: 'Admin', uid: 'admin2', createdBy: 'admin2' }));
@@ -186,6 +189,10 @@ describe('socios — writes', () => {
 
   it('the ayuntamiento keeps no roster', async () => {
     await assertFails(setDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${AYTO}/socios/new1`), socio()));
+  });
+
+  it('a comisión de festejos keeps one', async () => {
+    await assertSucceeds(setDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${COMISION}/socios/new1`), socio()));
   });
 
   it('a member adds a persona they created, with its lock', async () => {

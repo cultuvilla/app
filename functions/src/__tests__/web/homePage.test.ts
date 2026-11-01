@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import type { Card, Village, VillageHome, WrappedView } from '../../web/data';
 import { renderDocument } from '../../web/document';
 import { render } from '../../web/html';
-import { AMBASSADOR_PICKER, ambassadorsPage, homePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
+import { AMBASSADOR_PICKER, ambassadorsPage, homePage, villagePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
 import { LANDING_STYLES } from '../../web/styles';
 
 const village = (slug: string, name: string, province: string | null = 'Segovia'): Village => ({
@@ -29,7 +29,7 @@ const card = (href: string, title: string, imageUrl: string | null = null, origi
   originalUrl,
 });
 
-const emptyHome: VillageHome = { events: [], news: [], posters: [], orgs: [], places: [], barrios: [], history: [], word: null };
+const emptyHome: VillageHome = { events: [], news: [], posters: [], comisiones: [], orgs: [], places: [], barrios: [], history: [], word: null };
 
 const matabuena = village('matabuena', 'Matabuena');
 const showcase: Landing['showcase'] = {
@@ -301,5 +301,20 @@ describe('homePage', () => {
       expect(existsSync(resolve(dir, name)), name).toBe(true);
       expect(credits, `${name} credit`).toContain(`\`${name}\``);
     }
+  });
+});
+
+describe('villagePage', () => {
+  it('shows the comisión de festejos in its own section, before the peñas', () => {
+    const out = render(
+      villagePage(matabuena, {
+        ...emptyHome,
+        comisiones: [card('/matabuena/entidad/c1', 'Comisión 2026')],
+        orgs: [card('/matabuena/entidad/o1', 'El Frontón')],
+      }).body,
+    );
+    expect(out.indexOf('Comisión de festejos')).toBeGreaterThan(-1);
+    expect(out.indexOf('Comisión de festejos')).toBeLessThan(out.indexOf('Comisión 2026'));
+    expect(out.indexOf('Comisión 2026')).toBeLessThan(out.indexOf('Peñas y asociaciones'));
   });
 });

@@ -36,7 +36,7 @@ export const meta = {
   dependsOn: [],
 };
 
-const ROSTER_ORG_TYPES = new Set(['peña', 'asociación', 'otros']);
+const ROSTER_ORG_TYPES = new Set(['peña', 'asociación', 'otros', 'comisión']);
 
 /**
  * @param {string[]} memberUids current members of the org

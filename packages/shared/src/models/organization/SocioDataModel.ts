@@ -188,7 +188,7 @@ export function isActiveSocio(socio: Pick<SocioData, 'bajaAt'>): boolean {
 }
 
 /** Org kinds that keep a socio roster. The ayuntamiento has vecinos, not socios. */
-export const SOCIO_ROSTER_ORG_TYPES: readonly OrganizationType[] = ['peña', 'asociación', 'otros'];
+export const SOCIO_ROSTER_ORG_TYPES: readonly OrganizationType[] = ['peña', 'asociación', 'otros', 'comisión'];
 
 export function hasSocioRoster(type: OrganizationType): boolean {
   return SOCIO_ROSTER_ORG_TYPES.includes(type);

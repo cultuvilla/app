@@ -338,10 +338,10 @@ service cloud.firestore {
     }
 
     // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
-    // Only peñas, asociaciones and otros keep one; the ayuntamiento has none.
+    // Only peñas, asociaciones, otros and comisiones keep one; the ayuntamiento has none.
     function orgHasSocioRoster(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.type
-        in ['peña', 'asociación', 'otros'];
+        in ['peña', 'asociación', 'otros', 'comisión'];
     }
     // "Los estatutos permiten ver la lista de socios" — names only, never contact.
     function orgSociosListVisible(orgId) {
@@ -522,7 +522,7 @@ service cloud.firestore {
       return (n.doneAt == request.time && n.doneBy == request.auth.uid)
           || (n.doneAt == null && n.doneBy == null);
     }
-    function isValidGroupTaskAdminUpdate(n, o) {
+    function isValidGroupTaskUpdate(n, o) {
       return isValidGroupTaskFields(n)
           && !n.diff(o).affectedKeys().hasAny(['claimedUids', 'waitlistUids', 'declinedUids', 'nextTaskId', 'createdBy', 'createdAt'])
           && ((n.doneAt == o.doneAt && n.doneBy == o.doneBy) || isGroupTaskDoneTick(n))
@@ -1809,18 +1809,15 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // The group's tasks (see GroupTaskDataModel), every org type. Members
-      // see them all; admins create, edit and delete; an assignee ticks their
-      // own done or undone. Shift answers go through respondToTaskShift.
+      // The group's tasks (see GroupTaskDataModel), every org type. Every
+      // member sees, creates, edits and ticks them (decided 2026-11-01, user);
+      // deleting one is for admins and whoever created it. The answer lists
+      // and the next occurrence stay function-owned.
       match /tasks/{taskId} {
         allow read: if isOrgMember(orgId);
-        allow create: if isOrgAdmin(orgId) && isValidGroupTaskCreate(request.resource.data);
-        allow update: if (isOrgAdmin(orgId) && isValidGroupTaskAdminUpdate(request.resource.data, resource.data))
-          || (isOrgMember(orgId)
-            && request.auth.uid in resource.data.assigneeUids
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doneAt', 'doneBy'])
-            && isGroupTaskDoneTick(request.resource.data));
-        allow delete: if isOrgAdmin(orgId);
+        allow create: if isOrgMember(orgId) && isValidGroupTaskCreate(request.resource.data);
+        allow update: if isOrgMember(orgId) && isValidGroupTaskUpdate(request.resource.data, resource.data);
+        allow delete: if isOrgAdmin(orgId) || (isOrgMember(orgId) && resource.data.createdBy == request.auth.uid);
       }
 
       // Checklists dated relative to an anchor. Admins only.

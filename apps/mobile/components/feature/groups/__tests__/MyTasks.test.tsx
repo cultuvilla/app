@@ -71,6 +71,16 @@ describe('MyTasks', () => {
     expect(getByTestId('shift-names-full')).toHaveTextContent(/name-u2/);
   });
 
+  it('shiftsOnly leaves my assigned tasks out, for the screen that lists every task', () => {
+    setWatched('open', [
+      task('mine', { assigneeUids: ['u1'], dueOn: FUTURE }),
+      task('montaje', { slots: 3, dueOn: FUTURE, claimedUids: [] }),
+    ]);
+    const { getByTestId, queryByTestId } = render(<MyTasks orgId="org1" uid="u1" isAdmin={false} shiftsOnly />);
+    expect(getByTestId('shift-montaje')).toBeTruthy();
+    expect(queryByTestId('task-row-mine')).toBeNull();
+  });
+
   it('hides a shift whose day has passed', () => {
     setWatched('open', [task('past', { slots: 2, dueOn: '2020-01-01' })]);
     const { queryByTestId } = render(<MyTasks orgId="org1" uid="u1" isAdmin={false} />);
