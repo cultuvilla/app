@@ -41,9 +41,9 @@ export function parseGroupChatMessagePath(
   path: string,
 ): { orgId: string; threadId: string; chatId: string } | null {
   const general = /^organizations\/([^/]+)\/chat\/([^/]+)$/.exec(path);
-  if (general) return { orgId: general[1], threadId: GENERAL_CHAT_THREAD_ID, chatId: general[2] };
+  if (general?.[1] && general[2]) return { orgId: general[1], threadId: GENERAL_CHAT_THREAD_ID, chatId: general[2] };
   const aviso = /^organizations\/([^/]+)\/messages\/([^/]+)\/chat\/([^/]+)$/.exec(path);
-  if (aviso) return { orgId: aviso[1], threadId: aviso[2], chatId: aviso[3] };
+  if (aviso?.[1] && aviso[2] && aviso[3]) return { orgId: aviso[1], threadId: aviso[2], chatId: aviso[3] };
   return null;
 }
 
