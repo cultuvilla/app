@@ -66,7 +66,7 @@ describe('entity refs', () => {
 describe('group sections', () => {
   it('nests each screen of a group under the Grupos tab', () => {
     expect(groupSectionPath('org1', 'cuota')).toBe('/grupos/org1/cuota');
-    expect(groupSectionPath('a/b', 'mis-datos')).toBe('/grupos/a%2Fb/mis-datos');
+    expect(groupSectionPath('a/b', 'socios')).toBe('/grupos/a%2Fb/socios');
   });
 
   it('knows its sections and nothing else', () => {

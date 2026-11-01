@@ -51,18 +51,19 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
       return <MyCuota orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.cuota')} />} />;
     case 'actas':
       return <MyActas orgId={org.id} orgName={org.name} empty={<Empty text={t('groups.sections.empty.actas')} />} />;
-    case 'mis-datos':
+    case 'socios':
       return (
         <VStack gap={4}>
           <SocioConsentCard orgId={org.id} />
           <MyPersonasSocios orgId={org.id} uid={uid} />
-        </VStack>
-      );
-    case 'socios':
-      return (
-        <VStack gap={4}>
           {isAdmin ? <OrgJoinRequests orgId={org.id} /> : null}
-          <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />
+          {isAdmin || org.sociosListVisible ? (
+            <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />
+          ) : (
+            <Text tone="muted" variant="bodySm" testID="socios-list-hidden">
+              {t('groups.socios.listHidden')}
+            </Text>
+          )}
         </VStack>
       );
     case 'cobros':

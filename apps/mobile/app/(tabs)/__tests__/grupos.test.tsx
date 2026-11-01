@@ -147,7 +147,7 @@ describe('Grupos tab', () => {
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     expect(getByTestId('stub-consent-unanswered')).toBeTruthy();
-    for (const s of ['charla', 'cuota', 'actas', 'mis-datos', 'ajustes']) {
+    for (const s of ['charla', 'cuota', 'actas', 'socios', 'ajustes']) {
       expect(getByTestId(`group-section-${s}`)).toBeTruthy();
     }
     expect(getByTestId('group-actions')).toHaveTextContent(/groups\.home\.actions/);
@@ -246,6 +246,7 @@ describe('Grupos tab', () => {
     // A member of a group whose estatutos keep the roster private sees no socio count.
     expect(() => getByText('groups.stats.socios')).toThrow();
     // A notice card is its title and text, cut at one box, and the day: no pinned badge, no sender.
+    expect(getByTestId('group-home-notice-m1')).toHaveStyle({ height: 150 });
     const notice = getByTestId('group-home-notice-m1-text');
     expect(notice.props.numberOfLines).toBe(4);
     expect(notice).toHaveTextContent(/Cena\s*El sábado/);
@@ -297,7 +298,7 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
-    expect(order).toEqual(['charla', 'cuota', 'mis-datos', 'ajustes', 'cobros', 'mensajes', 'socios', 'registros']);
+    expect(order).toEqual(['charla', 'cuota', 'socios', 'ajustes', 'cobros', 'mensajes', 'registros']);
     expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
     expect(getByTestId('group-section-charla').props.accessibilityHint).toBeUndefined();
     fireEvent.press(getByTestId('group-section-registros'));

@@ -203,7 +203,6 @@ export const GROUP_SECTIONS = [
   'tareas',
   'cuota',
   'actas',
-  'mis-datos',
   'socios',
   'cobros',
   'mensajes',

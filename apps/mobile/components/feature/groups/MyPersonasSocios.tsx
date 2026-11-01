@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { router } from 'expo-router';
 import { buildNameWithNickname, isDeceased, type PersonData } from '@cultuvilla/shared/models/person';
 import { isActiveSocio } from '@cultuvilla/shared/models/organization';
 import { watchPersonsByCreator } from '@cultuvilla/shared/services/personService';
@@ -6,6 +7,7 @@ import { addPersonaSocio, setSocioBaja, watchMySocios, type Socio } from '@cultu
 import { Button, HStack, Text, VStack } from '../../primitives';
 import { DetailSectionHeading } from '../DetailSectionHeading';
 import { useWatch } from '../../../lib/hooks/useWatch';
+import { personHref } from '../../../lib/navigation/routes';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 
@@ -14,7 +16,7 @@ type Person = PersonData & { id: string };
 /**
  * A member's personas a cargo (people they created who have no account of
  * their own), each one a tap away from being a socio of the group — or from the
- * baja. Hidden when the member has none.
+ * baja — and the way to add another.
  */
 export function MyPersonasSocios({ orgId, uid }: { orgId: string; uid: string }) {
   const { t } = useT();
@@ -42,7 +44,7 @@ export function MyPersonasSocios({ orgId, uid }: { orgId: string; uid: string })
     [mine.data],
   );
 
-  if (personas.length === 0 || mine.status !== 'ready') return null;
+  if (persons.status !== 'ready' || mine.status !== 'ready') return null;
 
   const run = (personId: string, work: () => Promise<unknown>) => {
     setBusy(personId);
@@ -99,6 +101,11 @@ export function MyPersonasSocios({ orgId, uid }: { orgId: string; uid: string })
           </HStack>
         );
       })}
+      <HStack>
+        <Button variant="secondary" testID="persona-socio-new" onPress={() => router.push(personHref('new'))}>
+          {t('groups.personas.new')}
+        </Button>
+      </HStack>
     </VStack>
   );
 }
