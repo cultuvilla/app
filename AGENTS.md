@@ -78,7 +78,7 @@ Requests are created from in-context screens; outcomes arrive as notifications.
 |---|---|---|---|
 | Organizer (be the pueblo's **Embajador**) | `organizerRequests/` | any user | super admin (`respondToOrganizerRequest` callable) |
 | Organization (create peña/asociación/ayuntamiento) | `organizations/` (status `pending`) | village member | village admin (own village) or super admin (`approveOrganization` callable; `rejectOrganization` stays a client write) |
-| Join an `approval` org | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
+| Join a group | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
 
 Every Embajador request and every `/embajadores` web lead (`ambassadorLeads/`) is
 posted to the founders' *Cultuvilla Overview* Telegram group by
@@ -87,12 +87,14 @@ project's `notify` Pub/Sub topic ([publishNotify](functions/src/notify/publishNo
 which the homelab notify-gateway pulls from prod only. Topics and the prod
 subscription: `pnpm notify:setup <project>`.
 
-**Joining a peña/asociación depends on its `joinPolicy`.** An `open` org (the
-default) is instant self-service: the org detail FAB does a direct client write of
-`organizations/{orgId}/members/{uid}` (role `member`, function-owned), and a user
-may add only themselves, mirroring village join. An `approval` org takes a join
-request instead (table above). **Private events require an `approval` org**:
-anyone can walk into an open one, so its membership vets nobody. Read
+**A group has seguidores and integrantes.** A *seguidor* follows with a free tap
+(`organizations/{orgId}/followers/{uid}`, private; the pueblo sees
+`organizations.followerCount`), hears about its public events and is not in its
+libro de socios. An *integrante* is a member, `organizations/{orgId}/members/{uid}`,
+and **only an admin makes one**: nobody adds themselves, they file a join request
+(table above). In a group with a socio roster every integrante is a socio, and any
+group may hold private events, since membership always vets. User-facing copy says
+*integrante*, never *miembro*; the code names stay. Read
 [docs/decisions/org-join-policy.md](docs/decisions/org-join-policy.md).
 
 **Membership roles & the audit log.** Villages and orgs are the same abstraction —

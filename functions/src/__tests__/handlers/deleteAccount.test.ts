@@ -220,9 +220,11 @@ describe('deleteAccount (callable)', () => {
     await seedOrganizerRequest(USER_ID);
     await seedUserDoc(USER_ID);
     await seedAuthUser(USER_ID);
+    await db().doc(`organizations/org-followed/followers/${USER_ID}`).set({ userId: USER_ID });
 
     const result = await callDelete(USER_ID);
     expect(result).toEqual({ ok: true });
+    expect((await db().doc(`organizations/org-followed/followers/${USER_ID}`).get()).exists).toBe(false);
 
     // Authored news kept but anonymized.
     const newsSnap = await db().doc(`news/${NEWS_ID}`).get();

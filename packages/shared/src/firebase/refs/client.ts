@@ -16,6 +16,7 @@ import { registrationEventConverterClient } from '../converters/registrationEven
 import { organizationConverterClient } from '../converters/organizationConverter.client';
 import { orgMemberConverterClient } from '../converters/orgMemberConverter.client';
 import { orgJoinRequestConverterClient } from '../converters/orgJoinRequestConverter.client';
+import { orgFollowerConverterClient } from '../converters/orgFollowerConverter.client';
 import {
   cuotaAssignmentConverterClient,
   cuotaPaymentConverterClient,
@@ -301,6 +302,12 @@ export const organizationRecordsWriteDoc = (
   collectionName: 'actas' | 'ledgerEntries',
   id: string,
 ) => doc(db, 'organizations', organizationId, collectionName, id);
+
+export const organizationFollowersCollection = (db: Firestore, organizationId: string) =>
+  collection(db, 'organizations', organizationId, 'followers').withConverter(orgFollowerConverterClient);
+
+export const organizationFollowerDoc = (db: Firestore, organizationId: string, userId: string) =>
+  doc(db, 'organizations', organizationId, 'followers', userId).withConverter(orgFollowerConverterClient);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);

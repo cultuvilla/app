@@ -378,6 +378,13 @@ members and app admins. The count is copied onto the public municipality doc.
   (`village-people-count`, `pre-deploy`, auto-applied) recounts every
   municipality from `municipalityPeople/`.
 
+### `followerCount` ← `organizations/{orgId}/followers/`
+
+Same shape as `memberCount` below, for a different reason: who follows a group is
+private, so a count aggregate would need list access to `followers/`.
+`syncOrgFollowerCount` applies ±1 on create/delete, clients cannot write the field,
+and it reads as 0 until the first follow. No backfill: every count started at 0.
+
 ### `memberCount` ← `organizations/{orgId}/members/` and `residentCount` ← `persons/`
 
 Membership-size counters that back **ordering** on the village hub: peñas /

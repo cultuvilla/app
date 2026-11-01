@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text as RNText, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
+import { Button } from '../../../../components/primitives/Button';
 import { Text } from '../../../../components/primitives/Text';
 import { VStack } from '../../../../components/primitives/VStack';
 import { NaturalImage } from '../../../../components/primitives/NaturalImage';
@@ -22,7 +23,6 @@ import { watchOrganization } from '@cultuvilla/shared/services/organizationServi
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import {
   isOrgMember,
-  addOrgMember,
   getOrgMembers,
   removeOrgMember,
 } from '@cultuvilla/shared/services/orgMemberService';
@@ -31,6 +31,11 @@ import {
   hasPendingOrgJoinRequest,
   requestToJoinOrganization,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
+import {
+  followOrganization,
+  isFollowingOrganization,
+  unfollowOrganization,
+} from '@cultuvilla/shared/services/orgFollowerService';
 import { OrgJoinRequests } from '../../../../components/feature/OrgJoinRequests';
 import { SocioConsentCard } from '../../../../components/feature/groups/SocioConsentCard';
 import { showAlert, showConfirm } from '../../../../lib/dialogs';
@@ -67,13 +72,14 @@ export default function OrgDetailScreen() {
   const [membershipLoaded, setMembershipLoaded] = useState(false);
   const [joining, setJoining] = useState(false);
   const [requested, setRequested] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
   const { canManage } = useOrgCapabilities(orgId as string, org?.municipalityId);
   // Until the viewer's membership is known, a member would see the join FAB flash.
   const loading = status === 'loading' || (org !== null && !membershipLoaded);
   // Keyed on these rather than `org`, so a snapshot that changes something else
   // (the view counter, say) does not refetch the membership.
   const orgExists = org !== null;
-  const joinPolicy = org?.joinPolicy;
   // An empty group shows neither the count nor the roster heading.
   const hasMembers = (membersCount ?? 0) > 0;
 
@@ -83,14 +89,11 @@ export default function OrgDetailScreen() {
     if (user) {
       const member = await isOrgMember(orgId as string, user.uid);
       setIsMember(member);
-      setRequested(
-        !member && joinPolicy === 'approval'
-          ? await hasPendingOrgJoinRequest(orgId as string, user.uid)
-          : false,
-      );
+      setRequested(!member && (await hasPendingOrgJoinRequest(orgId as string, user.uid)));
+      setFollowing(!member && (await isFollowingOrganization(orgId as string, user.uid)));
     }
     setMembershipLoaded(true);
-  }, [orgId, user, orgExists, joinPolicy]);
+  }, [orgId, user, orgExists]);
 
   useFocusEffect(
     useCallback(() => {
@@ -127,14 +130,10 @@ export default function OrgDetailScreen() {
     setJoining(true);
     let succeeded = false;
     try {
-      // An `approval` org takes a request its admins resolve; an open one is
-      // joined on the spot.
-      if (org.joinPolicy === 'approval') {
-        await requestToJoinOrganization(orgId as string, org.municipalityId, user.uid);
-      } else {
-        await addOrgMember(orgId as string, user.uid);
-      }
+      await requestToJoinOrganization(orgId as string, org.municipalityId, user.uid);
       succeeded = true;
+      // The server follows the group for whoever asks; don't wait to show it.
+      setFollowing(true);
       observability.trackEvent(OBSERVABILITY_EVENTS.ORG_JOIN_SUCCESS, {
         municipalityId: org.municipalityId,
         viaInvite: arrivedViaInvite,
@@ -153,6 +152,24 @@ export default function OrgDetailScreen() {
     }
   }, [user, orgId, org, requested, arrivedViaInvite, refresh, gate, t]);
 
+  const onToggleFollow = useCallback(async () => {
+    if (!user) {
+      gate.requireAuth(entityRefHref('organization', pueblo, entidad), t('guest.org'));
+      return;
+    }
+    if (!orgId || !org) return;
+    setFollowBusy(true);
+    try {
+      if (following) await unfollowOrganization(orgId as string, user.uid);
+      else await followOrganization(orgId as string, org.municipalityId, user.uid);
+      setFollowing(!following);
+    } catch {
+      showAlert(t('organization.followError'));
+    } finally {
+      setFollowBusy(false);
+    }
+  }, [user, orgId, org, following, gate, pueblo, entidad, t]);
+
   const onLeave = useCallback(() => {
     if (!user || !org) return;
     if (members && isSoleAdminWithOthers(members, user.uid)) {
@@ -161,9 +178,7 @@ export default function OrgDetailScreen() {
     }
     showConfirm(
       t('organization.leave.title'),
-      t(org.joinPolicy === 'approval' ? 'organization.leave.bodyApproval' : 'organization.leave.body', {
-        name: org.name,
-      }),
+      t('organization.leave.body', { name: org.name }),
       () => {
         removeOrgMember(org.id, user.uid)
           .then(refresh)
@@ -212,9 +227,7 @@ export default function OrgDetailScreen() {
     ? t('organization.signInToJoin')
     : requested
       ? t('organization.requestPending')
-      : org?.joinPolicy === 'approval'
-        ? t('organization.requestToJoin')
-        : t(org?.type === 'peña' ? 'organization.joinPeña' : 'organization.join');
+      : t('organization.requestToJoin');
 
   return (
     <EntityDetailScaffold
@@ -278,6 +291,18 @@ export default function OrgDetailScreen() {
           ) : null}
           {/* Asked once, right after joining: what the junta may see. */}
           {isMember && hasSocioRoster(org.type) ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
+          {!isMember ? (
+            <View className="self-start">
+              <Button
+                variant="secondary"
+                onPress={onToggleFollow}
+                disabled={followBusy}
+                testID="org-follow-button"
+              >
+                {following ? t('organization.following') : t('organization.follow')}
+              </Button>
+            </View>
+          ) : null}
           {org.description ? <Text>{org.description}</Text> : null}
           {org.images.length > 1 ? (
             <VStack gap={2} className="pt-2">
@@ -286,13 +311,16 @@ export default function OrgDetailScreen() {
               ))}
             </VStack>
           ) : null}
-          {/* Rules let only an approval org's members read its private events. */}
-          <OrgEventsSection orgId={org.id} includePrivate={isMember && org.joinPolicy === 'approval'} />
-          {canManage && org.joinPolicy === 'approval' ? (
-            <OrgJoinRequests orgId={org.id} onResolved={refresh} />
-          ) : null}
-          {hasMembers ? (
-            <Text tone="muted">{t('organization.membersCount', { count: membersCount ?? 0 })}</Text>
+          {/* Rules let only an org's members read its private events. */}
+          <OrgEventsSection orgId={org.id} includePrivate={isMember} />
+          {canManage ? <OrgJoinRequests orgId={org.id} onResolved={refresh} /> : null}
+          {hasMembers || org.followerCount > 0 ? (
+            <Text tone="muted">
+              {[
+                ...(hasMembers ? [t('organization.membersCount', { count: membersCount ?? 0 })] : []),
+                ...(org.followerCount > 0 ? [t('organization.followersCount', { count: org.followerCount })] : []),
+              ].join(' · ')}
+            </Text>
           ) : null}
           {hasMembers && canViewOrgRoster({ membersPublic: org.membersPublic, isMember }) ? (
             // Remount (re-fetch) when membership changes, so joining a public org

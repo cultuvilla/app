@@ -1,5 +1,5 @@
 // packages/shared/src/services/orgMemberService.ts
-import { collectionGroup, getDoc, getDocs, query, setDoc, deleteDoc, where } from '../firebase/sdk/firestore';
+import { collectionGroup, getDoc, getDocs, query, deleteDoc, where } from '../firebase/sdk/firestore';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
@@ -8,7 +8,7 @@ import {
 } from '../firebase/refs/client';
 import { orgMemberConverterClient } from '../firebase/converters/orgMemberConverter.client';
 import type { OrgMemberData } from '../models/organization/OrgMemberDataModel';
-import { buildOrgMemberData, type OrgMemberRole } from '../models/organization/OrgMemberDataModel';
+import type { OrgMemberRole } from '../models/organization/OrgMemberDataModel';
 import { watchDoc, watchDocsByIds, watchQuery, watchQueryWith, type Unwatch, type WatchError } from './watch';
 
 export async function getOrgMembers(orgId: string): Promise<(OrgMemberData & { id: string })[]> {
@@ -23,14 +23,6 @@ export function watchOrgMembers(
   onError: WatchError,
 ): Unwatch {
   return watchQuery(organizationMembersCollection(getDb(), orgId), onNext, onError);
-}
-
-export async function addOrgMember(
-  orgId: string,
-  userId: string,
-  role: OrgMemberRole = 'member',
-): Promise<void> {
-  await setDoc(organizationMemberDoc(getDb(), orgId, userId), buildOrgMemberData({ userId, role }));
 }
 
 /**

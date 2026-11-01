@@ -45,15 +45,13 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
   const { t } = useT();
   const { org, role } = group;
   const isAdmin = role === 'admin';
-  // Rules let only an approval org's members read its private events.
-  const includePrivate = org.joinPolicy === 'approval';
   const adminUids = useAdminUids(org.id, isAdmin && (section === 'socios' || section === 'cobros'));
 
   switch (section) {
     case 'avisos':
       return <GroupNotices orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.avisos')} />} />;
     case 'eventos':
-      return <OrgEventsSection orgId={org.id} includePrivate={includePrivate} />;
+      return <OrgEventsSection orgId={org.id} includePrivate />;
     case 'tareas':
       return (
         <VStack gap={4}>
@@ -62,7 +60,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
             orgId={org.id}
             uid={uid}
             isAdmin={isAdmin}
-            includePrivateEvents={includePrivate}
+            includePrivateEvents
             suggestAsamblea={hasSocioRoster(org.type)}
           />
         </VStack>
@@ -83,13 +81,13 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
     case 'cobros':
       return <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} />;
     case 'mensajes':
-      return <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents={includePrivate} />;
+      return <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents />;
     case 'registros':
       return <RecordsAdmin orgId={org.id} orgName={org.name} uid={uid} />;
     case 'miembros':
       return (
         <VStack gap={4}>
-          {org.joinPolicy === 'approval' ? <OrgJoinRequests orgId={org.id} /> : null}
+          <OrgJoinRequests orgId={org.id} />
           <OrgMembersList orgId={org.id} canManage currentUserId={uid} />
         </VStack>
       );

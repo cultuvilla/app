@@ -73,11 +73,25 @@ afterAll(() => {
 });
 
 describe('respondToOrgJoinRequest', () => {
+  it('an integrante is no longer a seguidor; someone turned away still is', async () => {
+    const follower = { userId: REQUESTER, orgId: ORG_ID, municipalityId: MID, createdAt: new Date() };
+    await db().doc(`organizations/${ORG_ID}/followers/${REQUESTER}`).set(follower);
+    await respond(ORG_ADMIN, { orgId: ORG_ID, userId: REQUESTER, decision: 'rejected' });
+    expect((await db().doc(`organizations/${ORG_ID}/followers/${REQUESTER}`).get()).exists).toBe(true);
+
+    await db().doc(`organizations/${ORG_ID}/joinRequests/${REQUESTER}`).set({
+      userId: REQUESTER, orgId: ORG_ID, municipalityId: MID, createdAt: new Date(),
+    });
+    await respond(ORG_ADMIN, { orgId: ORG_ID, userId: REQUESTER, decision: 'approved' });
+    expect((await db().doc(`organizations/${ORG_ID}/followers/${REQUESTER}`).get()).exists).toBe(false);
+  });
+
   it('an org admin approves: member added, request gone, audited, requester notified', async () => {
     await respond(ORG_ADMIN, { orgId: ORG_ID, userId: REQUESTER, decision: 'approved' });
 
     const memberSnap = await db().doc(`organizations/${ORG_ID}/members/${REQUESTER}`).get();
     expect(memberSnap.get('role')).toBe('member');
+    expect((await db().doc(`organizations/${ORG_ID}/followers/${REQUESTER}`).get()).exists).toBe(false);
     expect((await db().doc(`organizations/${ORG_ID}/joinRequests/${REQUESTER}`).get()).exists).toBe(false);
 
     const events = (await db().collection('membershipEvents').get()).docs.map((d) => d.data());
@@ -131,6 +145,27 @@ describe('respondToOrgJoinRequest', () => {
 });
 
 describe('onOrgJoinRequestCreated', () => {
+  const fire = async () => {
+    const wrapped = ft.wrap(onOrgJoinRequestCreated);
+    const snap = ft.firestore.makeDocumentSnapshot(
+      { userId: REQUESTER, orgId: ORG_ID, municipalityId: MID, createdAt: new Date() },
+      `organizations/${ORG_ID}/joinRequests/${REQUESTER}`,
+    );
+    await wrapped({ data: snap, params: { orgId: ORG_ID, userId: REQUESTER } } as unknown as Parameters<
+      typeof wrapped
+    >[0]);
+  };
+
+  it('asking follows the group, and a redelivery changes nothing', async () => {
+    await fire();
+    const ref = db().doc(`organizations/${ORG_ID}/followers/${REQUESTER}`);
+    const first = await ref.get();
+    expect(first.data()).toMatchObject({ userId: REQUESTER, orgId: ORG_ID, municipalityId: MID });
+
+    await fire();
+    expect((await ref.get()).updateTime).toEqual(first.updateTime);
+  });
+
   it("notifies the org's admins, and nobody else", async () => {
     const wrapped = ft.wrap(onOrgJoinRequestCreated);
     const snap = ft.firestore.makeDocumentSnapshot(

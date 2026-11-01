@@ -1,6 +1,7 @@
 export * from './OrganizationDataModel';
 export * from './OrgMemberDataModel';
 export * from './OrgJoinRequestDataModel';
+export * from './OrgFollowerDataModel';
 export * from './OrgRequestFormSchema';
 export * from './SocioDataModel';
 export * from './CuotaDataModel';

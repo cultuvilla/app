@@ -31,7 +31,6 @@ import { withFirestoreErrorLog } from '../../lib/firestoreErrorLog';
 import { showConfirm } from '../../lib/dialogs';
 import { pickImageAsBlob } from '../../lib/images';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { escudoThumbDisplayUrl } from '@cultuvilla/shared/models/municipality';
 import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberService';
 import { haversineKm } from '@cultuvilla/shared/services/feedService';
@@ -308,27 +307,6 @@ export default function NewEventScreen() {
     : privateToOrg && organizerOrgIds.length === 1
       ? (organizerOrgIds[0] ?? null)
       : null;
-
-  // Only an org whose members are admitted by approval may hold a private
-  // event (the rules refuse the rest). Loaded for the single organizing org,
-  // the only case the switch is offered in.
-  const soleOrgId = organizerOrgIds.length === 1 ? (organizerOrgIds[0] ?? null) : null;
-  const [soleOrgRequiresApproval, setSoleOrgRequiresApproval] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (!soleOrgId) return;
-    let cancelled = false;
-    setSoleOrgRequiresApproval(null);
-    void getOrganization(soleOrgId)
-      .then((org) => {
-        if (!cancelled) setSoleOrgRequiresApproval(org?.joinPolicy === 'approval');
-      })
-      .catch(() => {
-        if (!cancelled) setSoleOrgRequiresApproval(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [soleOrgId]);
 
   // The organizing groups the creator belongs to: any member writes its tasks.
   const { groups: myGroups } = useMyGroups(editMode ? null : (user?.uid ?? null));
@@ -858,23 +836,13 @@ export default function NewEventScreen() {
           {/* A series shares one visibility (firestore.rules refuses a change
               on one occurrence), so its days offer no switch. */}
           {organizerOrgIds.length === 1 && !loadedEvent?.series ? (
-            <VStack gap={1}>
-              <ToggleField
-                label={t('event.privateToOrg')}
-                help={t('event.privateToOrgHint')}
-                value={privateToOrg}
-                onValueChange={setPrivateToOrg}
-                // An already-private event can always be opened up; only
-                // making one private needs an approval org.
-                disabled={!privateToOrg && soleOrgRequiresApproval !== true}
-                testID="private-to-org"
-              />
-              {!privateToOrg && soleOrgRequiresApproval === false ? (
-                <Text tone="muted" variant="caption">
-                  {t('event.privateToOrgNeedsApproval')}
-                </Text>
-              ) : null}
-            </VStack>
+            <ToggleField
+              label={t('event.privateToOrg')}
+              help={t('event.privateToOrgHint')}
+              value={privateToOrg}
+              onValueChange={setPrivateToOrg}
+              testID="private-to-org"
+            />
           ) : null}
         </>,
       ),

@@ -5,6 +5,7 @@ import {
   adminDoc,
   municipalityMemberDoc,
   organizationDoc,
+  organizationFollowerDoc,
   organizationJoinRequestDoc,
   organizationMemberDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
@@ -25,8 +26,8 @@ interface RespondToOrgJoinRequestResult {
 }
 
 /**
- * Resolve a request to join an org whose joinPolicy is `approval` — the only
- * way into such an org other than an admin adding someone directly.
+ * Resolve a request to join an org — the only way in other than an admin adding
+ * someone directly.
  *
  * Authority mirrors the org-member create rule: an org admin, an admin of the
  * org's village, or an app admin. Approval adds the member and its
@@ -75,6 +76,8 @@ export const respondToOrgJoinRequest = onCall<
     tx.delete(requestRef);
     if (decision === 'approved' && !targetSnap.exists) {
       tx.set(targetMemberRef, buildOrgMemberData({ userId, role: 'member' }));
+      // An integrante is no longer a seguidor, and asking made them one.
+      tx.delete(organizationFollowerDoc(db, orgId, userId));
       writeMembershipEvent(tx, db, {
         scopeType: 'org',
         scopeId: orgId,

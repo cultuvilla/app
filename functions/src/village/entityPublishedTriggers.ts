@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import {
   municipalityDoc,
   municipalityMembersCollection,
+  organizationFollowersCollection,
   userNotificationsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
@@ -22,6 +23,8 @@ export interface BroadcastInput {
   entityLabel: string | null;
   /** Excluded from the fan-out — nobody needs telling about their own post. */
   actorUid: string | null;
+  /** Told as well as the village's members: a follower may live elsewhere. */
+  extraRecipientUids?: readonly string[];
   /** For the log only. */
   handler: string;
 }
@@ -40,7 +43,7 @@ export interface BroadcastInput {
  * codebase knows that push exists.
  */
 export async function broadcastToVillage(input: BroadcastInput): Promise<void> {
-  const { kind, entityId, municipalityId, entityLabel, actorUid, handler } = input;
+  const { kind, entityId, municipalityId, entityLabel, actorUid, extraRecipientUids = [], handler } = input;
 
   // Projection reads: the broadcast needs the village's NAME and the members'
   // IDS, nothing else. `select()` fetches only that — member docs carry profile
@@ -53,7 +56,8 @@ export async function broadcastToVillage(input: BroadcastInput): Promise<void> {
   ]);
 
   if (!village.exists) return;
-  if (members.empty) return;
+  const recipients = new Set([...members.docs.map((m) => m.id), ...extraRecipientUids]);
+  if (recipients.size === 0) return;
 
   const rawName: unknown = village.get('name');
   const villageName = typeof rawName === 'string' && rawName.length > 0 ? rawName : 'tu pueblo';
@@ -64,8 +68,7 @@ export async function broadcastToVillage(input: BroadcastInput): Promise<void> {
   const writer = db.bulkWriter();
   let notified = 0;
 
-  for (const member of members.docs) {
-    const uid = member.id;
+  for (const uid of recipients) {
     if (uid === actorUid) continue;
     void writer.set(
       // Deterministic id: Eventarc delivers at least once, and an approval that
@@ -92,6 +95,7 @@ export async function broadcastToVillage(input: BroadcastInput): Promise<void> {
     entityId,
     municipalityId,
     memberCount: members.size,
+    followerCount: extraRecipientUids.length,
     notifiedCount: notified,
   });
 }
@@ -108,6 +112,16 @@ function isVisible(d: FirebaseFirestore.DocumentData): boolean {
   return d['status'] === undefined || d['status'] === 'active';
 }
 
+async function followersOfOrgs(orgIds: unknown): Promise<string[]> {
+  if (!Array.isArray(orgIds)) return [];
+  const snaps = await Promise.all(
+    orgIds
+      .filter((id): id is string => typeof id === 'string')
+      .map((id) => organizationFollowersCollection(db, id).withConverter(null).select().get()),
+  );
+  return snaps.flatMap((snap) => snap.docs.map((d) => d.id));
+}
+
 export const onEventPublished = onDocumentCreated('events/{eventId}', async (event) => {
   const d = event.data?.data();
   if (!d) return;
@@ -118,6 +132,9 @@ export const onEventPublished = onDocumentCreated('events/{eventId}', async (eve
   // village hears about it once, from the first.
   const series: unknown = d['series'];
   if (typeof series === 'object' && series !== null && (series as Record<string, unknown>)['index'] !== 0) return;
+  // A private event is the group's business: rules hide it from the pueblo, so
+  // announcing its title to the pueblo would defeat them.
+  if (typeof d['visibilityOrgId'] === 'string') return;
   const municipalityId = str(d, 'municipalityId');
   if (!municipalityId) return;
   await broadcastToVillage({
@@ -126,6 +143,7 @@ export const onEventPublished = onDocumentCreated('events/{eventId}', async (eve
     municipalityId,
     entityLabel: str(d, 'title'),
     actorUid: str(d, 'createdBy'),
+    extraRecipientUids: await followersOfOrgs(d['organizerOrgIds']),
     handler: 'onEventPublished',
   });
 });

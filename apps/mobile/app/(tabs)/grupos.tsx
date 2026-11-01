@@ -107,7 +107,6 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const { org, role } = group;
   const isAdmin = role === 'admin';
   const roster = hasSocioRoster(org.type);
-  const includePrivate = org.joinPolicy === 'approval';
   const { member, admin } = groupSections(group);
   const notices = useGroupNotices(org.id, roster ? uid : null);
   const myValues = useMyMessageValues(org.id, roster ? uid : null);
@@ -122,8 +121,8 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   );
   const events = useWatch<OrgEvent[]>(
     'orgDetail:watchEventsByOrganization',
-    `${org.id}|${includePrivate}`,
-    (next, error) => watchEventsByOrganization(org.id, { includePrivate }, next, error),
+    org.id,
+    (next, error) => watchEventsByOrganization(org.id, { includePrivate: true }, next, error),
   );
   // Only what is still ahead: the row is "Próximos eventos".
   const eventRows = useMemo(() => {
@@ -177,16 +176,19 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
       <View className="px-4 py-4">
         <StatsRow
           stats={[
-            ...(canReadRoster
-              ? [
-                  {
-                    label: t('groups.stats.socios'),
-                    value: socios.status === 'ready' ? (socios.data ?? []).filter(isActiveSocio).length : null,
-                    onPress: () => open('socios'),
-                  },
-                ]
-              : []),
-            { label: t('groups.stats.members'), value: org.memberCount, onPress: isAdmin ? () => open('miembros') : undefined },
+            // Socios include the integrantes, so one or the other, never both.
+            canReadRoster
+              ? {
+                  label: t('groups.stats.socios'),
+                  value: socios.status === 'ready' ? (socios.data ?? []).filter(isActiveSocio).length : null,
+                  onPress: () => open('socios'),
+                }
+              : {
+                  label: t('groups.stats.members'),
+                  value: org.memberCount,
+                  onPress: isAdmin ? () => open('miembros') : undefined,
+                },
+            { label: t('groups.stats.followers'), value: org.followerCount },
             { label: t('groups.stats.events'), value: events.status === 'ready' ? eventRows.length : null, onPress: () => open('eventos') },
           ]}
         />

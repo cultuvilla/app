@@ -1,9 +1,8 @@
-# Joining an `approval` peña (docs/decisions/org-join-policy.md): the FAB does
-# NOT write a member doc, it files organizations/{orgId}/joinRequests/{uid};
+# Joining a peña (docs/decisions/org-join-policy.md): the FAB does NOT write a
+# member doc, it files organizations/{orgId}/joinRequests/{uid};
 # the org admin admits the requester from the Buzón's actionable section, which
 # calls respondToOrgJoinRequest — member doc in, request out, one transaction.
 #
-# The open-org path (instant self-service) is flow 70; this is its counterpart.
 # Each hop is asserted on Firestore. The org id mirrors
 # scripts/data/seed-fixtures/e2e/fixtures.mjs (`approvalOrg.docId`), where
 # e2e-admin is its only member and admin.

@@ -20,9 +20,10 @@ export const PROPOSABLE_ORGANIZATION_TYPES: readonly OrganizationType[] = [
 ] as const;
 
 /**
- * How people become members. `open`: anyone joins instantly (self-service).
- * `approval`: people ask, and an org admin admits them — the only kind of org
- * whose membership is vetted, so the only kind that may hold private events.
+ * Every org admits its members, so this is always `approval` and nothing here
+ * reads it. It stays written for installed binaries, which offer an instant join
+ * on `open` and treat a missing value as `open`: it goes once `minSupported`
+ * passes the release that stopped reading it. See docs/decisions/org-join-policy.md.
  */
 export const OrgJoinPolicySchema = z.enum(['open', 'approval']);
 export type OrgJoinPolicy = z.infer<typeof OrgJoinPolicySchema>;
@@ -56,13 +57,17 @@ export const OrganizationDataSchema = z.object({
   // count-aggregate fan-out. Initialized to 0 at create (the founder is seeded
   // by approveOrganization, which fires the trigger).
   memberCount: z.number().int(),
+  // Denormalized follower count, kept in sync by
+  // functions/src/organizations/syncOrgFollowerCount.ts. Who follows is private;
+  // this is what the pueblo sees.
+  followerCount: z.number().int().default(0),
   // When false, the member roster is shown only to joined members (admins
   // included); when true, it is shown to everyone. Display preference, not a
   // security boundary — member identities are world-readable. Default true.
   membersPublic: z.boolean(),
   // Defaults to `open` because installed binaries still create orgs without it
   // (the rules accept that too); existing docs are backfilled explicitly.
-  joinPolicy: OrgJoinPolicySchema.default('open'),
+  joinPolicy: OrgJoinPolicySchema.default('approval'),
   // "Los estatutos permiten ver la lista de socios": when true, socios may read
   // the roster's names (never contact data). Off unless an admin turns it on.
   // Defaults because installed binaries create orgs without it; existing docs
@@ -115,8 +120,9 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     commentCount: 0,
     readCount: 0,
     memberCount: 0,
+    followerCount: 0,
     membersPublic: input.membersPublic ?? true,
-    joinPolicy: input.joinPolicy ?? 'open',
+    joinPolicy: input.joinPolicy ?? 'approval',
     sociosListVisible: input.sociosListVisible ?? false,
     chatAdminsOnly: input.chatAdminsOnly ?? false,
   };

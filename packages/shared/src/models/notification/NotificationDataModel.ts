@@ -22,7 +22,7 @@ export const NotificationTypeSchema = z.enum([
   'organizer_request_created',
   'organizer_request_approved',
   'organizer_request_rejected',
-  // Joining an org whose joinPolicy is `approval`: `created` goes to its
+  // Joining an org: `created` goes to its
   // admins, `approved` / `rejected` to the requester. All carry
   // entityKind 'organization' + entityId so they open the org.
   'org_join_request_created',

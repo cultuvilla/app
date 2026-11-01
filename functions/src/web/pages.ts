@@ -199,8 +199,8 @@ export function sectionPage(v: Village, data: SectionData): Page {
 export function eventPage(v: Village, e: EventView, appPath: string): Page {
   if (e.private) {
     return {
-      head: { title: 'Evento privado', description: 'Solo visible para los miembros de la organización.', noindex: true },
-      body: html`${backTo(v)}<h1>Evento privado</h1><p>Este evento solo es visible para los miembros de la organización que lo publica.</p>${appCta(appPath, 'Ver en la app')}`,
+      head: { title: 'Evento privado', description: 'Solo visible para los integrantes de la organización.', noindex: true },
+      body: html`${backTo(v)}<h1>Evento privado</h1><p>Este evento solo es visible para los integrantes de la organización que lo publica.</p>${appCta(appPath, 'Ver en la app')}`,
     };
   }
   const when = eventWhen(e);
@@ -267,7 +267,7 @@ export function newsPage(v: Village, n: NewsView, appPath: string): Page {
 
 export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean, events: Card[]): Page {
   const kind = label(ORG_TYPE, o.type) ?? 'Entidad';
-  const facts = [kind, o.memberCount ? `${String(o.memberCount)} miembros` : null].filter(Boolean).join(' · ');
+  const facts = [kind, o.memberCount ? `${String(o.memberCount)} integrantes` : null].filter(Boolean).join(' · ');
   return {
     head: {
       title: invite ? `Únete a ${o.name}` : o.name,

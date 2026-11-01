@@ -258,7 +258,7 @@ describe('Grupos tab', () => {
   });
 
   it("an admin gets their own buttons after the members' ones, in the same Acciones list", async () => {
-    mockGroups = [group('Anduela', { joinPolicy: 'approval' }, 'admin')];
+    mockGroups = [group('Anduela', {}, 'admin')];
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));

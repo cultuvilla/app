@@ -51,6 +51,7 @@ import {
   organizationsCollection,
   organizationMembersCollection,
   organizationJoinRequestsCollection,
+  organizationFollowersCollection,
   organizationSociosCollection,
   organizationSocioPrivateCollection,
   organizationSocioPersonaLocksCollection,
@@ -156,6 +157,7 @@ const REGISTRY = [
     subs: [
       { name: 'members', coll: (db, id) => organizationMembersCollection(db, id) },
       { name: 'joinRequests', coll: (db, id) => organizationJoinRequestsCollection(db, id) },
+      { name: 'followers', coll: (db, id) => organizationFollowersCollection(db, id) },
       { name: 'socios', coll: (db, id) => organizationSociosCollection(db, id) },
       { name: 'socioPrivate', coll: (db, id) => organizationSocioPrivateCollection(db, id) },
       { name: 'socioPersonaLocks', coll: (db, id) => organizationSocioPersonaLocksCollection(db, id) },
