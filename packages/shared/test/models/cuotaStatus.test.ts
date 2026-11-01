@@ -156,8 +156,8 @@ describe('prices by year', () => {
       assignments: {},
       payments: [{ ...buildCuotaPaymentData({ socioId: 'a', periodKey: '2027', amountCents: s.amountCents, method: 'bizum', paidOn: '2027-01-01', recordedBy: 'u' }), id: 'p' }],
     });
-    expect(row?.owedCents).toBe(3500);
-    expect(row?.basis).toBe('unpaid');
+    expect(row.owedCents).toBe(3500);
+    expect(row.basis).toBe('unpaid');
   });
 
   it('stores the years in order, and reads a doc saved without them', () => {
