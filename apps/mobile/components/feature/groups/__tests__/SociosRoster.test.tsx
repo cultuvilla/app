@@ -10,6 +10,9 @@ import {
   updateTypedSocio,
 } from '@cultuvilla/shared/services/socioService';
 import { updateOrganization } from '@cultuvilla/shared/services/organizationService';
+import { removeOrgMember, setOrgMemberRole } from '@cultuvilla/shared/services/orgMemberService';
+import { setGroupChatPush } from '@cultuvilla/shared/services/groupChatService';
+import { setGroupMessagesMuted } from '@cultuvilla/shared/services/groupMessageService';
 import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { SociosRoster } from '../SociosRoster';
 import { GroupSettings } from '../GroupSettings';
@@ -30,6 +33,15 @@ jest.mock('@cultuvilla/shared/services/socioService', () => ({
   setSocioAdminTitle: jest.fn().mockResolvedValue(undefined),
   setSocioBaja: jest.fn().mockResolvedValue(undefined),
   setSocioNumber: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('@cultuvilla/shared/services/groupChatService', () => ({ setGroupChatPush: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
+  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+  return { setGroupMessagesMuted: jest.fn().mockResolvedValue(undefined), watchGroupNotificationPrefs: mockWatcher('prefs') };
+});
+jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
+  setOrgMemberRole: jest.fn().mockResolvedValue(undefined),
+  removeOrgMember: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
   updateOrganization: jest.fn().mockResolvedValue(undefined),
@@ -78,6 +90,26 @@ describe('SociosRoster — admin', () => {
     expect(queryByTestId('socio-row-Viejo')).toBeNull();
     fireEvent.press(getByTestId('socios-toggle-bajas'));
     expect(getByTestId('socio-row-Viejo')).toBeTruthy();
+  });
+
+  it("makes another member an admin or takes them out, never on the admin's own row", async () => {
+    const { getByTestId, queryByTestId } = renderAdmin();
+    expect(queryByTestId('socio-role-Tesorera')).toBeNull();
+    expect(queryByTestId('socio-remove-Tesorera')).toBeNull();
+    expect(queryByTestId('socio-role-Paco')).toBeNull();
+    fireEvent.press(getByTestId('socio-role-Ana'));
+    pressConfirm();
+    await waitFor(() => expect(setOrgMemberRole).toHaveBeenCalledWith('org1', 'u-ana', 'admin'));
+    fireEvent.press(getByTestId('socio-remove-Ana'));
+    pressConfirm();
+    await waitFor(() => expect(removeOrgMember).toHaveBeenCalledWith('org1', 'u-ana'));
+  });
+
+  it('takes the admin away from another admin', async () => {
+    const { getByTestId } = render(<SociosRoster orgId="org1" canManage adminUids={['u-admin', 'u-ana']} currentUid="u-admin" />);
+    fireEvent.press(getByTestId('socio-role-Ana'));
+    pressConfirm();
+    await waitFor(() => expect(setOrgMemberRole).toHaveBeenCalledWith('org1', 'u-ana', 'member'));
   });
 
   it('types in a new socio', async () => {
@@ -200,10 +232,38 @@ describe('SociosRoster — member with the estatutos setting on', () => {
 });
 
 describe('GroupSettings', () => {
+  beforeEach(() => setWatched('prefs', null));
+
+  it('a member sees only their own part, and silences avisos and chats apart', () => {
+    setWatched('prefs', { messagesMuted: false, chatPush: true, orgId: 'org1', updatedAt: new Date() });
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin={false} sociosListVisible={false} />);
+    expect(r.getByTestId('group-settings-user')).toBeTruthy();
+    expect(r.queryByTestId('group-settings-group')).toBeNull();
+    expect(r.queryByTestId('group-settings-chat-admins-only')).toBeNull();
+    fireEvent.press(r.getByTestId('group-settings-mute-avisos'));
+    expect(setGroupMessagesMuted).toHaveBeenCalledWith('u1', 'org1', true);
+    fireEvent.press(r.getByTestId('group-settings-mute-chats'));
+    expect(setGroupChatPush).toHaveBeenCalledWith('u1', 'org1', false, expect.objectContaining({ messagesMuted: false }));
+  });
+
+  it('chats start silenced, and turning that off asks for their notifications', () => {
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} />);
+    expect(r.getByTestId('group-settings-group')).toBeTruthy();
+    expect(r.getByTestId('group-settings-mute-chats').props.accessibilityState.checked).toBe(true);
+    fireEvent.press(r.getByTestId('group-settings-mute-chats'));
+    expect(setGroupChatPush).toHaveBeenCalledWith('u1', 'org1', true, null);
+  });
+
+  it('a group with no roster has no avisos to silence', () => {
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin={false} sociosListVisible={false} hasRoster={false} />);
+    expect(r.queryByTestId('group-settings-mute-avisos')).toBeNull();
+    expect(r.getByTestId('group-settings-mute-chats')).toBeTruthy();
+  });
+
   const toggle = (r: ReturnType<typeof render>) => r.getByTestId('group-settings-socios-list-visible');
 
   it('an admin leaves the Charla to the junta; a group with no roster has no socios switch', () => {
-    const r = render(<GroupSettings orgId="org1" sociosListVisible={false} hasRoster={false} chatAdminsOnly={false} />);
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} hasRoster={false} chatAdminsOnly={false} />);
     expect(r.queryByTestId('group-settings-socios-list-visible')).toBeNull();
     fireEvent.press(r.getByTestId('group-settings-chat-admins-only'));
     expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: true });
@@ -212,20 +272,20 @@ describe('GroupSettings', () => {
   it('turns on the estatutos setting: frozen while saving, then shows the stored value', async () => {
     let finish!: () => void;
     jest.mocked(updateOrganization).mockReturnValueOnce(new Promise<void>((res) => (finish = res)));
-    const r = render(<GroupSettings orgId="org1" sociosListVisible={false} />);
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} />);
     expect(r.getByTestId('group-settings')).toBeTruthy();
     fireEvent.press(toggle(r));
     expect(updateOrganization).toHaveBeenCalledWith('org1', { sociosListVisible: true });
     expect(toggle(r).props.accessibilityState).toMatchObject({ disabled: true });
     await act(async () => finish());
     // The org listener delivers the stored value.
-    r.rerender(<GroupSettings orgId="org1" sociosListVisible />);
+    r.rerender(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible />);
     expect(toggle(r).props.accessibilityState).toEqual({ checked: true, disabled: false });
   });
 
   it('on a refused write: says so, unfreezes, and keeps the stored value', async () => {
     jest.mocked(updateOrganization).mockRejectedValueOnce(new Error('permission-denied'));
-    const r = render(<GroupSettings orgId="org1" sociosListVisible={false} />);
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} />);
     fireEvent.press(toggle(r));
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.settings.error'));
     expect(toggle(r).props.accessibilityState).toEqual({ checked: false, disabled: false });

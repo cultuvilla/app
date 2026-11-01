@@ -5,6 +5,7 @@ import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   organizationTaskCommentsCollection,
   organizationTaskCommentsWriteCollection,
+  organizationTaskDoc,
   organizationTaskTemplatesCollection,
   organizationTasksCollection,
   organizationTaskWriteDoc,
@@ -29,7 +30,7 @@ import {
   type ShiftAnswer,
   type ShiftState,
 } from '../models/organization/groupTaskLogic';
-import { watchQuery, type Unwatch, type WatchError } from './watch';
+import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type GroupTask = GroupTaskData & { id: string };
 export type TaskTemplate = TaskTemplateData & { id: string };
@@ -68,6 +69,26 @@ export function watchEventGroupTasks(
   onError: WatchError,
 ): Unwatch {
   return watchQuery(query(organizationTasksCollection(getDb(), orgId), where('eventId', '==', eventId)), onNext, onError);
+}
+
+/** The checklists of several events at once. Firestore takes up to 30 ids, so the caller passes the first 30. */
+export function watchGroupTasksOfEvents(
+  orgId: string,
+  eventIds: string[],
+  onNext: (rows: GroupTask[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(query(organizationTasksCollection(getDb(), orgId), where('eventId', 'in', eventIds)), onNext, onError);
+}
+
+/** One task — its own screen. */
+export function watchGroupTask(
+  orgId: string,
+  taskId: string,
+  onNext: (task: GroupTask | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(organizationTaskDoc(getDb(), orgId, taskId), onNext, onError);
 }
 
 function newTaskPayload(input: Omit<GroupTaskInput, 'createdBy' | 'createdAt'>, uid: string) {

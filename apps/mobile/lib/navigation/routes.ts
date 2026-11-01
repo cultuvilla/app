@@ -6,6 +6,8 @@ import {
   eventLinkTarget,
   festivalPosterLinkTarget,
   groupAvisoPath,
+  groupEventPath,
+  groupTaskPath,
   groupPath,
   groupSectionPath,
   newWordPath,
@@ -76,6 +78,10 @@ export const groupHref = (orgId: string): HrefPath => href(groupPath(orgId));
 /** One aviso and its chat. */
 export const groupAvisoHref = (orgId: string, messageId: string): HrefPath => href(groupAvisoPath(orgId, messageId));
 
+export const groupEventHref = (orgId: string, eventId: string): HrefPath => href(groupEventPath(orgId, eventId));
+
+export const groupTaskHref = (orgId: string, taskId: string): HrefPath => href(groupTaskPath(orgId, taskId));
+
 export const groupSectionHref = (orgId: string, section: GroupSection): HrefPath => href(groupSectionPath(orgId, section));
 
 export const villageSectionHref = (villageSlug: string, section: VillageSection, query?: string): HrefPath =>
@@ -135,7 +141,7 @@ export const userHref = (uid: string): HrefPath => href(userPath(uid));
 
 /** Create-or-edit screens take their subject as query params, not a path. */
 /** `copyFrom` opens the create form prefilled from that event, a year later. */
-export function createEventHref(params: { villageId?: string; eventId?: string; copyFrom?: string } = {}): HrefPath {
+export function createEventHref(params: { villageId?: string; eventId?: string; copyFrom?: string; organizerOrgId?: string } = {}): HrefPath {
   return href(`/crear/evento${toQuery(params)}`);
 }
 

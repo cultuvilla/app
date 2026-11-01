@@ -6,6 +6,7 @@ import {
   buildTaskTemplateData,
   compareTasksByDue,
   daysBetween,
+  eventTaskProgress,
   dueTaskReminders,
   fairShareCounts,
   GroupTaskDataSchema,
@@ -241,6 +242,18 @@ describe('compareTasksByDue', () => {
   it('sorts by day and time, undated last', () => {
     const list = [task({ title: 'x' }), task({ title: 'b', dueOn: '2026-01-02' }), task({ title: 'a', dueOn: '2026-01-02', time: '09:00' }), task({ title: 'c', dueOn: '2026-01-01' })];
     expect([...list].sort(compareTasksByDue).map((t) => t.title)).toEqual(['c', 'b', 'a', 'x']);
+  });
+});
+
+describe('eventTaskProgress', () => {
+  it('counts each event apart and leaves out tasks on no event', () => {
+    const progress = eventTaskProgress([
+      { eventId: 'a', doneAt: new Date() },
+      { eventId: 'a', doneAt: null },
+      { eventId: 'b', doneAt: null },
+      { eventId: null, doneAt: new Date() },
+    ]);
+    expect([...progress]).toEqual([['a', { done: 1, total: 2 }], ['b', { done: 0, total: 1 }]]);
   });
 });
 

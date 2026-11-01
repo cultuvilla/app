@@ -46,13 +46,14 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
     ...(roster && !isAdmin ? (['actas'] as const) : []),
     ...(roster && !isAdmin && org.sociosListVisible ? (['socios'] as const) : []),
     ...(roster ? (['mis-datos'] as const) : []),
+    'ajustes',
   ];
   const admin: GroupSection[] = isAdmin
     ? [
         ...(roster ? (['cobros', 'mensajes', 'socios'] as const) : []),
         ...(roster ? (['registros'] as const) : []),
-        'miembros',
-        'ajustes',
+        // Where there are socios, every integrante is one: the Socios screen manages both.
+        ...(roster ? [] : (['miembros'] as const)),
       ]
     : [];
   return { member, admin };

@@ -17,17 +17,14 @@ const mockValues = { nombre: null as string | null, numero: null as number | nul
 jest.mock('../../../../lib/orgs/useMyMessageValues', () => ({ useMyMessageValues: () => mockValues }));
 const mockMarkRead = jest.fn(() => Promise.resolve());
 const mockVote = jest.fn(() => Promise.resolve());
-const mockMute = jest.fn(() => Promise.resolve());
 jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
   const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
   return {
     watchMyGroupMessages: mockWatcher('messages'),
     watchMyGroupMessageReads: mockWatcher('reads'),
     watchMyGroupPollVotes: mockWatcher('votes'),
-    watchGroupNotificationPrefs: mockWatcher('prefs'),
     markGroupMessageRead: (...a: unknown[]) => mockMarkRead(...(a as [])),
     castGroupPollVote: (...a: unknown[]) => mockVote(...(a as [])),
-    setGroupMessagesMuted: (...a: unknown[]) => mockMute(...(a as [])),
   };
 });
 
@@ -56,7 +53,6 @@ const message = (id: string, over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   resetWatchers();
   jest.clearAllMocks();
-  setWatched('prefs', null);
   setWatched('votes', []);
 });
 
@@ -99,21 +95,13 @@ describe('GroupNotices', () => {
     expect(mockVote).toHaveBeenCalledWith('org1', 'p', 'u1', 0);
   });
 
-  it('mutes the group’s pushes', () => {
-    setWatched('messages', [message('a')]);
-    setWatched('reads', [{ id: 'a', readAt: new Date() }]);
-    const { getByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
-    fireEvent.press(getByTestId('group-notices-mute'));
-    expect(mockMute).toHaveBeenCalledWith('u1', 'org1', true);
-  });
-
   it('each notice opens its conversation, and says when it has something new', () => {
     setWatched('messages', [message('quiet'), message('chatty')]);
     setWatched('reads', []);
-    setWatched('prefs', null);
-    const r = render(<GroupNotices orgId="org1" uid="u1" />);
+      const r = render(<GroupNotices orgId="org1" uid="u1" />);
     expect(r.getByText('groups.chat.openNew')).toBeTruthy();
     expect(r.getByText('groups.chat.open')).toBeTruthy();
+    fireEvent.press(r.getByTestId('group-notice-open-quiet'));
     fireEvent.press(r.getByTestId('group-notice-chat-quiet'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/org1/aviso/quiet');
   });

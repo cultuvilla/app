@@ -1,14 +1,13 @@
 import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { buildGroupTaskData, type GroupTaskData } from '@cultuvilla/shared/models/organization';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import {
   applyTaskTemplate,
   createGroupTask,
-  deleteGroupTask,
   deleteTaskTemplate,
   saveTaskTemplate,
-  updateGroupTask,
 } from '@cultuvilla/shared/services/groupTaskService';
 import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { GroupTasks } from '../GroupTasks';
@@ -110,74 +109,10 @@ describe('GroupTasks — asamblea anual', () => {
 });
 
 describe('GroupTasks', () => {
-  it('lists open and done tasks and counts the fair share', () => {
+  it('counts the fair share', () => {
     const { getByTestId } = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
-    expect(getByTestId('task-row-asamblea')).toBeTruthy();
-    expect(getByTestId('task-row-extintores')).toHaveTextContent(/groups\.tasks\.doneBy:u-luis/);
     expect(getByTestId('fair-share-u-luis')).toHaveTextContent('Luisgroups.tasks.fairShare.count:1');
     expect(getByTestId('fair-share-u-ana')).toHaveTextContent('Anagroups.tasks.fairShare.count:0');
-  });
-
-  it('a task opened has its comments on a second tab; a new one has none', () => {
-    setWatched('comments', []);
-    const fresh = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
-    fireEvent.press(fresh.getByTestId('tasks-new'));
-    expect(fresh.queryByTestId('task-tab')).toBeNull();
-    expect(fresh.queryByTestId('task-tab-comments')).toBeNull();
-    fresh.unmount();
-
-    const { getByTestId, queryByTestId } = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
-    fireEvent.press(getByTestId('task-edit-asamblea'));
-    expect(getByTestId('task-save')).toBeTruthy();
-    fireEvent.press(getByTestId('task-tab-comments'));
-    expect(getByTestId('task-comments')).toBeTruthy();
-    expect(queryByTestId('task-save')).toBeNull();
-  });
-
-  it('creates a yearly task on a fixed date', async () => {
-    const { getByTestId } = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
-    fireEvent.press(getByTestId('tasks-new'));
-    fireEvent.changeText(getByTestId('task-title'), 'Renovar el seguro');
-    fireEvent.press(getByTestId('task-assignee-u-ana'));
-    fireEvent.press(getByTestId('task-repeat-calendar'));
-    fireEvent.press(getByTestId('task-save'));
-    // A fixed-date repeat needs a date.
-    expect(getByTestId('task-due-error')).toHaveTextContent('groups.tasks.form.calendarNeedsDate');
-    expect(createGroupTask).not.toHaveBeenCalled();
-
-    fireEvent.press(getByTestId('task-repeat-afterDone'));
-    fireEvent.changeText(getByTestId('task-repeat-interval'), '12');
-    fireEvent.press(getByTestId('task-repeat-unit-month'));
-    fireEvent.press(getByTestId('task-save'));
-    await waitFor(() =>
-      expect(createGroupTask).toHaveBeenCalledWith(
-        'org1',
-        expect.objectContaining({
-          title: 'Renovar el seguro',
-          assigneeUids: ['u-ana'],
-          recurrence: { kind: 'afterDone', unit: 'month', interval: 12, anchorOn: null },
-          slots: null,
-          eventId: null,
-        }),
-        'admin',
-      ),
-    );
-  });
-
-  it('turns a task into a shift and validates the slots and time', async () => {
-    const { getByTestId } = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
-    fireEvent.press(getByTestId('task-edit-asamblea'));
-    fireEvent(getByTestId('task-is-shift'), 'onValueChange', true);
-    fireEvent.changeText(getByTestId('task-slots'), '0');
-    fireEvent.changeText(getByTestId('task-time'), '25:00');
-    fireEvent.press(getByTestId('task-save'));
-    expect(updateGroupTask).not.toHaveBeenCalled();
-    fireEvent.changeText(getByTestId('task-slots'), '4');
-    fireEvent.changeText(getByTestId('task-time'), '9:30');
-    fireEvent.press(getByTestId('task-save'));
-    await waitFor(() =>
-      expect(updateGroupTask).toHaveBeenCalledWith('org1', 'asamblea', expect.objectContaining({ slots: 4, time: '09:30', assigneeUids: [] })),
-    );
   });
 
   it("applies a template to an event from its checklist, dated from the event's start", async () => {
@@ -217,7 +152,7 @@ describe('GroupTasks', () => {
     expect(Alert.alert).toHaveBeenCalledWith('groups.tasks.templates.applied:2');
   });
 
-  it('adds a task straight onto an event, and deletes one after confirming', async () => {
+  it('adds a task straight onto an event, and opens one on its own screen', async () => {
     const { getByTestId } = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
     expect(getByTestId('group-tasks')).toBeTruthy();
     expect(getByTestId('fair-share')).toBeTruthy();
@@ -229,13 +164,8 @@ describe('GroupTasks', () => {
     fireEvent.press(getByTestId('task-save'));
     await waitFor(() => expect(createGroupTask).toHaveBeenCalledWith('org1', expect.objectContaining({ title: 'Pedir las sillas', eventId: 'ev1' }), 'admin'));
 
-    fireEvent.press(getByTestId('task-edit-asamblea'));
-    fireEvent.press(getByTestId('task-repeat-calendar'));
-    expect(getByTestId('task-repeat-unit')).toBeTruthy();
-    fireEvent.press(getByTestId('task-delete'));
-    const buttons = (jest.mocked(Alert.alert).mock.calls.at(-1)?.[2] ?? []) as { onPress?: () => void }[];
-    buttons.at(-1)?.onPress?.();
-    await waitFor(() => expect(deleteGroupTask).toHaveBeenCalledWith('org1', 'asamblea'));
+    fireEvent.press(getByTestId('task-edit-escenario'));
+    expect(router.push).toHaveBeenCalledWith('/grupos/org1/tarea/escenario');
   });
 
   it('writes a new template, and deletes one', async () => {
@@ -280,7 +210,7 @@ describe('GroupTasks', () => {
 describe('GroupTasks — a member', () => {
   const asMember = () => render(<GroupTasks orgId="org1" uid="u-ana" isAdmin={false} includePrivateEvents={false} suggestAsamblea />);
 
-  it('creates, edits and ticks tasks, but keeps no templates, fair share or asamblea suggestion', async () => {
+  it('keeps no templates, fair share or asamblea suggestion', () => {
     const { getByTestId, queryByTestId } = asMember();
     expect(getByTestId('group-tasks')).toBeTruthy();
     expect(queryByTestId('templates-new')).toBeNull();
@@ -290,19 +220,6 @@ describe('GroupTasks — a member', () => {
     fireEvent.press(getByTestId('checklist-toggle-ev1'));
     expect(queryByTestId('checklist-apply-ev1')).toBeNull();
     expect(queryByTestId('checklist-save-ev1')).toBeNull();
-
-    fireEvent.press(getByTestId('tasks-new'));
-    fireEvent.changeText(getByTestId('task-title'), 'Comprar hielo');
-    fireEvent.press(getByTestId('task-save'));
-    await waitFor(() => expect(createGroupTask).toHaveBeenCalledWith('org1', expect.objectContaining({ title: 'Comprar hielo' }), 'u-ana'));
   });
 
-  it("deletes only a task they created", () => {
-    setWatched('open', [task('ajena'), task('propia', { createdBy: 'u-ana' })]);
-    const { getByTestId, queryByTestId } = asMember();
-    fireEvent.press(getByTestId('task-edit-ajena'));
-    expect(queryByTestId('task-delete')).toBeNull();
-    fireEvent.press(getByTestId('task-edit-propia'));
-    expect(getByTestId('task-delete')).toBeTruthy();
-  });
 });

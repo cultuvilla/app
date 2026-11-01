@@ -12,7 +12,6 @@ jest.mock('../../../../lib/auth/useAuth', () => ({ useAuth: () => ({ profile: { 
 const mockSend = jest.fn((_input: unknown) => Promise.resolve('new1'));
 const mockDelete = jest.fn((..._a: unknown[]) => Promise.resolve());
 const mockMarkRead = jest.fn((..._a: unknown[]) => Promise.resolve());
-const mockSetPush = jest.fn((..._a: unknown[]) => Promise.resolve());
 jest.mock('@cultuvilla/shared/services/groupChatService', () => {
   const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
   return {
@@ -20,12 +19,7 @@ jest.mock('@cultuvilla/shared/services/groupChatService', () => {
     sendGroupChatMessage: (input: unknown) => mockSend(input),
     deleteGroupChatMessage: (...a: unknown[]) => mockDelete(...a),
     markGroupChatRead: (...a: unknown[]) => mockMarkRead(...a),
-    setGroupChatPush: (...a: unknown[]) => mockSetPush(...a),
   };
-});
-jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return { watchGroupNotificationPrefs: mockWatcher('prefs') };
 });
 let mockBlocked: string[] = [];
 jest.mock('@cultuvilla/shared/services/blockedUserService', () => ({
@@ -60,7 +54,6 @@ beforeEach(() => {
   jest.clearAllMocks();
   resetWatchers();
   mockBlocked = [];
-  setWatched('prefs', null);
 });
 
 describe('GroupChat', () => {
@@ -161,17 +154,6 @@ describe('GroupChat', () => {
         reporterUserId: 'u1',
         reason: 'harassment',
       }),
-    );
-  });
-
-  it('the notification switch is off until turned on, and keeps the group’s mute', async () => {
-    setWatched('chat', []);
-    setWatched('prefs', { messagesMuted: true, chatPush: false, orgId: 'org1', updatedAt: new Date() });
-    const r = chat();
-    expect(r.getByTestId('group-chat-push').props.accessibilityState.checked).toBe(false);
-    fireEvent.press(r.getByTestId('group-chat-push'));
-    await waitFor(() =>
-      expect(mockSetPush).toHaveBeenCalledWith('u1', 'org1', true, expect.objectContaining({ messagesMuted: true })),
     );
   });
 

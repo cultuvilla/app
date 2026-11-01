@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { router } from 'expo-router';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import {
   asambleaTaskInput,
@@ -22,6 +23,7 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, Card, HStack, Pressable, Text, VStack } from '../../primitives';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
+import { groupTaskHref } from '../../../lib/navigation/routes';
 import { showAlert } from '../../../lib/dialogs';
 import { offsetLabel } from '../../../lib/orgs/tasks';
 import { useOrgMembers } from '../../../lib/orgs/useOrgMembers';
@@ -32,7 +34,7 @@ import { TaskSheet } from './TaskSheet';
 import { TemplateSheet } from './TemplateSheet';
 
 type Sheet =
-  | { kind: 'task'; task: GroupTask | null; eventId: string | null }
+  | { kind: 'task'; eventId: string }
   | { kind: 'template'; template: TaskTemplate | null; initial: { name: string; items: TaskTemplateItem[] } | null }
   | { kind: 'apply'; template: TaskTemplate | null; event: ChecklistEvent | null }
   | null;
@@ -42,14 +44,11 @@ function startOfYear(year: string): Date {
   return new Date(`${year}-01-01T00:00:00+01:00`);
 }
 
-const RECENT_DONE = 10;
-
 /**
- * The group's tasks, for every member: each open task (tap to edit), what was
- * done this year, and each upcoming event's checklist. Any member creates,
- * edits and ticks tasks. Admins also keep the templates (apply one, save a
- * checklist as one), see the fair-share count, and are offered a yearly
- * asamblea when a group with a socio roster tracks none — never created for it.
+ * What closes the group's Tareas screen, under its board: each upcoming event's
+ * checklist. Admins also keep the templates (apply one, save a checklist as
+ * one), see the fair-share count, and are offered a yearly asamblea when a
+ * group with a socio roster tracks none — never created for it.
  */
 export function GroupTasks({
   orgId,
@@ -109,19 +108,10 @@ export function GroupTasks({
       .finally(() => setCreatingAsamblea(false));
   };
 
-  const tick = (task: GroupTask, isDone: boolean) => {
-    setGroupTaskDone(orgId, task.id, isDone, uid).catch(() => showAlert(t('groups.tasks.error')));
-  };
   const close = () => setSheet(null);
 
   return (
     <VStack gap={3} testID="group-tasks">
-      <HStack justify="end" align="center">
-        <Button size="md" variant="secondary" onPress={() => setSheet({ kind: 'task', task: null, eventId: null })} testID="tasks-new">
-          {t('groups.tasks.new')}
-        </Button>
-      </HStack>
-
       {showAsamblea ? (
         <Card testID="asamblea-suggestion">
           <VStack gap={2}>
@@ -138,35 +128,6 @@ export function GroupTasks({
         </Card>
       ) : null}
 
-      <Text className="font-bold">{t('groups.tasks.openTitle')}</Text>
-      {openTasks.length === 0 ? (
-        <Text variant="bodySm" tone="muted">
-          {t('groups.tasks.noOpen')}
-        </Text>
-      ) : (
-        openTasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            canTick
-            onTick={(d) => tick(task, d)}
-            onEdit={() => setSheet({ kind: 'task', task, eventId: task.eventId })}
-            nameOf={nameOf}
-          />
-        ))
-      )}
-
-      <Text className="font-bold pt-2">{t('groups.tasks.doneTitle')}</Text>
-      {doneTasks.length === 0 ? (
-        <Text variant="bodySm" tone="muted">
-          {t('groups.tasks.noDone')}
-        </Text>
-      ) : (
-        doneTasks.slice(0, RECENT_DONE).map((task) => (
-          <TaskRow key={task.id} task={task} canTick onTick={(d) => tick(task, d)} nameOf={nameOf} />
-        ))
-      )}
-
       <Text className="font-bold pt-2">{t('groups.tasks.checklists.title')}</Text>
       {upcoming.length === 0 ? (
         <Text variant="bodySm" tone="muted">
@@ -182,8 +143,8 @@ export function GroupTasks({
             expanded={openEventId === event.id}
             onToggle={() => setOpenEventId((id) => (id === event.id ? null : event.id))}
             nameOf={nameOf}
-            onAddTask={() => setSheet({ kind: 'task', task: null, eventId: event.id })}
-            onEditTask={(task) => setSheet({ kind: 'task', task, eventId: event.id })}
+            onAddTask={() => setSheet({ kind: 'task', eventId: event.id })}
+            onOpenTask={(task) => router.push(groupTaskHref(orgId, task.id))}
             onApplyTemplate={isAdmin ? () => setSheet({ kind: 'apply', template: null, event }) : null}
             onSaveAsTemplate={
               isAdmin
@@ -242,11 +203,9 @@ export function GroupTasks({
         visible={sheet?.kind === 'task'}
         orgId={orgId}
         uid={uid}
-        task={sheet?.kind === 'task' ? sheet.task : null}
+        task={null}
         eventId={sheet?.kind === 'task' ? sheet.eventId : null}
         members={members}
-        canDelete={sheet?.kind === 'task' && (isAdmin || sheet.task?.createdBy === uid)}
-        isAdmin={isAdmin}
         onClose={close}
       />
       <TemplateSheet
@@ -280,7 +239,7 @@ function EventChecklist({
   onToggle,
   nameOf,
   onAddTask,
-  onEditTask,
+  onOpenTask,
   onApplyTemplate,
   onSaveAsTemplate,
 }: {
@@ -291,7 +250,7 @@ function EventChecklist({
   onToggle: () => void;
   nameOf: (uid: string) => string;
   onAddTask: () => void;
-  onEditTask: (task: GroupTask) => void;
+  onOpenTask: (task: GroupTask) => void;
   /** Admins only: templates are theirs. */
   onApplyTemplate: (() => void) | null;
   onSaveAsTemplate: ((tasks: GroupTask[]) => void) | null;
@@ -330,7 +289,7 @@ function EventChecklist({
                   onTick={(d) => {
                     setGroupTaskDone(orgId, task.id, d, uid).catch(() => showAlert(t('groups.tasks.error')));
                   }}
-                  onEdit={() => onEditTask(task)}
+                  onEdit={() => onOpenTask(task)}
                   nameOf={nameOf}
                 />
               ))

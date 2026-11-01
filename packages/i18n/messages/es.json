@@ -1691,6 +1691,7 @@
       "adminHint": "Solo para quien gestiona el grupo",
       "empty": {
         "avisos": "La junta no ha enviado avisos.",
+        "eventos": "El grupo aún no tiene eventos.",
         "cuota": "El grupo aún no ha configurado la cuota.",
         "actas": "La junta aún no ha compartido actas."
       }
@@ -1773,6 +1774,7 @@
     },
     "settings": {
       "title": "Ajustes del grupo",
+      "userTitle": "Ajustes de usuario",
       "sociosListVisible": "Los estatutos permiten ver la lista de socios",
       "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
       "chatAdminsOnly": "Solo la junta escribe en la Charla",
@@ -1879,7 +1881,27 @@
         "save": "Guardar"
       }
     },
+    "events": {
+      "filter": {
+        "upcoming": "Próximos",
+        "past": "Pasados",
+        "all": "Todos"
+      }
+    },
     "tasks": {
+      "filter": {
+        "open": "Pendientes",
+        "mine": "Mías",
+        "done": "Hechas"
+      },
+      "detail": {
+        "title": "Tarea",
+        "people": "Quién está",
+        "event": "Evento: {title}",
+        "markDone": "Marcar como hecha",
+        "reopen": "Reabrir",
+        "unavailable": "Esta tarea ya no existe."
+      },
       "comments": {
         "tabDetails": "Detalles",
         "tabComments": "Comentarios",
@@ -2006,7 +2028,9 @@
         "saveAsTemplate": "Guardar como plantilla",
         "templateName": "Nombre de la plantilla",
         "saved": "Plantilla guardada.",
-        "addTask": "Añadir tarea"
+        "addTask": "Añadir tarea",
+        "viewEventPage": "Ver la página del evento",
+        "eventUnavailable": "Este evento ya no está disponible."
       },
       "fairShare": {
         "title": "Reparto del trabajo {year}",
@@ -2136,9 +2160,8 @@
       "deleteBody": "Desaparecerá para todo el grupo.",
       "deleteError": "No se ha podido borrar el mensaje.",
       "report": "Denunciar o bloquear",
-      "push": "Avisarme de los mensajes de los chats",
-      "pushHint": "Para este grupo: su Charla y los chats de sus avisos.",
-      "pushError": "No se ha podido guardar."
+      "mute": "Silenciar los mensajes de los chats",
+      "muteHint": "Para este grupo: su Charla y los chats de sus avisos."
     },
     "messages": {
       "title": "Mensajes",
@@ -2214,7 +2237,6 @@
       "voteError": "No se ha podido guardar tu respuesta.",
       "mute": "Silenciar los avisos de este grupo",
       "muteHint": "No te llegarán al móvil, pero seguirán aquí. Los recordatorios de tu cuota te siguen llegando.",
-      "muteError": "No se ha podido guardar el ajuste.",
       "actionError": "No se ha podido completar. Inténtalo de nuevo.",
       "placeholder": {
         "nombre": "Nombre",

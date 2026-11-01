@@ -12,6 +12,7 @@ import {
   type Socio,
   type SocioPrivate,
 } from '@cultuvilla/shared/services/socioService';
+import { removeOrgMember, setOrgMemberRole } from '@cultuvilla/shared/services/orgMemberService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, HStack, Pressable, Text, VStack } from '../../primitives';
 import { OptionsSheet } from './OptionsSheet';
@@ -33,7 +34,7 @@ type Sheet =
  * The group's socio roster. `canManage` (an org admin) sees every row with its
  * contact data and manages it: types in socios without the app, corrects them,
  * links one to a member who later joined, gives the baja, sets admin titles
- * and socio numbers.
+ * and socio numbers, makes a member an admin or takes them out of the group.
  * Otherwise — a member, while the estatutos setting is on — names only.
  */
 export function SociosRoster({
@@ -91,6 +92,26 @@ export function SociosRoster({
       { confirmText: t('groups.socios.giveBaja'), cancelText: t('common.cancel') },
     );
 
+  const changeRole = (uid: string, name: string, promoting: boolean) =>
+    showConfirm(
+      t(promoting ? 'organization.membersList.confirmPromoteTitle' : 'organization.membersList.confirmDemoteTitle'),
+      t(promoting ? 'organization.membersList.confirmPromoteBody' : 'organization.membersList.confirmDemoteBody', { name }),
+      () => {
+        setOrgMemberRole(orgId, uid, promoting ? 'admin' : 'member').catch(() => showAlert(t('organization.membersList.roleChangeError')));
+      },
+      { confirmText: t(promoting ? 'organization.membersList.promote' : 'organization.membersList.demote'), cancelText: t('common.cancel') },
+    );
+
+  const removeMember = (uid: string, name: string) =>
+    showConfirm(
+      t('organization.membersList.confirmRemoveTitle'),
+      t('organization.membersList.confirmRemoveBody', { name }),
+      () => {
+        removeOrgMember(orgId, uid).catch(() => showAlert(t('organization.membersList.removeError')));
+      },
+      { confirmText: t('organization.membersList.remove'), cancelText: t('common.cancel') },
+    );
+
   const isNumberTaken = (exceptId: string | null) => (socioNumber: number) => socioNumberTaken(rows, socioNumber, exceptId);
 
   const saveTyped = async (values: TypedSocioSaved) => {
@@ -124,13 +145,15 @@ export function SociosRoster({
         }
         const contact = contactLine(s);
         const isAdminRow = s.kind === 'member' && s.uid !== null && admins.has(s.uid);
+        // Your own row is never actionable, which avoids a self-lockout.
+        const otherMemberUid = s.kind === 'member' && s.uid !== currentUid ? s.uid : null;
         return (
           <VStack key={s.id} gap={1} className="py-2 border-b border-subtle" testID={`socio-row-${s.id}`}>
             <HStack gap={2} align="center" justify="between">
               <Text className={active ? 'font-bold' : 'font-bold text-muted'}>{name}</Text>
-              {isAdminRow && s.adminTitle ? (
+              {isAdminRow ? (
                 <Text variant="caption" tone="muted">
-                  {t(`groups.titles.${s.adminTitle}`)}
+                  {s.adminTitle ? t(`groups.titles.${s.adminTitle}`) : t('organization.adminBadge')}
                 </Text>
               ) : null}
             </HStack>
@@ -173,6 +196,20 @@ export function SociosRoster({
                 ) : null}
                 {s.kind !== 'member' ? (
                   <RowAction testID={`socio-baja-${s.id}`} label={t('groups.socios.giveBaja')} onPress={() => giveBaja(s)} />
+                ) : null}
+                {otherMemberUid ? (
+                  <>
+                    <RowAction
+                      testID={`socio-role-${s.id}`}
+                      label={t(isAdminRow ? 'organization.membersList.demote' : 'organization.membersList.promote')}
+                      onPress={() => changeRole(otherMemberUid, name, !isAdminRow)}
+                    />
+                    <RowAction
+                      testID={`socio-remove-${s.id}`}
+                      label={t('organization.membersList.remove')}
+                      onPress={() => removeMember(otherMemberUid, name)}
+                    />
+                  </>
                 ) : null}
               </HStack>
             ) : null}

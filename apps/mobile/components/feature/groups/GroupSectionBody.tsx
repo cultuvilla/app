@@ -3,7 +3,6 @@ import { hasSocioRoster, type OrgMemberData } from '@cultuvilla/shared/models/or
 import { watchOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
 import type { GroupSection } from '@cultuvilla/shared/utils';
 import { Text, VStack } from '../../primitives';
-import { OrgEventsSection } from '../OrgEventsSection';
 import { OrgJoinRequests } from '../OrgJoinRequests';
 import { OrgMembersList } from '../OrgMembersList';
 import { CuotaAdmin } from './CuotaAdmin';
@@ -13,11 +12,9 @@ import { GroupSettings } from './GroupSettings';
 import { MyActas } from './MyActas';
 import { MyCuota } from './MyCuota';
 import { MyPersonasSocios } from './MyPersonasSocios';
-import { MyTasks } from './MyTasks';
 import { RecordsAdmin } from './RecordsAdmin';
 import { SocioConsentCard } from './SocioConsentCard';
 import { SociosRoster } from './SociosRoster';
-import { GroupTasks } from './GroupTasks';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import type { MyGroup } from '../../../lib/orgs/useMyGroups';
@@ -50,21 +47,6 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
   switch (section) {
     case 'avisos':
       return <GroupNotices orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.avisos')} />} />;
-    case 'eventos':
-      return <OrgEventsSection orgId={org.id} includePrivate />;
-    case 'tareas':
-      return (
-        <VStack gap={4}>
-          <MyTasks orgId={org.id} uid={uid} isAdmin={isAdmin} shiftsOnly />
-          <GroupTasks
-            orgId={org.id}
-            uid={uid}
-            isAdmin={isAdmin}
-            includePrivateEvents
-            suggestAsamblea={hasSocioRoster(org.type)}
-          />
-        </VStack>
-      );
     case 'cuota':
       return <MyCuota orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.cuota')} />} />;
     case 'actas':
@@ -77,7 +59,12 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
         </VStack>
       );
     case 'socios':
-      return <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />;
+      return (
+        <VStack gap={4}>
+          {isAdmin ? <OrgJoinRequests orgId={org.id} /> : null}
+          <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />
+        </VStack>
+      );
     case 'cobros':
       return <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} />;
     case 'mensajes':
@@ -95,13 +82,17 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
       return (
         <GroupSettings
           orgId={org.id}
+          uid={uid}
+          isAdmin={isAdmin}
           sociosListVisible={org.sociosListVisible}
           hasRoster={hasSocioRoster(org.type)}
           chatAdminsOnly={org.chatAdminsOnly}
         />
       );
-    // Its own full-height screen, not this scrolling body: see [seccion].tsx.
+    // Their own full-height screens, not this scrolling body: see [seccion].tsx.
     case 'charla':
+    case 'eventos':
+    case 'tareas':
       return null;
   }
 }

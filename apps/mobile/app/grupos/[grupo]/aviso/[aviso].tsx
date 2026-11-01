@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import { personalizeGroupMessage, type GroupMessageData } from '@cultuvilla/shared/models/organization';
 import { watchGroupAviso } from '@cultuvilla/shared/services/groupChatService';
+import { markGroupMessageRead } from '@cultuvilla/shared/services/groupMessageService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Card, Screen, Text, VStack } from '../../../../components/primitives';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
@@ -10,13 +12,14 @@ import { useAuth } from '../../../../lib/auth/useAuth';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useT } from '../../../../lib/i18n';
 import { routes } from '../../../../lib/navigation/routes';
+import { useGroupNotices } from '../../../../lib/orgs/useGroupNotices';
 import { useMyGroups } from '../../../../lib/orgs/useMyGroups';
 import { useMyMessageValues } from '../../../../lib/orgs/useMyMessageValues';
 
 /**
  * One aviso and its chat: the aviso is the thread's first message. Opened from
- * the notices, from a chat notification, and from the aviso's WhatsApp and
- * email links. The rules let only its recipients and the admins read it.
+ * the group's home, the notices, a chat notification, and the aviso's WhatsApp
+ * and email links, so opening it is what marks it read. The rules let only its recipients and the admins read it.
  */
 export default function GroupAvisoScreen() {
   const { t } = useT();
@@ -31,6 +34,19 @@ export default function GroupAvisoScreen() {
     group && aviso ? (next, error) => watchGroupAviso(group.org.id, aviso, next, error) : null,
   );
   const values = useMyMessageValues(group?.org.id ?? '', group ? uid : null);
+
+  const orgId = group?.org.id ?? null;
+  const notices = useGroupNotices(orgId ?? '', group ? uid : null);
+  // Rules let only a recipient mark it, once: an admin may open one sent to others.
+  const unread =
+    notices.readsStatus === 'ready' &&
+    notices.notices.some((m) => m.id === aviso && m.sentBy !== uid) &&
+    !notices.readIds.has(aviso ?? '');
+  useEffect(() => {
+    if (!unread || !orgId || !uid || !aviso) return;
+    // Only the badge depends on it: the next opening tries again.
+    void markGroupMessageRead(orgId, aviso, uid).catch(() => undefined);
+  }, [unread, orgId, uid, aviso]);
 
   if (uid && status !== 'loading' && !group) return <Redirect href={routes.groups} />;
 
@@ -61,7 +77,7 @@ export default function GroupAvisoScreen() {
                 <Text className="font-bold">{text.title}</Text>
                 <Text selectable>{text.body}</Text>
                 <Text variant="caption" tone="muted">
-                  {t('groups.messages.sentBy', { name: message.signerName, date: formatDate(message.sentAt, 'long') })}
+                  {formatDate(message.sentAt, 'long')}
                 </Text>
               </VStack>
             </Card>

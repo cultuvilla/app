@@ -228,6 +228,16 @@ export function groupAvisoPath(orgId: string, messageId: string): string {
   return `/grupos/${encodeURIComponent(orgId)}/aviso/${encodeURIComponent(messageId)}`;
 }
 
+/** One of a group's events from the organizing side — `/grupos/<orgId>/evento/<eventId>`. */
+export function groupEventPath(orgId: string, eventId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/evento/${encodeURIComponent(eventId)}`;
+}
+
+/** One task of a group — `/grupos/<orgId>/tarea/<taskId>`. */
+export function groupTaskPath(orgId: string, taskId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/tarea/${encodeURIComponent(taskId)}`;
+}
+
 /**
  * The link an aviso's WhatsApp text and email carry. A query on the tab rather
  * than `groupAvisoPath`: those messages outlive app versions, and a binary with

@@ -8,6 +8,8 @@ import { HStack, Pressable, Screen, Text } from '../../../components/primitives'
 import { ScreenHeader } from '../../../components/layout/ScreenHeader';
 import { GENERAL_CHAT_THREAD_ID } from '@cultuvilla/shared/models/organization';
 import { GroupChat } from '../../../components/feature/groups/GroupChat';
+import { GroupEvents } from '../../../components/feature/groups/GroupEvents';
+import { GroupTaskBoard } from '../../../components/feature/groups/GroupTaskBoard';
 import { GroupSectionBody } from '../../../components/feature/groups/GroupSectionBody';
 import { GroupSwitcherSheet } from '../../../components/feature/groups/GroupSwitcher';
 import { useAuth } from '../../../lib/auth/useAuth';
@@ -69,7 +71,11 @@ export default function GroupSectionScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
-) : section === 'charla' ? (
+) : section === 'eventos' ? (
+        <GroupEvents key={group.org.id} org={group.org} />
+      ) : section === 'tareas' ? (
+        <GroupTaskBoard key={group.org.id} group={group} uid={uid} />
+      ) : section === 'charla' ? (
         // A chat scrolls itself and keeps its composer on screen.
         <GroupChat
           key={group.org.id}
