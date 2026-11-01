@@ -8,12 +8,14 @@ import {
   watchMyGroupPollVotes,
   type GroupPollVote,
 } from '@cultuvilla/shared/services/groupMessageService';
+import { personalizeGroupMessage } from '@cultuvilla/shared/models/organization';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Card, Pressable, Text, Toggle, VStack } from '../../primitives';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { useGroupNotices } from '../../../lib/orgs/useGroupNotices';
+import { useMyMessageValues } from '../../../lib/orgs/useMyMessageValues';
 
 /**
  * The member's side of messaging, on the group's notices screen: the notices that reached
@@ -23,6 +25,7 @@ import { useGroupNotices } from '../../../lib/orgs/useGroupNotices';
 export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string; empty?: ReactNode }) {
   const { t } = useT();
   const { notices, status, readsStatus, readIds } = useGroupNotices(orgId, uid);
+  const myValues = useMyMessageValues(orgId, uid);
   const pollIds = useMemo(() => notices.filter((m) => m.poll).map((m) => m.id), [notices]);
   const pollKey = pollIds.join(',');
   const votes = useWatch<GroupPollVote[]>(
@@ -54,6 +57,7 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
       {notices.map((m) => {
         const fresh = readsStatus === 'ready' && !readIds.has(m.id) && m.sentBy !== uid;
         const myVote = voteOf.get(m.id);
+        const text = personalizeGroupMessage({ title: m.title, body: m.body }, myValues);
         return (
           <Card key={m.id} testID={`group-notice-${m.id}`}>
             <VStack gap={1}>
@@ -62,8 +66,8 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
                   {t('groups.messages.newBadge')}
                 </Text>
               ) : null}
-              <Text className="font-bold">{m.title}</Text>
-              <Text selectable>{m.body}</Text>
+              <Text className="font-bold">{text.title}</Text>
+              <Text selectable>{text.body}</Text>
               <Text variant="caption" tone="muted">
                 {formatDate(m.sentAt, 'dayMonthShort')}
               </Text>

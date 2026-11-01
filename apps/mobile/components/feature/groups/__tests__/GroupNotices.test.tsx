@@ -8,6 +8,8 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
+const mockValues = { nombre: null as string | null, numero: null as number | null, cuotaCents: null as number | null };
+jest.mock('../../../../lib/orgs/useMyMessageValues', () => ({ useMyMessageValues: () => mockValues }));
 const mockMarkRead = jest.fn(() => Promise.resolve());
 const mockVote = jest.fn(() => Promise.resolve());
 const mockMute = jest.fn(() => Promise.resolve());
@@ -58,6 +60,17 @@ describe('GroupNotices', () => {
     setWatched('messages', []);
     const { queryByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
     expect(queryByTestId('group-notices')).toBeNull();
+  });
+
+  it("shows the reader's own values in place of the placeholders, and drops what they lack", () => {
+    mockValues.nombre = 'Ana';
+    setWatched('messages', [message('p', { title: 'Hola {nombre}', body: 'Hola {nombre}.\nTu nº es {nº socio}.\nHay cena.' })]);
+    setWatched('reads', []);
+    const { getByText, queryByText } = render(<GroupNotices orgId="org1" uid="u1" />);
+    mockValues.nombre = null;
+    expect(getByText('Hola Ana')).toBeTruthy();
+    expect(getByText('Hola Ana.\nHay cena.')).toBeTruthy();
+    expect(queryByText(/\{/)).toBeNull();
   });
 
   it('lists newest first, with no pinned or sender line, and marks the unread ones read once shown', async () => {

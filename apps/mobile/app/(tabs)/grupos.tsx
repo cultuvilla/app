@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { eventEndBoundary, upcomingThenPast, type EventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
-import { compareTasksByDue, hasSocioRoster, isActiveSocio, periodLabel } from '@cultuvilla/shared/models/organization';
+import { compareTasksByDue, hasSocioRoster, isActiveSocio, periodLabel, personalizeGroupMessage } from '@cultuvilla/shared/models/organization';
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import { watchOrgSocios, type Socio } from '@cultuvilla/shared/services/socioService';
 import { formatDate } from '@cultuvilla/shared/utils';
@@ -28,6 +28,7 @@ import { CUOTA_STATUS_TONE } from '../../lib/orgs/cuota';
 import { useMyCuota } from '../../lib/orgs/useMyCuota';
 import { groupSections } from '../../lib/orgs/groupSections';
 import { useGroupNotices } from '../../lib/orgs/useGroupNotices';
+import { useMyMessageValues } from '../../lib/orgs/useMyMessageValues';
 import { useMyGroups, type MyGroup } from '../../lib/orgs/useMyGroups';
 import { useMyOpenTasks } from '../../lib/orgs/useMyOpenTasks';
 import { pickGroupId, readLastGroupId, rememberLastGroupId } from '../../lib/orgs/lastGroup';
@@ -109,6 +110,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const includePrivate = org.joinPolicy === 'approval';
   const { member, admin } = groupSections(group);
   const notices = useGroupNotices(org.id, roster ? uid : null);
+  const myValues = useMyMessageValues(org.id, roster ? uid : null);
   const tasks = useMyOpenTasks(org.id, uid);
   const cuota = useMyCuota(org.id, roster ? uid : null);
   // Rules let members read the roster only while the estatutos allow it.
@@ -200,7 +202,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
           onManage={() => open('avisos')}
         >
           {notices.notices.slice(0, 5).map((m) => (
-            <NoticeCard key={m.id} message={m} onPress={() => open('avisos')} />
+            <NoticeCard key={m.id} message={personalizeGroupMessage(m, myValues)} onPress={() => open('avisos')} />
           ))}
         </Section>
       ) : null}

@@ -199,6 +199,7 @@ async function remindOrg(
 
   const signer = cuotaSigner(socios, adminsSnap.docs.map((d) => d.id), settings.configuredBy);
   const signerName = signerLabel(signer, org.name);
+  const signerEmail = signer?.uid ? (await userDoc(firestore, signer.uid).get()).data()?.email.trim() || null : null;
   const label = periodLabel(periodKey);
   const appUrl = `${webOriginForProject(process.env['GCLOUD_PROJECT'])}${groupPath(orgId)}`;
 
@@ -267,6 +268,7 @@ async function remindOrg(
           html: renderCuotaReminderEmailHtml(content),
           text: renderCuotaReminderEmailText(content),
           fromName: cuotaReminderFromName(content),
+          ...(signerEmail ? { replyTo: signerEmail } : {}),
         },
         { handler, label: 'Cuota reminder email', fields: { orgId, periodKey, stage: group.stage, socioCount: sendable.length } },
       );

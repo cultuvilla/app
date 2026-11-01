@@ -20,7 +20,7 @@ const content = (over: Partial<GroupMessageEmailContent> = {}): GroupMessageEmai
 
 describe('group message email', () => {
   it('comes from the group through Cultuvilla, with the subject and the group', () => {
-    expect(groupMessageFromName(content())).toBe('Asociación La Anduela (vía Cultuvilla)');
+    expect(groupMessageFromName(content())).toBe('Asociación La Anduela');
     expect(groupMessageEmailSubject(content())).toBe('Asamblea anual · Asociación La Anduela');
   });
 

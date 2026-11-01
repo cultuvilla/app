@@ -2163,7 +2163,14 @@
       "mute": "Silenciar los avisos de este grupo",
       "muteHint": "No te llegarán al móvil, pero seguirán aquí. Los recordatorios de tu cuota te siguen llegando.",
       "muteError": "No se ha podido guardar el ajuste.",
-      "actionError": "No se ha podido completar. Inténtalo de nuevo."
+      "actionError": "No se ha podido completar. Inténtalo de nuevo.",
+      "placeholder": {
+        "nombre": "Nombre",
+        "numero": "Nº de socio",
+        "cuota": "Cuota pendiente"
+      },
+      "placeholderHint": "Toca para añadirlo. A cada socio le llega con sus datos; lo que no tenga, o lo que no sea para todos, se quita.",
+      "whatsappShare": "Compartir en WhatsApp"
     }
   },
   "studio": {

@@ -65,7 +65,7 @@ const MESSAGE = {
 };
 
 const delivery = (id: string, over: Record<string, unknown>) => ({
-  id, uid: id, socioIds: [id], names: [id], push: true, email: 'sent', whatsappSocioId: null, whatsappSentAt: null, whatsappSentBy: null, ...over,
+  id, uid: id, socioIds: [id], names: [id], push: true, email: 'sent', whatsappSocioId: null, whatsappSentAt: null, whatsappSentBy: null, personal: null, ...over,
 });
 
 beforeEach(() => {
@@ -166,6 +166,56 @@ describe('GroupMessagesAdmin', () => {
     fireEvent.press(getByTestId('group-msg-wa-open-typed_Pepa'));
     expect(open).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\/wa\.me\/34600111222\?text=\*Cena\*%0A%0AElegid/));
     await waitFor(() => expect(setWhatsappSent).toHaveBeenCalledWith('org1', 'm1', 'typed_Pepa', 'admin', true));
+  });
+
+  it("puts the recipient's own values in their WhatsApp link, and the app link at the end", () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    setWatched('messages', [{ ...MESSAGE, poll: null, title: 'Hola {nombre}', body: 'Tu nº es {nº socio}.\nHay cena.' }]);
+    setWatched('deliveries', [
+      delivery('typed_Pepa', { uid: null, push: false, email: null, names: ['Pepa'], whatsappSocioId: 'Pepa', personal: { nombre: 'Pepa', numero: 58, cuotaCents: null } }),
+    ]);
+    setWatched('reads', []);
+    setWatched('votes', []);
+    setWatched('privates', [{ id: 'Pepa', phone: '600 111 222', email: null, consentAnsweredAt: null }]);
+    const { getByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-row-m1'));
+    fireEvent.press(getByTestId('group-msg-wa-open-typed_Pepa'));
+    const text = decodeURIComponent(String(open.mock.calls[0]?.[0]).split('text=')[1] ?? '');
+    expect(text).toContain('*Hola Pepa*');
+    expect(text).toContain('Tu nº es 58.');
+    expect(text).toMatch(/Míralo en la app: https:\/\/cultuvilla\.es\/grupos\?grupo=org1$/);
+  });
+
+  it('shares to the group chat with no number and no personal lines', () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    setWatched('messages', [{ ...MESSAGE, poll: null, title: 'Cena', body: 'Hola {nombre},\n\nEl sábado.\n\nDebes {cuota pendiente}.' }]);
+    setWatched('deliveries', []);
+    setWatched('reads', []);
+    setWatched('votes', []);
+    const { getByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-row-m1'));
+    fireEvent.press(getByTestId('group-msg-detail-share'));
+    const url = String(open.mock.calls[0]?.[0]);
+    expect(url.startsWith('https://wa.me/?text=')).toBe(true);
+    const text = decodeURIComponent(url.split('text=')[1] ?? '');
+    expect(text).toContain('Hola,\n\nEl sábado.');
+    expect(text).not.toContain('Debes');
+    expect(text).toMatch(/Míralo en la app: /);
+  });
+
+  it('the placeholder chips write into the field last touched; no cuota chip without a cuota', () => {
+    setWatched('messages', []);
+    setWatched('cuota', null);
+    const { getByTestId, queryByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-compose-open'));
+    expect(getByTestId('group-msg-placeholders')).toBeTruthy();
+    expect(queryByTestId('group-msg-placeholder-cuota')).toBeNull();
+    fireEvent.changeText(getByTestId('group-msg-body'), 'Hola');
+    fireEvent.press(getByTestId('group-msg-placeholder-nombre'));
+    expect(getByTestId('group-msg-body').props.value).toBe('Hola {nombre}');
+    fireEvent(getByTestId('group-msg-subject'), 'focus');
+    fireEvent.press(getByTestId('group-msg-placeholder-numero'));
+    expect(getByTestId('group-msg-subject').props.value).toBe('{nº socio}');
   });
 
   it('edits a multiple-choice poll and the channels, to everyone with WhatsApp', async () => {

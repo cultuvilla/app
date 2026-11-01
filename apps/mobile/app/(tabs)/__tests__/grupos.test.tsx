@@ -40,6 +40,9 @@ jest.mock('../../../lib/orgs/lastGroup', () => ({
 jest.mock('../../../lib/orgs/useGroupNotices', () => ({
   useGroupNotices: () => ({ unreadCount: mockUnread, notices: mockNotices, status: 'ready', readsStatus: 'ready', readIds: new Set() }),
 }));
+jest.mock('../../../lib/orgs/useMyMessageValues', () => ({
+  useMyMessageValues: () => ({ nombre: null, numero: null, cuotaCents: null }),
+}));
 jest.mock('../../../lib/orgs/useMyOpenTasks', () => ({ useMyOpenTasks: () => ({ mine: mockMyTasks, shifts: [], status: 'ready' }) }));
 let mockEvents: { id: string; title: string; startDate: Date; endDate: Date | null; confirmedCount: number; imageURL: null; villageCoverImage: null; villageSlug: string }[] = [];
 jest.mock('../../../lib/hooks/useWatch', () => ({
