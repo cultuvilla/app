@@ -56,8 +56,8 @@ function socio(id: string, input: Partial<SocioDataInput>) {
 }
 
 const SETTINGS = {
-  id: 'current', amountCents: 3000, periodicity: 'yearly', dueMonth: 1, dueDay: 1, graceDays: 0, startPeriod: YEAR,
-  tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1500, coversPersonas: false }],
+  id: 'current', amountCents: 3000, yearAmounts: [], periodicity: 'yearly', dueMonth: 1, dueDay: 1, graceDays: 0, startPeriod: YEAR,
+  tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1500, yearAmounts: [], coversPersonas: false }],
   bizum: null, iban: null, payInstructions: null, remindersEnabled: true, configuredBy: 'u-admin', updatedAt: new Date(),
 };
 
@@ -112,8 +112,46 @@ describe('CuotaAdmin', () => {
     expect(values).toMatchObject({
       amountCents: 2550, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 0, startPeriod: YEAR,
       bizum: '600111222', remindersEnabled: false,
-      tiers: [expect.objectContaining({ name: 'Familiar', amountCents: 4000, coversPersonas: true })],
+      tiers: [expect.objectContaining({ name: 'Familiar', amountCents: 4000, yearAmounts: [], coversPersonas: true })],
     });
+  });
+
+  it('prices the base cuota and a tier by year, and shows the viewed year its own', async () => {
+    setWatched('settings', { ...SETTINGS, yearAmounts: [{ year: YEAR, amountCents: 3500 }] });
+    const { getAllByText, getByTestId, getByText, queryByTestId } = renderAdmin();
+    expect(getAllByText(/35,00/).length).toBeGreaterThan(0);
+    fireEvent.press(getByTestId('cuota-edit-settings'));
+    expect(getByTestId('cuota-settings-years')).toBeTruthy();
+    expect(getByTestId('cuota-tier-years-jub')).toBeTruthy();
+    expect(getByTestId('cuota-settings-years-year-0').props.value).toBe(YEAR);
+
+    fireEvent.press(getByTestId('cuota-settings-years-add'));
+    fireEvent.changeText(getByTestId('cuota-settings-years-year-1'), YEAR);
+    fireEvent.changeText(getByTestId('cuota-settings-years-amount-1'), '40');
+    fireEvent.press(getByTestId('cuota-settings-save'));
+    expect(getByText('groups.cuota.settings.yearsInvalid')).toBeTruthy();
+    expect(saveCuotaSettings).not.toHaveBeenCalled();
+    fireEvent.press(getByTestId('cuota-settings-years-remove-1'));
+
+    fireEvent.press(getByTestId('cuota-tier-years-jub-toggle'));
+    fireEvent.changeText(getByTestId('cuota-tier-years-jub-amount-0'), '18');
+    fireEvent.press(getByTestId('cuota-settings-save'));
+    await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
+    expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({
+      yearAmounts: [{ year: YEAR, amountCents: 3500 }],
+      tiers: [expect.objectContaining({ id: 'jub', yearAmounts: [{ year: YEAR, amountCents: 1800 }] })],
+    });
+    expect(queryByTestId('cuota-settings-years-remove-1')).toBeNull();
+  });
+
+  it('switching the price by year off forgets the years', async () => {
+    setWatched('settings', { ...SETTINGS, yearAmounts: [{ year: YEAR, amountCents: 3500 }] });
+    const { getByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('cuota-edit-settings'));
+    fireEvent.press(getByTestId('cuota-settings-years-toggle'));
+    fireEvent.press(getByTestId('cuota-settings-save'));
+    await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
+    expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({ yearAmounts: [] });
   });
 
   it('refuses an amount that is not money', () => {
@@ -204,7 +242,7 @@ describe('CuotaAdmin', () => {
     await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
     expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({
       periodicity: 'monthly', startPeriod: TODAY.slice(0, 7), graceDays: 0, iban: 'es12 3456', payInstructions: 'En mano',
-      remindersEnabled: true, tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1200, coversPersonas: true }],
+      remindersEnabled: true, tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1200, yearAmounts: [], coversPersonas: true }],
     });
   });
 

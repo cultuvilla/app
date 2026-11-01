@@ -15,6 +15,7 @@ import type {
   CuotaPeriodicity,
   CuotaReminderStage,
   CuotaSettingsData,
+  CuotaTier,
   PeriodKey,
 } from './CuotaDataModel';
 
@@ -125,16 +126,23 @@ export function cuotaConcept(key: PeriodKey, name: string): string {
 
 // ── Amounts ──────────────────────────────────────────────────────────────────
 
+/** The period's price of the base cuota or of a tier: its year's, else the usual one. */
+export function cuotaPriceFor(priced: Pick<CuotaTier, 'amountCents' | 'yearAmounts'>, key: PeriodKey): number {
+  const year = key.slice(0, 4);
+  return priced.yearAmounts.find((y) => y.year === year)?.amountCents ?? priced.amountCents;
+}
+
 /** What a socio owes for one period, before any household cover. */
 export function owedCents(
-  settings: Pick<CuotaSettingsData, 'amountCents' | 'tiers'>,
+  settings: Pick<CuotaSettingsData, 'amountCents' | 'yearAmounts' | 'tiers'>,
   assignment: Pick<CuotaAssignmentData, 'tierId' | 'exempt' | 'customAmountCents'> | undefined,
+  key: PeriodKey,
 ): number {
-  if (!assignment) return settings.amountCents;
+  if (!assignment) return cuotaPriceFor(settings, key);
   if (assignment.exempt) return 0;
   if (assignment.customAmountCents !== null) return assignment.customAmountCents;
   const tier = settings.tiers.find((t) => t.id === assignment.tierId);
-  return tier ? tier.amountCents : settings.amountCents;
+  return cuotaPriceFor(tier ?? settings, key);
 }
 
 /** Net paid per socio: payments minus the ones a reversal cancelled. */
@@ -198,7 +206,7 @@ export function computeCuotaStatuses(input: CuotaStatusInput): SocioCuotaStatus[
     const altaDay = madridDayKey(s.altaAt);
     const dueOn = altaDay > periodDue ? altaDay : periodDue;
     const assignment = assignments[s.id];
-    const owed = owedCents(settings, assignment);
+    const owed = owedCents(settings, assignment, periodKey);
     const paidCents = paid.get(s.id) ?? 0;
     const settled = paidCents >= owed;
     return {

@@ -30,6 +30,20 @@ export const MAX_CUOTA_CENTS = 1_000_000;
 const CentsSchema = z.number().int().min(0).max(MAX_CUOTA_CENTS);
 
 /**
+ * The price of one calendar year, when it is not the usual one. A year missing
+ * from the list pays the usual price; a monthly cuota applies it to each month.
+ */
+export const CuotaYearAmountSchema = z.object({
+  year: z.string().regex(/^\d{4}$/, 'not a year'),
+  amountCents: CentsSchema,
+});
+export type CuotaYearAmount = z.infer<typeof CuotaYearAmountSchema>;
+export const MAX_CUOTA_YEAR_AMOUNTS = 30;
+
+// `.default([])`: beta binaries save the settings without it.
+const YearAmountsSchema = z.array(CuotaYearAmountSchema).max(MAX_CUOTA_YEAR_AMOUNTS).default([]);
+
+/**
  * An optional price other than the base one — reducida jubilados, familiar.
  * `coversPersonas`: a member on this tier pays once for themself and every
  * persona a cargo they answer for (a household payment).
@@ -38,6 +52,7 @@ export const CuotaTierSchema = z.object({
   id: z.string().min(1).max(40),
   name: z.string().min(1).max(80),
   amountCents: CentsSchema,
+  yearAmounts: YearAmountsSchema,
   coversPersonas: z.boolean(),
 });
 export type CuotaTier = z.infer<typeof CuotaTierSchema>;
@@ -45,6 +60,7 @@ export const MAX_CUOTA_TIERS = 10;
 
 export const CuotaSettingsDataSchema = z.object({
   amountCents: CentsSchema,
+  yearAmounts: YearAmountsSchema,
   periodicity: CuotaPeriodicitySchema,
   /** Month the yearly cuota falls due (1–12); unused by a monthly one. */
   dueMonth: z.number().int().min(1).max(12),
@@ -67,14 +83,21 @@ export const CuotaSettingsDataSchema = z.object({
 });
 export type CuotaSettingsData = z.infer<typeof CuotaSettingsDataSchema>;
 
+export type CuotaTierInput = Omit<CuotaTier, 'yearAmounts'> & { yearAmounts?: CuotaYearAmount[] };
+
+function sortedByYear(amounts: CuotaYearAmount[] | undefined): CuotaYearAmount[] {
+  return [...(amounts ?? [])].sort((a, b) => a.year.localeCompare(b.year));
+}
+
 export interface CuotaSettingsInput {
   amountCents: number;
+  yearAmounts?: CuotaYearAmount[];
   periodicity: CuotaPeriodicity;
   dueMonth: number;
   dueDay: number;
   graceDays: number;
   startPeriod: PeriodKey;
-  tiers?: CuotaTier[];
+  tiers?: CuotaTierInput[];
   bizum?: string | null;
   iban?: string | null;
   payInstructions?: string | null;
@@ -91,12 +114,13 @@ function blankToNull(value: string | null | undefined): string | null {
 export function buildCuotaSettingsData(input: CuotaSettingsInput): CuotaSettingsData {
   return {
     amountCents: input.amountCents,
+    yearAmounts: sortedByYear(input.yearAmounts),
     periodicity: input.periodicity,
     dueMonth: input.dueMonth,
     dueDay: input.dueDay,
     graceDays: input.graceDays,
     startPeriod: input.startPeriod,
-    tiers: (input.tiers ?? []).map((t) => ({ ...t, name: t.name.trim() })),
+    tiers: (input.tiers ?? []).map((t) => ({ ...t, name: t.name.trim(), yearAmounts: sortedByYear(t.yearAmounts) })),
     bizum: blankToNull(input.bizum),
     iban: blankToNull(input.iban)?.replace(/\s+/g, ' ').toUpperCase() ?? null,
     payInstructions: blankToNull(input.payInstructions),

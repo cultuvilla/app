@@ -1876,6 +1876,12 @@
         "tierNameRequired": "Pon un nombre a la tarifa.",
         "tierCovers": "Cubre a las personas a su cargo",
         "removeTier": "Quitar tarifa",
+        "byYear": "El precio cambia según el año",
+        "byYearHint": "Los años que no pongas pagan el importe de arriba.",
+        "year": "Año",
+        "addYear": "Añadir año",
+        "removeYear": "Quitar el año {year}",
+        "yearsInvalid": "Revisa los años: cuatro cifras, sin repetir y con su importe.",
         "save": "Guardar"
       },
       "payment": {
