@@ -36,7 +36,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 |---|---|---|---|---|---|
 | [firestore-index-hygiene](ongoing/firestore-index-hygiene.md) ⚠️ | low | dev | 2 cycles ago | the next `develop → beta → main` promotion runs the `--force` deploy on beta and prod | after the next promotions, check that the "Report index drift" step on Deploy beta and Deploy prod reports 0 orphaned and 0 missing, then retire this plan |
 | [comision-de-festejos-type](ongoing/comision-de-festejos-type.md) | medium | dev | this cycle | both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`) | after that release is live in prod, retire this plan |
-| [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | this cycle | `minSupported` has passed the first release carrying this | the contract commit: drop `joinPolicy` from the model, `isValidOrganizationCreate`, the org update rule and `approveOrganization`, plus a `post-deploy` cleanup backfill |
+| [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | this cycle | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
 
 ## Waiting on you
 
