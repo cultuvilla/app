@@ -423,6 +423,14 @@ about an idempotent `pre-deploy` backfill with an empty `autoApply`. Opt out
 deliberately (destructive, non-idempotent, or needs a human reading the diff),
 not by default.
 
+**A `post-deploy` backfill can opt into `autoApply` too**, and the deploy runs
+it in a second pass *after* Cloud Functions deploy (`auto-apply
+--phase=post-deploy`). That is the place for work only the new code keeps
+right — a recount of a trigger-maintained read model, which a pre-deploy run
+would leave short by whatever changed before the trigger went live
+(`village-people-count-reconcile` is the worked example). Same marker rule;
+dev is never auto-applied, so run it there by hand after the deploy.
+
 **`dependsOn` declares run order.** Without it, auto-apply runs in `meta.id`
 alphabetical order, which is not a safe order for a **projection**. A backfill
 that writes a read model must declare the source-collection backfills it

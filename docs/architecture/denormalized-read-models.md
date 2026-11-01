@@ -380,7 +380,12 @@ members and app admins. The count is copied onto the public municipality doc.
   `firestore.rules`; only the trigger (and app admins) can write it.
 - **Backfill:** [scripts/backfill-village-people-count.mjs](../../scripts/backfill-village-people-count.mjs)
   (`village-people-count`, `pre-deploy`, auto-applied) recounts every
-  municipality from `municipalityPeople/`.
+  municipality from `municipalityPeople/`. Its twin
+  [scripts/backfill-village-people-count-reconcile.mjs](../../scripts/backfill-village-people-count-reconcile.mjs)
+  (`post-deploy`, auto-applied on beta/prod) recounts again after the functions
+  deploy, so a roster change in the window before the trigger went live cannot
+  leave a quiet village's count wrong. It races the live trigger, so it writes in
+  the same kind of transaction.
 
 ### `memberCount` ← `organizations/{orgId}/members/` and `residentCount` ← `persons/`
 
