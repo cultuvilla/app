@@ -1,7 +1,7 @@
 # Seguidores and integrantes of a group
 
 **Priority:** medium
-**Landed:** none
+**Landed:** dev
 **Gate:** soak:`minSupported` has passed the first release carrying this
 **Next:** the contract commit: drop `joinPolicy` from the model, `isValidOrganizationCreate`, the org update rule and `approveOrganization`, plus a `post-deploy` cleanup backfill
 
