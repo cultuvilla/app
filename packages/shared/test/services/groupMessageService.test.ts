@@ -36,7 +36,6 @@ import {
   castGroupPollVote,
   markGroupMessageRead,
   nudgeGroupMessage,
-  setGroupMessagePinned,
   setGroupMessagesMuted,
   setWhatsappSent,
 } from '../../src/services/groupMessageService';
@@ -71,11 +70,6 @@ describe('groupMessageService', () => {
     });
     await setWhatsappSent('org1', 'm1', 'typed_t1', 'admin1', false);
     expect(call(updateDoc, 1).data).toEqual({ whatsappSentAt: null, whatsappSentBy: null });
-  });
-
-  it('pins by touching only `pinned`', async () => {
-    await setGroupMessagePinned('org1', 'm1', true);
-    expect(call(updateDoc)).toEqual({ path: 'organizations/org1/messages/m1', data: { pinned: true } });
   });
 
   it('mutes one group for one account', async () => {

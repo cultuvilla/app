@@ -2103,8 +2103,6 @@
         "fallback": "A quien no le llegue de otra forma",
         "all": "A todos los que tengan teléfono"
       },
-      "pinned": "Fijar en el inicio del grupo",
-      "pinnedHint": "Lo verán arriba del todo hasta que lo quites.",
       "pollLabel": "Encuesta",
       "poll": {
         "none": "Sin encuesta",
@@ -2125,7 +2123,6 @@
       "summary": "{date} · {audience}",
       "counts": "{recipients, plural, one {1 destinatario} other {# destinatarios}} · {push} en la app · {email} por email",
       "whatsappCount": "WhatsApp: {sent} de {total} enviados",
-      "pinnedBadge": "Fijado",
       "newBadge": "Nuevo",
       "sentBy": "Enviado por {name} el {date}",
       "readBy": "Leído por {read} de {total}",
@@ -2146,8 +2143,6 @@
       "channelInApp": "App",
       "channelEmailShort": "Email",
       "emailFailed": "Email no entregado",
-      "pin": "Fijar en el inicio",
-      "unpin": "Quitar de fijados",
       "close": "Cerrar",
       "noticesTitle": "Avisos",
       "tapToVote": "Toca una opción para responder.",

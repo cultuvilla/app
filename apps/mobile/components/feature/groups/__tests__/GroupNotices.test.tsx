@@ -60,13 +60,13 @@ describe('GroupNotices', () => {
     expect(queryByTestId('group-notices')).toBeNull();
   });
 
-  it('puts pinned notices first and marks the unread ones read once shown', async () => {
-    setWatched('messages', [message('new'), message('old', { pinned: true, sentAt: new Date('2026-01-01') })]);
+  it('lists newest first, with no pinned or sender line, and marks the unread ones read once shown', async () => {
+    setWatched('messages', [message('old', { pinned: true, sentAt: new Date('2026-01-01') }), message('new')]);
     setWatched('reads', [{ id: 'old', readAt: new Date() }]);
     const { getAllByTestId, getByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
-    expect(getAllByTestId(/^group-notice-(new|old)$/).map((n) => n.props.testID)).toEqual(['group-notice-old', 'group-notice-new']);
+    expect(getAllByTestId(/^group-notice-(new|old)$/).map((n) => n.props.testID)).toEqual(['group-notice-new', 'group-notice-old']);
     expect(getByTestId('group-notice-new')).toHaveTextContent(/groups\.messages\.newBadge/);
-    expect(getByTestId('group-notice-old')).toHaveTextContent(/groups\.messages\.pinnedBadge/);
+    expect(getByTestId('group-notice-old')).not.toHaveTextContent(/groups\.messages\.(pinnedBadge|sentBy)|Luis/);
     await waitFor(() => expect(mockMarkRead).toHaveBeenCalledWith('org1', 'new', 'u1'));
     expect(mockMarkRead).toHaveBeenCalledTimes(1);
   });

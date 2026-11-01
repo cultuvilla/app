@@ -37,7 +37,7 @@ const ERROR_KEY: Record<ComposerError, string> = {
 
 /**
  * The admin's composer: subject and message, who it goes to, by which
- * channels, pinned or not, and an optional poll. Sending is one callable; the
+ * channels, and an optional poll. Sending is one callable; the
  * WhatsApp links are sent afterwards from the message's detail.
  */
 export function ComposeMessageSheet({
@@ -191,11 +191,6 @@ export function ComposeMessageSheet({
             options={GROUP_WHATSAPP_MODES.map((m) => ({ value: m, label: t(`groups.messages.whatsapp.${m}`) }))}
             onChange={(v) => set('whatsapp', v)}
           />
-
-          <Toggle testID="group-msg-pinned" value={form.pinned} label={t('groups.messages.pinned')} onValueChange={(v) => set('pinned', v)} />
-          <Text variant="caption" tone="muted">
-            {t('groups.messages.pinnedHint')}
-          </Text>
 
           <Text variant="bodySm" className="font-bold">
             {t('groups.messages.pollLabel')}
