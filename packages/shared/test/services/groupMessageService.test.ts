@@ -13,7 +13,9 @@ vi.mock('../../src/firebase/refs/client', () => ({
   organizationMessageWriteDoc: vi.fn((_db, orgId: string, messageId: string, sub: string, id: string) => ({
     _path: `organizations/${orgId}/messages/${messageId}/${sub}/${id}`,
   })),
-  userGroupPrefsDoc: vi.fn((_db, uid: string, orgId: string) => ({ _path: `users/${uid}/groupPrefs/${orgId}` })),
+  userGroupPrefsDoc: vi.fn((_db, uid: string, orgId: string) => ({
+    withConverter: () => ({ _path: `users/${uid}/groupPrefs/${orgId}` }),
+  })),
 }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
@@ -75,6 +77,9 @@ describe('groupMessageService', () => {
     const { path, data } = call(setDoc);
     expect(path).toBe('users/u1/groupPrefs/org1');
     expect(data).toMatchObject({ messagesMuted: true });
+    // A merge that never names the chat opt-in, so muting keeps it.
+    expect(data).not.toHaveProperty('generalChatPush');
+    expect(vi.mocked(setDoc).mock.calls[0]?.[2]).toEqual({ merge: true });
   });
 
   it('nudges through the callable', async () => {

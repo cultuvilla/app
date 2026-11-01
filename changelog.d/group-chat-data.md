@@ -1,0 +1,1 @@
+- Internal: the data layer of the group chat (a thread under each aviso and a general one), with no screens yet. **Migration:** existing organizations get `chatAdminsOnly: false` from `scripts/backfill-org-chat-admins-only.mjs` (registered, pre-deploy, applied by the deploy itself).

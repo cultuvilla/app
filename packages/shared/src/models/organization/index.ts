@@ -9,5 +9,6 @@ export * from './GroupTaskDataModel';
 export * from './groupTaskLogic';
 export * from './GroupMessageDataModel';
 export * from './groupMessagePlaceholders';
+export * from './GroupChatDataModel';
 export * from './RecordsDataModel';
 export * from './recordsLogic';

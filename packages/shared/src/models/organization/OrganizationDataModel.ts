@@ -68,6 +68,11 @@ export const OrganizationDataSchema = z.object({
   // Defaults because installed binaries create orgs without it; existing docs
   // are backfilled by scripts/backfill-org-socios-list-visible.mjs.
   sociosListVisible: z.boolean().default(false),
+  // "Solo la junta escribe": when true, only the group's admins write in its
+  // general chat (avisos' chats stay open to their recipients). Defaults because
+  // installed binaries create orgs without it; existing docs are backfilled by
+  // scripts/backfill-org-chat-admins-only.mjs.
+  chatAdminsOnly: z.boolean().default(false),
   // status + reviewedBy + reviewedAt
   ...reviewDecisionFields,
 });
@@ -91,6 +96,7 @@ export interface OrganizationDataInput {
   membersPublic?: boolean;
   joinPolicy?: OrgJoinPolicy;
   sociosListVisible?: boolean;
+  chatAdminsOnly?: boolean;
 }
 
 export function buildOrganizationData(input: OrganizationDataInput): OrganizationData {
@@ -112,6 +118,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     membersPublic: input.membersPublic ?? true,
     joinPolicy: input.joinPolicy ?? 'open',
     sociosListVisible: input.sociosListVisible ?? false,
+    chatAdminsOnly: input.chatAdminsOnly ?? false,
   };
 }
 

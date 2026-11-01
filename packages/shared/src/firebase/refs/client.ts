@@ -38,6 +38,12 @@ import {
   groupMessageReadConverterClient,
   groupPollVoteConverterClient,
 } from '../converters/groupMessageConverter.client';
+import {
+  groupChatMessageConverterClient,
+  groupChatReadConverterClient,
+  groupChatThreadConverterClient,
+} from '../converters/groupChatConverter.client';
+import { isGeneralChatThread } from '../../models/organization/GroupChatDataModel';
 import { newsPostConverterClient } from '../converters/newsPostConverter.client';
 import { commentConverterClient } from '../converters/commentConverter.client';
 import { occupationConverterClient } from '../converters/occupationConverter.client';
@@ -243,6 +249,39 @@ export const organizationMessageWriteDoc = (
   sub: 'reads' | 'votes' | 'deliveries',
   id: string,
 ) => doc(db, 'organizations', organizationId, 'messages', messageId, sub, id);
+
+// A group's chat (see GroupChatDataModel): the general thread at
+// organizations/{orgId}/chat, an aviso's under its message.
+function organizationChatPath(organizationId: string, threadId: string): [string, ...string[]] {
+  return isGeneralChatThread(threadId)
+    ? ['organizations', organizationId, 'chat']
+    : ['organizations', organizationId, 'messages', threadId, 'chat'];
+}
+
+export const organizationChatCollection = (db: Firestore, organizationId: string, threadId: string) => {
+  const [first, ...rest] = organizationChatPath(organizationId, threadId);
+  return collection(db, first, ...rest).withConverter(groupChatMessageConverterClient);
+};
+
+/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
+export const organizationChatWriteCollection = (db: Firestore, organizationId: string, threadId: string) => {
+  const [first, ...rest] = organizationChatPath(organizationId, threadId);
+  return collection(db, first, ...rest);
+};
+
+export const organizationChatWriteDoc = (db: Firestore, organizationId: string, threadId: string, chatId: string) => {
+  const [first, ...rest] = organizationChatPath(organizationId, threadId);
+  return doc(db, first, ...rest, chatId);
+};
+
+export const organizationChatThreadDoc = (db: Firestore, organizationId: string, threadId: string) =>
+  doc(db, 'organizations', organizationId, 'chatThreads', threadId).withConverter(groupChatThreadConverterClient);
+
+export const organizationChatReadDoc = (db: Firestore, organizationId: string, threadId: string, uid: string) =>
+  doc(db, 'organizations', organizationId, 'chatThreads', threadId, 'reads', uid).withConverter(groupChatReadConverterClient);
+
+export const organizationChatReadWriteDoc = (db: Firestore, organizationId: string, threadId: string, uid: string) =>
+  doc(db, 'organizations', organizationId, 'chatThreads', threadId, 'reads', uid);
 
 // The group's records (see RecordsDataModel): actas and the income/expense ledger.
 export const organizationActasCollection = (db: Firestore, organizationId: string) =>
