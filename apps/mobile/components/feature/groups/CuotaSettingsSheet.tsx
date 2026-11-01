@@ -6,7 +6,7 @@ import {
   parseEuroCents,
   type CuotaPeriodicity,
   type CuotaSettingsInput,
-  type CuotaTier,
+  type CuotaTierInput,
 } from '@cultuvilla/shared/models/organization';
 import type { CuotaSettings } from '@cultuvilla/shared/services/cuotaService';
 import { monthLongLabels } from '@cultuvilla/shared/utils';
@@ -17,6 +17,7 @@ import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { centsInputValue } from '../../../lib/orgs/cuota';
 import { SelectField } from './SelectField';
+import { CuotaYearAmountsField, parseYearDrafts, yearDraftsOf, type YearDraft } from './CuotaYearAmountsField';
 
 export type CuotaSettingsValues = Omit<CuotaSettingsInput, 'configuredBy' | 'updatedAt'>;
 
@@ -24,11 +25,13 @@ interface TierDraft {
   id: string;
   name: string;
   amount: string;
+  years: YearDraft[];
   coversPersonas: boolean;
 }
 
 interface Draft {
   amount: string;
+  years: YearDraft[];
   periodicity: CuotaPeriodicity;
   dueMonth: number;
   dueDay: string;
@@ -41,13 +44,14 @@ interface Draft {
 function draftOf(settings: CuotaSettings | null): Draft {
   return {
     amount: settings ? centsInputValue(settings.amountCents) : '',
+    years: yearDraftsOf(settings?.yearAmounts ?? []),
     periodicity: settings?.periodicity ?? 'yearly',
     dueMonth: settings?.dueMonth ?? 1,
     dueDay: String(settings?.dueDay ?? 1),
     bizum: settings?.bizum ?? '',
     iban: settings?.iban ?? '',
     payInstructions: settings?.payInstructions ?? '',
-    tiers: (settings?.tiers ?? []).map((tier) => ({ ...tier, amount: centsInputValue(tier.amountCents) })),
+    tiers: (settings?.tiers ?? []).map((tier) => ({ ...tier, amount: centsInputValue(tier.amountCents), years: yearDraftsOf(tier.yearAmounts) })),
   };
 }
 
@@ -63,7 +67,7 @@ function intIn(text: string, min: number, max: number): number | null {
   return n >= min && n <= max ? n : null;
 }
 
-type Errors = Partial<Record<'amount' | 'dueDay' | `tier-${string}`, string>>;
+type Errors = Partial<Record<'amount' | 'years' | 'dueDay' | `tier-${string}` | `tierYears-${string}`, string>>;
 
 /**
  * Configure the cuota: amount, period, due date, how to pay and tiers. A first
@@ -103,17 +107,21 @@ export function CuotaSettingsSheet({
     const next: Errors = {};
     const amountCents = parseEuroCents(draft.amount);
     if (amountCents === null) next.amount = t('groups.cuota.settings.amountInvalid');
+    const yearAmounts = parseYearDrafts(draft.years);
+    if (yearAmounts === null) next.years = t('groups.cuota.settings.yearsInvalid');
     const dueDay = intIn(draft.dueDay, 1, 31);
     if (dueDay === null) next.dueDay = t('groups.cuota.settings.dueDayInvalid');
-    const tiers: CuotaTier[] = [];
+    const tiers: CuotaTierInput[] = [];
     for (const tier of draft.tiers) {
       const cents = parseEuroCents(tier.amount);
+      const tierYears = parseYearDrafts(tier.years);
+      if (tierYears === null) next[`tierYears-${tier.id}`] = t('groups.cuota.settings.yearsInvalid');
       if (!tier.name.trim()) next[`tier-${tier.id}`] = t('groups.cuota.settings.tierNameRequired');
       else if (cents === null) next[`tier-${tier.id}`] = t('groups.cuota.settings.amountInvalid');
-      else tiers.push({ id: tier.id, name: tier.name.trim(), amountCents: cents, coversPersonas: tier.coversPersonas });
+      else if (tierYears) tiers.push({ id: tier.id, name: tier.name.trim(), amountCents: cents, yearAmounts: tierYears, coversPersonas: tier.coversPersonas });
     }
     setErrors(next);
-    if (amountCents === null || dueDay === null || Object.keys(next).length > 0) return;
+    if (amountCents === null || yearAmounts === null || dueDay === null || Object.keys(next).length > 0) return;
 
     // A changed period restarts tracking now: a yearly '2026' and a monthly
     // '2026-10' are different calendars.
@@ -121,6 +129,7 @@ export function CuotaSettingsSheet({
     setSaving(true);
     onSave({
       amountCents,
+      yearAmounts,
       periodicity: draft.periodicity,
       dueMonth: draft.dueMonth,
       dueDay,
@@ -162,6 +171,12 @@ export function CuotaSettingsSheet({
             keyboardType="decimal-pad"
             error={errors.amount}
             testID="cuota-settings-amount"
+          />
+          <CuotaYearAmountsField
+            testID="cuota-settings-years"
+            rows={draft.years}
+            error={errors.years}
+            onChange={(years) => set('years', years)}
           />
           <Text variant="bodySm" className="font-bold">
             {t('groups.cuota.settings.periodicity')}
@@ -232,6 +247,12 @@ export function CuotaSettingsSheet({
                 keyboardType="decimal-pad"
                 testID={`cuota-tier-amount-${tier.id}`}
               />
+              <CuotaYearAmountsField
+                testID={`cuota-tier-years-${tier.id}`}
+                rows={tier.years}
+                error={errors[`tierYears-${tier.id}`]}
+                onChange={(years) => setTier(tier.id, { years })}
+              />
               <Toggle
                 testID={`cuota-tier-covers-${tier.id}`}
                 value={tier.coversPersonas}
@@ -255,7 +276,7 @@ export function CuotaSettingsSheet({
                 variant="secondary"
                 testID="cuota-tier-add"
                 onPress={() =>
-                  setDraft((d) => ({ ...d, tiers: [...d.tiers, { id: newTierId(), name: '', amount: '', coversPersonas: false }] }))
+                  setDraft((d) => ({ ...d, tiers: [...d.tiers, { id: newTierId(), name: '', amount: '', years: [], coversPersonas: false }] }))
                 }
               >
                 {t('groups.cuota.settings.addTier')}

@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { buildCuotaExport } from '@cultuvilla/shared/export/cuotaExport';
 import {
   computeCuotaStatuses,
+  cuotaPriceFor,
   cuotaSigner,
   CUOTA_STATUSES,
   currentPeriodKey,
@@ -184,7 +185,7 @@ export function CuotaAdmin({
       </HStack>
       <Text variant="bodySm" tone="muted">
         {t('groups.cuota.admin.summary', {
-          amount: centsLabel(cuota.amountCents),
+          amount: centsLabel(cuotaPriceFor(cuota, periodKey)),
           periodicity: t(`groups.cuota.periodicity.${cuota.periodicity}`),
           due: formatDayKey(periodDueDay(cuota, periodKey), 'dayMonth'),
         })}
@@ -326,6 +327,7 @@ export function CuotaAdmin({
         visible={sheet?.kind === 'assign'}
         socioName={sheet?.kind === 'assign' ? sheet.socio.displayName : ''}
         settings={cuota}
+        periodKey={periodKey}
         assignment={sheet?.kind === 'assign' ? assignmentById[sheet.socio.id] : undefined}
         onSave={async (values) => {
           if (sheet?.kind !== 'assign') return;

@@ -78,7 +78,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
         amountCents: 3000, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 30, startPeriod: '2026', configuredBy: 'u1',
       }),
     ruleKeys: [
-      'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+      'amountCents', 'yearAmounts', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
       'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
     ],
   },
