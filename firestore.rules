@@ -708,14 +708,17 @@ service cloud.firestore {
           || after.get('signupGroupSize', 1) == before.get('signupGroupSize', 1);
     }
 
-    // One occurrence of a weekly series (EventSeriesModel). Rules cannot
-    // iterate, so the weekday list is checked by membership and size; the
-    // 183-day cap mirrors MAX_SERIES_DAYS (one day of slack, since `until` is
-    // a calendar day and the occurrence a time on it). Keep the two in step.
+    // One occurrence of a weekly or monthly series (EventSeriesModel). Rules
+    // cannot iterate, so the weekday list is checked by membership and size;
+    // the 183-day cap mirrors MAX_SERIES_DAYS and the 366-day one
+    // MAX_MONTHLY_SERIES_DAYS (one day of slack, since `until` is a calendar
+    // day and the occurrence a time on it). Keep them in step. `frequency` is
+    // optional: binaries that predate monthly series never send it.
     function isValidEventSeries(d, s) {
       return s == null || (
         s is map
-          && s.keys().hasOnly(['id', 'index', 'weekdays', 'until'])
+          && s.keys().hasOnly(['id', 'index', 'frequency', 'weekdays', 'until'])
+          && s.get('frequency', 'weekly') in ['weekly', 'monthly']
           && s.keys().hasAll(['id', 'index', 'weekdays', 'until'])
           && isString(s.id) && s.id.size() > 0
           && s.index is int && s.index >= 0 && s.index <= 200
@@ -726,8 +729,15 @@ service cloud.firestore {
           // runs 25 hours on the night clocks go back — 25 h keeps a late
           // occurrence on that day valid (and lets nothing past 01:00 after it).
           && d.startDate < s.until + duration.value(25, 'h')
-          && s.until < d.startDate + duration.value(184, 'd')
+          && s.until < d.startDate + duration.value(s.get('frequency', 'weekly') == 'monthly' ? 367 : 184, 'd')
       );
+    }
+
+    // A yearly event is one edition, never a series. Optional: binaries that
+    // predate it never send the field.
+    function isValidRepeatsYearly(d) {
+      return d.get('repeatsYearly', false) is bool
+        && (d.get('repeatsYearly', false) == false || d.get('series', null) == null);
     }
 
     // Who may put an occurrence into a series. The first occurrence (index 0)
@@ -761,6 +771,7 @@ service cloud.firestore {
         // The rule is the root's: a sliding `until` would let a series grow
         // past MAX_SERIES_DAYS one hop at a time.
         && rs.until == d.series.until
+        && rs.get('frequency', 'weekly') == d.series.get('frequency', 'weekly')
         && rs.weekdays == d.series.weekdays;
     }
 
@@ -770,7 +781,7 @@ service cloud.firestore {
               'imageURL', 'maxAttendees', 'telephoneRequired', 'requiresPayment',
               'signupFields', 'signupEnabled', 'signupInfo', 'attendeesVisibility', 'signupGroupSize',
               'minBirthYear', 'maxBirthYear',
-              'visibility', 'visibilityOrgId', 'series',
+              'visibility', 'visibilityOrgId', 'series', 'repeatsYearly',
               'status', 'organizerUserIds', 'organizerOrgIds', 'createdBy',
               'createdAt', 'updatedAt', 'municipalityId', 'villageName', 'villageSlug',
               'villageCoverImage', 'villageCoordinates',
@@ -843,6 +854,7 @@ service cloud.firestore {
           // Optional, not in hasAll: binaries that predate weekly series never
           // send it, and their creates must keep working.
           && isValidEventSeries(d, d.get('series', null))
+          && isValidRepeatsYearly(d)
           && d.status in ['published', 'cancelled', 'completed']
           && d.organizerUserIds is list
           && d.organizerOrgIds is list
@@ -1933,6 +1945,7 @@ service cloud.firestore {
         && isAdditiveSignupFieldsChange(resource.data, request.resource.data)
         && isFrozenGroupSizeChange(resource.data, request.resource.data)
         && isValidVisibilityChange(resource.data, request.resource.data)
+        && isValidRepeatsYearly(request.resource.data)
         // A series shares one visibility: "este y los siguientes" finds its
         // siblings within it, and a day made private on its own would split it.
         && (resource.data.get('series', null) == null

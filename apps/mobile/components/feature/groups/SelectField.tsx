@@ -21,12 +21,15 @@ export function SelectField<T extends string>({
   value,
   options,
   onChange,
+  placeholder,
   testID,
 }: {
   label: string;
   value: T;
   options: readonly Choice<T>[];
   onChange: (value: T) => void;
+  /** Shown while `value` matches no option. */
+  placeholder?: string;
   testID: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -37,12 +40,12 @@ export function SelectField<T extends string>({
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={`${label}: ${current?.label ?? ''}`}
+        accessibilityLabel={`${label}: ${current?.label ?? placeholder ?? ''}`}
         testID={`${testID}-trigger`}
         className="flex-row items-center justify-between rounded-md border border-subtle bg-surface-elevated px-3 py-3 mt-1"
       >
-        <Text numberOfLines={1} className="shrink mr-2">
-          {current?.label ?? ''}
+        <Text numberOfLines={1} className="shrink mr-2" tone={current ? undefined : 'muted'}>
+          {current?.label ?? placeholder ?? ''}
         </Text>
         <Ionicons name="chevron-down" size={iconSizes.sm} color={colors.light.fg.accent} />
       </Pressable>

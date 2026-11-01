@@ -199,3 +199,43 @@ describe('firestore.rules — weekly event series', () => {
     );
   });
 });
+
+describe('firestore.rules — monthly series and yearly events', () => {
+  const monthly = (over: Record<string, unknown> = {}) => series({ frequency: 'monthly', weekdays: [2], ...over });
+
+  it('creates a monthly series running a year, and still a weekly one tagged as such', async () => {
+    const db = asUser(getEnv(), 'member');
+    const until = new Date('2027-11-03T00:00:00Z');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'events/m0'), occurrence('member', monthly({ id: 'm0', until })));
+    batch.set(doc(db, 'events/m1'), occurrence('member', monthly({ id: 'm0', index: 1, until }), new Date('2026-12-03T17:00:00Z')));
+    await assertSucceeds(batch.commit());
+    await assertSucceeds(setDoc(doc(db, 'events/w0'), occurrence('member', series({ id: 'w0', frequency: 'weekly' }))));
+  });
+
+  it('caps a monthly series at a year and a weekly one at six months', async () => {
+    const db = asUser(getEnv(), 'member');
+    const beyondYear = new Date('2027-11-10T00:00:00Z');
+    await assertFails(setDoc(doc(db, 'events/m0'), occurrence('member', monthly({ id: 'm0', until: beyondYear }))));
+    await assertFails(
+      setDoc(doc(db, 'events/w0'), occurrence('member', series({ id: 'w0', frequency: 'weekly', until: new Date('2027-06-01T00:00:00Z') }))),
+    );
+  });
+
+  it('rejects an unknown frequency, and an occurrence whose frequency differs from its root', async () => {
+    const db = asUser(getEnv(), 'member');
+    await assertFails(setDoc(doc(db, 'events/d0'), occurrence('member', series({ id: 'd0', frequency: 'daily' }))));
+    await assertFails(
+      setDoc(doc(db, 'events/odd'), occurrence('member', monthly({ index: 2 }), new Date('2026-11-10T17:00:00Z'))),
+    );
+  });
+
+  it('accepts a yearly event, but never one that is also a series or not a boolean', async () => {
+    const db = asUser(getEnv(), 'member');
+    await assertSucceeds(setDoc(doc(db, 'events/fiestas'), { ...occurrence('member', null), repeatsYearly: true }));
+    await assertFails(setDoc(doc(db, 'events/y0'), { ...occurrence('member', series({ id: 'y0' })), repeatsYearly: true }));
+    await assertFails(setDoc(doc(db, 'events/y1'), { ...occurrence('member', null), repeatsYearly: 'yes' }));
+    await assertFails(updateDoc(doc(db, 'events/existing'), { repeatsYearly: true }));
+    await assertSucceeds(updateDoc(doc(db, 'events/fiestas'), { repeatsYearly: false }));
+  });
+});
