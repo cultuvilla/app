@@ -8,6 +8,11 @@ import { Avatar, Card, HStack, Pressable, Text, VStack } from '../../primitives'
 import type { MemberFace } from '../../../lib/orgs/useOrgMembers';
 import { useT } from '../../../lib/i18n';
 
+// Set here so these cards never depend on how their `flex-1` children measure
+// inside a horizontal ScrollView. Room for the four lines and the date.
+const NOTICE_CARD_HEIGHT = 150;
+const PLACEHOLDER_MIN_HEIGHT = 96;
+
 /** A notice in the group home's Avisos row: its title and text, cut to one
  * box so every card is the same size, and the day it was sent.
  * The cards fill their row with `flex-1`, never `h-full`: on native Yoga
@@ -15,7 +20,7 @@ import { useT } from '../../../lib/i18n';
  * without end (same bug as DetailInfoCard). */
 export function NoticeCard({ message, onPress }: { message: GroupMessage; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-notice-${message.id}`} style={{ width: 260 }}>
+    <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-notice-${message.id}`} style={{ width: 260, height: NOTICE_CARD_HEIGHT }}>
       <Card className="flex-1">
         <VStack gap={1} className="flex-1">
           <Text variant="bodySm" numberOfLines={4} className="flex-1" testID={`group-home-notice-${message.id}-text`}>
@@ -36,7 +41,7 @@ export function NoticeCard({ message, onPress }: { message: GroupMessage; onPres
 /** Keeps a row of the group's home in place when it has nothing to show. */
 export function RowPlaceholder({ text, onPress }: { text: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={{ width: 260 }}>
+    <Pressable onPress={onPress} accessibilityRole="button" style={{ width: 260, minHeight: PLACEHOLDER_MIN_HEIGHT }}>
       <Card className="flex-1">
         <Text variant="bodySm" tone="muted">
           {text}

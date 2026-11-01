@@ -5,6 +5,8 @@ import { addPersonaSocio, setSocioBaja } from '@cultuvilla/shared/services/socio
 import { emitWatched, resetWatchers, setWatched } from '../../../../test/watchers';
 import { MyPersonasSocios } from '../MyPersonasSocios';
 
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ router: { push: (href: unknown) => mockPush(href) } }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
   watchPersonsByCreator: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('persons'),
@@ -29,11 +31,13 @@ beforeEach(() => {
 });
 
 describe('MyPersonasSocios', () => {
-  it('is hidden for a member with no personas a cargo', () => {
+  it('offers a member with no personas a cargo the way to add one', () => {
     setWatched('persons', [person('self', 'Ana', 'u1')]);
     setWatched('mySocios', []);
-    const { queryByTestId } = render(<MyPersonasSocios orgId="org1" uid="u1" />);
-    expect(queryByTestId('my-personas-socios')).toBeNull();
+    const { getByTestId, queryByTestId } = render(<MyPersonasSocios orgId="org1" uid="u1" />);
+    expect(queryByTestId('persona-socio-add-self')).toBeNull();
+    fireEvent.press(getByTestId('persona-socio-new'));
+    expect(mockPush).toHaveBeenCalledWith('/persona/new');
   });
 
   it('makes a persona a socio, answerable to the member', async () => {

@@ -1698,7 +1698,6 @@
       "tareas": "Tareas",
       "cuota": "Mi cuota",
       "actas": "Actas",
-      "mis-datos": "Mis datos",
       "socios": "Socios",
       "cobros": "Cuota",
       "mensajes": "Avisos",
@@ -1736,11 +1735,13 @@
       "add": "Hacer socio/a",
       "remove": "Dar de baja",
       "isSocio": "Socio/a",
+      "new": "Añadir persona a cargo",
       "confirmRemoveTitle": "Dar de baja",
       "confirmRemoveBody": "{name} dejará de ser socio/a. Quedará en el libro de socios con la fecha de baja.",
       "error": "No se ha podido completar. Inténtalo de nuevo."
     },
     "socios": {
+      "listHidden": "La junta no muestra la lista de socios.",
       "title": "Socios",
       "count": "{count, plural, one {1 socio} other {# socios}}",
       "add": "Añadir socio",
