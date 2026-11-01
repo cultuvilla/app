@@ -40,8 +40,7 @@ export const CuotaYearAmountSchema = z.object({
 export type CuotaYearAmount = z.infer<typeof CuotaYearAmountSchema>;
 export const MAX_CUOTA_YEAR_AMOUNTS = 30;
 
-// `.default([])`: beta binaries save the settings without it.
-const YearAmountsSchema = z.array(CuotaYearAmountSchema).max(MAX_CUOTA_YEAR_AMOUNTS).default([]);
+const YearAmountsSchema = z.array(CuotaYearAmountSchema).max(MAX_CUOTA_YEAR_AMOUNTS);
 
 /**
  * An optional price other than the base one — reducida jubilados, familiar.
@@ -52,7 +51,8 @@ export const CuotaTierSchema = z.object({
   id: z.string().min(1).max(40),
   name: z.string().min(1).max(80),
   amountCents: CentsSchema,
-  yearAmounts: YearAmountsSchema,
+  /** Absent on docs saved by beta binaries. */
+  yearAmounts: YearAmountsSchema.default([]),
   coversPersonas: z.boolean(),
 });
 export type CuotaTier = z.infer<typeof CuotaTierSchema>;
@@ -60,7 +60,8 @@ export const MAX_CUOTA_TIERS = 10;
 
 export const CuotaSettingsDataSchema = z.object({
   amountCents: CentsSchema,
-  yearAmounts: YearAmountsSchema,
+  /** Absent on docs saved by beta binaries. */
+  yearAmounts: YearAmountsSchema.default([]),
   periodicity: CuotaPeriodicitySchema,
   /** Month the yearly cuota falls due (1–12); unused by a monthly one. */
   dueMonth: z.number().int().min(1).max(12),
