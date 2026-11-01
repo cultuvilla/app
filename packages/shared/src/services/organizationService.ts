@@ -150,6 +150,8 @@ export async function requestOrganization(
     joinPolicy: 'approval',
     sociosListVisible: input.sociosListVisible ?? false,
     chatAdminsOnly: input.chatAdminsOnly ?? false,
+    socioPhoneRequired: false,
+    socioEmailRequired: false,
   };
   await setDoc(newRef, data);
   return newRef.id;

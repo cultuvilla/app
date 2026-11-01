@@ -89,6 +89,28 @@ describe('syncOrgSocioRoster', () => {
     expect((rows[0].memberJoinedAt as admin.firestore.Timestamp).toDate()).toEqual(JOINED);
   });
 
+  it('opens the row of a group that requires contact with the account values', async () => {
+    await seedOrg();
+    await admin.firestore().doc(`organizations/${ORG_ID}`).set({ socioPhoneRequired: true, socioEmailRequired: true }, { merge: true });
+    await seedUser('user-1', null);
+    await admin.firestore().doc('users/user-1').set({ telephone: '+34600111222' }, { merge: true });
+    await fire(null, await seedMember());
+
+    const [row] = await socios();
+    const shared = (await admin.firestore().doc(`organizations/${ORG_ID}/socioPrivate/${row.id}`).get()).data();
+    expect(shared).toMatchObject({ phone: '+34600111222', email: 'user-1@x.es' });
+    expect(shared?.consentAnsweredAt).toBeTruthy();
+  });
+
+  it('shares nothing when the account lacks a required value, nor in a group that requires none', async () => {
+    await seedOrg();
+    await admin.firestore().doc(`organizations/${ORG_ID}`).set({ socioPhoneRequired: true, socioEmailRequired: true }, { merge: true });
+    await seedUser('user-1', null);
+    await fire(null, await seedMember());
+    const [row] = await socios();
+    expect((await admin.firestore().doc(`organizations/${ORG_ID}/socioPrivate/${row.id}`).get()).exists).toBe(false);
+  });
+
   it('is idempotent: a retry does not add a second row', async () => {
     await seedOrg();
     await seedUser('user-1', null);

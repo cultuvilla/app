@@ -308,7 +308,7 @@ service cloud.firestore {
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
-              'sociosListVisible', 'chatAdminsOnly',
+              'sociosListVisible', 'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -334,7 +334,9 @@ service cloud.firestore {
           // it, so every group starts out requiring acceptance.
           && d.get('joinPolicy', 'open') in ['open', 'approval']
           && d.get('sociosListVisible', false) is bool
-          && d.get('chatAdminsOnly', false) is bool;
+          && d.get('chatAdminsOnly', false) is bool
+          && d.get('socioPhoneRequired', false) is bool
+          && d.get('socioEmailRequired', false) is bool;
     }
 
     // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
@@ -1655,6 +1657,8 @@ service cloud.firestore {
             || request.resource.data.type != 'ayuntamiento')
         && request.resource.data.get('sociosListVisible', false) is bool
         && request.resource.data.get('chatAdminsOnly', false) is bool
+        && request.resource.data.get('socioPhoneRequired', false) is bool
+        && request.resource.data.get('socioEmailRequired', false) is bool
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']
                 && request.resource.data.type in ['peña', 'asociación', 'otros', 'comisión']))
@@ -1802,7 +1806,10 @@ service cloud.firestore {
                || (getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.kind == 'member'
                  && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.uid == request.auth.uid
                  && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socios/$(socioId)).data.bajaAt == null
-                 && request.resource.data.consentAnsweredAt is timestamp)
+                 && request.resource.data.consentAnsweredAt is timestamp
+                 // What the group requires is not the member's to withhold.
+                 && (request.resource.data.phone != null || !get(/databases/$(database)/documents/organizations/$(orgId)).data.get('socioPhoneRequired', false))
+                 && (request.resource.data.email != null || !get(/databases/$(database)/documents/organizations/$(orgId)).data.get('socioEmailRequired', false)))
              );
         allow delete: if false;
       }

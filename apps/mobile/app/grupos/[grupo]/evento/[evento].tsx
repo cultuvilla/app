@@ -11,6 +11,7 @@ import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
 import { TaskRow } from '../../../../components/feature/groups/TaskRows';
 import { TaskSheet } from '../../../../components/feature/groups/TaskSheet';
+import { GroupContactGate } from '../../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { showAlert } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
@@ -53,6 +54,7 @@ export default function GroupEventScreen() {
   return (
     <Screen padded={false} topInset={false}>
       <ScreenHeader accent title={data?.title ?? t('groups.sections.eventos')} />
+      <GroupContactGate group={group} uid={uid}>
       {!uid || !orgId || event.status === 'loading' ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
@@ -118,6 +120,7 @@ export default function GroupEventScreen() {
           onClose={() => setAdding(false)}
         />
       ) : null}
+      </GroupContactGate>
     </Screen>
   );
 }

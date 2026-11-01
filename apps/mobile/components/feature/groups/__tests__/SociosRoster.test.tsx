@@ -288,6 +288,17 @@ describe('GroupSettings', () => {
     expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: true });
   });
 
+  it('an admin requires the phone and the email, one by one', () => {
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} />);
+    fireEvent.press(r.getByTestId('group-settings-socio-phone-required'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { socioPhoneRequired: true });
+  });
+
+  it('asks a plain member none of that', () => {
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin={false} sociosListVisible={false} />);
+    expect(r.queryByTestId('group-settings-socio-email-required')).toBeNull();
+  });
+
   it('turns on the estatutos setting: frozen while saving, then shows the stored value', async () => {
     let finish!: () => void;
     jest.mocked(updateOrganization).mockReturnValueOnce(new Promise<void>((res) => (finish = res)));

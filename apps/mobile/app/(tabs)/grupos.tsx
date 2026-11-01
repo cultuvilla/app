@@ -20,6 +20,7 @@ import { AppHeader } from '../../components/layout/AppHeader';
 import { GroupSwitcherSheet } from '../../components/feature/groups/GroupSwitcher';
 import { CuotaBanner } from '../../components/feature/groups/CuotaBanner';
 import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGrid';
+import { GroupContactGate } from '../../components/feature/groups/GroupContactGate';
 import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCard';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
@@ -85,12 +86,14 @@ export default function GroupsTabScreen() {
           <ActivityIndicator />
         </View>
       ) : selected ? (
-        <GroupHome
-          key={selected.org.id}
-          group={selected}
-          uid={uid}
-          onSwitch={groups.length > 1 ? () => setSwitching(true) : null}
-        />
+        <GroupContactGate group={selected} uid={uid} onSwitch={groups.length > 1 ? () => setSwitching(true) : null}>
+          <GroupHome
+            key={selected.org.id}
+            group={selected}
+            uid={uid}
+            onSwitch={groups.length > 1 ? () => setSwitching(true) : null}
+          />
+        </GroupContactGate>
       ) : (
         // A failed read, or the user just left their last group (the tab hides next).
         <View className="flex-1 items-center justify-center px-4" testID="groups-empty">
@@ -228,7 +231,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
       ) : null}
 
       <VStack gap={3} className="px-4 pt-4">
-        {roster ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
+        {roster ? <SocioConsentCard orgId={org.id} requirement={org} onlyWhenUnanswered /> : null}
       </VStack>
 
       <Section

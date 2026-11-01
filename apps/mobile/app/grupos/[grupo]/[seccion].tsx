@@ -8,6 +8,7 @@ import { GroupChat } from '../../../components/feature/groups/GroupChat';
 import { GroupEvents } from '../../../components/feature/groups/GroupEvents';
 import { GroupTaskBoard } from '../../../components/feature/groups/GroupTaskBoard';
 import { GroupSectionBody } from '../../../components/feature/groups/GroupSectionBody';
+import { GroupContactGate } from '../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../lib/auth/useAuth';
 import { useT } from '../../../lib/i18n';
 import { groupHref, routes } from '../../../lib/navigation/routes';
@@ -36,6 +37,7 @@ export default function GroupSectionScreen() {
   return (
     <Screen padded={false} topInset={false} bottomInset={section === 'charla' || section === 'eventos' || section === 'tareas'}>
       <ScreenHeader accent title={t(`groups.sections.${section}`)} />
+      <GroupContactGate group={group} uid={uid}>
       {!uid || !group ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
@@ -60,6 +62,7 @@ export default function GroupSectionScreen() {
           <GroupSectionBody key={group.org.id} group={group} section={section} uid={uid} />
         </ScrollView>
       )}
+      </GroupContactGate>
     </Screen>
   );
 }

@@ -1,0 +1,1 @@
+- Added: a group's admin can require socios to share their phone, their email or both, from Ajustes del grupo. New socios accept it when they join and existing ones must accept before going back into the group; the values are the ones on their account, so nobody retypes them, and a change on the account reaches the group.

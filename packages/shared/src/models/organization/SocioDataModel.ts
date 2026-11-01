@@ -135,6 +135,24 @@ export function buildSocioPrivateData(input: SocioPrivateDataInput): SocioPrivat
   };
 }
 
+/** What a group asks of its socios: their account's phone and email, shared with its admins. */
+export interface SocioContactRequirement {
+  socioPhoneRequired: boolean;
+  socioEmailRequired: boolean;
+}
+
+export function requiresSocioContact(org: SocioContactRequirement): boolean {
+  return org.socioPhoneRequired || org.socioEmailRequired;
+}
+
+/** Whether a socio still owes the group something it requires. */
+export function socioContactMissing(
+  org: SocioContactRequirement,
+  shared: Pick<SocioPrivateData, 'phone' | 'email'> | null | undefined,
+): boolean {
+  return (org.socioPhoneRequired && !shared?.phone) || (org.socioEmailRequired && !shared?.email);
+}
+
 /**
  * While a persona is an active socio, `organizations/{orgId}/socioPersonaLocks/{personId}`
  * names its row. Created with the row and deleted with its baja, in the same
