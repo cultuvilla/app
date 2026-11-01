@@ -563,6 +563,13 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
                 onPress={() => router.push(villageSectionHref(villageSlug, 'censo', 'mode=configure'))}
               />
             ) : null}
+            {canManage ? (
+              <ActionPill
+                label={t('admin.reports.title')}
+                onPress={() => router.push(villageSectionHref(villageSlug, 'denuncias'))}
+                testID="village-reports-action"
+              />
+            ) : null}
           </HStack>
         ) : null}
 

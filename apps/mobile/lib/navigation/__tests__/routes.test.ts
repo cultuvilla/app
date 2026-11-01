@@ -88,7 +88,7 @@ const built: [string, string][] = [
   ['villageHref', villageHref('villa')],
   ['groupHref', groupHref('o1')],
   ...GROUP_SECTIONS.map((s): [string, string] => [`groupSectionHref(${s})`, groupSectionHref('o1', s)]),
-  ...(['barrios', 'carteles', 'censo', 'comunidad', 'editar', 'entidades', 'historia', 'lugares', 'miembros', 'vocabulario'] as const).map(
+  ...(['barrios', 'carteles', 'censo', 'comunidad', 'denuncias', 'editar', 'entidades', 'historia', 'lugares', 'miembros', 'vocabulario'] as const).map(
     (s): [string, string] => [`villageSectionHref(${s})`, villageSectionHref('villa', s)],
   ),
   ['eventHref', eventHref(event)],

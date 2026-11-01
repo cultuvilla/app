@@ -503,6 +503,14 @@ describe('VillageHomeBody', () => {
     expect(queryByText('Configurar censo')).toBeTruthy();
   });
 
+  it("opens Denuncias from the pueblo's page, for its team only", () => {
+    const member = render(<VillageHomeBody data={base} reload={jest.fn()} />);
+    expect(member.queryByTestId('village-reports-action')).toBeNull();
+    const admin = render(<VillageHomeBody data={{ ...base, villageAdmin: true }} reload={jest.fn()} />);
+    fireEvent.press(admin.getByTestId('village-reports-action'));
+    expect(router.push).toHaveBeenCalledWith('/anaya/denuncias');
+  });
+
   it('shows a skeleton row for a section whose fetch is still in flight', () => {
     const { getAllByTestId } = render(
       <VillageHomeBody

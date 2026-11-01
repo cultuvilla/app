@@ -242,12 +242,13 @@ export function EntityComments({
   const canReport = (authorUserId: string) =>
     !!user && authorUserId !== user.uid && authorUserId !== DELETED_USER_UID;
 
-  const openReport = (commentId: string, authorUserId: string) =>
+  const openReport = (commentId: string, authorUserId: string, text: string) =>
     setReportTarget({
       kind: 'comment',
       id: commentId,
       municipalityId,
       authorUserId,
+      text,
     });
 
   const onBlocked = (blockedUserId: string) =>
@@ -421,7 +422,7 @@ export function EntityComments({
                   ) : null}
                   {canReport(comment.authorUserId) ? (
                     <Pressable
-                      onPress={() => openReport(comment.id, comment.authorUserId)}
+                      onPress={() => openReport(comment.id, comment.authorUserId, comment.body)}
                       accessibilityRole="button"
                       accessibilityLabel={t('report.title')}
                       testID={`comment-report-${comment.id}`}
@@ -484,7 +485,7 @@ export function EntityComments({
                             ) : null}
                             {canReport(reply.authorUserId) ? (
                               <Pressable
-                                onPress={() => openReport(reply.id, reply.authorUserId)}
+                                onPress={() => openReport(reply.id, reply.authorUserId, reply.body)}
                                 accessibilityRole="button"
                                 accessibilityLabel={t('report.title')}
                                 testID={`comment-report-${reply.id}`}

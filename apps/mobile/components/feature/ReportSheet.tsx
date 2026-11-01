@@ -39,7 +39,7 @@ export type ReportTarget = {
   municipalityId: string;
   /** Author of the reported content; enables the "block this person" row. */
   authorUserId?: string | null;
-  /** The reported words, when moderators cannot open the content itself (a private chat). */
+  /** The reported words, so moderators can read them from the queue. */
   text?: string | null;
 };
 

@@ -87,6 +87,7 @@ export const VILLAGE_SECTIONS = [
   'carteles',
   'censo',
   'comunidad',
+  'denuncias',
   'editar',
   'entidades',
   'historia',

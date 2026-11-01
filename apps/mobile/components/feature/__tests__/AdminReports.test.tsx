@@ -1,6 +1,7 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import AdminReportsScreen from '../../../app/admin/denuncias';
+import VillageReportsScreen from '../../../app/[pueblo]/denuncias';
 
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
@@ -8,6 +9,16 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../lib/village/useActiveVillageId', () => ({ useActiveVillageId: () => 'mun1' }));
+jest.mock('../../../lib/navigation/VillageRouteGate', () => ({
+  useVillageRoute: () => ({ municipalityId: 'mun1', slug: 'villa', name: 'Villa' }),
+  withVillageRoute: (Screen: unknown) => Screen,
+}));
+let mockCanManage = true;
+jest.mock('../../../lib/auth/useEntityCapabilities', () => ({
+  useEntityCapabilities: () => ({ canManage: mockCanManage, loading: false }),
+}));
+const mockRedirect = jest.fn((_props: { href: string }) => null);
+jest.mock('expo-router', () => ({ Redirect: (props: { href: string }) => mockRedirect(props) }));
 jest.mock('../../layout/ScreenHeader', () => ({ ScreenHeader: () => null }));
 jest.mock('../LiveOwnerChip', () => ({ LiveOwnerChip: () => null }));
 const report = (id: string, targetText: string | null, targetId = `organizations/o1/chat/${id}`) => ({
@@ -55,5 +66,26 @@ describe('AdminReportsScreen', () => {
     const r = render(<AdminReportsScreen />);
     await r.findByTestId('admin-report-delete-r1');
     expect(r.queryByTestId('admin-report-delete-r3')).toBeNull();
+  });
+
+  it('names what was reported instead of showing its internal path', async () => {
+    const r = render(<AdminReportsScreen />);
+    await r.findByTestId('admin-report-delete-r1');
+    expect(r.getAllByText('admin.reports.kind.chatMessage')).toHaveLength(2);
+    expect(r.getByText('admin.reports.kind.comment')).toBeTruthy();
+    expect(r.queryByText(/organizations\//)).toBeNull();
+  });
+
+  it("opens the pueblo's reports to its team", async () => {
+    mockCanManage = true;
+    const r = render(<VillageReportsScreen />);
+    await r.findByTestId('admin-report-text-r1');
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it('sends anyone else back to the village', () => {
+    mockCanManage = false;
+    render(<VillageReportsScreen />);
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/villa' });
   });
 });

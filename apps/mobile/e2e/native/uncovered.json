@@ -336,6 +336,7 @@
   "typed-socio-sheet": "unit-tested: components/feature/groups/__tests__/SociosRoster.test.tsx",
   "village-description": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
   "village-join-dormant": "unit-tested: app/(tabs)/__tests__/mi-pueblo.test.tsx",
+  "village-reports-action": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
   "village-wrapped-strip": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
   "vocabulary-joining-notice": "unit-tested: app/[pueblo]/palabra/__tests__/nueva.test.tsx",
   "vocabulary-other-village-*": "unit-tested: components/feature/vocabulary/__tests__/OtherVillagesSaying.test.tsx",

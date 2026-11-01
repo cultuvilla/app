@@ -1,2 +1,4 @@
 - Added: from Denuncias, a moderator can delete a reported group chat message.
 - Fixed: the chat's message box no longer sits behind the keyboard on Android.
+- Added: the pueblo's team can review reports from a Denuncias button on the village home. A report now shows what was reported in words, including the text of a comment or a word's definition.
+- Changed: the group tile for sending messages is now called "Enviar aviso".

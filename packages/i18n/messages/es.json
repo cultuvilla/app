@@ -111,7 +111,19 @@
       "deleteMessage": "Borrar el mensaje",
       "confirmDeleteMessageTitle": "¿Borrar este mensaje del chat?",
       "deleteMessageError": "No se pudo borrar el mensaje. Puede que ya no exista.",
-      "target": "{kind} · {id}",
+      "kind": {
+        "chatMessage": "Mensaje de chat",
+        "comment": "Comentario",
+        "person": "Persona",
+        "event": "Evento",
+        "festivalPoster": "Cartel",
+        "place": "Lugar",
+        "barrio": "Barrio",
+        "organization": "Grupo",
+        "news": "Noticia",
+        "vocabularyTerm": "Palabra",
+        "historyEntry": "Acontecimiento"
+      },
       "noVillage": "Elige un pueblo activo para ver sus denuncias."
     }
   },
@@ -1669,7 +1681,7 @@
       "mis-datos": "Mis datos",
       "socios": "Socios",
       "cobros": "Cuota",
-      "mensajes": "Avisos",
+      "mensajes": "Enviar aviso",
       "registros": "Registros",
       "miembros": "Integrantes",
       "ajustes": "Ajustes",

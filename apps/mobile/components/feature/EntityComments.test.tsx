@@ -684,6 +684,7 @@ describe('<EntityComments>', () => {
           targetAuthorUserId: 'uid-2',
           reporterUserId: 'uid-1',
           reason: 'harassment',
+          targetText: expect.any(String),
         }),
       );
       expect(await findByText('Denuncia recibida')).toBeTruthy();

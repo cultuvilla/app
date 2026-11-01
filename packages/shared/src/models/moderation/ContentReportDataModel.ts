@@ -44,9 +44,10 @@ export const ContentReportDataSchema = z.object({
   reason: ReportReasonSchema,
   note: z.string().max(500).nullable(),
   /**
-   * A copy of the reported words, for content its moderators cannot open: a
-   * group chat message is private to the group, so its report (`comment`, with
-   * the message's path as `targetId`) carries the text. The reporter supplies it.
+   * A copy of the reported words, so moderators can read them from the queue. A
+   * group chat message is also private to the group, so its report (`comment`,
+   * with the message's path as `targetId`) has no other way to show them. The
+   * reporter supplies the text.
    */
   targetText: z.string().max(2000).nullable().default(null),
   status: ReportStatusSchema,
