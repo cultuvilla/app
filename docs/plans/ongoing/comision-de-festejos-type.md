@@ -3,7 +3,7 @@
 **Priority:** medium
 **Landed:** dev
 **Gate:** soak:step 1 live in prod and delivered by OTA — then step 2 is a breaking release the user runs (Play managed publishing, `pnpm release:publish`)
-**Next:** step 2 — offer `comisión` in `PROPOSABLE_ORGANIZATION_TYPES`, `OrgRequestFormSchema`, the `entidades.tsx` aliases and the rules' create/update type lists, with a `Breaking-Client:` trailer
+**Next:** cut the release that carries step 1; once it is live in prod and on phones, rebase draft PR #611 (step 2), mark it ready and run the breaking release
 
 Decided 2026-11-01 (user): add a `comisión` organization type, labelled
 "Comisión de festejos". Closes OQ-4 in [business-rules.md](../../business-rules.md)
@@ -17,8 +17,8 @@ for this one type.
      (label, home section, roster tier, rules). Nothing offers to create one. Ships
      by OTA to every binary built since 2026-10-06.
   2. **Enable:** the create/edit forms offer `comisión`. This release carries a
-     `Breaking-Client:` trailer that raises `minSupported` to step 1's version, for the
-     pre-OTA binaries that cannot read the type.
+     `Breaking-Client:` trailer, so the release raises `minSupported` to its own version,
+     walling the binaries that cannot read the type.
 - **Unlimited per village**, like a peña: client-side create, village admin approves.
   No callable, no cap. A cap later is a product rule and needs a yes.
 - **Feature tier v1 = the socio-roster tier** (avisos, cuota, actas, registros,
@@ -26,7 +26,8 @@ for this one type.
   rules' `orgHasSocioRoster`. Comisión-specific features (yearly mandate and handover,
   link to fiestas/cartel/programa, per-household derrama, patrocinadores, lotería)
   are a later plan, to be picked with the user.
-- **Own section on the village home**, above the peñas, on the app and the read site.
+- **Own section on the village home**, above the peñas, on the app and the read site,
+  plus a shelf on the landing's featured pueblo.
 - **Switchable** among the self-service kinds (peña, asociación, otros, comisión) on
   the edit screen and in the rules' `type` update check.
 - **Stored id `comisión`**, label "Comisión de festejos".
