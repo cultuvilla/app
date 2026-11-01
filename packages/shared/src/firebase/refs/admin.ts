@@ -35,6 +35,11 @@ import {
   groupMessageReadConverterAdmin,
   groupPollVoteConverterAdmin,
 } from '../converters/groupMessageConverter.admin';
+import {
+  groupChatMessageConverterAdmin,
+  groupChatReadConverterAdmin,
+  groupChatThreadConverterAdmin,
+} from '../converters/groupChatConverter.admin';
 import { pushQueueConverterAdmin } from '../converters/pushQueueConverter.admin';
 import { newsPostConverterAdmin } from '../converters/newsPostConverter.admin';
 import { commentConverterAdmin } from '../converters/commentConverter.admin';
@@ -234,6 +239,23 @@ export const organizationMessageReadsCollection = (db: Firestore, organizationId
 
 export const organizationMessageVotesCollection = (db: Firestore, organizationId: string, messageId: string) =>
   db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('votes').withConverter(groupPollVoteConverterAdmin);
+
+// A group's chat (see GroupChatDataModel). The general thread's messages; an
+// aviso's live under its message.
+export const organizationGeneralChatCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('chat').withConverter(groupChatMessageConverterAdmin);
+
+export const organizationAvisoChatCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('chat').withConverter(groupChatMessageConverterAdmin);
+
+export const organizationChatThreadsCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('chatThreads').withConverter(groupChatThreadConverterAdmin);
+
+export const organizationChatThreadDoc = (db: Firestore, organizationId: string, threadId: string) =>
+  organizationChatThreadsCollection(db, organizationId).doc(threadId);
+
+export const organizationChatReadsCollection = (db: Firestore, organizationId: string, threadId: string) =>
+  organizationChatThreadDoc(db, organizationId, threadId).collection('reads').withConverter(groupChatReadConverterAdmin);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);

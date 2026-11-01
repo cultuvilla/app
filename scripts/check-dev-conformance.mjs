@@ -90,6 +90,8 @@ import {
   villageWrappedCollection,
   villageRankingsCollection,
   organizationMessagesCollection,
+  organizationGeneralChatCollection,
+  organizationChatThreadsCollection,
   userGroupPrefsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 
@@ -166,6 +168,8 @@ const REGISTRY = [
       { name: 'taskTemplates', coll: (db, id) => organizationTaskTemplatesCollection(db, id) },
       { name: 'taskReminders', coll: (db, id) => organizationTaskRemindersCollection(db, id) },
       { name: 'messages', coll: (db, id) => organizationMessagesCollection(db, id) },
+      { name: 'chat', coll: (db, id) => organizationGeneralChatCollection(db, id) },
+      { name: 'chatThreads', coll: (db, id) => organizationChatThreadsCollection(db, id) },
       { name: 'actas', coll: (db, id) => organizationActasCollection(db, id) },
       { name: 'ledgerEntries', coll: (db, id) => organizationLedgerEntriesCollection(db, id) },
     ],

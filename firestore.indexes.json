@@ -851,6 +851,16 @@
       ]
     },
     {
+      "collectionGroup": "chat",
+      "fieldPath": "authorUid",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "members",
       "fieldPath": "userId",
       "indexes": [

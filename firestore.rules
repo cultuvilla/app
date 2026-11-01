@@ -311,7 +311,7 @@ service cloud.firestore {
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
-              'sociosListVisible',
+              'sociosListVisible', 'chatAdminsOnly',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -334,7 +334,8 @@ service cloud.firestore {
           && d.memberCount == 0
           && d.membersPublic is bool
           && d.get('joinPolicy', 'open') in ['open', 'approval']
-          && d.get('sociosListVisible', false) is bool;
+          && d.get('sociosListVisible', false) is bool
+          && d.get('chatAdminsOnly', false) is bool;
     }
 
     // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
@@ -396,6 +397,39 @@ service cloud.firestore {
           && d.option >= 0
           && d.option < message.poll.options.size()
           && d.votedAt == request.time;
+    }
+
+    // ── Group chat (see GroupChatDataModel) ───────────────────────────────────
+    // An aviso's thread is read by whoever reads the aviso: the admins and its
+    // recipients, while still members. The general thread is every member's.
+    function canReadAvisoChat(orgId, messageId) {
+      return isOrgAdmin(orgId)
+        || (isOrgMember(orgId) && request.auth.uid in groupMessage(orgId, messageId).recipientUids);
+    }
+    function canReadGroupChatThread(orgId, threadId) {
+      return threadId == 'general' ? isOrgMember(orgId) : canReadAvisoChat(orgId, threadId);
+    }
+    // "Solo la junta escribe" — the general thread only.
+    function orgChatAdminsOnly(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('chatAdminsOnly', false) == true;
+    }
+    // The author writes as themself, under their public name, now.
+    function isValidGroupChatMessageCreate(d) {
+      return d.keys().hasOnly(['authorUid', 'authorName', 'body', 'createdAt'])
+          && d.keys().hasAll(['authorUid', 'authorName', 'body', 'createdAt'])
+          && d.authorUid == request.auth.uid
+          && isString(d.authorName) && d.authorName.size() > 0
+          && d.authorName == get(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.displayName
+          && isString(d.body) && d.body.size() > 0 && d.body.size() <= 2000
+          && d.createdAt == request.time;
+    }
+    // Authors delete their own; the group's admins anyone's, with the village's
+    // and the app's admins as the backstop. No message is ever edited.
+    function canDeleteGroupChatMessage(orgId, message) {
+      return isOwner(message.authorUid)
+        || isOrgAdmin(orgId)
+        || isVillageAdmin(orgMunicipalityId(orgId))
+        || isAppAdmin();
     }
 
     // ── Cuota de socios (cuotaSettings, cuotaAssignments, cuotaPayments) ──────
@@ -1356,9 +1390,10 @@ service cloud.firestore {
       match /groupPrefs/{orgId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId)
-          && request.resource.data.keys().hasOnly(['messagesMuted', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['messagesMuted', 'generalChatPush', 'updatedAt'])
           && request.resource.data.keys().hasAll(['messagesMuted', 'updatedAt'])
           && request.resource.data.messagesMuted is bool
+          && request.resource.data.get('generalChatPush', false) is bool
           && isTimestamp(request.resource.data.updatedAt);
       }
 
@@ -1607,6 +1642,7 @@ service cloud.firestore {
             || request.resource.data.status == 'rejected')
         && request.resource.data.get('joinPolicy', 'open') in ['open', 'approval']
         && request.resource.data.get('sociosListVisible', false) is bool
+        && request.resource.data.get('chatAdminsOnly', false) is bool
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros']
                 && request.resource.data.type in ['peña', 'asociación', 'otros']))
@@ -1874,6 +1910,41 @@ service cloud.firestore {
           allow create, update: if isOwner(uid)
             && isOrgMember(orgId)
             && isValidGroupPollVote(groupMessage(orgId, messageId), uid, request.resource.data);
+          allow delete: if false;
+        }
+      }
+
+      // The group's chat (see GroupChatDataModel). Both threads are written by
+      // clients directly; onGroupChatMessageCreated keeps chatThreads and pushes.
+      match /chat/{chatId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId)
+          && isValidGroupChatMessageCreate(request.resource.data)
+          && (!orgChatAdminsOnly(orgId) || isOrgAdmin(orgId));
+        allow update: if false;
+        allow delete: if canDeleteGroupChatMessage(orgId, resource.data);
+      }
+
+      match /messages/{messageId}/chat/{chatId} {
+        allow read: if canReadAvisoChat(orgId, messageId);
+        allow create: if canReadAvisoChat(orgId, messageId)
+          && isValidGroupChatMessageCreate(request.resource.data);
+        allow update: if false;
+        allow delete: if canDeleteGroupChatMessage(orgId, resource.data);
+      }
+
+      // Per thread (an aviso's id, or `general`): when it last moved and who
+      // wrote in it. Function-owned. A reader's last open moves forward only.
+      match /chatThreads/{threadId} {
+        allow read: if canReadGroupChatThread(orgId, threadId);
+        allow write: if false;
+
+        match /reads/{uid} {
+          allow read: if isOwner(uid);
+          allow create, update: if isOwner(uid)
+            && canReadGroupChatThread(orgId, threadId)
+            && request.resource.data.keys().hasOnly(['readAt'])
+            && request.resource.data.readAt == request.time;
           allow delete: if false;
         }
       }

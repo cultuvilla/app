@@ -200,7 +200,11 @@ export function watchGroupNotificationPrefs(
   return watchDoc(userGroupPrefsDoc(getDb(), uid, orgId), onNext, onError);
 }
 
-/** Mute or unmute this group's message pushes. The cuota reminders never read it. */
+/**
+ * Mute or unmute this group's message and chat pushes. The cuota reminders never
+ * read it. A merge, so the general chat's opt-in (groupChatService) survives.
+ */
 export async function setGroupMessagesMuted(uid: string, orgId: string, muted: boolean): Promise<void> {
-  await setDoc(userGroupPrefsDoc(getDb(), uid, orgId), buildGroupNotificationPrefsData({ messagesMuted: muted }));
+  const { messagesMuted, updatedAt } = buildGroupNotificationPrefsData({ messagesMuted: muted });
+  await setDoc(userGroupPrefsDoc(getDb(), uid, orgId).withConverter(null), { messagesMuted, updatedAt }, { merge: true });
 }

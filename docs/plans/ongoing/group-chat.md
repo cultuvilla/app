@@ -1,6 +1,9 @@
 # Group chat — a conversation under each aviso, and one for the whole group
 
 **Priority:** high
+**Landed:** none
+**Gate:** blocked:the chat screens wait for #604 (plain avisos) to merge into develop
+**Next:** the chat screens, once #604 is on develop; the data layer lands first
 
 Decided 2026-11-01 (user): "each alert should have a chat where people can talk, and
 there should be a general chat in the group." The direction behind it: the app is the
@@ -10,7 +13,7 @@ perfect (no WhatsApp Business API, no sending as the group's Gmail).
 ## Why
 
 Mis grupos can send an aviso to every socio (push, email, `wa.me` links — see
-[group-toolkit.md](../ongoing/group-toolkit.md) Phase 4), but nobody can answer it in the
+[group-toolkit.md](group-toolkit.md) Phase 4), but nobody can answer it in the
 app. A reply to the email lands in an inbox, a reply to the WhatsApp in the admin's
 private chat, and the group's actual conversation stays in its WhatsApp group. The first
 user, Asociación La Anduela (~200 socios), wants the group to talk where it is organised.
@@ -59,8 +62,24 @@ Decided 2026-11-01 (user): all five agent picks below.
 5. **History.** *kept while the group exists; a member who leaves loses read
    access; their messages stay, under the name they had.*
 
+## Data layer — as built
+
+- **Layout:** `organizations/{orgId}/chat/{id}` (general), `organizations/{orgId}/messages/{id}/chat/{id}`
+  (aviso), `organizations/{orgId}/chatThreads/{threadId}` (function-owned summary) and its
+  `reads/{uid}` (the reader's last open). A thread id is the aviso's or `general`.
+- **Names:** stored on each message; the rules require the writer's `publicProfiles` name.
+- **Push:** no new notification type. An old binary's strict converter would throw on one and
+  blank its Buzón, so chat pushes are `group_message`, keyed `group_chat_<threadId>_<chatId>`.
+  They open the group's Avisos section and obey the group's mute. The general chat's opt-in
+  is `groupPrefs.generalChatPush`.
+- **Unread:** `isGroupChatThreadUnread` / `countUnreadGroupChatThreads` over `watchGroupChatThreads`
+  + `watchMyGroupChatReads`. The caller passes `general` plus the ids of its avisos.
+- **Pagination:** `watchGroupChat` with a growing `count`, from `GROUP_CHAT_PAGE_SIZE`.
+- **Account erasure:** `deleteAccount` hard-deletes the user's messages, like comments. Leaving
+  a group keeps them (decision 5).
+
 ## Left to the builder
 
-Collection layout (e.g. `messages/{id}/chat/{msgId}` and `organizations/{orgId}/chat/{msgId}`),
-rules + rules tests, the service and its `watch*`, pagination, the unread counter, the
-notification trigger, screens and i18n — against the code of the day.
+Screens and i18n: the chat under `MessageDetailSheet`/`GroupNotices`, the Charla, the unread
+badge, the "solo la junta escribe" switch in `GroupSettings`, and the opt-in beside the mute —
+against the code of the day, once #604 is in.
