@@ -7,6 +7,7 @@ import {
   groupChatPushBody,
   isGeneralChatThread,
   isGroupChatThreadUnread,
+  parseGroupChatMessagePath,
 } from '../../../src/models/organization/GroupChatDataModel';
 import { GroupNotificationPrefsDataSchema, buildGroupNotificationPrefsData } from '../../../src/models/notification/NotificationPrefsDataModel';
 import { OrganizationDataSchema, buildOrganizationData } from '../../../src/models/organization/OrganizationDataModel';
@@ -46,6 +47,27 @@ describe('groupChatMessagePath', () => {
   it('names the message in either kind of thread', () => {
     expect(groupChatMessagePath('o1', 'general', 'c1')).toBe('organizations/o1/chat/c1');
     expect(groupChatMessagePath('o1', 'm1', 'c1')).toBe('organizations/o1/messages/m1/chat/c1');
+  });
+});
+
+describe('parseGroupChatMessagePath', () => {
+  it('reads back the path of a message in either kind of thread', () => {
+    expect(parseGroupChatMessagePath(groupChatMessagePath('o1', 'general', 'c1'))).toEqual({
+      orgId: 'o1',
+      threadId: 'general',
+      chatId: 'c1',
+    });
+    expect(parseGroupChatMessagePath(groupChatMessagePath('o1', 'm1', 'c1'))).toEqual({
+      orgId: 'o1',
+      threadId: 'm1',
+      chatId: 'c1',
+    });
+  });
+
+  it('is null for the target of any other report', () => {
+    expect(parseGroupChatMessagePath('c1')).toBeNull();
+    expect(parseGroupChatMessagePath('organizations/o1')).toBeNull();
+    expect(parseGroupChatMessagePath('organizations/o1/members/u1')).toBeNull();
   });
 });
 

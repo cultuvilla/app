@@ -10,7 +10,10 @@ import {
   setReportStatus,
   type ContentReport,
 } from '@cultuvilla/shared/services/contentReportService';
+import { deleteGroupChatMessage } from '@cultuvilla/shared/services/groupChatService';
+import { parseGroupChatMessagePath } from '@cultuvilla/shared/models/organization/GroupChatDataModel';
 import { formatCompactRelativeTime } from '@cultuvilla/shared/utils';
+import { showAlert, showConfirm } from '../../lib/dialogs';
 
 /**
  * Moderator inbox for user-filed reports, scoped to the active village. Filing
@@ -43,6 +46,26 @@ export default function AdminReportsScreen() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  // A chat is closed to its moderators, so this is the only place they can act on
+  // a message. The words shown are the reporter's copy, hence the confirm quoting them.
+  function deleteReportedMessage(report: ContentReport) {
+    const target = parseGroupChatMessagePath(report.targetId);
+    if (!target) return;
+    showConfirm(
+      t('admin.reports.confirmDeleteMessageTitle'),
+      report.targetText ?? '',
+      () => {
+        setBusyId(report.id);
+        deleteGroupChatMessage(target.orgId, target.threadId, target.chatId)
+          .then(() => setReportStatus(report.id, 'reviewed'))
+          .then(load)
+          .catch(() => showAlert(t('admin.reports.deleteMessageError')))
+          .finally(() => setBusyId(null));
+      },
+      { confirmText: t('admin.reports.deleteMessage') },
+    );
   }
 
   return (
@@ -90,6 +113,16 @@ export default function AdminReportsScreen() {
                 </Text>
               ) : null}
               {item.note ? <Text>{item.note}</Text> : null}
+              {parseGroupChatMessagePath(item.targetId) ? (
+                <Button
+                  variant="secondary"
+                  disabled={busyId === item.id}
+                  onPress={() => deleteReportedMessage(item)}
+                  testID={`admin-report-delete-${item.id}`}
+                >
+                  {t('admin.reports.deleteMessage')}
+                </Button>
+              ) : null}
               <HStack gap={2}>
                 <Button
                   variant="secondary"

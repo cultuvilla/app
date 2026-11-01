@@ -1,0 +1,2 @@
+- Added: from Denuncias, a moderator can delete a reported group chat message.
+- Fixed: the chat's message box no longer sits behind the keyboard on Android.

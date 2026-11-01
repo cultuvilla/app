@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** dev
 **Gate:** none
-**Next:** verify the chat on a device against dev, then promote it with the next release
+**Next:** promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias)
 
 Decided 2026-11-01 (user): "each alert should have a chat where people can talk, and
 there should be a general chat in the group." The direction behind it: the app is the
@@ -98,4 +98,10 @@ only leaves a group.
 
 Photos, reactions, replies to a message and mentions (*What*). A Maestro flow for the chat
 (unit-tested, see `e2e/native/uncovered.json`). A deleted message does not move the thread's
-summary back, so a badge may show until the thread is opened.
+summary back, so a badge may show until the thread is opened. A deleted message's Buzón entry
+keeps its text for whoever opted in to notifications.
+
+`KeyboardAvoider` under-pads on edge-to-edge Android for every screen, by the status bar plus the
+navigation bar. Raising its `keyboardVerticalOffset` is not the fix: the offset also applies on
+`keyboardDidHide` and leaves a gap once the keyboard closes. A chat works around it locally
+(`useComposerKeyboardGap`); forms hide it by scrolling their field in.

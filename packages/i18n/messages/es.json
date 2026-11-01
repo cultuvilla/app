@@ -108,6 +108,9 @@
       "reviewedTab": "Revisadas",
       "markReviewed": "Marcar como revisada",
       "dismiss": "Descartar",
+      "deleteMessage": "Borrar el mensaje",
+      "confirmDeleteMessageTitle": "¿Borrar este mensaje del chat?",
+      "deleteMessageError": "No se pudo borrar el mensaje. Puede que ya no exista.",
       "target": "{kind} · {id}",
       "noVillage": "Elige un pueblo activo para ver sus denuncias."
     }

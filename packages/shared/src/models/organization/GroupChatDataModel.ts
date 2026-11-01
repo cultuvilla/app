@@ -36,6 +36,17 @@ export function groupChatMessagePath(orgId: string, threadId: string, chatId: st
     : `organizations/${orgId}/messages/${threadId}/chat/${chatId}`;
 }
 
+/** Reads a report's target back into a message, or null for a report of anything else. */
+export function parseGroupChatMessagePath(
+  path: string,
+): { orgId: string; threadId: string; chatId: string } | null {
+  const general = /^organizations\/([^/]+)\/chat\/([^/]+)$/.exec(path);
+  if (general) return { orgId: general[1], threadId: GENERAL_CHAT_THREAD_ID, chatId: general[2] };
+  const aviso = /^organizations\/([^/]+)\/messages\/([^/]+)\/chat\/([^/]+)$/.exec(path);
+  if (aviso) return { orgId: aviso[1], threadId: aviso[2], chatId: aviso[3] };
+  return null;
+}
+
 /** How many messages a thread shows before "ver anteriores". */
 export const GROUP_CHAT_PAGE_SIZE = 50;
 
