@@ -1,4 +1,5 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Keyboard } from 'react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildGroupTaskData, type GroupTaskData } from '@cultuvilla/shared/models/organization';
 import { setGroupTaskDone } from '@cultuvilla/shared/services/groupTaskService';
 import GroupTaskScreen from '../[grupo]/tarea/[tarea]';
@@ -8,6 +9,10 @@ const mockRedirect = jest.fn((_props: { href: string }) => null);
 let mockGroups: { org: { id: string }; role: string }[] = [];
 let mockTask: unknown = null;
 
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('expo-router', () => ({
   router: { push: (href: unknown) => mockPush(href) },
   useLocalSearchParams: () => ({ grupo: 'Anduela', tarea: 't1' }),
@@ -43,7 +48,7 @@ jest.mock('../../../components/feature/groups/TaskComments', () => ({
   },
 }));
 jest.mock('../../../components/feature/groups/TaskRows', () => ({
-  ShiftCard: () => {
+  ShiftBar: () => {
     const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
     return <Text testID="stub-shift">shift</Text>;
   },
@@ -95,12 +100,44 @@ describe("a group's task screen", () => {
     await waitFor(() => expect(setGroupTaskDone).toHaveBeenCalledWith('Anduela', 't1', false, 'u1'));
   });
 
-  it('has its comments on a second tab', () => {
+  it('has its comments on the page, under the details', () => {
+    const { getByTestId } = render(<GroupTaskScreen />);
+    expect(getByTestId('group-task')).toContainElement(getByTestId('task-comments'));
+    expect(getByTestId('group-task-done')).toBeTruthy();
+  });
+
+  it('pins the answer to a shift outside the page, until the keyboard needs the room', () => {
+    const listeners: { event: string; cb: () => void }[] = [];
+    const spy = jest.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, cb: () => void) => {
+      listeners.push({ event, cb });
+      return { remove: jest.fn() };
+    }) as never);
+    const keyboard = (event: string) => act(() => listeners.filter((l) => l.event === event).forEach((l) => l.cb()));
+    mockTask = task({ slots: 3, dueOn: '2030-01-01' });
     const { getByTestId, queryByTestId } = render(<GroupTaskScreen />);
-    expect(getByTestId('task-tab')).toBeTruthy();
-    fireEvent.press(getByTestId('task-tab-comments'));
-    expect(getByTestId('task-comments')).toBeTruthy();
-    expect(queryByTestId('group-task-done')).toBeNull();
+    expect(getByTestId('group-task')).not.toContainElement(getByTestId('stub-shift'));
+    keyboard('keyboardDidShow');
+    expect(queryByTestId('stub-shift')).toBeNull();
+    keyboard('keyboardDidHide');
+    expect(getByTestId('stub-shift')).toBeTruthy();
+    spy.mockRestore();
+  });
+
+  it('offers no answer on a plain task or a closed shift', () => {
+    const plain = render(<GroupTaskScreen />);
+    expect(plain.queryByTestId('stub-shift')).toBeNull();
+    plain.unmount();
+    mockTask = task({ slots: 3, dueOn: '2030-01-01', doneAt: new Date(), doneBy: 'u1' });
+    expect(render(<GroupTaskScreen />).queryByTestId('stub-shift')).toBeNull();
+  });
+
+  it('shows who waits on a shift to admins only', () => {
+    mockTask = task({ slots: 1, dueOn: '2030-01-01', claimedUids: ['a3'], waitlistUids: ['a4'] });
+    const member = render(<GroupTaskScreen />);
+    expect(member.queryByTestId('group-task-waiting')).toBeNull();
+    member.unmount();
+    mockGroups = [{ org: { id: 'Anduela' }, role: 'admin' }];
+    expect(render(<GroupTaskScreen />).getByTestId('group-task-waiting')).toBeTruthy();
   });
 
   it('lets a member delete only what they created, from the edit form', () => {

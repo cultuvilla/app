@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildGroupTaskData, type GroupTaskData } from '@cultuvilla/shared/models/organization';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import { respondToTaskShift } from '@cultuvilla/shared/services/groupTaskService';
-import { ShiftCard, TaskRow } from '../TaskRows';
+import { ShiftBar, TaskRow } from '../TaskRows';
 
 jest.mock('../../../../lib/i18n', () => ({
   useT: () => ({
@@ -21,8 +21,7 @@ function task(id: string, over: Partial<GroupTaskData> = {}) {
   return { id, ...buildGroupTaskData({ title: id, createdBy: 'admin', createdAt: new Date() }), ...over };
 }
 
-const shift = (t: ReturnType<typeof task>, showNames = false) =>
-  render(<ShiftCard task={t} orgId="org1" uid="u1" nameOf={nameOf} showNames={showNames} />);
+const shift = (t: ReturnType<typeof task>) => render(<ShiftBar task={t} orgId="org1" uid="u1" />);
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -36,20 +35,18 @@ describe('TaskRow', () => {
   });
 });
 
-describe('ShiftCard', () => {
+describe('ShiftBar', () => {
   it('offers an open shift: claim it or say no', async () => {
-    const { getByTestId, queryByTestId } = shift(task('montaje', { slots: 3, dueOn: FUTURE, time: '10:00', claimedUids: ['u2'] }));
+    const { getByTestId } = shift(task('montaje', { slots: 3, dueOn: FUTURE, time: '10:00', claimedUids: ['u2'] }));
     expect(getByTestId('shift-montaje')).toHaveTextContent(/groups\.tasks\.shift\.slots:1\|3/);
-    expect(queryByTestId('shift-names-montaje')).toBeNull();
     fireEvent.press(getByTestId('shift-claim-montaje'));
     await waitFor(() => expect(respondToTaskShift).toHaveBeenCalledWith('org1', 'montaje', 'claim'));
     expect(getByTestId('shift-decline-montaje')).toBeTruthy();
   });
 
-  it('a full shift offers the waiting list, and admins see who is in', () => {
-    const { getByTestId } = shift(task('full', { slots: 1, dueOn: FUTURE, claimedUids: ['u2'] }), true);
+  it('a full shift offers the waiting list', () => {
+    const { getByTestId } = shift(task('full', { slots: 1, dueOn: FUTURE, claimedUids: ['u2'] }));
     expect(getByTestId('shift-claim-full')).toHaveTextContent('groups.tasks.shift.joinWaitlist');
-    expect(getByTestId('shift-names-full')).toHaveTextContent(/name-u2/);
   });
 
   it('a member on the waiting list can step out', () => {

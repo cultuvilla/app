@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { View } from 'react-native';
 import { freeSlots, isTaskOverdue, shiftStateOf, type ShiftAnswer } from '@cultuvilla/shared/models/organization';
 import { respondToTaskShift, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { formatDate } from '@cultuvilla/shared/utils';
-import { Button, Card, Checkbox, HStack, Pressable, Text, VStack } from '../../primitives';
+import { Button, Checkbox, HStack, Pressable, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { recurrenceLabel, taskWhenLabel } from '../../../lib/orgs/tasks';
@@ -76,24 +77,12 @@ export function TaskRow({
 }
 
 /**
- * A volunteer shift as a card: when, how many slots are taken, the member's
- * own answer and the buttons to change it. The answer goes through the
- * `respondToTaskShift` callable, which holds the cap.
+ * A volunteer shift's answer, pinned under its task so signing up never takes a
+ * scroll: how many slots are taken, the member's own answer and the buttons to
+ * change it. The answer goes through the `respondToTaskShift` callable, which
+ * holds the cap.
  */
-export function ShiftCard({
-  task,
-  orgId,
-  uid,
-  nameOf,
-  showNames,
-}: {
-  task: GroupTask;
-  orgId: string;
-  uid: string;
-  nameOf: (uid: string) => string;
-  /** Who is in and who waits — shown to admins. */
-  showNames: boolean;
-}) {
+export function ShiftBar({ task, orgId, uid }: { task: GroupTask; orgId: string; uid: string }) {
   const { t } = useT();
   const [busy, setBusy] = useState<ShiftAnswer | null>(null);
   const state = shiftStateOf(task, uid);
@@ -116,53 +105,36 @@ export function ShiftCard({
           : null;
 
   return (
-    <Card testID={`shift-${task.id}`}>
+    <View className="bg-surface-elevated border-t border-subtle px-4 py-3" testID={`shift-${task.id}`}>
       <VStack gap={2}>
         <HStack gap={2} align="center" justify="between">
-          <Text className="font-bold flex-1">{task.title}</Text>
+          {stateLine ? (
+            <Text variant="bodySm" className="font-bold flex-shrink" testID={`shift-state-${task.id}`}>
+              {stateLine}
+            </Text>
+          ) : null}
           <Text variant="bodySm" tone={full ? 'muted' : 'success'} className="font-bold">
             {full ? t('groups.tasks.shift.full') : t('groups.tasks.shift.slots', { claimed: task.claimedUids.length, slots: task.slots ?? 0 })}
           </Text>
         </HStack>
-        <Text variant="bodySm" tone="muted">
-          {taskWhenLabel(t, task)}
-        </Text>
-        {task.notes ? <Text variant="bodySm">{task.notes}</Text> : null}
-        {showNames ? (
-          <Text variant="bodySm" tone="muted" testID={`shift-names-${task.id}`}>
-            {[
-              task.claimedUids.length > 0
-                ? t('groups.tasks.shift.volunteers', { names: task.claimedUids.map(nameOf).join(', ') })
-                : t('groups.tasks.shift.noVolunteers'),
-              task.waitlistUids.length > 0 ? t('groups.tasks.shift.waiting', { names: task.waitlistUids.map(nameOf).join(', ') }) : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </Text>
-        ) : null}
-        {stateLine ? (
-          <Text variant="bodySm" className="font-bold" testID={`shift-state-${task.id}`}>
-            {stateLine}
-          </Text>
-        ) : null}
         <HStack gap={2}>
           {state === 'none' || state === 'declined' ? (
-            <Button size="md" onPress={() => answer('claim')} loading={busy === 'claim'} testID={`shift-claim-${task.id}`}>
+            <Button size="lg" className="flex-1" onPress={() => answer('claim')} loading={busy === 'claim'} testID={`shift-claim-${task.id}`}>
               {full ? t('groups.tasks.shift.joinWaitlist') : t('groups.tasks.shift.claim')}
             </Button>
           ) : null}
           {state === 'none' ? (
-            <Button size="md" variant="secondary" onPress={() => answer('decline')} loading={busy === 'decline'} testID={`shift-decline-${task.id}`}>
+            <Button size="lg" className="flex-1" variant="secondary" onPress={() => answer('decline')} loading={busy === 'decline'} testID={`shift-decline-${task.id}`}>
               {t('groups.tasks.shift.decline')}
             </Button>
           ) : null}
           {state === 'claimed' || state === 'waitlisted' ? (
-            <Button size="md" variant="secondary" onPress={() => answer('withdraw')} loading={busy === 'withdraw'} testID={`shift-withdraw-${task.id}`}>
+            <Button size="lg" className="flex-1" variant="secondary" onPress={() => answer('withdraw')} loading={busy === 'withdraw'} testID={`shift-withdraw-${task.id}`}>
               {state === 'claimed' ? t('groups.tasks.shift.withdraw') : t('groups.tasks.shift.leaveWaitlist')}
             </Button>
           ) : null}
         </HStack>
       </VStack>
-    </Card>
+    </View>
   );
 }

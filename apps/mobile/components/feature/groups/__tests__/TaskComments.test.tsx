@@ -4,10 +4,6 @@ import { addTaskComment, deleteTaskComment } from '@cultuvilla/shared/services/g
 import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { TaskComments } from '../TaskComments';
 
-jest.mock('react-native-safe-area-context', () => ({
-  ...jest.requireActual('react-native-safe-area-context'),
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
   watchTaskComments: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('comments'),
@@ -58,7 +54,8 @@ describe('TaskComments', () => {
 
   it('sends under the public name and clears the box', async () => {
     setWatched('comments', []);
-    const { getByTestId } = render(<TaskComments orgId="org1" taskId="t1" uid="u1" isAdmin={false} />);
+    const { getByTestId, queryByTestId } = render(<TaskComments orgId="org1" taskId="t1" uid="u1" isAdmin={false} />);
+    expect(queryByTestId('task-comment-send')).toBeNull();
     fireEvent.changeText(getByTestId('task-comment-input'), 'Voy yo');
     fireEvent.press(getByTestId('task-comment-send'));
     await waitFor(() =>

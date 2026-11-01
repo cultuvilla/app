@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { FlatList, Keyboard, Platform, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlatList, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { GROUP_CHAT_PAGE_SIZE, groupChatMessagePath } from '@cultuvilla/shared/models/organization';
@@ -19,6 +18,7 @@ import { OptionsSheet } from './OptionsSheet';
 import { useAuth } from '../../../lib/auth/useAuth';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { useWatch } from '../../../lib/hooks/useWatch';
+import { useComposerKeyboardGap } from '../../../lib/keyboard/useKeyboardOpen';
 import { useT } from '../../../lib/i18n';
 
 function MessageBubble({
@@ -64,27 +64,6 @@ function MessageBubble({
  * Opening it marks it read. Messages from people the viewer blocked are hidden,
  * and each message offers the report, block and delete it may.
  */
-/**
- * On edge-to-edge Android, Screen's keyboard padding comes up short by the status
- * bar plus the navigation bar (measured: IME top 1944 px, keyboard event's `screenY`
- * 2172 px, bars 144 + 84). A form hides that by scrolling its field in, but a chat's
- * composer sits at the very bottom and would stay behind the keyboard.
- */
-function useComposerKeyboardGap(): number {
-  const insets = useSafeAreaInsets();
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const shown = Keyboard.addListener('keyboardDidShow', () => setOpen(true));
-    const hidden = Keyboard.addListener('keyboardDidHide', () => setOpen(false));
-    return () => {
-      shown.remove();
-      hidden.remove();
-    };
-  }, []);
-  return open ? insets.top + insets.bottom : 0;
-}
-
 export function GroupChat({
   orgId,
   municipalityId,

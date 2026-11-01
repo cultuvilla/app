@@ -1942,8 +1942,7 @@
         "unavailable": "Esta tarea ya no existe."
       },
       "comments": {
-        "tabDetails": "Detalles",
-        "tabComments": "Comentarios",
+        "title": "Comentarios",
         "empty": "Aún no hay comentarios. ¿Alguna duda sobre la tarea?",
         "placeholder": "Escribe un comentario",
         "send": "Enviar",
@@ -1993,7 +1992,6 @@
           "waitlisted": "En lista de espera ({position}º)",
           "declined": "Has dicho que no puedes"
         },
-        "volunteers": "Apuntados: {names}",
         "waiting": "En espera: {names}",
         "noVolunteers": "Nadie apuntado todavía."
       },

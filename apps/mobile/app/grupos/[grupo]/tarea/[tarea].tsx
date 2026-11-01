@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
@@ -8,15 +8,16 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Avatar, Button, HStack, Pressable, Screen, Text, VStack } from '../../../../components/primitives';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
-import { SegmentedToggle } from '../../../../components/feature/SegmentedToggle';
 import { taskPeople } from '../../../../components/feature/groups/GroupHomeCards';
 import { TaskComments } from '../../../../components/feature/groups/TaskComments';
-import { ShiftCard } from '../../../../components/feature/groups/TaskRows';
+import { ShiftBar } from '../../../../components/feature/groups/TaskRows';
 import { TaskSheet } from '../../../../components/feature/groups/TaskSheet';
 import { GroupContactGate } from '../../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { showAlert } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
+import { DetailScrollProvider } from '../../../../lib/keyboard/DetailScrollContext';
+import { useComposerKeyboardGap, useKeyboardOpen } from '../../../../lib/keyboard/useKeyboardOpen';
 import { useT } from '../../../../lib/i18n';
 import { groupEventHref, routes } from '../../../../lib/navigation/routes';
 import { taskWhenLabel } from '../../../../lib/orgs/tasks';
@@ -52,9 +53,13 @@ export default function GroupTaskScreen() {
   const { members, nameOf } = useOrgMembers(orgId ?? '');
   const people = task ? taskPeople(task) : [];
   const faces = useMemberFaces(people);
-  const [tab, setTab] = useState<'details' | 'comments'>('details');
+  const scrollRef = useRef<ScrollView>(null);
+  const keyboardOpen = useKeyboardOpen();
+  const keyboardGap = useComposerKeyboardGap();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const openShift = task !== null && task.slots !== null && task.doneAt === null;
 
   if (uid && status !== 'loading' && !group) return <Redirect href={routes.groups} />;
 
@@ -80,84 +85,82 @@ export default function GroupTaskScreen() {
         </Text>
       ) : (
         <>
-          <View className="px-4 pt-3">
-            <SegmentedToggle
-              testID="task-tab"
-              value={tab}
-              options={[
-                { value: 'details', label: t('groups.tasks.comments.tabDetails') },
-                { value: 'comments', label: t('groups.tasks.comments.tabComments') },
-              ]}
-              onChange={setTab}
-            />
-          </View>
-          {tab === 'comments' ? (
-            <TaskComments orgId={orgId} taskId={task.id} uid={uid} isAdmin={isAdmin} />
-          ) : (
-            <ScrollView contentContainerClassName="px-4 pt-4 pb-16" testID="group-task">
-              <VStack gap={4}>
-                <VStack gap={1}>
-                  <Text variant="h2" className={task.doneAt ? 'font-bold line-through' : 'font-bold'}>
-                    {task.title}
-                  </Text>
-                  <Text variant="bodySm" tone="muted">
-                    {task.doneAt
-                      ? t('groups.tasks.doneBy', { name: task.doneBy ? nameOf(task.doneBy) : '—', date: formatDate(task.doneAt, 'short') })
-                      : taskWhenLabel(t, task)}
-                  </Text>
-                  {event.data ? (
-                    <Pressable
-                      testID="group-task-event"
-                      accessibilityRole="link"
-                      onPress={() => router.push(groupEventHref(orgId, event.data?.id ?? ''))}
-                    >
-                      <Text variant="bodySm" className="text-accent font-medium">
-                        {t('groups.tasks.detail.event', { title: event.data.title })}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </VStack>
-
-                {task.notes ? <Text selectable>{task.notes}</Text> : null}
-
-                <VStack gap={2}>
-                  <DetailSectionHeading>{t('groups.tasks.detail.people')}</DetailSectionHeading>
-                  {people.length === 0 ? (
-                    <Text variant="bodySm" tone="muted">
-                      {t('groups.tasks.unassigned')}
+          <ScrollView
+            ref={scrollRef}
+            style={{ flex: 1, marginBottom: keyboardGap }}
+            contentContainerClassName="px-4 pt-4 pb-6"
+            keyboardShouldPersistTaps="handled"
+            testID="group-task"
+          >
+            <VStack gap={4}>
+              <VStack gap={1}>
+                <Text variant="h2" className={task.doneAt ? 'font-bold line-through' : 'font-bold'}>
+                  {task.title}
+                </Text>
+                <Text variant="bodySm" tone="muted">
+                  {task.doneAt
+                    ? t('groups.tasks.doneBy', { name: task.doneBy ? nameOf(task.doneBy) : '—', date: formatDate(task.doneAt, 'short') })
+                    : taskWhenLabel(t, task)}
+                </Text>
+                {event.data ? (
+                  <Pressable
+                    testID="group-task-event"
+                    accessibilityRole="link"
+                    onPress={() => router.push(groupEventHref(orgId, event.data?.id ?? ''))}
+                  >
+                    <Text variant="bodySm" className="text-accent font-medium">
+                      {t('groups.tasks.detail.event', { title: event.data.title })}
                     </Text>
-                  ) : (
-                    people.map((personUid) => (
-                      <HStack key={personUid} gap={3} align="center" testID={`group-task-person-${personUid}`}>
-                        <Avatar
-                          uri={faces[personUid]?.photoURL ?? null}
-                          size={36}
-                          initials={nameOf(personUid).slice(0, 1).toUpperCase()}
-                        />
-                        <Text className="flex-1" numberOfLines={1}>
-                          {nameOf(personUid)}
-                        </Text>
-                      </HStack>
-                    ))
-                  )}
-                </VStack>
-
-                {/* The shift's own answer: apuntarse, or leave it. */}
-                {task.slots !== null && !task.doneAt ? (
-                  <ShiftCard task={task} orgId={orgId} uid={uid} nameOf={nameOf} showNames={isAdmin} />
+                  </Pressable>
                 ) : null}
-
-                <VStack gap={2}>
-                  <Button fullWidth loading={saving} testID="group-task-done" onPress={() => setDone(task.doneAt === null)}>
-                    {t(task.doneAt ? 'groups.tasks.detail.reopen' : 'groups.tasks.detail.markDone')}
-                  </Button>
-                  <Button fullWidth variant="secondary" testID="group-task-edit" onPress={() => setEditing(true)}>
-                    {t('common.edit')}
-                  </Button>
-                </VStack>
               </VStack>
-            </ScrollView>
-          )}
+
+              {task.notes ? <Text selectable>{task.notes}</Text> : null}
+
+              <VStack gap={2}>
+                <DetailSectionHeading>{t('groups.tasks.detail.people')}</DetailSectionHeading>
+                {people.length === 0 ? (
+                  <Text variant="bodySm" tone="muted">
+                    {t(task.slots !== null ? 'groups.tasks.shift.noVolunteers' : 'groups.tasks.unassigned')}
+                  </Text>
+                ) : (
+                  people.map((personUid) => (
+                    <HStack key={personUid} gap={3} align="center" testID={`group-task-person-${personUid}`}>
+                      <Avatar
+                        uri={faces[personUid]?.photoURL ?? null}
+                        size={36}
+                        initials={nameOf(personUid).slice(0, 1).toUpperCase()}
+                      />
+                      <Text className="flex-1" numberOfLines={1}>
+                        {nameOf(personUid)}
+                      </Text>
+                    </HStack>
+                  ))
+                )}
+                {isAdmin && openShift && task.waitlistUids.length > 0 ? (
+                  <Text variant="bodySm" tone="muted" testID="group-task-waiting">
+                    {t('groups.tasks.shift.waiting', { names: task.waitlistUids.map(nameOf).join(', ') })}
+                  </Text>
+                ) : null}
+              </VStack>
+
+              <VStack gap={2}>
+                <Button fullWidth loading={saving} testID="group-task-done" onPress={() => setDone(task.doneAt === null)}>
+                  {t(task.doneAt ? 'groups.tasks.detail.reopen' : 'groups.tasks.detail.markDone')}
+                </Button>
+                <Button fullWidth variant="secondary" testID="group-task-edit" onPress={() => setEditing(true)}>
+                  {t('common.edit')}
+                </Button>
+              </VStack>
+
+              <DetailScrollProvider scrollRef={scrollRef}>
+                <TaskComments orgId={orgId} taskId={task.id} uid={uid} isAdmin={isAdmin} />
+              </DetailScrollProvider>
+            </VStack>
+          </ScrollView>
+          {/* Out of the page, so the answer is on screen however long the comments
+              get; it steps aside for the keyboard, which needs that room to write. */}
+          {openShift && !keyboardOpen ? <ShiftBar task={task} orgId={orgId} uid={uid} /> : null}
           <TaskSheet
             visible={editing}
             orgId={orgId}

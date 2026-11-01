@@ -1,0 +1,1 @@
+- Changed: a group task's comments sit right under its details instead of behind a Detalles / Comentarios switch, and on a volunteer shift the Me apunto button stays pinned at the bottom of the screen. **Migration:** none.
