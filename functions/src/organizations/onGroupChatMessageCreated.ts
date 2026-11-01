@@ -117,8 +117,12 @@ export async function handleGroupChatMessage(
   }
   const message = parsed.data;
 
-  const org = (await organizationDoc(db, orgId).get()).data();
-  if (!org) {
+  // Raw, like the aviso: only two fields matter here, and a converter throw would
+  // lose the message's summary and its push over an unrelated org field.
+  const orgSnap = await db.doc(organizationDoc(db, orgId).path).get();
+  const orgName: unknown = orgSnap.get('name');
+  const municipalityId: unknown = orgSnap.get('municipalityId');
+  if (typeof orgName !== 'string' || typeof municipalityId !== 'string') {
     logger.warn('Chat message in a missing org', { handler: HANDLER, orgId, threadId, chatId });
     return;
   }
@@ -139,9 +143,9 @@ export async function handleGroupChatMessage(
     // The group category, routed to the group and muted per group: a client
     // that predates the chat still parses and opens it.
     type: 'group_message',
-    title: `${org.name} · ${aviso ? aviso.title : GENERAL_CHAT_TITLE}`,
+    title: `${orgName} · ${aviso ? aviso.title : GENERAL_CHAT_TITLE}`,
     body: groupChatPushBody(message.authorName, message.body),
-    municipalityId: org.municipalityId,
+    municipalityId,
     entityKind: 'organization',
     entityId: orgId,
     createdAt: message.createdAt,
