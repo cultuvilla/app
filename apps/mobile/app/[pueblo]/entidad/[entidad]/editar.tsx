@@ -16,7 +16,6 @@ import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
 import { getOrganization, updateOrganization, deleteOrganization } from '@cultuvilla/shared/services/organizationService';
 import { uploadOrganizationImage } from '@cultuvilla/shared/services/imageService';
 import { pickImageAsBlob } from '../../../../lib/images';
-import { showConfirm } from '../../../../lib/dialogs';
 import {
   PROPOSABLE_ORGANIZATION_TYPES,
   type OrganizationType,
@@ -36,7 +35,6 @@ export default function OrgEditScreen() {
   const [images, setImages] = useState<string[]>([]);
   const [addingImage, setAddingImage] = useState(false);
   const [membersPublic, setMembersPublic] = useState(true);
-  const [requiresApproval, setRequiresApproval] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,7 +53,6 @@ export default function OrgEditScreen() {
         setImages(o.images);
         setMunicipalityId(o.municipalityId);
         setMembersPublic(o.membersPublic);
-        setRequiresApproval(o.joinPolicy === 'approval');
       } else {
         setNotFound(true);
       }
@@ -117,7 +114,6 @@ export default function OrgEditScreen() {
         description: description.trim() || null,
         type,
         membersPublic,
-        joinPolicy: requiresApproval ? 'approval' : 'open',
       });
       router.back();
     } finally {
@@ -194,27 +190,6 @@ export default function OrgEditScreen() {
                 }
                 testID="org-edit-members-public-toggle"
               />
-              <Toggle
-                value={requiresApproval}
-                onValueChange={(next) => {
-                  // Opening the group up hides its private events until it
-                  // requires approval again — say so before it happens.
-                  if (next) setRequiresApproval(true);
-                  else
-                    showConfirm(
-                      t('organization.joinPolicy.switchToOpenTitle'),
-                      t('organization.joinPolicy.switchToOpenBody'),
-                      () => setRequiresApproval(false),
-                    );
-                }}
-                label={t('organization.joinPolicy.label')}
-                testID="org-edit-join-policy-toggle"
-              />
-              <Text tone="muted" variant="caption">
-                {requiresApproval
-                  ? t('organization.joinPolicy.approvalHint')
-                  : t('organization.joinPolicy.openHint')}
-              </Text>
             </VStack>
           }
           submitLabel={t('common.save')}

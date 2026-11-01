@@ -1,7 +1,6 @@
 import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
-  addOrgMember,
   getOrgMembers,
   isOrgMember,
   removeOrgMember,
@@ -10,6 +9,7 @@ import {
   hasPendingOrgJoinRequest,
   requestToJoinOrganization,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
+import { followOrganization, unfollowOrganization } from '@cultuvilla/shared/services/orgFollowerService';
 import OrgDetailScreen from '../[entidad]/index';
 import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../../test/watchers';
 
@@ -38,10 +38,14 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
   isOrgMember: jest.fn().mockResolvedValue(false),
-  addOrgMember: jest.fn(),
   removeOrgMember: jest.fn().mockResolvedValue(undefined),
   getOrgMembers: jest.fn().mockResolvedValue([]),
   getUserOrgIds: jest.fn().mockResolvedValue([]),
+}));
+jest.mock('@cultuvilla/shared/services/orgFollowerService', () => ({
+  isFollowingOrganization: jest.fn().mockResolvedValue(false),
+  followOrganization: jest.fn().mockResolvedValue(undefined),
+  unfollowOrganization: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
   hasPendingOrgJoinRequest: jest.fn().mockResolvedValue(false),
@@ -79,21 +83,46 @@ const OPEN_ORG = {
   description: 'd',
   municipalityId: 'm1',
   villageSlug: 'villa',
-  joinPolicy: 'open',
+  followerCount: 0,
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (isOrgMember as jest.Mock).mockResolvedValue(false);
   resetWatchers();
   setWatched('org', OPEN_ORG);
 });
 
 describe('OrgDetailScreen', () => {
-  it('labels the join FAB specifically for a peña', async () => {
+  it('offers to ask to join, never to join on the spot', async () => {
     const { getByText, getByTestId } = render(<OrgDetailScreen />);
     await waitFor(() => getByText('Peña La Unión'));
     getByTestId('join-org-fab');
-    getByText('organization.joinPeña');
+    getByText('organization.requestToJoin');
+  });
+
+  it('follows the group with a tap, and shows it', async () => {
+    const { findByTestId, findByText, getByTestId } = render(<OrgDetailScreen />);
+    fireEvent.press(await findByTestId('org-follow-button'));
+    await waitFor(() => expect(followOrganization).toHaveBeenCalledWith('o1', 'm1', 'u2'));
+    await findByText('organization.following');
+
+    fireEvent.press(getByTestId('org-follow-button'));
+    await waitFor(() => expect(unfollowOrganization).toHaveBeenCalledWith('o1', 'u2'));
+    await findByText('organization.follow');
+  });
+
+  it('shows the follower count next to the integrantes', async () => {
+    setWatched('org', { ...OPEN_ORG, followerCount: 3 });
+    const { findByText } = render(<OrgDetailScreen />);
+    await findByText('organization.followersCount');
+  });
+
+  it('offers a member no follow button', async () => {
+    (isOrgMember as jest.Mock).mockResolvedValue(true);
+    const { findByTestId, queryByTestId } = render(<OrgDetailScreen />);
+    await findByTestId('org-leave-action');
+    expect(queryByTestId('org-follow-button')).toBeNull();
   });
 
   it('shows an update the moment the listener delivers it, without refetching membership', async () => {
@@ -111,18 +140,6 @@ describe('OrgDetailScreen', () => {
     const { getByText } = render(<OrgDetailScreen />);
     await waitFor(() => getByText('Peña La Unión'));
     expect(mockOrgEventsSection).toHaveBeenLastCalledWith({ orgId: 'o1', includePrivate: false });
-  });
-
-  it('never asks a member of an open org for private events, which the rules refuse', async () => {
-    (isOrgMember as jest.Mock).mockResolvedValue(true);
-    try {
-      const { getByText } = render(<OrgDetailScreen />);
-      await waitFor(() => getByText('Peña La Unión'));
-      await waitFor(() => expect(isOrgMember).toHaveBeenCalled());
-      expect(mockOrgEventsSection).not.toHaveBeenCalledWith({ orgId: 'o1', includePrivate: true });
-    } finally {
-      (isOrgMember as jest.Mock).mockResolvedValue(false);
-    }
   });
 
   it('shows the not-found state once the org is gone', async () => {
@@ -150,7 +167,7 @@ describe('OrgDetailScreen — join policy', () => {
     (hasPendingOrgJoinRequest as jest.Mock).mockResolvedValue(false);
   });
 
-  it('asks to join an approval org instead of joining it', async () => {
+  it('asks to join the org instead of joining it', async () => {
     setWatched('org', approvalOrg);
     const { getByText, getByTestId } = render(<OrgDetailScreen />);
     await waitFor(() => getByText('organization.requestToJoin'));
@@ -158,7 +175,6 @@ describe('OrgDetailScreen — join policy', () => {
     fireEvent.press(getByTestId('join-org-fab'));
 
     await waitFor(() => expect(requestToJoinOrganization).toHaveBeenCalledWith('o1', 'm1', 'u2'));
-    expect(addOrgMember).not.toHaveBeenCalled();
   });
 
   it("shows a member of an approval org its private events too", async () => {
@@ -245,15 +261,14 @@ describe('OrgDetailScreen — leaving', () => {
     await waitFor(() => expect(removeOrgMember).toHaveBeenCalledWith('o1', 'u2'));
   });
 
-  it('warns a member of an approval group that coming back takes a new request', async () => {
-    setWatched('org', { ...OPEN_ORG, joinPolicy: 'approval' });
+  it('warns a member that coming back takes a new request', async () => {
     (isOrgMember as jest.Mock).mockResolvedValue(true);
     const { findByTestId } = render(<OrgDetailScreen />);
     fireEvent.press(await findByTestId('org-leave-action'));
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'organization.leave.title',
-      'organization.leave.bodyApproval',
+      'organization.leave.body',
       expect.any(Array),
     );
   });

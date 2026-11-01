@@ -12,7 +12,6 @@ import {
 } from '@cultuvilla/shared/services/eventService';
 import { Alert } from 'react-native';
 import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { showConfirm } from '../../../lib/dialogs';
 
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -56,7 +55,6 @@ jest.mock('@cultuvilla/shared/services/feedService', () => ({
   haversineKm: () => 0,
 }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganization: jest.fn().mockResolvedValue({ id: 'org-1', joinPolicy: 'approval' }),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({
   createEvent: jest.fn().mockResolvedValue('e-1'),
@@ -851,25 +849,10 @@ describe('NewEventScreen — private events', () => {
     await waitFor(() => expect(createEvent).toHaveBeenCalled());
   }
 
-  // The switch only turns on once the org's join policy has loaded.
-  async function pickApprovalOrg(u: ReturnType<typeof render>) {
+  async function pickOrg(u: ReturnType<typeof render>) {
     fireEvent.press(u.getByTestId('pick-one-org'));
-    await waitFor(() => expect(getOrganization).toHaveBeenCalledWith('org-1'));
     await waitFor(() => expect(u.getByTestId('private-to-org')).toBeEnabled());
   }
-
-  it('cannot make an event private to an open org, and says why', async () => {
-    jest.mocked(getOrganization).mockResolvedValueOnce({ id: 'org-1', joinPolicy: 'open' } as never);
-    await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      fireEvent.press(u.getByTestId('pick-one-org'));
-      await waitFor(() => expect(u.getByText('event.privateToOrgNeedsApproval')).toBeTruthy());
-      fireEvent.press(u.getByTestId('private-to-org'));
-    });
-    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
-      visibility: 'public',
-      visibilityOrgId: null,
-    });
-  });
 
   it('offers the switch only when exactly one org organizes the event', async () => {
     const { getByLabelText, getByTestId, queryByTestId } = render(<NewEventScreen />);
@@ -894,7 +877,7 @@ describe('NewEventScreen — private events', () => {
 
   it('creates an event restricted to the organizing org when the switch is on', async () => {
     await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      await pickApprovalOrg(u);
+      await pickOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
     });
     expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
@@ -908,7 +891,7 @@ describe('NewEventScreen — private events', () => {
   it('opens a new private event at a URL without its title', async () => {
     const { router } = jest.requireMock('expo-router') as { router: { replace: jest.Mock } };
     await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      await pickApprovalOrg(u);
+      await pickOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
     });
     await waitFor(() => expect(router.replace).toHaveBeenCalled());
@@ -930,7 +913,7 @@ describe('NewEventScreen — private events', () => {
   // membership to gate on, so the submit path has to drop it.
   it('falls back to public when a second org joins after the switch was set', async () => {
     await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      await pickApprovalOrg(u);
+      await pickOrg(u);
       fireEvent.press(u.getByTestId('private-to-org'));
       fireEvent.press(u.getByTestId('pick-two-orgs'));
     });

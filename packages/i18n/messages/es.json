@@ -763,10 +763,10 @@
     "requiresPayment": "Se paga en el evento",
     "attendeesPublic": "Lista de asistentes visible",
     "attendeesPublicHint": "Quien sea del pueblo podrá ver quién se ha apuntado. Los datos de contacto y las respuestas del formulario siguen siendo solo para ti.",
-    "privateToOrg": "Solo para miembros",
-    "privateToOrgHint": "El evento solo será visible para los miembros de la organización, y solo ellos podrán apuntarse.",
+    "privateToOrg": "Solo para integrantes",
+    "privateToOrgHint": "El evento solo será visible para los integrantes de la organización, y solo ellos podrán apuntarse.",
     "privateBadge": "Privado",
-    "privateNotice": "Este evento es privado: solo lo ven los miembros de la organización.",
+    "privateNotice": "Este evento es privado: solo lo ven los integrantes de la organización.",
     "signupEnabled": "Inscripciones por la app",
     "signupEnabledHint": "Desactívalo si el evento es de entrada libre o si las inscripciones se hacen por otro sitio.",
     "formEnabled": "Añadir un formulario",
@@ -1033,17 +1033,18 @@
       "waitlisted": "En espera",
       "waitlistedMany": "En espera ×{count}",
       "waitlistedCount": "En espera ×{count}"
-    },
-    "privateToOrgNeedsApproval": "Solo los grupos en los que unirse requiere aprobación pueden tener eventos privados. Cámbialo en los ajustes del grupo."
+    }
   },
   "organization": {
     "title": "Grupo",
     "editTitle": "Editar grupo",
     "description": "Descripción",
-    "membersCount": "{count} miembros",
+    "membersCount": "{count, plural, one {1 integrante} other {# integrantes}}",
+    "followersCount": "{count, plural, one {1 seguidor} other {# seguidores}}",
     "events": "Eventos",
-    "join": "Unirme a este grupo",
-    "joinPeña": "Unirme a esta peña",
+    "follow": "Seguir",
+    "following": "Siguiendo",
+    "followError": "No se ha podido completar. Inténtalo de nuevo.",
     "signInToJoin": "Inicia sesión para unirte",
     "invitedBanner": "Te han invitado a unirte a este grupo",
     "name": "Nombre",
@@ -1062,23 +1063,23 @@
     "rejected": "Rechazada",
     "approve": "Aprobar",
     "reject": "Rechazar",
-    "members": "Miembros",
+    "members": "Integrantes",
     "privacy": "Privacidad",
-    "membersPublicLabel": "Los miembros del grupo son visibles para el pueblo",
-    "membersPrivateHint": "Solo los miembros del grupo verán quién forma parte.",
+    "membersPublicLabel": "Los integrantes del grupo son visibles para el pueblo",
+    "membersPrivateHint": "Solo los integrantes del grupo verán quién forma parte.",
     "adminBadge": "Admin",
     "membersList": {
       "promote": "Hacer administrador",
       "demote": "Quitar administrador",
       "remove": "Eliminar",
       "confirmPromoteTitle": "Hacer administrador",
-      "confirmPromoteBody": "¿Dar permisos de administrador a {name}? Podrá editar el grupo y gestionar a otros miembros.",
+      "confirmPromoteBody": "¿Dar permisos de administrador a {name}? Podrá editar el grupo y gestionar a otros integrantes.",
       "confirmDemoteTitle": "Quitar administrador",
       "confirmDemoteBody": "¿Retirar los permisos de administrador a {name}?",
-      "confirmRemoveTitle": "Eliminar miembro",
+      "confirmRemoveTitle": "Eliminar integrante",
       "confirmRemoveBody": "¿Eliminar a {name} del grupo?",
       "roleChangeError": "No se pudo cambiar el rol. Inténtalo de nuevo.",
-      "removeError": "No se pudo eliminar al miembro. Inténtalo de nuevo.",
+      "removeError": "No se pudo eliminar al integrante. Inténtalo de nuevo.",
       "promoteMember": "Hacer administrador a {name}",
       "demoteMember": "Quitar administrador a {name}",
       "removeMember": "Eliminar a {name} del grupo"
@@ -1087,13 +1088,6 @@
     "requestPending": "Solicitud enviada",
     "cancelRequestTitle": "Retirar solicitud",
     "cancelRequestBody": "¿Quieres retirar tu solicitud para unirte a {name}?",
-    "joinPolicy": {
-      "label": "Unirse requiere aprobación",
-      "approvalHint": "Quien quiera unirse lo solicita y un administrador del grupo lo acepta. Solo los grupos así pueden tener eventos privados.",
-      "openHint": "Cualquiera puede unirse al momento.",
-      "switchToOpenTitle": "Abrir el grupo",
-      "switchToOpenBody": "Cualquiera podrá unirse sin aprobación, y los eventos privados del grupo dejarán de verse hasta que vuelvas a exigir aprobación."
-    },
     "joinRequests": {
       "title": "Solicitudes para unirse",
       "wantsToJoin": "quiere unirse",
@@ -1102,10 +1096,9 @@
     },
     "leave": {
       "title": "Salir del grupo",
-      "body": "¿Quieres salir de {name}? Puedes volver a unirte cuando quieras.",
-      "bodyApproval": "¿Quieres salir de {name}? Para volver tendrás que solicitarlo de nuevo.",
+      "body": "¿Quieres salir de {name}? Para volver tendrás que solicitarlo de nuevo.",
       "confirm": "Salir",
-      "soleAdminBody": "Eres el único administrador del grupo. Haz administrador a otro miembro antes de salir.",
+      "soleAdminBody": "Eres el único administrador del grupo. Haz administrador a otro integrante antes de salir.",
       "error": "No se pudo salir del grupo. Inténtalo de nuevo."
     }
   },
@@ -1152,7 +1145,7 @@
     },
     "orgRole": {
       "admin": "Administrador",
-      "member": "Miembro"
+      "member": "Integrante"
     },
     "villagesEntry": "Mis pueblos",
     "villagesSection": {
@@ -1641,13 +1634,14 @@
     "upcomingEvents": "Próximos eventos",
     "noUpcomingEvents": "No hay eventos próximos.",
     "roleAdmin": "Admin",
-    "roleMember": "Miembro",
+    "roleMember": "Integrante",
     "summary": {
       "cuota": "Cuota {period}"
     },
     "stats": {
       "socios": "Socios",
-      "members": "Miembros",
+      "members": "Integrantes",
+      "followers": "Seguidores",
       "events": "Eventos"
     },
     "home": {
@@ -1665,7 +1659,7 @@
       "cobros": "Cuota",
       "mensajes": "Avisos",
       "registros": "Registros",
-      "miembros": "Miembros",
+      "miembros": "Integrantes",
       "ajustes": "Ajustes",
       "withCount": "{label}, {count} pendientes",
       "adminHint": "Solo para quien gestiona el grupo",
@@ -1725,10 +1719,10 @@
       "confirmBajaTitle": "Dar de baja",
       "confirmBajaBody": "{name} quedará en el libro de socios con la fecha de baja de hoy.",
       "memberBajaHint": "Un socio con la app se da de baja al salir del grupo.",
-      "link": "Vincular con un miembro",
+      "link": "Vincular con un integrante",
       "linkTitle": "¿Quién es {name} en la app?",
       "linkHint": "Se unirán en una sola ficha, con la fecha de alta más antigua.",
-      "linkEmpty": "No hay miembros con la app para vincular.",
+      "linkEmpty": "No hay integrantes con la app para vincular.",
       "titleLabel": "Cargo",
       "setTitle": "Poner cargo",
       "noTitle": "Sin cargo",
@@ -1977,7 +1971,7 @@
       },
       "fairShare": {
         "title": "Reparto del trabajo {year}",
-        "hint": "Tareas hechas por cada miembro este año. Solo lo ven los administradores.",
+        "hint": "Tareas hechas por cada integrante este año. Solo lo ven los administradores.",
         "count": "{count, plural, one {1 tarea} other {# tareas}}"
       },
       "asamblea": {
