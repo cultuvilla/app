@@ -31,6 +31,7 @@ jest.mock('@cultuvilla/shared/services/groupTaskService', () => {
     watchGroupTasksDoneSince: mockWatcher('done'),
     watchEventGroupTasks: mockWatcher('eventTasks'),
     watchTaskTemplates: mockWatcher('templates'),
+    watchTaskComments: mockWatcher('comments'),
     setGroupTaskDone: jest.fn().mockResolvedValue(undefined),
     createGroupTask: jest.fn().mockResolvedValue('new'),
     updateGroupTask: jest.fn().mockResolvedValue(undefined),
@@ -44,6 +45,7 @@ jest.mock('@cultuvilla/shared/services/eventService', () => ({
   watchEventsByOrganization: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('events'),
 }));
 jest.mock('../../../../lib/orgs/useOrgMembers', () => ({
+  useMemberFaces: () => ({}),
   useOrgMembers: () => ({
     members: [
       { uid: 'u-ana', name: 'Ana', role: 'member' },
@@ -114,6 +116,22 @@ describe('GroupTasks', () => {
     expect(getByTestId('task-row-extintores')).toHaveTextContent(/groups\.tasks\.doneBy:u-luis/);
     expect(getByTestId('fair-share-u-luis')).toHaveTextContent('Luisgroups.tasks.fairShare.count:1');
     expect(getByTestId('fair-share-u-ana')).toHaveTextContent('Anagroups.tasks.fairShare.count:0');
+  });
+
+  it('a task opened has its comments on a second tab; a new one has none', () => {
+    setWatched('comments', []);
+    const fresh = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
+    fireEvent.press(fresh.getByTestId('tasks-new'));
+    expect(fresh.queryByTestId('task-tab')).toBeNull();
+    expect(fresh.queryByTestId('task-tab-comments')).toBeNull();
+    fresh.unmount();
+
+    const { getByTestId, queryByTestId } = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
+    fireEvent.press(getByTestId('task-edit-asamblea'));
+    expect(getByTestId('task-save')).toBeTruthy();
+    fireEvent.press(getByTestId('task-tab-comments'));
+    expect(getByTestId('task-comments')).toBeTruthy();
+    expect(queryByTestId('task-save')).toBeNull();
   });
 
   it('creates a yearly task on a fixed date', async () => {

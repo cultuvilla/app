@@ -1,0 +1,1 @@
+- Added: each group task has its comments, on a second tab when you open it. Only the group's members see them. The task's creator and the people on it get a notification; authors delete their own, admins anyone's.

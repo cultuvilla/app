@@ -11,7 +11,7 @@ import { todayKey } from '../../../lib/orgs/cuota';
 /**
  * One task as a row: a done tick (when the viewer may tick it), the title,
  * when it is due, who it is for and how it repeats. Tapping the text opens it
- * for editing when `onEdit` is given (admins).
+ * — its form and its comments — when `onEdit` is given.
  */
 export function TaskRow({
   task,
