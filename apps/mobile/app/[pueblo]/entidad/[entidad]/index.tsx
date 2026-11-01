@@ -22,6 +22,7 @@ import { watchOrganization } from '@cultuvilla/shared/services/organizationServi
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';
 import {
   isOrgMember,
+  addOrgMember,
   getOrgMembers,
   removeOrgMember,
 } from '@cultuvilla/shared/services/orgMemberService';
@@ -72,6 +73,9 @@ export default function OrgDetailScreen() {
   // Keyed on these rather than `org`, so a snapshot that changes something else
   // (the view counter, say) does not refetch the membership.
   const orgExists = org !== null;
+  const isOpen = org?.joinPolicy === 'open';
+  // A request filed before the admin opened the group no longer has to wait.
+  const awaitingAcceptance = requested && !isOpen;
   // An empty group shows neither the count nor the roster heading.
   const hasMembers = (membersCount ?? 0) > 0;
 
@@ -108,7 +112,7 @@ export default function OrgDetailScreen() {
       return;
     }
     if (!orgId || !org) return;
-    if (requested) {
+    if (awaitingAcceptance) {
       showConfirm(
         t('organization.cancelRequestTitle'),
         t('organization.cancelRequestBody', { name: org.name }),
@@ -121,7 +125,12 @@ export default function OrgDetailScreen() {
     setJoining(true);
     let succeeded = false;
     try {
-      await requestToJoinOrganization(orgId as string, org.municipalityId, user.uid);
+      if (isOpen) {
+        await addOrgMember(orgId as string, user.uid);
+        if (requested) await cancelOrgJoinRequest(orgId as string, user.uid);
+      } else {
+        await requestToJoinOrganization(orgId as string, org.municipalityId, user.uid);
+      }
       succeeded = true;
       observability.trackEvent(OBSERVABILITY_EVENTS.ORG_JOIN_SUCCESS, {
         municipalityId: org.municipalityId,
@@ -149,7 +158,7 @@ export default function OrgDetailScreen() {
     }
     showConfirm(
       t('organization.leave.title'),
-      t('organization.leave.body', { name: org.name }),
+      t(isOpen ? 'organization.leave.body' : 'organization.leave.bodyApproval', { name: org.name }),
       () => {
         removeOrgMember(org.id, user.uid)
           .then(refresh)
@@ -196,9 +205,11 @@ export default function OrgDetailScreen() {
     : [];
   const joinLabel = !user
     ? t('organization.signInToJoin')
-    : requested
+    : awaitingAcceptance
       ? t('organization.requestPending')
-      : t('organization.requestToJoin');
+      : isOpen
+        ? t(org?.type === 'peña' ? 'organization.joinPeña' : 'organization.join')
+        : t('organization.requestToJoin');
 
   return (
     <EntityDetailScaffold
@@ -230,7 +241,7 @@ export default function OrgDetailScreen() {
                 paddingVertical: 10,
                 paddingHorizontal: 22,
                 borderRadius: 999,
-                backgroundColor: requested ? '#8a7a70' : '#bb5d3a',
+                backgroundColor: awaitingAcceptance ? '#8a7a70' : '#bb5d3a',
                 opacity: joining ? 0.7 : 1,
                 elevation: 6,
                 shadowColor: '#000',

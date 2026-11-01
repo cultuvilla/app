@@ -48,7 +48,7 @@ pueblo y también un usuario autenticado.
 | **Usuario autenticado** | con sesión iniciada | Todo lo anterior + inscribirse a **cualquier** evento de **cualquier** pueblo, gestionar su cuenta y Personas, publicar/comentar/reaccionar en noticias. |
 | **Miembro del pueblo** | `municipalities/{id}/members/{uid}` (`role: user`) | Miembro de un pueblo concreto. Ve los **nombres** de asistentes en los eventos de ese pueblo. Sujeto al censo de ese pueblo. |
 | **Equipo del pueblo** (y su **Embajador**) | `municipalities/{id}/members/{uid}` (`role: admin`) | Gestiona el pueblo: expulsa miembros, modera noticias, gestiona barrios/cementerios, edita/cancela cualquier evento del pueblo, aprueba solicitudes de creación de organizaciones. *(El ingreso es autoservicio — el administrador ya no lo aprueba.)* |
-| **Integrante de organización** | `organizations/{orgId}/members/{uid}` | Crea/gestiona los eventos de esa organización y ve los privados. Solo un administrador lo admite: nadie se añade a sí mismo. |
+| **Integrante de organización** | `organizations/{orgId}/members/{uid}` | Crea/gestiona los eventos de esa organización y ve los privados. Por defecto lo admite un administrador tras una solicitud; el administrador puede abrir el grupo para que cualquiera entre al momento. El ayuntamiento nunca se abre. |
 | **Superadministrador** | `admins/{uid}` | Global. Crea municipios, aprueba solicitudes de embajador, gestiona los datos de referencia y tiene plenos poderes de administrador de pueblo en todas partes. |
 
 **Un Embajador por pueblo, un equipo detrás.** En la app, el rol `admin` se

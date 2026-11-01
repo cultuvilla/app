@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
- * Set every organization's `joinPolicy` to `approval`.
+ * Set every organization's `joinPolicy` to `approval`, once.
  *
- * Joining any group now takes an admin's acceptance. Nothing but installed
- * binaries reads the field any more; on `approval` they file a join request, which
- * the rules still accept, where on `open` they would try the self-join the rules
- * now refuse. Existing members stay members, whatever the group was before.
+ * Whether a group takes anyone on the spot is now its admin's choice, and most
+ * groups are `open` only because that was the default, which never asked. So
+ * they all start out requiring acceptance, and an admin who wants it open
+ * switches it back. Existing members stay members.
  *
- * `pre-deploy`: until it has run, those binaries offer a join that fails.
+ * The auto-apply step skips a backfill with a marker, so this never undoes an
+ * admin's later choice. Don't re-run it by hand for that reason.
  *
  * Registered on the backfill harness: see AGENTS.md "Backfills".
  *
@@ -21,7 +22,7 @@ import { backfillCollection } from './lib/backfill.mjs';
 export const meta = {
   id: 'org-join-by-approval',
   kind: 'backfill',
-  description: 'Set organizations.joinPolicy to approval: every group admits its members',
+  description: 'Set organizations.joinPolicy to approval once: every group starts out requiring acceptance',
   phase: 'pre-deploy',
   envs: ['dev', 'beta', 'prod'],
   idempotent: true,

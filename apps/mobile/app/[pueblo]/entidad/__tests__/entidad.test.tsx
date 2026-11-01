@@ -1,11 +1,13 @@
 import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
+  addOrgMember,
   getOrgMembers,
   isOrgMember,
   removeOrgMember,
 } from '@cultuvilla/shared/services/orgMemberService';
 import {
+  cancelOrgJoinRequest,
   hasPendingOrgJoinRequest,
   requestToJoinOrganization,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
@@ -37,6 +39,7 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
   isOrgMember: jest.fn().mockResolvedValue(false),
+  addOrgMember: jest.fn().mockResolvedValue(undefined),
   removeOrgMember: jest.fn().mockResolvedValue(undefined),
   getOrgMembers: jest.fn().mockResolvedValue([]),
   getUserOrgIds: jest.fn().mockResolvedValue([]),
@@ -165,6 +168,32 @@ describe('OrgDetailScreen — join policy', () => {
     const { getByText } = render(<OrgDetailScreen />);
     await waitFor(() => getByText('organization.requestPending'));
   });
+
+  it('joins an open org on the spot', async () => {
+    setWatched('org', { ...approvalOrg, joinPolicy: 'open' });
+    const { getByText, getByTestId } = render(<OrgDetailScreen />);
+    await waitFor(() => getByText('organization.joinPeña'));
+
+    fireEvent.press(getByTestId('join-org-fab'));
+
+    await waitFor(() => expect(addOrgMember).toHaveBeenCalledWith('o1', 'u2'));
+    expect(requestToJoinOrganization).not.toHaveBeenCalled();
+    expect(cancelOrgJoinRequest).not.toHaveBeenCalled();
+  });
+
+  it('lets someone whose request predates the opening join, withdrawing it', async () => {
+    setWatched('org', { ...approvalOrg, joinPolicy: 'open' });
+    (hasPendingOrgJoinRequest as jest.Mock).mockResolvedValue(true);
+    const { getByText, getByTestId, queryByText } = render(<OrgDetailScreen />);
+    await waitFor(() => expect(hasPendingOrgJoinRequest).toHaveBeenCalled());
+    await waitFor(() => getByText('organization.joinPeña'));
+    expect(queryByText('organization.requestPending')).toBeNull();
+
+    fireEvent.press(getByTestId('join-org-fab'));
+
+    await waitFor(() => expect(cancelOrgJoinRequest).toHaveBeenCalledWith('o1', 'u2'));
+    expect(addOrgMember).toHaveBeenCalledWith('o1', 'u2');
+  });
 });
 
 describe('OrgDetailScreen — junta contact consent', () => {
@@ -237,7 +266,7 @@ describe('OrgDetailScreen — leaving', () => {
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'organization.leave.title',
-      'organization.leave.body',
+      'organization.leave.bodyApproval',
       expect.any(Array),
     );
   });
