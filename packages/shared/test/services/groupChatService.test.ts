@@ -5,6 +5,7 @@ vi.mock('../../src/firebase', () => ({ getDb: vi.fn(() => ({})) }));
 vi.mock('../../src/firebase/refs/client', () => ({
   organizationChatCollection: vi.fn((_db, orgId: string, threadId: string) => ({ _path: `chat:${orgId}/${threadId}` })),
   organizationChatWriteCollection: vi.fn((_db, orgId: string, threadId: string) => ({ _path: `chat:${orgId}/${threadId}` })),
+  organizationMessageDoc: vi.fn((_db, orgId: string, id: string) => ({ _path: `organizations/${orgId}/messages/${id}` })),
   organizationChatWriteDoc: vi.fn((_db, orgId: string, threadId: string, chatId: string) => ({
     _path: `chat:${orgId}/${threadId}/${chatId}`,
   })),
@@ -35,7 +36,8 @@ import {
   deleteGroupChatMessage,
   markGroupChatRead,
   sendGroupChatMessage,
-  setGroupGeneralChatPush,
+  setGroupChatPush,
+  watchGroupAviso,
   watchGroupChat,
   watchGroupChatThreads,
 } from '../../src/services/groupChatService';
@@ -79,13 +81,13 @@ describe('groupChatService', () => {
   });
 
   it('the chat opt-in keeps the group’s mute and merges', async () => {
-    await setGroupGeneralChatPush('u1', 'org1', true, { messagesMuted: true });
+    await setGroupChatPush('u1', 'org1', true, { messagesMuted: true });
     const { path, data, options } = call(setDoc);
     expect(path).toBe('users/u1/groupPrefs/org1');
-    expect(data).toMatchObject({ messagesMuted: true, generalChatPush: true });
+    expect(data).toMatchObject({ messagesMuted: true, chatPush: true, orgId: 'org1' });
     expect(options).toEqual({ merge: true });
-    await setGroupGeneralChatPush('u1', 'org1', false, null);
-    expect(call(setDoc, 1).data).toMatchObject({ messagesMuted: false, generalChatPush: false });
+    await setGroupChatPush('u1', 'org1', false, null);
+    expect(call(setDoc, 1).data).toMatchObject({ messagesMuted: false, chatPush: false });
   });
 
   it('watches the newest messages first, as many as asked', () => {
@@ -101,5 +103,10 @@ describe('groupChatService', () => {
   it('watches one summary per thread', () => {
     watchGroupChatThreads('org1', ['general', 'm1'], vi.fn(), vi.fn());
     expect(onSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it('watches an aviso, the head of its thread', () => {
+    watchGroupAviso('org1', 'm1', vi.fn(), vi.fn());
+    expect(vi.mocked(onSnapshot).mock.calls[0]?.[0]).toMatchObject({ _path: 'organizations/org1/messages/m1' });
   });
 });

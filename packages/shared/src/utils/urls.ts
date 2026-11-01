@@ -197,6 +197,7 @@ export function groupPath(orgId: string): string {
 /** The screens of a group's private side, each opened from the group home. */
 export const GROUP_SECTIONS = [
   'avisos',
+  'charla',
   'eventos',
   'tareas',
   'cuota',
@@ -219,6 +220,20 @@ export function isGroupSection(value: string): value is GroupSection {
 /** One screen of a group — `/grupos/<orgId>/cuota`. */
 export function groupSectionPath(orgId: string, section: GroupSection): string {
   return `/grupos/${encodeURIComponent(orgId)}/${section}`;
+}
+
+/** One aviso and its chat, inside the app — `/grupos/<orgId>/aviso/<messageId>`. */
+export function groupAvisoPath(orgId: string, messageId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/aviso/${encodeURIComponent(messageId)}`;
+}
+
+/**
+ * The link an aviso's WhatsApp text and email carry. A query on the tab rather
+ * than `groupAvisoPath`: those messages outlive app versions, and a binary with
+ * no aviso route still opens the group from this one.
+ */
+export function groupAvisoLinkPath(orgId: string, messageId: string): string {
+  return `${groupPath(orgId)}&aviso=${encodeURIComponent(messageId)}`;
 }
 
 export function userPath(uid: string): string {

@@ -446,7 +446,7 @@ deleted.
 ### `chatThreads/{threadId}` ← `chat/` under the group or an aviso
 
 - **Source:** `organizations/{orgId}/chat/{id}` (general) and `organizations/{orgId}/messages/{messageId}/chat/{id}` (an aviso's).
-- **Read model:** `organizations/{orgId}/chatThreads/{threadId}` — `lastMessageAt`, `lastAuthorUid`, `participantUids`. Lets the unread badge take one doc per thread instead of a listener on each thread's messages, and tells the push who wrote before.
+- **Read model:** `organizations/{orgId}/chatThreads/{threadId}` — `lastMessageAt`, `lastAuthorUid`. Lets the unread badge take one doc per thread instead of a listener on each thread's messages.
 - **Trigger:** `functions/src/organizations/onGroupChatMessageCreated.ts`, a transaction per message, creation only. A deleted message does not move it back: the badge may show a thread whose newest message is gone until it is opened.
 - **Backfill:** none. A thread's summary begins with its first message.
 

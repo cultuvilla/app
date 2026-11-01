@@ -22,11 +22,12 @@ import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGr
 import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCard';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
-import { eventHref, groupSectionHref } from '../../lib/navigation/routes';
+import { eventHref, groupAvisoHref, groupSectionHref } from '../../lib/navigation/routes';
 import { useWatch } from '../../lib/hooks/useWatch';
 import { CUOTA_STATUS_TONE } from '../../lib/orgs/cuota';
 import { useMyCuota } from '../../lib/orgs/useMyCuota';
 import { groupSections } from '../../lib/orgs/groupSections';
+import { useGroupChatUnread } from '../../lib/orgs/useGroupChatUnread';
 import { useGroupNotices } from '../../lib/orgs/useGroupNotices';
 import { useMyMessageValues } from '../../lib/orgs/useMyMessageValues';
 import { useMyGroups, type MyGroup } from '../../lib/orgs/useMyGroups';
@@ -48,7 +49,8 @@ export default function GroupsTabScreen() {
   const [remembered, setRemembered] = useState<string | null | undefined>(undefined);
   const [switching, setSwitching] = useState(false);
   // `/grupos?grupo=<orgId>` opens the tab on that group (a WhatsApp link, a switch from a group screen).
-  const { grupo } = useLocalSearchParams<{ grupo?: string }>();
+  // With `&aviso=<id>`, the aviso's own link: the group, then the aviso on top of it.
+  const { grupo, aviso } = useLocalSearchParams<{ grupo?: string; aviso?: string }>();
 
   useEffect(() => {
     if (grupo) {
@@ -58,6 +60,12 @@ export default function GroupsTabScreen() {
     }
     void readLastGroupId().then(setRemembered);
   }, [grupo]);
+
+  useEffect(() => {
+    if (!uid || !grupo || !aviso) return;
+    router.setParams({ aviso: undefined });
+    router.push(groupAvisoHref(grupo, aviso));
+  }, [uid, grupo, aviso]);
 
   const groupIds = useMemo(() => groups.map((g) => g.org.id), [groups]);
   const selectedId = remembered === undefined ? null : pickGroupId(groupIds, remembered);
@@ -109,6 +117,8 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const roster = hasSocioRoster(org.type);
   const { member, admin } = groupSections(group);
   const notices = useGroupNotices(org.id, roster ? uid : null);
+  const noticeIds = useMemo(() => notices.notices.map((m) => m.id), [notices.notices]);
+  const chat = useGroupChatUnread(org.id, uid, noticeIds);
   const myValues = useMyMessageValues(org.id, roster ? uid : null);
   const tasks = useMyOpenTasks(org.id, uid);
   const cuota = useMyCuota(org.id, roster ? uid : null);
@@ -138,7 +148,11 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const faces = useMemberFaces(upcomingTasks.flatMap(taskPeople));
   const ownStatus = cuota.statuses.find((s) => cuota.rows.find((r) => r.id === s.socioId)?.kind === 'member') ?? cuota.statuses[0];
 
-  const badges: Partial<Record<GroupSection, number>> = { avisos: notices.unreadCount, tareas: tasks.mine.length };
+  const badges: Partial<Record<GroupSection, number>> = {
+    avisos: notices.unreadCount + chat.unreadAvisoIds.size,
+    charla: chat.generalUnread ? 1 : 0,
+    tareas: tasks.mine.length,
+  };
   const open = (section: GroupSection) => router.push(groupSectionHref(org.id, section));
 
   return (

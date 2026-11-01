@@ -1,9 +1,9 @@
 # Group chat — a conversation under each aviso, and one for the whole group
 
 **Priority:** high
-**Landed:** none
-**Gate:** blocked:the chat screens wait for #604 (plain avisos) to merge into develop
-**Next:** the chat screens, once #604 is on develop; the data layer lands first
+**Landed:** dev
+**Gate:** none
+**Next:** verify the chat on a device against dev, then promote it with the next release
 
 Decided 2026-11-01 (user): "each alert should have a chat where people can talk, and
 there should be a general chat in the group." The direction behind it: the app is the
@@ -53,33 +53,49 @@ Decided 2026-11-01 (user): all five agent picks below.
    seen; the roster setting keeps governing the list, not the chat.*
 2. **Who may write in the general chat.** *every member; a per-group setting
    "solo la junta escribe" (announcement-only) for groups that want it.*
-3. **Notifications.** A busy chat must not ring 200 phones per message. *aviso
-   chats push only the aviso's author and people who already wrote in that thread; the
-   general chat pushes nobody by default, with a per-group opt-in; an unread badge on the
-   group either way.*
+3. **Notifications.** Replaced — see below.
 4. **Moderation.** *authors delete their own messages; org admins delete anyone's
    (and village/app admins as the backstop, as for members); no editing at first.*
 5. **History.** *kept while the group exists; a member who leaves loses read
    access; their messages stay, under the name they had.*
 
-## Data layer — as built
+Decided 2026-11-01 (user), replacing decision 3: "chat messages should not notify, we can
+add an option so you can activate the notifications, but in principle you don't get
+notifications." In general and aviso chats alike, with no exception for the aviso's author
+or earlier writers, nothing notifies by default. One per-member, per-group toggle covers both
+kinds of chat, off by default; an opted-in member gets a normal notification per message and
+the group mute still wins. The unread badge on the group's tiles stays for everyone.
+
+Decided 2026-11-01 (user): report and block go with the screens (App Store guideline 1.2): a
+report action on chat messages and hiding messages from blocked users. The report includes the
+reported message's text, so village and app admins see what was reported without getting access
+to the chat. Chat messages are hard-deleted when an account is deleted, and stay when someone
+only leaves a group.
+
+## As built
 
 - **Layout:** `organizations/{orgId}/chat/{id}` (general), `organizations/{orgId}/messages/{id}/chat/{id}`
-  (aviso), `organizations/{orgId}/chatThreads/{threadId}` (function-owned summary) and its
-  `reads/{uid}` (the reader's last open). A thread id is the aviso's or `general`.
+  (aviso), `organizations/{orgId}/chatThreads/{threadId}` (function-owned `lastMessageAt`,
+  `lastAuthorUid`) and its `reads/{uid}` (the reader's last open). A thread id is the aviso's or
+  `general`.
 - **Names:** stored on each message; the rules require the writer's `publicProfiles` name.
-- **Push:** no new notification type. An old binary's strict converter would throw on one and
-  blank its Buzón, so chat pushes are `group_message`, keyed `group_chat_<threadId>_<chatId>`.
-  They open the group's Avisos section and obey the group's mute. The general chat's opt-in
-  is `groupPrefs.generalChatPush`.
-- **Unread:** `isGroupChatThreadUnread` / `countUnreadGroupChatThreads` over `watchGroupChatThreads`
-  + `watchMyGroupChatReads`. The caller passes `general` plus the ids of its avisos.
-- **Pagination:** `watchGroupChat` with a growing `count`, from `GROUP_CHAT_PAGE_SIZE`.
-- **Account erasure:** `deleteAccount` hard-deletes the user's messages, like comments. Leaving
-  a group keeps them (decision 5).
+- **Push:** no new notification type, since an old binary's strict converter would throw on one
+  and blank its Buzón. Chat pushes are `group_message`, keyed `group_chat_<threadId>_<chatId>`,
+  with `chatThreadId` to open the thread (an old binary drops the field and opens the avisos).
+  The trigger finds the opted-in by a collection-group query on `groupPrefs` (`orgId` + `chatPush`),
+  then keeps those who may still read the thread.
+- **Unread:** `useGroupChatUnread`, per thread: the summary against the reader's last open.
+- **Screens:** the Charla is the `charla` section; an aviso's thread is
+  `/grupos/<orgId>/aviso/<id>`, opened from its notice, the admins' detail sheet and a push.
+- **Aviso links:** WhatsApp and email carry `/grupos?grupo=<orgId>&aviso=<id>`, not the route:
+  a binary with no aviso route still opens the group from it.
+- **Reports:** `targetKind: 'comment'` with the message's path as `targetId` and its words in
+  `targetText`. A new enum value would throw in an installed admin binary's strict report
+  converter and take down its whole Denuncias list. The reporter supplies the text; nothing checks
+  it against the message.
 
-## Left to the builder
+## Left for later
 
-Screens and i18n: the chat under `MessageDetailSheet`/`GroupNotices`, the Charla, the unread
-badge, the "solo la junta escribe" switch in `GroupSettings`, and the opt-in beside the mute —
-against the code of the day, once #604 is in.
+Photos, reactions, replies to a message and mentions (*What*). A Maestro flow for the chat
+(unit-tested, see `e2e/native/uncovered.json`). A deleted message does not move the thread's
+summary back, so a badge may show until the thread is opened.

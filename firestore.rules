@@ -931,7 +931,7 @@ service cloud.firestore {
     }
 
     function isValidContentReportCreate(d) {
-      return d.keys().hasOnly(['municipalityId', 'targetKind', 'targetId', 'targetAuthorUserId', 'reporterUserId', 'reason', 'note', 'status', 'createdAt'])
+      return d.keys().hasOnly(['municipalityId', 'targetKind', 'targetId', 'targetAuthorUserId', 'reporterUserId', 'reason', 'note', 'targetText', 'status', 'createdAt'])
           && d.keys().hasAll(['municipalityId', 'targetKind', 'targetId', 'targetAuthorUserId', 'reporterUserId', 'reason', 'note', 'status', 'createdAt'])
           && isString(d.municipalityId)
           && d.targetKind in ['event', 'festivalPoster', 'place', 'barrio', 'organization', 'news', 'vocabularyTerm', 'historyEntry', 'comment', 'person']
@@ -940,6 +940,7 @@ service cloud.firestore {
           && isString(d.reporterUserId)
           && d.reason in ['spam', 'harassment', 'hate', 'sexual', 'violence', 'falseInfo', 'other']
           && (d.note == null || (isString(d.note) && d.note.size() <= 500))
+          && (d.get('targetText', null) == null || (isString(d.targetText) && d.targetText.size() <= 2000))
           && d.status == 'open'
           && isTimestamp(d.createdAt);
     }
@@ -1391,10 +1392,11 @@ service cloud.firestore {
       match /groupPrefs/{orgId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId)
-          && request.resource.data.keys().hasOnly(['messagesMuted', 'generalChatPush', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['messagesMuted', 'chatPush', 'orgId', 'updatedAt'])
           && request.resource.data.keys().hasAll(['messagesMuted', 'updatedAt'])
           && request.resource.data.messagesMuted is bool
-          && request.resource.data.get('generalChatPush', false) is bool
+          && request.resource.data.get('chatPush', false) is bool
+          && request.resource.data.get('orgId', orgId) == orgId
           && isTimestamp(request.resource.data.updatedAt);
       }
 
@@ -1948,7 +1950,7 @@ service cloud.firestore {
       }
 
       // Per thread (an aviso's id, or `general`): when it last moved and who
-      // wrote in it. Function-owned. A reader's last open moves forward only.
+      // wrote last. Function-owned. A reader's last open moves forward only.
       match /chatThreads/{threadId} {
         allow read: if canReadGroupChatThread(orgId, threadId);
         allow write: if false;

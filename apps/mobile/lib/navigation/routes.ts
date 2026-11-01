@@ -5,6 +5,7 @@ import {
   entityPath,
   eventLinkTarget,
   festivalPosterLinkTarget,
+  groupAvisoPath,
   groupPath,
   groupSectionPath,
   newWordPath,
@@ -71,6 +72,9 @@ export const villageHref = (villageSlug: string): HrefPath => href(villagePath(v
 
 /** The Grupos tab, opened on one group. */
 export const groupHref = (orgId: string): HrefPath => href(groupPath(orgId));
+
+/** One aviso and its chat. */
+export const groupAvisoHref = (orgId: string, messageId: string): HrefPath => href(groupAvisoPath(orgId, messageId));
 
 export const groupSectionHref = (orgId: string, section: GroupSection): HrefPath => href(groupSectionPath(orgId, section));
 

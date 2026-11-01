@@ -2,7 +2,7 @@
 // Group chat: who reads and writes the general thread and an aviso's, that a
 // message is written as its author under their public name, the "solo la junta
 // escribe" switch, deletion, the function-owned thread summaries, the reader's
-// last open, and the general chat's push opt-in.
+// last open, the chat's push opt-in and reporting a message.
 import { describe, it, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import {
@@ -51,8 +51,8 @@ async function seed(org: Record<string, unknown> = {}) {
     await setDoc(doc(db, AVISO), { title: 'Asamblea', recipientUids: ['admin1', 'member1'], sentBy: 'admin1' });
     await setDoc(doc(db, `${GENERAL}/c1`), { authorUid: 'member1', authorName: 'Paco', body: 'Buenas', createdAt: new Date() });
     await setDoc(doc(db, `${AVISO_CHAT}/c1`), { authorUid: 'member1', authorName: 'Paco', body: 'Voy', createdAt: new Date() });
-    await setDoc(doc(db, `organizations/${ORG}/chatThreads/general`), { lastMessageAt: new Date(), lastAuthorUid: 'member1', participantUids: ['member1'] });
-    await setDoc(doc(db, `organizations/${ORG}/chatThreads/msg1`), { lastMessageAt: new Date(), lastAuthorUid: 'member1', participantUids: ['member1'] });
+    await setDoc(doc(db, `organizations/${ORG}/chatThreads/general`), { lastMessageAt: new Date(), lastAuthorUid: 'member1' });
+    await setDoc(doc(db, `organizations/${ORG}/chatThreads/msg1`), { lastMessageAt: new Date(), lastAuthorUid: 'member1' });
   });
 }
 
@@ -152,7 +152,7 @@ describe('thread summaries and reads', () => {
     await assertFails(getDoc(doc(asUser(getEnv(), 'member2'), `organizations/${ORG}/chatThreads/msg1`)));
     await assertFails(getDoc(doc(asUser(getEnv(), 'stranger'), `organizations/${ORG}/chatThreads/general`)));
     await assertFails(
-      setDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${ORG}/chatThreads/general`), { lastMessageAt: new Date(), lastAuthorUid: 'admin1', participantUids: [] }),
+      setDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${ORG}/chatThreads/general`), { lastMessageAt: new Date(), lastAuthorUid: 'admin1' }),
     );
   });
 
@@ -171,16 +171,41 @@ describe('thread summaries and reads', () => {
   });
 });
 
-describe('group prefs — the general chat opt-in', () => {
+describe('group prefs — the chat opt-in', () => {
   const prefs = `users/member1/groupPrefs/${ORG}`;
 
-  it('takes the opt-in beside the mute, and still the older shape without it', async () => {
+  it('takes the opt-in and its group beside the mute, and still the older shape without them', async () => {
     const db = asUser(getEnv(), 'member1');
     await assertSucceeds(setDoc(doc(db, prefs), { messagesMuted: false, updatedAt: new Date() }));
-    await assertSucceeds(setDoc(doc(db, prefs), { messagesMuted: false, generalChatPush: true, updatedAt: new Date() }));
+    await assertSucceeds(setDoc(doc(db, prefs), { messagesMuted: false, chatPush: true, orgId: ORG, updatedAt: new Date() }));
     await assertSucceeds(setDoc(doc(db, prefs), { messagesMuted: true, updatedAt: new Date() }, { merge: true }));
-    await assertFails(setDoc(doc(db, prefs), { messagesMuted: false, generalChatPush: 'yes', updatedAt: new Date() }));
-    await assertFails(setDoc(doc(db, prefs), { generalChatPush: true, updatedAt: new Date() }));
+    await assertFails(setDoc(doc(db, prefs), { messagesMuted: false, chatPush: 'yes', orgId: ORG, updatedAt: new Date() }));
+    await assertFails(setDoc(doc(db, prefs), { chatPush: true, orgId: ORG, updatedAt: new Date() }));
+  });
+
+  it('the stored group must be the doc’s own, so no one subscribes through another group’s query', async () => {
+    await assertFails(setDoc(doc(asUser(getEnv(), 'member1'), prefs), { messagesMuted: false, chatPush: true, orgId: 'other', updatedAt: new Date() }));
+  });
+});
+
+describe('content reports — a chat message', () => {
+  const report = (over: Record<string, unknown> = {}) => ({
+    municipalityId: MUN, targetKind: 'comment', targetId: `${GENERAL}/c1`, targetAuthorUserId: 'member1',
+    reporterUserId: 'member2', reason: 'harassment', note: null, targetText: 'Buenas', status: 'open', createdAt: new Date(),
+    ...over,
+  });
+
+  it('carries the reported text for the village’s admins, who cannot read the chat', async () => {
+    await assertSucceeds(setDoc(doc(asUser(getEnv(), 'member2'), 'contentReports/r1'), report()));
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'vadmin'), 'contentReports/r1')));
+    await assertFails(getDoc(doc(asUser(getEnv(), 'vadmin'), `${GENERAL}/c1`)));
+  });
+
+  it('refuses over-long text, and still takes a report without it', async () => {
+    const db = asUser(getEnv(), 'member2');
+    await assertFails(setDoc(doc(db, 'contentReports/r2'), report({ targetText: 'x'.repeat(2001) })));
+    const { targetText: _omit, ...older } = report();
+    await assertSucceeds(setDoc(doc(db, 'contentReports/r3'), older));
   });
 });
 

@@ -8,6 +8,7 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 
 export const GROUP_SECTION_ICONS: Record<GroupSection, IconName> = {
   avisos: 'megaphone-outline',
+  charla: 'chatbubbles-outline',
   eventos: 'calendar-outline',
   tareas: 'checkbox-outline',
   cuota: 'wallet-outline',
@@ -28,9 +29,9 @@ export interface GroupSectionLists {
 
 /**
  * Which screens a group offers its viewer, in display order. Cuota, socios,
- * messaging and records exist only for orgs with a socio roster (not the
- * ayuntamiento); tasks and members are for every org, and every member manages
- * the tasks, so they have no Gestionar button. An admin reads the actas
+ * avisos and records exist only for orgs with a socio roster (not the
+ * ayuntamiento); the Charla, tasks, members and settings are for every org, and
+ * every member manages the tasks, so they have no Gestionar button. An admin reads the actas
  * and the socio list under Gestionar, so the member list leaves them out.
  */
 export function groupSections({ org, role }: MyGroup): GroupSectionLists {
@@ -38,6 +39,7 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
   const isAdmin = role === 'admin';
   const member: GroupSection[] = [
     ...(roster ? (['avisos'] as const) : []),
+    'charla',
     'eventos',
     'tareas',
     ...(roster ? (['cuota'] as const) : []),
@@ -50,7 +52,7 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
         ...(roster ? (['cobros', 'mensajes', 'socios'] as const) : []),
         ...(roster ? (['registros'] as const) : []),
         'miembros',
-        ...(roster ? (['ajustes'] as const) : []),
+        'ajustes',
       ]
     : [];
   return { member, admin };

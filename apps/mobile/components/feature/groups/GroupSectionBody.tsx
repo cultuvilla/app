@@ -92,6 +92,16 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
         </VStack>
       );
     case 'ajustes':
-      return <GroupSettings orgId={org.id} sociosListVisible={org.sociosListVisible} />;
+      return (
+        <GroupSettings
+          orgId={org.id}
+          sociosListVisible={org.sociosListVisible}
+          hasRoster={hasSocioRoster(org.type)}
+          chatAdminsOnly={org.chatAdminsOnly}
+        />
+      );
+    // Its own full-height screen, not this scrolling body: see [seccion].tsx.
+    case 'charla':
+      return null;
   }
 }

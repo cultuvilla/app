@@ -127,6 +127,12 @@ describe('sendGroupMessage', () => {
     expect(rows['u-paco']).toMatchObject({ personal: null });
   });
 
+  it('links each email to the aviso, not just the group', async () => {
+    await runSendGroupMessage(db(), 'u-luis', input(), NOW);
+    const emails = sendEmailBatchMock.mock.calls[0]?.[0] as { text: string }[];
+    expect(emails[0]?.text).toContain(`/grupos?grupo=${ORG_ID}&aviso=Msg0000000001`);
+  });
+
   it('leaves the default Reply-To when the sending admin has no address', async () => {
     await db().doc('users/u-luis').update({ email: '' });
     await runSendGroupMessage(db(), 'u-luis', input(), NOW);

@@ -851,6 +851,26 @@
       ]
     },
     {
+      "collectionGroup": "groupPrefs",
+      "fieldPath": "orgId",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "groupPrefs",
+      "fieldPath": "chatPush",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "chat",
       "fieldPath": "authorUid",
       "indexes": [

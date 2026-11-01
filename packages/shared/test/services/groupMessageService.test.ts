@@ -78,7 +78,7 @@ describe('groupMessageService', () => {
     expect(path).toBe('users/u1/groupPrefs/org1');
     expect(data).toMatchObject({ messagesMuted: true });
     // A merge that never names the chat opt-in, so muting keeps it.
-    expect(data).not.toHaveProperty('generalChatPush');
+    expect(data).not.toHaveProperty('chatPush');
     expect(vi.mocked(setDoc).mock.calls[0]?.[2]).toEqual({ merge: true });
   });
 

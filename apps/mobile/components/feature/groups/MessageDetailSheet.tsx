@@ -26,7 +26,9 @@ import {
 } from '@cultuvilla/shared/services/groupMessageService';
 import { watchOrgSocioPrivates, type SocioPrivate } from '@cultuvilla/shared/services/socioService';
 import { getDeepLinkHost } from '@cultuvilla/shared/services/deepLinkService';
-import { formatDate, groupPath } from '@cultuvilla/shared/utils';
+import { formatDate, groupAvisoLinkPath } from '@cultuvilla/shared/utils';
+import { router } from 'expo-router';
+import { groupAvisoHref } from '../../../lib/navigation/routes';
 import { BottomSheet, Button, Card, Checkbox, HStack, Text, VStack } from '../../primitives';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
@@ -85,7 +87,7 @@ export function MessageDetailSheet({
   const unread = unreadRecipientUids(message, readIds);
   const inApp = message.recipientUids.filter((u) => u !== message.sentBy);
   const now = new Date();
-  const appUrl = `https://${getDeepLinkHost()}${groupPath(orgId)}`;
+  const appUrl = `https://${getDeepLinkHost()}${groupAvisoLinkPath(orgId, message.id)}`;
   const textFor = (values: GroupMessagePersonalValues) =>
     groupMessageWhatsappText({ ...personalizeGroupMessage(message, values), orgName }, appUrl);
   const whatsapp = rows.filter((d) => d.whatsappSocioId !== null);
@@ -123,6 +125,16 @@ export function MessageDetailSheet({
             {t('groups.messages.sentBy', { name: message.signerName, date: formatDate(message.sentAt, 'long') })}
           </Text>
           <Text selectable>{message.body}</Text>
+          <Button
+            variant="secondary"
+            testID="group-msg-detail-chat"
+            onPress={() => {
+              onClose();
+              router.push(groupAvisoHref(orgId, message.id));
+            }}
+          >
+            {t('groups.chat.open')}
+          </Button>
           <Button
             variant="secondary"
             onPress={() => void Linking.openURL(whatsappShareLink(textFor(NEUTRAL_PERSONAL_VALUES))).catch(fail)}

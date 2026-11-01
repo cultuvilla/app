@@ -6,6 +6,8 @@ import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { isGroupSection } from '@cultuvilla/shared/utils';
 import { HStack, Pressable, Screen, Text } from '../../../components/primitives';
 import { ScreenHeader } from '../../../components/layout/ScreenHeader';
+import { GENERAL_CHAT_THREAD_ID } from '@cultuvilla/shared/models/organization';
+import { GroupChat } from '../../../components/feature/groups/GroupChat';
 import { GroupSectionBody } from '../../../components/feature/groups/GroupSectionBody';
 import { GroupSwitcherSheet } from '../../../components/feature/groups/GroupSwitcher';
 import { useAuth } from '../../../lib/auth/useAuth';
@@ -67,6 +69,17 @@ export default function GroupSectionScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
+) : section === 'charla' ? (
+        // A chat scrolls itself and keeps its composer on screen.
+        <GroupChat
+          key={group.org.id}
+          orgId={group.org.id}
+          municipalityId={group.org.municipalityId}
+          threadId={GENERAL_CHAT_THREAD_ID}
+          uid={uid}
+          canModerate={group.role === 'admin'}
+          closedHint={group.org.chatAdminsOnly && group.role !== 'admin' ? t('groups.chat.adminsOnly') : undefined}
+        />
       ) : (
         <ScrollView contentContainerClassName="px-4 pt-3 pb-16" keyboardShouldPersistTaps="handled" testID={`group-section-screen-${section}`}>
           <GroupSectionBody key={group.org.id} group={group} section={section} uid={uid} />

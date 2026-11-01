@@ -1652,6 +1652,7 @@
     },
     "sections": {
       "avisos": "Avisos",
+      "charla": "Charla",
       "eventos": "Eventos",
       "tareas": "Tareas",
       "cuota": "Mi cuota",
@@ -1751,6 +1752,8 @@
       "title": "Ajustes del grupo",
       "sociosListVisible": "Los estatutos permiten ver la lista de socios",
       "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
+      "chatAdminsOnly": "Solo la junta escribe en la Charla",
+      "chatAdminsOnlyHint": "Los demás podrán leerla, pero no escribir. Los chats de los avisos siguen abiertos a quienes los reciben.",
       "error": "No se ha podido guardar el ajuste."
     },
     "cuota": {
@@ -2092,6 +2095,27 @@
           "save": "Anotar"
         }
       }
+    },
+    "chat": {
+      "avisoTitle": "Aviso",
+      "avisoUnavailable": "Este aviso no está disponible.",
+      "open": "Ver la conversación",
+      "openNew": "Ver la conversación · mensajes nuevos",
+      "empty": "Todavía no ha escrito nadie. Lo que escribas lo verá el grupo, con tu nombre.",
+      "placeholder": "Escribe un mensaje",
+      "send": "Enviar",
+      "sendError": "No se ha podido enviar el mensaje.",
+      "loadError": "No se han podido cargar los mensajes.",
+      "adminsOnly": "En este grupo solo la junta escribe en la Charla.",
+      "options": "Opciones del mensaje",
+      "delete": "Borrar el mensaje",
+      "deleteTitle": "¿Borrar este mensaje?",
+      "deleteBody": "Desaparecerá para todo el grupo.",
+      "deleteError": "No se ha podido borrar el mensaje.",
+      "report": "Denunciar o bloquear",
+      "push": "Avisarme de los mensajes de los chats",
+      "pushHint": "Para este grupo: su Charla y los chats de sus avisos.",
+      "pushError": "No se ha podido guardar."
     },
     "messages": {
       "title": "Mensajes",

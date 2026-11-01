@@ -84,6 +84,11 @@ export default function AdminReportsScreen() {
                   size={32}
                 />
               ) : null}
+              {item.targetText ? (
+                <Text selectable testID={`admin-report-text-${item.id}`}>
+                  {item.targetText}
+                </Text>
+              ) : null}
               {item.note ? <Text>{item.note}</Text> : null}
               <HStack gap={2}>
                 <Button

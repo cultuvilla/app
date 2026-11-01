@@ -8,6 +8,11 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
+jest.mock('../../../../lib/orgs/useGroupChatUnread', () => ({
+  useGroupChatUnread: () => ({ generalUnread: false, unreadAvisoIds: new Set(['chatty']) }),
+}));
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ router: { push: (href: unknown) => mockPush(href) } }));
 const mockValues = { nombre: null as string | null, numero: null as number | null, cuotaCents: null as number | null };
 jest.mock('../../../../lib/orgs/useMyMessageValues', () => ({ useMyMessageValues: () => mockValues }));
 const mockMarkRead = jest.fn(() => Promise.resolve());
@@ -100,5 +105,16 @@ describe('GroupNotices', () => {
     const { getByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
     fireEvent.press(getByTestId('group-notices-mute'));
     expect(mockMute).toHaveBeenCalledWith('u1', 'org1', true);
+  });
+
+  it('each notice opens its conversation, and says when it has something new', () => {
+    setWatched('messages', [message('quiet'), message('chatty')]);
+    setWatched('reads', []);
+    setWatched('prefs', null);
+    const r = render(<GroupNotices orgId="org1" uid="u1" />);
+    expect(r.getByText('groups.chat.openNew')).toBeTruthy();
+    expect(r.getByText('groups.chat.open')).toBeTruthy();
+    fireEvent.press(r.getByTestId('group-notice-chat-quiet'));
+    expect(mockPush).toHaveBeenCalledWith('/grupos/org1/aviso/quiet');
   });
 });

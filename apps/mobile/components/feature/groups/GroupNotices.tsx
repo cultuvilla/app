@@ -10,10 +10,15 @@ import {
 } from '@cultuvilla/shared/services/groupMessageService';
 import { personalizeGroupMessage } from '@cultuvilla/shared/models/organization';
 import { formatDate } from '@cultuvilla/shared/utils';
-import { Card, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
+import { Card, HStack, Pressable, Text, Toggle, VStack } from '../../primitives';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
+import { groupAvisoHref } from '../../../lib/navigation/routes';
+import { useGroupChatUnread } from '../../../lib/orgs/useGroupChatUnread';
 import { useGroupNotices } from '../../../lib/orgs/useGroupNotices';
 import { useMyMessageValues } from '../../../lib/orgs/useMyMessageValues';
 
@@ -26,6 +31,8 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
   const { t } = useT();
   const { notices, status, readsStatus, readIds } = useGroupNotices(orgId, uid);
   const myValues = useMyMessageValues(orgId, uid);
+  const noticeIds = useMemo(() => notices.map((m) => m.id), [notices]);
+  const { unreadAvisoIds } = useGroupChatUnread(orgId, uid, noticeIds);
   const pollIds = useMemo(() => notices.filter((m) => m.poll).map((m) => m.id), [notices]);
   const pollKey = pollIds.join(',');
   const votes = useWatch<GroupPollVote[]>(
@@ -98,6 +105,19 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
                   </Text>
                 </VStack>
               ) : null}
+              <Pressable
+                testID={`group-notice-chat-${m.id}`}
+                accessibilityRole="button"
+                onPress={() => router.push(groupAvisoHref(orgId, m.id))}
+                className="pt-2"
+              >
+                <HStack gap={1} align="center">
+                  <Ionicons name="chatbubble-ellipses-outline" size={iconSizes.sm} color={colors.light.fg.accent} />
+                  <Text variant="bodySm" className="text-accent font-bold">
+                    {t(unreadAvisoIds.has(m.id) ? 'groups.chat.openNew' : 'groups.chat.open')}
+                  </Text>
+                </HStack>
+              </Pressable>
             </VStack>
           </Card>
         );
