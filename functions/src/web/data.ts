@@ -309,7 +309,7 @@ function orgCard(o: OrgView, villageSlug: string): Card {
   return {
     href: entityPath('organization', { id: o.id, title: o.name, villageSlug }),
     title: o.name,
-    subtitle: o.memberCount ? `${String(o.memberCount)} miembros` : null,
+    subtitle: o.memberCount ? `${String(o.memberCount)} integrantes` : null,
     ...cardImages(o.images[0] ?? null),
   };
 }

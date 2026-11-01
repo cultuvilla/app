@@ -89,6 +89,8 @@ describe('approveOrganization (callable)', () => {
 
     const orgDoc = await admin.firestore().doc(`organizations/${ORG_ID}`).get();
     expect(orgDoc.data()?.status).toBe('approved');
+    // Installed binaries still create orgs as `open`.
+    expect(orgDoc.data()?.joinPolicy).toBe('approval');
     expect(orgDoc.data()?.reviewedBy).toBe(VILLAGE_ADMIN_ID);
 
     const memberDoc = await admin

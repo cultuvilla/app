@@ -55,7 +55,7 @@ export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: tru
       ]);
       if (caller.data()?.role !== 'admin') throw new HttpsError('permission-denied', 'No autorizado.');
       const membership = member.data();
-      if (!membership) throw new HttpsError('failed-precondition', 'Esa persona no es miembro del grupo.');
+      if (!membership) throw new HttpsError('failed-precondition', 'Esa persona no es integrante del grupo.');
       const typedData = typed.data();
       if (!typedData || typedData.kind !== 'typed' || typedData.bajaAt !== null) {
         throw new HttpsError('failed-precondition', 'Solo se puede vincular un socio añadido a mano y en alta.');

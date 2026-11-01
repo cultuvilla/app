@@ -36,6 +36,7 @@ export { approveOrganization } from './organizations/approveOrganization';
 export { changeOrgMemberRole } from './organizations/changeOrgMemberRole';
 export { respondToOrgJoinRequest } from './organizations/respondToOrgJoinRequest';
 export { onOrgJoinRequestCreated } from './organizations/onOrgJoinRequestCreated';
+export { syncOrgFollowerCount } from './organizations/syncOrgFollowerCount';
 export { syncOrgMemberCount } from './organizations/syncOrgMemberCount';
 export { syncOrgSocioRoster } from './organizations/syncOrgSocioRoster';
 export { assignSocioNumber } from './organizations/assignSocioNumber';
