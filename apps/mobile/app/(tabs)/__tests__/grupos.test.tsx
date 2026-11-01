@@ -23,7 +23,6 @@ type TaskRow = {
 const task = (over: Partial<TaskRow> & { id: string }): TaskRow => ({
   title: 'Comprar leña', dueOn: null, time: null, slots: null, claimedUids: [], assigneeUids: [], eventId: null, ...over,
 });
-let mockMyTasks: TaskRow[] = [];
 let mockOpenTasks: TaskRow[] = [];
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -47,7 +46,6 @@ jest.mock('../../../lib/orgs/useMyMessageValues', () => ({
   useMyMessageValues: () => ({ nombre: null, numero: null, cuotaCents: null }),
 }));
 jest.mock('../../../lib/orgs/useEventTaskBadges', () => ({ useEventTaskBadges: () => () => undefined }));
-jest.mock('../../../lib/orgs/useMyOpenTasks', () => ({ useMyOpenTasks: () => ({ mine: mockMyTasks, status: 'ready' }) }));
 let mockEvents: { id: string; title: string; startDate: Date; endDate: Date | null; confirmedCount: number; imageURL: null; villageCoverImage: null; villageSlug: string }[] = [];
 jest.mock('../../../lib/hooks/useWatch', () => ({
   useWatch: (label: string) => ({
@@ -104,7 +102,6 @@ beforeEach(() => {
   mockParams = {};
   mockRemembered = null;
   mockUnread = 0;
-  mockMyTasks = [];
   mockOpenTasks = [];
   mockNotices = [];
   mockNoticesStatus = 'ready';
@@ -150,7 +147,7 @@ describe('Grupos tab', () => {
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     expect(getByTestId('stub-consent-unanswered')).toBeTruthy();
-    for (const s of ['avisos', 'eventos', 'tareas', 'cuota', 'actas', 'mis-datos']) {
+    for (const s of ['charla', 'cuota', 'actas', 'mis-datos', 'ajustes']) {
       expect(getByTestId(`group-section-${s}`)).toBeTruthy();
     }
     expect(getByTestId('group-actions')).toHaveTextContent(/groups\.home\.actions/);
@@ -159,14 +156,23 @@ describe('Grupos tab', () => {
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/cuota');
   });
 
-  it('badges the unread notices and my open tasks', async () => {
+  it('has no buttons for what its rows open, and counts the new avisos in their row', async () => {
     mockGroups = [group('Anduela')];
     mockUnread = 2;
-    mockMyTasks = [task({ id: 't1' })];
-    const { findByTestId, getByTestId } = render(<GroupsTabScreen />);
+    const { findByTestId, queryByTestId, getByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getByTestId('group-section-avisos-badge')).toBeTruthy();
-    expect(getByTestId('group-section-tareas-badge')).toBeTruthy();
+    for (const s of ['avisos', 'eventos', 'tareas']) expect(queryByTestId(`group-section-${s}`)).toBeNull();
+    expect(getByText(/groups\.home\.avisosWithNew/)).toBeTruthy();
+  });
+
+  it('keeps the event and task rows with nothing to show, each opening its screen', async () => {
+    mockGroups = [group('Anduela')];
+    const { findByTestId, getByText } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    fireEvent.press(getByText('groups.sections.empty.eventos'));
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/eventos');
+    fireEvent.press(getByText('groups.tasks.noOpen'));
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/tareas');
   });
 
   it("lists every task the group still has to do, soonest first, with its day, event and people", async () => {
@@ -223,7 +229,7 @@ describe('Grupos tab', () => {
     ];
     const { findByTestId, queryByText, getByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getByText('groups.upcomingEvents')).toBeTruthy();
+    expect(getByText('groups.sections.eventos')).toBeTruthy();
     expect(getByText('Matanza')).toBeTruthy();
     expect(queryByText('Romería pasada')).toBeNull();
   });
@@ -291,9 +297,9 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
-    expect(order).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'mis-datos', 'ajustes', 'cobros', 'mensajes', 'socios', 'registros']);
+    expect(order).toEqual(['charla', 'cuota', 'mis-datos', 'ajustes', 'cobros', 'mensajes', 'socios', 'registros']);
     expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
-    expect(getByTestId('group-section-tareas').props.accessibilityHint).toBeUndefined();
+    expect(getByTestId('group-section-charla').props.accessibilityHint).toBeUndefined();
     fireEvent.press(getByTestId('group-section-registros'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/registros');
   });
@@ -315,7 +321,7 @@ describe('Grupos tab', () => {
     expect(queryByTestId('stub-consent-unanswered')).toBeNull();
     expect(queryByTestId('group-section-cuota')).toBeNull();
     expect(queryByTestId('group-section-cobros')).toBeNull();
-    expect(getByTestId('group-section-tareas')).toBeTruthy();
+    expect(getByTestId('group-section-charla')).toBeTruthy();
     expect(getByTestId('group-section-miembros')).toBeTruthy();
   });
 
@@ -325,7 +331,7 @@ describe('Grupos tab', () => {
     mockChatUnread = { generalUnread: true, unreadAvisoIds: new Set(['a1', 'a2']) };
     const r = render(<GroupsTabScreen />);
     await waitFor(() => expect(r.getByTestId('group-section-charla-badge')).toBeTruthy());
-    expect(r.getByTestId('group-section-avisos-badge')).toHaveTextContent('3');
+    expect(r.getByText(/groups\.home\.avisosWithNew/)).toBeTruthy();
     mockChatUnread = { generalUnread: false, unreadAvisoIds: new Set() };
     mockUnread = 0;
   });

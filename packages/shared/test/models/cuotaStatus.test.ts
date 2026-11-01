@@ -142,12 +142,12 @@ describe('computeCuotaStatuses', () => {
   };
   const statusOf = (rows: ReturnType<typeof computeCuotaStatuses>, id: string) => rows.find((r) => r.socioId === id);
 
-  it('is pendiente until the grace period ends, then vencida', () => {
+  it('is pendiente through its due day, then vencida', () => {
     const socios = [socio('ana')];
     const before = computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-02-01' });
-    expect(statusOf(before, 'ana')).toMatchObject({ status: 'pendiente', basis: 'unpaid', owedCents: 3000, paidCents: 0, dueOn: '2026-03-01', overdueAfter: '2026-03-31' });
-    expect(statusOf(computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-03-31' }), 'ana')?.status).toBe('pendiente');
-    expect(statusOf(computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-04-01' }), 'ana')?.status).toBe('vencida');
+    expect(statusOf(before, 'ana')).toMatchObject({ status: 'pendiente', basis: 'unpaid', owedCents: 3000, paidCents: 0, dueOn: '2026-03-01' });
+    expect(statusOf(computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-03-01' }), 'ana')?.status).toBe('pendiente');
+    expect(statusOf(computeCuotaStatuses({ ...base, socios, payments: [], today: '2026-03-02' }), 'ana')?.status).toBe('vencida');
   });
 
   it('is al día once the payments cover what is owed, and not for a partial payment', () => {
@@ -213,9 +213,9 @@ describe('computeCuotaStatuses', () => {
       ...base,
       socios: [socio('new', { altaAt: new Date('2026-09-10T10:00:00Z') })],
       payments: [],
-      today: '2026-09-20',
+      today: '2026-09-10',
     });
-    expect(statusOf(rows, 'new')).toMatchObject({ status: 'pendiente', dueOn: '2026-09-10', overdueAfter: '2026-10-10' });
+    expect(statusOf(rows, 'new')).toMatchObject({ status: 'pendiente', dueOn: '2026-09-10' });
   });
 
   it('owes nothing for a period before the group started tracking', () => {
@@ -233,8 +233,7 @@ describe('cuotaReminderStage', () => {
     expect(cuotaReminderStage(statusAt('2026-02-21'), '2026-02-21')).toBeNull();
     expect(cuotaReminderStage(statusAt('2026-02-22'), '2026-02-22')).toBe('before');
     expect(cuotaReminderStage(statusAt('2026-03-01'), '2026-03-01')).toBe('before');
-    expect(cuotaReminderStage(statusAt('2026-03-15'), '2026-03-15')).toBeNull();
-    expect(cuotaReminderStage(statusAt('2026-04-01'), '2026-04-01')).toBe('after');
+    expect(cuotaReminderStage(statusAt('2026-03-02'), '2026-03-02')).toBe('after');
   });
 
   it('never reminds a socio who is al día, or a persona the household covers', () => {

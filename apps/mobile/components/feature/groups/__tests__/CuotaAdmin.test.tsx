@@ -48,7 +48,7 @@ jest.mock('@cultuvilla/shared/services/socioService', () => ({
 
 const TODAY = madridDayKey(new Date());
 const YEAR = TODAY.slice(0, 4);
-// Due 1 January with no grace: vencida from the 2nd, pendiente on the day itself.
+// Due 1 January: vencida from the 2nd, pendiente on the day itself.
 const UNPAID = TODAY > `${YEAR}-01-01` ? 'vencida' : 'pendiente';
 
 function socio(id: string, input: Partial<SocioDataInput>) {
@@ -110,7 +110,7 @@ describe('CuotaAdmin', () => {
     expect(orgId).toBe('org1');
     expect(uid).toBe('u-admin');
     expect(values).toMatchObject({
-      amountCents: 2550, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 30, startPeriod: YEAR,
+      amountCents: 2550, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 0, startPeriod: YEAR,
       bizum: '600111222', remindersEnabled: false,
       tiers: [expect.objectContaining({ name: 'Familiar', amountCents: 4000, coversPersonas: true })],
     });
@@ -198,17 +198,13 @@ describe('CuotaAdmin', () => {
     fireEvent.press(getByTestId('cuota-tier-covers-jub'));
     expect(getByTestId('cuota-settings-periodicity')).toBeTruthy();
     fireEvent.press(getByTestId('cuota-settings-periodicity-monthly'));
-    expect(getByTestId('cuota-settings-grace')).toBeTruthy();
-    fireEvent.press(getByTestId('cuota-settings-grace-trigger'));
-    fireEvent.press(getByTestId('cuota-settings-grace-options-15'));
     fireEvent.changeText(getByTestId('cuota-settings-iban'), 'es12 3456');
     fireEvent.changeText(getByTestId('cuota-settings-instructions'), 'En mano');
-    fireEvent.press(getByTestId('cuota-settings-reminders'));
     fireEvent.press(getByTestId('cuota-settings-save'));
     await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
     expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({
-      periodicity: 'monthly', startPeriod: TODAY.slice(0, 7), graceDays: 15, iban: 'es12 3456', payInstructions: 'En mano',
-      remindersEnabled: false, tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1200, coversPersonas: true }],
+      periodicity: 'monthly', startPeriod: TODAY.slice(0, 7), graceDays: 0, iban: 'es12 3456', payInstructions: 'En mano',
+      remindersEnabled: true, tiers: [{ id: 'jub', name: 'Jubilados', amountCents: 1200, coversPersonas: true }],
     });
   });
 

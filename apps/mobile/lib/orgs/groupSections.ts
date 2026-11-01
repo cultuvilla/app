@@ -59,6 +59,13 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
   return { member, admin };
 }
 
+/** Opened from their row's "Ver todos" on the group's home, so they need no button there. */
+const SECTIONS_WITH_A_ROW: readonly GroupSection[] = ['avisos', 'eventos', 'tareas'];
+
+export function homeButtons(sections: GroupSection[]): GroupSection[] {
+  return sections.filter((s) => !SECTIONS_WITH_A_ROW.includes(s));
+}
+
 export function canOpenGroupSection(group: MyGroup, section: GroupSection): boolean {
   const { member, admin } = groupSections(group);
   return member.includes(section) || admin.includes(section);

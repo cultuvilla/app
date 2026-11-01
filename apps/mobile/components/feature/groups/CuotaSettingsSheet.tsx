@@ -32,11 +32,9 @@ interface Draft {
   periodicity: CuotaPeriodicity;
   dueMonth: number;
   dueDay: string;
-  graceDays: string;
   bizum: string;
   iban: string;
   payInstructions: string;
-  remindersEnabled: boolean;
   tiers: TierDraft[];
 }
 
@@ -46,24 +44,14 @@ function draftOf(settings: CuotaSettings | null): Draft {
     periodicity: settings?.periodicity ?? 'yearly',
     dueMonth: settings?.dueMonth ?? 1,
     dueDay: String(settings?.dueDay ?? 1),
-    graceDays: String(settings?.graceDays ?? 30),
     bizum: settings?.bizum ?? '',
     iban: settings?.iban ?? '',
     payInstructions: settings?.payInstructions ?? '',
-    remindersEnabled: settings?.remindersEnabled ?? false,
     tiers: (settings?.tiers ?? []).map((tier) => ({ ...tier, amount: centsInputValue(tier.amountCents) })),
   };
 }
 
 const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
-const GRACE_PRESETS = [0, 7, 15, 30, 45, 60, 90];
-
-/** The usual margins, plus the stored one if a group set another. */
-function graceOptions(current: string): string[] {
-  const days = new Set(GRACE_PRESETS);
-  if (/^\d+$/.test(current)) days.add(Number(current));
-  return [...days].sort((a, b) => a - b).map(String);
-}
 
 function newTierId(): string {
   return `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -75,25 +63,22 @@ function intIn(text: string, min: number, max: number): number | null {
   return n >= min && n <= max ? n : null;
 }
 
-type Errors = Partial<Record<'amount' | 'dueDay' | 'graceDays' | `tier-${string}`, string>>;
+type Errors = Partial<Record<'amount' | 'dueDay' | `tier-${string}`, string>>;
 
 /**
- * Configure the cuota: amount, period, due date, grace, how to pay, tiers and
- * the reminders. A first configuration starts tracking at the current period
- * with the reminders off, so no socio is reminded before the treasurer has
- * recorded the payments already collected on paper.
+ * Configure the cuota: amount, period, due date, how to pay and tiers. A first
+ * configuration starts tracking at the current period with the reminders off:
+ * they are switched on in the group's Ajustes, once the treasurer has recorded
+ * the payments already collected on paper.
  */
 export function CuotaSettingsSheet({
   visible,
   settings,
-  signerName,
   onSave,
   onClose,
 }: {
   visible: boolean;
   settings: CuotaSettings | null;
-  /** Who the reminders would be signed by today, for the hint. */
-  signerName: string | null;
   onSave: (values: CuotaSettingsValues) => Promise<void>;
   onClose: () => void;
 }) {
@@ -120,8 +105,6 @@ export function CuotaSettingsSheet({
     if (amountCents === null) next.amount = t('groups.cuota.settings.amountInvalid');
     const dueDay = intIn(draft.dueDay, 1, 31);
     if (dueDay === null) next.dueDay = t('groups.cuota.settings.dueDayInvalid');
-    const graceDays = intIn(draft.graceDays, 0, 365);
-    if (graceDays === null) next.graceDays = t('groups.cuota.settings.graceDaysInvalid');
     const tiers: CuotaTier[] = [];
     for (const tier of draft.tiers) {
       const cents = parseEuroCents(tier.amount);
@@ -130,7 +113,7 @@ export function CuotaSettingsSheet({
       else tiers.push({ id: tier.id, name: tier.name.trim(), amountCents: cents, coversPersonas: tier.coversPersonas });
     }
     setErrors(next);
-    if (amountCents === null || dueDay === null || graceDays === null || Object.keys(next).length > 0) return;
+    if (amountCents === null || dueDay === null || Object.keys(next).length > 0) return;
 
     // A changed period restarts tracking now: a yearly '2026' and a monthly
     // '2026-10' are different calendars.
@@ -141,13 +124,13 @@ export function CuotaSettingsSheet({
       periodicity: draft.periodicity,
       dueMonth: draft.dueMonth,
       dueDay,
-      graceDays,
+      graceDays: 0,
       startPeriod: keepStart ? settings.startPeriod : currentPeriodKey(draft.periodicity),
       tiers,
       bizum: draft.bizum,
       iban: draft.iban,
       payInstructions: draft.payInstructions,
-      remindersEnabled: draft.remindersEnabled,
+      remindersEnabled: settings?.remindersEnabled ?? false,
     })
       .then(onClose)
       .catch(() => showAlert(t('groups.cuota.error')))
@@ -204,13 +187,6 @@ export function CuotaSettingsSheet({
             value={draft.dueDay}
             options={DAYS.map((d) => ({ value: d, label: d }))}
             onChange={(v) => set('dueDay', v)}
-          />
-          <SelectField
-            label={t('groups.cuota.settings.graceDays')}
-            testID="cuota-settings-grace"
-            value={draft.graceDays}
-            options={graceOptions(draft.graceDays).map((d) => ({ value: d, label: t('groups.cuota.settings.graceDaysValue', { count: Number(d) }) }))}
-            onChange={(v) => set('graceDays', v)}
           />
           <Input
             label={t('groups.cuota.settings.bizum')}
@@ -286,20 +262,6 @@ export function CuotaSettingsSheet({
               </Button>
             </HStack>
           ) : null}
-
-          <VStack gap={1} className="pt-2">
-            <Toggle
-              testID="cuota-settings-reminders"
-              value={draft.remindersEnabled}
-              label={t('groups.cuota.settings.reminders')}
-              onValueChange={(v) => set('remindersEnabled', v)}
-            />
-            <Text variant="bodySm" tone="muted">
-              {signerName
-                ? t('groups.cuota.settings.remindersHint', { name: signerName })
-                : t('groups.cuota.settings.remindersHintNoSigner')}
-            </Text>
-          </VStack>
         </VStack>
       </ScrollView>
     </FormModal>

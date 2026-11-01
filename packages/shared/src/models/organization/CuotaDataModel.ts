@@ -50,7 +50,7 @@ export const CuotaSettingsDataSchema = z.object({
   dueMonth: z.number().int().min(1).max(12),
   /** Day of the month it falls due; clamped to the month's last day. */
   dueDay: z.number().int().min(1).max(31),
-  /** Days after the due date before a pending cuota is vencida. */
+  /** Unused since an unpaid cuota is vencida right after its due day. Installed binaries still require it, and new saves write 0. */
   graceDays: z.number().int().min(0).max(365),
   /** The first period the group tracks: earlier ones are never owed. */
   startPeriod: PeriodKeySchema,

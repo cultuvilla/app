@@ -43,8 +43,6 @@ export interface SocioCuotaStatus {
   paidCents: number;
   /** The due day for this socio: the period's, or their alta when it came later. */
   dueOn: string;
-  /** The last day of grace; from the day after, an unpaid cuota is vencida. */
-  overdueAfter: string;
   /** For `household`: the socio row whose payment covers this one. */
   householdOf: string | null;
 }
@@ -183,7 +181,7 @@ function wasSocioDuring(socio: CuotaSocio, bounds: { first: string; last: string
 /**
  * Status of every socio who was one during the period. Al día when paid (net of
  * reversals) at least what they owe, or exempt; otherwise pendiente until the
- * grace period ends and vencida after it. A persona a cargo whose responsible
+ * due day ends and vencida after it. A persona a cargo whose responsible
  * member is on a tier that covers personas follows that member: one household
  * payment marks them all paid. A period before `startPeriod` owes nothing.
  */
@@ -199,19 +197,17 @@ export function computeCuotaStatuses(input: CuotaStatusInput): SocioCuotaStatus[
   const own = (s: CuotaSocio): SocioCuotaStatus => {
     const altaDay = madridDayKey(s.altaAt);
     const dueOn = altaDay > periodDue ? altaDay : periodDue;
-    const overdueAfter = addDays(dueOn, settings.graceDays);
     const assignment = assignments[s.id];
     const owed = owedCents(settings, assignment);
     const paidCents = paid.get(s.id) ?? 0;
     const settled = paidCents >= owed;
     return {
       socioId: s.id,
-      status: settled ? 'al_dia' : today > overdueAfter ? 'vencida' : 'pendiente',
+      status: settled ? 'al_dia' : today > dueOn ? 'vencida' : 'pendiente',
       basis: settled ? (owed === 0 ? 'exempt' : 'paid') : 'unpaid',
       owedCents: owed,
       paidCents,
       dueOn,
-      overdueAfter,
       householdOf: null,
     };
   };
@@ -236,7 +232,6 @@ export function computeCuotaStatuses(input: CuotaStatusInput): SocioCuotaStatus[
       basis: 'household',
       owedCents: 0,
       dueOn: headStatus.dueOn,
-      overdueAfter: headStatus.overdueAfter,
       householdOf: head.id,
     });
   }
