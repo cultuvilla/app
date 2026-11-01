@@ -18,6 +18,7 @@ import {
   deleteComment,
   getComments,
   getReplies,
+  newCommentId,
 } from '@cultuvilla/shared/services/commentsService';
 import { formatCompactRelativeTime } from '@cultuvilla/shared/utils';
 import { DELETED_USER_UID } from '@cultuvilla/shared/models/user';
@@ -95,19 +96,16 @@ function AuthorLink({
  */
 function SendAdornment({
   visible,
-  sending,
   onPress,
   label,
   testID,
 }: {
   visible: boolean;
-  sending: boolean;
   onPress: () => void;
   label: string;
   testID?: string;
 }) {
   if (!visible) return null;
-  if (sending) return <ActivityIndicator size="small" />;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} testID={testID}>
       <Ionicons name="arrow-up-circle" size={iconSizes.lg} color={colors.light.bg.accent} />
@@ -129,7 +127,6 @@ export function EntityComments({
   const [loading, setLoading] = useState(true);
   const [authors, setAuthors] = useState<Map<string, CommentAuthor>>(new Map());
   const [body, setBody] = useState('');
-  const [sending, setSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
   const [repliesByParent, setRepliesByParent] = useState<Map<string, CommentDoc[]>>(new Map());
@@ -299,46 +296,61 @@ export function EntityComments({
       return;
     }
     const trimmed = body.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed) return;
     const parentCommentId = replyingTo;
-    setSending(true);
-    void (async () => {
-      try {
-        const id = await addComment({
-          entityKind,
-          entityId,
-          municipalityId,
-          authorUserId: user.uid,
-          body: trimmed,
-          ...(parentCommentId ? { parentCommentId } : {}),
-        });
-        const posted: CommentDoc = {
-          id, entityKind, entityId, municipalityId, authorUserId: user.uid, body: trimmed,
-          createdAt: new Date(), parentCommentId, replyCount: 0,
-        };
-        if (parentCommentId) {
-          setComments((prev) =>
-            prev.map((c) => (c.id === parentCommentId ? { ...c, replyCount: c.replyCount + 1 } : c)),
-          );
-          setExpandedReplies((prev) => new Set(prev).add(parentCommentId));
-          // Appending to a thread we never fetched would render the new reply
-          // as if it were the whole thread — fetch it instead.
-          if (repliesByParent.has(parentCommentId)) {
-            setRepliesByParent((prev) =>
-              new Map(prev).set(parentCommentId, [...(prev.get(parentCommentId) ?? []), posted]),
-            );
-          } else {
-            void loadReplies(parentCommentId);
-          }
-        } else {
-          setComments((prev) => [...prev, posted]);
-        }
-        setReplyingTo(null);
-        setBody('');
-      } finally {
-        setSending(false);
+    const id = newCommentId();
+    const posted: CommentDoc = {
+      id, entityKind, entityId, municipalityId, authorUserId: user.uid, body: trimmed,
+      createdAt: new Date(), parentCommentId, replyCount: 0,
+    };
+    setReplyingTo(null);
+    setBody('');
+    if (parentCommentId) {
+      setComments((prev) =>
+        prev.map((c) => (c.id === parentCommentId ? { ...c, replyCount: c.replyCount + 1 } : c)),
+      );
+    } else {
+      setComments((prev) => [...prev, posted]);
+    }
+    // Not awaited for the UI: the write resolves on the server's ack, which may
+    // be far off. The cache holds the comment from now, so a reload shows it too.
+    const written = addComment({
+      id,
+      entityKind,
+      entityId,
+      municipalityId,
+      authorUserId: user.uid,
+      body: trimmed,
+      ...(parentCommentId ? { parentCommentId } : {}),
+    });
+    if (parentCommentId) {
+      setExpandedReplies((prev) => new Set(prev).add(parentCommentId));
+      // Appending to a thread we never fetched would render the new reply
+      // as if it were the whole thread — fetch it instead.
+      if (repliesByParent.has(parentCommentId)) {
+        setRepliesByParent((prev) =>
+          new Map(prev).set(parentCommentId, [...(prev.get(parentCommentId) ?? []), posted]),
+        );
+      } else {
+        void loadReplies(parentCommentId);
       }
-    })();
+    }
+    written.catch(() => {
+      setComments((prev) =>
+        prev
+          .filter((c) => c.id !== id)
+          .map((c) => (c.id === parentCommentId ? { ...c, replyCount: c.replyCount - 1 } : c)),
+      );
+      if (parentCommentId) {
+        setRepliesByParent((prev) => {
+          const next = new Map(prev);
+          next.set(parentCommentId, (prev.get(parentCommentId) ?? []).filter((r) => r.id !== id));
+          return next;
+        });
+      }
+      setBody((current) => current || trimmed);
+      Alert.alert(t('comments.sendError'));
+    });
   };
 
   return (
@@ -537,7 +549,6 @@ export function EntityComments({
                 rightAdornment={
                   <SendAdornment
                     visible={body.trim().length > 0}
-                    sending={sending}
                     onPress={onSend}
                     label={t('comments.send')}
                     testID="comment-send"
