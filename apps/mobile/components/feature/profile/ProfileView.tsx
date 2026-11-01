@@ -82,8 +82,7 @@ export function ProfileView({
 
   const otherPersonas = allPersonas.filter((p) => p.userId !== uid);
   // Everything that isn't a peña falls under "Grupos" (asociación + ayuntamiento
-  // + comisión + otros), so no membership is lost. The village home gives the
-  // comisión its own section; a person's few groups don't need a third list.
+  // + comisión + otros), so no membership is lost.
   const grupos = orgs.filter((o) => o.type !== 'peña');
   const penas = orgs.filter((o) => o.type === 'peña');
   const activeVillageName =

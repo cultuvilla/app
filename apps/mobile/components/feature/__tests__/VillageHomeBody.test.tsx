@@ -294,7 +294,7 @@ describe('VillageHomeBody', () => {
     expect(queryByTestId('entity-card-comment-count')).toBeNull();
   });
 
-  it('gives the comisión de festejos its own section, apart from peñas and the other groups', () => {
+  it('lists the comisión de festejos under Grupos, identified on its card', () => {
     const org = (id: string, name: string, type: OrganizationType) => ({
       ...buildOrganizationData({ name, type, status: 'approved', municipalityId: 'm1', villageSlug: 'villa', requestedBy: 'u2' }),
       id,
@@ -319,7 +319,7 @@ describe('VillageHomeBody', () => {
       else if (node && typeof node === 'object' && 'children' in node) walk((node as { children: unknown }).children);
     };
     walk(toJSON());
-    const order = ['La Anduela', 'Comisión de festejos', 'Comisión 2026', 'Peñas', 'Peña El Frontón'];
+    const order = ['Comisión 2026', 'Comisión de festejos', 'La Anduela', 'Peñas', 'Peña El Frontón'];
     expect(texts.filter((x) => order.includes(x))).toEqual(order);
   });
 

@@ -9,6 +9,7 @@ import {
   posterTitle,
   type Card,
   type DefinitionView,
+  COMISION_LABEL,
   type EventView,
   type HistoryView,
   type NewsView,
@@ -56,7 +57,7 @@ const ORG_TYPE: Readonly<Partial<Record<string, string>>> = {
   peña: 'Peña',
   asociación: 'Asociación',
   otros: 'Entidad',
-  comisión: 'Comisión de festejos',
+  comisión: COMISION_LABEL,
 };
 const TERM_KIND: Readonly<Partial<Record<string, string>>> = {
   palabra: 'Palabra',
@@ -158,7 +159,6 @@ export function villagePage(v: Village, home: VillageHome | null, others: Card[]
 ${section('Eventos', home.events)}
 ${section('Noticias', home.news)}
 ${section('Carteles de fiestas', home.posters, villageSectionPath(v.slug, 'carteles'))}
-${section('Comisión de festejos', home.comisiones, villageSectionPath(v.slug, 'entidades'))}
 ${section('Peñas y asociaciones', home.orgs, villageSectionPath(v.slug, 'entidades'))}
 ${section('Lugares', home.places, villageSectionPath(v.slug, 'lugares'))}
 ${section('Barrios', home.barrios, villageSectionPath(v.slug, 'barrios'))}
@@ -397,7 +397,6 @@ function showcaseBlock({ village: v, home }: NonNullable<Landing['showcase']>): 
     shelf('Eventos', home.events, vp),
     shelf('Carteles de fiestas', home.posters, villageSectionPath(v.slug, 'carteles'), 'posters'),
     shelf('Historia', home.history, villageSectionPath(v.slug, 'historia')),
-    shelf('Comisión de festejos', home.comisiones, villageSectionPath(v.slug, 'entidades')),
     shelf('Peñas y asociaciones', home.orgs, villageSectionPath(v.slug, 'entidades')),
   ].filter(Boolean);
   if (shelves.length === 0 && !home.word) return null;

@@ -16,7 +16,7 @@ for this one type.
   `organizations` with a strict `z.enum`, and one unknown `type` in a village makes the
   whole org list throw.
   1. **Expand:** clients read an unknown `type` as `otros`, and know `comisión`
-     (label, home section, roster tier, rules).
+     (label, roster tier, rules).
   2. **Enable:** the create/edit forms offer `comisión` and the rules accept it. This
      commit carries a `Breaking-Client:` trailer, so the release holds its backend and
      raises `minSupported` to its own version, walling the binaries that cannot read
@@ -28,8 +28,8 @@ for this one type.
   rules' `orgHasSocioRoster`. Comisión-specific features (yearly mandate and handover,
   link to fiestas/cartel/programa, per-household derrama, patrocinadores, lotería)
   are a later plan, to be picked with the user.
-- **Own section on the village home**, above the peñas, on the app and the read site,
-  plus a shelf on the landing's featured pueblo.
+- **Listed under Grupos, identified on its card** (2026-11-01, user: no section of its
+  own), on the app and the read site.
 - **Switchable** among the self-service kinds (peña, asociación, otros, comisión) on
   the edit screen and in the rules' `type` update check.
 - **Stored id `comisión`**, label "Comisión de festejos".
@@ -48,6 +48,6 @@ themselves).
 - `firestore.rules`: `isValidOrganizationCreate`, `orgHasSocioRoster`, org `update`
   type check — plus rules tests
 - `scripts/backfill-socio-roster.mjs` `ROSTER_ORG_TYPES`
-- `packages/i18n/messages/es.json` type labels and the home section title
+- `packages/i18n/messages/es.json` type labels
 - `VillageHomeBody.tsx`, `ProfileView.tsx`, read site (`functions/src/web/`)
 - `docs/business-rules.md` OQ-4, `docs/decisions/` record once shipped

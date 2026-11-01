@@ -10,7 +10,8 @@ labelled "Comisión de festejos". Decided 2026-11-01 (user).
   proposes one and a village admin approves it.
 - **Same tools as a peña or asociación.** It joins `SOCIO_ROSTER_ORG_TYPES`, so features
   stay keyed to that capability rather than to the type.
-- **Its own section on the village home**, above the peñas, in the app and on the read site.
+- **It stays under Grupos**, in the app and on the read site. Its card says "Comisión de
+  festejos" where the others show their member count; another horizontal row was not wanted.
 - **It moves freely among the self-service kinds**, so a comisión already filed as an
   asociación or under otros can switch. Only the ayuntamiento stays fixed.
 

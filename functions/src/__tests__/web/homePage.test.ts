@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { describe, it, expect } from 'vitest';
-import type { Card, Village, VillageHome, WrappedView } from '../../web/data';
+import { orgCard, type Card, type OrgView, type Village, type VillageHome, type WrappedView } from '../../web/data';
 import { renderDocument } from '../../web/document';
 import { render } from '../../web/html';
 import { AMBASSADOR_PICKER, ambassadorsPage, homePage, villagePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
@@ -29,7 +29,7 @@ const card = (href: string, title: string, imageUrl: string | null = null, origi
   originalUrl,
 });
 
-const emptyHome: VillageHome = { events: [], news: [], posters: [], comisiones: [], orgs: [], places: [], barrios: [], history: [], word: null };
+const emptyHome: VillageHome = { events: [], news: [], posters: [], orgs: [], places: [], barrios: [], history: [], word: null };
 
 const matabuena = village('matabuena', 'Matabuena');
 const showcase: Landing['showcase'] = {
@@ -304,32 +304,17 @@ describe('homePage', () => {
   });
 });
 
-describe('the featured pueblo on the landing', () => {
-  it('shows its comisión de festejos on a shelf of its own', () => {
-    const out = villagesBody({
-      villages: [],
-      showcase: {
-        village: matabuena,
-        home: { ...emptyHome, comisiones: [card('/matabuena/entidad/c1', 'Comisión 2026')] },
-      },
-      wrapped: null,
-    });
-    expect(out).toContain('Comisión de festejos');
-    expect(out).toContain('Comisión 2026');
-  });
-});
-
 describe('villagePage', () => {
-  it('shows the comisión de festejos in its own section, before the peñas', () => {
+  it('identifies a comisión on its card, in the groups section', () => {
+    const comision: OrgView = { id: 'c1', name: 'Comisión 2026', description: null, images: [], type: 'comisión', memberCount: 4, municipalityId: 'm1' };
     const out = render(
       villagePage(matabuena, {
         ...emptyHome,
-        comisiones: [card('/matabuena/entidad/c1', 'Comisión 2026')],
-        orgs: [card('/matabuena/entidad/o1', 'El Frontón')],
+        orgs: [orgCard(comision, 'matabuena')],
       }).body,
     );
-    expect(out.indexOf('Comisión de festejos')).toBeGreaterThan(-1);
-    expect(out.indexOf('Comisión de festejos')).toBeLessThan(out.indexOf('Comisión 2026'));
-    expect(out.indexOf('Comisión 2026')).toBeLessThan(out.indexOf('Peñas y asociaciones'));
+    expect(out.indexOf('Peñas y asociaciones')).toBeLessThan(out.indexOf('Comisión 2026'));
+    expect(out.indexOf('Comisión 2026')).toBeLessThan(out.indexOf('Comisión de festejos'));
+    expect(out).not.toContain('4 integrantes');
   });
 });

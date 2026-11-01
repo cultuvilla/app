@@ -189,9 +189,8 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
   // pending state left to filter here. Organizations keep the real
   // pending/approved/rejected review flow, so they still need the filter.
   const visibleOrgs = organizations.filter((o) => isProposalVisible(o.status, o.requestedBy, caps));
-  const comisiones = visibleOrgs.filter((o) => o.type === 'comisión');
   const penas = visibleOrgs.filter((o) => o.type === 'peña');
-  const agrupaciones = visibleOrgs.filter((o) => o.type !== 'peña' && o.type !== 'comisión');
+  const agrupaciones = visibleOrgs.filter((o) => o.type !== 'peña');
 
   // Censo CTA label: "Editar censo" once every current question has a non-empty
   // answer; "Rellenar censo" otherwise. A newly-added (still-unanswered)
@@ -477,7 +476,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           ))}
         </Section>
 
-        {/* ── Agrupaciones (ayuntamiento + asociación) ─────────── */}
+        {/* ── Agrupaciones (everything but peñas) ──────────────── */}
         <Section
           title={t('village.hub.organizations')}
           isEmpty={agrupaciones.length === 0}
@@ -487,27 +486,12 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             <EntityCard
               key={o.id}
               label={o.name}
-              sub={t('village.hub.memberCount', { count: o.memberCount })}
-              icon="business-outline"
-              imageUri={o.images[0] ?? null}
-              commentCount={o.commentCount}
-              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
-            />
-          ))}
-        </Section>
-
-        {/* ── Comisión de festejos: who runs the fiestas ────────── */}
-        <Section
-          title={t('village.hub.comisiones')}
-          isEmpty={comisiones.length === 0}
-          status={sectionStatus.organizations}
-        >
-          {comisiones.map((o) => (
-            <EntityCard
-              key={o.id}
-              label={o.name}
-              sub={t('village.hub.memberCount', { count: o.memberCount })}
-              icon="sparkles-outline"
+              sub={
+                o.type === 'comisión'
+                  ? t('organization.comisión')
+                  : t('village.hub.memberCount', { count: o.memberCount })
+              }
+              icon={o.type === 'comisión' ? 'sparkles-outline' : 'business-outline'}
               imageUri={o.images[0] ?? null}
               commentCount={o.commentCount}
               onPress={() => router.push(orgHref({ ...o, villageSlug }))}
