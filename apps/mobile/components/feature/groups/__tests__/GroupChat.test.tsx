@@ -1,10 +1,11 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Keyboard, Platform, StyleSheet } from 'react-native';
 import { emitWatched, resetWatchers, setWatched } from '../../../../test/watchers';
 import { GroupChat } from '../GroupChat';
 
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaInsets: () => ({ top: 40, bottom: 24, left: 0, right: 0 }),
 }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../../lib/auth/useAuth', () => ({ useAuth: () => ({ profile: { displayName: 'Ana' } }) }));
@@ -172,5 +173,25 @@ describe('GroupChat', () => {
     await waitFor(() =>
       expect(mockSetPush).toHaveBeenCalledWith('u1', 'org1', true, expect.objectContaining({ messagesMuted: true })),
     );
+  });
+
+  it('on Android lifts the composer by the bars the keyboard padding leaves out, only while the keyboard is up', () => {
+    const os = Platform.OS;
+    Platform.OS = 'android';
+    const listeners: Record<string, () => void> = {};
+    const spy = jest.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, cb: () => void) => {
+      listeners[event] = cb;
+      return { remove: jest.fn() };
+    }) as never);
+    setWatched('chat', []);
+    const r = chat();
+    const gap = () => StyleSheet.flatten(r.getByTestId('group-chat-composer').props.style).marginBottom;
+    expect(gap()).toBe(0);
+    act(() => listeners.keyboardDidShow?.());
+    expect(gap()).toBe(64);
+    act(() => listeners.keyboardDidHide?.());
+    expect(gap()).toBe(0);
+    spy.mockRestore();
+    Platform.OS = os;
   });
 });

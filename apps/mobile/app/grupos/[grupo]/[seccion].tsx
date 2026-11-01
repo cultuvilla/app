@@ -47,7 +47,7 @@ export default function GroupSectionScreen() {
   };
 
   return (
-    <Screen padded={false} topInset={false} bottomInset={false}>
+    <Screen padded={false} topInset={false} bottomInset={section === 'charla'}>
       <ScreenHeader accent title={t(`groups.sections.${section}`)} />
       {group && groups.length > 1 ? (
         <Pressable

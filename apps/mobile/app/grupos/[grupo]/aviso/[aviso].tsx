@@ -38,7 +38,7 @@ export default function GroupAvisoScreen() {
   const text = message ? personalizeGroupMessage({ title: message.title, body: message.body }, values) : null;
 
   return (
-    <Screen padded={false} topInset={false} bottomInset={false}>
+    <Screen padded={false} topInset={false}>
       <ScreenHeader accent title={t('groups.chat.avisoTitle')} />
       {!uid || !group || watch.status === 'loading' ? (
         <View className="flex-1 items-center justify-center">

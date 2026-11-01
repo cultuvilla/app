@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, Keyboard, Platform, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import type { GroupNotificationPrefsData } from '@cultuvilla/shared/models/notification';
@@ -88,6 +89,27 @@ function ChatPushToggle({ orgId, uid }: { orgId: string; uid: string }) {
  * Opening it marks it read. Messages from people the viewer blocked are hidden,
  * and each message offers the report, block and delete it may.
  */
+/**
+ * On edge-to-edge Android, Screen's keyboard padding comes up short by the status
+ * bar plus the navigation bar (measured: IME top 1944 px, keyboard event's `screenY`
+ * 2172 px, bars 144 + 84). A form hides that by scrolling its field in, but a chat's
+ * composer sits at the very bottom and would stay behind the keyboard.
+ */
+function useComposerKeyboardGap(): number {
+  const insets = useSafeAreaInsets();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const shown = Keyboard.addListener('keyboardDidShow', () => setOpen(true));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setOpen(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
+  return open ? insets.top + insets.bottom : 0;
+}
+
 export function GroupChat({
   orgId,
   municipalityId,
@@ -111,6 +133,7 @@ export function GroupChat({
   const { profile } = useAuth();
   const [count, setCount] = useState(GROUP_CHAT_PAGE_SIZE);
   const [body, setBody] = useState('');
+  const keyboardGap = useComposerKeyboardGap();
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
   const [optionsFor, setOptionsFor] = useState<GroupChatMessage | null>(null);
   const [report, setReport] = useState<ReportTarget | null>(null);
@@ -221,7 +244,11 @@ export function GroupChat({
           {closedHint}
         </Text>
       ) : (
-        <View className="px-4 py-2 border-t border-subtle">
+        <View
+          className="px-4 py-2 border-t border-subtle"
+          style={{ marginBottom: keyboardGap }}
+          testID="group-chat-composer"
+        >
           <Input
             value={body}
             onChangeText={setBody}
