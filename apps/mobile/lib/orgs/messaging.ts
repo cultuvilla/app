@@ -17,7 +17,6 @@ export interface ComposerForm {
   push: boolean;
   email: boolean;
   whatsapp: GroupWhatsappMode;
-  pinned: boolean;
   poll: PollChoice;
   question: string;
   /** The choices of a multiple-choice poll, as typed (blank ones are dropped). */
@@ -33,7 +32,6 @@ export function emptyComposerForm(): ComposerForm {
     push: true,
     email: true,
     whatsapp: 'none',
-    pinned: false,
     poll: 'none',
     question: '',
     options: ['', ''],
@@ -74,7 +72,9 @@ export function composerInput(
       body,
       audience: { kind: form.audience, eventId: form.audience === 'event' ? form.eventId : null },
       channels: { push: form.push, email: form.email, whatsapp: form.whatsapp },
-      pinned: form.pinned,
+      // Avisos are no longer pinned (decided 2026-11-01, user); the field stays
+      // in the callable's input for the binaries that still offer it.
+      pinned: false,
       poll,
     },
   };

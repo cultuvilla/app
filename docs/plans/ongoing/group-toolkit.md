@@ -63,7 +63,7 @@ stops keeping a parallel paper list.
   libro de socios and actas for `asociación`, `peña` and `otros`, not `ayuntamiento`.
   *(My call.)*
 - **Group home** for a member: what's next (my tasks, upcoming events, my volunteer
-  shifts), my cuota status, pinned notices.
+  shifts), my cuota status, the latest notices.
 - **Admin panel** (admins only, same tab, a "Gestionar" section): members and roles
   (reusing `OrgMembersList` / `OrgJoinRequests`), the cuota settings, messaging,
   task templates, records. Settings live on the org or under it, never on the user.
@@ -336,8 +336,10 @@ Shipped in one PR (`feat/group-toolkit-phase3-cuota`). Only orgs with a socio ro
   after another, each ticked off as sent. No WhatsApp Business API: it needs
   pre-approved templates, opt-in and pays per message. *(Revisit if a group outgrows
   hand-sending.)*
-- **Pinned notices** (BAND): a message can be pinned to the group home; admins see
-  who has read it and can nudge only those who haven't.
+- **Read receipts** (BAND): admins see who has read a notice and can nudge only those
+  who haven't. Notices are not pinned (decided 2026-11-01, user): the home shows the
+  newest, each card just title, text cut to fit, and day. The stored `pinned` field
+  stays for older binaries until `minSupported` passes them.
 - **Polls:** a yes/no or multiple-choice question attached to a notice ("¿Fecha de
   la cena: 12 o 19?").
 - Every sent message is kept in the group's history with its recipients and

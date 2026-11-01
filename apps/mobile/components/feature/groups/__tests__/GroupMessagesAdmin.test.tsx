@@ -3,7 +3,6 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
   nudgeGroupMessage,
   sendGroupMessage,
-  setGroupMessagePinned,
   setWhatsappSent,
 } from '@cultuvilla/shared/services/groupMessageService';
 import { resetWatchers, setWatched } from '../../../../test/watchers';
@@ -30,7 +29,6 @@ jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
     newGroupMessageId: () => 'Msg0000000001',
     sendGroupMessage: jest.fn().mockResolvedValue({ messageId: 'Msg0000000001', recipientCount: 3, pushCount: 2, emailCount: 2, whatsappCount: 1 }),
     nudgeGroupMessage: jest.fn().mockResolvedValue({ nudged: 1 }),
-    setGroupMessagePinned: jest.fn().mockResolvedValue(undefined),
     setWhatsappSent: jest.fn().mockResolvedValue(undefined),
   };
 });
@@ -105,7 +103,6 @@ describe('GroupMessagesAdmin', () => {
     fireEvent.press(getByTestId('group-msg-event-ev1'));
     fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
     fireEvent.press(getByTestId('group-msg-whatsapp-options-fallback'));
-    fireEvent.press(getByTestId('group-msg-pinned'));
     fireEvent.press(getByTestId('group-msg-poll-yes_no'));
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Vienes?');
     fireEvent.press(getByTestId('group-msg-send'));
@@ -118,7 +115,7 @@ describe('GroupMessagesAdmin', () => {
       body: 'Elegid fecha.',
       audience: { kind: 'event', eventId: 'ev1' },
       channels: { push: true, email: true, whatsapp: 'fallback' },
-      pinned: true,
+      pinned: false,
       poll: { question: '¿Vienes?', kind: 'yes_no', options: ['groups.messages.yes', 'groups.messages.no'] },
     });
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(expect.stringContaining('groups.messages.sent:3')));
@@ -130,7 +127,7 @@ describe('GroupMessagesAdmin', () => {
     setWatched('reads', [{ id: 'u-eva', readAt: new Date() }]);
     setWatched('votes', [{ id: 'u-eva', option: 1, votedAt: new Date() }]);
     setWatched('privates', []);
-    const { getByTestId } = renderAdmin();
+    const { getByTestId, queryByTestId } = renderAdmin();
     expect(getByTestId('group-msg-row-m1')).toHaveTextContent(/groups\.messages\.counts:4\|2\|3/);
     fireEvent.press(getByTestId('group-msg-row-m1'));
 
@@ -142,8 +139,7 @@ describe('GroupMessagesAdmin', () => {
     expect(getByTestId('group-msg-detail-option-1')).toHaveTextContent(/groups\.messages\.votes:1/);
     expect(getByTestId('group-msg-detail-option-1')).toHaveTextContent(/Eva/);
 
-    fireEvent.press(getByTestId('group-msg-detail-pin'));
-    expect(setGroupMessagePinned).toHaveBeenCalledWith('org1', 'm1', true);
+    expect(queryByTestId('group-msg-detail-pin')).toBeNull();
   });
 
   it('waits before another nudge', () => {

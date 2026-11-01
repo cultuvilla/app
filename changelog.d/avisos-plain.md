@@ -1,0 +1,1 @@
+- Changed: avisos can no longer be pinned. On the group's home each aviso card shows just its title and text, cut to fit the card, and the day it was sent; the avisos list drops the "Enviado por…" line and shows the day instead.

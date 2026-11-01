@@ -57,11 +57,6 @@ export function GroupMessagesAdmin({
           className="py-2 border-b border-subtle"
         >
           <Text className="font-bold">{m.title}</Text>
-          {m.pinned ? (
-            <Text variant="caption" className="text-accent">
-              {t('groups.messages.pinnedBadge')}
-            </Text>
-          ) : null}
           <Text variant="caption" tone="muted">
             {t('groups.messages.summary', {
               date: formatDate(m.sentAt),
