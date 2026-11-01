@@ -1,7 +1,7 @@
 # Comisión de festejos group type
 
 **Priority:** medium
-**Landed:** none
+**Landed:** dev
 **Gate:** soak:step 1 live in prod and delivered by OTA — then step 2 is a breaking release the user runs (Play managed publishing, `pnpm release:publish`)
 **Next:** step 2 — offer `comisión` in `PROPOSABLE_ORGANIZATION_TYPES`, `OrgRequestFormSchema`, the `entidades.tsx` aliases and the rules' create/update type lists, with a `Breaking-Client:` trailer
 
