@@ -1,4 +1,4 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -141,6 +141,30 @@ export async function handleGroupChatMessage(
   });
 }
 
+/**
+ * A deleted message takes its notifications with it: they carry its text into
+ * the Buzón, and a push held for quiet hours is dropped once its doc is gone.
+ * Everyone with prefs for the group, not only those opted in now: someone may
+ * have switched off after this message reached them, and the prefs doc stays.
+ */
+export async function handleGroupChatMessageDeleted(
+  db: Firestore,
+  params: { orgId: string; threadId: string; chatId: string },
+): Promise<void> {
+  const { orgId, threadId, chatId } = params;
+  const prefs = await db.collectionGroup('groupPrefs').where('orgId', '==', orgId).select().get();
+  const uids = prefs.docs.flatMap((d) => d.ref.parent.parent?.id ?? []);
+  for (let start = 0; start < uids.length; start += BATCH_SIZE) {
+    const batch = db.batch();
+    for (const uid of uids.slice(start, start + BATCH_SIZE)) {
+      batch.delete(userNotificationsCollection(db, uid).doc(`group_chat_${threadId}_${chatId}`));
+    }
+    await batch.commit();
+  }
+
+  logger.info('Chat message notifications removed', { handler: 'onGroupChatMessageDeleted', orgId, threadId, chatId, swept: uids.length });
+}
+
 /** The group's general chat ("Charla"). */
 export const onGroupChatMessageCreated = onDocumentCreated(
   { document: 'organizations/{orgId}/chat/{chatId}', region: 'us-central1' },
@@ -155,6 +179,17 @@ export const onGroupChatMessageCreated = onDocumentCreated(
   },
 );
 
+export const onGroupChatMessageDeleted = onDocumentDeleted(
+  { document: 'organizations/{orgId}/chat/{chatId}', region: 'us-central1' },
+  async (event) => {
+    await handleGroupChatMessageDeleted(getFirestore(), {
+      orgId: event.params.orgId,
+      threadId: GENERAL_CHAT_THREAD_ID,
+      chatId: event.params.chatId,
+    });
+  },
+);
+
 /** An aviso's chat. */
 export const onAvisoChatMessageCreated = onDocumentCreated(
   { document: 'organizations/{orgId}/messages/{messageId}/chat/{chatId}', region: 'us-central1' },
@@ -166,5 +201,16 @@ export const onAvisoChatMessageCreated = onDocumentCreated(
       { orgId: event.params.orgId, threadId: event.params.messageId, chatId: event.params.chatId },
       snap.data(),
     );
+  },
+);
+
+export const onAvisoChatMessageDeleted = onDocumentDeleted(
+  { document: 'organizations/{orgId}/messages/{messageId}/chat/{chatId}', region: 'us-central1' },
+  async (event) => {
+    await handleGroupChatMessageDeleted(getFirestore(), {
+      orgId: event.params.orgId,
+      threadId: event.params.messageId,
+      chatId: event.params.chatId,
+    });
   },
 );

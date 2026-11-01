@@ -6,7 +6,9 @@ import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import {
   onAvisoChatMessageCreated,
+  onAvisoChatMessageDeleted,
   onGroupChatMessageCreated,
+  onGroupChatMessageDeleted,
 } from '../../../organizations/onGroupChatMessageCreated';
 
 const ft = functionsTestFactory({ projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test' });
@@ -123,6 +125,51 @@ describe('notifications', () => {
     await writeAviso('c1', 'ana', 1);
     expect(await thread(AVISO_ID)).toBeUndefined();
     expect(await notificationsOf('paco')).toEqual([]);
+  });
+});
+
+describe('deleting a message', () => {
+  async function deleteGeneral(chatId: string) {
+    const wrapped = ft.wrap(onGroupChatMessageDeleted);
+    await wrapped({
+      data: chatSnap(`organizations/${ORG_ID}/chat/${chatId}`, 'ana', 1),
+      params: { orgId: ORG_ID, chatId },
+    } as unknown as Parameters<typeof wrapped>[0]);
+  }
+
+  it('takes its text out of the Buzón, and leaves the other messages', async () => {
+    await optIn('paco');
+    await writeGeneral('c1', 'ana', 1);
+    await writeGeneral('c2', 'ana', 2);
+    await deleteGeneral('c1');
+    expect((await notificationsOf('paco')).map((n) => n.id)).toEqual(['group_chat_general_c2']);
+  });
+
+  it('reaches someone who switched the chat off after it arrived', async () => {
+    await optIn('paco');
+    await writeGeneral('c1', 'ana', 1);
+    await db().doc(`users/paco/groupPrefs/${ORG_ID}`).set({ messagesMuted: false, chatPush: false, orgId: ORG_ID, updatedAt: new Date() });
+    await deleteGeneral('c1');
+    expect(await notificationsOf('paco')).toEqual([]);
+  });
+
+  it('an aviso’s message goes the same way, not the same id in the general chat', async () => {
+    await optIn('paco');
+    await writeAviso('c1', 'ana', 1);
+    await writeGeneral('c1', 'ana', 2);
+    const wrapped = ft.wrap(onAvisoChatMessageDeleted);
+    await wrapped({
+      data: chatSnap(`organizations/${ORG_ID}/messages/${AVISO_ID}/chat/c1`, 'ana', 1),
+      params: { orgId: ORG_ID, messageId: AVISO_ID, chatId: 'c1' },
+    } as unknown as Parameters<typeof wrapped>[0]);
+    expect((await notificationsOf('paco')).map((n) => n.id)).toEqual(['group_chat_general_c1']);
+  });
+
+  it('leaves another group’s notification with the same ids', async () => {
+    await optIn('paco', 'other-org');
+    await db().doc('users/paco/notifications/group_chat_general_c1').set({ title: 'Otro grupo' });
+    await deleteGeneral('c1');
+    expect(await notificationsOf('paco')).toHaveLength(1);
   });
 });
 

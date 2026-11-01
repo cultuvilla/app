@@ -47,7 +47,12 @@ export { sendGroupTaskReminders } from './organizations/sendGroupTaskReminders';
 export { sendGroupMessage } from './organizations/sendGroupMessage';
 export { nudgeGroupMessage } from './organizations/nudgeGroupMessage';
 export { onOrganizationUpdated } from './organizations/notificationTriggers';
-export { onGroupChatMessageCreated, onAvisoChatMessageCreated } from './organizations/onGroupChatMessageCreated';
+export {
+  onGroupChatMessageCreated,
+  onAvisoChatMessageCreated,
+  onGroupChatMessageDeleted,
+  onAvisoChatMessageDeleted,
+} from './organizations/onGroupChatMessageCreated';
 export { onTaskCommentCreated, onGroupTaskDeleted } from './organizations/onTaskCommentCreated';
 
 // Push notifications. onNotificationCreated is the ONLY seam between the
