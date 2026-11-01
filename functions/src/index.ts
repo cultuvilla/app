@@ -102,6 +102,7 @@ export { reverseGeocode } from './maps/reverseGeocode';
 export { sendAuthSignInEmail } from './auth/sendAuthSignInEmail';
 export { sendAuthOtpCode } from './auth/sendAuthOtpCode';
 export { verifyAuthOtpCode } from './auth/verifyAuthOtpCode';
+export { restoreLegacySession } from './auth/restoreLegacySession';
 
 // Web studio sign-in: pairing a desktop browser with the signed-in app
 export {

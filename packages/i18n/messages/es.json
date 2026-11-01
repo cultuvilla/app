@@ -223,6 +223,8 @@
     "title": "Menú",
     "close": "Cerrar",
     "signOut": "Cerrar sesión",
+    "signOutConfirmTitle": "¿Cerrar sesión?",
+    "signOutConfirmBody": "Tendrás que volver a entrar para usar tu cuenta en este teléfono.",
     "editProfile": "Editar perfil",
     "mySignups": "Mis inscripciones",
     "settings": "Ajustes",
