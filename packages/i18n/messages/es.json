@@ -1594,6 +1594,7 @@
     "countLabel": "{count, plural, one {# comentario} other {# comentarios}}",
     "placeholder": "Añade un comentario…",
     "send": "Enviar",
+    "sendError": "No se ha podido publicar el comentario.",
     "signInToComment": "Inicia sesión para comentar",
     "delete": "Eliminar",
     "deleteConfirmTitle": "Eliminar comentario",

@@ -1,6 +1,6 @@
 import { createRef } from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { Alert, type ScrollView } from 'react-native';
+import { ActivityIndicator, Alert, type ScrollView } from 'react-native';
 import { EntityComments } from './EntityComments';
 import { DetailScrollProvider } from '../../lib/keyboard/DetailScrollContext';
 import {
@@ -8,6 +8,7 @@ import {
   deleteComment,
   getComments,
   getReplies,
+  newCommentId,
 } from '@cultuvilla/shared/services/commentsService';
 import { createContentReport } from '@cultuvilla/shared/services/contentReportService';
 import { blockUser, getBlockedUserIds } from '@cultuvilla/shared/services/blockedUserService';
@@ -19,6 +20,7 @@ jest.mock('@cultuvilla/shared/services/commentsService', () => ({
   deleteComment: jest.fn().mockResolvedValue(undefined),
   getComments: jest.fn(),
   getReplies: jest.fn(),
+  newCommentId: jest.fn(() => 'c-new'),
 }));
 jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
   createContentReport: jest.fn().mockResolvedValue('rep-1'),
@@ -294,11 +296,51 @@ describe('<EntityComments>', () => {
       entityKind: 'event',
       entityId: 'e-1',
       municipalityId: 'm-1',
+      id: 'c-new',
       authorUserId: 'uid-1',
       body: 'Un comentario nuevo',
     }));
     expect(await findByText(/Un comentario nuevo/)).toBeTruthy();
     expect(input.props.value).toBe('');
+  });
+
+  // The write resolves on the server's ack, which never comes offline or behind
+  // a long write queue. The cache already holds the comment by then.
+  it('does not wait for the server: a comment shows at once and the composer is free', async () => {
+    getCommentsMock.mockResolvedValue([]);
+    addCommentMock.mockReturnValue(new Promise(() => undefined));
+    const { findByPlaceholderText, findByText, queryByTestId, UNSAFE_queryByType, getByTestId } = render(
+      <EntityComments {...BASE_PROPS} />,
+    );
+    const input = await findByPlaceholderText('Escribe un comentario…');
+    fireEvent.changeText(input, 'Sin cobertura');
+    await act(async () => {
+      fireEvent.press(getByTestId('comment-send'));
+    });
+
+    expect(await findByText('Sin cobertura')).toBeTruthy();
+    expect(input.props.value).toBe('');
+    expect(queryByTestId('comment-send')).toBeNull();
+    expect(UNSAFE_queryByType(ActivityIndicator)).toBeNull();
+  });
+
+  it('takes a refused comment back, restores the text and says so', async () => {
+    getCommentsMock.mockResolvedValue([]);
+    addCommentMock.mockRejectedValue(new Error('permission-denied'));
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    const { findByPlaceholderText, queryByText, getByTestId } = render(
+      <EntityComments {...BASE_PROPS} />,
+    );
+    const input = await findByPlaceholderText('Escribe un comentario…');
+    fireEvent.changeText(input, 'Rechazado');
+    await act(async () => {
+      fireEvent.press(getByTestId('comment-send'));
+    });
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('comments.sendError'));
+    expect(queryByText('Rechazado')).toBeNull();
+    expect(input.props.value).toBe('Rechazado');
+    alertSpy.mockRestore();
   });
 
   it('shows a delete affordance for the comment author and removes it on confirm', async () => {
@@ -389,6 +431,7 @@ describe('<EntityComments>', () => {
         entityKind: 'event',
         entityId: 'e-1',
         municipalityId: 'm-1',
+        id: 'c-new',
         authorUserId: 'uid-1',
         body: 'Una respuesta',
         parentCommentId: 'c-1',
@@ -432,6 +475,7 @@ describe('<EntityComments>', () => {
         entityKind: 'event',
         entityId: 'e-1',
         municipalityId: 'm-1',
+        id: 'c-new',
         authorUserId: 'uid-1',
         body: 'Un comentario',
       }),
