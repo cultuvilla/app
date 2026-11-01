@@ -34,6 +34,14 @@ service cloud.firestore {
     function orgMunicipalityId(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.municipalityId;
     }
+    // Whether a group takes anyone on the spot is its admin's choice. A group
+    // that says nothing requires acceptance.
+    function orgJoinPolicy(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('joinPolicy', 'approval');
+    }
+    function orgStatus(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.status;
+    }
     // Organizer of an event: a user in the event's organizerUserIds, a village
     // admin of the event's municipality, or an app admin. Used to gate the
     // attendee roster (check-in, remove, organizer-only phone contacts).
@@ -323,7 +331,7 @@ service cloud.firestore {
           && d.memberCount == 0
           && d.membersPublic is bool
           // Installed binaries still send `open`; approveOrganization overwrites
-          // it, so no approved org is ever open.
+          // it, so every group starts out requiring acceptance.
           && d.get('joinPolicy', 'open') in ['open', 'approval']
           && d.get('sociosListVisible', false) is bool
           && d.get('chatAdminsOnly', false) is bool;
@@ -1640,11 +1648,10 @@ service cloud.firestore {
       allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin() || isOrgAdmin(orgId))
         && (request.resource.data.status == resource.data.status
             || request.resource.data.status == 'rejected')
-        // Every org admits its members. Nothing reads the field any more, but
-        // installed binaries do: an org they see as `open` offers a join that
-        // the member rule below refuses.
+        && request.resource.data.get('joinPolicy', 'approval') in ['open', 'approval']
+        // The ayuntamiento's integrantes are its team, so it never opens.
         && (request.resource.data.get('joinPolicy', 'approval') == 'approval'
-            || request.resource.data.get('joinPolicy', 'approval') == resource.data.get('joinPolicy', 'approval'))
+            || request.resource.data.type != 'ayuntamiento')
         && request.resource.data.get('sociosListVisible', false) is bool
         && request.resource.data.get('chatAdminsOnly', false) is bool
         && (request.resource.data.type == resource.data.type
@@ -1659,17 +1666,17 @@ service cloud.firestore {
       match /members/{userId} {
         allow read: if true;
         // `role` is function-owned: every client-created member is a plain
-        // 'member'. Nobody adds themselves: membership is what admits someone to
-        // private events and the libro de socios, so it is always an admin's
-        // call — a direct add here, or a join request resolved by
-        // respondToOrgJoinRequest. The founding admin is seeded server-side by
+        // 'member'. A user adds only THEMSELVES, and only to a group its admin
+        // opened; otherwise it takes an admin — a direct add here, or a join
+        // request resolved by respondToOrgJoinRequest. The founding admin is seeded server-side by
         // approveOrganization, and promotions go through the changeOrgMemberRole
         // callable — both audited via admin SDK.
         allow create: if isValidOrgMemberCreate(request.resource.data)
           && request.resource.data.userId == userId
           && request.resource.data.role == 'member'
           && (
-               isOrgAdmin(orgId)
+               (isOwner(userId) && orgJoinPolicy(orgId) == 'open' && orgStatus(orgId) == 'approved')
+               || isOrgAdmin(orgId)
                || isVillageAdmin(orgMunicipalityId(orgId))
                || isAppAdmin()
              );
@@ -2008,6 +2015,7 @@ service cloud.firestore {
         allow create: if isOwner(userId)
           && isValidOrgJoinRequestCreate(request.resource.data, orgId, userId)
           && get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'approved'
+          && orgJoinPolicy(orgId) == 'approval'
           && !isOrgMember(orgId);
         allow update: if false;
         allow delete: if isOwner(userId)

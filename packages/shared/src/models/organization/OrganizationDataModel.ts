@@ -62,8 +62,8 @@ export const OrganizationDataSchema = z.object({
   // included); when true, it is shown to everyone. Display preference, not a
   // security boundary — member identities are world-readable. Default true.
   membersPublic: z.boolean(),
-  // Defaults to `open` because installed binaries still create orgs without it
-  // (the rules accept that too); existing docs are backfilled explicitly.
+  // The admin's choice: `approval` takes join requests, `open` takes anyone on
+  // the spot. A group starts on `approval`, and the ayuntamiento stays there.
   joinPolicy: OrgJoinPolicySchema.default('approval'),
   // "Los estatutos permiten ver la lista de socios": when true, socios may read
   // the roster's names (never contact data). Off unless an admin turns it on.

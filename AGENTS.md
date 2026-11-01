@@ -88,10 +88,11 @@ which the homelab notify-gateway pulls from prod only. Topics and the prod
 subscription: `pnpm notify:setup <project>`.
 
 **A group has integrantes.** An *integrante* is a member,
-`organizations/{orgId}/members/{uid}`, and **only an admin makes one**: nobody adds
-themselves, they file a join request
-(table above). In a group with a socio roster every integrante is a socio, and any
-group may hold private events, since membership always vets. User-facing copy says
+`organizations/{orgId}/members/{uid}`. **The group's admin picks how someone becomes
+one** (`joinPolicy`): by a join request an admin accepts (table above), the default and
+the only way into an ayuntamiento, or on the spot if the admin opened the group. In a
+group with a socio roster every integrante is a socio, and any group may hold private
+events, open or not. User-facing copy says
 *integrante*, never *miembro*; the code names stay. Read
 [docs/decisions/org-join-policy.md](docs/decisions/org-join-policy.md).
 

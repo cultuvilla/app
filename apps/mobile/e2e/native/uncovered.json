@@ -242,6 +242,7 @@
   "my-tasks": "unit-tested: components/feature/groups/__tests__/MyTasks.test.tsx",
   "notification-unread-dot": "unit-tested: components/feature/NotificationRow.test.tsx",
   "onboarding-abandon": "unit-tested: app/(onboarding)/__tests__/completar-perfil.test.tsx",
+  "org-edit-join-policy-toggle": "unit-tested: app/[pueblo]/entidad/__tests__/editar.test.tsx",
   "person-photo-zoom": "unit-tested: components/feature/profile/__tests__/PersonProfileView.test.tsx",
   "persona-socio-add-*": "unit-tested: components/feature/groups/__tests__/MyPersonasSocios.test.tsx",
   "persona-socio-remove-*": "unit-tested: components/feature/groups/__tests__/MyPersonasSocios.test.tsx",
