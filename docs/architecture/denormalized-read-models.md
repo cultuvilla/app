@@ -165,6 +165,10 @@ org's member list, `/usuario/{uid}`.
 - **Adding a field:** only if anyone, signed out included, may read it. Contact
   details never belong here.
 
+### `organizations/{orgId}/socioPrivate/{socioId}.phone|email` ← `users/{uid}.telephone|email`
+
+Admins can't read `users/{uid}`, so a socio's shared contact is a copy. `syncPublicProfile` updates a value the socio already shares, in every group where they're active; a value they don't share stays null. See [socio-contact-required.md](../decisions/socio-contact-required.md).
+
 ### `commentCount` ← `comments/`
 
 Every comment-capable kind (event, organization, festivalPoster, place, barrio,

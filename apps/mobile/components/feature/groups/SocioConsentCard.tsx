@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { isActiveSocio } from '@cultuvilla/shared/models/organization';
+import { isActiveSocio, type SocioContactRequirement } from '@cultuvilla/shared/models/organization';
 import {
   saveSocioContactSharing,
   watchMySocios,
@@ -18,9 +18,18 @@ import { showAlert } from '../../../lib/dialogs';
  * answer on their own roster row (`socioPrivate`). Appears as soon as the
  * `syncOrgSocioRoster` trigger has given them a row — seconds after joining.
  * `onlyWhenUnanswered` hides it once answered (the org page, the group home); the Socios screen
- * keeps a one-line summary with a way to change it.
+ * keeps a one-line summary with a way to change it. What the group requires
+ * (`requirement`) is shared from the account and not on offer to change.
  */
-export function SocioConsentCard({ orgId, onlyWhenUnanswered = false }: { orgId: string; onlyWhenUnanswered?: boolean }) {
+export function SocioConsentCard({
+  orgId,
+  requirement,
+  onlyWhenUnanswered = false,
+}: {
+  orgId: string;
+  requirement: SocioContactRequirement;
+  onlyWhenUnanswered?: boolean;
+}) {
   const { t } = useT();
   const { user, profile } = useAuth();
   const uid = user?.uid ?? null;
@@ -55,11 +64,13 @@ export function SocioConsentCard({ orgId, onlyWhenUnanswered = false }: { orgId:
             ? t('groups.consent.sharingSummary', { items: items.join(', ') })
             : t('groups.consent.sharingNothing')}
         </Text>
-        <Pressable testID="socio-consent-edit" accessibilityRole="button" onPress={() => setEditing(true)}>
-          <Text variant="bodySm" className="text-accent">
-            {t('groups.consent.edit')}
-          </Text>
-        </Pressable>
+        {requirement.socioPhoneRequired && requirement.socioEmailRequired ? null : (
+          <Pressable testID="socio-consent-edit" accessibilityRole="button" onPress={() => setEditing(true)}>
+            <Text variant="bodySm" className="text-accent">
+              {t('groups.consent.edit')}
+            </Text>
+          </Pressable>
+        )}
       </HStack>
     );
   }
@@ -71,6 +82,8 @@ export function SocioConsentCard({ orgId, onlyWhenUnanswered = false }: { orgId:
       // A first answer starts from "share both"; a change starts from the last one.
       initialSharePhone={answered ? contact.data?.phone != null : true}
       initialShareEmail={answered ? contact.data?.email != null : true}
+      phoneRequired={requirement.socioPhoneRequired}
+      emailRequired={requirement.socioEmailRequired}
       onSave={async ({ phone, email }) => {
         await saveSocioContactSharing(orgId, row.id, { phone, email });
         setEditing(false);
@@ -84,19 +97,23 @@ function ConsentForm({
   initialEmail,
   initialSharePhone,
   initialShareEmail,
+  phoneRequired,
+  emailRequired,
   onSave,
 }: {
   initialPhone: string;
   initialEmail: string;
   initialSharePhone: boolean;
   initialShareEmail: boolean;
+  phoneRequired: boolean;
+  emailRequired: boolean;
   onSave: (contact: { phone: string | null; email: string | null }) => Promise<void>;
 }) {
   const { t } = useT();
   const [phone, setPhone] = useState(initialPhone);
   const [email, setEmail] = useState(initialEmail);
-  const [sharePhone, setSharePhone] = useState(initialSharePhone);
-  const [shareEmail, setShareEmail] = useState(initialShareEmail);
+  const [sharePhone, setSharePhone] = useState(initialSharePhone || phoneRequired);
+  const [shareEmail, setShareEmail] = useState(initialShareEmail || emailRequired);
   const [saving, setSaving] = useState(false);
   useEffect(() => setPhone(initialPhone), [initialPhone]);
   useEffect(() => setEmail(initialEmail), [initialEmail]);
@@ -115,12 +132,16 @@ function ConsentForm({
         <Text tone="muted" variant="bodySm">
           {t('groups.consent.body')}
         </Text>
-        <Toggle testID="socio-consent-share-phone" value={sharePhone} onValueChange={setSharePhone} label={t('groups.consent.sharePhone')} />
-        {sharePhone ? (
+        {phoneRequired ? null : (
+          <Toggle testID="socio-consent-share-phone" value={sharePhone} onValueChange={setSharePhone} label={t('groups.consent.sharePhone')} />
+        )}
+        {sharePhone && !(phoneRequired && initialPhone) ? (
           <Input label={t('groups.consent.phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="socio-consent-phone" />
         ) : null}
-        <Toggle testID="socio-consent-share-email" value={shareEmail} onValueChange={setShareEmail} label={t('groups.consent.shareEmail')} />
-        {shareEmail ? (
+        {emailRequired ? null : (
+          <Toggle testID="socio-consent-share-email" value={shareEmail} onValueChange={setShareEmail} label={t('groups.consent.shareEmail')} />
+        )}
+        {shareEmail && !(emailRequired && initialEmail) ? (
           <Input
             label={t('groups.consent.email')}
             value={email}

@@ -1729,6 +1729,21 @@
       "sharingNothing": "La junta no ve ningún dato de contacto tuyo.",
       "error": "No se han podido guardar tus datos. Inténtalo de nuevo."
     },
+    "contactGate": {
+      "title": "Para seguir en {name}",
+      "noticeBoth": "{name} pide compartir con la junta tu teléfono y tu email.",
+      "noticePhone": "{name} pide compartir con la junta tu teléfono.",
+      "noticeEmail": "{name} pide compartir con la junta tu email.",
+      "privacy": "Son los de tu cuenta. Solo los administradores del grupo los verán.",
+      "accept": "Aceptar",
+      "acceptAndJoin": "Aceptar y unirme",
+      "emailInvalid": "Escribe un email válido.",
+      "switch": "Cambiar de grupo",
+      "leave": "Salir del grupo",
+      "confirmLeaveTitle": "Salir del grupo",
+      "confirmLeaveBody": "Dejarás de ser socio/a de {name}.",
+      "error": "No se ha podido guardar. Inténtalo de nuevo."
+    },
     "personas": {
       "title": "Personas a tu cargo",
       "hint": "Hazlas socias del grupo. Los avisos y la cuota te llegarán a ti.",
@@ -1797,6 +1812,9 @@
       "cuotaReminders": "Enviar recordatorios de la cuota",
       "cuotaRemindersHint": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email. Actívalos cuando hayas anotado los pagos que ya tienes.",
       "sociosListVisible": "Los estatutos permiten ver la lista de socios",
+      "socioPhoneRequired": "Pedir el teléfono a los socios",
+      "socioEmailRequired": "Pedir el email a los socios",
+      "socioContactRequiredHint": "Usamos los de su cuenta. Quien ya esté en el grupo tendrá que aceptar para seguir entrando, y solo la junta los verá.",
       "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
       "chatAdminsOnly": "Solo la junta escribe en la Charla",
       "chatAdminsOnlyHint": "Los demás podrán leerla, pero no escribir. Los chats de los avisos siguen abiertos a quienes los reciben.",

@@ -75,6 +75,11 @@ export const OrganizationDataSchema = z.object({
   // installed binaries create orgs without it; existing docs are backfilled by
   // scripts/backfill-org-chat-admins-only.mjs.
   chatAdminsOnly: z.boolean().default(false),
+  // Whether being a socio means sharing the account's phone or email with the
+  // group's admins (see socioContactMissing). Default because no installed
+  // binary writes them.
+  socioPhoneRequired: z.boolean().default(false),
+  socioEmailRequired: z.boolean().default(false),
   // status + reviewedBy + reviewedAt
   ...reviewDecisionFields,
 });
@@ -99,6 +104,8 @@ export interface OrganizationDataInput {
   joinPolicy?: OrgJoinPolicy;
   sociosListVisible?: boolean;
   chatAdminsOnly?: boolean;
+  socioPhoneRequired?: boolean;
+  socioEmailRequired?: boolean;
 }
 
 export function buildOrganizationData(input: OrganizationDataInput): OrganizationData {
@@ -121,6 +128,8 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     joinPolicy: input.joinPolicy ?? 'approval',
     sociosListVisible: input.sociosListVisible ?? false,
     chatAdminsOnly: input.chatAdminsOnly ?? false,
+    socioPhoneRequired: input.socioPhoneRequired ?? false,
+    socioEmailRequired: input.socioEmailRequired ?? false,
   };
 }
 

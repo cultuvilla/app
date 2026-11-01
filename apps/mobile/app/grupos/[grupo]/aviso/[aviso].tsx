@@ -8,6 +8,7 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Card, Screen, Text, VStack } from '../../../../components/primitives';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { GroupChat } from '../../../../components/feature/groups/GroupChat';
+import { GroupContactGate } from '../../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useT } from '../../../../lib/i18n';
@@ -56,6 +57,7 @@ export default function GroupAvisoScreen() {
   return (
     <Screen padded={false} topInset={false}>
       <ScreenHeader accent title={t('groups.chat.avisoTitle')} />
+      <GroupContactGate group={group} uid={uid}>
       {!uid || !group || watch.status === 'loading' ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
@@ -84,6 +86,7 @@ export default function GroupAvisoScreen() {
           }
         />
       )}
+      </GroupContactGate>
     </Screen>
   );
 }

@@ -21,17 +21,30 @@ beforeEach(() => {
   jest.mocked(saveSocioContactSharing).mockClear();
 });
 
+const NO_REQUIREMENT = { socioPhoneRequired: false, socioEmailRequired: false };
+
 describe('SocioConsentCard', () => {
+  it('does not offer to withhold what the group requires, nor retype what the account has', async () => {
+    setWatched('mySocios', [{ id: 's1', ...buildSocioData({ kind: 'member', displayName: 'Ana', uid: 'u1', createdBy: 'u1' }) }]);
+    setWatched('socioPrivate', null);
+    const { getByTestId, queryByTestId } = render(
+      <SocioConsentCard orgId="org1" requirement={{ socioPhoneRequired: true, socioEmailRequired: false }} />,
+    );
+    expect(queryByTestId('socio-consent-share-phone')).toBeNull();
+    expect(queryByTestId('socio-consent-phone')).toBeNull();
+    expect(getByTestId('socio-consent-share-email')).toBeTruthy();
+  });
+
   it('waits for the roster row the trigger creates on join', () => {
     setWatched('mySocios', []);
-    const { queryByTestId } = render(<SocioConsentCard orgId="org1" />);
+    const { queryByTestId } = render(<SocioConsentCard orgId="org1" requirement={NO_REQUIREMENT} />);
     expect(queryByTestId('socio-consent-card')).toBeNull();
   });
 
   it('asks, prefilled from the profile, and stores only what the member shares', async () => {
     setWatched('mySocios', [ownRow]);
     setWatched('socioPrivate', null);
-    const { getByTestId, queryByTestId } = render(<SocioConsentCard orgId="org1" />);
+    const { getByTestId, queryByTestId } = render(<SocioConsentCard orgId="org1" requirement={NO_REQUIREMENT} />);
     expect(getByTestId('socio-consent-phone').props.value).toBe('600111222');
     expect(getByTestId('socio-consent-email').props.value).toBe('ana@x.es');
     fireEvent.press(getByTestId('socio-consent-share-email'));
@@ -46,7 +59,7 @@ describe('SocioConsentCard', () => {
   it('on the org page, disappears once answered', () => {
     setWatched('mySocios', [ownRow]);
     setWatched('socioPrivate', { id: 's1', phone: null, email: 'ana@x.es', consentAnsweredAt: new Date() });
-    const { queryByTestId } = render(<SocioConsentCard orgId="org1" onlyWhenUnanswered />);
+    const { queryByTestId } = render(<SocioConsentCard orgId="org1" requirement={NO_REQUIREMENT} onlyWhenUnanswered />);
     expect(queryByTestId('socio-consent-card')).toBeNull();
     expect(queryByTestId('socio-consent-edit')).toBeNull();
   });
@@ -54,7 +67,7 @@ describe('SocioConsentCard', () => {
   it('in the Grupos tab, summarises the answer with a way to change it', () => {
     setWatched('mySocios', [ownRow]);
     setWatched('socioPrivate', { id: 's1', phone: null, email: 'ana@x.es', consentAnsweredAt: new Date() });
-    const { getByTestId } = render(<SocioConsentCard orgId="org1" />);
+    const { getByTestId } = render(<SocioConsentCard orgId="org1" requirement={NO_REQUIREMENT} />);
     fireEvent.press(getByTestId('socio-consent-edit'));
     expect(getByTestId('socio-consent-card')).toBeTruthy();
   });

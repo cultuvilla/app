@@ -6,6 +6,8 @@ import {
   isActiveSocio,
   nextSocioNumber,
   parseSocioNumber,
+  requiresSocioContact,
+  socioContactMissing,
   socioNumberTaken,
   SocioDataSchema,
   SocioPrivateDataSchema,
@@ -116,5 +118,20 @@ describe('socio numbers', () => {
     expect(socioNumberTaken(rows, 1, null)).toBe(true);
     expect(socioNumberTaken(rows, 1, 'a')).toBe(false);
     expect(socioNumberTaken(rows, 2, null)).toBe(false);
+  });
+});
+
+describe('socioContactMissing', () => {
+  const both = { socioPhoneRequired: true, socioEmailRequired: true };
+  const none = { socioPhoneRequired: false, socioEmailRequired: false };
+
+  it('asks only for what the group requires and the socio has not shared', () => {
+    expect(requiresSocioContact(none)).toBe(false);
+    expect(requiresSocioContact(both)).toBe(true);
+    expect(socioContactMissing(none, null)).toBe(false);
+    expect(socioContactMissing(both, null)).toBe(true);
+    expect(socioContactMissing(both, { phone: '600', email: null })).toBe(true);
+    expect(socioContactMissing(both, { phone: '600', email: 'a@x.es' })).toBe(false);
+    expect(socioContactMissing({ socioPhoneRequired: true, socioEmailRequired: false }, { phone: '600', email: null })).toBe(false);
   });
 });

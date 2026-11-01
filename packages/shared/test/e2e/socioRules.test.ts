@@ -114,6 +114,17 @@ describe('socios — reads', () => {
 });
 
 describe('socioPrivate — contact data', () => {
+  it('refuses a member withholding what the group requires', async () => {
+    await seed();
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `organizations/${ORG}`), { socioPhoneRequired: true }, { merge: true });
+    });
+    const db = asUser(getEnv(), 'member1');
+    const ref = doc(db, `organizations/${ORG}/socioPrivate/m1`);
+    await assertFails(setDoc(ref, { phone: null, email: 'a@x.es', consentAnsweredAt: new Date() }));
+    await assertSucceeds(setDoc(ref, { phone: '+34600', email: null, consentAnsweredAt: new Date() }));
+  });
+
   beforeEach(async () => { await seed(true); });
 
   it('an org admin reads contact data', async () => {

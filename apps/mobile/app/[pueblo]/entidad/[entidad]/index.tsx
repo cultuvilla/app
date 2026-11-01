@@ -33,13 +33,14 @@ import {
 } from '@cultuvilla/shared/services/orgJoinRequestService';
 import { OrgJoinRequests } from '../../../../components/feature/OrgJoinRequests';
 import { SocioConsentCard } from '../../../../components/feature/groups/SocioConsentCard';
+import { SocioContactSheet } from '../../../../components/feature/groups/GroupContactGate';
 import { showAlert, showConfirm } from '../../../../lib/dialogs';
 import { getOrgViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { entityRefHref, orgEditHref } from '../../../../lib/navigation/routes';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { canViewOrgRoster } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
-import { hasSocioRoster } from '@cultuvilla/shared/models/organization/SocioDataModel';
+import { hasSocioRoster, requiresSocioContact } from '@cultuvilla/shared/models/organization/SocioDataModel';
 import {
   isSoleAdminWithOthers,
   type OrgMemberData,
@@ -66,6 +67,7 @@ export default function OrgDetailScreen() {
   const [isMember, setIsMember] = useState<boolean>(false);
   const [membershipLoaded, setMembershipLoaded] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [acceptingContact, setAcceptingContact] = useState(false);
   const [requested, setRequested] = useState(false);
   const { canManage } = useOrgCapabilities(orgId as string, org?.municipalityId);
   // Until the viewer's membership is known, a member would see the join FAB flash.
@@ -106,22 +108,8 @@ export default function OrgDetailScreen() {
     });
   }, [org?.id]);
 
-  const onJoin = useCallback(async () => {
-    if (!user) {
-      gate.requireAuth(entityRefHref('organization', pueblo, entidad), t('guest.org'));
-      return;
-    }
-    if (!orgId || !org) return;
-    if (awaitingAcceptance) {
-      showConfirm(
-        t('organization.cancelRequestTitle'),
-        t('organization.cancelRequestBody', { name: org.name }),
-        () => {
-          void cancelOrgJoinRequest(orgId as string, user.uid).then(refresh);
-        },
-      );
-      return;
-    }
+  const join = useCallback(async () => {
+    if (!user || !orgId || !org) return;
     setJoining(true);
     let succeeded = false;
     try {
@@ -148,7 +136,30 @@ export default function OrgDetailScreen() {
     } finally {
       setJoining(false);
     }
-  }, [user, orgId, org, requested, arrivedViaInvite, refresh, gate, t]);
+  }, [user, orgId, org, requested, arrivedViaInvite, refresh]);
+
+  const onJoin = useCallback(async () => {
+    if (!user) {
+      gate.requireAuth(entityRefHref('organization', pueblo, entidad), t('guest.org'));
+      return;
+    }
+    if (!orgId || !org) return;
+    if (awaitingAcceptance) {
+      showConfirm(
+        t('organization.cancelRequestTitle'),
+        t('organization.cancelRequestBody', { name: org.name }),
+        () => {
+          void cancelOrgJoinRequest(orgId as string, user.uid).then(refresh);
+        },
+      );
+      return;
+    }
+    if (hasSocioRoster(org.type) && requiresSocioContact(org)) {
+      setAcceptingContact(true);
+      return;
+    }
+    await join();
+  }, [user, orgId, org, awaitingAcceptance, join, refresh, gate, t]);
 
   const onLeave = useCallback(() => {
     if (!user || !org) return;
@@ -272,7 +283,7 @@ export default function OrgDetailScreen() {
             </Text>
           ) : null}
           {/* Asked once, right after joining: what the junta may see. */}
-          {isMember && hasSocioRoster(org.type) ? <SocioConsentCard orgId={org.id} onlyWhenUnanswered /> : null}
+          {isMember && hasSocioRoster(org.type) ? <SocioConsentCard orgId={org.id} requirement={org} onlyWhenUnanswered /> : null}
           {org.description ? <Text>{org.description}</Text> : null}
           {org.images.length > 1 ? (
             <VStack gap={2} className="pt-2">
@@ -304,6 +315,15 @@ export default function OrgDetailScreen() {
             canModerate={canManage}
           />
         </>
+      ) : null}
+      {org ? (
+        <SocioContactSheet
+          visible={acceptingContact}
+          orgName={org.name}
+          requirement={org}
+          onAccepted={join}
+          onClose={() => setAcceptingContact(false)}
+        />
       ) : null}
     </EntityDetailScaffold>
   );

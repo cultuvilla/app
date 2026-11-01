@@ -13,6 +13,7 @@ import { taskPeople } from '../../../../components/feature/groups/GroupHomeCards
 import { TaskComments } from '../../../../components/feature/groups/TaskComments';
 import { ShiftCard } from '../../../../components/feature/groups/TaskRows';
 import { TaskSheet } from '../../../../components/feature/groups/TaskSheet';
+import { GroupContactGate } from '../../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { showAlert } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
@@ -68,6 +69,7 @@ export default function GroupTaskScreen() {
   return (
     <Screen padded={false} topInset={false}>
       <ScreenHeader accent title={t('groups.tasks.detail.title')} />
+      <GroupContactGate group={group} uid={uid}>
       {!uid || !orgId || watch.status === 'loading' ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
@@ -168,6 +170,7 @@ export default function GroupTaskScreen() {
           />
         </>
       )}
+      </GroupContactGate>
     </Screen>
   );
 }

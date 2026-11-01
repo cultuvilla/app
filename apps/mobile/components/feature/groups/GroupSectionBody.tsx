@@ -54,7 +54,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
     case 'socios':
       return (
         <VStack gap={4}>
-          <SocioConsentCard orgId={org.id} />
+          <SocioConsentCard orgId={org.id} requirement={org} />
           <MyPersonasSocios orgId={org.id} uid={uid} />
           {isAdmin ? <OrgJoinRequests orgId={org.id} /> : null}
           {isAdmin || org.sociosListVisible ? (
@@ -86,6 +86,8 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           uid={uid}
           isAdmin={isAdmin}
           sociosListVisible={org.sociosListVisible}
+          socioPhoneRequired={org.socioPhoneRequired}
+          socioEmailRequired={org.socioEmailRequired}
           hasRoster={hasSocioRoster(org.type)}
           chatAdminsOnly={org.chatAdminsOnly}
         />

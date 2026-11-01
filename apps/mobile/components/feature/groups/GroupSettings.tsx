@@ -13,7 +13,8 @@ import { useWatch } from '../../../lib/hooks/useWatch';
 /**
  * A group's settings, in two parts. Everyone has their own: what this group
  * notifies them of (avisos exist only with a roster). An admin also has the
- * group's: whether socios see the roster's names, who writes in the Charla, and
+ * group's: whether socios see the roster's names, what contact data being a socio
+ * requires, who writes in the Charla, and
  * once the cuota is configured, whether it sends reminders.
  */
 export function GroupSettings({
@@ -21,6 +22,8 @@ export function GroupSettings({
   uid,
   isAdmin,
   sociosListVisible,
+  socioPhoneRequired = false,
+  socioEmailRequired = false,
   hasRoster = true,
   chatAdminsOnly = false,
 }: {
@@ -28,6 +31,8 @@ export function GroupSettings({
   uid: string;
   isAdmin: boolean;
   sociosListVisible: boolean;
+  socioPhoneRequired?: boolean;
+  socioEmailRequired?: boolean;
   hasRoster?: boolean;
   chatAdminsOnly?: boolean;
 }) {
@@ -42,7 +47,9 @@ export function GroupSettings({
     showsCuota ? (next, error) => watchCuotaSettings(orgId, next, error) : null,
   );
   const [saving, setSaving] = useState(false);
-  const save = (patch: { sociosListVisible: boolean } | { chatAdminsOnly: boolean }) => {
+  const save = (
+    patch: { sociosListVisible: boolean } | { chatAdminsOnly: boolean } | { socioPhoneRequired: boolean } | { socioEmailRequired: boolean },
+  ) => {
     setSaving(true);
     updateOrganization(orgId, patch)
       .catch(() => showAlert(t('groups.settings.error')))
@@ -103,6 +110,23 @@ export function GroupSettings({
               />
               <Text tone="muted" variant="bodySm">
                 {t('groups.settings.sociosListVisibleHint')}
+              </Text>
+              <Toggle
+                testID="group-settings-socio-phone-required"
+                value={socioPhoneRequired}
+                disabled={saving}
+                label={t('groups.settings.socioPhoneRequired')}
+                onValueChange={(next) => save({ socioPhoneRequired: next })}
+              />
+              <Toggle
+                testID="group-settings-socio-email-required"
+                value={socioEmailRequired}
+                disabled={saving}
+                label={t('groups.settings.socioEmailRequired')}
+                onValueChange={(next) => save({ socioEmailRequired: next })}
+              />
+              <Text tone="muted" variant="bodySm">
+                {t('groups.settings.socioContactRequiredHint')}
               </Text>
             </>
           ) : null}
