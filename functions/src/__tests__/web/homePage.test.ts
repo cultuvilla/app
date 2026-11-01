@@ -304,6 +304,21 @@ describe('homePage', () => {
   });
 });
 
+describe('the featured pueblo on the landing', () => {
+  it('shows its comisión de festejos on a shelf of its own', () => {
+    const out = villagesBody({
+      villages: [],
+      showcase: {
+        village: matabuena,
+        home: { ...emptyHome, comisiones: [card('/matabuena/entidad/c1', 'Comisión 2026')] },
+      },
+      wrapped: null,
+    });
+    expect(out).toContain('Comisión de festejos');
+    expect(out).toContain('Comisión 2026');
+  });
+});
+
 describe('villagePage', () => {
   it('shows the comisión de festejos in its own section, before the peñas', () => {
     const out = render(

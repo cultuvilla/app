@@ -81,8 +81,9 @@ export function ProfileView({
   }
 
   const otherPersonas = allPersonas.filter((p) => p.userId !== uid);
-  // Mirror the village home's org split: everything that isn't a peña falls
-  // under "Grupos" (asociación + ayuntamiento + otros), so no membership is lost.
+  // Everything that isn't a peña falls under "Grupos" (asociación + ayuntamiento
+  // + comisión + otros), so no membership is lost. The village home gives the
+  // comisión its own section; a person's few groups don't need a third list.
   const grupos = orgs.filter((o) => o.type !== 'peña');
   const penas = orgs.filter((o) => o.type === 'peña');
   const activeVillageName =

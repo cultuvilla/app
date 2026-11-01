@@ -397,6 +397,7 @@ function showcaseBlock({ village: v, home }: NonNullable<Landing['showcase']>): 
     shelf('Eventos', home.events, vp),
     shelf('Carteles de fiestas', home.posters, villageSectionPath(v.slug, 'carteles'), 'posters'),
     shelf('Historia', home.history, villageSectionPath(v.slug, 'historia')),
+    shelf('Comisión de festejos', home.comisiones, villageSectionPath(v.slug, 'entidades')),
     shelf('Peñas y asociaciones', home.orgs, villageSectionPath(v.slug, 'entidades')),
   ].filter(Boolean);
   if (shelves.length === 0 && !home.word) return null;
