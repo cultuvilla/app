@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { buildOrganizationData } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import type { MyGroup } from '../../../lib/orgs/useMyGroups';
 import GroupsTabScreen from '../grupos';
@@ -8,6 +8,7 @@ let mockGroups: MyGroup[] = [];
 const mockRemember = jest.fn().mockResolvedValue(undefined);
 let mockRemembered: string | null = null;
 let mockUnread = 0;
+let mockNoticesStatus = 'ready';
 let mockNotices: { id: string; title: string; body: string; pinned: boolean; signerName: string; sentAt: Date; sentBy: string }[] = [];
 type TaskRow = {
   id: string;
@@ -38,7 +39,7 @@ jest.mock('../../../lib/orgs/lastGroup', () => ({
   rememberLastGroupId: (id: string) => mockRemember(id),
 }));
 jest.mock('../../../lib/orgs/useGroupNotices', () => ({
-  useGroupNotices: () => ({ unreadCount: mockUnread, notices: mockNotices, status: 'ready', readsStatus: 'ready', readIds: new Set() }),
+  useGroupNotices: () => ({ unreadCount: mockUnread, notices: mockNotices, status: mockNoticesStatus, readsStatus: 'ready', readIds: new Set() }),
 }));
 let mockChatUnread = { generalUnread: false, unreadAvisoIds: new Set<string>() };
 jest.mock('../../../lib/orgs/useGroupChatUnread', () => ({ useGroupChatUnread: () => mockChatUnread }));
@@ -105,6 +106,7 @@ beforeEach(() => {
   mockMyTasks = [];
   mockOpenTasks = [];
   mockNotices = [];
+  mockNoticesStatus = 'ready';
   mockEvents = [];
   mockCuota = NO_CUOTA;
   mockRemember.mockClear();
@@ -179,6 +181,8 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, queryByText, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     expect(getByTestId('group-home-tasks')).toBeTruthy();
+    // The row clips: a card measured short would lose the faces at its foot.
+    expect(getByTestId('group-home-task-soon').props.style).toMatchObject({ minHeight: expect.any(Number) });
     const ids = getAllByTestId(/^group-home-task-[a-z]+$/).map((el) => el.props.testID as string);
     expect(ids).toEqual(['group-home-task-soon', 'group-home-task-shift', 'group-home-task-late']);
     expect(getByTestId('group-home-task-soon-date')).toHaveTextContent('6 dic');
@@ -190,6 +194,15 @@ describe('Grupos tab', () => {
     expect(getByTestId('group-home-task-late-date')).toHaveTextContent('groups.tasks.noDate');
     fireEvent.press(getByTestId('group-home-task-soon'));
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/tareas');
+  });
+
+  it('keeps the Avisos row with nothing to show, and when the read fails', async () => {
+    mockGroups = [group('Anduela')];
+    const { findByText, unmount } = render(<GroupsTabScreen />);
+    expect(await findByText('groups.sections.empty.avisos')).toBeTruthy();
+    unmount();
+    mockNoticesStatus = 'error';
+    expect(await render(<GroupsTabScreen />).findByText('groups.chat.loadError')).toBeTruthy();
   });
 
   it('shows only upcoming events under Próximos eventos', async () => {
@@ -250,12 +263,15 @@ describe('Grupos tab', () => {
     expect(classNames.join(' ')).not.toMatch(/\bh-full\b/);
   });
 
-  it("shows the member's cuota status, opening its screen", async () => {
+  it("closes the home with the member's cuota banner, in place of its button", async () => {
     mockGroups = [group('Anduela')];
     mockCuota = { ...NO_CUOTA, periodKey: '2026', rows: [{ id: 's1', kind: 'member' }], statuses: [{ socioId: 's1', status: 'vencida' }] };
-    const { findByTestId, getByTestId, getByText } = render(<GroupsTabScreen />);
-    await findByTestId('group-home');
+    const { findByTestId, getByTestId, getByText, queryByTestId } = render(<GroupsTabScreen />);
+    const home = await findByTestId('group-home');
     expect(getByText('groups.cuota.status.vencida')).toBeTruthy();
+    expect(queryByTestId('group-section-cuota')).toBeNull();
+    const closing = home.children.at(-1);
+    expect(closing && typeof closing !== 'string' && within(closing).queryByTestId('group-home-cuota')).toBeTruthy();
     fireEvent.press(getByTestId('group-home-cuota'));
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/cuota');
   });

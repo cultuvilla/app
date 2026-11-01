@@ -33,12 +33,29 @@ export function NoticeCard({ message, onPress }: { message: GroupMessage; onPres
   );
 }
 
+/** Keeps the Avisos row in place when there is no notice to show. */
+export function NoticePlaceholder({ text, onPress }: { text: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={{ width: 260 }}>
+      <Card className="flex-1">
+        <Text variant="bodySm" tone="muted">
+          {text}
+        </Text>
+      </Card>
+    </Pressable>
+  );
+}
+
 /** Who a card shows as on the task: its assignees, or a shift's volunteers. */
 export function taskPeople(task: Pick<GroupTask, 'slots' | 'assigneeUids' | 'claimedUids'>): string[] {
   return task.slots !== null ? task.claimedUids : task.assigneeUids;
 }
 
 const MAX_FACES = 4;
+
+// Room for a two-line title, the event and the faces. The row is a horizontal
+// ScrollView, which clips: a card measured short lost its faces off the bottom.
+const TASK_CARD_MIN_HEIGHT = 200;
 
 /**
  * A task or volunteer shift in the group home's Próximas tareas row: its day,
@@ -59,7 +76,7 @@ export function TaskCard({
   const people = taskPeople(task);
   const shown = people.slice(0, MAX_FACES);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-task-${task.id}`} style={{ width: 200 }}>
+    <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-task-${task.id}`} style={{ width: 200, minHeight: TASK_CARD_MIN_HEIGHT }}>
       <Card className="flex-1">
         <VStack gap={2} className="flex-1">
           <HStack gap={1} align="center">
