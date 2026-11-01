@@ -24,7 +24,7 @@ const AYTO = 'ayto1';
 
 function socio(overrides: Record<string, unknown> = {}) {
   return {
-    kind: 'typed', displayName: 'Paco', uid: null, personId: null, responsibleUid: null, adminTitle: null,
+    kind: 'typed', socioNumber: null, displayName: 'Paco', uid: null, personId: null, responsibleUid: null, adminTitle: null,
     altaAt: new Date(), bajaAt: null, memberJoinedAt: null, createdBy: 'admin1', ...overrides,
   };
 }

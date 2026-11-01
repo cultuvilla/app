@@ -53,12 +53,12 @@ export interface LibroSociosInput {
   generatedAt?: Date;
 }
 
-/** Every socio row ever, ordered by alta: number, name, kind, cargo, alta, baja. */
+/** Every socio row ever, ordered by alta: socio number, name, kind, cargo, alta, baja. */
 export function buildLibroSociosExport(input: LibroSociosInput): RosterExportModel {
   const { orgName, generatedAt = new Date() } = input;
   const byUid = new Map(input.socios.filter((s) => s.uid && s.bajaAt === null).map((s) => [s.uid, s.displayName]));
   const columns: RosterColumn[] = [
-    { key: 'row', header: 'Nº', type: 'number', width: 6 },
+    { key: 'socioNumber', header: 'Nº socio', type: 'number', width: 9 },
     { key: 'name', header: 'Socio', type: 'text', width: 32 },
     { key: 'kind', header: 'Tipo', type: 'text', width: 22 },
     { key: 'responsible', header: 'A cargo de', type: 'text', width: 28 },
@@ -67,8 +67,8 @@ export function buildLibroSociosExport(input: LibroSociosInput): RosterExportMod
     { key: 'baja', header: 'Baja', type: 'dateOnly', width: 14 },
   ];
   const ordered = libroDeSocios(input.socios);
-  const rows: RosterCell[][] = ordered.map((s, index) => [
-    index + 1,
+  const rows: RosterCell[][] = ordered.map((s) => [
+    s.socioNumber,
     s.displayName,
     SOCIO_KIND_LABEL[s.kind],
     s.responsibleUid ? (byUid.get(s.responsibleUid) ?? null) : null,

@@ -38,6 +38,7 @@ export { respondToOrgJoinRequest } from './organizations/respondToOrgJoinRequest
 export { onOrgJoinRequestCreated } from './organizations/onOrgJoinRequestCreated';
 export { syncOrgMemberCount } from './organizations/syncOrgMemberCount';
 export { syncOrgSocioRoster } from './organizations/syncOrgSocioRoster';
+export { assignSocioNumber } from './organizations/assignSocioNumber';
 export { linkSocioToMember } from './organizations/linkSocioToMember';
 export { sendCuotaReminders } from './organizations/sendCuotaReminders';
 export { onGroupTaskUpdated } from './organizations/onGroupTaskUpdated';

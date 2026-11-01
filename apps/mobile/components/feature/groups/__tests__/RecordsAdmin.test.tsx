@@ -84,7 +84,7 @@ beforeEach(() => {
   setWatched('socios', [
     socio('Ana', { uid: 'u-ana', altaAt: new Date('2021-01-01') }),
     socio('Benito', { kind: 'typed', altaAt: new Date('2019-05-01'), bajaAt: new Date('2024-01-01') }),
-    socio('Carla', { uid: 'u-carla', altaAt: new Date('2022-01-01') }),
+    socio('Carla', { uid: 'u-carla', socioNumber: 57, altaAt: new Date('2022-01-01') }),
   ]);
   setWatched('actas', [ACTA]);
   setWatched('ledger', [EXPENSE]);
@@ -115,14 +115,14 @@ describe('Registros', () => {
 });
 
 describe('Libro de socios', () => {
-  it('counts altas and bajas, and lists every row by alta once opened', () => {
+  it('counts altas and bajas, and lists every row by alta with its socio number once opened', () => {
     const { getByTestId, queryByTestId } = renderAdmin();
     expect(getByTestId('libro-socios')).toHaveTextContent(/groups\.records\.libro\.summary:2\|1/);
     expect(queryByTestId('libro-row-Benito')).toBeNull();
     fireEvent.press(getByTestId('libro-toggle'));
-    expect(getByTestId('libro-row-Benito')).toHaveTextContent(/^1\. Benito/);
+    expect(getByTestId('libro-row-Benito')).toHaveTextContent(/^Benito/);
     expect(getByTestId('libro-row-Benito')).toHaveTextContent(/groups\.records\.libro\.altaBaja/);
-    expect(getByTestId('libro-row-Carla')).toHaveTextContent(/^3\. Carla/);
+    expect(getByTestId('libro-row-Carla')).toHaveTextContent(/^groups\.records\.libro\.numbered:57\|Carla/);
   });
 
   it('exports the libro as CSV', async () => {

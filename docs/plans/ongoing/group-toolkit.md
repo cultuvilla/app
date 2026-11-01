@@ -403,6 +403,50 @@ own notifications.
   messaging for the ayuntamiento; no read-site page (private, as planned); no
   Maestro flow (unit-tested, see `e2e/native/uncovered.json`).
 
+### Phase 4 — Decided 2026-11-01 (user), for La Anduela
+
+La Anduela has ~200 socios and most will not have the app at first, so the junta
+loads them as typed socios and reaches them by email and WhatsApp. Build all of:
+
+1. **Per-recipient placeholders** in a message's title and body (nombre, nº de
+   socio, cuota pendiente), offered as tappable chips in the composer and
+   substituted per recipient in the email and in each `wa.me` link. A household
+   recipient (member + personas a cargo) uses the account holder's own name and
+   number.
+2. **A stored socio number** (`socioNumber`) on socio rows: admin-editable, loaded
+   by the import, the next one for new rows assigned by a function.
+3. **Sender name**: message and cuota-reminder emails come from "<org>" alone (no
+   "(vía Cultuvilla)"). The Reply-To stays as is — still open with the user.
+4. **A bulk import script** `scripts/import-socios.mjs` (CSV/XLSX → typed socios).
+5. **"Compartir en WhatsApp"**: one `wa.me/?text=` link for the group's own chat,
+   with the placeholders rendered neutrally (not personalized).
+6. Per-person WhatsApp links default to `fallback` in the composer.
+
+**As built (items 2 and 4):**
+
+- `socioNumber` (nullable int, 1–99999, never reused: a baja keeps it). Admins set
+  it on any row (`setSocioNumber`; a typed socio's with its name); the app refuses
+  a number another row has (rules cannot check uniqueness). A row created without
+  one is numbered by the `assignSocioNumber` trigger: one past both the
+  function-owned counter `socioNumbering/current` and the highest number on the
+  roster, in a transaction that writes the counter, so concurrent creates never
+  share a number. `linkSocioToMember` keeps the typed row's number. The libro and
+  its export show it (the export's "Nº socio" column replaces the alta-order row
+  counter).
+- Backfill `socio-number` writes **null**, not numbers by alta order: a group
+  brings its own numbering (La Anduela's paper libro), and alta-order numbers would
+  collide with it. Unnumbered rows show without a number until an admin or the
+  import gives them one.
+- `scripts/import-socios.mjs --file --org [--env] [--apply] [--confirm]`: columns by
+  header (name + surnames, nº, phone, email, fecha de alta); phones through
+  `normalizeLeadPhone`. Matches by number (a different name there is a conflict),
+  else by name with no contradicting number/contact (preferring a shared phone or
+  email) — phone or email alone never match, since a household shares one. Only
+  fills in what a matched row lacks; skips and reports conflicts; numberless new
+  lines get the next numbers. Logic in `scripts/lib/socio-import.mjs`.
+- **Left for later:** importing the cuota status or payments; a numberless
+  homonym without contact data cannot be re-matched (reported, asks for its nº).
+
 ## Phase 5 — Records (libro de socios, actas, cuentas)
 
 - **Libro de socios:** each socio's alta and baja with dates. A socio who leaves is

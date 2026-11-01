@@ -60,6 +60,8 @@ export function rosterPlan(memberUids, activeRows) {
 export function memberSocioRow(uid, user, joinedAt) {
   return {
     kind: 'member',
+    // assignSocioNumber numbers it once created.
+    socioNumber: null,
     displayName: (user?.displayName ?? '').trim(),
     uid,
     personId: user?.personId ?? null,

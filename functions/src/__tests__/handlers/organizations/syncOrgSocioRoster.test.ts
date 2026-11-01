@@ -50,7 +50,7 @@ async function seedUser(uid: string, personId: string | null, displayName = 'Ana
 
 function socioRow(overrides: Record<string, unknown>) {
   return {
-    kind: 'member', displayName: 'X', uid: null, personId: null, responsibleUid: null, adminTitle: null,
+    kind: 'member', socioNumber: null, displayName: 'X', uid: null, personId: null, responsibleUid: null, adminTitle: null,
     altaAt: new Date('2025-01-01'), bajaAt: null, memberJoinedAt: null, createdBy: 'x', ...overrides,
   };
 }

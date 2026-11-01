@@ -1706,7 +1706,16 @@
       "setTitle": "Poner cargo",
       "noTitle": "Sin cargo",
       "error": "No se ha podido completar. Inténtalo de nuevo.",
-      "unnamed": "Sin nombre"
+      "unnamed": "Sin nombre",
+      "socioNumber": "Nº de socio (opcional)",
+      "socioNumberHint": "Si lo dejas vacío, se le da el siguiente.",
+      "socioNumberInvalid": "Escribe un número entre 1 y 99999.",
+      "socioNumberTaken": "Ese número ya lo tiene otro socio.",
+      "numberShort": "Nº {number}",
+      "setNumber": "Nº de socio",
+      "numberTitle": "Nº de socio de {name}",
+      "numberLabel": "Nº de socio",
+      "numberClearHint": "Déjalo vacío para quitarle el número."
     },
     "titles": {
       "presidente": "Presidencia",
@@ -1964,7 +1973,8 @@
         "altaBaja": "Alta el {alta} · Baja el {baja}",
         "empty": "Todavía no hay socios.",
         "exportTitle": "Exportar el libro de socios",
-        "exportBody": "{count, plural, one {1 socio} other {# socios}}, con su alta y su baja, por fecha de alta."
+        "exportBody": "{count, plural, one {1 socio} other {# socios}}, con su alta y su baja, por fecha de alta.",
+        "numbered": "Nº {number} · {name}"
       },
       "actas": {
         "title": "Actas",
