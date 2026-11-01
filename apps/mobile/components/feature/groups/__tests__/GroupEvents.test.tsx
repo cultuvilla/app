@@ -26,8 +26,10 @@ beforeEach(() => {
 
 describe('GroupEvents', () => {
   it('lists in two columns and opens the organizing screen of an event', () => {
-    const { UNSAFE_getByType, getByLabelText } = render(<GroupEvents org={org} />);
+    const { UNSAFE_getByType, getByLabelText, getByTestId } = render(<GroupEvents org={org} />);
     expect(UNSAFE_getByType(FlatList).props.numColumns).toBe(2);
+    expect(getByTestId('group-events')).toBeTruthy();
+    expect(getByTestId('group-events-filter')).toBeTruthy();
     fireEvent.press(getByLabelText(/Matanza/));
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/evento/e1');
   });

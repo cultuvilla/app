@@ -56,6 +56,7 @@ describe('GroupTaskBoard', () => {
     const board = render(<GroupTaskBoard group={group} uid="me" />);
     expect(board.UNSAFE_getByType(FlatList).props.numColumns).toBe(2);
     expect(board.getByTestId('group-task-board')).toBeTruthy();
+    expect(board.getByTestId('group-tasks-filter')).toBeTruthy();
     expect(shown(board)).toEqual(['soon', 'shift', 'later']);
     fireEvent.press(board.getByTestId('group-home-task-soon'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/tarea/soon');

@@ -39,6 +39,13 @@ beforeEach(() => {
 });
 
 describe('TaskSheet', () => {
+  it('offers what, when, who and whether it repeats', () => {
+    const { getByTestId } = sheet();
+    for (const id of ['task-sheet', 'task-notes', 'task-due', 'task-assignees', 'task-repeat']) expect(getByTestId(id)).toBeTruthy();
+    fireEvent.press(getByTestId('task-repeat-calendar'));
+    expect(getByTestId('task-repeat-unit')).toBeTruthy();
+  });
+
   it('creates a yearly task on a fixed date', async () => {
     const { getByTestId } = sheet();
     fireEvent.changeText(getByTestId('task-title'), 'Renovar el seguro');
