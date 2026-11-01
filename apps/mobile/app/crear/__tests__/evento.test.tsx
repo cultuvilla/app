@@ -1,5 +1,5 @@
 // apps/mobile/app/event/__tests__/new.test.tsx
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import NewEventScreen from '../evento';
 import { pickImageAsBlob } from '../../../lib/images';
 import {
@@ -946,6 +946,7 @@ describe('NewEventScreen — weekly series', () => {
     await toWhenStep(utils);
     fireEvent.press(getByTestId('startDate')); // Saturday 1 Aug 2026, 18:00
     fireEvent.press(getByTestId('event-recurring'));
+    fireEvent.press(getByTestId('event-recurrence-trigger'));
     fireEvent.press(getByTestId('event-recurrence-weekly'));
     fireEvent.press(getByTestId('repeat-day-2')); // add Tuesdays
     fireEvent.press(getByTestId('repeat-until'));
@@ -962,6 +963,7 @@ describe('NewEventScreen — weekly series', () => {
     expect(utils.queryByTestId('repeat-until')).toBeNull();
     fireEvent.press(utils.getByTestId('startDate'));
     fireEvent.press(utils.getByTestId('event-recurring'));
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
     fireEvent.press(utils.getByTestId('event-recurrence-weekly'));
     // Seeded with the first day's own weekday (Saturday).
     expect(utils.getByTestId('repeat-day-6').props.accessibilityState.checked).toBe(true);
@@ -974,6 +976,7 @@ describe('NewEventScreen — weekly series', () => {
     await toWhenStep(utils);
     fireEvent.press(getByTestId('startDate')); // Saturday 1 Aug 2026, 18:00
     fireEvent.press(getByTestId('event-recurring'));
+    fireEvent.press(getByTestId('event-recurrence-trigger'));
     fireEvent.press(getByTestId('event-recurrence-weekly'));
     fireEvent.press(getByTestId('location-field'));
 
@@ -998,6 +1001,7 @@ describe('NewEventScreen — weekly series', () => {
       await toWhenStep(utils);
       fireEvent.press(utils.getByTestId('startDate'));
       fireEvent.press(utils.getByTestId('event-recurring'));
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
     fireEvent.press(utils.getByTestId('event-recurrence-weekly'));
       fireEvent.press(utils.getByTestId('repeat-until'));
       expect(utils.getByTestId('repeat-until-error')).toBeTruthy();
@@ -1160,6 +1164,7 @@ describe('NewEventScreen — monthly and yearly events, and the group checklist'
     fireEvent.press(getByTestId('startDate')); // Saturday 1 Aug 2026, 18:00
     if (recurrence) {
       fireEvent.press(getByTestId('event-recurring'));
+      fireEvent.press(getByTestId('event-recurrence-trigger'));
       fireEvent.press(getByTestId(`event-recurrence-${recurrence}`));
     }
     if (recurrence === 'monthly') fireEvent.press(getByTestId('repeat-until'));
@@ -1177,7 +1182,9 @@ describe('NewEventScreen — monthly and yearly events, and the group checklist'
     await toWhenStep(utils);
     fireEvent.press(utils.getByTestId('startDate'));
     fireEvent.press(utils.getByTestId('event-recurring'));
-    // Monthly is the default once the event recurs; no weekday row.
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    fireEvent.press(utils.getByTestId('event-recurrence-monthly'));
+    // No weekday row on a monthly event.
     expect(utils.getByTestId('event-recurrence-monthly-hint')).toBeTruthy();
     expect(utils.queryByTestId('repeat-day-1')).toBeNull();
     fireEvent.press(utils.getByTestId('repeat-until'));
@@ -1194,9 +1201,14 @@ describe('NewEventScreen — monthly and yearly events, and the group checklist'
     const utils = render(<NewEventScreen />);
     await toWhenStep(utils);
     fireEvent.press(utils.getByTestId('event-recurring'));
-    fireEvent.press(utils.getByTestId('event-recurrence-yearly'));
-    expect(utils.getByTestId('event-recurrence')).toBeTruthy();
+    // Yearly is the default once the event recurs, shown on the field's right.
+    expect(within(utils.getByTestId('event-recurrence-trigger')).getByText('event.frequencyOption.yearly')).toBeTruthy();
     expect(utils.getByTestId('event-recurrence-yearly-hint')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-recurrence-trigger'));
+    expect(utils.getByText('event.frequencyDescription.weekly')).toBeTruthy();
+    expect(utils.getByText('event.frequencyDescription.monthly')).toBeTruthy();
+    fireEvent.press(utils.getByTestId('event-recurrence-yearly'));
+    expect(utils.queryByTestId('event-recurrence')).toBeNull();
     expect(utils.queryByTestId('repeat-until')).toBeNull();
     fireEvent.press(utils.getByTestId('startDate'));
     fireEvent.press(utils.getByTestId('location-field'));

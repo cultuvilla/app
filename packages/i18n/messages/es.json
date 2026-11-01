@@ -871,6 +871,11 @@
       "monthly": "Mensual",
       "yearly": "Anual"
     },
+    "frequencyDescription": {
+      "weekly": "Los días que elijas, hasta una fecha.",
+      "monthly": "El mismo día de cada mes, hasta una fecha.",
+      "yearly": "Creas el de este año y luego lo repites."
+    },
     "monthlyHint": "El día {day} de cada mes. Si un mes no tiene ese día, el último del mes.",
     "yearlyHint": "Se crea el evento de este año. Cuando pase, podrás repetirlo para el año siguiente.",
     "repeatDays": "Qué días",

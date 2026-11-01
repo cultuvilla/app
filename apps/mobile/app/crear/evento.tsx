@@ -6,6 +6,8 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams, Redirect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { Screen, Text, Input, DateField, DateTimeField, FieldLabel, InfoTooltip, Toggle, HStack, VStack, Pressable, ErrorState } from '../../components/primitives';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { EventCoverPicker } from '../../components/feature/EventCoverPicker';
@@ -13,7 +15,7 @@ import { LocationField } from '../../components/feature/LocationField';
 import { MyVillagePicker, type VillageOption } from '../../components/feature/MyVillagePicker';
 import { OrganizerPicker } from '../../components/feature/OrganizerPicker';
 import { SignupQuestionsEditor } from '../../components/feature/signup/SignupQuestionsEditor';
-import { SegmentedToggle } from '../../components/feature/SegmentedToggle';
+import { OptionsSheet } from '../../components/feature/groups/OptionsSheet';
 import { SelectField } from '../../components/feature/groups/SelectField';
 import {
   EventTasksEditor,
@@ -133,6 +135,47 @@ function stepBody(children: React.ReactNode) {
  * control — the Detalles step is a list of decisions, and spelling each one out
  * inline pushed the controls themselves below the fold.
  */
+/** The label on the left, the current choice on the right; tapping it opens the options. */
+function RecurrenceField({ value, onChange }: { value: Recurrence; onChange: (next: Recurrence) => void }) {
+  const { t } = useT();
+  const [open, setOpen] = useState(false);
+  const label = t('event.frequency');
+  const current = t(`event.frequencyOption.${value}`);
+  return (
+    <>
+      <HStack gap={2} className="items-center justify-between">
+        <FieldLabel>{label}</FieldLabel>
+        <Pressable
+          onPress={() => setOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: ${current}`}
+          testID="event-recurrence-trigger"
+          className="flex-row items-center py-1"
+        >
+          <Text className="mr-1 font-semibold">{current}</Text>
+          <Ionicons name="chevron-down" size={iconSizes.sm} color={colors.light.fg.accent} />
+        </Pressable>
+      </HStack>
+      <OptionsSheet
+        visible={open}
+        title={label}
+        options={RECURRENCES.map((r) => ({
+          key: r,
+          label: t(`event.frequencyOption.${r}`),
+          description: t(`event.frequencyDescription.${r}`),
+          selected: r === value,
+        }))}
+        onPick={(key) => {
+          onChange(key as Recurrence);
+          setOpen(false);
+        }}
+        onClose={() => setOpen(false)}
+        testID="event-recurrence"
+      />
+    </>
+  );
+}
+
 function ToggleField({
   label,
   help,
@@ -222,7 +265,7 @@ export default function NewEventScreen() {
   // submit, weekly ones on the chosen weekdays (ISO 1–7). A yearly one is a
   // single edition flagged `repeatsYearly`.
   const [recurring, setRecurring] = useState(false);
-  const [recurrence, setRecurrence] = useState<Recurrence>('monthly');
+  const [recurrence, setRecurrence] = useState<Recurrence>('yearly');
   const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([]);
   const [repeatUntil, setRepeatUntil] = useState<Date | null>(null);
   // Edit mode: the event as loaded, for the series notice and for cancelling
@@ -881,13 +924,7 @@ export default function NewEventScreen() {
           )}
           {!editMode && recurring ? (
             <VStack gap={1}>
-              <FieldLabel>{t('event.frequency')}</FieldLabel>
-              <SegmentedToggle
-                options={RECURRENCES.map((r) => ({ value: r, label: t(`event.frequencyOption.${r}`) }))}
-                value={recurrence}
-                onChange={pickRecurrence}
-                testID="event-recurrence"
-              />
+              <RecurrenceField value={recurrence} onChange={pickRecurrence} />
               {recurrence === 'yearly' ? (
                 <Text tone="muted" variant="bodySm" testID="event-recurrence-yearly-hint">
                   {t('event.yearlyHint')}
