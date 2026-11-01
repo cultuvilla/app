@@ -158,3 +158,43 @@ describe('taskReminders', () => {
     await assertFails(setDoc(doc(asUser(getEnv(), 'admin1'), path), { taskId: 't1' }));
   });
 });
+
+describe('a task\'s comments', () => {
+  const NAMES: Record<string, string> = { admin1: 'Ana', member1: 'Paco', member2: 'Pepa', stranger: 'Luis' };
+  const COMMENTS = `organizations/${ORG}/tasks/t1/chat`;
+  const comment = (uid: string, overrides: Record<string, unknown> = {}) => ({
+    authorUid: uid, authorName: NAMES[uid], body: '¿Quién trae la llave?', createdAt: serverTimestamp(), ...overrides,
+  });
+
+  beforeEach(async () => {
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      for (const [uid, name] of Object.entries(NAMES)) await setDoc(doc(db, `publicProfiles/${uid}`), { displayName: name, activeMunicipalityId: 'mun1' });
+      await setDoc(doc(db, `${COMMENTS}/c1`), { ...comment('member1'), createdAt: new Date() });
+    });
+  });
+
+  it('members read and write them; an outsider does neither', async () => {
+    await assertSucceeds(getDocs(collection(asUser(getEnv(), 'member2'), COMMENTS)));
+    await assertSucceeds(setDoc(doc(asUser(getEnv(), 'member2'), `${COMMENTS}/c2`), comment('member2')));
+    await assertFails(getDocs(collection(asUser(getEnv(), 'stranger'), COMMENTS)));
+    await assertFails(setDoc(doc(asUser(getEnv(), 'stranger'), `${COMMENTS}/c3`), comment('stranger')));
+  });
+
+  it('a comment is written as its author, under their public name', async () => {
+    const db = asUser(getEnv(), 'member2');
+    await assertFails(setDoc(doc(db, `${COMMENTS}/c2`), comment('member1')));
+    await assertFails(setDoc(doc(db, `${COMMENTS}/c2`), comment('member2', { authorName: 'La junta' })));
+    await assertFails(setDoc(doc(db, `${COMMENTS}/c2`), comment('member2', { body: '' })));
+  });
+
+  it('never edited; deleted by its author or an admin, not by another member', async () => {
+    await assertFails(updateDoc(doc(asUser(getEnv(), 'member1'), `${COMMENTS}/c1`), { body: 'Otra cosa' }));
+    await assertFails(deleteDoc(doc(asUser(getEnv(), 'member2'), `${COMMENTS}/c1`)));
+    await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'member1'), `${COMMENTS}/c1`)));
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${COMMENTS}/c1`), { ...comment('member1'), createdAt: new Date() });
+    });
+    await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'admin1'), `${COMMENTS}/c1`)));
+  });
+});

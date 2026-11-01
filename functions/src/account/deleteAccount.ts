@@ -281,7 +281,7 @@ async function deleteUserComments(uid: string): Promise<number> {
 
 /**
  * Hard-delete every group chat message the user wrote, in the general threads
- * and the avisos'. Leaving a group keeps them under the name they had; erasing
+ * the avisos' and the tasks' comments. Leaving a group keeps them under the name they had; erasing
  * the account does not — each one carries the name and free text. Needs the
  * `chat.authorUid` collection-group override in firestore.indexes.json.
  */

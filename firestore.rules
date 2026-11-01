@@ -1860,6 +1860,16 @@ service cloud.firestore {
         allow delete: if isOrgAdmin(orgId) || (isOrgMember(orgId) && resource.data.createdBy == request.auth.uid);
       }
 
+      // A task's comments: the same message shape and deletion as the group's
+      // chat, private to the members like the task itself (decided 2026-11-01,
+      // user). onTaskCommentCreated pushes; never edited.
+      match /tasks/{taskId}/chat/{chatId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId) && isValidGroupChatMessageCreate(request.resource.data);
+        allow update: if false;
+        allow delete: if canDeleteGroupChatMessage(orgId, resource.data);
+      }
+
       // Checklists dated relative to an anchor. Admins only.
       match /taskTemplates/{templateId} {
         allow read, delete: if isOrgAdmin(orgId);
