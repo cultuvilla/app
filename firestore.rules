@@ -319,7 +319,7 @@ service cloud.firestore {
           && isString(d.name)
           && isStringOrNull(d.description)
           && isList(d.images) && d.images.size() <= 5
-          && d.type in ['ayuntamiento', 'peña', 'asociación', 'otros']
+          && d.type in ['ayuntamiento', 'peña', 'asociación', 'otros', 'comisión']
           && d.status in ['pending', 'approved', 'rejected']
           && isString(d.municipalityId)
           && isString(d.villageSlug)
@@ -1651,8 +1651,8 @@ service cloud.firestore {
         && request.resource.data.get('sociosListVisible', false) is bool
         && request.resource.data.get('chatAdminsOnly', false) is bool
         && (request.resource.data.type == resource.data.type
-            || (resource.data.type in ['peña', 'asociación', 'otros']
-                && request.resource.data.type in ['peña', 'asociación', 'otros']))
+            || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']
+                && request.resource.data.type in ['peña', 'asociación', 'otros', 'comisión']))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'commentCount', 'readCount', 'memberCount', 'followerCount',
              'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
