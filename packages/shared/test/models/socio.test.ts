@@ -4,6 +4,9 @@ import {
   buildSocioPrivateData,
   hasSocioRoster,
   isActiveSocio,
+  nextSocioNumber,
+  parseSocioNumber,
+  socioNumberTaken,
   SocioDataSchema,
   SocioPrivateDataSchema,
 } from '../../src/models/organization/SocioDataModel';
@@ -24,6 +27,7 @@ describe('buildSocioData', () => {
     const row = buildSocioData({ kind: 'member', displayName: 'Ana', uid: 'u1', createdBy: 'u1', altaAt, memberJoinedAt: altaAt });
     expect(row).toEqual({
       kind: 'member',
+      socioNumber: null,
       displayName: 'Ana',
       uid: 'u1',
       personId: null,
@@ -56,6 +60,19 @@ describe('buildSocioData', () => {
     expect(isActiveSocio({ ...row, bajaAt: new Date() })).toBe(false);
   });
 
+  it('keeps a given socio number and refuses one out of range', () => {
+    const row = buildSocioData({ kind: 'typed', displayName: 'Paco', socioNumber: 57, createdBy: 'admin' });
+    expect(SocioDataSchema.parse(row).socioNumber).toBe(57);
+    expect(() => SocioDataSchema.parse({ ...row, socioNumber: 0 })).toThrow();
+    expect(() => SocioDataSchema.parse({ ...row, socioNumber: 1.5 })).toThrow();
+    expect(() => SocioDataSchema.parse({ ...row, socioNumber: 100000 })).toThrow();
+  });
+
+  it('rejects a row without the socioNumber field', () => {
+    const { socioNumber: _omit, ...legacy } = buildSocioData({ kind: 'typed', displayName: 'Paco', createdBy: 'admin' });
+    expect(() => SocioDataSchema.parse(legacy)).toThrow();
+  });
+
   it('rejects an unknown admin title', () => {
     const row = buildSocioData({ kind: 'member', displayName: 'Ana', uid: 'u1', createdBy: 'u1' });
     expect(() => SocioDataSchema.parse({ ...row, adminTitle: 'rey' })).toThrow();
@@ -75,5 +92,29 @@ describe('buildSocioPrivateData', () => {
     const at = new Date('2026-10-20');
     const data = buildSocioPrivateData({ phone: '600000000', email: null, consentAnsweredAt: at });
     expect(SocioPrivateDataSchema.parse(data)).toEqual({ phone: '600000000', email: null, consentAnsweredAt: at });
+  });
+});
+
+describe('socio numbers', () => {
+  it('the next number passes both the counter and any number set by hand', () => {
+    expect(nextSocioNumber(0, null)).toBe(1);
+    expect(nextSocioNumber(4, 2)).toBe(5);
+    expect(nextSocioNumber(4, 200)).toBe(201);
+  });
+
+  it('parses what an admin types: blank is no number, junk is invalid', () => {
+    expect(parseSocioNumber('  ')).toBeNull();
+    expect(parseSocioNumber(' 57 ')).toBe(57);
+    expect(parseSocioNumber('0')).toBeUndefined();
+    expect(parseSocioNumber('5,7')).toBeUndefined();
+    expect(parseSocioNumber('-3')).toBeUndefined();
+    expect(parseSocioNumber('100000')).toBeUndefined();
+  });
+
+  it('a number is taken by any other row, bajas included', () => {
+    const rows = [{ id: 'a', socioNumber: 1 }, { id: 'b', socioNumber: null }];
+    expect(socioNumberTaken(rows, 1, null)).toBe(true);
+    expect(socioNumberTaken(rows, 1, 'a')).toBe(false);
+    expect(socioNumberTaken(rows, 2, null)).toBe(false);
   });
 });

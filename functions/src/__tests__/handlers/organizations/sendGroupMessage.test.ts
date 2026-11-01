@@ -35,7 +35,7 @@ async function seedUser(uid: string) {
 
 async function seedSocio(id: string, overrides: Record<string, unknown> = {}) {
   await db().doc(`organizations/${ORG_ID}/socios/${id}`).set({
-    kind: 'member', displayName: id, uid: null, personId: null, responsibleUid: null, adminTitle: null,
+    kind: 'member', socioNumber: null, displayName: id, uid: null, personId: null, responsibleUid: null, adminTitle: null,
     altaAt: new Date('2025-01-01T10:00:00Z'), bajaAt: null, memberJoinedAt: null, createdBy: 'x', ...overrides,
   });
 }

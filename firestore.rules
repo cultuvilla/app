@@ -347,16 +347,22 @@ service cloud.firestore {
     function orgSociosListVisible(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('sociosListVisible', false) == true;
     }
+    // The group's "nº de socio" (SOCIO_NUMBER_MAX). Uniqueness is the admins'
+    // care: rules cannot see the other rows.
+    function isValidSocioNumber(n) {
+      return n == null || (n is int && n >= 1 && n <= 99999);
+    }
     function isValidSocioCreate(d) {
       return d.keys().hasOnly([
-              'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
+              'kind', 'socioNumber', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
               'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
             ])
           && d.keys().hasAll([
-              'kind', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
+              'kind', 'socioNumber', 'displayName', 'uid', 'personId', 'responsibleUid', 'adminTitle',
               'altaAt', 'bajaAt', 'memberJoinedAt', 'createdBy',
             ])
           && d.kind in ['persona', 'typed']
+          && isValidSocioNumber(d.socioNumber)
           && isString(d.displayName) && d.displayName.size() > 0 && d.displayName.size() <= 200
           && d.uid == null
           && isStringOrNull(d.personId)
@@ -1661,6 +1667,9 @@ service cloud.firestore {
                  && isOrgMember(orgId)
                  && request.resource.data.responsibleUid == request.auth.uid
                  && request.resource.data.personId is string
+                 // The junta numbers socios; a member's persona waits for
+                 // assignSocioNumber.
+                 && request.resource.data.socioNumber == null
                  // A member writes the alta of their own persona: keep it to now.
                  && request.resource.data.altaAt > request.time - duration.value(5, 'm')
                  && request.resource.data.altaAt < request.time + duration.value(5, 'm')
@@ -1669,7 +1678,13 @@ service cloud.firestore {
                  // batch, and a lock create fails while another row holds it.
                  && getAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(request.resource.data.personId)).data.socioId == socioId)
              );
-        allow update: if isAuthenticated() && resource.data.bajaAt == null && (
+        allow update: if (
+             // An admin numbers or renumbers any row, bajas included: the libro
+             // is theirs to correct.
+             isOrgAdmin(orgId)
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['socioNumber'])
+               && isValidSocioNumber(request.resource.data.socioNumber)
+        ) || (isAuthenticated() && resource.data.bajaAt == null && (
              // Baja: a persona by its responsible member or an admin; a typed
              // socio by an admin. Stamped with the server's clock.
              (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bajaAt'])
@@ -1679,10 +1694,11 @@ service cloud.firestore {
                      // The baja frees the persona's lock in the same write.
                      && !existsAfter(/databases/$(database)/documents/organizations/$(orgId)/socioPersonaLocks/$(resource.data.personId)))
                    || (resource.data.kind == 'typed' && isOrgAdmin(orgId))))
-             // An admin corrects a typed-in socio's name.
+             // An admin corrects a typed-in socio's name (and number).
           || (resource.data.kind == 'typed'
                && isOrgAdmin(orgId)
-               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'socioNumber'])
+               && isValidSocioNumber(request.resource.data.socioNumber)
                && isString(request.resource.data.displayName)
                && request.resource.data.displayName.size() > 0
                && request.resource.data.displayName.size() <= 200)
@@ -1693,8 +1709,13 @@ service cloud.firestore {
                && (request.resource.data.adminTitle == null
                    || (request.resource.data.adminTitle in ['presidente', 'secretario', 'tesorero', 'vocal', 'otro']
                        && get(/databases/$(database)/documents/organizations/$(orgId)/members/$(resource.data.uid)).data.role == 'admin')))
-        );
+        ));
         allow delete: if false;
+      }
+
+      // The last socio number assignSocioNumber handed out. Function-owned.
+      match /socioNumbering/{docId} {
+        allow read, write: if false;
       }
 
       // While a persona is an active socio, its lock names the row (see

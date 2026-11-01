@@ -122,7 +122,7 @@ async function seed(orgId, uid, secondOrgId) {
   const batch = db.batch();
   const socios = TYPED.map(([name, alta], i) => ({ id: id('socio', i + 1), name, n: i + 1, alta }));
   for (const s of socios) {
-    batch.set(db.doc(`${o}/socios/${s.id}`), tag(buildSocioData({ kind: 'typed', displayName: s.name, altaAt: new Date(`${s.alta}T10:00:00Z`), createdBy: uid })));
+    batch.set(db.doc(`${o}/socios/${s.id}`), tag(buildSocioData({ kind: 'typed', socioNumber: 100 + s.n, displayName: s.name, altaAt: new Date(`${s.alta}T10:00:00Z`), createdBy: uid })));
     if (PHONES[s.n]) batch.set(db.doc(`${o}/socioPrivate/${s.id}`), tag(buildSocioPrivateData({ phone: PHONES[s.n] })));
     if (JUBILADOS.has(s.n) || EXEMPT.has(s.n)) {
       batch.set(

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { isActiveSocio, ORG_ADMIN_TITLES } from '@cultuvilla/shared/models/organization';
+import { isActiveSocio, ORG_ADMIN_TITLES, socioNumberTaken } from '@cultuvilla/shared/models/organization';
 import {
   addTypedSocio,
   linkSocioToMember,
   setSocioAdminTitle,
   setSocioBaja,
+  setSocioNumber,
   updateTypedSocio,
   watchOrgSocioPrivates,
   watchOrgSocios,
@@ -14,7 +15,8 @@ import {
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, HStack, Pressable, Text, VStack } from '../../primitives';
 import { OptionsSheet } from './OptionsSheet';
-import { TypedSocioSheet, type TypedSocioValues } from './TypedSocioSheet';
+import { SocioNumberSheet } from './SocioNumberSheet';
+import { TypedSocioSheet, type TypedSocioSaved } from './TypedSocioSheet';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
@@ -24,12 +26,14 @@ type Sheet =
   | { kind: 'typed'; socio: Socio | null }
   | { kind: 'link'; socio: Socio }
   | { kind: 'title'; socio: Socio }
+  | { kind: 'number'; socio: Socio }
   | null;
 
 /**
  * The group's socio roster. `canManage` (an org admin) sees every row with its
  * contact data and manages it: types in socios without the app, corrects them,
- * links one to a member who later joined, gives the baja, sets admin titles.
+ * links one to a member who later joined, gives the baja, sets admin titles
+ * and socio numbers.
  * Otherwise — a member, while the estatutos setting is on — names only.
  */
 export function SociosRoster({
@@ -87,8 +91,10 @@ export function SociosRoster({
       { confirmText: t('groups.socios.giveBaja'), cancelText: t('common.cancel') },
     );
 
-  const saveTyped = async (values: TypedSocioValues) => {
-    const input = { displayName: values.displayName, phone: values.phone, email: values.email };
+  const isNumberTaken = (exceptId: string | null) => (socioNumber: number) => socioNumberTaken(rows, socioNumber, exceptId);
+
+  const saveTyped = async (values: TypedSocioSaved) => {
+    const input = { displayName: values.displayName, socioNumber: values.socioNumber, phone: values.phone, email: values.email };
     if (sheet?.kind === 'typed' && sheet.socio) await updateTypedSocio(orgId, sheet.socio.id, input);
     else await addTypedSocio(orgId, input, currentUid);
   };
@@ -130,6 +136,7 @@ export function SociosRoster({
             </HStack>
             <Text variant="bodySm" tone="muted">
               {[
+                s.socioNumber !== null ? t('groups.socios.numberShort', { number: String(s.socioNumber) }) : null,
                 kindLabel(s),
                 t('groups.socios.alta', { date: formatDate(s.altaAt) }),
                 s.bajaAt ? t('groups.socios.baja', { date: formatDate(s.bajaAt) }) : null,
@@ -157,6 +164,13 @@ export function SociosRoster({
                     onPress={() => setSheet({ kind: 'title', socio: s })}
                   />
                 ) : null}
+                {s.kind !== 'typed' ? (
+                  <RowAction
+                    testID={`socio-number-${s.id}`}
+                    label={t('groups.socios.setNumber')}
+                    onPress={() => setSheet({ kind: 'number', socio: s })}
+                  />
+                ) : null}
                 {s.kind !== 'member' ? (
                   <RowAction testID={`socio-baja-${s.id}`} label={t('groups.socios.giveBaja')} onPress={() => giveBaja(s)} />
                 ) : null}
@@ -182,12 +196,24 @@ export function SociosRoster({
               sheet?.kind === 'typed' && sheet.socio
                 ? {
                     displayName: sheet.socio.displayName,
+                    socioNumber: sheet.socio.socioNumber === null ? '' : String(sheet.socio.socioNumber),
                     phone: contactById.get(sheet.socio.id)?.phone ?? '',
                     email: contactById.get(sheet.socio.id)?.email ?? '',
                   }
                 : null
             }
+            isNumberTaken={isNumberTaken(sheet?.kind === 'typed' ? (sheet.socio?.id ?? null) : null)}
             onSave={saveTyped}
+            onClose={() => setSheet(null)}
+          />
+          <SocioNumberSheet
+            visible={sheet?.kind === 'number'}
+            name={sheet?.kind === 'number' ? sheet.socio.displayName || t('groups.socios.unnamed') : ''}
+            initial={sheet?.kind === 'number' ? sheet.socio.socioNumber : null}
+            isNumberTaken={isNumberTaken(sheet?.kind === 'number' ? sheet.socio.id : null)}
+            onSave={async (socioNumber) => {
+              if (sheet?.kind === 'number') await setSocioNumber(orgId, sheet.socio.id, socioNumber);
+            }}
             onClose={() => setSheet(null)}
           />
           <OptionsSheet

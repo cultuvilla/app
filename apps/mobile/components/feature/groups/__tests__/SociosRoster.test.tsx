@@ -6,6 +6,7 @@ import {
   linkSocioToMember,
   setSocioAdminTitle,
   setSocioBaja,
+  setSocioNumber,
   updateTypedSocio,
 } from '@cultuvilla/shared/services/socioService';
 import { updateOrganization } from '@cultuvilla/shared/services/organizationService';
@@ -28,6 +29,7 @@ jest.mock('@cultuvilla/shared/services/socioService', () => ({
   linkSocioToMember: jest.fn().mockResolvedValue(undefined),
   setSocioAdminTitle: jest.fn().mockResolvedValue(undefined),
   setSocioBaja: jest.fn().mockResolvedValue(undefined),
+  setSocioNumber: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
   updateOrganization: jest.fn().mockResolvedValue(undefined),
@@ -42,7 +44,7 @@ const ROWS = [
   socio('Ana', { uid: 'u-ana' }),
   socio('Tesorera', { uid: 'u-admin', adminTitle: 'tesorero' }),
   socio('Hija', { kind: 'persona', personId: 'p1', responsibleUid: 'u-ana' }),
-  socio('Paco', { kind: 'typed' }),
+  socio('Paco', { kind: 'typed', socioNumber: 12 }),
   socio('Viejo', { uid: 'u-old', bajaAt: new Date('2025-01-01') }),
 ];
 
@@ -87,7 +89,7 @@ describe('SociosRoster — admin', () => {
     fireEvent.changeText(getByTestId('typed-socio-email'), '');
     fireEvent.press(getByTestId('typed-socio-save'));
     await waitFor(() =>
-      expect(addTypedSocio).toHaveBeenCalledWith('org1', { displayName: 'Lola', phone: '622', email: '' }, 'u-admin'),
+      expect(addTypedSocio).toHaveBeenCalledWith('org1', { displayName: 'Lola', socioNumber: null, phone: '622', email: '' }, 'u-admin'),
     );
   });
 
@@ -140,8 +142,22 @@ describe('SociosRoster — admin', () => {
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Paco Pérez');
     fireEvent.press(getByTestId('typed-socio-save'));
     await waitFor(() =>
-      expect(updateTypedSocio).toHaveBeenCalledWith('org1', 'Paco', { displayName: 'Paco Pérez', phone: '611', email: 'paco@x.es' }),
+      expect(updateTypedSocio).toHaveBeenCalledWith('org1', 'Paco', { displayName: 'Paco Pérez', socioNumber: 12, phone: '611', email: 'paco@x.es' }),
     );
+  });
+
+  it('numbers a member row, refusing a number another socio has', async () => {
+    const { getByTestId, getByText } = renderAdmin();
+    expect(getByText('groups.socios.numberShort · groups.socios.kindTyped · groups.socios.alta', { exact: false })).toBeTruthy();
+    fireEvent.press(getByTestId('socio-number-Ana'));
+    expect(getByTestId('socio-number-sheet')).toBeTruthy();
+    fireEvent.changeText(getByTestId('socio-number-input'), '12');
+    fireEvent.press(getByTestId('socio-number-save'));
+    expect(getByText('groups.socios.socioNumberTaken')).toBeTruthy();
+    expect(setSocioNumber).not.toHaveBeenCalled();
+    fireEvent.changeText(getByTestId('socio-number-input'), '13');
+    fireEvent.press(getByTestId('socio-number-save'));
+    await waitFor(() => expect(setSocioNumber).toHaveBeenCalledWith('org1', 'Ana', 13));
   });
 
   it('links a typed-in socio to a member who joined with the app', () => {

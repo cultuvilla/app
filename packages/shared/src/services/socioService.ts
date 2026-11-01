@@ -96,30 +96,43 @@ export function watchOrgSocioPrivates(
 // WRITES
 // =============================================================================
 
+export interface TypedSocioInput extends SocioContactInput {
+  displayName: string;
+  /** The group's number for them; null leaves it to `assignSocioNumber` on add. */
+  socioNumber: number | null;
+}
+
 /** Admin: add a socio who has no account. Returns the new socio id. */
 export async function addTypedSocio(
   orgId: string,
-  input: { displayName: string } & SocioContactInput,
+  input: TypedSocioInput,
   adminUid: string,
 ): Promise<string> {
   const db = getDb();
   const ref = doc(organizationSociosCollection(db, orgId));
   const batch = writeBatch(db);
-  batch.set(ref, buildSocioData({ kind: 'typed', displayName: input.displayName, createdBy: adminUid }));
+  batch.set(
+    ref,
+    buildSocioData({ kind: 'typed', displayName: input.displayName, socioNumber: input.socioNumber, createdBy: adminUid }),
+  );
   batch.set(organizationSocioPrivateDoc(db, orgId, ref.id), buildSocioPrivateData(input));
   await batch.commit();
   return ref.id;
 }
 
-/** Admin: correct a typed-in socio's name or contact data. */
+/** Admin: correct a typed-in socio's name, number or contact data. */
 export async function updateTypedSocio(
   orgId: string,
   socioId: string,
-  input: { displayName: string } & SocioContactInput,
+  input: TypedSocioInput,
 ): Promise<void> {
   const db = getDb();
   const batch = writeBatch(db);
-  batch.update(organizationSocioDoc(db, orgId, socioId), { displayName: input.displayName.trim() });
+  // Raw ref: the typed UpdateData chokes on a nullable field.
+  batch.update(doc(db, 'organizations', orgId, 'socios', socioId), {
+    displayName: input.displayName.trim(),
+    socioNumber: input.socioNumber,
+  });
   batch.set(organizationSocioPrivateDoc(db, orgId, socioId), buildSocioPrivateData(input));
   await batch.commit();
 }
@@ -169,6 +182,12 @@ export async function setSocioBaja(
     batch.delete(organizationSocioPersonaLockDoc(db, orgId, socio.personId));
   }
   await batch.commit();
+}
+
+/** Admin: number, renumber or un-number any row of the libro, bajas included. */
+export async function setSocioNumber(orgId: string, socioId: string, socioNumber: number | null): Promise<void> {
+  // Same-line raw ref: the typed UpdateData chokes on a nullable field (see add-firestore-collection).
+  await updateDoc(doc(getDb(), 'organizations', orgId, 'socios', socioId), { socioNumber });
 }
 
 /** Admin: set or clear an org admin's display title (presidente, tesorero…). */
