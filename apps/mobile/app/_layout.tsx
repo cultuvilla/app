@@ -79,7 +79,6 @@ function AuthGate() {
   const { user, loading, profile, profileChecked } = useAuth();
   const segments = useSegments();
   useRouteTracking();
-  useDeepLinkRouter();
   const { pendingIntent, clearPending } = useRegisterGate();
   const markAppReady = useMarkAppReady();
 
@@ -102,11 +101,19 @@ function AuthGate() {
     }
   }, [intentTarget, clearPending]);
 
+  const target = resolveAuthRoute({
+    user: !!user,
+    profileChecked,
+    hasPersonId: !!profile?.personId,
+    topSegment: segments[0],
+  });
+  const gatedBySpinner = loading || (user && !profileChecked) || !!intentTarget;
+  useDeepLinkRouter(!gatedBySpinner && !target);
+
   // The intro holds the screen until the first real route is decided.
-  const resolving = loading || (user && !profileChecked) || !!intentTarget;
   useEffect(() => {
-    if (!resolving) markAppReady();
-  }, [resolving, markAppReady]);
+    if (!gatedBySpinner) markAppReady();
+  }, [gatedBySpinner, markAppReady]);
 
   if (loading || (user && !profileChecked)) {
     return (
@@ -125,12 +132,6 @@ function AuthGate() {
     );
   }
 
-  const target = resolveAuthRoute({
-    user: !!user,
-    profileChecked,
-    hasPersonId: !!profile?.personId,
-    topSegment: segments[0],
-  });
   if (target) {
     return <Redirect href={target} />;
   }

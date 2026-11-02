@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 
 const mockGetInitialURL = jest.fn();
 const mockAddEventListener = jest.fn();
@@ -31,12 +31,26 @@ jest.mock('expo-constants', () => ({
 
 import { useDeepLinkRouter } from '../useDeepLinkRouter';
 
-function Probe(): null {
-  useDeepLinkRouter();
+function Probe({ mounted = true }: { mounted?: boolean }): null {
+  useDeepLinkRouter(mounted);
   return null;
 }
 
 describe('useDeepLinkRouter', () => {
+  it('holds a link until the navigator is mounted, then routes it once', async () => {
+    mockGetInitialURL.mockResolvedValueOnce('https://example.test.app/villa/evento/fiesta_evt_1');
+    const { rerender } = render(<Probe mounted={false} />);
+    await act(async () => {});
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockTrackEvent).not.toHaveBeenCalled();
+
+    rerender(<Probe />);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/villa/evento/fiesta_evt_1'));
+    rerender(<Probe />);
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+  });
+
   beforeEach(() => {
     mockGetInitialURL.mockReset();
     mockAddEventListener.mockReset();
@@ -62,12 +76,14 @@ describe('useDeepLinkRouter', () => {
     render(<Probe />);
     await waitFor(() => expect(mockAddEventListener).toHaveBeenCalled());
     const handler = mockAddEventListener.mock.calls[0][1] as (e: { url: string }) => void;
-    handler({ url: 'https://example.test.app/villa/entidad/pena_org_5/unirse' });
-    expect(mockTrackEvent).toHaveBeenCalledWith('app.link.opened', {
-      entityKind: 'organization',
-      viaInvite: true,
-      surface: 'running',
-    });
+    act(() => handler({ url: 'https://example.test.app/villa/entidad/pena_org_5/unirse' }));
+    await waitFor(() =>
+      expect(mockTrackEvent).toHaveBeenCalledWith('app.link.opened', {
+        entityKind: 'organization',
+        viaInvite: true,
+        surface: 'running',
+      }),
+    );
   });
 
   it('does not record a link it does not route', async () => {
