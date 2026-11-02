@@ -10,7 +10,7 @@ import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
 import { taskPeople } from '../../../../components/feature/groups/GroupHomeCards';
 import { TaskComments } from '../../../../components/feature/groups/TaskComments';
-import { ShiftBar } from '../../../../components/feature/groups/TaskRows';
+import { TaskSignupBar } from '../../../../components/feature/groups/TaskRows';
 import { TaskSheet } from '../../../../components/feature/groups/TaskSheet';
 import { GroupContactGate } from '../../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../../lib/auth/useAuth';
@@ -59,7 +59,7 @@ export default function GroupTaskScreen() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const openShift = task !== null && task.slots !== null && task.doneAt === null;
+  const open = task !== null && task.doneAt === null;
 
   if (uid && status !== 'loading' && !group) return <Redirect href={routes.groups} />;
 
@@ -137,7 +137,7 @@ export default function GroupTaskScreen() {
                     </HStack>
                   ))
                 )}
-                {isAdmin && openShift && task.waitlistUids.length > 0 ? (
+                {isAdmin && open && task.slots !== null && task.waitlistUids.length > 0 ? (
                   <Text variant="bodySm" tone="muted" testID="group-task-waiting">
                     {t('groups.tasks.shift.waiting', { names: task.waitlistUids.map(nameOf).join(', ') })}
                   </Text>
@@ -160,7 +160,7 @@ export default function GroupTaskScreen() {
           </ScrollView>
           {/* Out of the page, so the answer is on screen however long the comments
               get; it steps aside for the keyboard, which needs that room to write. */}
-          {openShift && !keyboardOpen ? <ShiftBar task={task} orgId={orgId} uid={uid} /> : null}
+          {open && !keyboardOpen ? <TaskSignupBar task={task} orgId={orgId} uid={uid} /> : null}
           <TaskSheet
             visible={editing}
             orgId={orgId}

@@ -3,7 +3,7 @@
 // the creator delete; the shift answer lists stay function-owned.
 import { describe, it, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, getDocs, collection, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { arrayRemove, arrayUnion, deleteDoc, doc, getDoc, getDocs, collection, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
 import { asUser } from '../helpers/roles';
 
@@ -107,6 +107,12 @@ describe('tasks', () => {
     await assertSucceeds(updateDoc(taskDoc('member1', 't1'), { doneAt: null, doneBy: null }));
     await assertFails(updateDoc(taskDoc('member1', 't1'), { doneAt: serverTimestamp(), doneBy: 'member2' }));
     await assertFails(updateDoc(taskDoc('member1', 't1'), { doneAt: new Date(2020, 0, 1), doneBy: 'member1' }));
+  });
+
+  it('any member signs up for a plain task and steps out; an outsider cannot', async () => {
+    await assertSucceeds(updateDoc(taskDoc('member2', 't1'), { assigneeUids: arrayUnion('member2') }));
+    await assertSucceeds(updateDoc(taskDoc('member2', 't1'), { assigneeUids: arrayRemove('member2') }));
+    await assertFails(updateDoc(taskDoc('stranger', 't1'), { assigneeUids: arrayUnion('stranger') }));
   });
 
   it('an admin edits and closes a task but never touches the answers or the next occurrence', async () => {

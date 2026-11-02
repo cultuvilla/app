@@ -1,8 +1,8 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildGroupTaskData, type GroupTaskData } from '@cultuvilla/shared/models/organization';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
-import { respondToTaskShift } from '@cultuvilla/shared/services/groupTaskService';
-import { ShiftBar, TaskRow } from '../TaskRows';
+import { respondToTaskShift, setGroupTaskAssigned } from '@cultuvilla/shared/services/groupTaskService';
+import { TaskRow, TaskSignupBar } from '../TaskRows';
 
 jest.mock('../../../../lib/i18n', () => ({
   useT: () => ({
@@ -12,6 +12,7 @@ jest.mock('../../../../lib/i18n', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
   respondToTaskShift: jest.fn().mockResolvedValue('claimed'),
+  setGroupTaskAssigned: jest.fn().mockResolvedValue(undefined),
 }));
 
 const FUTURE = `${String(Number(madridDayKey(new Date()).slice(0, 4)) + 1)}-08-14`;
@@ -21,7 +22,7 @@ function task(id: string, over: Partial<GroupTaskData> = {}) {
   return { id, ...buildGroupTaskData({ title: id, createdBy: 'admin', createdAt: new Date() }), ...over };
 }
 
-const shift = (t: ReturnType<typeof task>) => render(<ShiftBar task={t} orgId="org1" uid="u1" />);
+const shift = (t: ReturnType<typeof task>) => render(<TaskSignupBar task={t} orgId="org1" uid="u1" />);
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -35,7 +36,7 @@ describe('TaskRow', () => {
   });
 });
 
-describe('ShiftBar', () => {
+describe('TaskSignupBar', () => {
   it('offers an open shift: claim it or say no', async () => {
     const { getByTestId } = shift(task('montaje', { slots: 3, dueOn: FUTURE, time: '10:00', claimedUids: ['u2'] }));
     expect(getByTestId('shift-montaje')).toHaveTextContent(/groups\.tasks\.shift\.slots:1\|3/);
@@ -54,5 +55,23 @@ describe('ShiftBar', () => {
     expect(getByTestId('shift-state-waiting')).toHaveTextContent('groups.tasks.shift.state.waitlisted:2');
     expect(getByTestId('shift-withdraw-waiting')).toHaveTextContent('groups.tasks.shift.leaveWaitlist');
     expect(queryByTestId('shift-claim-waiting')).toBeNull();
+  });
+
+  it('a plain task offers signing up, with no slots to count and no no to give', async () => {
+    const { getByTestId, queryByTestId } = shift(task('leña', { assigneeUids: ['u2'] }));
+    expect(getByTestId('shift-claim-leña')).toHaveTextContent('groups.tasks.shift.claim');
+    expect(getByTestId('shift-leña')).not.toHaveTextContent(/groups\.tasks\.shift\.(slots|full)/);
+    expect(queryByTestId('shift-decline-leña')).toBeNull();
+    fireEvent.press(getByTestId('shift-claim-leña'));
+    await waitFor(() => expect(setGroupTaskAssigned).toHaveBeenCalledWith('org1', 'leña', 'u1', true));
+    expect(respondToTaskShift).not.toHaveBeenCalled();
+  });
+
+  it('someone already on a plain task can take themselves off', async () => {
+    const { getByTestId, queryByTestId } = shift(task('leña', { assigneeUids: ['u1', 'u2'] }));
+    expect(getByTestId('shift-state-leña')).toHaveTextContent('groups.tasks.shift.state.claimed');
+    expect(queryByTestId('shift-claim-leña')).toBeNull();
+    fireEvent.press(getByTestId('shift-withdraw-leña'));
+    await waitFor(() => expect(setGroupTaskAssigned).toHaveBeenCalledWith('org1', 'leña', 'u1', false));
   });
 });

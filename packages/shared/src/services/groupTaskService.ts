@@ -1,5 +1,5 @@
 // packages/shared/src/services/groupTaskService.ts
-import { deleteDoc, doc, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from '../firebase/sdk/firestore';
+import { arrayRemove, arrayUnion, deleteDoc, doc, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from '../firebase/sdk/firestore';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
@@ -144,6 +144,15 @@ export async function updateGroupTask(orgId: string, taskId: string, edit: Group
  */
 export async function setGroupTaskDone(orgId: string, taskId: string, done: boolean, uid: string): Promise<void> {
   await updateDoc(rawDoc(orgId, 'tasks', taskId), done ? { doneAt: serverTimestamp(), doneBy: uid } : { doneAt: null, doneBy: null });
+}
+
+/**
+ * Any member: put themselves on a plain task, or take themselves off it. Array
+ * ops, so two people signing up at once both land. A shift's answers go through
+ * `respondToTaskShift` instead.
+ */
+export async function setGroupTaskAssigned(orgId: string, taskId: string, uid: string, assigned: boolean): Promise<void> {
+  await updateDoc(rawDoc(orgId, 'tasks', taskId), { assigneeUids: assigned ? arrayUnion(uid) : arrayRemove(uid) });
 }
 
 /** An admin, or the task's creator. */

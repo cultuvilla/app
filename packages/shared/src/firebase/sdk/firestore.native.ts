@@ -7,6 +7,8 @@
 //     Use `firebaseErrorCode()` from ./errors to compare codes.
 export {
   addDoc,
+  arrayRemove,
+  arrayUnion,
   clearIndexedDbPersistence,
   collection,
   collectionGroup,

@@ -15,6 +15,8 @@ vi.mock('../../src/firebase/refs/client', () => ({
   organizationTaskWriteDoc: vi.fn((_db, orgId: string, coll: string, id: string) => ({ _path: `organizations/${orgId}/${coll}/${id}` })),
 }));
 vi.mock('firebase/firestore', () => ({
+  arrayRemove: vi.fn((v: string) => ({ _remove: v })),
+  arrayUnion: vi.fn((v: string) => ({ _union: v })),
   doc: vi.fn((coll: { _coll?: string } | undefined, id?: string) => ({ id: id ?? `new-${String(++newId)}`, _path: `${coll?._coll ?? ''}/${id ?? 'new'}` })),
   deleteDoc: vi.fn(),
   limit: vi.fn(),
@@ -40,6 +42,7 @@ import {
   deleteTaskComment,
   respondToTaskShift,
   saveTasksAsTemplate,
+  setGroupTaskAssigned,
   setGroupTaskDone,
   updateGroupTask,
 } from '../../src/services/groupTaskService';
@@ -75,6 +78,15 @@ describe('groupTaskService', () => {
     expect(pathOf(ref)).toBe('organizations/org1/tasks/t1');
     expect(Object.keys(data).sort()).toEqual(['assigneeUids', 'dueOn', 'eventId', 'notes', 'recurrence', 'slots', 'time', 'title']);
     expect(data).toMatchObject({ notes: null, assigneeUids: ['a'] });
+  });
+
+  it('setGroupTaskAssigned adds or removes only that member, leaving anyone else who signed up', async () => {
+    await setGroupTaskAssigned('org1', 't1', 'u1', true);
+    await setGroupTaskAssigned('org1', 't1', 'u1', false);
+    expect(vi.mocked(updateDoc).mock.calls.map((c) => c[1])).toEqual([
+      { assigneeUids: { _union: 'u1' } },
+      { assigneeUids: { _remove: 'u1' } },
+    ]);
   });
 
   it('setGroupTaskDone stamps the server time and the ticker, or clears both', async () => {

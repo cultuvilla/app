@@ -48,9 +48,9 @@ jest.mock('../../../components/feature/groups/TaskComments', () => ({
   },
 }));
 jest.mock('../../../components/feature/groups/TaskRows', () => ({
-  ShiftBar: () => {
+  TaskSignupBar: () => {
     const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
-    return <Text testID="stub-shift">shift</Text>;
+    return <Text testID="stub-signup">signup</Text>;
   },
 }));
 jest.mock('../../../components/feature/groups/TaskSheet', () => ({
@@ -84,7 +84,7 @@ describe("a group's task screen", () => {
     mockTask = task({ slots: 3, dueOn: '2030-01-01', claimedUids: ['a3'] });
     const { getByTestId } = render(<GroupTaskScreen />);
     expect(getByTestId('group-task-person-a3')).toBeTruthy();
-    expect(getByTestId('stub-shift')).toBeTruthy();
+    expect(getByTestId('stub-signup')).toBeTruthy();
   });
 
   it('closes an open task and reopens a closed one', async () => {
@@ -106,7 +106,7 @@ describe("a group's task screen", () => {
     expect(getByTestId('group-task-done')).toBeTruthy();
   });
 
-  it('pins the answer to a shift outside the page, until the keyboard needs the room', () => {
+  it('pins the sign-up outside the page, until the keyboard needs the room', () => {
     const listeners: { event: string; cb: () => void }[] = [];
     const spy = jest.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, cb: () => void) => {
       listeners.push({ event, cb });
@@ -115,20 +115,24 @@ describe("a group's task screen", () => {
     const keyboard = (event: string) => act(() => listeners.filter((l) => l.event === event).forEach((l) => l.cb()));
     mockTask = task({ slots: 3, dueOn: '2030-01-01' });
     const { getByTestId, queryByTestId } = render(<GroupTaskScreen />);
-    expect(getByTestId('group-task')).not.toContainElement(getByTestId('stub-shift'));
+    expect(getByTestId('group-task')).not.toContainElement(getByTestId('stub-signup'));
     keyboard('keyboardDidShow');
-    expect(queryByTestId('stub-shift')).toBeNull();
+    expect(queryByTestId('stub-signup')).toBeNull();
     keyboard('keyboardDidHide');
-    expect(getByTestId('stub-shift')).toBeTruthy();
+    expect(getByTestId('stub-signup')).toBeTruthy();
     spy.mockRestore();
   });
 
-  it('offers no answer on a plain task or a closed shift', () => {
+  it('offers signing up on an open plain task, and not on anything closed', () => {
     const plain = render(<GroupTaskScreen />);
-    expect(plain.queryByTestId('stub-shift')).toBeNull();
+    expect(plain.getByTestId('stub-signup')).toBeTruthy();
     plain.unmount();
+    mockTask = task({ doneAt: new Date(), doneBy: 'u1' });
+    const closedTask = render(<GroupTaskScreen />);
+    expect(closedTask.queryByTestId('stub-signup')).toBeNull();
+    closedTask.unmount();
     mockTask = task({ slots: 3, dueOn: '2030-01-01', doneAt: new Date(), doneBy: 'u1' });
-    expect(render(<GroupTaskScreen />).queryByTestId('stub-shift')).toBeNull();
+    expect(render(<GroupTaskScreen />).queryByTestId('stub-signup')).toBeNull();
   });
 
   it('shows who waits on a shift to admins only', () => {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { freeSlots, isTaskOverdue, shiftStateOf, type ShiftAnswer } from '@cultuvilla/shared/models/organization';
-import { respondToTaskShift, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
+import { respondToTaskShift, setGroupTaskAssigned, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, Checkbox, HStack, Pressable, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
@@ -77,20 +77,24 @@ export function TaskRow({
 }
 
 /**
- * A volunteer shift's answer, pinned under its task so signing up never takes a
- * scroll: how many slots are taken, the member's own answer and the buttons to
- * change it. The answer goes through the `respondToTaskShift` callable, which
- * holds the cap.
+ * Signing up for a task, pinned under it so it never takes a scroll: the
+ * member's own answer and the buttons to change it. A volunteer shift also says
+ * how many slots are taken, and its answer goes through the `respondToTaskShift`
+ * callable, which holds the cap; a plain task just adds the member to its people.
  */
-export function ShiftBar({ task, orgId, uid }: { task: GroupTask; orgId: string; uid: string }) {
+export function TaskSignupBar({ task, orgId, uid }: { task: GroupTask; orgId: string; uid: string }) {
   const { t } = useT();
   const [busy, setBusy] = useState<ShiftAnswer | null>(null);
-  const state = shiftStateOf(task, uid);
-  const full = freeSlots(task) === 0;
+  const plain = task.slots === null;
+  const state = plain ? (task.assigneeUids.includes(uid) ? 'claimed' : 'none') : shiftStateOf(task, uid);
+  const full = !plain && freeSlots(task) === 0;
 
   const answer = (a: ShiftAnswer) => {
     setBusy(a);
-    respondToTaskShift(orgId, task.id, a)
+    const write: Promise<unknown> = plain
+      ? setGroupTaskAssigned(orgId, task.id, uid, a === 'claim')
+      : respondToTaskShift(orgId, task.id, a);
+    write
       .catch(() => showAlert(t('groups.tasks.error')))
       .finally(() => setBusy(null));
   };
@@ -107,23 +111,27 @@ export function ShiftBar({ task, orgId, uid }: { task: GroupTask; orgId: string;
   return (
     <View className="bg-surface-elevated border-t border-subtle px-4 py-3" testID={`shift-${task.id}`}>
       <VStack gap={2}>
-        <HStack gap={2} align="center" justify="between">
-          {stateLine ? (
-            <Text variant="bodySm" className="font-bold flex-shrink" testID={`shift-state-${task.id}`}>
-              {stateLine}
-            </Text>
-          ) : null}
-          <Text variant="bodySm" tone={full ? 'muted' : 'success'} className="font-bold">
-            {full ? t('groups.tasks.shift.full') : t('groups.tasks.shift.slots', { claimed: task.claimedUids.length, slots: task.slots ?? 0 })}
-          </Text>
-        </HStack>
+        {stateLine || !plain ? (
+          <HStack gap={2} align="center" justify="between">
+            {stateLine ? (
+              <Text variant="bodySm" className="font-bold flex-shrink" testID={`shift-state-${task.id}`}>
+                {stateLine}
+              </Text>
+            ) : null}
+            {plain ? null : (
+              <Text variant="bodySm" tone={full ? 'muted' : 'success'} className="font-bold">
+                {full ? t('groups.tasks.shift.full') : t('groups.tasks.shift.slots', { claimed: task.claimedUids.length, slots: task.slots ?? 0 })}
+              </Text>
+            )}
+          </HStack>
+        ) : null}
         <HStack gap={2}>
           {state === 'none' || state === 'declined' ? (
             <Button size="lg" className="flex-1" onPress={() => answer('claim')} loading={busy === 'claim'} testID={`shift-claim-${task.id}`}>
               {full ? t('groups.tasks.shift.joinWaitlist') : t('groups.tasks.shift.claim')}
             </Button>
           ) : null}
-          {state === 'none' ? (
+          {state === 'none' && !plain ? (
             <Button size="lg" className="flex-1" variant="secondary" onPress={() => answer('decline')} loading={busy === 'decline'} testID={`shift-decline-${task.id}`}>
               {t('groups.tasks.shift.decline')}
             </Button>
