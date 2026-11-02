@@ -6,7 +6,7 @@ import { compareTasksByDue } from '@cultuvilla/shared/models/organization';
 import { watchEvent } from '@cultuvilla/shared/services/eventService';
 import { setGroupTaskDone, watchEventGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { formatDate } from '@cultuvilla/shared/utils';
-import { Button, RemoteImage, Screen, Text, VStack } from '../../../../components/primitives';
+import { Button, RemoteImage, Screen, Text, VStack, ZoomableImage, useScrollEnabledWhileZooming } from '../../../../components/primitives';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
 import { TaskRow } from '../../../../components/feature/groups/TaskRows';
@@ -27,6 +27,7 @@ import { useOrgMembers } from '../../../../lib/orgs/useOrgMembers';
  */
 export default function GroupEventScreen() {
   const { t } = useT();
+  const scrollEnabled = useScrollEnabledWhileZooming();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const { grupo, evento } = useLocalSearchParams<{ grupo: string; evento: string }>();
@@ -64,12 +65,14 @@ export default function GroupEventScreen() {
           {t('groups.tasks.checklists.eventUnavailable')}
         </Text>
       ) : (
-        <ScrollView contentContainerClassName="px-4 pt-3 pb-16" testID="group-event">
+        <ScrollView contentContainerClassName="px-4 pt-3 pb-16" scrollEnabled={scrollEnabled} testID="group-event">
           <VStack gap={4}>
             {image ? (
-              <View className="overflow-hidden rounded-lg" style={{ aspectRatio: 2 }}>
-                <RemoteImage uri={image} variant="card" style={{ width: '100%', height: '100%' }} />
-              </View>
+              <ZoomableImage uri={image} accessibilityLabel={data.title}>
+                <View className="overflow-hidden rounded-lg" style={{ aspectRatio: 2 }}>
+                  <RemoteImage uri={image} variant="card" style={{ width: '100%', height: '100%' }} />
+                </View>
+              </ZoomableImage>
             ) : null}
             <VStack gap={1}>
               <Text>{formatDate(data.startDate, 'short')}</Text>

@@ -61,7 +61,13 @@ export function Escudo({
     );
     if (!zoomable) return image;
     return (
-      <ZoomableImage uri={url} accessibilityLabel={accessibilityLabel} testID="escudo-zoom">
+      <ZoomableImage
+        uri={url}
+        accessibilityLabel={accessibilityLabel}
+        contentFit={fill ? 'cover' : 'contain'}
+        previewVariant="original"
+        testID="escudo-zoom"
+      >
         {image}
       </ZoomableImage>
     );

@@ -1,6 +1,7 @@
 import './../global.css';
 import { Redirect, Stack, useSegments, router, type Href } from 'expo-router';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import { bootstrapFirebase } from '../lib/firebaseInit';
@@ -9,6 +10,7 @@ import { ObservabilityErrorBoundary } from '../lib/observability/ObservabilityEr
 import { AppVersionGate } from '../components/AppVersionGate';
 import { OfflineBanner } from '../components/feature/OfflineBanner';
 import { IntroHost, useMarkAppReady } from '../components/intro/IntroHost';
+import { ImageZoomOverlayProvider } from '../components/primitives/ImageZoomOverlay';
 import { AuthProvider } from '../lib/auth/AuthContext';
 import { CallableErrorProvider } from '../lib/callableError';
 import { I18nProvider } from '../lib/i18n';
@@ -46,32 +48,36 @@ export default function RootLayout() {
 
 function AppTree() {
   return (
-    <SafeAreaProvider>
-      <ObservabilityErrorBoundary
-        fallback={
-          <View className="flex-1 items-center justify-center bg-surface">
-            <ActivityIndicator />
-          </View>
-        }
-      >
-        <AppVersionGate>
-          <CallableErrorProvider>
-            <AuthProvider>
-              <GuestActiveVillageProvider>
-                <MyRegistrationsProvider>
-                  <PushProvider>
-                    <RegisterGateProvider>
-                      <AuthGate />
-                      <OfflineBanner />
-                    </RegisterGateProvider>
-                  </PushProvider>
-                </MyRegistrationsProvider>
-              </GuestActiveVillageProvider>
-            </AuthProvider>
-          </CallableErrorProvider>
-        </AppVersionGate>
-      </ObservabilityErrorBoundary>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ObservabilityErrorBoundary
+          fallback={
+            <View className="flex-1 items-center justify-center bg-surface">
+              <ActivityIndicator />
+            </View>
+          }
+        >
+          <AppVersionGate>
+            <CallableErrorProvider>
+              <AuthProvider>
+                <GuestActiveVillageProvider>
+                  <MyRegistrationsProvider>
+                    <PushProvider>
+                      <RegisterGateProvider>
+                        <ImageZoomOverlayProvider>
+                          <AuthGate />
+                        </ImageZoomOverlayProvider>
+                        <OfflineBanner />
+                      </RegisterGateProvider>
+                    </PushProvider>
+                  </MyRegistrationsProvider>
+                </GuestActiveVillageProvider>
+              </AuthProvider>
+            </CallableErrorProvider>
+          </AppVersionGate>
+        </ObservabilityErrorBoundary>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -5,6 +5,7 @@ import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Text } from '../../../../components/primitives/Text';
 import { VStack } from '../../../../components/primitives/VStack';
 import { NaturalImage } from '../../../../components/primitives/NaturalImage';
+import { ZoomableImage } from '../../../../components/primitives/ZoomableImage';
 import { EntityDetailScaffold } from '../../../../components/feature/EntityDetailScaffold';
 import type { EntityDetailAction } from '../../../../components/feature/EntityDetailHeader';
 import { ENTITY_FALLBACK_ICON } from '../../../../lib/entities/registry';
@@ -288,7 +289,9 @@ export default function OrgDetailScreen() {
           {org.images.length > 1 ? (
             <VStack gap={2} className="pt-2">
               {org.images.slice(1).map((uri) => (
-                <NaturalImage key={uri} uri={uri} />
+                <ZoomableImage key={uri} uri={uri} accessibilityLabel={org.name}>
+                  <NaturalImage uri={uri} />
+                </ZoomableImage>
               ))}
             </VStack>
           ) : null}

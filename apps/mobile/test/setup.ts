@@ -1,4 +1,16 @@
 import '@testing-library/jest-native/extend-expect';
+import 'react-native-gesture-handler/jestSetup';
+
+// Reanimated's mock predates gesture-handler 3's hooks, which reach for these.
+jest.mock('react-native-reanimated', () => ({
+  ...require('react-native-reanimated/mock'),
+  useHandler: () => ({ doDependenciesDiffer: false, context: { lastUpdateEvent: undefined } }),
+  useEvent: () => jest.fn(),
+  useComposedEventHandler: () => jest.fn(),
+  isWorkletFunction: () => false,
+  isSharedValue: () => false,
+}));
+jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),

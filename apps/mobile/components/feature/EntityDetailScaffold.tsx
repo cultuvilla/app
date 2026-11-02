@@ -10,6 +10,7 @@ import { Screen } from '../primitives/Screen';
 import { VStack } from '../primitives/VStack';
 import { Text } from '../primitives/Text';
 import { DetailHeroImage } from './DetailHeroImage';
+import { useScrollEnabledWhileZooming } from '../primitives/ImageZoomOverlay';
 import { EntityDetailHeader, type EntityDetailAction } from './EntityDetailHeader';
 import { DetailScrollProvider } from '../../lib/keyboard/DetailScrollContext';
 import { useT } from '../../lib/i18n';
@@ -58,6 +59,7 @@ export function EntityDetailScaffold({
   onRefresh,
 }: EntityDetailScaffoldProps) {
   const { t } = useT();
+  const scrollEnabled = useScrollEnabledWhileZooming();
   const busy = loading || notFound;
 
   const scrollRef = useRef<ScrollView>(null);
@@ -90,6 +92,7 @@ export function EntityDetailScaffold({
           <View style={{ flex: 1 }}>
             <ScrollView
               ref={scrollRef}
+              scrollEnabled={scrollEnabled}
               contentContainerClassName={scrollContentClassName}
               keyboardShouldPersistTaps="handled"
               refreshControl={

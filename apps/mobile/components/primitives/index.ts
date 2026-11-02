@@ -24,6 +24,7 @@ export type { NaturalImageProps } from './NaturalImage';
 export { ImageLightbox } from './ImageLightbox';
 export type { ImageLightboxProps } from './ImageLightbox';
 export { ZoomableImage } from './ZoomableImage';
+export { ImageZoomOverlayProvider, useScrollEnabledWhileZooming } from './ImageZoomOverlay';
 export type { ZoomableImageProps } from './ZoomableImage';
 export { TopCropImage } from './TopCropImage';
 export type { TopCropImageProps } from './TopCropImage';

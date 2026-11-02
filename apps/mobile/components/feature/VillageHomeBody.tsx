@@ -58,6 +58,7 @@ import {
 } from '@cultuvilla/shared/services/villageMemberService';
 import { getVillageViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { MAP_ZOOM_DEFAULT } from '@cultuvilla/shared/services/mapsService';
+import { useScrollEnabledWhileZooming } from '../primitives/ImageZoomOverlay';
 import { newsImageDownloadURL } from '@cultuvilla/shared/services/imageService';
 import type { NewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import { formatDate, formatFestivalPosterDates } from '@cultuvilla/shared/utils';
@@ -81,6 +82,7 @@ export interface VillageHomeBodyProps {
  * "offer to join". Editar (admins) and Compartir (everyone) follow it.
  */
 export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
+  const scrollEnabled = useScrollEnabledWhileZooming();
   const { user, refreshProfile } = useAuth();
   const { offerPush } = usePush();
   const gate = useRegisterGate();
@@ -130,7 +132,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
       }
     };
     return (
-      <ScrollView contentContainerClassName="flex-grow pb-10">
+      <ScrollView contentContainerClassName="flex-grow pb-10" scrollEnabled={scrollEnabled}>
         <View className="flex-1 items-center justify-center px-8 py-8">
           <VStack gap={2} className="items-center">
             <Escudo
@@ -236,7 +238,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
 
   return (
     <>
-      <ScrollView contentContainerClassName="pb-10">
+      <ScrollView contentContainerClassName="pb-10" scrollEnabled={scrollEnabled}>
         {/* ── Header (escudo + name) ───────────────────────────── */}
         <VStack gap={2} className="px-4 pt-4">
           <HStack gap={4} className="items-center">
