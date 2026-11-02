@@ -231,6 +231,7 @@
   "group-tasks-filter": "unit-tested: components/feature/groups/__tests__/GroupTaskBoard.test.tsx",
   "groups-empty": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
   "image-lightbox-image": "unit-tested: components/primitives/__tests__/ZoomableImage.test.tsx",
+  "image-zoom-overlay": "unit-tested: components/primitives/__tests__/ImageZoomOverlay.test.tsx",
   "input-scroll-hint": "unit-tested: components/primitives/__tests__/Input.test.tsx",
   "intro-backdrop": "unit-tested: components/intro/__tests__/IntroOverlay.test.tsx",
   "intro-overlay": "unit-tested: components/intro/__tests__/IntroOverlay.test.tsx",
