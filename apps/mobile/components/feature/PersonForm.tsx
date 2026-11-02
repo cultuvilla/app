@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -16,6 +16,8 @@ import {
 } from '../primitives';
 import { useT } from '../../lib/i18n';
 import { pickImageAsBlob } from '../../lib/images';
+import { recoverPickedSquare } from '../../lib/imageCrop';
+import { observability } from '@cultuvilla/shared';
 import type { Sex } from '@cultuvilla/shared/models/core';
 import type { UploadableImage } from '@cultuvilla/shared/services/imageService';
 import {
@@ -95,6 +97,8 @@ export interface PersonFormProps {
    * undefined for family personas, which have no age floor.
    */
   minAgeYears?: number;
+  /** Pick up a photo Android closed the app behind the picker on. See recoverPickedSquare. */
+  recoverPickedPhoto?: boolean;
   onSubmit: (values: PersonFormValues, photo: PersonFormPhoto | null) => Promise<void> | void;
 }
 
@@ -111,11 +115,24 @@ export function PersonForm({
   renderConsent,
   consentSatisfied,
   minAgeYears,
+  recoverPickedPhoto = false,
   onSubmit,
 }: PersonFormProps) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
   const [photo, setPhoto] = useState<PersonFormPhoto | null>(null);
+
+  useEffect(() => {
+    if (!recoverPickedPhoto) return;
+    void recoverPickedSquare()
+      .then((recovered) => {
+        if (recovered) setPhoto((current) => current ?? recovered);
+      })
+      .catch((err: unknown) => {
+        observability.captureError(err, { operation: 'personForm:recoverPhoto' });
+      });
+  }, [recoverPickedPhoto]);
+
   const [givenName, setGivenName] = useState(initial?.givenName ?? '');
   const [firstSurname, setFirstSurname] = useState(initial?.firstSurname ?? '');
   const [secondSurname, setSecondSurname] = useState(initial?.secondSurname ?? '');

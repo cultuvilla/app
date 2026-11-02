@@ -1,5 +1,5 @@
 // apps/mobile/components/feature/__tests__/PersonForm.test.tsx
-import { render, fireEvent } from '@testing-library/react-native';
+import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
 import { PersonForm } from '../PersonForm';
 
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -7,6 +7,49 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
+
+const mockRecoverPickedSquare = jest.fn();
+jest.mock('../../../lib/imageCrop', () => ({
+  ...jest.requireActual('../../../lib/imageCrop'),
+  recoverPickedSquare: () => mockRecoverPickedSquare(),
+}));
+
+describe('<PersonForm> photo the closed app never received', () => {
+  beforeEach(() => mockRecoverPickedSquare.mockReset());
+
+  const RECOVERED = {
+    blob: { size: 1, type: 'image/jpeg' } as unknown as Blob,
+    filename: 'upload-1.jpg',
+    contentType: 'image/jpeg',
+    previewUri: 'file:///recovered.jpg',
+  };
+
+  async function submitNameOnly(props: Partial<Parameters<typeof PersonForm>[0]>) {
+    const onSubmit = jest.fn();
+    const utils = render(<PersonForm submitLabel="Guardar" onSubmit={onSubmit} {...props} />);
+    await act(async () => {});
+    fireEvent.changeText(
+      utils.getByLabelText('onboarding.completeProfile.givenName'),
+      'Ana',
+    );
+    fireEvent.press(utils.getByText('onboarding.completeProfile.sex_female'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    fireEvent.press(utils.getByText('common.stepper.next'));
+    fireEvent.press(utils.getByText('Guardar'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    return onSubmit.mock.calls[0][1];
+  }
+
+  it('submits the recovered photo when the form asks for it', async () => {
+    mockRecoverPickedSquare.mockResolvedValue(RECOVERED);
+    expect(await submitNameOnly({ recoverPickedPhoto: true })).toEqual(RECOVERED);
+  });
+
+  it('never consumes a pending pick unless the form asks for it', async () => {
+    expect(await submitNameOnly({})).toBeNull();
+    expect(mockRecoverPickedSquare).not.toHaveBeenCalled();
+  });
+});
 
 describe('<PersonForm> stepper', () => {
   afterEach(() => jest.useRealTimers());

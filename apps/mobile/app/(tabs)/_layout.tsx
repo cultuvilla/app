@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
+import { useResumePendingLogin } from '../../lib/auth/pendingOtp';
 import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
 import { useGuestActiveVillage } from '../../lib/village/GuestActiveVillageContext';
 import { useMyGroups } from '../../lib/orgs/useMyGroups';
@@ -14,6 +15,9 @@ export default function TabsLayout() {
   const { guestVillageId } = useGuestActiveVillage();
   // Grupos is a tab only for someone in at least one group.
   const { groups } = useMyGroups(user?.uid ?? null);
+  // Here rather than in AuthGate: a launch from a deep link never lands on the
+  // tabs, so it keeps its destination.
+  useResumePendingLogin(!loading && !user);
 
   if (loading) return null;
 
