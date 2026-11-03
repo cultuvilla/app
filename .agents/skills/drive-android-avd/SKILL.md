@@ -104,7 +104,7 @@ toggle USB debugging or *Revoke USB debugging authorizations*.
 | Subcommand | What it does |
 |---|---|
 | `boot [<avd>]`   | Launch AVD (default `Cultuvilla_Big`), wait for `getprop sys.boot_completed = 1`. |
-| `reverse`        | `adb reverse tcp:8081 tcp:8081`. Re-run after every emulator boot. |
+| `reverse`        | `adb reverse` of Metro's port (8081, or `METRO_PORT`). Re-run after every emulator boot. |
 | `open`           | Force-stop, then deep-link `cultuvilla://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081`. The dev-launcher activity reads the URL and loads the bundle. |
 | `metro`          | `cd apps/mobile && pnpm start` with `ADB_PATH` pre-set. Run with `&` or in a separate pane. |
 | `shot [<out>]`   | `adb exec-out screencap -p > out.png`. Default `/tmp/avd.png`. |
