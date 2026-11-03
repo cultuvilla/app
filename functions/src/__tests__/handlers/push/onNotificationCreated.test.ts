@@ -105,6 +105,9 @@ describe('onNotificationCreated', () => {
   });
 
   it('silencing the avisos leaves a chat the member turned on', async () => {
+    // Outside quiet hours, or the push is deferred and this fails when run at night.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-15T10:00:00Z'));
     await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
     await fire('g3', notification('group_message', { entityKind: 'organization', entityId: 'org-muted', chatThreadId: 'general' }));
     expect(deliverPush).toHaveBeenCalledTimes(1);
