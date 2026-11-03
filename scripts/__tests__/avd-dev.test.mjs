@@ -30,6 +30,7 @@ function linuxBox({ imageInstalled = true, emulatorDies = false } = {}) {
   stub('platform-tools/adb', [
     'case "$1" in',
     '  devices) echo "List of devices attached" ;;',
+    `  reverse) echo "adb $*" >> ${JSON.stringify(log)} ;;`,
     `  shell) echo "adb $*" >> ${JSON.stringify(log)}; if [ -f ${JSON.stringify(join(home, 'booted'))} ]; then echo 1; fi ;;`,
     'esac',
   ].join('\n'));
@@ -89,4 +90,14 @@ test('open deep-links through the dev launcher\'s exp+ scheme, never the app\'s 
   assert.equal(r.status, 0, r.stderr);
   const start = box.calls().find((line) => line.includes('am start'));
   assert.match(start, /-d exp\+cultuvilla:\/\/expo-development-client\/\?url=http%3A%2F%2Flocalhost%3A8081$/);
+});
+
+test('reverse and open follow METRO_PORT, and stay on 8081 without it', () => {
+  for (const [env, port] of [[{}, '8081'], [{ METRO_PORT: '8090' }, '8090']]) {
+    const box = linuxBox();
+    assert.equal(box.run(['reverse'], env).status, 0);
+    assert.ok(box.calls().includes(`adb reverse tcp:${port} tcp:${port}`), box.calls().join('\n'));
+    box.run(['open'], env);
+    assert.match(box.calls().join('\n'), new RegExp(`localhost(:|%3A)${port}`));
+  }
 });

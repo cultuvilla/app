@@ -12,7 +12,7 @@
 #                             wait for boot_completed=1. On Linux, create it
 #                             first if missing (CULTUVILLA_AVD_IMAGE,
 #                             CULTUVILLA_AVD_DEVICE).
-#   reverse                   `adb reverse tcp:8081 tcp:8081` so the device
+#   reverse                   `adb reverse` Metro's port (8081, or METRO_PORT) so the device
 #                             can reach the Metro bundler running in WSL.
 #   open                      Force-stop + open Cultuvilla (Dev) pointed at
 #                             http://localhost:8081 via the dev-launcher
@@ -69,7 +69,8 @@ PKG=${PKG:-com.cultuvilla.app.dev}
 # The app's `cultuvilla://` scheme goes to Expo Router, which reads
 # expo-development-client as a village slug ("No encontramos este pueblo").
 SCHEME=${SCHEME:-exp+cultuvilla}
-METRO_URL=${METRO_URL:-http://localhost:8081}
+METRO_PORT=${METRO_PORT:-8081}
+METRO_URL=${METRO_URL:-http://localhost:$METRO_PORT}
 DEFAULT_AVD=${DEFAULT_AVD:-Cultuvilla_Big}
 
 cmd=${1:-doctor}; shift || true
@@ -131,7 +132,7 @@ case "$cmd" in
     ;;
   reverse)
     require_adb
-    "$ADB" reverse tcp:8081 tcp:8081
+    "$ADB" reverse "tcp:$METRO_PORT" "tcp:$METRO_PORT"
     "$ADB" reverse --list
     ;;
   open)

@@ -659,7 +659,8 @@ only on the seed and on earlier flows of its own group. See
 it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 
 **Metro is yours to run** (decided 2026-10-31, user) when the task needs the app on a
-device — to verify a change, read its logs, reproduce a bug. Check `:8081` is free
+device — to verify a change, read its logs, reproduce a bug. `pnpm app:start` binds
+`:8081` (`METRO_PORT` moves it; Órdago holds 8082 on the same machine). Check it is free
 first (`ss -ltn`; if the user's Metro already holds it, use theirs), run it in the
 background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when you
 are done: it is an indefinite server, so a Metro you leave running holds the port
