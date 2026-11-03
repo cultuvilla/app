@@ -58,6 +58,12 @@ export async function getReportsByMunicipality(
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/** Every village's open queue, for app admins. One equality filter, so no composite index. */
+export async function getOpenReports(): Promise<ContentReport[]> {
+  const snap = await getDocs(query(contentReportsCollection(getDb()), where('status', '==', 'open')));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
 /** Moderator resolution. The rules allow this only for village/app admins. */
 export async function setReportStatus(reportId: string, status: ReportStatus): Promise<void> {
   await updateDoc(contentReportDoc(getDb(), reportId), { status });

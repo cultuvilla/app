@@ -1371,8 +1371,10 @@
     "tab": {
       "organizer": "Embajadores",
       "org": "Grupos",
-      "orgJoin": "Solicitudes para unirse"
+      "orgJoin": "Solicitudes para unirse",
+      "reports": "Denuncias"
     },
+    "reportsCount": "{count, plural, one {# denuncia pendiente} other {# denuncias pendientes}}",
     "approve": "Aprobar",
     "reject": "Rechazar",
     "wantsToAdminister": "quiere ser embajador de",

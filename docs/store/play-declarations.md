@@ -118,8 +118,8 @@ Cuestionario (IARC). Respuestas que se derivan del código:
   motivos, escribe en `contentReports/`.
 - **Bloqueo de personas usuarias**: sí — desde la misma hoja; se deshace en
   Ajustes → Personas bloqueadas.
-- **Revisión por parte de administradores**: sí — Administración → Denuncias
-  (cola de denuncias abiertas del pueblo) y ocultación de contenido vía
+- **Revisión por parte de administradores**: sí — Buzón → Denuncias (cola de
+  denuncias abiertas de cada pueblo que administran) y ocultación de contenido vía
   `setContentVisibility`, con registro de auditoría en `moderationEvents/`.
 - **Contacto de moderación**: `cultuvilla.app@gmail.com`.
 
