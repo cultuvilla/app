@@ -53,7 +53,9 @@ scripts/avd-dev.sh denies 60 | tee /tmp/denies.log
 
 ## Physical phone (USB or wireless)
 
-**Easiest: scan the QR.** `pnpm app:start:lan` advertises the Windows host's LAN IP
+**Easiest: scan the QR.** On native Linux, plain `pnpm app:start` on the same Wi-Fi is
+enough, once the machine's firewall allows 8081 from the LAN. Under WSL2,
+`pnpm app:start:lan` advertises the Windows host's LAN IP
 (`REACT_NATIVE_PACKAGER_HOSTNAME`, same recipe as ordago-apps), so the dev client on any
 phone on the same Wi-Fi reaches Metro with no adb at all. Plain `expo start --lan` does
 not work here: WSL2 runs in NAT mode and Metro would advertise a Docker bridge

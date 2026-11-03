@@ -37,7 +37,7 @@ Install **Expo Go** (iOS App Store / Google Play). On Android, scan the QR with 
 
 If the QR scan never connects:
 - WSL2 / Linux desktop → use `pnpm app:start:tunnel`.
-- Native Linux/Mac on same Wi-Fi → check firewall isn't blocking port 8081 (8082 if 8081 was taken).
+- Native Linux/Mac on same Wi-Fi → check firewall isn't blocking port 8081, which `pnpm app:start` always binds.
 - Corporate / guest networks often block peer-to-peer LAN → tunnel mode.
 
 If the app launches but immediately shows a red error screen:
