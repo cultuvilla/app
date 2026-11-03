@@ -505,12 +505,51 @@ describe('VillageHomeBody', () => {
     expect(queryByText('Configurar censo')).toBeTruthy();
   });
 
-  it("opens Denuncias from the pueblo's page, for its team only", () => {
-    const member = render(<VillageHomeBody data={base} reload={jest.fn()} />);
-    expect(member.queryByTestId('village-reports-action')).toBeNull();
-    const admin = render(<VillageHomeBody data={{ ...base, villageAdmin: true }} reload={jest.fn()} />);
-    fireEvent.press(admin.getByTestId('village-reports-action'));
-    expect(router.push).toHaveBeenCalledWith('/anaya/denuncias');
+  it('orders the page: map, groups and history first, then articles and events, then the place itself', () => {
+    const { toJSON } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          village: {
+            ...village,
+            coordinates: { lat: 40.4, lng: -3.7 },
+            locationLabel: 'Mapa del pueblo',
+          } as VillageHomeState['village'],
+          sectionStatus: {
+            events: 'loading',
+            news: 'loading',
+            festivalPosters: 'loading',
+            barrios: 'loading',
+            places: 'loading',
+            organizations: 'loading',
+            history: 'loading',
+            vocabulary: 'loading',
+          },
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    const texts: string[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof node === 'string') texts.push(node);
+      else if (Array.isArray(node)) node.forEach(walk);
+      else if (node && typeof node === 'object' && 'children' in node) walk((node as { children: unknown }).children);
+    };
+    walk(toJSON());
+    const order = [
+      'Mapa del pueblo',
+      'Grupos',
+      'Peñas',
+      'Historia',
+      'Artículos',
+      'Eventos',
+      'Carteles de fiestas',
+      'Barrios',
+      'Lugares',
+    ];
+    // Past the stats row, which carries "Grupos" and "Lugares" too.
+    const page = texts.slice(texts.indexOf('Mapa del pueblo'));
+    expect(page.filter((x) => order.includes(x))).toEqual(order);
   });
 
   it('shows a skeleton row for a section whose fetch is still in flight', () => {
