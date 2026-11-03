@@ -358,6 +358,80 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           </View>
         ) : null}
 
+        {/* ── Agrupaciones (everything but peñas) ──────────────── */}
+        <Section
+          title={t('village.hub.organizations')}
+          isEmpty={agrupaciones.length === 0}
+          status={sectionStatus.organizations}
+        >
+          {agrupaciones.map((o) => (
+            <EntityCard
+              key={o.id}
+              label={o.name}
+              sub={
+                o.type === 'comisión'
+                  ? t('organization.comisión')
+                  : t('village.hub.memberCount', { count: o.memberCount })
+              }
+              icon={o.type === 'comisión' ? 'sparkles-outline' : 'business-outline'}
+              imageUri={o.images[0] ?? null}
+              commentCount={o.commentCount}
+              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
+            />
+          ))}
+        </Section>
+
+        {/* ── Peñas ────────────────────────────────────────────── */}
+        <Section
+          title={t('village.hub.penas')}
+          isEmpty={penas.length === 0}
+          status={sectionStatus.organizations}
+        >
+          {penas.map((o) => (
+            <EntityCard
+              key={o.id}
+              label={o.name}
+              sub={t('village.hub.memberCount', { count: o.memberCount })}
+              icon="people-circle-outline"
+              imageUri={o.images[0] ?? null}
+              commentCount={o.commentCount}
+              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
+            />
+          ))}
+        </Section>
+
+        {/* ── Historia + Vocabulario: open to everyone, including non-members —
+            a pueblo's past and its words are exactly what is worth not losing ─── */}
+        {sectionStatus.history === 'loading' ? (
+          <Section title={t('village.history.title')} isEmpty status="loading" />
+        ) : null}
+        {sectionStatus.history === 'ready' ? (
+          <HistoryRail entries={data.history} villageSlug={villageSlug} />
+        ) : null}
+        {sectionStatus.vocabulary === 'ready' && data.wordOfTheDay ? (
+          <WordOfTheDayCard
+            word={data.wordOfTheDay}
+            count={data.vocabularyCount}
+            villageSlug={villageSlug}
+            villageName={village.name}
+          />
+        ) : null}
+
+        {/* ── Artículos ────────────────────────────────────────── */}
+        <Section
+          title={t('village.newsFeed.title')}
+          isEmpty={news.length === 0}
+          status={sectionStatus.news}
+        >
+          {news.map((n) => (
+            <NewsEntityCard
+              key={n.id}
+              post={n}
+              onPress={() => router.push(newsHref({ ...n, villageSlug }))}
+            />
+          ))}
+        </Section>
+
         {/* ── Eventos ──────────────────────────────────────────── */}
         <Section
           title={t('village.events.label')}
@@ -382,21 +456,6 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             />
           )}
         />
-
-        {/* ── Artículos ────────────────────────────────────────── */}
-        <Section
-          title={t('village.newsFeed.title')}
-          isEmpty={news.length === 0}
-          status={sectionStatus.news}
-        >
-          {news.map((n) => (
-            <NewsEntityCard
-              key={n.id}
-              post={n}
-              onPress={() => router.push(newsHref({ ...n, villageSlug }))}
-            />
-          ))}
-        </Section>
 
         {/* ── Carteles de fiestas ──────────────────────────────── */}
         <Section
@@ -478,62 +537,6 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           ))}
         </Section>
 
-        {/* ── Agrupaciones (everything but peñas) ──────────────── */}
-        <Section
-          title={t('village.hub.organizations')}
-          isEmpty={agrupaciones.length === 0}
-          status={sectionStatus.organizations}
-        >
-          {agrupaciones.map((o) => (
-            <EntityCard
-              key={o.id}
-              label={o.name}
-              sub={
-                o.type === 'comisión'
-                  ? t('organization.comisión')
-                  : t('village.hub.memberCount', { count: o.memberCount })
-              }
-              icon={o.type === 'comisión' ? 'sparkles-outline' : 'business-outline'}
-              imageUri={o.images[0] ?? null}
-              commentCount={o.commentCount}
-              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
-            />
-          ))}
-        </Section>
-
-        {/* ── Peñas ────────────────────────────────────────────── */}
-        <Section
-          title={t('village.hub.penas')}
-          isEmpty={penas.length === 0}
-          status={sectionStatus.organizations}
-        >
-          {penas.map((o) => (
-            <EntityCard
-              key={o.id}
-              label={o.name}
-              sub={t('village.hub.memberCount', { count: o.memberCount })}
-              icon="people-circle-outline"
-              imageUri={o.images[0] ?? null}
-              commentCount={o.commentCount}
-              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
-            />
-          ))}
-        </Section>
-
-        {/* ── Historia + Vocabulario: open to everyone, including non-members —
-            a pueblo's past and its words are exactly what is worth not losing ─── */}
-        {sectionStatus.history === 'ready' ? (
-          <HistoryRail entries={data.history} villageSlug={villageSlug} />
-        ) : null}
-        {sectionStatus.vocabulary === 'ready' && data.wordOfTheDay ? (
-          <WordOfTheDayCard
-            word={data.wordOfTheDay}
-            count={data.vocabularyCount}
-            villageSlug={villageSlug}
-            villageName={village.name}
-          />
-        ) : null}
-
         {/* ── Censo: only villagers of a configured village fill; admins also configure ─── */}
         {(isMember && censoConfigured) || canManage ? (
           <HStack gap={3} className="px-4 pt-8">
@@ -547,13 +550,6 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               <ActionPill
                 label={t('village.censo.configure')}
                 onPress={() => router.push(villageSectionHref(villageSlug, 'censo', 'mode=configure'))}
-              />
-            ) : null}
-            {canManage ? (
-              <ActionPill
-                label={t('admin.reports.title')}
-                onPress={() => router.push(villageSectionHref(villageSlug, 'denuncias'))}
-                testID="village-reports-action"
               />
             ) : null}
           </HStack>

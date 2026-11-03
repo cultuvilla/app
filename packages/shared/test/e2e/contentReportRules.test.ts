@@ -165,6 +165,18 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
       await assertSucceeds(getDoc(doc(db, `contentReports/${REPORT}`)));
     });
 
+    it("an app admin can list every village's open reports, as the Buzón does", async () => {
+      await seedFixtures();
+      const db = await asAdmin(getEnv(), APP_ADMIN);
+      await assertSucceeds(getDocs(query(collection(db, 'contentReports'), where('status', '==', 'open'))));
+    });
+
+    it("a village admin cannot list every village's open reports", async () => {
+      await seedFixtures();
+      const db = asUser(getEnv(), VILLAGE_ADMIN);
+      await assertFails(getDocs(query(collection(db, 'contentReports'), where('status', '==', 'open'))));
+    });
+
     it('the reporter cannot read back their own report', async () => {
       await seedFixtures();
       const db = asUser(getEnv(), REPORTER);
