@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** prod
 **Gate:** none
-**Next:** after 1.7.1's first full day (check the `events_20261008` table on 2026-10-09), look for `ANDROID`/`IOS` rows; if there are none, check the stream boxes on GA4 Admin → BigQuery links; in parallel, apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`, needs the user's go)
+**Next:** in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`) on the user's go — not applied yet
 
 Decided 2026-10-06 (user): Phase 2 (Firestore→BigQuery extension + Looker Studio) and Phase 3 (Cloud Monitoring dashboard + alert policies) are approved, including their running cost. BigQuery export stays **prod-only** (no beta).
 
@@ -23,6 +23,13 @@ Phase 1 full-engagement instrumentation merged to `develop` (PR #150, merge `295
 4. Phase 3 — built (alerts-as-code, `scripts/apply-monitoring.mjs` + `scripts/lib/monitoring.mjs`), applied to dev and beta 2026-10-06. Left: the prod apply (user's go), then watch a week of prod alerts and retune `THRESHOLDS` if they are noisy.
 
 ## Open finding: no native rows in prod BigQuery yet
+
+**Re-checked 2026-11-07:** from `events_20261001` to `events_20261030` the export
+holds 413 rows, all `platform = WEB` (null `user_pseudo_id`), and none after. Prod has
+served 1.10.0, with native analytics, since 2026-10-09, so "the device sent nothing"
+no longer fits; the unticked streams on the BigQuery link are the remaining cause.
+The same day, prod had no `cultuvilla-ops-health` dashboard and no log-based metrics
+(beta has both), so Phase 3 is still dev and beta only.
 
 Checked 2026-10-08. Since 2026-09-20, `cultuvilla-prod.analytics_546204987.events_*`
 holds only `platform = WEB` rows, all from stream `15284775353`. That alone is

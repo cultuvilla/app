@@ -1,9 +1,9 @@
 # Web studio — desktop authoring for creators
 
 **Priority:** medium — authors are asking to write articles from a PC; they are few but produce what everyone else reads
-**Landed:** none
+**Landed:** dev
 **Gate:** none
-**Next:** once the PR deploys to dev, pair a real phone at villa-events.web.app/estudio and write, edit and delete an article, then edit it in the app and back
+**Next:** pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back
 
 ## Goal
 

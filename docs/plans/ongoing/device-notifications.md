@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** prod
 **Gate:** none
-**Next:** verify delivery on a real iPhone (step 2) — the key is loaded and bound on prod since 2026-10-05
+**Next:** restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07)
 
 ## Done
 
@@ -33,7 +33,9 @@ In order:
    (repeat for `villa-events` to test on a dev build). **A new version only
    takes effect on the next deploy of the push functions** — v2 binds the
    version at deploy time — so re-run the env's deploy afterwards.
-2. **Verify it worked** rather than assuming: sign in on an iPhone, accept the
+2. ✅ **Verified 2026-11-07.** In the 30 days to that date prod logged 38
+   `deliverPush` lines: 32 iOS and 18 Android tokens, `delivered` 50, `failed` 0.
+   How it was checked, rather than assumed: sign in on an iPhone, accept the
    ask, then
    `gcloud logging read 'jsonPayload.handler="deliverPush"' --project=cultuvilla-prod --freshness=1d --format="value(jsonPayload.iosCount,jsonPayload.delivered,jsonPayload.failed)"`.
    Success is `delivered >= 1` with `failed 0`; while the key is missing the
@@ -94,8 +96,8 @@ In order:
 | Time-sensitive capability + entitlement | — | — | ⬜ portal-only (Jaime) |
 | Play Data Safety declares device IDs | — | — | ⬜ |
 | Store binary carrying push | — | — | ✅ iOS 1.4.1 / Android 1.5.0 |
-| Verified delivery on a real device | ⬜ | ⬜ | ⬜ next step |
-| `pushQueue` TTL on `sentAt` | ✅ 2026-10-06 | ✅ 2026-10-06 | ⬜ rides the next promotion (`firestore.indexes.json`) |
+| Verified delivery on a real device | ⬜ | ⬜ | ✅ 2026-11-07 (iOS and Android, 0 failed) |
+| `pushQueue` TTL on `sentAt` | ✅ 2026-10-06 | ✅ 2026-10-06 | ✅ ACTIVE (checked 2026-11-07) |
 
 Legend: ⬜ pending · ⏳ in progress · ✅ done · ⚠️ blocked (note inline)
 
