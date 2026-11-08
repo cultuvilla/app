@@ -8,7 +8,7 @@ Current cycle **v1.11.0** (cut 2026-10-23)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · device-notifications · offline-first-village · product-analytics-behavioral-dashboard · village-first-urls-prod-finish
+> **Not advanced in 2+ cycles:** app-check-rollout · device-notifications · offline-first-village · village-first-urls-prod-finish
 
 ## Actionable now
 
@@ -17,11 +17,11 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 32 cycles ago \* | — |
 | [device-notifications](ongoing/device-notifications.md) ⚠️ | high | prod | 4 cycles ago \* | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
 | [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | prod | 4 cycles ago \* | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) ⚠️ | high | prod | 2 cycles ago \* | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`) on the user's go — not applied yet |
 | [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` ⚠️ | medium | — | 2 cycles ago | — |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | 1 cycle ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
 | [group-chat](ongoing/group-chat.md) | high | dev | this cycle | promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias) |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
 | [web-studio](ongoing/web-studio.md) | medium | dev | this cycle \* | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
 
 ## Waiting on release 1.11.0
@@ -54,7 +54,6 @@ Sweeps walked past, newest first:
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
 | `f9438880` | 2026-11-07 | 7 | docs(plans): retire finished plans, refresh gates |
-| `6c159bad` | 2026-10-08 | 5 | docs(plans): retire access-hardening and app-only-transition plans |
 | `78b72653` | 2026-09-30 | 18 | docs(plans): migrate to agent-plans v2 (Priority/Gate/Next block), vendor v2.0.1 |
 
 ## Ideas
