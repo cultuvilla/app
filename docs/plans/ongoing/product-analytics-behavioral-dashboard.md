@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** prod
 **Gate:** none
-**Next:** in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Apply Phase 3 to prod (`node scripts/apply-monitoring.mjs --project=cultuvilla-prod --confirm`) on the user's go — not applied yet
+**Next:** in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy
 
 Decided 2026-10-06 (user): Phase 2 (Firestore→BigQuery extension + Looker Studio) and Phase 3 (Cloud Monitoring dashboard + alert policies) are approved, including their running cost. BigQuery export stays **prod-only** (no beta).
 
@@ -20,7 +20,7 @@ Phase 1 full-engagement instrumentation merged to `develop` (PR #150, merge `295
 1. **Verify native data once the store build ships.** In `cultuvilla-prod.analytics_546204987`, filter `platform IN ('ANDROID','IOS')` and check that `user_pseudo_id` is non-null and that `first_open` is not equal to every session start. Native event names use underscores (`content_detail_viewed`), web used dots — join with `REPLACE(event_name, '.', '_')`.
 2. Confirm the Phase 1 events in GA4 DebugView on one Android and one iOS build (this replaces the never-run web smoke).
 3. Phase 2, on native data.
-4. Phase 3 — built (alerts-as-code, `scripts/apply-monitoring.mjs` + `scripts/lib/monitoring.mjs`), applied to dev and beta 2026-10-06. Left: the prod apply (user's go), then watch a week of prod alerts and retune `THRESHOLDS` if they are noisy.
+4. Phase 3 — built (alerts-as-code, `scripts/apply-monitoring.mjs` + `scripts/lib/monitoring.mjs`), applied to dev and beta 2026-10-06 and to prod 2026-11-08 (user's go). Left: watch a week of prod alerts (to 2026-11-15) and retune `THRESHOLDS` if they are noisy.
 
 ## Open finding: no native rows in prod BigQuery yet
 
@@ -29,7 +29,7 @@ holds 413 rows, all `platform = WEB` (null `user_pseudo_id`), and none after. Pr
 served 1.10.0, with native analytics, since 2026-10-09, so "the device sent nothing"
 no longer fits; the unticked streams on the BigQuery link are the remaining cause.
 The same day, prod had no `cultuvilla-ops-health` dashboard and no log-based metrics
-(beta has both), so Phase 3 is still dev and beta only.
+(beta has both); Phase 3 was applied to prod on 2026-11-08.
 
 Checked 2026-10-08. Since 2026-09-20, `cultuvilla-prod.analytics_546204987.events_*`
 holds only `platform = WEB` rows, all from stream `15284775353`. That alone is
@@ -74,8 +74,8 @@ Read prod BigQuery as `cultuvilla.app@gmail.com` (the default gcloud account; it
 | Phase 0 — GA4→BigQuery export enabled | ⏳ | ⬜ | ⏳ daily tables since 2026-07-19; native rows awaited from 1.7.1 — see *Open finding* |
 | Phase 2 — Firestore→BigQuery export | ⬜ | ⬜ | ⬜ |
 | Phase 2 — Looker Studio dashboard | ⬜ | ⬜ | ⬜ |
-| Phase 3 — log-based metrics + Cloud Monitoring dashboard | ✅ 2026-10-06 | ✅ 2026-10-06 | ⬜ (`apply-monitoring.mjs --project=cultuvilla-prod --confirm`) |
-| Phase 3 — alert policies | ✅ created **disabled** (dev is a playground) | ✅ enabled → cultuvilla.app@gmail.com | ⬜ |
+| Phase 3 — log-based metrics + Cloud Monitoring dashboard | ✅ 2026-10-06 | ✅ 2026-10-06 | ✅ 2026-11-08 |
+| Phase 3 — alert policies | ✅ created **disabled** (dev is a playground) | ✅ enabled → cultuvilla.app@gmail.com | ✅ 2026-11-08, enabled → cultuvilla.app@gmail.com |
 
 Legend: ⬜ pending · ⏳ in progress · ✅ done · ⚠️ blocked (note inline) · — n/a
 
