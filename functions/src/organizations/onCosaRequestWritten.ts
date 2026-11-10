@@ -43,7 +43,7 @@ function reservaCopy(notice: CosaNotice, req: CosaRequestData, orgName: string, 
       return { title: `Reserva confirmada · ${orgName}`, body: `${what}, ${when}. Te esperan.` };
     case 'declined':
       return wasAccepted
-        ? { title: `Reserva anulada · ${orgName}`, body: `Se ha anulado tu reserva de ${what} ${when}. Ese día no se puede.` }
+        ? { title: `Reserva anulada · ${orgName}`, body: `Se ha anulado tu reserva de ${what} ${when}.` }
         : { title: `Reserva no aceptada · ${orgName}`, body: `Esta vez no ha podido ser: ${what} ${when}.` };
     case 'cancelled':
       return { title: `Reserva cancelada · ${orgName}`, body: `${req.requesterName} ya no quiere ${what} ${when}.` };
