@@ -87,10 +87,14 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
-    // A cosa's photo (the cosateca). Who may offer one is the cosa doc's rule.
-    match /cosas/{cosaId}/image/{imageId} {
+    // A cosa's photo (the cosateca). The uploader's uid is in the path, so only
+    // they can write it and nobody can overwrite another's photo in place
+    // (Firestore can't be read from here, see the header). Which photo a cosa
+    // shows is the cosa doc's rule: only its manager sets `imageURL`.
+    match /cosas/{cosaId}/image/{uploaderUid}/{imageId} {
       allow read: if true;
       allow write: if request.auth != null
+                   && request.auth.uid == uploaderUid
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }

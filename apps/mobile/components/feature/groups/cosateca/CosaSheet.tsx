@@ -90,7 +90,7 @@ export function CosaSheet({
     setSaving(true);
     try {
       if (cosa) {
-        const imageURL = photo ? await uploadCosaImage(cosa.id, photo) : cosa.imageURL;
+        const imageURL = photo ? await uploadCosaImage(cosa.id, uid, photo) : cosa.imageURL;
         await updateCosa(cosa.id, { ...fields(imageURL), status: cosa.status });
       } else {
         const forGroup = isAdmin && owner === 'group';
@@ -103,7 +103,7 @@ export function CosaSheet({
           ownerName: forGroup ? org.name : myName,
           createdBy: uid,
         });
-        if (photo) await updateCosa(id, { ...fields(await uploadCosaImage(id, photo)), status: 'available' });
+        if (photo) await updateCosa(id, { ...fields(await uploadCosaImage(id, uid, photo)), status: 'available' });
       }
       onClose();
     } catch {
