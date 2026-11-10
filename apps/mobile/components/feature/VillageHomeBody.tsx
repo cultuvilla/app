@@ -362,6 +362,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
         {/* ── Agrupaciones (everything but peñas) ──────────────── */}
         <Section
           title={t('village.hub.organizations')}
+          testID="village-orgs-row"
           isEmpty={agrupaciones.length === 0}
           status={sectionStatus.organizations}
         >

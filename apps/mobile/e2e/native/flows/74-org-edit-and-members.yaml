@@ -89,8 +89,8 @@ env:
     env:
       INPUT: 'org-edit-description'
       TEXT: ${ORG_EDIT_DESCRIPTION}
-# The type is not edited: the organizations update rule refuses a type
-# change that this screen offers (raised with the user, 2026-10-09).
+# The type is left as it is here: switching it among the self-service kinds
+# (peña, asociación, otros, comisión), which the update rule allows, is flow 75's.
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:

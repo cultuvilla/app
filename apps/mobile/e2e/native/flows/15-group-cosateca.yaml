@@ -1,0 +1,440 @@
+# A group's cosateca through one loan: the admin switches it on in Ajustes (and
+# the audience to the pueblo and back to the integrantes); an integrante offers
+# a préstamo with every field but the photo; the admin finds it in the
+# catalogue and asks for it with a message; its owner accepts, hands it over and
+# marks it returned through the respondToCosaRequest callable — the request's
+# status and the cosa's heldBy asserted after each move. The cosateca is
+# switched off again on the way out.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  USER_EMAIL: e2e-user@cultuvilla.test
+  ORG_ID: e2e-org-asociacion
+  VILLAGE_ID: e2e-village-altozano
+onFlowComplete:
+  # Left on, the cosateca would add a section to every later Grupos flow.
+  - runScript:
+      file: ../scripts/docField.js
+      env:
+        DOC_PATH: 'organizations/${ORG_ID}'
+        FIELD: cosateca.audience
+        TIMEOUT_MS: '1000'
+  - evalScript: ${output.leftAudience = output.value}
+  - runScript:
+      file: ../scripts/docField.js
+      env:
+        DOC_PATH: 'organizations/${ORG_ID}'
+        FIELD: cosateca.enabled
+        TIMEOUT_MS: '1000'
+  - runFlow:
+      when:
+        true: ${output.value == 'true'}
+      commands:
+        - runFlow:
+            file: ../subflows/login.yaml
+            env:
+              EMAIL: ${ADMIN_EMAIL}
+              PASSWORD: ${PASSWORD}
+        - openLink: 'cultuvilla://grupos/${ORG_ID}/ajustes'
+        - runFlow:
+            file: ../subflows/scroll-to.yaml
+            env:
+              TARGET: 'group-settings-cosateca'
+        - runFlow:
+            when:
+              true: ${output.leftAudience == 'pueblo'}
+            commands:
+              - tapOn:
+                  id: 'group-settings-cosateca-audience-integrantes'
+              - runScript:
+                  file: ../scripts/docField.js
+                  env:
+                    DOC_PATH: 'organizations/${ORG_ID}'
+                    FIELD: cosateca.audience
+                    EXPECT: integrantes
+        - runFlow:
+            file: ../subflows/set-stored-toggle.yaml
+            env:
+              DOC_PATH: 'organizations/${ORG_ID}'
+              FIELD: cosateca.enabled
+              WANT: 'false'
+              ID: 'group-settings-cosateca'
+---
+- evalScript: ${output.stamp = String(Date.now())}
+- evalScript: ${output.cosaTitle = 'Taladro E2E ' + output.stamp}
+- evalScript: ${output.askMessage = 'Lo necesito para colgar unos cuadros ' + output.stamp}
+
+# ── The admin switches the cosateca on. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/ajustes'
+- extendedWaitUntil:
+    visible:
+      id: 'group-settings-group'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-settings-cosateca'
+- runFlow:
+    file: ../subflows/set-stored-toggle.yaml
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: cosateca.enabled
+      WANT: 'true'
+      ID: 'group-settings-cosateca'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-settings-cosateca-audience'
+# Open to the pueblo, then back to the integrantes. A segment tapped while the
+# previous save is in flight is ignored, so a missed one is tapped again.
+- tapOn:
+    id: 'group-settings-cosateca-audience-pueblo'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: cosateca.audience
+      EXPECT: pueblo
+      TIMEOUT_MS: '8000'
+- runFlow:
+    when:
+      true: ${output.ok != 'true'}
+    commands:
+      - tapOn:
+          id: 'group-settings-cosateca-audience-pueblo'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: cosateca.audience
+      EXPECT: pueblo
+- assertTrue: ${output.ok == 'true'}
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    id: 'group-settings-cosateca-audience-integrantes'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: cosateca.audience
+      EXPECT: integrantes
+      TIMEOUT_MS: '8000'
+- runFlow:
+    when:
+      true: ${output.ok != 'true'}
+    commands:
+      - tapOn:
+          id: 'group-settings-cosateca-audience-integrantes'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      EXPECT_JSON: >-
+        {
+          'cosateca.enabled': true,
+          'cosateca.audience': 'integrantes'
+        }
+
+# ── An integrante offers a préstamo. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/cosateca'
+- extendedWaitUntil:
+    visible:
+      id: 'group-cosateca'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cosateca-offer'
+      EXPECT: 'cosa-sheet'
+- tapOn:
+    id: 'cosa-kind-prestamo'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cosa-title'
+      TEXT: ${output.cosaTitle}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cosa-category-herramientas'
+- tapOn:
+    id: 'cosa-category-herramientas'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cosa-description'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cosa-description'
+      TEXT: 'Taladro percutor con brocas de pared'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cosa-conditions'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cosa-conditions'
+      TEXT: 'Devolver limpio'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'cosa-save'
+- extendedWaitUntil:
+    notVisible:
+      id: 'cosa-sheet'
+    timeout: 20000
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: cosas
+      FIELD: title
+      VALUE: ${output.cosaTitle}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '30000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.cosaId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'cosas/${output.cosaId}'
+      EXPECT_JSON: >-
+        {
+          'orgId': 'e2e-org-asociacion',
+          'municipalityId': 'e2e-village-altozano',
+          'audience': 'integrantes',
+          'ownerUid': 'e2e-user',
+          'ownerName': 'Usuario E2E',
+          'createdBy': 'e2e-user',
+          'kind': 'prestamo',
+          'title': '@cosaTitle',
+          'category': 'herramientas',
+          'description': 'Taladro percutor con brocas de pared',
+          'conditions': 'Devolver limpio',
+          'imageURL': 'absent',
+          'status': 'available',
+          'heldBy': 'absent'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'cosa-row-${output.cosaId}'
+    timeout: 20000
+
+# ── The admin finds it in the catalogue and asks for it. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/cosateca'
+- extendedWaitUntil:
+    visible:
+      id: 'cosateca-catalogue'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cosa-row-${output.cosaId}'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cosa-row-${output.cosaId}'
+      EXPECT: 'cosa-detail'
+- assertVisible: '.*Devolver limpio.*'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cosa-ask'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cosa-ask'
+      EXPECT: 'ask-cosa-sheet'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'ask-cosa-message'
+      TEXT: ${output.askMessage}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'ask-cosa-send'
+# Sending opens the request itself.
+- extendedWaitUntil:
+    visible:
+      id: 'cosa-request'
+    timeout: 30000
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: cosaRequests
+      FIELD: cosaId
+      VALUE: ${output.cosaId}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '30000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.requestId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'cosaRequests/${output.requestId}'
+      EXPECT_JSON: >-
+        {
+          'status': 'pending',
+          'requesterUid': 'e2e-admin',
+          'requesterName': 'Admin E2E',
+          'ownerUid': 'e2e-user',
+          'orgId': 'e2e-org-asociacion',
+          'municipalityId': 'e2e-village-altozano',
+          'cosaTitle': '@cosaTitle',
+          'cosaKind': 'prestamo',
+          'message': '@askMessage',
+          'fromOn': 'absent',
+          'untilOn': 'absent',
+          'respondedAt': 'absent',
+          'closedAt': 'absent'
+        }
+# The requester may still withdraw it.
+- assertVisible:
+    id: 'cosa-request-cancel'
+
+# ── Its owner accepts, hands it over and gets it back. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/cosateca'
+- extendedWaitUntil:
+    visible:
+      id: 'group-cosateca'
+    timeout: 45000
+- tapOn:
+    id: 'cosateca-tab-mepiden'
+- extendedWaitUntil:
+    visible:
+      id: 'cosa-request-row-${output.requestId}'
+    timeout: 20000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cosa-request-row-${output.requestId}'
+      EXPECT: 'cosa-request'
+- assertVisible: '.*${output.askMessage}.*'
+- assertVisible:
+    id: 'cosa-request-decline'
+- tapOn:
+    id: 'cosa-request-accept'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'cosaRequests/${output.requestId}'
+      TIMEOUT_MS: '30000'
+      EXPECT_JSON: >-
+        {
+          'status': 'accepted',
+          'respondedAt': 'present',
+          'closedAt': 'absent'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'cosa-request-lend'
+    timeout: 20000
+- tapOn:
+    id: 'cosa-request-lend'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'cosaRequests/${output.requestId}'
+      TIMEOUT_MS: '30000'
+      EXPECT_JSON: >-
+        {
+          'status': 'lent',
+          'closedAt': 'absent'
+        }
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'cosas/${output.cosaId}'
+      EXPECT_JSON: >-
+        {
+          'heldBy.requestId': '@requestId',
+          'heldBy.uid': 'e2e-admin',
+          'heldBy.name': 'Admin E2E',
+          'status': 'available'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'cosa-request-return'
+    timeout: 20000
+- tapOn:
+    id: 'cosa-request-return'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'cosaRequests/${output.requestId}'
+      TIMEOUT_MS: '30000'
+      EXPECT_JSON: >-
+        {
+          'status': 'returned',
+          'closedAt': 'present'
+        }
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'cosas/${output.cosaId}'
+      EXPECT_JSON: >-
+        {
+          'heldBy': 'absent',
+          'status': 'available'
+        }
+- extendedWaitUntil:
+    visible: 'Devuelta'
+    timeout: 20000
+- assertNotVisible:
+    id: 'cosa-request-actions'
+
+# ── Back as it was: no cosateca. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/ajustes'
+- extendedWaitUntil:
+    visible:
+      id: 'group-settings-group'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-settings-cosateca'
+- runFlow:
+    file: ../subflows/set-stored-toggle.yaml
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: cosateca.enabled
+      WANT: 'false'
+      ID: 'group-settings-cosateca'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      EXPECT_JSON: >-
+        {
+          'cosateca.enabled': false,
+          'cosateca.audience': 'integrantes'
+        }

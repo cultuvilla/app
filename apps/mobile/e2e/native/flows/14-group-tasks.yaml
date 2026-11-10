@@ -1,0 +1,298 @@
+# A group task through its whole life, by the two roles that share it: a
+# plain member creates it with every field (notes, a day picked on the
+# calendar, a time, themself assigned) and comments on it; the admin signs up
+# with "Me apunto" and takes it back, renames it, marks it done and deletes
+# it behind the native confirm. Every step is asserted on
+# organizations/e2e-org-asociacion/tasks — only this flow proves members may
+# write tasks and the rules let an admin delete another member's.
+appId: com.cultuvilla.app.dev
+env:
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  USER_EMAIL: e2e-user@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  ORG_ID: e2e-org-asociacion
+  ADMIN_UID: e2e-admin
+  USER_UID: e2e-user
+  TASK_TIME: '18:30'
+# A task left open shows on the shared asociación's home for flows 13–15.
+onFlowComplete:
+  - runScript:
+      file: ../scripts/deleteWhere.js
+      env:
+        COLLECTION_PATH: 'organizations/${ORG_ID}/tasks'
+        FIELD: title
+        VALUE: ${output.taskTitle}
+  - runScript:
+      file: ../scripts/deleteWhere.js
+      env:
+        COLLECTION_PATH: 'organizations/${ORG_ID}/tasks'
+        FIELD: title
+        VALUE: ${output.taskEditTitle}
+---
+- evalScript: ${output.stamp = String(Date.now())}
+- evalScript: ${output.taskTitle = 'Montar el escenario ' + output.stamp}
+- evalScript: ${output.taskEditTitle = 'Montar y desmontar el escenario ' + output.stamp}
+- evalScript: ${output.taskNotes = 'Hacen falta cuatro personas y la furgoneta'}
+- evalScript: ${output.taskComment = 'Yo llevo las herramientas ' + output.stamp}
+# The 15th of next month: one page of the calendar, never in the past. Noon so
+# the ISO date is that day in any host time zone.
+- evalScript: ${output.dueDay = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 15, 12).toISOString().slice(0, 10)}
+
+# ── A member creates it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/tareas'
+- extendedWaitUntil:
+    visible:
+      id: 'group-tasks-create'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'group-tasks-create'
+      EXPECT: 'task-title'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'task-title'
+      TEXT: ${output.taskTitle}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'task-notes'
+      TEXT: ${output.taskNotes}
+- runFlow:
+    file: ../subflows/pick-date.yaml
+    env:
+      FIELD: 'task-due'
+      DAY: ${output.dueDay}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'task-time'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'task-time'
+      TEXT: ${TASK_TIME}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'task-assignee-${USER_UID}'
+# The box, not the row's centre: the label is the member's name.
+- tapOn:
+    id: 'task-assignee-${USER_UID}-box'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'task-save'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/tasks'
+      FIELD: title
+      VALUE: ${output.taskTitle}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.taskId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@taskTitle',
+          'notes': '@taskNotes',
+          'dueOn': '@dueDay',
+          'time': '18:30',
+          'assigneeUids': ['e2e-user'],
+          'createdBy': 'e2e-user',
+          'slots': 'absent',
+          'recurrence': 'absent',
+          'eventId': 'absent',
+          'doneAt': 'absent'
+        }
+
+# ── Its detail, from the board; a comment ──
+# Scroll, not wait: the board is sorted by due day, and earlier flows may
+# have left tasks ahead of this one.
+- scrollUntilVisible:
+    element:
+      id: 'group-home-task-${output.taskId}'
+    direction: DOWN
+    timeout: 20000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'group-home-task-${output.taskId}'
+      EXPECT: 'group-task-done'
+- assertVisible: '.*${output.taskTitle}.*'
+- assertVisible: '.*${output.taskNotes}.*'
+- assertVisible:
+    id: 'group-task-person-${USER_UID}'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'task-comment-input'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'task-comment-input'
+      TEXT: ${output.taskComment}
+- extendedWaitUntil:
+    visible:
+      id: 'task-comment-send'
+    timeout: 30000
+- tapOn:
+    id: 'task-comment-send'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}/chat'
+      FIELD: body
+      VALUE: ${output.taskComment}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}/chat/${output.id}'
+      EXPECT_JSON: >-
+        {
+          'authorUid': 'e2e-user',
+          'authorName': 'Usuario E2E',
+          'body': '@taskComment'
+        }
+
+# ── The admin signs up and takes it back ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/tarea/${output.taskId}'
+- extendedWaitUntil:
+    visible:
+      id: 'shift-claim-${output.taskId}'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/see-text.yaml
+    env:
+      TEXT: ${output.taskComment}
+# The sign-up bar is pinned under the page, so no scroll reaches or hides it.
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'shift-claim-${output.taskId}'
+      EXPECT: 'shift-withdraw-${output.taskId}'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}'
+      EXPECT_JSON: >-
+        {
+          'assigneeUids': ['e2e-user', 'e2e-admin']
+        }
+- assertVisible:
+    id: 'shift-state-${output.taskId}'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'shift-withdraw-${output.taskId}'
+      EXPECT: 'shift-claim-${output.taskId}'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}'
+      EXPECT_JSON: >-
+        {
+          'assigneeUids': ['e2e-user']
+        }
+
+# ── Renamed ──
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-task-edit'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'group-task-edit'
+      EXPECT: 'task-title'
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'task-title'
+      TEXT: ${output.taskEditTitle}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'task-save'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@taskEditTitle',
+          'notes': '@taskNotes',
+          'dueOn': '@dueDay',
+          'time': '18:30',
+          'assigneeUids': ['e2e-user'],
+          'createdBy': 'e2e-user'
+        }
+- extendedWaitUntil:
+    visible: '.*${output.taskEditTitle}.*'
+    timeout: 20000
+
+# ── Done ──
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-task-done'
+- tapOn:
+    id: 'group-task-done'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}'
+      EXPECT_JSON: >-
+        {
+          'doneAt': 'present',
+          'doneBy': 'e2e-admin'
+        }
+# A closed task offers no sign-up.
+- extendedWaitUntil:
+    notVisible:
+      id: 'shift-claim-${output.taskId}'
+    timeout: 20000
+
+# ── Deleted: the admin, though another member created it ──
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-task-edit'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'group-task-edit'
+      EXPECT: 'task-delete'
+- tapOn:
+    id: 'task-delete'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'Eliminar'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+- extendedWaitUntil:
+    visible:
+      id: 'group-task-unavailable'
+    timeout: 20000
