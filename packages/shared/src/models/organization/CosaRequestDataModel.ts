@@ -91,3 +91,20 @@ export function buildCosaRequestData(input: CosaRequestInput): CosaRequestData {
     overdueNotifiedOn: null,
   };
 }
+
+/**
+ * A request's chat, at `cosaRequests/{requestId}/chat/{chatId}`: where the
+ * requester and the manager arrange the handover without sharing a phone. Its
+ * messages are group chat messages (GroupChatMessageDataSchema). Read and
+ * written by the request's parties — its requester, the cosa's owner and the
+ * group's admins.
+ */
+export function cosaRequestChatMessagePath(requestId: string, chatId: string): string {
+  return `cosaRequests/${requestId}/chat/${chatId}`;
+}
+
+/** Reads a report's target back into a request chat message, or null for a report of anything else. */
+export function parseCosaRequestChatMessagePath(path: string): { requestId: string; chatId: string } | null {
+  const match = /^cosaRequests\/([^/]+)\/chat\/([^/]+)$/.exec(path);
+  return match?.[1] && match[2] ? { requestId: match[1], chatId: match[2] } : null;
+}

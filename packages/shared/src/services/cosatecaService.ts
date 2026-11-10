@@ -1,8 +1,16 @@
 // packages/shared/src/services/cosatecaService.ts
-import { deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
+import { deleteDoc, doc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
-import { cosaDoc, cosaRequestDoc, cosaRequestsCollection, cosasCollection, cosatecaWriteDoc } from '../firebase/refs/client';
+import {
+  cosaDoc,
+  cosaRequestChatCollection,
+  cosaRequestChatWriteCollection,
+  cosaRequestDoc,
+  cosaRequestsCollection,
+  cosasCollection,
+  cosatecaWriteDoc,
+} from '../firebase/refs/client';
 import {
   buildCosaData,
   CosaDataSchema,
@@ -19,10 +27,12 @@ import {
   type CosaRequestStatus,
 } from '../models/organization/CosaRequestDataModel';
 import type { CosaRequestAction } from '../models/organization/cosatecaLogic';
+import { GroupChatBodySchema, type GroupChatMessageData } from '../models/organization/GroupChatDataModel';
 import { forbiddenAsEmpty, watchDoc, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type Cosa = CosaData & { id: string };
 export type CosaRequest = CosaRequestData & { id: string };
+export type CosaRequestChatMessage = GroupChatMessageData & { id: string };
 
 // =============================================================================
 // COSAS
@@ -180,4 +190,46 @@ export async function respondToCosaRequest(requestId: string, action: CosaReques
     'respondToCosaRequest',
   );
   return (await fn({ requestId, action })).data.status;
+}
+
+// =============================================================================
+// A REQUEST'S CHAT — the handover, arranged without sharing a phone
+// =============================================================================
+
+/**
+ * A request's latest `count` messages (start at GROUP_CHAT_PAGE_SIZE), newest
+ * first. Its parties read it: the requester, the cosa's owner, the group's admins.
+ */
+export function watchCosaRequestChat(
+  requestId: string,
+  count: number,
+  onNext: (rows: CosaRequestChatMessage[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    query(cosaRequestChatCollection(getDb(), requestId), orderBy('createdAt', 'desc'), limit(count)),
+    onNext,
+    onError,
+  );
+}
+
+/**
+ * Write in a request's chat. Throws on an empty or over-long body before
+ * writing; `authorName` must be the author's public name. Returns the new id.
+ */
+export async function sendCosaRequestChatMessage(input: {
+  requestId: string;
+  uid: string;
+  authorName: string;
+  body: string;
+}): Promise<string> {
+  const body = GroupChatBodySchema.parse(input.body);
+  const ref = doc(cosaRequestChatWriteCollection(getDb(), input.requestId));
+  await setDoc(ref, { authorUid: input.uid, authorName: input.authorName, body, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+/** The author removes their own message; the group's admins (and the village's and the app's) anyone's. */
+export async function deleteCosaRequestChatMessage(requestId: string, chatId: string): Promise<void> {
+  await deleteDoc(doc(cosaRequestChatWriteCollection(getDb(), requestId), chatId));
 }

@@ -689,6 +689,14 @@ service cloud.firestore {
           && d.ownerUid != request.auth.uid
           && (isOrgMember(cosa.orgId) || (cosa.audience == 'pueblo' && isVillageMember(cosa.municipalityId)));
     }
+    // A request's parties: its requester, the cosa's owner, and the group's admins.
+    // They alone read and write its chat (the handover, arranged in the app).
+    function isCosaRequestParty(req) {
+      return isOwner(req.requesterUid) || isOwner(req.ownerUid) || isOrgAdmin(req.orgId);
+    }
+    function cosaRequestData(requestId) {
+      return get(/databases/$(database)/documents/cosaRequests/$(requestId)).data;
+    }
 
     // ── Records (actas, ledgerEntries) ──────────────────────────────────────
     // See RecordsDataModel. Only orgs with a socio roster keep them.
@@ -2166,6 +2174,16 @@ service cloud.firestore {
       allow create: if isValidCosaRequestCreate(request.resource.data);
       // Every answer goes through respondToCosaRequest; a request is a record.
       allow update, delete: if false;
+    }
+    // A request's chat (group chat messages). A message is never edited; its
+    // author deletes it, and so do the group's, the village's and the app's admins
+    // — the last two acting on a report, since they cannot read it.
+    match /cosaRequests/{requestId}/chat/{chatId} {
+      allow read: if isCosaRequestParty(cosaRequestData(requestId));
+      allow create: if isCosaRequestParty(cosaRequestData(requestId))
+        && isValidGroupChatMessageCreate(request.resource.data);
+      allow update: if false;
+      allow delete: if canDeleteGroupChatMessage(cosaRequestData(requestId).orgId, resource.data);
     }
 
     match /events/{eventId} {

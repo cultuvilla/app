@@ -5,6 +5,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "overdueNotifiedOn",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "untilOn",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cosaRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "ownerUid",
           "order": "ASCENDING"
         },

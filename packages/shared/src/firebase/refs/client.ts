@@ -207,6 +207,10 @@ export const cosaRequestDoc = (db: Firestore, requestId: string) =>
  */
 export const cosatecaWriteDoc = (db: Firestore, collectionName: 'cosas' | 'cosaRequests', id: string) =>
   doc(db, collectionName, id);
+export const cosaRequestChatCollection = (db: Firestore, requestId: string) =>
+  collection(db, 'cosaRequests', requestId, 'chat').withConverter(groupChatMessageConverterClient);
+/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
+export const cosaRequestChatWriteCollection = (db: Firestore, requestId: string) => collection(db, 'cosaRequests', requestId, 'chat');
 
 // Group tasks, shifts and checklist templates (see GroupTaskDataModel).
 export const organizationTasksCollection = (db: Firestore, organizationId: string) =>

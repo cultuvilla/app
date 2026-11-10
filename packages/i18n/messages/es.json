@@ -2423,6 +2423,14 @@
         "entry": "Cosateca del pueblo · {count}",
         "intro": "Lo que los grupos del pueblo prestan, ofrecen y regalan a todos los vecinos.",
         "empty": "Ningún grupo del pueblo ha abierto su cosateca a todos."
+      },
+      "chat": {
+        "title": "Para quedar",
+        "empty": "Escribe aquí para quedar en la entrega. Solo lo leéis quien lo pide, quien lo presta y la junta del grupo.",
+        "placeholder": "Escribe para quedar…",
+        "older": "Ver mensajes anteriores",
+        "sendError": "No se ha podido enviar el mensaje.",
+        "deleteBody": "Desaparecerá de la solicitud."
       }
     }
   },

@@ -11,9 +11,23 @@ import {
 } from '@cultuvilla/shared/services/contentReportService';
 import { deleteComment, getComment } from '@cultuvilla/shared/services/commentsService';
 import { deleteGroupChatMessage } from '@cultuvilla/shared/services/groupChatService';
+import { deleteCosaRequestChatMessage } from '@cultuvilla/shared/services/cosatecaService';
 import { parseGroupChatMessagePath } from '@cultuvilla/shared/models/organization/GroupChatDataModel';
+import { parseCosaRequestChatMessagePath } from '@cultuvilla/shared/models/organization/CosaRequestDataModel';
 import { formatCompactRelativeTime } from '@cultuvilla/shared/utils';
 import { showAlert, showConfirm } from '../../lib/dialogs';
+
+/**
+ * A reported chat message — a group chat's or a cosa request's — as the delete
+ * that removes it, or null for a report of anything else.
+ */
+function reportedChatMessageDelete(targetId: string): (() => Promise<void>) | null {
+  const group = parseGroupChatMessagePath(targetId);
+  if (group) return () => deleteGroupChatMessage(group.orgId, group.threadId, group.chatId);
+  const cosa = parseCosaRequestChatMessagePath(targetId);
+  if (cosa) return () => deleteCosaRequestChatMessage(cosa.requestId, cosa.chatId);
+  return null;
+}
 
 /**
  * Moderator inbox for user-filed reports, scoped to one village. Filing a report
@@ -59,15 +73,15 @@ export function ContentReportsInbox({ municipalityId }: { municipalityId: string
   // A chat is closed to its moderators, so this is the only place they can act on
   // a message. The words shown are the reporter's copy, hence the confirm quoting them.
   function deleteReportedMessage(report: ContentReport) {
-    const target = parseGroupChatMessagePath(report.targetId);
-    if (!target) return;
+    const remove = reportedChatMessageDelete(report.targetId);
+    if (!remove) return;
     showConfirm(
       t('admin.reports.confirmDeleteMessageTitle'),
       report.targetText ?? '',
       () =>
         removeTarget(
           report,
-          () => deleteGroupChatMessage(target.orgId, target.threadId, target.chatId),
+          remove,
           'admin.reports.deleteMessageError',
         ),
       { confirmText: t('admin.reports.deleteMessage') },
@@ -122,7 +136,7 @@ export function ContentReportsInbox({ municipalityId }: { municipalityId: string
                 </Text>
               </HStack>
               <Text variant="caption" tone="muted">
-                {t(`admin.reports.kind.${parseGroupChatMessagePath(item.targetId) ? 'chatMessage' : item.targetKind}`)}
+                {t(`admin.reports.kind.${reportedChatMessageDelete(item.targetId) ? 'chatMessage' : item.targetKind}`)}
               </Text>
               {item.targetAuthorUserId ? (
                 <LiveOwnerChip
@@ -143,13 +157,13 @@ export function ContentReportsInbox({ municipalityId }: { municipalityId: string
                   variant="secondary"
                   disabled={busyId === item.id}
                   onPress={() =>
-                    parseGroupChatMessagePath(item.targetId)
+                    reportedChatMessageDelete(item.targetId)
                       ? deleteReportedMessage(item)
                       : void deleteReportedComment(item)
                   }
                   testID={`admin-report-delete-${item.id}`}
                 >
-                  {t(parseGroupChatMessagePath(item.targetId) ? 'admin.reports.deleteMessage' : 'admin.reports.deleteComment')}
+                  {t(reportedChatMessageDelete(item.targetId) ? 'admin.reports.deleteMessage' : 'admin.reports.deleteComment')}
                 </Button>
               ) : null}
               <HStack gap={2}>

@@ -304,6 +304,8 @@ async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; 
     await batch.commit();
   }
   const requestRefs = new Map([...asked.docs, ...askedOfMe.docs].map((d) => [d.id, d.ref]));
+  // A request's chat goes with it: the other party's messages could never be reached again.
+  for (const ref of requestRefs.values()) await db.recursiveDelete(ref.collection('chat'));
   const cosaRequestsDeleted = await deleteRefsInChunks([...requestRefs.values()]);
   const cosasDeleted = await deleteRefsInChunks(owned.docs.map((d) => d.ref));
   return { cosasDeleted, cosaRequestsDeleted };

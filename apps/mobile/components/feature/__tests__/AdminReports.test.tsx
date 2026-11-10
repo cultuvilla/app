@@ -27,7 +27,7 @@ const report = (id: string, targetText: string | null, targetId = `organizations
 });
 jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
   getReportsByMunicipality: () =>
-    Promise.resolve([report('r1', 'Eres un idiota'), report('r2', null), report('r3', 'Copia del denunciante', 'comment1'), report('r4', null, 'term1', 'vocabularyTerm')]),
+    Promise.resolve([report('r1', 'Eres un idiota'), report('r2', null), report('r3', 'Copia del denunciante', 'comment1'), report('r4', null, 'term1', 'vocabularyTerm'), report('r5', 'Te espero a las 3', 'cosaRequests/q1/chat/m1')]),
   setReportStatus: (...args: unknown[]) => mockSetReportStatus(...args),
 }));
 const mockSetReportStatus = jest.fn((..._args: unknown[]) => Promise.resolve());
@@ -40,6 +40,10 @@ jest.mock('@cultuvilla/shared/services/commentsService', () => ({
 const mockDeleteMessage = jest.fn((..._args: unknown[]) => Promise.resolve());
 jest.mock('@cultuvilla/shared/services/groupChatService', () => ({
   deleteGroupChatMessage: (...args: unknown[]) => mockDeleteMessage(...args),
+}));
+const mockDeleteCosaMessage = jest.fn((..._args: unknown[]) => Promise.resolve());
+jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
+  deleteCosaRequestChatMessage: (...args: unknown[]) => mockDeleteCosaMessage(...args),
 }));
 
 describe('AdminReportsScreen', () => {
@@ -66,6 +70,17 @@ describe('AdminReportsScreen', () => {
     act(() => accept());
     await waitFor(() => expect(mockDeleteMessage).toHaveBeenCalledWith('o1', 'general', 'r1'));
     await waitFor(() => expect(mockSetReportStatus).toHaveBeenCalledWith('r1', 'reviewed'));
+  });
+
+  it("deletes a reported message of a cosa request's chat and closes its report", async () => {
+    mockDeleteMessage.mockClear();
+    const r = render(<AdminReportsScreen />);
+    const accept = confirmDelete();
+    fireEvent.press(await r.findByTestId('admin-report-delete-r5'));
+    act(() => accept());
+    await waitFor(() => expect(mockDeleteCosaMessage).toHaveBeenCalledWith('q1', 'm1'));
+    expect(mockDeleteMessage).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockSetReportStatus).toHaveBeenCalledWith('r5', 'reviewed'));
   });
 
   it('confirms a reported comment with its real words, not the copy in the report', async () => {
@@ -108,9 +123,10 @@ describe('AdminReportsScreen', () => {
     const r = render(<AdminReportsScreen />);
     await r.findByTestId('admin-report-delete-r1');
     expect(r.getByText('admin.reports.kind.vocabularyTerm')).toBeTruthy();
-    expect(r.getAllByText('admin.reports.kind.chatMessage')).toHaveLength(2);
+    expect(r.getAllByText('admin.reports.kind.chatMessage')).toHaveLength(3);
     expect(r.getByText('admin.reports.kind.comment')).toBeTruthy();
     expect(r.queryByText(/organizations\//)).toBeNull();
+    expect(r.queryByText(/cosaRequests\//)).toBeNull();
   });
 
   it("opens the pueblo's reports to its team", async () => {

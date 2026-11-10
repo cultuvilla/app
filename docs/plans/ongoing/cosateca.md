@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** none
 **Gate:** none
-**Next:** Phase 3 — the chat inside each request and the overdue nudge (`sendCosaReminders`)
+**Next:** Phase 4 — reservas (the pádel court); Phases 1–3 are on develop
 
 Decided 2026-11-10 (user): build the cosateca as a group tool, taking the agent's picks
 with three changes: *regalos* are in from the start; a group's admin chooses whether its
@@ -166,6 +166,28 @@ indexes, `respondToCosaRequest` (transaction), `onCosaRequestWritten` (notificat
 - `sendCosaReminders` (daily 10:00 Madrid, with the task reminders' pattern): the day
   after `untilOn`, "llevas la carpa desde el día 3" to the holder, once
   (`overdueNotifiedOn`).
+
+### Phase 3 — as built
+
+- **Chat:** `cosaRequests/{requestId}/chat/{chatId}`, group chat messages
+  (`GroupChatMessageDataSchema`, the same create rule). Read and written by the request's
+  parties — requester, `ownerUid`, the group's admins; deleted by its author and the
+  group's, village's and app's admins (the last two from a report, since they cannot read
+  it). `CosaRequestChat` under the request screen: oldest on top, blocked authors hidden,
+  report and delete per message. A report names `cosaRequests/{id}/chat/{chatId}` and the
+  village's Denuncias delete it. No unread badge and no opt-in: a request has two sides,
+  so every message pushes the other side (`onCosaRequestChatCreated`, `group_task` with
+  `cosaRequestId`, keyed on the message). A group's admins read a personal cosa's chat as
+  the backstop but are not pushed it. `deleteAccount` deletes the chat of every request it
+  deletes (the user's own messages already go with every `chat` collection group).
+- **Overdue nudge:** `sendCosaReminders`, daily 10:00 Madrid. A `lent` request whose
+  `untilOn` has passed (not only yesterday's, so a missed run still catches it) is stamped
+  `overdueNotifiedOn` in a transaction, then the holder ("Toca devolver") and the managers
+  ("No ha vuelto") are told once, `cosa_<requestId>_overdue`. Index
+  `status + overdueNotifiedOn + untilOn`.
+- **Review fix folded in:** the cosa and request screens take the viewer's admin rights
+  from the cosa's/request's `orgId`, not the URL's group; the Buzón reports an unreadable
+  pending-request list through `captureError` instead of dropping it silently.
 
 ## Phase 4 — reservas (the pádel court)
 

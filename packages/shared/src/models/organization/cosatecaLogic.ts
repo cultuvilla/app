@@ -153,3 +153,28 @@ export function usedCosaCategories(cosas: readonly Pick<CosaData, 'status' | 'ca
   const used = new Set(cosas.filter((c) => c.status !== 'given').map((c) => c.category));
   return COSA_CATEGORIES.filter((c) => used.has(c));
 }
+
+/**
+ * Who a request chat message is pushed to: the requester and the cosa's
+ * managers (its owner, or for a group's cosa the group's admins), never its
+ * author. A group's admins read a personal cosa's chat as the backstop but are
+ * not pushed it.
+ */
+export function cosaChatPushUids(
+  req: Pick<CosaRequestData, 'requesterUid'>,
+  managerUids: readonly string[],
+  authorUid: string,
+): string[] {
+  return [...new Set([req.requesterUid, ...managerUids])].filter((uid) => uid !== authorUid);
+}
+
+/**
+ * Who the overdue nudge goes to: the holder (the requester), and the managers
+ * so they know to ask for it back.
+ */
+export function cosaOverdueRecipients(
+  req: Pick<CosaRequestData, 'requesterUid'>,
+  managerUids: readonly string[],
+): { holder: string; managers: string[] } {
+  return { holder: req.requesterUid, managers: [...new Set(managerUids)].filter((uid) => uid !== req.requesterUid) };
+}

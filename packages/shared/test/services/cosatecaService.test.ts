@@ -10,10 +10,13 @@ vi.mock('../../src/firebase/refs/client', () => ({
   cosaRequestsCollection: vi.fn(() => ({ _coll: 'cosaRequests' })),
   cosaRequestDoc: vi.fn((_db, id: string) => ({ _path: `cosaRequests/${id}` })),
   cosatecaWriteDoc: vi.fn((_db, coll: string, id: string) => ({ _path: `${coll}/${id}` })),
+  cosaRequestChatCollection: vi.fn((_db, id: string) => ({ _coll: `cosaRequests/${id}/chat` })),
+  cosaRequestChatWriteCollection: vi.fn((_db, id: string) => ({ _coll: `cosaRequests/${id}/chat` })),
 }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((coll: { _coll?: string } | undefined, id?: string) => ({ id: id ?? `new-${String(++newId)}`, _path: `${coll?._coll ?? ''}/${id ?? 'new'}` })),
   deleteDoc: vi.fn(),
+  limit: vi.fn((n: number) => ({ _limit: n })),
   orderBy: vi.fn((f: string, d: string) => ({ _order: `${f} ${d}` })),
   query: vi.fn((...parts: unknown[]) => ({ _query: parts })),
   serverTimestamp: vi.fn(() => 'SERVER_TS'),
@@ -26,11 +29,14 @@ vi.mock('firebase/firestore', () => ({
 const callable = vi.fn(() => Promise.resolve({ data: { status: 'accepted' } }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => callable) }));
 
-import { getDocs, onSnapshot, setDoc, updateDoc, where } from 'firebase/firestore';
+import { deleteDoc, getDocs, limit, onSnapshot, orderBy, setDoc, updateDoc, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
   createCosa,
+  deleteCosaRequestChatMessage,
   getMyPendingCosaRequests,
+  sendCosaRequestChatMessage,
+  watchCosaRequestChat,
   requestCosa,
   respondToCosaRequest,
   updateCosa,
@@ -126,5 +132,27 @@ describe('cosatecaService', () => {
     // An org whose admin rights went answers empty instead of failing the merge.
     errors[2]?.(Object.assign(new Error('denied'), { code: 'permission-denied' }));
     expect(onNext).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'b' }), expect.objectContaining({ id: 'a' })]);
+  });
+
+  it("sendCosaRequestChatMessage writes a trimmed message into the request's chat, stamped by the server", async () => {
+    const id = await sendCosaRequestChatMessage({ requestId: 'r1', uid: 'u1', authorName: 'Ana', body: '  El sábado  ' });
+    expect(id).toBe('new-1');
+    const [ref, data] = vi.mocked(setDoc).mock.calls[0] ?? [];
+    expect(pathOf(ref)).toBe('cosaRequests/r1/chat/new');
+    expect(data).toEqual({ authorUid: 'u1', authorName: 'Ana', body: 'El sábado', createdAt: 'SERVER_TS' });
+  });
+
+  it('sendCosaRequestChatMessage refuses an empty message without writing', async () => {
+    await expect(sendCosaRequestChatMessage({ requestId: 'r1', uid: 'u1', authorName: 'Ana', body: '   ' })).rejects.toThrow();
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  it('watchCosaRequestChat reads the newest page; deleteCosaRequestChatMessage removes one message', async () => {
+    vi.mocked(onSnapshot).mockImplementation(() => () => undefined);
+    watchCosaRequestChat('r1', 50, vi.fn(), vi.fn());
+    expect(orderBy).toHaveBeenCalledWith('createdAt', 'desc');
+    expect(limit).toHaveBeenCalledWith(50);
+    await deleteCosaRequestChatMessage('r1', 'm1');
+    expect(pathOf(vi.mocked(deleteDoc).mock.calls[0]?.[0])).toBe('cosaRequests/r1/chat/m1');
   });
 });
