@@ -43,8 +43,8 @@ const message = (id: string, authorUid: string, minute: number) => ({
   createdAt: new Date(`2026-11-01T10:${String(minute).padStart(2, '0')}:00Z`),
 });
 
-const chat = (canModerate = false) =>
-  render(<CosaRequestChat requestId="r1" municipalityId="m1" uid="u1" canModerate={canModerate} />);
+const chat = (canModerate = false, open = true) =>
+  render(<CosaRequestChat requestId="r1" municipalityId="m1" uid="u1" canModerate={canModerate} open={open} />);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -124,5 +124,14 @@ describe('CosaRequestChat', () => {
     resetWatchers();
     setWatched('chat', new Error('permission-denied'));
     expect(chat().getByTestId('cosa-request-chat-error')).toBeTruthy();
+  });
+
+  it('keeps the messages readable but hides the composer once the chat has closed', () => {
+    setWatched('chat', [message('c1', 'luis', 1)]);
+    const r = chat(false, false);
+    expect(r.getByTestId('cosa-request-chat-message-c1')).toBeTruthy();
+    expect(r.getByTestId('cosa-request-chat-closed')).toBeTruthy();
+    expect(r.queryByTestId('cosa-request-chat-input')).toBeNull();
+    expect(chat().queryByTestId('cosa-request-chat-closed')).toBeNull();
   });
 });

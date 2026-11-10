@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { availableCosaRequestActions, cosaRequestRoles, type CosaRequestAction } from '@cultuvilla/shared/models/organization';
+import { availableCosaRequestActions, cosaRequestRoles, isCosaChatOpen, type CosaRequestAction } from '@cultuvilla/shared/models/organization';
 import { respondToCosaRequest, watchCosaRequest, type CosaRequest } from '@cultuvilla/shared/services/cosatecaService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, HStack, Pressable, Screen, Text, VStack } from '../../../../components/primitives';
@@ -138,7 +138,7 @@ export default function CosaRequestScreen() {
 
             {roles.length > 0 && uid ? (
               <DetailScrollProvider scrollRef={scrollRef}>
-                <CosaRequestChat requestId={req.id} municipalityId={req.municipalityId} uid={uid} canModerate={isAdmin} />
+                <CosaRequestChat requestId={req.id} municipalityId={req.municipalityId} uid={uid} canModerate={isAdmin} open={isCosaChatOpen(req, new Date())} />
               </DetailScrollProvider>
             ) : null}
           </VStack>

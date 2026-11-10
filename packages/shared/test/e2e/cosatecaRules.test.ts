@@ -306,6 +306,25 @@ describe("a request's chat", () => {
     await assertSucceeds(deleteDoc(chatRef('app-admin', 'r2', 'm1')));
   });
 
+  it('closes to new messages 14 days after the request ended; old ones stay readable', async () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const ended = (days: number, status = 'returned') =>
+      getEnv().withSecurityRulesDisabled(async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), 'cosaRequests/r2'), { status, closedAt: new Date(Date.now() - days * DAY) });
+      });
+    await ended(13);
+    await assertSucceeds(setDoc(chatRef('member2', 'r2', 'd13'), message('member2', 'Luis')));
+    await ended(15);
+    await assertFails(setDoc(chatRef('member2', 'r2', 'd15'), message('member2', 'Luis')));
+    await assertFails(setDoc(chatRef('member1', 'r2', 'd15b'), message('member1', 'Ana')));
+    await assertSucceeds(getDocs(chatOf('member2', 'r2')));
+    await ended(15, 'declined');
+    await assertFails(setDoc(chatRef('admin2', 'r2', 'd15c'), message('admin2', 'Pepa')));
+    // Still in play, however old: open.
+    await ended(400, 'lent');
+    await assertSucceeds(setDoc(chatRef('member2', 'r2', 'd400'), message('member2', 'Luis')));
+  });
+
   it('there is no chat under a request that does not exist', async () => {
     // The names are the ones their public profiles carry, so only the missing request refuses them.
     for (const [uid, name] of [['member1', 'Ana'], ['member2', 'Luis'], ['admin2', 'Pepa']] as const) {

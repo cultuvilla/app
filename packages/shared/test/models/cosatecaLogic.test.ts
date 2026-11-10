@@ -8,6 +8,8 @@ import {
   cosaRequestRoles,
   cosatecaCatalogue,
   usedCosaCategories,
+  COSA_CHAT_CLOSE_DAYS,
+  isCosaChatOpen,
   isCosaRequestOverdue,
   nextCosaRequestStatus,
 } from '../../src/models/organization/cosatecaLogic';
@@ -164,5 +166,38 @@ describe('cosaOverdueRecipients', () => {
     expect(cosaOverdueRecipients({ requesterUid: 'asker' }, ['owner'])).toEqual({ holder: 'asker', managers: ['owner'] });
     // An admin who borrowed the group's cosa is told once, as the holder.
     expect(cosaOverdueRecipients({ requesterUid: 'a1' }, ['a1', 'a2'])).toEqual({ holder: 'a1', managers: ['a2'] });
+  });
+});
+
+describe("a request's chat closes after the request ends", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const ended = new Date('2026-11-01T10:00:00Z');
+  const at = (days: number) => new Date(ended.getTime() + days * DAY);
+  const req = (status: Parameters<typeof isCosaChatOpen>[0]['status'], over: Partial<Parameters<typeof isCosaChatOpen>[0]> = {}) => ({
+    status, closedAt: ended, respondedAt: null, createdAt: new Date('2026-10-20T10:00:00Z'), ...over,
+  });
+
+  it('closes 14 days after it ended', () => {
+    expect(COSA_CHAT_CLOSE_DAYS).toBe(14);
+    expect(isCosaChatOpen(req('returned'), at(13))).toBe(true);
+    expect(isCosaChatOpen(req('returned'), at(14))).toBe(true);
+    expect(isCosaChatOpen(req('returned'), at(15))).toBe(false);
+    for (const status of ['declined', 'cancelled', 'done', 'given'] as const) {
+      expect(isCosaChatOpen(req(status), at(15))).toBe(false);
+    }
+  });
+
+  it('stays open while the request is in play, however old', () => {
+    for (const status of ['pending', 'accepted', 'lent'] as const) {
+      expect(isCosaChatOpen(req(status, { closedAt: null }), at(400))).toBe(true);
+    }
+  });
+
+  it('counts from when it was answered, then when it was made, if it has no closedAt', () => {
+    expect(isCosaChatOpen(req('declined', { closedAt: null, respondedAt: ended }), at(15))).toBe(false);
+    expect(isCosaChatOpen(req('declined', { closedAt: null, respondedAt: ended }), at(13))).toBe(true);
+    // Made on 2026-10-20: 15 days later it is closed.
+    expect(isCosaChatOpen(req('cancelled', { closedAt: null }), at(3))).toBe(false);
+    expect(isCosaChatOpen(req('cancelled', { closedAt: null }), at(1))).toBe(true);
   });
 });

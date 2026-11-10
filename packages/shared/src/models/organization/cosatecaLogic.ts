@@ -69,6 +69,33 @@ export function isFinalCosaRequestStatus(status: CosaRequestStatus): boolean {
   return !isOpenCosaRequest(status);
 }
 
+/**
+ * How long a request's chat stays open to new messages once the request has
+ * ended (decided 2026-11-10, user): long enough to sort out a forgotten
+ * charger, short enough that a declined requester cannot keep pushing the
+ * owner for months. Old messages stay readable. firestore.rules holds the same
+ * number.
+ */
+export const COSA_CHAT_CLOSE_DAYS = 14;
+
+/** When a request ended: its `closedAt`, else when it was answered, else when it was made. */
+export function cosaRequestEndedAt(
+  req: Pick<CosaRequestData, 'status' | 'closedAt' | 'respondedAt' | 'createdAt'>,
+): Date | null {
+  if (!isFinalCosaRequestStatus(req.status)) return null;
+  return req.closedAt ?? req.respondedAt ?? req.createdAt;
+}
+
+/** Whether a request's chat still takes new messages at `now`. */
+export function isCosaChatOpen(
+  req: Pick<CosaRequestData, 'status' | 'closedAt' | 'respondedAt' | 'createdAt'>,
+  now: Date,
+): boolean {
+  const ended = cosaRequestEndedAt(req);
+  if (!ended) return true;
+  return now.getTime() <= ended.getTime() + COSA_CHAT_CLOSE_DAYS * 24 * 60 * 60 * 1000;
+}
+
 export type CosaTransitionResult =
   | { ok: true; to: CosaRequestStatus }
   | { ok: false; reason: 'not-allowed' | 'wrong-state' | 'not-your-role' };
