@@ -4,7 +4,8 @@ import { buildCosaData, DEFAULT_RESERVA_CONFIG } from '@cultuvilla/shared/models
 import { bookReservaSlot, setReservaBlackouts } from '@cultuvilla/shared/services/cosatecaService';
 import { MyReservas, ReservaBlackouts, ReservaBooking } from '../cosateca/Reserva';
 
-let mockTaken: { id: string; requestId: string }[] = [];
+let mockTaken: { id: string; requestId: string; startAt: Date; endAt: Date }[] = [];
+const lock = (id: string, requestId: string) => ({ id, requestId, startAt: new Date(id), endAt: new Date(new Date(id).getTime() + 3_600_000) });
 
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
@@ -50,7 +51,7 @@ afterEach(() => {
 
 describe('ReservaBooking', () => {
   it('shows the day’s slots, never lets a taken one be booked, and books a free one', async () => {
-    mockTaken = [{ id: SLOT_19, requestId: 'someone-else' }];
+    mockTaken = [lock(SLOT_19, 'someone-else')];
     confirmAlerts();
     const onBooked = jest.fn();
     const { getByTestId } = render(<ReservaBooking cosa={pista()} canBook myBookings={[]} onBooked={onBooked} />);
@@ -66,7 +67,7 @@ describe('ReservaBooking', () => {
   });
 
   it('shows the viewer’s own booking as theirs', () => {
-    mockTaken = [{ id: SLOT_18, requestId: 'mine' }];
+    mockTaken = [lock(SLOT_18, 'mine')];
     const { getByTestId } = render(
       <ReservaBooking cosa={pista()} canBook myBookings={[{ id: 'mine' } as never]} onBooked={jest.fn()} />,
     );
