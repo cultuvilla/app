@@ -6,6 +6,7 @@ import {
   CosaDataSchema,
   DEFAULT_RESERVA_CONFIG,
   isActiveReserva,
+  isAwaitingAnswer,
   reservaBookableDays,
   reservaDaySlots,
   reservaReminderWindow,
@@ -127,5 +128,15 @@ describe('buildCosaData', () => {
     expect(CosaDataSchema.parse(reserva).kind).toBe('reserva');
     expect(buildCosaData({ ...base, kind: 'reserva' }).reserva).toEqual(DEFAULT_RESERVA_CONFIG);
     expect(buildCosaData({ ...base, kind: 'prestamo', reserva: config() }).reserva).toBeNull();
+  });
+});
+
+describe('isAwaitingAnswer', () => {
+  const now = new Date('2026-11-12T17:05:00.000Z');
+  it('is a pending request, except a booking whose slot has started', () => {
+    expect(isAwaitingAnswer({ status: 'pending', cosaKind: 'prestamo', startAt: null }, now)).toBe(true);
+    expect(isAwaitingAnswer({ status: 'accepted', cosaKind: 'prestamo', startAt: null }, now)).toBe(false);
+    expect(isAwaitingAnswer({ status: 'pending', cosaKind: 'reserva', startAt: new Date('2026-11-12T18:00:00.000Z') }, now)).toBe(true);
+    expect(isAwaitingAnswer({ status: 'pending', cosaKind: 'reserva', startAt: new Date('2026-11-12T17:00:00.000Z') }, now)).toBe(false);
   });
 });

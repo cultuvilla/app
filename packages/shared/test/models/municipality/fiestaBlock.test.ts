@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DayKeySchema,
+  madridInstant,
   FiestaBlockSchema,
   buildFiestaBlock,
   fiestaBlockId,
@@ -93,5 +94,26 @@ describe('madridYear / madridMonth', () => {
     expect(madridMonth(new Date('2026-12-31T23:30:00Z'))).toBe(1);
     expect(madridYear(new Date('2026-12-31T22:59:59Z'))).toBe(2026);
     expect(madridMonth(new Date('2026-08-31T22:30:00Z'))).toBe(9);
+  });
+});
+
+describe('madridInstant on the days the clocks change', () => {
+  // Spain enters summer time on Sunday 29 Mar 2026 (02:00 CET → 03:00 CEST, at 01:00Z)
+  // and leaves it on Sunday 25 Oct 2026 (03:00 CEST → 02:00 CET, at 01:00Z).
+  it('keeps the hours before the spring change on winter time', () => {
+    expect(madridInstant('2026-03-29', '00:00').toISOString()).toBe('2026-03-28T23:00:00.000Z');
+    expect(madridInstant('2026-03-29', '01:00').toISOString()).toBe('2026-03-29T00:00:00.000Z');
+    expect(madridInstant('2026-03-29', '01:30').toISOString()).toBe('2026-03-29T00:30:00.000Z');
+  });
+
+  it('maps a wall time the spring change skips forward', () => {
+    expect(madridInstant('2026-03-29', '02:30').toISOString()).toBe('2026-03-29T01:30:00.000Z');
+    expect(madridInstant('2026-03-29', '03:00').toISOString()).toBe('2026-03-29T01:00:00.000Z');
+  });
+
+  it('takes the first of the two autumn occurrences', () => {
+    expect(madridInstant('2026-10-25', '01:00').toISOString()).toBe('2026-10-24T23:00:00.000Z');
+    expect(madridInstant('2026-10-25', '02:30').toISOString()).toBe('2026-10-25T00:30:00.000Z');
+    expect(madridInstant('2026-10-25', '03:00').toISOString()).toBe('2026-10-25T02:00:00.000Z');
   });
 });

@@ -6,6 +6,7 @@ import {
   cosaRequestDoc,
   cosaRequestsCollection,
   cosaSlotDoc,
+  cosaSlotsCollection,
   municipalityMemberDoc,
   organizationDoc,
   organizationMemberDoc,
@@ -16,6 +17,7 @@ import {
   checkReservaSlot,
   isActiveReserva,
   MAX_COSA_REQUEST_MESSAGE,
+  rangesOverlap,
   type CosaRequestStatus,
 } from '@cultuvilla/shared/models';
 
@@ -40,7 +42,10 @@ const SLOT_REASONS = {
  * over their other bookings that no rule can hold.
  *
  * The slot's lock, `cosas/{cosaId}/slots/{startISO}`, is claimed in the same
- * transaction, so two people tapping the same slot leave exactly one booking;
+ * transaction, so two people tapping the same slot leave exactly one booking.
+ * The lock's key alone is not enough: a manager changing the hours or the slot
+ * length moves the grid, and a new slot may start inside a booking made under
+ * the old one — so any live lock overlapping the slot refuses it too;
  * the booking itself is an ordinary `cosaRequests` doc, private to its parties.
  * A free slot books as `accepted`, or `pending` when the cosa asks for approval
  * (then `onCosaRequestWritten` tells its managers).
@@ -61,7 +66,7 @@ export async function applyBookReservaSlot(
     const { slot } = check;
 
     const lockRef = cosaSlotDoc(firestore, args.cosaId, slot.key);
-    const [org, member, villageMember, profile, lock, mine] = await Promise.all([
+    const [org, member, villageMember, profile, lock, mine, later] = await Promise.all([
       tx.get(organizationDoc(firestore, cosa.orgId)),
       tx.get(organizationMemberDoc(firestore, cosa.orgId, uid)),
       // Only existence and the name are read: unconverted, so neither doc's full shape is needed.
@@ -69,6 +74,8 @@ export async function applyBookReservaSlot(
       tx.get(publicProfileDoc(firestore, uid).withConverter(null)),
       tx.get(lockRef),
       tx.get(cosaRequestsCollection(firestore).where('cosaId', '==', args.cosaId).where('requesterUid', '==', uid)),
+      // Every lock still running when this slot starts; those starting after it ends are filtered below.
+      tx.get(cosaSlotsCollection(firestore, args.cosaId).where('endAt', '>', slot.startAt)),
     ]);
     const orgData = org.data();
     const canSee = member.exists || (cosa.audience === 'pueblo' && villageMember.exists);
@@ -77,7 +84,9 @@ export async function applyBookReservaSlot(
     }
     if (cosa.status !== 'available') throw new HttpsError('failed-precondition', 'Ahora mismo no se puede reservar.');
     if (cosa.ownerUid === uid) throw new HttpsError('failed-precondition', 'Es tuyo: no hace falta reservarlo.');
-    if (lock.exists) throw new HttpsError('already-exists', 'Esa hora ya está reservada.');
+    if (lock.exists || later.docs.some((d) => rangesOverlap(d.data(), slot))) {
+      throw new HttpsError('already-exists', 'Esa hora ya está reservada.');
+    }
     const active = mine.docs.filter((d) => isActiveReserva(d.data(), now)).length;
     if (active >= cosa.reserva.maxActiveReservations) {
       throw new HttpsError(

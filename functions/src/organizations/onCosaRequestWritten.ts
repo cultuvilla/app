@@ -42,9 +42,12 @@ function reservaCopy(notice: CosaNotice, req: CosaRequestData, orgName: string, 
     case 'accepted':
       return { title: `Reserva confirmada · ${orgName}`, body: `${what}, ${when}. Te esperan.` };
     case 'declined':
-      return wasAccepted
-        ? { title: `Reserva anulada · ${orgName}`, body: `Se ha anulado tu reserva de ${what} ${when}.` }
-        : { title: `Reserva no aceptada · ${orgName}`, body: `Esta vez no ha podido ser: ${what} ${when}.` };
+      if (wasAccepted) return { title: `Reserva anulada · ${orgName}`, body: `Se ha anulado tu reserva de ${what} ${when}.` };
+      // Closed once its slot had started: expireReservaBookings, not a manager.
+      if (req.closedAt && req.startAt && req.closedAt.getTime() >= req.startAt.getTime()) {
+        return { title: `Reserva sin confirmar · ${orgName}`, body: `Nadie confirmó a tiempo tu reserva de ${what} ${when}.` };
+      }
+      return { title: `Reserva no aceptada · ${orgName}`, body: `Esta vez no ha podido ser: ${what} ${when}.` };
     case 'cancelled':
       return { title: `Reserva cancelada · ${orgName}`, body: `${req.requesterName} ya no quiere ${what} ${when}.` };
     case 'given':

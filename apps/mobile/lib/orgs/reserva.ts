@@ -1,5 +1,6 @@
 import {
   isActiveReserva,
+  rangesOverlap,
   MAX_RESERVA_ACTIVE,
   MAX_RESERVA_HORIZON_DAYS,
   MAX_RESERVA_SLOT_MINUTES,
@@ -13,18 +14,22 @@ import { parseIntIn, parseTimeOfDay } from './tasks';
 
 export type ReservaSlotState = 'free' | 'taken' | 'mine';
 
-/** Each slot of a day as the grid draws it: free to book, mine, or taken by someone (never named). */
+/**
+ * Each slot of a day as the grid draws it: free to book, mine, or taken by
+ * someone (never named). A booking takes every slot it overlaps, not only the
+ * one starting when it does: changing the hours or the slot length moves the
+ * grid under bookings already made.
+ */
 export function reservaSlotStates(
   slots: readonly ReservaSlot[],
-  taken: readonly Pick<CosaSlot, 'id' | 'requestId'>[],
+  taken: readonly Pick<CosaSlot, 'id' | 'requestId' | 'startAt' | 'endAt'>[],
   myBookings: readonly Pick<CosaRequest, 'id'>[],
 ): { slot: ReservaSlot; state: ReservaSlotState }[] {
   const mine = new Set(myBookings.map((b) => b.id));
-  const byKey = new Map(taken.map((s) => [s.id, s.requestId]));
   return slots.map((slot) => {
-    const holder = byKey.get(slot.key);
-    if (holder === undefined) return { slot, state: 'free' };
-    return { slot, state: mine.has(holder) ? 'mine' : 'taken' };
+    const holders = taken.filter((t) => rangesOverlap(t, slot));
+    if (holders.length === 0) return { slot, state: 'free' };
+    return { slot, state: holders.some((h) => mine.has(h.requestId)) ? 'mine' : 'taken' };
   });
 }
 
