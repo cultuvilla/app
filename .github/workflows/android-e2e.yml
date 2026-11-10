@@ -233,8 +233,10 @@ jobs:
           arch: x86_64
           profile: pixel_5
           ram-size: 4096M
-          # Animations make every `tapOn` race the transition it triggered.
-          disable-animations: true
+          # Animations stay ON, as on a user's phone, and as on iOS: a screen
+          # that only works once its transition is skipped is a bug the suite
+          # must see. Flows wait for what a tap opens rather than racing it.
+          disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim -camera-back none
           script: pnpm test:e2e:android
 

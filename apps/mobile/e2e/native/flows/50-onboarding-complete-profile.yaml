@@ -199,11 +199,27 @@ env:
       EXPECT_JSON: "{ 'role': 'user' }"
 
 # ── The profile tab ──
-- openLink: 'cultuvilla://perfil'
+# Finishing the form lands the app on Explora once its last write and the
+# photo upload settle, with the transition animated. A link sent before that
+# landing is overridden by it (CI, 2026-11-10: the app sat on Explora), so wait
+# for the landing, and send the link again if it was still lost.
 - extendedWaitUntil:
-    visible:
-      id: 'profile-edit-action'
+    visible: 'Explora(,.*)?'
     timeout: 60000
+- repeat:
+    times: 3
+    while:
+      notVisible:
+        id: 'profile-edit-action'
+    commands:
+      - openLink: 'cultuvilla://perfil'
+      - extendedWaitUntil:
+          visible:
+            id: 'profile-edit-action'
+          timeout: 20000
+          optional: true
+- assertVisible:
+    id: 'profile-edit-action'
 - runFlow: ../subflows/dismiss-push-soft-ask.yaml
 - runFlow:
     file: ../subflows/see-text.yaml
