@@ -180,6 +180,10 @@ indexes, `respondToCosaRequest` (transaction), `onCosaRequestWritten` (notificat
   `cosaRequestId`, keyed on the message). A group's admins read a personal cosa's chat as
   the backstop but are not pushed it. `deleteAccount` deletes the chat of every request it
   deletes (the user's own messages already go with every `chat` collection group).
+- **The chat closes** (decided 2026-11-10, user): 14 days after the request ended
+  (`closedAt`, else `respondedAt`, else `createdAt`) it takes no new messages; what was
+  written stays readable. `COSA_CHAT_CLOSE_DAYS` / `isCosaChatOpen` in cosatecaLogic.ts,
+  the same 14 days in the chat's create rule, and the screen swaps the composer for a hint.
 - **Overdue nudge:** `sendCosaReminders`, daily 10:00 Madrid. A `lent` request whose
   `untilOn` has passed (not only yesterday's, so a missed run still catches it) is stamped
   `overdueNotifiedOn` in a transaction, then the holder ("Toca devolver") and the managers

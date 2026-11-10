@@ -24,7 +24,7 @@ import { useDetailScroll } from '../../../../lib/keyboard/DetailScrollContext';
 /**
  * A request's chat, under the request: where its requester and the cosa's
  * manager arrange the handover without sharing a phone. Oldest on top, the
- * composer under it. Messages from people the viewer blocked are hidden; each
+ * composer under it while the chat is open. Messages from people the viewer blocked are hidden; each
  * message offers the delete and the report it may.
  */
 export function CosaRequestChat({
@@ -32,12 +32,15 @@ export function CosaRequestChat({
   municipalityId,
   uid,
   canModerate,
+  open,
 }: {
   requestId: string;
   municipalityId: string;
   uid: string;
   /** An admin of the request's group: may delete anyone's message. */
   canModerate: boolean;
+  /** False once the request ended COSA_CHAT_CLOSE_DAYS ago: readable, no composer. */
+  open: boolean;
 }) {
   const { t } = useT();
   const scrollRef = useDetailScroll();
@@ -155,25 +158,31 @@ export function CosaRequestChat({
           </Pressable>
         </HStack>
       ))}
-      <Input
-        value={body}
-        onChangeText={setBody}
-        placeholder={t('groups.cosateca.chat.placeholder')}
-        accessibilityLabel={t('groups.cosateca.chat.placeholder')}
-        testID="cosa-request-chat-input"
-        maxLength={2000}
-        pill
-        autoGrow
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        rightAdornment={
-          body.trim().length > 0 && !sending ? (
-            <Pressable onPress={send} accessibilityRole="button" accessibilityLabel={t('groups.chat.send')} testID="cosa-request-chat-send">
-              <Ionicons name="arrow-up-circle" size={iconSizes.lg} color={colors.light.bg.accent} />
-            </Pressable>
-          ) : null
-        }
-      />
+      {open ? (
+        <Input
+          value={body}
+          onChangeText={setBody}
+          placeholder={t('groups.cosateca.chat.placeholder')}
+          accessibilityLabel={t('groups.cosateca.chat.placeholder')}
+          testID="cosa-request-chat-input"
+          maxLength={2000}
+          pill
+          autoGrow
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          rightAdornment={
+            body.trim().length > 0 && !sending ? (
+              <Pressable onPress={send} accessibilityRole="button" accessibilityLabel={t('groups.chat.send')} testID="cosa-request-chat-send">
+                <Ionicons name="arrow-up-circle" size={iconSizes.lg} color={colors.light.bg.accent} />
+              </Pressable>
+            ) : null
+          }
+        />
+      ) : (
+        <Text tone="muted" testID="cosa-request-chat-closed">
+          {t('groups.cosateca.chat.closed')}
+        </Text>
+      )}
       <OptionsSheet
         visible={optionsFor !== null}
         title={t('groups.chat.options')}

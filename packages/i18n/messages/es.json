@@ -2432,7 +2432,8 @@
         "placeholder": "Escribe para quedar…",
         "older": "Ver mensajes anteriores",
         "sendError": "No se ha podido enviar el mensaje.",
-        "deleteBody": "Desaparecerá de la solicitud."
+        "deleteBody": "Desaparecerá de la solicitud.",
+        "closed": "Esta solicitud terminó hace más de dos semanas: el chat ya no admite mensajes."
       },
       "reserva": {
         "hours": "Horario",

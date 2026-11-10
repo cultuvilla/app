@@ -732,6 +732,16 @@ service cloud.firestore {
     function cosaRequestData(requestId) {
       return get(/databases/$(database)/documents/cosaRequests/$(requestId)).data;
     }
+    // A request's chat takes new messages until 14 days after the request
+    // ended (COSA_CHAT_CLOSE_DAYS in cosatecaLogic.ts; decided 2026-11-10).
+    function cosaRequestEndedAt(req) {
+      return req.get('closedAt', null) != null ? req.closedAt
+        : (req.get('respondedAt', null) != null ? req.respondedAt : req.createdAt);
+    }
+    function isCosaChatOpen(req) {
+      return req.status in ['pending', 'accepted', 'lent']
+        || request.time <= cosaRequestEndedAt(req) + duration.value(14, 'd');
+    }
 
     // ── Records (actas, ledgerEntries) ──────────────────────────────────────
     // See RecordsDataModel. Only orgs with a socio roster keep them.
@@ -2223,6 +2233,7 @@ service cloud.firestore {
     match /cosaRequests/{requestId}/chat/{chatId} {
       allow read: if isCosaRequestParty(cosaRequestData(requestId));
       allow create: if isCosaRequestParty(cosaRequestData(requestId))
+        && isCosaChatOpen(cosaRequestData(requestId))
         && isValidGroupChatMessageCreate(request.resource.data);
       allow update: if false;
       allow delete: if canDeleteGroupChatMessage(cosaRequestData(requestId).orgId, resource.data);
