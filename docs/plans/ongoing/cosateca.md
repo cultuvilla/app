@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** none
 **Gate:** none
-**Next:** Phase 2 — the screens (the group's Cosateca section and Ajustes switch, cosa and request detail, the village's cosateca, the Buzón)
+**Next:** Phase 3 — the chat inside each request and the overdue nudge (`sendCosaReminders`)
 
 Decided 2026-11-10 (user): build the cosateca as a group tool, taking the agent's picks
 with three changes: *regalos* are in from the start; a group's admin chooses whether its
@@ -129,6 +129,34 @@ indexes, `respondToCosaRequest` (transaction), `onCosaRequestWritten` (notificat
 - **Village:** "Cosateca del pueblo" — every `pueblo` cosa of the village, from the
   village home; asking from there works for any village member.
 - **Buzón:** incoming requests in *Necesita tu acción*; sent ones while pending.
+
+### Phase 2 — as built
+
+- **Routes:** the `cosateca` group section (`/grupos/<orgId>/cosateca`, listed for
+  integrantes only while `org.cosateca.enabled`), `/grupos/<orgId>/cosa/<cosaId>` and
+  `/grupos/<orgId>/prestamo/<requestId>` (neither requires membership: a villager of a
+  `pueblo` cosateca opens both, the rules decide), and `/<pueblo>/cosateca` (a member
+  `VILLAGE_SECTIONS` entry, so the read site answers it with the app hand-off — no
+  web page).
+- **Section** (`components/feature/groups/cosateca/GroupCosateca.tsx`): Catálogo (category
+  chips over the categories in use; given regalos drop out) · Lo que pedí · Me piden
+  (requests for my cosas in this group, plus the group's own for an admin). "Ofrecer
+  algo" opens `CosaSheet`: kind, name, category, description, conditions, one photo,
+  and for an admin "Mío / Del grupo".
+- **Photos** live at `cosas/{cosaId}/image/` (`uploadCosaImage`, a storage rule like the
+  org's), so a new cosa is created first and then given its photo;
+  `cleanupRemovedCosaImages` deletes one no edit references any more.
+- **Cosa screen:** Pedirlo (`AskCosaSheet`: optional dates, none for a regalo, and a
+  message), "Ver mi solicitud" while mine is open, and for its manager edit, pause /
+  resume, remove and its requests. **Request screen:** state, dates, message and exactly
+  the moves `availableCosaRequestActions(kind, status, cosaRequestRoles(…))` allows; a
+  refused move shows the callable's own reason.
+- **Village home:** `VillageCosatecaEntry`, a pill shown to members only while some
+  `pueblo` cosateca has something in it.
+- **Buzón:** `watchCosaRequestsToAnswer` (pending requests for my cosas and for the
+  group's own cosas of every group I administer, from `useMyGroups`) under *Necesita tu
+  acción*, for anyone, approver or not; my pending ones are `pending-sent` rows of type
+  `cosa`.
 
 ## Phase 3 — the handover and the overdue nudge
 

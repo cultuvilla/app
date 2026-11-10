@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DEFAULT_COSATECA_SETTINGS, type CosatecaAudience, type CosatecaSettings } from '@cultuvilla/shared/models/organization';
 import type { GroupNotificationPrefsData } from '@cultuvilla/shared/models/notification';
 import { saveCuotaSettings, watchCuotaSettings, type CuotaSettings } from '@cultuvilla/shared/services/cuotaService';
 import { setGroupChatPush } from '@cultuvilla/shared/services/groupChatService';
@@ -6,6 +7,7 @@ import { setGroupMessagesMuted, watchGroupNotificationPrefs } from '@cultuvilla/
 import { updateOrganization } from '@cultuvilla/shared/services/organizationService';
 import { Text, Toggle, VStack } from '../../primitives';
 import { DetailSectionHeading } from '../DetailSectionHeading';
+import { SegmentedToggle } from '../SegmentedToggle';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { useWatch } from '../../../lib/hooks/useWatch';
@@ -14,7 +16,7 @@ import { useWatch } from '../../../lib/hooks/useWatch';
  * A group's settings, in two parts. Everyone has their own: what this group
  * notifies them of (avisos exist only with a roster). An admin also has the
  * group's: whether socios see the roster's names, what contact data being a socio
- * requires, who writes in the Charla, and
+ * requires, who writes in the Charla, whether it runs a cosateca and for whom, and
  * once the cuota is configured, whether it sends reminders.
  */
 export function GroupSettings({
@@ -26,6 +28,7 @@ export function GroupSettings({
   socioEmailRequired = false,
   hasRoster = true,
   chatAdminsOnly = false,
+  cosateca = DEFAULT_COSATECA_SETTINGS,
 }: {
   orgId: string;
   uid: string;
@@ -35,6 +38,7 @@ export function GroupSettings({
   socioEmailRequired?: boolean;
   hasRoster?: boolean;
   chatAdminsOnly?: boolean;
+  cosateca?: CosatecaSettings;
 }) {
   const { t } = useT();
   const prefs = useWatch<GroupNotificationPrefsData | null>('groups:watchGroupNotificationPrefs', `${uid}|${orgId}`, (next, error) =>
@@ -48,7 +52,12 @@ export function GroupSettings({
   );
   const [saving, setSaving] = useState(false);
   const save = (
-    patch: { sociosListVisible: boolean } | { chatAdminsOnly: boolean } | { socioPhoneRequired: boolean } | { socioEmailRequired: boolean },
+    patch:
+      | { sociosListVisible: boolean }
+      | { chatAdminsOnly: boolean }
+      | { socioPhoneRequired: boolean }
+      | { socioEmailRequired: boolean }
+      | { cosateca: CosatecaSettings },
   ) => {
     setSaving(true);
     updateOrganization(orgId, patch)
@@ -140,6 +149,34 @@ export function GroupSettings({
           <Text tone="muted" variant="bodySm">
             {t('groups.settings.chatAdminsOnlyHint')}
           </Text>
+          <Toggle
+            testID="group-settings-cosateca"
+            value={cosateca.enabled}
+            disabled={saving}
+            label={t('groups.settings.cosateca')}
+            onValueChange={(enabled) => save({ cosateca: { ...cosateca, enabled } })}
+          />
+          <Text tone="muted" variant="bodySm">
+            {t('groups.settings.cosatecaHint')}
+          </Text>
+          {cosateca.enabled ? (
+            <>
+              <SegmentedToggle<CosatecaAudience>
+                testID="group-settings-cosateca-audience"
+                value={cosateca.audience}
+                options={[
+                  { value: 'integrantes', label: t('groups.settings.cosatecaAudience.integrantes') },
+                  { value: 'pueblo', label: t('groups.settings.cosatecaAudience.pueblo') },
+                ]}
+                onChange={(audience) => {
+                  if (!saving && audience !== cosateca.audience) save({ cosateca: { ...cosateca, audience } });
+                }}
+              />
+              <Text tone="muted" variant="bodySm">
+                {t('groups.settings.cosatecaAudienceHint')}
+              </Text>
+            </>
+          ) : null}
           {cuota.data ? (
             <>
               <Toggle

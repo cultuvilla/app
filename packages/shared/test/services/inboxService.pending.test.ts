@@ -13,10 +13,16 @@ vi.mock('../../src/services/orgJoinRequestService', () => ({
   ]),
 }));
 
+vi.mock('../../src/services/cosatecaService', () => ({
+  getMyPendingCosaRequests: vi.fn().mockResolvedValue([
+    { id: 'r-1', cosaTitle: 'Taladro', status: 'pending', createdAt: new Date('2026-10-01') },
+  ]),
+}));
+
 import { getMyPendingRequests } from '../../src/services/inboxService';
 
 describe('getMyPendingRequests', () => {
-  it('lists a pending org join request, labelled with the org id', async () => {
+  it('lists a pending org join request, labelled with the org id, and a cosa asked for, by its title', async () => {
     const pending: PendingSentRequest[] = await getMyPendingRequests('u-1');
     expect(pending).toEqual([
       {
@@ -25,6 +31,7 @@ describe('getMyPendingRequests', () => {
         label: 'org-1',
         createdAt: new Date('2026-09-30'),
       },
+      { requestType: 'cosa', id: 'r-1', label: 'Taladro', createdAt: new Date('2026-10-01') },
     ]);
   });
 });

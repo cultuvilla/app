@@ -5,6 +5,8 @@ import { resolveAuthRoute } from '../../auth/authRoute';
 import {
   groupHref,
   groupSectionHref,
+  groupCosaHref,
+  groupCosaRequestHref,
   barrioHref,
   createEventHref,
   createNewsHref,
@@ -88,9 +90,11 @@ const built: [string, string][] = [
   ['villageHref', villageHref('villa')],
   ['groupHref', groupHref('o1')],
   ...GROUP_SECTIONS.map((s): [string, string] => [`groupSectionHref(${s})`, groupSectionHref('o1', s)]),
-  ...(['barrios', 'carteles', 'censo', 'comunidad', 'denuncias', 'editar', 'entidades', 'historia', 'lugares', 'miembros', 'vocabulario'] as const).map(
+  ...(['barrios', 'carteles', 'censo', 'comunidad', 'cosateca', 'denuncias', 'editar', 'entidades', 'historia', 'lugares', 'miembros', 'vocabulario'] as const).map(
     (s): [string, string] => [`villageSectionHref(${s})`, villageSectionHref('villa', s)],
   ),
+  ['groupCosaHref', groupCosaHref('o1', 'c1')],
+  ['groupCosaRequestHref', groupCosaRequestHref('o1', 'r1')],
   ['eventHref', eventHref(event)],
   ['seatClaimHref', seatClaimHref(event, 'tok')],
   ['newsHref', newsHref({ id: 'n1', title: 'Bando', villageSlug: 'villa' })],

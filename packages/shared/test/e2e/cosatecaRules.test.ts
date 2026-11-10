@@ -173,6 +173,18 @@ describe('cosaRequests', () => {
     await assertFails(getDoc(requestRef('member2', 'r1')));
   });
 
+  it('answers the Buzón’s queries: pending ones to my cosas, and to the group’s for its admins', async () => {
+    const as = (uid: string) => collection(asUser(getEnv(), uid), 'cosaRequests');
+    await assertSucceeds(getDocs(query(as('member1'), where('ownerUid', '==', 'member1'), where('status', '==', 'pending'))));
+    await assertSucceeds(
+      getDocs(query(as('admin1'), where('orgId', '==', OPEN), where('ownerUid', '==', null), where('status', '==', 'pending'))),
+    );
+    await assertSucceeds(getDocs(query(as('vecino'), where('requesterUid', '==', 'vecino'), where('status', '==', 'pending'))));
+    await assertFails(
+      getDocs(query(as('member2'), where('orgId', '==', OPEN), where('ownerUid', '==', null), where('status', '==', 'pending'))),
+    );
+  });
+
   it('no client moves a request on or deletes it', async () => {
     await assertFails(updateDoc(requestRef('admin1', 'r1'), { status: 'accepted' }));
     await assertFails(updateDoc(requestRef('vecino', 'r1'), { status: 'cancelled' }));

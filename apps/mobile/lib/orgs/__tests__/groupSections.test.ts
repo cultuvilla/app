@@ -54,4 +54,12 @@ describe('groupSections', () => {
     expect(canOpenGroupSection(group({}, 'admin'), 'cobros')).toBe(true);
     expect(canOpenGroupSection(group(), 'registros')).toBe(false);
   });
+
+  it('opens the cosateca to every integrante only once an admin switches it on', () => {
+    expect(canOpenGroupSection(group(), 'cosateca')).toBe(false);
+    const on = group({ type: 'ayuntamiento', cosateca: { enabled: true, audience: 'pueblo' } });
+    expect(groupSections(on).member).toEqual(['charla', 'eventos', 'tareas', 'cosateca', 'ajustes']);
+    expect(homeButtons(groupSections(on).member)).toContain('cosateca');
+    expect(GROUP_SECTION_ICONS.cosateca).toBe('cube-outline');
+  });
 });

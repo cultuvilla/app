@@ -133,6 +133,15 @@ export async function uploadOrganizationImage(
 }
 
 /**
+ * Upload a cosa's photo (the cosateca). Returns the **download URL** to persist
+ * in `CosaData.imageURL`; `cleanupRemovedCosaImages` deletes it once no edit
+ * references it.
+ */
+export async function uploadCosaImage(cosaId: string, image: UploadableImage): Promise<string> {
+  return uploadToPath(`cosas/${cosaId}/image/${generateImageId(image.filename)}`, image);
+}
+
+/**
  * Upload one of a place's pictures. Returns the **download URL** to append
  * to `PlaceData.images` (call once per picked image).
  */

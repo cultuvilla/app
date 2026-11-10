@@ -71,11 +71,12 @@ describe('storage.rules — /municipalities/{municipalityId}/images/{imageId}', 
   });
 });
 
-describe('storage.rules — org / place / barrio images', () => {
+describe('storage.rules — org / place / barrio / cosa images', () => {
   const paths = {
     organization: 'organizations/o1/image/cover.png',
     place: 'municipalities/m1/places/p1/image/cover.png',
     barrio: 'municipalities/m1/barrios/b1/image/cover.png',
+    cosa: 'cosas/c1/image/cover.png',
   };
 
   for (const [label, path] of Object.entries(paths)) {

@@ -1,4 +1,4 @@
-import type { CosaKind } from './CosaDataModel';
+import { COSA_CATEGORIES, type CosaCategory, type CosaData, type CosaKind } from './CosaDataModel';
 import type { CosaRequestData, CosaRequestStatus } from './CosaRequestDataModel';
 
 /**
@@ -109,4 +109,47 @@ export function cosaDatesOverlap(a: Dates, b: Dates): boolean {
 /** A lent cosa that should be back by now (`todayKey` is Madrid's day). */
 export function isCosaRequestOverdue(req: Pick<CosaRequestData, 'status' | 'untilOn'>, todayKey: string): boolean {
   return req.status === 'lent' && req.untilOn !== null && req.untilOn < todayKey;
+}
+
+/**
+ * The roles a viewer holds on a request: the cosa's owner and any admin of the
+ * group manage it, its requester asks. The same rule `respondToCosaRequest`
+ * applies, so a screen offers exactly the moves the callable accepts.
+ */
+export function cosaRequestRoles(
+  req: Pick<CosaRequestData, 'ownerUid' | 'requesterUid'>,
+  viewer: { uid: string; isGroupAdmin: boolean },
+): CosaRequestRole[] {
+  const roles: CosaRequestRole[] = [];
+  if (viewer.isGroupAdmin || (req.ownerUid !== null && req.ownerUid === viewer.uid)) roles.push('manager');
+  if (req.requesterUid === viewer.uid) roles.push('requester');
+  return roles;
+}
+
+/** What a cosa's card says about it: free to ask for, out with someone, paused, or gone. */
+export type CosaAvailability = 'available' | 'lent' | 'paused' | 'given';
+
+export function cosaAvailability(cosa: Pick<CosaData, 'status' | 'heldBy'>): CosaAvailability {
+  if (cosa.status === 'given') return 'given';
+  if (cosa.heldBy !== null) return 'lent';
+  return cosa.status === 'paused' ? 'paused' : 'available';
+}
+
+/**
+ * A cosateca's catalogue as shown: a regalo that has gone drops out, the rest
+ * sorted by title; `category` null is every category.
+ */
+export function cosatecaCatalogue<T extends Pick<CosaData, 'status' | 'title' | 'category'>>(
+  cosas: readonly T[],
+  category: CosaCategory | null,
+): T[] {
+  return cosas
+    .filter((c) => c.status !== 'given' && (category === null || c.category === category))
+    .sort((a, b) => a.title.localeCompare(b.title, 'es'));
+}
+
+/** The categories that have something in them, in the catalogue's fixed order. */
+export function usedCosaCategories(cosas: readonly Pick<CosaData, 'status' | 'category'>[]): CosaCategory[] {
+  const used = new Set(cosas.filter((c) => c.status !== 'given').map((c) => c.category));
+  return COSA_CATEGORIES.filter((c) => used.has(c));
 }

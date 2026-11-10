@@ -1,6 +1,6 @@
 import { openVillage } from '../../lib/navigation/openVillage';
 import { userHref, villageSectionHref } from '../../lib/navigation/routes';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +40,11 @@ import {
   getReportsByMunicipality,
 } from '@cultuvilla/shared/services/contentReportService';
 import { getMyPendingRequests, buildActivityFeed } from '@cultuvilla/shared/services/inboxService';
+import { watchCosaRequestsToAnswer, type CosaRequest } from '@cultuvilla/shared/services/cosatecaService';
+import { CosaRequestRow } from '../../components/feature/groups/cosateca/CosaRows';
+import { useWatch } from '../../lib/hooks/useWatch';
+import { groupCosaRequestHref } from '../../lib/navigation/routes';
+import { useMyGroups } from '../../lib/orgs/useMyGroups';
 import {
   getPendingOrgJoinRequests,
   respondToOrgJoinRequest,
@@ -71,6 +76,23 @@ export default function InboxScreen() {
   const [reportRows, setReportRows] = useState<ReportsRow[]>([]);
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [dataLoading, setDataLoading] = useState(false);
+
+  // ─── Cosateca: requests waiting for this user's answer ───────────────────────
+  // Not an approver's queue: anyone who offered something answers here, so it
+  // renders whatever `canApprove` says.
+  const cosaUid = user?.uid ?? null;
+  const myGroups = useMyGroups(cosaUid);
+  const groupsIAdmin = useMemo(
+    () => myGroups.groups.filter((g) => g.role === 'admin').map((g) => g.org.id).sort(),
+    [myGroups.groups],
+  );
+  const cosaReady = cosaUid !== null && myGroups.status === 'ready';
+  const cosaToAnswer = useWatch<CosaRequest[]>(
+    'cosateca:watchCosaRequestsToAnswer',
+    cosaReady ? `${cosaUid}|${groupsIAdmin.join(',')}` : null,
+    cosaReady ? (next, error) => watchCosaRequestsToAnswer(cosaUid, groupsIAdmin, next, error) : null,
+  );
+  const cosaRows = cosaToAnswer.data ?? [];
 
   // ─── Activity feed state ────────────────────────────────────────────────────
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
@@ -574,7 +596,27 @@ export default function InboxScreen() {
     if (item.requestType === 'orgJoin') {
       return t('inbox.pendingSent.orgJoin', { name: orgNames[item.label] ?? item.label });
     }
+    if (item.requestType === 'cosa') return t('inbox.pendingSent.cosa', { name: item.label });
     return t('inbox.pendingSent.org', { name: item.label });
+  }
+
+  function renderCosaRequests() {
+    if (cosaRows.length === 0) return null;
+    return (
+      <VStack gap={2} testID="inbox-cosateca">
+        {/* Under the approver's heading when it shows; its own otherwise. */}
+        {canApprove && hasActionable && !dataLoading ? null : <Text variant="h2">{t('inbox.needsAction')}</Text>}
+        <Text variant="h3">{t('groups.cosateca.inbox.title')}</Text>
+        {cosaRows.map((row) => (
+          <CosaRequestRow
+            key={row.id}
+            request={row}
+            showRequester
+            onPress={() => router.push(groupCosaRequestHref(row.orgId, row.id))}
+          />
+        ))}
+      </VStack>
+    );
   }
 
   function renderActivity() {
@@ -635,6 +677,7 @@ export default function InboxScreen() {
     !dataLoading &&
     !activityLoading &&
     !(canApprove && hasActionable) &&
+    cosaRows.length === 0 &&
     activityItems.length === 0;
 
   return (
@@ -645,6 +688,7 @@ export default function InboxScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
         {canApprove && renderActionable()}
+        {renderCosaRequests()}
         {renderActivity()}
         {isEmpty && (
           <View className="p-4">
