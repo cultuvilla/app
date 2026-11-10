@@ -6,9 +6,8 @@
  * Firestore. Gboard rewrites what Maestro types — "virgen" became "virgin",
  * "nativo" became "Nativo", "sierra" became "Sierra" — so the app stored a
  * different value than the flow typed, and six flows failed against a backend
- * that was working. Recent system images (Android 15+, Pixel profiles) ship
- * Gboard; the older google_apis image CI ran on did not, which is why CI stayed
- * green while a local AVD went red.
+ * that was working. The local Android 16 AVD failed on it while CI's
+ * API 33 image, whose older Gboard rewrote none of the suite's words, stayed green.
  *
  * The keyboard stays ON SCREEN on purpose: the soft keyboard covering a field
  * or a send button is a real-user bug the suite should keep catching. Only the
@@ -23,7 +22,8 @@ import { spawnSync } from 'node:child_process';
 const GBOARD = 'com.google.android.inputmethod.latin';
 const SETTINGS = `${GBOARD}/com.google.android.apps.inputmethod.latin.preference.SettingsActivity`;
 const SWITCHES = ['Auto-correction', 'Auto-capitalization'];
-const PAGES = ['Text correction', 'Physical keyboard'];
+const OPTIONAL_PAGE = 'Physical keyboard';
+const PAGES = ['Text correction', OPTIONAL_PAGE];
 
 function adb(adbBin, device, args) {
   return spawnSync(adbBin, ['-s', device, ...args], { encoding: 'utf8' });
@@ -101,8 +101,8 @@ export function disableKeyboardRewriting({ adbBin, device, log }) {
   }
   let ok = true;
   // Gboard keeps one pair of switches for the on-screen keyboard and another
-  // for a physical one, and Maestro's key events can land on either: an AVD
-  // with `hw.keyboard=yes` (CI's profile) reads the physical pair, so turning
+  // for a physical one, and Maestro's key events can land on either: an Android 16
+  // AVD with `hw.keyboard=yes` reads the physical pair, so turning
   // only the first one off still stored "virgen" as "virgin".
   for (const page of PAGES) {
     adb(adbBin, device, ['shell', 'am', 'force-stop', GBOARD]);
@@ -110,6 +110,12 @@ export function disableKeyboardRewriting({ adbBin, device, log }) {
     sleep(2500);
     const entry = scrollTo(adbBin, device, page);
     if (!entry) {
+      // The Gboard on CI's API 33 image has no physical-keyboard page at all,
+      // and its keyboard then reads only the first pair.
+      if (page === OPTIONAL_PAGE) {
+        log(`Gboard has no "${page}" page; nothing to switch there`);
+        continue;
+      }
       log(`Gboard settings did not show "${page}"`);
       ok = false;
       continue;

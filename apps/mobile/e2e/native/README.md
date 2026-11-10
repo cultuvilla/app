@@ -273,6 +273,11 @@ failed flows on a working app (2026-11-10, six flows red on Android 16):
   no resource ids, only "Photo taken on <date>" cell labels;
   [subflows/pick-photo.yaml](subflows/pick-photo.yaml) handles both pickers.
 
+Boot a local Android 16 AVD with **`-gpu swangle_indirect`**. With the default
+renderer, and with `swiftshader_indirect` too, the emulator itself segfaulted in
+its RenderThread when the location picker drew its map (flow 60, twice). The
+run then died on "device not found", and that looks like a test failure.
+
 **Animations stay on**, locally and in CI, as on a user's phone: a screen that
 only works once its transition is skipped is a bug the suite should see. A flow
 waits for what a tap opens (`extendedWaitUntil`, `subflows/tap-until.yaml`)
