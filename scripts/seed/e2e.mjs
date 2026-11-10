@@ -35,6 +35,9 @@ import {
   organizerlessVillage,
   org,
   approvalOrg,
+  groupOrg,
+  switchOrg,
+  pastYearlyEvent,
   event,
   capacityEvent,
   farEvent,
@@ -264,6 +267,63 @@ async function run() {
     .collection('members')
     .doc(users.admin.uid)
     .set(buildOrgMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
+
+  // The Grupos flows' asociación: admin + one integrante (see fixtures.mjs).
+  // The other two orgs only seed their admin; here the member matters.
+  for (const [orgFixture, adminUid, memberUids] of [
+    [groupOrg, users.admin.uid, [users.attendee.uid]],
+    [switchOrg, users.attendee.uid, []],
+  ]) {
+    await db
+      .collection('organizations')
+      .doc(orgFixture.docId)
+      .set(
+        buildOrganizationData({
+          name: orgFixture.name,
+          type: orgFixture.type,
+          description: orgFixture.description,
+          municipalityId: village.docId,
+          villageSlug: village.slug,
+          requestedBy: adminUid,
+          status: 'approved',
+          reviewedBy: users.admin.uid,
+          reviewedAt: new Date(),
+        }),
+        { merge: true },
+      );
+    const members = db.collection('organizations').doc(orgFixture.docId).collection('members');
+    await members.doc(adminUid).set(buildOrgMemberData({ userId: adminUid, role: 'admin' }), { merge: true });
+    for (const uid of memberUids) {
+      await members.doc(uid).set(buildOrgMemberData({ userId: uid, role: 'member' }), { merge: true });
+    }
+  }
+
+  await db
+    .collection('events')
+    .doc(pastYearlyEvent.docId)
+    .set(
+      buildEventData({
+        title: pastYearlyEvent.title,
+        description: pastYearlyEvent.description,
+        startDate: new Date(Date.now() + pastYearlyEvent.startOffsetDays * DAY_MS),
+        endDate: new Date(Date.now() + pastYearlyEvent.endOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Plaza Mayor, ${village.name}`,
+        }),
+        telephoneRequired: false,
+        status: pastYearlyEvent.status,
+        repeatsYearly: true,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [org.docId],
+        createdBy: users.admin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
 
   // Upcoming published event in the village
   const startDate = new Date(Date.now() + event.startOffsetDays * DAY_MS);
