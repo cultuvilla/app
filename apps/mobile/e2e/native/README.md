@@ -257,6 +257,27 @@ Three more traps, all hit on a full local run (2026-10-06):
   (the variable must reach `bash`, not `curl`)
   (it needs `unzip`), or point `MAESTRO_BIN` at it.
 
+### A recent system image (Android 15+)
+
+A local AVD on a new image differs from CI's API 33 one in two ways that both
+failed flows on a working app (2026-11-10, six flows red on Android 16):
+
+- **Gboard rewrites what Maestro types** — "virgen" stored as "virgin",
+  "nativo" as "Nativo" — and the flow then asserts the text it meant to type.
+  The runner switches Gboard's auto-correction and auto-capitalization off —
+  both the on-screen keyboard's pair and the physical keyboard's, which is the
+  one an AVD with `hw.keyboard=yes` reads — before the suite ([scripts/lib/android-keyboard.mjs](../../../../scripts/lib/android-keyboard.mjs));
+  the on-screen keyboard itself stays, since it covering a field is a bug real
+  users hit. A device without Gboard is left alone.
+- **The photo picker is a different app.** Android 15/16's Compose picker has
+  no resource ids, only "Photo taken on <date>" cell labels;
+  [subflows/pick-photo.yaml](subflows/pick-photo.yaml) handles both pickers.
+
+**Animations stay on**, locally and in CI, as on a user's phone: a screen that
+only works once its transition is skipped is a bug the suite should see. A flow
+waits for what a tap opens (`extendedWaitUntil`, `subflows/tap-until.yaml`)
+rather than assuming it is instant.
+
 ## Maestro traps this suite already paid for
 
 Every one of these cost real debugging time. They are encoded in the flows with
