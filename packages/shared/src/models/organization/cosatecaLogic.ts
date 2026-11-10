@@ -11,6 +11,7 @@ import type { CosaRequestData, CosaRequestStatus } from './CosaRequestDataModel'
  * | prestamo | pending → accepted \| declined → lent → returned     |
  * | servicio | pending → accepted \| declined → done                 |
  * | regalo   | pending → accepted \| declined → given                |
+ * | reserva  | pending → accepted \| declined (a free slot books itself as accepted) |
  *
  * The requester cancels until it is lent, done or given. The manager is the
  * cosa's owner, or for a group's cosa its admins; a group's admins act as
@@ -52,6 +53,8 @@ export const COSA_REQUEST_TRANSITIONS: Record<CosaKind, Partial<Record<CosaReque
     ...ANSWER,
     give: { from: ['accepted'], to: 'given', by: ['manager'] },
   },
+  // A booking ends when its slot passes; the callable refuses moves on a past one.
+  reserva: { ...ANSWER },
 };
 
 /** A request still in play: it holds the cosa's dates or is waiting for an answer. */

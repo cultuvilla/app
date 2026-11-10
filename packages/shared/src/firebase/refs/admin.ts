@@ -58,7 +58,7 @@ import { vocabularyTermConverterAdmin } from '../converters/vocabularyTermConver
 import { historyEntryConverterAdmin } from '../converters/historyEntryConverter.admin';
 import { vocabularyDefinitionConverterAdmin } from '../converters/vocabularyDefinitionConverter.admin';
 import { vocabularyWordConverterAdmin } from '../converters/vocabularyWordConverter.admin';
-import { cosaConverterAdmin, cosaRequestConverterAdmin } from '../converters/cosatecaConverter.admin';
+import { cosaConverterAdmin, cosaRequestConverterAdmin, cosaSlotConverterAdmin } from '../converters/cosatecaConverter.admin';
 
 export const eventsCollection = (db: Firestore) =>
   db.collection('events').withConverter(eventConverterAdmin);
@@ -202,6 +202,10 @@ export const organizationCuotaReminderDoc = (db: Firestore, organizationId: stri
 // The cosateca (see CosaDataModel, CosaRequestDataModel).
 export const cosasCollection = (db: Firestore) => db.collection('cosas').withConverter(cosaConverterAdmin);
 export const cosaDoc = (db: Firestore, cosaId: string) => db.collection('cosas').doc(cosaId).withConverter(cosaConverterAdmin);
+export const cosaSlotsCollection = (db: Firestore, cosaId: string) =>
+  db.collection('cosas').doc(cosaId).collection('slots').withConverter(cosaSlotConverterAdmin);
+export const cosaSlotDoc = (db: Firestore, cosaId: string, slotKey: string) =>
+  db.collection('cosas').doc(cosaId).collection('slots').doc(slotKey).withConverter(cosaSlotConverterAdmin);
 export const cosaRequestsCollection = (db: Firestore) => db.collection('cosaRequests').withConverter(cosaRequestConverterAdmin);
 export const cosaRequestDoc = (db: Firestore, requestId: string) =>
   db.collection('cosaRequests').doc(requestId).withConverter(cosaRequestConverterAdmin);

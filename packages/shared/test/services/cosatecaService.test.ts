@@ -12,6 +12,7 @@ vi.mock('../../src/firebase/refs/client', () => ({
   cosatecaWriteDoc: vi.fn((_db, coll: string, id: string) => ({ _path: `${coll}/${id}` })),
   cosaRequestChatCollection: vi.fn((_db, id: string) => ({ _coll: `cosaRequests/${id}/chat` })),
   cosaRequestChatWriteCollection: vi.fn((_db, id: string) => ({ _coll: `cosaRequests/${id}/chat` })),
+  cosaSlotsCollection: vi.fn((_db, id: string) => ({ _coll: `cosas/${id}/slots` })),
 }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((coll: { _coll?: string } | undefined, id?: string) => ({ id: id ?? `new-${String(++newId)}`, _path: `${coll?._coll ?? ''}/${id ?? 'new'}` })),
@@ -32,6 +33,9 @@ vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => callable) }));
 import { deleteDoc, getDocs, limit, onSnapshot, orderBy, setDoc, updateDoc, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
+  bookReservaSlot,
+  setReservaBlackouts,
+  watchCosaSlots,
   createCosa,
   deleteCosaRequestChatMessage,
   getMyPendingCosaRequests,
@@ -73,10 +77,10 @@ describe('cosatecaService', () => {
   });
 
   it('updateCosa edits only what its manager may change', async () => {
-    await updateCosa('c1', { kind: 'regalo', title: 'Sofá ', description: null, category: 'otros', imageURL: null, conditions: ' ', status: 'paused' });
+    await updateCosa('c1', { kind: 'regalo', title: 'Sofá ', description: null, category: 'otros', imageURL: null, conditions: ' ', status: 'paused', reserva: null });
     const [ref, data] = vi.mocked(updateDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(pathOf(ref)).toBe('cosas/c1');
-    expect(data).toEqual({ kind: 'regalo', title: 'Sofá', description: null, category: 'otros', imageURL: null, conditions: null, status: 'paused', updatedAt: 'SERVER_TS' });
+    expect(data).toEqual({ kind: 'regalo', title: 'Sofá', description: null, category: 'otros', imageURL: null, conditions: null, status: 'paused', reserva: null, updatedAt: 'SERVER_TS' });
   });
 
   it('requestCosa writes a pending request', async () => {
@@ -99,6 +103,28 @@ describe('cosatecaService', () => {
     await expect(respondToCosaRequest('r1', 'accept')).resolves.toBe('accepted');
     expect(httpsCallable).toHaveBeenCalledWith({}, 'respondToCosaRequest');
     expect(callable).toHaveBeenCalledWith({ requestId: 'r1', action: 'accept' });
+  });
+
+  it('bookReservaSlot sends the slot start as an ISO instant through the callable', async () => {
+    callable.mockResolvedValueOnce({ data: { requestId: 'r9', status: 'accepted' } } as never);
+    await expect(bookReservaSlot('c1', new Date('2026-11-12T17:00:00.000Z'), '  ')).resolves.toEqual({ requestId: 'r9', status: 'accepted' });
+    expect(httpsCallable).toHaveBeenCalledWith({}, 'bookReservaSlot');
+    expect(callable).toHaveBeenCalledWith({ cosaId: 'c1', startAt: '2026-11-12T17:00:00.000Z', message: null });
+  });
+
+  it('setReservaBlackouts goes through the callable', async () => {
+    callable.mockResolvedValueOnce({ data: { cancelled: 2 } } as never);
+    await expect(setReservaBlackouts('c1', ['2026-11-12'])).resolves.toEqual({ cancelled: 2 });
+    expect(httpsCallable).toHaveBeenCalledWith({}, 'setReservaBlackouts');
+    expect(callable).toHaveBeenCalledWith({ cosaId: 'c1', blackouts: ['2026-11-12'] });
+  });
+
+  it('watchCosaSlots asks for the slots starting in the window', () => {
+    const from = new Date('2026-11-09T00:00:00.000Z');
+    const to = new Date('2026-11-16T00:00:00.000Z');
+    watchCosaSlots('c1', from, to, vi.fn(), vi.fn());
+    expect(where).toHaveBeenCalledWith('startAt', '>=', from);
+    expect(where).toHaveBeenCalledWith('startAt', '<', to);
   });
 
   it('getMyPendingCosaRequests reads my unanswered requests', async () => {

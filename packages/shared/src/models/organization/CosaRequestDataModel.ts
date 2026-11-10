@@ -14,6 +14,10 @@ import { CosaKindSchema } from './CosaDataModel';
  *
  * Dates are optional Madrid calendar days (`YYYY-MM-DD`): no `fromOn` means
  * "from now", no `untilOn` "until it comes back".
+ *
+ * A reserva booking carries its slot as instants (`startAt`/`endAt`, null on
+ * every other kind) and its Madrid day as both `fromOn` and `untilOn`. It is
+ * created only by the `bookReservaSlot` callable, never by a client.
  */
 
 export const CosaRequestStatusSchema = z.enum([
@@ -52,6 +56,9 @@ export const CosaRequestDataSchema = z
     closedAt: z.date().nullable(),
     /** The day the overdue nudge went out (Phase 3), so it goes once. */
     overdueNotifiedOn: DayKeySchema.nullable(),
+    /** A reserva booking's slot; null on every other kind. */
+    startAt: z.date().nullable(),
+    endAt: z.date().nullable(),
   })
   .refine((r) => r.fromOn === null || r.untilOn === null || r.fromOn <= r.untilOn, 'fromOn is after untilOn');
 export type CosaRequestData = z.infer<typeof CosaRequestDataSchema>;
@@ -68,6 +75,9 @@ export interface CosaRequestInput {
   message?: string | null;
   fromOn?: string | null;
   untilOn?: string | null;
+  startAt?: Date | null;
+  endAt?: Date | null;
+  status?: 'pending' | 'accepted';
   createdAt?: Date;
 }
 
@@ -84,11 +94,13 @@ export function buildCosaRequestData(input: CosaRequestInput): CosaRequestData {
     message: input.message?.trim() ? input.message.trim() : null,
     fromOn: input.fromOn ?? null,
     untilOn: input.untilOn ?? null,
-    status: 'pending',
+    status: input.status ?? 'pending',
     createdAt: input.createdAt ?? new Date(),
     respondedAt: null,
     closedAt: null,
     overdueNotifiedOn: null,
+    startAt: input.startAt ?? null,
+    endAt: input.endAt ?? null,
   };
 }
 

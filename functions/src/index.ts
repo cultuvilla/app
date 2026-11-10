@@ -44,6 +44,8 @@ export { sendCuotaReminders } from './organizations/sendCuotaReminders';
 export { onGroupTaskUpdated } from './organizations/onGroupTaskUpdated';
 export { respondToTaskShift } from './organizations/respondToTaskShift';
 export { respondToCosaRequest } from './organizations/respondToCosaRequest';
+export { bookReservaSlot } from './organizations/bookReservaSlot';
+export { setReservaBlackouts } from './organizations/setReservaBlackouts';
 export { onCosaRequestWritten } from './organizations/onCosaRequestWritten';
 export { onCosaRequestChatCreated, onCosaRequestChatDeleted } from './organizations/onCosaRequestChatCreated';
 export { sendCosaReminders } from './organizations/sendCosaReminders';

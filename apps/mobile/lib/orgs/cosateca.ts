@@ -1,6 +1,6 @@
 import { cosaAvailability, type CosaData, type CosaRequestData } from '@cultuvilla/shared/models/organization';
 import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
-import { formatDayKey } from '@cultuvilla/shared/utils';
+import { formatDate, formatDayKey } from '@cultuvilla/shared/utils';
 import type { I18n } from '../i18n';
 
 type T = I18n['t'];
@@ -21,8 +21,18 @@ export function cosaOwnerLabel(t: T, cosa: Pick<CosaData, 'ownerUid' | 'ownerNam
   return cosa.ownerUid === null ? t('groups.cosateca.ofGroup') : cosa.ownerName;
 }
 
-/** "Del 1 jul 2026 al 3 jul 2026", "Desde el …", "Hasta el …", "Sin fechas". */
-export function cosaRequestDatesLabel(t: T, req: Pick<CosaRequestData, 'fromOn' | 'untilOn'>): string {
+/** A booking's slot: "12 nov 2026 · 18:00–19:00". */
+export function reservaSlotLabel(req: Pick<CosaRequestData, 'fromOn' | 'startAt' | 'endAt'>): string {
+  if (!req.fromOn || !req.startAt || !req.endAt) return '';
+  return `${formatDayKey(req.fromOn)} · ${formatDate(req.startAt, 'time')}–${formatDate(req.endAt, 'time')}`;
+}
+
+/** "Del 1 jul 2026 al 3 jul 2026", "Desde el …", "Hasta el …", "Sin fechas"; a booking's slot. */
+export function cosaRequestDatesLabel(
+  t: T,
+  req: Pick<CosaRequestData, 'fromOn' | 'untilOn'> & Partial<Pick<CosaRequestData, 'startAt' | 'endAt'>>,
+): string {
+  if (req.startAt && req.endAt) return reservaSlotLabel({ fromOn: req.fromOn, startAt: req.startAt, endAt: req.endAt });
   if (req.fromOn && req.untilOn) {
     return t('groups.cosateca.request.range', { from: formatDayKey(req.fromOn), until: formatDayKey(req.untilOn) });
   }
@@ -39,7 +49,10 @@ export function cosaRequestDatesLabel(t: T, req: Pick<CosaRequestData, 'fromOn' 
  */
 export function cosatecaErrorMessage(t: T, error: unknown): string {
   const code = firebaseErrorCode(error);
-  if (code === 'failed-precondition' && error instanceof Error && error.message) return error.message;
+  // The booking callable's refusals ("Esa hora ya está reservada", the per-person cap) speak for themselves too.
+  if ((code === 'failed-precondition' || code === 'already-exists' || code === 'resource-exhausted') && error instanceof Error && error.message) {
+    return error.message;
+  }
   if (code === 'permission-denied') return t('groups.cosateca.errors.permission');
   return t('groups.cosateca.errors.generic');
 }

@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** none
 **Gate:** none
-**Next:** Phase 4 — reservas (the pádel court); Phases 1–3 are on develop
+**Next:** promote with the next release (all four phases are on develop)
 
 Decided 2026-11-10 (user): build the cosateca as a group tool, taking the agent's picks
 with three changes: *regalos* are in from the start; a group's admin chooses whether its
@@ -202,9 +202,46 @@ agent's picks:
 - Knobs: `maxActiveReservations`, `bookingHorizonDays`, `blackouts` (cancelling and
   telling the bookings inside one), a reminder an hour before.
 
+### Phase 4 — as built
+
+- **Model:** kind `reserva`; `cosas.reserva` (`ReservaConfigSchema`, null on every other
+  kind): `hours` as a fixed map of ISO weekdays `'1'`–`'7'` (one opening range each, null
+  = closed — a map, not a list, so the rules check every entry), `slotMinutes` 15–240,
+  `requiresApproval`, `maxActiveReservations` 1–20, `bookingHorizonDays` 1–90 (today is
+  day 0), `blackouts`. The grid is `reservaDaySlots` (reservaLogic.ts, Madrid wall time
+  through `madridInstant`), shared by the callable and the screen. A booking is a
+  `cosaRequests` doc with `startAt`/`endAt` (null on every other kind) and its day as both
+  `fromOn` and `untilOn`; the transition table gives a reserva only accept / decline /
+  cancel, and nothing moves once its slot has started. The kind is new on a collection no
+  store build has ever read (the cosateca never left dev), so the strict enum breaks
+  nothing installed.
+- **Deviation — the deterministic id is the slot's lock, not the booking's:**
+  `cosas/{cosaId}/slots/{startISO}`, claimed in `bookReservaSlot`'s transaction. A
+  booking doc keyed by its slot would be reused once a booking is cancelled, carrying its
+  predecessor's chat and colliding on its fixed notification ids; and the lock is what
+  lets every viewer see which slots are taken, which a private booking cannot. It names
+  no one. All booking goes through the callable, since the per-person cap is a count no
+  rule can hold; the rules refuse a client-written reserva request.
+- **Closing days:** `setReservaBlackouts` (managers) replaces the list; newly closed days
+  decline their live bookings and free their locks in one transaction, and the bookers
+  hear "Reserva anulada". Clients may edit the rest of the config but never `blackouts`.
+- **Notices:** a pending booking tells the managers; an answer tells the booker; a booking
+  that confirmed itself, and a confirmed one its booker lets go, tell no one. The reminder
+  rides on `sendEventReminders` (hourly) rather than a scheduler of its own: bookings
+  starting 30–90 minutes out, `cosa_<requestId>_reminder`, created never overwritten.
+  Index `cosaKind + status + startAt`.
+- **Screens:** the offer form's kind toggle gains *Reserva* and its config fields, and is
+  shown only for a new cosa (the kind is frozen). A reserva's screen shows "Mis reservas",
+  a day picker over the horizon and the day's slots (free, taken, mine, past); its
+  manager closes and reopens days. Booking rows show their slot.
+- **Migration:** `scripts/backfill-cosateca-reservas.mjs` (pre-deploy, autoApply): `reserva:
+  null` on cosas and `startAt`/`endAt: null` on requests, dev only in practice.
+
 ## Left for later
 
 - What happens to an integrante's cosas when they leave the group (today: they stay,
   managed by the owner; the group's admins can delete them).
 - More than one photo; a waiting list on a lent cosa ("avísame cuando vuelva").
+- A reserva's hours changed under existing bookings leave them standing, even off the
+  new grid; a deleted reserva leaves its slot locks behind, like its requests.
 - A cap on one user's open requests for the same cosa (today each one is a push to the managers); a deterministic id like `${cosaId}_${uid}` would hold it.

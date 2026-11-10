@@ -2314,12 +2314,14 @@
       "kinds": {
         "prestamo": "Préstamo",
         "servicio": "Servicio",
-        "regalo": "Regalo"
+        "regalo": "Regalo",
+        "reserva": "Reserva"
       },
       "kindHints": {
         "prestamo": "Se presta y se devuelve.",
         "servicio": "Un favor que haces: no hay nada que devolver.",
-        "regalo": "Se da para siempre."
+        "regalo": "Se da para siempre.",
+        "reserva": "Se reserva por horas: una pista, una sala."
       },
       "availability": {
         "available": "Disponible",
@@ -2431,6 +2433,65 @@
         "older": "Ver mensajes anteriores",
         "sendError": "No se ha podido enviar el mensaje.",
         "deleteBody": "Desaparecerá de la solicitud."
+      },
+      "reserva": {
+        "hours": "Horario",
+        "open": "Abre",
+        "closed": "Cerrado",
+        "opensAt": "Abre a las",
+        "closesAt": "Cierra a las",
+        "slotMinutes": "Minutos por turno",
+        "maxActive": "Reservas a la vez por persona",
+        "horizon": "Días de antelación para reservar",
+        "requiresApproval": "Cada reserva la aprueba quien lo gestiona",
+        "errors": {
+          "time": "Pon las horas como 18:00.",
+          "order": "Tiene que abrir antes de cerrar.",
+          "slotMinutes": "Un turno dura entre 15 y 240 minutos.",
+          "maxActive": "Pon entre 1 y 20 reservas.",
+          "horizon": "Pon entre 1 y 90 días."
+        },
+        "weekdays": {
+          "1": "Lunes",
+          "2": "Martes",
+          "3": "Miércoles",
+          "4": "Jueves",
+          "5": "Viernes",
+          "6": "Sábado",
+          "7": "Domingo"
+        },
+        "weekdaysShort": {
+          "1": "lun",
+          "2": "mar",
+          "3": "mié",
+          "4": "jue",
+          "5": "vie",
+          "6": "sáb",
+          "7": "dom"
+        },
+        "dayChip": "{weekday} {date}",
+        "pick": "Elige día y hora",
+        "needsApproval": "Cada reserva queda pendiente hasta que la aprueben.",
+        "noSlots": "Ese día no se puede reservar.",
+        "state": {
+          "free": "Libre",
+          "taken": "Ocupado",
+          "mine": "Tuya",
+          "past": "Pasada"
+        },
+        "book": "Reservar",
+        "confirmTitle": "¿Reservar?",
+        "confirmBody": "«{title}», {day} a las {time}.",
+        "myBookings": "Mis reservas",
+        "blackouts": "Días cerrados",
+        "blackoutsHint": "Cerrar un día anula sus reservas y avisa a quien reservó.",
+        "noBlackouts": "Ningún día cerrado.",
+        "closeDays": "Cerrar días",
+        "closeDaysPlaceholder": "Elige los días",
+        "close": "Cerrar esos días",
+        "closeTitle": "¿Cerrar esos días?",
+        "reopen": "Abrir",
+        "cancelledN": "Reservas anuladas: {count}. Se ha avisado a quien reservó."
       }
     }
   },

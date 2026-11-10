@@ -18,7 +18,7 @@ function cosa(overrides: Record<string, unknown> = {}) {
   return {
     municipalityId: 'mun-1', orgId: ORG, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'prestamo',
     title: 'Carpa', description: null, category: 'fiestas', imageURL: null, conditions: null, status: 'available', heldBy: null,
-    createdBy: 'u-admin', createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), ...overrides,
+    reserva: null, createdBy: 'u-admin', createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), ...overrides,
   };
 }
 
