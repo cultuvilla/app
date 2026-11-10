@@ -78,6 +78,21 @@ export function isActiveReserva(req: Pick<CosaRequestData, 'status' | 'endAt'>, 
   return (req.status === 'pending' || req.status === 'accepted') && req.endAt !== null && req.endAt.getTime() > now.getTime();
 }
 
+/**
+ * Whether a request still waits for its manager's answer: pending, unless it is a
+ * booking whose slot has already started — past answering, and declined by the
+ * next hourly run (`expireReservaBookings`).
+ */
+export function isAwaitingAnswer(req: Pick<CosaRequestData, 'status' | 'cosaKind' | 'startAt'>, now: Date): boolean {
+  if (req.status !== 'pending') return false;
+  return req.cosaKind !== 'reserva' || (req.startAt !== null && req.startAt.getTime() > now.getTime());
+}
+
+/** Whether two time ranges share any instant (touching ends do not). */
+export function rangesOverlap(a: { startAt: Date; endAt: Date }, b: { startAt: Date; endAt: Date }): boolean {
+  return a.startAt.getTime() < b.endAt.getTime() && b.startAt.getTime() < a.endAt.getTime();
+}
+
 /** The days a new blackout list closes that the old one did not. */
 export function addedBlackouts(before: readonly DayKey[], after: readonly DayKey[]): DayKey[] {
   return [...new Set(after)].filter((d) => !before.includes(d)).sort();

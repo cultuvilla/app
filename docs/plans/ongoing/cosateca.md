@@ -243,5 +243,9 @@ agent's picks:
   managed by the owner; the group's admins can delete them).
 - More than one photo; a waiting list on a lent cosa ("avísame cuando vuelva").
 - A reserva's hours changed under existing bookings leave them standing, even off the
-  new grid; a deleted reserva leaves its slot locks behind, like its requests.
+  new grid (since the #632 review a new slot that overlaps one is refused, and the grid
+  shows it taken); a deleted reserva leaves its slot locks behind, like its requests.
+- A booking that waited for approval past its start is declined by the hourly run
+  (`expireReservaBookings`, inside `sendEventReminders`), which tells the booker; until
+  that run it is already hidden from *Necesita tu acción*.
 - A cap on one user's open requests for the same cosa (today each one is a push to the managers); a deterministic id like `${cosaId}_${uid}` would hold it.

@@ -149,7 +149,7 @@ describe('cosatecaService', () => {
     expect(where).toHaveBeenCalledWith('ownerUid', '==', null);
     expect(listeners).toHaveLength(3);
     const snap = (rows: { id: string; at: number }[]) => ({
-      docs: rows.map((r) => ({ id: r.id, data: () => ({ createdAt: new Date(r.at) }) })),
+      docs: rows.map((r) => ({ id: r.id, data: () => ({ createdAt: new Date(r.at), status: 'pending', cosaKind: 'prestamo', startAt: null }) })),
       metadata: { fromCache: false, hasPendingWrites: false },
     });
     listeners[0]?.(snap([{ id: 'a', at: 1 }]));
@@ -158,6 +158,29 @@ describe('cosatecaService', () => {
     // An org whose admin rights went answers empty instead of failing the merge.
     errors[2]?.(Object.assign(new Error('denied'), { code: 'permission-denied' }));
     expect(onNext).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'b' }), expect.objectContaining({ id: 'a' })]);
+  });
+
+  it('watchCosaRequestsToAnswer leaves out a booking whose slot has started', () => {
+    const listeners: ((snap: unknown) => void)[] = [];
+    vi.mocked(onSnapshot).mockImplementation(((_q: unknown, next: (s: unknown) => void) => {
+      listeners.push(next);
+      return () => undefined;
+    }) as never);
+    const onNext = vi.fn();
+    watchCosaRequestsToAnswer('u1', [], onNext, vi.fn());
+    const row = (id: string, startAt: Date | null, cosaKind: string) => ({
+      id, data: () => ({ createdAt: new Date(1), status: 'pending', cosaKind, startAt }),
+    });
+    listeners[0]?.({
+      docs: [
+        row('loan', null, 'prestamo'),
+        row('started', new Date(Date.now() - 60_000), 'reserva'),
+        row('ahead', new Date(Date.now() + 3_600_000), 'reserva'),
+      ],
+      metadata: { fromCache: false, hasPendingWrites: false },
+    });
+    const last = onNext.mock.lastCall?.[0] as { id: string }[] | undefined;
+    expect(last?.map((r) => r.id).sort()).toEqual(['ahead', 'loan']);
   });
 
   it("sendCosaRequestChatMessage writes a trimmed message into the request's chat, stamped by the server", async () => {

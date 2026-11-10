@@ -29,6 +29,7 @@ import {
   type CosaRequestStatus,
 } from '../models/organization/CosaRequestDataModel';
 import type { CosaRequestAction } from '../models/organization/cosatecaLogic';
+import { isAwaitingAnswer } from '../models/organization/reservaLogic';
 import { GroupChatBodySchema, type GroupChatMessageData } from '../models/organization/GroupChatDataModel';
 import { forbiddenAsEmpty, watchDoc, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 
@@ -147,7 +148,8 @@ function newestFirst(rows: CosaRequest[]): CosaRequest[] {
  * The Buzón's *Necesita tu acción*: the requests still waiting for this user's
  * answer — for their own cosas, and for the group's own cosas of every group
  * they administer — newest first. A group whose admin rights have just gone
- * answers empty rather than blanking the rest.
+ * answers empty rather than blanking the rest. A booking whose slot has started
+ * is past answering and left out, until the hourly run declines it.
  */
 export function watchCosaRequestsToAnswer(
   uid: string,
@@ -172,7 +174,7 @@ export function watchCosaRequestsToAnswer(
       ),
     ),
   );
-  return watchMerged([mine, ...groups], newestFirst, onNext, onError);
+  return watchMerged([mine, ...groups], (rows) => newestFirst(rows).filter((r) => isAwaitingAnswer(r, new Date())), onNext, onError);
 }
 
 /** What I asked for that has no answer yet — the Buzón's "esperando" rows. */
@@ -180,7 +182,8 @@ export async function getMyPendingCosaRequests(uid: string): Promise<CosaRequest
   const snap = await getDocs(
     query(cosaRequestsCollection(getDb()), where('requesterUid', '==', uid), where('status', '==', 'pending')),
   );
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const now = new Date();
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => isAwaitingAnswer(r, now));
 }
 
 /**

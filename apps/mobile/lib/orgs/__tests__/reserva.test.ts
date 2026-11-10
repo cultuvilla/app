@@ -9,12 +9,26 @@ describe('reservaSlotStates', () => {
     const states = reservaSlotStates(
       slots,
       [
-        { id: a?.key ?? '', requestId: 'r-mine' },
-        { id: b?.key ?? '', requestId: 'r-other' },
+        { id: a?.key ?? '', requestId: 'r-mine', startAt: a?.startAt ?? new Date(0), endAt: a?.endAt ?? new Date(0) },
+        { id: b?.key ?? '', requestId: 'r-other', startAt: b?.startAt ?? new Date(0), endAt: b?.endAt ?? new Date(0) },
       ],
       [{ id: 'r-mine' }],
     );
     expect(states.map((s) => s.state)).toEqual(['mine', 'taken', 'free']);
+  });
+
+  it('takes any slot a booking overlaps, not only the one with its exact start', () => {
+    // Booked 18:00–19:00; the court now opens at 09:30, so its slots start on the half hour.
+    const halfPast = { opensAt: '09:30', closesAt: '22:00' };
+    const hours = Object.fromEntries(Object.keys(DEFAULT_RESERVA_CONFIG.hours).map((d) => [d, halfPast]));
+    const slots = reservaDaySlots({ ...DEFAULT_RESERVA_CONFIG, hours: hours as typeof DEFAULT_RESERVA_CONFIG.hours }, '2026-11-12');
+    const states = reservaSlotStates(
+      slots,
+      [{ id: '2026-11-12T17:00:00.000Z', requestId: 'r-other', startAt: new Date('2026-11-12T17:00:00.000Z'), endAt: new Date('2026-11-12T18:00:00.000Z') }],
+      [],
+    );
+    const taken = states.filter((s) => s.state === 'taken').map((s) => s.slot.time);
+    expect(taken).toEqual(['17:30', '18:30']);
   });
 });
 

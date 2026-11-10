@@ -9,7 +9,7 @@ import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { applyBookReservaSlot, bookReservaSlot } from '../../../organizations/bookReservaSlot';
 import { applyCosaRequestAction } from '../../../organizations/respondToCosaRequest';
 import { applyReservaBlackouts } from '../../../organizations/setReservaBlackouts';
-import { sendReservaReminders } from '../../../organizations/sendReservaReminders';
+import { expireReservaBookings, sendReservaReminders } from '../../../organizations/sendReservaReminders';
 import { cosaNoticeFor, cosaRequestCopy } from '../../../organizations/onCosaRequestWritten';
 import { buildOrganizationData, DEFAULT_RESERVA_CONFIG, type CosaRequestData, type ReservaConfig } from '@cultuvilla/shared/models';
 
@@ -73,6 +73,17 @@ describe('bookReservaSlot', () => {
     await expect(book('u-luis', SLOT_18)).rejects.toMatchObject({ code: 'already-exists' });
     const all = await db().collection('cosaRequests').get();
     expect(all.size).toBe(1);
+  });
+
+  it('refuses a slot that overlaps a booking made under the old hours', async () => {
+    await book('u-ana', SLOT_18); // 18:00–19:00 Madrid
+    // The manager moves opening to 09:30: the grid now offers 18:30, a key no lock holds.
+    const halfPast = { opensAt: '09:30', closesAt: '22:00' };
+    await db().doc('cosas/pista').set(
+      pista({ hours: Object.fromEntries(Object.keys(DEFAULT_RESERVA_CONFIG.hours).map((d) => [d, halfPast])) as ReservaConfig['hours'] }),
+    );
+    await expect(book('u-luis', new Date('2026-11-12T17:30:00.000Z'))).rejects.toMatchObject({ code: 'already-exists' });
+    await expect(book('u-luis', new Date('2026-11-12T18:30:00.000Z'))).resolves.toMatchObject({ status: 'accepted' });
   });
 
   it('books as pending when the cosa asks for approval', async () => {
@@ -177,6 +188,28 @@ describe('sendReservaReminders', () => {
   });
 });
 
+describe('expireReservaBookings', () => {
+  it('declines a pending booking nobody answered before it started, frees its slot, once', async () => {
+    await db().doc('cosas/pista').set(pista({ requiresApproval: true }));
+    const late = await book('u-ana', SLOT_18);
+    const later = await book('u-luis', new Date('2026-11-13T17:00:00.000Z'));
+    const runAt = new Date('2026-11-12T17:05:00.000Z');
+    await expect(expireReservaBookings(db(), runAt)).resolves.toBe(1);
+    const expired = await getDoc(`cosaRequests/${late.requestId}`);
+    expect(expired).toMatchObject({ status: 'declined' });
+    expect((expired?.['closedAt'] as admin.firestore.Timestamp).toDate()).toEqual(runAt);
+    expect(await getDoc(`cosas/pista/slots/${SLOT_18.toISOString()}`)).toBeUndefined();
+    expect(await getDoc(`cosaRequests/${later.requestId}`)).toMatchObject({ status: 'pending' });
+    await expect(expireReservaBookings(db(), runAt)).resolves.toBe(0);
+  });
+
+  it('leaves a confirmed booking that has started alone', async () => {
+    const { requestId } = await book('u-ana', SLOT_18);
+    await expect(expireReservaBookings(db(), new Date('2026-11-12T17:05:00.000Z'))).resolves.toBe(0);
+    expect(await getDoc(`cosaRequests/${requestId}`)).toMatchObject({ status: 'accepted' });
+  });
+});
+
 describe('booking notices', () => {
   const booking = (status: CosaRequestData['status']) =>
     ({
@@ -196,5 +229,10 @@ describe('booking notices', () => {
     expect(cosaRequestCopy('accepted', booking('accepted'), 'Ayto').body).toContain('a las 18:00');
     expect(cosaRequestCopy('declined', booking('declined'), 'Ayto', true).title).toBe('Reserva anulada · Ayto');
     expect(cosaRequestCopy('declined', booking('declined'), 'Ayto', false).title).toBe('Reserva no aceptada · Ayto');
+    const expired = { ...booking('declined'), closedAt: new Date(SLOT_18.getTime() + 300_000) };
+    expect(cosaRequestCopy('declined', expired, 'Ayto', false)).toEqual({
+      title: 'Reserva sin confirmar · Ayto',
+      body: 'Nadie confirmó a tiempo tu reserva de «Pista de pádel» el jueves, 12 de noviembre de 2026 a las 18:00.',
+    });
   });
 });
