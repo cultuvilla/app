@@ -21,9 +21,18 @@ export const onOrganizationUpdated = onDocumentUpdated(
     const after = event.data?.after.data();
     if (!before || !after) return;
 
-    const rewritten = await syncCosaAudience(db, event.params.orgId, before, after);
-    if (rewritten > 0) {
-      logger.info('Cosa audience synced', { handler: 'onOrganizationUpdated', orgId: event.params.orgId, rewritten });
+    // Isolated: a failed sync must not cost the founder their approval notice.
+    try {
+      const rewritten = await syncCosaAudience(db, event.params.orgId, before, after);
+      if (rewritten > 0) {
+        logger.info('Cosa audience synced', { handler: 'onOrganizationUpdated', orgId: event.params.orgId, rewritten });
+      }
+    } catch (err) {
+      logger.error('Cosa audience sync failed', {
+        handler: 'onOrganizationUpdated',
+        orgId: event.params.orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     const beforeStatus = before['status'] as string | undefined;

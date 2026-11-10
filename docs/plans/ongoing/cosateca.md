@@ -117,6 +117,7 @@ indexes, `respondToCosaRequest` (transaction), `onCosaRequestWritten` (notificat
   screen until Phase 2**, so a tap on dev opens an unmatched route meanwhile.
 - `deleteAccount` deletes the user's cosas and every request by or to them, and clears
   `heldBy` on a group's cosa they hold.
+- Review fixes (2026-11-10): `kind` is frozen once offered; whoever asked never answers their own request (an admin asking goes to another manager); giving a regalo never declines a lent request; asking needs the group approved with its cosateca on; a failed audience sync no longer blocks the org's approval notice.
 - Not done: `cosateca` is not yet a `GROUP_SECTIONS` entry (Phase 2 adds it with the
   screen); a deleted cosa leaves its requests (they can still be declined or cancelled).
 
@@ -156,3 +157,4 @@ agent's picks:
 - What happens to an integrante's cosas when they leave the group (today: they stay,
   managed by the owner; the group's admins can delete them).
 - More than one photo; a waiting list on a lent cosa ("avísame cuando vuelva").
+- A cap on one user's open requests for the same cosa (today each one is a push to the managers); a deterministic id like `${cosaId}_${uid}` would hold it.
