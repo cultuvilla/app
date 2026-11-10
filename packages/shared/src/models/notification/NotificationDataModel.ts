@@ -54,6 +54,8 @@ export const NotificationTypeSchema = z.enum([
   // people within 48 h (sendGroupTaskReminders, 10:00 Madrid), or a slot freed
   // up for someone on its waiting list (respondToTaskShift). Carries
   // entityKind 'organization' + entityId (the org), routed to the Grupos tab.
+  // Also the cosateca's requests and their answers (onCosaRequestWritten), with
+  // `cosaRequestId`: a new type would throw in installed binaries' converter.
   'group_task',
   // A message the junta of a group sent through `sendGroupMessage` (or pushed
   // again to the unread by `nudgeGroupMessage`). entityKind 'organization' +
@@ -79,6 +81,9 @@ export const NotificationDataSchema = z.object({
   // On a chat message's `group_message`: the thread it opens (an aviso's id, or
   // `general`). A binary that predates it drops the field and opens the avisos.
   chatThreadId: z.string().nullable().default(null),
+  // On a cosateca `group_task`: the request it opens. A binary that predates it
+  // drops the field and opens the group's Tareas.
+  cosaRequestId: z.string().nullable().default(null),
   read: z.boolean(),
   createdAt: z.date(),
 });
@@ -94,6 +99,7 @@ export interface NotificationDataInput {
   entityKind?: z.infer<typeof EntityKindSchema> | null;
   entityId?: string | null;
   chatThreadId?: string | null;
+  cosaRequestId?: string | null;
   read?: boolean;
   createdAt?: Date;
 }
@@ -109,6 +115,7 @@ export function buildNotificationData(input: NotificationDataInput): Notificatio
     entityKind: input.entityKind ?? null,
     entityId: input.entityId ?? null,
     chatThreadId: input.chatThreadId ?? null,
+    cosaRequestId: input.cosaRequestId ?? null,
     read: input.read ?? false,
     createdAt: input.createdAt ?? new Date(),
   };

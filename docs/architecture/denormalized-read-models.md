@@ -452,6 +452,20 @@ deleted.
 - **Trigger:** `functions/src/organizations/onGroupChatMessageCreated.ts`, a transaction per message, creation only. A deleted message does not move it back: the badge may show a thread whose newest message is gone until it is opened.
 - **Backfill:** none. A thread's summary begins with its first message.
 
+### `cosas.audience` ← `organizations/{orgId}.cosateca`
+
+- **Source:** the group's cosateca setting, `organizations/{orgId}.cosateca` (`enabled`, `audience`).
+- **Read model:** `cosas/{cosaId}.audience` — `pueblo` only while the group's cosateca is on and open to the pueblo, else `integrantes` (`effectiveCosaAudience`). The rules read it to let any village member see the cosa, and the village's cosateca queries `municipalityId + audience`, so neither needs the org doc per cosa.
+- **Trigger:** `syncCosaAudience`, called from `onOrganizationUpdated` (`functions/src/organizations/notificationTriggers.ts`) when the effective audience moves; it rewrites that group's cosas. A cosa is created with the group's current audience, which the create rule checks.
+- **Backfill:** none — the collection starts empty. The org field itself is backfilled by `scripts/backfill-org-cosateca.mjs`.
+
+### `cosas.heldBy` ← `cosaRequests/{requestId}`
+
+- **Source:** the request that is lent (`status: 'lent'`).
+- **Read model:** `cosas/{cosaId}.heldBy` — `{ requestId, uid, name, untilOn }`, who has the cosa now. Lets the catalogue say "la tiene Ana hasta el 3" without a query per cosa.
+- **Trigger:** none; the `respondToCosaRequest` callable writes it in the same transaction as the move (`lend` sets it, `return` clears it). `deleteAccount` clears it when the holder's account goes.
+- **Backfill:** none.
+
 ### `villageSlug` ← `municipalities/{id}.slug`
 
 Every URL starts with its pueblo (`/matabuena/evento/…`), and a feed card has to

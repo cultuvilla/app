@@ -237,6 +237,19 @@ export function groupTaskPath(orgId: string, taskId: string): string {
   return `/grupos/${encodeURIComponent(orgId)}/tarea/${encodeURIComponent(taskId)}`;
 }
 
+/** One cosa of a group's cosateca — `/grupos/<orgId>/cosa/<cosaId>`. */
+export function groupCosaPath(orgId: string, cosaId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/cosa/${encodeURIComponent(cosaId)}`;
+}
+
+/**
+ * One request for a cosa — `/grupos/<orgId>/prestamo/<requestId>`. Opened by its
+ * requester too, who need not be an integrante when the cosateca is the pueblo's.
+ */
+export function groupCosaRequestPath(orgId: string, requestId: string): string {
+  return `/grupos/${encodeURIComponent(orgId)}/prestamo/${encodeURIComponent(requestId)}`;
+}
+
 /**
  * The link an aviso's WhatsApp text and email carry. A query on the tab rather
  * than `groupAvisoPath`: those messages outlive app versions, and a binary with

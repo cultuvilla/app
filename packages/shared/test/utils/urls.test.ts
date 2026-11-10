@@ -7,6 +7,8 @@ import {
   festivalPosterLinkTarget,
   groupAvisoLinkPath,
   groupAvisoPath,
+  groupCosaPath,
+  groupCosaRequestPath,
   groupSectionPath,
   isGroupSection,
   isReservedRootSegment,
@@ -192,6 +194,8 @@ describe('link targets', () => {
 describe('group aviso links', () => {
   it('the app route names the aviso; the shared link keeps the tab path older binaries can open', () => {
     expect(groupAvisoPath('org 1', 'm1')).toBe('/grupos/org%201/aviso/m1');
+    expect(groupCosaPath('org 1', 'c1')).toBe('/grupos/org%201/cosa/c1');
+    expect(groupCosaRequestPath('org 1', 'r1')).toBe('/grupos/org%201/prestamo/r1');
     expect(groupAvisoLinkPath('org1', 'm1')).toBe('/grupos?grupo=org1&aviso=m1');
   });
 });

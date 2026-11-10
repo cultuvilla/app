@@ -3,7 +3,7 @@
 **Priority:** high
 **Landed:** none
 **Gate:** none
-**Next:** Phase 1 — the data layer (models, rules, service, `respondToCosaRequest`, notifications, the group setting and its backfill)
+**Next:** Phase 2 — the screens (the group's Cosateca section and Ajustes switch, cosa and request detail, the village's cosateca, the Buzón)
 
 Decided 2026-11-10 (user): build the cosateca as a group tool, taking the agent's picks
 with three changes: *regalos* are in from the start; a group's admin chooses whether its
@@ -93,6 +93,32 @@ village's `pueblo` cosas, my requests, requests to me / my group), rules + rules
 indexes, `respondToCosaRequest` (transaction), `onCosaRequestWritten` (notifications),
 `syncCosaAudience`, `organizations.cosateca` + `scripts/backfill-org-cosateca.mjs`
 (pre-deploy, autoApply), services map, conformance check, account deletion.
+
+### Phase 1 — as built
+
+- Models in `packages/shared/src/models/organization/`: `CosaDataModel.ts` (with
+  `CosatecaSettingsSchema`, `effectiveCosaAudience`), `CosaRequestDataModel.ts`, and
+  `cosatecaLogic.ts` — the transition table (`nextCosaRequestStatus`,
+  `availableCosaRequestActions` for the screens), `cosaDatesOverlap` (undated means
+  open-ended: one undated loan at a time), `isCosaRequestOverdue` for Phase 3.
+- `cosatecaService`: `watchGroupCosas`, `watchVillageCosas`, `watchCosa`, `createCosa`,
+  `updateCosa`, `deleteCosa`, `requestCosa`, `watchCosaRequest`, `watchMyCosaRequests`,
+  `watchCosaRequestsToMe`, `watchGroupCosaRequests`, `respondToCosaRequest`.
+- The group's admins count as managers of every cosa of the group, for every move (not
+  only closing one): simpler, and they are the backstop anyway.
+- `syncCosaAudience` is folded into `onOrganizationUpdated`, not a new trigger.
+- The names are checked by the rules: `ownerName` / `requesterName` must be the
+  `publicProfiles` name (the group's name for a group cosa).
+- Notifications: `group_task` with `cosaRequestId`, routed to
+  `groupCosaRequestPath` (`/grupos/<orgId>/prestamo/<requestId>`); `groupCosaPath`
+  (`/grupos/<orgId>/cosa/<cosaId>`) exists for the cosa screen. Sent: a new request and
+  a cancellation to the managers (never to the requester themself), accepted / declined
+  / given to the requester. Lent, returned and done tell nobody. **Both routes have no
+  screen until Phase 2**, so a tap on dev opens an unmatched route meanwhile.
+- `deleteAccount` deletes the user's cosas and every request by or to them, and clears
+  `heldBy` on a group's cosa they hold.
+- Not done: `cosateca` is not yet a `GROUP_SECTIONS` entry (Phase 2 adds it with the
+  screen); a deleted cosa leaves its requests (they can still be declined or cancelled).
 
 ## Phase 2 — screens
 

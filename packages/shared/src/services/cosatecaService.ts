@@ -1,0 +1,138 @@
+// packages/shared/src/services/cosatecaService.ts
+import { deleteDoc, doc, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
+import { httpsCallable } from '../firebase/sdk/functions';
+import { getDb, getFirebaseFunctions } from '../firebase';
+import { cosaDoc, cosaRequestDoc, cosaRequestsCollection, cosasCollection, cosatecaWriteDoc } from '../firebase/refs/client';
+import {
+  buildCosaData,
+  CosaDataSchema,
+  CosaEditSchema,
+  type CosaData,
+  type CosaEdit,
+  type CosaInput,
+} from '../models/organization/CosaDataModel';
+import {
+  buildCosaRequestData,
+  CosaRequestDataSchema,
+  type CosaRequestData,
+  type CosaRequestInput,
+  type CosaRequestStatus,
+} from '../models/organization/CosaRequestDataModel';
+import type { CosaRequestAction } from '../models/organization/cosatecaLogic';
+import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
+
+export type Cosa = CosaData & { id: string };
+export type CosaRequest = CosaRequestData & { id: string };
+
+// =============================================================================
+// COSAS
+// =============================================================================
+
+/** A group's cosateca, for its integrantes. */
+export function watchGroupCosas(orgId: string, onNext: (rows: Cosa[]) => void, onError: WatchError): Unwatch {
+  return watchQuery(query(cosasCollection(getDb()), where('orgId', '==', orgId)), onNext, onError);
+}
+
+/** Every cosa of the village's cosatecas open to the pueblo — for any village member. */
+export function watchVillageCosas(municipalityId: string, onNext: (rows: Cosa[]) => void, onError: WatchError): Unwatch {
+  return watchQuery(
+    query(cosasCollection(getDb()), where('municipalityId', '==', municipalityId), where('audience', '==', 'pueblo')),
+    onNext,
+    onError,
+  );
+}
+
+/** One cosa — its own screen. */
+export function watchCosa(cosaId: string, onNext: (cosa: Cosa | null) => void, onError: WatchError): Unwatch {
+  return watchDoc(cosaDoc(getDb(), cosaId), onNext, onError);
+}
+
+/**
+ * An integrante offers something (`ownerUid` their uid), or an admin offers it
+ * for the group (`ownerUid` null, `ownerName` the group's name). `audience` is
+ * the group's effective one (`effectiveCosaAudience`): the rules refuse any
+ * other, and `ownerName` must be the owner's public name. Returns the new id.
+ */
+export async function createCosa(input: Omit<CosaInput, 'createdAt'>): Promise<string> {
+  const data = CosaDataSchema.parse(buildCosaData(input));
+  const id = doc(cosasCollection(getDb())).id;
+  await setDoc(cosatecaWriteDoc(getDb(), 'cosas', id), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  return id;
+}
+
+/** Its manager (the owner, or an admin of the group): change what it is, or pause it. */
+export async function updateCosa(cosaId: string, edit: CosaEdit): Promise<void> {
+  const data = CosaEditSchema.parse({
+    ...edit,
+    title: edit.title.trim(),
+    description: edit.description?.trim() ? edit.description.trim() : null,
+    conditions: edit.conditions?.trim() ? edit.conditions.trim() : null,
+  });
+  await updateDoc(cosatecaWriteDoc(getDb(), 'cosas', cosaId), { ...data, updatedAt: serverTimestamp() });
+}
+
+/** Its manager, or an admin of the group. Its requests stay, as the record. */
+export async function deleteCosa(cosaId: string): Promise<void> {
+  await deleteDoc(cosatecaWriteDoc(getDb(), 'cosas', cosaId));
+}
+
+// =============================================================================
+// REQUESTS
+// =============================================================================
+
+/**
+ * Ask for a cosa. The copied fields (`orgId`, `cosaTitle`, `cosaKind`,
+ * `ownerUid`, `municipalityId`) must match the cosa, and `requesterName` must be
+ * the requester's public name; the rules check both. Returns the new id.
+ */
+export async function requestCosa(input: Omit<CosaRequestInput, 'createdAt'>): Promise<string> {
+  const data = CosaRequestDataSchema.parse(buildCosaRequestData(input));
+  const id = doc(cosaRequestsCollection(getDb())).id;
+  await setDoc(cosatecaWriteDoc(getDb(), 'cosaRequests', id), { ...data, createdAt: serverTimestamp() });
+  return id;
+}
+
+/** One request — its own screen. */
+export function watchCosaRequest(requestId: string, onNext: (req: CosaRequest | null) => void, onError: WatchError): Unwatch {
+  return watchDoc(cosaRequestDoc(getDb(), requestId), onNext, onError);
+}
+
+/** What I have asked for, newest first. */
+export function watchMyCosaRequests(uid: string, onNext: (rows: CosaRequest[]) => void, onError: WatchError): Unwatch {
+  return watchQuery(
+    query(cosaRequestsCollection(getDb()), where('requesterUid', '==', uid), orderBy('createdAt', 'desc')),
+    onNext,
+    onError,
+  );
+}
+
+/** What others have asked of my own cosas, newest first. */
+export function watchCosaRequestsToMe(uid: string, onNext: (rows: CosaRequest[]) => void, onError: WatchError): Unwatch {
+  return watchQuery(
+    query(cosaRequestsCollection(getDb()), where('ownerUid', '==', uid), orderBy('createdAt', 'desc')),
+    onNext,
+    onError,
+  );
+}
+
+/** Admins: every request of the group, newest first — the group's cosas and the backstop for the rest. */
+export function watchGroupCosaRequests(orgId: string, onNext: (rows: CosaRequest[]) => void, onError: WatchError): Unwatch {
+  return watchQuery(
+    query(cosaRequestsCollection(getDb()), where('orgId', '==', orgId), orderBy('createdAt', 'desc')),
+    onNext,
+    onError,
+  );
+}
+
+/**
+ * Accept, decline, cancel, lend, return, mark done or give, through the
+ * `respondToCosaRequest` callable: it holds the transition table, refuses an
+ * overlapping loan and keeps the cosa's `heldBy`.
+ */
+export async function respondToCosaRequest(requestId: string, action: CosaRequestAction): Promise<CosaRequestStatus> {
+  const fn = httpsCallable<{ requestId: string; action: CosaRequestAction }, { status: CosaRequestStatus }>(
+    getFirebaseFunctions(),
+    'respondToCosaRequest',
+  );
+  return (await fn({ requestId, action })).data.status;
+}
