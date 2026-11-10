@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { availableCosaRequestActions, cosaRequestRoles, type CosaRequestAction } from '@cultuvilla/shared/models/organization';
@@ -8,10 +8,13 @@ import { Button, HStack, Pressable, Screen, Text, VStack } from '../../../../com
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
 import { Badge } from '../../../../components/feature/groups/cosateca/CosaRows';
+import { CosaRequestChat } from '../../../../components/feature/groups/cosateca/CosaRequestChat';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { showAlert } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useT } from '../../../../lib/i18n';
+import { DetailScrollProvider } from '../../../../lib/keyboard/DetailScrollContext';
+import { useComposerKeyboardGap } from '../../../../lib/keyboard/useKeyboardOpen';
 import { groupCosaHref } from '../../../../lib/navigation/routes';
 import { cosaRequestDatesLabel, cosatecaErrorMessage } from '../../../../lib/orgs/cosateca';
 import { useMyGroups } from '../../../../lib/orgs/useMyGroups';
@@ -22,23 +25,26 @@ const QUIET: readonly CosaRequestAction[] = ['decline', 'cancel'];
 /**
  * One request for a cosa, for its requester (who need not be an integrante when
  * the cosateca is the pueblo's) and its manager. It shows what was asked, when
- * and the state, and offers exactly the moves `respondToCosaRequest` accepts
- * from this viewer.
+ * and the state, offers exactly the moves `respondToCosaRequest` accepts from
+ * this viewer, and under them the chat where the two arrange the handover.
  */
 export default function CosaRequestScreen() {
   const { t } = useT();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const { grupo, solicitud } = useLocalSearchParams<{ grupo: string; solicitud: string }>();
+  const { solicitud } = useLocalSearchParams<{ grupo: string; solicitud: string }>();
   const { groups } = useMyGroups(uid);
-  const isAdmin = groups.find((g) => g.org.id === grupo)?.role === 'admin';
   const watch = useWatch<CosaRequest | null>(
     'cosateca:watchCosaRequest',
     solicitud ?? null,
     solicitud ? (next, error) => watchCosaRequest(solicitud, next, error) : null,
   );
   const req = watch.data ?? null;
+  // The request's own group, never the URL's: a link can pair any group with any request.
+  const isAdmin = req !== null && groups.find((g) => g.org.id === req.orgId)?.role === 'admin';
   const [busy, setBusy] = useState<CosaRequestAction | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const keyboardGap = useComposerKeyboardGap();
 
   const roles = req && uid ? cosaRequestRoles(req, { uid, isGroupAdmin: isAdmin }) : [];
   const actions = req ? availableCosaRequestActions(req.cosaKind, req.status, roles) : [];
@@ -64,7 +70,13 @@ export default function CosaRequestScreen() {
           {t('groups.cosateca.request.unavailable')}
         </Text>
       ) : (
-        <ScrollView contentContainerClassName="px-4 pt-4 pb-10" testID="cosa-request">
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1, marginBottom: keyboardGap }}
+          contentContainerClassName="px-4 pt-4 pb-10"
+          keyboardShouldPersistTaps="handled"
+          testID="cosa-request"
+        >
           <VStack gap={4}>
             <VStack gap={1}>
               <HStack gap={2} className="items-center justify-between">
@@ -122,6 +134,12 @@ export default function CosaRequestScreen() {
                   </Button>
                 ))}
               </VStack>
+            ) : null}
+
+            {roles.length > 0 && uid ? (
+              <DetailScrollProvider scrollRef={scrollRef}>
+                <CosaRequestChat requestId={req.id} municipalityId={req.municipalityId} uid={uid} canModerate={isAdmin} />
+              </DetailScrollProvider>
             ) : null}
           </VStack>
         </ScrollView>

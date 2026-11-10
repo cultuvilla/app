@@ -37,13 +37,14 @@ export default function CosaScreen() {
   const { t } = useT();
   const { user, profile } = useAuth();
   const uid = user?.uid ?? null;
-  const { grupo, cosa: cosaId } = useLocalSearchParams<{ grupo: string; cosa: string }>();
+  const { cosa: cosaId } = useLocalSearchParams<{ grupo: string; cosa: string }>();
   const { groups } = useMyGroups(uid);
-  const group = groups.find((g) => g.org.id === grupo) ?? null;
-  const isAdmin = group?.role === 'admin';
 
   const watch = useWatch<Cosa | null>('cosateca:watchCosa', cosaId ?? null, cosaId ? (next, error) => watchCosa(cosaId, next, error) : null);
   const cosa = watch.data ?? null;
+  // The cosa's own group, never the URL's: a link can pair any group with any cosa.
+  const group = cosa ? (groups.find((g) => g.org.id === cosa.orgId) ?? null) : null;
+  const isAdmin = group?.role === 'admin';
   const isOwner = cosa !== null && uid !== null && cosa.ownerUid === uid;
   const isManager = isOwner || (cosa !== null && isAdmin);
 

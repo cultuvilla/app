@@ -3,6 +3,7 @@ import { getMyOrganizerRequests } from './organizerRequestService';
 import { getMyOrganizations } from './organizationService';
 import { getMyPendingOrgJoinRequests } from './orgJoinRequestService';
 import { getMyPendingCosaRequests } from './cosatecaService';
+import { observability } from './observability/observabilityService';
 import type { NotificationData } from '../models/notification/NotificationDataModel';
 
 export type PendingRequestType = 'organizer' | 'org' | 'orgJoin' | 'cosa';
@@ -64,8 +65,11 @@ export async function getMyPendingRequests(uid: string): Promise<PendingSentRequ
     getMyOrganizerRequests(uid),
     getMyOrganizations(uid),
     getMyPendingOrgJoinRequests(uid),
-    // One unreadable list must not blank the rest of the Buzón.
-    getMyPendingCosaRequests(uid).catch(() => []),
+    // One unreadable list must not blank the rest of the Buzón — but it is reported.
+    getMyPendingCosaRequests(uid).catch((err: unknown) => {
+      observability.captureError(err, { operation: 'inbox:getMyPendingCosaRequests' });
+      return [];
+    }),
   ]);
 
   const pendingOrganizer: PendingSentRequest[] = organizerRequests

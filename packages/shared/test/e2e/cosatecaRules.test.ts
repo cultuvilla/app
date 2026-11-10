@@ -218,3 +218,63 @@ describe('organizations.cosateca', () => {
     await assertFails(updateDoc(org('member1'), { cosateca: { enabled: false, audience: 'integrantes' } }));
   });
 });
+
+describe("a request's chat", () => {
+  const chatRef = (uid: string, requestId: string, id: string) => doc(asUser(getEnv(), uid), `cosaRequests/${requestId}/chat/${id}`);
+  const chatOf = (uid: string, requestId: string) => collection(asUser(getEnv(), uid), `cosaRequests/${requestId}/chat`);
+  const message = (uid: string, name: string, overrides: Record<string, unknown> = {}) => ({
+    authorUid: uid, authorName: name, body: 'El sábado a las 10', createdAt: serverTimestamp(), ...overrides,
+  });
+
+  beforeEach(async () => {
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      // A personal cosa's request: requester member2, owner member1, group CLOSED (admin2).
+      await setDoc(doc(db, 'cosaRequests/r2'), {
+        ...request('member2', 'Luis', { orgId: CLOSED, cosaId: 'taladro', cosaTitle: 'Taladro', ownerUid: 'member1' }),
+        createdAt: new Date(),
+      });
+      await setDoc(doc(db, 'cosaRequests/r2/chat/m1'), { ...message('member2', 'Luis'), createdAt: new Date() });
+      await setDoc(doc(db, `municipalities/${MUN}/members/alcaldesa`), { role: 'admin' });
+    });
+  });
+
+  it("the request's parties read and write it: requester, owner and the group's admins", async () => {
+    for (const uid of ['member2', 'member1', 'admin2']) await assertSucceeds(getDocs(chatOf(uid, 'r2')));
+    await assertSucceeds(setDoc(chatRef('member2', 'r2', 'n1'), message('member2', 'Luis')));
+    await assertSucceeds(setDoc(chatRef('member1', 'r2', 'n2'), message('member1', 'Ana')));
+    await assertSucceeds(setDoc(chatRef('admin2', 'r2', 'n3'), message('admin2', 'Pepa')));
+    // A group's own cosa: its requester (a villager) and the group's admins.
+    await assertSucceeds(setDoc(chatRef('vecino', 'r1', 'n4'), message('vecino', 'Vecino')));
+    await assertSucceeds(getDocs(chatOf('admin1', 'r1')));
+  });
+
+  it('nobody else reads or writes it, not even another integrante or the village team', async () => {
+    for (const uid of ['admin1', 'vecino', 'alcaldesa', 'forastero']) {
+      await assertFails(getDocs(chatOf(uid, 'r2')));
+      await assertFails(setDoc(chatRef(uid, 'r2', 'nx'), message(uid, uid)));
+    }
+    // member2 is an integrante of CLOSED, not of the ayuntamiento's request.
+    await assertFails(getDocs(chatOf('member2', 'r1')));
+  });
+
+  it('refuses a message under another name, as someone else, empty or too long, and any edit', async () => {
+    await assertFails(setDoc(chatRef('member2', 'r2', 'nx'), message('member2', 'Otro')));
+    await assertFails(setDoc(chatRef('member2', 'r2', 'nx'), message('member1', 'Ana')));
+    await assertFails(setDoc(chatRef('member2', 'r2', 'nx'), message('member2', 'Luis', { body: '' })));
+    await assertFails(setDoc(chatRef('member2', 'r2', 'nx'), message('member2', 'Luis', { body: 'x'.repeat(2001) })));
+    await assertFails(setDoc(chatRef('member2', 'r2', 'nx'), message('member2', 'Luis', { extra: true })));
+    await assertFails(updateDoc(chatRef('member2', 'r2', 'm1'), { body: 'Cambiado' }));
+  });
+
+  it("its author deletes a message, and so do the group's and the village's admins; the other party does not", async () => {
+    await assertFails(deleteDoc(chatRef('member1', 'r2', 'm1')));
+    await assertSucceeds(deleteDoc(chatRef('alcaldesa', 'r2', 'm1')));
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'cosaRequests/r2/chat/m2'), { ...message('member2', 'Luis'), createdAt: new Date() });
+      await setDoc(doc(ctx.firestore(), 'cosaRequests/r2/chat/m3'), { ...message('member2', 'Luis'), createdAt: new Date() });
+    });
+    await assertSucceeds(deleteDoc(chatRef('member2', 'r2', 'm2')));
+    await assertSucceeds(deleteDoc(chatRef('admin2', 'r2', 'm3')));
+  });
+});

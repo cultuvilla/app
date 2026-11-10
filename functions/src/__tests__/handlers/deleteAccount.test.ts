@@ -228,6 +228,9 @@ describe('deleteAccount (callable)', () => {
     await db().doc('cosaRequests/asked').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: USER_ID, requesterName: 'Yo' }));
     await db().doc('cosaRequests/askedOfMe').set(buildCosaRequestData({ ...reqBase, cosaId: 'mine', cosaTitle: 'Taladro', ownerUid: USER_ID, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
     await db().doc('cosaRequests/unrelated').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
+    // The other party's words in a request's chat go with the request; an unrelated request's stay.
+    await db().doc('cosaRequests/askedOfMe/chat/c1').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
+    await db().doc('cosaRequests/unrelated/chat/c1').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
     await seedStoragePhoto(USER_ID);
     await seedNotification(USER_ID);
     await seedOrganizerRequest(USER_ID);
@@ -284,6 +287,8 @@ describe('deleteAccount (callable)', () => {
     expect((await db().doc('cosaRequests/asked').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/askedOfMe').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/unrelated').get()).exists).toBe(true);
+    expect((await db().doc('cosaRequests/askedOfMe/chat/c1').get()).exists).toBe(false);
+    expect((await db().doc('cosaRequests/unrelated/chat/c1').get()).exists).toBe(true);
 
     // Storage photos (avatar + persona, all under users/{uid}/) purged.
     expect(await storageFileExists(`users/${USER_ID}/photo/avatar.jpg`)).toBe(false);

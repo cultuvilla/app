@@ -205,6 +205,8 @@ export const cosaDoc = (db: Firestore, cosaId: string) => db.collection('cosas')
 export const cosaRequestsCollection = (db: Firestore) => db.collection('cosaRequests').withConverter(cosaRequestConverterAdmin);
 export const cosaRequestDoc = (db: Firestore, requestId: string) =>
   db.collection('cosaRequests').doc(requestId).withConverter(cosaRequestConverterAdmin);
+export const cosaRequestChatCollection = (db: Firestore, requestId: string) =>
+  db.collection('cosaRequests').doc(requestId).collection('chat').withConverter(groupChatMessageConverterAdmin);
 
 // Group tasks, shifts and checklist templates (see GroupTaskDataModel).
 export const organizationTasksCollection = (db: Firestore, organizationId: string) =>

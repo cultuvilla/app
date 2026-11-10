@@ -138,6 +138,13 @@ describe("a cosa's screen", () => {
     expect(member.getByTestId('cosa-ask')).toBeTruthy();
   });
 
+  it("takes the admin rights from the cosa's group, not the URL's", () => {
+    // Admin of the URL's group (ayto), looking at a cosa of another group.
+    mockGroups = [{ org: { id: 'ayto' }, role: 'admin' }];
+    mockCosa = cosa({ orgId: 'pena', ownerUid: 'u7', ownerName: 'Pepa' });
+    expect(render(<CosaScreen />).queryByTestId('cosa-manage')).toBeNull();
+  });
+
   it('says so when the cosa is gone', () => {
     mockCosa = null;
     expect(render(<CosaScreen />).getByTestId('cosa-unavailable')).toBeTruthy();

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import type { PendingSentRequest } from '../../src/services/inboxService';
 
 vi.mock('../../src/services/organizerRequestService', () => ({
@@ -13,15 +13,25 @@ vi.mock('../../src/services/orgJoinRequestService', () => ({
   ]),
 }));
 
+const getMyPendingCosaRequests = vi.fn();
 vi.mock('../../src/services/cosatecaService', () => ({
-  getMyPendingCosaRequests: vi.fn().mockResolvedValue([
-    { id: 'r-1', cosaTitle: 'Taladro', status: 'pending', createdAt: new Date('2026-10-01') },
-  ]),
+  getMyPendingCosaRequests: (...a: unknown[]) => getMyPendingCosaRequests(...a) as unknown,
+}));
+const captureError = vi.fn();
+vi.mock('../../src/services/observability/observabilityService', () => ({
+  observability: { captureError: (...a: unknown[]) => captureError(...a) as unknown },
 }));
 
 import { getMyPendingRequests } from '../../src/services/inboxService';
 
 describe('getMyPendingRequests', () => {
+  beforeEach(() => {
+    captureError.mockReset();
+    getMyPendingCosaRequests.mockResolvedValue([
+      { id: 'r-1', cosaTitle: 'Taladro', status: 'pending', createdAt: new Date('2026-10-01') },
+    ]);
+  });
+
   it('lists a pending org join request, labelled with the org id, and a cosa asked for, by its title', async () => {
     const pending: PendingSentRequest[] = await getMyPendingRequests('u-1');
     expect(pending).toEqual([
@@ -33,5 +43,13 @@ describe('getMyPendingRequests', () => {
       },
       { requestType: 'cosa', id: 'r-1', label: 'Taladro', createdAt: new Date('2026-10-01') },
     ]);
+  });
+
+  it('reports an unreadable cosa request list and keeps the rest of the Buzón', async () => {
+    const failure = new Error('permission-denied');
+    getMyPendingCosaRequests.mockRejectedValue(failure);
+    const pending = await getMyPendingRequests('u-1');
+    expect(pending.map((p) => p.requestType)).toEqual(['orgJoin']);
+    expect(captureError).toHaveBeenCalledWith(failure, { operation: 'inbox:getMyPendingCosaRequests' });
   });
 });

@@ -33,6 +33,13 @@ jest.mock('../../../components/layout/ScreenHeader', () => ({
   },
 }));
 
+jest.mock('../../../components/feature/groups/cosateca/CosaRequestChat', () => ({
+  CosaRequestChat: ({ canModerate }: { canModerate: boolean }) => {
+    const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
+    return <Text testID="stub-chat">{canModerate ? 'moderator' : 'party'}</Text>;
+  },
+}));
+
 function request(over: Record<string, unknown> = {}) {
   return {
     id: 'r1',
@@ -84,6 +91,28 @@ describe('a request for a cosa', () => {
     mockGroups = [{ org: { id: 'pena' }, role: 'admin' }];
     mockUid = 'admin';
     expect(actionsOf(render(<CosaRequestScreen />).getAllByTestId)).toEqual(['cosa-request-return']);
+  });
+
+  it("takes the admin rights from the request's group, not the URL's", () => {
+    // Admin of the URL's group (pena), looking at a request of another group.
+    mockUid = 'admin';
+    mockGroups = [{ org: { id: 'pena' }, role: 'admin' }];
+    mockRequest = request({ orgId: 'otro' });
+    expect(render(<CosaRequestScreen />).queryByTestId('cosa-request-actions')).toBeNull();
+  });
+
+  it("shows the handover chat to the request's parties only, moderated by the group's admins", () => {
+    const owner = render(<CosaRequestScreen />);
+    expect(owner.getByTestId('stub-chat')).toHaveTextContent('party');
+    owner.unmount();
+    mockUid = 'admin';
+    mockGroups = [{ org: { id: 'pena' }, role: 'admin' }];
+    const admin = render(<CosaRequestScreen />);
+    expect(admin.getByTestId('stub-chat')).toHaveTextContent('moderator');
+    admin.unmount();
+    mockUid = 'someone';
+    mockGroups = [];
+    expect(render(<CosaRequestScreen />).queryByTestId('stub-chat')).toBeNull();
   });
 
   it('lets either side mark a servicio done', () => {

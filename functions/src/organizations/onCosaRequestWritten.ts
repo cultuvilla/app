@@ -63,7 +63,8 @@ export function cosaNoticeFor(before: CosaRequestData | null, after: CosaRequest
   }
 }
 
-async function managerUids(firestore: Firestore, req: CosaRequestData): Promise<string[]> {
+/** Who answers a request: the cosa's owner, or for a group's cosa the group's admins. */
+export async function cosaManagerUids(firestore: Firestore, req: Pick<CosaRequestData, 'ownerUid' | 'orgId'>): Promise<string[]> {
   if (req.ownerUid !== null) return [req.ownerUid];
   const admins = await organizationMembersCollection(firestore, req.orgId).where('role', '==', 'admin').get();
   return admins.docs.map((d) => d.id);
@@ -81,7 +82,7 @@ export async function notifyCosaRequest(
   const org = (await organizationDoc(firestore, after.orgId).get()).data();
   const orgName = org?.name ?? '';
   const toManagers = notice === 'created' || notice === 'cancelled';
-  const recipients = (toManagers ? await managerUids(firestore, after) : [after.requesterUid]).filter(
+  const recipients = (toManagers ? await cosaManagerUids(firestore, after) : [after.requesterUid]).filter(
     (uid) => !toManagers || uid !== after.requesterUid,
   );
   const copy = cosaRequestCopy(notice, after, orgName);

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   availableCosaRequestActions,
   cosaAvailability,
+  cosaChatPushUids,
+  cosaOverdueRecipients,
   cosaDatesOverlap,
   cosaRequestRoles,
   cosatecaCatalogue,
@@ -10,7 +12,12 @@ import {
   nextCosaRequestStatus,
 } from '../../src/models/organization/cosatecaLogic';
 import { effectiveCosaAudience } from '../../src/models/organization/CosaDataModel';
-import { buildCosaRequestData, CosaRequestDataSchema } from '../../src/models/organization/CosaRequestDataModel';
+import {
+  buildCosaRequestData,
+  CosaRequestDataSchema,
+  cosaRequestChatMessagePath,
+  parseCosaRequestChatMessagePath,
+} from '../../src/models/organization/CosaRequestDataModel';
 
 describe('nextCosaRequestStatus', () => {
   it('walks a loan from request to return', () => {
@@ -135,5 +142,27 @@ describe('the catalogue', () => {
   });
   it('lists the categories in use, in the fixed order', () => {
     expect(usedCosaCategories(cosas)).toEqual(['herramientas', 'fiestas']);
+  });
+});
+
+describe("a request's chat", () => {
+  it('pushes the requester and the managers, never the author, each once', () => {
+    expect(cosaChatPushUids({ requesterUid: 'asker' }, ['owner'], 'asker')).toEqual(['owner']);
+    expect(cosaChatPushUids({ requesterUid: 'asker' }, ['a1', 'a2', 'a1'], 'a1')).toEqual(['asker', 'a2']);
+  });
+  it('round-trips a message path for reports, and rejects any other path', () => {
+    const path = cosaRequestChatMessagePath('r1', 'm1');
+    expect(path).toBe('cosaRequests/r1/chat/m1');
+    expect(parseCosaRequestChatMessagePath(path)).toEqual({ requestId: 'r1', chatId: 'm1' });
+    expect(parseCosaRequestChatMessagePath('organizations/o1/chat/m1')).toBeNull();
+    expect(parseCosaRequestChatMessagePath('cosaRequests/r1/chat/m1/extra')).toBeNull();
+  });
+});
+
+describe('cosaOverdueRecipients', () => {
+  it('nudges the holder, and the managers who are not the holder', () => {
+    expect(cosaOverdueRecipients({ requesterUid: 'asker' }, ['owner'])).toEqual({ holder: 'asker', managers: ['owner'] });
+    // An admin who borrowed the group's cosa is told once, as the holder.
+    expect(cosaOverdueRecipients({ requesterUid: 'a1' }, ['a1', 'a2'])).toEqual({ holder: 'a1', managers: ['a2'] });
   });
 });
