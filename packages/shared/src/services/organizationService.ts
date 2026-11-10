@@ -26,6 +26,7 @@ import type {
   OrganizationStatus,
 } from '../models/organization/OrganizationDataModel';
 import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
+import { DEFAULT_COSATECA_SETTINGS } from '../models/organization/CosaDataModel';
 
 export async function getPendingOrganizations(): Promise<(OrganizationData & { id: string })[]> {
   const q = query(
@@ -152,6 +153,7 @@ export async function requestOrganization(
     chatAdminsOnly: input.chatAdminsOnly ?? false,
     socioPhoneRequired: false,
     socioEmailRequired: false,
+    cosateca: { ...DEFAULT_COSATECA_SETTINGS },
   };
   await setDoc(newRef, data);
   return newRef.id;

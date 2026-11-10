@@ -59,6 +59,7 @@ import { vocabularyTermConverterClient } from '../converters/vocabularyTermConve
 import { historyEntryConverterClient } from '../converters/historyEntryConverter.client';
 import { vocabularyDefinitionConverterClient } from '../converters/vocabularyDefinitionConverter.client';
 import { vocabularyWordConverterClient } from '../converters/vocabularyWordConverter.client';
+import { cosaConverterClient, cosaRequestConverterClient } from '../converters/cosatecaConverter.client';
 
 export const eventsCollection = (db: Firestore) =>
   collection(db, 'events').withConverter(eventConverterClient);
@@ -192,6 +193,20 @@ export const organizationCuotaWriteDoc = (
   collectionName: 'cuotaSettings' | 'cuotaAssignments' | 'cuotaPayments',
   id: string,
 ) => doc(db, 'organizations', organizationId, collectionName, id);
+
+// The cosateca (see CosaDataModel, CosaRequestDataModel).
+export const cosasCollection = (db: Firestore) => collection(db, 'cosas').withConverter(cosaConverterClient);
+export const cosaDoc = (db: Firestore, cosaId: string) => doc(db, 'cosas', cosaId).withConverter(cosaConverterClient);
+export const cosaRequestsCollection = (db: Firestore) => collection(db, 'cosaRequests').withConverter(cosaRequestConverterClient);
+export const cosaRequestDoc = (db: Firestore, requestId: string) =>
+  doc(db, 'cosaRequests', requestId).withConverter(cosaRequestConverterClient);
+/**
+ * Unconverted, for cosa and request creates and cosa edits: they stamp
+ * `serverTimestamp()` (rules compare it with `request.time`), which the strict
+ * converter refuses. The service validates each payload with its schema first.
+ */
+export const cosatecaWriteDoc = (db: Firestore, collectionName: 'cosas' | 'cosaRequests', id: string) =>
+  doc(db, collectionName, id);
 
 // Group tasks, shifts and checklist templates (see GroupTaskDataModel).
 export const organizationTasksCollection = (db: Firestore, organizationId: string) =>

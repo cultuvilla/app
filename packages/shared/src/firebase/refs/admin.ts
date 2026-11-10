@@ -58,6 +58,7 @@ import { vocabularyTermConverterAdmin } from '../converters/vocabularyTermConver
 import { historyEntryConverterAdmin } from '../converters/historyEntryConverter.admin';
 import { vocabularyDefinitionConverterAdmin } from '../converters/vocabularyDefinitionConverter.admin';
 import { vocabularyWordConverterAdmin } from '../converters/vocabularyWordConverter.admin';
+import { cosaConverterAdmin, cosaRequestConverterAdmin } from '../converters/cosatecaConverter.admin';
 
 export const eventsCollection = (db: Firestore) =>
   db.collection('events').withConverter(eventConverterAdmin);
@@ -197,6 +198,13 @@ export const organizationCuotaRemindersCollection = (db: Firestore, organization
 
 export const organizationCuotaReminderDoc = (db: Firestore, organizationId: string, reminderId: string) =>
   db.collection('organizations').doc(organizationId).collection('cuotaReminders').doc(reminderId).withConverter(cuotaReminderConverterAdmin);
+
+// The cosateca (see CosaDataModel, CosaRequestDataModel).
+export const cosasCollection = (db: Firestore) => db.collection('cosas').withConverter(cosaConverterAdmin);
+export const cosaDoc = (db: Firestore, cosaId: string) => db.collection('cosas').doc(cosaId).withConverter(cosaConverterAdmin);
+export const cosaRequestsCollection = (db: Firestore) => db.collection('cosaRequests').withConverter(cosaRequestConverterAdmin);
+export const cosaRequestDoc = (db: Firestore, requestId: string) =>
+  db.collection('cosaRequests').doc(requestId).withConverter(cosaRequestConverterAdmin);
 
 // Group tasks, shifts and checklist templates (see GroupTaskDataModel).
 export const organizationTasksCollection = (db: Firestore, organizationId: string) =>

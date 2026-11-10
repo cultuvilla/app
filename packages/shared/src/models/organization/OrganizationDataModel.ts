@@ -4,6 +4,7 @@ import {
   reviewDecisionFields,
   type ReviewStatus,
 } from '../core/ReviewableDataModel';
+import { CosatecaSettingsSchema, DEFAULT_COSATECA_SETTINGS, type CosatecaSettings } from './CosaDataModel';
 
 export const OrganizationTypeSchema = z.enum(['ayuntamiento', 'peña', 'asociación', 'otros', 'comisión']);
 export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
@@ -80,6 +81,11 @@ export const OrganizationDataSchema = z.object({
   // binary writes them.
   socioPhoneRequired: z.boolean().default(false),
   socioEmailRequired: z.boolean().default(false),
+  // The cosateca: whether the group runs one, and whether it is for its
+  // integrantes or the whole pueblo (see CosaDataModel). Defaults because
+  // installed binaries create orgs without it; existing docs are backfilled by
+  // scripts/backfill-org-cosateca.mjs.
+  cosateca: CosatecaSettingsSchema.default(DEFAULT_COSATECA_SETTINGS),
   // status + reviewedBy + reviewedAt
   ...reviewDecisionFields,
 });
@@ -106,6 +112,7 @@ export interface OrganizationDataInput {
   chatAdminsOnly?: boolean;
   socioPhoneRequired?: boolean;
   socioEmailRequired?: boolean;
+  cosateca?: CosatecaSettings;
 }
 
 export function buildOrganizationData(input: OrganizationDataInput): OrganizationData {
@@ -130,6 +137,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     chatAdminsOnly: input.chatAdminsOnly ?? false,
     socioPhoneRequired: input.socioPhoneRequired ?? false,
     socioEmailRequired: input.socioEmailRequired ?? false,
+    cosateca: input.cosateca ?? { ...DEFAULT_COSATECA_SETTINGS },
   };
 }
 

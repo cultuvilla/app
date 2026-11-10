@@ -6,6 +6,7 @@ import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { deleteAccount } from '../../account/deleteAccount';
+import { buildCosaData, buildCosaRequestData } from '@cultuvilla/shared/models';
 
 const DELETED_USER_UID = 'deleted-user';
 
@@ -216,6 +217,17 @@ describe('deleteAccount (callable)', () => {
     await db().doc('organizations/o1/messages/m1/chat/mine').set({ authorUid: USER_ID, authorName: 'Yo', body: 'Voy', createdAt: new Date() });
     await db().doc('organizations/o1/tasks/t1/chat/mine').set({ authorUid: USER_ID, authorName: 'Yo', body: 'Voy', createdAt: new Date() });
     await db().doc('organizations/o1/chat/theirs').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
+    // The cosateca: their own cosa, a group cosa they hold, requests either way.
+    const cosaBase = { municipalityId: 'mun-1', orgId: 'o1', audience: 'integrantes' as const, kind: 'prestamo' as const, category: 'otros' as const, createdBy: USER_ID };
+    await db().doc('cosas/mine').set(buildCosaData({ ...cosaBase, ownerUid: USER_ID, ownerName: 'Yo', title: 'Taladro' }));
+    await db().doc('cosas/group').set({
+      ...buildCosaData({ ...cosaBase, ownerUid: null, ownerName: 'Peña', title: 'Carpa', createdBy: CO_ADMIN_ID }),
+      heldBy: { requestId: 'asked', uid: USER_ID, name: 'Yo', untilOn: null },
+    });
+    const reqBase = { municipalityId: 'mun-1', orgId: 'o1', cosaKind: 'prestamo' as const };
+    await db().doc('cosaRequests/asked').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: USER_ID, requesterName: 'Yo' }));
+    await db().doc('cosaRequests/askedOfMe').set(buildCosaRequestData({ ...reqBase, cosaId: 'mine', cosaTitle: 'Taladro', ownerUid: USER_ID, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
+    await db().doc('cosaRequests/unrelated').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
     await seedStoragePhoto(USER_ID);
     await seedNotification(USER_ID);
     await seedOrganizerRequest(USER_ID);
@@ -265,6 +277,13 @@ describe('deleteAccount (callable)', () => {
     expect((await db().doc('organizations/o1/messages/m1/chat/mine').get()).exists).toBe(false);
     expect((await db().doc('organizations/o1/tasks/t1/chat/mine').get()).exists).toBe(false);
     expect((await db().doc('organizations/o1/chat/theirs').get()).exists).toBe(true);
+
+    // The cosateca: own cosas and requests either way go; a held group cosa is let go.
+    expect((await db().doc('cosas/mine').get()).exists).toBe(false);
+    expect((await db().doc('cosas/group').get()).data()?.['heldBy']).toBeNull();
+    expect((await db().doc('cosaRequests/asked').get()).exists).toBe(false);
+    expect((await db().doc('cosaRequests/askedOfMe').get()).exists).toBe(false);
+    expect((await db().doc('cosaRequests/unrelated').get()).exists).toBe(true);
 
     // Storage photos (avatar + persona, all under users/{uid}/) purged.
     expect(await storageFileExists(`users/${USER_ID}/photo/avatar.jpg`)).toBe(false);

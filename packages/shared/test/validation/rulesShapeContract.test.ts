@@ -23,6 +23,8 @@ import {
   buildCuotaSettingsData,
 } from '../../src/models/organization/CuotaDataModel';
 import { buildGroupTaskData, buildTaskTemplateData } from '../../src/models/organization/GroupTaskDataModel';
+import { buildCosaData } from '../../src/models/organization/CosaDataModel';
+import { buildCosaRequestData } from '../../src/models/organization/CosaRequestDataModel';
 import { buildGroupNotificationPrefsData } from '../../src/models/notification/NotificationPrefsDataModel';
 import { buildActaData, buildLedgerEntryData } from '../../src/models/organization/RecordsDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
@@ -104,7 +106,31 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
       'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
       'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
       'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy', 'sociosListVisible',
-      'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired',
+      'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired', 'cosateca',
+    ],
+  },
+  {
+    label: 'cosas — isValidCosaFields (cosaKeys)',
+    build: () =>
+      buildCosaData({
+        municipalityId: 'm1', orgId: 'o1', audience: 'integrantes', ownerUid: 'u1', ownerName: 'Ana',
+        kind: 'prestamo', title: 'Taladro', category: 'herramientas', createdBy: 'u1',
+      }),
+    ruleKeys: [
+      'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'title', 'description',
+      'category', 'imageURL', 'conditions', 'status', 'heldBy', 'createdBy', 'createdAt', 'updatedAt',
+    ],
+  },
+  {
+    label: 'cosaRequests — isValidCosaRequestCreate (cosaRequestKeys)',
+    build: () =>
+      buildCosaRequestData({
+        municipalityId: 'm1', orgId: 'o1', cosaId: 'c1', cosaTitle: 'Taladro', cosaKind: 'prestamo',
+        ownerUid: 'u1', requesterUid: 'u2', requesterName: 'Luis',
+      }),
+    ruleKeys: [
+      'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'ownerUid', 'requesterUid', 'requesterName',
+      'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt', 'closedAt', 'overdueNotifiedOn',
     ],
   },
   {

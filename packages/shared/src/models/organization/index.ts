@@ -12,3 +12,6 @@ export * from './groupMessagePlaceholders';
 export * from './GroupChatDataModel';
 export * from './RecordsDataModel';
 export * from './recordsLogic';
+export * from './CosaDataModel';
+export * from './CosaRequestDataModel';
+export * from './cosatecaLogic';

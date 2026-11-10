@@ -62,6 +62,8 @@ import {
   organizationActasCollection,
   organizationLedgerEntriesCollection,
   organizationTasksCollection,
+  cosasCollection,
+  cosaRequestsCollection,
   organizationTaskTemplatesCollection,
   organizationTaskRemindersCollection,
   festivalPostersCollection,
@@ -175,6 +177,8 @@ const REGISTRY = [
     ],
   },
   { name: 'festivalPosters', coll: (db) => festivalPostersCollection(db) },
+  { name: 'cosas', coll: (db) => cosasCollection(db) },
+  { name: 'cosaRequests', coll: (db) => cosaRequestsCollection(db) },
   { name: 'organizerRequests', coll: (db) => organizerRequestsCollection(db) },
   { name: 'persons', coll: (db) => personsCollection(db) },
   {

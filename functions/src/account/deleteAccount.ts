@@ -9,6 +9,8 @@ import {
   eventsCollection,
   municipalitiesCollection,
   newsCollection,
+  cosasCollection,
+  cosaRequestsCollection,
   organizationDoc,
   organizerRequestsCollection,
   personsCollection,
@@ -44,8 +46,8 @@ interface DeleteAccountResult {
  *     never trusted. Any blocker aborts BEFORE anything is deleted.
  *  3. Anonymize authored content that is KEPT (news + events): swap `createdBy`
  *     to the DELETED_USER_UID sentinel and pull the uid from `organizerUserIds`.
- *  4. Hard-delete free-text/PII interactions the user authored: comments and
- *     group chat messages.
+ *  4. Hard-delete free-text/PII interactions the user authored: comments,
+ *     group chat messages, and their cosateca (own cosas, requests either way).
  *     Unlike posts these carry no editorial value once the author is gone.
  *  5. Delete personal data: push devices, preferences and queued pushes (first,
  *     so nothing reaches a phone while the rest is torn down), persons (self +
@@ -77,6 +79,7 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
 
     const commentsDeleted = await deleteUserComments(uid);
     const chatMessagesDeleted = await deleteUserChatMessages(uid);
+    const cosateca = await deleteUserCosateca(uid);
 
     const pushDataDeleted = await deletePushData(uid);
 
@@ -98,6 +101,7 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
       anonymizedEvents,
       commentsDeleted,
       chatMessagesDeleted,
+      ...cosateca,
       membershipsRemoved,
       personsDeleted: personIds.length,
       registrationsDeleted,
@@ -278,6 +282,31 @@ async function deleteUserComments(uid: string): Promise<number> {
 async function deleteUserChatMessages(uid: string): Promise<number> {
   const snap = await db.collectionGroup('chat').where('authorUid', '==', uid).get();
   return deleteRefsInChunks(snap.docs.map((doc) => doc.ref));
+}
+
+/**
+ * The user's cosateca: the cosas they own, the requests they made and the
+ * requests made of their cosas (each names a person and carries free text).
+ * A group's cosa they hold is let go (`heldBy` cleared), its request gone.
+ */
+async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; cosaRequestsDeleted: number }> {
+  const [owned, asked, askedOfMe, held] = await Promise.all([
+    cosasCollection(db).where('ownerUid', '==', uid).get(),
+    cosaRequestsCollection(db).where('requesterUid', '==', uid).get(),
+    cosaRequestsCollection(db).where('ownerUid', '==', uid).get(),
+    cosasCollection(db).where('heldBy.uid', '==', uid).get(),
+  ]);
+  const ownedIds = new Set(owned.docs.map((d) => d.id));
+  const heldElsewhere = held.docs.filter((d) => !ownedIds.has(d.id));
+  if (heldElsewhere.length > 0) {
+    const batch = db.batch();
+    for (const d of heldElsewhere) batch.update(d.ref.withConverter(null), { heldBy: null });
+    await batch.commit();
+  }
+  const requestRefs = new Map([...asked.docs, ...askedOfMe.docs].map((d) => [d.id, d.ref]));
+  const cosaRequestsDeleted = await deleteRefsInChunks([...requestRefs.values()]);
+  const cosasDeleted = await deleteRefsInChunks(owned.docs.map((d) => d.ref));
+  return { cosasDeleted, cosaRequestsDeleted };
 }
 
 /**
