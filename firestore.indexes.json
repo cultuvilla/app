@@ -1001,6 +1001,16 @@
       ]
     },
     {
+      "collectionGroup": "notifications",
+      "fieldPath": "cosaRequestId",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "members",
       "fieldPath": "userId",
       "indexes": [

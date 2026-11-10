@@ -4,8 +4,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
-import { handleCosaRequestChatMessage } from '../../../organizations/onCosaRequestChatCreated';
-import { runCosaReminders } from '../../../organizations/sendCosaReminders';
+import { handleCosaRequestChatMessage, handleCosaRequestChatMessageDeleted } from '../../../organizations/onCosaRequestChatCreated';
+import { cosaOverdueCopy, runCosaReminders } from '../../../organizations/sendCosaReminders';
 import { buildCosaRequestData, buildOrganizationData, type CosaRequestData } from '@cultuvilla/shared/models';
 
 const ORG = 'ayto';
@@ -70,6 +70,43 @@ describe('onCosaRequestChatCreated', () => {
     await db().doc('cosaRequests/r1').set(req());
     expect(await handleCosaRequestChatMessage(db(), { requestId: 'r1', chatId: 'm1' }, { body: 'x' })).toBe(0);
     expect(await handleCosaRequestChatMessage(db(), { requestId: 'gone', chatId: 'm1' }, message('u-ana', 'Ana'))).toBe(0);
+  });
+
+  it('skips a recipient who has blocked the author', async () => {
+    await db().doc('cosaRequests/r1').set(req());
+    await db().doc('users/u-admin2/blockedUsers/u-ana').set({ blockedUserId: 'u-ana', createdAt: NOW });
+    const pushed = await handleCosaRequestChatMessage(db(), { requestId: 'r1', chatId: 'm1' }, message('u-ana', 'Ana'));
+    expect(pushed).toBe(1);
+    expect(await notificationsOf('u-admin')).toHaveLength(1);
+    expect(await notificationsOf('u-admin2')).toHaveLength(0);
+  });
+
+  it("a deleted message takes its notifications with it, and leaves the request's other ones", async () => {
+    await db().doc('cosaRequests/r1').set(req());
+    await handleCosaRequestChatMessage(db(), { requestId: 'r1', chatId: 'm1' }, message('u-ana', 'Ana'));
+    await handleCosaRequestChatMessage(db(), { requestId: 'r1', chatId: 'm2' }, message('u-admin', 'Pepa'));
+    await handleCosaRequestChatMessageDeleted(db(), { requestId: 'r1', chatId: 'm1' });
+    expect(await notificationsOf('u-admin')).toHaveLength(0);
+    expect((await notificationsOf('u-admin2')).map((d) => d.id)).toEqual(['cosa_chat_r1_m2']);
+    expect((await notificationsOf('u-ana')).map((d) => d.id)).toEqual(['cosa_chat_r1_m2']);
+  });
+
+  it('a deleted message under a request that is gone removes its notifications too', async () => {
+    await db().doc('cosaRequests/r1').set(req());
+    await handleCosaRequestChatMessage(db(), { requestId: 'r1', chatId: 'm1' }, message('u-ana', 'Ana'));
+    await db().doc('cosaRequests/r1').delete();
+    await handleCosaRequestChatMessageDeleted(db(), { requestId: 'r1', chatId: 'm1' });
+    expect(await notificationsOf('u-admin')).toHaveLength(0);
+    expect(await notificationsOf('u-admin2')).toHaveLength(0);
+  });
+});
+
+describe('cosaOverdueCopy', () => {
+  it('drops the group from the title when its name is unknown', () => {
+    const r = req({ untilOn: '2026-07-09' });
+    expect(cosaOverdueCopy('holder', r, '').title).toBe('Toca devolver');
+    expect(cosaOverdueCopy('manager', r, '').title).toBe('No ha vuelto');
+    expect(cosaOverdueCopy('holder', r, 'Ayto').title).toBe('Toca devolver · Ayto');
   });
 });
 

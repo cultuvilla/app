@@ -277,4 +277,21 @@ describe("a request's chat", () => {
     await assertSucceeds(deleteDoc(chatRef('member2', 'r2', 'm2')));
     await assertSucceeds(deleteDoc(chatRef('admin2', 'r2', 'm3')));
   });
+
+  it("another village's admin cannot delete a message; an app admin can", async () => {
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'municipalities/otro-pueblo/members/alcalde-otro'), { role: 'admin' });
+      await setDoc(doc(ctx.firestore(), 'admins/app-admin'), { createdAt: new Date() });
+    });
+    await assertFails(deleteDoc(chatRef('alcalde-otro', 'r2', 'm1')));
+    await assertSucceeds(deleteDoc(chatRef('app-admin', 'r2', 'm1')));
+  });
+
+  it('there is no chat under a request that does not exist', async () => {
+    // The names are the ones their public profiles carry, so only the missing request refuses them.
+    for (const [uid, name] of [['member1', 'Ana'], ['member2', 'Luis'], ['admin2', 'Pepa']] as const) {
+      await assertFails(setDoc(chatRef(uid, 'gone', 'nx'), message(uid, name)));
+      await assertFails(getDocs(chatOf(uid, 'gone')));
+    }
+  });
 });

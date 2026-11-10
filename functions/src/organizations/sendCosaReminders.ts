@@ -28,9 +28,10 @@ export function cosaOverdueCopy(
 ): { title: string; body: string } {
   const what = `«${req.cosaTitle}»`;
   const day = req.untilOn ? formatDayKey(req.untilOn, 'long') : '';
+  const of = orgName ? ` · ${orgName}` : '';
   return to === 'holder'
-    ? { title: `Toca devolver · ${orgName}`, body: `${what} tenía que volver el ${day}. Si ya lo has devuelto, avisa en la solicitud.` }
-    : { title: `No ha vuelto · ${orgName}`, body: `${req.requesterName} tiene ${what} desde antes del ${day}. Cuando vuelva, márcalo como devuelto.` };
+    ? { title: `Toca devolver${of}`, body: `${what} tenía que volver el ${day}. Si ya lo has devuelto, avisa en la solicitud.` }
+    : { title: `No ha vuelto${of}`, body: `${req.requesterName} tiene ${what} desde antes del ${day}. Cuando vuelva, márcalo como devuelto.` };
 }
 
 /**
