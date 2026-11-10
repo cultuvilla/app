@@ -59,9 +59,11 @@ export async function applyCosaRequestAction(
     ]);
     const cosa = cosaSnap.data() ?? null;
     const isAdmin = member.data()?.role === 'admin';
+    // Whoever asked is only ever the requester: an admin must not accept, lend
+    // or give themself a cosa — another manager answers.
     const roles: CosaRequestRole[] = [];
-    if (isAdmin || (req.ownerUid !== null && req.ownerUid === uid)) roles.push('manager');
     if (req.requesterUid === uid) roles.push('requester');
+    else if (isAdmin || (req.ownerUid !== null && req.ownerUid === uid)) roles.push('manager');
     if (roles.length === 0) throw new HttpsError('permission-denied', REASON_MESSAGES['not-your-role']);
 
     const next = nextCosaRequestStatus(req.cosaKind, req.status, action, roles);
@@ -94,7 +96,8 @@ export async function applyCosaRequestAction(
       const open = await tx.get(
         cosaRequestsCollection(firestore).where('cosaId', '==', req.cosaId).where('status', 'in', [...OPEN_COSA_REQUEST_STATUSES]),
       );
-      declineOthers = open.docs.map((d) => d.id).filter((id) => id !== requestId);
+      // A request out on loan is never declined: it would strand the loan.
+      declineOthers = open.docs.filter((d) => d.id !== requestId && d.data().status !== 'lent').map((d) => d.id);
     }
 
     // Unconverted: partial updates of function-owned fields.

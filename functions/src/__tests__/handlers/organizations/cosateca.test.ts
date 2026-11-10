@@ -116,6 +116,24 @@ describe('respondToCosaRequest', () => {
     expect(await getDoc('cosaRequests/r2')).toMatchObject({ status: 'declined' });
   });
 
+  it('an admin who asks for a cosa never answers their own request', async () => {
+    await db().doc('cosas/taladro').set(cosa({ ownerUid: 'u-luis', ownerName: 'Luis', title: 'Taladro', audience: 'integrantes' }));
+    await seedRequest('r1', { cosaId: 'taladro', cosaTitle: 'Taladro', ownerUid: 'u-luis', requesterUid: 'u-admin', requesterName: 'Admin' });
+    await seedRequest('r2', { requesterUid: 'u-admin', requesterName: 'Admin' });
+    await expect(call('u-admin', { requestId: 'r1', action: 'accept' })).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(call('u-admin', { requestId: 'r2', action: 'accept' })).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(call('u-admin', { requestId: 'r1', action: 'cancel' })).resolves.toEqual({ status: 'cancelled' });
+    await expect(call('u-admin2', { requestId: 'r2', action: 'accept' })).resolves.toEqual({ status: 'accepted' });
+  });
+
+  it('giving a regalo never touches a request that is out on loan', async () => {
+    await db().doc('cosas/carpa').update({ kind: 'regalo' });
+    await seedRequest('r0', { requesterUid: 'u-luis', requesterName: 'Luis', status: 'lent' });
+    await seedRequest('r1', { cosaKind: 'regalo', status: 'accepted' });
+    await call('u-admin', { requestId: 'r1', action: 'give' });
+    expect(await getDoc('cosaRequests/r0')).toMatchObject({ status: 'lent', closedAt: null });
+  });
+
   it('a deleted cosa can still be declined, never handed over', async () => {
     await seedRequest('r1');
     await db().doc('cosas/carpa').delete();

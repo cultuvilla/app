@@ -645,10 +645,12 @@ service cloud.firestore {
         || (cosa.audience == 'pueblo' && isVillageMember(cosa.municipalityId))
         || isAppAdmin();
     }
+    // `kind` is frozen: requests copy it, and the callable walks the copy, so a
+    // lent prestamo turned regalo could be given away under its holder.
     function isValidCosaUpdate(n, o) {
       return isValidCosaFields(n)
           && !n.diff(o).affectedKeys().hasAny([
-               'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'heldBy', 'createdBy', 'createdAt',
+               'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'heldBy', 'createdBy', 'createdAt',
              ])
           && n.updatedAt == request.time
           // `given` is the callable's to set, and final.
@@ -661,7 +663,7 @@ service cloud.firestore {
       ];
     }
     // The requester asks as themself, for a cosa they may see and do not own,
-    // with its fields copied as they are.
+    // with its fields copied as they are, while the group runs its cosateca.
     function isValidCosaRequestCreate(d) {
       let cosa = get(/databases/$(database)/documents/cosas/$(d.cosaId)).data;
       return isAuthenticated()
@@ -682,6 +684,8 @@ service cloud.firestore {
           && cosa.kind == d.cosaKind
           && cosa.ownerUid == d.ownerUid
           && cosa.status == 'available'
+          && orgStatus(cosa.orgId) == 'approved'
+          && orgCosateca(cosa.orgId).enabled == true
           && d.ownerUid != request.auth.uid
           && (isOrgMember(cosa.orgId) || (cosa.audience == 'pueblo' && isVillageMember(cosa.municipalityId)));
     }

@@ -129,6 +129,11 @@ describe('cosas: editing', () => {
     await assertFails(updateDoc(cosaRef('member1', 'taladro'), { status: 'given', updatedAt: serverTimestamp() }));
     await assertFails(updateDoc(cosaRef('member1', 'taladro'), { ownerUid: 'member2', updatedAt: serverTimestamp() }));
   });
+
+  it('nobody changes what kind of cosa it is: its requests walk the kind they copied', async () => {
+    await assertFails(updateDoc(cosaRef('member1', 'taladro'), { kind: 'regalo', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(cosaRef('admin2', 'taladro'), { kind: 'servicio', updatedAt: serverTimestamp() }));
+  });
 });
 
 describe('cosaRequests', () => {
@@ -157,6 +162,18 @@ describe('cosaRequests', () => {
       const name = uid === 'forastero' ? 'Forastero' : 'Vecino';
       await assertFails(setDoc(requestRef(uid, 'nx'), request(uid, name, overrides)));
     }
+  });
+
+  it('nobody asks once the group has switched its cosateca off, or while the group is not approved', async () => {
+    const taladro = request('member2', 'Luis', { orgId: CLOSED, cosaId: 'taladro', cosaTitle: 'Taladro', ownerUid: 'member1' });
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `organizations/${CLOSED}`), { cosateca: { enabled: false, audience: 'integrantes' } });
+    });
+    await assertFails(setDoc(requestRef('member2', 'n4'), taladro));
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `organizations/${CLOSED}`), { status: 'pending', cosateca: { enabled: true, audience: 'integrantes' } });
+    });
+    await assertFails(setDoc(requestRef('member2', 'n4'), taladro));
   });
 
   it('nobody asks for their own cosa', async () => {
