@@ -45,7 +45,7 @@ export { onGroupTaskUpdated } from './organizations/onGroupTaskUpdated';
 export { respondToTaskShift } from './organizations/respondToTaskShift';
 export { respondToCosaRequest } from './organizations/respondToCosaRequest';
 export { onCosaRequestWritten } from './organizations/onCosaRequestWritten';
-export { onCosaRequestChatCreated } from './organizations/onCosaRequestChatCreated';
+export { onCosaRequestChatCreated, onCosaRequestChatDeleted } from './organizations/onCosaRequestChatCreated';
 export { sendCosaReminders } from './organizations/sendCosaReminders';
 export { sendGroupTaskReminders } from './organizations/sendGroupTaskReminders';
 export { sendGroupMessage } from './organizations/sendGroupMessage';
