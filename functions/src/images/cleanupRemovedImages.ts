@@ -99,7 +99,7 @@ export const ENTITY_IMAGE_SOURCES = {
   cosas: {
     handler: 'cleanupRemovedCosaImages',
     document: 'cosas/{entityId}',
-    ownedPath: ({ entityId }) => new RegExp(`^cosas/${entityId}/image/[^/]+$`),
+    ownedPath: ({ entityId }) => new RegExp(`^cosas/${entityId}/image/[^/]+/[^/]+$`),
     references: (data) => [data['imageURL']],
   },
 } satisfies Record<string, EntityImageSource>;

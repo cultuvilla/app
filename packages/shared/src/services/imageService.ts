@@ -133,12 +133,14 @@ export async function uploadOrganizationImage(
 }
 
 /**
- * Upload a cosa's photo (the cosateca). Returns the **download URL** to persist
- * in `CosaData.imageURL`; `cleanupRemovedCosaImages` deletes it once no edit
+ * Upload a cosa's photo (the cosateca) as `uploaderUid`, the signed-in user —
+ * the storage rule only lets a user write under their own uid, so nobody can
+ * overwrite another's photo. Returns the **download URL** to persist in
+ * `CosaData.imageURL`; `cleanupRemovedCosaImages` deletes it once no edit
  * references it.
  */
-export async function uploadCosaImage(cosaId: string, image: UploadableImage): Promise<string> {
-  return uploadToPath(`cosas/${cosaId}/image/${generateImageId(image.filename)}`, image);
+export async function uploadCosaImage(cosaId: string, uploaderUid: string, image: UploadableImage): Promise<string> {
+  return uploadToPath(`cosas/${cosaId}/image/${uploaderUid}/${generateImageId(image.filename)}`, image);
 }
 
 /**

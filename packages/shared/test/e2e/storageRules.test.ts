@@ -16,7 +16,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { ref, uploadBytes, deleteObject, type FirebaseStorage } from 'firebase/storage';
+import { ref, uploadBytes, deleteObject, getBytes, type FirebaseStorage } from 'firebase/storage';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -71,12 +71,11 @@ describe('storage.rules — /municipalities/{municipalityId}/images/{imageId}', 
   });
 });
 
-describe('storage.rules — org / place / barrio / cosa images', () => {
+describe('storage.rules — org / place / barrio images', () => {
   const paths = {
     organization: 'organizations/o1/image/cover.png',
     place: 'municipalities/m1/places/p1/image/cover.png',
     barrio: 'municipalities/m1/barrios/b1/image/cover.png',
-    cosa: 'cosas/c1/image/cover.png',
   };
 
   for (const [label, path] of Object.entries(paths)) {
@@ -99,6 +98,45 @@ describe('storage.rules — org / place / barrio / cosa images', () => {
       );
     });
   }
+});
+
+describe('storage.rules — /cosas/{cosaId}/image/{uploaderUid}/{imageId}', () => {
+  // The uploader's uid is in the path, so a photo can only be written by the
+  // person it names: nobody can overwrite another's cosa photo in place.
+  const own = 'cosas/c1/image/alice/cover.png';
+
+  it('a user can upload a photo under their own uid', async () => {
+    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    await assertSucceeds(uploadBytes(ref(alice, own), PNG, { contentType: 'image/png' }));
+  });
+
+  it("another user cannot write to the uploader's path", async () => {
+    const bob = env.authenticatedContext('bob').storage() as unknown as FirebaseStorage;
+    await assertFails(uploadBytes(ref(bob, own), PNG, { contentType: 'image/png' }));
+  });
+
+  it('the old flat path, without an uploader, is closed', async () => {
+    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    await assertFails(uploadBytes(ref(alice, 'cosas/c1/image/cover.png'), PNG, { contentType: 'image/png' }));
+  });
+
+  it('an unauthenticated user cannot upload', async () => {
+    const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
+    await assertFails(uploadBytes(ref(anon, own), PNG, { contentType: 'image/png' }));
+  });
+
+  it('a non-image upload is rejected', async () => {
+    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    await assertFails(uploadBytes(ref(alice, 'cosas/c1/image/alice/notes.txt'), PNG, { contentType: 'text/plain' }));
+  });
+
+  it('anyone can read a cosa photo', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage() as unknown as FirebaseStorage, own), PNG, { contentType: 'image/png' });
+    });
+    const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
+    await assertSucceeds(getBytes(ref(anon, own)));
+  });
 });
 
 describe('storage.rules — /news/{postId}/images/{imageId}', () => {

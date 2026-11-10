@@ -77,7 +77,7 @@ describe('CosaSheet', () => {
     fireEvent.press(getByTestId('cosa-save'));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(createCosa).toHaveBeenCalledWith(expect.objectContaining({ ownerUid: null, ownerName: 'Ayuntamiento' }));
-    expect(uploadCosaImage).toHaveBeenCalledWith('new', expect.objectContaining({ filename: 'a.jpg' }));
+    expect(uploadCosaImage).toHaveBeenCalledWith('new', 'u1', expect.objectContaining({ filename: 'a.jpg' }));
     expect(updateCosa).toHaveBeenCalledWith('new', expect.objectContaining({ imageURL: 'https://img/new.webp', status: 'available' }));
   });
 
