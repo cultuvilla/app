@@ -132,6 +132,37 @@ export const approvalOrg = {
   description: 'Peña con admisión por solicitud, para el flujo de unión con aprobación.',
 };
 
+// A group with a socio roster and a second member, for the Grupos flows
+// (12–15: avisos and chat, cuota and socios, tareas, cosateca). `users.admin`
+// is its admin and `users.attendee` (e2e-user) an integrante, so every feature has a writer
+// and a reader. Nothing else touches it: the 7x flows change approvalOrg.
+export const groupOrg = {
+  docId: 'e2e-org-asociacion',
+  name: 'Asociación Cultural E2E',
+  type: 'asociación',
+  description: 'Asociación con socios, avisos, cuota, tareas y cosateca para los flujos de Grupos.',
+};
+
+// An "otros" group `users.attendee` (e2e-user) runs, which flow 75 switches to a comisión de
+// festejos from its edit screen.
+export const switchOrg = {
+  docId: 'e2e-org-amigos',
+  name: 'Amigos del Pueblo E2E',
+  type: 'otros',
+  description: 'Grupo que pasa a ser comisión de festejos en el flujo 75.',
+};
+
+// A yearly event that has already ended, so its organizer is offered
+// "Repetir el año que viene" (flow 66). The form cannot create a past event.
+export const pastYearlyEvent = {
+  docId: 'e2e-event-fiestas-pasadas',
+  title: 'Fiestas Pasadas E2E',
+  description: 'Fiestas del año pasado, que se repiten cada año.',
+  startOffsetDays: -30,
+  endOffsetDays: -28,
+  status: 'published',
+};
+
 export const event = {
   docId: 'e2e-event-fiesta',
   title: 'Fiesta de Prueba E2E',

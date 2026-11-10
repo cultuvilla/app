@@ -1,0 +1,27 @@
+# Sign in as the group admin ${EMAIL} and bring "Solo la junta escribe" of
+# group ${ORG_ID} to ${WANT} ("true" | "false") from its Ajustes. A subflow
+# because flow 12 runs it twice and again in its onFlowComplete, where the
+# flag must be put back even when the flow failed half-way.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/ajustes'
+- extendedWaitUntil:
+    visible:
+      id: 'group-settings-group'
+    timeout: 45000
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: 'group-settings-chat-admins-only'
+- runFlow:
+    file: set-stored-toggle.yaml
+    env:
+      ID: 'group-settings-chat-admins-only'
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: chatAdminsOnly
+      WANT: ${WANT}

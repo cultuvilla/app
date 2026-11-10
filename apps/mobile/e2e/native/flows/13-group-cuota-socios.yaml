@@ -1,0 +1,553 @@
+# A group's money and its libro de socios, end to end on the seeded asociación:
+# the treasurer configures the cuota with every field (a base price, a price for
+# this year, yearly, a due date, Bizum, one tarifa), adds a socio without the
+# app (numbered by the assignSocioNumber trigger) and renumbers it and a
+# member's row by hand, records a Bizum payment for the member, who then sees it
+# under their own cuota. Last, the group requires its socios' phone: the
+# member, whose account already has one, is held at the contact gate until they
+# accept sharing it, which writes their socioPrivate row. Every step is asserted
+# on Firestore; the requirement is switched off again on the way out.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  USER_EMAIL: e2e-user@cultuvilla.test
+  ORG_ID: e2e-org-asociacion
+  USER_PHONE: '+34600000000'
+  BIZUM: '600111222'
+  TYPED_PHONE: '600123456'
+  TIER_NAME: 'Jubilados'
+onFlowComplete:
+  # A requirement left on would hold e2e-user at the contact gate in every
+  # later Grupos flow.
+  - runScript:
+      file: ../scripts/docField.js
+      env:
+        DOC_PATH: 'organizations/${ORG_ID}'
+        FIELD: socioPhoneRequired
+        TIMEOUT_MS: '1000'
+  - runFlow:
+      when:
+        true: ${output.value == 'true'}
+      commands:
+        - runFlow:
+            file: ../subflows/login.yaml
+            env:
+              EMAIL: ${ADMIN_EMAIL}
+              PASSWORD: ${PASSWORD}
+        - openLink: 'cultuvilla://grupos/${ORG_ID}/ajustes'
+        - runFlow:
+            file: ../subflows/scroll-to.yaml
+            env:
+              TARGET: 'group-settings-socio-phone-required'
+        - runFlow:
+            file: ../subflows/set-stored-toggle.yaml
+            env:
+              DOC_PATH: 'organizations/${ORG_ID}'
+              FIELD: socioPhoneRequired
+              WANT: 'false'
+              ID: 'group-settings-socio-phone-required'
+---
+- evalScript: ${output.stamp = String(Date.now())}
+- evalScript: ${output.year = String(new Date().getFullYear())}
+- evalScript: ${output.typedName = 'Socio sin app ' + output.stamp}
+- evalScript: ${output.paymentNote = 'Pago E2E ' + output.stamp}
+# Numbers no earlier row holds, so the sheet's "already taken" check passes.
+- evalScript: ${output.typedNumber = String(1000 + (Number(output.stamp) % 8000))}
+- evalScript: ${output.memberNumber = String(Number(output.typedNumber) + 1)}
+# The cuota screen offers "Configurar" only while there is no cuota yet.
+- runScript:
+    file: ../scripts/deleteDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/cuotaSettings/current'
+
+# ── The treasurer configures the cuota. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/cobros'
+- extendedWaitUntil:
+    visible:
+      id: 'cuota-configure'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cuota-configure'
+      EXPECT: 'cuota-settings-sheet'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cuota-settings-amount'
+      TEXT: '30'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-settings-years-toggle'
+- tapOn:
+    id: 'cuota-settings-years-toggle'
+# The first year row opens on the current year; only its price is typed.
+- extendedWaitUntil:
+    visible:
+      id: 'cuota-settings-years-amount-0'
+    timeout: 10000
+- assertVisible: ${output.year}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cuota-settings-years-amount-0'
+      TEXT: '25'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-settings-periodicity'
+# Monthly hides the due month; back to yearly brings it back.
+- tapOn:
+    id: 'cuota-settings-periodicity-monthly'
+- extendedWaitUntil:
+    notVisible:
+      id: 'cuota-settings-month-trigger'
+    timeout: 10000
+- tapOn:
+    id: 'cuota-settings-periodicity-yearly'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-settings-month-trigger'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cuota-settings-month-trigger'
+      EXPECT: 'cuota-settings-month-options-3'
+- tapOn:
+    id: 'cuota-settings-month-options-3'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-settings-day-trigger'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cuota-settings-day-trigger'
+      EXPECT: 'cuota-settings-day-options-5'
+- tapOn:
+    id: 'cuota-settings-day-options-5'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-settings-bizum'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cuota-settings-bizum'
+      TEXT: ${BIZUM}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-tier-add'
+- tapOn:
+    id: 'cuota-tier-add'
+# A tarifa's id is minted on the device; match its fields by prefix.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-tier-name-t.*'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cuota-tier-name-t.*'
+      TEXT: ${TIER_NAME}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-tier-amount-t.*'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cuota-tier-amount-t.*'
+      TEXT: '15'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'cuota-settings-save'
+- extendedWaitUntil:
+    notVisible:
+      id: 'cuota-settings-sheet'
+    timeout: 20000
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/cuotaSettings/current'
+      TIMEOUT_MS: '30000'
+      EXPECT_JSON: >-
+        {
+          'amountCents': 3000,
+          'yearAmounts': { 'length': 1 },
+          'yearAmounts.0.year': '@year',
+          'yearAmounts.0.amountCents': 2500,
+          'periodicity': 'yearly',
+          'dueMonth': 3,
+          'dueDay': 5,
+          'graceDays': 0,
+          'startPeriod': '@year',
+          'bizum': '600111222',
+          'iban': 'absent',
+          'tiers': { 'length': 1 },
+          'tiers.0.id': { 'prefix': 't' },
+          'tiers.0.name': 'Jubilados',
+          'tiers.0.amountCents': 1500,
+          'tiers.0.coversPersonas': false,
+          'remindersEnabled': false,
+          'configuredBy': 'e2e-admin'
+        }
+# This year's price, not the base one, is what the period asks for.
+- extendedWaitUntil:
+    visible: '.*25,00.*vence el.*'
+    timeout: 20000
+
+# ── A socio without the app, numbered by the trigger, then renumbered. ──
+- openLink: 'cultuvilla://grupos/${ORG_ID}/socios'
+- extendedWaitUntil:
+    visible:
+      id: 'group-section-screen-socios'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'socios-add'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'socios-add'
+      EXPECT: 'typed-socio-sheet'
+# Phone first: a phone pad has no Return key on iOS, and the name typed after
+# it is a text field close-sheet-keyboard can blur.
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'typed-socio-phone'
+      TEXT: ${TYPED_PHONE}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'typed-socio-name'
+      TEXT: ${output.typedName}
+- runFlow: ../subflows/close-sheet-keyboard.yaml
+- runFlow:
+    file: ../subflows/grupos-sheet-save.yaml
+    env:
+      TAP: 'typed-socio-save'
+      TARGET: 'typed-socio-sheet'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/socios'
+      FIELD: displayName
+      VALUE: ${output.typedName}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '30000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.typedId = output.id}
+# Saved with the number blank: the trigger gives it the next one.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/socios/${output.typedId}'
+      FIELD: socioNumber
+      EXPECT: '>=1'
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/socios/${output.typedId}'
+      EXPECT_JSON: >-
+        {
+          'kind': 'typed',
+          'displayName': '@typedName',
+          'uid': 'absent',
+          'personId': 'absent',
+          'bajaAt': 'absent',
+          'altaAt': 'present',
+          'createdBy': 'e2e-admin'
+        }
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/socioPrivate/${output.typedId}'
+      EXPECT_JSON: >-
+        {
+          'phone': '600123456',
+          'email': 'absent',
+          'consentAnsweredAt': 'absent'
+        }
+# A typed socio's number is corrected in its own edit sheet.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'socio-edit-${output.typedId}'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'socio-edit-${output.typedId}'
+      EXPECT: 'typed-socio-sheet'
+- tapOn:
+    id: 'typed-socio-number'
+- eraseText: 10
+- inputText: ${output.typedNumber}
+- assertVisible: ${output.typedNumber}
+- runFlow:
+    file: ../subflows/grupos-sheet-save.yaml
+    env:
+      TAP: 'typed-socio-save'
+      TARGET: 'typed-socio-sheet'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/socios/${output.typedId}'
+      FIELD: socioNumber
+      EXPECT: ${output.typedNumber}
+- assertTrue: ${output.ok == 'true'}
+- extendedWaitUntil:
+    visible: '.*Nº ${output.typedNumber}.*'
+    timeout: 15000
+# A member's row is renumbered from its own number sheet.
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/socios'
+      FIELD: uid
+      VALUE: e2e-user
+      FIELD2: kind
+      VALUE2: member
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '30000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.userSocioId = output.id}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'socio-number-${output.userSocioId}'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'socio-number-${output.userSocioId}'
+      EXPECT: 'socio-number-sheet'
+- tapOn:
+    id: 'socio-number-input'
+- eraseText: 10
+- inputText: ${output.memberNumber}
+- assertVisible: ${output.memberNumber}
+- runFlow:
+    file: ../subflows/grupos-sheet-save.yaml
+    env:
+      TAP: 'socio-number-save'
+      TARGET: 'socio-number-sheet'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/socios/${output.userSocioId}'
+      FIELD: socioNumber
+      EXPECT: ${output.memberNumber}
+- assertTrue: ${output.ok == 'true'}
+
+# ── The treasurer records the member's Bizum payment. ──
+- openLink: 'cultuvilla://grupos/${ORG_ID}/cobros'
+- extendedWaitUntil:
+    visible:
+      id: 'cuota-admin'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-record-${output.userSocioId}'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cuota-record-${output.userSocioId}'
+      EXPECT: 'cuota-payment-sheet'
+# The amount opens on what is owed (this year's 25); a part payment is typed over it.
+- assertVisible: '25'
+- tapOn:
+    id: 'cuota-payment-amount'
+- eraseText: 10
+- inputText: '12'
+- assertVisible: '12'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'cuota-payment-note'
+      TEXT: ${output.paymentNote}
+- runFlow: ../subflows/close-sheet-keyboard.yaml
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'cuota-payment-method-trigger'
+      EXPECT: 'cuota-payment-method-options-bizum'
+- tapOn:
+    id: 'cuota-payment-method-options-bizum'
+- extendedWaitUntil:
+    notVisible:
+      id: 'cuota-payment-method-options-bizum'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/grupos-sheet-save.yaml
+    env:
+      TAP: 'cuota-payment-save'
+      TARGET: 'cuota-payment-sheet'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/cuotaPayments'
+      FIELD: note
+      VALUE: ${output.paymentNote}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '30000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.paymentId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/cuotaPayments/${output.paymentId}'
+      EXPECT_JSON: >-
+        {
+          'socioId': '@userSocioId',
+          'periodKey': '@year',
+          'kind': 'payment',
+          'reversesId': 'absent',
+          'amountCents': 1200,
+          'method': 'bizum',
+          'paidOn': { 'prefix': '@year' },
+          'recordedBy': 'e2e-admin',
+          'recordedAt': 'present'
+        }
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'cuota-row-${output.userSocioId}'
+- extendedWaitUntil:
+    visible: '.*12,00.*25,00.*'
+    timeout: 15000
+
+# ── The member sees the payment under their own cuota. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/cuota'
+- extendedWaitUntil:
+    visible:
+      id: 'my-cuota'
+    timeout: 45000
+- assertVisible:
+    id: 'my-cuota-row-${output.userSocioId}'
+- assertVisible: '.*Bizum: ${BIZUM}.*'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'my-cuota-entry-${output.paymentId}'
+- assertVisible: '.*12,00.*Bizum.*'
+
+# ── The group requires the phone: the member accepts sharing theirs. ──
+# Start from a member who has not answered, whatever an earlier flow did.
+- runScript:
+    file: ../scripts/deleteDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/socioPrivate/${output.userSocioId}'
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/ajustes'
+- extendedWaitUntil:
+    visible:
+      id: 'group-settings-group'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-settings-socio-phone-required'
+- runFlow:
+    file: ../subflows/set-stored-toggle.yaml
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: socioPhoneRequired
+      WANT: 'true'
+      ID: 'group-settings-socio-phone-required'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: socioPhoneRequired
+      EXPECT: 'true'
+- assertTrue: ${output.ok == 'true'}
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/cuota'
+- extendedWaitUntil:
+    visible:
+      id: 'group-contact-gate'
+    timeout: 45000
+# The account already has a phone, so the gate only asks for the yes.
+- assertNotVisible:
+    id: 'socio-contact-phone'
+- assertNotVisible:
+    id: 'my-cuota'
+- tapOn:
+    id: 'socio-contact-accept-button'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/socioPrivate/${output.userSocioId}'
+      TIMEOUT_MS: '30000'
+      EXPECT_JSON: >-
+        {
+          'phone': '+34600000000',
+          'email': 'absent',
+          'consentAnsweredAt': 'present'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'my-cuota'
+    timeout: 30000
+- assertNotVisible:
+    id: 'group-contact-gate'
+
+# ── Back as it was: no contact requirement. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/ajustes'
+- extendedWaitUntil:
+    visible:
+      id: 'group-settings-group'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-settings-socio-phone-required'
+- runFlow:
+    file: ../subflows/set-stored-toggle.yaml
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: socioPhoneRequired
+      WANT: 'false'
+      ID: 'group-settings-socio-phone-required'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: socioPhoneRequired
+      EXPECT: 'false'
+- assertTrue: ${output.ok == 'true'}

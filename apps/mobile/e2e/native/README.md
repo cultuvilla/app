@@ -64,6 +64,10 @@ instead of the whole shard.
 | `00-anonymous-deep-link` | The substrate boots: APK + emulator-connect + seed + deep-link routing, before any interaction. |
 | `10-login-and-profile` | The native fixture-login seam, then auth → `users/{uid}` → `persons/{id}` → rendered. |
 | `11-otp-login` | The real login screen: email → 6-digit code (read from the emulator's `authOtpCodes` doc) → signed in. Every other flow uses the fixture seam. |
+| `12-group-avisos-chat` | Grupos: an aviso sent to every integrante (push on, email off) and read by a socio, who replies in its thread; the Charla both ways, then closed to all but the junta and reopened. |
+| `13-group-cuota-socios` | The cuota configured (year price, tarifa, Bizum), a socio without the app added and renumbered, a member renumbered, a Bizum payment recorded and seen by the socio; the contact gate asks the socio to share a phone. |
+| `14-group-tasks` | A task with notes, due date, time and an assignee; commented, joined and left by another integrante, edited, done, deleted. |
+| `15-group-cosateca` | The cosateca switched on; a villager offers a loan, another asks for it, and the owner accepts, lends and gets it back. |
 | `20-registration-signup` | Every sign-up option on one seeded event: self + dependent with one answer of each type, the required-answer and bad-phone refusals, the birth-year warning, a private persona created from the sheet and waitlisted; registrations, their private half (phone + answers) and the trigger-maintained `confirmedCount` asserted; a villager's roster view (anonymised, no answers or controls). |
 | `21-registration-organize` | The organizer's roster: every answer, the private name, paid, the call sheet, removing an attendee promotes the waitlisted one (trigger); then the attendee cancels through a native `Alert`. Depends on 20 (same tens group). |
 | `23-seat-claim` | A group booking leaves a seat open; a second user opens its claim link (`…/plaza/<token>`) and takes it. |
@@ -84,12 +88,15 @@ instead of the whole shard.
 | `62-event-permissions` | 60's event as its other users see it: the co-organizer may edit; a villager may only read, and the edit link sends them back. Split from 60 to keep it under Maestro's 15-minute limit on a slow runner. |
 | `64-event-edit` | The same event with every field edited, down to private to the approval peña; the doc and the screen asserted again. Depends on 60 (same tens group). |
 | `65-event-private-and-cancel` | The now-private event: the villager gets "not found"; then the organizer cancels it. Depends on 60 and 64. |
+| `66-event-recurring` | A weekly series on two weekdays (six events stored, the series summary shown) and a yearly event whose date changes every year. |
+| `67-event-repeat-next-year` | A past yearly event copied to next year, prefilled with last year's date moved forward; only its organizer sees the action. |
 | `63-private-event-feed` | A peña member sees the peña's private event on the home feed, though they also belong to an open org whose private-events query the rules refuse. |
 | `70-org-create-approve-join` | A villager proposes a group with every field (photo, description, type, private roster) and a bare one; the village admin approves the first and rejects the second from the Buzón; a third user joins the approved one. Photos on Android only. |
 | `71-organizer-request-approval` | Two Embajador requests — one with a typed phone and a motivation — rejected and approved by a super admin; the approved requester becomes the village's admin and Embajador. |
 | `72-org-join-request` | Joining an `approval` peña: two join requests, one admitted and one turned down by the org admin from the Buzón (callable). |
 | `73-org-invite-link` | An org invite link (`…/unirse`) opens the org with the invitation banner; joining an open org is instant. |
 | `74-org-edit-and-members` | 70's group edited by its founder (photo swapped, every field, roster public, joining by approval); a member promoted, demoted and removed (callables); the removed member must now ask to join and cannot edit; the group deleted. Depends on 70. Photos on Android only. |
+| `75-comision-de-festejos` | A comisión de festejos proposed, approved from the Buzón and labelled on the village home; an "otros" group switched to a comisión. |
 | `80-news-lifecycle` | A news post with every field (cover, a text block, a captioned image block, a co-writer and a group); read by a villager who cannot edit it; every field edited by the co-writer, the cover swapped; hard-deleted through the callable behind a native `Alert`. Cover and image block on Android only. |
 | `81-place-lifecycle` | A place a villager creates with two photos, description, type, GPS location and contributors; another villager may only read it; the creator edits every field and clears the location, then withdraws it (a hard delete — an admin's is the soft-hide in 90). Photos on Android only. |
 | `82-barrio-lifecycle` | The same life for a barrio: photos and name, read-only for others, edited, withdrawn. Photos on Android only. |
