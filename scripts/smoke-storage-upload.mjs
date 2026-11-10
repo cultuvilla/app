@@ -41,6 +41,7 @@ export function smokePaths(municipalityId) {
     `festivalPosters/${m}/${SMOKE_ID}/${SMOKE_ID}.png`,
     `historyEntries/${m}/${SMOKE_ID}/${SMOKE_ID}.png`,
     `organizations/${SMOKE_ID}/image/${SMOKE_ID}.png`,
+    `cosas/${SMOKE_ID}/image/${SMOKE_ID}.png`,
     `news/${SMOKE_ID}/images/${SMOKE_ID}.png`,
     `users/${SMOKE_UID}/photo/${SMOKE_ID}.png`,
   ];

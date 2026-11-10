@@ -8,6 +8,8 @@ import {
   groupAvisoPath,
   groupEventPath,
   groupTaskPath,
+  groupCosaPath,
+  groupCosaRequestPath,
   groupPath,
   groupSectionPath,
   newWordPath,
@@ -82,6 +84,10 @@ export const groupEventHref = (orgId: string, eventId: string): HrefPath => href
 
 export const groupTaskHref = (orgId: string, taskId: string): HrefPath => href(groupTaskPath(orgId, taskId));
 
+/** One cosa of a group's cosateca. */
+export const groupCosaHref = (orgId: string, cosaId: string): HrefPath => href(groupCosaPath(orgId, cosaId));
+/** One request for a cosa. */
+export const groupCosaRequestHref = (orgId: string, requestId: string): HrefPath => href(groupCosaRequestPath(orgId, requestId));
 export const groupSectionHref = (orgId: string, section: GroupSection): HrefPath => href(groupSectionPath(orgId, section));
 
 export const villageSectionHref = (villageSlug: string, section: VillageSection, query?: string): HrefPath =>

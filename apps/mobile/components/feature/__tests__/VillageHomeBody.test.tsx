@@ -70,6 +70,12 @@ jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
     return () => undefined;
   },
 }));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
+  watchVillageCosas: (_m: string, onNext: (rows: unknown[]) => void) => {
+    onNext([]);
+    return () => undefined;
+  },
+}));
 jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
   getPublishedVillageWrapped: (...a: unknown[]) => mockGetPublishedVillageWrapped(...a),
 }));

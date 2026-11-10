@@ -59,9 +59,21 @@ jest.mock('@cultuvilla/shared/services/notificationService', () => ({
   getNotifications: async () => [],
   markAllAsRead: async () => undefined,
 }));
+let mockActivity: unknown[] = [];
 jest.mock('@cultuvilla/shared/services/inboxService', () => ({
   getMyPendingRequests: async () => [],
-  buildActivityFeed: () => [],
+  buildActivityFeed: () => mockActivity,
+}));
+let mockGroups: { org: { id: string }; role: string }[] = [];
+jest.mock('../../../lib/orgs/useMyGroups', () => ({ useMyGroups: () => ({ groups: mockGroups, status: 'ready' }) }));
+let mockCosaRows: unknown[] = [];
+const mockWatchCosaRequestsToAnswer = jest.fn();
+jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
+  watchCosaRequestsToAnswer: (uid: string, orgIds: string[], onNext: (rows: unknown[]) => void) => {
+    mockWatchCosaRequestsToAnswer(uid, orgIds);
+    onNext(mockCosaRows);
+    return () => undefined;
+  },
 }));
 jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
   getPendingOrgJoinRequests: async () => [],
@@ -138,5 +150,39 @@ describe('Buzón — open reports', () => {
 
     await waitFor(() => expect(getByText('No tienes nada nuevo')).toBeTruthy());
     expect(queryByText('Denuncias')).toBeNull();
+  });
+});
+
+describe('Buzón — the cosateca', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApprover = { loading: false, isSuperAdmin: false, adminVillageIds: [], adminOrgIds: [], canApprove: false };
+    mockGroups = [];
+    mockCosaRows = [];
+    mockActivity = [];
+  });
+
+  it('asks anyone who offered something to answer, approver or not, and opens the request', async () => {
+    mockGroups = [{ org: { id: 'pena' }, role: 'admin' }, { org: { id: 'ayto' }, role: 'member' }];
+    mockCosaRows = [
+      {
+        id: 'r1', orgId: 'pena', cosaId: 'c1', cosaTitle: 'Taladro', cosaKind: 'prestamo', requesterName: 'Luis', status: 'pending',
+        fromOn: null, untilOn: null, createdAt: new Date(),
+      },
+    ];
+    const { findByTestId, getByText, queryByText } = render(<InboxScreen />);
+    fireEvent.press(await findByTestId('cosa-request-row-r1'));
+    expect(mockWatchCosaRequestsToAnswer).toHaveBeenCalledWith('u1', ['pena']);
+    expect(getByText('Necesita tu acción')).toBeTruthy();
+    expect(getByText('Luis pide «Taladro»')).toBeTruthy();
+    expect(await findByTestId('inbox-cosateca')).toBeTruthy();
+    expect(queryByText('No tienes nada nuevo')).toBeNull();
+    expect(router.push).toHaveBeenCalledWith('/grupos/pena/prestamo/r1');
+  });
+
+  it('lists what I asked for while it waits', async () => {
+    mockActivity = [{ kind: 'pending-sent', id: 'r2', requestType: 'cosa', label: 'Carpa', createdAt: new Date() }];
+    const { findByText } = render(<InboxScreen />);
+    expect(await findByText('Pediste «Carpa»')).toBeTruthy();
   });
 });

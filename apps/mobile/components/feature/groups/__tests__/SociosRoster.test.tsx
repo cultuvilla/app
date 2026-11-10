@@ -288,6 +288,24 @@ describe('GroupSettings', () => {
     expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: true });
   });
 
+  it('an admin switches the cosateca on, then opens it to the whole pueblo', () => {
+    const off = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} />);
+    expect(off.queryByTestId('group-settings-cosateca-audience')).toBeNull();
+    fireEvent.press(off.getByTestId('group-settings-cosateca'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { cosateca: { enabled: true, audience: 'integrantes' } });
+    off.unmount();
+    const on = render(
+      <GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} cosateca={{ enabled: true, audience: 'integrantes' }} />,
+    );
+    fireEvent.press(on.getByTestId('group-settings-cosateca-audience-pueblo'));
+    expect(updateOrganization).toHaveBeenLastCalledWith('org1', { cosateca: { enabled: true, audience: 'pueblo' } });
+  });
+
+  it('never offers a plain member the cosateca switch', () => {
+    const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin={false} sociosListVisible={false} cosateca={{ enabled: true, audience: 'pueblo' }} />);
+    expect(r.queryByTestId('group-settings-cosateca')).toBeNull();
+  });
+
   it('an admin requires the phone and the email, one by one', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" isAdmin sociosListVisible={false} />);
     fireEvent.press(r.getByTestId('group-settings-socio-phone-required'));

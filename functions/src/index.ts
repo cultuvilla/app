@@ -130,6 +130,7 @@ export { getUserIdHash } from './observability/getUserIdHash';
 export { generateImageVariants } from './images/generateImageVariants';
 export {
   cleanupRemovedBarrioImages,
+  cleanupRemovedCosaImages,
   cleanupRemovedEventImages,
   cleanupRemovedFestivalPosterImages,
   cleanupRemovedHistoryEntryImages,

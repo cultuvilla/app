@@ -90,10 +90,12 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           socioEmailRequired={org.socioEmailRequired}
           hasRoster={hasSocioRoster(org.type)}
           chatAdminsOnly={org.chatAdminsOnly}
+          cosateca={org.cosateca}
         />
       );
     // Their own full-height screens, not this scrolling body: see [seccion].tsx.
     case 'charla':
+    case 'cosateca':
     case 'eventos':
     case 'tareas':
       return null;

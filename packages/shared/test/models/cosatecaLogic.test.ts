@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   availableCosaRequestActions,
+  cosaAvailability,
   cosaDatesOverlap,
+  cosaRequestRoles,
+  cosatecaCatalogue,
+  usedCosaCategories,
   isCosaRequestOverdue,
   nextCosaRequestStatus,
 } from '../../src/models/organization/cosatecaLogic';
@@ -85,5 +89,51 @@ describe('cosateca models', () => {
       success: true,
       data: { message: null, status: 'pending' },
     });
+  });
+});
+
+describe('cosaRequestRoles', () => {
+  const req = { ownerUid: 'owner', requesterUid: 'asker' };
+  it('makes the owner and any admin of the group its manager', () => {
+    expect(cosaRequestRoles(req, { uid: 'owner', isGroupAdmin: false })).toEqual(['manager']);
+    expect(cosaRequestRoles(req, { uid: 'admin', isGroupAdmin: true })).toEqual(['manager']);
+  });
+  it('makes the asker its requester, and an admin who asked both', () => {
+    expect(cosaRequestRoles(req, { uid: 'asker', isGroupAdmin: false })).toEqual(['requester']);
+    expect(cosaRequestRoles({ ownerUid: null, requesterUid: 'asker' }, { uid: 'asker', isGroupAdmin: true })).toEqual([
+      'manager',
+      'requester',
+    ]);
+  });
+  it('gives a group cosa no owner to match, and a stranger nothing', () => {
+    expect(cosaRequestRoles({ ownerUid: null, requesterUid: 'asker' }, { uid: 'someone', isGroupAdmin: false })).toEqual([]);
+  });
+});
+
+describe('cosaAvailability', () => {
+  it('reads given, out with someone, paused or free', () => {
+    const heldBy = { requestId: 'r', uid: 'u', name: 'Ana', untilOn: null };
+    expect(cosaAvailability({ status: 'given', heldBy: null })).toBe('given');
+    expect(cosaAvailability({ status: 'available', heldBy })).toBe('lent');
+    expect(cosaAvailability({ status: 'paused', heldBy })).toBe('lent');
+    expect(cosaAvailability({ status: 'paused', heldBy: null })).toBe('paused');
+    expect(cosaAvailability({ status: 'available', heldBy: null })).toBe('available');
+  });
+});
+
+describe('the catalogue', () => {
+  const cosas = [
+    { title: 'Taladro', category: 'herramientas' as const, status: 'available' as const },
+    { title: 'Carpa', category: 'fiestas' as const, status: 'paused' as const },
+    { title: 'Bici', category: 'deporte' as const, status: 'given' as const },
+    { title: 'Azada', category: 'herramientas' as const, status: 'available' as const },
+  ];
+  it('drops regalos that have gone and sorts by title, filtered by category', () => {
+    expect(cosatecaCatalogue(cosas, null).map((c) => c.title)).toEqual(['Azada', 'Carpa', 'Taladro']);
+    expect(cosatecaCatalogue(cosas, 'herramientas').map((c) => c.title)).toEqual(['Azada', 'Taladro']);
+    expect(cosatecaCatalogue(cosas, 'deporte')).toEqual([]);
+  });
+  it('lists the categories in use, in the fixed order', () => {
+    expect(usedCosaCategories(cosas)).toEqual(['herramientas', 'fiestas']);
   });
 });

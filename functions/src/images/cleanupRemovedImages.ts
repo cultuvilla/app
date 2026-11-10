@@ -96,6 +96,12 @@ export const ENTITY_IMAGE_SOURCES = {
     ownedPath: ({ entityId }) => new RegExp(`^historyEntries/[^/]+/${entityId}/[^/]+$`),
     references: (data) => arrayField(data, 'images').map((img) => (isRecord(img) ? img['url'] : null)),
   },
+  cosas: {
+    handler: 'cleanupRemovedCosaImages',
+    document: 'cosas/{entityId}',
+    ownedPath: ({ entityId }) => new RegExp(`^cosas/${entityId}/image/[^/]+$`),
+    references: (data) => [data['imageURL']],
+  },
 } satisfies Record<string, EntityImageSource>;
 
 /** The owned storage paths `data` references, normalised from paths or download URLs. */
@@ -190,3 +196,4 @@ export const cleanupRemovedPlaceImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.pla
 export const cleanupRemovedBarrioImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.barrios);
 export const cleanupRemovedFestivalPosterImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.festivalPosters);
 export const cleanupRemovedHistoryEntryImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.historyEntries);
+export const cleanupRemovedCosaImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.cosas);

@@ -1,0 +1,112 @@
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { buildCosaRequestData } from '@cultuvilla/shared/models/organization';
+import { respondToCosaRequest } from '@cultuvilla/shared/services/cosatecaService';
+import { showAlert } from '../../../lib/dialogs';
+import CosaRequestScreen from '../[grupo]/prestamo/[solicitud]';
+
+const mockPush = jest.fn();
+let mockGroups: { org: { id: string }; role: string }[] = [];
+let mockRequest: unknown = null;
+let mockUid = 'owner';
+
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+jest.mock('expo-router', () => ({
+  router: { push: (href: unknown) => mockPush(href) },
+  useLocalSearchParams: () => ({ grupo: 'pena', solicitud: 'r1' }),
+}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
+  respondToCosaRequest: jest.fn().mockResolvedValue('accepted'),
+  watchCosaRequest: jest.fn(),
+}));
+jest.mock('../../../lib/dialogs', () => ({ showAlert: jest.fn() }));
+jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
+jest.mock('../../../lib/auth/useAuth', () => ({ useAuth: () => ({ user: { uid: mockUid } }) }));
+jest.mock('../../../lib/orgs/useMyGroups', () => ({ useMyGroups: () => ({ groups: mockGroups, status: 'ready' }) }));
+jest.mock('../../../lib/hooks/useWatch', () => ({ useWatch: () => ({ data: mockRequest, status: 'ready' }) }));
+jest.mock('../../../components/layout/ScreenHeader', () => ({
+  ScreenHeader: ({ title }: { title: string }) => {
+    const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
+    return <Text testID="screen-title">{title}</Text>;
+  },
+}));
+
+function request(over: Record<string, unknown> = {}) {
+  return {
+    id: 'r1',
+    ...buildCosaRequestData({
+      municipalityId: 'm1', orgId: 'pena', cosaId: 'c1', cosaTitle: 'Taladro', cosaKind: 'prestamo', ownerUid: 'owner',
+      requesterUid: 'asker', requesterName: 'Luis', message: 'Para el sábado', fromOn: '2026-07-01', untilOn: '2026-07-03',
+    }),
+    ...over,
+  };
+}
+
+const actionsOf = (getAll: (id: RegExp) => { props: { testID?: string } }[]) =>
+  getAll(/^cosa-request-(accept|decline|cancel|lend|return|done|give)$/).map((n) => n.props.testID);
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockGroups = [{ org: { id: 'pena' }, role: 'member' }];
+  mockRequest = request();
+  mockUid = 'owner';
+});
+
+describe('a request for a cosa', () => {
+  it('lets its owner accept or decline a pending one', async () => {
+    const { getByTestId, getAllByTestId } = render(<CosaRequestScreen />);
+    expect(getByTestId('cosa-request')).toHaveTextContent(/Para el sábado/);
+    expect(getByTestId('cosa-request-status')).toHaveTextContent('groups.cosateca.status.pending');
+    expect(getByTestId('cosa-request-dates')).toHaveTextContent('groups.cosateca.request.range');
+    expect(actionsOf(getAllByTestId)).toEqual(['cosa-request-accept', 'cosa-request-decline']);
+    fireEvent.press(getByTestId('cosa-request-accept'));
+    await waitFor(() => expect(respondToCosaRequest).toHaveBeenCalledWith('r1', 'accept'));
+  });
+
+  it('lets its requester only cancel, and an outsider nothing', () => {
+    mockUid = 'asker';
+    mockGroups = [];
+    const asker = render(<CosaRequestScreen />);
+    expect(actionsOf(asker.getAllByTestId)).toEqual(['cosa-request-cancel']);
+    asker.unmount();
+    mockUid = 'someone';
+    expect(render(<CosaRequestScreen />).queryByTestId('cosa-request-actions')).toBeNull();
+  });
+
+  it('walks the loan on: lend once accepted, return once lent, for the manager', () => {
+    mockRequest = request({ status: 'accepted' });
+    const accepted = render(<CosaRequestScreen />);
+    expect(actionsOf(accepted.getAllByTestId)).toEqual(['cosa-request-decline', 'cosa-request-lend']);
+    accepted.unmount();
+    mockRequest = request({ status: 'lent' });
+    mockGroups = [{ org: { id: 'pena' }, role: 'admin' }];
+    mockUid = 'admin';
+    expect(actionsOf(render(<CosaRequestScreen />).getAllByTestId)).toEqual(['cosa-request-return']);
+  });
+
+  it('lets either side mark a servicio done', () => {
+    mockRequest = request({ cosaKind: 'servicio', status: 'accepted' });
+    mockUid = 'asker';
+    expect(actionsOf(render(<CosaRequestScreen />).getAllByTestId)).toEqual(['cosa-request-cancel', 'cosa-request-done']);
+  });
+
+  it("shows the callable's own reason when it refuses", async () => {
+    jest.mocked(respondToCosaRequest).mockRejectedValueOnce(
+      Object.assign(new Error('Ya está prestada o comprometida en esas fechas.'), { code: 'functions/failed-precondition' }),
+    );
+    const { getByTestId } = render(<CosaRequestScreen />);
+    fireEvent.press(getByTestId('cosa-request-accept'));
+    await waitFor(() => expect(showAlert).toHaveBeenCalledWith('Ya está prestada o comprometida en esas fechas.'));
+  });
+
+  it('opens the cosa, and says so when the request is gone', () => {
+    const { getByTestId, unmount } = render(<CosaRequestScreen />);
+    fireEvent.press(getByTestId('cosa-request-open-cosa'));
+    expect(mockPush).toHaveBeenCalledWith('/grupos/pena/cosa/c1');
+    unmount();
+    mockRequest = null;
+    expect(render(<CosaRequestScreen />).getByTestId('cosa-request-unavailable')).toBeTruthy();
+  });
+});

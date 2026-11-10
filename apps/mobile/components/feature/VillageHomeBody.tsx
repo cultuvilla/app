@@ -67,6 +67,7 @@ import {
   hasManualEscudo,
 } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
 import type { VillageHomeState } from '../../lib/useVillageHome';
+import { VillageCosatecaEntry } from './groups/cosateca/VillageCosatecaEntry';
 
 export interface VillageHomeBodyProps {
   data: VillageHomeState;
@@ -536,6 +537,9 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             />
           ))}
         </Section>
+
+        {/* ── Cosateca del pueblo: what the groups lend to every vecino ─── */}
+        <VillageCosatecaEntry municipalityId={village.id} villageSlug={villageSlug} isMember={isMember} />
 
         {/* ── Censo: only villagers of a configured village fill; admins also configure ─── */}
         {(isMember && censoConfigured) || canManage ? (

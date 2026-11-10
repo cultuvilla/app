@@ -91,6 +91,13 @@ describe('ownedImagePaths', () => {
     ]).toEqual([path]);
   });
 
+  it("reads a cosa's one photo, and only from under that cosa", () => {
+    const path = 'cosas/c1/image/a.jpg';
+    expect([...ownedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: url(path) }, { entityId: 'c1' })]).toEqual([path]);
+    expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: url('cosas/c2/image/a.jpg') }, { entityId: 'c1' }).size).toBe(0);
+    expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: null }, { entityId: 'c1' }).size).toBe(0);
+  });
+
   it('matches place and barrio uploads under their own municipality only', () => {
     const params = { municipalityId: 'm1', entityId: 'pl1' };
     const mine = 'municipalities/m1/places/pl1/image/a.jpg';

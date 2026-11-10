@@ -11,6 +11,7 @@ export const GROUP_SECTION_ICONS: Record<GroupSection, IconName> = {
   charla: 'chatbubbles-outline',
   eventos: 'calendar-outline',
   tareas: 'checkbox-outline',
+  cosateca: 'cube-outline',
   cuota: 'wallet-outline',
   actas: 'document-text-outline',
   socios: 'people-outline',
@@ -33,7 +34,8 @@ export interface GroupSectionLists {
  * every member manages the tasks, so they have no Gestionar button. An admin reads the actas
  * under Gestionar, so the member list leaves them out. Socios is everyone's: it
  * is where a member makes their personas a cargo socios, whether or not the
- * estatutos let them read the list.
+ * estatutos let them read the list. The cosateca is every integrante's, once an
+ * admin switches it on.
  */
 export function groupSections({ org, role }: MyGroup): GroupSectionLists {
   const roster = hasSocioRoster(org.type);
@@ -43,6 +45,7 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
     'charla',
     'eventos',
     'tareas',
+    ...(org.cosateca.enabled ? (['cosateca'] as const) : []),
     ...(roster ? (['cuota'] as const) : []),
     ...(roster && !isAdmin ? (['actas'] as const) : []),
     ...(roster ? (['socios'] as const) : []),

@@ -1384,7 +1384,8 @@
       "organizer": "Quieres ser embajador de {name}",
       "org": "Quieres crear {name}",
       "waiting": "Esperando aprobación",
-      "orgJoin": "Quieres unirte a {name}"
+      "orgJoin": "Quieres unirte a {name}",
+      "cosa": "Pediste «{name}»"
     }
   },
   "requests": {
@@ -1713,7 +1714,8 @@
         "eventos": "El grupo aún no tiene eventos.",
         "cuota": "El grupo aún no ha configurado la cuota.",
         "actas": "La junta aún no ha compartido actas."
-      }
+      },
+      "cosateca": "Cosateca"
     },
     "empty": "Ya no perteneces a ningún grupo.",
     "loadError": "No se han podido cargar tus grupos.",
@@ -1820,7 +1822,14 @@
       "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
       "chatAdminsOnly": "Solo la junta escribe en la Charla",
       "chatAdminsOnlyHint": "Los demás podrán leerla, pero no escribir. Los chats de los avisos siguen abiertos a quienes los reciben.",
-      "error": "No se ha podido guardar el ajuste."
+      "error": "No se ha podido guardar el ajuste.",
+      "cosateca": "Cosateca",
+      "cosatecaHint": "Lo que los integrantes prestan, ofrecen y regalan, en una sección del grupo.",
+      "cosatecaAudience": {
+        "integrantes": "Solo integrantes",
+        "pueblo": "Todo el pueblo"
+      },
+      "cosatecaAudienceHint": "Con «Todo el pueblo», cualquier vecino del pueblo con la app puede verla y pedir. Nunca es pública en la web."
     },
     "cuota": {
       "title": "Cuota de socios",
@@ -2284,6 +2293,137 @@
       },
       "placeholderHint": "Toca para añadirlo. A cada socio le llega con sus datos; lo que no tenga, o lo que no sea para todos, se quita.",
       "whatsappShare": "Compartir en WhatsApp"
+    },
+    "cosateca": {
+      "tabs": {
+        "catalogo": "Catálogo",
+        "pedi": "Lo que pedí",
+        "mepiden": "Me piden"
+      },
+      "allCategories": "Todo",
+      "categories": {
+        "herramientas": "Herramientas",
+        "cocina": "Cocina",
+        "fiestas": "Fiestas",
+        "deporte": "Deporte",
+        "ninos": "Niños",
+        "jardin": "Jardín",
+        "libros": "Libros",
+        "otros": "Otros"
+      },
+      "kinds": {
+        "prestamo": "Préstamo",
+        "servicio": "Servicio",
+        "regalo": "Regalo"
+      },
+      "kindHints": {
+        "prestamo": "Se presta y se devuelve.",
+        "servicio": "Un favor que haces: no hay nada que devolver.",
+        "regalo": "Se da para siempre."
+      },
+      "availability": {
+        "available": "Disponible",
+        "lent": "La tiene {name}",
+        "lentUntil": "La tiene {name} hasta el {date}",
+        "paused": "En pausa",
+        "given": "Ya entregado"
+      },
+      "ofGroup": "Del grupo",
+      "offer": "Ofrecer algo",
+      "empty": "Aún no hay nada en la cosateca. ¡Ofrece lo primero!",
+      "emptyCategory": "Nada en esta categoría.",
+      "noRequestsMine": "No has pedido nada.",
+      "noRequestsToMe": "Nadie te ha pedido nada.",
+      "form": {
+        "titleNew": "Ofrecer algo",
+        "titleEdit": "Editar",
+        "kind": "Qué es",
+        "name": "Nombre",
+        "nameRequired": "Ponle un nombre.",
+        "description": "Descripción",
+        "conditions": "Condiciones",
+        "conditionsHint": "Por ejemplo: «devolver limpia». Nunca dinero.",
+        "category": "Categoría",
+        "photo": "Foto",
+        "owner": "De quién es",
+        "ownerMine": "Mío",
+        "ownerGroup": "Del grupo",
+        "save": "Guardar",
+        "delete": "Quitar de la cosateca",
+        "deleteConfirm": "¿Quitarlo de la cosateca? Sus solicitudes quedan como registro."
+      },
+      "detail": {
+        "title": "Cosateca",
+        "unavailable": "Esto ya no está en la cosateca, o no puedes verlo.",
+        "offeredBy": "Lo ofrece {name}",
+        "conditions": "Condiciones",
+        "ask": "Pedirlo",
+        "edit": "Editar",
+        "pause": "Poner en pausa",
+        "resume": "Volver a ofrecerlo",
+        "yours": "Lo ofreces tú.",
+        "notAvailable": "Ahora no se puede pedir.",
+        "alreadyAsked": "Ya lo has pedido.",
+        "seeRequest": "Ver mi solicitud",
+        "requests": "Solicitudes"
+      },
+      "ask": {
+        "title": "Pedir «{title}»",
+        "dates": "Fechas (opcional)",
+        "noDates": "Sin fechas",
+        "message": "Mensaje (opcional)",
+        "send": "Enviar solicitud"
+      },
+      "status": {
+        "pending": "Pendiente",
+        "accepted": "Aceptada",
+        "declined": "Rechazada",
+        "cancelled": "Cancelada",
+        "lent": "Prestada",
+        "returned": "Devuelta",
+        "done": "Hecha",
+        "given": "Entregada"
+      },
+      "actions": {
+        "accept": "Aceptar",
+        "decline": "Rechazar",
+        "cancel": "Cancelar solicitud",
+        "lend": "Ya lo he entregado",
+        "return": "Ya está devuelto",
+        "done": "Marcar como hecho",
+        "give": "Ya lo he entregado"
+      },
+      "actionHints": {
+        "lend": "Cuando se lo des, márcalo: así la cosateca sabe quién lo tiene.",
+        "return": "Márcalo cuando vuelva a tus manos."
+      },
+      "request": {
+        "title": "Solicitud",
+        "unavailable": "Esta solicitud no existe o no puedes verla.",
+        "askedBy": "Lo pide {name}",
+        "askedOn": "Pedida el {date}",
+        "range": "Del {from} al {until}",
+        "fromOnly": "Desde el {from}",
+        "untilOnly": "Hasta el {until}",
+        "noDates": "Sin fechas",
+        "message": "Mensaje",
+        "openCosa": "Ver «{title}»"
+      },
+      "errors": {
+        "generic": "No se ha podido. Inténtalo de nuevo.",
+        "permission": "No puedes hacer esto.",
+        "save": "No se ha podido guardar."
+      },
+      "inbox": {
+        "title": "Cosateca",
+        "row": "{name} pide «{title}»"
+      },
+      "village": {
+        "title": "Cosateca del pueblo",
+        "entry": "Cosateca del pueblo · {count}",
+        "intro": "Lo que los grupos del pueblo prestan, ofrecen y regalan a todos los vecinos.",
+        "empty": "Ningún grupo del pueblo ha abierto su cosateca a todos."
+      }
     }
   },
   "studio": {

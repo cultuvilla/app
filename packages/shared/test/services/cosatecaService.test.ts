@@ -21,17 +21,20 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: vi.fn(),
   where: vi.fn((f: string, op: string, v: unknown) => ({ _where: [f, op, v] })),
   onSnapshot: vi.fn(),
+  getDocs: vi.fn(() => Promise.resolve({ docs: [{ id: 'r1', data: () => ({ cosaTitle: 'Taladro', status: 'pending' }) }] })),
 }));
 const callable = vi.fn(() => Promise.resolve({ data: { status: 'accepted' } }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => callable) }));
 
-import { setDoc, updateDoc, where } from 'firebase/firestore';
+import { getDocs, onSnapshot, setDoc, updateDoc, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
   createCosa,
+  getMyPendingCosaRequests,
   requestCosa,
   respondToCosaRequest,
   updateCosa,
+  watchCosaRequestsToAnswer,
   watchVillageCosas,
 } from '../../src/services/cosatecaService';
 
@@ -90,5 +93,38 @@ describe('cosatecaService', () => {
     await expect(respondToCosaRequest('r1', 'accept')).resolves.toBe('accepted');
     expect(httpsCallable).toHaveBeenCalledWith({}, 'respondToCosaRequest');
     expect(callable).toHaveBeenCalledWith({ requestId: 'r1', action: 'accept' });
+  });
+
+  it('getMyPendingCosaRequests reads my unanswered requests', async () => {
+    const rows = await getMyPendingCosaRequests('u2');
+    expect(getDocs).toHaveBeenCalled();
+    expect(where).toHaveBeenCalledWith('requesterUid', '==', 'u2');
+    expect(where).toHaveBeenCalledWith('status', '==', 'pending');
+    expect(rows).toEqual([{ id: 'r1', cosaTitle: 'Taladro', status: 'pending' }]);
+  });
+
+  it('watchCosaRequestsToAnswer merges my cosas with the groups I run, newest first, once all answer', () => {
+    const listeners: ((snap: unknown) => void)[] = [];
+    const errors: ((e: unknown) => void)[] = [];
+    vi.mocked(onSnapshot).mockImplementation(((_q: unknown, next: (s: unknown) => void, err: (e: unknown) => void) => {
+      listeners.push(next);
+      errors.push(err);
+      return () => undefined;
+    }) as never);
+    const onNext = vi.fn();
+    watchCosaRequestsToAnswer('u1', ['o1', 'o2'], onNext, vi.fn());
+    expect(where).toHaveBeenCalledWith('ownerUid', '==', 'u1');
+    expect(where).toHaveBeenCalledWith('ownerUid', '==', null);
+    expect(listeners).toHaveLength(3);
+    const snap = (rows: { id: string; at: number }[]) => ({
+      docs: rows.map((r) => ({ id: r.id, data: () => ({ createdAt: new Date(r.at) }) })),
+      metadata: { fromCache: false, hasPendingWrites: false },
+    });
+    listeners[0]?.(snap([{ id: 'a', at: 1 }]));
+    listeners[1]?.(snap([{ id: 'b', at: 3 }]));
+    expect(onNext).not.toHaveBeenCalled();
+    // An org whose admin rights went answers empty instead of failing the merge.
+    errors[2]?.(Object.assign(new Error('denied'), { code: 'permission-denied' }));
+    expect(onNext).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'b' }), expect.objectContaining({ id: 'a' })]);
   });
 });

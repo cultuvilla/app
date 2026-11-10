@@ -1,5 +1,5 @@
 // packages/shared/src/services/cosatecaService.ts
-import { deleteDoc, doc, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
+import { deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import { cosaDoc, cosaRequestDoc, cosaRequestsCollection, cosasCollection, cosatecaWriteDoc } from '../firebase/refs/client';
@@ -19,7 +19,7 @@ import {
   type CosaRequestStatus,
 } from '../models/organization/CosaRequestDataModel';
 import type { CosaRequestAction } from '../models/organization/cosatecaLogic';
-import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
+import { forbiddenAsEmpty, watchDoc, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type Cosa = CosaData & { id: string };
 export type CosaRequest = CosaRequestData & { id: string };
@@ -122,6 +122,51 @@ export function watchGroupCosaRequests(orgId: string, onNext: (rows: CosaRequest
     onNext,
     onError,
   );
+}
+
+function newestFirst(rows: CosaRequest[]): CosaRequest[] {
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return [...byId.values()].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+/**
+ * The Buzón's *Necesita tu acción*: the requests still waiting for this user's
+ * answer — for their own cosas, and for the group's own cosas of every group
+ * they administer — newest first. A group whose admin rights have just gone
+ * answers empty rather than blanking the rest.
+ */
+export function watchCosaRequestsToAnswer(
+  uid: string,
+  adminOrgIds: readonly string[],
+  onNext: (rows: CosaRequest[]) => void,
+  onError: WatchError,
+): Unwatch {
+  const db = getDb();
+  const mine = (next: (rows: CosaRequest[]) => void, error: WatchError) =>
+    watchQuery(query(cosaRequestsCollection(db), where('ownerUid', '==', uid), where('status', '==', 'pending')), next, error);
+  const groups = adminOrgIds.map((orgId) =>
+    forbiddenAsEmpty<CosaRequest>('cosateca:watchCosaRequestsToAnswer', (next, error) =>
+      watchQuery(
+        query(
+          cosaRequestsCollection(db),
+          where('orgId', '==', orgId),
+          where('ownerUid', '==', null),
+          where('status', '==', 'pending'),
+        ),
+        next,
+        error,
+      ),
+    ),
+  );
+  return watchMerged([mine, ...groups], newestFirst, onNext, onError);
+}
+
+/** What I asked for that has no answer yet — the Buzón's "esperando" rows. */
+export async function getMyPendingCosaRequests(uid: string): Promise<CosaRequest[]> {
+  const snap = await getDocs(
+    query(cosaRequestsCollection(getDb()), where('requesterUid', '==', uid), where('status', '==', 'pending')),
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /**
