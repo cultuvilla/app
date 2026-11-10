@@ -9,10 +9,11 @@ import {
 import {
   buildNotificationData,
   CosaRequestDataSchema,
+  EVENT_TZ,
   type CosaRequestData,
   type CosaRequestStatus,
 } from '@cultuvilla/shared/models';
-import { formatDayKey } from '@cultuvilla/shared/utils';
+import { formatDate, formatDayKey } from '@cultuvilla/shared/utils';
 
 const db = getFirestore();
 
@@ -26,7 +27,38 @@ function dates(req: Pick<CosaRequestData, 'fromOn' | 'untilOn'>): string {
   return '';
 }
 
-export function cosaRequestCopy(notice: CosaNotice, req: CosaRequestData, orgName: string): { title: string; body: string } {
+/** A booking's slot, Madrid time: "el 12 de noviembre de 2026 a las 18:00". */
+export function reservaWhen(req: Pick<CosaRequestData, 'fromOn' | 'startAt'>): string {
+  if (!req.fromOn || !req.startAt) return '';
+  return `el ${formatDayKey(req.fromOn, 'long')} a las ${formatDate(req.startAt, 'time', EVENT_TZ)}`;
+}
+
+function reservaCopy(notice: CosaNotice, req: CosaRequestData, orgName: string, wasAccepted: boolean): { title: string; body: string } {
+  const what = `«${req.cosaTitle}»`;
+  const when = reservaWhen(req);
+  switch (notice) {
+    case 'created':
+      return { title: `Reserva por aprobar · ${orgName}`, body: `${req.requesterName} quiere ${what} ${when}.` };
+    case 'accepted':
+      return { title: `Reserva confirmada · ${orgName}`, body: `${what}, ${when}. Te esperan.` };
+    case 'declined':
+      return wasAccepted
+        ? { title: `Reserva anulada · ${orgName}`, body: `Se ha anulado tu reserva de ${what} ${when}.` }
+        : { title: `Reserva no aceptada · ${orgName}`, body: `Esta vez no ha podido ser: ${what} ${when}.` };
+    case 'cancelled':
+      return { title: `Reserva cancelada · ${orgName}`, body: `${req.requesterName} ya no quiere ${what} ${when}.` };
+    case 'given':
+      return { title: orgName, body: what };
+  }
+}
+
+export function cosaRequestCopy(
+  notice: CosaNotice,
+  req: CosaRequestData,
+  orgName: string,
+  wasAccepted = false,
+): { title: string; body: string } {
+  if (req.cosaKind === 'reserva') return reservaCopy(notice, req, orgName, wasAccepted);
   const what = `«${req.cosaTitle}»`;
   switch (notice) {
     case 'created':
@@ -52,6 +84,8 @@ export function cosaNoticeFor(before: CosaRequestData | null, after: CosaRequest
   if (!after) return null;
   if (!before) return after.status === 'pending' ? 'created' : null;
   if (before.status === after.status) return null;
+  // A booker letting a confirmed slot go needs no one's answer: the slot is free again.
+  if (after.cosaKind === 'reserva' && after.status === 'cancelled' && before.status === 'accepted') return null;
   switch (after.status) {
     case 'accepted':
     case 'declined':
@@ -85,7 +119,7 @@ export async function notifyCosaRequest(
   const recipients = (toManagers ? await cosaManagerUids(firestore, after) : [after.requesterUid]).filter(
     (uid) => !toManagers || uid !== after.requesterUid,
   );
-  const copy = cosaRequestCopy(notice, after, orgName);
+  const copy = cosaRequestCopy(notice, after, orgName, before?.status === 'accepted');
   await Promise.all(
     recipients.map((uid) =>
       // A fixed id: a redelivered event rewrites the same notification.

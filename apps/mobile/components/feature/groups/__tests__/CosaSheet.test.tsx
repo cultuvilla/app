@@ -40,6 +40,59 @@ beforeEach(() => {
 });
 
 describe('CosaSheet', () => {
+  it('offers a reserva with its weekly hours and limits', async () => {
+    const { getByTestId, onClose } = sheet({ isAdmin: true });
+    fireEvent.changeText(getByTestId('cosa-title'), 'Pista de pádel');
+    fireEvent.press(getByTestId('cosa-kind-reserva'));
+    fireEvent.press(getByTestId('cosa-owner-group'));
+    fireEvent.press(getByTestId('reserva-open-7'));
+    fireEvent.changeText(getByTestId('reserva-slot-minutes'), '90');
+    fireEvent.changeText(getByTestId('reserva-closes-1'), '21:00');
+    fireEvent.changeText(getByTestId('reserva-max-active'), '3');
+    fireEvent.changeText(getByTestId('reserva-horizon'), '7');
+    fireEvent.press(getByTestId('reserva-requires-approval'));
+    fireEvent.press(getByTestId('cosa-save'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(createCosa).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'reserva',
+        reserva: expect.objectContaining({
+          slotMinutes: 90, requiresApproval: true, maxActiveReservations: 3, bookingHorizonDays: 7, blackouts: [],
+        }),
+      }),
+    );
+    const sent = jest.mocked(createCosa).mock.calls[0]?.[0];
+    expect(sent?.reserva?.hours['7']).toBeNull();
+    expect(sent?.reserva?.hours['1']).toEqual({ opensAt: '09:00', closesAt: '21:00' });
+  });
+
+  it('refuses a reserva whose hours do not make sense', () => {
+    const { getByTestId } = sheet();
+    fireEvent.changeText(getByTestId('cosa-title'), 'Sala');
+    fireEvent.press(getByTestId('cosa-kind-reserva'));
+    fireEvent.changeText(getByTestId('reserva-opens-2'), '23:00');
+    fireEvent.press(getByTestId('cosa-save'));
+    expect(getByTestId('reserva-config-error')).toHaveTextContent('groups.cosateca.reserva.errors.order');
+    expect(createCosa).not.toHaveBeenCalled();
+  });
+
+  it('never changes what kind an existing cosa is, and keeps a reserva’s closed days', async () => {
+    const existing = {
+      id: 'pista',
+      ...buildCosaData({
+        municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'reserva',
+        title: 'Pista', category: 'deporte', createdBy: 'u1',
+      }),
+    };
+    existing.reserva = { ...existing.reserva!, blackouts: ['2026-12-25'] };
+    const { getByTestId, queryByTestId, onClose } = sheet({ isAdmin: true, cosa: existing });
+    expect(queryByTestId('cosa-kind')).toBeNull();
+    expect(getByTestId('cosa-kind-fixed')).toBeTruthy();
+    fireEvent.press(getByTestId('cosa-save'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(updateCosa).toHaveBeenCalledWith('pista', expect.objectContaining({ kind: 'reserva', reserva: expect.objectContaining({ blackouts: ['2026-12-25'] }) }));
+  });
+
   it('needs a name', () => {
     const { getByTestId } = sheet();
     fireEvent.press(getByTestId('cosa-save'));

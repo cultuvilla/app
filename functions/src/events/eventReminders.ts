@@ -8,6 +8,7 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildNotificationData, EVENT_TZ } from '@cultuvilla/shared/models';
 import { formatDate } from '@cultuvilla/shared/utils';
+import { sendReservaReminders } from '../organizations/sendReservaReminders';
 
 const db = getFirestore();
 
@@ -27,9 +28,19 @@ export const REMINDER_LEAD_HOURS = 24;
  *
  * Waitlisted people are deliberately skipped — they have no seat to be
  * reminded of, and telling them to show up tomorrow would be wrong.
+ *
+ * The same hourly run sends the cosateca's booking reminders, rather than a
+ * second scheduler; a failure there is logged and never stops these.
  */
 export const sendEventReminders = onSchedule('every 1 hours', async () => {
   const now = new Date();
+  try {
+    const reservas = await sendReservaReminders(db, now);
+    if (reservas > 0) logger.info('Reserva reminders sent', { handler: 'sendEventReminders', reservas });
+  } catch (err) {
+    logger.error('Reserva reminders failed', { handler: 'sendEventReminders', error: err instanceof Error ? err.message : String(err) });
+  }
+
   const windowStart = new Date(now.getTime() + (REMINDER_LEAD_HOURS - 1) * HOUR_MS);
   const windowEnd = new Date(now.getTime() + REMINDER_LEAD_HOURS * HOUR_MS);
 

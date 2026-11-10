@@ -22,6 +22,12 @@ describe('cosateca labels', () => {
     expect(cosaRequestDatesLabel(t, { fromOn: '2026-07-01', untilOn: '2026-07-03' })).toMatch(/^groups\.cosateca\.request\.range:/);
     expect(cosaRequestDatesLabel(t, { fromOn: '2026-07-01', untilOn: null })).toMatch(/^groups\.cosateca\.request\.fromOnly:/);
     expect(cosaRequestDatesLabel(t, { fromOn: null, untilOn: '2026-07-03' })).toMatch(/^groups\.cosateca\.request\.untilOnly:/);
+    // A booking shows its slot instead.
+    const label = cosaRequestDatesLabel(t, {
+      fromOn: '2026-11-12', untilOn: '2026-11-12', startAt: new Date('2026-11-12T17:00:00.000Z'), endAt: new Date('2026-11-12T18:00:00.000Z'),
+    });
+    expect(label).toContain('·');
+    expect(label).not.toMatch(/^groups\./);
   });
 
   it("passes on the callable's own reason, and maps the rest", () => {
@@ -29,5 +35,12 @@ describe('cosateca labels', () => {
     expect(cosatecaErrorMessage(t, refused)).toBe('Ya está prestada o comprometida en esas fechas.');
     expect(cosatecaErrorMessage(t, Object.assign(new Error('x'), { code: 'permission-denied' }))).toBe('groups.cosateca.errors.permission');
     expect(cosatecaErrorMessage(t, new Error('boom'))).toBe('groups.cosateca.errors.generic');
+    // The booking callable's own refusals are shown as they are.
+    expect(cosatecaErrorMessage(t, Object.assign(new Error('Esa hora ya está reservada.'), { code: 'functions/already-exists' }))).toBe(
+      'Esa hora ya está reservada.',
+    );
+    expect(cosatecaErrorMessage(t, Object.assign(new Error('Ya tienes 2 reservas'), { code: 'functions/resource-exhausted' }))).toBe(
+      'Ya tienes 2 reservas',
+    );
   });
 });

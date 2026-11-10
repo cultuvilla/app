@@ -15,3 +15,4 @@ export * from './recordsLogic';
 export * from './CosaDataModel';
 export * from './CosaRequestDataModel';
 export * from './cosatecaLogic';
+export * from './reservaLogic';

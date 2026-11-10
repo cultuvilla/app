@@ -466,6 +466,13 @@ deleted.
 - **Trigger:** none; the `respondToCosaRequest` callable writes it in the same transaction as the move (`lend` sets it, `return` clears it). `deleteAccount` clears it when the holder's account goes.
 - **Backfill:** none.
 
+### `cosas/{cosaId}/slots/{startISO}` ← `cosaRequests/{requestId}` (reservas)
+
+- **Source:** a reserva's live bookings (`cosaKind: 'reserva'`, `status` `pending` or `accepted`).
+- **Read model:** one doc per taken slot, keyed by the slot's start instant: `{ requestId, startAt, endAt, status }`. It is the slot's lock — `bookReservaSlot` claims it in the booking's transaction, so two people tapping the same slot leave one booking — and what lets every viewer of the cosa grey out taken slots, since bookings themselves are readable only by their parties. Names no one.
+- **Trigger:** none; the callables keep it in the same transaction as the booking: `bookReservaSlot` creates it, `respondToCosaRequest` marks it accepted or deletes it when the booking is declined or cancelled, `setReservaBlackouts` deletes the locks of the bookings a closed day cancels, `deleteAccount` deletes a departing booker's.
+- **Backfill:** none — the collection starts empty.
+
 ### `villageSlug` ← `municipalities/{id}.slug`
 
 Every URL starts with its pueblo (`/matabuena/evento/…`), and a feed card has to

@@ -11,6 +11,7 @@ import {
   newsCollection,
   cosasCollection,
   cosaRequestsCollection,
+  cosaSlotDoc,
   organizationDoc,
   organizerRequestsCollection,
   personsCollection,
@@ -23,7 +24,7 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 // Subpath import (not the '@cultuvilla/shared' barrel): the barrel pulls
 // react-native into the functions esbuild bundle. See helpers/membershipAudit.ts.
-import { DELETED_USER_UID } from '@cultuvilla/shared/models';
+import { DELETED_USER_UID, reservaSlotKey } from '@cultuvilla/shared/models';
 import { computeDeletionBlockers } from './blockers';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
 
@@ -303,6 +304,16 @@ async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; 
     for (const d of heldElsewhere) batch.update(d.ref.withConverter(null), { heldBy: null });
     await batch.commit();
   }
+  // A booking they made frees its slot; a reserva they own takes its slots with it.
+  const slotRefs = asked.docs.flatMap((d) => {
+    const req = d.data();
+    return req.cosaKind === 'reserva' && req.startAt ? [cosaSlotDoc(db, req.cosaId, reservaSlotKey(req.startAt))] : [];
+  });
+  const slotSnaps = await Promise.all(slotRefs.map((ref) => ref.get()));
+  await deleteRefsInChunks(
+    slotSnaps.filter((snap) => asked.docs.some((d) => d.id === snap.data()?.requestId)).map((snap) => snap.ref),
+  );
+  for (const d of owned.docs) await db.recursiveDelete(d.ref.collection('slots'));
   const requestRefs = new Map([...asked.docs, ...askedOfMe.docs].map((d) => [d.id, d.ref]));
   // A request's chat goes with it: the other party's messages could never be reached again.
   for (const ref of requestRefs.values()) await db.recursiveDelete(ref.collection('chat'));

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { cosaAvailability, isOpenCosaRequest } from '@cultuvilla/shared/models/organization';
+import { cosaAvailability, isActiveReserva, isOpenCosaRequest } from '@cultuvilla/shared/models/organization';
 import {
   updateCosa,
   watchCosa,
@@ -18,12 +18,14 @@ import { DetailSectionHeading } from '../../../../components/feature/DetailSecti
 import { AskCosaSheet } from '../../../../components/feature/groups/cosateca/AskCosaSheet';
 import { Badge, CosaRequestRow } from '../../../../components/feature/groups/cosateca/CosaRows';
 import { CosaSheet } from '../../../../components/feature/groups/cosateca/CosaSheet';
+import { MyReservas, ReservaBlackouts, ReservaBooking } from '../../../../components/feature/groups/cosateca/Reserva';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { showAlert } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useT } from '../../../../lib/i18n';
 import { groupCosaRequestHref } from '../../../../lib/navigation/routes';
 import { cosaAvailabilityLabel, cosaOwnerLabel, cosatecaErrorMessage } from '../../../../lib/orgs/cosateca';
+import { myUpcomingReservas } from '../../../../lib/orgs/reserva';
 import { useMyGroups } from '../../../../lib/orgs/useMyGroups';
 
 /**
@@ -31,7 +33,8 @@ import { useMyGroups } from '../../../../lib/orgs/useMyGroups';
  * villager when the group opened its cosateca to the pueblo — sees it and may
  * ask for it; so this screen does not require membership, the rules decide. Its
  * manager (the owner, or an admin of the group) edits, pauses or removes it and
- * sees its requests.
+ * sees its requests. A reserva is booked by slot on its week grid instead, and
+ * its manager closes days there.
  */
 export default function CosaScreen() {
   const { t } = useT();
@@ -65,7 +68,12 @@ export default function CosaScreen() {
     () => (mine.data ?? []).find((r) => r.cosaId === cosaId && isOpenCosaRequest(r.status)) ?? null,
     [mine.data, cosaId],
   );
-  const requests = useMemo(() => (managed.data ?? []).filter((r) => r.cosaId === cosaId), [managed.data, cosaId]);
+  // A reserva's past bookings are history, not something to answer.
+  const requests = useMemo(
+    () => (managed.data ?? []).filter((r) => r.cosaId === cosaId && (r.cosaKind !== 'reserva' || isActiveReserva(r, new Date()))),
+    [managed.data, cosaId],
+  );
+  const myBookings = useMemo(() => (cosaId ? myUpcomingReservas(mine.data ?? [], cosaId, new Date()) : []), [mine.data, cosaId]);
 
   const [asking, setAsking] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -73,9 +81,9 @@ export default function CosaScreen() {
 
   const setPaused = (paused: boolean) => {
     if (!cosa) return;
-    const { kind, title, description, category, imageURL, conditions } = cosa;
+    const { kind, title, description, category, imageURL, conditions, reserva } = cosa;
     setSaving(true);
-    updateCosa(cosa.id, { kind, title, description, category, imageURL, conditions, status: paused ? 'paused' : 'available' })
+    updateCosa(cosa.id, { kind, title, description, category, imageURL, conditions, reserva, status: paused ? 'paused' : 'available' })
       .catch((err: unknown) => showAlert(cosatecaErrorMessage(t, err)))
       .finally(() => setSaving(false));
   };
@@ -126,7 +134,17 @@ export default function CosaScreen() {
               </VStack>
             ) : null}
 
-            {isOwner ? (
+            {cosa.kind === 'reserva' ? (
+              <VStack gap={4}>
+                <MyReservas bookings={myBookings} onOpen={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))} />
+                <ReservaBooking
+                  cosa={cosa}
+                  canBook={!isOwner && cosa.status === 'available'}
+                  myBookings={myBookings}
+                  onBooked={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))}
+                />
+              </VStack>
+            ) : isOwner ? (
               <Text tone="muted" testID="cosa-yours">
                 {t('groups.cosateca.detail.yours')}
               </Text>
@@ -162,6 +180,7 @@ export default function CosaScreen() {
                     </Button>
                   ) : null}
                 </HStack>
+                {cosa.kind === 'reserva' ? <ReservaBlackouts cosa={cosa} /> : null}
                 {requests.length > 0 ? (
                   <VStack gap={2}>
                     <DetailSectionHeading>{t('groups.cosateca.detail.requests')}</DetailSectionHeading>

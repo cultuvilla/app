@@ -17,7 +17,7 @@ function cosa(overrides: Record<string, unknown> = {}) {
   return {
     municipalityId: MUN, orgId: CLOSED, audience: 'integrantes', ownerUid: 'member1', ownerName: 'Ana',
     kind: 'prestamo', title: 'Taladro', description: null, category: 'herramientas', imageURL: null, conditions: null,
-    status: 'available', heldBy: null, createdBy: 'member1', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    status: 'available', heldBy: null, reserva: null, createdBy: 'member1', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     ...overrides,
   };
 }
@@ -26,7 +26,7 @@ function request(uid: string, name: string, overrides: Record<string, unknown> =
   return {
     municipalityId: MUN, orgId: OPEN, cosaId: 'llave', cosaTitle: 'Llave del gimnasio', cosaKind: 'prestamo', ownerUid: null,
     requesterUid: uid, requesterName: name, message: null, fromOn: null, untilOn: null, status: 'pending',
-    createdAt: serverTimestamp(), respondedAt: null, closedAt: null, overdueNotifiedOn: null, ...overrides,
+    createdAt: serverTimestamp(), respondedAt: null, closedAt: null, overdueNotifiedOn: null, startAt: null, endAt: null, ...overrides,
   };
 }
 
@@ -57,7 +57,26 @@ async function seed() {
       createdAt: new Date(), updatedAt: new Date(),
     });
     await setDoc(doc(db, 'cosaRequests/r1'), { ...request('vecino', 'Vecino'), createdAt: new Date() });
+    await setDoc(doc(db, 'cosas/pista'), {
+      ...cosa({
+        orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', title: 'Pista de pádel', category: 'deporte',
+        kind: 'reserva', reserva: reservaConfig({ blackouts: ['2026-12-25'] }), createdBy: 'admin1',
+      }),
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+    await setDoc(doc(db, 'cosas/pista/slots/2026-11-12T17:00:00.000Z'), {
+      requestId: 'b1', startAt: new Date('2026-11-12T17:00:00.000Z'), endAt: new Date('2026-11-12T18:00:00.000Z'), status: 'accepted',
+    });
   });
+}
+
+const HOURS = { opensAt: '09:00', closesAt: '22:00' };
+function reservaConfig(overrides: Record<string, unknown> = {}) {
+  return {
+    hours: { '1': HOURS, '2': HOURS, '3': HOURS, '4': HOURS, '5': HOURS, '6': null, '7': null },
+    slotMinutes: 60, requiresApproval: false, maxActiveReservations: 2, bookingHorizonDays: 14, blackouts: [],
+    ...overrides,
+  };
 }
 
 const cosaRef = (uid: string, id: string) => doc(asUser(getEnv(), uid), `cosas/${id}`);
@@ -293,5 +312,68 @@ describe("a request's chat", () => {
       await assertFails(setDoc(chatRef(uid, 'gone', 'nx'), message(uid, name)));
       await assertFails(getDocs(chatOf(uid, 'gone')));
     }
+  });
+});
+
+describe('reservas', () => {
+  const pista = (overrides: Record<string, unknown> = {}) =>
+    cosa({
+      orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', title: 'Pista de pádel', category: 'deporte',
+      kind: 'reserva', reserva: reservaConfig(), createdBy: 'admin1', ...overrides,
+    });
+
+  it('an admin offers a reserva with its weekly hours, and no closed days yet', async () => {
+    await assertSucceeds(setDoc(cosaRef('admin1', 'p2'), pista()));
+  });
+
+  it('refuses a reserva without a sound config, and a config on any other kind', async () => {
+    const bad: Record<string, unknown>[] = [
+      { reserva: null },
+      { reserva: reservaConfig({ blackouts: ['2026-12-25'] }) }, // closed days are the callable's
+      { reserva: reservaConfig({ slotMinutes: 5 }) },
+      { reserva: reservaConfig({ maxActiveReservations: 0 }) },
+      { reserva: reservaConfig({ bookingHorizonDays: 365 }) },
+      { reserva: reservaConfig({ hours: { '1': HOURS } }) },
+      { reserva: reservaConfig({ hours: { ...reservaConfig().hours, '3': { opensAt: '22:00', closesAt: '09:00' } } }) },
+      { reserva: reservaConfig({ hours: { ...reservaConfig().hours, '3': { opensAt: '9h', closesAt: '22:00' } } }) },
+      { reserva: { ...reservaConfig(), extra: 1 } },
+      { kind: 'prestamo' }, // a prestamo carries no reserva config
+    ];
+    for (const overrides of bad) await assertFails(setDoc(cosaRef('admin1', 'px'), pista(overrides)));
+  });
+
+  it('its manager edits the hours but never the closed days', async () => {
+    await assertSucceeds(
+      updateDoc(cosaRef('admin1', 'pista'), {
+        reserva: reservaConfig({ blackouts: ['2026-12-25'], slotMinutes: 90 }),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(cosaRef('admin1', 'pista'), { reserva: reservaConfig({ blackouts: [] }), updatedAt: serverTimestamp() }),
+    );
+  });
+
+  it('nobody books by writing a request: bookings go through the callable', async () => {
+    await assertFails(
+      setDoc(
+        requestRef('vecino', 'b2'),
+        request('vecino', 'Vecino', { cosaId: 'pista', cosaTitle: 'Pista de pádel', cosaKind: 'reserva' }),
+      ),
+    );
+    // Nor smuggles a slot onto an ordinary request.
+    await assertFails(setDoc(requestRef('vecino', 'b3'), request('vecino', 'Vecino', { startAt: new Date() })));
+  });
+
+  it('whoever sees the cosa sees which slots are taken; nobody writes them', async () => {
+    const slots = (uid: string) => collection(asUser(getEnv(), uid), 'cosas/pista/slots');
+    await assertSucceeds(getDocs(query(slots('vecino'), where('startAt', '>=', new Date('2026-11-09T00:00:00.000Z')))));
+    await assertFails(getDocs(slots('forastero')));
+    await assertFails(
+      setDoc(doc(slots('vecino'), '2026-11-13T17:00:00.000Z'), {
+        requestId: 'x', startAt: new Date('2026-11-13T17:00:00.000Z'), endAt: new Date('2026-11-13T18:00:00.000Z'), status: 'accepted',
+      }),
+    );
+    await assertFails(deleteDoc(doc(slots('admin1'), '2026-11-12T17:00:00.000Z')));
   });
 });

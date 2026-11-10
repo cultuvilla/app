@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DayKeySchema } from '../municipality/FiestaBlockModel';
+import { TimeOfDaySchema } from './GroupTaskDataModel';
 
 /**
  * The cosateca: what a group's people lend, offer and give to each other. See
@@ -16,9 +17,13 @@ import { DayKeySchema } from '../municipality/FiestaBlockModel';
  *   an integrantes-only group is never visible to the rest of the pueblo.
  * - `heldBy`, who has it now: set when a request is lent, cleared when it comes
  *   back (`respondToCosaRequest`).
+ *
+ * A `reserva` (the pádel court) is booked by time slot: `reserva` holds its
+ * weekly hours and booking limits, and its `blackouts` are set only through
+ * `setReservaBlackouts`, which cancels the bookings on those days.
  */
 
-export const CosaKindSchema = z.enum(['prestamo', 'servicio', 'regalo']);
+export const CosaKindSchema = z.enum(['prestamo', 'servicio', 'regalo', 'reserva']);
 export type CosaKind = z.infer<typeof CosaKindSchema>;
 
 export const COSA_CATEGORIES = ['herramientas', 'cocina', 'fiestas', 'deporte', 'ninos', 'jardin', 'libros', 'otros'] as const;
@@ -55,6 +60,80 @@ export const CosaHeldBySchema = z.object({
 });
 export type CosaHeldBy = z.infer<typeof CosaHeldBySchema>;
 
+/** One weekday's opening hours, Madrid wall time; a slot must end by `closesAt`. */
+export const ReservaDayHoursSchema = z
+  .object({ opensAt: TimeOfDaySchema, closesAt: TimeOfDaySchema })
+  .refine((h) => h.opensAt < h.closesAt, 'opens after it closes');
+export type ReservaDayHours = z.infer<typeof ReservaDayHoursSchema>;
+
+/** ISO weekdays, Monday `1` to Sunday `7`, as the keys of `ReservaConfig.hours`. */
+export const RESERVA_WEEKDAYS = ['1', '2', '3', '4', '5', '6', '7'] as const;
+export type ReservaWeekday = (typeof RESERVA_WEEKDAYS)[number];
+
+export const MIN_RESERVA_SLOT_MINUTES = 15;
+export const MAX_RESERVA_SLOT_MINUTES = 240;
+export const MAX_RESERVA_ACTIVE = 20;
+export const MAX_RESERVA_HORIZON_DAYS = 90;
+export const MAX_RESERVA_BLACKOUTS = 100;
+
+/**
+ * A reserva's one availability config. The grid of slots is computed from it
+ * (reservaLogic.ts), never stored; only bookings are documents. A fixed map of
+ * weekdays (null = closed) rather than a list, so the rules can check every
+ * entry and a malformed one can never reach a reader's strict converter.
+ */
+export const ReservaConfigSchema = z.object({
+  hours: z.object({
+    '1': ReservaDayHoursSchema.nullable(),
+    '2': ReservaDayHoursSchema.nullable(),
+    '3': ReservaDayHoursSchema.nullable(),
+    '4': ReservaDayHoursSchema.nullable(),
+    '5': ReservaDayHoursSchema.nullable(),
+    '6': ReservaDayHoursSchema.nullable(),
+    '7': ReservaDayHoursSchema.nullable(),
+  }),
+  slotMinutes: z.number().int().min(MIN_RESERVA_SLOT_MINUTES).max(MAX_RESERVA_SLOT_MINUTES),
+  /** Off: a free slot confirms itself. On: the manager accepts each booking. */
+  requiresApproval: z.boolean(),
+  /** Upcoming bookings one person may hold on this cosa at once. */
+  maxActiveReservations: z.number().int().min(1).max(MAX_RESERVA_ACTIVE),
+  /** How many days ahead a slot may be booked (today is day 0). */
+  bookingHorizonDays: z.number().int().min(1).max(MAX_RESERVA_HORIZON_DAYS),
+  /** Closed days (a fiesta, a flooded court). Function-owned: `setReservaBlackouts`. */
+  blackouts: z.array(DayKeySchema).max(MAX_RESERVA_BLACKOUTS),
+});
+export type ReservaConfig = z.infer<typeof ReservaConfigSchema>;
+
+const EVERY_DAY_9_TO_22: ReservaDayHours = { opensAt: '09:00', closesAt: '22:00' };
+
+export const DEFAULT_RESERVA_CONFIG: ReservaConfig = {
+  hours: {
+    '1': EVERY_DAY_9_TO_22, '2': EVERY_DAY_9_TO_22, '3': EVERY_DAY_9_TO_22, '4': EVERY_DAY_9_TO_22,
+    '5': EVERY_DAY_9_TO_22, '6': EVERY_DAY_9_TO_22, '7': EVERY_DAY_9_TO_22,
+  },
+  slotMinutes: 60,
+  requiresApproval: false,
+  maxActiveReservations: 2,
+  bookingHorizonDays: 14,
+  blackouts: [],
+};
+
+/**
+ * A booked slot of a reserva, at `cosas/{cosaId}/slots/{slotKey}` where the key
+ * is the slot's start as an ISO instant. The deterministic id is the lock: the
+ * booking callable claims it in a transaction, so two taps on the same slot
+ * leave one booking. It names no one — it is what lets every viewer of the cosa
+ * see which slots are taken; the booking itself (`cosaRequests`) stays private
+ * to its parties. Function-owned.
+ */
+export const CosaSlotDataSchema = z.object({
+  requestId: z.string().min(1),
+  startAt: z.date(),
+  endAt: z.date(),
+  status: z.enum(['pending', 'accepted']),
+});
+export type CosaSlotData = z.infer<typeof CosaSlotDataSchema>;
+
 export const MAX_COSA_TITLE = 80;
 export const MAX_COSA_DESCRIPTION = 1000;
 export const MAX_COSA_CONDITIONS = 300;
@@ -75,6 +154,8 @@ export const CosaDataSchema = z.object({
   conditions: z.string().max(MAX_COSA_CONDITIONS).nullable(),
   status: CosaStatusSchema,
   heldBy: CosaHeldBySchema.nullable(),
+  /** Set exactly when `kind` is `reserva`. */
+  reserva: ReservaConfigSchema.nullable(),
   createdBy: z.string().min(1),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -90,6 +171,7 @@ export const CosaEditSchema = CosaDataSchema.pick({
   imageURL: true,
   conditions: true,
   status: true,
+  reserva: true,
 });
 export type CosaEdit = z.infer<typeof CosaEditSchema>;
 
@@ -105,6 +187,8 @@ export interface CosaInput {
   category: CosaCategory;
   imageURL?: string | null;
   conditions?: string | null;
+  /** A reserva's config; ignored for every other kind. Blackouts always start empty. */
+  reserva?: ReservaConfig | null;
   createdBy: string;
   createdAt?: Date;
 }
@@ -125,6 +209,7 @@ export function buildCosaData(input: CosaInput): CosaData {
     conditions: input.conditions?.trim() ? input.conditions.trim() : null,
     status: 'available',
     heldBy: null,
+    reserva: input.kind === 'reserva' ? { ...(input.reserva ?? DEFAULT_RESERVA_CONFIG), blackouts: [] } : null,
     createdBy: input.createdBy,
     createdAt: now,
     updatedAt: now,

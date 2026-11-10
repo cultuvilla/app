@@ -46,6 +46,14 @@ jest.mock('../../../components/feature/groups/cosateca/AskCosaSheet', () => ({
     return visible ? <Text testID="stub-ask">ask</Text> : null;
   },
 }));
+jest.mock('../../../components/feature/groups/cosateca/Reserva', () => {
+  const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    ReservaBooking: ({ canBook }: { canBook: boolean }) => <Text testID="stub-booking">{canBook ? 'can' : 'cannot'}</Text>,
+    ReservaBlackouts: () => <Text testID="stub-blackouts">blackouts</Text>,
+    MyReservas: ({ bookings }: { bookings: { id: string }[] }) => <Text testID="stub-mine">{bookings.map((b) => b.id).join(',')}</Text>,
+  };
+});
 jest.mock('../../../components/feature/groups/cosateca/CosaSheet', () => ({
   CosaSheet: ({ visible }: { visible: boolean }) => {
     const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
@@ -148,5 +156,22 @@ describe("a cosa's screen", () => {
   it('says so when the cosa is gone', () => {
     mockCosa = null;
     expect(render(<CosaScreen />).getByTestId('cosa-unavailable')).toBeTruthy();
+  });
+
+  it('a reserva is booked on its grid, not asked for; its admin closes days', () => {
+    mockCosa = cosa({ kind: 'reserva', reserva: { ...(buildCosaData({
+      municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: null, ownerName: 'A', kind: 'reserva', title: 'P', category: 'deporte', createdBy: 'a',
+    }).reserva!) } });
+    const future = new Date(Date.now() + 86_400_000);
+    mockMine = [request({ id: 'b1', cosaKind: 'reserva', status: 'accepted', startAt: future, endAt: new Date(future.getTime() + 3_600_000) })];
+    const villager = render(<CosaScreen />);
+    expect(villager.queryByTestId('cosa-ask')).toBeNull();
+    expect(villager.getByTestId('stub-booking')).toHaveTextContent('can');
+    expect(villager.getByTestId('stub-mine')).toHaveTextContent('b1');
+    expect(villager.queryByTestId('stub-blackouts')).toBeNull();
+    villager.unmount();
+
+    mockGroups = [{ org: { id: 'ayto' }, role: 'admin' }];
+    expect(render(<CosaScreen />).getByTestId('stub-blackouts')).toBeTruthy();
   });
 });

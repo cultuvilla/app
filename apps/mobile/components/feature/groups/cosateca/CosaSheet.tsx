@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import {
   COSA_CATEGORIES,
+  DEFAULT_RESERVA_CONFIG,
   effectiveCosaAudience,
   MAX_COSA_CONDITIONS,
   MAX_COSA_DESCRIPTION,
   MAX_COSA_TITLE,
   type CosaCategory,
+  type CosaEdit,
   type CosaKind,
   type OrganizationData,
 } from '@cultuvilla/shared/models/organization';
@@ -16,17 +18,21 @@ import { Button, FieldLabel, ImagePickerField, Input, Text, VStack } from '../..
 import { FormModal } from '../../../layout/FormModal';
 import { SegmentedToggle } from '../../SegmentedToggle';
 import { CategoryChips } from './CosaRows';
+import { ReservaConfigFields } from './Reserva';
+import { parseReservaDraft, reservaDraft, type ReservaDraft, type ReservaDraftError } from '../../../../lib/orgs/reserva';
 import { useT } from '../../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../../lib/dialogs';
 import { pickImageAsBlob } from '../../../../lib/images';
 
 type Owner = 'mine' | 'group';
-const KINDS: readonly CosaKind[] = ['prestamo', 'servicio', 'regalo'];
+const KINDS: readonly CosaKind[] = ['prestamo', 'servicio', 'regalo', 'reserva'];
 
 /**
  * Offer something to a group's cosateca, or edit it. An integrante offers their
  * own; an admin may also offer it in the group's name. A photo is uploaded
  * under the cosa's own id, so a new cosa is created first and then given it.
+ * What kind it is is chosen once: its requests carry the kind they were made
+ * under, so the rules freeze it. A reserva also carries its hours and limits.
  */
 export function CosaSheet({
   visible,
@@ -57,7 +63,9 @@ export function CosaSheet({
   const [category, setCategory] = useState<CosaCategory>('otros');
   const [owner, setOwner] = useState<Owner>('mine');
   const [photo, setPhoto] = useState<UploadableImage | null>(null);
+  const [reserva, setReserva] = useState<ReservaDraft>(() => reservaDraft(DEFAULT_RESERVA_CONFIG));
   const [titleError, setTitleError] = useState<string | undefined>();
+  const [reservaError, setReservaError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -69,17 +77,18 @@ export function CosaSheet({
     setCategory(cosa?.category ?? 'otros');
     setOwner('mine');
     setPhoto(null);
+    setReserva(reservaDraft(cosa?.reserva ?? DEFAULT_RESERVA_CONFIG));
     setTitleError(undefined);
+    setReservaError(undefined);
   }, [visible, cosa]);
 
-  const fields = (imageURL: string | null) => ({
-    kind,
-    title: title.trim(),
-    description: description.trim() || null,
-    category,
-    imageURL,
-    conditions: conditions.trim() || null,
-  });
+  const RESERVA_ERRORS: Record<ReservaDraftError, string> = {
+    time: t('groups.cosateca.reserva.errors.time'),
+    order: t('groups.cosateca.reserva.errors.order'),
+    slotMinutes: t('groups.cosateca.reserva.errors.slotMinutes'),
+    maxActiveReservations: t('groups.cosateca.reserva.errors.maxActive'),
+    bookingHorizonDays: t('groups.cosateca.reserva.errors.horizon'),
+  };
 
   const save = async () => {
     if (!title.trim()) {
@@ -87,6 +96,25 @@ export function CosaSheet({
       return;
     }
     setTitleError(undefined);
+    let reservaConfig: CosaEdit['reserva'] = null;
+    if (kind === 'reserva') {
+      const parsed = parseReservaDraft(reserva, cosa?.reserva?.blackouts ?? []);
+      if (!parsed.ok) {
+        setReservaError(RESERVA_ERRORS[parsed.error]);
+        return;
+      }
+      reservaConfig = parsed.config;
+    }
+    setReservaError(undefined);
+    const fields = (imageURL: string | null) => ({
+      kind,
+      title: title.trim(),
+      description: description.trim() || null,
+      category,
+      imageURL,
+      conditions: conditions.trim() || null,
+      reserva: reservaConfig,
+    });
     setSaving(true);
     try {
       if (cosa) {
@@ -152,12 +180,18 @@ export function CosaSheet({
       <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
         <VStack gap={3} className="px-4 pt-4 pb-6">
           <FieldLabel>{t('groups.cosateca.form.kind')}</FieldLabel>
-          <SegmentedToggle
-            testID="cosa-kind"
-            value={kind}
-            options={KINDS.map((k) => ({ value: k, label: t(`groups.cosateca.kinds.${k}`) }))}
-            onChange={setKind}
-          />
+          {cosa ? (
+            <Text className="font-medium" testID="cosa-kind-fixed">
+              {t(`groups.cosateca.kinds.${kind}`)}
+            </Text>
+          ) : (
+            <SegmentedToggle
+              testID="cosa-kind"
+              value={kind}
+              options={KINDS.map((k) => ({ value: k, label: t(`groups.cosateca.kinds.${k}`) }))}
+              onChange={setKind}
+            />
+          )}
           <Text variant="bodySm" tone="muted">
             {t(`groups.cosateca.kindHints.${kind}`)}
           </Text>
@@ -197,6 +231,7 @@ export function CosaSheet({
           <Text variant="bodySm" tone="muted">
             {t('groups.cosateca.form.conditionsHint')}
           </Text>
+          {kind === 'reserva' ? <ReservaConfigFields draft={reserva} onChange={setReserva} error={reservaError} /> : null}
           <FieldLabel>{t('groups.cosateca.form.photo')}</FieldLabel>
           <ImagePickerField
             uri={photo?.previewUri ?? cosa?.imageURL ?? null}

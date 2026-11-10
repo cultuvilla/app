@@ -5,6 +5,7 @@ import {
   cosaDoc,
   cosaRequestDoc,
   cosaRequestsCollection,
+  cosaSlotDoc,
   organizationMemberDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
@@ -13,6 +14,7 @@ import {
   isFinalCosaRequestStatus,
   nextCosaRequestStatus,
   OPEN_COSA_REQUEST_STATUSES,
+  reservaSlotKey,
   type CosaRequestAction,
   type CosaRequestRole,
   type CosaRequestStatus,
@@ -38,8 +40,9 @@ const REASON_MESSAGES = {
  * Callable because the checks span documents a rule cannot hold together:
  * accepting a loan must not overlap another accepted or lent one of the same
  * cosa; lending and returning keep the cosa's `heldBy`; giving a regalo closes
- * the cosa and declines its other open requests. `onCosaRequestWritten` sends
- * the notifications.
+ * the cosa and declines its other open requests; answering a reserva booking
+ * keeps its slot's lock (`cosas/{cosaId}/slots`) — accepted, or freed.
+ * `onCosaRequestWritten` sends the notifications.
  */
 export async function applyCosaRequestAction(
   firestore: Firestore,
@@ -80,6 +83,13 @@ export async function applyCosaRequestAction(
       throw new HttpsError('failed-precondition', 'Esa cosa no está disponible ahora.');
     }
 
+    if (req.cosaKind === 'reserva' && req.startAt !== null && req.startAt.getTime() <= now.getTime()) {
+      throw new HttpsError('failed-precondition', 'Esa reserva ya ha pasado.');
+    }
+    const lockRef = req.cosaKind === 'reserva' && req.startAt !== null ? cosaSlotDoc(firestore, req.cosaId, reservaSlotKey(req.startAt)) : null;
+    const lock = lockRef ? await tx.get(lockRef) : null;
+    const ownsLock = lock?.data()?.requestId === requestId;
+
     let declineOthers: string[] = [];
     if (cosa && req.cosaKind === 'prestamo' && action === 'accept') {
       const others = await tx.get(
@@ -115,6 +125,10 @@ export async function applyCosaRequestAction(
       } else if (action === 'give') {
         tx.update(cosaRef, { status: 'given' });
       }
+    }
+    if (lockRef && ownsLock) {
+      if (next.to === 'accepted') tx.update(lockRef.withConverter(null), { status: 'accepted' });
+      else if (isFinalCosaRequestStatus(next.to)) tx.delete(lockRef);
     }
     for (const id of declineOthers) {
       tx.update(cosaRequestDoc(firestore, id).withConverter(null), { status: 'declined', respondedAt: now, closedAt: now });

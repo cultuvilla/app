@@ -118,7 +118,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
       }),
     ruleKeys: [
       'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'title', 'description',
-      'category', 'imageURL', 'conditions', 'status', 'heldBy', 'createdBy', 'createdAt', 'updatedAt',
+      'category', 'imageURL', 'conditions', 'status', 'heldBy', 'reserva', 'createdBy', 'createdAt', 'updatedAt',
     ],
   },
   {
@@ -131,6 +131,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     ruleKeys: [
       'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'ownerUid', 'requesterUid', 'requesterName',
       'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt', 'closedAt', 'overdueNotifiedOn',
+      'startAt', 'endAt',
     ],
   },
   {

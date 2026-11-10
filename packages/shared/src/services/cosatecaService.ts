@@ -9,6 +9,7 @@ import {
   cosaRequestDoc,
   cosaRequestsCollection,
   cosasCollection,
+  cosaSlotsCollection,
   cosatecaWriteDoc,
 } from '../firebase/refs/client';
 import {
@@ -18,6 +19,7 @@ import {
   type CosaData,
   type CosaEdit,
   type CosaInput,
+  type CosaSlotData,
 } from '../models/organization/CosaDataModel';
 import {
   buildCosaRequestData,
@@ -33,6 +35,8 @@ import { forbiddenAsEmpty, watchDoc, watchMerged, watchQuery, type Unwatch, type
 export type Cosa = CosaData & { id: string };
 export type CosaRequest = CosaRequestData & { id: string };
 export type CosaRequestChatMessage = GroupChatMessageData & { id: string };
+/** A taken slot of a reserva; `id` is its start as an ISO instant. */
+export type CosaSlot = CosaSlotData & { id: string };
 
 // =============================================================================
 // COSAS
@@ -190,6 +194,59 @@ export async function respondToCosaRequest(requestId: string, action: CosaReques
     'respondToCosaRequest',
   );
   return (await fn({ requestId, action })).data.status;
+}
+
+// =============================================================================
+// RESERVAS — the pádel court, booked by time slot
+// =============================================================================
+
+/**
+ * A reserva's taken slots starting in [from, to): what the grid greys out.
+ * Names no one; who booked is on the booking, which only its parties read.
+ */
+export function watchCosaSlots(
+  cosaId: string,
+  from: Date,
+  to: Date,
+  onNext: (rows: CosaSlot[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    query(cosaSlotsCollection(getDb(), cosaId), where('startAt', '>=', from), where('startAt', '<', to)),
+    onNext,
+    onError,
+  );
+}
+
+/**
+ * Book a slot (`startAt`, a slot of the cosa's grid) through the
+ * `bookReservaSlot` callable: it claims the slot's lock in a transaction, holds
+ * the per-person cap and the horizon, and books it as accepted, or pending when
+ * the cosa asks for approval. Returns the booking's id and status.
+ */
+export async function bookReservaSlot(
+  cosaId: string,
+  startAt: Date,
+  message: string | null = null,
+): Promise<{ requestId: string; status: CosaRequestStatus }> {
+  const fn = httpsCallable<
+    { cosaId: string; startAt: string; message: string | null },
+    { requestId: string; status: CosaRequestStatus }
+  >(getFirebaseFunctions(), 'bookReservaSlot');
+  return (await fn({ cosaId, startAt: startAt.toISOString(), message: message?.trim() ? message.trim() : null })).data;
+}
+
+/**
+ * Its manager closes days (`YYYY-MM-DD`) through the `setReservaBlackouts`
+ * callable, which cancels the bookings on newly closed days and tells their
+ * bookers. Returns how many it cancelled.
+ */
+export async function setReservaBlackouts(cosaId: string, blackouts: string[]): Promise<{ cancelled: number }> {
+  const fn = httpsCallable<{ cosaId: string; blackouts: string[] }, { cancelled: number }>(
+    getFirebaseFunctions(),
+    'setReservaBlackouts',
+  );
+  return (await fn({ cosaId, blackouts })).data;
 }
 
 // =============================================================================

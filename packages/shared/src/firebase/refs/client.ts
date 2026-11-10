@@ -59,7 +59,7 @@ import { vocabularyTermConverterClient } from '../converters/vocabularyTermConve
 import { historyEntryConverterClient } from '../converters/historyEntryConverter.client';
 import { vocabularyDefinitionConverterClient } from '../converters/vocabularyDefinitionConverter.client';
 import { vocabularyWordConverterClient } from '../converters/vocabularyWordConverter.client';
-import { cosaConverterClient, cosaRequestConverterClient } from '../converters/cosatecaConverter.client';
+import { cosaConverterClient, cosaRequestConverterClient, cosaSlotConverterClient } from '../converters/cosatecaConverter.client';
 
 export const eventsCollection = (db: Firestore) =>
   collection(db, 'events').withConverter(eventConverterClient);
@@ -197,6 +197,8 @@ export const organizationCuotaWriteDoc = (
 // The cosateca (see CosaDataModel, CosaRequestDataModel).
 export const cosasCollection = (db: Firestore) => collection(db, 'cosas').withConverter(cosaConverterClient);
 export const cosaDoc = (db: Firestore, cosaId: string) => doc(db, 'cosas', cosaId).withConverter(cosaConverterClient);
+export const cosaSlotsCollection = (db: Firestore, cosaId: string) =>
+  collection(db, 'cosas', cosaId, 'slots').withConverter(cosaSlotConverterClient);
 export const cosaRequestsCollection = (db: Firestore) => collection(db, 'cosaRequests').withConverter(cosaRequestConverterClient);
 export const cosaRequestDoc = (db: Firestore, requestId: string) =>
   doc(db, 'cosaRequests', requestId).withConverter(cosaRequestConverterClient);

@@ -83,6 +83,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "cosaKind",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cosaRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "requesterUid",
           "order": "ASCENDING"
         },

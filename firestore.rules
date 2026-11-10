@@ -603,13 +603,42 @@ service cloud.firestore {
     function cosaKeys() {
       return [
         'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'title', 'description',
-        'category', 'imageURL', 'conditions', 'status', 'heldBy', 'createdBy', 'createdAt', 'updatedAt',
+        'category', 'imageURL', 'conditions', 'status', 'heldBy', 'reserva', 'createdBy', 'createdAt', 'updatedAt',
       ];
+    }
+    // A reserva's one config (ReservaConfigSchema). Weekdays are a fixed map, so
+    // every entry is checked here and none can reach a reader's strict converter
+    // malformed; `blackouts` only the setReservaBlackouts callable changes.
+    function isValidReservaDayHours(h) {
+      return h == null
+        || (h is map
+          && h.keys().hasOnly(['opensAt', 'closesAt'])
+          && h.keys().hasAll(['opensAt', 'closesAt'])
+          && isTimeOfDay(h.opensAt) && isTimeOfDay(h.closesAt)
+          && h.opensAt < h.closesAt);
+    }
+    function isValidReservaConfig(r) {
+      return r is map
+          && r.keys().hasOnly(['hours', 'slotMinutes', 'requiresApproval', 'maxActiveReservations', 'bookingHorizonDays', 'blackouts'])
+          && r.keys().hasAll(['hours', 'slotMinutes', 'requiresApproval', 'maxActiveReservations', 'bookingHorizonDays', 'blackouts'])
+          && r.hours is map
+          && r.hours.keys().hasOnly(['1', '2', '3', '4', '5', '6', '7'])
+          && r.hours.keys().hasAll(['1', '2', '3', '4', '5', '6', '7'])
+          && isValidReservaDayHours(r.hours['1']) && isValidReservaDayHours(r.hours['2'])
+          && isValidReservaDayHours(r.hours['3']) && isValidReservaDayHours(r.hours['4'])
+          && isValidReservaDayHours(r.hours['5']) && isValidReservaDayHours(r.hours['6'])
+          && isValidReservaDayHours(r.hours['7'])
+          && r.slotMinutes is int && r.slotMinutes >= 15 && r.slotMinutes <= 240
+          && r.requiresApproval is bool
+          && r.maxActiveReservations is int && r.maxActiveReservations >= 1 && r.maxActiveReservations <= 20
+          && r.bookingHorizonDays is int && r.bookingHorizonDays >= 1 && r.bookingHorizonDays <= 90
+          && r.blackouts is list && r.blackouts.size() <= 100;
     }
     function isValidCosaFields(d) {
       return d.keys().hasOnly(cosaKeys())
           && d.keys().hasAll(cosaKeys())
-          && d.kind in ['prestamo', 'servicio', 'regalo']
+          && d.kind in ['prestamo', 'servicio', 'regalo', 'reserva']
+          && (d.kind == 'reserva' ? isValidReservaConfig(d.reserva) : d.reserva == null)
           && d.title is string && d.title.size() >= 1 && d.title.size() <= 80
           && isNullOrShortString(d.description, 1000)
           && d.category in ['herramientas', 'cocina', 'fiestas', 'deporte', 'ninos', 'jardin', 'libros', 'otros']
@@ -629,6 +658,7 @@ service cloud.firestore {
           && d.audience == orgCosaAudience(d.orgId)
           && d.status == 'available'
           && d.heldBy == null
+          && (d.reserva == null || d.reserva.blackouts.size() == 0)
           && d.createdBy == request.auth.uid
           && d.createdAt == request.time
           && d.updatedAt == request.time
@@ -653,6 +683,7 @@ service cloud.firestore {
                'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'heldBy', 'createdBy', 'createdAt',
              ])
           && n.updatedAt == request.time
+          && (n.reserva == null || n.reserva.blackouts == o.reserva.blackouts)
           // `given` is the callable's to set, and final.
           && (n.status == o.status || (o.status != 'given' && n.status in ['available', 'paused']));
     }
@@ -660,6 +691,7 @@ service cloud.firestore {
       return [
         'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'ownerUid', 'requesterUid', 'requesterName',
         'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt', 'closedAt', 'overdueNotifiedOn',
+        'startAt', 'endAt',
       ];
     }
     // The requester asks as themself, for a cosa they may see and do not own,
@@ -674,6 +706,9 @@ service cloud.firestore {
           && d.status == 'pending'
           && d.createdAt == request.time
           && d.respondedAt == null && d.closedAt == null && d.overdueNotifiedOn == null
+          // A reserva is booked only through bookReservaSlot, which holds the slot's lock.
+          && d.startAt == null && d.endAt == null
+          && cosa.kind != 'reserva'
           && isNullOrShortString(d.message, 500)
           && (d.fromOn == null || isDayKey(d.fromOn))
           && (d.untilOn == null || isDayKey(d.untilOn))
@@ -2164,6 +2199,13 @@ service cloud.firestore {
       allow create: if isValidCosaCreate(request.resource.data);
       allow update: if canManageCosa(resource.data) && isValidCosaUpdate(request.resource.data, resource.data);
       allow delete: if canManageCosa(resource.data) || isAppAdmin();
+    }
+    // A reserva's taken slots (CosaSlotDataSchema): what its grid greys out, for
+    // whoever may see the cosa. Names no one. Function-owned (bookReservaSlot,
+    // respondToCosaRequest, setReservaBlackouts).
+    match /cosas/{cosaId}/slots/{slotKey} {
+      allow read: if canReadCosa(get(/databases/$(database)/documents/cosas/$(cosaId)).data);
+      allow write: if false;
     }
     match /cosaRequests/{requestId} {
       allow read: if resource == null
