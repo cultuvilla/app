@@ -358,7 +358,7 @@ describe('readSite — the /embajadores wall', () => {
 
   it("shows each active pueblo's public, living Embajador, by pueblo, and nobody else", async () => {
     const { body } = await html('/embajadores');
-    expect(body).toContain('Ya son 2 Embajadores');
+    expect(body).toContain('<h2>2 Embajadores</h2>');
     expect(body).toContain('Embajador de Arcones');
     expect(body).toContain('Embajadora de Riofrio');
     expect(body.indexOf('Arcones')).toBeLessThan(body.indexOf('Riofrio'));

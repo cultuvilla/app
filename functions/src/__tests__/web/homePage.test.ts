@@ -199,7 +199,7 @@ describe('homePage', () => {
     const javier = { name: '<Javier>', photoUrl: null, originalPhotoUrl: null, female: false, village: village('riofrio', 'Riofrío') };
     const out = render(ambassadorsPage([lucia, javier]).body);
     expect(out.indexOf('<form id="amb-form"')).toBeLessThan(out.indexOf('class="blk amb-wall"'));
-    expect(out).toContain('Ya son 2 Embajadores');
+    expect(out).toContain('<h2>2 Embajadores</h2>');
     expect(out).toContain('href="/valdeolmos"');
     expect(out).toContain('Embajadora de Valdeolmos');
     expect(out).toContain('Embajador de Riofrío');
@@ -209,7 +209,7 @@ describe('homePage', () => {
     // No photo: the initial stands in, and a name is escaped like any other text.
     expect(out).toContain('<span class="face" aria-hidden="true">&lt;</span>');
     expect(out).toContain('&lt;Javier&gt;');
-    expect(render(ambassadorsPage([lucia]).body)).toContain('Ya hay un Embajador');
+    expect(render(ambassadorsPage([lucia]).body)).toContain('<h2>1 Embajador</h2>');
   });
 
   it('hands a rejected form back with what was typed, escaped, and each problem beside its field', () => {

@@ -553,7 +553,7 @@ ${formError(errors, 'form')}
 function ambassadorWall(ambassadors: AmbassadorView[]): Child {
   if (ambassadors.length === 0) return null;
   return html`<section class="blk amb-wall"><div class="in"><div class="head"><span class="eyebrow">Ya cuidan su pueblo</span><h2>${
-    ambassadors.length === 1 ? 'Ya hay un Embajador' : `Ya son ${String(ambassadors.length)} Embajadores`
+    `${String(ambassadors.length)} ${ambassadors.length === 1 ? 'Embajador' : 'Embajadores'}`
   }</h2></div><ul class="carnets">${ambassadors.map((a) => {
     const initial = a.name.trim().charAt(0).toUpperCase();
     const face = a.photoUrl
