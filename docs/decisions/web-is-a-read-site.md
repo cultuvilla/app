@@ -84,6 +84,9 @@ Two readings, kept separate on purpose:
   ([spanish-village-urls.md](spanish-village-urls.md)): the same path opens the
   read page in a browser and the app screen through a universal link.
 - Member-only data (private events, censo, personas) is never rendered on web.
+  The one exception is the `/embajadores` wall: each pueblo's Embajador, by
+  name and photo, when their profile is public
+  ([embajador-title.md](embajador-title.md)).
 - The read site replaced the Expo export in one cutover. It was verified on prod
   on 2026-10-08: a pueblo, an event's OG tags, `/descarga` from an iPhone (302 to
   the App Store), `robots.txt`, the sitemap and the AASA (JSON).

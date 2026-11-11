@@ -202,7 +202,8 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
       const outcome = await submitAmbassadorLead(db, req.body, req.ip ?? 'unknown', deps.now);
       if (outcome.ok) return { kind: 'redirect', location: '/embajadores/gracias', permanent: false, seeOther: true };
       // The visitor's own answers come back to them, so the edge must never keep this page.
-      return { kind: 'page', page: { ...ambassadorsPage(await loadAmbassadors(db), outcome), status: 400 }, path, deviceDependent: true };
+      // Uncached, so it skips the wall: a bot's malformed POSTs would otherwise each pay its reads.
+      return { kind: 'page', page: { ...ambassadorsPage([], outcome), status: 400 }, path, deviceDependent: true };
     }
     case 'ambassadorsThanks':
       return page(ambassadorsThanksPage(), path);
