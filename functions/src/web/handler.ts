@@ -11,6 +11,7 @@ import {
 } from '@cultuvilla/shared/utils';
 import {
   loadActiveVillages,
+  loadAmbassadors,
   loadBarrio,
   loadEvent,
   loadHistoryEntry,
@@ -197,11 +198,11 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
     case 'villages':
       return page(villagesPage(await loadLanding(deps)), path);
     case 'ambassadors': {
-      if (req.method !== 'POST') return page(ambassadorsPage(), path);
+      if (req.method !== 'POST') return page(ambassadorsPage(await loadAmbassadors(db)), path);
       const outcome = await submitAmbassadorLead(db, req.body, req.ip ?? 'unknown', deps.now);
       if (outcome.ok) return { kind: 'redirect', location: '/embajadores/gracias', permanent: false, seeOther: true };
       // The visitor's own answers come back to them, so the edge must never keep this page.
-      return { kind: 'page', page: { ...ambassadorsPage(outcome), status: 400 }, path, deviceDependent: true };
+      return { kind: 'page', page: { ...ambassadorsPage(await loadAmbassadors(db), outcome), status: 400 }, path, deviceDependent: true };
     }
     case 'ambassadorsThanks':
       return page(ambassadorsThanksPage(), path);

@@ -7,6 +7,7 @@ import {
   cardImage,
   eventWhen,
   posterTitle,
+  type AmbassadorView,
   type Card,
   type DefinitionView,
   COMISION_LABEL,
@@ -544,7 +545,30 @@ ${formError(errors, 'form')}
 </form><script>${raw(AMBASSADOR_PICKER)}</script>`;
 }
 
-export function ambassadorsPage(submitted?: { form: AmbassadorForm; errors: AmbassadorFormErrors }): Page {
+/**
+ * The Embajadores who already look after a pueblo, as the app's carnet: face
+ * with the Cultuvilla seal, name, gendered title and the pueblo's escudo. Each
+ * opens its pueblo. Absent until there is one to show.
+ */
+function ambassadorWall(ambassadors: AmbassadorView[]): Child {
+  if (ambassadors.length === 0) return null;
+  return html`<section class="blk amb-wall"><div class="in"><div class="head"><span class="eyebrow">Ya cuidan su pueblo</span><h2>${
+    ambassadors.length === 1 ? 'Ya hay un Embajador' : `Ya son ${String(ambassadors.length)} Embajadores`
+  }</h2></div><ul class="carnets">${ambassadors.map((a) => {
+    const initial = a.name.trim().charAt(0).toUpperCase();
+    const face = a.photoUrl
+      ? img(a.photoUrl, a.name, 'face', a.originalPhotoUrl)
+      : html`<span class="face" aria-hidden="true">${initial}</span>`;
+    return html`<li><a href="${villagePath(a.village.slug)}"><span class="face-wrap">${face}<span class="seal" aria-hidden="true"></span></span><b>${a.name}</b><span class="tt">${
+      a.female ? 'Embajadora' : 'Embajador'
+    } de ${a.village.name}</span><span class="pv">${img(cardImage(a.village.escudoUrl), '', 'escudo', a.village.escudoUrl)}${a.village.province}</span></a></li>`;
+  })}</ul></div></section>`;
+}
+
+export function ambassadorsPage(
+  ambassadors: AmbassadorView[],
+  submitted?: { form: AmbassadorForm; errors: AmbassadorFormErrors },
+): Page {
   return {
     layout: 'landing',
     head: {
@@ -554,6 +578,7 @@ export function ambassadorsPage(submitted?: { form: AmbassadorForm; errors: Amba
     body: html`<div class="amb-page">${BUNTING}
 <section class="in top amb-top"><div><h1 class="amb-q"><span>¿Presumes de</span> <em>pueblo</em> <span>allá donde vas?</span></h1><p class="lead">Hazte su Embajador: activa la página de tu pueblo y cuida su cultura para siempre. Déjanos tu teléfono y lo ponemos en marcha contigo.</p></div>${phoneVideo('cultuvilla-embajador-vertical', 'Vídeo: hazte Embajador de Cultuvilla')}</section>
 <section class="in amb-form-row">${ambassadorForm(submitted?.form ?? null, submitted?.errors ?? {})}</section>
+${ambassadorWall(ambassadors)}
 <section class="blk amb-more"><div class="in"><ul class="amb-does">
 <li><b>Lo pone en marcha</b><span>Activa la página del pueblo, con su escudo.</span></li>
 <li><b>Suma a su gente</b><span>Invita a los vecinos, a sus peñas y al ayuntamiento.</span></li>

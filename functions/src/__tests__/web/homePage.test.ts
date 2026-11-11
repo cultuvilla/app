@@ -170,7 +170,7 @@ describe('homePage', () => {
   });
 
   it('gives would-be Embajadores a short page of their own: the film and a form that asks for their pueblo and phone', () => {
-    const page = ambassadorsPage();
+    const page = ambassadorsPage([]);
     expect(page.layout).toBe('landing');
     const out = render(page.body);
     expect(out).toContain('<h1 class="amb-q"><span>¿Presumes de</span> <em>pueblo</em> <span>allá donde vas?</span></h1>');
@@ -190,9 +190,31 @@ describe('homePage', () => {
     }
   });
 
+  it('shows no wall on /embajadores until there is an Embajador to show', () => {
+    expect(render(ambassadorsPage([]).body)).not.toContain('amb-wall');
+  });
+
+  it('shows each Embajador as a carnet below the form: face, name, gendered title and escudo, linking to their pueblo', () => {
+    const lucia = { name: 'Lucía Martín', photoUrl: 'https://img.test/lucia_thumb.webp', originalPhotoUrl: 'https://img.test/lucia.jpg', female: true, village: { ...village('valdeolmos', 'Valdeolmos', 'Madrid'), escudoUrl: 'https://img.test/escudo.png' } };
+    const javier = { name: '<Javier>', photoUrl: null, originalPhotoUrl: null, female: false, village: village('riofrio', 'Riofrío') };
+    const out = render(ambassadorsPage([lucia, javier]).body);
+    expect(out.indexOf('<form id="amb-form"')).toBeLessThan(out.indexOf('class="blk amb-wall"'));
+    expect(out).toContain('Ya son 2 Embajadores');
+    expect(out).toContain('href="/valdeolmos"');
+    expect(out).toContain('Embajadora de Valdeolmos');
+    expect(out).toContain('Embajador de Riofrío');
+    expect(out).toContain('src="https://img.test/lucia_thumb.webp"');
+    expect(out).toContain('data-fallback="https://img.test/lucia.jpg"');
+    expect(out).toContain('src="https://img.test/escudo.png"');
+    // No photo: the initial stands in, and a name is escaped like any other text.
+    expect(out).toContain('<span class="face" aria-hidden="true">&lt;</span>');
+    expect(out).toContain('&lt;Javier&gt;');
+    expect(render(ambassadorsPage([lucia]).body)).toContain('Ya hay un Embajador');
+  });
+
   it('hands a rejected form back with what was typed, escaped, and each problem beside its field', () => {
     const form = { pueblo: '<b>Mata</b>', municipalityId: '', nombre: 'Ana "la del bar"', telefono: '123', consentimiento: true, web: '' };
-    const out = render(ambassadorsPage({ form, errors: { telefono: 'Escribe un teléfono válido, por ejemplo 612 345 678.' } }).body);
+    const out = render(ambassadorsPage([], { form, errors: { telefono: 'Escribe un teléfono válido, por ejemplo 612 345 678.' } }).body);
     expect(out).toContain('value="&lt;b&gt;Mata&lt;/b&gt;"');
     expect(out).toContain('value="Ana &quot;la del bar&quot;"');
     expect(out).toContain('<span class="err" role="alert">Escribe un teléfono válido');

@@ -319,6 +319,53 @@ describe('readSite', () => {
   });
 });
 
+describe('readSite — the /embajadores wall', () => {
+  beforeEach(async () => {
+    await resetEmulators();
+    const d = db();
+    const pueblo = (name: string, organizerId: string | null, active = true) => ({
+      name,
+      slug: name.toLowerCase(),
+      province: 'Segovia',
+      communityActive: active,
+      community: { organizerId, organizerSex: null },
+    });
+    const person = (givenName: string, extra: Record<string, unknown> = {}) => ({
+      givenName,
+      firstSurname: 'Sanz',
+      sex: 'female',
+      isPublic: true,
+      photoURL: null,
+      deathDate: null,
+      burialPlace: null,
+      ...extra,
+    });
+    await d.doc('municipalities/a').set(pueblo('Riofrio', 'u-ana'));
+    await d.doc('municipalities/b').set(pueblo('Arcones', 'u-bea'));
+    await d.doc('municipalities/c').set(pueblo('Prades', 'u-carla'));
+    await d.doc('municipalities/d').set(pueblo('Sinembajador', null));
+    await d.doc('municipalities/e').set(pueblo('Dormido', 'u-dora', false));
+    await d.doc('municipalities/f').set(pueblo('Ido', 'u-eva'));
+    for (const [uid, pid] of [['u-ana', 'p-ana'], ['u-bea', 'p-bea'], ['u-carla', 'p-carla'], ['u-dora', 'p-dora'], ['u-eva', 'p-eva']]) {
+      await d.doc(`users/${uid}`).set({ personId: pid });
+    }
+    await d.doc('persons/p-ana').set(person('Ana'));
+    await d.doc('persons/p-bea').set(person('Bea', { sex: 'male', givenName: 'Beto' }));
+    await d.doc('persons/p-carla').set(person('Carla', { isPublic: false }));
+    await d.doc('persons/p-dora').set(person('Dora'));
+    await d.doc('persons/p-eva').set(person('Eva', { deathDate: { year: 2025, month: null, day: null } }));
+  });
+
+  it("shows each active pueblo's public, living Embajador, by pueblo, and nobody else", async () => {
+    const { body } = await html('/embajadores');
+    expect(body).toContain('Ya son 2 Embajadores');
+    expect(body).toContain('Embajador de Arcones');
+    expect(body).toContain('Embajadora de Riofrio');
+    expect(body.indexOf('Arcones')).toBeLessThan(body.indexOf('Riofrio'));
+    for (const hidden of ['Carla Sanz', 'Dora Sanz', 'Eva Sanz', 'de Prades', 'de Dormido', 'de Ido', 'de Sinembajador']) expect(body).not.toContain(hidden);
+  });
+});
+
 describe('readSite — the /embajadores form', () => {
   const post = (body: Record<string, string>, ip = '203.0.113.7', now = NOW) =>
     handle({ pathname: '/embajadores', userAgent: null, method: 'POST', body, ip }, { db: db(), bucket: 'test-bucket', now });
