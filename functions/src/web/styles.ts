@@ -173,6 +173,19 @@ body{font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .landing .amb-form .fine{font-size:12px;line-height:1.5;color:var(--muted);margin:4px 0 0}
 .landing .amb-form .hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 .landing .amb-more{padding-top:24px}
+.landing .amb-wall{padding-top:8px}
+.landing .carnets{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.landing .carnets a{display:grid;justify-items:center;align-content:start;gap:6px;height:100%;padding:20px 14px 16px;background:var(--card);border:1px solid var(--border);border-radius:18px;text-align:center;text-decoration:none;color:var(--text)}
+.landing .carnets a:hover{border-color:var(--accent)}
+.landing .carnets .face-wrap{position:relative;width:76px;height:76px;margin-bottom:4px}
+.landing .carnets .face{width:76px;height:76px;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:var(--clay);color:#fff;font-family:var(--display);font-size:32px}
+.landing .carnets .seal{position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;background:var(--accent);border:2px solid var(--card);display:grid;place-items:center}
+.landing .carnets .seal::after{content:"\\2605";color:var(--on-accent);font-size:12px;line-height:1}
+.landing .carnets b{color:var(--primary);font-size:16px;line-height:1.25}
+.landing .carnets .tt{color:var(--accent);font-weight:600;font-size:14px;line-height:1.3}
+.landing .carnets .pv{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.landing .carnets .escudo{width:18px;height:22px;object-fit:contain;flex:none}
+@media (max-width:420px){.landing .carnets{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .landing .amb-does{list-style:none;margin:0 0 28px;padding:24px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;border-top:2px solid var(--accent)}
 .landing .amb-does li{display:grid;gap:4px}
 .landing .amb-does b{font-family:var(--display);font-weight:400;font-size:26px;color:var(--primary)}
