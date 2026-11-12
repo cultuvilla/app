@@ -6,12 +6,12 @@ import type { GroupChatMessage } from '@cultuvilla/shared/services/groupChatServ
 import { BottomSheet, HStack, Pressable, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 
-export type ChatMessageAction = 'reply' | 'report' | 'delete';
+export type ChatMessageAction = 'reply' | 'copy' | 'report' | 'delete';
 
 /**
  * What a long-press on a message opens: the five reactions, the message itself
- * (selectable, so its text can be copied from here), and what the viewer may do
- * with it — reply, report or block, delete — the dangerous one last.
+ * (selectable, for copying a part of it), and what the viewer may do with it —
+ * reply, copy, report or block, delete — the dangerous one last.
  */
 export function ChatMessageSheet({
   message,
@@ -31,6 +31,7 @@ export function ChatMessageSheet({
   const { t } = useT();
   const labels: Record<ChatMessageAction, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
     reply: { label: t('groups.chat.reply'), icon: 'arrow-undo-outline' },
+    copy: { label: t('groups.chat.copy'), icon: 'copy-outline' },
     report: { label: t('groups.chat.report'), icon: 'flag-outline' },
     delete: { label: t('groups.chat.delete'), icon: 'trash-outline' },
   };
