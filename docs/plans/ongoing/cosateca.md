@@ -67,6 +67,14 @@ ayuntamiento lends one thing (a key, a set of tables) to the whole pueblo throug
    which Phases 1–2 already give. The pádel court is Phase 3's `reserva`. There is no
    separate `services/` collection and no third membership group: the owning group's
    admins are the facility's admins.
+9. **Where it is kept, and how a physical cosa is shared** (decided 2026-11-12, user).
+   Every cosa may carry an optional map pin (`location`, the events' `LocationData`) and a
+   short note (`locationNote`, "almacén, estante 2"), seen by everyone who sees the cosa.
+   A `prestamo` has a `mode`: `prestamo` (given back to its owner) or `colectivizado` (it
+   belongs to the community and travels hand to hand — nobody gives it back; whoever holds
+   it answers the next request and hands it on). *Regalo* stays: given for good to one
+   person. A colectivizado cosa has no overdue reminder; its screen says who has it since
+   when.
 
 ## Data
 
@@ -241,7 +249,40 @@ agent's picks:
 - **Migration:** `scripts/backfill-cosateca-reservas.mjs` (pre-deploy, autoApply): `reserva:
   null` on cosas and `startAt`/`endAt: null` on requests, dev only in practice.
 
+### Location and colectivizado — as built
+
+- **Model:** `cosas.mode` (`prestamo` | `colectivizado`, null off a prestamo; frozen by the
+  rules like `kind`), `cosas.location` / `locationNote`, `cosas.heldBy.since`. Requests
+  copy `cosaMode` and, for a colectivizado cosa someone holds, `holderUid`
+  (`cosaHolderUid`); a new final status `passed`.
+- **Who answers:** `cosaRequestRoles` — the requester only asks; otherwise the holder of a
+  held colectivizado cosa, else its owner, and the group's admins always (the backstop).
+  The rules let the holder read and talk on those requests; the owner may ask for their own
+  colectivizado cosa while someone else holds it.
+- **The handover** (`respondToCosaRequest`, flow `colectivizado`): one accepted request
+  at a time (the next in line); `lend` moves `heldBy` to the requester with `since`, closes
+  the previous holder's request as `passed`, points the cosa's other open requests at the
+  new holder (`holderUid`) and cancels the new holder's own other ones. No `return`.
+- **Notifications and Buzón:** a new request goes to the holder (`cosaManagerUids`); the
+  Buzón and *Me piden* add a `holderUid == uid` query, and a held cosa's requests leave the
+  owner's and the admins' *Necesita tu acción* (`isCosaRequestAnsweredBy`).
+  `sendCosaReminders` skips colectivizado requests (`isCosaRequestOverdue`).
+- **Screens:** the offer sheet's *Cómo se comparte* (Préstamo / Colectivizado, with a
+  one-line hint each), the pin (`LocationField`) and the note; a *colectivizado* badge and
+  the note in catalogue rows; on the cosa screen *Dónde está* (note + `LocationMap`), "la
+  tiene X desde …", and for its holder "Lo tienes tú…" with its requests; the request
+  screen says *Ya se lo he pasado* for the handover. A colectivizado request asks no dates.
+- **Account deletion:** requests waiting on a departing holder go back to the owner or the
+  group's admins (`holderUid` cleared).
+- **Migration:** `scripts/backfill-cosa-location-mode.mjs` (pre-deploy, autoApply; after
+  `cosateca-reservas`). Applied on dev (nothing to patch there).
+
 ## Left for later
+
+- A colectivizado cosa is still deleted with its offerer's account, like any cosa they
+  own, though it belongs to the community by then.
+- Changing a colectivizado cosa's holder by hand (it was lost, or handed on outside the
+  app): today only a request handed over moves it.
 
 - What happens to an integrante's cosas when they leave the group (today: they stay,
   managed by the owner; the group's admins can delete them).

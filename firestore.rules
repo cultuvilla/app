@@ -602,9 +602,22 @@ service cloud.firestore {
     }
     function cosaKeys() {
       return [
-        'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'title', 'description',
-        'category', 'imageURL', 'conditions', 'status', 'heldBy', 'reserva', 'createdBy', 'createdAt', 'updatedAt',
+        'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'mode', 'title', 'description',
+        'category', 'imageURL', 'conditions', 'location', 'locationNote', 'status', 'heldBy', 'reserva',
+        'createdBy', 'createdAt', 'updatedAt',
       ];
+    }
+    // Where a cosa is kept (LocationDataSchema): an optional map pin.
+    function isValidCosaLocation(l) {
+      return l == null
+        || (l is map
+          && l.keys().hasOnly(['coordinates', 'displayName'])
+          && l.keys().hasAll(['coordinates', 'displayName'])
+          && l.coordinates is map
+          && l.coordinates.keys().hasOnly(['lat', 'lng'])
+          && l.coordinates.keys().hasAll(['lat', 'lng'])
+          && l.coordinates.lat is number && l.coordinates.lng is number
+          && l.displayName is string && l.displayName.size() <= 300);
     }
     // A reserva's one config (ReservaConfigSchema). Weekdays are a fixed map, so
     // every entry is checked here and none can reach a reader's strict converter
@@ -639,6 +652,10 @@ service cloud.firestore {
           && d.keys().hasAll(cosaKeys())
           && d.kind in ['prestamo', 'servicio', 'regalo', 'reserva']
           && (d.kind == 'reserva' ? isValidReservaConfig(d.reserva) : d.reserva == null)
+          // A prestamo is lent and given back, or colectivizado: it travels hand to hand.
+          && (d.kind == 'prestamo' ? d.mode in ['prestamo', 'colectivizado'] : d.mode == null)
+          && isValidCosaLocation(d.location)
+          && isNullOrShortString(d.locationNote, 120)
           && d.title is string && d.title.size() >= 1 && d.title.size() <= 80
           && isNullOrShortString(d.description, 1000)
           && d.category in ['herramientas', 'cocina', 'fiestas', 'deporte', 'ninos', 'jardin', 'libros', 'otros']
@@ -675,12 +692,13 @@ service cloud.firestore {
         || (cosa.audience == 'pueblo' && isVillageMember(cosa.municipalityId))
         || isAppAdmin();
     }
-    // `kind` is frozen: requests copy it, and the callable walks the copy, so a
-    // lent prestamo turned regalo could be given away under its holder.
+    // `kind` and `mode` are frozen: requests copy them, and the callable walks
+    // the copy, so a lent prestamo turned regalo could be given away under its
+    // holder, and one turned colectivizado would never come back.
     function isValidCosaUpdate(n, o) {
       return isValidCosaFields(n)
           && !n.diff(o).affectedKeys().hasAny([
-               'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'heldBy', 'createdBy', 'createdAt',
+               'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'mode', 'heldBy', 'createdBy', 'createdAt',
              ])
           && n.updatedAt == request.time
           && (n.reserva == null || n.reserva.blackouts == o.reserva.blackouts)
@@ -689,15 +707,22 @@ service cloud.firestore {
     }
     function cosaRequestKeys() {
       return [
-        'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'ownerUid', 'requesterUid', 'requesterName',
-        'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt', 'closedAt', 'overdueNotifiedOn',
-        'startAt', 'endAt',
+        'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'cosaMode', 'ownerUid', 'holderUid',
+        'requesterUid', 'requesterName', 'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt',
+        'closedAt', 'overdueNotifiedOn', 'startAt', 'endAt',
       ];
     }
-    // The requester asks as themself, for a cosa they may see and do not own,
-    // with its fields copied as they are, while the group runs its cosateca.
+    // A colectivizado cosa someone holds: that holder answers its requests.
+    function cosaCurrentHolder(cosa) {
+      return cosa.get('mode', null) == 'colectivizado' && cosa.heldBy != null ? cosa.heldBy.uid : null;
+    }
+    // The requester asks as themself, for a cosa they may see and do not
+    // answer (own, or for a held colectivizado cosa, hold), with its fields
+    // copied as they are, while the group runs its cosateca. A colectivizado
+    // cosa never comes back, so it is asked for with no return day.
     function isValidCosaRequestCreate(d) {
       let cosa = get(/databases/$(database)/documents/cosas/$(d.cosaId)).data;
+      let holder = cosaCurrentHolder(cosa);
       return isAuthenticated()
           && d.keys().hasOnly(cosaRequestKeys())
           && d.keys().hasAll(cosaRequestKeys())
@@ -717,17 +742,21 @@ service cloud.firestore {
           && cosa.municipalityId == d.municipalityId
           && cosa.title == d.cosaTitle
           && cosa.kind == d.cosaKind
+          && cosa.get('mode', null) == d.cosaMode
           && cosa.ownerUid == d.ownerUid
+          && d.holderUid == holder
+          && (d.cosaMode != 'colectivizado' || d.untilOn == null)
           && cosa.status == 'available'
           && orgStatus(cosa.orgId) == 'approved'
           && orgCosateca(cosa.orgId).enabled == true
-          && d.ownerUid != request.auth.uid
+          && (holder != null ? holder != request.auth.uid : d.ownerUid != request.auth.uid)
           && (isOrgMember(cosa.orgId) || (cosa.audience == 'pueblo' && isVillageMember(cosa.municipalityId)));
     }
-    // A request's parties: its requester, the cosa's owner, and the group's admins.
-    // They alone read and write its chat (the handover, arranged in the app).
+    // A request's parties: its requester, the cosa's owner, a colectivizado
+    // cosa's holder (who answers it), and the group's admins. They alone read
+    // and write its chat (the handover, arranged in the app).
     function isCosaRequestParty(req) {
-      return isOwner(req.requesterUid) || isOwner(req.ownerUid) || isOrgAdmin(req.orgId);
+      return isOwner(req.requesterUid) || isOwner(req.ownerUid) || isOwner(req.get('holderUid', null)) || isOrgAdmin(req.orgId);
     }
     function cosaRequestData(requestId) {
       return get(/databases/$(database)/documents/cosaRequests/$(requestId)).data;
@@ -2221,6 +2250,7 @@ service cloud.firestore {
       allow read: if resource == null
         || isOwner(resource.data.requesterUid)
         || isOwner(resource.data.ownerUid)
+        || isOwner(resource.data.get('holderUid', null))
         || isOrgAdmin(resource.data.orgId)
         || isAppAdmin();
       allow create: if isValidCosaRequestCreate(request.resource.data);

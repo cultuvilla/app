@@ -28,7 +28,7 @@ import {
   type CosaRequestInput,
   type CosaRequestStatus,
 } from '../models/organization/CosaRequestDataModel';
-import type { CosaRequestAction } from '../models/organization/cosatecaLogic';
+import { isCosaRequestAnsweredBy, type CosaRequestAction } from '../models/organization/cosatecaLogic';
 import { isAwaitingAnswer } from '../models/organization/reservaLogic';
 import { GroupChatBodySchema, type GroupChatMessageData } from '../models/organization/GroupChatDataModel';
 import { forbiddenAsEmpty, watchDoc, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
@@ -82,6 +82,7 @@ export async function updateCosa(cosaId: string, edit: CosaEdit): Promise<void> 
     title: edit.title.trim(),
     description: edit.description?.trim() ? edit.description.trim() : null,
     conditions: edit.conditions?.trim() ? edit.conditions.trim() : null,
+    locationNote: edit.locationNote?.trim() ? edit.locationNote.trim() : null,
   });
   await updateDoc(cosatecaWriteDoc(getDb(), 'cosas', cosaId), { ...data, updatedAt: serverTimestamp() });
 }
@@ -97,7 +98,8 @@ export async function deleteCosa(cosaId: string): Promise<void> {
 
 /**
  * Ask for a cosa. The copied fields (`orgId`, `cosaTitle`, `cosaKind`,
- * `ownerUid`, `municipalityId`) must match the cosa, and `requesterName` must be
+ * `cosaMode`, `ownerUid`, `municipalityId`, and for a colectivizado cosa
+ * `holderUid`, its current holder) must match the cosa, and `requesterName` must be
  * the requester's public name; the rules check both. Returns the new id.
  */
 export async function requestCosa(input: Omit<CosaRequestInput, 'createdAt'>): Promise<string> {
@@ -121,10 +123,20 @@ export function watchMyCosaRequests(uid: string, onNext: (rows: CosaRequest[]) =
   );
 }
 
-/** What others have asked of my own cosas, newest first. */
+/**
+ * What others have asked of my own cosas, and of the colectivizado cosas I
+ * hold now (which I answer), newest first.
+ */
 export function watchCosaRequestsToMe(uid: string, onNext: (rows: CosaRequest[]) => void, onError: WatchError): Unwatch {
-  return watchQuery(
-    query(cosaRequestsCollection(getDb()), where('ownerUid', '==', uid), orderBy('createdAt', 'desc')),
+  const db = getDb();
+  return watchMerged<CosaRequest>(
+    [
+      (next, error) =>
+        watchQuery(query(cosaRequestsCollection(db), where('ownerUid', '==', uid), orderBy('createdAt', 'desc')), next, error),
+      (next, error) =>
+        watchQuery(query(cosaRequestsCollection(db), where('holderUid', '==', uid), orderBy('createdAt', 'desc')), next, error),
+    ],
+    newestFirst,
     onNext,
     onError,
   );
@@ -146,8 +158,10 @@ function newestFirst(rows: CosaRequest[]): CosaRequest[] {
 
 /**
  * The Buzón's *Necesita tu acción*: the requests still waiting for this user's
- * answer — for their own cosas, and for the group's own cosas of every group
- * they administer — newest first. A group whose admin rights have just gone
+ * answer — for their own cosas, for the colectivizado cosas they hold, and for
+ * the group's own cosas of every group they administer — newest first. A
+ * colectivizado cosa someone holds is answered by its holder alone here (the
+ * owner and admins can still act from the request, as the backstop). A group whose admin rights have just gone
  * answers empty rather than blanking the rest. A booking whose slot has started
  * is past answering and left out, until the hourly run declines it.
  */
@@ -160,6 +174,8 @@ export function watchCosaRequestsToAnswer(
   const db = getDb();
   const mine = (next: (rows: CosaRequest[]) => void, error: WatchError) =>
     watchQuery(query(cosaRequestsCollection(db), where('ownerUid', '==', uid), where('status', '==', 'pending')), next, error);
+  const held = (next: (rows: CosaRequest[]) => void, error: WatchError) =>
+    watchQuery(query(cosaRequestsCollection(db), where('holderUid', '==', uid), where('status', '==', 'pending')), next, error);
   const groups = adminOrgIds.map((orgId) =>
     forbiddenAsEmpty<CosaRequest>('cosateca:watchCosaRequestsToAnswer', (next, error) =>
       watchQuery(
@@ -174,7 +190,12 @@ export function watchCosaRequestsToAnswer(
       ),
     ),
   );
-  return watchMerged([mine, ...groups], (rows) => newestFirst(rows).filter((r) => isAwaitingAnswer(r, new Date())), onNext, onError);
+  return watchMerged(
+    [mine, held, ...groups],
+    (rows) => newestFirst(rows).filter((r) => isAwaitingAnswer(r, new Date()) && isCosaRequestAnsweredBy(r, uid)),
+    onNext,
+    onError,
+  );
 }
 
 /** What I asked for that has no answer yet — the Buzón's "esperando" rows. */
@@ -187,9 +208,10 @@ export async function getMyPendingCosaRequests(uid: string): Promise<CosaRequest
 }
 
 /**
- * Accept, decline, cancel, lend, return, mark done or give, through the
- * `respondToCosaRequest` callable: it holds the transition table, refuses an
- * overlapping loan and keeps the cosa's `heldBy`.
+ * Accept, decline, cancel, lend (for a colectivizado cosa, hand it over),
+ * return, mark done or give, through the `respondToCosaRequest` callable: it
+ * holds the transition table, refuses an overlapping loan and keeps the cosa's
+ * `heldBy`.
  */
 export async function respondToCosaRequest(requestId: string, action: CosaRequestAction): Promise<CosaRequestStatus> {
   const fn = httpsCallable<{ requestId: string; action: CosaRequestAction }, { status: CosaRequestStatus }>(

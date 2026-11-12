@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DayKeySchema } from '../municipality/FiestaBlockModel';
-import { CosaKindSchema } from './CosaDataModel';
+import { CosaKindSchema, CosaModeSchema } from './CosaDataModel';
 
 /**
  * A request for a cosa, at `cosaRequests/{requestId}` — top-level and scoped by
@@ -14,6 +14,12 @@ import { CosaKindSchema } from './CosaDataModel';
  *
  * Dates are optional Madrid calendar days (`YYYY-MM-DD`): no `fromOn` means
  * "from now", no `untilOn` "until it comes back".
+ *
+ * A colectivizado cosa travels from hand to hand: `holderUid` is who has it
+ * when the request is made (null while nobody does), and that holder answers
+ * it. Handing it over moves the cosa's `heldBy` to the requester, rewrites
+ * `holderUid` on its other open requests, and closes the previous holder's
+ * request as `passed` — nothing is ever `returned`.
  *
  * A reserva booking carries its slot as instants (`startAt`/`endAt`, null on
  * every other kind) and its Madrid day as both `fromOn` and `untilOn`. It is
@@ -29,6 +35,8 @@ export const CosaRequestStatusSchema = z.enum([
   'returned',
   'done',
   'given',
+  // A colectivizado cosa's previous holder handed it on to the next requester.
+  'passed',
 ]);
 export type CosaRequestStatus = z.infer<typeof CosaRequestStatusSchema>;
 
@@ -41,7 +49,11 @@ export const CosaRequestDataSchema = z
     cosaId: z.string().min(1),
     cosaTitle: z.string(),
     cosaKind: CosaKindSchema,
+    /** The cosa's mode, copied: a colectivizado request has no return. */
+    cosaMode: CosaModeSchema.nullable(),
     ownerUid: z.string().min(1).nullable(),
+    /** A colectivizado cosa's current holder, who answers it; null otherwise. Function-owned after creation. */
+    holderUid: z.string().min(1).nullable(),
     requesterUid: z.string().min(1),
     /** The requester's public name when they asked. */
     requesterName: z.string(),
@@ -69,7 +81,9 @@ export interface CosaRequestInput {
   cosaId: string;
   cosaTitle: string;
   cosaKind: CosaRequestData['cosaKind'];
+  cosaMode?: CosaRequestData['cosaMode'];
   ownerUid: string | null;
+  holderUid?: string | null;
   requesterUid: string;
   requesterName: string;
   message?: string | null;
@@ -88,7 +102,9 @@ export function buildCosaRequestData(input: CosaRequestInput): CosaRequestData {
     cosaId: input.cosaId,
     cosaTitle: input.cosaTitle,
     cosaKind: input.cosaKind,
+    cosaMode: input.cosaMode ?? null,
     ownerUid: input.ownerUid,
+    holderUid: input.holderUid ?? null,
     requesterUid: input.requesterUid,
     requesterName: input.requesterName,
     message: input.message?.trim() ? input.message.trim() : null,

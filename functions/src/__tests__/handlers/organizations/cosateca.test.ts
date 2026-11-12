@@ -16,8 +16,9 @@ const db = () => admin.firestore();
 
 function cosa(overrides: Record<string, unknown> = {}) {
   return {
-    municipalityId: 'mun-1', orgId: ORG, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'prestamo',
-    title: 'Carpa', description: null, category: 'fiestas', imageURL: null, conditions: null, status: 'available', heldBy: null,
+    municipalityId: 'mun-1', orgId: ORG, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'prestamo', mode: 'prestamo',
+    title: 'Carpa', description: null, category: 'fiestas', imageURL: null, conditions: null, location: null, locationNote: null,
+    status: 'available', heldBy: null,
     reserva: null, createdBy: 'u-admin', createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), ...overrides,
   };
 }
@@ -68,7 +69,8 @@ describe('respondToCosaRequest', () => {
     expect((await getDoc('cosaRequests/r1'))['respondedAt']).toBeTruthy();
 
     await call('u-admin', { requestId: 'r1', action: 'lend' });
-    expect((await getDoc('cosas/carpa'))['heldBy']).toEqual({ requestId: 'r1', uid: 'u-ana', name: 'Ana', untilOn: '2026-07-03' });
+    expect((await getDoc('cosas/carpa'))['heldBy']).toMatchObject({ requestId: 'r1', uid: 'u-ana', name: 'Ana', untilOn: '2026-07-03' });
+    expect((await getDoc('cosas/carpa'))['heldBy']).toHaveProperty('since');
 
     await call('u-admin2', { requestId: 'r1', action: 'return' });
     expect(await getDoc('cosaRequests/r1')).toMatchObject({ status: 'returned' });
@@ -85,7 +87,7 @@ describe('respondToCosaRequest', () => {
   });
 
   it('refuses lending what someone else holds', async () => {
-    await db().doc('cosas/carpa').update({ heldBy: { requestId: 'r0', uid: 'u-luis', name: 'Luis', untilOn: null } });
+    await db().doc('cosas/carpa').update({ heldBy: { requestId: 'r0', uid: 'u-luis', name: 'Luis', untilOn: null, since: new Date() } });
     await seedRequest('r1', { status: 'accepted' });
     await expect(call('u-admin', { requestId: 'r1', action: 'lend' })).rejects.toMatchObject({ code: 'failed-precondition' });
   });
@@ -148,6 +150,64 @@ describe('respondToCosaRequest', () => {
   });
 });
 
+describe('respondToCosaRequest: a colectivizado cosa', () => {
+  // The village drill: colectivizado, held by Luis since October.
+  const since = new Date('2026-10-03T10:00:00Z');
+  beforeEach(async () => {
+    await db().doc('cosas/carpa').update({
+      mode: 'colectivizado',
+      heldBy: { requestId: 'h1', uid: 'u-luis', name: 'Luis', untilOn: null, since },
+    });
+    await seedRequest('h1', { cosaMode: 'colectivizado', requesterUid: 'u-luis', requesterName: 'Luis', status: 'lent' });
+  });
+
+  it('its holder answers and hands it over: the requester holds it, the last holder’s request is passed', async () => {
+    await seedRequest('r1', { cosaMode: 'colectivizado', holderUid: 'u-luis' });
+    await seedRequest('r2', { cosaMode: 'colectivizado', holderUid: 'u-luis', requesterUid: 'u-pepa', requesterName: 'Pepa' });
+    await expect(call('u-luis', { requestId: 'r1', action: 'accept' })).resolves.toEqual({ status: 'accepted' });
+    await expect(call('u-luis', { requestId: 'r1', action: 'lend' })).resolves.toEqual({ status: 'lent' });
+
+    const held = (await getDoc('cosas/carpa'))['heldBy'] as Record<string, unknown>;
+    expect(held).toMatchObject({ requestId: 'r1', uid: 'u-ana', name: 'Ana', untilOn: null });
+    expect((held['since'] as { toDate(): Date }).toDate().getTime()).toBeGreaterThan(since.getTime());
+    expect(await getDoc('cosaRequests/h1')).toMatchObject({ status: 'passed' });
+    expect((await getDoc('cosaRequests/h1'))['closedAt']).toBeTruthy();
+    // Pepa's request now goes to Ana, who has it.
+    expect(await getDoc('cosaRequests/r2')).toMatchObject({ status: 'pending', holderUid: 'u-ana' });
+    // Ana answers it now; Luis, who handed it on, no longer does.
+    await expect(call('u-luis', { requestId: 'r2', action: 'accept' })).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(call('u-ana', { requestId: 'r2', action: 'accept' })).resolves.toEqual({ status: 'accepted' });
+  });
+
+  it('is never returned, and the owner does not answer it while someone holds it', async () => {
+    await expect(call('u-admin', { requestId: 'h1', action: 'return' })).rejects.toMatchObject({ code: 'permission-denied' });
+    await db().doc('cosas/carpa').update({ ownerUid: 'u-owner', ownerName: 'Olga' });
+    await seedRequest('r1', { cosaMode: 'colectivizado', ownerUid: 'u-owner', holderUid: 'u-luis' });
+    await expect(call('u-owner', { requestId: 'r1', action: 'accept' })).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('takes one accepted request at a time: the next in line', async () => {
+    await seedRequest('r1', { cosaMode: 'colectivizado', holderUid: 'u-luis', status: 'accepted' });
+    await seedRequest('r2', { cosaMode: 'colectivizado', holderUid: 'u-luis', requesterUid: 'u-pepa', requesterName: 'Pepa' });
+    await expect(call('u-luis', { requestId: 'r2', action: 'accept' })).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('hands it on even when the last holder’s request is gone with their account', async () => {
+    await db().doc('cosaRequests/h1').delete();
+    await seedRequest('r1', { cosaMode: 'colectivizado', holderUid: 'u-luis', status: 'accepted' });
+    await expect(call('u-admin', { requestId: 'r1', action: 'lend' })).resolves.toEqual({ status: 'lent' });
+    expect((await getDoc('cosas/carpa'))['heldBy']).toMatchObject({ requestId: 'r1', uid: 'u-ana' });
+    expect((await db().doc('cosaRequests/h1').get()).exists).toBe(false);
+  });
+
+  it('the new holder’s other requests for it are moot once they have it', async () => {
+    await seedRequest('r1', { cosaMode: 'colectivizado', holderUid: 'u-luis', status: 'accepted' });
+    await seedRequest('r2', { cosaMode: 'colectivizado', holderUid: 'u-luis' });
+    await call('u-luis', { requestId: 'r1', action: 'lend' });
+    expect(await getDoc('cosaRequests/r2')).toMatchObject({ status: 'cancelled' });
+  });
+});
+
 describe('onCosaRequestWritten', () => {
   it('tells the managers of a new request: the group’s admins for a group cosa, the owner for a personal one', async () => {
     const created = req();
@@ -172,6 +232,12 @@ describe('onCosaRequestWritten', () => {
     expect(cosaNoticeFor({ ...pending, status: 'accepted' }, { ...pending, status: 'lent' })).toBeNull();
     expect(cosaNoticeFor(pending, null)).toBeNull();
     expect(cosaNoticeFor(pending, pending)).toBeNull();
+  });
+
+  it("tells a colectivizado cosa's holder of a new request, not its owner", async () => {
+    await notifyCosaRequest(db(), 'r4', null, req({ cosaMode: 'colectivizado', ownerUid: 'u-luis', holderUid: 'u-pepa' }), new Date());
+    expect((await getDoc('users/u-pepa/notifications/cosa_r4_created'))['body']).toContain('que tienes tú ahora');
+    expect((await db().doc('users/u-luis/notifications/cosa_r4_created').get()).exists).toBe(false);
   });
 
   it('never tells an admin of their own request for the group’s cosa', async () => {

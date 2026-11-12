@@ -6,17 +6,21 @@ import {
   effectiveCosaAudience,
   MAX_COSA_CONDITIONS,
   MAX_COSA_DESCRIPTION,
+  MAX_COSA_LOCATION_NOTE,
   MAX_COSA_TITLE,
   type CosaCategory,
   type CosaEdit,
   type CosaKind,
+  type CosaMode,
   type OrganizationData,
 } from '@cultuvilla/shared/models/organization';
+import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { createCosa, deleteCosa, updateCosa, type Cosa } from '@cultuvilla/shared/services/cosatecaService';
 import { uploadCosaImage, type UploadableImage } from '@cultuvilla/shared/services/imageService';
 import { Button, FieldLabel, ImagePickerField, Input, Text, VStack } from '../../../primitives';
 import { FormModal } from '../../../layout/FormModal';
 import { SegmentedToggle } from '../../SegmentedToggle';
+import { LocationField } from '../../LocationField';
 import { CategoryChips } from './CosaRows';
 import { ReservaConfigFields } from './Reserva';
 import { parseReservaDraft, reservaDraft, type ReservaDraft, type ReservaDraftError } from '../../../../lib/orgs/reserva';
@@ -26,13 +30,17 @@ import { pickImageAsBlob } from '../../../../lib/images';
 
 type Owner = 'mine' | 'group';
 const KINDS: readonly CosaKind[] = ['prestamo', 'servicio', 'regalo', 'reserva'];
+const MODES: readonly CosaMode[] = ['prestamo', 'colectivizado'];
 
 /**
  * Offer something to a group's cosateca, or edit it. An integrante offers their
  * own; an admin may also offer it in the group's name. A photo is uploaded
  * under the cosa's own id, so a new cosa is created first and then given it.
  * What kind it is is chosen once: its requests carry the kind they were made
- * under, so the rules freeze it. A reserva also carries its hours and limits.
+ * under, so the rules freeze it — and for a physical cosa, whether it is lent
+ * and given back or colectivizado (it travels hand to hand), frozen the same
+ * way. Where it is kept is an optional pin and a short note. A reserva also
+ * carries its hours and limits.
  */
 export function CosaSheet({
   visible,
@@ -57,6 +65,10 @@ export function CosaSheet({
 }) {
   const { t } = useT();
   const [kind, setKind] = useState<CosaKind>('prestamo');
+  const [mode, setMode] = useState<CosaMode>('prestamo');
+  const [coords, setCoords] = useState<LatLng | null>(null);
+  const [placeName, setPlaceName] = useState('');
+  const [locationNote, setLocationNote] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [conditions, setConditions] = useState('');
@@ -71,6 +83,10 @@ export function CosaSheet({
   useEffect(() => {
     if (!visible) return;
     setKind(cosa?.kind ?? 'prestamo');
+    setMode(cosa?.mode ?? 'prestamo');
+    setCoords(cosa?.location?.coordinates ?? null);
+    setPlaceName(cosa?.location?.displayName ?? '');
+    setLocationNote(cosa?.locationNote ?? '');
     setTitle(cosa?.title ?? '');
     setDescription(cosa?.description ?? '');
     setConditions(cosa?.conditions ?? '');
@@ -108,11 +124,14 @@ export function CosaSheet({
     setReservaError(undefined);
     const fields = (imageURL: string | null) => ({
       kind,
+      mode: kind === 'prestamo' ? mode : null,
       title: title.trim(),
       description: description.trim() || null,
       category,
       imageURL,
       conditions: conditions.trim() || null,
+      location: coords ? { coordinates: coords, displayName: placeName.trim() } : null,
+      locationNote: locationNote.trim() || null,
       reserva: reservaConfig,
     });
     setSaving(true);
@@ -195,6 +214,26 @@ export function CosaSheet({
           <Text variant="bodySm" tone="muted">
             {t(`groups.cosateca.kindHints.${kind}`)}
           </Text>
+          {kind === 'prestamo' ? (
+            <>
+              <FieldLabel>{t('groups.cosateca.form.mode')}</FieldLabel>
+              {cosa ? (
+                <Text className="font-medium" testID="cosa-mode-fixed">
+                  {t(`groups.cosateca.modes.${mode}`)}
+                </Text>
+              ) : (
+                <SegmentedToggle
+                  testID="cosa-mode"
+                  value={mode}
+                  options={MODES.map((m) => ({ value: m, label: t(`groups.cosateca.modes.${m}`) }))}
+                  onChange={setMode}
+                />
+              )}
+              <Text variant="bodySm" tone="muted" testID="cosa-mode-hint">
+                {t(`groups.cosateca.modeHints.${mode}`)}
+              </Text>
+            </>
+          ) : null}
           <Input
             label={t('groups.cosateca.form.name')}
             value={title}
@@ -231,6 +270,28 @@ export function CosaSheet({
           <Text variant="bodySm" tone="muted">
             {t('groups.cosateca.form.conditionsHint')}
           </Text>
+          <LocationField
+            value={coords}
+            displayName={placeName}
+            onChange={(next, address) => {
+              setCoords(next);
+              setPlaceName(address);
+            }}
+            onClear={() => {
+              setCoords(null);
+              setPlaceName('');
+            }}
+            label={t('groups.cosateca.form.location')}
+            testID="cosa-location"
+          />
+          <Input
+            label={t('groups.cosateca.form.locationNote')}
+            value={locationNote}
+            onChangeText={setLocationNote}
+            maxLength={MAX_COSA_LOCATION_NOTE}
+            placeholder={t('groups.cosateca.form.locationNotePlaceholder')}
+            testID="cosa-location-note"
+          />
           {kind === 'reserva' ? <ReservaConfigFields draft={reserva} onChange={setReserva} error={reservaError} /> : null}
           <FieldLabel>{t('groups.cosateca.form.photo')}</FieldLabel>
           <ImagePickerField

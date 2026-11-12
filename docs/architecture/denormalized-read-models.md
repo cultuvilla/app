@@ -462,9 +462,16 @@ deleted.
 ### `cosas.heldBy` ← `cosaRequests/{requestId}`
 
 - **Source:** the request that is lent (`status: 'lent'`).
-- **Read model:** `cosas/{cosaId}.heldBy` — `{ requestId, uid, name, untilOn }`, who has the cosa now. Lets the catalogue say "la tiene Ana hasta el 3" without a query per cosa.
-- **Trigger:** none; the `respondToCosaRequest` callable writes it in the same transaction as the move (`lend` sets it, `return` clears it). `deleteAccount` clears it when the holder's account goes.
-- **Backfill:** none.
+- **Read model:** `cosas/{cosaId}.heldBy` — `{ requestId, uid, name, untilOn, since }`, who has the cosa now and since when. Lets the catalogue say "la tiene Ana hasta el 3" without a query per cosa.
+- **Trigger:** none; the `respondToCosaRequest` callable writes it in the same transaction as the move (`lend` sets it, `return` clears it; for a colectivizado cosa, handing it on moves it to the requester). `deleteAccount` clears it when the holder's account goes.
+- **Backfill:** `scripts/backfill-cosa-location-mode.mjs` added `since` to the ones written before it.
+
+### `cosaRequests.holderUid` ← `cosas/{cosaId}.heldBy` (colectivizado)
+
+- **Source:** the holder of a colectivizado cosa (`cosas.heldBy.uid` while `mode` is `colectivizado`).
+- **Read model:** `cosaRequests/{requestId}.holderUid` — who answers the request. Lets the holder's Buzón and *Me piden* query `holderUid == uid`, and the rules let the holder read it, without reading the cosa.
+- **Trigger:** none; the requester copies it at creation (the create rule checks it against the cosa), and the `respondToCosaRequest` callable rewrites it on the cosa's other open requests in the handover's transaction. `deleteAccount` clears it on the requests waiting on a departing holder.
+- **Backfill:** `scripts/backfill-cosa-location-mode.mjs` (null on every existing request).
 
 ### `cosas/{cosaId}/slots/{startISO}` ← `cosaRequests/{requestId}` (reservas)
 

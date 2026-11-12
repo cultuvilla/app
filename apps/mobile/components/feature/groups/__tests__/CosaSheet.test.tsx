@@ -19,6 +19,17 @@ jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({ uploadCosaImage: jest.fn().mockResolvedValue('https://img/new.webp') }));
 jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
+// Stands in for the full-screen map picker — one button that reports a pick.
+jest.mock('../../LocationField', () => {
+  const { Text, Pressable } = jest.requireActual('react-native');
+  return {
+    LocationField: ({ onChange, testID }: { onChange: (c: { lat: number; lng: number }, a: string) => void; testID?: string }) => (
+      <Pressable testID={testID} onPress={() => onChange({ lat: 40.03, lng: -3.6 }, 'Plaza Mayor 1')}>
+        <Text>pick</Text>
+      </Pressable>
+    ),
+  };
+});
 
 const org = {
   id: 'ayto',
@@ -40,6 +51,36 @@ beforeEach(() => {
 });
 
 describe('CosaSheet', () => {
+  it('offers a colectivizado cosa, with where it is kept', async () => {
+    const { getByTestId, onClose } = sheet();
+    fireEvent.changeText(getByTestId('cosa-title'), 'Taladro');
+    expect(getByTestId('cosa-mode-hint')).toHaveTextContent('groups.cosateca.modeHints.prestamo');
+    fireEvent.press(getByTestId('cosa-mode-colectivizado'));
+    expect(getByTestId('cosa-mode-hint')).toHaveTextContent('groups.cosateca.modeHints.colectivizado');
+    fireEvent.press(getByTestId('cosa-location'));
+    fireEvent.changeText(getByTestId('cosa-location-note'), ' en el garaje ');
+    fireEvent.press(getByTestId('cosa-save'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(createCosa).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'prestamo',
+        mode: 'colectivizado',
+        location: { coordinates: { lat: 40.03, lng: -3.6 }, displayName: 'Plaza Mayor 1' },
+        locationNote: 'en el garaje',
+      }),
+    );
+  });
+
+  it('asks a mode only of a physical cosa, and none is sent for the rest', async () => {
+    const { getByTestId, queryByTestId, onClose } = sheet();
+    fireEvent.changeText(getByTestId('cosa-title'), 'Clases de guitarra');
+    fireEvent.press(getByTestId('cosa-kind-servicio'));
+    expect(queryByTestId('cosa-mode')).toBeNull();
+    fireEvent.press(getByTestId('cosa-save'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(createCosa).toHaveBeenCalledWith(expect.objectContaining({ kind: 'servicio', mode: null, location: null, locationNote: null }));
+  });
+
   it('offers a reserva with its weekly hours and limits', async () => {
     const { getByTestId, onClose } = sheet({ isAdmin: true });
     fireEvent.changeText(getByTestId('cosa-title'), 'Pista de pádel');
@@ -91,6 +132,23 @@ describe('CosaSheet', () => {
     fireEvent.press(getByTestId('cosa-save'));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(updateCosa).toHaveBeenCalledWith('pista', expect.objectContaining({ kind: 'reserva', reserva: expect.objectContaining({ blackouts: ['2026-12-25'] }) }));
+  });
+
+  it('never changes how an existing prestamo is shared', async () => {
+    const existing = {
+      id: 'taladro',
+      ...buildCosaData({
+        municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: 'u1', ownerName: 'Ana', kind: 'prestamo', mode: 'colectivizado',
+        title: 'Taladro', category: 'herramientas', createdBy: 'u1', locationNote: 'En la peña',
+      }),
+    };
+    const { getByTestId, queryByTestId, onClose } = sheet({ cosa: existing });
+    expect(queryByTestId('cosa-mode')).toBeNull();
+    expect(getByTestId('cosa-mode-fixed')).toHaveTextContent('groups.cosateca.modes.colectivizado');
+    expect(getByTestId('cosa-location-note').props.value).toBe('En la peña');
+    fireEvent.press(getByTestId('cosa-save'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(updateCosa).toHaveBeenCalledWith('taladro', expect.objectContaining({ mode: 'colectivizado', locationNote: 'En la peña' }));
   });
 
   it('needs a name', () => {

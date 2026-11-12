@@ -47,8 +47,12 @@ export default function CosaRequestScreen() {
   const keyboardGap = useComposerKeyboardGap();
 
   const roles = req && uid ? cosaRequestRoles(req, { uid, isGroupAdmin: isAdmin }) : [];
-  const actions = req ? availableCosaRequestActions(req.cosaKind, req.status, roles) : [];
+  const actions = req ? availableCosaRequestActions(req.cosaKind, req.status, roles, req.cosaMode) : [];
   const asManager = roles.includes('manager');
+  // Lending a colectivizado cosa is handing it on: the requester keeps it until the next one asks.
+  const handOver = req?.cosaMode === 'colectivizado';
+  const actionLabel = (action: CosaRequestAction) =>
+    t(`groups.cosateca.actions.${handOver && action === 'lend' ? 'handOver' : action}`);
 
   const act = (action: CosaRequestAction) => {
     if (!req) return;
@@ -116,8 +120,8 @@ export default function CosaRequestScreen() {
             {actions.length > 0 ? (
               <VStack gap={2} testID="cosa-request-actions">
                 {asManager && (actions.includes('lend') || actions.includes('return')) ? (
-                  <Text variant="bodySm" tone="muted">
-                    {t(`groups.cosateca.actionHints.${actions.includes('lend') ? 'lend' : 'return'}`)}
+                  <Text variant="bodySm" tone="muted" testID="cosa-request-action-hint">
+                    {t(`groups.cosateca.actionHints.${actions.includes('lend') ? (handOver ? 'handOver' : 'lend') : 'return'}`)}
                   </Text>
                 ) : null}
                 {actions.map((action) => (
@@ -130,7 +134,7 @@ export default function CosaRequestScreen() {
                     fullWidth
                     testID={`cosa-request-${action}`}
                   >
-                    {t(`groups.cosateca.actions.${action}`)}
+                    {actionLabel(action)}
                   </Button>
                 ))}
               </VStack>

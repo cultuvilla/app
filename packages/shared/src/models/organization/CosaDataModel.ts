@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DayKeySchema } from '../municipality/FiestaBlockModel';
+import { LocationDataSchema, type LocationData } from '../core/LocationDataModel';
 import { TimeOfDaySchema } from './GroupTaskDataModel';
 
 /**
@@ -25,6 +26,19 @@ import { TimeOfDaySchema } from './GroupTaskDataModel';
 
 export const CosaKindSchema = z.enum(['prestamo', 'servicio', 'regalo', 'reserva']);
 export type CosaKind = z.infer<typeof CosaKindSchema>;
+
+/**
+ * How a physical cosa (`kind: 'prestamo'`) travels (decided 2026-11-12, user):
+ * - `prestamo`: lent and given back to its owner.
+ * - `colectivizado`: it belongs to the community and goes from hand to hand —
+ *   nobody gives it back. Whoever holds it answers the next request, and
+ *   handing it over makes the requester the new holder.
+ * Null on every other kind. Frozen once offered, like `kind`: requests copy it.
+ */
+export const CosaModeSchema = z.enum(['prestamo', 'colectivizado']);
+export type CosaMode = z.infer<typeof CosaModeSchema>;
+
+export const MAX_COSA_LOCATION_NOTE = 120;
 
 export const COSA_CATEGORIES = ['herramientas', 'cocina', 'fiestas', 'deporte', 'ninos', 'jardin', 'libros', 'otros'] as const;
 export const CosaCategorySchema = z.enum(COSA_CATEGORIES);
@@ -57,6 +71,8 @@ export const CosaHeldBySchema = z.object({
   /** The holder's name when it was lent. */
   name: z.string(),
   untilOn: DayKeySchema.nullable(),
+  /** When it was handed to them: "lo tiene Pili desde el 3 de octubre". */
+  since: z.date(),
 });
 export type CosaHeldBy = z.infer<typeof CosaHeldBySchema>;
 
@@ -146,12 +162,17 @@ export const CosaDataSchema = z.object({
   /** The owner's public name (or the group's) when it was offered. */
   ownerName: z.string(),
   kind: CosaKindSchema,
+  /** Set exactly when `kind` is `prestamo`. */
+  mode: CosaModeSchema.nullable(),
   title: z.string().min(1).max(MAX_COSA_TITLE),
   description: z.string().max(MAX_COSA_DESCRIPTION).nullable(),
   category: CosaCategorySchema,
   imageURL: z.string().nullable(),
   /** Free text: "devolver limpia". No money, ever. */
   conditions: z.string().max(MAX_COSA_CONDITIONS).nullable(),
+  /** Where it is kept: an optional map pin and a short note ("almacén, estante 2"). Seen by whoever sees the cosa. */
+  location: LocationDataSchema.nullable(),
+  locationNote: z.string().max(MAX_COSA_LOCATION_NOTE).nullable(),
   status: CosaStatusSchema,
   heldBy: CosaHeldBySchema.nullable(),
   /** Set exactly when `kind` is `reserva`. */
@@ -165,11 +186,14 @@ export type CosaData = z.infer<typeof CosaDataSchema>;
 /** What an integrante (or an admin, for the group) fills in. */
 export const CosaEditSchema = CosaDataSchema.pick({
   kind: true,
+  mode: true,
   title: true,
   description: true,
   category: true,
   imageURL: true,
   conditions: true,
+  location: true,
+  locationNote: true,
   status: true,
   reserva: true,
 });
@@ -182,11 +206,15 @@ export interface CosaInput {
   ownerUid: string | null;
   ownerName: string;
   kind: CosaKind;
+  /** A prestamo's mode (default `prestamo`); ignored for every other kind. */
+  mode?: CosaMode | null;
   title: string;
   description?: string | null;
   category: CosaCategory;
   imageURL?: string | null;
   conditions?: string | null;
+  location?: LocationData | null;
+  locationNote?: string | null;
   /** A reserva's config; ignored for every other kind. Blackouts always start empty. */
   reserva?: ReservaConfig | null;
   createdBy: string;
@@ -202,11 +230,14 @@ export function buildCosaData(input: CosaInput): CosaData {
     ownerUid: input.ownerUid,
     ownerName: input.ownerName,
     kind: input.kind,
+    mode: input.kind === 'prestamo' ? (input.mode ?? 'prestamo') : null,
     title: input.title.trim(),
     description: input.description?.trim() ? input.description.trim() : null,
     category: input.category,
     imageURL: input.imageURL ?? null,
     conditions: input.conditions?.trim() ? input.conditions.trim() : null,
+    location: input.location ?? null,
+    locationNote: input.locationNote?.trim() ? input.locationNote.trim() : null,
     status: 'available',
     heldBy: null,
     reserva: input.kind === 'reserva' ? { ...(input.reserva ?? DEFAULT_RESERVA_CONFIG), blackouts: [] } : null,

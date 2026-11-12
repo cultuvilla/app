@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
-import { MAX_COSA_REQUEST_MESSAGE } from '@cultuvilla/shared/models/organization';
+import { cosaHolderUid, MAX_COSA_REQUEST_MESSAGE } from '@cultuvilla/shared/models/organization';
 import { requestCosa, type Cosa } from '@cultuvilla/shared/services/cosatecaService';
 import { Button, DateRangeField, Input, VStack } from '../../../primitives';
 import { FormModal } from '../../../layout/FormModal';
@@ -11,8 +11,10 @@ import type { DayRange } from '../../../../lib/date/dayRange';
 import { cosatecaErrorMessage } from '../../../../lib/orgs/cosateca';
 
 /**
- * Ask for a cosa: optional dates (a regalo has none) and a message for its
- * manager. Answers with the new request's id.
+ * Ask for a cosa: optional dates (a regalo has none, and nor does a
+ * colectivizado cosa, which never comes back) and a message for whoever
+ * answers — its owner, or the holder of a colectivizado one. Answers with the
+ * new request's id.
  */
 export function AskCosaSheet({
   visible,
@@ -49,7 +51,9 @@ export function AskCosaSheet({
       cosaId: cosa.id,
       cosaTitle: cosa.title,
       cosaKind: cosa.kind,
+      cosaMode: cosa.mode,
       ownerUid: cosa.ownerUid,
+      holderUid: cosaHolderUid(cosa),
       requesterUid: uid,
       requesterName: myName,
       message: message.trim() || null,
@@ -80,7 +84,7 @@ export function AskCosaSheet({
     >
       <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
         <VStack gap={3} className="px-4 pt-4 pb-6">
-          {cosa.kind === 'regalo' ? null : (
+          {cosa.kind === 'regalo' || cosa.mode === 'colectivizado' ? null : (
             <VStack gap={1}>
               <DateRangeField
                 label={t('groups.cosateca.ask.dates')}

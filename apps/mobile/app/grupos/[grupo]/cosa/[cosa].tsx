@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { cosaAvailability, isActiveReserva, isOpenCosaRequest } from '@cultuvilla/shared/models/organization';
+import { cosaAvailability, cosaHolderUid, isActiveReserva, isOpenCosaRequest } from '@cultuvilla/shared/models/organization';
 import {
   updateCosa,
   watchCosa,
@@ -15,6 +15,7 @@ import { Button, HStack, Screen, Text, VStack } from '../../../../components/pri
 import { RemoteImage } from '../../../../components/primitives/RemoteImage';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
+import { LocationMap } from '../../../../components/feature/LocationMap';
 import { AskCosaSheet } from '../../../../components/feature/groups/cosateca/AskCosaSheet';
 import { Badge, CosaRequestRow } from '../../../../components/feature/groups/cosateca/CosaRows';
 import { CosaSheet } from '../../../../components/feature/groups/cosateca/CosaSheet';
@@ -24,7 +25,7 @@ import { showAlert } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useT } from '../../../../lib/i18n';
 import { groupCosaRequestHref } from '../../../../lib/navigation/routes';
-import { cosaAvailabilityLabel, cosaOwnerLabel, cosatecaErrorMessage } from '../../../../lib/orgs/cosateca';
+import { cosaAvailabilityLabel, cosaHeldSinceLabel, cosaOwnerLabel, cosatecaErrorMessage } from '../../../../lib/orgs/cosateca';
 import { myUpcomingReservas } from '../../../../lib/orgs/reserva';
 import { useMyGroups } from '../../../../lib/orgs/useMyGroups';
 
@@ -33,8 +34,11 @@ import { useMyGroups } from '../../../../lib/orgs/useMyGroups';
  * villager when the group opened its cosateca to the pueblo — sees it and may
  * ask for it; so this screen does not require membership, the rules decide. Its
  * manager (the owner, or an admin of the group) edits, pauses or removes it and
- * sees its requests. A reserva is booked by slot on its week grid instead, and
- * its manager closes days there.
+ * sees its requests. A colectivizado cosa someone holds is asked of its holder,
+ * who sees and answers its requests here (its owner may ask for it then, like
+ * anyone). Where it is kept, and who has it since when, show to every viewer.
+ * A reserva is booked by slot on its week grid instead, and its manager closes
+ * days there.
  */
 export default function CosaScreen() {
   const { t } = useT();
@@ -50,6 +54,11 @@ export default function CosaScreen() {
   const isAdmin = group?.role === 'admin';
   const isOwner = cosa !== null && uid !== null && cosa.ownerUid === uid;
   const isManager = isOwner || (cosa !== null && isAdmin);
+  const holder = cosa ? cosaHolderUid(cosa) : null;
+  const isHolder = holder !== null && holder === uid;
+  // Who answers its requests first-hand: a colectivizado cosa's holder while someone has it, else its owner.
+  const answersFirstHand = holder !== null ? isHolder : isOwner;
+  const seesRequests = isManager || isHolder;
 
   const mine = useWatch<CosaRequest[]>(
     'cosateca:watchMyCosaRequests',
@@ -58,8 +67,8 @@ export default function CosaScreen() {
   );
   const managed = useWatch<CosaRequest[]>(
     isAdmin ? 'cosateca:watchGroupCosaRequests' : 'cosateca:watchCosaRequestsToMe',
-    isManager && uid && cosa ? `${isAdmin ? 'org' : 'owner'}|${isAdmin ? cosa.orgId : uid}` : null,
-    isManager && uid && cosa
+    seesRequests && uid && cosa ? `${isAdmin ? 'org' : 'owner'}|${isAdmin ? cosa.orgId : uid}` : null,
+    seesRequests && uid && cosa
       ? (next, error) => (isAdmin ? watchGroupCosaRequests(cosa.orgId, next, error) : watchCosaRequestsToMe(uid, next, error))
       : null,
   );
@@ -81,15 +90,18 @@ export default function CosaScreen() {
 
   const setPaused = (paused: boolean) => {
     if (!cosa) return;
-    const { kind, title, description, category, imageURL, conditions, reserva } = cosa;
+    const { kind, mode, title, description, category, imageURL, conditions, location, locationNote, reserva } = cosa;
     setSaving(true);
-    updateCosa(cosa.id, { kind, title, description, category, imageURL, conditions, reserva, status: paused ? 'paused' : 'available' })
+    updateCosa(cosa.id, {
+      kind, mode, title, description, category, imageURL, conditions, location, locationNote, reserva,
+      status: paused ? 'paused' : 'available',
+    })
       .catch((err: unknown) => showAlert(cosatecaErrorMessage(t, err)))
       .finally(() => setSaving(false));
   };
 
   const state = cosa ? cosaAvailability(cosa) : null;
-  const canAsk = cosa !== null && uid !== null && !isOwner && cosa.status === 'available' && myOpen === null;
+  const canAsk = cosa !== null && uid !== null && !answersFirstHand && cosa.status === 'available' && myOpen === null;
 
   return (
     <Screen padded={false} topInset={false}>
@@ -116,6 +128,7 @@ export default function CosaScreen() {
               </Text>
               <HStack gap={2} className="items-center flex-wrap">
                 <Badge label={t(`groups.cosateca.kinds.${cosa.kind}`)} />
+                {cosa.mode === 'colectivizado' ? <Badge label={t('groups.cosateca.modes.colectivizado')} testID="cosa-colectivizado" /> : null}
                 <Badge label={t(`groups.cosateca.categories.${cosa.category}`)} />
               </HStack>
               <Text variant="bodySm" tone="muted">
@@ -124,9 +137,26 @@ export default function CosaScreen() {
               <Text variant="bodySm" tone={state === 'available' ? 'success' : 'muted'} testID="cosa-state">
                 {cosaAvailabilityLabel(t, cosa)}
               </Text>
+              {cosa.heldBy ? (
+                <Text variant="bodySm" tone="muted" testID="cosa-held-since">
+                  {cosaHeldSinceLabel(t, cosa.heldBy)}
+                </Text>
+              ) : null}
+              {cosa.mode === 'colectivizado' ? (
+                <Text variant="bodySm" tone="muted">
+                  {t('groups.cosateca.modeHints.colectivizado')}
+                </Text>
+              ) : null}
             </VStack>
 
             {cosa.description ? <Text selectable>{cosa.description}</Text> : null}
+            {cosa.location || cosa.locationNote ? (
+              <VStack gap={2} testID="cosa-where">
+                <DetailSectionHeading>{t('groups.cosateca.detail.where')}</DetailSectionHeading>
+                {cosa.locationNote ? <Text selectable testID="cosa-location-note">{cosa.locationNote}</Text> : null}
+                <LocationMap coordinates={cosa.location?.coordinates ?? null} label={cosa.location?.displayName} testID="cosa-location-map" />
+              </VStack>
+            ) : null}
             {cosa.conditions ? (
               <VStack gap={1}>
                 <DetailSectionHeading>{t('groups.cosateca.detail.conditions')}</DetailSectionHeading>
@@ -144,7 +174,11 @@ export default function CosaScreen() {
                   onBooked={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))}
                 />
               </VStack>
-            ) : isOwner ? (
+            ) : isHolder ? (
+              <Text tone="muted" testID="cosa-you-hold-it">
+                {t('groups.cosateca.detail.youHoldIt')}
+              </Text>
+            ) : answersFirstHand ? (
               <Text tone="muted" testID="cosa-yours">
                 {t('groups.cosateca.detail.yours')}
               </Text>
@@ -165,8 +199,9 @@ export default function CosaScreen() {
               </Text>
             )}
 
-            {isManager ? (
+            {seesRequests ? (
               <VStack gap={2} testID="cosa-manage">
+                {isManager ? (
                 <HStack gap={2} className="flex-wrap">
                   {/* The form needs the group; an owner who has left it can still pause it. */}
                   {group ? (
@@ -180,7 +215,8 @@ export default function CosaScreen() {
                     </Button>
                   ) : null}
                 </HStack>
-                {cosa.kind === 'reserva' ? <ReservaBlackouts cosa={cosa} /> : null}
+                ) : null}
+                {cosa.kind === 'reserva' && isManager ? <ReservaBlackouts cosa={cosa} /> : null}
                 {requests.length > 0 ? (
                   <VStack gap={2}>
                     <DetailSectionHeading>{t('groups.cosateca.detail.requests')}</DetailSectionHeading>

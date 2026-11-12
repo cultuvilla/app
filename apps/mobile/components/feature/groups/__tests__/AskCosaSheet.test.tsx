@@ -43,9 +43,23 @@ describe('AskCosaSheet', () => {
     await waitFor(() => expect(onSent).toHaveBeenCalledWith('r9'));
     expect(onClose).toHaveBeenCalled();
     expect(requestCosa).toHaveBeenCalledWith({
-      municipalityId: 'm1', orgId: 'pena', cosaId: 'c1', cosaTitle: 'Taladro', cosaKind: 'prestamo', ownerUid: 'u2',
-      requesterUid: 'u1', requesterName: 'Ana', message: 'Para el sábado', fromOn: null, untilOn: null,
+      municipalityId: 'm1', orgId: 'pena', cosaId: 'c1', cosaTitle: 'Taladro', cosaKind: 'prestamo', cosaMode: 'prestamo', ownerUid: 'u2',
+      holderUid: null, requesterUid: 'u1', requesterName: 'Ana', message: 'Para el sábado', fromOn: null, untilOn: null,
     });
+  });
+
+  it("asks a colectivizado cosa of whoever holds it, with no dates: it never comes back", async () => {
+    const held = {
+      ...cosa('prestamo'),
+      mode: 'colectivizado' as const,
+      heldBy: { requestId: 'h1', uid: 'u3', name: 'Pepa', untilOn: null, since: new Date('2026-10-03') },
+    };
+    const { getByTestId, queryByTestId } = render(<AskCosaSheet visible cosa={held} uid="u1" myName="Ana" onClose={jest.fn()} onSent={jest.fn()} />);
+    expect(queryByTestId('ask-cosa-dates')).toBeNull();
+    fireEvent.press(getByTestId('ask-cosa-send'));
+    await waitFor(() =>
+      expect(requestCosa).toHaveBeenCalledWith(expect.objectContaining({ cosaMode: 'colectivizado', ownerUid: 'u2', holderUid: 'u3', untilOn: null })),
+    );
   });
 
   it('asks no dates for a regalo', () => {

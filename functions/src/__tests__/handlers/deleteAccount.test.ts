@@ -222,12 +222,14 @@ describe('deleteAccount (callable)', () => {
     await db().doc('cosas/mine').set(buildCosaData({ ...cosaBase, ownerUid: USER_ID, ownerName: 'Yo', title: 'Taladro' }));
     await db().doc('cosas/group').set({
       ...buildCosaData({ ...cosaBase, ownerUid: null, ownerName: 'Peña', title: 'Carpa', createdBy: CO_ADMIN_ID }),
-      heldBy: { requestId: 'asked', uid: USER_ID, name: 'Yo', untilOn: null },
+      heldBy: { requestId: 'asked', uid: USER_ID, name: 'Yo', untilOn: null, since: new Date() },
     });
     const reqBase = { municipalityId: 'mun-1', orgId: 'o1', cosaKind: 'prestamo' as const };
     await db().doc('cosaRequests/asked').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: USER_ID, requesterName: 'Yo' }));
     await db().doc('cosaRequests/askedOfMe').set(buildCosaRequestData({ ...reqBase, cosaId: 'mine', cosaTitle: 'Taladro', ownerUid: USER_ID, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
     await db().doc('cosaRequests/unrelated').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
+    // A request waiting on them as a colectivizado cosa's holder goes back to the group.
+    await db().doc('cosaRequests/askedOfHolder').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', cosaMode: 'colectivizado', ownerUid: null, holderUid: USER_ID, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
     // The other party's words in a request's chat go with the request; an unrelated request's stay.
     await db().doc('cosaRequests/askedOfMe/chat/c1').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
     await db().doc('cosaRequests/unrelated/chat/c1').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
@@ -287,6 +289,7 @@ describe('deleteAccount (callable)', () => {
     expect((await db().doc('cosaRequests/asked').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/askedOfMe').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/unrelated').get()).exists).toBe(true);
+    expect((await db().doc('cosaRequests/askedOfHolder').get()).data()).toMatchObject({ holderUid: null, status: 'pending' });
     expect((await db().doc('cosaRequests/askedOfMe/chat/c1').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/unrelated/chat/c1').get()).exists).toBe(true);
 
