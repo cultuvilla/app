@@ -1,6 +1,9 @@
 # Group screens redesign — what each group button opens
 
 **Priority:** high
+**Landed:** dev
+**Gate:** release:1.12.0
+**Next:** once 1.12.0 is live on both stores, check the group screens in prod and retire this plan.
 
 Decided 2026-11-12 (Álvaro), from the design review artifact
 (https://claude.ai/artifact/2ttqkgDM9ejuzq3qNFFkU7, mockups of every option).
@@ -72,3 +75,11 @@ Each lands as its own PR; order is free.
 - **Avisos junta** (14).
 - **Registros** (15).
 - **Muted text contrast** (16).
+
+## Progress
+
+All parts merged to develop on 2026-11-12: #646 (Ajustes + levels), #647 (Actas),
+#648 (Mi cuota), #649 (Charla), #650 (Avisos junta), #651 (muted text), #652
+(Cuota junta), #653 (Registros), #654 (Socios), #655 (Cosateca, with the camera in
+Ofrecer), #656 (real Copiar via expo-clipboard — decided 2026-11-12 (Álvaro): ship
+the camera and the clipboard now, with a store build right after).
