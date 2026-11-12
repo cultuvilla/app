@@ -20,9 +20,13 @@ import { z } from 'zod';
  *   last opened the thread. Moves forward on every open; the unread badge
  *   compares it with the thread's `lastMessageAt`.
  *
- * A message is never edited. Its author deletes it, and so may the group's
- * admins (and the village's and the app's). It carries the author's name as it
- * was when written, so it stays readable after the author leaves the group.
+ * A message's text is never edited. Its author deletes it, and so may the
+ * group's admins (and the village's and the app's). It carries the author's
+ * name as it was when written, so it stays readable after the author leaves the
+ * group. Whoever reads the thread may react to it (`reactions`, one per reader)
+ * — the only change a message ever takes — and a message may quote the one it
+ * answers (`replyTo`), copied whole so the quote survives paging. Both fields
+ * are optional: older messages, and older binaries, never carry them.
  * Nothing notifies unless a member opts in (`groupPrefs.chatPush`).
  */
 
@@ -54,12 +58,31 @@ export function isGeneralChatThread(threadId: string): boolean {
   return threadId === GENERAL_CHAT_THREAD_ID;
 }
 
+/**
+ * The reactions a reader may leave, in the order the app offers them. The
+ * rules hold the same list (`groupChatReactions()` in firestore.rules).
+ */
+export const GROUP_CHAT_REACTIONS = ['👍', '❤️', '😂', '😮', '🙏'] as const;
+export type GroupChatReaction = (typeof GROUP_CHAT_REACTIONS)[number];
+
+/** The message a reply answers, as it was: the rules check it against the original. */
+export const GroupChatReplySchema = z.object({
+  chatId: z.string(),
+  authorUid: z.string(),
+  authorName: z.string(),
+  body: z.string(),
+});
+export type GroupChatReply = z.infer<typeof GroupChatReplySchema>;
+
 export const GroupChatMessageDataSchema = z.object({
   authorUid: z.string(),
   /** The author's `publicProfiles` name when they wrote it — the rules check it. */
   authorName: z.string(),
   body: z.string(),
   createdAt: z.date(),
+  replyTo: GroupChatReplySchema.optional(),
+  /** Reader uid → their one reaction. A plain string, so a reaction added later never fails an older converter. */
+  reactions: z.record(z.string(), z.string()).optional(),
 });
 export type GroupChatMessageData = z.infer<typeof GroupChatMessageDataSchema>;
 
@@ -111,4 +134,67 @@ export function groupChatPushBody(authorName: string, body: string, max = 140): 
   const text = body.trim().replace(/\s+/g, ' ');
   const cut = text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
   return `${authorName}: ${cut}`;
+}
+
+/** One reaction under a message: how many left it, and whether the viewer is one of them. */
+export interface GroupChatReactionCount {
+  emoji: GroupChatReaction;
+  count: number;
+  mine: boolean;
+}
+
+/** The reactions a message shows, in the offered order; unknown ones are left out. */
+export function groupChatReactionCounts(
+  reactions: Record<string, string> | undefined,
+  uid: string,
+): GroupChatReactionCount[] {
+  if (!reactions) return [];
+  const known = new Set<string>(GROUP_CHAT_REACTIONS);
+  const counts = new Map<string, number>();
+  for (const emoji of Object.values(reactions)) if (known.has(emoji)) counts.set(emoji, (counts.get(emoji) ?? 0) + 1);
+  const mine = reactions[uid];
+  return GROUP_CHAT_REACTIONS.filter((e) => counts.has(e)).map((emoji) => ({
+    emoji,
+    count: counts.get(emoji) ?? 0,
+    mine: mine === emoji,
+  }));
+}
+
+/** The viewer's reaction, or null. A tap on the one they already left takes it away. */
+export function nextGroupChatReaction(current: string | undefined, picked: GroupChatReaction): GroupChatReaction | null {
+  return current === picked ? null : picked;
+}
+
+function localDayKey(date: Date): string {
+  return `${String(date.getFullYear())}-${String(date.getMonth() + 1)}-${String(date.getDate())}`;
+}
+
+/** How a message sits in the thread: under a day separator, and whether it starts a run of one author's messages. */
+export interface GroupChatRowLayout {
+  /** The first message of its day: a separator goes above it. */
+  newDay: boolean;
+  /** The first of consecutive messages by one author on one day: their name and initial go on it. */
+  firstOfRun: boolean;
+}
+
+/**
+ * Layout for a thread's messages, given newest first (as `watchGroupChat`
+ * returns them). Each row looks at the one written before it — the next in the
+ * array — so a page's oldest message always opens a day and a run.
+ */
+export function groupChatLayout(
+  rows: readonly Pick<GroupChatMessageData, 'authorUid' | 'createdAt'>[],
+): GroupChatRowLayout[] {
+  return rows.map((row, i) => {
+    const before = i + 1 < rows.length ? rows[i + 1] : undefined;
+    const newDay = !before || localDayKey(before.createdAt) !== localDayKey(row.createdAt);
+    return { newDay, firstOfRun: newDay || before.authorUid !== row.authorUid };
+  });
+}
+
+/** A stable slot in a palette of `size` colours for a person, so their initial keeps its colour. */
+export function groupChatAuthorColorIndex(uid: string, size: number): number {
+  let hash = 0;
+  for (let i = 0; i < uid.length; i += 1) hash = (hash * 31 + uid.charCodeAt(i)) | 0;
+  return Math.abs(hash) % size;
 }

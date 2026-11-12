@@ -15,6 +15,7 @@ export {
   // test-login: allowed — a re-export for firebaseInit.ts, which owns the wiring.
   connectFirestoreEmulator,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,

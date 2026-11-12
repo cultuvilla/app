@@ -2,12 +2,14 @@
 // Group chat: who reads and writes the general thread and an aviso's, that a
 // message is written as its author under their public name, the "solo la junta
 // escribe" switch, deletion, the function-owned thread summaries, the reader's
-// last open, the chat's push opt-in and reporting a message.
+// last open, the chat's push opt-in, reporting a message, and replies and
+// reactions.
 import { describe, it, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -142,6 +144,74 @@ describe('an aviso’s chat', () => {
     await assertFails(deleteDoc(doc(asUser(getEnv(), 'member1'), `${AVISO_CHAT}/n1`)));
     await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'member1'), `${AVISO_CHAT}/c1`)));
     await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'admin1'), `${AVISO_CHAT}/n1`)));
+  });
+});
+
+describe('replies', () => {
+  const quote = (over: Record<string, unknown> = {}) => ({ chatId: 'c1', authorUid: 'member1', authorName: 'Paco', body: 'Buenas', ...over });
+
+  it('a reply quotes a message of its own thread exactly as it stands', async () => {
+    const db = asUser(getEnv(), 'member2');
+    await assertSucceeds(setDoc(doc(db, `${GENERAL}/n1`), chatMessage('member2', { replyTo: quote() })));
+    await assertSucceeds(
+      setDoc(doc(asUser(getEnv(), 'admin1'), `${AVISO_CHAT}/n1`), chatMessage('admin1', { replyTo: quote({ body: 'Voy' }) })),
+    );
+  });
+
+  it('refuses words put in someone’s mouth, a quote of nothing, and a quote from another thread', async () => {
+    const db = asUser(getEnv(), 'member2');
+    await assertFails(setDoc(doc(db, `${GENERAL}/n1`), chatMessage('member2', { replyTo: quote({ body: 'Otra cosa' }) })));
+    await assertFails(setDoc(doc(db, `${GENERAL}/n2`), chatMessage('member2', { replyTo: quote({ authorUid: 'admin1' }) })));
+    await assertFails(setDoc(doc(db, `${GENERAL}/n3`), chatMessage('member2', { replyTo: quote({ authorName: 'La junta' }) })));
+    await assertFails(setDoc(doc(db, `${GENERAL}/n4`), chatMessage('member2', { replyTo: quote({ chatId: 'nope' }) })));
+    await assertFails(setDoc(doc(db, `${GENERAL}/n5`), chatMessage('member2', { replyTo: { ...quote(), extra: 1 } })));
+    // c1 of the aviso's thread says "Voy", not "Buenas": the general one's text does not pass there.
+    await assertFails(setDoc(doc(asUser(getEnv(), 'admin1'), `${AVISO_CHAT}/n6`), chatMessage('admin1', { replyTo: quote() })));
+  });
+
+  it('refuses a replyTo that is not a quote', async () => {
+    await assertFails(setDoc(doc(asUser(getEnv(), 'member2'), `${GENERAL}/n1`), chatMessage('member2', { replyTo: 'c1' })));
+  });
+});
+
+describe('reactions', () => {
+  const react = (uid: string, path: string, emoji: unknown) =>
+    updateDoc(doc(asUser(getEnv(), uid), path), { [`reactions.${uid}`]: emoji });
+
+  it('every reader of the thread sets, changes and clears their own reaction', async () => {
+    await assertSucceeds(react('member2', `${GENERAL}/c1`, '👍'));
+    await assertSucceeds(react('member2', `${GENERAL}/c1`, '❤️'));
+    await assertSucceeds(react('admin1', `${GENERAL}/c1`, '😂'));
+    await assertSucceeds(react('member2', `${GENERAL}/c1`, deleteField()));
+    await assertSucceeds(react('member1', `${AVISO_CHAT}/c1`, '🙏'));
+    await assertSucceeds(react('admin1', `${AVISO_CHAT}/c1`, '😮'));
+  });
+
+  it('even where only the junta writes', async () => {
+    await seed({ chatAdminsOnly: true });
+    await assertSucceeds(react('member2', `${GENERAL}/c1`, '👍'));
+  });
+
+  it('refuses outsiders, a member the aviso did not reach, and a member who left', async () => {
+    await assertFails(react('stranger', `${GENERAL}/c1`, '👍'));
+    await assertFails(react('member2', `${AVISO_CHAT}/c1`, '👍'));
+    await leave('member2');
+    await assertFails(react('member2', `${GENERAL}/c1`, '👍'));
+  });
+
+  it('refuses a reaction not on offer', async () => {
+    await assertFails(react('member2', `${GENERAL}/c1`, '🦄'));
+    await assertFails(react('member2', `${GENERAL}/c1`, 1));
+  });
+
+  it('nobody touches another reader’s reaction, nor anything else of the message', async () => {
+    await assertSucceeds(react('member2', `${GENERAL}/c1`, '👍'));
+    const admin = asUser(getEnv(), 'admin1');
+    await assertFails(updateDoc(doc(admin, `${GENERAL}/c1`), { 'reactions.member2': deleteField() }));
+    await assertFails(updateDoc(doc(admin, `${GENERAL}/c1`), { 'reactions.member2': '😂' }));
+    await assertFails(updateDoc(doc(admin, `${GENERAL}/c1`), { reactions: {} }));
+    await assertFails(updateDoc(doc(admin, `${GENERAL}/c1`), { 'reactions.admin1': '👍', body: 'Otra cosa' }));
+    await assertFails(updateDoc(doc(admin, `${GENERAL}/c1`), { reactions: 'all' }));
   });
 });
 

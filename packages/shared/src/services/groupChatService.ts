@@ -1,5 +1,15 @@
 // packages/shared/src/services/groupChatService.ts
-import { deleteDoc, doc, limit, orderBy, query, serverTimestamp, setDoc } from '../firebase/sdk/firestore';
+import {
+  deleteDoc,
+  deleteField,
+  doc,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import {
   organizationChatCollection,
@@ -13,6 +23,8 @@ import {
 import {
   GroupChatBodySchema,
   type GroupChatMessageData,
+  type GroupChatReaction,
+  type GroupChatReply,
   type GroupChatReadData,
   type GroupChatThreadData,
 } from '../models/organization/GroupChatDataModel';
@@ -55,23 +67,52 @@ export interface SendGroupChatMessageInput {
   /** The author's public name (`publicProfiles/{uid}.displayName`) — the rules refuse any other. */
   authorName: string;
   body: string;
+  /** The message this one answers, in the same thread. */
+  replyTo?: Pick<GroupChatMessage, 'id' | 'authorUid' | 'authorName' | 'body'>;
 }
 
 /**
  * Write a message. Throws on an empty or over-long body before writing. The
- * rules refuse a writer who may not read the thread, and a non-admin in a
- * general chat set to "solo la junta escribe". Returns the new message's id.
+ * rules refuse a writer who may not read the thread, a non-admin in a general
+ * chat set to "solo la junta escribe", and a quote that is not the quoted
+ * message as it stands. Returns the new message's id.
  */
 export async function sendGroupChatMessage(input: SendGroupChatMessageInput): Promise<string> {
   const body = GroupChatBodySchema.parse(input.body);
   const ref = doc(organizationChatWriteCollection(getDb(), input.orgId, input.threadId));
+  const replyTo: GroupChatReply | undefined = input.replyTo
+    ? {
+        chatId: input.replyTo.id,
+        authorUid: input.replyTo.authorUid,
+        authorName: input.replyTo.authorName,
+        body: input.replyTo.body,
+      }
+    : undefined;
   await setDoc(ref, {
     authorUid: input.uid,
     authorName: input.authorName,
     body,
     createdAt: serverTimestamp(),
+    ...(replyTo ? { replyTo } : {}),
   });
   return ref.id;
+}
+
+/**
+ * Leave `uid`'s one reaction on a message, replacing the one they had; null
+ * takes it away. Anyone who reads the thread may — even where only the junta
+ * writes — and the rules let nobody touch another reader's reaction.
+ */
+export async function setGroupChatReaction(
+  orgId: string,
+  threadId: string,
+  chatId: string,
+  uid: string,
+  reaction: GroupChatReaction | null,
+): Promise<void> {
+  await updateDoc(organizationChatWriteDoc(getDb(), orgId, threadId, chatId), {
+    [`reactions.${uid}`]: reaction ?? deleteField(),
+  });
 }
 
 /** The author removes their own message; an admin removes anyone's. There is no edit. */

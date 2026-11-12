@@ -22,6 +22,8 @@ vi.mock('../../src/firebase/refs/client', () => ({
 }));
 vi.mock('firebase/firestore', () => ({
   deleteDoc: vi.fn(),
+  deleteField: vi.fn(() => 'DELETE_FIELD'),
+  updateDoc: vi.fn(),
   doc: vi.fn((coll: { _path: string }) => ({ _path: `${coll._path}/new1`, id: 'new1' })),
   limit: vi.fn((n: number) => ({ limit: n })),
   orderBy: vi.fn((field: string, dir: string) => ({ orderBy: [field, dir] })),
@@ -31,11 +33,12 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(() => () => undefined),
 }));
 
-import { deleteDoc, onSnapshot, query, setDoc } from 'firebase/firestore';
+import { deleteDoc, onSnapshot, query, setDoc, updateDoc } from 'firebase/firestore';
 import {
   deleteGroupChatMessage,
   markGroupChatRead,
   sendGroupChatMessage,
+  setGroupChatReaction,
   watchGroupAviso,
   watchGroupChat,
   watchGroupChatThreads,
@@ -59,6 +62,36 @@ describe('groupChatService', () => {
       path: 'chat:org1/general/new1',
       data: { authorUid: 'u1', authorName: 'Ana', body: 'Hola', createdAt: 'SERVER_TS' },
     });
+  });
+
+  it('a reply carries the message it answers, whole', async () => {
+    await sendGroupChatMessage({
+      orgId: 'org1',
+      threadId: 'general',
+      uid: 'u1',
+      authorName: 'Ana',
+      body: 'Yo',
+      replyTo: { id: 'c1', authorUid: 'u2', authorName: 'Paco', body: '¿Quién trae la tostadora?' },
+    });
+    expect(call(setDoc).data).toEqual({
+      authorUid: 'u1',
+      authorName: 'Ana',
+      body: 'Yo',
+      createdAt: 'SERVER_TS',
+      replyTo: { chatId: 'c1', authorUid: 'u2', authorName: 'Paco', body: '¿Quién trae la tostadora?' },
+    });
+  });
+
+  it('a message that answers nothing writes no replyTo', async () => {
+    await sendGroupChatMessage({ orgId: 'org1', threadId: 'general', uid: 'u1', authorName: 'Ana', body: 'Hola' });
+    expect(call(setDoc).data).not.toHaveProperty('replyTo');
+  });
+
+  it('sets or clears only the reader’s own reaction', async () => {
+    await setGroupChatReaction('org1', 'general', 'c1', 'u1', '👍');
+    expect(vi.mocked(updateDoc).mock.calls[0]).toEqual([{ _path: 'chat:org1/general/c1' }, { 'reactions.u1': '👍' }]);
+    await setGroupChatReaction('org1', 'm1', 'c1', 'u1', null);
+    expect(vi.mocked(updateDoc).mock.calls[1]).toEqual([{ _path: 'chat:org1/m1/c1' }, { 'reactions.u1': 'DELETE_FIELD' }]);
   });
 
   it('refuses an empty or over-long body before writing', async () => {
