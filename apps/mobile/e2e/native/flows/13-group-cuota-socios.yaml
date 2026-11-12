@@ -445,8 +445,12 @@ onFlowComplete:
       id: 'my-cuota'
     timeout: 45000
 - assertVisible:
-    id: 'my-cuota-row-${output.userSocioId}'
-- assertVisible: '.*Bizum: ${BIZUM}.*'
+    id: 'my-cuota-receipt'
+- assertVisible:
+    id: 'my-cuota-amount'
+- assertVisible: '${BIZUM}'
+- assertVisible:
+    id: 'my-cuota-bizum-copy'
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:

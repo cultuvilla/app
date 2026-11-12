@@ -2042,6 +2042,24 @@
         "save": "Guardar"
       }
     },
+    "myCuota": {
+      "stamp": {
+        "al_dia": "PAGADA",
+        "pendiente": "PENDIENTE",
+        "vencida": "VENCIDA",
+        "covered": "AL DÍA"
+      },
+      "daysLeft": "{count, plural, one {falta 1 día} other {faltan # días}}",
+      "dueToday": "Vence hoy",
+      "inYours": "Va en tu cuota",
+      "payWith": "Paga así",
+      "bizum": "Bizum",
+      "iban": "IBAN",
+      "concept": "Concepto",
+      "copy": "Copiar",
+      "copyLabel": "Copiar {label}",
+      "paid": "Pagadas"
+    },
     "events": {
       "filter": {
         "upcoming": "Próximos",
