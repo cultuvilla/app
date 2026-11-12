@@ -1135,7 +1135,9 @@
       "title": "Solicitudes para unirse",
       "wantsToJoin": "quiere unirse",
       "approve": "Aceptar",
-      "reject": "Rechazar"
+      "reject": "Rechazar",
+      "banner": "{count, plural, one {1 persona quiere entrar} other {# personas quieren entrar}}",
+      "review": "Revisar"
     },
     "leave": {
       "title": "Salir del grupo",
@@ -1868,20 +1870,17 @@
       "error": "No se ha podido guardar. Inténtalo de nuevo."
     },
     "personas": {
-      "title": "Personas a tu cargo",
-      "hint": "Hazlas socias del grupo. Los avisos y la cuota te llegarán a ti.",
-      "add": "Hacer socio/a",
       "remove": "Dar de baja",
-      "isSocio": "Socio/a",
       "new": "Añadir persona a cargo",
       "confirmRemoveTitle": "Dar de baja",
       "confirmRemoveBody": "{name} dejará de ser socio/a. Quedará en el libro de socios con la fecha de baja.",
-      "error": "No se ha podido completar. Inténtalo de nuevo."
+      "error": "No se ha podido completar. Inténtalo de nuevo.",
+      "chipSocio": "{name} · nº {number}",
+      "chipAdd": "{name} · ＋ Hacer socio"
     },
     "socios": {
       "listHidden": "La junta no muestra la lista de socios.",
       "title": "Socios",
-      "count": "{count, plural, one {1 socio} other {# socios}}",
       "add": "Añadir socio",
       "addTitle": "Añadir socio sin la app",
       "editTitle": "Editar socio",
@@ -1895,20 +1894,15 @@
       "kindTyped": "Sin la app",
       "baja": "Baja {date}",
       "alta": "Alta {date}",
-      "showBajas": "Ver también las bajas",
-      "hideBajas": "Ocultar las bajas",
       "noContact": "Sin datos de contacto",
       "contactNotShared": "No ha compartido sus datos",
       "giveBaja": "Dar de baja",
       "confirmBajaTitle": "Dar de baja",
       "confirmBajaBody": "{name} quedará en el libro de socios con la fecha de baja de hoy.",
-      "memberBajaHint": "Un socio con la app se da de baja al salir del grupo.",
       "link": "Vincular con un integrante",
       "linkTitle": "¿Quién es {name} en la app?",
-      "linkHint": "Se unirán en una sola ficha, con la fecha de alta más antigua.",
       "linkEmpty": "No hay integrantes con la app para vincular.",
       "titleLabel": "Cargo",
-      "setTitle": "Poner cargo",
       "noTitle": "Sin cargo",
       "error": "No se ha podido completar. Inténtalo de nuevo.",
       "unnamed": "Sin nombre",
@@ -1917,10 +1911,40 @@
       "socioNumberInvalid": "Escribe un número entre 1 y 99999.",
       "socioNumberTaken": "Ese número ya lo tiene otro socio.",
       "numberShort": "Nº {number}",
-      "setNumber": "Nº de socio",
       "numberTitle": "Nº de socio de {name}",
       "numberLabel": "Nº de socio",
-      "numberClearHint": "Déjalo vacío para quitarle el número."
+      "numberClearHint": "Déjalo vacío para quitarle el número.",
+      "book": "Libro de socios",
+      "search": "Nombre o número",
+      "empty": "Nadie con ese nombre",
+      "filters": {
+        "activos": "Activos {count}",
+        "pendiente": "Cuota pendiente {count}",
+        "sinApp": "Sin app {count}",
+        "bajas": "Bajas"
+      },
+      "pills": {
+        "pendiente": "Pendiente",
+        "vencida": "Vencida",
+        "sinApp": "Sin app",
+        "baja": "Baja"
+      },
+      "sheet": {
+        "edit": "Editar datos",
+        "number": "Cambiar nº de socio",
+        "title": "Cargo en la junta",
+        "promote": "Que gestione el grupo",
+        "demote": "Que deje de gestionar el grupo",
+        "baja": "Dar de baja como socio",
+        "remove": "Sacar del grupo",
+        "cuota": "Cuota: {status}"
+      },
+      "junta": "Junta directiva",
+      "juntaMember": "Junta",
+      "myRecord": "Tu ficha",
+      "myNumber": "Socio nº {number}",
+      "mySocio": "Socio",
+      "myCuota": "{period} {status}"
     },
     "titles": {
       "presidente": "Presidencia",

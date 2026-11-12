@@ -11,7 +11,8 @@ function mockStub(testID: string) {
   return () => <RNText testID={testID} />;
 }
 jest.mock('../SociosRoster', () => ({ SociosRoster: mockStub('roster') }));
-jest.mock('../MyPersonasSocios', () => ({ MyPersonasSocios: mockStub('personas') }));
+jest.mock('../MySocioRecord', () => ({ MySocioRecord: mockStub('personas') }));
+jest.mock('../JuntaDirectiva', () => ({ JuntaDirectiva: mockStub('junta') }));
 jest.mock('../SocioConsentCard', () => ({ SocioConsentCard: mockStub('consent') }));
 jest.mock('../../OrgJoinRequests', () => ({ OrgJoinRequests: mockStub('requests') }));
 jest.mock('../../OrgMembersList', () => ({ OrgMembersList: () => null }));
@@ -29,10 +30,11 @@ function renderSocios(role: 'admin' | 'member', sociosListVisible: boolean) {
 }
 
 describe('the Socios screen', () => {
-  it('gives a member their consent and personas without the list while the estatutos hide it', () => {
+  it('gives a member their ficha, consent and the junta without the list while the estatutos hide it', () => {
     const { getByTestId, queryByTestId } = renderSocios('member', false);
     expect(getByTestId('consent')).toBeTruthy();
     expect(getByTestId('personas')).toBeTruthy();
+    expect(getByTestId('junta')).toBeTruthy();
     expect(getByTestId('socios-list-hidden')).toBeTruthy();
     expect(queryByTestId('roster')).toBeNull();
     expect(queryByTestId('requests')).toBeNull();

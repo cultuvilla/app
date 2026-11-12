@@ -11,7 +11,8 @@ import { GroupNotices } from './GroupNotices';
 import { GroupSettings } from './GroupSettings';
 import { MyActas } from './MyActas';
 import { MyCuota } from './MyCuota';
-import { MyPersonasSocios } from './MyPersonasSocios';
+import { JuntaDirectiva } from './JuntaDirectiva';
+import { MySocioRecord } from './MySocioRecord';
 import { RecordsAdmin } from './RecordsAdmin';
 import { SocioConsentCard } from './SocioConsentCard';
 import { SociosRoster } from './SociosRoster';
@@ -42,7 +43,8 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
   const { t } = useT();
   const { org, role } = group;
   const isAdmin = role === 'admin';
-  const adminUids = useAdminUids(org.id, isAdmin && (section === 'socios' || section === 'cobros'));
+  // Everyone sees the junta on Socios; only an admin's Cuota signs with it.
+  const adminUids = useAdminUids(org.id, section === 'socios' || (isAdmin && section === 'cobros'));
 
   switch (section) {
     case 'avisos':
@@ -51,13 +53,15 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
       return <MyCuota orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.cuota')} />} />;
     case 'actas':
       return <MyActas orgId={org.id} orgName={org.name} empty={<Empty text={t('groups.sections.empty.actas')} />} />;
-    case 'socios':
+    case 'socios': {
+      const canReadRoster = isAdmin || org.sociosListVisible;
       return (
         <VStack gap={4}>
+          <MySocioRecord orgId={org.id} uid={uid} />
           <SocioConsentCard orgId={org.id} requirement={org} />
-          <MyPersonasSocios orgId={org.id} uid={uid} />
-          {isAdmin ? <OrgJoinRequests orgId={org.id} /> : null}
-          {isAdmin || org.sociosListVisible ? (
+          {isAdmin ? <OrgJoinRequests orgId={org.id} banner /> : null}
+          <JuntaDirectiva orgId={org.id} adminUids={adminUids} canReadRoster={canReadRoster} />
+          {canReadRoster ? (
             <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />
           ) : (
             <Text tone="muted" variant="bodySm" testID="socios-list-hidden">
@@ -66,6 +70,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           )}
         </VStack>
       );
+    }
     case 'cobros':
       return <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} />;
     case 'mensajes':
