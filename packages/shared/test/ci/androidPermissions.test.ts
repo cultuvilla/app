@@ -31,4 +31,11 @@ describe('Android blocked permissions', () => {
   it('keeps WRITE_EXTERNAL_STORAGE, which saving a card needs before Android 13', () => {
     expect(blocked).not.toContain("'android.permission.WRITE_EXTERNAL_STORAGE'");
   });
+
+  // Offering something in a cosateca starts with a photo, taken there or
+  // picked; launchCameraAsync refuses when the manifest lacks CAMERA.
+  it('keeps CAMERA, which taking a cosateca photo needs, and iOS has its usage string', () => {
+    expect(blocked).not.toContain("'android.permission.CAMERA'");
+    expect(appConfig).toMatch(/NSCameraUsageDescription:\s*'[^']+'/);
+  });
 });

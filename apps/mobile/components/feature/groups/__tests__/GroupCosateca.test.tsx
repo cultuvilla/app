@@ -70,30 +70,65 @@ beforeEach(() => {
 });
 
 describe("a group's cosateca", () => {
-  it('lists the catalogue by title, filtered by category, without what was given away', () => {
+  it('shows the catalogue as cards by title, filtered by category, without what was given away', () => {
     const { getByTestId, queryByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
     expect(getByTestId('group-cosateca')).toContainElement(getByTestId('cosateca-catalogue'));
-    expect(getByTestId('cosa-row-c1')).toBeTruthy();
-    expect(getByTestId('cosa-row-state-c1')).toHaveTextContent('groups.cosateca.availability.available');
+    expect(getByTestId('cosa-card-state-c1')).toHaveTextContent('groups.cosateca.chip.free');
+    expect(getByTestId('cosa-card-tile-c1')).toBeTruthy();
+    expect(getByTestId('cosa-card-c2')).toBeTruthy();
+    expect(queryByTestId('cosa-card-c3')).toBeNull();
     expect(getByTestId('cosa-categories')).toBeTruthy();
-    expect(getByTestId('cosa-row-c2')).toBeTruthy();
-    expect(queryByTestId('cosa-row-c3')).toBeNull();
     fireEvent.press(getByTestId('cosa-categories-fiestas'));
-    expect(queryByTestId('cosa-row-c1')).toBeNull();
-    fireEvent.press(getByTestId('cosa-row-c2'));
+    expect(queryByTestId('cosa-card-c1')).toBeNull();
+    fireEvent.press(getByTestId('cosa-card-c2'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/pena/cosa/c2');
   });
 
-  it('shows what I asked for in this group only', () => {
-    mockMine = [request('r1', { requesterUid: 'u1' }), request('r2', { orgId: 'other', requesterUid: 'u1' })];
+  it('finds a cosa by name, accents aside, and says when nothing matches', () => {
     const { getByTestId, queryByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
-    expect(getByTestId('cosateca-tab')).toBeTruthy();
-    fireEvent.press(getByTestId('cosateca-tab-pedi'));
-    expect(getByTestId('cosateca-requests-pedi')).toBeTruthy();
-    expect(getByTestId('cosa-request-row-r1')).toBeTruthy();
-    expect(queryByTestId('cosa-request-row-r2')).toBeNull();
-    fireEvent.press(getByTestId('cosa-request-row-r1'));
+    fireEvent.changeText(getByTestId('cosateca-search'), 'CARPÁ');
+    expect(queryByTestId('cosa-card-c1')).toBeNull();
+    expect(getByTestId('cosa-card-c2')).toBeTruthy();
+    fireEvent.changeText(getByTestId('cosateca-search'), 'hormigonera');
+    expect(getByTestId('cosateca-empty')).toHaveTextContent('groups.cosateca.noMatches');
+  });
+
+  it('hides "En marcha" while nothing is going on', () => {
+    const { queryByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
+    expect(queryByTestId('cosateca-active')).toBeNull();
+  });
+
+  it('puts what others ask of me and what I hold in "En marcha", and every request behind "Todo"', () => {
+    mockToMe = [request('r1'), request('r2', { status: 'returned' })];
+    mockMine = [
+      request('r3', { requesterUid: 'u1', ownerUid: 'u2', status: 'lent', untilOn: '2026-11-18' }),
+      request('r4', { requesterUid: 'u1', ownerUid: 'u2', orgId: 'other', status: 'lent' }),
+    ];
+    const { getByTestId, queryByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
+    expect(getByTestId('cosateca-active-strip')).toContainElement(getByTestId('cosateca-active-r1'));
+    expect(getByTestId('cosateca-active-r1')).toHaveTextContent(/groups.cosateca.active.asked/);
+    expect(getByTestId('cosateca-active-r3')).toHaveTextContent(/groups.cosateca.active.backOn/);
+    expect(queryByTestId('cosateca-active-r2')).toBeNull();
+    expect(queryByTestId('cosateca-active-r4')).toBeNull();
+    fireEvent.press(getByTestId('cosateca-active-r1'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/pena/prestamo/r1');
+
+    fireEvent.press(getByTestId('cosateca-inbox-open'));
+    const inbox = getByTestId('cosateca-inbox');
+    expect(inbox).toContainElement(getByTestId('cosa-request-row-r1'));
+    expect(inbox).toContainElement(getByTestId('cosa-request-row-r2'));
+    expect(inbox).toContainElement(getByTestId('cosa-request-row-r3'));
+    expect(queryByTestId('cosa-request-row-r4')).toBeNull();
+    fireEvent.press(getByTestId('cosa-request-row-r3'));
+    expect(mockPush).toHaveBeenCalledWith('/grupos/pena/prestamo/r3');
+    expect(queryByTestId('cosateca-inbox')).toBeNull();
+  });
+
+  it('keeps "Todo" for past requests even when nothing is going on', () => {
+    mockMine = [request('r1', { requesterUid: 'u1', ownerUid: 'u2', status: 'returned' })];
+    const { getByTestId, queryByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
+    expect(queryByTestId('cosateca-active-strip')).toBeNull();
+    expect(getByTestId('cosateca-inbox-open')).toHaveTextContent(/groups.cosateca.active.all/);
   });
 
   it('opens the offer form, telling it whether the viewer may offer for the group', () => {

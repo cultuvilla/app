@@ -1,6 +1,6 @@
 # A group's cosateca through one loan: the admin switches it on in Ajustes (and
 # the audience to the pueblo and back to the integrantes); an integrante offers
-# a préstamo with every field but the photo; the admin finds it in the
+# a préstamo step by step (no photo, what it is, how it is shared); the admin finds it in the
 # catalogue and asks for it with a message; its owner accepts, hands it over and
 # marks it returned through the respondToCosaRequest callable — the request's
 # status and the cosa's heldBy asserted after each move. The cosateca is
@@ -158,8 +158,9 @@ onFlowComplete:
     env:
       TAP: 'cosateca-offer'
       EXPECT: 'cosa-sheet'
+# Offering goes photo → what it is → how it is shared.
 - tapOn:
-    id: 'cosa-kind-prestamo'
+    id: 'cosa-next'
 - runFlow:
     file: ../subflows/type-into.yaml
     env:
@@ -180,6 +181,15 @@ onFlowComplete:
     env:
       INPUT: 'cosa-description'
       TEXT: 'Taladro percutor con brocas de pared'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'cosa-next'
+- extendedWaitUntil:
+    visible:
+      id: 'cosa-kind-prestamo'
+    timeout: 10000
+- tapOn:
+    id: 'cosa-kind-prestamo'
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
@@ -230,7 +240,7 @@ onFlowComplete:
         }
 - extendedWaitUntil:
     visible:
-      id: 'cosa-row-${output.cosaId}'
+      id: 'cosa-card-${output.cosaId}'
     timeout: 20000
 
 # ── The admin finds it in the catalogue and asks for it. ──
@@ -247,11 +257,11 @@ onFlowComplete:
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
-      TARGET: 'cosa-row-${output.cosaId}'
+      TARGET: 'cosa-card-${output.cosaId}'
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
-      TAP: 'cosa-row-${output.cosaId}'
+      TAP: 'cosa-card-${output.cosaId}'
       EXPECT: 'cosa-detail'
 - assertVisible: '.*Devolver limpio.*'
 - runFlow:
@@ -322,16 +332,15 @@ onFlowComplete:
     visible:
       id: 'group-cosateca'
     timeout: 45000
-- tapOn:
-    id: 'cosateca-tab-mepiden'
+# What is asked of them shows in "En marcha", above the catalogue.
 - extendedWaitUntil:
     visible:
-      id: 'cosa-request-row-${output.requestId}'
+      id: 'cosateca-active-${output.requestId}'
     timeout: 20000
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
-      TAP: 'cosa-request-row-${output.requestId}'
+      TAP: 'cosateca-active-${output.requestId}'
       EXPECT: 'cosa-request'
 - assertVisible: '.*${output.askMessage}.*'
 - assertVisible:

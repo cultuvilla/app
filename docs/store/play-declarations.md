@@ -144,7 +144,7 @@ con fines propios.
 | Personal info → Email address | Sí | Sí | Account management, autenticación | Firebase Auth |
 | Personal info → Phone number | Sí | No | App functionality | perfil, campo opcional |
 | Personal info → Other info | Sí | No | App functionality | fecha y lugar de nacimiento, sexo, biografía |
-| Photos and videos → Photos | Sí | No | App functionality | foto de perfil, escudo, imágenes de evento/noticia |
+| Photos and videos → Photos | Sí | No | App functionality | foto de perfil, escudo, imágenes de evento/noticia, foto de lo que se ofrece en una cosateca (de la galería o hecha con la cámara) |
 | Location → Approximate + Precise | Sí | No | App functionality | `expo-location`, una sola vez, para el pin del pueblo |
 | App activity → Other actions | Sí | No | App functionality | inscripciones, pertenencias, solicitudes |
 | App info and performance → Crash logs | Sí | No | Diagnóstico | `captureError` → Cloud Logging |
@@ -163,10 +163,12 @@ Prácticas de seguridad a declarar:
 
 ### Permisos del manifiesto
 
-`ACCESS_COARSE_LOCATION` y `ACCESS_FINE_LOCATION` (uso puntual) y lectura de la
-fototeca vía selector del sistema. Bloqueados en
+`ACCESS_COARSE_LOCATION` y `ACCESS_FINE_LOCATION` (uso puntual), lectura de la
+fototeca vía selector del sistema y `CAMERA` (una foto al ofrecer algo en la
+cosateca de un grupo; la foto se sube como cualquier otra imagen y ya está
+declarada en *Photos*). Bloqueados en
 [apps/mobile/app.config.ts](../../apps/mobile/app.config.ts):
-`ACCESS_BACKGROUND_LOCATION`, `CAMERA`, `RECORD_AUDIO`,
+`ACCESS_BACKGROUND_LOCATION`, `RECORD_AUDIO`,
 `READ_EXTERNAL_STORAGE` y los de lectura de medios (`READ_MEDIA_IMAGES`,
 `READ_MEDIA_VIDEO`, `READ_MEDIA_AUDIO`, `READ_MEDIA_VISUAL_USER_SELECTED`, que
 trae `expo-media-library` y que la política de fotos y vídeos de Play restringe).
