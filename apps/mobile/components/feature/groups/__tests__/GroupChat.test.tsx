@@ -1,5 +1,6 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Keyboard, Platform, StyleSheet } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { emitWatched, resetWatchers, setWatched } from '../../../../test/watchers';
 import { GroupChat } from '../GroupChat';
 
@@ -202,6 +203,15 @@ describe('GroupChat', () => {
       expect.objectContaining({ body: 'Yo', replyTo: expect.objectContaining({ id: 'c1', authorUid: 'paco', body: 'Mensaje c1' }) }),
     );
     await waitFor(() => expect(r.queryByTestId('group-chat-replying')).toBeNull());
+  });
+
+  it('copies the message text from the long-press', () => {
+    setWatched('chat', [message('c1', 'paco')]);
+    const r = chat();
+    fireEvent(r.getByTestId('group-chat-message-c1'), 'longPress');
+    fireEvent.press(r.getByTestId('group-chat-options-copy'));
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('Mensaje c1');
+    expect(r.queryByTestId('group-chat-sheet')).toBeNull();
   });
 
   it('shows the quote a reply carries', async () => {

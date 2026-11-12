@@ -22,6 +22,7 @@ import { HStack, Input, Pressable, Text, VStack } from '../../primitives';
 import { ReportSheet, type ReportTarget } from '../ReportSheet';
 import { ChatMessageRow, ChatQuote } from './ChatMessageRow';
 import { ChatMessageSheet, type ChatMessageAction } from './ChatMessageSheet';
+import { copyText } from '../../../lib/clipboard';
 import { useAuth } from '../../../lib/auth/useAuth';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { useWatch } from '../../../lib/hooks/useWatch';
@@ -134,6 +135,7 @@ export function GroupChat({
   const actions: ChatMessageAction[] = optionsFor
     ? [
         ...(closedHint ? [] : (['reply'] as const)),
+        'copy' as const,
         ...(optionsFor.authorUid !== uid ? (['report'] as const) : []),
         ...(optionsFor.authorUid === uid || canModerate ? (['delete'] as const) : []),
       ]
@@ -144,6 +146,7 @@ export function GroupChat({
     setOptionsFor(null);
     if (!message) return;
     if (action === 'reply') setReplyTo(message);
+    else if (action === 'copy') void copyText(message.body);
     else if (action === 'delete') confirmDelete(message);
     else {
       setReport({

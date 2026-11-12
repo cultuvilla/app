@@ -1466,6 +1466,9 @@
       "minAge": "Debes tener al menos 14 años para registrarte."
     }
   },
+  "clipboard": {
+    "copied": "Copiado"
+  },
   "imageCrop": {
     "title": "Ajusta tu foto",
     "confirm": "Recortar"
@@ -2397,6 +2400,7 @@
       "deleteError": "No se ha podido borrar el mensaje.",
       "report": "Denunciar o bloquear",
       "reply": "Responder",
+      "copy": "Copiar",
       "cancelReply": "No responder",
       "you": "Tú",
       "today": "Hoy",

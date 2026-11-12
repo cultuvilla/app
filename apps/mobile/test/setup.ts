@@ -52,6 +52,12 @@ jest.mock('expo-apple-authentication', () => ({
   AppleAuthenticationButton: 'AppleAuthenticationButton',
 }));
 
+// The native clipboard is absent under jest; suites assert on setStringAsync.
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(async () => true),
+  getStringAsync: jest.fn(async () => ''),
+}));
+
 jest.mock('expo-crypto', () => ({
   randomUUID: jest.fn(() => 'test-raw-nonce'),
   digestStringAsync: jest.fn(async () => 'test-hashed-nonce'),
