@@ -1,5 +1,5 @@
 import { fireEvent, render } from '@testing-library/react-native';
-import { Share } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { buildSocioData, type SocioDataInput } from '@cultuvilla/shared/models/organization';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import { resetWatchers, setWatched } from '../../../../test/watchers';
@@ -71,7 +71,6 @@ describe('MyCuota', () => {
   it('owes the cuota while unpaid: the amount, the days left and how to pay with copy buttons', () => {
     setWatched('settings', SETTINGS);
     setWatched('payments', []);
-    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
     const { getByTestId, getByText, queryByTestId } = render(<MyCuota orgId="org1" uid="u1" />);
     expect(getByTestId('my-cuota-stamp-pendiente')).toHaveTextContent('groups.myCuota.stamp.pendiente');
     expect(getByTestId('my-cuota-amount')).toHaveTextContent(/50,00/);
@@ -83,8 +82,11 @@ describe('MyCuota', () => {
     expect(queryByTestId('my-cuota-paid')).toBeNull();
 
     fireEvent.press(getByTestId('my-cuota-iban-copy'));
-    expect(share).toHaveBeenCalledWith({ message: 'ES12 3456' });
-    share.mockRestore();
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('ES12 3456');
+    fireEvent.press(getByTestId('my-cuota-bizum-copy'));
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('600111222');
+    fireEvent.press(getByTestId('my-cuota-concept-copy'));
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith(`Cuota ${YEAR} — Ana`);
   });
 
   it('strikes out a reversed payment, hides the reversal itself and owes the cuota again', () => {

@@ -1466,6 +1466,9 @@
       "minAge": "Debes tener al menos 14 años para registrarte."
     }
   },
+  "clipboard": {
+    "copied": "Copiado"
+  },
   "imageCrop": {
     "title": "Ajusta tu foto",
     "confirm": "Recortar"

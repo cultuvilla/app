@@ -59,6 +59,7 @@
   "comment-author-pending-*": "unit-tested: components/feature/EntityComments.test.tsx",
   "comment-reply-cancel": "unit-tested: components/feature/EntityComments.test.tsx",
   "community-wrapped": "unit-tested: app/[pueblo]/__tests__/comunidad.test.tsx",
+  "copied-toast": "unit-tested: components/feature/__tests__/CopiedToast.test.tsx",
   "cosa-categories": "unit-tested: components/feature/groups/__tests__/GroupCosateca.test.tsx",
   "cosa-delete": "unit-tested: components/feature/groups/__tests__/CosaSheet.test.tsx",
   "cosa-edit": "unit-tested: app/grupos/__tests__/cosa.test.tsx",
