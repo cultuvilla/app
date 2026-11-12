@@ -1,1 +1,0 @@
-- New: a Cosateca request's chat stops taking new messages two weeks after the request ends; what was written stays readable. **Migration:** none.

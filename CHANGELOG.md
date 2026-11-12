@@ -4,6 +4,8 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.12.0 — 2026-11-12
+
 <!-- store-notes -->
 - **Grupos renovados**: la charla como WhatsApp, con respuestas y reacciones; tu cuota como un recibo; socios, actas y registros más claros.
 - **Cosateca**: presta, regala o reserva cosas y favores entre vecinos, con su propio chat.
@@ -12,6 +14,128 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 - Elige cuánto te avisa cada grupo.
 - Correcciones y mejoras.
 <!-- /store-notes -->
+
+- Changed: in the junta's Avisos, each sent aviso shows how many have read it ("87 de 132") on a bar, its poll result, and a "Recordar a N" button, without opening it. **Migration:** none.
+- Changed: avisos can no longer be pinned. On the group's home each aviso card shows just its title and text, cut to fit the card, and the day it was sent; the avisos list drops the "Enviado por…" line and shows the day instead.
+- The Charla reads like WhatsApp: a separator for each day, one person's
+  consecutive messages under their name once, a coloured initial per person,
+  and your own messages on the right. Keep a message pressed to react to it
+  (👍 ❤️ 😂 😮 🙏) or to reply quoting it, report it or delete it — the "⋮"
+  on every message is gone. Avisos' chats work the same way.
+  **Migration:** none — replies and reactions are new optional fields on chat
+  messages, which older versions of the app ignore.
+- New: **Comisión de festejos**, a new kind of group. It works like a peña or an asociación and appears under Grupos, marked as a comisión on its card. Any neighbour can propose one and the village's team approves it; an existing group can switch to it from its edit screen. **Migration:** none. The release raises the minimum app version, because older apps cannot read this type.
+- Fix: publishing a comment no longer spins forever. Device registration fed itself in an endless loop (fetching the push token fires the token listener), queueing Firestore writes without end, up to about 80 a second reaching prod, and every later write from that phone waited behind them. Comments now show at once instead of waiting for the server, and the backlog on an affected phone is wiped once, with one app restart, on its first signed-in launch of this version. **Migration:** none on the server; anything else still queued on a phone at that wipe is dropped.
+- New: a Cosateca request's chat stops taking new messages two weeks after the request ends; what was written stays readable. **Migration:** none.
+- New: each Cosateca request has its own chat, so whoever asks and whoever lends can arrange the handover without sharing a phone number. The day after something lent was due back, its holder and its owner get a reminder. **Migration:** none.
+- Internal: the cosateca's data layer — what a group's integrantes lend, offer and give, the requests and their answers, and each group's switch for whether its cosateca is for its integrantes or the whole pueblo. No screens yet. **Migration:** existing organizations get `cosateca: { enabled: false, audience: 'integrantes' }` from `scripts/backfill-org-cosateca.mjs` (registered, pre-deploy, applied by the deploy itself).
+- Feature: a group's Cosateca is now a shop window. It has a search box, an
+  «En marcha» strip on top with what others ask of you and what you have, and
+  when it goes back, and the catalogue as a two-column photo grid. A cosa
+  without a photo shows its category's icon. One chip says whether it is free
+  («Libre», «hasta 18 nov»), and the card says how it is shared («se reserva»,
+  «servicio»). The two request tabs are now one list behind «Todo».
+- Feature: «Ofrecer» starts with the photo, taken with the camera or picked
+  from the gallery. Then you say what it is, then how you share it, in
+  sentences («La presto», «La regalo», «Ofrezco un servicio»). The app now asks
+  for the camera permission (Android `CAMERA`, iOS `NSCameraUsageDescription`),
+  so this needs a new store build. **Migration:** none.
+- New: in the Cosateca, say where something is kept — a pin on the map and a short note ("almacén, estante 2") — and choose whose it is. *Mío*: whoever takes it gives it back to you. *Del grupo*: any integrante can give a physical item to the group, which then belongs to everyone and goes from hand to hand — nobody gives it back; whoever has it passes it to the next person who asks, or leaves it back where it is kept ("Lo he dejado en su sitio"). The item shows who has it and since when, and who gave it. **Migration:** `scripts/backfill-cosa-owner-shares.mjs` (pre-deploy, applied by the deploy).
+- New: Cosateca reservas — something booked by the hour, like the pádel court. Its admin sets the weekly hours, how long a turn lasts and how far ahead it can be booked; villagers pick a free turn on its day-by-day grid, confirmed at once or after approval, and get a reminder about an hour before. Closing a day cancels its bookings and tells whoever booked. **Migration:** existing cosas get `reserva: null` and cosa requests `startAt`/`endAt: null` from `scripts/backfill-cosateca-reservas.mjs` (registered, pre-deploy, applied by the deploy itself).
+- New: Cosateca in Grupos — integrantes offer what they lend, the favours they do and what they give away, and the others ask for it; the request moves from asked to accepted, lent and returned. A group's admin turns it on in Ajustes and chooses whether it is for its integrantes or the whole pueblo, which then finds it as *Cosateca del pueblo* on the village home. Requests waiting for your answer show in the Buzón. **Migration:** none.
+- Changed: in Grupos, the member's cuota closes the group's screen as an illustrated banner, like the village's fiestas button, in place of its card and button. The Avisos row always shows, even with no notices.
+- Fix: the faces of the people on a task no longer get cut off in Próximas tareas.
+- Changed: the junta's Cuota is a collection list — collected against the total with a progress bar, search, chips (Por pagar · Vencidas · Pagadas · Exentos) and a "✓ Pagó" button on each socio that asks only how they paid. A socio's row opens their record; configure, export and reminders move behind "⋯". New "Cobrar en la mesa" mode for the asamblea: type a name or number, tap how they paid, with a running total for the cash box.
+- Added: a group's cuota, and each of its tarifas, can have a different price for each calendar year. Years left out pay the usual price.
+- Added: from Denuncias, a moderator can delete a reported group chat message.
+- Fixed: a deleted group chat message no longer stays in the Buzón of members with chat notifications on.
+- Fixed: the chat's message box no longer sits behind the keyboard on Android.
+- Added: the pueblo's team can review reports from a Denuncias button on the village home. A report now shows what was reported in words, including the text of a comment or a word's definition.
+- Changed: the group tile for sending messages is now called "Enviar aviso".
+- Added: from Denuncias, a moderator can delete a reported comment. The confirmation shows the comment's current text, not the reporter's copy.
+- Web: the /embajadores page now shows the Embajadores who already look after a
+  pueblo, each as a carnet with their photo, name, title and the pueblo's
+  escudo, linking to the pueblo. Only people whose profile is public appear.
+  **Migration:** none.
+- Added: a monthly or yearly event can have a "Fecha" that is "Fija" or "Distinta cada vez". When it varies, only the next date is asked for, and once it has passed its organizers tap "Repetir el mes que viene" or "Repetir el año que viene" and fill in the new date. **Migration:** existing events get `repeatsMonthly: false` and `repeatDateVaries: false` from `scripts/backfill-event-repeat-date-varies.mjs` (registered, pre-deploy, applied by the deploy itself).
+- Changed: when creating a recurring event, "Cada cuánto" now defaults to Anual. Tapping it opens a sheet with the three options, each with a one-line explanation.
+- Added: "Evento recurrente" replaces "Se repite cada semana" when creating an event: it repeats every week, every month (on the same day of the month, for up to a year) or every year. A yearly event, like las fiestas, is created for this year only; once it has passed, its organizers tap "Repetir el año que viene" to create next year's with everything filled in.
+- Added: an event a group organizes can carry its checklist. Its admins tick "Añadir lista de tareas" and write the tasks in a new step; they appear in the group's tasks. On a yearly event each task asks for a month and comes back every year. **Migration:** existing events get `repeatsYearly: false` and existing series `series.frequency: 'weekly'` from `scripts/backfill-event-recurrence.mjs` (registered, pre-deploy, applied by the deploy itself).
+- Changed: a group's Ajustes are now only its junta's — the group's rules as short switches ("Lista de socios visible", phone and email required, who writes in the Charla, the cosateca, cuota reminders). How much each group notifies you moved to Ajustes → Notificaciones, one choice per group: De todo, Solo avisos y lo que me toca, or Nada. **Migration:** none — the levels are stored in the same per-group switches older apps read.
+- Changed: a group's home loses the Avisos, Eventos and Tareas buttons, since their rows open those screens, and those rows always show. The admin's button to send avisos is called Avisos. The group's screens no longer show the bar to change group.
+- Changed: a cuota has no days of margin any more: unpaid, it is vencida the day after it falls due. Its reminders are switched on in Ajustes del grupo.
+- Added: chat in Mis grupos. Each aviso has its conversation, and each group has a general one, the Charla, where any member can write (an admin can leave it to the junta, with "Solo la junta escribe"). Chat messages notify nobody unless a member turns on "Avisarme de los mensajes de los chats" for that group; a badge on the group's buttons shows what is new. Authors and admins can delete messages, anyone can report one or block its author, and the WhatsApp and email of an aviso now open that aviso. **Migration:** existing organizations get `chatAdminsOnly: false` from `scripts/backfill-org-chat-admins-only.mjs` (registered, pre-deploy, applied by the deploy itself).
+- Changed: in a group with socios there is one button, Socios: the admin answers join requests, makes admins and removes people there. Integrantes stays only where a group has no socios.
+- Added: a group's Eventos and Tareas are two-column lists with filters on top and a button to create one. An event opens a screen for the organizers, with its tasks and a link to the public page, and its card shows the tasks done of the total. A task opens its own screen: who is on it, its comments, and closing or reopening it.
+- Changed: tapping an aviso, on the group's home or in Avisos, opens it with its chat, and opening it marks it read.
+- Changed: Ajustes is for every member of a group, in two parts: Ajustes de usuario, with silencing avisos and chat messages, moved here from those screens, and Ajustes del grupo, for admins. The two switches are now independent: silencing avisos no longer silences a chat you turned on.
+- **Unirse a un grupo, como decida su administrador.** Cada grupo empieza pidiendo aceptación: para ser **integrante** hay que solicitarlo y que un administrador lo acepte. El administrador puede abrir el grupo para que cualquiera entre al momento, salvo el ayuntamiento, que nunca se abre. Cualquier grupo puede tener eventos privados. Lo que antes se llamaba «miembro» ahora es «integrante». **Migration:** every organization's `joinPolicy` moves to `approval` once, by `scripts/backfill-org-join-by-approval.mjs` (auto-applied per env); existing members stay.
+- Feature (Mis grupos): a message can carry each socio's own **nombre, nº de socio and cuota pendiente**, written as placeholders (the composer has chips for them). Each email, push and per-person WhatsApp link says that person's values, and the app shows the reader's own; what someone lacks is left out. **Migration:** existing `organizations/{orgId}/messages/{id}/deliveries` get `personal: null` from the auto-applied `pre-deploy` backfill `scripts/backfill-group-message-delivery-personal.mjs` (per env).
+- Feature (Mis grupos): "Compartir en WhatsApp" on a sent message opens WhatsApp's chat picker with a text for the group's own chat, with nothing personal in it. Every WhatsApp text now ends with a link into the app, and per-person WhatsApp links default to those nothing else reaches. **Migration:** none.
+- Change (Mis grupos): group message and cuota reminder emails come from the group's name alone, and replies go to the admin who sent or signs them. **Migration:** none.
+- Fixed: in Grupos, the cards in the Avisos and Mis tareas rows no longer run down the screen without end. The "Ver la página del grupo" link is gone from the group home.
+- Changed: the Grupos header says "Grupos"; the group's name stays as the home's title, and tapping the header still switches group.
+- Changed: in Grupos the link to the group's public page is back on the home, under the summary, and the cuota's due month is picked from a list instead of twelve buttons. **Migration:** none.
+- Changed: Grupos opens on a short summary (next event, your next task, your cuota) and a grid of buttons; each feature — avisos, tareas, cuota, actas, and for the junta cobros, mensajes, socios, registros, miembros and ajustes — now has its own screen instead of one long scroll. Tap the group's name in the header to switch group, also from inside a feature screen. Group notifications open the screen they are about. **Migration:** none.
+- Changed: in Grupos, every member can now create, edit and complete the group's tasks, not only admins; deleting one stays with admins and whoever created it. Anyone who belongs to a group organizing an event can add its task list.
+- Changed: the group's home shows "Próximas tareas" with every task still to do — its day ("6 dic"), the event it is for and the faces of who is on it — and "Próximos eventos" with only what is still ahead. Avisos come first. All the buttons sit under one "Acciones" list, an admin's extra ones in their own colour; the admin button for sending avisos is called "Avisos". The arrow to change group is now beside the group's name.
+- Changed: a group's home in Grupos now looks like the village's: its picture and name, the number of socios, miembros and events, your cuota, rows of avisos, events and your tasks, and the buttons at the end. Long forms (cuota settings, a new message, a task, an acta, a checklist) open as full screens with the save button at the bottom, the field you type in stays visible above the keyboard, and choices use the app's usual selectors. **Migration:** none.
+- **Zoom con los dedos en la propia pantalla.** Una imagen se amplía pellizcándola
+  donde está, sin abrir nada: crece bajo los dedos por encima de la página y vuelve
+  a su sitio al soltarla. Tocarla sigue abriendo el visor a pantalla completa, donde
+  se queda ampliada para leerla; un toque doble lo abre ya ampliado en ese punto.
+  Los gestos del visor ya no se traban: siguen a los dedos, tienen inercia y ceden
+  al llegar al borde, y la imagen se ve nítida al ampliarla también en Android.
+
+  Ahora también hacen zoom las imágenes adicionales de carteles, lugares, barrios,
+  grupos y acontecimientos, y la del evento dentro de un grupo; antes solo la primera.
+
+  Va sobre `react-native-gesture-handler` y `react-native-reanimated`, que ya estaban
+  enlazados en todos los binarios a través de `expo-router`, ahora como dependencias
+  directas. Eso cambia la huella nativa, así que llega con el próximo binario de tienda.
+- Mi cuota is now a receipt: one big card with what you owe (or paid) this
+  period, a PENDIENTE / PAGADA stamp and the days left, the personas a cargo it
+  covers, how to pay with a "Copiar" button for the Bizum, the IBAN and the
+  concepto, and your past payments by year. **Migration:** none.
+- Secondary text (dates, counts, captions) is darker across the app and the
+  public web pages, so it reads clearly on the cream background.
+  **Migration:** none.
+- New: in a group, Actas now shows what was decided — every agreement of the shared actas on a timeline by year, with a search box; tapping one opens its acta. **Migration:** none.
+- New: Ajustes → Notificaciones has one switch per kind of notification, grouped into Tus eventos, Tu pueblo, Tus grupos, Cosateca and Comunidad — reservas, devoluciones, tareas, cuotas, charlas, carteles or noticias can each be silenced on their own. Someone in several pueblos can silence one of them, and each group's own switches are a tap away. Switches only show when they can reach you, and turning off what concerns your own events asks first. **Migration:** none — the new `users/{uid}/notificationSettings/account` doc is optional, and a coarse switch someone already turned off keeps muting what it covered.
+- Copy buttons copy for real: Mi cuota's Bizum, IBAN and concepto go straight
+  to the clipboard with a short "Copiado", and a Charla message can be copied
+  from its long-press menu. Native module (`expo-clipboard`): reaches installed
+  apps with the next store build, not by OTA. **Migration:** none.
+- Registros is now the association's folder: three doors — Libro de socios,
+  Actas and Cuentas — each on its own screen. While the group's asamblea is
+  close (its yearly asamblea task due within 45 days), a checklist says what is
+  still missing for it (socios without a number, the previous asamblea's acta
+  unwritten or unshared, the year's accounts empty) and "Exportar todo" writes
+  the libro, the actas and the accounts into one Excel file. **Migration:** none.
+- Fix: updating from a version before the native Firebase SDKs no longer signs you
+  out. The session the old version left on the phone is moved to the native SDK on
+  first launch, unless the account has signed in again since. **Migration:** none;
+  new unauthenticated callable `restoreLegacySession`.
+- "Cerrar sesión" now asks for confirmation, since one tap also wipes the local
+  cache and restarts the app.
+- Internal: a session that ends without the user signing out is reported as
+  `SessionLost` in the client error log, with its sign-in providers.
+- Fix: if the phone closes the app while you fetch your sign-in code, you come
+  back to the code screen instead of starting over as a guest, and on Android a
+  profile photo picked at sign-up is no longer lost the same way. **Migration:**
+  none.
+- Added: a group's admin can require socios to share their phone, their email or both, from Ajustes del grupo. New socios accept it when they join and existing ones must accept before going back into the group; the values are the ones on their account, so nobody retypes them, and a change on the account reaches the group.
+- Feature (Mis grupos): every socio can carry the group's own **nº de socio**. Admins type it when adding a socio without the app, or set and correct it on any row of the roster; a new socio gets the next number by itself, and numbers are never reused. The libro de socios and its export show it. **Migration:** existing `organizations/{orgId}/socios` rows get `socioNumber: null` from the auto-applied `pre-deploy` backfill `scripts/backfill-socio-number.mjs` (per env).
+- Tooling: `scripts/import-socios.mjs` loads a group's socio list (CSV or XLSX) as socios without the app — name, nº de socio, phone, email, alta — dry run by default and safe to re-run. **Migration:** none.
+- Changed: every member of a group has the Socios screen, where they add their personas a cargo and choose the contact data the junta sees. The Mis datos button is gone. The list of names still shows only if the junta turned it on in Ajustes.
+- Changed: the Socios screen of a group starts with your ficha (your socio number, this year's cuota and your personas a cargo as chips, with "＋ Hacer socio"), then the junta directiva with faces and cargos, then the libro de socios with a search and, for the junta, filters (Activos · Cuota pendiente · Sin app · Bajas) and each socio's cuota. Join requests show as one banner for the junta. Tapping a socio opens their record with every action in one sheet, the dangerous ones last and in red, instead of links under each row. **Migration:** none.
+- Added: each group task has its comments, on a second tab when you open it. Only the group's members see them. The task's creator and the people on it get a notification; authors delete their own, admins anyone's.
+- Changed: a group task's comments sit right under its details instead of behind a Detalles / Comentarios switch, and the Me apunto button stays pinned at the bottom of the screen. Normal tasks now have it too: it puts you on the task, and Quitarme takes you off. **Migration:** none.
+- **Nuevo orden en la pestaña del pueblo.** Los grupos, las peñas y la historia suben
+  arriba, seguidos de artículos y eventos; carteles, barrios y lugares pasan al final.
+  El botón de Denuncias ya no aparece en la barra del censo: las denuncias pendientes
+  llegan al Buzón, en *Necesita tu acción*, a quienes administran ese pueblo.
+- New: the Estudio de Cultuvilla (`/estudio`), for writing articles from a computer. Open it in a browser, scan its code with your phone's camera and confirm in the app — no new account or password. It lists the articles you write, and creates, edits and deletes them with cover, category, writers and groups, titles, formatting, links, `@`-mentions and captioned images. Articles move freely between the Estudio and the app. **Migration:** none.
 
 ## v1.11.0 — 2026-10-23
 

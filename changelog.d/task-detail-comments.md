@@ -1,1 +1,0 @@
-- Changed: a group task's comments sit right under its details instead of behind a Detalles / Comentarios switch, and the Me apunto button stays pinned at the bottom of the screen. Normal tasks now have it too: it puts you on the task, and Quitarme takes you off. **Migration:** none.

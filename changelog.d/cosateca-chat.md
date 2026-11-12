@@ -1,1 +1,0 @@
-- New: each Cosateca request has its own chat, so whoever asks and whoever lends can arrange the handover without sharing a phone number. The day after something lent was due back, its holder and its owner get a reminder. **Migration:** none.

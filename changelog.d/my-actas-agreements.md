@@ -1,1 +1,0 @@
-- New: in a group, Actas now shows what was decided — every agreement of the shared actas on a timeline by year, with a search box; tapping one opens its acta. **Migration:** none.

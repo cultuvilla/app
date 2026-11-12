@@ -1,1 +1,0 @@
-- Changed: in the junta's Avisos, each sent aviso shows how many have read it ("87 de 132") on a bar, its poll result, and a "Recordar a N" button, without opening it. **Migration:** none.
