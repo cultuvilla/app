@@ -2322,8 +2322,8 @@
     },
     "messages": {
       "title": "Mensajes",
-      "compose": "Nuevo mensaje",
-      "empty": "Todavía no se ha enviado ningún mensaje.",
+      "compose": "Nuevo aviso",
+      "empty": "Aún no hay avisos enviados.",
       "subject": "Asunto",
       "body": "Mensaje",
       "subjectRequired": "Escribe el asunto.",
@@ -2365,7 +2365,6 @@
       "sentWhatsapp": "Ahora envía los WhatsApp desde el mensaje, en el historial.",
       "error": "No se ha podido enviar. Inténtalo de nuevo.",
       "summary": "{date} · {audience}",
-      "counts": "{recipients, plural, one {1 destinatario} other {# destinatarios}} · {push} en la app · {email} por email",
       "whatsappCount": "WhatsApp: {sent} de {total} enviados",
       "newBadge": "Nuevo",
       "sentBy": "Enviado por {name} el {date}",
@@ -2401,7 +2400,12 @@
         "cuota": "Cuota pendiente"
       },
       "placeholderHint": "Toca para añadirlo. A cada socio le llega con sus datos; lo que no tenga, o lo que no sea para todos, se quita.",
-      "whatsappShare": "Compartir en WhatsApp"
+      "whatsappShare": "Compartir en WhatsApp",
+      "readBar": "{read} de {total} lo han leído",
+      "remind": "Recordar a {count}",
+      "pollTally": "{count} {option}",
+      "pollNoVote": "{count} sin votar",
+      "recipientCount": "{count, plural, one {1 destinatario} other {# destinatarios}}"
     },
     "cosateca": {
       "tabs": {
