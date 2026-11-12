@@ -2,6 +2,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import {
+  cosaDoc,
   organizationDoc,
   organizationMembersCollection,
   userNotificationsCollection,
@@ -60,6 +61,7 @@ export function cosaRequestCopy(
   req: CosaRequestData,
   orgName: string,
   wasAccepted = false,
+  cosaGone = false,
 ): { title: string; body: string } {
   if (req.cosaKind === 'reserva') return reservaCopy(notice, req, orgName, wasAccepted);
   const what = `«${req.cosaTitle}»`;
@@ -76,7 +78,9 @@ export function cosaRequestCopy(
     case 'accepted':
       return { title: `Solicitud aceptada · ${orgName}`, body: `Han aceptado tu solicitud de ${what}${dates(req)}.` };
     case 'declined':
-      return { title: `Solicitud no aceptada · ${orgName}`, body: `Esta vez no ha podido ser: ${what}.` };
+      return cosaGone
+        ? { title: `Ya no está disponible · ${orgName}`, body: `${what} ya no está en la cosateca.` }
+        : { title: `Solicitud no aceptada · ${orgName}`, body: `Esta vez no ha podido ser: ${what}.` };
     case 'given':
       return { title: `Es tuyo · ${orgName}`, body: `Te han dado ${what}.` };
     case 'cancelled':
@@ -88,7 +92,12 @@ export function cosaRequestCopy(
 export function cosaNoticeFor(before: CosaRequestData | null, after: CosaRequestData | null): CosaNotice | null {
   if (!after) return null;
   if (!before) return after.status === 'pending' ? 'created' : null;
-  if (before.status === after.status) return null;
+  if (before.status === after.status) {
+    // A colectivizado handover moves the requests still waiting to the new
+    // holder, who now answers them and has not heard of them yet.
+    const movedToNewHolder = after.status === 'pending' && after.holderUid !== null && after.holderUid !== before.holderUid;
+    return movedToNewHolder ? 'created' : null;
+  }
   // A booker letting a confirmed slot go needs no one's answer: the slot is free again.
   if (after.cosaKind === 'reserva' && after.status === 'cancelled' && before.status === 'accepted') return null;
   switch (after.status) {
@@ -131,7 +140,9 @@ export async function notifyCosaRequest(
   const recipients = (toManagers ? await cosaManagerUids(firestore, after) : [after.requesterUid]).filter(
     (uid) => !toManagers || uid !== after.requesterUid,
   );
-  const copy = cosaRequestCopy(notice, after, orgName, before?.status === 'accepted');
+  // Declined because its cosa was deleted (closeDeletedCosaRequests): say so.
+  const cosaGone = notice === 'declined' && !(await cosaDoc(firestore, after.cosaId).get()).exists;
+  const copy = cosaRequestCopy(notice, after, orgName, before?.status === 'accepted', cosaGone);
   await Promise.all(
     recipients.map((uid) =>
       // A fixed id: a redelivered event rewrites the same notification.

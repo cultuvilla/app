@@ -160,9 +160,10 @@ function newestFirst(rows: CosaRequest[]): CosaRequest[] {
  * The Buzón's *Necesita tu acción*: the requests still waiting for this user's
  * answer — for their own cosas, for the colectivizado cosas they hold, and for
  * the group's own cosas of every group they administer — newest first. A
- * colectivizado cosa someone holds is answered by its holder alone here (the
- * owner and admins can still act from the request, as the backstop). A group whose admin rights have just gone
- * answers empty rather than blanking the rest. A booking whose slot has started
+ * colectivizado cosa someone holds is answered by its holder: its owner has no
+ * say while it is out, and only the group's admins can still act from the
+ * request, as the backstop. A group whose admin rights have just gone answers
+ * empty rather than blanking the rest. A booking whose slot has started
  * is past answering and left out, until the hourly run declines it.
  */
 export function watchCosaRequestsToAnswer(

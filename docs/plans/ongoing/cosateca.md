@@ -127,7 +127,7 @@ indexes, `respondToCosaRequest` (transaction), `onCosaRequestWritten` (notificat
   `heldBy` on a group's cosa they hold.
 - Review fixes (2026-11-10): `kind` is frozen once offered; whoever asked never answers their own request (an admin asking goes to another manager); giving a regalo never declines a lent request; asking needs the group approved with its cosateca on; a failed audience sync no longer blocks the org's approval notice.
 - Not done: `cosateca` is not yet a `GROUP_SECTIONS` entry (Phase 2 adds it with the
-  screen); a deleted cosa leaves its requests (they can still be declined or cancelled).
+  screen); a deleted cosa left its requests open (closed since the #641 review fixes).
 
 ## Phase 2 — screens
 
@@ -277,6 +277,14 @@ agent's picks:
 - **Migration:** `scripts/backfill-cosa-location-mode.mjs` (pre-deploy, autoApply; after
   `cosateca-reservas`). Applied on dev (nothing to patch there).
 
+### Colectivizado review fixes — as built
+
+From the #641 review: deleting a cosa closes its open requests (`closeDeletedCosaRequests`,
+folded into the `cleanupRemovedCosaImages` trigger, each step isolated) — unanswered ones
+as declined, telling the requester "ya no está en la cosateca", one out with someone as
+returned — and drops its reserva slot locks. A handover tells the new holder, once, of each
+pending request it moved to them.
+
 ## Left for later
 
 - A colectivizado cosa is still deleted with its offerer's account, like any cosa they
@@ -289,7 +297,7 @@ agent's picks:
 - More than one photo; a waiting list on a lent cosa ("avísame cuando vuelva").
 - A reserva's hours changed under existing bookings leave them standing, even off the
   new grid (since the #632 review a new slot that overlaps one is refused, and the grid
-  shows it taken); a deleted reserva leaves its slot locks behind, like its requests.
+  shows it taken).
 - A booking that waited for approval past its start is declined by the hourly run
   (`expireReservaBookings`, inside `sendEventReminders`), which tells the booker; until
   that run it is already hidden from *Necesita tu acción*.

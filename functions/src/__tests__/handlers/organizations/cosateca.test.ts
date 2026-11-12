@@ -8,6 +8,8 @@ import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { respondToCosaRequest } from '../../../organizations/respondToCosaRequest';
 import { cosaNoticeFor, notifyCosaRequest } from '../../../organizations/onCosaRequestWritten';
 import { syncCosaAudience } from '../../../organizations/syncCosaAudience';
+import { closeDeletedCosaRequests } from '../../../organizations/closeDeletedCosaRequests';
+import { cleanupRemovedCosaImages } from '../../../images/cleanupRemovedImages';
 import { buildCosaRequestData, buildOrganizationData, type CosaRequestData } from '@cultuvilla/shared/models';
 
 const ft = functionsTestFactory({ projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test' });
@@ -200,6 +202,18 @@ describe('respondToCosaRequest: a colectivizado cosa', () => {
     expect((await db().doc('cosaRequests/h1').get()).exists).toBe(false);
   });
 
+  it('an accepted request that was never handed over can still be cancelled or declined; the holder keeps it', async () => {
+    await seedRequest('r1', { cosaMode: 'colectivizado', holderUid: 'u-luis', status: 'accepted' });
+    await expect(call('u-ana', { requestId: 'r1', action: 'cancel' })).resolves.toEqual({ status: 'cancelled' });
+    await seedRequest('r2', { cosaMode: 'colectivizado', holderUid: 'u-luis', requesterUid: 'u-pepa', requesterName: 'Pepa', status: 'accepted' });
+    await expect(call('u-luis', { requestId: 'r2', action: 'decline' })).resolves.toEqual({ status: 'declined' });
+    expect((await getDoc('cosas/carpa'))['heldBy']).toMatchObject({ requestId: 'h1', uid: 'u-luis' });
+    expect(await getDoc('cosaRequests/h1')).toMatchObject({ status: 'lent' });
+    // With nobody accepted any more, the next in line can be.
+    await seedRequest('r3', { cosaMode: 'colectivizado', holderUid: 'u-luis', requesterUid: 'u-rosa', requesterName: 'Rosa' });
+    await expect(call('u-luis', { requestId: 'r3', action: 'accept' })).resolves.toEqual({ status: 'accepted' });
+  });
+
   it('the new holder’s other requests for it are moot once they have it', async () => {
     await seedRequest('r1', { cosaMode: 'colectivizado', holderUid: 'u-luis', status: 'accepted' });
     await seedRequest('r2', { cosaMode: 'colectivizado', holderUid: 'u-luis' });
@@ -240,10 +254,71 @@ describe('onCosaRequestWritten', () => {
     expect((await db().doc('users/u-luis/notifications/cosa_r4_created').get()).exists).toBe(false);
   });
 
+  it('tells the new holder, once, of each request a handover moved to them', async () => {
+    const waiting = req({ cosaMode: 'colectivizado', holderUid: 'u-luis', requesterUid: 'u-pepa', requesterName: 'Pepa' });
+    const moved = { ...waiting, holderUid: 'u-ana' };
+    expect(cosaNoticeFor(waiting, moved)).toBe('created');
+    await notifyCosaRequest(db(), 'r5', waiting, moved, new Date());
+    expect((await getDoc('users/u-ana/notifications/cosa_r5_created'))['body']).toContain('Pepa te pide «Carpa», que tienes tú ahora');
+    // A move back to nobody, or a write that changes neither, says nothing.
+    expect(cosaNoticeFor(moved, { ...moved, holderUid: null })).toBeNull();
+    expect(cosaNoticeFor(moved, moved)).toBeNull();
+    expect(cosaNoticeFor({ ...waiting, status: 'accepted' }, { ...moved, status: 'accepted' })).toBeNull();
+  });
+
+  it('tells the requester a deleted cosa is no longer available, instead of a plain no', async () => {
+    const pending = req();
+    await notifyCosaRequest(db(), 'r6', pending, { ...pending, status: 'declined' }, new Date());
+    expect((await getDoc('users/u-ana/notifications/cosa_r6_declined'))['body']).toContain('Esta vez no ha podido ser');
+    await db().doc('cosas/carpa').delete();
+    await notifyCosaRequest(db(), 'r7', pending, { ...pending, status: 'declined' }, new Date());
+    expect((await getDoc('users/u-ana/notifications/cosa_r7_declined'))['body']).toContain('«Carpa» ya no está en la cosateca');
+  });
+
   it('never tells an admin of their own request for the group’s cosa', async () => {
     await notifyCosaRequest(db(), 'r3', null, req({ requesterUid: 'u-admin', requesterName: 'Alcalde' }), new Date());
     expect((await db().doc('users/u-admin/notifications/cosa_r3_created').get()).exists).toBe(false);
     expect((await db().doc('users/u-admin2/notifications/cosa_r3_created').get()).exists).toBe(true);
+  });
+});
+
+describe('closeDeletedCosaRequests', () => {
+  it('closes every open request of a deleted cosa, frees its slot locks, and leaves the rest alone', async () => {
+    await seedRequest('rp');
+    await seedRequest('ra', { status: 'accepted', requesterUid: 'u-pepa', requesterName: 'Pepa' });
+    await seedRequest('rl', { status: 'lent', requesterUid: 'u-rosa', requesterName: 'Rosa' });
+    await seedRequest('rd', { status: 'returned' });
+    await seedRequest('rx', { cosaId: 'otra' });
+    await db().doc('cosas/carpa/slots/2026-07-01T16:00:00.000Z').set({ requestId: 'rp', startAt: new Date(), endAt: new Date(), status: 'pending' });
+    await db().doc('cosas/carpa').delete();
+
+    const now = new Date('2026-07-02T10:00:00Z');
+    await expect(closeDeletedCosaRequests(db(), 'carpa', now)).resolves.toBe(3);
+
+    for (const id of ['rp', 'ra']) {
+      const r = await getDoc(`cosaRequests/${id}`);
+      expect(r).toMatchObject({ status: 'declined' });
+      expect((r['closedAt'] as { toDate(): Date }).toDate()).toEqual(now);
+      expect(r['respondedAt']).toBeTruthy();
+    }
+    expect(await getDoc('cosaRequests/rl')).toMatchObject({ status: 'returned' });
+    expect((await getDoc('cosaRequests/rl'))['closedAt']).toBeTruthy();
+    expect(await getDoc('cosaRequests/rd')).toMatchObject({ status: 'returned', closedAt: null });
+    expect(await getDoc('cosaRequests/rx')).toMatchObject({ status: 'pending' });
+    expect((await db().collection('cosas/carpa/slots').get()).size).toBe(0);
+  });
+
+  it('runs when a cosa is deleted, and not when one is edited', async () => {
+    await seedRequest('rp');
+    const wrapped = ft.wrap(cleanupRemovedCosaImages as unknown as Parameters<typeof ft.wrap>[0]);
+    const before = ft.firestore.makeDocumentSnapshot(cosa(), 'cosas/carpa');
+    await wrapped({ data: ft.makeChange(before, ft.firestore.makeDocumentSnapshot(cosa({ title: 'Carpa grande' }), 'cosas/carpa')), params: { entityId: 'carpa' } } as unknown as Parameters<typeof wrapped>[0]);
+    expect(await getDoc('cosaRequests/rp')).toMatchObject({ status: 'pending' });
+
+    await db().doc('cosas/carpa').delete();
+    const gone = ft.firestore.makeDocumentSnapshot({}, 'cosas/carpa');
+    await wrapped({ data: ft.makeChange(before, gone), params: { entityId: 'carpa' } } as unknown as Parameters<typeof wrapped>[0]);
+    expect(await getDoc('cosaRequests/rp')).toMatchObject({ status: 'declined' });
   });
 });
 
