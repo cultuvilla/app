@@ -8,7 +8,7 @@ const c = colors.light;
  * first paint is this site's entire job.
  */
 export const STYLES = `
-:root{--surface:${c.bg.surface};--card:${c.bg['surface-elevated']};--accent:${c.bg.accent};--on-accent:${c.fg['on-accent']};--text:${c.fg['on-subtle']};--primary:${c.fg.primary};--muted:${palette.sage};--border:${c.border.subtle}}
+:root{--surface:${c.bg.surface};--card:${c.bg['surface-elevated']};--accent:${c.bg.accent};--on-accent:${c.fg['on-accent']};--text:${c.fg['on-subtle']};--primary:${c.fg.primary};--muted:${c.fg.muted};--border:${c.border.subtle}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--surface);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
