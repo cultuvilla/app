@@ -8,6 +8,8 @@ import {
   groupAvisoLinkPath,
   groupAvisoPath,
   groupCosaPath,
+  groupRecordsPath,
+  isRecordsDoor,
   groupCosaRequestPath,
   groupSectionPath,
   isGroupSection,
@@ -69,6 +71,9 @@ describe('group sections', () => {
   it('nests each screen of a group under the Grupos tab', () => {
     expect(groupSectionPath('org1', 'cuota')).toBe('/grupos/org1/cuota');
     expect(groupSectionPath('a/b', 'socios')).toBe('/grupos/a%2Fb/socios');
+    expect(groupRecordsPath('a/b', 'cuentas')).toBe('/grupos/a%2Fb/registros/cuentas');
+    expect(isRecordsDoor('libro')).toBe(true);
+    expect(isRecordsDoor('registros')).toBe(false);
   });
 
   it('knows its sections and nothing else', () => {

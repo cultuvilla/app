@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { actaText, buildLibroSociosExport, buildYearSummaryExport } from '../../src/export/recordsExport';
+import { actaText, buildActasExport, buildLibroSociosExport, buildYearSummaryExport, recordsBundleFileName } from '../../src/export/recordsExport';
 import { toCsv } from '../../src/export/rosterExport';
 import { buildCuotaPaymentData } from '../../src/models/organization/CuotaDataModel';
 import { buildActaData, buildLedgerEntryData } from '../../src/models/organization/RecordsDataModel';
@@ -64,5 +64,23 @@ describe('actaText', () => {
     expect(text).toContain('Asistentes (3):\n- Ana\n- 2 personas más');
     expect(text).toContain('Orden del día:\n1. Cuentas');
     expect(text).toContain('Acuerdos:\n1. Se aprueban las cuentas');
+  });
+});
+
+describe('buildActasExport', () => {
+  it('lists every acta oldest first, its agenda and acuerdos numbered', () => {
+    const older = buildActaData({ body: 'asamblea_general', heldOn: '2025-03-15', place: 'Local', attendees: [{ socioId: 'a', name: 'Ana' }], otherAttendees: 2, agenda: ['Cuentas', 'Fiestas'], agreements: ['Se aprueban'], visibleToSocios: true, createdBy: 'u' });
+    const newer = buildActaData({ body: 'junta_directiva', title: 'Junta de octubre', heldOn: '2025-10-03', createdBy: 'u' });
+    const model = buildActasExport({ orgName: 'La Anduela', actas: [newer, older], generatedAt });
+    expect(model.fileName).toBe('actas-la-anduela');
+    expect(model.summary).toBe('Actas: 2');
+    const csv = toCsv(model, { bom: false }).split('\r\n');
+    expect(csv[0]).toBe('Fecha;Órgano;Título;Lugar;Asistentes;Orden del día;Acuerdos;Visible para los socios');
+    expect(csv[1]).toBe('15/03/2025;Asamblea general;;Local;3;"1. Cuentas\n2. Fiestas";1. Se aprueban;Sí');
+    expect(csv[2]).toBe('03/10/2025;Junta directiva;Junta de octubre;;0;;;No');
+  });
+
+  it('names the bundle after the group', () => {
+    expect(recordsBundleFileName('Peña El Olmo')).toBe('registros-pena-el-olmo');
   });
 });
