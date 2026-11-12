@@ -267,10 +267,13 @@ describe('GroupSettings', () => {
     expect(updateOrganization).toHaveBeenLastCalledWith('org1', { cosateca: { enabled: true, audience: 'pueblo' } });
   });
 
-  it('an admin requires the phone and the email, one by one', () => {
+  it('an admin requires the phone and the email, one by one', async () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} />);
     fireEvent.press(r.getByTestId('group-settings-socio-phone-required'));
     expect(updateOrganization).toHaveBeenCalledWith('org1', { socioPhoneRequired: true });
+    await act(async () => undefined);
+    fireEvent.press(r.getByTestId('group-settings-socio-email-required'));
+    expect(updateOrganization).toHaveBeenLastCalledWith('org1', { socioEmailRequired: true });
   });
 
   it('turns on the estatutos setting: frozen while saving, then shows the stored value', async () => {

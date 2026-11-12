@@ -249,6 +249,8 @@
   "persona-socio-new": "unit-tested: components/feature/groups/__tests__/MyPersonasSocios.test.tsx",
   "persona-socio-remove-*": "unit-tested: components/feature/groups/__tests__/MyPersonasSocios.test.tsx",
   "push-group-*": "unit-tested: app/ajustes/__tests__/notificaciones.test.tsx",
+  "push-group-level-*": "unit-tested: app/ajustes/__tests__/notificaciones.test.tsx",
+  "push-group-sheet-*": "unit-tested: app/ajustes/__tests__/notificaciones.test.tsx",
   "push-per-group": "unit-tested: app/ajustes/__tests__/notificaciones.test.tsx",
   "push-per-village": "unit-tested: app/ajustes/__tests__/notificaciones.test.tsx",
   "push-section-*": "unit-tested: app/ajustes/__tests__/notificaciones.test.tsx",
