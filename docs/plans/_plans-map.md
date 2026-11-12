@@ -21,7 +21,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | 1 cycle ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle | promote with the next release (all four phases are on develop) |
 | [group-chat](ongoing/group-chat.md) | high | dev | this cycle | promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias) |
-| [group-screens-redesign](ready/group-screens-redesign.md) `ready` | high | — | this cycle | — |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
 | [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
 | [web-studio](ongoing/web-studio.md) | medium | dev | this cycle \* | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
@@ -31,6 +30,12 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [sign-in-account-loss](ongoing/sign-in-account-loss.md) | high | dev | 1 cycle ago \* | 1.11.0 (with `f43f7d8a`) is on beta since 2026-10-23 but not on prod (prod serves 1.10.0); once it is live on prod, re-run the audit below on prod and beta, record it, and retire |
+
+## Waiting on release 1.12.0
+
+| Plan | Pri | Landed | Advanced | Next |
+|---|---|---|---|---|
+| [group-screens-redesign](ongoing/group-screens-redesign.md) | high | dev | this cycle | once 1.12.0 is live on both stores, check the group screens in prod and retire this plan. |
 
 ## Soaking
 
