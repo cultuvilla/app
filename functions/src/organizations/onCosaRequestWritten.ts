@@ -94,10 +94,11 @@ export function cosaNoticeFor(before: CosaRequestData | null, after: CosaRequest
   if (!after) return null;
   if (!before) return after.status === 'pending' ? 'created' : null;
   if (before.status === after.status) {
-    // A colectivizado handover moves the requests still waiting to the new
-    // holder, who now answers them and has not heard of them yet.
-    const movedToNewHolder = after.status === 'pending' && after.holderUid !== null && after.holderUid !== before.holderUid;
-    return movedToNewHolder ? 'created' : null;
+    // A shared cosa's handover moves the requests still waiting to the new
+    // holder, and leaving it in its place moves them back to the group's
+    // admins: either way whoever answers now has not heard of them yet.
+    const movedToNewManager = after.status === 'pending' && after.holderUid !== before.holderUid;
+    return movedToNewManager ? 'created' : null;
   }
   // A booker letting a confirmed slot go needs no one's answer: the slot is free again.
   if (after.cosaKind === 'reserva' && after.status === 'cancelled' && before.status === 'accepted') return null;
@@ -119,7 +120,7 @@ export function cosaNoticeTopic(req: Pick<CosaRequestData, 'cosaKind'>, toManage
 }
 
 /**
- * Who answers a request: a colectivizado cosa's current holder, else the
+ * Who answers a request: a shared cosa's current holder, else the
  * cosa's owner, or for a group's cosa the group's admins.
  */
 export async function cosaManagerUids(

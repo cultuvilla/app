@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { availableCosaRequestActions, cosaRequestRoles, isCosaChatOpen, type CosaRequestAction } from '@cultuvilla/shared/models/organization';
+import { availableCosaRequestActions, cosaRequestRoles, isCosaChatOpen, isSharedCosa, type CosaRequestAction } from '@cultuvilla/shared/models/organization';
 import { respondToCosaRequest, watchCosaRequest, type CosaRequest } from '@cultuvilla/shared/services/cosatecaService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Button, HStack, Pressable, Screen, Text, VStack } from '../../../../components/primitives';
@@ -47,10 +47,13 @@ export default function CosaRequestScreen() {
   const keyboardGap = useComposerKeyboardGap();
 
   const roles = req && uid ? cosaRequestRoles(req, { uid, isGroupAdmin: isAdmin }) : [];
-  const actions = req ? availableCosaRequestActions(req.cosaKind, req.status, roles, req.cosaMode) : [];
+  // Lending a shared cosa is handing it on: the requester keeps it until the next one asks.
+  const handOver = req !== null && isSharedCosa({ kind: req.cosaKind, ownerUid: req.ownerUid });
+  // Its holder leaves a shared cosa back in its place from the cosa's own screen, which knows whether it has one.
+  const actions = req
+    ? availableCosaRequestActions(req.cosaKind, req.status, roles, req.ownerUid).filter((a) => !(handOver && a === 'return'))
+    : [];
   const asManager = roles.includes('manager');
-  // Lending a colectivizado cosa is handing it on: the requester keeps it until the next one asks.
-  const handOver = req?.cosaMode === 'colectivizado';
   const actionLabel = (action: CosaRequestAction) =>
     t(`groups.cosateca.actions.${handOver && action === 'lend' ? 'handOver' : action}`);
 

@@ -118,7 +118,7 @@ describe('reservaSlotKey', () => {
 describe('buildCosaData', () => {
   const base = {
     municipalityId: 'm1', orgId: 'o1', audience: 'pueblo' as const, ownerUid: null, ownerName: 'Ayuntamiento',
-    title: 'Pista de pádel', category: 'deporte' as const, createdBy: 'u1',
+    title: 'Pista de pádel', category: 'deporte' as const, createdBy: 'u1', createdByName: 'Alcalde',
   };
 
   it('gives a reserva its config with no blackouts, and every other kind none', () => {

@@ -70,16 +70,21 @@ ayuntamiento lends one thing (a key, a set of tables) to the whole pueblo throug
 9. **Where it is kept, and how a physical cosa is shared** (decided 2026-11-12, user).
    Every cosa may carry an optional map pin (`location`, the events' `LocationData`) and a
    short note (`locationNote`, "almacén, estante 2"), seen by everyone who sees the cosa.
-   A `prestamo` has a `mode`: `prestamo` (given back to its owner) or `colectivizado` (it
-   belongs to the community and travels hand to hand — nobody gives it back; whoever holds
-   it answers the next request and hands it on). *Regalo* stays: given for good to one
-   person. A colectivizado cosa has no overdue reminder; its screen says who has it since
-   when.
+   A `prestamo` was given a `mode`: `prestamo` (given back to its owner) or `colectivizado`
+   (it belongs to the community and travels hand to hand). Replaced by 11, where the owner
+   decides. *Regalo* stays: given for good to one person.
 10. **A colectivizado cosa outlives its offerer's account** (decided 2026-11-12, user).
-    Deleting the account passes it to its group (`ownerUid: null`, the group's name,
-    managed by the group's admins); whoever holds it keeps it, and the requests others made
-    of it stay, now the group's to answer. Only if the group is gone too is it deleted. The
-    user's other cosas go with the account as before.
+    Deleting the account passes it to its group; whoever holds it keeps it. Superseded by
+    11, which makes it the group's from the start.
+11. **The owner decides how a physical cosa travels** (decided 2026-11-12, user: "if it's
+    from the group a return may not be expected"). The separate *Cómo se comparte* went:
+    *Mío* (an integrante's own prestamo) is lent and given back; *Del grupo* is shared —
+    hand to hand, no return, no overdue reminder. Any integrante may give a prestamo to the
+    group when offering it (the way to collectivize something); from then on only the
+    group's admins manage it, and the cosa keeps who offered it (`createdByName`, "lo
+    ofreció Ana"). A holder may also leave a shared cosa back where it is kept, *Lo he
+    dejado en su sitio*, when it has a place. Deleting the account then only blanks the
+    offerer's name on what they gave.
 
 ## Data
 
@@ -254,35 +259,50 @@ agent's picks:
 - **Migration:** `scripts/backfill-cosateca-reservas.mjs` (pre-deploy, autoApply): `reserva:
   null` on cosas and `startAt`/`endAt: null` on requests, dev only in practice.
 
-### Location and colectivizado — as built
+### Location and shared cosas — as built
 
-- **Model:** `cosas.mode` (`prestamo` | `colectivizado`, null off a prestamo; frozen by the
-  rules like `kind`), `cosas.location` / `locationNote`, `cosas.heldBy.since`. Requests
-  copy `cosaMode` and, for a colectivizado cosa someone holds, `holderUid`
-  (`cosaHolderUid`); a new final status `passed`.
+- **Model:** `cosas.location` / `locationNote`, `cosas.heldBy.since`, `cosas.createdByName`
+  (who offered it, frozen; blanked when their account goes). How a prestamo travels is not
+  stored: `isSharedCosa` — `kind: 'prestamo'` and `ownerUid: null` — and `ownerUid` is
+  frozen by the rules like `kind`. Requests copy `ownerUid` and, for a shared cosa someone
+  holds, `holderUid` (`cosaHolderUid`); a final status `passed`. `cosaHasPlace` says
+  whether it has somewhere to be left.
+- **Who offers:** an integrante offers their own of any kind, or gives a prestamo to the
+  group (`ownerUid: null`, the group's name); an admin offers any kind for the group. The
+  rules check `createdByName` against the public profile. Only the owner or the group's
+  admins edit or delete, so who gave something no longer manages it.
 - **Who answers:** `cosaRequestRoles` — the requester only asks; otherwise the holder of a
-  held colectivizado cosa, else its owner, and the group's admins always (the backstop).
-  The rules let the holder read and talk on those requests; the owner may ask for their own
-  colectivizado cosa while someone else holds it.
-- **The handover** (`respondToCosaRequest`, flow `colectivizado`): one accepted request
-  at a time (the next in line); `lend` moves `heldBy` to the requester with `since`, closes
-  the previous holder's request as `passed`, points the cosa's other open requests at the
-  new holder (`holderUid`) and cancels the new holder's own other ones. No `return`.
+  held shared cosa, else its owner, and the group's admins always (the backstop). The rules
+  let the holder read and talk on those requests; whoever gave it may ask for it like
+  anyone.
+- **The handover** (`respondToCosaRequest`, flow `shared`): one accepted request at a time
+  (the next in line); `lend` moves `heldBy` to the requester with `since`, closes the
+  previous holder's request as `passed`, points the cosa's other open requests at the new
+  holder (`holderUid`) and cancels the new holder's own other ones.
+- **Left in its place** (flow `shared`, action `return`, by the requester who holds it, and
+  only when `cosaHasPlace`): closes their request as `returned`, clears `heldBy`, and hands
+  the waiting requests back to the group's admins (`holderUid` cleared), who are told of
+  each as a new request.
 - **Notifications and Buzón:** a new request goes to the holder (`cosaManagerUids`); the
   Buzón and *Me piden* add a `holderUid == uid` query, and a held cosa's requests leave the
-  owner's and the admins' *Necesita tu acción* (`isCosaRequestAnsweredBy`).
-  `sendCosaReminders` skips colectivizado requests (`isCosaRequestOverdue`).
-- **Screens:** the offer sheet's *Cómo se comparte* (Préstamo / Colectivizado, with a
-  one-line hint each), the pin (`LocationField`) and the note; a *colectivizado* badge and
-  the note in catalogue rows; on the cosa screen *Dónde está* (note + `LocationMap`), "la
-  tiene X desde …", and for its holder "Lo tienes tú…" with its requests; the request
-  screen says *Ya se lo he pasado* for the handover. A colectivizado request asks no dates.
-- **Account deletion:** requests waiting on a departing holder go back to the owner or the
-  group's admins (`holderUid` cleared).
-- **Migration:** `scripts/backfill-cosa-location-mode.mjs` (pre-deploy, autoApply; after
-  `cosateca-reservas`). Applied on dev (nothing to patch there).
+  admins' *Necesita tu acción* (`isCosaRequestAnsweredBy`). `sendCosaReminders` skips
+  shared requests (`isCosaRequestOverdue`).
+- **Screens:** the offer sheet asks *De quién es* (Mío / Del grupo, with a one-line hint)
+  for a prestamo to everyone and for every kind to an admin, then the pin and the note; on
+  the cosa screen *Dónde está* (note + `LocationMap`), "la tiene X desde …", "Lo ofreció X"
+  and the shared hint, and for its holder "Lo tienes tú…" with its requests and *Lo he
+  dejado en su sitio* when it has a place (only there: the request screen does not know
+  the place). The request screen says *Ya se lo he pasado* for the handover. A shared
+  request asks no dates.
+- **Account deletion:** requests waiting on a departing holder go back to the group's
+  admins (`holderUid` cleared); what they gave keeps going, without their name.
+- **Migration:** `scripts/backfill-cosa-owner-shares.mjs` (pre-deploy, autoApply; after
+  `cosateca-reservas`). It replaced `backfill-cosa-location-mode.mjs`, which wrote `mode`
+  and was never promoted: drops `mode`/`cosaMode`, adds `createdByName`, gives a
+  colectivizado cosa an integrante owned to its group, and points the waiting requests of
+  a held shared cosa at its holder.
 
-### Colectivizado review fixes — as built
+### Review fixes after #641 — as built
 
 From the #641 review: deleting a cosa closes its open requests (`closeDeletedCosaRequests`,
 folded into the `cleanupRemovedCosaImages` trigger, each step isolated) — unanswered ones
@@ -292,8 +312,9 @@ pending request it moved to them.
 
 ## Left for later
 
-- Changing a colectivizado cosa's holder by hand (it was lost, or handed on outside the
-  app): today only a request handed over moves it.
+- Changing a shared cosa's holder by hand (it was lost, or handed on outside the app):
+  today only a request handed over moves it, and only its holder can leave it in its
+  place — not the group's admins.
 
 - What happens to an integrante's cosas when they leave the group (today: they stay,
   managed by the owner; the group's admins can delete them).

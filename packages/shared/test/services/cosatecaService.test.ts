@@ -59,7 +59,7 @@ describe('cosatecaService', () => {
   it('createCosa writes a full, available cosa stamped by the server', async () => {
     const id = await createCosa({
       municipalityId: 'm1', orgId: 'o1', audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento',
-      kind: 'prestamo', title: ' Llave del gimnasio ', category: 'deporte', description: ' ', createdBy: 'admin1',
+      kind: 'prestamo', title: ' Llave del gimnasio ', category: 'deporte', description: ' ', createdBy: 'admin1', createdByName: 'Alcalde',
     });
     const [ref, data] = vi.mocked(setDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(pathOf(ref)).toBe(`cosas/${id}`);
@@ -71,7 +71,7 @@ describe('cosatecaService', () => {
 
   it('createCosa refuses a bad shape before writing', async () => {
     await expect(
-      createCosa({ municipalityId: 'm1', orgId: 'o1', audience: 'integrantes', ownerUid: 'u1', ownerName: 'Ana', kind: 'prestamo', title: '', category: 'otros', createdBy: 'u1' }),
+      createCosa({ municipalityId: 'm1', orgId: 'o1', audience: 'integrantes', ownerUid: 'u1', ownerName: 'Ana', kind: 'prestamo', title: '', category: 'otros', createdBy: 'u1', createdByName: 'Ana' }),
     ).rejects.toThrow();
     expect(setDoc).not.toHaveBeenCalled();
   });
@@ -79,13 +79,13 @@ describe('cosatecaService', () => {
   it('updateCosa edits only what its manager may change', async () => {
     const location = { coordinates: { lat: 40, lng: -3 }, displayName: 'Plaza' };
     await updateCosa('c1', {
-      kind: 'regalo', mode: null, title: 'Sofá ', description: null, category: 'otros', imageURL: null, conditions: ' ',
+      kind: 'regalo', title: 'Sofá ', description: null, category: 'otros', imageURL: null, conditions: ' ',
       location, locationNote: ' en el portal ', status: 'paused', reserva: null,
     });
     const [ref, data] = vi.mocked(updateDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(pathOf(ref)).toBe('cosas/c1');
     expect(data).toEqual({
-      kind: 'regalo', mode: null, title: 'Sofá', description: null, category: 'otros', imageURL: null, conditions: null,
+      kind: 'regalo', title: 'Sofá', description: null, category: 'otros', imageURL: null, conditions: null,
       location, locationNote: 'en el portal', status: 'paused', reserva: null, updatedAt: 'SERVER_TS',
     });
   });
@@ -155,7 +155,7 @@ describe('cosatecaService', () => {
     expect(where).toHaveBeenCalledWith('ownerUid', '==', 'u1');
     expect(where).toHaveBeenCalledWith('holderUid', '==', 'u1');
     expect(where).toHaveBeenCalledWith('ownerUid', '==', null);
-    // Mine, the colectivizado cosas I hold, and one per group.
+    // Mine, the shared cosas I hold, and one per group.
     expect(listeners).toHaveLength(4);
     const snap = (rows: { id: string; at: number; holderUid?: string | null }[]) => ({
       docs: rows.map((r) => ({
@@ -170,7 +170,7 @@ describe('cosatecaService', () => {
     expect(onNext).not.toHaveBeenCalled();
     // An org whose admin rights went answers empty instead of failing the merge.
     errors[3]?.(Object.assign(new Error('denied'), { code: 'permission-denied' }));
-    // A colectivizado cosa someone else holds is theirs to answer, not mine.
+    // A shared cosa someone else holds is theirs to answer, not mine.
     expect(onNext).toHaveBeenLastCalledWith([
       expect.objectContaining({ id: 'held' }),
       expect.objectContaining({ id: 'b' }),

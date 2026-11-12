@@ -16,7 +16,7 @@ import {
   isCosaRequestOverdue,
   nextCosaRequestStatus,
 } from '../../src/models/organization/cosatecaLogic';
-import { buildCosaData, CosaDataSchema, effectiveCosaAudience } from '../../src/models/organization/CosaDataModel';
+import { buildCosaData, cosaHasPlace, CosaDataSchema, effectiveCosaAudience, isSharedCosa } from '../../src/models/organization/CosaDataModel';
 import {
   buildCosaRequestData,
   CosaRequestDataSchema,
@@ -26,41 +26,41 @@ import {
 
 describe('nextCosaRequestStatus', () => {
   it('walks a loan from request to return', () => {
-    expect(nextCosaRequestStatus('prestamo', 'pending', 'accept', ['manager'])).toEqual({ ok: true, to: 'accepted' });
-    expect(nextCosaRequestStatus('prestamo', 'accepted', 'lend', ['manager'])).toEqual({ ok: true, to: 'lent' });
-    expect(nextCosaRequestStatus('prestamo', 'lent', 'return', ['manager'])).toEqual({ ok: true, to: 'returned' });
+    expect(nextCosaRequestStatus('prestamo', 'pending', 'accept', ['manager'], 'owner')).toEqual({ ok: true, to: 'accepted' });
+    expect(nextCosaRequestStatus('prestamo', 'accepted', 'lend', ['manager'], 'owner')).toEqual({ ok: true, to: 'lent' });
+    expect(nextCosaRequestStatus('prestamo', 'lent', 'return', ['manager'], 'owner')).toEqual({ ok: true, to: 'returned' });
   });
 
   it('ends a servicio as done (either side) and a regalo as given', () => {
-    expect(nextCosaRequestStatus('servicio', 'accepted', 'done', ['requester'])).toEqual({ ok: true, to: 'done' });
-    expect(nextCosaRequestStatus('servicio', 'accepted', 'done', ['manager'])).toEqual({ ok: true, to: 'done' });
-    expect(nextCosaRequestStatus('regalo', 'accepted', 'give', ['manager'])).toEqual({ ok: true, to: 'given' });
+    expect(nextCosaRequestStatus('servicio', 'accepted', 'done', ['requester'], 'owner')).toEqual({ ok: true, to: 'done' });
+    expect(nextCosaRequestStatus('servicio', 'accepted', 'done', ['manager'], 'owner')).toEqual({ ok: true, to: 'done' });
+    expect(nextCosaRequestStatus('regalo', 'accepted', 'give', ['manager'], 'owner')).toEqual({ ok: true, to: 'given' });
   });
 
   it('refuses a move the kind does not have', () => {
-    expect(nextCosaRequestStatus('servicio', 'accepted', 'lend', ['manager'])).toEqual({ ok: false, reason: 'not-allowed' });
-    expect(nextCosaRequestStatus('regalo', 'accepted', 'return', ['manager'])).toEqual({ ok: false, reason: 'not-allowed' });
+    expect(nextCosaRequestStatus('servicio', 'accepted', 'lend', ['manager'], 'owner')).toEqual({ ok: false, reason: 'not-allowed' });
+    expect(nextCosaRequestStatus('regalo', 'accepted', 'return', ['manager'], 'owner')).toEqual({ ok: false, reason: 'not-allowed' });
   });
 
   it('keeps each move to its side', () => {
-    expect(nextCosaRequestStatus('prestamo', 'pending', 'accept', ['requester'])).toEqual({ ok: false, reason: 'not-your-role' });
-    expect(nextCosaRequestStatus('prestamo', 'pending', 'cancel', ['manager'])).toEqual({ ok: false, reason: 'not-your-role' });
-    expect(nextCosaRequestStatus('prestamo', 'lent', 'return', ['requester'])).toEqual({ ok: false, reason: 'not-your-role' });
+    expect(nextCosaRequestStatus('prestamo', 'pending', 'accept', ['requester'], 'owner')).toEqual({ ok: false, reason: 'not-your-role' });
+    expect(nextCosaRequestStatus('prestamo', 'pending', 'cancel', ['manager'], 'owner')).toEqual({ ok: false, reason: 'not-your-role' });
+    expect(nextCosaRequestStatus('prestamo', 'lent', 'return', ['requester'], 'owner')).toEqual({ ok: false, reason: 'not-your-role' });
   });
 
   it('refuses a move from the wrong state', () => {
-    expect(nextCosaRequestStatus('prestamo', 'lent', 'cancel', ['requester'])).toEqual({ ok: false, reason: 'wrong-state' });
-    expect(nextCosaRequestStatus('prestamo', 'pending', 'lend', ['manager'])).toEqual({ ok: false, reason: 'wrong-state' });
-    expect(nextCosaRequestStatus('prestamo', 'declined', 'accept', ['manager'])).toEqual({ ok: false, reason: 'wrong-state' });
+    expect(nextCosaRequestStatus('prestamo', 'lent', 'cancel', ['requester'], 'owner')).toEqual({ ok: false, reason: 'wrong-state' });
+    expect(nextCosaRequestStatus('prestamo', 'pending', 'lend', ['manager'], 'owner')).toEqual({ ok: false, reason: 'wrong-state' });
+    expect(nextCosaRequestStatus('prestamo', 'declined', 'accept', ['manager'], 'owner')).toEqual({ ok: false, reason: 'wrong-state' });
   });
 });
 
 describe('availableCosaRequestActions', () => {
   it('offers the manager the answer and the requester the way out', () => {
-    expect(availableCosaRequestActions('prestamo', 'pending', ['manager'])).toEqual(['accept', 'decline']);
-    expect(availableCosaRequestActions('prestamo', 'pending', ['requester'])).toEqual(['cancel']);
-    expect(availableCosaRequestActions('prestamo', 'accepted', ['manager'])).toEqual(['decline', 'lend']);
-    expect(availableCosaRequestActions('prestamo', 'returned', ['manager', 'requester'])).toEqual([]);
+    expect(availableCosaRequestActions('prestamo', 'pending', ['manager'], 'owner')).toEqual(['accept', 'decline']);
+    expect(availableCosaRequestActions('prestamo', 'pending', ['requester'], 'owner')).toEqual(['cancel']);
+    expect(availableCosaRequestActions('prestamo', 'accepted', ['manager'], 'owner')).toEqual(['decline', 'lend']);
+    expect(availableCosaRequestActions('prestamo', 'returned', ['manager', 'requester'], 'owner')).toEqual([]);
   });
 });
 
@@ -80,10 +80,11 @@ describe('cosaDatesOverlap', () => {
 
 describe('isCosaRequestOverdue', () => {
   it('is overdue only when lent past its day', () => {
-    expect(isCosaRequestOverdue({ status: 'lent', untilOn: '2026-07-03' }, '2026-07-04')).toBe(true);
-    expect(isCosaRequestOverdue({ status: 'lent', untilOn: '2026-07-04' }, '2026-07-04')).toBe(false);
-    expect(isCosaRequestOverdue({ status: 'lent', untilOn: null }, '2026-07-04')).toBe(false);
-    expect(isCosaRequestOverdue({ status: 'returned', untilOn: '2026-07-01' }, '2026-07-04')).toBe(false);
+    const mine = { cosaKind: 'prestamo' as const, ownerUid: 'owner' };
+    expect(isCosaRequestOverdue({ ...mine, status: 'lent', untilOn: '2026-07-03' }, '2026-07-04')).toBe(true);
+    expect(isCosaRequestOverdue({ ...mine, status: 'lent', untilOn: '2026-07-04' }, '2026-07-04')).toBe(false);
+    expect(isCosaRequestOverdue({ ...mine, status: 'lent', untilOn: null }, '2026-07-04')).toBe(false);
+    expect(isCosaRequestOverdue({ ...mine, status: 'returned', untilOn: '2026-07-01' }, '2026-07-04')).toBe(false);
   });
 });
 
@@ -119,7 +120,7 @@ describe('cosaRequestRoles', () => {
   it('gives a group cosa no owner to match, and a stranger nothing', () => {
     expect(cosaRequestRoles({ ownerUid: null, requesterUid: 'asker', holderUid: null }, { uid: 'someone', isGroupAdmin: false })).toEqual([]);
   });
-  it("hands a held colectivizado cosa's requests to its holder, not its owner", () => {
+  it("hands a held shared cosa's requests to its holder", () => {
     const held = { ownerUid: 'owner', requesterUid: 'asker', holderUid: 'holder' };
     expect(cosaRequestRoles(held, { uid: 'holder', isGroupAdmin: false })).toEqual(['manager']);
     expect(cosaRequestRoles(held, { uid: 'owner', isGroupAdmin: false })).toEqual([]);
@@ -127,26 +128,39 @@ describe('cosaRequestRoles', () => {
   });
 });
 
-describe('colectivizado', () => {
-  it('is a prestamo that travels: a handover, never a return', () => {
-    expect(cosaRequestFlow('prestamo', 'colectivizado')).toBe('colectivizado');
-    expect(cosaRequestFlow('prestamo', 'prestamo')).toBe('prestamo');
-    expect(cosaRequestFlow('regalo', null)).toBe('regalo');
-    expect(nextCosaRequestStatus('prestamo', 'accepted', 'lend', ['manager'], 'colectivizado')).toEqual({ ok: true, to: 'lent' });
-    expect(nextCosaRequestStatus('prestamo', 'lent', 'return', ['manager'], 'colectivizado')).toEqual({ ok: false, reason: 'not-allowed' });
-    expect(availableCosaRequestActions('prestamo', 'lent', ['manager'], 'colectivizado')).toEqual([]);
-    expect(availableCosaRequestActions('prestamo', 'lent', ['manager'], 'prestamo')).toEqual(['return']);
+describe('a shared cosa (the group\'s prestamo)', () => {
+  it('follows from its owner: the group shares a prestamo, an integrante lends theirs', () => {
+    expect(isSharedCosa({ kind: 'prestamo', ownerUid: null })).toBe(true);
+    expect(isSharedCosa({ kind: 'prestamo', ownerUid: 'ana' })).toBe(false);
+    expect(isSharedCosa({ kind: 'regalo', ownerUid: null })).toBe(false);
+    expect(cosaRequestFlow('prestamo', null)).toBe('shared');
+    expect(cosaRequestFlow('prestamo', 'ana')).toBe('prestamo');
+    expect(cosaRequestFlow('reserva', null)).toBe('reserva');
+  });
+  it('travels by handover; only its holder leaves it back in its place', () => {
+    expect(nextCosaRequestStatus('prestamo', 'accepted', 'lend', ['manager'], null)).toEqual({ ok: true, to: 'lent' });
+    expect(nextCosaRequestStatus('prestamo', 'lent', 'return', ['requester'], null)).toEqual({ ok: true, to: 'returned' });
+    expect(nextCosaRequestStatus('prestamo', 'lent', 'return', ['manager'], null)).toEqual({ ok: false, reason: 'not-your-role' });
+    expect(availableCosaRequestActions('prestamo', 'lent', ['manager'], null)).toEqual([]);
+    expect(availableCosaRequestActions('prestamo', 'lent', ['requester'], null)).toEqual(['return']);
+    expect(availableCosaRequestActions('prestamo', 'lent', ['manager'], 'ana')).toEqual(['return']);
+    expect(availableCosaRequestActions('prestamo', 'lent', ['requester'], 'ana')).toEqual([]);
   });
   it('is never overdue', () => {
-    const lent = { status: 'lent' as const, untilOn: '2026-07-01' };
-    expect(isCosaRequestOverdue({ ...lent, cosaMode: 'prestamo' }, '2026-07-05')).toBe(true);
-    expect(isCosaRequestOverdue({ ...lent, cosaMode: 'colectivizado' }, '2026-07-05')).toBe(false);
+    const lent = { status: 'lent' as const, untilOn: '2026-07-01', cosaKind: 'prestamo' as const };
+    expect(isCosaRequestOverdue({ ...lent, ownerUid: 'ana' }, '2026-07-05')).toBe(true);
+    expect(isCosaRequestOverdue({ ...lent, ownerUid: null }, '2026-07-05')).toBe(false);
   });
-  it('is asked of whoever holds it now; a lent prestamo is still asked of its owner', () => {
+  it('is asked of whoever holds it now; a lent personal prestamo is still asked of its owner', () => {
     const heldBy = { requestId: 'r', uid: 'luis', name: 'Luis', untilOn: null, since: new Date() };
-    expect(cosaHolderUid({ mode: 'colectivizado', heldBy })).toBe('luis');
-    expect(cosaHolderUid({ mode: 'colectivizado', heldBy: null })).toBeNull();
-    expect(cosaHolderUid({ mode: 'prestamo', heldBy })).toBeNull();
+    expect(cosaHolderUid({ kind: 'prestamo', ownerUid: null, heldBy })).toBe('luis');
+    expect(cosaHolderUid({ kind: 'prestamo', ownerUid: null, heldBy: null })).toBeNull();
+    expect(cosaHolderUid({ kind: 'prestamo', ownerUid: 'ana', heldBy })).toBeNull();
+  });
+  it('has a place when it says where it is kept', () => {
+    expect(cosaHasPlace({ location: null, locationNote: null })).toBe(false);
+    expect(cosaHasPlace({ location: null, locationNote: 'almacén' })).toBe(true);
+    expect(cosaHasPlace({ location: { coordinates: { lat: 40, lng: -3 }, displayName: '' }, locationNote: null })).toBe(true);
   });
   it("puts a held cosa's requests in its holder's Buzón alone", () => {
     expect(isCosaRequestAnsweredBy({ holderUid: null }, 'owner')).toBe(true);
@@ -158,12 +172,10 @@ describe('colectivizado', () => {
 describe('buildCosaData', () => {
   const base = {
     municipalityId: 'm', orgId: 'o', audience: 'integrantes' as const, ownerUid: 'u1', ownerName: 'Ana',
-    title: 'Taladro', category: 'herramientas' as const, createdBy: 'u1',
+    title: 'Taladro', category: 'herramientas' as const, createdBy: 'u1', createdByName: 'Ana',
   };
-  it('gives a prestamo a mode (prestamo unless chosen) and every other kind none', () => {
-    expect(buildCosaData({ ...base, kind: 'prestamo' }).mode).toBe('prestamo');
-    expect(buildCosaData({ ...base, kind: 'prestamo', mode: 'colectivizado' }).mode).toBe('colectivizado');
-    expect(buildCosaData({ ...base, kind: 'regalo', mode: 'colectivizado' }).mode).toBeNull();
+  it('keeps who offered it', () => {
+    expect(buildCosaData({ ...base, kind: 'prestamo', ownerUid: null, ownerName: 'Peña' })).toMatchObject({ createdBy: 'u1', createdByName: 'Ana' });
   });
   it('keeps where it is: a pin and a trimmed note, both optional', () => {
     const location = { coordinates: { lat: 40, lng: -3 }, displayName: 'Plaza Mayor' };

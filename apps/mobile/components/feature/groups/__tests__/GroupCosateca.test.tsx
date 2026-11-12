@@ -45,7 +45,7 @@ const org = { id: 'pena', ...buildOrganizationData({ name: 'Peña', type: 'peña
 function cosa(id: string, title: string, category: 'herramientas' | 'fiestas', over: Record<string, unknown> = {}) {
   return {
     id,
-    ...buildCosaData({ municipalityId: 'm1', orgId: 'pena', audience: 'integrantes', ownerUid: 'u2', ownerName: 'Luis', kind: 'prestamo', title, category, createdBy: 'u2' }),
+    ...buildCosaData({ municipalityId: 'm1', orgId: 'pena', audience: 'integrantes', ownerUid: 'u2', ownerName: 'Luis', kind: 'prestamo', title, category, createdBy: 'u2', createdByName: 'Luis' }),
     ...over,
   };
 }

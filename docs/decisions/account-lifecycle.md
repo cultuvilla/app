@@ -34,9 +34,9 @@ community app: personal data must go, but a village's published history
 shouldn't disappear because one contributor left. Free text with no editorial
 value is hard-deleted instead: comments and group chat messages (leaving a group
 keeps a member's chat messages under their name; erasing the account does not).
-The cosateca follows the same split: the user's cosas and requests go, except a
-*colectivizado* cosa, which by then belongs to the community — it passes to its group
-(`ownerUid: null`) and stays with whoever holds it.
+The cosateca follows the same split: the user's own cosas and their requests go.
+What they gave to a group is already the group's (`ownerUid: null`) and stays,
+with whoever holds it; only their name comes off it (`createdByName` blanked).
 
 **Sole-admin block.** `checkAccountDeletable` refuses deletion (surfacing the
 blocking villages/orgs) if the user is the only admin anywhere — deleting them

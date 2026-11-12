@@ -63,10 +63,13 @@ export function watchCosa(cosaId: string, onNext: (cosa: Cosa | null) => void, o
 }
 
 /**
- * An integrante offers something (`ownerUid` their uid), or an admin offers it
- * for the group (`ownerUid` null, `ownerName` the group's name). `audience` is
- * the group's effective one (`effectiveCosaAudience`): the rules refuse any
- * other, and `ownerName` must be the owner's public name. Returns the new id.
+ * An integrante offers something as theirs (`ownerUid` their uid), or for the
+ * group (`ownerUid` null, `ownerName` the group's name): any integrante may
+ * give a prestamo to the group, which shares it from then on; only an admin
+ * offers the group's other kinds. `createdByName` is the offerer's public
+ * name, and so is `ownerName` when it is theirs. `audience` is the group's
+ * effective one (`effectiveCosaAudience`): the rules refuse any other. Returns
+ * the new id.
  */
 export async function createCosa(input: Omit<CosaInput, 'createdAt'>): Promise<string> {
   const data = CosaDataSchema.parse(buildCosaData(input));
@@ -75,7 +78,7 @@ export async function createCosa(input: Omit<CosaInput, 'createdAt'>): Promise<s
   return id;
 }
 
-/** Its manager (the owner, or an admin of the group): change what it is, or pause it. */
+/** Its manager (the owner, or an admin of the group, who alone manages the group's): change what it is, or pause it. */
 export async function updateCosa(cosaId: string, edit: CosaEdit): Promise<void> {
   const data = CosaEditSchema.parse({
     ...edit,
@@ -98,8 +101,8 @@ export async function deleteCosa(cosaId: string): Promise<void> {
 
 /**
  * Ask for a cosa. The copied fields (`orgId`, `cosaTitle`, `cosaKind`,
- * `cosaMode`, `ownerUid`, `municipalityId`, and for a colectivizado cosa
- * `holderUid`, its current holder) must match the cosa, and `requesterName` must be
+ * `ownerUid`, `municipalityId`, and for a shared cosa `holderUid`, its current
+ * holder) must match the cosa, and `requesterName` must be
  * the requester's public name; the rules check both. Returns the new id.
  */
 export async function requestCosa(input: Omit<CosaRequestInput, 'createdAt'>): Promise<string> {
@@ -124,7 +127,7 @@ export function watchMyCosaRequests(uid: string, onNext: (rows: CosaRequest[]) =
 }
 
 /**
- * What others have asked of my own cosas, and of the colectivizado cosas I
+ * What others have asked of my own cosas, and of the shared cosas I
  * hold now (which I answer), newest first.
  */
 export function watchCosaRequestsToMe(uid: string, onNext: (rows: CosaRequest[]) => void, onError: WatchError): Unwatch {
@@ -158,10 +161,10 @@ function newestFirst(rows: CosaRequest[]): CosaRequest[] {
 
 /**
  * The Buzón's *Necesita tu acción*: the requests still waiting for this user's
- * answer — for their own cosas, for the colectivizado cosas they hold, and for
- * the group's own cosas of every group they administer — newest first. A
- * colectivizado cosa someone holds is answered by its holder: its owner has no
- * say while it is out, and only the group's admins can still act from the
+ * answer — for their own cosas, for the shared cosas they hold, and for the
+ * group's own cosas of every group they administer — newest first. A shared
+ * cosa someone holds is answered by its holder: the group has no say while it
+ * is out, and only the group's admins can still act from the
  * request, as the backstop. A group whose admin rights have just gone answers
  * empty rather than blanking the rest. A booking whose slot has started
  * is past answering and left out, until the hourly run declines it.
@@ -209,8 +212,9 @@ export async function getMyPendingCosaRequests(uid: string): Promise<CosaRequest
 }
 
 /**
- * Accept, decline, cancel, lend (for a colectivizado cosa, hand it over),
- * return, mark done or give, through the `respondToCosaRequest` callable: it
+ * Accept, decline, cancel, lend (for a shared cosa, hand it over), return
+ * (for a shared cosa, its holder leaving it back in its place), mark done or
+ * give, through the `respondToCosaRequest` callable: it
  * holds the transition table, refuses an overlapping loan and keeps the cosa's
  * `heldBy`.
  */

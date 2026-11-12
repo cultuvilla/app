@@ -16,15 +16,15 @@ const CLOSED = 'pena';
 function cosa(overrides: Record<string, unknown> = {}) {
   return {
     municipalityId: MUN, orgId: CLOSED, audience: 'integrantes', ownerUid: 'member1', ownerName: 'Ana',
-    kind: 'prestamo', mode: 'prestamo', title: 'Taladro', description: null, category: 'herramientas', imageURL: null, conditions: null,
-    location: null, locationNote: null, status: 'available', heldBy: null, reserva: null, createdBy: 'member1', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    kind: 'prestamo', title: 'Taladro', description: null, category: 'herramientas', imageURL: null, conditions: null,
+    location: null, locationNote: null, status: 'available', heldBy: null, reserva: null, createdBy: 'member1', createdByName: 'Ana', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     ...overrides,
   };
 }
 
 function request(uid: string, name: string, overrides: Record<string, unknown> = {}) {
   return {
-    municipalityId: MUN, orgId: OPEN, cosaId: 'llave', cosaTitle: 'Llave del gimnasio', cosaKind: 'prestamo', cosaMode: 'prestamo',
+    municipalityId: MUN, orgId: OPEN, cosaId: 'llave', cosaTitle: 'Llave del gimnasio', cosaKind: 'prestamo',
     ownerUid: null, holderUid: null, requesterUid: uid, requesterName: name, message: null, fromOn: null, untilOn: null, status: 'pending',
     createdAt: serverTimestamp(), respondedAt: null, closedAt: null, overdueNotifiedOn: null, startAt: null, endAt: null, ...overrides,
   };
@@ -53,14 +53,14 @@ async function seed() {
     }
     await setDoc(doc(db, 'cosas/taladro'), { ...cosa(), createdAt: new Date(), updatedAt: new Date() });
     await setDoc(doc(db, 'cosas/llave'), {
-      ...cosa({ orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', title: 'Llave del gimnasio', category: 'deporte', createdBy: 'admin1' }),
+      ...cosa({ orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', title: 'Llave del gimnasio', category: 'deporte', createdBy: 'admin1', createdByName: 'Alcalde' }),
       createdAt: new Date(), updatedAt: new Date(),
     });
     await setDoc(doc(db, 'cosaRequests/r1'), { ...request('vecino', 'Vecino'), createdAt: new Date() });
     await setDoc(doc(db, 'cosas/pista'), {
       ...cosa({
         orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', title: 'Pista de pádel', category: 'deporte',
-        kind: 'reserva', mode: null, reserva: reservaConfig({ blackouts: ['2026-12-25'] }), createdBy: 'admin1',
+        kind: 'reserva', reserva: reservaConfig({ blackouts: ['2026-12-25'] }), createdBy: 'admin1', createdByName: 'Alcalde',
       }),
       createdAt: new Date(), updatedAt: new Date(),
     });
@@ -108,8 +108,16 @@ describe('cosas: offering', () => {
 
   it('an admin offers the group’s under the group’s name, with the group’s audience', async () => {
     await assertSucceeds(
-      setDoc(cosaRef('admin1', 'n2'), cosa({ orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', createdBy: 'admin1' })),
+      setDoc(cosaRef('admin1', 'n2'), cosa({ orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', createdBy: 'admin1', createdByName: 'Alcalde' })),
     );
+    await assertSucceeds(
+      setDoc(cosaRef('admin1', 'n3'), cosa({ orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'servicio', createdBy: 'admin1', createdByName: 'Alcalde' })),
+    );
+  });
+
+  it('any integrante gives a prestamo to the group, under the group’s name and their own as who offered it', async () => {
+    await assertSucceeds(setDoc(cosaRef('member1', 'n4'), cosa({ ownerUid: null, ownerName: 'Peña' })));
+    await assertFails(setDoc(cosaRef('member1', 'n4'), cosa({ ownerUid: null, ownerName: 'Otra' })));
   });
 
   it('refuses the wrong owner, audience, name or shape', async () => {
@@ -117,12 +125,11 @@ describe('cosas: offering', () => {
       ['member2', { createdBy: 'member2' }], // someone else's cosa
       ['member1', { ownerName: 'Otra' }],
       ['member1', { audience: 'pueblo' }],
-      ['member1', { ownerUid: null, ownerName: 'Peña' }], // only admins offer the group's
+      ['member1', { kind: 'regalo', ownerUid: null, ownerName: 'Peña' }], // only admins offer the group's other kinds
+      ['member1', { createdByName: 'Otra' }],
       ['member1', { status: 'given' }],
       ['member1', { heldBy: { requestId: 'r', uid: 'x', name: 'X', untilOn: null, since: new Date() } }],
-      ['member1', { mode: null }], // a prestamo has a mode
-      ['member1', { mode: 'regalado' }],
-      ['member1', { kind: 'regalo', mode: 'colectivizado' }], // only a prestamo has one
+      ['member1', { mode: 'colectivizado' }], // how it travels follows from its owner, never stored
       ['member1', { locationNote: 'x'.repeat(121) }],
       ['member1', { location: { coordinates: { lat: 'norte', lng: -3 }, displayName: 'Plaza' } }],
       ['member1', { location: { coordinates: { lat: 40, lng: -3 } } }],
@@ -160,8 +167,19 @@ describe('cosas: editing', () => {
     await assertFails(updateDoc(cosaRef('admin2', 'taladro'), { kind: 'servicio', updatedAt: serverTimestamp() }));
   });
 
-  it('nobody turns a prestamo colectivizado or back: its requests walk the mode they copied', async () => {
-    await assertFails(updateDoc(cosaRef('member1', 'taladro'), { mode: 'colectivizado', updatedAt: serverTimestamp() }));
+  it('nobody gives it to the group or takes it back: its requests walk the owner they copied', async () => {
+    await assertFails(updateDoc(cosaRef('member1', 'taladro'), { ownerUid: null, ownerName: 'Peña', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(cosaRef('admin2', 'taladro'), { ownerUid: null, ownerName: 'Peña', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(cosaRef('member1', 'taladro'), { createdByName: 'Otra', updatedAt: serverTimestamp() }));
+  });
+
+  it('who gave a cosa to the group no longer manages it: its admins do', async () => {
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'cosas/dado'), { ...cosa({ ownerUid: null, ownerName: 'Peña' }), createdAt: new Date(), updatedAt: new Date() });
+    });
+    await assertFails(updateDoc(cosaRef('member1', 'dado'), { title: 'Otra', updatedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(cosaRef('member1', 'dado')));
+    await assertSucceeds(updateDoc(cosaRef('admin2', 'dado'), { title: 'Otra', updatedAt: serverTimestamp() }));
   });
 
   it('its manager says where it is kept: a pin and a note', async () => {
@@ -172,13 +190,13 @@ describe('cosas: editing', () => {
         updatedAt: serverTimestamp(),
       }),
     );
-    await assertSucceeds(setDoc(cosaRef('member1', 'n5'), cosa({ mode: 'colectivizado', locationNote: 'almacén, estante 2' })));
+    await assertSucceeds(setDoc(cosaRef('member1', 'n5'), cosa({ ownerUid: null, ownerName: 'Peña', locationNote: 'almacén, estante 2' })));
   });
 });
 
 describe('cosaRequests', () => {
   it('a village member asks for a pueblo cosa as themself', async () => {
-    await assertSucceeds(setDoc(requestRef('vecino', 'n1'), request('vecino', 'Vecino', { fromOn: '2026-07-01', untilOn: '2026-07-03' })));
+    await assertSucceeds(setDoc(requestRef('vecino', 'n1'), request('vecino', 'Vecino', { fromOn: '2026-07-01' })));
   });
 
   it('an integrante asks for a cosa of their group', async () => {
@@ -249,35 +267,35 @@ describe('cosaRequests', () => {
   });
 });
 
-describe('a colectivizado cosa', () => {
+describe('a shared cosa (the group\'s prestamo)', () => {
   const since = new Date('2026-10-03T10:00:00Z');
   beforeEach(async () => {
     await getEnv().withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
-      // The peña's drill, colectivizado by member1 and held now by member2.
+      // The peña's drill, given to the group by member1 and held now by member2.
       await setDoc(doc(db, 'cosas/taladroComun'), {
-        ...cosa({ mode: 'colectivizado', heldBy: { requestId: 'h1', uid: 'member2', name: 'Luis', untilOn: null, since } }),
+        ...cosa({ ownerUid: null, ownerName: 'Peña', heldBy: { requestId: 'h1', uid: 'member2', name: 'Luis', untilOn: null, since } }),
         createdAt: new Date(), updatedAt: new Date(),
       });
       await setDoc(doc(db, 'cosaRequests/h2'), {
-        ...request('admin2', 'Pepa', { orgId: CLOSED, cosaId: 'taladroComun', cosaTitle: 'Taladro', cosaMode: 'colectivizado', ownerUid: 'member1', holderUid: 'member2' }),
+        ...request('admin2', 'Pepa', { orgId: CLOSED, cosaId: 'taladroComun', cosaTitle: 'Taladro', ownerUid: null, holderUid: 'member2' }),
         createdAt: new Date(),
       });
     });
   });
   const ask = (uid: string, name: string, overrides: Record<string, unknown> = {}) =>
-    request(uid, name, { orgId: CLOSED, cosaId: 'taladroComun', cosaTitle: 'Taladro', cosaMode: 'colectivizado', ownerUid: 'member1', holderUid: 'member2', ...overrides });
+    request(uid, name, { orgId: CLOSED, cosaId: 'taladroComun', cosaTitle: 'Taladro', ownerUid: null, holderUid: 'member2', ...overrides });
 
-  it('is asked of its holder, with no return day — its owner may ask for it too', async () => {
+  it('is asked of its holder, with no return day — who gave it may ask for it too', async () => {
     await assertSucceeds(setDoc(requestRef('admin2', 'c1'), ask('admin2', 'Pepa')));
     await assertSucceeds(setDoc(requestRef('member1', 'c2'), ask('member1', 'Ana')));
   });
 
-  it('refuses its holder asking, a wrong holder, a mode copied wrong, or a return day', async () => {
+  it('refuses its holder asking, a wrong holder, an owner copied wrong, or a return day', async () => {
     await assertFails(setDoc(requestRef('member2', 'cx'), ask('member2', 'Luis')));
     await assertFails(setDoc(requestRef('admin2', 'cx'), ask('admin2', 'Pepa', { holderUid: null })));
     await assertFails(setDoc(requestRef('admin2', 'cx'), ask('admin2', 'Pepa', { holderUid: 'member1' })));
-    await assertFails(setDoc(requestRef('admin2', 'cx'), ask('admin2', 'Pepa', { cosaMode: 'prestamo' })));
+    await assertFails(setDoc(requestRef('admin2', 'cx'), ask('admin2', 'Pepa', { ownerUid: 'member1' })));
     await assertFails(setDoc(requestRef('admin2', 'cx'), ask('admin2', 'Pepa', { untilOn: '2026-12-01' })));
   });
 
@@ -419,7 +437,7 @@ describe('reservas', () => {
   const pista = (overrides: Record<string, unknown> = {}) =>
     cosa({
       orgId: OPEN, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', title: 'Pista de pádel', category: 'deporte',
-      kind: 'reserva', mode: null, reserva: reservaConfig(), createdBy: 'admin1', ...overrides,
+      kind: 'reserva', reserva: reservaConfig(), createdBy: 'admin1', createdByName: 'Alcalde', ...overrides,
     });
 
   it('an admin offers a reserva with its weekly hours, and no closed days yet', async () => {

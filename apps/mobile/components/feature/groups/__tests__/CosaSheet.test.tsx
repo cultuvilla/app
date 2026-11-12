@@ -51,12 +51,12 @@ beforeEach(() => {
 });
 
 describe('CosaSheet', () => {
-  it('offers a colectivizado cosa, with where it is kept', async () => {
+  it('lets any integrante give a prestamo to the group, with where it is kept', async () => {
     const { getByTestId, onClose } = sheet();
     fireEvent.changeText(getByTestId('cosa-title'), 'Taladro');
-    expect(getByTestId('cosa-mode-hint')).toHaveTextContent('groups.cosateca.modeHints.prestamo');
-    fireEvent.press(getByTestId('cosa-mode-colectivizado'));
-    expect(getByTestId('cosa-mode-hint')).toHaveTextContent('groups.cosateca.modeHints.colectivizado');
+    expect(getByTestId('cosa-owner-hint')).toHaveTextContent('groups.cosateca.form.ownerHints.mine');
+    fireEvent.press(getByTestId('cosa-owner-group'));
+    expect(getByTestId('cosa-owner-hint')).toHaveTextContent('groups.cosateca.form.ownerHints.group');
     fireEvent.press(getByTestId('cosa-location'));
     fireEvent.changeText(getByTestId('cosa-location-note'), ' en el garaje ');
     fireEvent.press(getByTestId('cosa-save'));
@@ -64,21 +64,26 @@ describe('CosaSheet', () => {
     expect(createCosa).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'prestamo',
-        mode: 'colectivizado',
+        ownerUid: null,
+        ownerName: 'Ayuntamiento',
+        createdBy: 'u1',
+        createdByName: 'Ana',
         location: { coordinates: { lat: 40.03, lng: -3.6 }, displayName: 'Plaza Mayor 1' },
         locationNote: 'en el garaje',
       }),
     );
   });
 
-  it('asks a mode only of a physical cosa, and none is sent for the rest', async () => {
+  it("offers an integrante no group choice for the other kinds: those are the admins'", async () => {
     const { getByTestId, queryByTestId, onClose } = sheet();
     fireEvent.changeText(getByTestId('cosa-title'), 'Clases de guitarra');
+    fireEvent.press(getByTestId('cosa-owner-group'));
     fireEvent.press(getByTestId('cosa-kind-servicio'));
-    expect(queryByTestId('cosa-mode')).toBeNull();
+    expect(queryByTestId('cosa-owner')).toBeNull();
+    expect(queryByTestId('cosa-owner-hint')).toBeNull();
     fireEvent.press(getByTestId('cosa-save'));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(createCosa).toHaveBeenCalledWith(expect.objectContaining({ kind: 'servicio', mode: null, location: null, locationNote: null }));
+    expect(createCosa).toHaveBeenCalledWith(expect.objectContaining({ kind: 'servicio', ownerUid: 'u1', location: null, locationNote: null }));
   });
 
   it('offers a reserva with its weekly hours and limits', async () => {
@@ -122,7 +127,7 @@ describe('CosaSheet', () => {
       id: 'pista',
       ...buildCosaData({
         municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'reserva',
-        title: 'Pista', category: 'deporte', createdBy: 'u1',
+        title: 'Pista', category: 'deporte', createdBy: 'u1', createdByName: 'Ana',
       }),
     };
     existing.reserva = { ...existing.reserva!, blackouts: ['2026-12-25'] };
@@ -134,21 +139,23 @@ describe('CosaSheet', () => {
     expect(updateCosa).toHaveBeenCalledWith('pista', expect.objectContaining({ kind: 'reserva', reserva: expect.objectContaining({ blackouts: ['2026-12-25'] }) }));
   });
 
-  it('never changes how an existing prestamo is shared', async () => {
+  it('never changes whose an existing prestamo is', async () => {
     const existing = {
       id: 'taladro',
       ...buildCosaData({
-        municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: 'u1', ownerName: 'Ana', kind: 'prestamo', mode: 'colectivizado',
-        title: 'Taladro', category: 'herramientas', createdBy: 'u1', locationNote: 'En la peña',
+        municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'prestamo',
+        title: 'Taladro', category: 'herramientas', createdBy: 'u1', createdByName: 'Ana', locationNote: 'En la peña',
       }),
     };
-    const { getByTestId, queryByTestId, onClose } = sheet({ cosa: existing });
-    expect(queryByTestId('cosa-mode')).toBeNull();
-    expect(getByTestId('cosa-mode-fixed')).toHaveTextContent('groups.cosateca.modes.colectivizado');
+    const { getByTestId, queryByTestId, onClose } = sheet({ isAdmin: true, cosa: existing });
+    expect(queryByTestId('cosa-owner')).toBeNull();
+    expect(getByTestId('cosa-owner-fixed')).toHaveTextContent('groups.cosateca.form.ownerGroup');
+    expect(getByTestId('cosa-owner-hint')).toHaveTextContent('groups.cosateca.form.ownerHints.group');
     expect(getByTestId('cosa-location-note').props.value).toBe('En la peña');
     fireEvent.press(getByTestId('cosa-save'));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(updateCosa).toHaveBeenCalledWith('taladro', expect.objectContaining({ mode: 'colectivizado', locationNote: 'En la peña' }));
+    expect(updateCosa).toHaveBeenCalledWith('taladro', expect.objectContaining({ locationNote: 'En la peña' }));
+    expect(jest.mocked(updateCosa).mock.calls[0]?.[1]).not.toHaveProperty('ownerUid');
   });
 
   it('needs a name', () => {
@@ -162,7 +169,7 @@ describe('CosaSheet', () => {
     expect(getByTestId('cosa-sheet')).toBeTruthy();
     expect(getByTestId('cosa-kind')).toBeTruthy();
     expect(getByTestId('cosa-category')).toBeTruthy();
-    expect(queryByTestId('cosa-owner')).toBeNull();
+    expect(getByTestId('cosa-owner')).toBeTruthy();
     fireEvent.changeText(getByTestId('cosa-description'), 'Con brocas');
     fireEvent.changeText(getByTestId('cosa-title'), ' Taladro ');
     fireEvent.press(getByTestId('cosa-kind-regalo'));
@@ -181,13 +188,14 @@ describe('CosaSheet', () => {
   it("lets an admin offer it in the group's name, and gives it its photo once it exists", async () => {
     jest.mocked(pickImageAsBlob).mockResolvedValue({ blob: {} as Blob, filename: 'a.jpg', contentType: 'image/jpeg', previewUri: 'file://a' });
     const { getByTestId, onClose } = sheet({ isAdmin: true });
-    fireEvent.changeText(getByTestId('cosa-title'), 'Llave del gimnasio');
+    fireEvent.changeText(getByTestId('cosa-title'), 'Clases de yoga');
+    fireEvent.press(getByTestId('cosa-kind-servicio'));
     fireEvent.press(getByTestId('cosa-owner-group'));
     fireEvent.press(getByTestId('cosa-photo'));
     await waitFor(() => expect(pickImageAsBlob).toHaveBeenCalled());
     fireEvent.press(getByTestId('cosa-save'));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(createCosa).toHaveBeenCalledWith(expect.objectContaining({ ownerUid: null, ownerName: 'Ayuntamiento' }));
+    expect(createCosa).toHaveBeenCalledWith(expect.objectContaining({ kind: 'servicio', ownerUid: null, ownerName: 'Ayuntamiento' }));
     expect(uploadCosaImage).toHaveBeenCalledWith('new', 'u1', expect.objectContaining({ filename: 'a.jpg' }));
     expect(updateCosa).toHaveBeenCalledWith('new', expect.objectContaining({ imageURL: 'https://img/new.webp', status: 'available' }));
   });
@@ -197,7 +205,7 @@ describe('CosaSheet', () => {
       id: 'c1',
       ...buildCosaData({
         municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: 'u1', ownerName: 'Ana', kind: 'prestamo', title: 'Carpa',
-        category: 'fiestas', createdBy: 'u1', imageURL: 'https://img/old.webp',
+        category: 'fiestas', createdBy: 'u1', createdByName: 'Ana', imageURL: 'https://img/old.webp',
       }),
       status: 'paused' as const,
     };

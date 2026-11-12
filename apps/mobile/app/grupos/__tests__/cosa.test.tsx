@@ -1,6 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildCosaData, buildCosaRequestData, type CosaData } from '@cultuvilla/shared/models/organization';
-import { updateCosa } from '@cultuvilla/shared/services/cosatecaService';
+import { respondToCosaRequest, updateCosa } from '@cultuvilla/shared/services/cosatecaService';
 import CosaScreen from '../[grupo]/cosa/[cosa]';
 
 const mockPush = jest.fn();
@@ -18,6 +18,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ grupo: 'ayto', cosa: 'c1' }),
 }));
 jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
+  respondToCosaRequest: jest.fn().mockResolvedValue('returned'),
   updateCosa: jest.fn().mockResolvedValue(undefined),
   watchCosa: jest.fn(),
   watchCosaRequestsToMe: jest.fn(),
@@ -72,7 +73,7 @@ function cosa(over: Partial<CosaData> = {}) {
     id: 'c1',
     ...buildCosaData({
       municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento',
-      kind: 'prestamo', title: 'Llave del gimnasio', category: 'deporte', createdBy: 'admin', conditions: 'Devolver el lunes',
+      kind: 'prestamo', title: 'Llave del gimnasio', category: 'deporte', createdBy: 'admin', createdByName: 'Alcalde', conditions: 'Devolver el lunes',
     }),
     ...over,
   };
@@ -166,7 +167,7 @@ describe("a cosa's screen", () => {
 
   it('a reserva is booked on its grid, not asked for; its admin closes days', () => {
     mockCosa = cosa({ kind: 'reserva', reserva: { ...(buildCosaData({
-      municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: null, ownerName: 'A', kind: 'reserva', title: 'P', category: 'deporte', createdBy: 'a',
+      municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: null, ownerName: 'A', kind: 'reserva', title: 'P', category: 'deporte', createdBy: 'a', createdByName: 'A',
     }).reserva!) } });
     const future = new Date(Date.now() + 86_400_000);
     mockMine = [request({ id: 'b1', cosaKind: 'reserva', status: 'accepted', startAt: future, endAt: new Date(future.getTime() + 3_600_000) })];
@@ -200,32 +201,53 @@ describe("a cosa's screen", () => {
     expect(render(<CosaScreen />).getByTestId('cosa-held-since')).toHaveTextContent(/^groups\.cosateca\.detail\.heldSince$/);
   });
 
-  describe('a colectivizado cosa', () => {
+  describe("a shared cosa (the group's prestamo)", () => {
     const held = (uid: string) => ({
-      mode: 'colectivizado' as const,
-      ownerUid: 'owner',
-      ownerName: 'Olga',
       heldBy: { requestId: 'h1', uid, name: 'Pepa', untilOn: null, since: new Date('2026-10-03T10:00:00Z') },
     });
 
-    it('can be asked for while someone else has it — its owner included', () => {
-      // The viewer offered it, and Pepa has it now: they ask her, like anyone.
-      mockCosa = cosa({ ...held('u9'), ownerUid: 'u1', ownerName: 'Ana' });
+    it('says who gave it to the group, and that it travels hand to hand', () => {
+      mockCosa = cosa({ createdBy: 'u7', createdByName: 'Olga' });
       const { getByTestId } = render(<CosaScreen />);
-      expect(getByTestId('cosa-colectivizado')).toBeTruthy();
+      expect(getByTestId('cosa-given-by')).toHaveTextContent('groups.cosateca.detail.givenBy');
+      expect(getByTestId('cosa-shared-hint')).toBeTruthy();
+    });
+
+    it("names nobody once the giver's account is gone, and shows no hint on a personal one", () => {
+      mockCosa = cosa({ createdByName: '' });
+      expect(render(<CosaScreen />).queryByTestId('cosa-given-by')).toBeNull();
+      mockCosa = cosa({ ownerUid: 'u7', ownerName: 'Pepa' });
+      const personal = render(<CosaScreen />);
+      expect(personal.queryByTestId('cosa-shared-hint')).toBeNull();
+      expect(personal.queryByTestId('cosa-given-by')).toBeNull();
+    });
+
+    it('can be asked for while someone else has it — who gave it included', () => {
+      // The viewer gave it, and Pepa has it now: they ask her, like anyone.
+      mockCosa = cosa({ ...held('u9'), createdBy: 'u1', createdByName: 'Ana' });
+      const { getByTestId } = render(<CosaScreen />);
       fireEvent.press(getByTestId('cosa-ask'));
       expect(getByTestId('stub-ask')).toBeTruthy();
     });
 
     it('tells its holder to pass it on, and shows them its requests', () => {
       mockCosa = cosa(held('u1'));
-      mockManaged = [request({ requesterUid: 'u7', requesterName: 'Luis', cosaMode: 'colectivizado', holderUid: 'u1' })];
+      mockManaged = [request({ requesterUid: 'u7', requesterName: 'Luis', holderUid: 'u1' })];
       const { getByTestId, queryByTestId } = render(<CosaScreen />);
       expect(getByTestId('cosa-you-hold-it')).toBeTruthy();
       expect(queryByTestId('cosa-ask')).toBeNull();
       expect(getByTestId('cosa-request-row-r1')).toBeTruthy();
       // Holding it is not owning it: no editing.
       expect(queryByTestId('cosa-edit')).toBeNull();
+      // Nowhere to leave it: only passing it on.
+      expect(queryByTestId('cosa-leave-in-place')).toBeNull();
+    });
+
+    it('lets its holder leave it back in its place, when it has one', async () => {
+      mockCosa = cosa({ ...held('u1'), locationNote: 'Conserjería' });
+      const { getByTestId } = render(<CosaScreen />);
+      fireEvent.press(getByTestId('cosa-leave-in-place'));
+      await waitFor(() => expect(respondToCosaRequest).toHaveBeenCalledWith('h1', 'return'));
     });
   });
 });

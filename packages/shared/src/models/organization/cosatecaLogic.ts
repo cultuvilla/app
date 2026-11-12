@@ -1,4 +1,4 @@
-import { COSA_CATEGORIES, type CosaCategory, type CosaData, type CosaKind, type CosaMode } from './CosaDataModel';
+import { COSA_CATEGORIES, isSharedCosa, type CosaCategory, type CosaData, type CosaKind } from './CosaDataModel';
 import type { CosaRequestData, CosaRequestStatus } from './CosaRequestDataModel';
 
 /**
@@ -9,7 +9,7 @@ import type { CosaRequestData, CosaRequestStatus } from './CosaRequestDataModel'
  * | kind     | path                                                  |
  * |----------|-------------------------------------------------------|
  * | prestamo | pending → accepted \| declined → lent → returned     |
- * | colectivizado (a prestamo) | pending → accepted \| declined → lent (handed over) → passed (handed on) |
+ * | shared (a group's prestamo) | pending → accepted \| declined → lent (handed over) → passed (handed on) \| returned (left in its place) |
  * | servicio | pending → accepted \| declined → done                 |
  * | regalo   | pending → accepted \| declined → given                |
  * | reserva  | pending → accepted \| declined (a free slot books itself as accepted) |
@@ -17,9 +17,10 @@ import type { CosaRequestData, CosaRequestStatus } from './CosaRequestDataModel'
  * The requester cancels until it is lent, done or given. The manager is the
  * cosa's owner, or for a group's cosa its admins; a group's admins act as
  * manager on every cosa of the group, the backstop for a forgotten return.
- * A colectivizado cosa someone holds is answered by its holder instead of its
- * owner (the group's admins stay the backstop); `passed` is set by the
- * callable on the previous holder's request when the cosa is handed on.
+ * A shared cosa someone holds is answered by its holder instead of the group
+ * (the group's admins stay the backstop); `passed` is set by the callable on
+ * the previous holder's request when the cosa is handed on. Its holder alone
+ * leaves it back in its place (`return`), and only where it has one.
  */
 
 export const COSA_REQUEST_ACTIONS = ['accept', 'decline', 'cancel', 'lend', 'return', 'done', 'give'] as const;
@@ -43,11 +44,11 @@ const ANSWER: Record<'accept' | 'decline' | 'cancel', Transition> = {
   cancel: { from: ['pending', 'accepted'], to: 'cancelled', by: ['requester'] },
 };
 
-/** The lifecycle a request follows: its cosa's kind, or `colectivizado` for a prestamo that travels. */
-export type CosaRequestFlow = CosaKind | 'colectivizado';
+/** The lifecycle a request follows: its cosa's kind, or `shared` for a group's prestamo, which travels. */
+export type CosaRequestFlow = CosaKind | 'shared';
 
-export function cosaRequestFlow(kind: CosaKind, mode: CosaMode | null): CosaRequestFlow {
-  return kind === 'prestamo' && mode === 'colectivizado' ? 'colectivizado' : kind;
+export function cosaRequestFlow(kind: CosaKind, ownerUid: string | null): CosaRequestFlow {
+  return isSharedCosa({ kind, ownerUid }) ? 'shared' : kind;
 }
 
 export const COSA_REQUEST_TRANSITIONS: Record<CosaRequestFlow, Partial<Record<CosaRequestAction, Transition>>> = {
@@ -57,10 +58,12 @@ export const COSA_REQUEST_TRANSITIONS: Record<CosaRequestFlow, Partial<Record<Co
     return: { from: ['lent'], to: 'returned', by: ['manager'] },
   },
   // Handing it over is the end of the road for this request's holder: the
-  // next handover closes it as `passed`. Nothing is ever returned.
-  colectivizado: {
+  // next handover closes it as `passed`. Nobody gives it back to anyone; its
+  // holder may leave it back in its place, which frees it.
+  shared: {
     ...ANSWER,
     lend: { from: ['accepted'], to: 'lent', by: ['manager'] },
+    return: { from: ['lent'], to: 'returned', by: ['requester'] },
   },
   servicio: {
     ...ANSWER,
@@ -123,9 +126,9 @@ export function nextCosaRequestStatus(
   status: CosaRequestStatus,
   action: CosaRequestAction,
   roles: readonly CosaRequestRole[],
-  mode: CosaMode | null = null,
+  ownerUid: string | null,
 ): CosaTransitionResult {
-  const t = COSA_REQUEST_TRANSITIONS[cosaRequestFlow(kind, mode)][action];
+  const t = COSA_REQUEST_TRANSITIONS[cosaRequestFlow(kind, ownerUid)][action];
   if (!t) return { ok: false, reason: 'not-allowed' };
   if (!t.by.some((r) => roles.includes(r))) return { ok: false, reason: 'not-your-role' };
   if (!t.from.includes(status)) return { ok: false, reason: 'wrong-state' };
@@ -137,9 +140,9 @@ export function availableCosaRequestActions(
   kind: CosaKind,
   status: CosaRequestStatus,
   roles: readonly CosaRequestRole[],
-  mode: CosaMode | null = null,
+  ownerUid: string | null,
 ): CosaRequestAction[] {
-  return COSA_REQUEST_ACTIONS.filter((a) => nextCosaRequestStatus(kind, status, a, roles, mode).ok);
+  return COSA_REQUEST_ACTIONS.filter((a) => nextCosaRequestStatus(kind, status, a, roles, ownerUid).ok);
 }
 
 type Dates = Pick<CosaRequestData, 'fromOn' | 'untilOn'>;
@@ -155,16 +158,21 @@ export function cosaDatesOverlap(a: Dates, b: Dates): boolean {
   return true;
 }
 
-/** A lent cosa that should be back by now (`todayKey` is Madrid's day). A colectivizado one never comes back. */
+/** A lent cosa that should be back by now (`todayKey` is Madrid's day). A shared one never comes back. */
 export function isCosaRequestOverdue(
-  req: Pick<CosaRequestData, 'status' | 'untilOn' | 'cosaMode'>,
+  req: Pick<CosaRequestData, 'status' | 'untilOn' | 'cosaKind' | 'ownerUid'>,
   todayKey: string,
 ): boolean {
-  return req.cosaMode !== 'colectivizado' && req.status === 'lent' && req.untilOn !== null && req.untilOn < todayKey;
+  return (
+    !isSharedCosa({ kind: req.cosaKind, ownerUid: req.ownerUid }) &&
+    req.status === 'lent' &&
+    req.untilOn !== null &&
+    req.untilOn < todayKey
+  );
 }
 
 /**
- * Whoever answers a request first-hand: a colectivizado cosa's current holder,
+ * Whoever answers a request first-hand: a shared cosa's current holder,
  * else the cosa's owner (null owner: the group's admins). Admins of the group
  * manage every request too, as the backstop.
  */
@@ -175,7 +183,7 @@ function isFirstHandManager(req: Pick<CosaRequestData, 'ownerUid' | 'holderUid'>
 /**
  * The roles a viewer holds on a request: its requester asks — and only asks,
  * so nobody answers their own request; otherwise the cosa's holder (a
- * colectivizado cosa someone has), its owner, and any admin of the group
+ * shared cosa someone has), its owner, and any admin of the group
  * manage it. The same rule `respondToCosaRequest` applies, so a screen offers
  * exactly the moves the callable accepts.
  */
@@ -189,16 +197,16 @@ export function cosaRequestRoles(
 
 /**
  * Who answers a new request for this cosa first-hand, when it is not its
- * owner: the holder of a colectivizado cosa someone has. What a request copies
- * as `holderUid`; the rules hold the same.
+ * owner: the holder of a shared cosa someone has. What a request copies as
+ * `holderUid`; the rules hold the same.
  */
-export function cosaHolderUid(cosa: Pick<CosaData, 'mode' | 'heldBy'>): string | null {
-  return cosa.mode === 'colectivizado' && cosa.heldBy !== null ? cosa.heldBy.uid : null;
+export function cosaHolderUid(cosa: Pick<CosaData, 'kind' | 'ownerUid' | 'heldBy'>): string | null {
+  return isSharedCosa(cosa) && cosa.heldBy !== null ? cosa.heldBy.uid : null;
 }
 
 /**
  * Whether `uid` is who should answer the request in their Buzón: for a
- * colectivizado cosa someone holds, only its holder; otherwise its owner or
+ * shared cosa someone holds, only its holder; otherwise its owner or
  * the group's admins (the queries that found it say which).
  */
 export function isCosaRequestAnsweredBy(req: Pick<CosaRequestData, 'holderUid'>, uid: string): boolean {
