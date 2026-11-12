@@ -416,10 +416,45 @@ service cloud.firestore {
     function orgChatAdminsOnly(orgId) {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('chatAdminsOnly', false) == true;
     }
+    // The reactions a reader may leave (GROUP_CHAT_REACTIONS in GroupChatDataModel).
+    function groupChatReactions() {
+      return ['👍', '❤️', '😂', '😮', '🙏'];
+    }
+    // A message in an org thread: a plain one, or a reply quoting another
+    // message of the same thread exactly as it stands (so nobody puts words in
+    // someone else's mouth). `chatPath` is that thread's chat collection.
+    function isValidGroupThreadMessageCreate(d, chatPath) {
+      return d.keys().hasOnly(['authorUid', 'authorName', 'body', 'createdAt', 'replyTo'])
+          && isValidGroupChatMessageFields(d)
+          && (!('replyTo' in d) || isValidGroupChatReply(d.replyTo, chatPath));
+    }
+    function isValidGroupChatReply(r, chatPath) {
+      return r is map
+          && r.keys().hasOnly(['chatId', 'authorUid', 'authorName', 'body'])
+          && r.keys().hasAll(['chatId', 'authorUid', 'authorName', 'body'])
+          && isString(r.chatId) && r.chatId.size() > 0
+          && exists(path(chatPath + '/' + r.chatId))
+          && get(path(chatPath + '/' + r.chatId)).data.authorUid == r.authorUid
+          && get(path(chatPath + '/' + r.chatId)).data.authorName == r.authorName
+          && get(path(chatPath + '/' + r.chatId)).data.body == r.body;
+    }
+    // The one change a message takes: a reader sets or clears their own
+    // reaction, one of the offered ones, and touches nothing else.
+    function isOwnGroupChatReactionUpdate() {
+      let before = resource.data.get('reactions', {});
+      let after = request.resource.data.get('reactions', {});
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+          && after is map
+          && after.diff(before).affectedKeys().hasOnly([request.auth.uid])
+          && (!(request.auth.uid in after) || after[request.auth.uid] in groupChatReactions());
+    }
     // The author writes as themself, under their public name, now.
     function isValidGroupChatMessageCreate(d) {
       return d.keys().hasOnly(['authorUid', 'authorName', 'body', 'createdAt'])
-          && d.keys().hasAll(['authorUid', 'authorName', 'body', 'createdAt'])
+          && isValidGroupChatMessageFields(d);
+    }
+    function isValidGroupChatMessageFields(d) {
+      return d.keys().hasAll(['authorUid', 'authorName', 'body', 'createdAt'])
           && d.authorUid == request.auth.uid
           && isString(d.authorName) && d.authorName.size() > 0
           && d.authorName == get(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.displayName
@@ -2167,20 +2202,24 @@ service cloud.firestore {
 
       // The group's chat (see GroupChatDataModel). Both threads are written by
       // clients directly; onGroupChatMessageCreated keeps chatThreads and pushes.
+      // A reaction is the only update, and every reader may leave one — even
+      // where only the junta writes.
       match /chat/{chatId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId)
-          && isValidGroupChatMessageCreate(request.resource.data)
+          && isValidGroupThreadMessageCreate(request.resource.data,
+               '/databases/' + database + '/documents/organizations/' + orgId + '/chat')
           && (!orgChatAdminsOnly(orgId) || isOrgAdmin(orgId));
-        allow update: if false;
+        allow update: if isOrgMember(orgId) && isOwnGroupChatReactionUpdate();
         allow delete: if canDeleteGroupChatMessage(orgId, resource.data);
       }
 
       match /messages/{messageId}/chat/{chatId} {
         allow read: if canReadAvisoChat(orgId, messageId);
         allow create: if canReadAvisoChat(orgId, messageId)
-          && isValidGroupChatMessageCreate(request.resource.data);
-        allow update: if false;
+          && isValidGroupThreadMessageCreate(request.resource.data,
+               '/databases/' + database + '/documents/organizations/' + orgId + '/messages/' + messageId + '/chat');
+        allow update: if canReadAvisoChat(orgId, messageId) && isOwnGroupChatReactionUpdate();
         allow delete: if canDeleteGroupChatMessage(orgId, resource.data);
       }
 

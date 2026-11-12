@@ -2395,7 +2395,13 @@
       "deleteTitle": "¿Borrar este mensaje?",
       "deleteBody": "Desaparecerá para todo el grupo.",
       "deleteError": "No se ha podido borrar el mensaje.",
-      "report": "Denunciar o bloquear"
+      "report": "Denunciar o bloquear",
+      "reply": "Responder",
+      "cancelReply": "No responder",
+      "you": "Tú",
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "reactError": "No se ha podido guardar la reacción."
     },
     "messages": {
       "title": "Mensajes",
