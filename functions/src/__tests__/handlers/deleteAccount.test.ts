@@ -6,7 +6,7 @@ import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { deleteAccount } from '../../account/deleteAccount';
-import { buildCosaData, buildCosaRequestData } from '@cultuvilla/shared/models';
+import { buildCosaData, buildCosaRequestData, buildOrganizationData } from '@cultuvilla/shared/models';
 
 const DELETED_USER_UID = 'deleted-user';
 
@@ -17,6 +17,7 @@ const EVENT_ID = 'evt-1';
 const NEWS_ID = 'news-1';
 const USER_ID = 'user-under-test';
 const CO_ADMIN_ID = 'co-admin';
+const OTHER_ASKER = 'other-asker';
 
 function db() {
   return admin.firestore();
@@ -230,6 +231,20 @@ describe('deleteAccount (callable)', () => {
     await db().doc('cosaRequests/unrelated').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
     // A request waiting on them as a colectivizado cosa's holder goes back to the group.
     await db().doc('cosaRequests/askedOfHolder').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', cosaMode: 'colectivizado', ownerUid: null, holderUid: USER_ID, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
+    // A colectivizado cosa they offered belongs to the community: it passes to its group, held where it is.
+    await db().doc('organizations/o2').set(buildOrganizationData({ name: 'Peña Los Amigos', type: 'peña', status: 'approved', municipalityId: 'mun-1', villageSlug: 'pueblo', requestedBy: CO_ADMIN_ID }));
+    const shared = { ...cosaBase, orgId: 'o2', mode: 'colectivizado' as const, ownerUid: USER_ID, ownerName: 'Yo' };
+    await db().doc('cosas/shared').set({
+      ...buildCosaData({ ...shared, title: 'Escalera' }),
+      heldBy: { requestId: 'passedOn', uid: CO_ADMIN_ID, name: 'Otra', untilOn: null, since: new Date() },
+    });
+    await db().doc('cosas/sharedHeldByMe').set({
+      ...buildCosaData({ ...shared, title: 'Hormigonera' }),
+      heldBy: { requestId: 'mineHeld', uid: USER_ID, name: 'Yo', untilOn: null, since: new Date() },
+    });
+    // ...unless its group is gone too.
+    await db().doc('cosas/orphan').set(buildCosaData({ ...shared, orgId: 'gone', title: 'Remolque' }));
+    await db().doc('cosaRequests/askedOfShared').set(buildCosaRequestData({ ...reqBase, orgId: 'o2', cosaId: 'shared', cosaTitle: 'Escalera', cosaMode: 'colectivizado', ownerUid: USER_ID, holderUid: CO_ADMIN_ID, requesterUid: OTHER_ASKER, requesterName: 'Tercera' }));
     // The other party's words in a request's chat go with the request; an unrelated request's stay.
     await db().doc('cosaRequests/askedOfMe/chat/c1').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
     await db().doc('cosaRequests/unrelated/chat/c1').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
@@ -290,6 +305,10 @@ describe('deleteAccount (callable)', () => {
     expect((await db().doc('cosaRequests/askedOfMe').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/unrelated').get()).exists).toBe(true);
     expect((await db().doc('cosaRequests/askedOfHolder').get()).data()).toMatchObject({ holderUid: null, status: 'pending' });
+    expect((await db().doc('cosas/shared').get()).data()).toMatchObject({ ownerUid: null, ownerName: 'Peña Los Amigos', heldBy: { uid: CO_ADMIN_ID } });
+    expect((await db().doc('cosas/sharedHeldByMe').get()).data()).toMatchObject({ ownerUid: null, ownerName: 'Peña Los Amigos', heldBy: null });
+    expect((await db().doc('cosas/orphan').get()).exists).toBe(false);
+    expect((await db().doc('cosaRequests/askedOfShared').get()).data()).toMatchObject({ ownerUid: null, holderUid: CO_ADMIN_ID, status: 'pending' });
     expect((await db().doc('cosaRequests/askedOfMe/chat/c1').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/unrelated/chat/c1').get()).exists).toBe(true);
 

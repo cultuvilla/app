@@ -75,6 +75,11 @@ ayuntamiento lends one thing (a key, a set of tables) to the whole pueblo throug
    it answers the next request and hands it on). *Regalo* stays: given for good to one
    person. A colectivizado cosa has no overdue reminder; its screen says who has it since
    when.
+10. **A colectivizado cosa outlives its offerer's account** (decided 2026-11-12, user).
+    Deleting the account passes it to its group (`ownerUid: null`, the group's name,
+    managed by the group's admins); whoever holds it keeps it, and the requests others made
+    of it stay, now the group's to answer. Only if the group is gone too is it deleted. The
+    user's other cosas go with the account as before.
 
 ## Data
 
@@ -287,8 +292,6 @@ pending request it moved to them.
 
 ## Left for later
 
-- A colectivizado cosa is still deleted with its offerer's account, like any cosa they
-  own, though it belongs to the community by then.
 - Changing a colectivizado cosa's holder by hand (it was lost, or handed on outside the
   app): today only a request handed over moves it.
 
