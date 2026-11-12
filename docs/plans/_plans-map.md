@@ -4,32 +4,32 @@
      Edit the `**Priority:** / **Landed:** / **Gate:** / **Next:**` block at the top of
      the plan itself, and let CI regenerate this file on the base branch. -->
 
-Current cycle **v1.11.0** (cut 2026-10-23)
+Current cycle **v1.12.0** (cut 2026-11-12)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · device-notifications · offline-first-village · village-first-urls-prod-finish
+> **Not advanced in 2+ cycles:** app-check-rollout · device-notifications · offline-first-village · village-first-urls-prod-finish · sign-in-account-loss · spanish-settlement-dataset
 
 ## Actionable now
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 32 cycles ago \* | — |
-| [device-notifications](ongoing/device-notifications.md) ⚠️ | high | prod | 4 cycles ago \* | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
-| [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | prod | 4 cycles ago \* | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
-| [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` ⚠️ | medium | — | 2 cycles ago | — |
-| [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | 1 cycle ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
+| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 33 cycles ago \* | — |
+| [device-notifications](ongoing/device-notifications.md) ⚠️ | high | prod | 5 cycles ago \* | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
+| [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | prod | 5 cycles ago \* | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
+| [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` ⚠️ | medium | — | 3 cycles ago | — |
+| [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
+| [group-chat](ongoing/group-chat.md) | high | dev | 1 cycle ago | promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias) |
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
+| [web-studio](ongoing/web-studio.md) | medium | dev | 1 cycle ago \* | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle | promote with the next release (all four phases are on develop) |
-| [group-chat](ongoing/group-chat.md) | high | dev | this cycle | promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias) |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | this cycle | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
-| [web-studio](ongoing/web-studio.md) | medium | dev | this cycle \* | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
 
 ## Waiting on release 1.11.0
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [sign-in-account-loss](ongoing/sign-in-account-loss.md) | high | dev | 1 cycle ago \* | 1.11.0 (with `f43f7d8a`) is on beta since 2026-10-23 but not on prod (prod serves 1.10.0); once it is live on prod, re-run the audit below on prod and beta, record it, and retire |
+| [sign-in-account-loss](ongoing/sign-in-account-loss.md) ⚠️ | high | dev | 2 cycles ago \* | 1.11.0 (with `f43f7d8a`) is on beta since 2026-10-23 but not on prod (prod serves 1.10.0); once it is live on prod, re-run the audit below on prod and beta, record it, and retire |
 
 ## Waiting on release 1.12.0
 
@@ -41,8 +41,8 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [comision-de-festejos-type](ongoing/comision-de-festejos-type.md) | medium | dev | this cycle | both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`) | after that release is live in prod, retire this plan |
-| [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | this cycle | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
+| [comision-de-festejos-type](ongoing/comision-de-festejos-type.md) | medium | dev | 1 cycle ago | both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`) | after that release is live in prod, retire this plan |
+| [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | 1 cycle ago | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
 
 ## Waiting on you
 
