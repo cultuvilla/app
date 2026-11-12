@@ -4,6 +4,15 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+<!-- store-notes -->
+- **Grupos renovados**: la charla como WhatsApp, con respuestas y reacciones; tu cuota como un recibo; socios, actas y registros más claros.
+- **Cosateca**: presta, regala o reserva cosas y favores entre vecinos, con su propio chat.
+- **Comisión de festejos**, un nuevo tipo de grupo.
+- Eventos que se repiten cada mes o cada año.
+- Elige cuánto te avisa cada grupo.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
 ## v1.11.0 — 2026-10-23
 
 <!-- store-notes -->
