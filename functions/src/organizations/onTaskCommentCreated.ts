@@ -66,6 +66,7 @@ export async function handleTaskComment(
     municipalityId: typeof municipalityId === 'string' ? municipalityId : null,
     entityKind: 'organization',
     entityId: orgId,
+    topic: 'group_task_comments',
     createdAt: comment.createdAt,
   });
   const batch = db.batch();

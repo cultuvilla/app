@@ -11,6 +11,7 @@ import { placeConverterClient } from '../converters/placeConverter.client';
 import { villageMemberConverterClient } from '../converters/villageMemberConverter.client';
 import { censoAnswersConverterClient } from '../converters/censoAnswersConverter.client';
 import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
+import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
 import { seatTokenConverterClient } from '../converters/seatTokenConverter.client';
 import { registrationEventConverterClient } from '../converters/registrationEventConverter.client';
 import { organizationConverterClient } from '../converters/organizationConverter.client';
@@ -31,7 +32,11 @@ import { userConverterClient } from '../converters/userConverter.client';
 import { publicProfileConverterClient } from '../converters/publicProfileConverter.client';
 import { notificationConverterClient } from '../converters/notificationConverter.client';
 import { deviceTokenConverterClient } from '../converters/deviceTokenConverter.client';
-import { groupNotificationPrefsConverterClient, notificationPrefsConverterClient } from '../converters/notificationPrefsConverter.client';
+import {
+  groupNotificationPrefsConverterClient,
+  notificationPrefsConverterClient,
+  notificationSettingsConverterClient,
+} from '../converters/notificationPrefsConverter.client';
 import {
   groupMessageConverterClient,
   groupMessageDeliveryConverterClient,
@@ -393,6 +398,11 @@ export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId:
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
   doc(db, 'users', userId, 'preferences', NOTIFICATION_PREFS_DOC_ID)
     .withConverter(notificationPrefsConverterClient);
+
+// Optional: absent means every topic pushes. Supersedes `preferences/notifications`.
+export const userNotificationSettingsDoc = (db: Firestore, userId: string) =>
+  doc(db, 'users', userId, 'notificationSettings', NOTIFICATION_SETTINGS_DOC_ID)
+    .withConverter(notificationSettingsConverterClient);
 
 // ── News domain (top-level collections) ──────────────────────────────────
 

@@ -1275,23 +1275,132 @@
       "label": "Notificaciones",
       "title": "Notificaciones",
       "intro": "Elige qué te llega al móvil. En el Buzón siempre verás todo.",
-      "categories": {
-        "mine": {
-          "label": "Mis inscripciones",
-          "hint": "Plazas liberadas, cambios y cancelaciones de los eventos a los que vas, y un recordatorio el día antes."
-        },
-        "village": {
-          "label": "Novedades del pueblo",
-          "hint": "Cuando se publica un evento, una noticia, un lugar, un barrio, una peña, un cartel o una entrada de historia en tus pueblos."
-        },
-        "social": {
-          "label": "Actividad y solicitudes",
-          "hint": "Respuestas a tus comentarios y el resultado de tus solicitudes."
-        }
-      },
       "quietHours": {
         "label": "No molestar de noche",
-        "hint": "Lo que llegue entre las 22:00 y las 8:00 te llega por la mañana. Lo de tus inscripciones llega siempre."
+        "hint": "Lo que llegue entre las 22:00 y las 8:00 te llega por la mañana. Lo urgente, como tus plazas, llega siempre."
+      },
+      "sections": {
+        "events": {
+          "title": "Tus eventos"
+        },
+        "village": {
+          "title": "Tu pueblo"
+        },
+        "groups": {
+          "title": "Tus grupos"
+        },
+        "cosateca": {
+          "title": "Cosateca"
+        },
+        "community": {
+          "title": "Comunidad"
+        },
+        "schedule": {
+          "title": "Horario"
+        }
+      },
+      "topics": {
+        "event_reminders": {
+          "label": "Recordatorio del día antes",
+          "hint": "Un aviso 24 horas antes de cada evento al que te has apuntado."
+        },
+        "event_seats": {
+          "label": "Tus plazas",
+          "hint": "Sales de la lista de espera, alguien coge o deja una plaza de tu grupo, o te quitan la tuya."
+        },
+        "event_changes": {
+          "label": "Cambios y cancelaciones",
+          "hint": "Un evento al que vas cambia de hora o de sitio, se cancela o cierra las inscripciones."
+        },
+        "village_events": {
+          "label": "Eventos nuevos",
+          "hint": "Cuando se publica un evento en tu pueblo."
+        },
+        "village_news": {
+          "label": "Noticias",
+          "hint": "Cuando se publica una noticia."
+        },
+        "village_posters": {
+          "label": "Carteles de fiestas",
+          "hint": "Cuando se sube el cartel de unas fiestas."
+        },
+        "village_places": {
+          "label": "Lugares y barrios",
+          "hint": "Cuando se añade un lugar o un barrio."
+        },
+        "village_history": {
+          "label": "Historia",
+          "hint": "Cuando se añade una entrada a la historia del pueblo."
+        },
+        "village_wrapped": {
+          "label": "Resumen de las fiestas",
+          "hint": "Cuando sale el resumen del año, y al equipo del pueblo, el recordatorio para prepararlo."
+        },
+        "group_avisos": {
+          "label": "Avisos de la junta",
+          "hint": "Lo que la junta envía a los integrantes. Puedes silenciar cada grupo por separado."
+        },
+        "group_chats": {
+          "label": "Charlas",
+          "hint": "Mensajes en las charlas de los grupos donde los has activado."
+        },
+        "group_cuotas": {
+          "label": "Cuotas",
+          "hint": "Tu cuota de socio está a punto de vencer o ha vencido."
+        },
+        "group_tasks": {
+          "label": "Tareas y turnos",
+          "hint": "Tareas que vencen, turnos que te tocan, se buscan voluntarios o te llega un hueco."
+        },
+        "group_task_comments": {
+          "label": "Comentarios en tareas",
+          "hint": "Cuando alguien comenta en una tarea tuya."
+        },
+        "cosateca_requests": {
+          "label": "Te piden algo",
+          "hint": "Alguien pide una cosa tuya o de un grupo que gestionas, o retira su solicitud."
+        },
+        "cosateca_answers": {
+          "label": "Respuestas a lo que pides",
+          "hint": "Te aceptan, te rechazan o te dan lo que pediste."
+        },
+        "cosateca_returns": {
+          "label": "Devoluciones",
+          "hint": "Toca devolver algo, o algo tuyo no ha vuelto a tiempo."
+        },
+        "cosateca_chat": {
+          "label": "Mensajes de una solicitud",
+          "hint": "Lo que se escribe en la conversación de una solicitud."
+        },
+        "cosateca_reservas": {
+          "label": "Reservas",
+          "hint": "Reservas por aprobar, confirmadas o anuladas, y un recordatorio antes de la tuya."
+        },
+        "comment_replies": {
+          "label": "Respuestas a tus comentarios",
+          "hint": "Cuando alguien responde a lo que has comentado."
+        },
+        "my_requests": {
+          "label": "Tus solicitudes",
+          "hint": "La respuesta cuando pides entrar en un grupo, crear uno o ser Embajador."
+        },
+        "requests_to_handle": {
+          "label": "Solicitudes que gestionas",
+          "hint": "Alguien pide entrar en un grupo que administras, o ser Embajador de un pueblo."
+        }
+      },
+      "perVillage": {
+        "title": "Por pueblo",
+        "hint": "Apaga un pueblo para no recibir sus novedades. Lo que te toca a ti allí te sigue llegando."
+      },
+      "perGroup": {
+        "title": "Por grupo",
+        "hint": "Silencia los avisos o activa la charla de cada grupo."
+      },
+      "confirmOff": {
+        "title": "¿Desactivar «{label}»?",
+        "body": "Te recomendamos dejarlo activo: es lo que te afecta a ti directamente. El resto puedes quitarlo sin problema.",
+        "confirm": "Desactivar"
       },
       "permission": {
         "undetermined": {

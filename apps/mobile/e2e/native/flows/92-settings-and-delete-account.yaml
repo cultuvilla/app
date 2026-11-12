@@ -1,6 +1,6 @@
 # A user's own settings, ending with the account deleted for real:
 #
-#   notifications  — push allowed, one category muted, quiet hours on
+#   notifications  — push allowed, one topic muted, quiet hours off
 #   email          — a malformed address refused, a good one sent to verify
 #   delete         — "ELIMINAR" typed and the account gone: profile, person
 #                    and the Auth user
@@ -38,7 +38,7 @@ env:
     file: ../subflows/tap-until.yaml
     env:
       TAP: 'settings-notifications'
-      EXPECT: 'push-pref-village'
+      EXPECT: 'push-topic-village_news'
 # A fresh install has not been asked yet; the toggles stay disabled until it is.
 - runFlow:
     when:
@@ -54,25 +54,32 @@ env:
     notVisible:
       id: 'push-permission-undetermined'
     timeout: 15000
+# One topic muted; the old coarse doc is written back all-on beside it, so a
+# device still on an older app shows the same quiet-hours choice.
 - runFlow:
     file: ../subflows/set-stored-toggle.yaml
     env:
-      ID: 'push-pref-village'
-      DOC_PATH: 'users/${UID}/preferences/notifications'
-      FIELD: village
-      WANT: 'false'
+      ID: 'push-topic-village_news'
+      DOC_PATH: 'users/${UID}/notificationSettings/account'
+      FIELD: mutedTopics.0
+      WANT: 'village_news'
 - runFlow:
     file: ../subflows/set-stored-toggle.yaml
     env:
       ID: 'push-pref-quietHours'
-      DOC_PATH: 'users/${UID}/preferences/notifications'
+      DOC_PATH: 'users/${UID}/notificationSettings/account'
       FIELD: quietHours
-      WANT: 'true'
+      WANT: 'false'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'users/${UID}/notificationSettings/account'
+      EXPECT_JSON: "{ 'mutedTopics': ['village_news'], 'mutedVillages': { 'length': 0 }, 'quietHours': false }"
 - runScript:
     file: ../scripts/assertDoc.js
     env:
       DOC_PATH: 'users/${UID}/preferences/notifications'
-      EXPECT_JSON: "{ 'village': false, 'quietHours': true, 'mine': true, 'social': true }"
+      EXPECT_JSON: "{ 'village': true, 'quietHours': false, 'mine': true, 'social': true }"
 
 # ── Change email ──
 - openLink: 'cultuvilla://ajustes/cambiar-email'

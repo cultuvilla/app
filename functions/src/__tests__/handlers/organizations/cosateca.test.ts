@@ -6,7 +6,7 @@ import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { respondToCosaRequest } from '../../../organizations/respondToCosaRequest';
-import { cosaNoticeFor, notifyCosaRequest } from '../../../organizations/onCosaRequestWritten';
+import { cosaNoticeFor, cosaNoticeTopic, notifyCosaRequest } from '../../../organizations/onCosaRequestWritten';
 import { syncCosaAudience } from '../../../organizations/syncCosaAudience';
 import { closeDeletedCosaRequests } from '../../../organizations/closeDeletedCosaRequests';
 import { cleanupRemovedCosaImages } from '../../../images/cleanupRemovedImages';
@@ -229,7 +229,7 @@ describe('onCosaRequestWritten', () => {
     await notifyCosaRequest(db(), 'r1', null, created, new Date());
     for (const uid of ['u-admin', 'u-admin2']) {
       const n = await getDoc(`users/${uid}/notifications/cosa_r1_created`);
-      expect(n).toMatchObject({ type: 'group_task', entityKind: 'organization', entityId: ORG, cosaRequestId: 'r1' });
+      expect(n).toMatchObject({ type: 'group_task', entityKind: 'organization', entityId: ORG, cosaRequestId: 'r1', topic: 'cosateca_requests' });
       expect(n['body']).toContain('Ana pide «Carpa»');
     }
     await notifyCosaRequest(db(), 'r2', null, req({ ownerUid: 'u-luis' }), new Date());
@@ -240,7 +240,9 @@ describe('onCosaRequestWritten', () => {
   it('tells the requester the answer, and the managers a cancellation; nothing for other moves', async () => {
     const pending = req();
     await notifyCosaRequest(db(), 'r1', pending, { ...pending, status: 'accepted' }, new Date());
-    expect((await getDoc('users/u-ana/notifications/cosa_r1_accepted'))['title']).toContain('aceptada');
+    const answer = await getDoc('users/u-ana/notifications/cosa_r1_accepted');
+    expect(answer['title']).toContain('aceptada');
+    expect(answer['topic']).toBe('cosateca_answers');
     await notifyCosaRequest(db(), 'r1', pending, { ...pending, status: 'cancelled' }, new Date());
     expect((await db().doc('users/u-admin/notifications/cosa_r1_cancelled').get()).exists).toBe(true);
     expect(cosaNoticeFor({ ...pending, status: 'accepted' }, { ...pending, status: 'lent' })).toBeNull();
@@ -273,6 +275,11 @@ describe('onCosaRequestWritten', () => {
     await db().doc('cosas/carpa').delete();
     await notifyCosaRequest(db(), 'r7', pending, { ...pending, status: 'declined' }, new Date());
     expect((await getDoc('users/u-ana/notifications/cosa_r7_declined'))['body']).toContain('«Carpa» ya no está en la cosateca');
+  });
+
+  it('files every reserva notice under Reservas, whichever side it goes to', () => {
+    expect(cosaNoticeTopic({ cosaKind: 'reserva' }, true)).toBe('cosateca_reservas');
+    expect(cosaNoticeTopic({ cosaKind: 'reserva' }, false)).toBe('cosateca_reservas');
   });
 
   it('never tells an admin of their own request for the group’s cosa', async () => {

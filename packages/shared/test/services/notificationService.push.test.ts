@@ -32,14 +32,12 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
-import { deleteDoc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
 import {
-  getNotificationPrefs,
   registerDevice,
-  saveNotificationPrefs,
+  saveNotificationSettings,
   unregisterDevice,
 } from '../../src/services/notificationService';
-import { DEFAULT_NOTIFICATION_PREFS } from '../../src/models/notification';
 
 const pathOf = (ref: unknown) => (ref as { _path: unknown[] })._path.slice(1);
 
@@ -59,24 +57,21 @@ describe('push devices', () => {
   });
 });
 
-describe('push preferences', () => {
+describe('push switches', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('returns the defaults for an account that never saved any', async () => {
-    vi.mocked(getDoc).mockResolvedValue({ exists: () => false } as any);
-    expect(await getNotificationPrefs('u1')).toEqual(DEFAULT_NOTIFICATION_PREFS);
-  });
+  it('saves the topics and writes the old coarse doc back all-on, in one batch', async () => {
+    const batch = { set: vi.fn(), commit: vi.fn(() => Promise.resolve()) };
+    vi.mocked(writeBatch).mockReturnValue(batch as any);
+    await saveNotificationSettings('u1', { mutedTopics: ['village_news'], mutedVillages: ['m1'], quietHours: false });
 
-  it('returns the stored preferences when they exist', async () => {
-    const stored = { ...DEFAULT_NOTIFICATION_PREFS, village: false };
-    vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => stored } as any);
-    expect(await getNotificationPrefs('u1')).toEqual(stored);
-  });
-
-  it('saves the full preferences doc at its fixed path', async () => {
-    await saveNotificationPrefs('u1', { village: false });
-    const [ref, payload] = vi.mocked(setDoc).mock.calls[0];
-    expect(pathOf(ref)).toEqual(['users', 'u1', 'preferences', 'notifications']);
-    expect(payload).toMatchObject({ mine: true, village: false, social: true, quietHours: true });
+    expect(batch.set).toHaveBeenCalledTimes(2);
+    const [settingsRef, settings] = batch.set.mock.calls[0] as [unknown, unknown];
+    expect(pathOf(settingsRef)).toEqual(['users', 'u1', 'notificationSettings', 'account']);
+    expect(settings).toMatchObject({ mutedTopics: ['village_news'], mutedVillages: ['m1'], quietHours: false });
+    const [legacyRef, legacy] = batch.set.mock.calls[1] as [unknown, unknown];
+    expect(pathOf(legacyRef)).toEqual(['users', 'u1', 'preferences', 'notifications']);
+    expect(legacy).toMatchObject({ mine: true, village: true, social: true, quietHours: false });
+    expect(batch.commit).toHaveBeenCalledTimes(1);
   });
 });

@@ -10,6 +10,7 @@ import { placeConverterAdmin } from '../converters/placeConverter.admin';
 import { villageMemberConverterAdmin } from '../converters/villageMemberConverter.admin';
 import { censoAnswersConverterAdmin } from '../converters/censoAnswersConverter.admin';
 import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
+import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
 import { organizationConverterAdmin } from '../converters/organizationConverter.admin';
 import { orgMemberConverterAdmin } from '../converters/orgMemberConverter.admin';
 import { orgJoinRequestConverterAdmin } from '../converters/orgJoinRequestConverter.admin';
@@ -28,7 +29,11 @@ import { userConverterAdmin } from '../converters/userConverter.admin';
 import { publicProfileConverterAdmin } from '../converters/publicProfileConverter.admin';
 import { notificationConverterAdmin } from '../converters/notificationConverter.admin';
 import { deviceTokenConverterAdmin } from '../converters/deviceTokenConverter.admin';
-import { groupNotificationPrefsConverterAdmin, notificationPrefsConverterAdmin } from '../converters/notificationPrefsConverter.admin';
+import {
+  groupNotificationPrefsConverterAdmin,
+  notificationPrefsConverterAdmin,
+  notificationSettingsConverterAdmin,
+} from '../converters/notificationPrefsConverter.admin';
 import {
   groupMessageConverterAdmin,
   groupMessageDeliveryConverterAdmin,
@@ -338,6 +343,15 @@ export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId:
 // Optional: absent means DEFAULT_NOTIFICATION_PREFS.
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
   userPreferencesCollection(db, userId).doc('notifications');
+
+// Optional, and its own collection so the conformance gate reads it with its own
+// schema: rules admit exactly one doc here (`account`).
+export const userNotificationSettingsCollection = (db: Firestore, userId: string) =>
+  db.collection('users').doc(userId).collection('notificationSettings')
+    .withConverter(notificationSettingsConverterAdmin);
+
+export const userNotificationSettingsDoc = (db: Firestore, userId: string) =>
+  userNotificationSettingsCollection(db, userId).doc(NOTIFICATION_SETTINGS_DOC_ID);
 
 // Server-only push spool — see PushQueueDataModel for why the id is
 // deterministic. `firestore.rules` denies clients both directions.

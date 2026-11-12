@@ -20,6 +20,7 @@ import {
   userDevicesCollection,
   userGroupPrefsCollection,
   userNotificationPrefsDoc,
+  userNotificationSettingsDoc,
   pushQueueCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 // Subpath import (not the '@cultuvilla/shared' barrel): the barrel pulls
@@ -384,6 +385,7 @@ async function deletePushData(uid: string): Promise<number> {
     ...queued.docs.map((doc) => doc.ref),
     ...groupPrefs.docs.map((doc) => doc.ref),
     userNotificationPrefsDoc(db, uid).withConverter(null),
+    userNotificationSettingsDoc(db, uid).withConverter(null),
   ]);
 }
 

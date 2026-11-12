@@ -5,13 +5,15 @@ import {
   pushQueueDoc,
   userGroupPrefsDoc,
   userNotificationPrefsDoc,
+  userNotificationSettingsDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
-  DEFAULT_NOTIFICATION_PREFS,
   NotificationDataSchema,
-  allowsPush,
+  allowsTopicPush,
   buildPushQueueData,
   notificationCategory,
+  notificationTopic,
+  resolveNotificationSettings,
   pushQueueId,
   resolveSendTime,
   type NotificationData,
@@ -61,12 +63,16 @@ export const onNotificationCreated = onDocumentCreated(
     }
     const notification: NotificationData = parsed.data;
     const category = notificationCategory(notification.type);
+    const topic = notificationTopic(notification);
 
-    const prefsSnap = await userNotificationPrefsDoc(db, userId).get();
-    const prefs = prefsSnap.data() ?? DEFAULT_NOTIFICATION_PREFS;
+    const [legacySnap, settingsSnap] = await Promise.all([
+      userNotificationPrefsDoc(db, userId).get(),
+      userNotificationSettingsDoc(db, userId).get(),
+    ]);
+    const settings = resolveNotificationSettings(legacySnap.data() ?? null, settingsSnap.data() ?? null);
 
-    if (!allowsPush(prefs, category)) {
-      // The in-app Buzón still has it — muting a category suppresses the buzz,
+    if (!allowsTopicPush(settings, topic, notification.municipalityId)) {
+      // The in-app Buzón still has it — muting a topic suppresses the buzz,
       // never the record.
       logger.info('Push suppressed by preference', {
         handler: 'onNotificationCreated',
@@ -74,6 +80,7 @@ export const onNotificationCreated = onDocumentCreated(
         notificationId: notifId,
         type: notification.type,
         category,
+        topic,
       });
       return;
     }
@@ -96,7 +103,7 @@ export const onNotificationCreated = onDocumentCreated(
     const now = new Date();
     const sendAfter = resolveSendTime({
       category,
-      quietHoursEnabled: prefs.quietHours,
+      quietHoursEnabled: settings.quietHours,
       now,
     });
 

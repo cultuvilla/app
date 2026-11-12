@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { NOTIFICATION_CATEGORIES, type NotificationCategory } from './NotificationCategory';
 
 /**
  * Per-account push preferences at `users/{uid}/preferences/notifications`.
@@ -12,6 +11,10 @@ import { NOTIFICATION_CATEGORIES, type NotificationCategory } from './Notificati
  *
  * These gate PUSH only. The in-app Buzón always receives everything — muting a
  * category must not silently destroy the durable record of what happened.
+ *
+ * Superseded by the per-topic `NotificationSettingsData`. Kept while installed
+ * binaries still read and write it; the server honours both, and the current app
+ * writes this one back all-on with `quietHours` in step.
  */
 export const NotificationPrefsDataSchema = z.object({
   /** Seats, registrations and requests the user personally holds. */
@@ -58,25 +61,6 @@ export function buildNotificationPrefsData(
     updatedAt: input.updatedAt ?? new Date(),
   };
 }
-
-/** The categories muted as a whole, here. `groups` is muted per group instead (`GroupNotificationPrefsData`). */
-export type NotificationPrefKey = Exclude<NotificationCategory, 'groups'>;
-
-/**
- * Whether push for `category` is allowed under `prefs`. A group message is
- * gated by its group's own preference, which the caller checks.
- */
-export function allowsPush(
-  prefs: NotificationPrefsData,
-  category: NotificationCategory,
-): boolean {
-  return category === 'groups' ? true : prefs[category];
-}
-
-/** Every category the settings screen toggles, in its order. */
-export const NOTIFICATION_PREF_KEYS: readonly NotificationPrefKey[] = NOTIFICATION_CATEGORIES.filter(
-  (c): c is NotificationPrefKey => c !== 'groups',
-);
 
 /**
  * A member's push preference for one group's messages, at

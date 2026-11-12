@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EntityKindSchema } from '../interaction/EntityKind';
+import type { GroupTaskTopic } from './NotificationTopic';
 
 export const NotificationTypeSchema = z.enum([
   'waitlist_promoted',
@@ -84,6 +85,10 @@ export const NotificationDataSchema = z.object({
   // On a cosateca `group_task`: the request it opens. A binary that predates it
   // drops the field and opens the group's Tareas.
   cosaRequestId: z.string().nullable().default(null),
+  // Which switch in Ajustes → Notificaciones this answers to, where the type
+  // alone does not say (`group_task`, see NotificationTopic). A plain string,
+  // not an enum: a topic added later must not make this build's converter throw.
+  topic: z.string().nullable().default(null),
   read: z.boolean(),
   createdAt: z.date(),
 });
@@ -100,6 +105,7 @@ export interface NotificationDataInput {
   entityId?: string | null;
   chatThreadId?: string | null;
   cosaRequestId?: string | null;
+  topic?: GroupTaskTopic | null;
   read?: boolean;
   createdAt?: Date;
 }
@@ -116,6 +122,7 @@ export function buildNotificationData(input: NotificationDataInput): Notificatio
     entityId: input.entityId ?? null,
     chatThreadId: input.chatThreadId ?? null,
     cosaRequestId: input.cosaRequestId ?? null,
+    topic: input.topic ?? null,
     read: input.read ?? false,
     createdAt: input.createdAt ?? new Date(),
   };

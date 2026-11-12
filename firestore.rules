@@ -1310,6 +1310,19 @@ service cloud.firestore {
           && isTimestamp(d.updatedAt);
     }
 
+    // NotificationSettingsData: the per-topic push switches. Lists of strings,
+    // capped like the model (MAX_MUTED_TOPICS / MAX_MUTED_VILLAGES).
+    function isValidNotificationSettingsWrite(d) {
+      return d.keys().hasOnly(['mutedTopics', 'mutedVillages', 'quietHours', 'updatedAt'])
+          && d.keys().hasAll(['mutedTopics', 'mutedVillages', 'quietHours', 'updatedAt'])
+          && d.mutedTopics is list
+          && d.mutedTopics.size() <= 64
+          && d.mutedVillages is list
+          && d.mutedVillages.size() <= 50
+          && d.quietHours is bool
+          && isTimestamp(d.updatedAt);
+    }
+
     function isValidBlockedUserCreate(d, blockedUserId) {
       return d.keys().hasOnly(['blockedUserId', 'createdAt'])
           && d.keys().hasAll(['blockedUserId', 'createdAt'])
@@ -1589,6 +1602,15 @@ service cloud.firestore {
         allow write: if isOwner(userId)
           && prefId == 'notifications'
           && isValidNotificationPrefsWrite(request.resource.data);
+      }
+
+      // Per-topic push switches (NotificationSettingsData), superseding
+      // `preferences/notifications`. Optional, one doc per account.
+      match /notificationSettings/{settingsId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId)
+          && settingsId == 'account'
+          && isValidNotificationSettingsWrite(request.resource.data);
       }
 
       // One group's message pushes muted or not (GroupNotificationPrefsData).

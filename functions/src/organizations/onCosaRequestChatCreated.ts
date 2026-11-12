@@ -44,6 +44,7 @@ export async function handleCosaRequestChatMessage(
     entityKind: 'organization',
     entityId: req.orgId,
     cosaRequestId: requestId,
+    topic: 'cosateca_chat',
     createdAt: message.createdAt,
   });
   const batch = db.batch();
