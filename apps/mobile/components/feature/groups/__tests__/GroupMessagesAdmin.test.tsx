@@ -129,7 +129,6 @@ describe('GroupMessagesAdmin', () => {
     setWatched('votes', [{ id: 'u-eva', option: 1, votedAt: new Date() }]);
     setWatched('privates', []);
     const { getByTestId, queryByTestId } = renderAdmin();
-    expect(getByTestId('group-msg-row-m1')).toHaveTextContent(/groups\.messages\.counts:4\|2\|3/);
     fireEvent.press(getByTestId('group-msg-row-m1'));
 
     expect(getByTestId('group-msg-detail-reads')).toHaveTextContent(/groups\.messages\.readBy:1\|2/);
@@ -141,6 +140,40 @@ describe('GroupMessagesAdmin', () => {
     expect(getByTestId('group-msg-detail-option-1')).toHaveTextContent(/Eva/);
 
     expect(queryByTestId('group-msg-detail-pin')).toBeNull();
+  });
+
+  it('shows reads, the poll result and the nudge on the row, without opening it', async () => {
+    setWatched('messages', [MESSAGE]);
+    setWatched('reads', [{ id: 'u-eva', readAt: new Date() }]);
+    setWatched('votes', [{ id: 'u-eva', option: 1, votedAt: new Date() }]);
+    const { getByTestId, queryByTestId } = renderAdmin();
+    expect(getByTestId('group-msg-row-reads-m1')).toHaveTextContent('groups.messages.readBar:1|2');
+    expect(getByTestId('group-msg-row-bar-m1')).toBeTruthy();
+    expect(getByTestId('group-msg-row-poll-m1')).toHaveTextContent(
+      'groups.messages.pollLabel: groups.messages.pollTally:0|12 · groups.messages.pollTally:1|19 · groups.messages.pollNoVote:1',
+    );
+    fireEvent.press(getByTestId('group-msg-row-nudge-m1'));
+    expect(getByTestId('group-msg-row-nudge-m1')).toHaveTextContent('groups.messages.remind:1');
+    await waitFor(() => expect(nudgeGroupMessage).toHaveBeenCalledWith('org1', 'm1'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(expect.stringContaining('groups.messages.nudged:1')));
+    expect(queryByTestId('group-msg-detail')).toBeNull();
+  });
+
+  it('hides the row nudge when everyone read it or a nudge is too recent, and counts recipients outside the app', () => {
+    setWatched('messages', [
+      { ...MESSAGE, id: 'all-read' },
+      { ...MESSAGE, id: 'recent', lastNudgedAt: new Date(), nudgeCount: 1 },
+      { ...MESSAGE, id: 'offline', poll: null, recipientUids: ['admin'], recipientCount: 5 },
+    ]);
+    setWatched('reads', [{ id: 'u-eva', readAt: new Date() }, { id: 'u-paco', readAt: new Date() }]);
+    setWatched('votes', []);
+    const { getByTestId, queryByTestId } = renderAdmin();
+    expect(getByTestId('group-msg-row-reads-all-read')).toHaveTextContent('groups.messages.readBar:2|2');
+    expect(queryByTestId('group-msg-row-nudge-all-read')).toBeNull();
+    expect(queryByTestId('group-msg-row-nudge-recent')).toBeNull();
+    expect(queryByTestId('group-msg-row-reads-offline')).toBeNull();
+    expect(queryByTestId('group-msg-row-poll-offline')).toBeNull();
+    expect(getByTestId('group-msg-row-offline')).toHaveTextContent(/groups\.messages\.recipientCount:5/);
   });
 
   it('waits before another nudge', () => {

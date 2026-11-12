@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { watchCuotaSettings, type CuotaSettings } from '@cultuvilla/shared/services/cuotaService';
 import { watchGroupMessages, type GroupMessage } from '@cultuvilla/shared/services/groupMessageService';
-import { formatDate } from '@cultuvilla/shared/utils';
-import { Button, Pressable, Text, VStack } from '../../primitives';
+import { Button, Text, VStack } from '../../primitives';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { ComposeMessageSheet } from './ComposeMessageSheet';
 import { MessageDetailSheet } from './MessageDetailSheet';
+import { SentAvisoCard } from './SentAvisoCard';
 
 /**
- * Messaging in Gestionar: write a message to the socios (or a part of them)
- * and the group's history of what was sent, each opening its detail — reads,
- * poll results, the WhatsApp list.
+ * The junta's avisos: write one to the socios (or a part of them), and the
+ * ones sent, each showing its reads, poll result and nudge at a glance and
+ * opening its detail — who read, the voters, the WhatsApp list.
  */
 export function GroupMessagesAdmin({
   orgId,
@@ -39,7 +39,7 @@ export function GroupMessagesAdmin({
   const open = rows.find((m) => m.id === openId) ?? null;
 
   return (
-    <VStack gap={2} testID="group-msg-admin">
+    <VStack gap={3} testID="group-msg-admin">
       <Button onPress={() => setComposing(true)} testID="group-msg-compose-open">
         {t('groups.messages.compose')}
       </Button>
@@ -49,24 +49,7 @@ export function GroupMessagesAdmin({
         </Text>
       ) : null}
       {rows.map((m) => (
-        <Pressable
-          key={m.id}
-          testID={`group-msg-row-${m.id}`}
-          accessibilityRole="button"
-          onPress={() => setOpenId(m.id)}
-          className="py-2 border-b border-subtle"
-        >
-          <Text className="font-bold">{m.title}</Text>
-          <Text variant="caption" tone="muted">
-            {t('groups.messages.summary', {
-              date: formatDate(m.sentAt),
-              audience: m.audience.kind === 'event' && m.audience.eventTitle ? m.audience.eventTitle : t(`groups.messages.audience.${m.audience.kind}`),
-            })}
-          </Text>
-          <Text variant="caption" tone="muted">
-            {t('groups.messages.counts', { recipients: m.recipientCount, push: m.pushCount, email: m.emailCount })}
-          </Text>
-        </Pressable>
+        <SentAvisoCard key={m.id} message={m} orgId={orgId} onOpen={() => setOpenId(m.id)} />
       ))}
 
       <ComposeMessageSheet
