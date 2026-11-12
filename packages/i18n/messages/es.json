@@ -1395,7 +1395,17 @@
       },
       "perGroup": {
         "title": "Por grupo",
-        "hint": "Silencia los avisos o activa la charla de cada grupo."
+        "hint": "Elige cuánto te avisa cada grupo.",
+        "levels": {
+          "all": "De todo",
+          "avisos": "Solo avisos y lo que me toca",
+          "none": "Nada"
+        },
+        "levelsNoAvisos": {
+          "all": "De todo",
+          "avisos": "Solo lo que me toca"
+        },
+        "sheetTitle": "Avisarme de {name}"
       },
       "confirmOff": {
         "title": "¿Desactivar «{label}»?",
@@ -1920,25 +1930,17 @@
       "otro": "Otro cargo"
     },
     "settings": {
-      "title": "Ajustes del grupo",
-      "userTitle": "Ajustes de usuario",
       "cuotaReminders": "Enviar recordatorios de la cuota",
-      "cuotaRemindersHint": "Una semana antes del vencimiento y una vez cuando esté vencida, por notificación y email. Actívalos cuando hayas anotado los pagos que ya tienes.",
-      "sociosListVisible": "Los estatutos permiten ver la lista de socios",
+      "sociosListVisible": "Lista de socios visible",
       "socioPhoneRequired": "Pedir el teléfono a los socios",
       "socioEmailRequired": "Pedir el email a los socios",
-      "socioContactRequiredHint": "Usamos los de su cuenta. Quien ya esté en el grupo tendrá que aceptar para seguir entrando, y solo la junta los verá.",
-      "sociosListVisibleHint": "Si lo activas, los socios verán los nombres de los demás socios. Nunca sus teléfonos ni emails.",
       "chatAdminsOnly": "Solo la junta escribe en la Charla",
-      "chatAdminsOnlyHint": "Los demás podrán leerla, pero no escribir. Los chats de los avisos siguen abiertos a quienes los reciben.",
       "error": "No se ha podido guardar el ajuste.",
       "cosateca": "Cosateca",
-      "cosatecaHint": "Lo que los integrantes prestan, ofrecen y regalan, en una sección del grupo.",
       "cosatecaAudience": {
         "integrantes": "Solo integrantes",
         "pueblo": "Todo el pueblo"
-      },
-      "cosatecaAudienceHint": "Con «Todo el pueblo», cualquier vecino del pueblo con la app puede verla y pedir. Nunca es pública en la web."
+      }
     },
     "cuota": {
       "title": "Cuota de socios",
@@ -2316,9 +2318,7 @@
       "deleteTitle": "¿Borrar este mensaje?",
       "deleteBody": "Desaparecerá para todo el grupo.",
       "deleteError": "No se ha podido borrar el mensaje.",
-      "report": "Denunciar o bloquear",
-      "mute": "Silenciar los mensajes de los chats",
-      "muteHint": "Para este grupo: su Charla y los chats de sus avisos."
+      "report": "Denunciar o bloquear"
     },
     "messages": {
       "title": "Mensajes",
@@ -2392,8 +2392,6 @@
       "tapToVote": "Toca una opción para responder.",
       "yourVote": "Has respondido: {option}",
       "voteError": "No se ha podido guardar tu respuesta.",
-      "mute": "Silenciar los avisos de este grupo",
-      "muteHint": "No te llegarán al móvil, pero seguirán aquí. Los recordatorios de tu cuota te siguen llegando.",
       "actionError": "No se ha podido completar. Inténtalo de nuevo.",
       "placeholder": {
         "nombre": "Nombre",

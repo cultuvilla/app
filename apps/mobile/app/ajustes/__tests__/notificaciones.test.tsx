@@ -4,6 +4,11 @@ import { setWatched } from '../../../test/watchers';
 import NotificationSettingsScreen from '../notificaciones';
 import type { NotificationAudience } from '../../../lib/notifications/useNotificationAudience';
 
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args), back: jest.fn() },
@@ -30,6 +35,12 @@ jest.mock('@cultuvilla/shared/services/notificationService', () => ({
   saveNotificationSettings: (...args: unknown[]) => mockSave(...args),
 }));
 
+const mockSetLevel = jest.fn((..._args: unknown[]) => Promise.resolve());
+jest.mock('@cultuvilla/shared/services/groupMessageService', () => ({
+  watchGroupNotificationPrefs: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('groupPrefs'),
+  setGroupNotifyLevel: (...args: unknown[]) => mockSetLevel(...args),
+}));
+
 const mockConfirm = jest.fn();
 jest.mock('../../../lib/dialogs', () => ({
   showAlert: jest.fn(),
@@ -43,7 +54,8 @@ jest.mock('../../../lib/notifications/useNotificationAudience', () => ({
   useNotificationAudience: () => audience.current,
 }));
 
-const group = (id: string, name: string) => ({ org: { id, name }, role: 'member' }) as unknown as NotificationAudience['groups'][number];
+const group = (id: string, name: string, type = 'asociación') =>
+  ({ org: { id, name, type }, role: 'member' }) as unknown as NotificationAudience['groups'][number];
 
 describe('NotificationSettingsScreen', () => {
   beforeEach(() => {
@@ -51,6 +63,7 @@ describe('NotificationSettingsScreen', () => {
     mockPermission.current = 'granted';
     audience.current = { status: 'ready', groups: [], villages: [], handlesRequests: false };
     setWatched('settings', resolveNotificationSettings(null, null));
+    setWatched('groupPrefs', null);
   });
 
   it('shows one switch per topic that can reach the person, all on by default', () => {
@@ -65,15 +78,34 @@ describe('NotificationSettingsScreen', () => {
     expect(queryByTestId('push-per-village')).toBeNull();
   });
 
-  it('shows the group switches and a link to each group once the person is in one', () => {
+  it('shows the group switches and how much each group notifies once the person is in one', () => {
     audience.current = { ...audience.current, groups: [group('org1', 'Peña El Trago')], handlesRequests: true };
     const { getByTestId } = render(<NotificationSettingsScreen />);
     expect(getByTestId('push-section-groups')).toBeTruthy();
     expect(getByTestId('push-topic-group_tasks')).toBeTruthy();
     expect(getByTestId('push-topic-requests_to_handle')).toBeTruthy();
     expect(getByTestId('push-per-group')).toBeTruthy();
+    // No prefs doc: avisos and what is theirs, the chats quiet.
+    expect(getByTestId('push-group-level-org1')).toHaveTextContent('notifications.settings.perGroup.levels.avisos');
+  });
+
+  it('picks a group\u2019s level from its sheet', () => {
+    audience.current = { ...audience.current, groups: [group('org1', 'Peña El Trago')] };
+    const { getByTestId } = render(<NotificationSettingsScreen />);
     fireEvent.press(getByTestId('push-group-org1'));
-    expect(mockPush).toHaveBeenCalledWith('/grupos/org1/ajustes');
+    fireEvent.press(getByTestId('push-group-sheet-org1-none'));
+    expect(mockSetLevel).toHaveBeenCalledWith('u1', 'org1', 'none');
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('offers a group without socios no avisos level', () => {
+    setWatched('groupPrefs', { messagesMuted: false, chatPush: true, orgId: 'org1', updatedAt: new Date() });
+    audience.current = { ...audience.current, groups: [group('org1', 'Ayuntamiento', 'ayuntamiento')] };
+    const { getByTestId, queryByTestId } = render(<NotificationSettingsScreen />);
+    expect(getByTestId('push-group-level-org1')).toHaveTextContent('notifications.settings.perGroup.levelsNoAvisos.all');
+    fireEvent.press(getByTestId('push-group-org1'));
+    expect(getByTestId('push-group-sheet-org1-avisos')).toBeTruthy();
+    expect(queryByTestId('push-group-sheet-org1-none')).toBeNull();
   });
 
   it('mutes a topic straight away', () => {

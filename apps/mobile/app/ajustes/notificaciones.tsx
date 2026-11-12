@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { iconSizes } from '@cultuvilla/shared/design-system';
 import {
+  groupNotifyLevel,
   NOTIFICATION_TOPIC_SECTIONS,
+  type GroupNotificationPrefsData,
+  type GroupNotifyLevel,
   NOTIFICATION_TOPIC_SECTION_ORDER,
   type NotificationTopic,
   type NotificationTopicSection,
@@ -14,6 +16,8 @@ import {
   saveNotificationSettings,
   watchNotificationSettings,
 } from '@cultuvilla/shared/services/notificationService';
+import { setGroupNotifyLevel, watchGroupNotificationPrefs } from '@cultuvilla/shared/services/groupMessageService';
+import { hasSocioRoster, type OrganizationData } from '@cultuvilla/shared/models/organization';
 import { Screen } from '../../components/primitives/Screen';
 import { Card } from '../../components/primitives/Card';
 import { ErrorState } from '../../components/primitives/ErrorState';
@@ -24,10 +28,10 @@ import { Text } from '../../components/primitives/Text';
 import { Toggle } from '../../components/primitives/Toggle';
 import { VStack } from '../../components/primitives/VStack';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
+import { OptionsSheet } from '../../components/feature/groups/OptionsSheet';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
 import { useWatch } from '../../lib/hooks/useWatch';
-import { groupSectionHref } from '../../lib/navigation/routes';
 import { useNotificationAudience, type NotificationAudience } from '../../lib/notifications/useNotificationAudience';
 import { usePush } from '../../lib/push/PushProvider';
 import { openPushSettings } from '../../lib/push/pushClient';
@@ -69,8 +73,8 @@ function visibleTopics(section: NotificationTopicSection, audience: Notification
 
 /**
  * One switch per kind of notification (`NotificationTopic`), grouped as a
- * villager thinks of them, plus a per-pueblo mute and links to each group's own
- * switches. The OS permission gates all of it: without it every switch is shown
+ * villager thinks of them, plus a per-pueblo mute and how much each group
+ * notifies (`GroupNotifyLevel`). The OS permission gates all of it: without it every switch is shown
  * locked, with the way to grant it on top.
  *
  * These gate PUSH only — the Buzón always keeps everything, which the intro
@@ -238,17 +242,7 @@ export default function NotificationSettingsScreen() {
                       <Text variant="caption" tone="muted">{t('notifications.settings.perGroup.hint')}</Text>
                       <Card variant="flat" className="p-0">
                         {audience.groups.map(({ org }) => (
-                          <Pressable
-                            key={org.id}
-                            testID={`push-group-${org.id}`}
-                            onPress={() => router.push(groupSectionHref(org.id, 'ajustes'))}
-                            className="px-4 py-3 border-b border-subtle"
-                          >
-                            <HStack justify="between" align="center">
-                              <Text>{org.name}</Text>
-                              <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
-                            </HStack>
-                          </Pressable>
+                          <GroupNotifyRow key={org.id} uid={uid} org={org} disabled={pushOff} />
                         ))}
                       </Card>
                     </VStack>
@@ -303,5 +297,76 @@ function SwitchRow({
         </Text>
       ) : null}
     </VStack>
+  );
+}
+
+/**
+ * One group and how much it notifies: everything, only its avisos and what is
+ * the person's own (the default: the chats stay quiet), or nothing. A group
+ * without a socio roster sends no avisos, so it offers the first two only.
+ */
+function GroupNotifyRow({
+  uid,
+  org,
+  disabled,
+}: {
+  uid: string | null;
+  org: OrganizationData & { id: string };
+  disabled: boolean;
+}) {
+  const { t } = useT();
+  const prefs = useWatch<GroupNotificationPrefsData | null>(
+    'notifications:watchGroupNotificationPrefs',
+    uid ? `${uid}|${org.id}` : null,
+    uid ? (next, error) => watchGroupNotificationPrefs(uid, org.id, next, error) : null,
+  );
+  const [picked, setPicked] = useState<GroupNotifyLevel | null>(null);
+  const [open, setOpen] = useState(false);
+  const roster = hasSocioRoster(org.type);
+  const stored = groupNotifyLevel(prefs.data ?? null);
+  const level = picked ?? (!roster && stored === 'none' ? 'avisos' : stored);
+  const levels: readonly GroupNotifyLevel[] = roster ? ['all', 'avisos', 'none'] : ['all', 'avisos'];
+  const labelOf = (l: GroupNotifyLevel) => t(`notifications.settings.perGroup.${roster ? 'levels' : 'levelsNoAvisos'}.${l}`);
+
+  const pick = (key: string) => {
+    setOpen(false);
+    const next = levels.find((l) => l === key);
+    if (!uid || !next || next === level) return;
+    setPicked(next);
+    setGroupNotifyLevel(uid, org.id, next)
+      .catch(() => showAlert(t('notifications.settings.saveError')))
+      .finally(() => setPicked(null));
+  };
+
+  return (
+    <>
+      <Pressable
+        testID={`push-group-${org.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={`${org.name}: ${labelOf(level)}`}
+        accessibilityState={{ disabled: disabled || prefs.status !== 'ready' }}
+        disabled={disabled || prefs.status !== 'ready'}
+        onPress={() => setOpen(true)}
+        className="px-4 py-3 border-b border-subtle"
+      >
+        <HStack justify="between" align="center" gap={3}>
+          <Text className="flex-1" numberOfLines={1}>
+            {org.name}
+          </Text>
+          <Text tone="muted" variant="bodySm" testID={`push-group-level-${org.id}`}>
+            {prefs.status === 'ready' ? labelOf(level) : ''}
+          </Text>
+          <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
+        </HStack>
+      </Pressable>
+      <OptionsSheet
+        visible={open}
+        title={t('notifications.settings.perGroup.sheetTitle', { name: org.name })}
+        options={levels.map((l) => ({ key: l, label: labelOf(l), selected: l === level }))}
+        onPick={pick}
+        onClose={() => setOpen(false)}
+        testID={`push-group-sheet-${org.id}`}
+      />
+    </>
   );
 }

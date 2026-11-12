@@ -84,7 +84,6 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
         <GroupSettings
           orgId={org.id}
           uid={uid}
-          isAdmin={isAdmin}
           sociosListVisible={org.sociosListVisible}
           socioPhoneRequired={org.socioPhoneRequired}
           socioEmailRequired={org.socioEmailRequired}

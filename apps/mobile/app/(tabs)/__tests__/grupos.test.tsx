@@ -147,9 +147,10 @@ describe('Grupos tab', () => {
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     expect(getByTestId('stub-consent-unanswered')).toBeTruthy();
-    for (const s of ['charla', 'cuota', 'actas', 'socios', 'ajustes']) {
+    for (const s of ['charla', 'cuota', 'actas', 'socios']) {
       expect(getByTestId(`group-section-${s}`)).toBeTruthy();
     }
+    expect(queryByTestId('group-section-ajustes')).toBeNull();
     expect(getByTestId('group-actions')).toHaveTextContent(/groups\.home\.actions/);
     expect(queryByTestId('group-section-cobros')).toBeNull();
     fireEvent.press(getByTestId('group-section-cuota'));
@@ -298,7 +299,7 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
-    expect(order).toEqual(['charla', 'cuota', 'socios', 'ajustes', 'cobros', 'mensajes', 'registros']);
+    expect(order).toEqual(['charla', 'cuota', 'socios', 'cobros', 'mensajes', 'registros', 'ajustes']);
     expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
     expect(getByTestId('group-section-charla').props.accessibilityHint).toBeUndefined();
     fireEvent.press(getByTestId('group-section-registros'));
