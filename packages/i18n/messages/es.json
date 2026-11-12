@@ -1975,27 +1975,38 @@
       },
       "error": "No se ha podido completar. Inténtalo de nuevo.",
       "admin": {
-        "notConfigured": "Todavía no hay cuota. Configúrala para anotar pagos y que cada socio vea cómo pagar.",
+        "notConfigured": "Todavía no hay cuota.",
         "configure": "Configurar la cuota",
-        "editSettings": "Ajustes",
         "summary": "{amount} · {periodicity} · vence el {due}",
-        "remindersOn": "Recordatorios activos, firmados por {name}",
-        "remindersOff": "Recordatorios desactivados",
+        "remindersOn": "Firmados por {name}",
         "prevPeriod": "Periodo anterior",
         "nextPeriod": "Periodo siguiente",
-        "filterAll": "Todos ({count})",
-        "filterStatus": "{label} ({count})",
         "recordPayment": "Anotar pago",
-        "assign": "Cuota",
-        "showHistory": "Ver pagos",
-        "hideHistory": "Ocultar pagos",
+        "assign": "Cambiar tarifa",
         "reverse": "Anular",
         "confirmReverseTitle": "Anular el pago",
         "confirmReverseBody": "Se anotará una anulación de {amount}. El pago queda en el historial.",
         "reminderSent": "Recordatorio enviado el {date}",
-        "empty": "No hay socios en este periodo.",
-        "exportTitle": "Exportar la cuota",
-        "exportBody": "{count, plural, one {1 socio} other {# socios}} del periodo {period}."
+        "empty": "Nadie en esta lista.",
+        "more": "Más opciones",
+        "ofTotal": "de {total}",
+        "ofPaid": "de {count} pagadas",
+        "search": "Buscar socio",
+        "paid": "Pagó",
+        "payRest": "Anotar el resto",
+        "filters": {
+          "pending": "Por pagar {count}",
+          "vencida": "Vencidas {count}",
+          "paid": "Pagadas {count}",
+          "exempt": "Exentos {count}"
+        },
+        "menu": {
+          "settings": "Configurar",
+          "exportXlsx": "Exportar a Excel",
+          "exportCsv": "Exportar a CSV",
+          "remindersOn": "Activar recordatorios",
+          "remindersOff": "Desactivar recordatorios"
+        }
       },
       "settings": {
         "title": "Ajustes de la cuota",
@@ -2029,7 +2040,9 @@
         "method": "Forma de pago",
         "date": "Fecha del pago",
         "note": "Nota (opcional)",
-        "save": "Anotar pago"
+        "save": "Anotar pago",
+        "how": "¿Cómo ha pagado?",
+        "other": "Otro importe"
       },
       "assignment": {
         "title": "Cuota de {name}",
@@ -2038,6 +2051,15 @@
         "exempt": "Exento/a",
         "custom": "Importe propio",
         "save": "Guardar"
+      },
+      "desk": {
+        "title": "Cobrar en la mesa",
+        "search": "Nombre o número",
+        "number": "Nº {number}",
+        "owes": "Debe {amount}",
+        "none": "Nadie con ese nombre",
+        "recorded": "Anotado: {name} · {amount}",
+        "tally": "{count, plural, one {1 pago} other {# pagos}} · {cash} en efectivo"
       }
     },
     "events": {

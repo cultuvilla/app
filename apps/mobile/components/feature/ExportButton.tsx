@@ -6,12 +6,11 @@ import { HStack } from '../primitives/HStack';
 import { Text } from '../primitives/Text';
 import { Pressable } from '../primitives/Pressable';
 import { Button } from '../primitives/Button';
-import { toCsv, type RosterExportModel } from '@cultuvilla/shared/export/rosterExport';
+import type { RosterExportModel } from '@cultuvilla/shared/export/rosterExport';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { observability } from '@cultuvilla/shared';
 import { useT } from '../../lib/i18n';
-import { downloadFile } from '../../lib/export/downloadFile';
-import { buildRosterWorkbook, XLSX_MIME } from '../../lib/export/rosterWorkbook';
+import { runExport, type ExportFormat } from '../../lib/export/runExport';
 
 export interface ExportButtonProps {
   /** Builds the table on press, so an unopened sheet costs nothing. */
@@ -42,18 +41,11 @@ export function ExportButton({ buildModel, title, body, accessibilityLabel, test
   const [failed, setFailed] = useState(false);
 
   const run = useCallback(
-    async (format: 'xlsx' | 'csv') => {
+    async (format: ExportFormat) => {
       setBusy(format);
       setFailed(false);
       try {
-        const model = buildModel();
-        if (format === 'csv') {
-          await downloadFile(toCsv(model), `${model.fileName}.csv`, 'text/csv;charset=utf-8');
-        } else {
-          // buildRosterWorkbook itself defers ExcelJS behind a dynamic import,
-          // so the heavy dependency still stays out of the initial bundle.
-          await downloadFile(await buildRosterWorkbook(model), `${model.fileName}.xlsx`, XLSX_MIME);
-        }
+        await runExport(buildModel(), format);
         setOpen(false);
       } catch (error) {
         setFailed(true);
