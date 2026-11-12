@@ -176,3 +176,50 @@ export function actaText(acta: ActaData, orgName: string): string {
 
   return `${lines.join('\n')}\n`;
 }
+
+export interface ActasExportInput {
+  orgName: string;
+  actas: ActaData[];
+  generatedAt?: Date;
+}
+
+/** Every acta, oldest meeting first, one row each: the libro de actas as a table. */
+export function buildActasExport(input: ActasExportInput): RosterExportModel {
+  const { orgName, generatedAt = new Date() } = input;
+  const columns: RosterColumn[] = [
+    { key: 'date', header: 'Fecha', type: 'dateOnly', width: 14 },
+    { key: 'body', header: 'Órgano', type: 'text', width: 20 },
+    { key: 'title', header: 'Título', type: 'text', width: 28 },
+    { key: 'place', header: 'Lugar', type: 'text', width: 22 },
+    { key: 'attendees', header: 'Asistentes', type: 'number', width: 12 },
+    { key: 'agenda', header: 'Orden del día', type: 'text', width: 50 },
+    { key: 'agreements', header: 'Acuerdos', type: 'text', width: 60 },
+    { key: 'visible', header: 'Visible para los socios', type: 'boolean', width: 12 },
+  ];
+  const numbered = (items: string[]) => (items.length === 0 ? null : items.map((item, i) => `${String(i + 1)}. ${item}`).join('\n'));
+  const ordered = [...input.actas].sort((a, b) => a.heldOn.localeCompare(b.heldOn) || a.createdAt.getTime() - b.createdAt.getTime());
+  const rows: RosterCell[][] = ordered.map((a) => [
+    dayCell(a.heldOn),
+    ACTA_BODY_LABEL[a.body],
+    a.title,
+    a.place,
+    a.attendees.length + a.otherAttendees,
+    numbered(a.agenda),
+    numbered(a.agreements),
+    a.visibleToSocios,
+  ]);
+  return {
+    fileName: `actas-${safeFileSegment(orgName)}`,
+    title: `Actas — ${orgName}`,
+    subtitle: `Generado: ${formatDate(generatedAt, 'datetime')}`,
+    sheetName: 'Actas',
+    columns,
+    rows,
+    summary: `Actas: ${String(ordered.length)}`,
+  };
+}
+
+/** The file "Exportar todo" writes: the libro, the actas and the accounts, one sheet each. */
+export function recordsBundleFileName(orgName: string): string {
+  return `registros-${safeFileSegment(orgName)}`;
+}

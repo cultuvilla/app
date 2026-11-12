@@ -1,11 +1,16 @@
 import { Alert, Share } from 'react-native';
 import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
-import { buildActaData, buildLedgerEntryData, buildSocioData, type SocioDataInput } from '@cultuvilla/shared/models/organization';
+import { buildActaData, buildGroupTaskData, buildLedgerEntryData, buildSocioData, type SocioDataInput } from '@cultuvilla/shared/models/organization';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import { createActa, deleteActa, recordLedgerEntry, reverseLedgerEntry, updateActa } from '@cultuvilla/shared/services/recordsService';
+import { router } from 'expo-router';
 import { downloadFile } from '../../../../lib/export/downloadFile';
+import { buildWorkbook } from '../../../../lib/export/rosterWorkbook';
 import { latestWatcher, resetWatchers, setWatched } from '../../../../test/watchers';
 import { RecordsAdmin } from '../RecordsAdmin';
+import { ActasAdmin } from '../ActasAdmin';
+import { LibroSocios } from '../LibroSocios';
+import { YearSummaryAdmin } from '../YearSummaryAdmin';
 import { MyActas } from '../MyActas';
 
 jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
@@ -24,6 +29,7 @@ jest.mock('../../../../lib/export/rosterWorkbook', () => ({
   __esModule: true,
   XLSX_MIME: 'application/xlsx-test',
   buildRosterWorkbook: jest.fn().mockResolvedValue(new ArrayBuffer(1)),
+  buildWorkbook: jest.fn().mockResolvedValue(new ArrayBuffer(2)),
 }));
 jest.mock('@cultuvilla/shared/services/recordsService', () => {
   const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
@@ -40,6 +46,9 @@ jest.mock('@cultuvilla/shared/services/recordsService', () => {
 });
 jest.mock('@cultuvilla/shared/services/cuotaService', () => ({
   watchCuotaPaymentsForYear: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('cuotaYear'),
+}));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
+  watchOpenGroupTasks: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('tasks'),
 }));
 jest.mock('@cultuvilla/shared/services/socioService', () => ({
   watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
@@ -75,7 +84,28 @@ function pressConfirm() {
   buttons.at(-1)?.onPress?.();
 }
 
-const renderAdmin = () => render(<RecordsAdmin orgId="org1" orgName="La Anduela" uid="u-admin" />);
+const renderFolder = () => render(<RecordsAdmin orgId="org1" orgName="La Anduela" />);
+const renderLibro = () => render(<LibroSocios orgId="org1" orgName="La Anduela" />);
+const renderActas = () => render(<ActasAdmin orgId="org1" orgName="La Anduela" uid="u-admin" />);
+const renderYear = () => render(<YearSummaryAdmin orgId="org1" orgName="La Anduela" uid="u-admin" />);
+
+function dayFromToday(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return madridDayKey(d);
+}
+
+function asambleaTask(dueOn: string) {
+  return {
+    id: 't1',
+    ...buildGroupTaskData({
+      title: 'Asamblea general anual',
+      dueOn,
+      recurrence: { kind: 'calendar', unit: 'year', interval: 1, anchorOn: dueOn },
+      createdBy: 'u-admin',
+    }),
+  };
+}
 
 beforeEach(() => {
   resetWatchers();
@@ -87,6 +117,7 @@ beforeEach(() => {
     socio('Carla', { uid: 'u-carla', socioNumber: 57, altaAt: new Date('2022-01-01') }),
   ]);
   setWatched('actas', [ACTA]);
+  setWatched('tasks', []);
   setWatched('ledger', [EXPENSE]);
   setWatched('cuotaYear', [
     { id: 'c1', socioId: 'Ana', periodKey: YEAR, kind: 'payment', reversesId: null, amountCents: 3000, method: 'bizum', paidOn: `${YEAR}-01-10`, note: null, recordedBy: 'u-admin', recordedAt: new Date() },
@@ -94,39 +125,75 @@ beforeEach(() => {
 });
 
 describe('Registros', () => {
-  it('groups the libro, the actas and the year under one section', () => {
-    const { getByTestId } = renderAdmin();
-    const section = getByTestId('records-admin');
-    expect(within(section).getByTestId('libro-socios')).toBeTruthy();
-    expect(within(section).getByTestId('actas-admin')).toBeTruthy();
-    expect(within(section).getByTestId('year-summary')).toBeTruthy();
-    expect(within(getByTestId('year-totals')).getByText('groups.records.year.cuotas')).toBeTruthy();
+  it('opens three doors, each with its line, and no checklist with no asamblea near', () => {
+    const { getByTestId, queryByTestId } = renderFolder();
+    expect(within(getByTestId('records-admin')).getByTestId('records-door-libro')).toHaveTextContent(/groups\.records\.libro\.summary:2\|1/);
+    expect(getByTestId('records-door-actas')).toHaveTextContent(/groups\.records\.doors\.lastActa:groups\.records\.actas\.body\.asamblea_general/);
+    expect(getByTestId('records-door-cuentas')).toHaveTextContent(new RegExp(`groups\\.records\\.doors\\.cuentasYear:${YEAR}`));
+    expect(getByTestId('records-door-cuentas')).toHaveTextContent(/groups\.records\.doors\.balance:-90,00/);
+    expect(queryByTestId('asamblea-checklist')).toBeNull();
+    fireEvent.press(getByTestId('records-door-cuentas'));
+    expect(router.push).toHaveBeenCalledWith('/grupos/org1/registros/cuentas');
+  });
+
+  it('lists what the asamblea still needs, each line opening its door', () => {
+    setWatched('tasks', [asambleaTask(dayFromToday(10))]);
+    setWatched('socios', [socio('Ana', { socioNumber: 1 }), socio('Pepe', {})]);
+    const { getByTestId } = renderFolder();
+    expect(getByTestId('asamblea-check-libro')).toHaveTextContent(/groups\.records\.asamblea\.libroUnnumbered:1/);
+    expect(getByTestId('asamblea-check-acta')).toHaveTextContent(/groups\.records\.asamblea\.acta(Hidden|Missing)/);
+    expect(getByTestId('asamblea-check-cuentas')).toHaveTextContent(/groups\.records\.asamblea\.cuentasOk/);
+    fireEvent.press(getByTestId('asamblea-check-libro'));
+    expect(router.push).toHaveBeenCalledWith('/grupos/org1/registros/libro');
+  });
+
+  it('hides the checklist while the asamblea is still far', () => {
+    setWatched('tasks', [asambleaTask(dayFromToday(90))]);
+    expect(renderFolder().queryByTestId('asamblea-checklist')).toBeNull();
+  });
+
+  it('exports the libro, the actas and the accounts in one workbook', async () => {
+    setWatched('tasks', [asambleaTask(dayFromToday(5))]);
+    const { getByTestId } = renderFolder();
+    fireEvent.press(getByTestId('asamblea-export-all'));
+    await waitFor(() => expect(downloadFile).toHaveBeenCalledWith(expect.any(ArrayBuffer), 'registros-la-anduela.xlsx', 'application/xlsx-test'));
+    const models = jest.mocked(buildWorkbook).mock.calls[0]![0];
+    expect(models.map((m) => m.sheetName)).toEqual(['Libro de socios', 'Actas', expect.stringMatching(/^Cuentas \d{4}$/)]);
+  });
+
+  it('says so when the export fails', async () => {
+    setWatched('tasks', [asambleaTask(dayFromToday(5))]);
+    jest.mocked(downloadFile).mockRejectedValueOnce(new Error('no share'));
+    const { getByTestId } = renderFolder();
+    fireEvent.press(getByTestId('asamblea-export-all'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
   });
 
   it('exports the libro and the year as Excel', async () => {
-    const { getByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('libro-export'));
-    fireEvent.press(getByTestId('libro-export-xlsx'));
+    const libro = renderLibro();
+    fireEvent.press(libro.getByTestId('libro-export'));
+    fireEvent.press(libro.getByTestId('libro-export-xlsx'));
     await waitFor(() => expect(downloadFile).toHaveBeenCalledWith(expect.any(ArrayBuffer), 'libro-socios-la-anduela.xlsx', 'application/xlsx-test'));
-    fireEvent.press(getByTestId('year-export'));
-    fireEvent.press(getByTestId('year-export-xlsx'));
+    libro.unmount();
+    const year = renderYear();
+    fireEvent.press(year.getByTestId('year-export'));
+    fireEvent.press(year.getByTestId('year-export-xlsx'));
     await waitFor(() => expect(downloadFile).toHaveBeenCalledWith(expect.any(ArrayBuffer), `cuentas-${YEAR}-la-anduela.xlsx`, 'application/xlsx-test'));
   });
 });
 
 describe('Libro de socios', () => {
-  it('counts altas and bajas, and lists every row by alta with its socio number once opened', () => {
-    const { getByTestId, queryByTestId } = renderAdmin();
-    expect(getByTestId('libro-socios')).toHaveTextContent(/groups\.records\.libro\.summary:2\|1/);
-    expect(queryByTestId('libro-row-Benito')).toBeNull();
-    fireEvent.press(getByTestId('libro-toggle'));
+  it('counts altas and bajas, and lists every row by alta with its socio number', () => {
+    const { getByTestId } = renderLibro();
+    expect(within(getByTestId('libro-socios')).getByTestId('libro-row-Ana')).toBeTruthy();
+    expect(getByTestId('libro-summary')).toHaveTextContent(/groups\.records\.libro\.summary:2\|1/);
     expect(getByTestId('libro-row-Benito')).toHaveTextContent(/^Benito/);
     expect(getByTestId('libro-row-Benito')).toHaveTextContent(/groups\.records\.libro\.altaBaja/);
     expect(getByTestId('libro-row-Carla')).toHaveTextContent(/^groups\.records\.libro\.numbered:57\|Carla/);
   });
 
   it('exports the libro as CSV', async () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderLibro();
     fireEvent.press(getByTestId('libro-export'));
     fireEvent.press(getByTestId('libro-export-csv'));
     await waitFor(() =>
@@ -137,7 +204,7 @@ describe('Libro de socios', () => {
 
 describe('Actas', () => {
   it('writes an acta with the socios present, the agenda and the acuerdos, one per line', async () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderActas();
     fireEvent.press(getByTestId('acta-new'));
     fireEvent.press(getByTestId('acta-body-junta_directiva'));
     fireEvent.changeText(getByTestId('acta-place'), 'Bar de la plaza');
@@ -164,7 +231,7 @@ describe('Actas', () => {
   });
 
   it('ticks every active socio or none, and keeps the optional title and the chosen body', async () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderActas();
     fireEvent.press(getByTestId('acta-new'));
     expect(getByTestId('acta-sheet')).toBeTruthy();
     expect(within(getByTestId('acta-body')).getByTestId('acta-body-asamblea_general')).toBeTruthy();
@@ -184,7 +251,7 @@ describe('Actas', () => {
   });
 
   it('offers only active socios to tick, and refuses a non-numeric count', () => {
-    const { getByTestId, queryByTestId } = renderAdmin();
+    const { getByTestId, queryByTestId } = renderActas();
     fireEvent.press(getByTestId('acta-new'));
     expect(queryByTestId('acta-attendee-Benito')).toBeNull();
     fireEvent.changeText(getByTestId('acta-others'), 'dos');
@@ -194,7 +261,7 @@ describe('Actas', () => {
 
   it('opens an acta, shares its text, and shares it with the socios through an edit', async () => {
     const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderActas();
     expect(getByTestId('acta-row-a1')).toHaveTextContent(/groups\.records\.actas\.hidden/);
     fireEvent.press(getByTestId('acta-row-a1'));
     expect(within(getByTestId('acta-detail-scroll')).getByText('1. Se aprueban las cuentas')).toBeTruthy();
@@ -210,7 +277,8 @@ describe('Actas', () => {
   });
 
   it('deletes an acta after confirming', async () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderActas();
+    expect(within(getByTestId('actas-admin')).getByTestId('acta-row-a1')).toBeTruthy();
     fireEvent.press(getByTestId('acta-row-a1'));
     fireEvent.press(getByTestId('acta-delete'));
     expect(deleteActa).not.toHaveBeenCalled();
@@ -221,14 +289,15 @@ describe('Actas', () => {
 
 describe('Cuentas del año', () => {
   it('adds the cuota income to the other entries and shows the balance', () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderYear();
     expect(latestWatcher('ledger').args).toEqual(['org1', YEAR]);
-    expect(getByTestId('year-balance')).toHaveTextContent(/-90,00/);
+    expect(within(getByTestId('year-summary')).getByTestId('year-balance')).toHaveTextContent(/-90,00/);
+    expect(within(getByTestId('year-totals')).getByText('groups.records.year.cuotas')).toBeTruthy();
     expect(getByTestId('ledger-entry-e1')).toHaveTextContent(/Orquesta/);
   });
 
   it('notes an expense, and reverses a wrong one after confirming', async () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderYear();
     fireEvent.press(getByTestId('ledger-add'));
     fireEvent.changeText(getByTestId('ledger-amount'), '45,50');
     fireEvent.press(getByTestId('ledger-save'));
@@ -245,7 +314,7 @@ describe('Cuentas del año', () => {
   });
 
   it('notes an income with its category', async () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderYear();
     fireEvent.press(getByTestId('ledger-add'));
     expect(within(getByTestId('ledger-sheet')).getByTestId('ledger-scroll')).toBeTruthy();
     fireEvent.press(within(getByTestId('ledger-kind')).getByTestId('ledger-kind-income'));
@@ -263,7 +332,7 @@ describe('Cuentas del año', () => {
   });
 
   it('never steps past the current year', () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderYear();
     expect(getByTestId('year-label')).toHaveTextContent(YEAR);
     fireEvent.press(getByTestId('year-next'));
     expect(getByTestId('year-label')).toHaveTextContent(YEAR);
@@ -273,7 +342,7 @@ describe('Cuentas del año', () => {
   });
 
   it('steps back a year and exports the summary', async () => {
-    const { getByTestId } = renderAdmin();
+    const { getByTestId } = renderYear();
     fireEvent.press(getByTestId('year-prev'));
     expect(latestWatcher('ledger').args).toEqual(['org1', String(Number(YEAR) - 1)]);
     fireEvent.press(getByTestId('year-export'));
