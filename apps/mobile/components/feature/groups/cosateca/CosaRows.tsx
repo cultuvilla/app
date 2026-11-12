@@ -21,7 +21,7 @@ export function Badge({ label, strong = false, testID }: { label: string; strong
   );
 }
 
-/** One cosa in a catalogue: its photo, what it is, who offers it, and whether it can be asked for. */
+/** One cosa in a catalogue: its photo, what it is, who offers it, where it is kept, and whether it can be asked for. */
 export function CosaRow({ cosa, subtitle, onPress }: { cosa: Cosa; subtitle?: string; onPress: () => void }) {
   const { t } = useT();
   const free = cosaAvailability(cosa) === 'available';
@@ -48,8 +48,19 @@ export function CosaRow({ cosa, subtitle, onPress }: { cosa: Cosa; subtitle?: st
           <Text variant="caption" tone="muted" numberOfLines={1}>
             {subtitle ?? cosaOwnerLabel(t, cosa)}
           </Text>
+          {cosa.locationNote ? (
+            <HStack gap={1} className="items-center">
+              <Ionicons name="location-outline" size={iconSizes.sm} color={palette.terracotta} />
+              <Text variant="caption" tone="muted" numberOfLines={1} className="flex-1" testID={`cosa-row-where-${cosa.id}`}>
+                {cosa.locationNote}
+              </Text>
+            </HStack>
+          ) : null}
           <HStack gap={2} className="items-center flex-wrap">
             <Badge label={t(`groups.cosateca.kinds.${cosa.kind}`)} />
+            {cosa.mode === 'colectivizado' ? (
+              <Badge label={t('groups.cosateca.modes.colectivizado')} testID={`cosa-row-colectivizado-${cosa.id}`} />
+            ) : null}
             <Text variant="caption" tone={free ? 'success' : 'muted'} testID={`cosa-row-state-${cosa.id}`}>
               {cosaAvailabilityLabel(t, cosa)}
             </Text>

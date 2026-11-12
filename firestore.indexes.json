@@ -139,6 +139,22 @@
       ]
     },
     {
+      "collectionGroup": "cosaRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "holderUid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cosaRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "holderUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [

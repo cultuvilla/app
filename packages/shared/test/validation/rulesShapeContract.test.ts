@@ -117,8 +117,9 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
         kind: 'prestamo', title: 'Taladro', category: 'herramientas', createdBy: 'u1',
       }),
     ruleKeys: [
-      'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'title', 'description',
-      'category', 'imageURL', 'conditions', 'status', 'heldBy', 'reserva', 'createdBy', 'createdAt', 'updatedAt',
+      'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'mode', 'title', 'description',
+      'category', 'imageURL', 'conditions', 'location', 'locationNote', 'status', 'heldBy', 'reserva',
+      'createdBy', 'createdAt', 'updatedAt',
     ],
   },
   {
@@ -129,9 +130,9 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
         ownerUid: 'u1', requesterUid: 'u2', requesterName: 'Luis',
       }),
     ruleKeys: [
-      'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'ownerUid', 'requesterUid', 'requesterName',
-      'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt', 'closedAt', 'overdueNotifiedOn',
-      'startAt', 'endAt',
+      'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'cosaMode', 'ownerUid', 'holderUid',
+      'requesterUid', 'requesterName', 'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt',
+      'closedAt', 'overdueNotifiedOn', 'startAt', 'endAt',
     ],
   },
   {

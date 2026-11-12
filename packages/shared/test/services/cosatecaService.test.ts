@@ -77,10 +77,17 @@ describe('cosatecaService', () => {
   });
 
   it('updateCosa edits only what its manager may change', async () => {
-    await updateCosa('c1', { kind: 'regalo', title: 'Sofá ', description: null, category: 'otros', imageURL: null, conditions: ' ', status: 'paused', reserva: null });
+    const location = { coordinates: { lat: 40, lng: -3 }, displayName: 'Plaza' };
+    await updateCosa('c1', {
+      kind: 'regalo', mode: null, title: 'Sofá ', description: null, category: 'otros', imageURL: null, conditions: ' ',
+      location, locationNote: ' en el portal ', status: 'paused', reserva: null,
+    });
     const [ref, data] = vi.mocked(updateDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(pathOf(ref)).toBe('cosas/c1');
-    expect(data).toEqual({ kind: 'regalo', title: 'Sofá', description: null, category: 'otros', imageURL: null, conditions: null, status: 'paused', reserva: null, updatedAt: 'SERVER_TS' });
+    expect(data).toEqual({
+      kind: 'regalo', mode: null, title: 'Sofá', description: null, category: 'otros', imageURL: null, conditions: null,
+      location, locationNote: 'en el portal', status: 'paused', reserva: null, updatedAt: 'SERVER_TS',
+    });
   });
 
   it('requestCosa writes a pending request', async () => {
@@ -146,18 +153,29 @@ describe('cosatecaService', () => {
     const onNext = vi.fn();
     watchCosaRequestsToAnswer('u1', ['o1', 'o2'], onNext, vi.fn());
     expect(where).toHaveBeenCalledWith('ownerUid', '==', 'u1');
+    expect(where).toHaveBeenCalledWith('holderUid', '==', 'u1');
     expect(where).toHaveBeenCalledWith('ownerUid', '==', null);
-    expect(listeners).toHaveLength(3);
-    const snap = (rows: { id: string; at: number }[]) => ({
-      docs: rows.map((r) => ({ id: r.id, data: () => ({ createdAt: new Date(r.at), status: 'pending', cosaKind: 'prestamo', startAt: null }) })),
+    // Mine, the colectivizado cosas I hold, and one per group.
+    expect(listeners).toHaveLength(4);
+    const snap = (rows: { id: string; at: number; holderUid?: string | null }[]) => ({
+      docs: rows.map((r) => ({
+        id: r.id,
+        data: () => ({ createdAt: new Date(r.at), status: 'pending', cosaKind: 'prestamo', startAt: null, holderUid: r.holderUid ?? null }),
+      })),
       metadata: { fromCache: false, hasPendingWrites: false },
     });
-    listeners[0]?.(snap([{ id: 'a', at: 1 }]));
-    listeners[1]?.(snap([{ id: 'b', at: 3 }]));
+    listeners[0]?.(snap([{ id: 'a', at: 1 }, { id: 'heldByOther', at: 5, holderUid: 'u9' }]));
+    listeners[1]?.(snap([{ id: 'held', at: 4, holderUid: 'u1' }]));
+    listeners[2]?.(snap([{ id: 'b', at: 3 }]));
     expect(onNext).not.toHaveBeenCalled();
     // An org whose admin rights went answers empty instead of failing the merge.
-    errors[2]?.(Object.assign(new Error('denied'), { code: 'permission-denied' }));
-    expect(onNext).toHaveBeenLastCalledWith([expect.objectContaining({ id: 'b' }), expect.objectContaining({ id: 'a' })]);
+    errors[3]?.(Object.assign(new Error('denied'), { code: 'permission-denied' }));
+    // A colectivizado cosa someone else holds is theirs to answer, not mine.
+    expect(onNext).toHaveBeenLastCalledWith([
+      expect.objectContaining({ id: 'held' }),
+      expect.objectContaining({ id: 'b' }),
+      expect.objectContaining({ id: 'a' }),
+    ]);
   });
 
   it('watchCosaRequestsToAnswer leaves out a booking whose slot has started', () => {
@@ -169,8 +187,9 @@ describe('cosatecaService', () => {
     const onNext = vi.fn();
     watchCosaRequestsToAnswer('u1', [], onNext, vi.fn());
     const row = (id: string, startAt: Date | null, cosaKind: string) => ({
-      id, data: () => ({ createdAt: new Date(1), status: 'pending', cosaKind, startAt }),
+      id, data: () => ({ createdAt: new Date(1), status: 'pending', cosaKind, startAt, holderUid: null }),
     });
+    listeners[1]?.({ docs: [], metadata: { fromCache: false, hasPendingWrites: false } });
     listeners[0]?.({
       docs: [
         row('loan', null, 'prestamo'),

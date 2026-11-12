@@ -2323,6 +2323,14 @@
         "regalo": "Se da para siempre.",
         "reserva": "Se reserva por horas: una pista, una sala."
       },
+      "modes": {
+        "prestamo": "Préstamo",
+        "colectivizado": "Colectivizado"
+      },
+      "modeHints": {
+        "prestamo": "Quien lo coge te lo devuelve.",
+        "colectivizado": "Es de todos: pasa de mano en mano y nadie lo devuelve. Quien lo tenga se lo pasa al siguiente que lo pida."
+      },
       "availability": {
         "available": "Disponible",
         "lent": "La tiene {name}",
@@ -2345,6 +2353,10 @@
         "description": "Descripción",
         "conditions": "Condiciones",
         "conditionsHint": "Por ejemplo: «devolver limpia». Nunca dinero.",
+        "mode": "Cómo se comparte",
+        "location": "Dónde está (opcional)",
+        "locationNote": "Detalle de dónde está (opcional)",
+        "locationNotePlaceholder": "Almacén del ayuntamiento, estante 2",
         "category": "Categoría",
         "photo": "Foto",
         "owner": "De quién es",
@@ -2364,6 +2376,9 @@
         "pause": "Poner en pausa",
         "resume": "Volver a ofrecerlo",
         "yours": "Lo ofreces tú.",
+        "where": "Dónde está",
+        "heldSince": "Lo tiene {name} desde el {date}",
+        "youHoldIt": "Lo tienes tú. Cuando alguien lo pida, se lo pasas.",
         "notAvailable": "Ahora no se puede pedir.",
         "alreadyAsked": "Ya lo has pedido.",
         "seeRequest": "Ver mi solicitud",
@@ -2384,7 +2399,8 @@
         "lent": "Prestada",
         "returned": "Devuelta",
         "done": "Hecha",
-        "given": "Entregada"
+        "given": "Entregada",
+        "passed": "Pasada a otra persona"
       },
       "actions": {
         "accept": "Aceptar",
@@ -2393,11 +2409,13 @@
         "lend": "Ya lo he entregado",
         "return": "Ya está devuelto",
         "done": "Marcar como hecho",
-        "give": "Ya lo he entregado"
+        "give": "Ya lo he entregado",
+        "handOver": "Ya se lo he pasado"
       },
       "actionHints": {
         "lend": "Cuando se lo des, márcalo: así la cosateca sabe quién lo tiene.",
-        "return": "Márcalo cuando vuelva a tus manos."
+        "return": "Márcalo cuando vuelva a tus manos.",
+        "handOver": "Cuando se lo des, márcalo: pasa a tenerlo esa persona, que se lo pasará al siguiente."
       },
       "request": {
         "title": "Solicitud",

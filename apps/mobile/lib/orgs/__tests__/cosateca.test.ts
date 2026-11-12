@@ -1,15 +1,21 @@
-import { cosaAvailabilityLabel, cosaOwnerLabel, cosaRequestDatesLabel, cosatecaErrorMessage } from '../cosateca';
+import { cosaAvailabilityLabel, cosaHeldSinceLabel, cosaOwnerLabel, cosaRequestDatesLabel, cosatecaErrorMessage } from '../cosateca';
 
 const t = (k: string, v?: Record<string, string | number>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k);
 
 describe('cosateca labels', () => {
   it('says who has a lent cosa and until when', () => {
-    const heldBy = { requestId: 'r', uid: 'u', name: 'Ana', untilOn: null };
+    const heldBy = { requestId: 'r', uid: 'u', name: 'Ana', untilOn: null, since: new Date('2026-10-03T10:00:00Z') };
     expect(cosaAvailabilityLabel(t, { status: 'available', heldBy })).toBe('groups.cosateca.availability.lent:Ana');
     expect(cosaAvailabilityLabel(t, { status: 'available', heldBy: { ...heldBy, untilOn: '2026-08-03' } })).toMatch(
       /^groups\.cosateca\.availability\.lentUntil:Ana\|/,
     );
     expect(cosaAvailabilityLabel(t, { status: 'paused', heldBy: null })).toBe('groups.cosateca.availability.paused');
+  });
+
+  it('says who has it and since when', () => {
+    expect(cosaHeldSinceLabel(t, { name: 'Ana', since: new Date('2026-10-03T10:00:00Z') })).toMatch(
+      /^groups\.cosateca\.detail\.heldSince:Ana\|.*octubre/,
+    );
   });
 
   it("names the owner, or the group for the group's own", () => {

@@ -141,4 +141,10 @@ describe('sendCosaReminders', () => {
     expect(adminNotices.map((d) => d.data()['title'])).toEqual(['Toca devolver · Ayuntamiento de Villa']);
     expect(await notificationsOf('u-admin2')).toHaveLength(1);
   });
+
+  it('never nudges a colectivizado cosa: it is not coming back', async () => {
+    // A stray return day on one must not wake the job either.
+    await db().doc('cosaRequests/c').set(req({ status: 'lent', untilOn: '2026-07-01', cosaMode: 'colectivizado' }));
+    await expect(runCosaReminders(db(), NOW)).resolves.toEqual({ overdueCount: 0, notificationCount: 0 });
+  });
 });

@@ -29,6 +29,8 @@ jest.mock('../../../components/layout/ScreenHeader', () => ({
     return <Text testID="screen-title">{title}</Text>;
   },
 }));
+// The cosateca's offer sheet pulls in the native map picker.
+jest.mock('../../../components/feature/LocationField', () => ({ LocationField: () => null }));
 jest.mock('../../../components/feature/groups/GroupSectionBody', () => ({
   GroupSectionBody: ({ group, section }: { group: MyGroup; section: string }) => {
     const { Text } = jest.requireActual<typeof import('react-native')>('react-native');

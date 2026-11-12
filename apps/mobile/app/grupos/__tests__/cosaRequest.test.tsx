@@ -138,4 +138,24 @@ describe('a request for a cosa', () => {
     mockRequest = null;
     expect(render(<CosaRequestScreen />).getByTestId('cosa-request-unavailable')).toBeTruthy();
   });
+
+  it("lets a colectivizado cosa's holder hand it on, never take it back, and its owner nothing", async () => {
+    mockRequest = request({ status: 'accepted', cosaMode: 'colectivizado', holderUid: 'pepa', untilOn: null });
+    mockUid = 'pepa';
+    const { getByTestId, getAllByTestId, unmount } = render(<CosaRequestScreen />);
+    expect(actionsOf(getAllByTestId)).toEqual(['cosa-request-decline', 'cosa-request-lend']);
+    expect(getByTestId('cosa-request-lend')).toHaveTextContent('groups.cosateca.actions.handOver');
+    expect(getByTestId('cosa-request-action-hint')).toHaveTextContent('groups.cosateca.actionHints.handOver');
+    fireEvent.press(getByTestId('cosa-request-lend'));
+    await waitFor(() => expect(respondToCosaRequest).toHaveBeenCalledWith('r1', 'lend'));
+    unmount();
+
+    // Once handed over it has nothing left to do: no return.
+    mockRequest = request({ status: 'lent', cosaMode: 'colectivizado', holderUid: 'pepa', untilOn: null });
+    expect(render(<CosaRequestScreen />).queryByTestId('cosa-request-actions')).toBeNull();
+
+    mockRequest = request({ status: 'pending', cosaMode: 'colectivizado', holderUid: 'pepa', untilOn: null });
+    mockUid = 'owner';
+    expect(render(<CosaRequestScreen />).queryByTestId('cosa-request-actions')).toBeNull();
+  });
 });

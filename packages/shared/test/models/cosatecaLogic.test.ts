@@ -5,15 +5,18 @@ import {
   cosaChatPushUids,
   cosaOverdueRecipients,
   cosaDatesOverlap,
+  cosaHolderUid,
+  cosaRequestFlow,
   cosaRequestRoles,
   cosatecaCatalogue,
+  isCosaRequestAnsweredBy,
   usedCosaCategories,
   COSA_CHAT_CLOSE_DAYS,
   isCosaChatOpen,
   isCosaRequestOverdue,
   nextCosaRequestStatus,
 } from '../../src/models/organization/cosatecaLogic';
-import { effectiveCosaAudience } from '../../src/models/organization/CosaDataModel';
+import { buildCosaData, CosaDataSchema, effectiveCosaAudience } from '../../src/models/organization/CosaDataModel';
 import {
   buildCosaRequestData,
   CosaRequestDataSchema,
@@ -102,26 +105,79 @@ describe('cosateca models', () => {
 });
 
 describe('cosaRequestRoles', () => {
-  const req = { ownerUid: 'owner', requesterUid: 'asker' };
+  const req = { ownerUid: 'owner', requesterUid: 'asker', holderUid: null };
   it('makes the owner and any admin of the group its manager', () => {
     expect(cosaRequestRoles(req, { uid: 'owner', isGroupAdmin: false })).toEqual(['manager']);
     expect(cosaRequestRoles(req, { uid: 'admin', isGroupAdmin: true })).toEqual(['manager']);
   });
-  it('makes the asker its requester, and an admin who asked both', () => {
+  it('makes the asker only its requester, an admin who asked included', () => {
     expect(cosaRequestRoles(req, { uid: 'asker', isGroupAdmin: false })).toEqual(['requester']);
-    expect(cosaRequestRoles({ ownerUid: null, requesterUid: 'asker' }, { uid: 'asker', isGroupAdmin: true })).toEqual([
-      'manager',
+    expect(cosaRequestRoles({ ownerUid: null, requesterUid: 'asker', holderUid: null }, { uid: 'asker', isGroupAdmin: true })).toEqual([
       'requester',
     ]);
   });
   it('gives a group cosa no owner to match, and a stranger nothing', () => {
-    expect(cosaRequestRoles({ ownerUid: null, requesterUid: 'asker' }, { uid: 'someone', isGroupAdmin: false })).toEqual([]);
+    expect(cosaRequestRoles({ ownerUid: null, requesterUid: 'asker', holderUid: null }, { uid: 'someone', isGroupAdmin: false })).toEqual([]);
+  });
+  it("hands a held colectivizado cosa's requests to its holder, not its owner", () => {
+    const held = { ownerUid: 'owner', requesterUid: 'asker', holderUid: 'holder' };
+    expect(cosaRequestRoles(held, { uid: 'holder', isGroupAdmin: false })).toEqual(['manager']);
+    expect(cosaRequestRoles(held, { uid: 'owner', isGroupAdmin: false })).toEqual([]);
+    expect(cosaRequestRoles(held, { uid: 'admin', isGroupAdmin: true })).toEqual(['manager']);
+  });
+});
+
+describe('colectivizado', () => {
+  it('is a prestamo that travels: a handover, never a return', () => {
+    expect(cosaRequestFlow('prestamo', 'colectivizado')).toBe('colectivizado');
+    expect(cosaRequestFlow('prestamo', 'prestamo')).toBe('prestamo');
+    expect(cosaRequestFlow('regalo', null)).toBe('regalo');
+    expect(nextCosaRequestStatus('prestamo', 'accepted', 'lend', ['manager'], 'colectivizado')).toEqual({ ok: true, to: 'lent' });
+    expect(nextCosaRequestStatus('prestamo', 'lent', 'return', ['manager'], 'colectivizado')).toEqual({ ok: false, reason: 'not-allowed' });
+    expect(availableCosaRequestActions('prestamo', 'lent', ['manager'], 'colectivizado')).toEqual([]);
+    expect(availableCosaRequestActions('prestamo', 'lent', ['manager'], 'prestamo')).toEqual(['return']);
+  });
+  it('is never overdue', () => {
+    const lent = { status: 'lent' as const, untilOn: '2026-07-01' };
+    expect(isCosaRequestOverdue({ ...lent, cosaMode: 'prestamo' }, '2026-07-05')).toBe(true);
+    expect(isCosaRequestOverdue({ ...lent, cosaMode: 'colectivizado' }, '2026-07-05')).toBe(false);
+  });
+  it('is asked of whoever holds it now; a lent prestamo is still asked of its owner', () => {
+    const heldBy = { requestId: 'r', uid: 'luis', name: 'Luis', untilOn: null, since: new Date() };
+    expect(cosaHolderUid({ mode: 'colectivizado', heldBy })).toBe('luis');
+    expect(cosaHolderUid({ mode: 'colectivizado', heldBy: null })).toBeNull();
+    expect(cosaHolderUid({ mode: 'prestamo', heldBy })).toBeNull();
+  });
+  it("puts a held cosa's requests in its holder's Buzón alone", () => {
+    expect(isCosaRequestAnsweredBy({ holderUid: null }, 'owner')).toBe(true);
+    expect(isCosaRequestAnsweredBy({ holderUid: 'holder' }, 'holder')).toBe(true);
+    expect(isCosaRequestAnsweredBy({ holderUid: 'holder' }, 'owner')).toBe(false);
+  });
+});
+
+describe('buildCosaData', () => {
+  const base = {
+    municipalityId: 'm', orgId: 'o', audience: 'integrantes' as const, ownerUid: 'u1', ownerName: 'Ana',
+    title: 'Taladro', category: 'herramientas' as const, createdBy: 'u1',
+  };
+  it('gives a prestamo a mode (prestamo unless chosen) and every other kind none', () => {
+    expect(buildCosaData({ ...base, kind: 'prestamo' }).mode).toBe('prestamo');
+    expect(buildCosaData({ ...base, kind: 'prestamo', mode: 'colectivizado' }).mode).toBe('colectivizado');
+    expect(buildCosaData({ ...base, kind: 'regalo', mode: 'colectivizado' }).mode).toBeNull();
+  });
+  it('keeps where it is: a pin and a trimmed note, both optional', () => {
+    const location = { coordinates: { lat: 40, lng: -3 }, displayName: 'Plaza Mayor' };
+    const data = buildCosaData({ ...base, kind: 'prestamo', location, locationNote: '  almacén, estante 2 ' });
+    expect(data).toMatchObject({ location, locationNote: 'almacén, estante 2' });
+    expect(CosaDataSchema.safeParse(data).success).toBe(true);
+    expect(buildCosaData({ ...base, kind: 'prestamo', locationNote: '   ' })).toMatchObject({ location: null, locationNote: null });
+    expect(CosaDataSchema.safeParse({ ...data, locationNote: 'x'.repeat(121) }).success).toBe(false);
   });
 });
 
 describe('cosaAvailability', () => {
   it('reads given, out with someone, paused or free', () => {
-    const heldBy = { requestId: 'r', uid: 'u', name: 'Ana', untilOn: null };
+    const heldBy = { requestId: 'r', uid: 'u', name: 'Ana', untilOn: null, since: new Date() };
     expect(cosaAvailability({ status: 'given', heldBy: null })).toBe('given');
     expect(cosaAvailability({ status: 'available', heldBy })).toBe('lent');
     expect(cosaAvailability({ status: 'paused', heldBy })).toBe('lent');

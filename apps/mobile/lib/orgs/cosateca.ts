@@ -16,6 +16,11 @@ export function cosaAvailabilityLabel(t: T, cosa: Pick<CosaData, 'status' | 'hel
   return t(`groups.cosateca.availability.${state}`);
 }
 
+/** "Lo tiene Ana desde el 3 de octubre de 2026": who has it now, and since when. */
+export function cosaHeldSinceLabel(t: T, heldBy: Pick<NonNullable<CosaData['heldBy']>, 'name' | 'since'>): string {
+  return t('groups.cosateca.detail.heldSince', { name: heldBy.name, date: formatDate(heldBy.since, 'long') });
+}
+
 /** Who offers it: its owner's name, or "Del grupo". */
 export function cosaOwnerLabel(t: T, cosa: Pick<CosaData, 'ownerUid' | 'ownerName'>): string {
   return cosa.ownerUid === null ? t('groups.cosateca.ofGroup') : cosa.ownerName;

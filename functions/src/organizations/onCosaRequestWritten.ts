@@ -67,9 +67,11 @@ export function cosaRequestCopy(
     case 'created':
       return {
         title: `Te piden algo · ${orgName}`,
-        body: req.ownerUid === null
-          ? `${req.requesterName} pide ${what}, del grupo${dates(req)}.`
-          : `${req.requesterName} te pide ${what}${dates(req)}.`,
+        body: req.holderUid !== null
+          ? `${req.requesterName} te pide ${what}, que tienes tú ahora${dates(req)}.`
+          : req.ownerUid === null
+            ? `${req.requesterName} pide ${what}, del grupo${dates(req)}.`
+            : `${req.requesterName} te pide ${what}${dates(req)}.`,
       };
     case 'accepted':
       return { title: `Solicitud aceptada · ${orgName}`, body: `Han aceptado tu solicitud de ${what}${dates(req)}.` };
@@ -100,8 +102,15 @@ export function cosaNoticeFor(before: CosaRequestData | null, after: CosaRequest
   }
 }
 
-/** Who answers a request: the cosa's owner, or for a group's cosa the group's admins. */
-export async function cosaManagerUids(firestore: Firestore, req: Pick<CosaRequestData, 'ownerUid' | 'orgId'>): Promise<string[]> {
+/**
+ * Who answers a request: a colectivizado cosa's current holder, else the
+ * cosa's owner, or for a group's cosa the group's admins.
+ */
+export async function cosaManagerUids(
+  firestore: Firestore,
+  req: Pick<CosaRequestData, 'ownerUid' | 'orgId' | 'holderUid'>,
+): Promise<string[]> {
+  if (req.holderUid !== null) return [req.holderUid];
   if (req.ownerUid !== null) return [req.ownerUid];
   const admins = await organizationMembersCollection(firestore, req.orgId).where('role', '==', 'admin').get();
   return admins.docs.map((d) => d.id);

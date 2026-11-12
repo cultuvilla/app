@@ -288,20 +288,30 @@ async function deleteUserChatMessages(uid: string): Promise<number> {
 /**
  * The user's cosateca: the cosas they own, the requests they made and the
  * requests made of their cosas (each names a person and carries free text).
- * A group's cosa they hold is let go (`heldBy` cleared), its request gone.
+ * A group's cosa they hold is let go (`heldBy` cleared), its request gone;
+ * the requests waiting on them as a colectivizado cosa's holder go back to
+ * its owner or the group's admins (`holderUid` cleared).
  */
 async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; cosaRequestsDeleted: number }> {
-  const [owned, asked, askedOfMe, held] = await Promise.all([
+  const [owned, asked, askedOfMe, held, askedOfHolder] = await Promise.all([
     cosasCollection(db).where('ownerUid', '==', uid).get(),
     cosaRequestsCollection(db).where('requesterUid', '==', uid).get(),
     cosaRequestsCollection(db).where('ownerUid', '==', uid).get(),
     cosasCollection(db).where('heldBy.uid', '==', uid).get(),
+    cosaRequestsCollection(db).where('holderUid', '==', uid).get(),
   ]);
   const ownedIds = new Set(owned.docs.map((d) => d.id));
   const heldElsewhere = held.docs.filter((d) => !ownedIds.has(d.id));
   if (heldElsewhere.length > 0) {
     const batch = db.batch();
     for (const d of heldElsewhere) batch.update(d.ref.withConverter(null), { heldBy: null });
+    await batch.commit();
+  }
+  const goneIds = new Set([...asked.docs, ...askedOfMe.docs].map((d) => d.id));
+  const repoint = askedOfHolder.docs.filter((d) => !goneIds.has(d.id));
+  if (repoint.length > 0) {
+    const batch = db.batch();
+    for (const d of repoint) batch.update(d.ref.withConverter(null), { holderUid: null });
     await batch.commit();
   }
   // A booking they made frees its slot; a reserva they own takes its slots with it.
