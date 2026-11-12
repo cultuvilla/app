@@ -71,7 +71,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
     case 'mensajes':
       return <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents />;
     case 'registros':
-      return <RecordsAdmin orgId={org.id} orgName={org.name} uid={uid} />;
+      return <RecordsAdmin orgId={org.id} orgName={org.name} />;
     case 'miembros':
       return (
         <VStack gap={4}>

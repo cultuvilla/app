@@ -2205,11 +2205,28 @@
     "records": {
       "title": "Registros",
       "error": "No se ha podido guardar. Inténtalo de nuevo.",
+      "doors": {
+        "libro": "Libro de socios",
+        "actas": "Actas",
+        "cuentas": "Cuentas",
+        "cuentasYear": "Cuentas de {year}",
+        "lastActa": "Última: {heading}, {date}",
+        "balance": "Saldo {amount}"
+      },
+      "asamblea": {
+        "title": "Asamblea · {date}",
+        "libroOk": "Libro de socios al día",
+        "libroUnnumbered": "{count, plural, one {1 socio sin número} other {# socios sin número}}",
+        "actaOk": "Acta de la asamblea anterior compartida",
+        "actaMissing": "Falta el acta de la asamblea anterior",
+        "actaHidden": "Acta de la asamblea anterior sin compartir",
+        "cuentasOk": "Cuentas de {year}: {count, plural, one {1 movimiento} other {# movimientos}}",
+        "cuentasEmpty": "Cuentas de {year} sin movimientos",
+        "exportAll": "Exportar todo",
+        "exportFailed": "No se ha podido exportar. Inténtalo de nuevo."
+      },
       "libro": {
-        "title": "Libro de socios",
         "summary": "{active, plural, one {1 socio de alta} other {# socios de alta}} · {bajas, plural, one {1 baja} other {# bajas}}",
-        "show": "Ver el libro",
-        "hide": "Ocultar el libro",
         "alta": "Alta el {alta}",
         "altaBaja": "Alta el {alta} · Baja el {baja}",
         "empty": "Todavía no hay socios.",
@@ -2218,7 +2235,6 @@
         "numbered": "Nº {number} · {name}"
       },
       "actas": {
-        "title": "Actas",
         "new": "Nueva acta",
         "empty": "Todavía no hay actas.",
         "body": {
@@ -2259,12 +2275,10 @@
           "agenda": "Orden del día (un punto por línea)",
           "agreements": "Acuerdos (uno por línea)",
           "visible": "Visible para los socios",
-          "visibleHint": "Si lo activas, todos los socios del grupo podrán leer esta acta.",
           "save": "Guardar acta"
         }
       },
       "year": {
-        "title": "Cuentas del año",
         "prev": "Año anterior",
         "next": "Año siguiente",
         "income": "Ingresos",
@@ -2280,7 +2294,6 @@
         "reversed": "Anulado",
         "confirmReverseTitle": "Anular la anotación",
         "confirmReverseBody": "Se anotará una anulación de {amount}. La anotación queda en el historial.",
-        "eventsNote": "Lo cobrado en los eventos no se suma solo: anótalo como ingreso.",
         "exportTitle": "Exportar las cuentas",
         "exportBody": "Ingresos y gastos de {year}, para que los apruebe la asamblea.",
         "noCategory": "Sin categoría",

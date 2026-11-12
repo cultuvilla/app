@@ -185,9 +185,6 @@ export function ActaSheet({
             label={t('groups.records.actas.form.visible')}
             onValueChange={setVisibleToSocios}
           />
-          <Text tone="muted" variant="bodySm">
-            {t('groups.records.actas.form.visibleHint')}
-          </Text>
         </VStack>
       </ScrollView>
     </FormModal>

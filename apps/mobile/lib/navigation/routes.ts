@@ -12,6 +12,7 @@ import {
   groupCosaRequestPath,
   groupPath,
   groupSectionPath,
+  groupRecordsPath,
   newWordPath,
   orgJoinPath,
   personPath,
@@ -23,6 +24,7 @@ import {
   wrappedPath,
   type EntityLinkTarget,
   type GroupSection,
+  type RecordsDoor,
   type UrlEntityKind,
   type VillageSection,
 } from '@cultuvilla/shared/utils';
@@ -89,6 +91,8 @@ export const groupCosaHref = (orgId: string, cosaId: string): HrefPath => href(g
 /** One request for a cosa. */
 export const groupCosaRequestHref = (orgId: string, requestId: string): HrefPath => href(groupCosaRequestPath(orgId, requestId));
 export const groupSectionHref = (orgId: string, section: GroupSection): HrefPath => href(groupSectionPath(orgId, section));
+/** One door of a group's Registros. */
+export const groupRecordsHref = (orgId: string, door: RecordsDoor): HrefPath => href(groupRecordsPath(orgId, door));
 
 export const villageSectionHref = (villageSlug: string, section: VillageSection, query?: string): HrefPath =>
   href(`${villageSectionPath(villageSlug, section)}${query ? `?${query}` : ''}`);

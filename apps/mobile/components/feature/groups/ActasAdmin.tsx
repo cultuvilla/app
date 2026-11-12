@@ -12,7 +12,7 @@ import { ActaSheet } from './ActaSheet';
 
 type Sheet = { kind: 'form'; acta: Acta | null } | { kind: 'detail'; actaId: string } | null;
 
-/** Admins: every acta, newest meeting first; write, correct, share or delete one. */
+/** The Registros' Actas door: every acta, newest meeting first; write, correct, share or delete one. */
 export function ActasAdmin({ orgId, orgName, uid }: { orgId: string; orgName: string; uid: string }) {
   const { t } = useT();
   const actas = useWatch<Acta[]>('groups:watchActas', orgId, (next, error) => watchActas(orgId, next, error));
@@ -37,8 +37,7 @@ export function ActasAdmin({ orgId, orgName, uid }: { orgId: string; orgName: st
 
   return (
     <VStack gap={2} testID="actas-admin">
-      <HStack justify="between" align="center">
-        <Text className="font-bold">{t('groups.records.actas.title')}</Text>
+      <HStack justify="end" align="center">
         <Button size="md" variant="secondary" onPress={() => setSheet({ kind: 'form', acta: null })} testID="acta-new">
           {t('groups.records.actas.new')}
         </Button>
