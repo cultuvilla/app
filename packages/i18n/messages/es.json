@@ -2470,11 +2470,6 @@
       "recipientCount": "{count, plural, one {1 destinatario} other {# destinatarios}}"
     },
     "cosateca": {
-      "tabs": {
-        "catalogo": "Catálogo",
-        "pedi": "Lo que pedí",
-        "mepiden": "Me piden"
-      },
       "allCategories": "Todo",
       "categories": {
         "herramientas": "Herramientas",
@@ -2492,11 +2487,10 @@
         "regalo": "Regalo",
         "reserva": "Reserva"
       },
-      "kindHints": {
-        "prestamo": "Algo que se presta: una escalera, una carpa.",
-        "servicio": "Un favor que haces: no hay nada que devolver.",
-        "regalo": "Se da para siempre.",
-        "reserva": "Se reserva por horas: una pista, una sala."
+      "kindWords": {
+        "servicio": "servicio",
+        "regalo": "se regala",
+        "reserva": "se reserva"
       },
       "availability": {
         "available": "Disponible",
@@ -2505,34 +2499,55 @@
         "paused": "En pausa",
         "given": "Ya entregado"
       },
+      "chip": {
+        "free": "Libre",
+        "until": "hasta {date}",
+        "lent": "Prestada"
+      },
       "ofGroup": "Del grupo",
       "offer": "Ofrecer algo",
+      "search": "Buscar: escalera, paellera…",
+      "noMatches": "Nada con ese nombre.",
+      "active": {
+        "title": "En marcha",
+        "all": "Todo ({count})",
+        "asked": "Te piden «{title}»",
+        "holding": "Tienes «{title}»",
+        "backOn": "Vuelve el {date}",
+        "passOn": "Pásala a quien la pida",
+        "answer": "Responder"
+      },
       "empty": "Aún no hay nada en la cosateca. ¡Ofrece lo primero!",
       "emptyCategory": "Nada en esta categoría.",
-      "noRequestsMine": "No has pedido nada.",
-      "noRequestsToMe": "Nadie te ha pedido nada.",
       "form": {
         "titleNew": "Ofrecer algo",
         "titleEdit": "Editar",
         "kind": "Qué es",
+        "kindSentences": {
+          "prestamo": "La presto",
+          "regalo": "La regalo",
+          "servicio": "Ofrezco un servicio",
+          "reserva": "Se reserva por horas"
+        },
         "name": "Nombre",
         "nameRequired": "Ponle un nombre.",
         "description": "Descripción",
         "conditions": "Condiciones",
-        "conditionsHint": "Por ejemplo: «devolver limpia». Nunca dinero.",
+        "conditionsPlaceholder": "Devolver limpia",
         "location": "Dónde está (opcional)",
         "locationNote": "Detalle de dónde está (opcional)",
         "locationNotePlaceholder": "Almacén del ayuntamiento, estante 2",
         "category": "Categoría",
-        "photo": "Foto",
         "owner": "De quién es",
         "ownerMine": "Mío",
         "ownerGroup": "Del grupo",
-        "ownerHints": {
-          "mine": "Quien lo coge te lo devuelve.",
-          "group": "Pasa de mano en mano y nadie lo devuelve. Desde ese momento lo gestiona el grupo."
-        },
         "save": "Guardar",
+        "publish": "Publicar",
+        "next": "Siguiente",
+        "noPhoto": "Sin foto",
+        "takePhoto": "Hacer foto",
+        "pickPhoto": "Elegir foto",
+        "cameraDenied": "Para hacer la foto, permite la cámara en los ajustes del móvil.",
         "delete": "Quitar de la cosateca",
         "deleteConfirm": "¿Quitarlo de la cosateca? Sus solicitudes quedan como registro."
       },
@@ -2609,7 +2624,9 @@
       },
       "inbox": {
         "title": "Cosateca",
-        "row": "{name} pide «{title}»"
+        "row": "{name} pide «{title}»",
+        "all": "Préstamos y peticiones",
+        "empty": "Aún no hay peticiones."
       },
       "village": {
         "title": "Cosateca del pueblo",
