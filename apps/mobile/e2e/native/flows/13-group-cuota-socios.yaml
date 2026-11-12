@@ -283,11 +283,16 @@ onFlowComplete:
           'email': 'absent',
           'consentAnsweredAt': 'absent'
         }
-# A typed socio's number is corrected in its own edit sheet.
+# A typed socio's number is corrected in its own edit sheet, from its record.
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
-      TARGET: 'socio-edit-${output.typedId}'
+      TARGET: 'socio-row-${output.typedId}'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'socio-row-${output.typedId}'
+      EXPECT: 'socio-sheet'
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
@@ -311,7 +316,7 @@ onFlowComplete:
       EXPECT: ${output.typedNumber}
 - assertTrue: ${output.ok == 'true'}
 - extendedWaitUntil:
-    visible: '.*Nº ${output.typedNumber}.*'
+    visible: '${output.typedNumber}'
     timeout: 15000
 # A member's row is renumbered from its own number sheet.
 - runScript:
@@ -330,7 +335,12 @@ onFlowComplete:
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
-      TARGET: 'socio-number-${output.userSocioId}'
+      TARGET: 'socio-row-${output.userSocioId}'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'socio-row-${output.userSocioId}'
+      EXPECT: 'socio-sheet'
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:

@@ -37,7 +37,12 @@ jest.mock('@cultuvilla/shared/services/socioService', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/cuotaService', () => {
   const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return { saveCuotaSettings: jest.fn().mockResolvedValue(undefined), watchCuotaSettings: mockWatcher('cuota') };
+  return {
+    saveCuotaSettings: jest.fn().mockResolvedValue(undefined),
+    watchCuotaSettings: mockWatcher('cuota'),
+    watchCuotaAssignments: mockWatcher('assignments'),
+    watchCuotaPeriodPayments: mockWatcher('payments'),
+  };
 });
 jest.mock('@cultuvilla/shared/services/groupChatService', () => ({ setGroupChatPush: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
@@ -85,35 +90,122 @@ function renderAdmin() {
   return render(<SociosRoster orgId="org1" canManage adminUids={['u-admin']} currentUid="u-admin" />);
 }
 
+/** Opens a socio's sheet and takes one of its actions. */
+async function take(r: ReturnType<typeof render>, socioId: string, action: string) {
+  fireEvent.press(r.getByTestId(`socio-row-${socioId}`));
+  expect(r.getByTestId('socio-sheet')).toBeTruthy();
+  fireEvent.press(r.getByTestId(`socio-${action}-${socioId}`));
+  await waitFor(() => expect(r.queryByTestId('socio-sheet')).toBeNull());
+}
+
+/** The confirm a sheet action asks for, once the sheet has gone. */
+async function confirmed() {
+  await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
+  pressConfirm();
+}
+
+const CUOTA = {
+  id: 'current',
+  amountCents: 2500,
+  yearAmounts: [],
+  tiers: [],
+  periodicity: 'yearly',
+  startPeriod: '2020',
+  dueMonth: 1,
+  dueDay: 1,
+  remindersEnabled: false,
+  configuredBy: 'x',
+  updatedAt: new Date(),
+};
+
 describe('SociosRoster — admin', () => {
-  it('lists active socios with their kind and the contact data they shared', () => {
-    const { getByTestId, getByText, queryByTestId } = renderAdmin();
-    expect(getByTestId('socios-roster')).toBeTruthy();
-    expect(getByTestId('socio-row-Ana')).toBeTruthy();
-    expect(getByText('600')).toBeTruthy();
-    expect(getByText('611 · paco@x.es')).toBeTruthy();
-    expect(queryByTestId('socio-row-Viejo')).toBeNull();
-    fireEvent.press(getByTestId('socios-toggle-bajas'));
-    expect(getByTestId('socio-row-Viejo')).toBeTruthy();
+  it('lists active socios with their number, and the bajas under their chip', () => {
+    const r = renderAdmin();
+    expect(r.getByTestId('socios-roster')).toBeTruthy();
+    expect(r.getByTestId('socio-row-Ana')).toBeTruthy();
+    expect(r.getByText('12')).toBeTruthy();
+    expect(r.queryByTestId('socio-row-Viejo')).toBeNull();
+    fireEvent.press(r.getByTestId('socios-filter-bajas'));
+    expect(r.getByTestId('socio-row-Viejo')).toBeTruthy();
+    expect(r.queryByTestId('socio-row-Ana')).toBeNull();
+    fireEvent.press(r.getByTestId('socios-filter-sinApp'));
+    expect(r.getByTestId('socio-row-Paco')).toBeTruthy();
+    expect(r.queryByTestId('socio-row-Ana')).toBeNull();
   });
 
-  it("makes another member an admin or takes them out, never on the admin's own row", async () => {
-    const { getByTestId, queryByTestId } = renderAdmin();
-    expect(queryByTestId('socio-role-Tesorera')).toBeNull();
-    expect(queryByTestId('socio-remove-Tesorera')).toBeNull();
-    expect(queryByTestId('socio-role-Paco')).toBeNull();
-    fireEvent.press(getByTestId('socio-role-Ana'));
-    pressConfirm();
+  it('searches the book by name or number', () => {
+    const r = renderAdmin();
+    fireEvent.changeText(r.getByTestId('socios-search'), 'pac');
+    expect(r.getByTestId('socio-row-Paco')).toBeTruthy();
+    expect(r.queryByTestId('socio-row-Ana')).toBeNull();
+    fireEvent.changeText(r.getByTestId('socios-search'), '12');
+    expect(r.getByTestId('socio-row-Paco')).toBeTruthy();
+    fireEvent.changeText(r.getByTestId('socios-search'), 'nadie');
+    expect(r.getByTestId('socios-empty')).toBeTruthy();
+  });
+
+  it("shows the junta each socio's cuota, and who still owes it", () => {
+    setWatched('cuota', CUOTA);
+    setWatched('assignments', []);
+    setWatched('payments', [
+      { id: 'p1', socioId: 'Ana', periodKey: String(new Date().getFullYear()), kind: 'payment', amountCents: 2500, reversesId: null },
+    ]);
+    const r = renderAdmin();
+    expect(r.queryByTestId('socio-cuota-Ana')).toBeNull();
+    expect(r.getByTestId('socio-cuota-Paco')).toBeTruthy();
+    fireEvent.press(r.getByTestId('socios-filter-pendiente'));
+    expect(r.queryByTestId('socio-row-Ana')).toBeNull();
+    expect(r.getByTestId('socio-row-Paco')).toBeTruthy();
+    fireEvent.press(r.getByTestId('socio-row-Paco'));
+    expect(r.getByTestId('socio-sheet-cuota')).toBeTruthy();
+  });
+
+  it('offers no cuota chip while the group has no cuota', () => {
+    const r = renderAdmin();
+    expect(r.queryByTestId('socios-filter-pendiente')).toBeNull();
+  });
+
+  it("opens a socio's record with the contact they shared and every action, the dangerous ones last", () => {
+    const r = renderAdmin();
+    fireEvent.press(r.getByTestId('socio-row-Ana'));
+    expect(r.getByTestId('socio-sheet-contact').props.children).toBe('600');
+    const ids = ['socio-number-Ana', 'socio-role-Ana', 'socio-remove-Ana'];
+    ids.forEach((id) => expect(r.getByTestId(id)).toBeTruthy());
+    expect(r.queryByTestId('socio-baja-Ana')).toBeNull();
+    expect(r.queryByTestId('socio-title-Ana')).toBeNull();
+    fireEvent.press(r.getByTestId('socio-sheet-close'));
+    fireEvent.press(r.getByTestId('socio-row-Paco'));
+    ['socio-edit-Paco', 'socio-link-Paco', 'socio-baja-Paco'].forEach((id) => expect(r.getByTestId(id)).toBeTruthy());
+    expect(r.queryByTestId('socio-number-Paco')).toBeNull();
+  });
+
+  it('offers no action on a baja, nor on the admin\'s own row beyond its number and cargo', () => {
+    const r = renderAdmin();
+    fireEvent.press(r.getByTestId('socio-row-Tesorera'));
+    expect(r.getByTestId('socio-title-Tesorera')).toBeTruthy();
+    expect(r.queryByTestId('socio-role-Tesorera')).toBeNull();
+    expect(r.queryByTestId('socio-remove-Tesorera')).toBeNull();
+    fireEvent.press(r.getByTestId('socio-sheet-close'));
+    fireEvent.press(r.getByTestId('socios-filter-bajas'));
+    fireEvent.press(r.getByTestId('socio-row-Viejo'));
+    expect(r.queryByTestId('socio-number-Viejo')).toBeNull();
+  });
+
+  it('makes another member an admin, then takes them out', async () => {
+    const r = renderAdmin();
+    await take(r, 'Ana', 'role');
+    await confirmed();
     await waitFor(() => expect(setOrgMemberRole).toHaveBeenCalledWith('org1', 'u-ana', 'admin'));
-    fireEvent.press(getByTestId('socio-remove-Ana'));
-    pressConfirm();
+    jest.mocked(Alert.alert).mockClear();
+    await take(r, 'Ana', 'remove');
+    await confirmed();
     await waitFor(() => expect(removeOrgMember).toHaveBeenCalledWith('org1', 'u-ana'));
   });
 
   it('takes the admin away from another admin', async () => {
-    const { getByTestId } = render(<SociosRoster orgId="org1" canManage adminUids={['u-admin', 'u-ana']} currentUid="u-admin" />);
-    fireEvent.press(getByTestId('socio-role-Ana'));
-    pressConfirm();
+    const r = render(<SociosRoster orgId="org1" canManage adminUids={['u-admin', 'u-ana']} currentUid="u-admin" />);
+    await take(r, 'Ana', 'role');
+    await confirmed();
     await waitFor(() => expect(setOrgMemberRole).toHaveBeenCalledWith('org1', 'u-ana', 'member'));
   });
 
@@ -156,83 +248,81 @@ describe('SociosRoster — admin', () => {
     jest.mocked(linkSocioToMember).mockRejectedValueOnce(new Error('failed-precondition'));
     jest.mocked(setSocioAdminTitle).mockRejectedValueOnce(new Error('permission-denied'));
     jest.mocked(setSocioBaja).mockRejectedValueOnce(new Error('permission-denied'));
-    const { getByTestId, queryByTestId } = renderAdmin();
+    const r = renderAdmin();
+    const errors = () => jest.mocked(Alert.alert).mock.calls.filter((c) => c[0] === 'groups.socios.error');
 
-    fireEvent.press(getByTestId('socio-link-Paco'));
-    fireEvent.press(getByTestId('socio-link-sheet-u-ana'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.socios.error'));
-    expect(queryByTestId('socio-link-sheet')).toBeNull();
+    await take(r, 'Paco', 'link');
+    fireEvent.press(await r.findByTestId('socio-link-sheet-u-ana'));
+    await waitFor(() => expect(errors()).toHaveLength(1));
+    expect(r.queryByTestId('socio-link-sheet')).toBeNull();
 
-    fireEvent.press(getByTestId('socio-title-Tesorera'));
-    fireEvent.press(getByTestId('socio-title-sheet-none'));
+    await take(r, 'Tesorera', 'title');
+    fireEvent.press(await r.findByTestId('socio-title-sheet-none'));
     expect(setSocioAdminTitle).toHaveBeenCalledWith('org1', 'Tesorera', null);
-    await waitFor(() => expect(jest.mocked(Alert.alert).mock.calls.filter((c) => c[0] === 'groups.socios.error')).toHaveLength(2));
+    await waitFor(() => expect(errors()).toHaveLength(2));
 
-    fireEvent.press(getByTestId('socio-baja-Paco'));
+    await take(r, 'Paco', 'baja');
+    await waitFor(() => expect(jest.mocked(Alert.alert).mock.calls.at(-1)?.[0]).toBe('groups.socios.confirmBajaTitle'));
     pressConfirm();
-    await waitFor(() => expect(jest.mocked(Alert.alert).mock.calls.filter((c) => c[0] === 'groups.socios.error')).toHaveLength(3));
+    await waitFor(() => expect(errors()).toHaveLength(3));
   });
 
   it('corrects a typed-in socio', async () => {
-    const { getByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('socio-edit-Paco'));
-    fireEvent.changeText(getByTestId('typed-socio-name'), 'Paco Pérez');
-    fireEvent.press(getByTestId('typed-socio-save'));
+    const r = renderAdmin();
+    await take(r, 'Paco', 'edit');
+    fireEvent.changeText(await r.findByTestId('typed-socio-name'), 'Paco Pérez');
+    fireEvent.press(r.getByTestId('typed-socio-save'));
     await waitFor(() =>
       expect(updateTypedSocio).toHaveBeenCalledWith('org1', 'Paco', { displayName: 'Paco Pérez', socioNumber: 12, phone: '611', email: 'paco@x.es' }),
     );
   });
 
   it('numbers a member row, refusing a number another socio has', async () => {
-    const { getByTestId, getByText } = renderAdmin();
-    expect(getByText('groups.socios.numberShort · groups.socios.kindTyped · groups.socios.alta', { exact: false })).toBeTruthy();
-    fireEvent.press(getByTestId('socio-number-Ana'));
-    expect(getByTestId('socio-number-sheet')).toBeTruthy();
-    fireEvent.changeText(getByTestId('socio-number-input'), '12');
-    fireEvent.press(getByTestId('socio-number-save'));
-    expect(getByText('groups.socios.socioNumberTaken')).toBeTruthy();
+    const r = renderAdmin();
+    await take(r, 'Ana', 'number');
+    expect(await r.findByTestId('socio-number-sheet')).toBeTruthy();
+    fireEvent.changeText(r.getByTestId('socio-number-input'), '12');
+    fireEvent.press(r.getByTestId('socio-number-save'));
+    expect(r.getByText('groups.socios.socioNumberTaken')).toBeTruthy();
     expect(setSocioNumber).not.toHaveBeenCalled();
-    fireEvent.changeText(getByTestId('socio-number-input'), '13');
-    fireEvent.press(getByTestId('socio-number-save'));
+    fireEvent.changeText(r.getByTestId('socio-number-input'), '13');
+    fireEvent.press(r.getByTestId('socio-number-save'));
     await waitFor(() => expect(setSocioNumber).toHaveBeenCalledWith('org1', 'Ana', 13));
   });
 
-  it('links a typed-in socio to a member who joined with the app', () => {
-    const { getByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('socio-link-Paco'));
-    expect(getByTestId('socio-link-sheet')).toBeTruthy();
-    fireEvent.press(getByTestId('socio-link-sheet-u-ana'));
+  it('links a typed-in socio to a member who joined with the app', async () => {
+    const r = renderAdmin();
+    await take(r, 'Paco', 'link');
+    expect(await r.findByTestId('socio-link-sheet')).toBeTruthy();
+    fireEvent.press(r.getByTestId('socio-link-sheet-u-ana'));
     expect(linkSocioToMember).toHaveBeenCalledWith('org1', 'Paco', 'u-ana');
   });
 
-  it("gives an admin a title, and only admins' rows offer it", () => {
-    const { getByTestId, queryByTestId } = renderAdmin();
-    expect(queryByTestId('socio-title-Ana')).toBeNull();
-    fireEvent.press(getByTestId('socio-title-Tesorera'));
-    expect(getByTestId('socio-title-sheet')).toBeTruthy();
-    fireEvent.press(getByTestId('socio-title-sheet-presidente'));
+  it('gives an admin a cargo', async () => {
+    const r = renderAdmin();
+    await take(r, 'Tesorera', 'title');
+    expect(await r.findByTestId('socio-title-sheet')).toBeTruthy();
+    fireEvent.press(r.getByTestId('socio-title-sheet-presidente'));
     expect(setSocioAdminTitle).toHaveBeenCalledWith('org1', 'Tesorera', 'presidente');
   });
 
-  it('gives a persona or typed socio the baja after confirming, but never a member row', () => {
-    const { getByTestId, queryByTestId } = renderAdmin();
-    expect(queryByTestId('socio-baja-Ana')).toBeNull();
-    fireEvent.press(getByTestId('socio-baja-Hija'));
-    expect(setSocioBaja).not.toHaveBeenCalled();
-    pressConfirm();
+  it('gives a persona or typed socio the baja after confirming', async () => {
+    const r = renderAdmin();
+    await take(r, 'Hija', 'baja');
+    await confirmed();
     expect(setSocioBaja).toHaveBeenCalledWith('org1', expect.objectContaining({ id: 'Hija', kind: 'persona' }));
   });
 });
 
-describe('SociosRoster — member with the estatutos setting on', () => {
-  it('shows names only, with no contact data or actions', () => {
-    const { getByText, queryByText, queryByTestId } = render(
-      <SociosRoster orgId="org1" canManage={false} adminUids={[]} currentUid="u-ana" />,
-    );
-    expect(getByText('Paco')).toBeTruthy();
-    expect(queryByText('611 · paco@x.es')).toBeNull();
-    expect(queryByTestId('socios-add')).toBeNull();
-    expect(queryByTestId('socio-row-Paco')).toBeNull();
+describe('SociosRoster — member with the list visible', () => {
+  it('shows names only, with no contact, cuota, filters or actions', () => {
+    const r = render(<SociosRoster orgId="org1" canManage={false} adminUids={[]} currentUid="u-ana" />);
+    expect(r.getByText('Paco')).toBeTruthy();
+    expect(r.getByTestId('socios-search')).toBeTruthy();
+    expect(r.queryByTestId('socios-filters')).toBeNull();
+    expect(r.queryByTestId('socios-add')).toBeNull();
+    expect(r.queryByTestId('socio-row-Paco')).toBeNull();
+    expect(r.queryByText('Viejo')).toBeNull();
   });
 });
 

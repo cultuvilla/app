@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
-import { isActiveSocio, ORG_ADMIN_TITLES, socioNumberTaken } from '@cultuvilla/shared/models/organization';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, View } from 'react-native';
+import { ORG_ADMIN_TITLES, socioNumberTaken, isActiveSocio } from '@cultuvilla/shared/models/organization';
 import {
   addTypedSocio,
   linkSocioToMember,
@@ -13,17 +14,30 @@ import {
   type SocioPrivate,
 } from '@cultuvilla/shared/services/socioService';
 import { removeOrgMember, setOrgMemberRole } from '@cultuvilla/shared/services/orgMemberService';
-import { formatDate } from '@cultuvilla/shared/utils';
-import { Button, HStack, Pressable, Text, VStack } from '../../primitives';
+import { Avatar, Button, HStack, Input, Pressable, Text, VStack } from '../../primitives';
+import { DetailSectionHeading } from '../DetailSectionHeading';
+import { FilterPill } from '../FilterPill';
 import { OptionsSheet } from './OptionsSheet';
 import { SocioNumberSheet } from './SocioNumberSheet';
+import { SocioPill } from './SocioPill';
+import { CUOTA_PILL_TONE, SocioSheet, type SocioAction } from './SocioSheet';
 import { TypedSocioSheet, type TypedSocioSaved } from './TypedSocioSheet';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
-import { linkCandidates, responsibleName, visibleSocios } from '../../../lib/orgs/socioRoster';
+import { useOrgCuotaStatuses } from '../../../lib/orgs/useOrgCuotaStatuses';
+import {
+  bookCounts,
+  filterBook,
+  initialsOf,
+  linkCandidates,
+  owesCuota,
+  responsibleName,
+  type BookFilter,
+} from '../../../lib/orgs/socioRoster';
 
 type Sheet =
+  | { kind: 'socio'; socio: Socio }
   | { kind: 'typed'; socio: Socio | null }
   | { kind: 'link'; socio: Socio }
   | { kind: 'title'; socio: Socio }
@@ -31,11 +45,17 @@ type Sheet =
   | null;
 
 /**
- * The group's socio roster. `canManage` (an org admin) sees every row with its
- * contact data and manages it: types in socios without the app, corrects them,
- * links one to a member who later joined, gives the baja, sets admin titles
- * and socio numbers, makes a member an admin or takes them out of the group.
- * Otherwise — a member, while the estatutos setting is on — names only.
+ * iOS will not present a modal (nor an alert) while another is still being
+ * dismissed, so a step out of the socio's sheet waits for it to go.
+ */
+const SHEET_SWAP_MS = 350;
+
+/**
+ * The libro de socios. Everyone who may see it searches it by name or number.
+ * The junta (`canManage`) also filters it — active, cuota pendiente, sin app,
+ * bajas — sees each socio's cuota, and taps a row for that socio's sheet, which
+ * holds their record, their contact and every action on them.
+ * A member, while "Lista de socios visible" is on, sees names only.
  */
 export function SociosRoster({
   orgId,
@@ -55,18 +75,37 @@ export function SociosRoster({
     canManage ? orgId : null,
     canManage ? (next, error) => watchOrgSocioPrivates(orgId, next, error) : null,
   );
-  const [showBajas, setShowBajas] = useState(false);
+  const [filter, setFilter] = useState<BookFilter>('activos');
+  const [query, setQuery] = useState('');
   const [sheet, setSheet] = useState<Sheet>(null);
+  const swap = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (swap.current) clearTimeout(swap.current);
+  }, []);
 
   const rows = useMemo(() => socios.data ?? [], [socios.data]);
-  const shown = useMemo(() => visibleSocios(rows, canManage && showBajas), [rows, canManage, showBajas]);
+  const cuota = useOrgCuotaStatuses(orgId, rows, canManage);
+  const counts = useMemo(() => bookCounts(rows, cuota.statuses), [rows, cuota.statuses]);
+  const shown = useMemo(
+    () => filterBook(rows, canManage ? filter : 'activos', query, cuota.statuses),
+    [rows, canManage, filter, query, cuota.statuses],
+  );
   const contactById = useMemo(() => new Map((privates.data ?? []).map((p) => [p.id, p])), [privates.data]);
-  const activeCount = rows.filter(isActiveSocio).length;
   const admins = useMemo(() => new Set(adminUids), [adminUids]);
 
   if (socios.status !== 'ready') return null;
 
   const fail = () => showAlert(t('groups.socios.error'));
+  const after = (step: () => void) => {
+    setSheet(null);
+    if (swap.current) clearTimeout(swap.current);
+    swap.current = setTimeout(step, SHEET_SWAP_MS);
+  };
+
+  const nameOf = (s: Socio) => s.displayName || t('groups.socios.unnamed');
+  const isAdminRow = (s: Socio) => s.kind === 'member' && s.uid !== null && admins.has(s.uid);
+  // Your own row is never actionable, which avoids a self-lockout.
+  const otherMemberUid = (s: Socio) => (s.kind === 'member' && s.uid !== currentUid ? s.uid : null);
 
   const kindLabel = (s: Socio): string => {
     if (s.kind === 'persona') return t('groups.socios.kindPersona', { name: responsibleName(s, rows) ?? '—' });
@@ -112,6 +151,26 @@ export function SociosRoster({
       { confirmText: t('organization.membersList.remove'), cancelText: t('common.cancel') },
     );
 
+  const act = (s: Socio, action: SocioAction) => {
+    const memberUid = otherMemberUid(s);
+    switch (action) {
+      case 'edit':
+        return after(() => setSheet({ kind: 'typed', socio: s }));
+      case 'link':
+        return after(() => setSheet({ kind: 'link', socio: s }));
+      case 'number':
+        return after(() => setSheet({ kind: 'number', socio: s }));
+      case 'title':
+        return after(() => setSheet({ kind: 'title', socio: s }));
+      case 'baja':
+        return after(() => giveBaja(s));
+      case 'role':
+        return memberUid ? after(() => changeRole(memberUid, nameOf(s), !isAdminRow(s))) : undefined;
+      case 'remove':
+        return memberUid ? after(() => removeMember(memberUid, nameOf(s))) : undefined;
+    }
+  };
+
   const isNumberTaken = (exceptId: string | null) => (socioNumber: number) => socioNumberTaken(rows, socioNumber, exceptId);
 
   const saveTyped = async (values: TypedSocioSaved) => {
@@ -120,113 +179,121 @@ export function SociosRoster({
     else await addTypedSocio(orgId, input, currentUid);
   };
 
+  const chips: { key: BookFilter; label: string }[] = canManage
+    ? [
+        { key: 'activos' as const, label: t('groups.socios.filters.activos', { count: counts.activos }) },
+        ...(cuota.configured ? [{ key: 'pendiente' as const, label: t('groups.socios.filters.pendiente', { count: counts.pendiente }) }] : []),
+        ...(counts.sinApp > 0 ? [{ key: 'sinApp' as const, label: t('groups.socios.filters.sinApp', { count: counts.sinApp }) }] : []),
+        ...(counts.bajas > 0 ? [{ key: 'bajas' as const, label: t('groups.socios.filters.bajas') }] : []),
+      ]
+    : [];
+
+  const pillFor = (s: Socio) => {
+    if (!canManage) return null;
+    if (!isActiveSocio(s)) return <SocioPill tone="plain" label={t('groups.socios.pills.baja')} />;
+    const status = cuota.statuses.get(s.id);
+    if (owesCuota(status) && status) {
+      return <SocioPill tone={CUOTA_PILL_TONE[status.status]} label={t(`groups.socios.pills.${status.status}`)} testID={`socio-cuota-${s.id}`} />;
+    }
+    if (s.kind === 'typed') return <SocioPill tone="plain" label={t('groups.socios.pills.sinApp')} />;
+    return null;
+  };
+
+  const open = sheet?.kind === 'socio' ? sheet.socio : null;
+
   return (
-    <VStack gap={2} testID="socios-roster">
-      {canManage ? (
-        <HStack justify="end">
+    <VStack gap={3} testID="socios-roster">
+      <HStack gap={2} align="center" justify="between">
+        <DetailSectionHeading>{t('groups.socios.book')}</DetailSectionHeading>
+        {canManage ? (
           <Button variant="secondary" testID="socios-add" onPress={() => setSheet({ kind: 'typed', socio: null })}>
             {t('groups.socios.add')}
           </Button>
-        </HStack>
-      ) : null}
-      <Text tone="muted" variant="bodySm">
-        {t('groups.socios.count', { count: activeCount })}
-      </Text>
+        ) : null}
+      </HStack>
 
-      {shown.map((s) => {
-        const active = isActiveSocio(s);
-        const name = s.displayName || t('groups.socios.unnamed');
-        if (!canManage) {
-          return (
-            <Text key={s.id} className="py-1">
-              {name}
-            </Text>
-          );
-        }
-        const contact = contactLine(s);
-        const isAdminRow = s.kind === 'member' && s.uid !== null && admins.has(s.uid);
-        // Your own row is never actionable, which avoids a self-lockout.
-        const otherMemberUid = s.kind === 'member' && s.uid !== currentUid ? s.uid : null;
-        return (
-          <VStack key={s.id} gap={1} className="py-2 border-b border-subtle" testID={`socio-row-${s.id}`}>
-            <HStack gap={2} align="center" justify="between">
-              <Text className={active ? 'font-bold' : 'font-bold text-muted'}>{name}</Text>
-              {isAdminRow ? (
-                <Text variant="caption" tone="muted">
-                  {s.adminTitle ? t(`groups.titles.${s.adminTitle}`) : t('organization.adminBadge')}
+      <Input
+        pill
+        value={query}
+        onChangeText={setQuery}
+        placeholder={t('groups.socios.search')}
+        autoCorrect={false}
+        testID="socios-search"
+      />
+
+      {chips.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} testID="socios-filters">
+          {chips.map((c) => (
+            <FilterPill
+              key={c.key}
+              label={c.label}
+              active={filter === c.key}
+              hideChevron
+              onPress={() => setFilter(c.key)}
+              testID={`socios-filter-${c.key}`}
+            />
+          ))}
+        </ScrollView>
+      ) : null}
+
+      {shown.length === 0 ? (
+        <Text tone="muted" className="py-4 text-center" testID="socios-empty">
+          {t('groups.socios.empty')}
+        </Text>
+      ) : (
+        <View className="bg-surface-elevated rounded-xl overflow-hidden">
+          {shown.map((s) => {
+            const name = nameOf(s);
+            const title = isAdminRow(s) && s.adminTitle ? t(`groups.titles.${s.adminTitle}`) : null;
+            const body = (
+              <HStack gap={3} align="center" className="px-3 py-2 border-b border-subtle">
+                <Text variant="bodySm" tone="muted" className="w-10 text-right">
+                  {s.socioNumber !== null ? String(s.socioNumber) : ''}
                 </Text>
-              ) : null}
-            </HStack>
-            <Text variant="bodySm" tone="muted">
-              {[
-                s.socioNumber !== null ? t('groups.socios.numberShort', { number: String(s.socioNumber) }) : null,
-                kindLabel(s),
-                t('groups.socios.alta', { date: formatDate(s.altaAt) }),
-                s.bajaAt ? t('groups.socios.baja', { date: formatDate(s.bajaAt) }) : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </Text>
-            {contact ? (
-              <Text variant="bodySm" selectable>
-                {contact}
-              </Text>
-            ) : null}
-            {active ? (
-              <HStack gap={4} className="flex-wrap pt-1">
-                {s.kind === 'typed' ? (
-                  <>
-                    <RowAction testID={`socio-edit-${s.id}`} label={t('common.edit')} onPress={() => setSheet({ kind: 'typed', socio: s })} />
-                    <RowAction testID={`socio-link-${s.id}`} label={t('groups.socios.link')} onPress={() => setSheet({ kind: 'link', socio: s })} />
-                  </>
-                ) : null}
-                {isAdminRow ? (
-                  <RowAction
-                    testID={`socio-title-${s.id}`}
-                    label={t('groups.socios.setTitle')}
-                    onPress={() => setSheet({ kind: 'title', socio: s })}
-                  />
-                ) : null}
-                {s.kind !== 'typed' ? (
-                  <RowAction
-                    testID={`socio-number-${s.id}`}
-                    label={t('groups.socios.setNumber')}
-                    onPress={() => setSheet({ kind: 'number', socio: s })}
-                  />
-                ) : null}
-                {s.kind !== 'member' ? (
-                  <RowAction testID={`socio-baja-${s.id}`} label={t('groups.socios.giveBaja')} onPress={() => giveBaja(s)} />
-                ) : null}
-                {otherMemberUid ? (
-                  <>
-                    <RowAction
-                      testID={`socio-role-${s.id}`}
-                      label={t(isAdminRow ? 'organization.membersList.demote' : 'organization.membersList.promote')}
-                      onPress={() => changeRole(otherMemberUid, name, !isAdminRow)}
-                    />
-                    <RowAction
-                      testID={`socio-remove-${s.id}`}
-                      label={t('organization.membersList.remove')}
-                      onPress={() => removeMember(otherMemberUid, name)}
-                    />
-                  </>
-                ) : null}
+                <Avatar size={32} initials={initialsOf(name)} />
+                <VStack gap={0} className="flex-1">
+                  <Text tone={isActiveSocio(s) ? 'primary' : 'muted'} numberOfLines={1}>
+                    {name}
+                  </Text>
+                  {title ? (
+                    <Text variant="caption" tone="muted">
+                      {title}
+                    </Text>
+                  ) : null}
+                </VStack>
+                {pillFor(s)}
               </HStack>
-            ) : null}
-          </VStack>
-        );
-      })}
-
-      {canManage && rows.some((r) => !isActiveSocio(r)) ? (
-        <Pressable testID="socios-toggle-bajas" accessibilityRole="button" onPress={() => setShowBajas((v) => !v)}>
-          <Text variant="bodySm" className="text-accent">
-            {t(showBajas ? 'groups.socios.hideBajas' : 'groups.socios.showBajas')}
-          </Text>
-        </Pressable>
-      ) : null}
+            );
+            if (!canManage) return <View key={s.id}>{body}</View>;
+            return (
+              <Pressable
+                key={s.id}
+                testID={`socio-row-${s.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={name}
+                onPress={() => setSheet({ kind: 'socio', socio: s })}
+              >
+                {body}
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       {canManage ? (
         <>
+          <SocioSheet
+            socio={open}
+            kindLabel={open ? kindLabel(open) : ''}
+            contact={open ? contactLine(open) : null}
+            cuota={open ? cuota.statuses.get(open.id) : undefined}
+            isAdminRow={open ? isAdminRow(open) : false}
+            canManageMember={open ? otherMemberUid(open) !== null : false}
+            onAction={(action) => {
+              if (open) act(open, action);
+            }}
+            onClose={() => setSheet(null)}
+          />
           <TypedSocioSheet
             visible={sheet?.kind === 'typed'}
             initial={
@@ -245,7 +312,7 @@ export function SociosRoster({
           />
           <SocioNumberSheet
             visible={sheet?.kind === 'number'}
-            name={sheet?.kind === 'number' ? sheet.socio.displayName || t('groups.socios.unnamed') : ''}
+            name={sheet?.kind === 'number' ? nameOf(sheet.socio) : ''}
             initial={sheet?.kind === 'number' ? sheet.socio.socioNumber : null}
             isNumberTaken={isNumberTaken(sheet?.kind === 'number' ? sheet.socio.id : null)}
             onSave={async (socioNumber) => {
@@ -257,9 +324,8 @@ export function SociosRoster({
             visible={sheet?.kind === 'link'}
             testID="socio-link-sheet"
             title={sheet?.kind === 'link' ? t('groups.socios.linkTitle', { name: sheet.socio.displayName }) : ''}
-            hint={t('groups.socios.linkHint')}
             emptyLabel={t('groups.socios.linkEmpty')}
-            options={linkCandidates(rows).map((m) => ({ key: m.uid ?? m.id, label: m.displayName || t('groups.socios.unnamed') }))}
+            options={linkCandidates(rows).map((m) => ({ key: m.uid ?? m.id, label: nameOf(m) }))}
             onPick={(memberUid) => {
               if (sheet?.kind !== 'link') return;
               const socioId = sheet.socio.id;
@@ -291,15 +357,5 @@ export function SociosRoster({
         </>
       ) : null}
     </VStack>
-  );
-}
-
-function RowAction({ label, onPress, testID }: { label: string; onPress: () => void; testID: string }) {
-  return (
-    <Pressable testID={testID} accessibilityRole="button" onPress={onPress}>
-      <Text variant="bodySm" className="text-accent font-medium">
-        {label}
-      </Text>
-    </Pressable>
   );
 }
