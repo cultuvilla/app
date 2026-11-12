@@ -665,8 +665,11 @@ it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 
 **Metro is yours to run** (decided 2026-10-31, user) when the task needs the app on a
 device — to verify a change, read its logs, reproduce a bug. `pnpm app:start` binds
-`:8081` (`METRO_PORT` moves it; Órdago holds 8082 on the same machine). Check it is free
-first (`ss -ltn`; if the user's Metro already holds it, use theirs), run it in the
+`:8081`, or the next free port of 8091, 8101 … 8171 ([scripts/metro-port.sh](scripts/metro-port.sh);
+`METRO_PORT` overrides it; other apps on the machine own 8082, 8083 and their series). Every
+script that starts Metro goes through that script, never a bare `expo start`. If the user's
+Metro is already up (`ss -ltn`), use theirs; `scripts/avd-dev.sh reverse|open` need
+`METRO_PORT` set when yours landed off 8081. Run it in the
 background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when you
 are done: it is an indefinite server, so a Metro you leave running holds the port
 the user's next session needs.
