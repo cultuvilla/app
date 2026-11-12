@@ -5,8 +5,6 @@ import {
 } from '../../../src/models/notification/DeviceTokenDataModel';
 import {
   DEFAULT_NOTIFICATION_PREFS,
-  allowsPush,
-  NOTIFICATION_PREF_KEYS,
   buildNotificationPrefsData,
 } from '../../../src/models/notification/NotificationPrefsDataModel';
 import { buildPushQueueData, pushQueueId } from '../../../src/models/notification/PushQueueDataModel';
@@ -60,18 +58,6 @@ describe('NotificationPrefs', () => {
   it('fills unspecified toggles from the defaults', () => {
     const p = buildNotificationPrefsData({ village: false });
     expect(p).toMatchObject({ mine: true, village: false, social: true, quietHours: true });
-  });
-
-  it('gates push per category', () => {
-    const p = buildNotificationPrefsData({ social: false });
-    expect(allowsPush(p, 'mine')).toBe(true);
-    expect(allowsPush(p, 'social')).toBe(false);
-  });
-
-  it('leaves group messages to the per-group mute, whatever the account toggles', () => {
-    const p = buildNotificationPrefsData({ mine: false, village: false, social: false });
-    expect(allowsPush(p, 'groups')).toBe(true);
-    expect(NOTIFICATION_PREF_KEYS).toEqual(['mine', 'village', 'social']);
   });
 });
 

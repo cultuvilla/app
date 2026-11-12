@@ -397,11 +397,10 @@ own notifications.
   12 h per message (`GROUP_MESSAGE_NUDGE_INTERVAL_MS`), and spends nothing when all
   have read.
 - **Push category:** a fourth category `groups` (Android channel "Mis grupos") for
-  `group_message`. It is not a key of the account prefs doc — adding one would make
-  installed clients' full-doc prefs writes fail rules or the strict converter — so
-  `allowsPush` passes it and `onNotificationCreated` checks the group's
-  `groupPrefs` instead. `cuota_reminder` stays `mine` and never reads it.
-  `NOTIFICATION_PREF_KEYS` is the three account toggles.
+  `group_message`, muted per group through `groupPrefs` (and account-wide by the
+  `group_avisos` / `group_chats` topics). `cuota_reminder` stays `mine` and never
+  reads `groupPrefs`. What a person mutes is a `NotificationTopic` — see
+  [notification-topics](../../decisions/notification-topics.md).
 - **App:** `GroupMessagesAdmin` in Gestionar (composer `ComposeMessageSheet`,
   history, `MessageDetailSheet`: read by x of y with the unread names and the nudge,
   poll results with voters, the WhatsApp list — `wa.me` link with the text from

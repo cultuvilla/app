@@ -26,6 +26,7 @@ import { buildGroupTaskData, buildTaskTemplateData } from '../../src/models/orga
 import { buildCosaData } from '../../src/models/organization/CosaDataModel';
 import { buildCosaRequestData } from '../../src/models/organization/CosaRequestDataModel';
 import { buildGroupNotificationPrefsData } from '../../src/models/notification/NotificationPrefsDataModel';
+import { buildNotificationSettingsData } from '../../src/models/notification/NotificationSettingsDataModel';
 import { buildActaData, buildLedgerEntryData } from '../../src/models/organization/RecordsDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
@@ -67,6 +68,11 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     build: () =>
       buildTaskTemplateData({ name: 'Fiestas', items: [{ title: 'Orquesta', notes: null, offsetDays: -60, time: null, slots: null }], updatedBy: 'u1' }),
     ruleKeys: ['name', 'items', 'updatedBy', 'updatedAt'],
+  },
+  {
+    label: 'users/{uid}/notificationSettings/account — isValidNotificationSettingsWrite',
+    build: () => buildNotificationSettingsData(),
+    ruleKeys: ['mutedTopics', 'mutedVillages', 'quietHours', 'updatedAt'],
   },
   {
     label: 'users/{uid}/groupPrefs/{orgId} — inline in match /groupPrefs',

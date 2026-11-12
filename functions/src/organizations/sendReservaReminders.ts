@@ -44,6 +44,7 @@ export async function sendReservaReminders(firestore: Firestore, now: Date): Pro
           entityKind: 'organization',
           entityId: req.orgId,
           cosaRequestId: d.id,
+          topic: 'cosateca_reservas',
           createdAt: now,
         }),
       );

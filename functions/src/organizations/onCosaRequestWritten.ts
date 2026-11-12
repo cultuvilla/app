@@ -13,6 +13,7 @@ import {
   EVENT_TZ,
   type CosaRequestData,
   type CosaRequestStatus,
+  type GroupTaskTopic,
 } from '@cultuvilla/shared/models';
 import { formatDate, formatDayKey } from '@cultuvilla/shared/utils';
 
@@ -111,6 +112,12 @@ export function cosaNoticeFor(before: CosaRequestData | null, after: CosaRequest
   }
 }
 
+/** A reserva's every notice is one switch; a loan's split by which side of it the recipient is on. */
+export function cosaNoticeTopic(req: Pick<CosaRequestData, 'cosaKind'>, toManagers: boolean): GroupTaskTopic {
+  if (req.cosaKind === 'reserva') return 'cosateca_reservas';
+  return toManagers ? 'cosateca_requests' : 'cosateca_answers';
+}
+
 /**
  * Who answers a request: a colectivizado cosa's current holder, else the
  * cosa's owner, or for a group's cosa the group's admins.
@@ -158,6 +165,7 @@ export async function notifyCosaRequest(
             entityKind: 'organization',
             entityId: after.orgId,
             cosaRequestId: requestId,
+            topic: cosaNoticeTopic(after, toManagers),
             createdAt: now,
           }),
         ),

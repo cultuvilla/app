@@ -1,5 +1,6 @@
 // Firestore Rules e2e test for the push surface: users/{uid}/devices/{token},
-// users/{uid}/preferences/{prefId}, and the server-only pushQueue.
+// users/{uid}/preferences/{prefId}, users/{uid}/notificationSettings/account,
+// and the server-only pushQueue.
 //
 // A device token is what addresses a push at a specific phone, so the list is
 // owner-only in both directions, and the platform/transport pairing is asserted
@@ -11,6 +12,7 @@ import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
 import { asAdmin, asAnon, asUser, seed } from '../helpers/roles';
+import { buildNotificationSettingsData, MAX_MUTED_VILLAGES } from '../../src/models/notification';
 
 const getEnv = useRulesTestEnv();
 
@@ -138,6 +140,39 @@ describe('firestore.rules — users/{uid}/preferences', () => {
     const db = asUser(getEnv(), OTHER);
     await assertFails(getDoc(doc(db, prefsPath(OWNER))));
     await assertFails(setDoc(doc(db, prefsPath(OWNER)), prefs()));
+  });
+});
+
+describe('firestore.rules — users/{uid}/notificationSettings', () => {
+  const settingsPath = (uid: string) => `users/${uid}/notificationSettings/account`;
+  const settings = () => buildNotificationSettingsData({ mutedTopics: ['village_news'], mutedVillages: ['mun1'] });
+
+  it('lets the owner write and read their switches', async () => {
+    const db = asUser(getEnv(), OWNER);
+    await assertSucceeds(setDoc(doc(db, settingsPath(OWNER)), settings()));
+    await assertSucceeds(getDoc(doc(db, settingsPath(OWNER))));
+  });
+
+  it('only allows the one account doc', async () => {
+    await assertFails(setDoc(doc(asUser(getEnv(), OWNER), `users/${OWNER}/notificationSettings/other`), settings()));
+  });
+
+  it('rejects a partial, mistyped or oversized doc', async () => {
+    const db = asUser(getEnv(), OWNER);
+    const { mutedVillages: _dropped, ...partial } = settings();
+    await assertFails(setDoc(doc(db, settingsPath(OWNER)), partial));
+    await assertFails(setDoc(doc(db, settingsPath(OWNER)), { ...settings(), quietHours: 'yes' }));
+    await assertFails(setDoc(doc(db, settingsPath(OWNER)), { ...settings(), mutedTopics: 'village_news' }));
+    await assertFails(setDoc(doc(db, settingsPath(OWNER)), {
+      ...settings(),
+      mutedVillages: Array.from({ length: MAX_MUTED_VILLAGES + 1 }, (_, i) => `m${String(i)}`),
+    }));
+  });
+
+  it('denies another user reading or writing someone’s switches', async () => {
+    const db = asUser(getEnv(), OTHER);
+    await assertFails(getDoc(doc(db, settingsPath(OWNER))));
+    await assertFails(setDoc(doc(db, settingsPath(OWNER)), settings()));
   });
 });
 

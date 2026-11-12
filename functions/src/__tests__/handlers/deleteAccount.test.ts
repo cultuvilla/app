@@ -126,6 +126,7 @@ async function seedNotification(uid: string): Promise<void> {
 async function seedPushData(uid: string): Promise<void> {
   await db().doc(`users/${uid}/devices/tok-1`).set({ token: 'tok-1', platform: 'android' });
   await db().doc(`users/${uid}/preferences/notifications`).set({ village: false });
+  await db().doc(`users/${uid}/notificationSettings/account`).set({ mutedTopics: ['village_news'] });
   await db().doc(`pushQueue/${uid}__notif-1`).set({ userId: uid, notificationId: 'notif-1', sentAt: null });
   await db().doc(`pushQueue/someone-else__n`).set({ userId: 'someone-else', notificationId: 'n', sentAt: null });
 }
@@ -284,6 +285,7 @@ describe('deleteAccount (callable)', () => {
     expect((await db().doc(`users/${USER_ID}/notifications/notif-1`).get()).exists).toBe(false);
     expect((await db().doc(`users/${USER_ID}/devices/tok-1`).get()).exists).toBe(false);
     expect((await db().doc(`users/${USER_ID}/preferences/notifications`).get()).exists).toBe(false);
+    expect((await db().doc(`users/${USER_ID}/notificationSettings/account`).get()).exists).toBe(false);
     expect((await db().doc(`pushQueue/${USER_ID}__notif-1`).get()).exists).toBe(false);
     // Only the departing account's queue entries.
     expect((await db().doc('pushQueue/someone-else__n').get()).exists).toBe(true);

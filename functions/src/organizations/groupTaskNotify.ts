@@ -66,6 +66,7 @@ export async function notifyGroupTask(
       municipalityId: args.municipalityId,
       entityKind: 'organization',
       entityId: args.orgId,
+      topic: 'group_tasks',
       createdAt: args.now,
     }),
   );

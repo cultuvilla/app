@@ -86,6 +86,7 @@ export async function runCosaReminders(firestore: Firestore, now: Date): Promise
               entityKind: 'organization',
               entityId: req.orgId,
               cosaRequestId: doc.id,
+              topic: 'cosateca_returns',
               createdAt: now,
             }),
           );
