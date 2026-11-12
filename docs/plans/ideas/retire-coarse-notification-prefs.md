@@ -14,3 +14,8 @@ Once no supported binary reads or writes `users/{uid}/preferences/notifications`
   its converters, refs, rule, conformance entry and `TOPIC_LEGACY_CATEGORY`.
 - Delete the stored docs (and their `deleteAccount` line).
 - `Breaking-Client:` on the commit that drops the rule, since older binaries write it.
+
+Why it is worth doing soon after the gate opens: while both docs live, a device
+still on an older app cannot change quiet hours once the new doc exists (the new
+doc's value wins), and its "Novedades del pueblo" switch cannot turn back on a
+topic the new screen muted.

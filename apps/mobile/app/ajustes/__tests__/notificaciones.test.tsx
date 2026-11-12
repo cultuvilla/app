@@ -57,7 +57,10 @@ describe('NotificationSettingsScreen', () => {
     const { getByTestId, queryByTestId } = render(<NotificationSettingsScreen />);
     expect(getByTestId('push-topic-village_news').props.accessibilityState.checked).toBe(true);
     expect(getByTestId('push-topic-cosateca_reservas')).toBeTruthy();
-    expect(queryByTestId('push-section-groups')).toBeNull();
+    expect(queryByTestId('push-topic-group_tasks')).toBeNull();
+    expect(queryByTestId('push-per-group')).toBeNull();
+    // A persona's responsible member gets cuota reminders without being in the group.
+    expect(getByTestId('push-topic-group_cuotas')).toBeTruthy();
     expect(queryByTestId('push-topic-requests_to_handle')).toBeNull();
     expect(queryByTestId('push-per-village')).toBeNull();
   });
@@ -77,6 +80,24 @@ describe('NotificationSettingsScreen', () => {
     const { getByTestId } = render(<NotificationSettingsScreen />);
     fireEvent.press(getByTestId('push-topic-village_news'));
     expect(mockSave).toHaveBeenCalledWith('u1', { mutedTopics: ['village_news'], mutedVillages: [], quietHours: true });
+  });
+
+  it('keeps both of two quick taps, whatever the snapshot still says', () => {
+    const { getByTestId } = render(<NotificationSettingsScreen />);
+    fireEvent.press(getByTestId('push-topic-village_news'));
+    fireEvent.press(getByTestId('push-topic-cosateca_chat'));
+    expect(mockSave).toHaveBeenLastCalledWith('u1', {
+      mutedTopics: ['village_news', 'cosateca_chat'],
+      mutedVillages: [],
+      quietHours: true,
+    });
+    expect(getByTestId('push-topic-village_news').props.accessibilityState.checked).toBe(false);
+  });
+
+  it('says so when the switches cannot be read, instead of spinning', () => {
+    setWatched('settings', new Error('permission-denied'));
+    const { queryByTestId } = render(<NotificationSettingsScreen />);
+    expect(queryByTestId('push-topic-village_news')).toBeNull();
   });
 
   it('asks before muting the person’s own events', () => {

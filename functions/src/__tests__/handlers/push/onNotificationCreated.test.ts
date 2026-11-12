@@ -222,6 +222,12 @@ describe('onNotificationCreated', () => {
       expect(deliverPush).not.toHaveBeenCalled();
     });
 
+    it('ignores a malformed doc instead of failing every push', async () => {
+      await settings({ mutedTopics: [1] });
+      await fire('m1', notification('village_entity_published', { entityKind: 'news', entityId: 'n1' }));
+      expect(deliverPush).toHaveBeenCalledTimes(1);
+    });
+
     it('takes quiet hours from the new doc', async () => {
       vi.setSystemTime(new Date('2026-07-15T01:00:00Z')); // 03:00 CEST
       await settings({ quietHours: false });

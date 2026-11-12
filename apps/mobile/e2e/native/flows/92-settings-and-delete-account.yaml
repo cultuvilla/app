@@ -63,6 +63,12 @@ env:
       DOC_PATH: 'users/${UID}/notificationSettings/account'
       FIELD: mutedTopics.0
       WANT: 'village_news'
+# The last row, well below the fold since the screen has a switch per topic.
+- scrollUntilVisible:
+    element:
+      id: 'push-pref-quietHours'
+    direction: DOWN
+    timeout: 20000
 - runFlow:
     file: ../subflows/set-stored-toggle.yaml
     env:

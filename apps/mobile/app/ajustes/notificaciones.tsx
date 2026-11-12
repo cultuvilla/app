@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,7 @@ import {
 } from '@cultuvilla/shared/services/notificationService';
 import { Screen } from '../../components/primitives/Screen';
 import { Card } from '../../components/primitives/Card';
+import { ErrorState } from '../../components/primitives/ErrorState';
 import { Button } from '../../components/primitives/Button';
 import { HStack } from '../../components/primitives/HStack';
 import { Pressable } from '../../components/primitives/Pressable';
@@ -37,7 +38,7 @@ type Change =
   | { kind: 'village'; municipalityId: string; on: boolean }
   | { kind: 'quietHours'; on: boolean };
 
-function applyChange(settings: ResolvedNotificationSettings, change: Change) {
+function applyChange(settings: ResolvedNotificationSettings, change: Change): ResolvedNotificationSettings {
   const mutedTopics = new Set(settings.mutedTopics);
   const mutedVillages = new Set(settings.mutedVillages);
   let quietHours = settings.quietHours;
@@ -50,15 +51,20 @@ function applyChange(settings: ResolvedNotificationSettings, change: Change) {
   } else {
     quietHours = change.on;
   }
-  return { mutedTopics: [...mutedTopics], mutedVillages: [...mutedVillages], quietHours };
+  return { mutedTopics, mutedVillages, quietHours };
 }
 
-/** The switches that can ever fire for this person; a section left empty is not shown. */
+/**
+ * The switches that can ever fire for this person; a section left empty is not
+ * shown. Cuotas stay without a group: a persona's responsible member gets the
+ * reminder without being in the group.
+ */
 function visibleTopics(section: NotificationTopicSection, audience: NotificationAudience): readonly NotificationTopic[] {
-  if (section === 'groups' && audience.groups.length === 0) return [];
-  return NOTIFICATION_TOPIC_SECTIONS[section].filter(
-    (topic) => topic !== 'requests_to_handle' || audience.handlesRequests,
-  );
+  return NOTIFICATION_TOPIC_SECTIONS[section].filter((topic) => {
+    if (topic === 'requests_to_handle') return audience.handlesRequests;
+    if (section === 'groups' && topic !== 'group_cuotas') return audience.groups.length > 0;
+    return true;
+  });
 }
 
 /**
@@ -94,15 +100,31 @@ export default function NotificationSettingsScreen() {
     };
   }, [refreshPermission]);
 
-  const current = settings.data;
+  // What the person has asked for so far on this screen. Each tap builds on it,
+  // not on the last snapshot: two quick taps would otherwise both start from the
+  // same snapshot, and right after a save the two docs' listeners answer one at
+  // a time, so a snapshot can briefly drop a mute carried over from the old doc.
+  const intended = useRef<ResolvedNotificationSettings | null>(null);
+  const [, setRevision] = useState(0);
+  const current = intended.current ?? settings.data;
   const save = useCallback(
     (change: Change) => {
-      if (!uid || !current) return;
-      saveNotificationSettings(uid, applyChange(current, change)).catch(() => {
+      const base = intended.current ?? settings.data;
+      if (!uid || !base) return;
+      const next = applyChange(base, change);
+      intended.current = next;
+      setRevision((n) => n + 1);
+      saveNotificationSettings(uid, {
+        mutedTopics: [...next.mutedTopics],
+        mutedVillages: [...next.mutedVillages],
+        quietHours: next.quietHours,
+      }).catch(() => {
+        intended.current = null;
+        setRevision((n) => n + 1);
         showAlert(t('notifications.settings.saveError'));
       });
     },
-    [uid, current, t],
+    [uid, settings.data, t],
   );
 
   const setTopic = useCallback(
@@ -161,7 +183,9 @@ export default function NotificationSettingsScreen() {
           </Card>
         ) : null}
 
-        {loading ? (
+        {settings.status === 'error' ? (
+          <ErrorState error={settings.error} />
+        ) : loading ? (
           <View className="items-center py-6">
             <ActivityIndicator />
           </View>
@@ -208,7 +232,7 @@ export default function NotificationSettingsScreen() {
                     </VStack>
                   ) : null}
 
-                  {section === 'groups' ? (
+                  {section === 'groups' && audience.groups.length > 0 ? (
                     <VStack gap={2} className="mt-2" testID="push-per-group">
                       <Text className="font-semibold">{t('notifications.settings.perGroup.title')}</Text>
                       <Text variant="caption" tone="muted">{t('notifications.settings.perGroup.hint')}</Text>
