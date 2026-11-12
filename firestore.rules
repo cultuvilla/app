@@ -553,7 +553,6 @@ service cloud.firestore {
           && d.nextTaskId == null
           && d.doneAt == null && d.doneBy == null
           && d.createdBy == request.auth.uid
-          && d.createdByName == publicName()
           && d.createdAt == request.time;
     }
     // Ticking done stamps the server time and the ticker; undoing clears both.
@@ -804,7 +803,6 @@ service cloud.firestore {
     function isValidActaCreate(d) {
       return isValidActaFields(d)
           && d.createdBy == request.auth.uid
-          && d.createdByName == publicName()
           && d.createdAt == request.time;
     }
     function isValidLedgerEntry(d) {
