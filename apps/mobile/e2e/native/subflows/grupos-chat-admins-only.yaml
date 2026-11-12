@@ -12,7 +12,7 @@ appId: com.cultuvilla.app.dev
 - openLink: 'cultuvilla://grupos/${ORG_ID}/ajustes'
 - extendedWaitUntil:
     visible:
-      id: 'group-settings-group'
+      id: 'group-settings'
     timeout: 45000
 - runFlow:
     file: scroll-to.yaml
