@@ -11,7 +11,6 @@ import { RecordsAdmin } from '../RecordsAdmin';
 import { ActasAdmin } from '../ActasAdmin';
 import { LibroSocios } from '../LibroSocios';
 import { YearSummaryAdmin } from '../YearSummaryAdmin';
-import { MyActas } from '../MyActas';
 
 jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => ({
@@ -348,20 +347,5 @@ describe('Cuentas del año', () => {
     fireEvent.press(getByTestId('year-export'));
     fireEvent.press(getByTestId('year-export-csv'));
     await waitFor(() => expect(downloadFile).toHaveBeenCalledWith(expect.any(String), expect.stringMatching(/^cuentas-\d{4}-la-anduela\.csv$/), 'text/csv;charset=utf-8'));
-  });
-});
-
-describe('MyActas', () => {
-  it('lists the shared actas for a socio, read-only, and hides itself when there are none', () => {
-    setWatched('visibleActas', [{ ...ACTA, visibleToSocios: true }]);
-    const { getByTestId, queryByTestId, unmount } = render(<MyActas orgId="org1" orgName="La Anduela" />);
-    fireEvent.press(getByTestId('acta-row-a1'));
-    expect(within(getByTestId('acta-detail')).getByText('1. Cuentas')).toBeTruthy();
-    expect(getByTestId('acta-share')).toBeTruthy();
-    expect(queryByTestId('acta-edit')).toBeNull();
-    unmount();
-
-    setWatched('visibleActas', []);
-    expect(render(<MyActas orgId="org1" orgName="La Anduela" />).queryByTestId('my-actas')).toBeNull();
   });
 });

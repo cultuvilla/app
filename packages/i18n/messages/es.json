@@ -1809,6 +1809,11 @@
     "summary": {
       "cuota": "Cuota {period}"
     },
+    "myActas": {
+      "search": "Buscar acuerdos",
+      "clear": "Borrar búsqueda",
+      "noResults": "Ningún acuerdo con esas palabras."
+    },
     "stats": {
       "socios": "Socios",
       "members": "Integrantes",
