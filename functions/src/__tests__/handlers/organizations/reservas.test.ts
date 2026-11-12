@@ -25,9 +25,9 @@ const SLOT_19 = new Date('2026-11-12T18:00:00.000Z');
 
 function pista(reserva: Partial<ReservaConfig> = {}, overrides: Record<string, unknown> = {}) {
   return {
-    municipalityId: MUN, orgId: ORG, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'reserva', mode: null,
+    municipalityId: MUN, orgId: ORG, audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'reserva',
     title: 'Pista de pádel', description: null, category: 'deporte', imageURL: null, conditions: null, location: null, locationNote: null, status: 'available',
-    heldBy: null, reserva: { ...DEFAULT_RESERVA_CONFIG, ...reserva }, createdBy: 'u-admin',
+    heldBy: null, reserva: { ...DEFAULT_RESERVA_CONFIG, ...reserva }, createdBy: 'u-admin', createdByName: 'Alcalde',
     createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), ...overrides,
   };
 }
@@ -213,7 +213,7 @@ describe('expireReservaBookings', () => {
 describe('booking notices', () => {
   const booking = (status: CosaRequestData['status']) =>
     ({
-      municipalityId: MUN, orgId: ORG, cosaId: 'pista', cosaTitle: 'Pista de pádel', cosaKind: 'reserva', cosaMode: null, ownerUid: null, holderUid: null,
+      municipalityId: MUN, orgId: ORG, cosaId: 'pista', cosaTitle: 'Pista de pádel', cosaKind: 'reserva', ownerUid: null, holderUid: null,
       requesterUid: 'u-ana', requesterName: 'Ana', message: null, fromOn: '2026-11-12', untilOn: '2026-11-12', status,
       createdAt: NOW, respondedAt: null, closedAt: null, overdueNotifiedOn: null, startAt: SLOT_18, endAt: SLOT_19,
     }) satisfies CosaRequestData;

@@ -120,12 +120,12 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     build: () =>
       buildCosaData({
         municipalityId: 'm1', orgId: 'o1', audience: 'integrantes', ownerUid: 'u1', ownerName: 'Ana',
-        kind: 'prestamo', title: 'Taladro', category: 'herramientas', createdBy: 'u1',
+        kind: 'prestamo', title: 'Taladro', category: 'herramientas', createdBy: 'u1', createdByName: 'Ana',
       }),
     ruleKeys: [
-      'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'mode', 'title', 'description',
+      'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'title', 'description',
       'category', 'imageURL', 'conditions', 'location', 'locationNote', 'status', 'heldBy', 'reserva',
-      'createdBy', 'createdAt', 'updatedAt',
+      'createdBy', 'createdByName', 'createdAt', 'updatedAt',
     ],
   },
   {
@@ -136,7 +136,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
         ownerUid: 'u1', requesterUid: 'u2', requesterName: 'Luis',
       }),
     ruleKeys: [
-      'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'cosaMode', 'ownerUid', 'holderUid',
+      'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'ownerUid', 'holderUid',
       'requesterUid', 'requesterName', 'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt',
       'closedAt', 'overdueNotifiedOn', 'startAt', 'endAt',
     ],

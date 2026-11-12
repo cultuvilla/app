@@ -139,8 +139,9 @@ describe('a request for a cosa', () => {
     expect(render(<CosaRequestScreen />).getByTestId('cosa-request-unavailable')).toBeTruthy();
   });
 
-  it("lets a colectivizado cosa's holder hand it on, never take it back, and its owner nothing", async () => {
-    mockRequest = request({ status: 'accepted', cosaMode: 'colectivizado', holderUid: 'pepa', untilOn: null });
+  it("lets a shared cosa's holder hand it on, never take it back, and the group's giver nothing", async () => {
+    const shared = { ownerUid: null, holderUid: 'pepa', untilOn: null };
+    mockRequest = request({ ...shared, status: 'accepted' });
     mockUid = 'pepa';
     const { getByTestId, getAllByTestId, unmount } = render(<CosaRequestScreen />);
     expect(actionsOf(getAllByTestId)).toEqual(['cosa-request-decline', 'cosa-request-lend']);
@@ -150,11 +151,14 @@ describe('a request for a cosa', () => {
     await waitFor(() => expect(respondToCosaRequest).toHaveBeenCalledWith('r1', 'lend'));
     unmount();
 
-    // Once handed over it has nothing left to do: no return.
-    mockRequest = request({ status: 'lent', cosaMode: 'colectivizado', holderUid: 'pepa', untilOn: null });
+    // Once handed over its manager has nothing left to do, and nobody returns it here:
+    // its holder leaves it in its place from the cosa's screen, which knows whether it has one.
+    mockRequest = request({ ...shared, status: 'lent' });
+    expect(render(<CosaRequestScreen />).queryByTestId('cosa-request-actions')).toBeNull();
+    mockUid = 'asker';
     expect(render(<CosaRequestScreen />).queryByTestId('cosa-request-actions')).toBeNull();
 
-    mockRequest = request({ status: 'pending', cosaMode: 'colectivizado', holderUid: 'pepa', untilOn: null });
+    mockRequest = request({ ...shared, status: 'pending' });
     mockUid = 'owner';
     expect(render(<CosaRequestScreen />).queryByTestId('cosa-request-actions')).toBeNull();
   });

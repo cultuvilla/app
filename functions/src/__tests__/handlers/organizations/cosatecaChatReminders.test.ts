@@ -111,40 +111,34 @@ describe('cosaOverdueCopy', () => {
 });
 
 describe('sendCosaReminders', () => {
-  it('nudges the holder and the managers once, the day after a lent cosa was due back', async () => {
-    await db().doc('cosaRequests/late').set(req({ status: 'lent', untilOn: '2026-07-09' }));
-    await db().doc('cosaRequests/today').set(req({ status: 'lent', untilOn: '2026-07-10' }));
-    await db().doc('cosaRequests/back').set(req({ status: 'returned', untilOn: '2026-07-01' }));
-    await db().doc('cosaRequests/open').set(req({ status: 'lent', untilOn: null }));
+  // Only an integrante's own cosa comes back, so only it is ever overdue.
+  const lent = (overrides: Partial<CosaRequestData>) => req({ ownerUid: 'u-luis', status: 'lent', ...overrides });
 
-    await expect(runCosaReminders(db(), NOW)).resolves.toEqual({ overdueCount: 1, notificationCount: 3 });
+  it('nudges the holder and the owner once, the day after a lent cosa was due back', async () => {
+    await db().doc('cosaRequests/late').set(lent({ untilOn: '2026-07-09' }));
+    await db().doc('cosaRequests/today').set(lent({ untilOn: '2026-07-10' }));
+    await db().doc('cosaRequests/back').set(lent({ status: 'returned', untilOn: '2026-07-01' }));
+    await db().doc('cosaRequests/open').set(lent({ untilOn: null }));
+
+    await expect(runCosaReminders(db(), NOW)).resolves.toEqual({ overdueCount: 1, notificationCount: 2 });
     const [holder] = await notificationsOf('u-ana');
     expect(holder.id).toBe('cosa_late_overdue');
     expect(holder.data()).toMatchObject({ type: 'group_task', cosaRequestId: 'late', title: 'Toca devolver · Ayuntamiento de Villa' });
-    expect((await notificationsOf('u-admin'))[0]?.data()).toMatchObject({ title: 'No ha vuelto · Ayuntamiento de Villa' });
+    expect((await notificationsOf('u-luis'))[0]?.data()).toMatchObject({ title: 'No ha vuelto · Ayuntamiento de Villa' });
+    // The group's admins are the backstop, not nudged.
+    expect(await notificationsOf('u-admin')).toHaveLength(0);
     expect((await db().doc('cosaRequests/late').get()).get('overdueNotifiedOn')).toBe('2026-07-10');
     expect((await db().doc('cosaRequests/today').get()).get('overdueNotifiedOn')).toBeNull();
 
     // The next day's run does not nudge it again.
-    await expect(runCosaReminders(db(), new Date('2026-07-11T10:00:00Z'))).resolves.toEqual({ overdueCount: 1, notificationCount: 3 });
+    await expect(runCosaReminders(db(), new Date('2026-07-11T10:00:00Z'))).resolves.toEqual({ overdueCount: 1, notificationCount: 2 });
     expect((await db().doc('cosaRequests/late').get()).get('overdueNotifiedOn')).toBe('2026-07-10');
     expect((await db().doc('cosaRequests/today').get()).get('overdueNotifiedOn')).toBe('2026-07-11');
   });
 
-  it("tells a personal cosa's owner, and an admin who borrowed the group's cosa only once", async () => {
-    await db().doc('cosaRequests/p').set(req({ status: 'lent', untilOn: '2026-07-01', ownerUid: 'u-luis' }));
-    await db().doc('cosaRequests/a').set(req({ status: 'lent', untilOn: '2026-07-01', requesterUid: 'u-admin', requesterName: 'Alcalde' }));
-    await runCosaReminders(db(), NOW);
-    expect(await notificationsOf('u-luis')).toHaveLength(1);
-    // u-admin holds `a` (holder) and manages nothing else here: one nudge, as the holder.
-    const adminNotices = await notificationsOf('u-admin');
-    expect(adminNotices.map((d) => d.data()['title'])).toEqual(['Toca devolver · Ayuntamiento de Villa']);
-    expect(await notificationsOf('u-admin2')).toHaveLength(1);
-  });
-
-  it('never nudges a colectivizado cosa: it is not coming back', async () => {
+  it("never nudges the group's cosa: it is shared, not coming back", async () => {
     // A stray return day on one must not wake the job either.
-    await db().doc('cosaRequests/c').set(req({ status: 'lent', untilOn: '2026-07-01', cosaMode: 'colectivizado' }));
+    await db().doc('cosaRequests/c').set(req({ status: 'lent', untilOn: '2026-07-01', ownerUid: null }));
     await expect(runCosaReminders(db(), NOW)).resolves.toEqual({ overdueCount: 0, notificationCount: 0 });
   });
 });

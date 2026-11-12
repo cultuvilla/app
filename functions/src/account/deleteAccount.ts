@@ -289,38 +289,25 @@ async function deleteUserChatMessages(uid: string): Promise<number> {
 /**
  * The user's cosateca: the cosas they own, the requests they made and the
  * requests made of their cosas (each names a person and carries free text).
- * A colectivizado cosa they offered belongs to the community, so it is not
- * deleted: it passes to its group (`ownerUid: null`, the group's name), stays
- * with whoever holds it, and keeps the requests others made of it — unless its
- * group is gone, when it goes like the rest. A cosa they hold is let go
- * (`heldBy` cleared), its request gone; the requests waiting on them as a
- * colectivizado cosa's holder go back to its owner or the group's admins
- * (`holderUid` cleared).
+ * What they gave to a group is the group's and stays, without their name on
+ * it (`createdByName` blanked). A cosa they hold is let go (`heldBy` cleared),
+ * its request gone; the requests waiting on them as a shared cosa's holder go
+ * back to the group's admins (`holderUid` cleared).
  */
-async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; cosasHandedToGroup: number; cosaRequestsDeleted: number }> {
-  const [owned, asked, askedOfMe, held, askedOfHolder] = await Promise.all([
+async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; cosasUnnamed: number; cosaRequestsDeleted: number }> {
+  const [owned, offered, asked, askedOfMe, held, askedOfHolder] = await Promise.all([
     cosasCollection(db).where('ownerUid', '==', uid).get(),
+    cosasCollection(db).where('createdBy', '==', uid).get(),
     cosaRequestsCollection(db).where('requesterUid', '==', uid).get(),
     cosaRequestsCollection(db).where('ownerUid', '==', uid).get(),
     cosasCollection(db).where('heldBy.uid', '==', uid).get(),
     cosaRequestsCollection(db).where('holderUid', '==', uid).get(),
   ]);
-  const groupNames = await Promise.all(
-    [...new Set(owned.docs.filter((d) => d.data().mode === 'colectivizado').map((d) => d.data().orgId))].map(
-      async (orgId) => [orgId, (await organizationDoc(db, orgId).get()).data()?.name] as const,
-    ),
-  );
-  const groupName = new Map(groupNames.filter((entry): entry is readonly [string, string] => typeof entry[1] === 'string'));
-  const handedToGroup = owned.docs.filter((d) => d.data().mode === 'colectivizado' && groupName.has(d.data().orgId));
-  const handedIds = new Set(handedToGroup.map((d) => d.id));
-  const deletedCosas = owned.docs.filter((d) => !handedIds.has(d.id));
-  const deletedCosaIds = new Set(deletedCosas.map((d) => d.id));
-  if (handedToGroup.length > 0) {
-    const now = new Date();
+  const deletedCosaIds = new Set(owned.docs.map((d) => d.id));
+  const unnamed = offered.docs.filter((d) => !deletedCosaIds.has(d.id) && d.data().createdByName !== '');
+  if (unnamed.length > 0) {
     const batch = db.batch();
-    for (const d of handedToGroup) {
-      batch.update(d.ref.withConverter(null), { ownerUid: null, ownerName: groupName.get(d.data().orgId), updatedAt: now });
-    }
+    for (const d of unnamed) batch.update(d.ref.withConverter(null), { createdByName: '' });
     await batch.commit();
   }
   const heldElsewhere = held.docs.filter((d) => !deletedCosaIds.has(d.id));
@@ -329,16 +316,7 @@ async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; 
     for (const d of heldElsewhere) batch.update(d.ref.withConverter(null), { heldBy: null });
     await batch.commit();
   }
-  // The requests others made of a cosa handed to the group stay, now the group's to answer.
-  const askedOfMeKept = askedOfMe.docs.filter((d) => handedIds.has(d.data().cosaId) && d.data().requesterUid !== uid);
-  if (askedOfMeKept.length > 0) {
-    const batch = db.batch();
-    for (const d of askedOfMeKept) batch.update(d.ref.withConverter(null), { ownerUid: null });
-    await batch.commit();
-  }
-  const keptIds = new Set(askedOfMeKept.map((d) => d.id));
-  const askedOfMeGone = askedOfMe.docs.filter((d) => !keptIds.has(d.id));
-  const goneIds = new Set([...asked.docs, ...askedOfMeGone].map((d) => d.id));
+  const goneIds = new Set([...asked.docs, ...askedOfMe.docs].map((d) => d.id));
   const repoint = askedOfHolder.docs.filter((d) => !goneIds.has(d.id));
   if (repoint.length > 0) {
     const batch = db.batch();
@@ -354,13 +332,13 @@ async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; 
   await deleteRefsInChunks(
     slotSnaps.filter((snap) => asked.docs.some((d) => d.id === snap.data()?.requestId)).map((snap) => snap.ref),
   );
-  for (const d of deletedCosas) await db.recursiveDelete(d.ref.collection('slots'));
-  const requestRefs = new Map([...asked.docs, ...askedOfMeGone].map((d) => [d.id, d.ref]));
+  for (const d of owned.docs) await db.recursiveDelete(d.ref.collection('slots'));
+  const requestRefs = new Map([...asked.docs, ...askedOfMe.docs].map((d) => [d.id, d.ref]));
   // A request's chat goes with it: the other party's messages could never be reached again.
   for (const ref of requestRefs.values()) await db.recursiveDelete(ref.collection('chat'));
   const cosaRequestsDeleted = await deleteRefsInChunks([...requestRefs.values()]);
-  const cosasDeleted = await deleteRefsInChunks(deletedCosas.map((d) => d.ref));
-  return { cosasDeleted, cosasHandedToGroup: handedToGroup.length, cosaRequestsDeleted };
+  const cosasDeleted = await deleteRefsInChunks(owned.docs.map((d) => d.ref));
+  return { cosasDeleted, cosasUnnamed: unnamed.length, cosaRequestsDeleted };
 }
 
 /**

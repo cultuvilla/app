@@ -9,7 +9,7 @@ function isNotFound(reason: unknown): boolean {
 
 /**
  * A deleted cosa's open requests have nothing left to move them: a pending or
- * accepted one can never be handed over, and a colectivizado one out with
+ * accepted one can never be handed over, and a shared one out with
  * someone has no next holder to pass to. Close them all — an unanswered one as
  * declined (its requester is told it is gone), one out on loan as returned,
  * since there is no cosa left to track — and drop the reserva slot locks, which

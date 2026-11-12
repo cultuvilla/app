@@ -27,7 +27,7 @@ const SLOT_19 = '2026-11-12T18:00:00.000Z';
 function pista(blackouts: string[] = []) {
   const data = buildCosaData({
     municipalityId: 'm1', orgId: 'ayto', audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento', kind: 'reserva',
-    title: 'Pista de pádel', category: 'deporte', createdBy: 'admin',
+    title: 'Pista de pádel', category: 'deporte', createdBy: 'admin', createdByName: 'Alcalde',
   });
   return { id: 'pista', ...data, reserva: { ...DEFAULT_RESERVA_CONFIG, blackouts } };
 }

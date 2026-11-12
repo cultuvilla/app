@@ -58,9 +58,6 @@ export function CosaRow({ cosa, subtitle, onPress }: { cosa: Cosa; subtitle?: st
           ) : null}
           <HStack gap={2} className="items-center flex-wrap">
             <Badge label={t(`groups.cosateca.kinds.${cosa.kind}`)} />
-            {cosa.mode === 'colectivizado' ? (
-              <Badge label={t('groups.cosateca.modes.colectivizado')} testID={`cosa-row-colectivizado-${cosa.id}`} />
-            ) : null}
             <Text variant="caption" tone={free ? 'success' : 'muted'} testID={`cosa-row-state-${cosa.id}`}>
               {cosaAvailabilityLabel(t, cosa)}
             </Text>

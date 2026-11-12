@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { cosaAvailability, cosaHolderUid, isActiveReserva, isOpenCosaRequest } from '@cultuvilla/shared/models/organization';
+import { cosaAvailability, cosaHasPlace, cosaHolderUid, isActiveReserva, isOpenCosaRequest, isSharedCosa } from '@cultuvilla/shared/models/organization';
 import {
+  respondToCosaRequest,
   updateCosa,
   watchCosa,
   watchCosaRequestsToMe,
@@ -34,9 +35,10 @@ import { useMyGroups } from '../../../../lib/orgs/useMyGroups';
  * villager when the group opened its cosateca to the pueblo — sees it and may
  * ask for it; so this screen does not require membership, the rules decide. Its
  * manager (the owner, or an admin of the group) edits, pauses or removes it and
- * sees its requests. A colectivizado cosa someone holds is asked of its holder,
- * who sees and answers its requests here (its owner may ask for it then, like
- * anyone). Where it is kept, and who has it since when, show to every viewer.
+ * sees its requests. A shared cosa (the group's, which travels hand to hand)
+ * someone holds is asked of its holder, who sees and answers its requests here
+ * and may leave it back in its place when it has one. Where it is kept, who has
+ * it since when and who gave it to the group show to every viewer.
  * A reserva is booked by slot on its week grid instead, and its manager closes
  * days there.
  */
@@ -56,7 +58,7 @@ export default function CosaScreen() {
   const isManager = isOwner || (cosa !== null && isAdmin);
   const holder = cosa ? cosaHolderUid(cosa) : null;
   const isHolder = holder !== null && holder === uid;
-  // Who answers its requests first-hand: a colectivizado cosa's holder while someone has it, else its owner.
+  // Who answers its requests first-hand: a shared cosa's holder while someone has it, else its owner.
   const answersFirstHand = holder !== null ? isHolder : isOwner;
   const seesRequests = isManager || isHolder;
 
@@ -87,13 +89,23 @@ export default function CosaScreen() {
   const [asking, setAsking] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+
+  // Its holder leaves a shared cosa where it is kept: free again, for the group to lend.
+  const leaveInPlace = () => {
+    if (!cosa?.heldBy) return;
+    setLeaving(true);
+    respondToCosaRequest(cosa.heldBy.requestId, 'return')
+      .catch((err: unknown) => showAlert(cosatecaErrorMessage(t, err)))
+      .finally(() => setLeaving(false));
+  };
 
   const setPaused = (paused: boolean) => {
     if (!cosa) return;
-    const { kind, mode, title, description, category, imageURL, conditions, location, locationNote, reserva } = cosa;
+    const { kind, title, description, category, imageURL, conditions, location, locationNote, reserva } = cosa;
     setSaving(true);
     updateCosa(cosa.id, {
-      kind, mode, title, description, category, imageURL, conditions, location, locationNote, reserva,
+      kind, title, description, category, imageURL, conditions, location, locationNote, reserva,
       status: paused ? 'paused' : 'available',
     })
       .catch((err: unknown) => showAlert(cosatecaErrorMessage(t, err)))
@@ -128,12 +140,16 @@ export default function CosaScreen() {
               </Text>
               <HStack gap={2} className="items-center flex-wrap">
                 <Badge label={t(`groups.cosateca.kinds.${cosa.kind}`)} />
-                {cosa.mode === 'colectivizado' ? <Badge label={t('groups.cosateca.modes.colectivizado')} testID="cosa-colectivizado" /> : null}
                 <Badge label={t(`groups.cosateca.categories.${cosa.category}`)} />
               </HStack>
               <Text variant="bodySm" tone="muted">
                 {cosa.ownerUid === null ? cosaOwnerLabel(t, cosa) : t('groups.cosateca.detail.offeredBy', { name: cosa.ownerName })}
               </Text>
+              {cosa.ownerUid === null && cosa.createdByName ? (
+                <Text variant="bodySm" tone="muted" testID="cosa-given-by">
+                  {t('groups.cosateca.detail.givenBy', { name: cosa.createdByName })}
+                </Text>
+              ) : null}
               <Text variant="bodySm" tone={state === 'available' ? 'success' : 'muted'} testID="cosa-state">
                 {cosaAvailabilityLabel(t, cosa)}
               </Text>
@@ -142,9 +158,9 @@ export default function CosaScreen() {
                   {cosaHeldSinceLabel(t, cosa.heldBy)}
                 </Text>
               ) : null}
-              {cosa.mode === 'colectivizado' ? (
-                <Text variant="bodySm" tone="muted">
-                  {t('groups.cosateca.modeHints.colectivizado')}
+              {isSharedCosa(cosa) ? (
+                <Text variant="bodySm" tone="muted" testID="cosa-shared-hint">
+                  {t('groups.cosateca.detail.sharedHint')}
                 </Text>
               ) : null}
             </VStack>
@@ -175,9 +191,16 @@ export default function CosaScreen() {
                 />
               </VStack>
             ) : isHolder ? (
-              <Text tone="muted" testID="cosa-you-hold-it">
-                {t('groups.cosateca.detail.youHoldIt')}
-              </Text>
+              <VStack gap={2}>
+                <Text tone="muted" testID="cosa-you-hold-it">
+                  {t('groups.cosateca.detail.youHoldIt')}
+                </Text>
+                {cosaHasPlace(cosa) ? (
+                  <Button variant="secondary" loading={leaving} onPress={leaveInPlace} fullWidth testID="cosa-leave-in-place">
+                    {t('groups.cosateca.detail.leaveInPlace')}
+                  </Button>
+                ) : null}
+              </VStack>
             ) : answersFirstHand ? (
               <Text tone="muted" testID="cosa-yours">
                 {t('groups.cosateca.detail.yours')}

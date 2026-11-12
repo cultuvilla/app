@@ -2427,18 +2427,10 @@
         "reserva": "Reserva"
       },
       "kindHints": {
-        "prestamo": "Se presta y se devuelve.",
+        "prestamo": "Algo que se presta: una escalera, una carpa.",
         "servicio": "Un favor que haces: no hay nada que devolver.",
         "regalo": "Se da para siempre.",
         "reserva": "Se reserva por horas: una pista, una sala."
-      },
-      "modes": {
-        "prestamo": "Préstamo",
-        "colectivizado": "Colectivizado"
-      },
-      "modeHints": {
-        "prestamo": "Quien lo coge te lo devuelve.",
-        "colectivizado": "Es de todos: pasa de mano en mano y nadie lo devuelve. Quien lo tenga se lo pasa al siguiente que lo pida."
       },
       "availability": {
         "available": "Disponible",
@@ -2462,7 +2454,6 @@
         "description": "Descripción",
         "conditions": "Condiciones",
         "conditionsHint": "Por ejemplo: «devolver limpia». Nunca dinero.",
-        "mode": "Cómo se comparte",
         "location": "Dónde está (opcional)",
         "locationNote": "Detalle de dónde está (opcional)",
         "locationNotePlaceholder": "Almacén del ayuntamiento, estante 2",
@@ -2471,6 +2462,10 @@
         "owner": "De quién es",
         "ownerMine": "Mío",
         "ownerGroup": "Del grupo",
+        "ownerHints": {
+          "mine": "Quien lo coge te lo devuelve.",
+          "group": "Pasa de mano en mano y nadie lo devuelve. Desde ese momento lo gestiona el grupo."
+        },
         "save": "Guardar",
         "delete": "Quitar de la cosateca",
         "deleteConfirm": "¿Quitarlo de la cosateca? Sus solicitudes quedan como registro."
@@ -2479,6 +2474,7 @@
         "title": "Cosateca",
         "unavailable": "Esto ya no está en la cosateca, o no puedes verlo.",
         "offeredBy": "Lo ofrece {name}",
+        "givenBy": "Lo ofreció {name}",
         "conditions": "Condiciones",
         "ask": "Pedirlo",
         "edit": "Editar",
@@ -2488,6 +2484,8 @@
         "where": "Dónde está",
         "heldSince": "Lo tiene {name} desde el {date}",
         "youHoldIt": "Lo tienes tú. Cuando alguien lo pida, se lo pasas.",
+        "sharedHint": "Es del grupo: pasa de mano en mano y nadie lo devuelve. Quien lo tenga se lo pasa al siguiente que lo pida, o lo deja en su sitio.",
+        "leaveInPlace": "Lo he dejado en su sitio",
         "notAvailable": "Ahora no se puede pedir.",
         "alreadyAsked": "Ya lo has pedido.",
         "seeRequest": "Ver mi solicitud",

@@ -10,6 +10,7 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
   cosaDatesOverlap,
+  cosaHasPlace,
   cosaRequestFlow,
   cosaRequestRoles,
   isCosaRequestAction,
@@ -41,9 +42,11 @@ const REASON_MESSAGES = {
  * Callable because the checks span documents a rule cannot hold together:
  * accepting a loan must not overlap another accepted or lent one of the same
  * cosa; lending and returning keep the cosa's `heldBy`; giving a regalo closes
- * the cosa and declines its other open requests; handing a colectivizado cosa
- * on makes the requester its holder, closes the previous holder's request as
- * `passed` and points its other open requests at the new holder; answering a reserva booking
+ * the cosa and declines its other open requests; handing a shared cosa on
+ * makes the requester its holder, closes the previous holder's request as
+ * `passed` and points its other open requests at the new holder; its holder
+ * leaving it back in its place frees it and hands those requests back to the
+ * group's admins; answering a reserva booking
  * keeps its slot's lock (`cosas/{cosaId}/slots`) — accepted, or freed.
  * `onCosaRequestWritten` sends the notifications.
  */
@@ -66,13 +69,13 @@ export async function applyCosaRequestAction(
     const cosa = cosaSnap.data() ?? null;
     const isAdmin = member.data()?.role === 'admin';
     // Whoever asked is only ever the requester: an admin must not accept, lend
-    // or give themself a cosa — another manager answers. A colectivizado
-    // cosa someone holds is answered by its holder, not its owner.
+    // or give themself a cosa — another manager answers. A shared cosa
+    // someone holds is answered by its holder, not the group.
     const roles = cosaRequestRoles(req, { uid, isGroupAdmin: isAdmin });
     if (roles.length === 0) throw new HttpsError('permission-denied', REASON_MESSAGES['not-your-role']);
 
-    const flow = cosaRequestFlow(req.cosaKind, req.cosaMode);
-    const next = nextCosaRequestStatus(req.cosaKind, req.status, action, roles, req.cosaMode);
+    const flow = cosaRequestFlow(req.cosaKind, req.ownerUid);
+    const next = nextCosaRequestStatus(req.cosaKind, req.status, action, roles, req.ownerUid);
     if (!next.ok) {
       throw new HttpsError(next.reason === 'wrong-state' ? 'failed-precondition' : 'permission-denied', REASON_MESSAGES[next.reason]);
     }
@@ -81,6 +84,16 @@ export async function applyCosaRequestAction(
     // never handed over.
     if (!cosa && (action === 'accept' || action === 'lend' || action === 'give' || action === 'done')) {
       throw new HttpsError('failed-precondition', 'Esa cosa ya no está en la cosateca.');
+    }
+    // Leaving a shared cosa back in its place: only where it has one, and only
+    // while this request's requester is the one holding it.
+    if (flow === 'shared' && action === 'return') {
+      if (!cosa || cosa.heldBy?.requestId !== requestId) {
+        throw new HttpsError('failed-precondition', 'Ya no la tienes tú.');
+      }
+      if (!cosaHasPlace(cosa)) {
+        throw new HttpsError('failed-precondition', 'No tiene un sitio donde dejarla: pásasela a quien la pida.');
+      }
     }
     if (cosa && action === 'accept' && cosa.status !== 'available') {
       throw new HttpsError('failed-precondition', 'Esa cosa no está disponible ahora.');
@@ -94,9 +107,9 @@ export async function applyCosaRequestAction(
     const ownsLock = lock?.data()?.requestId === requestId;
 
     let declineOthers: string[] = [];
-    // A colectivizado cosa is out with someone nearly all the time: the next
-    // in line is the one accepted request, whatever the holder is doing.
-    if (cosa && flow === 'colectivizado' && action === 'accept') {
+    // A shared cosa is out with someone nearly all the time: the next in line
+    // is the one accepted request, whatever the holder is doing.
+    if (cosa && flow === 'shared' && action === 'accept') {
       const others = await tx.get(
         cosaRequestsCollection(firestore).where('cosaId', '==', req.cosaId).where('status', '==', 'accepted'),
       );
@@ -112,13 +125,13 @@ export async function applyCosaRequestAction(
         throw new HttpsError('failed-precondition', 'Ya está prestada o comprometida en esas fechas.');
       }
     }
-    if (cosa && flow !== 'colectivizado' && action === 'lend' && cosa.heldBy !== null && cosa.heldBy.requestId !== requestId) {
+    if (cosa && flow !== 'shared' && action === 'lend' && cosa.heldBy !== null && cosa.heldBy.requestId !== requestId) {
       throw new HttpsError('failed-precondition', `La tiene ${cosa.heldBy.name} ahora mismo.`);
     }
-    // Handing a colectivizado cosa on: the requests still open on it now go to
-    // the new holder, and any of theirs is moot — they have it.
+    // Handing a shared cosa on: the requests still open on it now go to the
+    // new holder, and any of theirs is moot — they have it.
     let handover: { passed: string | null; repoint: string[]; cancel: string[] } | null = null;
-    if (cosa && flow === 'colectivizado' && action === 'lend') {
+    if (cosa && flow === 'shared' && action === 'lend') {
       const open = await tx.get(
         cosaRequestsCollection(firestore).where('cosaId', '==', req.cosaId).where('status', 'in', ['pending', 'accepted']),
       );
@@ -131,6 +144,14 @@ export async function applyCosaRequestAction(
         repoint: rest.filter((d) => d.data().requesterUid !== req.requesterUid).map((d) => d.id),
         cancel: rest.filter((d) => d.data().requesterUid === req.requesterUid).map((d) => d.id),
       };
+    }
+    // Left in its place: nobody holds it, so the group's admins answer what waits.
+    let backToGroup: string[] = [];
+    if (cosa && flow === 'shared' && action === 'return') {
+      const open = await tx.get(
+        cosaRequestsCollection(firestore).where('cosaId', '==', req.cosaId).where('status', 'in', ['pending', 'accepted']),
+      );
+      backToGroup = open.docs.filter((d) => d.data().holderUid !== null).map((d) => d.id);
     }
     if (cosa && req.cosaKind === 'regalo' && action === 'give') {
       const open = await tx.get(
@@ -172,6 +193,9 @@ export async function applyCosaRequestAction(
       for (const id of handover.cancel) {
         tx.update(cosaRequestDoc(firestore, id).withConverter(null), { status: 'cancelled', closedAt: now });
       }
+    }
+    for (const id of backToGroup) {
+      tx.update(cosaRequestDoc(firestore, id).withConverter(null), { holderUid: null });
     }
     for (const id of declineOthers) {
       tx.update(cosaRequestDoc(firestore, id).withConverter(null), { status: 'declined', respondedAt: now, closedAt: now });
