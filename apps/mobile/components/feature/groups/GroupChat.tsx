@@ -2,67 +2,40 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FlatList, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
-import { GROUP_CHAT_PAGE_SIZE, groupChatMessagePath } from '@cultuvilla/shared/models/organization';
+import {
+  GROUP_CHAT_PAGE_SIZE,
+  groupChatLayout,
+  groupChatMessagePath,
+  nextGroupChatReaction,
+  type GroupChatReaction,
+} from '@cultuvilla/shared/models/organization';
 import { getBlockedUserIds } from '@cultuvilla/shared/services/blockedUserService';
 import {
   deleteGroupChatMessage,
   markGroupChatRead,
   sendGroupChatMessage,
+  setGroupChatReaction,
   watchGroupChat,
   type GroupChatMessage,
 } from '@cultuvilla/shared/services/groupChatService';
-import { formatCompactRelativeTime } from '@cultuvilla/shared/utils';
 import { HStack, Input, Pressable, Text, VStack } from '../../primitives';
 import { ReportSheet, type ReportTarget } from '../ReportSheet';
-import { OptionsSheet } from './OptionsSheet';
+import { ChatMessageRow, ChatQuote } from './ChatMessageRow';
+import { ChatMessageSheet, type ChatMessageAction } from './ChatMessageSheet';
 import { useAuth } from '../../../lib/auth/useAuth';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useComposerKeyboardGap } from '../../../lib/keyboard/useKeyboardOpen';
 import { useT } from '../../../lib/i18n';
 
-function MessageBubble({
-  message,
-  mine,
-  onOptions,
-}: {
-  message: GroupChatMessage;
-  mine: boolean;
-  onOptions: (message: GroupChatMessage) => void;
-}) {
-  const { t } = useT();
-  return (
-    <HStack gap={1} align="start" className={mine ? 'justify-end' : 'justify-start'} testID={`group-chat-message-${message.id}`}>
-      <View className={`rounded-lg px-3 py-2 ${mine ? 'bg-accent-subtle/30' : 'bg-surface-elevated'}`} style={{ maxWidth: '85%' }}>
-        <HStack gap={2} align="center" justify="between">
-          <Text variant="caption" className="font-bold shrink" numberOfLines={1}>
-            {message.authorName}
-          </Text>
-          <Text variant="caption" tone="muted">
-            {formatCompactRelativeTime(message.createdAt)}
-          </Text>
-        </HStack>
-        <Text selectable>{message.body}</Text>
-      </View>
-      <Pressable
-        testID={`group-chat-options-${message.id}`}
-        accessibilityRole="button"
-        accessibilityLabel={t('groups.chat.options')}
-        hitSlop={8}
-        onPress={() => onOptions(message)}
-        className="py-2"
-      >
-        <Ionicons name="ellipsis-vertical" size={iconSizes.sm} color={colors.light.fg.muted} />
-      </Pressable>
-    </HStack>
-  );
-}
-
 /**
  * One thread of a group's chat, newest at the bottom: the Charla, or the chat
  * under an aviso (`head` is the aviso, drawn as the thread's first message).
- * Opening it marks it read. Messages from people the viewer blocked are hidden,
- * and each message offers the report, block and delete it may.
+ * Opening it marks it read. Drawn like WhatsApp: a day separator, one author's
+ * consecutive messages under one name. Messages from people the viewer blocked
+ * are hidden. A long-press on a message reacts to it, or replies, reports,
+ * blocks or deletes as the viewer may; reacting stays open where only the
+ * junta writes.
  */
 export function GroupChat({
   orgId,
@@ -90,6 +63,7 @@ export function GroupChat({
   const keyboardGap = useComposerKeyboardGap();
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
   const [optionsFor, setOptionsFor] = useState<GroupChatMessage | null>(null);
+  const [replyTo, setReplyTo] = useState<GroupChatMessage | null>(null);
   const [report, setReport] = useState<ReportTarget | null>(null);
 
   const watch = useWatch<GroupChatMessage[]>(
@@ -104,6 +78,7 @@ export function GroupChat({
     const all = watch.data ?? lastRows.current;
     return all.filter((m) => !blocked.has(m.authorUid));
   }, [watch.data, blocked]);
+  const layout = useMemo(() => groupChatLayout(rows), [rows]);
 
   useEffect(() => {
     let live = true;
@@ -126,13 +101,29 @@ export function GroupChat({
   const send = () => {
     const text = body.trim();
     if (!text || !authorName) return;
+    const quoted = replyTo;
     setBody('');
+    setReplyTo(null);
     // Not awaited for the UI: offline, the write resolves only on reconnect and
     // the listener shows the message from the cache at once.
-    sendGroupChatMessage({ orgId, threadId, uid, authorName, body: text }).catch(() => {
+    sendGroupChatMessage({
+      orgId,
+      threadId,
+      uid,
+      authorName,
+      body: text,
+      ...(quoted ? { replyTo: quoted } : {}),
+    }).catch(() => {
       setBody((current) => current || text);
+      setReplyTo((current) => current ?? quoted);
       showAlert(t('groups.chat.sendError'));
     });
+  };
+
+  const react = (message: GroupChatMessage, picked: GroupChatReaction) => {
+    void setGroupChatReaction(orgId, threadId, message.id, uid, nextGroupChatReaction(message.reactions?.[uid], picked)).catch(
+      () => showAlert(t('groups.chat.reactError')),
+    );
   };
 
   const confirmDelete = (message: GroupChatMessage) =>
@@ -140,18 +131,20 @@ export function GroupChat({
       void deleteGroupChatMessage(orgId, threadId, message.id).catch(() => showAlert(t('groups.chat.deleteError')));
     });
 
-  const options = optionsFor
+  const actions: ChatMessageAction[] = optionsFor
     ? [
-        ...(optionsFor.authorUid === uid || canModerate ? [{ key: 'delete', label: t('groups.chat.delete') }] : []),
-        ...(optionsFor.authorUid !== uid ? [{ key: 'report', label: t('groups.chat.report') }] : []),
+        ...(closedHint ? [] : (['reply'] as const)),
+        ...(optionsFor.authorUid !== uid ? (['report'] as const) : []),
+        ...(optionsFor.authorUid === uid || canModerate ? (['delete'] as const) : []),
       ]
     : [];
 
-  const pick = (key: string) => {
+  const pick = (action: ChatMessageAction) => {
     const message = optionsFor;
     setOptionsFor(null);
     if (!message) return;
-    if (key === 'delete') confirmDelete(message);
+    if (action === 'reply') setReplyTo(message);
+    else if (action === 'delete') confirmDelete(message);
     else {
       setReport({
         kind: 'comment',
@@ -163,6 +156,12 @@ export function GroupChat({
     }
   };
 
+  const reactFromSheet = (picked: GroupChatReaction) => {
+    const message = optionsFor;
+    setOptionsFor(null);
+    if (message) react(message, picked);
+  };
+
   return (
     <View className="flex-1" testID={`group-chat-${threadId}`}>
       <FlatList
@@ -170,13 +169,21 @@ export function GroupChat({
         data={rows}
         keyExtractor={(m) => m.id}
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="px-4 py-3 gap-2"
+        contentContainerClassName="px-3 py-3"
         testID="group-chat-list"
         onEndReachedThreshold={0.3}
         onEndReached={() => {
           if ((watch.data ?? []).length >= count) setCount((c) => c + GROUP_CHAT_PAGE_SIZE);
         }}
-        renderItem={({ item }) => <MessageBubble message={item} mine={item.authorUid === uid} onOptions={setOptionsFor} />}
+        renderItem={({ item, index }) => (
+          <ChatMessageRow
+            message={item}
+            layout={layout[index] ?? { newDay: false, firstOfRun: false }}
+            uid={uid}
+            onLongPress={setOptionsFor}
+            onReact={react}
+          />
+        )}
         ListFooterComponent={
           <VStack gap={2} className="pb-2">
             {head}
@@ -202,6 +209,22 @@ export function GroupChat({
           style={{ marginBottom: keyboardGap }}
           testID="group-chat-composer"
         >
+          {replyTo ? (
+            <HStack gap={2} align="center" className="pb-2" testID="group-chat-replying">
+              <View className="flex-1">
+                <ChatQuote authorUid={replyTo.authorUid} authorName={replyTo.authorName} body={replyTo.body} uid={uid} />
+              </View>
+              <Pressable
+                testID="group-chat-reply-cancel"
+                accessibilityRole="button"
+                accessibilityLabel={t('groups.chat.cancelReply')}
+                hitSlop={8}
+                onPress={() => setReplyTo(null)}
+              >
+                <Ionicons name="close" size={iconSizes.md} color={colors.light.fg.muted} />
+              </Pressable>
+            </HStack>
+          ) : null}
           <Input
             value={body}
             onChangeText={setBody}
@@ -226,13 +249,13 @@ export function GroupChat({
           />
         </View>
       )}
-      <OptionsSheet
-        visible={optionsFor !== null}
-        title={t('groups.chat.options')}
-        options={options}
-        onPick={pick}
+      <ChatMessageSheet
+        message={optionsFor}
+        myReaction={optionsFor?.reactions?.[uid]}
+        actions={actions}
+        onReact={reactFromSheet}
+        onAction={pick}
         onClose={() => setOptionsFor(null)}
-        testID="group-chat-options"
       />
       <ReportSheet
         visible={report !== null}

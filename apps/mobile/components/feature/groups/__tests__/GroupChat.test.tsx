@@ -12,6 +12,7 @@ jest.mock('../../../../lib/auth/useAuth', () => ({ useAuth: () => ({ profile: { 
 const mockSend = jest.fn((_input: unknown) => Promise.resolve('new1'));
 const mockDelete = jest.fn((..._a: unknown[]) => Promise.resolve());
 const mockMarkRead = jest.fn((..._a: unknown[]) => Promise.resolve());
+const mockReact = jest.fn((..._a: unknown[]) => Promise.resolve());
 jest.mock('@cultuvilla/shared/services/groupChatService', () => {
   const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
   return {
@@ -19,6 +20,7 @@ jest.mock('@cultuvilla/shared/services/groupChatService', () => {
     sendGroupChatMessage: (input: unknown) => mockSend(input),
     deleteGroupChatMessage: (...a: unknown[]) => mockDelete(...a),
     markGroupChatRead: (...a: unknown[]) => mockMarkRead(...a),
+    setGroupChatReaction: (...a: unknown[]) => mockReact(...a),
   };
 });
 let mockBlocked: string[] = [];
@@ -117,9 +119,9 @@ describe('GroupChat', () => {
   it('lets the author delete their message, and not report it', async () => {
     setWatched('chat', [message('c1', 'u1')]);
     const r = chat();
-    expect(r.queryByTestId('group-chat-options')).toBeNull();
-    fireEvent.press(r.getByTestId('group-chat-options-c1'));
-    expect(r.getByTestId('group-chat-options')).toBeTruthy();
+    expect(r.queryByTestId('group-chat-sheet')).toBeNull();
+    fireEvent(r.getByTestId('group-chat-message-c1'), 'longPress');
+    expect(r.getByTestId('group-chat-sheet')).toBeTruthy();
     expect(r.queryByTestId('group-chat-options-report')).toBeNull();
     fireEvent.press(r.getByTestId('group-chat-options-delete'));
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('org1', 'general', 'c1'));
@@ -128,18 +130,18 @@ describe('GroupChat', () => {
   it('offers a plain member no delete on someone else’s message, an admin one', () => {
     setWatched('chat', [message('c1', 'paco')]);
     const member = chat();
-    fireEvent.press(member.getByTestId('group-chat-options-c1'));
+    fireEvent(member.getByTestId('group-chat-message-c1'), 'longPress');
     expect(member.queryByTestId('group-chat-options-delete')).toBeNull();
     member.unmount();
     const admin = chat({ canModerate: true });
-    fireEvent.press(admin.getByTestId('group-chat-options-c1'));
+    fireEvent(admin.getByTestId('group-chat-message-c1'), 'longPress');
     expect(admin.getByTestId('group-chat-options-delete')).toBeTruthy();
   });
 
   it('a report names the message and carries its text, for moderators who cannot open the chat', async () => {
     setWatched('chat', [message('c1', 'paco')]);
     const r = chat({ threadId: 'aviso1' });
-    fireEvent.press(r.getByTestId('group-chat-options-c1'));
+    fireEvent(r.getByTestId('group-chat-message-c1'), 'longPress');
     fireEvent.press(r.getByTestId('group-chat-options-report'));
     await act(async () => {
       fireEvent.press(await r.findByTestId('report-reason-harassment'));
@@ -155,6 +157,91 @@ describe('GroupChat', () => {
         reason: 'harassment',
       }),
     );
+  });
+
+  it('draws one author’s consecutive messages under one name and initial, the viewer’s own with neither', async () => {
+    setWatched('chat', [
+      message('c4', 'u1', { createdAt: new Date(2026, 10, 2, 12) }),
+      message('c3', 'paco', { createdAt: new Date(2026, 10, 2, 11) }),
+      message('c2', 'paco', { createdAt: new Date(2026, 10, 2, 10) }),
+      message('c1', 'paco', { createdAt: new Date(2026, 10, 1, 10) }),
+    ]);
+    const r = chat();
+    await waitFor(() => expect(r.getByText('Mensaje c4')).toBeTruthy());
+    // Paco on 1 Nov, then again on 2 Nov: a new day opens a new run.
+    expect(r.getAllByText('Paco')).toHaveLength(2);
+    expect(r.getByTestId('group-chat-initial-c1')).toBeTruthy();
+    expect(r.getByTestId('group-chat-initial-c2')).toBeTruthy();
+    expect(r.queryByTestId('group-chat-initial-c3')).toBeNull();
+    expect(r.queryByTestId('group-chat-initial-c4')).toBeNull();
+    expect(r.queryByText('Ana')).toBeNull();
+  });
+
+  it('separates the days', async () => {
+    const now = new Date();
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12);
+    setWatched('chat', [message('c2', 'paco', { createdAt: now }), message('c1', 'paco', { createdAt: yesterday })]);
+    const r = chat();
+    await waitFor(() => expect(r.getByText('groups.chat.today')).toBeTruthy());
+    expect(r.getByText('groups.chat.yesterday')).toBeTruthy();
+  });
+
+  it('replies quoting the message, and can drop the quote before sending', async () => {
+    setWatched('chat', [message('c1', 'paco')]);
+    const r = chat();
+    fireEvent(r.getByTestId('group-chat-message-c1'), 'longPress');
+    fireEvent.press(r.getByTestId('group-chat-options-reply'));
+    expect(r.getByTestId('group-chat-replying')).toBeTruthy();
+    fireEvent.press(r.getByTestId('group-chat-reply-cancel'));
+    expect(r.queryByTestId('group-chat-replying')).toBeNull();
+    fireEvent(r.getByTestId('group-chat-message-c1'), 'longPress');
+    fireEvent.press(r.getByTestId('group-chat-options-reply'));
+    fireEvent.changeText(r.getByTestId('group-chat-input'), 'Yo');
+    fireEvent.press(r.getByTestId('group-chat-send'));
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'Yo', replyTo: expect.objectContaining({ id: 'c1', authorUid: 'paco', body: 'Mensaje c1' }) }),
+    );
+    await waitFor(() => expect(r.queryByTestId('group-chat-replying')).toBeNull());
+  });
+
+  it('shows the quote a reply carries', async () => {
+    setWatched('chat', [message('c2', 'u1', { replyTo: { chatId: 'c1', authorUid: 'paco', authorName: 'Paco', body: '¿Quién trae la tostadora?' } })]);
+    const r = chat();
+    await waitFor(() => expect(r.getByText('¿Quién trae la tostadora?')).toBeTruthy());
+  });
+
+  it('reacts from the long-press, and a tap on the reaction you left takes it back', async () => {
+    setWatched('chat', [message('c1', 'paco', { reactions: { u1: '👍', paco: '👍', pepa: '❤️' } })]);
+    const r = chat();
+    await waitFor(() => expect(r.getByText('👍 2')).toBeTruthy());
+    expect(r.getByText('❤️')).toBeTruthy();
+    fireEvent.press(r.getByTestId('group-chat-reaction-c1-👍'));
+    expect(mockReact).toHaveBeenLastCalledWith('org1', 'general', 'c1', 'u1', null);
+    fireEvent.press(r.getByTestId('group-chat-reaction-c1-❤️'));
+    expect(mockReact).toHaveBeenLastCalledWith('org1', 'general', 'c1', 'u1', '❤️');
+    fireEvent(r.getByTestId('group-chat-message-c1'), 'longPress');
+    expect(r.getByTestId('group-chat-sheet-text')).toBeTruthy();
+    fireEvent.press(r.getByTestId('group-chat-react-🙏'));
+    expect(mockReact).toHaveBeenLastCalledWith('org1', 'general', 'c1', 'u1', '🙏');
+    expect(r.queryByTestId('group-chat-sheet')).toBeNull();
+  });
+
+  it('says so when a reaction is not saved', async () => {
+    mockReact.mockRejectedValueOnce(new Error('denied'));
+    setWatched('chat', [message('c1', 'paco')]);
+    const r = chat();
+    fireEvent(r.getByTestId('group-chat-message-c1'), 'longPress');
+    fireEvent.press(r.getByTestId('group-chat-react-😂'));
+    await waitFor(() => expect(mockAlert).toHaveBeenCalledWith('groups.chat.reactError'));
+  });
+
+  it('where only the junta writes, a member still reacts but does not reply', () => {
+    setWatched('chat', [message('c1', 'paco')]);
+    const r = chat({ closedHint: 'solo la junta' });
+    fireEvent(r.getByTestId('group-chat-message-c1'), 'longPress');
+    expect(r.queryByTestId('group-chat-options-reply')).toBeNull();
+    fireEvent.press(r.getByTestId('group-chat-react-😮'));
+    expect(mockReact).toHaveBeenCalledWith('org1', 'general', 'c1', 'u1', '😮');
   });
 
   it('on Android lifts the composer by the bars the keyboard padding leaves out, only while the keyboard is up', () => {
