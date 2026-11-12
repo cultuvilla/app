@@ -30,7 +30,9 @@ export interface GroupSectionLists {
 /**
  * Which screens a group offers its viewer, in display order. Cuota, socios,
  * avisos and records exist only for orgs with a socio roster (not the
- * ayuntamiento); the Charla, tasks, members and settings are for every org, and
+ * ayuntamiento); the Charla, tasks and members are for every org, the settings
+ * are the group's rules and so an admin's (a member's notifications live in
+ * Ajustes → Notificaciones), and
  * every member manages the tasks, so they have no Gestionar button. An admin reads the actas
  * under Gestionar, so the member list leaves them out. Socios is everyone's: it
  * is where a member makes their personas a cargo socios, whether or not the
@@ -49,7 +51,6 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
     ...(roster ? (['cuota'] as const) : []),
     ...(roster && !isAdmin ? (['actas'] as const) : []),
     ...(roster ? (['socios'] as const) : []),
-    'ajustes',
   ];
   const admin: GroupSection[] = isAdmin
     ? [
@@ -57,6 +58,7 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
         ...(roster ? (['registros'] as const) : []),
         // Where there are socios, every integrante is one: the Socios screen manages both.
         ...(roster ? [] : (['miembros'] as const)),
+        'ajustes',
       ]
     : [];
   return { member, admin };

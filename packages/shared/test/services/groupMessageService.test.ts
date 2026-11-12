@@ -36,7 +36,7 @@ import {
   castGroupPollVote,
   markGroupMessageRead,
   nudgeGroupMessage,
-  setGroupMessagesMuted,
+  setGroupNotifyLevel,
   setWhatsappSent,
 } from '../../src/services/groupMessageService';
 
@@ -72,14 +72,14 @@ describe('groupMessageService', () => {
     expect(call(updateDoc, 1).data).toEqual({ whatsappSentAt: null, whatsappSentBy: null });
   });
 
-  it('mutes one group for one account', async () => {
-    await setGroupMessagesMuted('u1', 'org1', true);
+  it('sets one group’s notify level as both switches, merged', async () => {
+    await setGroupNotifyLevel('u1', 'org1', 'none');
     const { path, data } = call(setDoc);
     expect(path).toBe('users/u1/groupPrefs/org1');
-    expect(data).toMatchObject({ messagesMuted: true });
-    // A merge that never names the chat opt-in, so muting keeps it.
-    expect(data).not.toHaveProperty('chatPush');
+    expect(data).toMatchObject({ messagesMuted: true, chatPush: false, orgId: 'org1' });
     expect(vi.mocked(setDoc).mock.calls[0]?.[2]).toEqual({ merge: true });
+    await setGroupNotifyLevel('u1', 'org1', 'all');
+    expect(call(setDoc, 1).data).toMatchObject({ messagesMuted: false, chatPush: true });
   });
 
   it('nudges through the callable', async () => {

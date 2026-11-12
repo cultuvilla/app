@@ -22,7 +22,7 @@ import {
   type SendGroupMessageInput,
   type SendGroupMessageResult,
 } from '../models/organization/GroupMessageDataModel';
-import { buildGroupNotificationPrefsData, type GroupNotificationPrefsData } from '../models/notification/NotificationPrefsDataModel';
+import { groupNotifyPrefs, type GroupNotificationPrefsData, type GroupNotifyLevel } from '../models/notification/NotificationPrefsDataModel';
 import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type GroupMessage = GroupMessageData & { id: string };
@@ -201,10 +201,14 @@ export function watchGroupNotificationPrefs(
 }
 
 /**
- * Mute or unmute this group's message and chat pushes. The cuota reminders never
- * read it. A merge, so the general chat's opt-in (groupChatService) survives.
+ * How much this group notifies the member (Ajustes → Notificaciones). Writes
+ * both switches, and the doc's own id the chat trigger queries by. The cuota
+ * reminders never read it.
  */
-export async function setGroupMessagesMuted(uid: string, orgId: string, muted: boolean): Promise<void> {
-  const { messagesMuted, updatedAt } = buildGroupNotificationPrefsData({ messagesMuted: muted });
-  await setDoc(userGroupPrefsDoc(getDb(), uid, orgId).withConverter(null), { messagesMuted, updatedAt }, { merge: true });
+export async function setGroupNotifyLevel(uid: string, orgId: string, level: GroupNotifyLevel): Promise<void> {
+  await setDoc(
+    userGroupPrefsDoc(getDb(), uid, orgId).withConverter(null),
+    { ...groupNotifyPrefs(level), orgId, updatedAt: new Date() },
+    { merge: true },
+  );
 }

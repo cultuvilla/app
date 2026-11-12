@@ -36,7 +36,6 @@ import {
   deleteGroupChatMessage,
   markGroupChatRead,
   sendGroupChatMessage,
-  setGroupChatPush,
   watchGroupAviso,
   watchGroupChat,
   watchGroupChatThreads,
@@ -78,16 +77,6 @@ describe('groupChatService', () => {
   it('a read is the reader’s own doc, moved to now', async () => {
     await markGroupChatRead('org1', 'general', 'u1');
     expect(call(setDoc)).toMatchObject({ path: 'organizations/org1/chatThreads/general/reads/u1', data: { readAt: 'SERVER_TS' } });
-  });
-
-  it('the chat opt-in keeps the group’s mute and merges', async () => {
-    await setGroupChatPush('u1', 'org1', true, { messagesMuted: true });
-    const { path, data, options } = call(setDoc);
-    expect(path).toBe('users/u1/groupPrefs/org1');
-    expect(data).toMatchObject({ messagesMuted: true, chatPush: true, orgId: 'org1' });
-    expect(options).toEqual({ merge: true });
-    await setGroupChatPush('u1', 'org1', false, null);
-    expect(call(setDoc, 1).data).toMatchObject({ messagesMuted: false, chatPush: false });
   });
 
   it('watches the newest messages first, as many as asked', () => {

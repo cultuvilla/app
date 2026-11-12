@@ -95,3 +95,20 @@ export function buildGroupNotificationPrefsData(input: {
     updatedAt: input.updatedAt ?? new Date(),
   };
 }
+
+/**
+ * How much one group notifies a member, as the three levels Ajustes →
+ * Notificaciones offers. Stored as the two switches of the group's prefs doc,
+ * which installed binaries still read and write.
+ */
+export const GROUP_NOTIFY_LEVELS = ['all', 'avisos', 'none'] as const;
+export type GroupNotifyLevel = (typeof GROUP_NOTIFY_LEVELS)[number];
+
+export function groupNotifyLevel(prefs: Pick<GroupNotificationPrefsData, 'messagesMuted' | 'chatPush'> | null): GroupNotifyLevel {
+  if (prefs?.chatPush) return 'all';
+  return prefs?.messagesMuted ? 'none' : 'avisos';
+}
+
+export function groupNotifyPrefs(level: GroupNotifyLevel): Pick<GroupNotificationPrefsData, 'messagesMuted' | 'chatPush'> {
+  return { messagesMuted: level === 'none', chatPush: level === 'all' };
+}

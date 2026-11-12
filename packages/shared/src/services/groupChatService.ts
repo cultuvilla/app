@@ -9,7 +9,6 @@ import {
   organizationChatWriteCollection,
   organizationChatWriteDoc,
   organizationMessageDoc,
-  userGroupPrefsDoc,
 } from '../firebase/refs/client';
 import {
   GroupChatBodySchema,
@@ -18,7 +17,6 @@ import {
   type GroupChatThreadData,
 } from '../models/organization/GroupChatDataModel';
 import type { GroupMessageData } from '../models/organization/GroupMessageDataModel';
-import type { GroupNotificationPrefsData } from '../models/notification/NotificationPrefsDataModel';
 import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type GroupChatMessage = GroupChatMessageData & { id: string };
@@ -138,24 +136,3 @@ export async function markGroupChatRead(orgId: string, threadId: string, uid: st
   await setDoc(organizationChatReadWriteDoc(getDb(), orgId, threadId, uid), { readAt: serverTimestamp() });
 }
 
-// =============================================================================
-// PUSH — the per-group opt-in
-// =============================================================================
-
-/**
- * Opt in to (or out of) notifications for this group's chats, general and avisos
- * alike. Keeps the group's mute as `current` has it — pass the prefs
- * `watchGroupNotificationPrefs` last gave (null = never set).
- */
-export async function setGroupChatPush(
-  uid: string,
-  orgId: string,
-  on: boolean,
-  current: Pick<GroupNotificationPrefsData, 'messagesMuted'> | null,
-): Promise<void> {
-  await setDoc(
-    userGroupPrefsDoc(getDb(), uid, orgId).withConverter(null),
-    { messagesMuted: current?.messagesMuted ?? false, chatPush: on, orgId, updatedAt: new Date() },
-    { merge: true },
-  );
-}
