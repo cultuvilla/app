@@ -35,6 +35,8 @@ function safelyAudio(operation: string, call: () => void): void {
   try {
     call();
   } catch (err) {
+    // A runtime being torn down is the expected case above, not a fault worth a report.
+    if (err instanceof Error && err.message.includes('AppContextLost')) return;
     observability.captureError(err, { operation: `intro:sound:${operation}` });
   }
 }

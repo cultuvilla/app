@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo, Platform } from 'react-native';
+import { observability } from '@cultuvilla/shared';
 import { colors } from '@cultuvilla/shared/design-system';
 import { IntroOverlay, INTRO_MAX_MS } from '../IntroOverlay';
 
@@ -176,5 +177,20 @@ describe('when the audio module is gone', () => {
     mockPlayer.remove.mockImplementation(lost);
     const view = await mount(false);
     expect(() => view.unmount()).not.toThrow();
+  });
+
+  it('reports no error for the expected teardown, but does for anything else', async () => {
+    jest.mocked(observability.captureError).mockClear();
+    mockPlayer.remove.mockImplementation(lost);
+    const lostView = await mount(false);
+    lostView.unmount();
+    expect(observability.captureError).not.toHaveBeenCalled();
+
+    mockPlayer.remove.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const view = await mount(false);
+    view.unmount();
+    expect(observability.captureError).toHaveBeenCalledWith(expect.any(Error), { operation: 'intro:sound:remove' });
   });
 });
