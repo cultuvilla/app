@@ -171,13 +171,14 @@ onFlowComplete:
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'cuota-settings-save'
-# The form closes on the server's ack. On iOS the native SDK's connection to
-# the emulator drops now and then just after a write and takes up to a minute
-# to come back (seen in runs 43378981108: 16-50 s), so wait out a reconnect.
+# The form closes on the server's ack. On iOS the emulator now and then closes
+# the SDK's connection just after a write, the SDK notices only on the reset
+# 30 s later and reconnects up to a minute after that (runs 43378981108 and
+# 43398151310: up to 92 s), so wait out a full reconnect.
 - extendedWaitUntil:
     notVisible:
       id: 'cuota-settings-sheet'
-    timeout: 90000
+    timeout: 150000
 - runScript:
     file: ../scripts/assertDoc.js
     env:
@@ -318,8 +319,9 @@ onFlowComplete:
       FIELD: socioNumber
       EXPECT: ${output.typedNumber}
 - assertTrue: ${output.ok == 'true'}
+# On iOS the row is one element whose text joins the number and the name.
 - extendedWaitUntil:
-    visible: '${output.typedNumber}'
+    visible: '.*${output.typedNumber}.*'
     timeout: 15000
 # A member's row is renumbered from its own number sheet.
 - runScript:

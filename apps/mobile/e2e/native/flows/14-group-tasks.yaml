@@ -88,8 +88,8 @@ onFlowComplete:
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'task-save'
-# On iOS the native SDK's connection to the emulator drops now and then just
-# after a write and takes up to a minute to come back (flow 13 has the same).
+# The save waits for the server's ack, which on iOS can take a full emulator
+# reconnect (see flow 13's cuota save).
 - runScript:
     file: ../scripts/queryCollection.js
     env:
@@ -98,7 +98,7 @@ onFlowComplete:
       VALUE: ${output.taskTitle}
       MIN: '1'
       MAX: '1'
-      TIMEOUT_MS: '90000'
+      TIMEOUT_MS: '150000'
 - assertTrue: ${output.ok == 'true'}
 - evalScript: ${output.taskId = output.id}
 - runScript:
@@ -238,7 +238,7 @@ onFlowComplete:
     file: ../scripts/assertDoc.js
     env:
       DOC_PATH: 'organizations/${ORG_ID}/tasks/${output.taskId}'
-      TIMEOUT_MS: '90000'
+      TIMEOUT_MS: '150000'
       EXPECT_JSON: >-
         {
           'title': '@taskEditTitle',
