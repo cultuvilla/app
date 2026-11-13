@@ -22,11 +22,35 @@ const INTRO_BACKGROUND = colors.light.bg.surface;
 type Phase = 'starting' | 'playing' | 'leaving' | 'gone';
 
 /**
+ * Runs a synchronous expo-audio call that must never take the app down.
+ *
+ * These calls throw `AppContextLost` once the JS runtime is being torn down —
+ * which happens with the intro still on screen when a launch restarts the app
+ * at once (clearLocalCacheAndRestart, from the one-off runaway-queue purge). Thrown from an effect, that
+ * is an unhandled JS exception during launch, and expo-updates' error recovery
+ * answers it by aborting the process. The intro's sound is decoration: losing
+ * it is fine, crashing for it is not.
+ */
+function safelyAudio(operation: string, call: () => void): void {
+  try {
+    call();
+  } catch (err) {
+    observability.captureError(err, { operation: `intro:sound:${operation}` });
+  }
+}
+
+/**
  * Full-screen startup intro, shown once per cold start over the app while it
  * loads. It leaves when the animation has finished AND the app is ready, when
  * tapped, or after INTRO_MAX_MS — whichever comes first. Skipped entirely for
  * users with Reduce Motion on, and on the restart that follows a sign-out.
  */
+function releasePlayer(ref: { current: AudioPlayer | null }): void {
+  const current = ref.current;
+  ref.current = null;
+  if (current) safelyAudio('remove', () => current.remove());
+}
+
 export function IntroOverlay({ appReady }: { appReady: boolean }) {
   const { t } = useT();
   const [phase, setPhase] = useState<Phase>('starting');
@@ -71,8 +95,7 @@ export function IntroOverlay({ appReady }: { appReady: boolean }) {
     return () => {
       cancelled = true;
       clearTimeout(giveUp);
-      player.current?.remove();
-      player.current = null;
+      releasePlayer(player);
     };
   }, [leave]);
 
@@ -82,12 +105,12 @@ export function IntroOverlay({ appReady }: { appReady: boolean }) {
 
   useEffect(() => {
     if (phase !== 'leaving') return;
-    player.current?.pause();
+    const current = player.current;
+    if (current) safelyAudio('pause', () => current.pause());
     Animated.timing(opacity, { toValue: 0, duration: FADE_MS, useNativeDriver: true }).start(() => {
       // The overlay stays mounted for the app's lifetime, so release the
       // player here rather than waiting for an unmount that never comes.
-      player.current?.remove();
-      player.current = null;
+      releasePlayer(player);
       setPhase('gone');
     });
   }, [phase, opacity]);
