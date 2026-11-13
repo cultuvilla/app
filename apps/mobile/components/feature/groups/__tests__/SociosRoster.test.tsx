@@ -126,6 +126,12 @@ describe('SociosRoster — admin', () => {
     expect(r.queryByTestId('socio-row-Ana')).toBeNull();
   });
 
+  it('reads each row out with its socio number, as it shows it', () => {
+    const r = renderAdmin();
+    expect(r.getByTestId('socio-row-Paco').props.accessibilityLabel).toBe('12, Paco');
+    expect(r.getByTestId('socio-row-Ana').props.accessibilityLabel).toBe('Ana');
+  });
+
   it('searches the book by name or number', () => {
     const r = renderAdmin();
     fireEvent.changeText(r.getByTestId('socios-search'), 'pac');

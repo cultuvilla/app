@@ -8,7 +8,9 @@
 // env:
 //   DOC_PATH  required — path under /documents, e.g. "events/e2e-event-fiesta"
 //   FIELD     required — top-level field name
-//   VALUE     required — the string to write
+//   VALUE     required — the value to write, as a string
+//   TYPE      optional — "boolean" writes VALUE "true"/"false" as a boolean;
+//             default a string
 // output:
 //   output.status  the HTTP status of the write
 
@@ -17,7 +19,8 @@ var PROJECT = typeof E2E_FIREBASE_PROJECT !== 'undefined' && E2E_FIREBASE_PROJEC
 var BASE = 'http://' + HOST + '/v1/projects/' + PROJECT + '/databases/(default)/documents';
 
 var fields = {};
-fields[FIELD] = { stringValue: VALUE };
+fields[FIELD] =
+  typeof TYPE !== 'undefined' && TYPE === 'boolean' ? { booleanValue: VALUE === 'true' } : { stringValue: VALUE };
 var res = http.request(BASE + '/' + DOC_PATH + '?updateMask.fieldPaths=' + encodeURIComponent(FIELD), {
   method: 'PATCH',
   headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' },

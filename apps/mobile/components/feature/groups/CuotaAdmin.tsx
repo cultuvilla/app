@@ -139,6 +139,10 @@ export function CuotaAdmin({
   if (settings.status !== 'ready' || socios.status !== 'ready') return null;
   const fail = () => showAlert(t('groups.cuota.error'));
 
+  // First child of both branches below, so the save's own snapshot (which
+  // switches to the configured branch before the write resolves) keeps this
+  // modal mounted. Remounted, it re-presented over the old one and iOS never
+  // dismissed it (e2e flow 13).
   const settingsSheet = (
     <CuotaSettingsSheet
       visible={sheet?.kind === 'settings'}
@@ -150,17 +154,19 @@ export function CuotaAdmin({
 
   if (!cuota || !periodKey) {
     return (
-      <VStack gap={2} testID="cuota-admin">
-        <Text tone="muted" variant="bodySm">
-          {t('groups.cuota.admin.notConfigured')}
-        </Text>
-        <HStack>
-          <Button testID="cuota-configure" onPress={() => setSheet({ kind: 'settings' })}>
-            {t('groups.cuota.admin.configure')}
-          </Button>
-        </HStack>
+      <>
         {settingsSheet}
-      </VStack>
+        <VStack gap={2} testID="cuota-admin">
+          <Text tone="muted" variant="bodySm">
+            {t('groups.cuota.admin.notConfigured')}
+          </Text>
+          <HStack>
+            <Button testID="cuota-configure" onPress={() => setSheet({ kind: 'settings' })}>
+              {t('groups.cuota.admin.configure')}
+            </Button>
+          </HStack>
+        </VStack>
+      </>
     );
   }
 
@@ -223,241 +229,243 @@ export function CuotaAdmin({
   const socioSheetStatus = socioSheet ? statusById.get(socioSheet.socio.id) ?? null : null;
 
   return (
-    <VStack gap={3} testID="cuota-admin">
-      <HStack gap={2} align="center">
-        <Pressable
-          testID="cuota-period-prev"
-          accessibilityRole="button"
-          accessibilityLabel={t('groups.cuota.admin.prevPeriod')}
-          disabled={!canGoBack}
-          hitSlop={8}
-          onPress={() => setChosenPeriod(shiftPeriod(periodKey, -1))}
-          className={canGoBack ? '' : 'opacity-30'}
-        >
-          <Ionicons name="chevron-back" size={iconSizes.md} color={colors.light.fg.accent} />
-        </Pressable>
-        <Text variant="h3" className="font-bold" testID="cuota-period">
-          {t('groups.cuota.periodTitle', { period: periodLabel(periodKey) })}
-        </Text>
-        <Pressable
-          testID="cuota-period-next"
-          accessibilityRole="button"
-          accessibilityLabel={t('groups.cuota.admin.nextPeriod')}
-          hitSlop={8}
-          onPress={() => setChosenPeriod(shiftPeriod(periodKey, 1))}
-        >
-          <Ionicons name="chevron-forward" size={iconSizes.md} color={colors.light.fg.accent} />
-        </Pressable>
-        <View className="flex-1" />
-        <Pressable
-          testID="cuota-more"
-          accessibilityRole="button"
-          accessibilityLabel={t('groups.cuota.admin.more')}
-          hitSlop={8}
-          onPress={() => setSheet({ kind: 'menu' })}
-        >
-          <Ionicons name="ellipsis-horizontal" size={iconSizes.md} color={colors.light.fg.primary} />
-        </Pressable>
-      </HStack>
-
-      <VStack gap={2} className="rounded-lg bg-surface-elevated border border-subtle p-4" testID="cuota-summary">
-        <HStack gap={2} align="center" justify="between">
-          <VStack className="flex-1">
-            <Text variant="h1" className="font-bold" testID="cuota-collected">
-              {centsLabel(summary.collectedCents)}
-            </Text>
-            <Text variant="bodySm" tone="muted">
-              {t('groups.cuota.admin.ofTotal', { total: centsLabel(summary.totalCents) })}
-            </Text>
-          </VStack>
-          <VStack className="items-end">
-            <Text variant="h3" className="font-bold" testID="cuota-paid-count">
-              {summary.paid}
-            </Text>
-            <Text variant="bodySm" tone="muted">
-              {t('groups.cuota.admin.ofPaid', { count: summary.payers })}
-            </Text>
-          </VStack>
+    <>
+      {settingsSheet}
+      <VStack gap={3} testID="cuota-admin">
+        <HStack gap={2} align="center">
+          <Pressable
+            testID="cuota-period-prev"
+            accessibilityRole="button"
+            accessibilityLabel={t('groups.cuota.admin.prevPeriod')}
+            disabled={!canGoBack}
+            hitSlop={8}
+            onPress={() => setChosenPeriod(shiftPeriod(periodKey, -1))}
+            className={canGoBack ? '' : 'opacity-30'}
+          >
+            <Ionicons name="chevron-back" size={iconSizes.md} color={colors.light.fg.accent} />
+          </Pressable>
+          <Text variant="h3" className="font-bold" testID="cuota-period">
+            {t('groups.cuota.periodTitle', { period: periodLabel(periodKey) })}
+          </Text>
+          <Pressable
+            testID="cuota-period-next"
+            accessibilityRole="button"
+            accessibilityLabel={t('groups.cuota.admin.nextPeriod')}
+            hitSlop={8}
+            onPress={() => setChosenPeriod(shiftPeriod(periodKey, 1))}
+          >
+            <Ionicons name="chevron-forward" size={iconSizes.md} color={colors.light.fg.accent} />
+          </Pressable>
+          <View className="flex-1" />
+          <Pressable
+            testID="cuota-more"
+            accessibilityRole="button"
+            accessibilityLabel={t('groups.cuota.admin.more')}
+            hitSlop={8}
+            onPress={() => setSheet({ kind: 'menu' })}
+          >
+            <Ionicons name="ellipsis-horizontal" size={iconSizes.md} color={colors.light.fg.primary} />
+          </Pressable>
         </HStack>
-        <View className="h-2 rounded-full bg-subtle overflow-hidden" testID="cuota-progress">
-          <View className="h-full rounded-full bg-accent" style={{ width: `${Math.round(progress * 100)}%` }} />
-        </View>
-        <Text variant="caption" tone="muted">
-          {t('groups.cuota.admin.summary', {
-            amount: centsLabel(cuotaPriceFor(cuota, periodKey)),
-            periodicity: t(`groups.cuota.periodicity.${cuota.periodicity}`),
-            due: formatDayKey(periodDueDay(cuota, periodKey), 'dayMonth'),
-          })}
-        </Text>
-      </VStack>
 
-      <Button testID="cuota-desk-open" variant="secondary" fullWidth onPress={() => setSheet({ kind: 'desk' })}>
-        {t('groups.cuota.desk.title')}
-      </Button>
-
-      <Input
-        value={query}
-        onChangeText={setQuery}
-        placeholder={t('groups.cuota.admin.search')}
-        autoCorrect={false}
-        dense
-        testID="cuota-search"
-      />
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2" testID="cuota-filter">
-        {COLLECTION_FILTERS.map((f) => {
-          const chosen = f === filter;
-          return (
-            <Pressable
-              key={f}
-              testID={`cuota-filter-${f}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: chosen }}
-              onPress={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-full border ${chosen ? 'bg-accent border-accent' : 'bg-surface border-subtle'}`}
-            >
-              <Text variant="bodySm" tone={chosen ? 'onAccent' : 'primary'} className={chosen ? 'font-bold' : ''}>
-                {t(`groups.cuota.admin.filters.${f}`, { count: count(f) })}
+        <VStack gap={2} className="rounded-lg bg-surface-elevated border border-subtle p-4" testID="cuota-summary">
+          <HStack gap={2} align="center" justify="between">
+            <VStack className="flex-1">
+              <Text variant="h1" className="font-bold" testID="cuota-collected">
+                {centsLabel(summary.collectedCents)}
               </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+              <Text variant="bodySm" tone="muted">
+                {t('groups.cuota.admin.ofTotal', { total: centsLabel(summary.totalCents) })}
+              </Text>
+            </VStack>
+            <VStack className="items-end">
+              <Text variant="h3" className="font-bold" testID="cuota-paid-count">
+                {summary.paid}
+              </Text>
+              <Text variant="bodySm" tone="muted">
+                {t('groups.cuota.admin.ofPaid', { count: summary.payers })}
+              </Text>
+            </VStack>
+          </HStack>
+          <View className="h-2 rounded-full bg-subtle overflow-hidden" testID="cuota-progress">
+            <View className="h-full rounded-full bg-accent" style={{ width: `${Math.round(progress * 100)}%` }} />
+          </View>
+          <Text variant="caption" tone="muted">
+            {t('groups.cuota.admin.summary', {
+              amount: centsLabel(cuotaPriceFor(cuota, periodKey)),
+              periodicity: t(`groups.cuota.periodicity.${cuota.periodicity}`),
+              due: formatDayKey(periodDueDay(cuota, periodKey), 'dayMonth'),
+            })}
+          </Text>
+        </VStack>
 
-      {shown.length === 0 ? (
-        <Text tone="muted" variant="bodySm" className="py-4 text-center" testID="cuota-empty">
-          {t('groups.cuota.admin.empty')}
-        </Text>
-      ) : (
-        <VStack className="rounded-lg bg-surface-elevated border border-subtle">
-          {shown.map((s, i) => {
-            const socio = socioById.get(s.socioId);
-            if (!socio) return null;
-            const partial = s.basis === 'unpaid' && s.paidCents > 0;
+        <Button testID="cuota-desk-open" variant="secondary" fullWidth onPress={() => setSheet({ kind: 'desk' })}>
+          {t('groups.cuota.desk.title')}
+        </Button>
+
+        <Input
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t('groups.cuota.admin.search')}
+          autoCorrect={false}
+          dense
+          testID="cuota-search"
+        />
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2" testID="cuota-filter">
+          {COLLECTION_FILTERS.map((f) => {
+            const chosen = f === filter;
             return (
               <Pressable
-                key={s.socioId}
-                testID={`cuota-row-${s.socioId}`}
+                key={f}
+                testID={`cuota-filter-${f}`}
                 accessibilityRole="button"
-                onPress={() => setSheet({ kind: 'socio', socio })}
-                className={`px-3 py-2.5 ${i > 0 ? 'border-t border-subtle' : ''}`}
+                accessibilityState={{ selected: chosen }}
+                onPress={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded-full border ${chosen ? 'bg-accent border-accent' : 'bg-surface border-subtle'}`}
               >
-                <HStack gap={2} align="center">
-                  <Text variant="bodySm" tone="muted" className="w-8 text-right">
-                    {socio.socioNumber ?? ''}
-                  </Text>
-                  <VStack className="flex-1">
-                    <Text className={socio.bajaAt ? 'text-muted' : ''}>{socio.displayName}</Text>
-                    <Text variant="bodySm" tone={s.basis === 'unpaid' && s.status === 'vencida' ? 'danger' : 'muted'}>
-                      {s.basis === 'unpaid' && s.status === 'vencida'
-                        ? `${t('groups.cuota.status.vencida')} · ${detailOf(s)}`
-                        : detailOf(s)}
-                    </Text>
-                  </VStack>
-                  {s.basis === 'unpaid' ? (
-                    <Pressable
-                      testID={`cuota-record-${s.socioId}`}
-                      accessibilityRole="button"
-                      accessibilityLabel={partial ? t('groups.cuota.admin.payRest') : t('groups.cuota.admin.paid')}
-                      hitSlop={6}
-                      onPress={() => setSheet({ kind: 'payment', socio, status: s, quick: true })}
-                      className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${partial ? 'border border-accent' : 'bg-accent'}`}
-                    >
-                      <Ionicons
-                        name={partial ? 'add' : 'checkmark'}
-                        size={iconSizes.sm}
-                        color={partial ? colors.light.fg.accent : colors.light.fg['on-accent']}
-                      />
-                      {partial ? null : (
-                        <Text variant="bodySm" tone="onAccent" className="font-bold">
-                          {t('groups.cuota.admin.paid')}
-                        </Text>
-                      )}
-                    </Pressable>
-                  ) : s.basis === 'paid' ? (
-                    <Text variant="bodySm" tone={CUOTA_STATUS_TONE[s.status]} className="font-bold">
-                      {t('groups.cuota.status.al_dia')}
-                    </Text>
-                  ) : null}
-                </HStack>
+                <Text variant="bodySm" tone={chosen ? 'onAccent' : 'primary'} className={chosen ? 'font-bold' : ''}>
+                  {t(`groups.cuota.admin.filters.${f}`, { count: count(f) })}
+                </Text>
               </Pressable>
             );
           })}
-        </VStack>
-      )}
+        </ScrollView>
 
-      {settingsSheet}
-      <OptionsSheet
-        visible={sheet?.kind === 'menu'}
-        title={t('groups.cuota.title')}
-        testID="cuota-menu"
-        options={[
-          { key: 'settings', label: t('groups.cuota.admin.menu.settings') },
-          { key: 'export-xlsx', label: t('groups.cuota.admin.menu.exportXlsx') },
-          { key: 'export-csv', label: t('groups.cuota.admin.menu.exportCsv') },
-          {
-            key: 'reminders',
-            label: t(cuota.remindersEnabled ? 'groups.cuota.admin.menu.remindersOff' : 'groups.cuota.admin.menu.remindersOn'),
-            description: cuota.remindersEnabled ? t('groups.cuota.admin.remindersOn', { name: signer?.name ?? orgName }) : undefined,
-          },
-        ]}
-        onPick={pickMenu}
-        onClose={() => setSheet(null)}
-      />
-      <CuotaSocioSheet
-        visible={socioSheet !== null}
-        name={socioSheet?.socio.displayName ?? ''}
-        status={socioSheetStatus}
-        detail={socioSheetStatus ? detailOf(socioSheetStatus) : ''}
-        reminderSentAt={socioSheet ? reminderBySocio.get(socioSheet.socio.id)?.sentAt ?? null : null}
-        entries={
-          socioSheet
-            ? (payments.data ?? [])
-                .filter((p) => p.socioId === socioSheet.socio.id)
-                .sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime())
-            : []
-        }
-        reversed={reversed}
-        onRecord={() => {
-          if (socioSheet && socioSheetStatus) setSheet({ kind: 'payment', socio: socioSheet.socio, status: socioSheetStatus, quick: false });
-        }}
-        onAssign={() => {
-          if (socioSheet) setSheet({ kind: 'assign', socio: socioSheet.socio });
-        }}
-        onReverse={reverse}
-        onClose={() => setSheet(null)}
-      />
-      <CuotaCashDesk
-        visible={sheet?.kind === 'desk'}
-        socios={deskSocios}
-        onRecord={async (socioId, amountCents, method) => {
-          await recordCuotaPayment(orgId, { socioId, periodKey, amountCents, method, paidOn: todayKey(), note: '' }, uid);
-        }}
-        onClose={() => setSheet(null)}
-      />
-      <RecordPaymentSheet
-        visible={sheet?.kind === 'payment'}
-        socioName={sheet?.kind === 'payment' ? sheet.socio.displayName : ''}
-        suggestedCents={sheet?.kind === 'payment' ? Math.max(0, sheet.status.owedCents - sheet.status.paidCents) : 0}
-        quick={sheet?.kind === 'payment' && sheet.quick}
-        onSave={async (values) => {
-          if (sheet?.kind !== 'payment') return;
-          await recordCuotaPayment(orgId, { socioId: sheet.socio.id, periodKey, ...values }, uid);
-        }}
-        onClose={() => setSheet(null)}
-      />
-      <CuotaAssignmentSheet
-        visible={sheet?.kind === 'assign'}
-        socioName={sheet?.kind === 'assign' ? sheet.socio.displayName : ''}
-        settings={cuota}
-        periodKey={periodKey}
-        assignment={sheet?.kind === 'assign' ? assignmentById[sheet.socio.id] : undefined}
-        onSave={async (values) => {
-          if (sheet?.kind !== 'assign') return;
-          await setCuotaAssignment(orgId, sheet.socio.id, values, uid);
-        }}
-        onClose={() => setSheet(null)}
-      />
-    </VStack>
+        {shown.length === 0 ? (
+          <Text tone="muted" variant="bodySm" className="py-4 text-center" testID="cuota-empty">
+            {t('groups.cuota.admin.empty')}
+          </Text>
+        ) : (
+          <VStack className="rounded-lg bg-surface-elevated border border-subtle">
+            {shown.map((s, i) => {
+              const socio = socioById.get(s.socioId);
+              if (!socio) return null;
+              const partial = s.basis === 'unpaid' && s.paidCents > 0;
+              return (
+                <Pressable
+                  key={s.socioId}
+                  testID={`cuota-row-${s.socioId}`}
+                  accessibilityRole="button"
+                  onPress={() => setSheet({ kind: 'socio', socio })}
+                  className={`px-3 py-2.5 ${i > 0 ? 'border-t border-subtle' : ''}`}
+                >
+                  <HStack gap={2} align="center">
+                    <Text variant="bodySm" tone="muted" className="w-8 text-right">
+                      {socio.socioNumber ?? ''}
+                    </Text>
+                    <VStack className="flex-1">
+                      <Text className={socio.bajaAt ? 'text-muted' : ''}>{socio.displayName}</Text>
+                      <Text variant="bodySm" tone={s.basis === 'unpaid' && s.status === 'vencida' ? 'danger' : 'muted'}>
+                        {s.basis === 'unpaid' && s.status === 'vencida'
+                          ? `${t('groups.cuota.status.vencida')} · ${detailOf(s)}`
+                          : detailOf(s)}
+                      </Text>
+                    </VStack>
+                    {s.basis === 'unpaid' ? (
+                      <Pressable
+                        testID={`cuota-record-${s.socioId}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={partial ? t('groups.cuota.admin.payRest') : t('groups.cuota.admin.paid')}
+                        hitSlop={6}
+                        onPress={() => setSheet({ kind: 'payment', socio, status: s, quick: true })}
+                        className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${partial ? 'border border-accent' : 'bg-accent'}`}
+                      >
+                        <Ionicons
+                          name={partial ? 'add' : 'checkmark'}
+                          size={iconSizes.sm}
+                          color={partial ? colors.light.fg.accent : colors.light.fg['on-accent']}
+                        />
+                        {partial ? null : (
+                          <Text variant="bodySm" tone="onAccent" className="font-bold">
+                            {t('groups.cuota.admin.paid')}
+                          </Text>
+                        )}
+                      </Pressable>
+                    ) : s.basis === 'paid' ? (
+                      <Text variant="bodySm" tone={CUOTA_STATUS_TONE[s.status]} className="font-bold">
+                        {t('groups.cuota.status.al_dia')}
+                      </Text>
+                    ) : null}
+                  </HStack>
+                </Pressable>
+              );
+            })}
+          </VStack>
+        )}
+
+        <OptionsSheet
+          visible={sheet?.kind === 'menu'}
+          title={t('groups.cuota.title')}
+          testID="cuota-menu"
+          options={[
+            { key: 'settings', label: t('groups.cuota.admin.menu.settings') },
+            { key: 'export-xlsx', label: t('groups.cuota.admin.menu.exportXlsx') },
+            { key: 'export-csv', label: t('groups.cuota.admin.menu.exportCsv') },
+            {
+              key: 'reminders',
+              label: t(cuota.remindersEnabled ? 'groups.cuota.admin.menu.remindersOff' : 'groups.cuota.admin.menu.remindersOn'),
+              description: cuota.remindersEnabled ? t('groups.cuota.admin.remindersOn', { name: signer?.name ?? orgName }) : undefined,
+            },
+          ]}
+          onPick={pickMenu}
+          onClose={() => setSheet(null)}
+        />
+        <CuotaSocioSheet
+          visible={socioSheet !== null}
+          name={socioSheet?.socio.displayName ?? ''}
+          status={socioSheetStatus}
+          detail={socioSheetStatus ? detailOf(socioSheetStatus) : ''}
+          reminderSentAt={socioSheet ? reminderBySocio.get(socioSheet.socio.id)?.sentAt ?? null : null}
+          entries={
+            socioSheet
+              ? (payments.data ?? [])
+                  .filter((p) => p.socioId === socioSheet.socio.id)
+                  .sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime())
+              : []
+          }
+          reversed={reversed}
+          onRecord={() => {
+            if (socioSheet && socioSheetStatus) setSheet({ kind: 'payment', socio: socioSheet.socio, status: socioSheetStatus, quick: false });
+          }}
+          onAssign={() => {
+            if (socioSheet) setSheet({ kind: 'assign', socio: socioSheet.socio });
+          }}
+          onReverse={reverse}
+          onClose={() => setSheet(null)}
+        />
+        <CuotaCashDesk
+          visible={sheet?.kind === 'desk'}
+          socios={deskSocios}
+          onRecord={async (socioId, amountCents, method) => {
+            await recordCuotaPayment(orgId, { socioId, periodKey, amountCents, method, paidOn: todayKey(), note: '' }, uid);
+          }}
+          onClose={() => setSheet(null)}
+        />
+        <RecordPaymentSheet
+          visible={sheet?.kind === 'payment'}
+          socioName={sheet?.kind === 'payment' ? sheet.socio.displayName : ''}
+          suggestedCents={sheet?.kind === 'payment' ? Math.max(0, sheet.status.owedCents - sheet.status.paidCents) : 0}
+          quick={sheet?.kind === 'payment' && sheet.quick}
+          onSave={async (values) => {
+            if (sheet?.kind !== 'payment') return;
+            await recordCuotaPayment(orgId, { socioId: sheet.socio.id, periodKey, ...values }, uid);
+          }}
+          onClose={() => setSheet(null)}
+        />
+        <CuotaAssignmentSheet
+          visible={sheet?.kind === 'assign'}
+          socioName={sheet?.kind === 'assign' ? sheet.socio.displayName : ''}
+          settings={cuota}
+          periodKey={periodKey}
+          assignment={sheet?.kind === 'assign' ? assignmentById[sheet.socio.id] : undefined}
+          onSave={async (values) => {
+            if (sheet?.kind !== 'assign') return;
+            await setCuotaAssignment(orgId, sheet.socio.id, values, uid);
+          }}
+          onClose={() => setSheet(null)}
+        />
+      </VStack>
+    </>
   );
 }

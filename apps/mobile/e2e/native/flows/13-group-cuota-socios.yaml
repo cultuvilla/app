@@ -171,10 +171,14 @@ onFlowComplete:
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'cuota-settings-save'
+# The form closes on the server's ack. On iOS the emulator now and then closes
+# the SDK's connection just after a write, the SDK notices only on the reset
+# 30 s later and reconnects up to a minute after that (runs 43378981108 and
+# 43398151310: up to 92 s), so wait out a full reconnect.
 - extendedWaitUntil:
     notVisible:
       id: 'cuota-settings-sheet'
-    timeout: 20000
+    timeout: 150000
 - runScript:
     file: ../scripts/assertDoc.js
     env:
@@ -201,10 +205,12 @@ onFlowComplete:
           'remindersEnabled': false,
           'configuredBy': 'e2e-admin'
         }
-# This year's price, not the base one, is what the period asks for.
+# This year's price, not the base one, is what the period asks for. On iOS
+# the screen can show it only once the SDK's watch stream is back from an
+# emulator ping timeout (run 43433993304), so wait as long as for the save.
 - extendedWaitUntil:
     visible: '.*25,00.*vence el.*'
-    timeout: 20000
+    timeout: 150000
 
 # ── A socio without the app, numbered by the trigger, then renumbered. ──
 - openLink: 'cultuvilla://grupos/${ORG_ID}/socios'
@@ -315,8 +321,10 @@ onFlowComplete:
       FIELD: socioNumber
       EXPECT: ${output.typedNumber}
 - assertTrue: ${output.ok == 'true'}
+# The number is its own text on Android; on iOS the row is one element, read
+# by its label "<number>, <name>".
 - extendedWaitUntil:
-    visible: '${output.typedNumber}'
+    visible: '${output.typedNumber}(, .*)?'
     timeout: 15000
 # A member's row is renumbered from its own number sheet.
 - runScript:
