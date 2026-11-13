@@ -319,9 +319,10 @@ onFlowComplete:
       FIELD: socioNumber
       EXPECT: ${output.typedNumber}
 - assertTrue: ${output.ok == 'true'}
-# On iOS the row is one element whose text joins the number and the name.
+# The number is its own text on Android; on iOS the row is one element, read
+# by its label "<number>, <name>".
 - extendedWaitUntil:
-    visible: '.*${output.typedNumber}.*'
+    visible: '${output.typedNumber}(, .*)?'
     timeout: 15000
 # A member's row is renumbered from its own number sheet.
 - runScript:
