@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildSocioData, type SocioDataInput } from '@cultuvilla/shared/models/organization';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import {
@@ -9,7 +9,7 @@ import {
   setCuotaAssignment,
 } from '@cultuvilla/shared/services/cuotaService';
 import { downloadFile } from '../../../../lib/export/downloadFile';
-import { latestWatcher, resetWatchers, setWatched } from '../../../../test/watchers';
+import { emitWatched, latestWatcher, resetWatchers, setWatched } from '../../../../test/watchers';
 import { CuotaAdmin } from '../CuotaAdmin';
 
 jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
@@ -157,6 +157,22 @@ describe('CuotaAdmin', () => {
     fireEvent.press(getByTestId('cuota-settings-save'));
     await waitFor(() => expect(saveCuotaSettings).toHaveBeenCalled());
     expect(jest.mocked(saveCuotaSettings).mock.calls[0]![1]).toMatchObject({ yearAmounts: [] });
+  });
+
+  it('keeps the settings form mounted while its own first save switches the screen to the configured list', async () => {
+    setWatched('settings', null);
+    let ack: () => void = () => undefined;
+    jest.mocked(saveCuotaSettings).mockImplementationOnce(() => new Promise<void>((resolve) => { ack = resolve; }));
+    const { getByTestId, queryByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('cuota-configure'));
+    fireEvent.changeText(getByTestId('cuota-settings-amount'), '45');
+    fireEvent.press(getByTestId('cuota-settings-save'));
+    // The device's write reaches the listener before the server acknowledges it.
+    emitWatched('settings', SETTINGS);
+    // A remounted form would have reset from the stored 30,00.
+    expect(getByTestId('cuota-settings-amount').props.value).toBe('45');
+    await act(async () => ack());
+    expect(queryByTestId('cuota-settings-sheet')).toBeNull();
   });
 
   it('refuses an amount that is not money', () => {
