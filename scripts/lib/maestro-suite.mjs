@@ -71,6 +71,17 @@ export function arg(name) {
 // fresh Maestro.
 export const MAESTRO_CALL_TIMEOUT_MS = Number(process.env.E2E_FLOW_TIMEOUT_MS || 15 * 60_000);
 
+// Flows that pass slower than the cap, each with its own. Granted per flow:
+// raised for the suite, a hang anywhere would hold every attempt on every shard
+// that much longer. Flow 13 passes on iOS in 14–15 minutes, so 15 killed it in
+// its own cleanup, and the retry then found the driver unreachable (ios-e2e
+// 43481140813, 43481145635).
+export const FLOW_TIMEOUT_OVERRIDES_MS = new Map([['13-group-cuota-socios.yaml', 20 * 60_000]]);
+
+export function flowTimeoutMs(name) {
+  return Math.max(MAESTRO_CALL_TIMEOUT_MS, FLOW_TIMEOUT_OVERRIDES_MS.get(name) ?? 0);
+}
+
 export function run(label, cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, killSignal: 'SIGKILL', ...opts });
   if (res.error?.code === 'ETIMEDOUT') {
@@ -153,7 +164,7 @@ export async function runMaestroSuite({
           '--output',
           path.join(reportDir, `${name.replace(/\.yaml$/, '')}${attempt > 1 ? `.retry${attempt - 1}` : ''}.xml`),
         ],
-        { env, timeout: MAESTRO_CALL_TIMEOUT_MS },
+        { env, timeout: flowTimeoutMs(name) },
       );
       if (status === 0 && attempt > 1) flaky.push(name);
     }

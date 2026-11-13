@@ -205,12 +205,31 @@ onFlowComplete:
           'remindersEnabled': false,
           'configuredBy': 'e2e-admin'
         }
-# This year's price, not the base one, is what the period asks for. On iOS
-# the screen can show it only once the SDK's watch stream is back from an
-# emulator ping timeout (run 43433993304), so wait as long as for the save.
+# This year's price, not the base one, is what the period asks for. The app
+# shows its own save at once, from the device cache. But when the iOS SDK's
+# watch stream drops on a ping timeout just before the save, the emulator
+# answers the resumed listen as current WITHOUT the new doc, the SDK takes that
+# as a delete, and the screen falls back to "Todavía no hay cuota" for good
+# (instrumented in runs 43466583420 and 43466577646). Production Firestore
+# does not do this, so it is not an app bug. A fresh session listens without a
+# resume token and gets the doc.
 - extendedWaitUntil:
     visible: '.*25,00.*vence el.*'
-    timeout: 150000
+    timeout: 30000
+    optional: true
+- runFlow:
+    when:
+      notVisible: '.*25,00.*vence el.*'
+    commands:
+      - runFlow:
+          file: ../subflows/login.yaml
+          env:
+            EMAIL: ${ADMIN_EMAIL}
+            PASSWORD: ${PASSWORD}
+      - openLink: 'cultuvilla://grupos/${ORG_ID}/cobros'
+- extendedWaitUntil:
+    visible: '.*25,00.*vence el.*'
+    timeout: 60000
 
 # ── A socio without the app, numbered by the trigger, then renumbered. ──
 - openLink: 'cultuvilla://grupos/${ORG_ID}/socios'

@@ -17,11 +17,14 @@ interface Selection {
   flows: string[];
   unknown: string[];
 }
-const { selectFlows, shardFlows } = (await import(
+const { selectFlows, shardFlows, flowTimeoutMs, MAESTRO_CALL_TIMEOUT_MS, FLOW_TIMEOUT_OVERRIDES_MS } = (await import(
   pathToFileURL(resolve(repoRoot, 'scripts/lib/maestro-suite.mjs')).href
 )) as {
   selectFlows: (discovered: string[], selection: string) => Selection;
   shardFlows: (flows: string[], shard: string) => string[];
+  flowTimeoutMs: (name: string) => number;
+  MAESTRO_CALL_TIMEOUT_MS: number;
+  FLOW_TIMEOUT_OVERRIDES_MS: Map<string, number>;
 };
 
 describe('selectFlows', () => {
@@ -124,8 +127,21 @@ describe('a hung Maestro call is bounded', () => {
   });
 
   it('bounds every flow, and the iOS trust step', () => {
-    expect(lib).toMatch(/\{ env, timeout: MAESTRO_CALL_TIMEOUT_MS \}/);
+    expect(lib).toMatch(/\{ env, timeout: flowTimeoutMs\(name\) \}/);
     expect(read('scripts/run-ios-e2e.mjs')).toMatch(/timeout: MAESTRO_CALL_TIMEOUT_MS/);
+  });
+
+  // A raised cap lets a hang in that flow eat the longer budget on every
+  // attempt, so it is granted per flow, never to the suite.
+  it('keeps the 15-minute cap for every flow but the named long ones', () => {
+    expect(MAESTRO_CALL_TIMEOUT_MS).toBe(15 * 60_000);
+    expect(flowTimeoutMs('10-auth-login.yaml')).toBe(MAESTRO_CALL_TIMEOUT_MS);
+    expect(flowTimeoutMs('13-group-cuota-socios.yaml')).toBe(20 * 60_000);
+    expect([...FLOW_TIMEOUT_OVERRIDES_MS.keys()]).toEqual(['13-group-cuota-socios.yaml']);
+  });
+
+  it('names only flows that exist', () => {
+    for (const name of FLOW_TIMEOUT_OVERRIDES_MS.keys()) expect(discovered).toContain(name);
   });
 });
 
