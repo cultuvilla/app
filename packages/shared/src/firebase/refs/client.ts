@@ -11,6 +11,7 @@ import { placeConverterClient } from '../converters/placeConverter.client';
 import { villageMemberConverterClient } from '../converters/villageMemberConverter.client';
 import { censoAnswersConverterClient } from '../converters/censoAnswersConverter.client';
 import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
+import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
 import { seatTokenConverterClient } from '../converters/seatTokenConverter.client';
 import { registrationEventConverterClient } from '../converters/registrationEventConverter.client';
 import { organizationConverterClient } from '../converters/organizationConverter.client';
@@ -31,13 +32,23 @@ import { userConverterClient } from '../converters/userConverter.client';
 import { publicProfileConverterClient } from '../converters/publicProfileConverter.client';
 import { notificationConverterClient } from '../converters/notificationConverter.client';
 import { deviceTokenConverterClient } from '../converters/deviceTokenConverter.client';
-import { groupNotificationPrefsConverterClient, notificationPrefsConverterClient } from '../converters/notificationPrefsConverter.client';
+import {
+  groupNotificationPrefsConverterClient,
+  notificationPrefsConverterClient,
+  notificationSettingsConverterClient,
+} from '../converters/notificationPrefsConverter.client';
 import {
   groupMessageConverterClient,
   groupMessageDeliveryConverterClient,
   groupMessageReadConverterClient,
   groupPollVoteConverterClient,
 } from '../converters/groupMessageConverter.client';
+import {
+  groupChatMessageConverterClient,
+  groupChatReadConverterClient,
+  groupChatThreadConverterClient,
+} from '../converters/groupChatConverter.client';
+import { isGeneralChatThread } from '../../models/organization/GroupChatDataModel';
 import { newsPostConverterClient } from '../converters/newsPostConverter.client';
 import { commentConverterClient } from '../converters/commentConverter.client';
 import { occupationConverterClient } from '../converters/occupationConverter.client';
@@ -53,6 +64,7 @@ import { vocabularyTermConverterClient } from '../converters/vocabularyTermConve
 import { historyEntryConverterClient } from '../converters/historyEntryConverter.client';
 import { vocabularyDefinitionConverterClient } from '../converters/vocabularyDefinitionConverter.client';
 import { vocabularyWordConverterClient } from '../converters/vocabularyWordConverter.client';
+import { cosaConverterClient, cosaRequestConverterClient, cosaSlotConverterClient } from '../converters/cosatecaConverter.client';
 
 export const eventsCollection = (db: Firestore) =>
   collection(db, 'events').withConverter(eventConverterClient);
@@ -187,6 +199,26 @@ export const organizationCuotaWriteDoc = (
   id: string,
 ) => doc(db, 'organizations', organizationId, collectionName, id);
 
+// The cosateca (see CosaDataModel, CosaRequestDataModel).
+export const cosasCollection = (db: Firestore) => collection(db, 'cosas').withConverter(cosaConverterClient);
+export const cosaDoc = (db: Firestore, cosaId: string) => doc(db, 'cosas', cosaId).withConverter(cosaConverterClient);
+export const cosaSlotsCollection = (db: Firestore, cosaId: string) =>
+  collection(db, 'cosas', cosaId, 'slots').withConverter(cosaSlotConverterClient);
+export const cosaRequestsCollection = (db: Firestore) => collection(db, 'cosaRequests').withConverter(cosaRequestConverterClient);
+export const cosaRequestDoc = (db: Firestore, requestId: string) =>
+  doc(db, 'cosaRequests', requestId).withConverter(cosaRequestConverterClient);
+/**
+ * Unconverted, for cosa and request creates and cosa edits: they stamp
+ * `serverTimestamp()` (rules compare it with `request.time`), which the strict
+ * converter refuses. The service validates each payload with its schema first.
+ */
+export const cosatecaWriteDoc = (db: Firestore, collectionName: 'cosas' | 'cosaRequests', id: string) =>
+  doc(db, collectionName, id);
+export const cosaRequestChatCollection = (db: Firestore, requestId: string) =>
+  collection(db, 'cosaRequests', requestId, 'chat').withConverter(groupChatMessageConverterClient);
+/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
+export const cosaRequestChatWriteCollection = (db: Firestore, requestId: string) => collection(db, 'cosaRequests', requestId, 'chat');
+
 // Group tasks, shifts and checklist templates (see GroupTaskDataModel).
 export const organizationTasksCollection = (db: Firestore, organizationId: string) =>
   collection(db, 'organizations', organizationId, 'tasks').withConverter(groupTaskConverterClient);
@@ -243,6 +275,47 @@ export const organizationMessageWriteDoc = (
   sub: 'reads' | 'votes' | 'deliveries',
   id: string,
 ) => doc(db, 'organizations', organizationId, 'messages', messageId, sub, id);
+
+// A group's chat (see GroupChatDataModel): the general thread at
+// organizations/{orgId}/chat, an aviso's under its message.
+function organizationChatPath(organizationId: string, threadId: string): [string, ...string[]] {
+  return isGeneralChatThread(threadId)
+    ? ['organizations', organizationId, 'chat']
+    : ['organizations', organizationId, 'messages', threadId, 'chat'];
+}
+
+export const organizationChatCollection = (db: Firestore, organizationId: string, threadId: string) => {
+  const [first, ...rest] = organizationChatPath(organizationId, threadId);
+  return collection(db, first, ...rest).withConverter(groupChatMessageConverterClient);
+};
+
+/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
+export const organizationChatWriteCollection = (db: Firestore, organizationId: string, threadId: string) => {
+  const [first, ...rest] = organizationChatPath(organizationId, threadId);
+  return collection(db, first, ...rest);
+};
+
+export const organizationChatWriteDoc = (db: Firestore, organizationId: string, threadId: string, chatId: string) => {
+  const [first, ...rest] = organizationChatPath(organizationId, threadId);
+  return doc(db, first, ...rest, chatId);
+};
+
+export const organizationChatThreadDoc = (db: Firestore, organizationId: string, threadId: string) =>
+  doc(db, 'organizations', organizationId, 'chatThreads', threadId).withConverter(groupChatThreadConverterClient);
+
+export const organizationChatReadDoc = (db: Firestore, organizationId: string, threadId: string, uid: string) =>
+  doc(db, 'organizations', organizationId, 'chatThreads', threadId, 'reads', uid).withConverter(groupChatReadConverterClient);
+
+export const organizationChatReadWriteDoc = (db: Firestore, organizationId: string, threadId: string, uid: string) =>
+  doc(db, 'organizations', organizationId, 'chatThreads', threadId, 'reads', uid);
+
+// A task's comments share the chat's message shape (see GroupChatDataModel).
+export const organizationTaskCommentsCollection = (db: Firestore, organizationId: string, taskId: string) =>
+  collection(db, 'organizations', organizationId, 'tasks', taskId, 'chat').withConverter(groupChatMessageConverterClient);
+
+/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
+export const organizationTaskCommentsWriteCollection = (db: Firestore, organizationId: string, taskId: string) =>
+  collection(db, 'organizations', organizationId, 'tasks', taskId, 'chat');
 
 // The group's records (see RecordsDataModel): actas and the income/expense ledger.
 export const organizationActasCollection = (db: Firestore, organizationId: string) =>
@@ -325,6 +398,11 @@ export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId:
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
   doc(db, 'users', userId, 'preferences', NOTIFICATION_PREFS_DOC_ID)
     .withConverter(notificationPrefsConverterClient);
+
+// Optional: absent means every topic pushes. Supersedes `preferences/notifications`.
+export const userNotificationSettingsDoc = (db: Firestore, userId: string) =>
+  doc(db, 'users', userId, 'notificationSettings', NOTIFICATION_SETTINGS_DOC_ID)
+    .withConverter(notificationSettingsConverterClient);
 
 // ── News domain (top-level collections) ──────────────────────────────────
 

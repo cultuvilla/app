@@ -7,13 +7,18 @@ import { useT } from '../../lib/i18n';
 import { pickImageWithSize } from '../../lib/images';
 import { MentionTextInput } from './MentionTextInput';
 import { HEADING_LEVELS, HEADING_PRESENTATION, type HeadingLevel } from '../../lib/newsHeading';
-import { splitMentionsAtCaret, type MentionCandidate } from '../../lib/mentionText';
+import { splitMentionsAtCaret } from '../../lib/mentionText';
+import type { MentionCandidate } from '@cultuvilla/shared/services/mentionCandidateService';
 import type {
   NewsMention,
   NewsLink,
   NewsMark,
-  NewsTextBlock,
 } from '@cultuvilla/shared/models/news/NewsPostDataModel';
+import {
+  newBlockId,
+  type EditorHeadingBlock,
+  type EditorTextBlock,
+} from '@cultuvilla/shared/models/news/newsEditorBlocks';
 
 const ACCENT = colors.light.fg.accent;
 const MUTED = colors.light.fg.muted;
@@ -25,14 +30,6 @@ const MUTED = colors.light.fg.muted;
  * `storagePath` (edit mode) or a freshly-picked `blob` awaiting upload on submit.
  * The parent screen maps these to `NewsBlock`s at save time.
  */
-export type EditorTextBlock = {
-  id: string;
-  type: 'text';
-  text: string;
-  mentions: NewsMention[];
-  links: NewsLink[];
-  marks: NewsMark[];
-};
 export type EditorImageBlock = {
   id: string;
   type: 'image';
@@ -49,13 +46,6 @@ export type EditorImageBlock = {
   captionLinks: NewsLink[];
   captionMarks: NewsMark[];
 };
-/** A section / subsection title: plain text, no mentions, links or marks. */
-export type EditorHeadingBlock = {
-  id: string;
-  type: 'heading';
-  text: string;
-  level: HeadingLevel;
-};
 export type EditorBlock = EditorTextBlock | EditorImageBlock | EditorHeadingBlock;
 
 
@@ -63,28 +53,8 @@ export type EditorBlock = EditorTextBlock | EditorImageBlock | EditorHeadingBloc
 // gallery, so this is a UI-only product decision rather than a schema limit.
 const MAX_IMAGE_BLOCKS = 25;
 
-let blockSeq = 0;
-export function newBlockId(): string {
-  blockSeq += 1;
-  return `b${blockSeq}-${Date.now()}`;
-}
-
 export function emptyTextBlock(): EditorTextBlock {
   return { id: newBlockId(), type: 'text', text: '', mentions: [], links: [], marks: [] };
-}
-
-/** Stored text block → editor block. A heading is persisted as a styled text block. */
-export function newsTextToEditorBlock(b: NewsTextBlock): EditorTextBlock | EditorHeadingBlock {
-  if (b.style !== 'paragraph') return { id: newBlockId(), type: 'heading', text: b.text, level: b.style };
-  return { id: newBlockId(), type: 'text', text: b.text, mentions: b.mentions, links: b.links, marks: b.marks };
-}
-
-/** Editor text or heading block → stored text block. */
-export function editorBlockToNewsText(b: EditorTextBlock | EditorHeadingBlock): NewsTextBlock {
-  if (b.type === 'heading') {
-    return { type: 'text', text: b.text, mentions: [], links: [], marks: [], style: b.level };
-  }
-  return { type: 'text', text: b.text, mentions: b.mentions, links: b.links, marks: b.marks, style: 'paragraph' };
 }
 
 /** The part of a paragraph between `start` and `end`, with its spans rebased. */

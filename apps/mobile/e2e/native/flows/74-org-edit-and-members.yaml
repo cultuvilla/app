@@ -2,7 +2,7 @@
 # since approval):
 #
 #   edit     — a photo added and the old one removed, name, description,
-#              roster made public, joining switched to approval
+#              roster made public
 #   members  — the joiner made admin, demoted again, then removed
 #   view     — the removed joiner: reads the group, cannot edit it, and must
 #              now ask to join
@@ -89,8 +89,8 @@ env:
     env:
       INPUT: 'org-edit-description'
       TEXT: ${ORG_EDIT_DESCRIPTION}
-# The type is not edited: the organizations update rule refuses a type
-# change that this screen offers (raised with the user, 2026-10-09).
+# The type is left as it is here: switching it among the self-service kinds
+# (peña, asociación, otros, comisión), which the update rule allows, is flow 75's.
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
@@ -99,17 +99,11 @@ env:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'org-edit-members-public-toggle'
-- tapOn:
-    id: 'org-edit-members-public-toggle'
-- runFlow:
-    file: ../subflows/scroll-to.yaml
-    env:
-      TARGET: 'org-edit-join-policy-toggle'
 # A tap while the centring scroll still glides only stops the scroll.
 - waitForAnimationToEnd:
     timeout: 3000
 - tapOn:
-    id: 'org-edit-join-policy-toggle'
+    id: 'org-edit-members-public-toggle'
 - runFlow:
     when:
       platform: Android
@@ -118,15 +112,15 @@ env:
           times: 2
           while:
             notVisible:
-              id: 'org-edit-join-policy-toggle'
+              id: 'org-edit-members-public-toggle'
               checked: true
           commands:
             - waitForAnimationToEnd:
                 timeout: 2000
             - tapOn:
-                id: 'org-edit-join-policy-toggle'
+                id: 'org-edit-members-public-toggle'
       - assertVisible:
-          id: 'org-edit-join-policy-toggle'
+          id: 'org-edit-members-public-toggle'
           checked: true
 - runFlow:
     file: ../subflows/scroll-to.yaml

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GroupMessagePersonalValuesSchema } from './groupMessagePlaceholders';
 import { ORG_ADMIN_TITLE_SIGNATURE, OrgAdminTitleSchema, type OrgAdminTitle } from './SocioDataModel';
 
 /**
@@ -115,6 +116,10 @@ export const GroupMessageDeliveryDataSchema = z.object({
   whatsappSocioId: z.string().nullable(),
   whatsappSentAt: z.date().nullable(),
   whatsappSentBy: z.string().nullable(),
+  /** This recipient's values for the message's placeholders, as they were when
+   * it was sent: what their WhatsApp link says, like their email. Null when the
+   * message has no placeholders. */
+  personal: GroupMessagePersonalValuesSchema.nullable(),
 });
 export type GroupMessageDeliveryData = z.infer<typeof GroupMessageDeliveryDataSchema>;
 
@@ -201,23 +206,31 @@ export function groupMessageSignatureLines(s: GroupMessageSignature): [string, s
 
 /**
  * The text of a WhatsApp message, as the admin will send it: WhatsApp's own
- * bold for the title, the body, the poll question pointing at the app, and the
- * signature.
+ * bold for the title, the body, the poll question, the signature, and always
+ * the link into the app — WhatsApp is a bridge to it, not the place to answer.
+ * Personalize the title and body first (`personalizeGroupMessage`).
  */
 export function groupMessageWhatsappText(
   m: Pick<GroupMessageData, 'title' | 'body' | 'poll'> & GroupMessageSignature,
   appUrl: string,
 ): string {
   const [name, line] = groupMessageSignatureLines(m);
+  const title = m.title.trim();
+  const body = m.body.trim();
   return [
-    `*${m.title.trim()}*`,
-    '',
-    m.body.trim(),
-    ...(m.poll ? ['', `${m.poll.question} Responde en la app: ${appUrl}`] : []),
-    '',
+    ...(title ? [`*${title}*`, ''] : []),
+    ...(body ? [body, ''] : []),
+    ...(m.poll ? [m.poll.question, ''] : []),
     `— ${name}`,
     line,
+    '',
+    `${m.poll ? 'Responde en la app' : 'Míralo en la app'}: ${appUrl}`,
   ].join('\n');
+}
+
+/** A link with no number: WhatsApp opens its chat picker, for the group's own chat. */
+export function whatsappShareLink(text: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
 /** A click-to-chat link: `wa.me` takes the number in international form without the `+`. */

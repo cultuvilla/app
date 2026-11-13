@@ -1,9 +1,8 @@
 # A villager proposes two groups — one with every field set (its photo picked
 # on Android only, as in flow 60), one bare — and the
 # village admin approves the first and rejects the second from the Buzón. A
-# third user then joins the approved one, which is `open`, so joining is
-# instant self-service: the FAB writes the joiner's own member doc, gated by
-# rules (AGENTS.md). Flow 74 edits the approved group.
+# third user then asks to join the approved one and its founder admits them from
+# the group's page. Flow 74 edits the approved group.
 #
 # Each actor switch is the login subflow, whose `clearState` is the sign-out.
 appId: com.cultuvilla.app.dev
@@ -122,7 +121,7 @@ env:
           'municipalityId': 'e2e-village-altozano',
           'requestedBy': 'e2e-user',
           'membersPublic': false,
-          'joinPolicy': 'open'
+          'joinPolicy': 'approval'
         }
 - runFlow:
     when:
@@ -230,7 +229,34 @@ env:
 - runScript:
     file: ../scripts/docField.js
     env:
+      DOC_PATH: 'organizations/${output.orgId}/joinRequests/${JOINER_UID}'
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}/members/${JOINER_UID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+# ── The founder admits them from the group's page. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${output.orgId}'
+- scrollUntilVisible:
+    element:
+      id: 'approve-join-${output.orgId}-${JOINER_UID}'
+    direction: DOWN
+    timeout: 45000
+- tapOn:
+    id: 'approve-join-${output.orgId}-${JOINER_UID}'
+- runScript:
+    file: ../scripts/docField.js
+    env:
       DOC_PATH: 'organizations/${output.orgId}/members/${JOINER_UID}'
       FIELD: role
       EXPECT: member
+      TIMEOUT_MS: '60000'
 - assertTrue: ${output.ok == 'true'}

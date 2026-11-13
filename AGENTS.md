@@ -14,24 +14,26 @@ The one seam between the two is the snapshot: the business repo's deploy writes 
 
 ## Sibling repos
 
-The `cultuvilla` org is checked out side by side under one folder, each repo in a
-folder prefixed with the org so a terminal or editor title says which one you
-are in:
+The `cultuvilla` org is checked out side by side under one folder:
 
 ```bash
-git clone git@github.com:cultuvilla/app.git      ~/githubs/cultuvilla/cultuvilla-app
-git clone git@github.com:cultuvilla/business.git ~/githubs/cultuvilla/cultuvilla-business
+git clone git@github.com:cultuvilla/app.git      ~/githubs/cultuvilla/app
+git clone git@github.com:cultuvilla/business.git ~/githubs/cultuvilla/business
+git clone git@github.com:cultuvilla/motion.git   ~/githubs/cultuvilla/motion
 ```
 
-So the other repo sits next to this one —
+So the other repos sit next to this one —
 relative to the **main checkout**, not to a worktree. Start a session in the repo
 the work belongs to, never in the parent folder: a session loads only its own
 repo's rules, skills and memory.
 
-- `../cultuvilla-business` — **private**: the business record and the founders' panel. Read
-  it when a task needs it (`claude --add-dir ../cultuvilla-business`); never copy its facts
+- `../business` — **private**: the business record and the founders' panel. Read
+  it when a task needs it (`claude --add-dir ../business` gives access but doesn't load its
+  `AGENTS.md`, so open that yourself); never copy its facts
   into this public repo — not into code, docs, commit messages or PR bodies.
   Edit it only from a session started there, under its own `AGENTS.md`.
+- `../motion` — promotional video. Its `bin/marca` copies the brand from this repo's
+  `develop`.
 
 ## Repo health beats every rule below
 
@@ -78,7 +80,7 @@ Requests are created from in-context screens; outcomes arrive as notifications.
 |---|---|---|---|
 | Organizer (be the pueblo's **Embajador**) | `organizerRequests/` | any user | super admin (`respondToOrganizerRequest` callable) |
 | Organization (create peña/asociación/ayuntamiento) | `organizations/` (status `pending`) | village member | village admin (own village) or super admin (`approveOrganization` callable; `rejectOrganization` stays a client write) |
-| Join an `approval` org | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
+| Join a group | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
 
 Every Embajador request and every `/embajadores` web lead (`ambassadorLeads/`) is
 posted to the founders' *Cultuvilla Overview* Telegram group by
@@ -87,12 +89,13 @@ project's `notify` Pub/Sub topic ([publishNotify](functions/src/notify/publishNo
 which the homelab notify-gateway pulls from prod only. Topics and the prod
 subscription: `pnpm notify:setup <project>`.
 
-**Joining a peña/asociación depends on its `joinPolicy`.** An `open` org (the
-default) is instant self-service: the org detail FAB does a direct client write of
-`organizations/{orgId}/members/{uid}` (role `member`, function-owned), and a user
-may add only themselves, mirroring village join. An `approval` org takes a join
-request instead (table above). **Private events require an `approval` org**:
-anyone can walk into an open one, so its membership vets nobody. Read
+**A group has integrantes.** An *integrante* is a member,
+`organizations/{orgId}/members/{uid}`. **The group's admin picks how someone becomes
+one** (`joinPolicy`): by a join request an admin accepts (table above), the default and
+the only way into an ayuntamiento, or on the spot if the admin opened the group. In a
+group with a socio roster every integrante is a socio, and any group may hold private
+events, open or not. User-facing copy says
+*integrante*, never *miembro*; the code names stay. Read
 [docs/decisions/org-join-policy.md](docs/decisions/org-join-policy.md).
 
 **Membership roles & the audit log.** Villages and orgs are the same abstraction —
@@ -148,6 +151,15 @@ and Hosting serves only its static files (`web/`). `apps/mobile/` builds for
 iOS and Android only — no Expo web export, no `.web.*` files, no
 `Platform.OS === 'web'` branches. A new entity needs a read page there as well
 as its app screen.
+
+The one signed-in web surface is the **web studio** (`apps/studio/`, served
+under `/estudio`): a separate React app where existing users write articles on a
+desktop. It signs in only by pairing with the app (no web accounts), writes
+through the shared services and the rules as the real user, and shares models
+and services with the app — never screens. Its auth boundary is
+[apps/studio/src/auth/StudioAuth.tsx](apps/studio/src/auth/StudioAuth.tsx), the
+counterpart of the app's `AuthContext.tsx`. It is for authoring only: never a
+second copy of the app.
 
 Read [docs/decisions/web-is-a-read-site.md](docs/decisions/web-is-a-read-site.md)
 before adding anything to the web, or proposing that web sign-up return.
@@ -318,6 +330,7 @@ Header ≤ 100 chars. Direct-to-`develop` is fine for small self-contained chang
 - **Deep links:** the per-env association files (`web/well-known/{env}/{apple-app-site-association,assetlinks.json}`) are copied into place at hosting-deploy time by `scripts/build-web-static.mjs`. Signing identities are **committed** there, not injected from CI — they ship in a world-readable file, so there is nothing to hide, and a value in git is reviewable and identical for a local deploy. `prod` carries the real Apple Team ID and the Play **app signing** SHA-256 (Play re-signs every AAB, so it is never the upload key); `dev` and `beta` still hold `REPLACE_SHA256_FINGERPRINT_*` and get theirs when those builds are distributed. An env with a placeholder simply opens the read site instead of the app — expected, not a bug. What must always work is that every deep link resolves on the **read site** too (each share URL, including invite `…/unirse` paths, needs a route in [functions/src/web/routes.ts](functions/src/web/routes.ts) and a screen under `apps/mobile/app/**`). URLs are Spanish and village-first (`/<pueblo>/evento/<titulo>_<id>`), built only by `packages/shared/src/utils/urls.ts` — read [docs/decisions/spanish-village-urls.md](docs/decisions/spanish-village-urls.md) before adding a route; a new top-level route must also be added to `RESERVED_ROOT_SEGMENTS` (Hosting sends every page to `readSite`, which answers reserved segments with the app hand-off). **Prod's AASA deliberately lags:** it claims only the legacy paths the live iOS 1.0.0 binary can route (it predates OTA), until an iOS build with the village-first routes is on sale — see that decision record before widening it.
 - **Marketing version** (`app.config.ts` `version`, semver `MAJOR.MINOR.PATCH`) is the single source of truth; `apps/mobile/package.json` mirrors it. MAJOR = redesign/breaking migration, MINOR = new feature, PATCH = fixes.
 - **The bump follows the commits since beta:** any breaking change (`type!:` or a `BREAKING CHANGE:` footer) → MAJOR, any `feat` → MINOR, otherwise PATCH. `pnpm release:cut` proposes it; `--bump=` / `--version=` override when the release is a product call (a MAJOR always is).
+- **Never propose a cut.** Álvaro decides when (decided 2026-11-01). Work stays on `develop` until he asks; leave releases, store-notes drafts included, out of end-of-task reports, decision lists and next steps.
 - **Cut a release with `pnpm release:cut`** (the `prepare-release` skill drives it; beta = release candidate, and the version rides unchanged into `main`). One command: it commits the bump (`app.config.ts` + `package.json` + the CHANGELOG stamp, which folds in and deletes every `changelog.d/` fragment) on top of `origin/develop` and **pushes it to develop** — so develop's version is always the latest cut, with no second PR — then branches `release/X.Y.Z` from it, merges `origin/main` in (beta and main are `strict`, and beta → main merge commits never reach develop), and opens the PR into beta titled `X.Y.Z` with the CHANGELOG section and a `**Migration:**` checklist. `--dry-run` shows all of it without writing. Build numbers auto-increment (EAS `appVersionSource: remote`). **CI enforces the shape** in `.github/workflows/version-gate.yml`: a PR into `beta` must bump `version` above beta's, come from `release/<that version>` and be titled with the bare version; a PR into `main` must come from `beta`.
 - **`beta → main` opens itself.** Once a push to beta has a green *Deploy beta* and a green *beta-build-and-submit*, [promote-to-main.yml](.github/workflows/promote-to-main.yml) opens (or refreshes) the `beta → main` PR, titled `X.Y.Z`, with the same checklist and links to those runs. It uses a `RELEASE_PR_TOKEN` secret when set, else `GITHUB_TOKEN`, which can only open PRs while *Settings → Actions → Allow GitHub Actions to create and approve pull requests* is on; the run fails with the manual `gh pr create` command otherwise.
 - **`beta → main` can also merge itself — off until the user turns it on.** The same workflow's `auto-merge` job (hourly, and when `android-e2e` finishes on beta) merges that PR once it is the auto-opened `X.Y.Z` PR at beta's tip, *Deploy beta*, *beta-build-and-submit* and `android-e2e` are green on that commit, main's required checks are green on it, it has no `hold` label, and `AUTO_PROMOTE_SOAK_HOURS` (repo variable, default 2) have passed since *Deploy beta* finished. It never merges a breaking release, and it merges **only while the repo variable `AUTO_MERGE_TO_MAIN` is `true`** — setting it is the user's decision (approved in principle 2026-10-07, not yet switched on); unset, it only reports "would merge" or what it waits on in the run summary. It merges with `RELEASE_PR_TOKEN` and never with `GITHUB_TOKEN` (a `GITHUB_TOKEN` push triggers no workflow, so *Deploy prod* would never run); without the secret it warns and never merges. Add a `hold` label to stop a release, remove it to resume. The merge uses GitHub's default message, so no `[skip-…]` token lands by accident. Decision logic: [auto-promote-main.mjs](scripts/auto-promote-main.mjs); locked by [promoteToMain.test.ts](packages/shared/test/ci/promoteToMain.test.ts).
@@ -412,6 +425,14 @@ twelve times for six purely additive migrations. `pnpm backfills:lint` warns
 about an idempotent `pre-deploy` backfill with an empty `autoApply`. Opt out
 deliberately (destructive, non-idempotent, or needs a human reading the diff),
 not by default.
+
+**A `post-deploy` backfill can opt into `autoApply` too**, and the deploy runs
+it in a second pass *after* Cloud Functions deploy (`auto-apply
+--phase=post-deploy`). That is the place for work only the new code keeps
+right — a recount of a trigger-maintained read model, which a pre-deploy run
+would leave short by whatever changed before the trigger went live
+(`village-people-count-reconcile` is the worked example). Same marker rule;
+dev is never auto-applied, so run it there by hand after the deploy.
 
 **`dependsOn` declares run order.** Without it, auto-apply runs in `meta.id`
 alphabetical order, which is not a safe order for a **projection**. A backfill
@@ -508,6 +529,8 @@ pnpm test:e2e:android # Maestro on an Android AVD, under emulators (needs a devi
 pnpm test:e2e:ios     # the same flows on an iOS Simulator (macOS only; CI: ios-e2e)
 pnpm check:store-claims # verify the store-release runbook against live infra
 ```
+
+**Other sessions run emulators on this machine.** Before any `adb` command run `adb -s <serial> emu avd name` and pin `ANDROID_SERIAL` to your own AVD, and check who owns a Metro port before using it. `scripts/avd-dev.sh boot Cultuvilla_Big` returns without booting when another session's emulator is already up, so boot yours on an explicit port (`emulator -avd Cultuvilla_Big -port 5610 -no-window`). On 2026-11-01 a session skipped this, installed the app on another repo's emulator and removed its `tcp:8081` reverse, which broke its dev client. The local arm64-only `app-debug.apk` crashes on an x86_64 AVD; build with `-PreactNativeArchitectures=x86_64`.
 
 Pre-commit (Husky + lint-staged) currently only formats `*.{json,md,yml,yaml}`; commit-msg runs commitlint. The lint/typecheck/test gate runs via `pnpm check` and in CI, not on commit.
 
@@ -640,15 +663,21 @@ only on the seed and on earlier flows of its own group. See
 [apps/mobile/e2e/native/README.md](apps/mobile/e2e/native/README.md); under WSL2
 it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 
-Still off-limits — these run indefinitely (the user owns that iteration loop) or
-bypass CI:
+**Metro is yours to run** (decided 2026-10-31, user) when the task needs the app on a
+device — to verify a change, read its logs, reproduce a bug. `pnpm app:start` binds
+`:8081` (`METRO_PORT` moves it; Órdago holds 8082 on the same machine). Check it is free
+first (`ss -ltn`; if the user's Metro already holds it, use theirs), run it in the
+background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when you
+are done: it is an indefinite server, so a Metro you leave running holds the port
+the user's next session needs.
 
-- `pnpm app:start` / `expo start` (Expo/Metro dev server)
+Still off-limits — these run indefinitely or bypass CI:
+
 - `firebase emulators:start` directly (standalone long-lived emulator session)
 - Any deploy script (`pnpm deploy:*`) — use the `firestore-deploy` skill instead
 
-If you need output from a long-lived server you can't start (Metro, a standalone
-emulator session), ask the user to run it and paste the relevant lines.
+If you need output from a long-lived server you can't start (a standalone emulator
+session), ask the user to run it and paste the relevant lines.
 
 ## Development workflow
 
@@ -679,6 +708,8 @@ Landing that PR on develop is enough to unblock beta and prod deploys: the
 1. **Classify the mode from the diff — never ask.** See the Autonomy contract below.
    - **Direct** — the diff touches *only* `docs/**`, `*.md`, `CHANGELOG.md`, `.agents/**`, `.claude/**`. Commit and push straight to `develop` in the base checkout. No branch, no PR.
    - **Autonomous (everything else)** — branch from the latest `develop` into a worktree under `.claude/worktrees/<short-name>/` and work there. Never edit the base checkout in this mode. Worktrees isolate dependencies, build outputs, and caches so parallel changes don't fight each other, and they make it easy to abandon work that doesn't pan out.
+
+   **When Álvaro is watching Metro, work live on `develop`** (decided 2026-11-01, Álvaro: "from now on work on develop so i can see the changes"). He runs Metro from the main checkout and sees each change on his phone as it's made; worktree edits are invisible to him until merged. So in a session with him, edit the main checkout in place, whatever the mode above says. Commit and push straight to `develop` when it accepts the push; if the merge-queue ruleset refuses, move the commits to a branch and land through `pnpm pr:land`, keeping the checkout on `develop`. Parallel and unattended workers stay in worktrees.
 
    **The VSCode checkout must always stay on `develop`** — never run `git checkout`/`git switch` to a feature branch in the open editor workspace. A feature branch always lives in its own worktree, created with `git worktree add` and committed to from there, so the VSCode view never leaves `develop`. (Never commit directly to `beta` or `main` — those advance only by promotion PRs.)
 2. **Read any in-flight plan** in [docs/plans/](docs/plans/) and the relevant record in [docs/decisions/](docs/decisions/) for the feature area.

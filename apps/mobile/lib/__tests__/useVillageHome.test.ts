@@ -221,6 +221,25 @@ describe('useVillageHome', () => {
     expect(result.current.events.map((e) => e.id)).toEqual(['ev-future', 'ev-past']);
   });
 
+  it('shows each weekly series once: its next date, or its latest once it is over', () => {
+    const occ = (id: string, seriesId: string, start: string) => ({
+      id,
+      startDate: new Date(start),
+      endDate: null,
+      series: { id: seriesId, index: 0, weekdays: [2], until: new Date('2999-12-01') },
+    });
+    mockInitial['events'] = [
+      occ('yoga-past', 'yoga', '2020-01-07T18:00:00Z'),
+      occ('yoga-next', 'yoga', '2999-01-06T18:00:00Z'),
+      occ('yoga-after', 'yoga', '2999-01-13T18:00:00Z'),
+      occ('taller-1', 'taller', '2020-02-04T18:00:00Z'),
+      occ('taller-2', 'taller', '2020-02-11T18:00:00Z'),
+      { id: 'solo', startDate: new Date('2999-02-01T10:00:00Z'), endDate: null, series: null },
+    ];
+    const { result } = renderHook(() => useVillageHome('m1'));
+    expect(result.current.events.map((e) => e.id)).toEqual(['yoga-next', 'solo', 'taller-2']);
+  });
+
   it('marks only the failing section as errored', () => {
     mockInitial['events'] = new Error('boom');
     const { result } = renderHook(() => useVillageHome('m1'));

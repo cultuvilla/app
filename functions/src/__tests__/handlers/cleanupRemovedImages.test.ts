@@ -61,6 +61,18 @@ describe('ownedImagePaths', () => {
     expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.events, data, { entityId: 'e1' }).size).toBe(0);
   });
 
+  it("never claims a yearly event's cover, which next year's edition reuses", () => {
+    const path = 'municipalities/m1/events/e1/image/x.jpg';
+    const data = { imageURL: url(path), series: null, repeatsYearly: true };
+    expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.events, data, { entityId: 'e1' }).size).toBe(0);
+  });
+
+  it("never claims a monthly event's cover, which the next edition reuses", () => {
+    const path = 'municipalities/m1/events/e1/image/x.jpg';
+    const data = { imageURL: url(path), series: null, repeatsMonthly: true };
+    expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.events, data, { entityId: 'e1' }).size).toBe(0);
+  });
+
   it('never claims an image stored under another entity', () => {
     // A copied URL or another entity's upload is not this doc's to delete.
     const foreign = [
@@ -79,6 +91,15 @@ describe('ownedImagePaths', () => {
     ]).toEqual([path]);
   });
 
+  it("reads a cosa's one photo, under its uploader's folder, and only from under that cosa", () => {
+    const path = 'cosas/c1/image/u1/a.jpg';
+    expect([...ownedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: url(path) }, { entityId: 'c1' })]).toEqual([path]);
+    expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: url('cosas/c2/image/u1/a.jpg') }, { entityId: 'c1' }).size).toBe(0);
+    // A photo nested deeper than one uploader folder is not one the app wrote.
+    expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: url('cosas/c1/image/u1/x/a.jpg') }, { entityId: 'c1' }).size).toBe(0);
+    expect(ownedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: null }, { entityId: 'c1' }).size).toBe(0);
+  });
+
   it('matches place and barrio uploads under their own municipality only', () => {
     const params = { municipalityId: 'm1', entityId: 'pl1' };
     const mine = 'municipalities/m1/places/pl1/image/a.jpg';
@@ -95,6 +116,17 @@ describe('ownedImagePaths', () => {
 });
 
 describe('removedImagePaths', () => {
+  it("drops a cosa's replaced photo from under its uploader's folder", () => {
+    const old = url('cosas/c1/image/u1/old.jpg');
+    const next = url('cosas/c1/image/u2/new.jpg');
+    expect(removedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: old }, { imageURL: next }, { entityId: 'c1' })).toEqual([
+      'cosas/c1/image/u1/old.jpg',
+    ]);
+    expect(removedImagePaths(ENTITY_IMAGE_SOURCES.cosas, { imageURL: next }, undefined, { entityId: 'c1' })).toEqual([
+      'cosas/c1/image/u2/new.jpg',
+    ]);
+  });
+
   const source: EntityImageSource = ENTITY_IMAGE_SOURCES.festivalPosters;
   const params = { entityId: 'f1' };
   const a = url('festivalPosters/m1/f1/a.jpg');

@@ -10,6 +10,7 @@ import { placeConverterAdmin } from '../converters/placeConverter.admin';
 import { villageMemberConverterAdmin } from '../converters/villageMemberConverter.admin';
 import { censoAnswersConverterAdmin } from '../converters/censoAnswersConverter.admin';
 import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
+import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
 import { organizationConverterAdmin } from '../converters/organizationConverter.admin';
 import { orgMemberConverterAdmin } from '../converters/orgMemberConverter.admin';
 import { orgJoinRequestConverterAdmin } from '../converters/orgJoinRequestConverter.admin';
@@ -21,20 +22,29 @@ import {
 } from '../converters/cuotaConverter.admin';
 import { groupTaskConverterAdmin, taskReminderConverterAdmin, taskTemplateConverterAdmin } from '../converters/groupTaskConverter.admin';
 import { actaConverterAdmin, ledgerEntryConverterAdmin } from '../converters/recordsConverter.admin';
-import { socioConverterAdmin, socioPersonaLockConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
+import { socioConverterAdmin, socioNumberingConverterAdmin, socioPersonaLockConverterAdmin, socioPrivateConverterAdmin } from '../converters/socioConverter.admin';
 import { organizerRequestConverterAdmin } from '../converters/organizerRequestConverter.admin';
 import { personConverterAdmin } from '../converters/personConverter.admin';
 import { userConverterAdmin } from '../converters/userConverter.admin';
 import { publicProfileConverterAdmin } from '../converters/publicProfileConverter.admin';
 import { notificationConverterAdmin } from '../converters/notificationConverter.admin';
 import { deviceTokenConverterAdmin } from '../converters/deviceTokenConverter.admin';
-import { groupNotificationPrefsConverterAdmin, notificationPrefsConverterAdmin } from '../converters/notificationPrefsConverter.admin';
+import {
+  groupNotificationPrefsConverterAdmin,
+  notificationPrefsConverterAdmin,
+  notificationSettingsConverterAdmin,
+} from '../converters/notificationPrefsConverter.admin';
 import {
   groupMessageConverterAdmin,
   groupMessageDeliveryConverterAdmin,
   groupMessageReadConverterAdmin,
   groupPollVoteConverterAdmin,
 } from '../converters/groupMessageConverter.admin';
+import {
+  groupChatMessageConverterAdmin,
+  groupChatReadConverterAdmin,
+  groupChatThreadConverterAdmin,
+} from '../converters/groupChatConverter.admin';
 import { pushQueueConverterAdmin } from '../converters/pushQueueConverter.admin';
 import { newsPostConverterAdmin } from '../converters/newsPostConverter.admin';
 import { commentConverterAdmin } from '../converters/commentConverter.admin';
@@ -53,6 +63,7 @@ import { vocabularyTermConverterAdmin } from '../converters/vocabularyTermConver
 import { historyEntryConverterAdmin } from '../converters/historyEntryConverter.admin';
 import { vocabularyDefinitionConverterAdmin } from '../converters/vocabularyDefinitionConverter.admin';
 import { vocabularyWordConverterAdmin } from '../converters/vocabularyWordConverter.admin';
+import { cosaConverterAdmin, cosaRequestConverterAdmin, cosaSlotConverterAdmin } from '../converters/cosatecaConverter.admin';
 
 export const eventsCollection = (db: Firestore) =>
   db.collection('events').withConverter(eventConverterAdmin);
@@ -160,6 +171,13 @@ export const organizationSocioPersonaLocksCollection = (db: Firestore, organizat
 export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
   db.collection('organizations').doc(organizationId).collection('socioPersonaLocks').doc(personId).withConverter(socioPersonaLockConverterAdmin);
 
+// The socio-number counter (see SocioNumberingDataSchema). Function-owned.
+export const organizationSocioNumberingDoc = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('socioNumbering').doc('current').withConverter(socioNumberingConverterAdmin);
+
+export const organizationSocioNumberingCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('socioNumbering').withConverter(socioNumberingConverterAdmin);
+
 // The cuota de socios (see CuotaDataModel).
 export const organizationCuotaSettingsDoc = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('cuotaSettings').doc('current').withConverter(cuotaSettingsConverterAdmin);
@@ -185,6 +203,19 @@ export const organizationCuotaRemindersCollection = (db: Firestore, organization
 
 export const organizationCuotaReminderDoc = (db: Firestore, organizationId: string, reminderId: string) =>
   db.collection('organizations').doc(organizationId).collection('cuotaReminders').doc(reminderId).withConverter(cuotaReminderConverterAdmin);
+
+// The cosateca (see CosaDataModel, CosaRequestDataModel).
+export const cosasCollection = (db: Firestore) => db.collection('cosas').withConverter(cosaConverterAdmin);
+export const cosaDoc = (db: Firestore, cosaId: string) => db.collection('cosas').doc(cosaId).withConverter(cosaConverterAdmin);
+export const cosaSlotsCollection = (db: Firestore, cosaId: string) =>
+  db.collection('cosas').doc(cosaId).collection('slots').withConverter(cosaSlotConverterAdmin);
+export const cosaSlotDoc = (db: Firestore, cosaId: string, slotKey: string) =>
+  db.collection('cosas').doc(cosaId).collection('slots').doc(slotKey).withConverter(cosaSlotConverterAdmin);
+export const cosaRequestsCollection = (db: Firestore) => db.collection('cosaRequests').withConverter(cosaRequestConverterAdmin);
+export const cosaRequestDoc = (db: Firestore, requestId: string) =>
+  db.collection('cosaRequests').doc(requestId).withConverter(cosaRequestConverterAdmin);
+export const cosaRequestChatCollection = (db: Firestore, requestId: string) =>
+  db.collection('cosaRequests').doc(requestId).collection('chat').withConverter(groupChatMessageConverterAdmin);
 
 // Group tasks, shifts and checklist templates (see GroupTaskDataModel).
 export const organizationTasksCollection = (db: Firestore, organizationId: string) =>
@@ -227,6 +258,23 @@ export const organizationMessageReadsCollection = (db: Firestore, organizationId
 
 export const organizationMessageVotesCollection = (db: Firestore, organizationId: string, messageId: string) =>
   db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('votes').withConverter(groupPollVoteConverterAdmin);
+
+// A group's chat (see GroupChatDataModel). The general thread's messages; an
+// aviso's live under its message.
+export const organizationGeneralChatCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('chat').withConverter(groupChatMessageConverterAdmin);
+
+export const organizationAvisoChatCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  db.collection('organizations').doc(organizationId).collection('messages').doc(messageId).collection('chat').withConverter(groupChatMessageConverterAdmin);
+
+export const organizationChatThreadsCollection = (db: Firestore, organizationId: string) =>
+  db.collection('organizations').doc(organizationId).collection('chatThreads').withConverter(groupChatThreadConverterAdmin);
+
+export const organizationChatThreadDoc = (db: Firestore, organizationId: string, threadId: string) =>
+  organizationChatThreadsCollection(db, organizationId).doc(threadId);
+
+export const organizationChatReadsCollection = (db: Firestore, organizationId: string, threadId: string) =>
+  organizationChatThreadDoc(db, organizationId, threadId).collection('reads').withConverter(groupChatReadConverterAdmin);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
   db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);
@@ -295,6 +343,15 @@ export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId:
 // Optional: absent means DEFAULT_NOTIFICATION_PREFS.
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
   userPreferencesCollection(db, userId).doc('notifications');
+
+// Optional, and its own collection so the conformance gate reads it with its own
+// schema: rules admit exactly one doc here (`account`).
+export const userNotificationSettingsCollection = (db: Firestore, userId: string) =>
+  db.collection('users').doc(userId).collection('notificationSettings')
+    .withConverter(notificationSettingsConverterAdmin);
+
+export const userNotificationSettingsDoc = (db: Firestore, userId: string) =>
+  userNotificationSettingsCollection(db, userId).doc(NOTIFICATION_SETTINGS_DOC_ID);
 
 // Server-only push spool — see PushQueueDataModel for why the id is
 // deterministic. `firestore.rules` denies clients both directions.

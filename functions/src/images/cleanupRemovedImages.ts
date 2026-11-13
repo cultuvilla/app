@@ -1,6 +1,8 @@
 import { onDocumentWritten, type Change, type DocumentSnapshot, type FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getStorage } from 'firebase-admin/storage';
+import { getFirestore } from 'firebase-admin/firestore';
+import { closeDeletedCosaRequests } from '../organizations/closeDeletedCosaRequests';
 import { IMAGE_VARIANT_SUFFIX, variantStoragePath, type ImageVariant } from '@cultuvilla/shared/utils';
 import { storageObjectPathFromDownloadUrl } from '../helpers/storageDownloadUrl';
 
@@ -54,11 +56,15 @@ export const ENTITY_IMAGE_SOURCES = {
     handler: 'cleanupRemovedEventImages',
     document: 'events/{entityId}',
     ownedPath: ({ entityId }) => new RegExp(`^municipalities/[^/]+/events/${entityId}/image/[^/]+$`),
-    // Every occurrence of a weekly series points at the cover uploaded under
-    // its first occurrence, so that occurrence dropping or replacing it must
-    // not delete an image its siblings still show. A series' covers are left
-    // in Storage instead — a few orphaned files beat broken flyers.
-    references: (data) => (isRecord(data['series']) ? [] : [data['imageURL']]),
+    // Every occurrence of a series points at the cover uploaded under its
+    // first occurrence, and the next edition of a repeating event at the last
+    // one's, so dropping or replacing it must not delete an image another
+    // event still shows. Those covers are left in Storage instead — a few
+    // orphaned files beat broken flyers.
+    references: (data) =>
+      isRecord(data['series']) || data['repeatsYearly'] === true || data['repeatsMonthly'] === true
+        ? []
+        : [data['imageURL']],
   },
   organizations: {
     handler: 'cleanupRemovedOrganizationImages',
@@ -91,6 +97,12 @@ export const ENTITY_IMAGE_SOURCES = {
     document: 'historyEntries/{entityId}',
     ownedPath: ({ entityId }) => new RegExp(`^historyEntries/[^/]+/${entityId}/[^/]+$`),
     references: (data) => arrayField(data, 'images').map((img) => (isRecord(img) ? img['url'] : null)),
+  },
+  cosas: {
+    handler: 'cleanupRemovedCosaImages',
+    document: 'cosas/{entityId}',
+    ownedPath: ({ entityId }) => new RegExp(`^cosas/${entityId}/image/[^/]+/[^/]+$`),
+    references: (data) => [data['imageURL']],
   },
 } satisfies Record<string, EntityImageSource>;
 
@@ -186,3 +198,27 @@ export const cleanupRemovedPlaceImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.pla
 export const cleanupRemovedBarrioImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.barrios);
 export const cleanupRemovedFestivalPosterImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.festivalPosters);
 export const cleanupRemovedHistoryEntryImages = cleanupTrigger(ENTITY_IMAGE_SOURCES.historyEntries);
+/**
+ * The cosa trigger also closes a deleted cosa's open requests — folded in here
+ * rather than deployed as a function of its own. Each step is isolated: a
+ * storage failure must not leave the requests open, nor the reverse.
+ */
+export const cleanupRemovedCosaImages = onDocumentWritten(
+  { document: ENTITY_IMAGE_SOURCES.cosas.document, region: 'us-central1' },
+  async (event) => {
+    const handler = ENTITY_IMAGE_SOURCES.cosas.handler;
+    const cosaId = event.params.entityId;
+    try {
+      await handleEntityImagesWritten(ENTITY_IMAGE_SOURCES.cosas, event);
+    } catch (err) {
+      logger.error('Cosa image cleanup failed', { handler, cosaId, error: String(err) });
+    }
+    if (!event.data?.before.exists || event.data.after.exists || !cosaId) return;
+    try {
+      const closed = await closeDeletedCosaRequests(getFirestore(), cosaId, new Date());
+      if (closed > 0) logger.info('Closed the requests of a deleted cosa', { handler, cosaId, closed });
+    } catch (err) {
+      logger.error('Closing the requests of a deleted cosa failed', { handler, cosaId, error: String(err) });
+    }
+  },
+);

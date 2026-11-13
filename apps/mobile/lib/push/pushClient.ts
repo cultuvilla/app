@@ -100,32 +100,39 @@ async function apnsEnvironment(): Promise<ApnsEnvironment> {
  * (permission not granted, a simulator without push, a transient failure).
  * Never throws: a device that cannot register simply does not get push, and
  * the Buzón still has everything.
+ *
+ * `knownToken` is the token a refresh event delivered. Pass it from a token
+ * listener: fetching the token fires the listeners on both platforms, so a
+ * listener that fetches runs forever.
  */
-export async function getPushRegistration(): Promise<DeviceTokenDataInput | null> {
+export async function getPushRegistration(knownToken?: string): Promise<DeviceTokenDataInput | null> {
   try {
     if ((await getPushPermission()) !== 'granted') return null;
-    const token = await Notifications.getDevicePushTokenAsync();
-    if (typeof token.data !== 'string' || token.data.length === 0) return null;
+    const token = knownToken ?? (await Notifications.getDevicePushTokenAsync()).data;
+    if (typeof token !== 'string' || token.length === 0) return null;
     const appVersion = Application.nativeApplicationVersion ?? '0.0.0';
     if (Platform.OS === 'ios') {
       return {
-        token: token.data,
+        token,
         platform: 'ios',
         apnsEnvironment: await apnsEnvironment(),
         apnsTopic: Application.applicationId ?? '',
         appVersion,
       };
     }
-    return { token: token.data, platform: 'android', appVersion };
+    return { token, platform: 'android', appVersion };
   } catch {
     return null;
   }
 }
 
-/** FCM and APNs both rotate tokens; the new one must replace the old row. */
-export function onPushTokenRefresh(listener: () => void): () => void {
-  const sub = Notifications.addPushTokenListener(() => {
-    listener();
+/**
+ * FCM and APNs both rotate tokens; the new one must replace the old row. Also
+ * fires with the unchanged token after every `getDevicePushTokenAsync`.
+ */
+export function onPushTokenRefresh(listener: (token: string) => void): () => void {
+  const sub = Notifications.addPushTokenListener((token) => {
+    listener(String(token.data));
   });
   return () => {
     sub.remove();

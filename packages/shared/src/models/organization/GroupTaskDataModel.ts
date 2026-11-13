@@ -3,8 +3,8 @@ import { DayKeySchema } from '../municipality/FiestaBlockModel';
 
 /**
  * A group's chores, at `organizations/{orgId}/tasks/{taskId}` — every org type,
- * the ayuntamiento included. Members read them; admins create, assign, edit and
- * delete; an assignee may tick their own task done or undone.
+ * the ayuntamiento included. Every member reads, creates, assigns, edits and
+ * ticks them done or undone; admins and a task's creator delete it.
  *
  * Three shapes share the doc:
  * - a plain task: title, notes, assignees, a due day;

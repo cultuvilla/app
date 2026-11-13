@@ -9,11 +9,14 @@ import {
   LedgerEntryDataSchema,
 } from '../../src/models/organization/RecordsDataModel';
 import {
+  asambleaAccountsYear,
+  asambleaChecklist,
   asambleaTaskInput,
   buildYearSummary,
   isAsambleaTask,
   libroDeSocios,
   nextAsambleaDay,
+  upcomingAsamblea,
 } from '../../src/models/organization/recordsLogic';
 
 const cuota = (id: string, periodKey: string, amountCents: number, paidOn: string) => ({
@@ -58,6 +61,90 @@ describe('asamblea anual', () => {
     expect(isAsambleaTask({ title: 'Asamblea', recurrence: null })).toBe(false);
     expect(isAsambleaTask({ title: 'Asamblea', recurrence: { ...yearly, unit: 'month' } })).toBe(false);
     expect(isAsambleaTask({ title: 'Revisar extintores', recurrence: yearly })).toBe(false);
+  });
+});
+
+describe('ahead of the asamblea', () => {
+  const yearly = { kind: 'calendar' as const, unit: 'year' as const, interval: 1, anchorOn: '2027-03-15' };
+  const task = (title: string, dueOn: string | null, doneAt: Date | null = null) => ({ title, dueOn, doneAt, recurrence: yearly });
+
+  it('finds the open asamblea task due within 45 days, overdue included', () => {
+    expect(upcomingAsamblea([task('Asamblea general', '2027-03-15')], '2027-02-01')?.dueOn).toBe('2027-03-15');
+    expect(upcomingAsamblea([task('Asamblea general', '2027-03-15')], '2027-01-28')).toBeNull();
+    expect(upcomingAsamblea([task('Asamblea general', '2027-03-15')], '2027-03-20')?.dueOn).toBe('2027-03-15');
+    expect(upcomingAsamblea([task('Asamblea general', '2027-03-15', new Date())], '2027-03-01')).toBeNull();
+    expect(upcomingAsamblea([task('Limpiar el local', '2027-03-15')], '2027-03-01')).toBeNull();
+    expect(upcomingAsamblea([task('Asamblea', '2027-03-20'), task('Asamblea', '2027-03-10')], '2027-03-01')?.dueOn).toBe('2027-03-10');
+  });
+
+  it('approves the year before at a spring asamblea and the same year at an autumn one', () => {
+    expect(asambleaAccountsYear('2027-03-15')).toBe('2026');
+    expect(asambleaAccountsYear('2026-06-30')).toBe('2025');
+    expect(asambleaAccountsYear('2026-11-22')).toBe('2026');
+  });
+
+  const acta = (heldOn: string, visibleToSocios: boolean, body: 'asamblea_general' | 'junta_directiva' = 'asamblea_general') => ({
+    body,
+    heldOn,
+    visibleToSocios,
+  });
+
+  it('is all ticked when every socio is numbered, the last asamblea acta is shared and the year has entries', () => {
+    expect(
+      asambleaChecklist({
+        asambleaDay: '2027-03-15',
+        socios: [
+          { socioNumber: 1, bajaAt: null },
+          { socioNumber: null, bajaAt: new Date() },
+        ],
+        actas: [acta('2026-03-14', true), acta('2027-03-15', false)],
+        accountsYear: '2026',
+        accountsEntries: 12,
+      }),
+    ).toEqual([
+      { item: 'libro', ok: true },
+      { item: 'acta', ok: true },
+      { item: 'cuentas', ok: true, year: '2026', entries: 12 },
+    ]);
+  });
+
+  it('counts active socios with no number, and ignores numbering in a group that uses none', () => {
+    const numbered = asambleaChecklist({
+      asambleaDay: '2027-03-15',
+      socios: [
+        { socioNumber: 1, bajaAt: null },
+        { socioNumber: null, bajaAt: null },
+        { socioNumber: null, bajaAt: null },
+      ],
+      actas: [],
+      accountsYear: '2026',
+      accountsEntries: 0,
+    });
+    expect(numbered[0]).toEqual({ item: 'libro', ok: false, unnumbered: 2 });
+    expect(numbered[2]).toEqual({ item: 'cuentas', ok: false, year: '2026', entries: 0 });
+
+    const unnumbered = asambleaChecklist({
+      asambleaDay: '2027-03-15',
+      socios: [{ socioNumber: null, bajaAt: null }],
+      actas: [],
+      accountsYear: '2026',
+      accountsEntries: 0,
+    });
+    expect(unnumbered[0]).toEqual({ item: 'libro', ok: true });
+  });
+
+  it('flags a missing or unshared acta of the previous asamblea general, junta actas aside', () => {
+    const base = { asambleaDay: '2027-03-15', socios: [], accountsYear: '2026', accountsEntries: 1 };
+    expect(asambleaChecklist({ ...base, actas: [acta('2026-10-01', true, 'junta_directiva')] })[1]).toEqual({
+      item: 'acta',
+      ok: false,
+      reason: 'missing',
+    });
+    expect(asambleaChecklist({ ...base, actas: [acta('2025-03-15', true), acta('2026-03-15', false)] })[1]).toEqual({
+      item: 'acta',
+      ok: false,
+      reason: 'hidden',
+    });
   });
 });
 

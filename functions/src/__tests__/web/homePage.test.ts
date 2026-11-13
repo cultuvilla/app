@@ -2,10 +2,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { describe, it, expect } from 'vitest';
-import type { Card, Village, VillageHome, WrappedView } from '../../web/data';
+import { orgCard, type Card, type OrgView, type Village, type VillageHome, type WrappedView } from '../../web/data';
 import { renderDocument } from '../../web/document';
 import { render } from '../../web/html';
-import { AMBASSADOR_PICKER, ambassadorsPage, homePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
+import { AMBASSADOR_PICKER, ambassadorsPage, homePage, villagePage, villagesPage, WRAPPED_AUTOPLAY, type Landing } from '../../web/pages';
 import { LANDING_STYLES } from '../../web/styles';
 
 const village = (slug: string, name: string, province: string | null = 'Segovia'): Village => ({
@@ -170,7 +170,7 @@ describe('homePage', () => {
   });
 
   it('gives would-be Embajadores a short page of their own: the film and a form that asks for their pueblo and phone', () => {
-    const page = ambassadorsPage();
+    const page = ambassadorsPage([]);
     expect(page.layout).toBe('landing');
     const out = render(page.body);
     expect(out).toContain('<h1 class="amb-q"><span>¿Presumes de</span> <em>pueblo</em> <span>allá donde vas?</span></h1>');
@@ -190,9 +190,31 @@ describe('homePage', () => {
     }
   });
 
+  it('shows no wall on /embajadores until there is an Embajador to show', () => {
+    expect(render(ambassadorsPage([]).body)).not.toContain('amb-wall');
+  });
+
+  it('shows each Embajador as a carnet below the form: face, name, gendered title and escudo, linking to their pueblo', () => {
+    const lucia = { name: 'Lucía Martín', photoUrl: 'https://img.test/lucia_thumb.webp', originalPhotoUrl: 'https://img.test/lucia.jpg', female: true, village: { ...village('valdeolmos', 'Valdeolmos', 'Madrid'), escudoUrl: 'https://img.test/escudo.png' } };
+    const javier = { name: '<Javier>', photoUrl: null, originalPhotoUrl: null, female: false, village: village('riofrio', 'Riofrío') };
+    const out = render(ambassadorsPage([lucia, javier]).body);
+    expect(out.indexOf('<form id="amb-form"')).toBeLessThan(out.indexOf('class="blk amb-wall"'));
+    expect(out).toContain('<h2>2 Embajadores</h2>');
+    expect(out).toContain('href="/valdeolmos"');
+    expect(out).toContain('Embajadora de Valdeolmos');
+    expect(out).toContain('Embajador de Riofrío');
+    expect(out).toContain('src="https://img.test/lucia_thumb.webp"');
+    expect(out).toContain('data-fallback="https://img.test/lucia.jpg"');
+    expect(out).toContain('src="https://img.test/escudo.png"');
+    // No photo: the initial stands in, and a name is escaped like any other text.
+    expect(out).toContain('<span class="face" aria-hidden="true">&lt;</span>');
+    expect(out).toContain('&lt;Javier&gt;');
+    expect(render(ambassadorsPage([lucia]).body)).toContain('<h2>1 Embajador</h2>');
+  });
+
   it('hands a rejected form back with what was typed, escaped, and each problem beside its field', () => {
     const form = { pueblo: '<b>Mata</b>', municipalityId: '', nombre: 'Ana "la del bar"', telefono: '123', consentimiento: true, web: '' };
-    const out = render(ambassadorsPage({ form, errors: { telefono: 'Escribe un teléfono válido, por ejemplo 612 345 678.' } }).body);
+    const out = render(ambassadorsPage([], { form, errors: { telefono: 'Escribe un teléfono válido, por ejemplo 612 345 678.' } }).body);
     expect(out).toContain('value="&lt;b&gt;Mata&lt;/b&gt;"');
     expect(out).toContain('value="Ana &quot;la del bar&quot;"');
     expect(out).toContain('<span class="err" role="alert">Escribe un teléfono válido');
@@ -301,5 +323,20 @@ describe('homePage', () => {
       expect(existsSync(resolve(dir, name)), name).toBe(true);
       expect(credits, `${name} credit`).toContain(`\`${name}\``);
     }
+  });
+});
+
+describe('villagePage', () => {
+  it('identifies a comisión on its card, in the groups section', () => {
+    const comision: OrgView = { id: 'c1', name: 'Comisión 2026', description: null, images: [], type: 'comisión', memberCount: 4, municipalityId: 'm1' };
+    const out = render(
+      villagePage(matabuena, {
+        ...emptyHome,
+        orgs: [orgCard(comision, 'matabuena')],
+      }).body,
+    );
+    expect(out.indexOf('Peñas y asociaciones')).toBeLessThan(out.indexOf('Comisión 2026'));
+    expect(out.indexOf('Comisión 2026')).toBeLessThan(out.indexOf('Comisión de festejos'));
+    expect(out).not.toContain('4 integrantes');
   });
 });

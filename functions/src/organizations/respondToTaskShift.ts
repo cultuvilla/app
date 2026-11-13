@@ -40,7 +40,7 @@ export const respondToTaskShift = onCall<RespondToTaskShiftData, Promise<{ state
         tx.get(organizationMemberDoc(db, orgId, uid)),
         tx.get(organizationTaskDoc(db, orgId, taskId)),
       ]);
-      if (!member.exists) throw new HttpsError('permission-denied', 'No eres miembro del grupo.');
+      if (!member.exists) throw new HttpsError('permission-denied', 'No eres integrante del grupo.');
       const current = snap.data();
       if (!current || current.slots === null) throw new HttpsError('not-found', 'Ese turno no existe.');
       if (current.doneAt !== null || (current.dueOn !== null && current.dueOn < madridDayKey(now))) {

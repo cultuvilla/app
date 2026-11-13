@@ -76,6 +76,6 @@ Pre-approved under two clauses. The first is "debt and refactors that change not
 ## Out of scope
 
 - `firestore.rules`. Shape predicates and match blocks stay hand-written, guarded by `rulesShapeContract.test.ts` and `test:rules`.
-- `firestore.indexes.json`, and the `firestore-index-hygiene` plan.
+- `firestore.indexes.json` (deployed with `--force`; see [environment-parity.md](../../decisions/environment-parity.md)).
 - Registering `authEmailRateLimits`, `config` and `reactions`. That is `ideas/github-security-alerts.md` item 4, and each becomes a table entry once this lands.
 - Changing any collection path, id scheme, schema or converter strictness.

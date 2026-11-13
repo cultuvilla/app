@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { buildRosterWorkbook, XLSX_MIME } from '../rosterWorkbook';
+import { buildRosterWorkbook, buildWorkbook, XLSX_MIME } from '../rosterWorkbook';
 import type { RosterExportModel } from '@cultuvilla/shared/export/rosterExport';
 
 // jest can't execute the production dynamic import, so the loader seam hands
@@ -91,5 +91,14 @@ describe('buildRosterWorkbook', () => {
 
   it('declares the spreadsheet mime type browsers map to Excel', () => {
     expect(XLSX_MIME).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
+});
+
+describe('buildWorkbook', () => {
+  it('writes one sheet per model, in order', async () => {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await buildWorkbook([model, { ...model, sheetName: 'Segunda', title: 'Otra' }], 'Registros'));
+    expect(workbook.worksheets.map((s) => s.name)).toEqual(['Fiesta de San Juan', 'Segunda']);
+    expect(workbook.worksheets[1]!.getCell(1, 2).value).toBe('Otra');
   });
 });

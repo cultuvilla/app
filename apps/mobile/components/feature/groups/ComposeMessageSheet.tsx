@@ -3,6 +3,8 @@ import { ScrollView } from 'react-native';
 import {
   GROUP_MESSAGE_AUDIENCE_KINDS,
   GROUP_MESSAGE_BODY_MAX,
+  GROUP_MESSAGE_PLACEHOLDER_TOKEN,
+  GROUP_MESSAGE_PLACEHOLDERS,
   GROUP_MESSAGE_TITLE_MAX,
   GROUP_POLL_MAX_OPTIONS,
   GROUP_WHATSAPP_MODES,
@@ -15,12 +17,14 @@ import { newGroupMessageId, sendGroupMessage } from '@cultuvilla/shared/services
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
 import { formatDate } from '@cultuvilla/shared/utils';
-import { BottomSheet, Button, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { Button, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { SelectField } from './SelectField';
+import { SegmentedToggle } from '../SegmentedToggle';
+import { FormModal } from '../../layout/FormModal';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
-import { composerInput, emptyComposerForm, type ComposerError, type ComposerForm, type PollChoice } from '../../../lib/orgs/messaging';
-import { ChoiceRow } from './ChoiceRow';
+import { appendPlaceholder, composerInput, emptyComposerForm, type ComposerError, type ComposerForm, type PollChoice } from '../../../lib/orgs/messaging';
 
 type Event = EventData & { id: string };
 
@@ -35,7 +39,7 @@ const ERROR_KEY: Record<ComposerError, string> = {
 
 /**
  * The admin's composer: subject and message, who it goes to, by which
- * channels, pinned or not, and an optional poll. Sending is one callable; the
+ * channels, and an optional poll. Sending is one callable; the
  * WhatsApp links are sent afterwards from the message's detail.
  */
 export function ComposeMessageSheet({
@@ -59,6 +63,8 @@ export function ComposeMessageSheet({
   const [messageId, setMessageId] = useState('');
   const [error, setError] = useState<ComposerError | null>(null);
   const [sending, setSending] = useState(false);
+  // Where a placeholder chip writes: the field last touched, the body at first.
+  const [chipTarget, setChipTarget] = useState<'title' | 'body'>('body');
   const events = useWatch<Event[]>(
     'groups:watchEventsByOrganization',
     visible ? `${orgId}|${includePrivateEvents}` : null,
@@ -100,13 +106,11 @@ export function ComposeMessageSheet({
   };
 
   return (
-    <BottomSheet
+    <FormModal
       visible={visible}
       onClose={onClose}
       title={t('groups.messages.compose')}
-      closeLabel={t('common.close')}
       testID="group-msg-compose"
-      maxHeightRatio={0.92}
       footer={
         <VStack className="px-5 pt-3">
           <Button onPress={send} loading={sending} fullWidth testID="group-msg-send">
@@ -115,12 +119,13 @@ export function ComposeMessageSheet({
         </VStack>
       }
     >
-      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID="group-msg-compose-scroll">
-        <VStack gap={3} className="px-5 pb-4">
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" testID="group-msg-compose-scroll">
+        <VStack gap={3} className="px-4 pt-4 pb-6">
           <Input
             label={t('groups.messages.subject')}
             value={form.title}
             onChangeText={(v) => set('title', v)}
+            onFocus={() => setChipTarget('title')}
             maxLength={GROUP_MESSAGE_TITLE_MAX}
             error={error === 'subject' ? t(ERROR_KEY.subject) : undefined}
             testID="group-msg-subject"
@@ -129,17 +134,33 @@ export function ComposeMessageSheet({
             label={t('groups.messages.body')}
             value={form.body}
             onChangeText={(v) => set('body', v)}
+            onFocus={() => setChipTarget('body')}
             multiline
             autoGrow
             maxLength={GROUP_MESSAGE_BODY_MAX}
             error={error === 'body' ? t(ERROR_KEY.body) : undefined}
             testID="group-msg-body"
           />
-
-          <Text variant="bodySm" className="font-bold">
-            {t('groups.messages.audienceLabel')}
-          </Text>
-          <ChoiceRow<GroupMessageAudienceKind>
+          <VStack gap={1} testID="group-msg-placeholders">
+            <HStack gap={2} className="flex-wrap">
+              {GROUP_MESSAGE_PLACEHOLDERS.filter((p) => p !== 'cuota' || hasCuota).map((p) => (
+                <Pressable
+                  key={p}
+                  testID={`group-msg-placeholder-${p}`}
+                  accessibilityRole="button"
+                  onPress={() => set(chipTarget, appendPlaceholder(form[chipTarget], GROUP_MESSAGE_PLACEHOLDER_TOKEN[p]))}
+                  className="px-3 py-1 rounded-md border border-subtle bg-surface"
+                >
+                  <Text variant="bodySm">{t(`groups.messages.placeholder.${p}`)}</Text>
+                </Pressable>
+              ))}
+            </HStack>
+            <Text variant="caption" tone="muted">
+              {t('groups.messages.placeholderHint')}
+            </Text>
+          </VStack>
+          <SelectField
+            label={t('groups.messages.audienceLabel')}
             testID="group-msg-audience"
             value={form.audience}
             options={audiences.map((a) => ({ value: a, label: t(`groups.messages.audience.${a}`) }))}
@@ -187,25 +208,18 @@ export function ComposeMessageSheet({
           </Text>
           <Toggle testID="group-msg-push" value={form.push} label={t('groups.messages.channelPush')} onValueChange={(v) => set('push', v)} />
           <Toggle testID="group-msg-email" value={form.email} label={t('groups.messages.channelEmail')} onValueChange={(v) => set('email', v)} />
-          <Text variant="bodySm" tone="muted">
-            {t('groups.messages.whatsappLabel')}
-          </Text>
-          <ChoiceRow
+          <SelectField
+            label={t('groups.messages.whatsappLabel')}
             testID="group-msg-whatsapp"
             value={form.whatsapp}
             options={GROUP_WHATSAPP_MODES.map((m) => ({ value: m, label: t(`groups.messages.whatsapp.${m}`) }))}
             onChange={(v) => set('whatsapp', v)}
           />
 
-          <Toggle testID="group-msg-pinned" value={form.pinned} label={t('groups.messages.pinned')} onValueChange={(v) => set('pinned', v)} />
-          <Text variant="caption" tone="muted">
-            {t('groups.messages.pinnedHint')}
-          </Text>
-
           <Text variant="bodySm" className="font-bold">
             {t('groups.messages.pollLabel')}
           </Text>
-          <ChoiceRow
+          <SegmentedToggle
             testID="group-msg-poll"
             value={form.poll}
             options={POLL_CHOICES.map((p) => ({ value: p, label: t(`groups.messages.poll.${p}`) }))}
@@ -255,6 +269,6 @@ export function ComposeMessageSheet({
           ) : null}
         </VStack>
       </ScrollView>
-    </BottomSheet>
+    </FormModal>
   );
 }

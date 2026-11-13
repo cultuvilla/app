@@ -8,7 +8,9 @@ import {
   tallyGroupPoll,
   unreadRecipientUids,
   whatsappLink,
+  whatsappShareLink,
 } from '../../../src/models/organization/GroupMessageDataModel';
+import { NEUTRAL_PERSONAL_VALUES, personalizeGroupMessage } from '../../../src/models/organization/groupMessagePlaceholders';
 
 const input = (over: Record<string, unknown> = {}) => ({
   orgId: 'org1',
@@ -87,8 +89,25 @@ describe('group message helpers', () => {
       'https://cultuvilla.es/grupos?grupo=org1',
     );
     expect(text).toBe(
-      '*Cena*\n\nElegid fecha.\n\n¿12 o 19? Responde en la app: https://cultuvilla.es/grupos?grupo=org1\n\n— Luis\nPresidencia · La Anduela',
+      '*Cena*\n\nElegid fecha.\n\n¿12 o 19?\n\n— Luis\nPresidencia · La Anduela\n\nResponde en la app: https://cultuvilla.es/grupos?grupo=org1',
     );
     expect(whatsappLink('+34600111222', 'Hola y adiós')).toBe('https://wa.me/34600111222?text=Hola%20y%20adi%C3%B3s');
+  });
+
+  it('every WhatsApp text ends with the link into the app, poll or not', () => {
+    const text = groupMessageWhatsappText(
+      { title: 'Cena', body: 'El sábado.', poll: null, signerName: 'Luis', signerTitle: null, orgName: 'La Anduela' },
+      'https://cultuvilla.es/grupos?grupo=org1',
+    );
+    expect(text).toBe('*Cena*\n\nEl sábado.\n\n— Luis\nLa Anduela\n\nMíralo en la app: https://cultuvilla.es/grupos?grupo=org1');
+  });
+
+  it('a share link has no number, so WhatsApp asks which chat', () => {
+    expect(whatsappShareLink('Hola y adiós')).toBe('https://wa.me/?text=Hola%20y%20adi%C3%B3s');
+  });
+
+  it('the group-chat text is the neutral one: no name, no personal lines', () => {
+    const message = personalizeGroupMessage({ title: 'Cena', body: 'Hola {nombre},\n\nEl sábado.\n\nDebes {cuota}.' }, NEUTRAL_PERSONAL_VALUES);
+    expect(message.body).toBe('Hola,\n\nEl sábado.');
   });
 });

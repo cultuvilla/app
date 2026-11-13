@@ -9,7 +9,8 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 
-const PACO: TypedSocioValues = { displayName: 'Paco', phone: '611', email: '' };
+const PACO: TypedSocioValues = { displayName: 'Paco', socioNumber: '57', phone: '611', email: '' };
+const free = () => false;
 
 function deferred() {
   let resolve!: () => void;
@@ -29,7 +30,7 @@ afterEach(() => jest.restoreAllMocks());
 describe('TypedSocioSheet', () => {
   it('refuses a blank name and says why, without saving', () => {
     const onSave = jest.fn();
-    const { getByTestId, getByText } = render(<TypedSocioSheet visible initial={null} onSave={onSave} onClose={jest.fn()} />);
+    const { getByTestId, getByText } = render(<TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={onSave} onClose={jest.fn()} />);
     fireEvent.changeText(getByTestId('typed-socio-name'), '   ');
     fireEvent.press(getByTestId('typed-socio-save'));
     expect(getByText('groups.socios.nameRequired')).toBeTruthy();
@@ -40,7 +41,7 @@ describe('TypedSocioSheet', () => {
     const save = deferred();
     const onClose = jest.fn();
     const { getByTestId, queryByTestId } = render(
-      <TypedSocioSheet visible initial={null} onSave={() => save.promise} onClose={onClose} />,
+      <TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={() => save.promise} onClose={onClose} />,
     );
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
     fireEvent.press(getByTestId('typed-socio-save'));
@@ -55,7 +56,7 @@ describe('TypedSocioSheet', () => {
     const onSave = jest.fn(() => save.promise);
     const onClose = jest.fn();
     const { getByTestId, queryByTestId } = render(
-      <TypedSocioSheet visible initial={null} onSave={onSave} onClose={onClose} />,
+      <TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={onSave} onClose={onClose} />,
     );
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
     fireEvent.press(getByTestId('typed-socio-save'));
@@ -71,7 +72,7 @@ describe('TypedSocioSheet', () => {
   });
 
   it('keeps what is being typed when the roster re-renders it with a fresh initial', () => {
-    const props = { visible: true, onSave: jest.fn(), onClose: jest.fn() };
+    const props = { visible: true, isNumberTaken: free, onSave: jest.fn(), onClose: jest.fn() };
     const { getByTestId, rerender } = render(<TypedSocioSheet {...props} initial={{ ...PACO }} />);
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Paco Pérez');
     rerender(<TypedSocioSheet {...props} initial={{ ...PACO }} />);
@@ -79,17 +80,45 @@ describe('TypedSocioSheet', () => {
   });
 
   it('starts again from the socio when reopened', () => {
-    const props = { onSave: jest.fn(), onClose: jest.fn() };
+    const props = { isNumberTaken: free, onSave: jest.fn(), onClose: jest.fn() };
     const { getByTestId, rerender } = render(<TypedSocioSheet {...props} visible initial={PACO} />);
     fireEvent.changeText(getByTestId('typed-socio-name'), 'abandoned edit');
     rerender(<TypedSocioSheet {...props} visible={false} initial={PACO} />);
     rerender(<TypedSocioSheet {...props} visible initial={PACO} />);
     expect(getByTestId('typed-socio-name').props.value).toBe('Paco');
     expect(getByTestId('typed-socio-phone').props.value).toBe('611');
+    expect(getByTestId('typed-socio-number').props.value).toBe('57');
+  });
+
+  it('saves the typed number as a number, and a blank one as null', async () => {
+    const onSave = jest.fn(() => Promise.resolve());
+    const { getByTestId } = render(<TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={onSave} onClose={jest.fn()} />);
+    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.changeText(getByTestId('typed-socio-number'), ' 120 ');
+    fireEvent.press(getByTestId('typed-socio-save'));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'Lola', socioNumber: 120 })));
+    fireEvent.changeText(getByTestId('typed-socio-number'), '');
+    fireEvent.press(getByTestId('typed-socio-save'));
+    await waitFor(() => expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ socioNumber: null })));
+  });
+
+  it('refuses a number that is not one, or that another socio has', () => {
+    const onSave = jest.fn();
+    const { getByTestId, getByText } = render(
+      <TypedSocioSheet visible initial={null} isNumberTaken={(n) => n === 7} onSave={onSave} onClose={jest.fn()} />,
+    );
+    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.changeText(getByTestId('typed-socio-number'), '7a');
+    fireEvent.press(getByTestId('typed-socio-save'));
+    expect(getByText('groups.socios.socioNumberInvalid')).toBeTruthy();
+    fireEvent.changeText(getByTestId('typed-socio-number'), '7');
+    fireEvent.press(getByTestId('typed-socio-save'));
+    expect(getByText('groups.socios.socioNumberTaken')).toBeTruthy();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('scrolls its fields inside the sheet, so they stay reachable with the keyboard up', () => {
-    const { getByTestId } = render(<TypedSocioSheet visible initial={null} onSave={jest.fn()} onClose={jest.fn()} />);
+    const { getByTestId } = render(<TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={jest.fn()} onClose={jest.fn()} />);
     const scroll = getByTestId('typed-socio-scroll');
     expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
     expect(scroll.props.style).toMatchObject({ flexShrink: 1 });

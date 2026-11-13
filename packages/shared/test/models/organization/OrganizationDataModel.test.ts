@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   OrganizationDataSchema,
+  PROPOSABLE_ORGANIZATION_TYPES,
   buildOrganizationData,
   canViewOrgRoster,
 } from '../../../src/models/organization/OrganizationDataModel';
@@ -36,6 +37,15 @@ describe('OrganizationDataSchema', () => {
     expect(() => OrganizationDataSchema.parse({ ...validOrg, status: 'archived' })).toThrow();
   });
 
+  it('parses a comisión de festejos', () => {
+    expect(OrganizationDataSchema.parse({ ...validOrg, type: 'comisión' }).type).toBe('comisión');
+  });
+
+  // An installed binary must not blank a village's group list over a type added after it.
+  it('reads a type it does not know as otros', () => {
+    expect(OrganizationDataSchema.parse({ ...validOrg, type: 'cofradía' }).type).toBe('otros');
+  });
+
   it('requires images on the persisted shape', () => {
     const { images: _omit, ...rest } = validOrg;
     expect(() => OrganizationDataSchema.parse(rest)).toThrow();
@@ -45,6 +55,13 @@ describe('OrganizationDataSchema', () => {
     expect(() =>
       OrganizationDataSchema.parse({ ...validOrg, images: ['1', '2', '3', '4', '5', '6'] }),
     ).toThrow();
+  });
+});
+
+describe('PROPOSABLE_ORGANIZATION_TYPES', () => {
+  it('offers the comisión de festejos and never the ayuntamiento', () => {
+    expect(PROPOSABLE_ORGANIZATION_TYPES).toContain('comisión');
+    expect(PROPOSABLE_ORGANIZATION_TYPES).not.toContain('ayuntamiento');
   });
 });
 

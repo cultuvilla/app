@@ -7,12 +7,15 @@
 //     Use `firebaseErrorCode()` from ./errors to compare codes.
 export {
   addDoc,
+  arrayRemove,
+  arrayUnion,
   clearIndexedDbPersistence,
   collection,
   collectionGroup,
   // test-login: allowed — a re-export for firebaseInit.ts, which owns the wiring.
   connectFirestoreEmulator,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,

@@ -165,6 +165,10 @@ org's member list, `/usuario/{uid}`.
 - **Adding a field:** only if anyone, signed out included, may read it. Contact
   details never belong here.
 
+### `organizations/{orgId}/socioPrivate/{socioId}.phone|email` ← `users/{uid}.telephone|email`
+
+Admins can't read `users/{uid}`, so a socio's shared contact is a copy. `syncPublicProfile` updates a value the socio already shares, in every group where they're active; a value they don't share stays null. See [socio-contact-required.md](../decisions/socio-contact-required.md).
+
 ### `commentCount` ← `comments/`
 
 Every comment-capable kind (event, organization, festivalPoster, place, barrio,
@@ -376,7 +380,12 @@ members and app admins. The count is copied onto the public municipality doc.
   `firestore.rules`; only the trigger (and app admins) can write it.
 - **Backfill:** [scripts/backfill-village-people-count.mjs](../../scripts/backfill-village-people-count.mjs)
   (`village-people-count`, `pre-deploy`, auto-applied) recounts every
-  municipality from `municipalityPeople/`.
+  municipality from `municipalityPeople/`. Its twin
+  [scripts/backfill-village-people-count-reconcile.mjs](../../scripts/backfill-village-people-count-reconcile.mjs)
+  (`post-deploy`, auto-applied on beta/prod) recounts again after the functions
+  deploy, so a roster change in the window before the trigger went live cannot
+  leave a quiet village's count wrong. It races the live trigger, so it writes in
+  the same kind of transaction.
 
 ### `memberCount` ← `organizations/{orgId}/members/` and `residentCount` ← `persons/`
 
@@ -435,6 +444,41 @@ deleted.
 - **Backfill / repair:** [scripts/backfill-socio-roster.mjs](../../scripts/backfill-socio-roster.mjs)
   reconciles: an alta for every member with no active row, a baja for an active
   row whose member has left.
+
+### `chatThreads/{threadId}` ← `chat/` under the group or an aviso
+
+- **Source:** `organizations/{orgId}/chat/{id}` (general) and `organizations/{orgId}/messages/{messageId}/chat/{id}` (an aviso's).
+- **Read model:** `organizations/{orgId}/chatThreads/{threadId}` — `lastMessageAt`, `lastAuthorUid`. Lets the unread badge take one doc per thread instead of a listener on each thread's messages.
+- **Trigger:** `functions/src/organizations/onGroupChatMessageCreated.ts`, a transaction per message, creation only. A deleted message does not move it back: the badge may show a thread whose newest message is gone until it is opened.
+- **Backfill:** none. A thread's summary begins with its first message.
+
+### `cosas.audience` ← `organizations/{orgId}.cosateca`
+
+- **Source:** the group's cosateca setting, `organizations/{orgId}.cosateca` (`enabled`, `audience`).
+- **Read model:** `cosas/{cosaId}.audience` — `pueblo` only while the group's cosateca is on and open to the pueblo, else `integrantes` (`effectiveCosaAudience`). The rules read it to let any village member see the cosa, and the village's cosateca queries `municipalityId + audience`, so neither needs the org doc per cosa.
+- **Trigger:** `syncCosaAudience`, called from `onOrganizationUpdated` (`functions/src/organizations/notificationTriggers.ts`) when the effective audience moves; it rewrites that group's cosas. A cosa is created with the group's current audience, which the create rule checks.
+- **Backfill:** none — the collection starts empty. The org field itself is backfilled by `scripts/backfill-org-cosateca.mjs`.
+
+### `cosas.heldBy` ← `cosaRequests/{requestId}`
+
+- **Source:** the request that is lent (`status: 'lent'`).
+- **Read model:** `cosas/{cosaId}.heldBy` — `{ requestId, uid, name, untilOn, since }`, who has the cosa now and since when. Lets the catalogue say "la tiene Ana hasta el 3" without a query per cosa.
+- **Trigger:** none; the `respondToCosaRequest` callable writes it in the same transaction as the move (`lend` sets it, `return` clears it; for a shared cosa — the group's prestamo — handing it on moves it to the requester, and its holder leaving it in its place clears it). `deleteAccount` clears it when the holder's account goes.
+- **Backfill:** `scripts/backfill-cosa-owner-shares.mjs` adds `since` to any written before it.
+
+### `cosaRequests.holderUid` ← `cosas/{cosaId}.heldBy` (shared cosas)
+
+- **Source:** the holder of a shared cosa (`cosas.heldBy.uid` on a group's prestamo, `isSharedCosa`).
+- **Read model:** `cosaRequests/{requestId}.holderUid` — who answers the request. Lets the holder's Buzón and *Me piden* query `holderUid == uid`, and the rules let the holder read it, without reading the cosa.
+- **Trigger:** none; the requester copies it at creation (the create rule checks it against the cosa), and the `respondToCosaRequest` callable rewrites it on the cosa's other open requests in the handover's transaction, and clears it on them when the holder leaves the cosa in its place. `deleteAccount` clears it on the requests waiting on a departing holder.
+- **Backfill:** `scripts/backfill-cosa-owner-shares.mjs` (null where missing; the holder on a held shared cosa's waiting requests).
+
+### `cosas/{cosaId}/slots/{startISO}` ← `cosaRequests/{requestId}` (reservas)
+
+- **Source:** a reserva's live bookings (`cosaKind: 'reserva'`, `status` `pending` or `accepted`).
+- **Read model:** one doc per taken slot, keyed by the slot's start instant: `{ requestId, startAt, endAt, status }`. It is the slot's lock — `bookReservaSlot` claims it in the booking's transaction, so two people tapping the same slot leave one booking — and what lets every viewer of the cosa grey out taken slots, since bookings themselves are readable only by their parties. Names no one.
+- **Trigger:** none; the callables keep it in the same transaction as the booking: `bookReservaSlot` creates it, `respondToCosaRequest` marks it accepted or deletes it when the booking is declined or cancelled, `setReservaBlackouts` deletes the locks of the bookings a closed day cancels, `deleteAccount` deletes a departing booker's.
+- **Backfill:** none — the collection starts empty.
 
 ### `villageSlug` ← `municipalities/{id}.slug`
 

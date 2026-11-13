@@ -8,13 +8,14 @@ import {
   type TaskRecurrence,
 } from '@cultuvilla/shared/models/organization';
 import { createGroupTask, deleteGroupTask, updateGroupTask, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
-import { BottomSheet, Button, Checkbox, DateField, Input, Text, Toggle, VStack } from '../../primitives';
+import { Button, Checkbox, DateField, Input, Text, Toggle, VStack } from '../../primitives';
+import { SegmentedToggle } from '../SegmentedToggle';
+import { FormModal } from '../../layout/FormModal';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { dayKeyOfPickedDate, pickedDateOfDayKey } from '../../../lib/orgs/cuota';
 import { parseIntIn, parseTimeOfDay } from '../../../lib/orgs/tasks';
 import type { GroupMember } from '../../../lib/orgs/useOrgMembers';
-import { ChoiceRow } from './ChoiceRow';
 
 type Repeat = 'none' | RecurrenceKind;
 
@@ -27,7 +28,7 @@ interface Errors {
 }
 
 /**
- * Admin: create or edit one task — what, when, who, whether it is a volunteer
+ * Any member: create or edit one task — what, when, who, whether it is a volunteer
  * shift (and how many people it needs), and whether it repeats on a fixed date
  * or some time after it was done. A new task can be put on an event's checklist.
  */
@@ -38,6 +39,7 @@ export function TaskSheet({
   task,
   eventId = null,
   members,
+  canDelete = false,
   onClose,
 }: {
   visible: boolean;
@@ -47,6 +49,8 @@ export function TaskSheet({
   task: GroupTask | null;
   eventId?: string | null;
   members: GroupMember[];
+  /** An admin, or whoever created the task. */
+  canDelete?: boolean;
   onClose: () => void;
 }) {
   const { t } = useT();
@@ -146,18 +150,17 @@ export function TaskSheet({
   };
 
   return (
-    <BottomSheet
+    <FormModal
       visible={visible}
       onClose={onClose}
       title={t(task ? 'groups.tasks.form.titleEdit' : 'groups.tasks.form.titleNew')}
-      closeLabel={t('common.close')}
       testID="task-sheet"
       footer={
         <VStack gap={2} className="px-5 pt-3">
           <Button onPress={save} loading={saving} fullWidth testID="task-save">
             {t('groups.tasks.form.save')}
           </Button>
-          {task ? (
+          {task && canDelete ? (
             <Button variant="ghost" onPress={remove} fullWidth testID="task-delete">
               {t('groups.tasks.form.delete')}
             </Button>
@@ -165,8 +168,8 @@ export function TaskSheet({
         </VStack>
       }
     >
-      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
-        <VStack gap={3} className="px-5 pb-4">
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+        <VStack gap={3} className="px-4 pt-4 pb-6">
           <Input label={t('groups.tasks.form.name')} value={title} onChangeText={setTitle} error={errors.title} testID="task-title" />
           <Input label={t('groups.tasks.form.notes')} value={notes} onChangeText={setNotes} autoGrow testID="task-notes" />
           <DateField
@@ -212,7 +215,7 @@ export function TaskSheet({
           <Text variant="bodySm" className="font-bold">
             {t('groups.tasks.form.repeat')}
           </Text>
-          <ChoiceRow
+          <SegmentedToggle
             testID="task-repeat"
             value={repeat}
             options={[
@@ -224,7 +227,7 @@ export function TaskSheet({
           />
           {repeat !== 'none' ? (
             <>
-              <ChoiceRow
+              <SegmentedToggle
                 testID="task-repeat-unit"
                 value={unit}
                 options={[
@@ -245,6 +248,6 @@ export function TaskSheet({
           ) : null}
         </VStack>
       </ScrollView>
-    </BottomSheet>
+    </FormModal>
   );
 }

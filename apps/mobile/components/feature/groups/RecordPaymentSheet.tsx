@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { CUOTA_PAYMENT_METHODS, parseEuroCents, type CuotaPaymentMethod } from '@cultuvilla/shared/models/organization';
-import { BottomSheet, Button, DateField, Input, Text, VStack } from '../../primitives';
+import { BottomSheet, Button, DateField, HStack, Input, Text, VStack } from '../../primitives';
+import { SelectField } from './SelectField';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
-import { centsInputValue, dayKeyOfPickedDate, pickedDateOfDayKey, todayKey } from '../../../lib/orgs/cuota';
-import { ChoiceRow } from './ChoiceRow';
+import { centsInputValue, centsLabel, dayKeyOfPickedDate, pickedDateOfDayKey, todayKey } from '../../../lib/orgs/cuota';
 
 export interface PaymentValues {
   amountCents: number;
@@ -14,11 +14,16 @@ export interface PaymentValues {
   note: string;
 }
 
-/** Record one payment the treasurer received: amount, how, when, and a note. */
+/**
+ * Record one payment the treasurer received. `quick` opens on what is owed and
+ * asks only how it was paid — one tap saves it, dated today; "Otro importe"
+ * opens the full form (amount, how, when, a note).
+ */
 export function RecordPaymentSheet({
   visible,
   socioName,
   suggestedCents,
+  quick = false,
   onSave,
   onClose,
 }: {
@@ -26,6 +31,7 @@ export function RecordPaymentSheet({
   socioName: string;
   /** What is still owed — the amount the form starts with. */
   suggestedCents: number;
+  quick?: boolean;
   onSave: (values: PaymentValues) => Promise<void>;
   onClose: () => void;
 }) {
@@ -36,9 +42,11 @@ export function RecordPaymentSheet({
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [full, setFull] = useState(true);
 
   useEffect(() => {
     if (visible) {
+      setFull(!quick || suggestedCents <= 0);
       setAmount(suggestedCents > 0 ? centsInputValue(suggestedCents) : '');
       setMethod('efectivo');
       setPaidOn(todayKey());
@@ -47,18 +55,60 @@ export function RecordPaymentSheet({
     }
   }, [visible]);
 
+  const submit = (values: PaymentValues) => {
+    setSaving(true);
+    onSave(values)
+      .then(onClose)
+      .catch(() => showAlert(t('groups.cuota.error')))
+      .finally(() => setSaving(false));
+  };
+
   const save = () => {
     const cents = parseEuroCents(amount);
     if (cents === null || cents === 0) {
       setError(t('groups.cuota.settings.amountInvalid'));
       return;
     }
-    setSaving(true);
-    onSave({ amountCents: cents, method, paidOn, note })
-      .then(onClose)
-      .catch(() => showAlert(t('groups.cuota.error')))
-      .finally(() => setSaving(false));
+    submit({ amountCents: cents, method, paidOn, note });
   };
+
+  if (!full) {
+    return (
+      <BottomSheet
+        visible={visible}
+        onClose={onClose}
+        title={socioName}
+        closeLabel={t('common.close')}
+        testID="cuota-payment-sheet"
+      >
+        <VStack gap={3} className="px-5 pb-4">
+          <Text variant="h1" className="font-bold" testID="cuota-payment-quick-amount">
+            {centsLabel(suggestedCents)}
+          </Text>
+          <Text tone="muted" variant="bodySm">
+            {t('groups.cuota.payment.how')}
+          </Text>
+          <HStack gap={2} className="flex-wrap">
+            {CUOTA_PAYMENT_METHODS.map((m) => (
+              <Button
+                key={m}
+                variant="secondary"
+                disabled={saving}
+                className="grow basis-[45%]"
+                testID={`cuota-payment-quick-${m}`}
+                onPress={() => submit({ amountCents: suggestedCents, method: m, paidOn: todayKey(), note: '' })}
+              >
+                {t(`groups.cuota.methods.${m}`)}
+              </Button>
+            ))}
+          </HStack>
+          <Button variant="ghost" testID="cuota-payment-other" onPress={() => setFull(true)}>
+            {t('groups.cuota.payment.other')}
+          </Button>
+        </VStack>
+      </BottomSheet>
+    );
+  }
 
   return (
     <BottomSheet
@@ -85,10 +135,8 @@ export function RecordPaymentSheet({
             error={error}
             testID="cuota-payment-amount"
           />
-          <Text variant="bodySm" className="font-bold">
-            {t('groups.cuota.payment.method')}
-          </Text>
-          <ChoiceRow
+          <SelectField
+            label={t('groups.cuota.payment.method')}
             testID="cuota-payment-method"
             value={method}
             options={CUOTA_PAYMENT_METHODS.map((m) => ({ value: m, label: t(`groups.cuota.methods.${m}`) }))}

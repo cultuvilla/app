@@ -5,10 +5,18 @@ import {
   organizationDoc,
   organizationMemberDoc,
   organizationSocioPersonaLockDoc,
+  organizationSocioPrivateDoc,
   organizationSociosCollection,
   userDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
-import { buildSocioData, hasSocioRoster } from '@cultuvilla/shared/models';
+import {
+  buildSocioData,
+  buildSocioPrivateData,
+  hasSocioRoster,
+  requiresSocioContact,
+  socioContactMissing,
+  type SocioContactRequirement,
+} from '@cultuvilla/shared/models';
 
 const db = getFirestore();
 
@@ -29,15 +37,28 @@ export type RosterOutcome = 'alta' | 'adopted' | 'unchanged' | 'baja';
  *   date; if no row matches, the member's own persona row is adopted (keeping
  *   its alta) or a new row opens. A member who is no longer an admin loses
  *   their title.
+ *
+ * A new member of a group that requires contact data accepted that on the way
+ * in, so their row opens with it, from their account. Should something be
+ * missing, the app asks them when they open the group.
  */
 export async function reconcileSocioMembership(
   firestore: Firestore,
   orgId: string,
   uid: string,
+  requirement: SocioContactRequirement = { socioPhoneRequired: false, socioEmailRequired: false },
 ): Promise<RosterOutcome> {
   const socios = organizationSociosCollection(firestore, orgId);
   const user = (await userDoc(firestore, uid).get()).data();
   const personId = user?.personId ?? null;
+  const contact = requiresSocioContact(requirement)
+    ? buildSocioPrivateData({
+        phone: requirement.socioPhoneRequired ? user?.telephone : null,
+        email: requirement.socioEmailRequired ? user?.email : null,
+        consentAnsweredAt: new Date(),
+      })
+    : null;
+  const shareable = contact && !socioContactMissing(requirement, contact) ? contact : null;
 
   return firestore.runTransaction(async (tx) => {
     const [member, own, personas, adoptable] = await Promise.all([
@@ -84,11 +105,14 @@ export async function reconcileSocioMembership(
     if (persona && personId) {
       tx.update(persona.ref, { kind: 'member', uid, responsibleUid: null, memberJoinedAt: joinedAt });
       tx.delete(organizationSocioPersonaLockDoc(firestore, orgId, personId));
+      if (shareable) tx.set(organizationSocioPrivateDoc(firestore, orgId, persona.id), shareable);
       return 'adopted';
     }
 
+    const row = socios.doc();
+    if (shareable) tx.set(organizationSocioPrivateDoc(firestore, orgId, row.id), shareable);
     tx.set(
-      socios.doc(),
+      row,
       buildSocioData({
         kind: 'member',
         displayName: user?.displayName ?? '',
@@ -122,7 +146,7 @@ export const syncOrgSocioRoster = onDocumentWritten(
 
     // The event says only that this membership changed; what it changed to is
     // read fresh inside the reconcile (see reconcileSocioMembership).
-    const outcome = await reconcileSocioMembership(db, orgId, userId);
+    const outcome = await reconcileSocioMembership(db, orgId, userId, org);
     logger.info('socio roster reconciled', { handler, orgId, userId, outcome });
   },
 );

@@ -3,6 +3,7 @@ import EventDetailScreen from '../[evento]';
 import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../../test/watchers';
 
 const mockPush = jest.fn();
+const mockCanEdit = { current: false };
 
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
@@ -24,6 +25,8 @@ jest.mock('../../../../lib/deeplink/useShareDeepLink', () => ({ useShareDeepLink
 jest.mock('../../../../components/feature/LiveOwnerChip', () => ({ LiveOwnerChip: () => null }));
 jest.mock('../../../../components/feature/RegisterFab', () => ({ RegisterFab: () => null }));
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
+jest.mock('../../../../components/feature/EventAttendees', () => ({ EventAttendees: () => null }));
+jest.mock('../../../../components/feature/RegistrationHistory', () => ({ RegistrationHistory: () => null }));
 jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: () => ({
@@ -31,7 +34,7 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
     canApprove: false,
     uid: null,
     loading: false,
-    canEdit: () => false,
+    canEdit: () => mockCanEdit.current,
     canDelete: () => false,
   }),
 }));
@@ -68,6 +71,7 @@ const EVENT = {
 describe('EventDetailScreen', () => {
   beforeEach(() => {
     mockPush.mockClear();
+    mockCanEdit.current = false;
     resetWatchers();
     setWatched('event', EVENT);
     setWatched('village', {
@@ -107,6 +111,46 @@ describe('EventDetailScreen', () => {
       series: { id: 's', index: 0, weekdays: [2, 4], until: new Date('2026-12-15T00:00:00') },
     });
     expect(await findByTestId('event-series-summary')).toHaveTextContent('event.seriesSummary');
+  });
+
+  it('says a yearly event comes back every year', async () => {
+    setWatched('event', { ...EVENT, series: null, repeatsYearly: true });
+    const { findByTestId, queryByTestId } = render(<EventDetailScreen />);
+    expect(await findByTestId('event-series-summary')).toHaveTextContent('event.yearlySummary');
+    // Not an organizer: nothing to repeat.
+    expect(queryByTestId('event-repeat-next')).toBeNull();
+  });
+
+  it("lets an organizer repeat a yearly event once it is over, into next year's form", async () => {
+    mockCanEdit.current = true;
+    setWatched('event', { ...EVENT, series: null, repeatsYearly: true, startDate: new Date('2025-08-14T20:00:00Z') });
+    const { findByTestId } = render(<EventDetailScreen />);
+    fireEvent.press(await findByTestId('event-repeat-next'));
+    expect(mockPush).toHaveBeenCalledWith('/crear/evento?copyFrom=e1&villageId=m1');
+  });
+
+  it('says a monthly event varies, and repeats it next month', async () => {
+    mockCanEdit.current = true;
+    setWatched('event', {
+      ...EVENT,
+      series: null,
+      repeatsMonthly: true,
+      repeatDateVaries: true,
+      startDate: new Date('2025-08-14T20:00:00Z'),
+    });
+    const { findByTestId, getByText } = render(<EventDetailScreen />);
+    expect(await findByTestId('event-series-summary')).toHaveTextContent('event.monthlySummary');
+    expect(getByText('event.repeatNextMonth')).toBeTruthy();
+    fireEvent.press(await findByTestId('event-repeat-next'));
+    expect(mockPush).toHaveBeenCalledWith('/crear/evento?copyFrom=e1&villageId=m1');
+  });
+
+  it('offers no repeat before the yearly event has happened', async () => {
+    mockCanEdit.current = true;
+    setWatched('event', { ...EVENT, series: null, repeatsYearly: true, startDate: new Date('2099-08-14T20:00:00Z') });
+    const { findByTestId, queryByTestId } = render(<EventDetailScreen />);
+    await findByTestId('event-series-summary');
+    expect(queryByTestId('event-repeat-next')).toBeNull();
   });
 
   it('shows the not-found state for an event that does not exist', async () => {

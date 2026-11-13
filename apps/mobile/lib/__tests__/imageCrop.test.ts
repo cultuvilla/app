@@ -1,12 +1,14 @@
 import * as ImagePicker from 'expo-image-picker';
-import { pickAndCropSquare } from '../imageCrop';
+import { pickAndCropSquare, recoverPickedSquare } from '../imageCrop';
 
 jest.mock('expo-image-picker', () => ({
   MediaTypeOptions: { Images: 'Images' },
   launchImageLibraryAsync: jest.fn(),
+  getPendingResultAsync: jest.fn(),
 }));
 
 const launch = ImagePicker.launchImageLibraryAsync as jest.Mock;
+const pending = ImagePicker.getPendingResultAsync as jest.Mock;
 
 const ASSET = { uri: 'file:///tmp/pic.jpg', fileName: 'pic.jpg', mimeType: 'image/jpeg' };
 const FAKE_BLOB = { size: 10, type: 'image/jpeg' } as unknown as Blob;
@@ -68,5 +70,32 @@ describe('pickAndCropSquare (native)', () => {
   it('returns null when the user cancels the picker/crop', async () => {
     launch.mockResolvedValue({ canceled: true, assets: [] });
     expect(await pickAndCropSquare()).toBeNull();
+  });
+});
+
+describe('recoverPickedSquare (Android closed the app behind the picker)', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    pending.mockReset();
+  });
+
+  it('maps the pick the closed app never received', async () => {
+    pending.mockResolvedValue({ canceled: false, assets: [ASSET] });
+    stubXhr();
+
+    expect(await recoverPickedSquare()).toMatchObject({
+      blob: FAKE_BLOB,
+      contentType: 'image/jpeg',
+      previewUri: ASSET.uri,
+    });
+  });
+
+  it.each([
+    ['nothing is pending', null],
+    ['the pending pick was cancelled', { canceled: true, assets: null }],
+    ['the pending pick failed', { code: 'ERR', message: 'boom' }],
+  ])('returns null when %s', async (_label, result) => {
+    pending.mockResolvedValue(result);
+    expect(await recoverPickedSquare()).toBeNull();
   });
 });

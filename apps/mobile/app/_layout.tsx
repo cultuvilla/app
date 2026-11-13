@@ -1,6 +1,7 @@
 import './../global.css';
 import { Redirect, Stack, useSegments, router, type Href } from 'expo-router';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import { bootstrapFirebase } from '../lib/firebaseInit';
@@ -8,7 +9,9 @@ import { bootstrapObservability } from '../lib/observability/configure';
 import { ObservabilityErrorBoundary } from '../lib/observability/ObservabilityErrorBoundary';
 import { AppVersionGate } from '../components/AppVersionGate';
 import { OfflineBanner } from '../components/feature/OfflineBanner';
+import { CopiedToast } from '../components/feature/CopiedToast';
 import { IntroHost, useMarkAppReady } from '../components/intro/IntroHost';
+import { ImageZoomOverlayProvider } from '../components/primitives/ImageZoomOverlay';
 import { AuthProvider } from '../lib/auth/AuthContext';
 import { CallableErrorProvider } from '../lib/callableError';
 import { I18nProvider } from '../lib/i18n';
@@ -46,32 +49,37 @@ export default function RootLayout() {
 
 function AppTree() {
   return (
-    <SafeAreaProvider>
-      <ObservabilityErrorBoundary
-        fallback={
-          <View className="flex-1 items-center justify-center bg-surface">
-            <ActivityIndicator />
-          </View>
-        }
-      >
-        <AppVersionGate>
-          <CallableErrorProvider>
-            <AuthProvider>
-              <GuestActiveVillageProvider>
-                <MyRegistrationsProvider>
-                  <PushProvider>
-                    <RegisterGateProvider>
-                      <AuthGate />
-                      <OfflineBanner />
-                    </RegisterGateProvider>
-                  </PushProvider>
-                </MyRegistrationsProvider>
-              </GuestActiveVillageProvider>
-            </AuthProvider>
-          </CallableErrorProvider>
-        </AppVersionGate>
-      </ObservabilityErrorBoundary>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ObservabilityErrorBoundary
+          fallback={
+            <View className="flex-1 items-center justify-center bg-surface">
+              <ActivityIndicator />
+            </View>
+          }
+        >
+          <AppVersionGate>
+            <CallableErrorProvider>
+              <AuthProvider>
+                <GuestActiveVillageProvider>
+                  <MyRegistrationsProvider>
+                    <PushProvider>
+                      <RegisterGateProvider>
+                        <ImageZoomOverlayProvider>
+                          <AuthGate />
+                        </ImageZoomOverlayProvider>
+                        <OfflineBanner />
+                        <CopiedToast />
+                      </RegisterGateProvider>
+                    </PushProvider>
+                  </MyRegistrationsProvider>
+                </GuestActiveVillageProvider>
+              </AuthProvider>
+            </CallableErrorProvider>
+          </AppVersionGate>
+        </ObservabilityErrorBoundary>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -79,7 +87,6 @@ function AuthGate() {
   const { user, loading, profile, profileChecked } = useAuth();
   const segments = useSegments();
   useRouteTracking();
-  useDeepLinkRouter();
   const { pendingIntent, clearPending } = useRegisterGate();
   const markAppReady = useMarkAppReady();
 
@@ -102,11 +109,19 @@ function AuthGate() {
     }
   }, [intentTarget, clearPending]);
 
+  const target = resolveAuthRoute({
+    user: !!user,
+    profileChecked,
+    hasPersonId: !!profile?.personId,
+    topSegment: segments[0],
+  });
+  const gatedBySpinner = loading || (user && !profileChecked) || !!intentTarget;
+  useDeepLinkRouter(!gatedBySpinner && !target);
+
   // The intro holds the screen until the first real route is decided.
-  const resolving = loading || (user && !profileChecked) || !!intentTarget;
   useEffect(() => {
-    if (!resolving) markAppReady();
-  }, [resolving, markAppReady]);
+    if (!gatedBySpinner) markAppReady();
+  }, [gatedBySpinner, markAppReady]);
 
   if (loading || (user && !profileChecked)) {
     return (
@@ -125,12 +140,6 @@ function AuthGate() {
     );
   }
 
-  const target = resolveAuthRoute({
-    user: !!user,
-    profileChecked,
-    hasPersonId: !!profile?.personId,
-    topSegment: segments[0],
-  });
   if (target) {
     return <Redirect href={target} />;
   }

@@ -44,7 +44,13 @@ dropped (the index deploy never deleted anything).
   develop) stopped the 1.8.0 prod deploy, and a whole release was cut only to
   carry the file to main. `artifacts` still compares against the commit.
 - **Indexes deploy with `--force`.** The file is the whole truth; a removed
-  index is removed everywhere.
+  index is removed everywhere. The deploy first runs a drift report
+  (`scripts/check-index-drift.mjs --warn`, locally `pnpm check:index-drift
+  --project=<env>`) naming what it will delete. The cost, accepted 2026-10-06:
+  an index made by hand in the console (a hotfix while a query fails) vanishes
+  on the next deploy unless it is also added to the file. Orphans had built up
+  because the deploy ran without `--force`; the cleanup left all three envs at
+  live == file (prod and beta 54/54 on the 1.10.0 promotion, 2026-10-09).
 - **During a held breaking release** prod's rules and functions are
   deliberately the previous release, so the artifacts check skips them while
   `_admin/announce/pending/prod.holdBackend` is true.

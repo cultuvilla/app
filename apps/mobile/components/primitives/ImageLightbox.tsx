@@ -1,300 +1,288 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
   Modal,
-  PanResponder,
   Pressable as RNPressable,
   StyleSheet,
   View,
   useWindowDimensions,
-  type GestureResponderEvent,
-  type PanResponderGestureState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  GestureDetector,
+  GestureHandlerRootView,
+  usePanGesture,
+  usePinchGesture,
+  useSimultaneousGestures,
+  useTapGesture,
+} from 'react-native-gesture-handler';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withDecay,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 import { iconSizes } from '@cultuvilla/shared/design-system';
 import { RemoteImage } from './RemoteImage';
 import {
+  DOUBLE_TAP_SCALE,
   MIN_SCALE,
   clampOffset,
   clampScale,
   dismissBackdropOpacity,
   fitSize,
-  isDoubleTap,
   nextScaleOnDoubleTap,
+  offsetCenteringPoint,
   offsetForScaleAbout,
-  pinchScale,
+  panBounds,
+  panResistance,
   shouldDismissOnRelease,
-  touchDistance,
-  touchMidpoint,
-  type Offset,
+  softClampScale,
+  type Point,
   type Size,
 } from '../../lib/imageZoom';
 
 /**
- * Full-screen image viewer: pinch to zoom, drag to pan, double-tap to toggle
- * between fit and 3x, swipe down (or ✕) to dismiss.
+ * Full-screen image viewer: pinch to zoom, drag to pan with momentum, double-tap
+ * to toggle between fit and 3x, swipe down (or ✕) to dismiss. All the geometry
+ * lives in `lib/imageZoom.ts` so it stays unit-testable; this file is the wiring.
  *
- * Built on core `Animated` + `PanResponder` rather than
- * gesture-handler/reanimated, which this app does not depend on. Adding them
- * would change the native fingerprint, and an OTA update cannot carry native
- * code — a zoom that only reaches users through a new store binary is a zoom
- * nobody has. All the geometry lives in `lib/imageZoom.ts` so it stays
- * unit-testable; this file is the wiring.
- *
- * The viewer requests the `original` rendition: zooming into the downscaled
- * `card` variant the surrounding screen renders would only magnify mush.
- *
- * Styles go on `style`, never `className` — NativeWind drops className on
- * `Animated.View` in the web build.
+ * The viewer requests the `original` rendition, over the `card` the screen has
+ * already cached so something shows at once: zooming into the downscaled `card`
+ * would only magnify mush.
  */
 export type ImageLightboxProps = {
-  uri: string | null;
-  visible: boolean;
+  uri: string;
   onClose: () => void;
   /** Accessibility label for the ✕ button. */
   closeLabel: string;
   accessibilityLabel?: string;
+  /** Where in the picture (0–1 on each axis) to open zoomed, or fitted if null. */
+  zoomAt?: Point | null;
 };
+
+const SETTLE_SPRING = { damping: 22, stiffness: 220, overshootClamping: true };
 
 export function ImageLightbox({
   uri,
-  visible,
   onClose,
   closeLabel,
   accessibilityLabel,
+  zoomAt = null,
 }: ImageLightboxProps) {
-  const { width, height } = useWindowDimensions();
+  const windowSize = useWindowDimensions();
   // Read the context directly rather than through `useSafeAreaInsets`, which
   // throws when no provider is above it. The viewer is mounted from leaf image
   // components all over the app (and from tests that render one in isolation);
   // a missing provider should cost the ✕ button its inset, not crash the screen.
   const insets = useContext(SafeAreaInsetsContext);
   const topInset = insets?.top ?? 0;
-  const viewport = useMemo(() => ({ width, height }), [width, height]);
+
+  // Measured: on Android a translucent Modal is not the size of the window, and
+  // gesture coordinates are relative to this area.
+  const [measured, setMeasured] = useState<Size | null>(null);
+  const viewport = measured ?? { width: windowSize.width, height: windowSize.height };
 
   const [natural, setNatural] = useState<Size | null>(null);
-  const displayed = useMemo(
-    () => fitSize(natural ?? viewport, viewport),
-    [natural, viewport],
-  );
+  const displayed = useMemo(() => fitSize(natural ?? viewport, viewport), [natural, viewport]);
 
-  const scaleAnim = useRef(new Animated.Value(MIN_SCALE)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-  const backdrop = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(MIN_SCALE);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const backdrop = useSharedValue(1);
+  const activeGestures = useSharedValue(0);
+  const displayedSize = useSharedValue(displayed);
+  const viewportSize = useSharedValue(viewport);
 
-  // Imperative mirror of the animated values: PanResponder callbacks need the
-  // current numbers synchronously, and reading an Animated.Value's internals is
-  // not part of its API.
-  const gesture = useRef({
-    scale: MIN_SCALE,
-    offset: { x: 0, y: 0 } as Offset,
-    startScale: MIN_SCALE,
-    startOffset: { x: 0, y: 0 } as Offset,
-    pinchDistance: 0,
-    pinching: false,
-    lastTapAt: 0,
+  useEffect(() => {
+    displayedSize.value = displayed;
+    viewportSize.value = viewport;
+  }, [displayed, viewport, displayedSize, viewportSize]);
+
+  const openedZoomed = useRef(false);
+  useEffect(() => {
+    if (!zoomAt || !natural || openedZoomed.current) return;
+    openedZoomed.current = true;
+    const offset = clampOffset(
+      offsetCenteringPoint(zoomAt, displayed, DOUBLE_TAP_SCALE),
+      displayed,
+      viewport,
+      DOUBLE_TAP_SCALE,
+    );
+    scale.value = withSpring(DOUBLE_TAP_SCALE, SETTLE_SPRING);
+    translateX.value = withSpring(offset.x, SETTLE_SPRING);
+    translateY.value = withSpring(offset.y, SETTLE_SPRING);
+  }, [zoomAt, natural, displayed, viewport, scale, translateX, translateY]);
+
+  const settle = (velocityX: number, velocityY: number) => {
+    'worklet';
+    const rest = clampScale(scale.value);
+    const current = { x: translateX.value, y: translateY.value };
+    const target =
+      rest <= MIN_SCALE
+        ? { x: 0, y: 0 }
+        : clampOffset(current, displayedSize.value, viewportSize.value, rest);
+    const bounds = panBounds(displayedSize.value, viewportSize.value, rest);
+    backdrop.value = withTiming(1, { duration: 140 });
+    scale.value = withSpring(rest, SETTLE_SPRING);
+    // A flick inside the bounds carries on; anything past them springs back.
+    translateX.value =
+      target.x === current.x && rest > MIN_SCALE
+        ? withDecay({ velocity: velocityX, clamp: [-bounds.x, bounds.x] })
+        : withSpring(target.x, SETTLE_SPRING);
+    translateY.value =
+      target.y === current.y && rest > MIN_SCALE
+        ? withDecay({ velocity: velocityY, clamp: [-bounds.y, bounds.y] })
+        : withSpring(target.y, SETTLE_SPRING);
+  };
+
+  const pan = usePanGesture({
+    onActivate: () => {
+      'worklet';
+      activeGestures.value += 1;
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
+    },
+    onUpdate: (e) => {
+      'worklet';
+      if (scale.value <= MIN_SCALE + 0.01) {
+        // Fitted: a vertical drag is the dismiss gesture, tracked by the image
+        // itself so the picture follows the finger.
+        translateY.value += e.changeY;
+        backdrop.value = dismissBackdropOpacity(translateY.value, viewportSize.value.height);
+        return;
+      }
+      const bounds = panBounds(displayedSize.value, viewportSize.value, scale.value);
+      translateX.value += e.changeX * panResistance(translateX.value, bounds.x);
+      translateY.value += e.changeY * panResistance(translateY.value, bounds.y);
+    },
+    onDeactivate: (e) => {
+      'worklet';
+      activeGestures.value -= 1;
+      if (activeGestures.value > 0) return;
+      if (shouldDismissOnRelease(translateY.value, e.velocityY, scale.value)) {
+        backdrop.value = withTiming(0, { duration: 160 });
+        translateY.value = withTiming(viewportSize.value.height, { duration: 160 }, (done) => {
+          if (done) scheduleOnRN(onClose);
+        });
+        return;
+      }
+      settle(e.velocityX, e.velocityY);
+    },
   });
 
-  const reset = useCallback(() => {
-    gesture.current.scale = MIN_SCALE;
-    gesture.current.offset = { x: 0, y: 0 };
-    gesture.current.pinching = false;
-    gesture.current.lastTapAt = 0;
-    scaleAnim.setValue(MIN_SCALE);
-    translateX.setValue(0);
-    translateY.setValue(0);
-    backdrop.setValue(1);
-  }, [backdrop, scaleAnim, translateX, translateY]);
-
-  // A reopened viewer must start fitted, not wherever the last pinch left it.
-  useEffect(() => {
-    if (visible) reset();
-  }, [visible, reset]);
-
-  useEffect(() => {
-    setNatural(null);
-  }, [uri]);
-
-  const applyOffset = useCallback(
-    (offset: Offset, scale: number) => {
-      const clamped = clampOffset(offset, displayed, viewport, scale);
-      gesture.current.offset = clamped;
-      translateX.setValue(clamped.x);
-      translateY.setValue(clamped.y);
+  const pinch = usePinchGesture({
+    onActivate: () => {
+      'worklet';
+      activeGestures.value += 1;
+      cancelAnimation(scale);
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
+      backdrop.value = 1;
     },
-    [displayed, viewport, translateX, translateY],
-  );
+    onUpdate: (e) => {
+      'worklet';
+      const next = softClampScale(scale.value * e.scaleChange);
+      const offset = offsetForScaleAbout(
+        { x: e.focalX - viewportSize.value.width / 2, y: e.focalY - viewportSize.value.height / 2 },
+        { x: translateX.value, y: translateY.value },
+        scale.value,
+        next,
+      );
+      scale.value = next;
+      translateX.value = offset.x;
+      translateY.value = offset.y;
+    },
+    onDeactivate: () => {
+      'worklet';
+      activeGestures.value -= 1;
+      if (activeGestures.value > 0) return;
+      settle(0, 0);
+    },
+  });
 
-  const zoomTo = useCallback(
-    (scale: number, focal: Offset) => {
-      const next = clampScale(scale);
+  const doubleTap = useTapGesture({
+    numberOfTaps: 2,
+    onActivate: (e) => {
+      'worklet';
+      const next = nextScaleOnDoubleTap(scale.value);
       const offset =
-        next === MIN_SCALE
+        next <= MIN_SCALE
           ? { x: 0, y: 0 }
-          : offsetForScaleAbout(focal, gesture.current.offset, gesture.current.scale, next);
-      gesture.current.scale = next;
-      applyOffset(offset, next);
-      Animated.spring(scaleAnim, {
-        toValue: next,
-        useNativeDriver: true,
-        friction: 8,
-        tension: 90,
-      }).start();
-    },
-    [applyOffset, scaleAnim],
-  );
-
-  /** Touch coordinates relative to the viewport centre, as the geometry expects. */
-  const toFocal = useCallback(
-    (pageX: number, pageY: number): Offset => ({
-      x: pageX - viewport.width / 2,
-      y: pageY - viewport.height / 2,
-    }),
-    [viewport],
-  );
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_e, g) =>
-          Math.abs(g.dx) > 3 || Math.abs(g.dy) > 3 || gesture.current.scale > MIN_SCALE,
-
-        onPanResponderGrant: (e: GestureResponderEvent) => {
-          const now = Date.now();
-          const { pageX, pageY } = e.nativeEvent;
-          if (isDoubleTap(gesture.current.lastTapAt, now)) {
-            gesture.current.lastTapAt = 0;
-            zoomTo(nextScaleOnDoubleTap(gesture.current.scale), toFocal(pageX, pageY));
-          } else {
-            gesture.current.lastTapAt = now;
-          }
-          gesture.current.startScale = gesture.current.scale;
-          gesture.current.startOffset = gesture.current.offset;
-          gesture.current.pinching = false;
-        },
-
-        onPanResponderMove: (e: GestureResponderEvent, g: PanResponderGestureState) => {
-          const touches = e.nativeEvent.touches;
-          const first = touches[0];
-          const second = touches[1];
-          if (first && second) {
-            const a = { x: first.pageX, y: first.pageY };
-            const b = { x: second.pageX, y: second.pageY };
-            const distance = touchDistance(a, b);
-            if (!gesture.current.pinching) {
-              // A pinch can begin mid-drag, so re-anchor rather than assuming
-              // the values recorded at grant time.
-              gesture.current.pinching = true;
-              gesture.current.pinchDistance = distance;
-              gesture.current.startScale = gesture.current.scale;
-              gesture.current.startOffset = gesture.current.offset;
-              backdrop.setValue(1);
-            }
-            const next = pinchScale(
-              gesture.current.startScale,
-              gesture.current.pinchDistance,
-              distance,
-            );
-            const mid = touchMidpoint(a, b);
-            const focal = toFocal(mid.x, mid.y);
-            gesture.current.scale = next;
-            scaleAnim.setValue(next);
-            applyOffset(
+          : clampOffset(
               offsetForScaleAbout(
-                focal,
-                gesture.current.startOffset,
-                gesture.current.startScale,
+                { x: e.x - viewportSize.value.width / 2, y: e.y - viewportSize.value.height / 2 },
+                { x: translateX.value, y: translateY.value },
+                scale.value,
                 next,
               ),
+              displayedSize.value,
+              viewportSize.value,
               next,
             );
-            return;
-          }
+      scale.value = withSpring(next, SETTLE_SPRING);
+      translateX.value = withSpring(offset.x, SETTLE_SPRING);
+      translateY.value = withSpring(offset.y, SETTLE_SPRING);
+    },
+  });
 
-          if (gesture.current.pinching) return;
+  const gestures = useSimultaneousGestures(pan, pinch, doubleTap);
 
-          if (gesture.current.scale > MIN_SCALE) {
-            applyOffset(
-              {
-                x: gesture.current.startOffset.x + g.dx,
-                y: gesture.current.startOffset.y + g.dy,
-              },
-              gesture.current.scale,
-            );
-            return;
-          }
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
+  const stageStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
 
-          // Fitted: a vertical drag is the dismiss gesture, tracked by the
-          // image itself so the picture follows the finger.
-          translateY.setValue(g.dy);
-          backdrop.setValue(dismissBackdropOpacity(g.dy, viewport.height));
-        },
-
-        onPanResponderRelease: (_e, g) => {
-          if (gesture.current.pinching) {
-            gesture.current.pinching = false;
-            if (gesture.current.scale <= MIN_SCALE) zoomTo(MIN_SCALE, { x: 0, y: 0 });
-            return;
-          }
-          if (shouldDismissOnRelease(g.dy, g.vy, gesture.current.scale)) {
-            onClose();
-            return;
-          }
-          if (gesture.current.scale <= MIN_SCALE) {
-            Animated.parallel([
-              Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 8 }),
-              Animated.timing(backdrop, { toValue: 1, duration: 140, useNativeDriver: true }),
-            ]).start();
-            gesture.current.offset = { x: 0, y: 0 };
-          }
-        },
-
-        onPanResponderTerminate: () => {
-          gesture.current.pinching = false;
-        },
-      }),
-    [applyOffset, backdrop, onClose, scaleAnim, toFocal, translateY, viewport.height, zoomTo],
-  );
-
-  if (!uri) return null;
+  const handleNaturalSize = (width: number, height: number) => {
+    setNatural({ width, height });
+  };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={styles.root}>
-        <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdrop }]} />
-        <Animated.View
-          style={[
-            styles.stage,
-            {
-              transform: [
-                { translateX },
-                { translateY },
-                { scale: scaleAnim },
-              ],
-            },
-          ]}
-          testID="image-lightbox-stage"
-          {...panResponder.panHandlers}
-        >
-          <RemoteImage
-            uri={uri}
-            variant="original"
-            style={{ width: displayed.width, height: displayed.height }}
-            contentFit="contain"
-            onNaturalSize={(w, h) => { setNatural({ width: w, height: h }); }}
-            accessibilityLabel={accessibilityLabel}
-            testID="image-lightbox-image"
-          />
-        </Animated.View>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      {/* A Modal is its own native root, outside the app's gesture root. */}
+      <GestureHandlerRootView style={styles.root}>
+        <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]} />
+        <GestureDetector gesture={gestures}>
+          <View
+            style={styles.touchArea}
+            collapsable={false}
+            onLayout={(e) => {
+              const { width, height } = e.nativeEvent.layout;
+              setMeasured({ width, height });
+            }}
+          >
+            <Animated.View
+              style={[{ width: displayed.width, height: displayed.height }, stageStyle]}
+              testID="image-lightbox-stage"
+            >
+              <RemoteImage
+                uri={uri}
+                variant="card"
+                style={StyleSheet.absoluteFill}
+                contentFit="contain"
+                transitionMs={0}
+                onNaturalSize={handleNaturalSize}
+              />
+              <RemoteImage
+                uri={uri}
+                variant="original"
+                style={StyleSheet.absoluteFill}
+                contentFit="contain"
+                allowDownscaling={false}
+                onNaturalSize={handleNaturalSize}
+                accessibilityLabel={accessibilityLabel}
+                testID="image-lightbox-image"
+              />
+            </Animated.View>
+          </View>
+        </GestureDetector>
         <RNPressable
           onPress={onClose}
           accessibilityRole="button"
@@ -304,15 +292,15 @@ export function ImageLightbox({
         >
           <Ionicons name="close" size={iconSizes.md} color="#ffffff" />
         </RNPressable>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  root: { flex: 1 },
   backdrop: { backgroundColor: '#000000' },
-  stage: { alignItems: 'center', justifyContent: 'center' },
+  touchArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   close: {
     position: 'absolute',
     right: 12,

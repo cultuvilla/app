@@ -50,9 +50,14 @@ import {
 } from './otpTokenCache';
 import { fetchUserIdHash } from '../observability/errorBridge';
 import { unregisterPushForSignOut } from '../push/pushSession';
+import { discardLegacySession, restoreLegacySession } from './legacySession';
+import { clearSessionMarker, markSessionOpen, reportIfSessionLost } from './sessionMarker';
 
 /** Back-off between attempts at a profile read that failed at sign-in. */
 const PROFILE_RETRY_MS = [1000, 2000, 5000, 10000, 30000];
+
+/** How long the launch waits for a pre-native session before showing the app signed out. */
+const LEGACY_RESTORE_TIMEOUT_MS = 8000;
 
 declare const __DEV__: boolean;
 
@@ -237,10 +242,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const auth = getAuth();
+    let launchResolved = false;
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
-      setLoading(false);
-      if (!u) setProfileChecked(true);
+      const firstAnswer = !launchResolved;
+      launchResolved = true;
+      void (u
+        ? markSessionOpen((u.providerData ?? []).map((p) => p.providerId))
+        : reportIfSessionLost()
+      ).catch((err: unknown) => {
+        observability.captureError(err, { operation: 'auth:sessionMarker' });
+      });
+      if (u) {
+        setLoading(false);
+        void discardLegacySession().catch((err: unknown) => {
+          observability.captureError(err, { operation: 'auth:discardLegacySession' });
+        });
+        return;
+      }
+      if (!firstAnswer) {
+        setLoading(false);
+        setProfileChecked(true);
+        return;
+      }
+      // Hold the signed-out state until a pre-native session has had its chance,
+      // so someone being restored never sees the app as a guest first.
+      const restore = restoreLegacySession().catch((err: unknown) => {
+        observability.captureError(err, { operation: 'auth:restoreLegacySession' });
+      });
+      void settleWithin(restore, LEGACY_RESTORE_TIMEOUT_MS).then(() => {
+        if (!getAuth().currentUser) setProfileChecked(true);
+        setLoading(false);
+      });
     });
   }, []);
 
@@ -595,6 +628,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Never let a half-spent sign-in credential outlive the session it belongs to.
     clearPendingToken();
     await AsyncStorage.removeItem(PENDING_REAUTH_KEY);
+    await clearSessionMarker();
   };
 
   const devLogin = getDevLogin();

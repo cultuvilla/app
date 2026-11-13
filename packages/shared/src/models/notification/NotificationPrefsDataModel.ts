@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { NOTIFICATION_CATEGORIES, type NotificationCategory } from './NotificationCategory';
 
 /**
  * Per-account push preferences at `users/{uid}/preferences/notifications`.
@@ -12,6 +11,10 @@ import { NOTIFICATION_CATEGORIES, type NotificationCategory } from './Notificati
  *
  * These gate PUSH only. The in-app Buzón always receives everything — muting a
  * category must not silently destroy the durable record of what happened.
+ *
+ * Superseded by the per-topic `NotificationSettingsData`. Kept while installed
+ * binaries still read and write it; the server honours both, and the current app
+ * writes this one back all-on with `quietHours` in step.
  */
 export const NotificationPrefsDataSchema = z.object({
   /** Seats, registrations and requests the user personally holds. */
@@ -59,25 +62,6 @@ export function buildNotificationPrefsData(
   };
 }
 
-/** The categories muted as a whole, here. `groups` is muted per group instead (`GroupNotificationPrefsData`). */
-export type NotificationPrefKey = Exclude<NotificationCategory, 'groups'>;
-
-/**
- * Whether push for `category` is allowed under `prefs`. A group message is
- * gated by its group's own preference, which the caller checks.
- */
-export function allowsPush(
-  prefs: NotificationPrefsData,
-  category: NotificationCategory,
-): boolean {
-  return category === 'groups' ? true : prefs[category];
-}
-
-/** Every category the settings screen toggles, in its order. */
-export const NOTIFICATION_PREF_KEYS: readonly NotificationPrefKey[] = NOTIFICATION_CATEGORIES.filter(
-  (c): c is NotificationPrefKey => c !== 'groups',
-);
-
 /**
  * A member's push preference for one group's messages, at
  * `users/{uid}/groupPrefs/{orgId}`. Optional like the account's prefs: no doc
@@ -86,10 +70,45 @@ export const NOTIFICATION_PREF_KEYS: readonly NotificationPrefKey[] = NOTIFICATI
  */
 export const GroupNotificationPrefsDataSchema = z.object({
   messagesMuted: z.boolean(),
+  // Chat messages notify nobody unless they opt in here, one switch for the
+  // group's general chat and its avisos' chats. Apart from `messagesMuted`, which
+  // silences only the avisos. Defaults because installed binaries rewrite the whole doc
+  // without it when they (un)mute — which turns the opt-in off.
+  chatPush: z.boolean().default(false),
+  // The doc's own id, stored so the chat trigger can find a group's opted-in
+  // members with one collection-group query. Rules pin it to the path.
+  orgId: z.string().nullable().default(null),
   updatedAt: z.date(),
 });
 export type GroupNotificationPrefsData = z.infer<typeof GroupNotificationPrefsDataSchema>;
 
-export function buildGroupNotificationPrefsData(input: { messagesMuted: boolean; updatedAt?: Date }): GroupNotificationPrefsData {
-  return { messagesMuted: input.messagesMuted, updatedAt: input.updatedAt ?? new Date() };
+export function buildGroupNotificationPrefsData(input: {
+  messagesMuted: boolean;
+  chatPush?: boolean;
+  orgId?: string | null;
+  updatedAt?: Date;
+}): GroupNotificationPrefsData {
+  return {
+    messagesMuted: input.messagesMuted,
+    chatPush: input.chatPush ?? false,
+    orgId: input.orgId ?? null,
+    updatedAt: input.updatedAt ?? new Date(),
+  };
+}
+
+/**
+ * How much one group notifies a member, as the three levels Ajustes →
+ * Notificaciones offers. Stored as the two switches of the group's prefs doc,
+ * which installed binaries still read and write.
+ */
+export const GROUP_NOTIFY_LEVELS = ['all', 'avisos', 'none'] as const;
+export type GroupNotifyLevel = (typeof GROUP_NOTIFY_LEVELS)[number];
+
+export function groupNotifyLevel(prefs: Pick<GroupNotificationPrefsData, 'messagesMuted' | 'chatPush'> | null): GroupNotifyLevel {
+  if (prefs?.chatPush) return 'all';
+  return prefs?.messagesMuted ? 'none' : 'avisos';
+}
+
+export function groupNotifyPrefs(level: GroupNotifyLevel): Pick<GroupNotificationPrefsData, 'messagesMuted' | 'chatPush'> {
+  return { messagesMuted: level === 'none', chatPush: level === 'all' };
 }

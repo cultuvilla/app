@@ -56,7 +56,7 @@ describe('cuota reminder email', () => {
     const html = renderCuotaReminderEmailHtml(content({ orgName: 'Peña <Los> & Co' }));
     expect(html).toContain('Peña &lt;Los&gt; &amp; Co');
     expect(html).not.toContain('<Los>');
-    expect(cuotaReminderFromName({ orgName: 'Peña X' })).toBe('Peña X (vía Cultuvilla)');
+    expect(cuotaReminderFromName({ orgName: 'Peña X' })).toBe('Peña X');
     expect(cuotaReminderEmailSubject(content())).toBe('Cuota 2026 de Asociación La Anduela: vence el 1 de marzo de 2026');
   });
 });

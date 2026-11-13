@@ -1,8 +1,8 @@
-// firestore.rules — an organization's join policy.
+// firestore.rules — how someone comes to belong to an organization.
 //
-// `open` orgs keep instant self-service joining. `approval` orgs take join
-// requests instead, which an org admin resolves through the
-// respondToOrgJoinRequest callable; only they may hold private events.
+// An org's admin picks: anyone joins an open org on the spot; otherwise they file a
+// join request, which an org admin resolves through the respondToOrgJoinRequest
+// callable.
 import { describe, it, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import {
@@ -25,6 +25,8 @@ const MID = 'mun1';
 const OPEN = 'openOrg';
 const CLOSED = 'closedOrg';
 const LEGACY = 'legacyOrg';
+const PENDING = 'pendingOrg';
+const AYUNTAMIENTO = 'ayuntamientoOrg';
 
 const member = (userId: string, role = 'member') => ({ userId, joinedAt: new Date(), role });
 const joinRequest = (userId: string) => ({
@@ -37,10 +39,10 @@ const joinRequest = (userId: string) => ({
 beforeEach(async () => {
   await seed(getEnv(), async (ctx) => {
     const db = ctx.firestore();
-    const org = (joinPolicy?: string) => ({
+    const org = (joinPolicy?: string, status = 'approved', type = 'peña') => ({
       name: 'Peña',
-      type: 'peña',
-      status: 'approved',
+      type,
+      status,
       municipalityId: MID,
       requestedBy: 'founder',
       ...(joinPolicy ? { joinPolicy } : {}),
@@ -48,7 +50,9 @@ beforeEach(async () => {
     await setDoc(doc(db, `organizations/${OPEN}`), org('open'));
     await setDoc(doc(db, `organizations/${CLOSED}`), org('approval'));
     await setDoc(doc(db, `organizations/${LEGACY}`), org());
-    for (const orgId of [OPEN, CLOSED, LEGACY]) {
+    await setDoc(doc(db, `organizations/${PENDING}`), org('open', 'pending'));
+    await setDoc(doc(db, `organizations/${AYUNTAMIENTO}`), org('approval', 'approved', 'ayuntamiento'));
+    for (const orgId of [OPEN, CLOSED, LEGACY, AYUNTAMIENTO]) {
       await setDoc(doc(db, `organizations/${orgId}/members/founder`), member('founder', 'admin'));
     }
     await setDoc(doc(db, `organizations/${CLOSED}/members/socio`), member('socio'));
@@ -56,38 +60,57 @@ beforeEach(async () => {
   });
 });
 
-describe('self-join follows the org join policy', () => {
-  it('anyone may self-join an open org', async () => {
+describe('joining an org on your own', () => {
+  it('works in an open org', async () => {
     const db = asUser(getEnv(), 'joiner');
     await assertSucceeds(setDoc(doc(db, `organizations/${OPEN}/members/joiner`), member('joiner')));
   });
 
-  it('an org without a policy set is open', async () => {
+  it.each([CLOSED, LEGACY, PENDING, AYUNTAMIENTO])('is refused in %s', async (orgId) => {
     const db = asUser(getEnv(), 'joiner');
-    await assertSucceeds(setDoc(doc(db, `organizations/${LEGACY}/members/joiner`), member('joiner')));
+    await assertFails(setDoc(doc(db, `organizations/${orgId}/members/joiner`), member('joiner')));
   });
 
-  it('nobody may self-join an approval org', async () => {
+  it('cannot add someone else, even to an open org', async () => {
     const db = asUser(getEnv(), 'joiner');
-    await assertFails(setDoc(doc(db, `organizations/${CLOSED}/members/joiner`), member('joiner')));
+    await assertFails(setDoc(doc(db, `organizations/${OPEN}/members/victim`), member('victim')));
   });
 
-  it('an org admin may still add someone to an approval org', async () => {
+  it('cannot make yourself an admin of an open org', async () => {
+    const db = asUser(getEnv(), 'joiner');
+    await assertFails(setDoc(doc(db, `organizations/${OPEN}/members/joiner`), member('joiner', 'admin')));
+  });
+
+  it('an org admin may still add someone', async () => {
     const db = asUser(getEnv(), 'founder');
     await assertSucceeds(setDoc(doc(db, `organizations/${CLOSED}/members/joiner`), member('joiner')));
+  });
+});
+
+describe('the stored join policy', () => {
+  const policy = (joinPolicy: string, orgId: string) =>
+    updateDoc(doc(asUser(getEnv(), 'founder'), `organizations/${orgId}`), { joinPolicy });
+
+  it('an org admin may open the org and close it again', async () => {
+    await assertSucceeds(policy('open', CLOSED));
+    await assertSucceeds(policy('approval', CLOSED));
+  });
+
+  it('never opens an ayuntamiento', async () => {
+    await assertFails(policy('open', AYUNTAMIENTO));
+  });
+
+  it('a plain member cannot change it', async () => {
+    await assertFails(updateDoc(doc(asUser(getEnv(), 'socio'), `organizations/${CLOSED}`), { joinPolicy: 'open' }));
   });
 });
 
 describe('join requests', () => {
   const path = (uid: string, orgId = CLOSED) => `organizations/${orgId}/joinRequests/${uid}`;
 
-  it('a user may ask to join an approval org', async () => {
+  it('a user may ask to join an org that requires it, and not an open one', async () => {
     const db = asUser(getEnv(), 'joiner');
     await assertSucceeds(setDoc(doc(db, path('joiner')), joinRequest('joiner')));
-  });
-
-  it('an open org takes no requests (just join it)', async () => {
-    const db = asUser(getEnv(), 'joiner');
     await assertFails(setDoc(doc(db, path('joiner', OPEN)), { ...joinRequest('joiner'), orgId: OPEN }));
   });
 

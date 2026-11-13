@@ -60,6 +60,7 @@ describe('the prod deploy holds a breaking backend', () => {
       'backfills-cli.mjs verify',
       'run: firebase deploy --only firestore:rules,storage',
       'run: firebase deploy --only functions',
+      'pnpm --filter @cultuvilla/studio build',
       'node scripts/build-web-static.mjs',
       'run: firebase deploy --only hosting',
     ]) {

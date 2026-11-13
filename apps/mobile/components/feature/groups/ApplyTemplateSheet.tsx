@@ -4,10 +4,10 @@ import { madridDayKey } from '@cultuvilla/shared/models/event';
 import { applyTaskTemplate, type TaskTemplate } from '@cultuvilla/shared/services/groupTaskService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { BottomSheet, Button, DateField, Pressable, Text, VStack } from '../../primitives';
+import { SegmentedToggle } from '../SegmentedToggle';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { dayKeyOfPickedDate, pickedDateOfDayKey, todayKey } from '../../../lib/orgs/cuota';
-import { ChoiceRow } from './ChoiceRow';
 
 export interface ChecklistEvent {
   id: string;
@@ -119,7 +119,7 @@ export function ApplyTemplateSheet({
           )}
           {event ? null : (
             <>
-              <ChoiceRow
+              <SegmentedToggle
                 testID="apply-template-target"
                 value={target}
                 options={[

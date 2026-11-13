@@ -6,6 +6,7 @@ import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { deleteAccount } from '../../account/deleteAccount';
+import { buildCosaData, buildCosaRequestData } from '@cultuvilla/shared/models';
 
 const DELETED_USER_UID = 'deleted-user';
 
@@ -16,6 +17,7 @@ const EVENT_ID = 'evt-1';
 const NEWS_ID = 'news-1';
 const USER_ID = 'user-under-test';
 const CO_ADMIN_ID = 'co-admin';
+const OTHER_ASKER = 'other-asker';
 
 function db() {
   return admin.firestore();
@@ -124,6 +126,7 @@ async function seedNotification(uid: string): Promise<void> {
 async function seedPushData(uid: string): Promise<void> {
   await db().doc(`users/${uid}/devices/tok-1`).set({ token: 'tok-1', platform: 'android' });
   await db().doc(`users/${uid}/preferences/notifications`).set({ village: false });
+  await db().doc(`users/${uid}/notificationSettings/account`).set({ mutedTopics: ['village_news'] });
   await db().doc(`pushQueue/${uid}__notif-1`).set({ userId: uid, notificationId: 'notif-1', sentAt: null });
   await db().doc(`pushQueue/someone-else__n`).set({ userId: 'someone-else', notificationId: 'n', sentAt: null });
 }
@@ -212,6 +215,32 @@ describe('deleteAccount (callable)', () => {
     await seedRegistration(USER_ID, `person-${USER_ID}`);
     await seedRegistration(USER_ID, 'dependent-1');
     await seedComment(USER_ID);
+    await db().doc('organizations/o1/chat/mine').set({ authorUid: USER_ID, authorName: 'Yo', body: 'Hola', createdAt: new Date() });
+    await db().doc('organizations/o1/messages/m1/chat/mine').set({ authorUid: USER_ID, authorName: 'Yo', body: 'Voy', createdAt: new Date() });
+    await db().doc('organizations/o1/tasks/t1/chat/mine').set({ authorUid: USER_ID, authorName: 'Yo', body: 'Voy', createdAt: new Date() });
+    await db().doc('organizations/o1/chat/theirs').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
+    // The cosateca: their own cosa, a group cosa they hold, requests either way.
+    const cosaBase = { municipalityId: 'mun-1', orgId: 'o1', audience: 'integrantes' as const, kind: 'prestamo' as const, category: 'otros' as const, createdBy: USER_ID, createdByName: 'Yo' };
+    await db().doc('cosas/mine').set(buildCosaData({ ...cosaBase, ownerUid: USER_ID, ownerName: 'Yo', title: 'Taladro' }));
+    await db().doc('cosas/group').set({
+      ...buildCosaData({ ...cosaBase, ownerUid: null, ownerName: 'Peña', title: 'Carpa', createdBy: CO_ADMIN_ID, createdByName: 'Otra' }),
+      heldBy: { requestId: 'asked', uid: USER_ID, name: 'Yo', untilOn: null, since: new Date() },
+    });
+    const reqBase = { municipalityId: 'mun-1', orgId: 'o1', cosaKind: 'prestamo' as const };
+    await db().doc('cosaRequests/asked').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: USER_ID, requesterName: 'Yo' }));
+    await db().doc('cosaRequests/askedOfMe').set(buildCosaRequestData({ ...reqBase, cosaId: 'mine', cosaTitle: 'Taladro', ownerUid: USER_ID, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
+    await db().doc('cosaRequests/unrelated').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
+    // A request waiting on them as a shared cosa's holder goes back to the group.
+    await db().doc('cosaRequests/askedOfHolder').set(buildCosaRequestData({ ...reqBase, cosaId: 'group', cosaTitle: 'Carpa', ownerUid: null, holderUid: USER_ID, requesterUid: CO_ADMIN_ID, requesterName: 'Otra' }));
+    // What they gave to the group stays the group's, without their name on it.
+    await db().doc('cosas/given').set({
+      ...buildCosaData({ ...cosaBase, ownerUid: null, ownerName: 'Peña', title: 'Escalera', createdByName: 'Yo' }),
+      heldBy: { requestId: 'passedOn', uid: CO_ADMIN_ID, name: 'Otra', untilOn: null, since: new Date() },
+    });
+    await db().doc('cosaRequests/askedOfGiven').set(buildCosaRequestData({ ...reqBase, cosaId: 'given', cosaTitle: 'Escalera', ownerUid: null, holderUid: CO_ADMIN_ID, requesterUid: OTHER_ASKER, requesterName: 'Tercera' }));
+    // The other party's words in a request's chat go with the request; an unrelated request's stay.
+    await db().doc('cosaRequests/askedOfMe/chat/c1').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
+    await db().doc('cosaRequests/unrelated/chat/c1').set({ authorUid: CO_ADMIN_ID, authorName: 'Otra', body: 'Hola', createdAt: new Date() });
     await seedStoragePhoto(USER_ID);
     await seedNotification(USER_ID);
     await seedOrganizerRequest(USER_ID);
@@ -248,6 +277,7 @@ describe('deleteAccount (callable)', () => {
     expect((await db().doc(`users/${USER_ID}/notifications/notif-1`).get()).exists).toBe(false);
     expect((await db().doc(`users/${USER_ID}/devices/tok-1`).get()).exists).toBe(false);
     expect((await db().doc(`users/${USER_ID}/preferences/notifications`).get()).exists).toBe(false);
+    expect((await db().doc(`users/${USER_ID}/notificationSettings/account`).get()).exists).toBe(false);
     expect((await db().doc(`pushQueue/${USER_ID}__notif-1`).get()).exists).toBe(false);
     // Only the departing account's queue entries.
     expect((await db().doc('pushQueue/someone-else__n').get()).exists).toBe(true);
@@ -256,6 +286,23 @@ describe('deleteAccount (callable)', () => {
 
     // Interactions (comment) hard-deleted.
     expect((await db().doc('comments/comment-1').get()).exists).toBe(false);
+    // Group chat messages, every thread; only their own.
+    expect((await db().doc('organizations/o1/chat/mine').get()).exists).toBe(false);
+    expect((await db().doc('organizations/o1/messages/m1/chat/mine').get()).exists).toBe(false);
+    expect((await db().doc('organizations/o1/tasks/t1/chat/mine').get()).exists).toBe(false);
+    expect((await db().doc('organizations/o1/chat/theirs').get()).exists).toBe(true);
+
+    // The cosateca: own cosas and requests either way go; a held group cosa is let go.
+    expect((await db().doc('cosas/mine').get()).exists).toBe(false);
+    expect((await db().doc('cosas/group').get()).data()).toMatchObject({ heldBy: null, createdByName: 'Otra' });
+    expect((await db().doc('cosaRequests/asked').get()).exists).toBe(false);
+    expect((await db().doc('cosaRequests/askedOfMe').get()).exists).toBe(false);
+    expect((await db().doc('cosaRequests/unrelated').get()).exists).toBe(true);
+    expect((await db().doc('cosaRequests/askedOfHolder').get()).data()).toMatchObject({ holderUid: null, status: 'pending' });
+    expect((await db().doc('cosas/given').get()).data()).toMatchObject({ ownerUid: null, createdByName: '', heldBy: { uid: CO_ADMIN_ID } });
+    expect((await db().doc('cosaRequests/askedOfGiven').get()).data()).toMatchObject({ holderUid: CO_ADMIN_ID, status: 'pending' });
+    expect((await db().doc('cosaRequests/askedOfMe/chat/c1').get()).exists).toBe(false);
+    expect((await db().doc('cosaRequests/unrelated/chat/c1').get()).exists).toBe(true);
 
     // Storage photos (avatar + persona, all under users/{uid}/) purged.
     expect(await storageFileExists(`users/${USER_ID}/photo/avatar.jpg`)).toBe(false);

@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { parseEuroCents, type LedgerEntryKind } from '@cultuvilla/shared/models/organization';
 import { BottomSheet, Button, DateField, Input, VStack } from '../../primitives';
+import { SegmentedToggle } from '../SegmentedToggle';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { dayKeyOfPickedDate, pickedDateOfDayKey, todayKey } from '../../../lib/orgs/cuota';
-import { ChoiceRow } from './ChoiceRow';
 
 export interface LedgerEntryValues {
   kind: LedgerEntryKind;
@@ -79,7 +79,7 @@ export function LedgerEntrySheet({
     >
       <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" testID="ledger-scroll">
         <VStack gap={3} className="px-5 pb-4">
-          <ChoiceRow
+          <SegmentedToggle
             testID="ledger-kind"
             value={kind}
             options={KINDS.map((k) => ({ value: k, label: t(`groups.records.year.form.kind.${k}`) }))}

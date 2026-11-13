@@ -24,12 +24,13 @@ export interface GroupMessageEmailContent extends GroupMessageSignature {
 }
 
 export function groupMessageEmailSubject(content: Pick<GroupMessageEmailContent, 'title' | 'orgName'>): string {
-  return `${content.title.trim()} · ${content.orgName}`;
+  const title = content.title.trim();
+  return title ? `${title} · ${content.orgName}` : content.orgName;
 }
 
-/** The "From" display name: the group, through Cultuvilla. */
+/** The "From" display name: the group. The address already says Cultuvilla. */
 export function groupMessageFromName(content: Pick<GroupMessageEmailContent, 'orgName'>): string {
-  return `${content.orgName} (vía Cultuvilla)`;
+  return content.orgName;
 }
 
 function paragraphs(body: string): string[] {

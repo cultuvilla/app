@@ -23,7 +23,10 @@ import {
   buildCuotaSettingsData,
 } from '../../src/models/organization/CuotaDataModel';
 import { buildGroupTaskData, buildTaskTemplateData } from '../../src/models/organization/GroupTaskDataModel';
+import { buildCosaData } from '../../src/models/organization/CosaDataModel';
+import { buildCosaRequestData } from '../../src/models/organization/CosaRequestDataModel';
 import { buildGroupNotificationPrefsData } from '../../src/models/notification/NotificationPrefsDataModel';
+import { buildNotificationSettingsData } from '../../src/models/notification/NotificationSettingsDataModel';
 import { buildActaData, buildLedgerEntryData } from '../../src/models/organization/RecordsDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
@@ -67,9 +70,14 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     ruleKeys: ['name', 'items', 'updatedBy', 'updatedAt'],
   },
   {
+    label: 'users/{uid}/notificationSettings/account — isValidNotificationSettingsWrite',
+    build: () => buildNotificationSettingsData(),
+    ruleKeys: ['mutedTopics', 'mutedVillages', 'quietHours', 'updatedAt'],
+  },
+  {
     label: 'users/{uid}/groupPrefs/{orgId} — inline in match /groupPrefs',
     build: () => buildGroupNotificationPrefsData({ messagesMuted: true }),
-    ruleKeys: ['messagesMuted', 'updatedAt'],
+    ruleKeys: ['messagesMuted', 'chatPush', 'orgId', 'updatedAt'],
   },
   {
     label: 'organizations/{orgId}/cuotaSettings — isValidCuotaSettings',
@@ -78,7 +86,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
         amountCents: 3000, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 30, startPeriod: '2026', configuredBy: 'u1',
       }),
     ruleKeys: [
-      'amountCents', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+      'amountCents', 'yearAmounts', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
       'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
     ],
   },
@@ -104,6 +112,33 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
       'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
       'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
       'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy', 'sociosListVisible',
+      'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired', 'cosateca',
+    ],
+  },
+  {
+    label: 'cosas — isValidCosaFields (cosaKeys)',
+    build: () =>
+      buildCosaData({
+        municipalityId: 'm1', orgId: 'o1', audience: 'integrantes', ownerUid: 'u1', ownerName: 'Ana',
+        kind: 'prestamo', title: 'Taladro', category: 'herramientas', createdBy: 'u1', createdByName: 'Ana',
+      }),
+    ruleKeys: [
+      'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'title', 'description',
+      'category', 'imageURL', 'conditions', 'location', 'locationNote', 'status', 'heldBy', 'reserva',
+      'createdBy', 'createdByName', 'createdAt', 'updatedAt',
+    ],
+  },
+  {
+    label: 'cosaRequests — isValidCosaRequestCreate (cosaRequestKeys)',
+    build: () =>
+      buildCosaRequestData({
+        municipalityId: 'm1', orgId: 'o1', cosaId: 'c1', cosaTitle: 'Taladro', cosaKind: 'prestamo',
+        ownerUid: 'u1', requesterUid: 'u2', requesterName: 'Luis',
+      }),
+    ruleKeys: [
+      'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'ownerUid', 'holderUid',
+      'requesterUid', 'requesterName', 'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt',
+      'closedAt', 'overdueNotifiedOn', 'startAt', 'endAt',
     ],
   },
   {

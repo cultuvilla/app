@@ -10,8 +10,22 @@ export function weekdayList(weekdays: readonly number[], t: Translate): string {
   return `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]!}`;
 }
 
-/** "Cada martes y jueves · hasta el 15 de Diciembre". */
-export function seriesSummary(series: Pick<EventSeries, 'weekdays' | 'until'>, t: Translate): string {
+/**
+ * "Cada martes y jueves · hasta el 15 de Diciembre", or for a monthly series
+ * "El día 15 de cada mes · hasta …" — the day read off `startDate`, this
+ * occurrence's own date.
+ */
+export function seriesSummary(
+  series: Pick<EventSeries, 'frequency' | 'weekdays' | 'until'>,
+  startDate: Date,
+  t: Translate,
+): string {
+  if (series.frequency === 'monthly') {
+    return t('event.seriesSummaryMonthly', {
+      day: String(startDate.getDate()),
+      until: formatDate(series.until, 'dayMonth'),
+    });
+  }
   return t('event.seriesSummary', {
     days: weekdayList(series.weekdays, t),
     until: formatDate(series.until, 'dayMonth'),

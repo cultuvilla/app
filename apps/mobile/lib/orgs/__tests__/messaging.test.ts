@@ -12,7 +12,7 @@ describe('composerInput', () => {
         title: 'Asamblea',
         body: 'El sábado',
         audience: { kind: 'all', eventId: null },
-        channels: { push: true, email: true, whatsapp: 'none' },
+        channels: { push: true, email: true, whatsapp: 'fallback' },
         pinned: false,
         poll: null,
       },

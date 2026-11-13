@@ -48,7 +48,7 @@ export function cuotaReminderEmailSubject(content: CuotaReminderEmailContent): s
 
 /** The "From" display name: the group, through Cultuvilla. */
 export function cuotaReminderFromName(content: Pick<CuotaReminderEmailContent, 'orgName'>): string {
-  return `${content.orgName} (vía Cultuvilla)`;
+  return content.orgName;
 }
 
 function leadLine(content: CuotaReminderEmailContent): string {

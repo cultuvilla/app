@@ -8,7 +8,7 @@ import type { PartialDate } from '../models/person';
 
 const LOCALE = 'es-ES';
 
-export type DateStyle = 'short' | 'dayMonth' | 'monthYear' | 'long' | 'time' | 'datetime';
+export type DateStyle = 'short' | 'dayMonth' | 'dayMonthShort' | 'monthYear' | 'long' | 'time' | 'datetime';
 
 /**
  * `timeZone` is an IANA zone (e.g. `Europe/Madrid`). Omit it in client code —
@@ -36,6 +36,12 @@ export function formatDate(date: Date, style: DateStyle = 'short', timeZone?: st
         .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
         .join('');
     }
+    // Day + abbreviated month, for a card's date: "6 dic". Some ICU builds
+    // end the abbreviation with a period ("dic."); the card has no room for it.
+    case 'dayMonthShort':
+      return new Intl.DateTimeFormat(LOCALE, { ...tz, day: 'numeric', month: 'short' })
+        .format(date)
+        .replace(/\.$/, '');
     // Month + year, no "de": "Agosto 2025". Intl's { month: 'long', year:
     // 'numeric' } inserts a literal " de " between them (es-ES grammar); we
     // drop literals and join with a single space for the poster's display style.

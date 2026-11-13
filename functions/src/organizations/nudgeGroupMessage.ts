@@ -11,6 +11,8 @@ import {
 import {
   buildNotificationData,
   canNudgeGroupMessage,
+  NEUTRAL_PERSONAL_VALUES,
+  renderGroupMessageText,
   unreadRecipientUids,
   type NudgeGroupMessageResult,
 } from '@cultuvilla/shared/models';
@@ -64,7 +66,8 @@ export async function runNudgeGroupMessage(
         userNotificationsCollection(firestore, uid).doc(`group_message_${messageId}_nudge${String(nudgeNumber)}`),
         buildNotificationData({
           type: 'group_message',
-          title: `${org.name} · ${title}`,
+          // One title for all the unread: its placeholders render neutrally.
+          title: `${org.name} · ${renderGroupMessageText(title, NEUTRAL_PERSONAL_VALUES, 'title')}`,
           body: 'Tienes un aviso del grupo sin leer.',
           municipalityId: org.municipalityId,
           entityKind: 'organization',

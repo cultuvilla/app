@@ -41,7 +41,7 @@ async function seedUser(uid: string) {
 
 async function seedSocio(id: string, overrides: Record<string, unknown> = {}) {
   await db().doc(`organizations/${ORG_ID}/socios/${id}`).set({
-    kind: 'member', displayName: id, uid: null, personId: null, responsibleUid: null, adminTitle: null,
+    kind: 'member', socioNumber: null, displayName: id, uid: null, personId: null, responsibleUid: null, adminTitle: null,
     altaAt: new Date('2025-01-01T10:00:00Z'), bajaAt: null, memberJoinedAt: null, createdBy: 'x', ...overrides,
   });
 }
@@ -96,9 +96,11 @@ describe('sendCuotaReminders', () => {
     expect(String(n['body'])).toMatch(/^Luis: tu cuota \(30,00\s€\) vence el domingo, 1 de marzo de 2026\.$/);
 
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
-    const [email] = sendEmailMock.mock.calls[0] as unknown as [{ to: string; text: string; fromName: string }];
+    const [email] = sendEmailMock.mock.calls[0] as unknown as [{ to: string; text: string; fromName: string; replyTo?: string }];
     expect(email.to).toBe('u-ana@x.es');
-    expect(email.fromName).toBe('La Anduela (vía Cultuvilla)');
+    expect(email.fromName).toBe('La Anduela');
+    // Replies go to the admin who signs it.
+    expect(email.replyTo).toBe('u-luis@x.es');
     expect(email.text).toContain('Bizum: 600111222');
     expect(email.text).toContain('Luis\nTesorería · La Anduela');
 

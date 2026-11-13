@@ -35,8 +35,18 @@ export const ORG_ADMIN_TITLE_SIGNATURE: Record<OrgAdminTitle, string> = {
  * row with a `bajaAt`; rows are never deleted, so the roster doubles as the
  * libro de socios.
  */
+/** Highest socio number an admin may set — a village group's libro never nears it. */
+export const SOCIO_NUMBER_MAX = 99999;
+
+export const SocioNumberSchema = z.number().int().min(1).max(SOCIO_NUMBER_MAX);
+
 export const SocioDataSchema = z.object({
   kind: SocioKindSchema,
+  /** The group's own "nº de socio". Never reused: a baja keeps its number. Set
+   * by an admin (or the import), else the next one by `assignSocioNumber` when
+   * the row is created. Null on rows that predate numbering until an admin
+   * gives them one. Admins see to uniqueness; rules cannot. */
+  socioNumber: SocioNumberSchema.nullable(),
   /** Point-in-time copy of the name, like a registration's — a private persona's
    * doc is unreadable to the admins who list the roster. */
   displayName: z.string(),
@@ -62,6 +72,7 @@ export type SocioData = z.infer<typeof SocioDataSchema>;
 
 export interface SocioDataInput {
   kind: SocioKind;
+  socioNumber?: number | null;
   displayName: string;
   uid?: string | null;
   personId?: string | null;
@@ -75,6 +86,7 @@ export interface SocioDataInput {
 export function buildSocioData(input: SocioDataInput): SocioData {
   return {
     kind: input.kind,
+    socioNumber: input.socioNumber ?? null,
     displayName: input.displayName.trim(),
     uid: input.uid ?? null,
     personId: input.personId ?? null,
@@ -123,6 +135,24 @@ export function buildSocioPrivateData(input: SocioPrivateDataInput): SocioPrivat
   };
 }
 
+/** What a group asks of its socios: their account's phone and email, shared with its admins. */
+export interface SocioContactRequirement {
+  socioPhoneRequired: boolean;
+  socioEmailRequired: boolean;
+}
+
+export function requiresSocioContact(org: SocioContactRequirement): boolean {
+  return org.socioPhoneRequired || org.socioEmailRequired;
+}
+
+/** Whether a socio still owes the group something it requires. */
+export function socioContactMissing(
+  org: SocioContactRequirement,
+  shared: Pick<SocioPrivateData, 'phone' | 'email'> | null | undefined,
+): boolean {
+  return (org.socioPhoneRequired && !shared?.phone) || (org.socioEmailRequired && !shared?.email);
+}
+
 /**
  * While a persona is an active socio, `organizations/{orgId}/socioPersonaLocks/{personId}`
  * names its row. Created with the row and deleted with its baja, in the same
@@ -135,12 +165,48 @@ export const SocioPersonaLockDataSchema = z.object({
 });
 export type SocioPersonaLockData = z.infer<typeof SocioPersonaLockDataSchema>;
 
+/**
+ * `organizations/{orgId}/socioNumbering/current` — the last number
+ * `assignSocioNumber` handed out. Function-owned. Its write is what serializes
+ * two rows created at once, so they never get the same number.
+ */
+export const SocioNumberingDataSchema = z.object({
+  lastNumber: z.number().int().min(0),
+});
+export type SocioNumberingData = z.infer<typeof SocioNumberingDataSchema>;
+
+/**
+ * The number a new row gets: one past both the counter and the highest number
+ * on the roster (an admin or the import may have set a higher one by hand).
+ */
+export function nextSocioNumber(lastNumber: number, highestOnRoster: number | null): number {
+  return Math.max(lastNumber, highestOnRoster ?? 0) + 1;
+}
+
+/** An admin's typing → a socio number, null for blank, undefined when not a valid number. */
+export function parseSocioNumber(text: string): number | null | undefined {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  if (!/^\d+$/.test(trimmed)) return undefined;
+  const n = Number(trimmed);
+  return SocioNumberSchema.safeParse(n).success ? n : undefined;
+}
+
+/** Whether another row already carries this number (bajas included: numbers are never reused). */
+export function socioNumberTaken(
+  rows: readonly (Pick<SocioData, 'socioNumber'> & { id: string })[],
+  socioNumber: number,
+  exceptId: string | null,
+): boolean {
+  return rows.some((r) => r.id !== exceptId && r.socioNumber === socioNumber);
+}
+
 export function isActiveSocio(socio: Pick<SocioData, 'bajaAt'>): boolean {
   return socio.bajaAt === null;
 }
 
 /** Org kinds that keep a socio roster. The ayuntamiento has vecinos, not socios. */
-export const SOCIO_ROSTER_ORG_TYPES: readonly OrganizationType[] = ['peña', 'asociación', 'otros'];
+export const SOCIO_ROSTER_ORG_TYPES: readonly OrganizationType[] = ['peña', 'asociación', 'otros', 'comisión'];
 
 export function hasSocioRoster(type: OrganizationType): boolean {
   return SOCIO_ROSTER_ORG_TYPES.includes(type);

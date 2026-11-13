@@ -1,19 +1,18 @@
 # An org's invite link (…/entidad/<ref>/unirse) lands on the org with the
-# invitation banner, and joining an open org from there is instant. Then the
-# member leaves again from the top bar's exit action.
+# invitation banner, and joining from there files a request, which the joiner
+# then withdraws. Then the joiner leaves the peña flow 72 admitted them to, from
+# the top bar's exit action.
 #
 # The route is only a redirect to the org detail with `?intent=join`, which is
 # exactly what can break silently: a link that resolves to the wrong screen, or
 # to no banner.
-#
-# Uses the open ayuntamiento org; the joiner is a member of no org at this
-# point except the approval peña flow 72 admitted them to.
 appId: com.cultuvilla.app.dev
 env:
   EMAIL: e2e-joiner@cultuvilla.test
   PASSWORD: e2e-cultuvilla-pw
   JOINER_UID: e2e-joiner
   ORG_ID: e2e-org-ayto
+  MEMBER_ORG_ID: e2e-org-pena-cerrada
 ---
 - runFlow:
     file: ../subflows/login.yaml
@@ -25,32 +24,51 @@ env:
     visible: 'Te han invitado a unirte a este grupo'
     timeout: 45000
 # A tap right after the deep-linked screen appears can be dropped on iOS (see
-# subflows/tap-until.yaml). Joining hides the FAB, so tap again while it stays.
+# subflows/tap-until.yaml). A filed request changes the label, so tap again if
+# it has not.
 - tapOn:
     id: 'join-org-fab'
 - extendedWaitUntil:
-    notVisible:
-      id: 'join-org-fab'
+    visible: 'Solicitud enviada'
     timeout: 15000
     optional: true
 - runFlow:
     when:
-      visible:
-        id: 'join-org-fab'
+      notVisible: 'Solicitud enviada'
     commands:
       - tapOn:
           id: 'join-org-fab'
 - runScript:
     file: ../scripts/docField.js
     env:
-      DOC_PATH: 'organizations/${ORG_ID}/members/${JOINER_UID}'
-      FIELD: role
-      EXPECT: member
+      DOC_PATH: 'organizations/${ORG_ID}/joinRequests/${JOINER_UID}'
+      EXPECT: present
 - assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/members/${JOINER_UID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+- tapOn:
+    id: 'join-org-fab'
+- runFlow:
+    file: ../subflows/confirm-alert.yaml
+    env:
+      BUTTON: 'OK'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/joinRequests/${JOINER_UID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+
+# ── Leaving the peña flow 72 admitted them to. ──
+- openLink: 'cultuvilla://altozano-de-prueba/entidad/_${MEMBER_ORG_ID}'
 - extendedWaitUntil:
-    notVisible:
-      id: 'join-org-fab'
-    timeout: 20000
+    visible:
+      id: 'org-leave-action'
+    timeout: 45000
 - tapOn:
     id: 'org-leave-action'
 - runFlow:
@@ -60,7 +78,7 @@ env:
 - runScript:
     file: ../scripts/docField.js
     env:
-      DOC_PATH: 'organizations/${ORG_ID}/members/${JOINER_UID}'
+      DOC_PATH: 'organizations/${MEMBER_ORG_ID}/members/${JOINER_UID}'
       FIELD: role
       EXPECT: absent
 - assertTrue: ${output.ok == 'true'}

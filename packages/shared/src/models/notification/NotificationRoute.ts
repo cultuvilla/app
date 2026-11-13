@@ -1,13 +1,16 @@
 import type { NotificationData } from './NotificationDataModel';
 import {
   entityPath,
-  groupPath,
+  groupAvisoPath,
+  groupCosaRequestPath,
+  groupSectionPath,
   villagePath,
   villageSectionPath,
   wordPath,
   wrappedPath,
   type UrlEntityKind,
 } from '../../utils/urls';
+import { GENERAL_CHAT_THREAD_ID } from '../organization/GroupChatDataModel';
 import { termSlugFromId } from '../vocabulary/VocabularyTermDataModel';
 import { yearOfWrappedId } from '../wrapped/WrappedDataModel';
 
@@ -31,7 +34,8 @@ import { yearOfWrappedId } from '../wrapped/WrappedDataModel';
 export type NotificationRouteInput = Pick<
   NotificationData,
   'type' | 'eventId' | 'entityKind' | 'entityId' | 'municipalityId'
->;
+> &
+  Partial<Pick<NotificationData, 'chatThreadId' | 'cosaRequestId'>>;
 
 const ENTITY_KINDS: Partial<Record<NonNullable<NotificationData['entityKind']>, UrlEntityKind>> = {
   event: 'event',
@@ -48,7 +52,16 @@ export function notificationRoute(
   villageSlug: string | null,
 ): string | null {
   // The group's private side, which is not village-scoped and needs no slug.
-  if ((n.type === 'cuota_reminder' || n.type === 'group_task' || n.type === 'group_message') && n.entityId) return groupPath(n.entityId);
+  if (n.entityId) {
+    if (n.type === 'cuota_reminder') return groupSectionPath(n.entityId, 'cuota');
+    if (n.type === 'group_task') {
+      return n.cosaRequestId ? groupCosaRequestPath(n.entityId, n.cosaRequestId) : groupSectionPath(n.entityId, 'tareas');
+    }
+    if (n.type === 'group_message') {
+      if (n.chatThreadId === GENERAL_CHAT_THREAD_ID) return groupSectionPath(n.entityId, 'charla');
+      return n.chatThreadId ? groupAvisoPath(n.entityId, n.chatThreadId) : groupSectionPath(n.entityId, 'avisos');
+    }
+  }
   if (!villageSlug) return null;
   const at = (kind: UrlEntityKind, id: string) => entityPath(kind, { id, title: '', villageSlug });
 

@@ -66,10 +66,22 @@ function madridMidnight(year: number, month: number, day: number): Date {
   return new Date(guess - madridOffsetMs(new Date(guess)));
 }
 
-/** The instant of a Madrid wall-clock time (`HH:MM`) on a calendar day — a shift's start. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The instant of a Madrid wall-clock time (`HH:MM`) on a calendar day — a shift's start.
+ *
+ * Reading the offset at the guessed instant is wrong for the hours around a clock
+ * change, so both of the day's offsets are tried and kept only where they hold.
+ * A time the spring change skips maps forward (02:30 → 03:30 CEST); a time the
+ * autumn change repeats takes its first occurrence.
+ */
 export function madridInstant(day: string, time: string): Date {
   const guess = Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)), Number(time.slice(0, 2)), Number(time.slice(3, 5)));
-  return new Date(guess - madridOffsetMs(new Date(guess)));
+  const before = madridOffsetMs(new Date(guess - DAY_MS));
+  const after = madridOffsetMs(new Date(guess + DAY_MS));
+  const valid = [guess - before, guess - after].filter((t) => madridOffsetMs(new Date(t)) === guess - t);
+  return new Date(valid.length > 0 ? Math.min(...valid) : guess - before);
 }
 
 /** Year, month and day of a `YYYY-MM-DD` key. Sliced rather than split, so each is a plain number under every tsconfig. */

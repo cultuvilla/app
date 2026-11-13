@@ -12,13 +12,46 @@ export interface GroupMember {
   role: OrgMemberRole;
 }
 
-async function memberName(uid: string): Promise<string> {
-  // The person carries the full name and apodo, as in the member list.
+export interface MemberFace {
+  name: string;
+  photoURL: string | null;
+}
+
+async function memberFace(uid: string): Promise<MemberFace> {
+  // The person carries the full name, apodo and photo, as in the member list.
   const person = await getPersonByUserId(uid).catch(() => null);
   const fromPerson = person ? buildNameWithNickname(person).trim() : '';
-  if (fromPerson) return fromPerson;
+  if (fromPerson) return { name: fromPerson, photoURL: person?.photoURL ?? null };
   const user = await getPublicProfile(uid).catch(() => null);
-  return user?.displayName || uid;
+  return { name: user?.displayName || uid, photoURL: null };
+}
+
+async function memberName(uid: string): Promise<string> {
+  return (await memberFace(uid)).name;
+}
+
+/**
+ * Name and photo of just these members — the faces on a task card. Resolved
+ * once per uid, so a home showing a few tasks reads a few people, not the
+ * whole membership.
+ */
+export function useMemberFaces(uids: readonly string[]): Record<string, MemberFace> {
+  const [faces, setFaces] = useState<Record<string, MemberFace>>({});
+  const key = [...new Set(uids)].sort().join(',');
+
+  useEffect(() => {
+    const missing = key.split(',').filter((uid) => uid !== '' && !(uid in faces));
+    if (missing.length === 0) return;
+    let live = true;
+    void Promise.all(missing.map(async (uid) => [uid, await memberFace(uid)] as const)).then((pairs) => {
+      if (live) setFaces((prev) => ({ ...prev, ...Object.fromEntries(pairs) }));
+    });
+    return () => {
+      live = false;
+    };
+  }, [key, faces]);
+
+  return faces;
 }
 
 /**

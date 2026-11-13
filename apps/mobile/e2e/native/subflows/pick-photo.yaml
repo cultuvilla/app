@@ -12,32 +12,53 @@
 # not matter to any flow — only that one is.
 appId: com.cultuvilla.app.dev
 ---
+# Android has two pickers. Up to Android 14 its cells carry the resource id
+# below. From Android 15/16 the picker is rewritten in Compose: no resource ids
+# at all, only each cell's description, "Photo taken on <date>". Phones in
+# users' hands run both, so the flow takes whichever one opened.
 - runFlow:
     when:
       platform: Android
     commands:
+      # Optional: the older picker may not label its cells, and then this
+      # wait only gives its grid time to load.
       - extendedWaitUntil:
-          visible:
-            id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+          visible: '(?i)(photo taken on|foto tomada el).*'
           timeout: 15000
+          optional: true
       - runFlow:
           when:
-            true: ${INDEX == 0}
+            visible:
+              id: 'com.google.android.providers.media.module:id/icon_thumbnail'
           commands:
-            - tapOn:
-                id: 'com.google.android.providers.media.module:id/icon_thumbnail'
-                index: 0
+            - runFlow:
+                when:
+                  true: ${INDEX == 0}
+                commands:
+                  - tapOn:
+                      id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+                      index: 0
+            - runFlow:
+                when:
+                  true: ${INDEX == 1}
+                commands:
+                  - tapOn:
+                      id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+                      index: 1
+            - extendedWaitUntil:
+                notVisible:
+                  id: 'com.google.android.providers.media.module:id/icon_thumbnail'
+                timeout: 15000
       - runFlow:
           when:
-            true: ${INDEX == 1}
+            visible: '(?i)(photo taken on|foto tomada el).*'
           commands:
             - tapOn:
-                id: 'com.google.android.providers.media.module:id/icon_thumbnail'
-                index: 1
-      - extendedWaitUntil:
-          notVisible:
-            id: 'com.google.android.providers.media.module:id/icon_thumbnail'
-          timeout: 15000
+                text: '(?i)(photo taken on|foto tomada el).*'
+                index: ${INDEX}
+            - extendedWaitUntil:
+                notVisible: '(?i)(photo taken on|foto tomada el).*'
+                timeout: 15000
 - runFlow:
     when:
       platform: iOS

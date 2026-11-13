@@ -55,6 +55,33 @@ afterAll(() => {
 });
 
 describe('village entity broadcast', () => {
+  describe('a new event', () => {
+    const event = { municipalityId: MUN, createdBy: ACTOR, title: 'Paella', status: 'published', organizerOrgIds: ['org-1'] };
+
+    it("reaches the village's members, and nobody else", async () => {
+      await fireCreate(onEventPublished, 'events/e1', event, { eventId: 'e1' });
+
+      const [n, ...rest] = await notificationsOf('member-1');
+      expect(rest).toHaveLength(0);
+      expect(n.id).toBe('village_entity_event_e1');
+      expect(await notificationsOf('member-2')).toHaveLength(1);
+      expect(await notificationsOf('visitor')).toHaveLength(0);
+    });
+
+    it('announces a private event to nobody', async () => {
+      await fireCreate(
+        onEventPublished,
+        'events/e2',
+        { ...event, visibility: 'organization', visibilityOrgId: 'org-1' },
+        { eventId: 'e2' },
+      );
+
+      for (const uid of ['visitor', 'member-1', 'member-2']) {
+        expect(await notificationsOf(uid)).toHaveLength(0);
+      }
+    });
+  });
+
   it('tells every member except the author about a new post', async () => {
     await fireCreate(
       onNewsPublished,

@@ -28,7 +28,7 @@ import {
   type EventDataInput,
   type EventStatus,
 } from '../models/event/EventDataModel';
-import { weeklyOccurrences, type WeeklyRule } from '../models/event/EventSeriesModel';
+import { isoWeekday, seriesOccurrences, type SeriesRule } from '../models/event/EventSeriesModel';
 import {
   forbiddenAsEmpty,
   watchDoc,
@@ -220,21 +220,22 @@ export async function createEvent(input: Omit<EventDataInput, 'villageSlug'>): P
 }
 
 /**
- * Creates every occurrence of a weekly series in one batch — all or nothing, so
+ * Creates every occurrence of a weekly or monthly series in one batch — all or nothing, so
  * a dropped connection never leaves half a calendar — and returns their ids in
  * date order. The first occurrence's id doubles as the series id. Throws when
  * the rule yields no occurrence at all.
  */
 export async function createEventSeries(
   input: Omit<EventDataInput, 'villageSlug' | 'series'>,
-  rule: WeeklyRule,
+  rule: SeriesRule,
 ): Promise<string[]> {
-  const occurrences = weeklyOccurrences({ startDate: input.startDate, endDate: input.endDate ?? null }, rule);
+  const occurrences = seriesOccurrences({ startDate: input.startDate, endDate: input.endDate ?? null }, rule);
   if (occurrences.length === 0) throw new Error('event-series-empty');
   const db = getDb();
   const rows = occurrences.map((times) => ({ ref: doc(eventsCollection(db)), times }));
   const seriesId = rows[0]?.ref.id ?? '';
-  const weekdays = [...new Set(rule.weekdays)].sort((a, b) => a - b);
+  const weekdays =
+    rule.frequency === 'monthly' ? [isoWeekday(input.startDate)] : [...new Set(rule.weekdays)].sort((a, b) => a - b);
   const villageSlug = await getVillageSlug(input.municipalityId);
   const batch = writeBatch(db);
   rows.forEach(({ ref, times }, index) => {
@@ -244,7 +245,7 @@ export async function createEventSeries(
         ...input,
         ...times,
         villageSlug,
-        series: { id: seriesId, index, weekdays, until: rule.until },
+        series: { id: seriesId, index, frequency: rule.frequency, weekdays, until: rule.until },
       }),
     );
   });

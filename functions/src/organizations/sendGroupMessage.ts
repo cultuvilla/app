@@ -20,19 +20,24 @@ import {
 import {
   buildNotificationData,
   computeCuotaStatuses,
+  groupMessagePlaceholdersIn,
+  groupMessageRecipientValues,
   hasSocioRoster,
   madridDayKey,
   normalizeLeadPhone,
   periodKeyFor,
+  personalizeGroupMessage,
   SendGroupMessageInputSchema,
   typedRecipientKey,
   type GroupMessageAudience,
   type GroupMessageData,
   type GroupMessageDeliveryData,
   type GroupMessageEmailState,
+  type GroupMessagePersonalValues,
   type OrgAdminTitle,
   type SendGroupMessageInput,
   type SendGroupMessageResult,
+  type SocioCuotaStatus,
   type SocioData,
   type SocioPrivateData,
 } from '@cultuvilla/shared/models';
@@ -43,7 +48,7 @@ import {
   renderGroupMessageEmailText,
   type GroupMessageEmailContent,
 } from '@cultuvilla/shared/email';
-import { groupPath, webOriginForProject } from '@cultuvilla/shared/utils';
+import { groupAvisoLinkPath, webOriginForProject } from '@cultuvilla/shared/utils';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendEmailBatch } from '../shared/email';
 
@@ -91,6 +96,26 @@ export function groupSocios(rows: Socio[], allActive: Socio[]): MessageRecipient
   return [...byKey.values()];
 }
 
+/** This period's cuota status of every active socio; null when the group keeps no cuota. */
+async function currentCuotaStatuses(firestore: Firestore, orgId: string, active: Socio[]): Promise<SocioCuotaStatus[] | null> {
+  const settings = (await organizationCuotaSettingsDoc(firestore, orgId).get()).data();
+  if (!settings) return null;
+  const today = madridDayKey(new Date());
+  const periodKey = periodKeyFor(settings.periodicity, today);
+  const [assignmentsSnap, paymentsSnap] = await Promise.all([
+    organizationCuotaAssignmentsCollection(firestore, orgId).get(),
+    organizationCuotaPaymentsCollection(firestore, orgId).where('periodKey', '==', periodKey).get(),
+  ]);
+  return computeCuotaStatuses({
+    settings,
+    periodKey,
+    today,
+    socios: active,
+    assignments: Object.fromEntries(assignmentsSnap.docs.map((d) => [d.id, d.data()])),
+    payments: paymentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+  });
+}
+
 async function resolveAudience(
   firestore: Firestore,
   orgId: string,
@@ -108,22 +133,8 @@ async function resolveAudience(
       return { recipients: groupSocios(rows, active), stored };
     }
     case 'cuota': {
-      const settings = (await organizationCuotaSettingsDoc(firestore, orgId).get()).data();
-      if (!settings) throw new HttpsError('failed-precondition', 'El grupo todavía no tiene cuota.');
-      const today = madridDayKey(new Date());
-      const periodKey = periodKeyFor(settings.periodicity, today);
-      const [assignmentsSnap, paymentsSnap] = await Promise.all([
-        organizationCuotaAssignmentsCollection(firestore, orgId).get(),
-        organizationCuotaPaymentsCollection(firestore, orgId).where('periodKey', '==', periodKey).get(),
-      ]);
-      const statuses = computeCuotaStatuses({
-        settings,
-        periodKey,
-        today,
-        socios: active,
-        assignments: Object.fromEntries(assignmentsSnap.docs.map((d) => [d.id, d.data()])),
-        payments: paymentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-      });
+      const statuses = await currentCuotaStatuses(firestore, orgId, active);
+      if (!statuses) throw new HttpsError('failed-precondition', 'El grupo todavía no tiene cuota.');
       const owing = new Set(statuses.filter((s) => s.status !== 'al_dia').map((s) => s.socioId));
       return { recipients: groupSocios(active.filter((s) => owing.has(s.id)), active), stored };
     }
@@ -145,6 +156,10 @@ async function resolveAudience(
       return { recipients: [...byUid.values()], stored: { kind: 'event', eventId, eventTitle: event.title } };
     }
   }
+}
+
+async function accountName(firestore: Firestore, uid: string): Promise<string | null> {
+  return (await userDoc(firestore, uid).get()).data()?.displayName.trim() || null;
 }
 
 async function accountEmail(firestore: Firestore, uid: string): Promise<string | null> {
@@ -211,7 +226,12 @@ export async function runSendGroupMessage(
     push: boolean;
     email: string | null;
     whatsappSocioId: string | null;
+    /** Null when the message has no placeholders. */
+    personal: GroupMessagePersonalValues | null;
   }
+  const placeholders = new Set([...groupMessagePlaceholdersIn(input.title), ...groupMessagePlaceholdersIn(input.body)]);
+  const statuses = placeholders.has('cuota') ? await currentCuotaStatuses(firestore, orgId, active) : null;
+  const rowById = new Map(active.map((s) => [s.id, s]));
   const plans: Plan[] = [];
   for (const recipient of recipients) {
     const contact = recipient.contactSocioId ? privates.get(recipient.contactSocioId) : undefined;
@@ -226,7 +246,18 @@ export async function runSendGroupMessage(
     const wantsWhatsapp =
       input.channels.whatsapp === 'all' || (input.channels.whatsapp === 'fallback' && !push && email === null);
     const whatsappSocioId = wantsWhatsapp && phone && recipient.uid !== callerUid ? recipient.contactSocioId : null;
-    plans.push({ recipient, push, email, whatsappSocioId });
+    // A household hears as its account holder: their own name and number.
+    const holder = recipient.contactSocioId ? rowById.get(recipient.contactSocioId) : undefined;
+    const personal =
+      placeholders.size === 0
+        ? null
+        : groupMessageRecipientValues({
+            holderName: holder?.displayName ?? (recipient.uid && placeholders.has('nombre') ? await accountName(firestore, recipient.uid) : null),
+            holderNumber: holder?.socioNumber ?? null,
+            socioIds: recipient.socioIds,
+            statuses,
+          });
+    plans.push({ recipient, push, email, whatsappSocioId, personal });
   }
 
   const message: GroupMessageData = {
@@ -267,16 +298,21 @@ export async function runSendGroupMessage(
     whatsappSocioId: p.whatsappSocioId,
     whatsappSentAt: null,
     whatsappSentBy: null,
+    personal: p.personal,
   });
+  // The stored message keeps the admin's placeholders; each channel gets this recipient's text.
+  const personalized = (p: Plan) =>
+    p.personal ? personalizeGroupMessage({ title: input.title, body: input.body }, p.personal) : { title: input.title, body: input.body };
   await commitInChunks(firestore, plans, (batch, p) => {
     batch.set(deliveries.doc(p.recipient.key), deliveryOf(p, p.email ? 'pending' : null));
     if (p.push && p.recipient.uid) {
+      const text = personalized(p);
       batch.set(
         userNotificationsCollection(firestore, p.recipient.uid).doc(`group_message_${messageId}`),
         buildNotificationData({
           type: 'group_message',
-          title: `${org.name} · ${input.title}`,
-          body: preview(input.body),
+          title: text.title ? `${org.name} · ${text.title}` : org.name,
+          body: preview(text.body),
           municipalityId: org.municipalityId,
           entityKind: 'organization',
           entityId: orgId,
@@ -287,23 +323,27 @@ export async function runSendGroupMessage(
   });
 
   const emailed = plans.filter((p): p is Plan & { email: string } => p.email !== null);
-  const content: GroupMessageEmailContent = {
-    title: input.title,
-    body: input.body,
+  const senderEmail = await accountEmail(firestore, callerUid);
+  const shared: Omit<GroupMessageEmailContent, 'title' | 'body'> = {
     poll: input.poll,
     orgName: org.name,
     signerName,
     signerTitle,
-    appUrl: `${webOriginForProject(process.env['GCLOUD_PROJECT'])}${groupPath(orgId)}`,
+    appUrl: `${webOriginForProject(process.env['GCLOUD_PROJECT'])}${groupAvisoLinkPath(orgId, messageId)}`,
   };
   const outcomes = await sendEmailBatch(
-    emailed.map((p) => ({
-      to: p.email,
-      subject: groupMessageEmailSubject(content),
-      html: renderGroupMessageEmailHtml(content),
-      text: renderGroupMessageEmailText(content),
-      fromName: groupMessageFromName(content),
-    })),
+    emailed.map((p) => {
+      const content: GroupMessageEmailContent = { ...shared, ...personalized(p) };
+      return {
+        to: p.email,
+        subject: groupMessageEmailSubject(content),
+        html: renderGroupMessageEmailHtml(content),
+        text: renderGroupMessageEmailText(content),
+        fromName: groupMessageFromName(content),
+        // A reply reaches the admin who wrote it; with no address of theirs, Cultuvilla's inbox.
+        ...(senderEmail ? { replyTo: senderEmail } : {}),
+      };
+    }),
     { handler, label: 'Group message email', fields: { orgId, messageId } },
   );
   const emailCount = outcomes.filter((o) => o === 'sent').length;

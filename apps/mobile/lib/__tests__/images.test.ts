@@ -1,10 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
-import { pickImageAsBlob } from '../images';
+import { CameraPermissionDeniedError, pickImageAsBlob, takePhotoAsBlob } from '../images';
 import { pickAndCropSquare } from '../imageCrop';
 
 jest.mock('expo-image-picker', () => ({
   MediaTypeOptions: { Images: 'Images' },
   launchImageLibraryAsync: jest.fn(),
+  launchCameraAsync: jest.fn(),
+  requestCameraPermissionsAsync: jest.fn(),
 }));
 
 // The square path delegates to the in-app cropper; stub it so this suite stays
@@ -97,4 +99,26 @@ describe('pickImageAsBlob', () => {
     expect(result?.filename).toMatch(/^upload-\d+\.jpg$/);
   });
 
+});
+
+describe('takePhotoAsBlob', () => {
+  const camera = ImagePicker.launchCameraAsync as jest.Mock;
+  const permission = ImagePicker.requestCameraPermissionsAsync as jest.Mock;
+  afterEach(() => {
+    camera.mockReset();
+    permission.mockReset();
+  });
+
+  it('asks for the camera first, and says so when it is refused', async () => {
+    permission.mockResolvedValue({ granted: false });
+    await expect(takePhotoAsBlob()).rejects.toBeInstanceOf(CameraPermissionDeniedError);
+    expect(camera).not.toHaveBeenCalled();
+  });
+
+  it('returns null when no photo is taken', async () => {
+    permission.mockResolvedValue({ granted: true });
+    camera.mockResolvedValue({ canceled: true, assets: [] });
+    expect(await takePhotoAsBlob()).toBeNull();
+    expect(camera).toHaveBeenCalledWith(expect.objectContaining({ mediaTypes: ['images'] }));
+  });
 });

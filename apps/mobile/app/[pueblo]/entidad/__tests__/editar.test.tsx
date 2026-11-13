@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import OrgEditScreen from '../[entidad]/editar';
 
 const mockRedirect = jest.fn((_props: { href: string }) => null);
@@ -72,5 +72,54 @@ describe('OrgEditScreen photo upload', () => {
     expect(updateOrganization).not.toHaveBeenCalled();
     expect(queryByTestId('org-edit-images-remove-0')).toBeNull();
     alert.mockRestore();
+  });
+});
+
+describe('OrgEditScreen join policy', () => {
+  const org = { id: 'org1', name: 'Peña', description: null, type: 'peña', images: [], municipalityId: 'm1', villageSlug: 'villa', joinPolicy: 'approval' };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useOrgCapabilities as jest.Mock).mockReturnValue({ canManage: true, canDelete: false, uid: 'boss', loading: false });
+    (getOrganization as jest.Mock).mockResolvedValue(org);
+  });
+
+  it('warns before opening the group, and saves it open once confirmed', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const { findByTestId, getByTestId } = render(<OrgEditScreen />);
+    fireEvent.press(await findByTestId('org-edit-join-policy-toggle'));
+
+    expect(alert).toHaveBeenCalledWith(
+      'organization.joinPolicy.switchToOpenTitle',
+      'organization.joinPolicy.switchToOpenBody',
+      expect.any(Array),
+    );
+    const buttons = alert.mock.calls[0]![2]!;
+    act(() => buttons[buttons.length - 1]!.onPress!());
+    fireEvent.press(getByTestId('org-edit-submit'));
+
+    await waitFor(() =>
+      expect(updateOrganization).toHaveBeenCalledWith('org1', expect.objectContaining({ joinPolicy: 'open' })),
+    );
+    alert.mockRestore();
+  });
+
+  it('stays closed if the warning is not confirmed', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const { findByTestId, getByTestId } = render(<OrgEditScreen />);
+    fireEvent.press(await findByTestId('org-edit-join-policy-toggle'));
+    fireEvent.press(getByTestId('org-edit-submit'));
+
+    await waitFor(() =>
+      expect(updateOrganization).toHaveBeenCalledWith('org1', expect.objectContaining({ joinPolicy: 'approval' })),
+    );
+    alert.mockRestore();
+  });
+
+  it('offers an ayuntamiento no switch', async () => {
+    (getOrganization as jest.Mock).mockResolvedValue({ ...org, type: 'ayuntamiento' });
+    const { findByTestId, queryByTestId } = render(<OrgEditScreen />);
+    await findByTestId('org-edit-submit');
+    expect(queryByTestId('org-edit-join-policy-toggle')).toBeNull();
   });
 });

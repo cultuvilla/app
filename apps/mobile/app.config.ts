@@ -181,7 +181,7 @@ const config: ExpoConfig = {
   // the shell would silently build one repo into the other's EAS project; owner
   // + projectId in the file make the routing per-repo by construction.
   owner: 'cultuvilla.app',
-  version: '1.11.0',
+  version: '1.12.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
 
@@ -222,6 +222,10 @@ const config: ExpoConfig = {
       // iOS requires this usage string.
       NSPhotoLibraryUsageDescription:
         'Cultuvilla necesita acceso a tus fotos para elegir y recortar tu imagen de perfil.',
+      // expo-image-picker opens the camera to photograph something offered in
+      // a group's cosateca; iOS kills an app that opens it without this string.
+      NSCameraUsageDescription:
+        'Cultuvilla usa la cámara para hacer la foto de lo que ofreces en la cosateca de tu grupo.',
       // expo-media-library saves a fiestas-summary card to the library; adding
       // a photo needs only this add-only permission, never read access.
       NSPhotoLibraryAddUsageDescription:
@@ -241,9 +245,10 @@ const config: ExpoConfig = {
     // Data Safety form, and background location additionally needs a written
     // declaration plus a video review. expo-location and expo-image-picker each
     // pull in more than we use, so strip what no screen actually calls: the app
-    // only reads a coarse/fine location once (to drop the village pin) and picks
-    // an existing image from the library — it never records, never uses the
-    // camera, and never tracks location in the background.
+    // only reads a coarse/fine location once (to drop the village pin), picks
+    // an existing image from the library or takes one photo with the camera
+    // (offering something in a cosateca) — it never records and never tracks
+    // location in the background.
     // AD_ID arrives with native Firebase Analytics (play-services-measurement).
     // Cultuvilla shows no ads and Play's declaration says it does not use the
     // advertising ID, so Play rejects any release that carries it — the 1.7.1
@@ -251,7 +256,6 @@ const config: ExpoConfig = {
     blockedPermissions: [
       'com.google.android.gms.permission.AD_ID',
       'android.permission.ACCESS_BACKGROUND_LOCATION',
-      'android.permission.CAMERA',
       'android.permission.RECORD_AUDIO',
       'android.permission.READ_EXTERNAL_STORAGE',
       // WRITE_EXTERNAL_STORAGE is deliberately NOT blocked: saving a fiestas

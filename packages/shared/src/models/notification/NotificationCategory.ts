@@ -1,14 +1,14 @@
 import type { NotificationType } from './NotificationDataModel';
 
 /**
- * The buckets a notification can fall into. On Android they are the set of OS
- * notification channels, and every one but `groups` is a togglable preference
- * (see NotificationPrefsDataModel) — so keep it small and keep it meaningful to
- * a villager, not to the schema.
+ * The coarse buckets a notification can fall into: on Android the set of OS
+ * notification channels, and which pushes may break quiet hours. Keep it small.
+ * What a person mutes is the finer `NotificationTopic`; the three coarse
+ * switches of older binaries (`NotificationPrefsData`) still map onto these.
  *
- * `groups` is the messages a member's groups send them. It is muted per group
- * (`users/{uid}/groupPrefs/{orgId}`), not as a whole, because one noisy peña is
- * no reason to miss the asociación's asamblea.
+ * `groups` is the messages a member's groups send them, also muted per group
+ * (`users/{uid}/groupPrefs/{orgId}`), because one noisy peña is no reason to
+ * miss the asociación's asamblea.
  *
  * Deliberately NOT a field on the notification doc. Deriving it from `type`
  * means adding a category can never require a backfill, and the mapping cannot

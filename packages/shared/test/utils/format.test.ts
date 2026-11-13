@@ -23,6 +23,11 @@ describe('formatDate', () => {
     expect(out).toMatch(/2026/);
   });
 
+  it('formats a card date as day and short month, without a trailing period', () => {
+    expect(formatDate(new Date(2026, 11, 6, 12), 'dayMonthShort')).toBe('6 dic');
+    expect(formatDayKey('2026-12-06', 'dayMonthShort')).toBe('6 dic');
+  });
+
   it('formats time-only', () => {
     // Output depends on the host TZ; assert the shape, not the wall clock.
     expect(formatDate(d, 'time')).toMatch(/\d{1,2}:\d{2}/);

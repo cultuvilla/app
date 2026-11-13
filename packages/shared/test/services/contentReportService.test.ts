@@ -8,6 +8,7 @@ vi.mock('firebase/firestore', () => createFakeFirestoreModule());
 
 import {
   createContentReport,
+  getOpenReports,
   getReportsByMunicipality,
   setReportStatus,
 } from '../../src/services/contentReportService';
@@ -61,6 +62,23 @@ describe('contentReportService', () => {
     const open = await getReportsByMunicipality('m1', { status: 'open' });
     expect(open.map((r) => r.targetId)).toEqual(['n1']);
     expect(open.map((r) => r.id)).not.toContain(otherId);
+  });
+
+  it('getOpenReports spans every village and leaves out the resolved ones', async () => {
+    const file = (municipalityId: string) =>
+      createContentReport({
+        municipalityId,
+        targetKind: 'comment',
+        targetId: 'c1',
+        reporterUserId: 'reporter-1',
+        reason: 'harassment',
+      });
+    await file('m1');
+    await file('m2');
+    await setReportStatus(await file('m1'), 'reviewed');
+
+    const open = await getOpenReports();
+    expect(open.map((r) => r.municipalityId).sort()).toEqual(['m1', 'm2']);
   });
 
   it('setReportStatus moves a report out of the open queue', async () => {

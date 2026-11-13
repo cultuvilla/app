@@ -4,7 +4,6 @@ import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
   organizationMessageDeliveriesCollection,
-  organizationMessageDoc,
   organizationMessageReadDoc,
   organizationMessageReadsCollection,
   organizationMessagesCollection,
@@ -23,7 +22,7 @@ import {
   type SendGroupMessageInput,
   type SendGroupMessageResult,
 } from '../models/organization/GroupMessageDataModel';
-import { buildGroupNotificationPrefsData, type GroupNotificationPrefsData } from '../models/notification/NotificationPrefsDataModel';
+import { groupNotifyPrefs, type GroupNotificationPrefsData, type GroupNotifyLevel } from '../models/notification/NotificationPrefsDataModel';
 import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type GroupMessage = GroupMessageData & { id: string };
@@ -99,21 +98,12 @@ export function watchGroupPollVotes(
   return watchQuery(organizationMessageVotesCollection(getDb(), orgId, messageId), onNext, onError);
 }
 
-/** Admin: pin a message to its recipients' group home, or take it down. */
-export async function setGroupMessagePinned(orgId: string, messageId: string, pinned: boolean): Promise<void> {
-  await updateDoc(organizationMessageWriteDocFor(orgId, messageId), { pinned });
-}
-
 /** Admin: tick (or untick) a recipient's WhatsApp as sent by hand. */
 export async function setWhatsappSent(orgId: string, messageId: string, recipientKey: string, adminUid: string, sent: boolean): Promise<void> {
   await updateDoc(organizationMessageWriteDoc(getDb(), orgId, messageId, 'deliveries', recipientKey), {
     whatsappSentAt: sent ? serverTimestamp() : null,
     whatsappSentBy: sent ? adminUid : null,
   });
-}
-
-function organizationMessageWriteDocFor(orgId: string, messageId: string) {
-  return organizationMessageDoc(getDb(), orgId, messageId).withConverter(null);
 }
 
 // =============================================================================
@@ -210,7 +200,15 @@ export function watchGroupNotificationPrefs(
   return watchDoc(userGroupPrefsDoc(getDb(), uid, orgId), onNext, onError);
 }
 
-/** Mute or unmute this group's message pushes. The cuota reminders never read it. */
-export async function setGroupMessagesMuted(uid: string, orgId: string, muted: boolean): Promise<void> {
-  await setDoc(userGroupPrefsDoc(getDb(), uid, orgId), buildGroupNotificationPrefsData({ messagesMuted: muted }));
+/**
+ * How much this group notifies the member (Ajustes → Notificaciones). Writes
+ * both switches, and the doc's own id the chat trigger queries by. The cuota
+ * reminders never read it.
+ */
+export async function setGroupNotifyLevel(uid: string, orgId: string, level: GroupNotifyLevel): Promise<void> {
+  await setDoc(
+    userGroupPrefsDoc(getDb(), uid, orgId).withConverter(null),
+    { ...groupNotifyPrefs(level), orgId, updatedAt: new Date() },
+    { merge: true },
+  );
 }

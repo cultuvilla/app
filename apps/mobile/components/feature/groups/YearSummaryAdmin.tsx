@@ -20,7 +20,7 @@ import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { centsLabel, todayKey } from '../../../lib/orgs/cuota';
 
 /**
- * The year's money for the asamblea, in Gestionar: cuota income (from the cuota
+ * The Registros' Cuentas door — the year's money for the asamblea: cuota income (from the cuota
  * ledger, net of anulaciones), other income and expenses the treasurer notes
  * here, the balance, and the export. A summary, not bookkeeping.
  */
@@ -56,8 +56,25 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
 
   return (
     <VStack gap={2} testID="year-summary">
-      <HStack justify="between" align="center">
-        <Text className="font-bold">{t('groups.records.year.title')}</Text>
+      <HStack align="center" justify="between" className="py-1">
+        <HStack gap={4} align="center">
+          <Pressable testID="year-prev" accessibilityRole="button" accessibilityLabel={t('groups.records.year.prev')} onPress={() => shiftYear(-1)}>
+            <Ionicons name="chevron-back" size={iconSizes.md} color={colors.light.fg.accent} />
+          </Pressable>
+          <Text className="font-bold" testID="year-label">
+            {year}
+          </Text>
+          <Pressable
+            testID="year-next"
+            accessibilityRole="button"
+            accessibilityLabel={t('groups.records.year.next')}
+            disabled={!canGoForward}
+            onPress={() => shiftYear(1)}
+            className={canGoForward ? '' : 'opacity-30'}
+          >
+            <Ionicons name="chevron-forward" size={iconSizes.md} color={colors.light.fg.accent} />
+          </Pressable>
+        </HStack>
         <ExportButton
           buildModel={buildModel}
           title={t('groups.records.year.exportTitle')}
@@ -68,25 +85,6 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
           csvTestID="year-export-csv"
           scope="yearSummaryExport"
         />
-      </HStack>
-
-      <HStack gap={4} align="center" justify="center" className="py-1">
-        <Pressable testID="year-prev" accessibilityRole="button" accessibilityLabel={t('groups.records.year.prev')} onPress={() => shiftYear(-1)}>
-          <Ionicons name="chevron-back" size={iconSizes.md} color={colors.light.fg.accent} />
-        </Pressable>
-        <Text className="font-bold" testID="year-label">
-          {year}
-        </Text>
-        <Pressable
-          testID="year-next"
-          accessibilityRole="button"
-          accessibilityLabel={t('groups.records.year.next')}
-          disabled={!canGoForward}
-          onPress={() => shiftYear(1)}
-          className={canGoForward ? '' : 'opacity-30'}
-        >
-          <Ionicons name="chevron-forward" size={iconSizes.md} color={colors.light.fg.accent} />
-        </Pressable>
       </HStack>
 
       {cuota.status === 'ready' && ledger.status === 'ready' ? (
@@ -145,9 +143,6 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
               </HStack>
             ))
           )}
-          <Text variant="caption" tone="muted">
-            {t('groups.records.year.eventsNote')}
-          </Text>
         </>
       ) : null}
 

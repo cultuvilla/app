@@ -22,6 +22,8 @@ export interface OutgoingEmail {
   text: string;
   /** Display name of the sender; the address is always Cultuvilla's. */
   fromName?: string;
+  /** Where replies go: the person who wrote it, when one did. Cultuvilla's inbox otherwise. */
+  replyTo?: string;
 }
 
 export interface EmailLogContext {
@@ -57,7 +59,7 @@ export async function sendEmail(email: OutgoingEmail, log: EmailLogContext): Pro
     const { error } = await resend.emails.send({
       from: email.fromName ? fromHeader(email.fromName) : `${DEFAULT_FROM_NAME} <${FROM_ADDRESS}>`,
       to: email.to,
-      replyTo: REPLY_TO,
+      replyTo: email.replyTo ?? REPLY_TO,
       subject: email.subject,
       html: email.html,
       text: email.text,
@@ -102,7 +104,7 @@ export async function sendEmailBatch(emails: OutgoingEmail[], log: EmailLogConte
         chunk.map((email) => ({
           from: email.fromName ? fromHeader(email.fromName) : `${DEFAULT_FROM_NAME} <${FROM_ADDRESS}>`,
           to: email.to,
-          replyTo: REPLY_TO,
+          replyTo: email.replyTo ?? REPLY_TO,
           subject: email.subject,
           html: email.html,
           text: email.text,

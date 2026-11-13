@@ -189,6 +189,12 @@ export interface StatBadge {
   testID?: string;
 }
 
+/** A short count over a card's photo, and how VoiceOver says it. */
+export interface ProgressBadge {
+  text: string;
+  spoken: string;
+}
+
 function BigCard({
   label,
   imageUri,
@@ -198,6 +204,8 @@ function BigCard({
   crest,
   commentCount,
   statBadge,
+  size = CARD_W,
+  progressBadge,
   onPress,
 }: {
   label: string;
@@ -224,6 +232,10 @@ function BigCard({
   commentCount?: number;
   /** Alternate top-right count badge, used when the count is not comments. */
   statBadge?: StatBadge;
+  /** Width and height, for a grid; the rows use the default. */
+  size?: number;
+  /** Top-left, e.g. the tasks done of an event's checklist. */
+  progressBadge?: ProgressBadge;
   onPress?: () => void;
 }) {
   const { t } = useT();
@@ -237,14 +249,14 @@ function BigCard({
   const spokenCount = topRightBadge
     ? t(`entityCard.a11y.${topRightBadge.spoken}.${topRightBadge.count === 1 ? 'one' : 'other'}`, { count: topRightBadge.count })
     : null;
-  const accessibilityLabel = [label, secondary, spokenCount].filter(Boolean).join(', ');
+  const accessibilityLabel = [label, secondary, spokenCount, progressBadge?.spoken].filter(Boolean).join(', ');
 
   const body = crest ? (
     <View
       className="rounded-2xl overflow-hidden"
       style={{
-        width: CARD_W,
-        height: CARD_H,
+        width: size,
+        height: size,
         backgroundColor: CREST_BG,
         borderWidth: accent ? 2 : 1,
         borderColor: ACCENT,
@@ -287,8 +299,8 @@ function BigCard({
     <View
       className="rounded-2xl overflow-hidden"
       style={{
-        width: CARD_W,
-        height: CARD_H,
+        width: size,
+        height: size,
         backgroundColor: PLACEHOLDER_BG,
         ...(accent ? { borderWidth: 1, borderColor: ACCENT } : {}),
       }}
@@ -321,6 +333,28 @@ function BigCard({
             style={{ color: 'rgba(255,255,255,0.85)', marginLeft: 4 }}
           >
             {topRightBadge.count}
+          </Text>
+        </View>
+      ) : null}
+
+      {progressBadge ? (
+        <View
+          testID="entity-card-progress"
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            borderRadius: 12,
+            paddingHorizontal: 6,
+            paddingVertical: 3,
+          }}
+        >
+          <Ionicons name="checkbox-outline" size={iconSizes.sm} color="rgba(255,255,255,0.85)" />
+          <Text variant="bodySm" numberOfLines={1} style={{ color: 'rgba(255,255,255,0.85)', marginLeft: 4 }}>
+            {progressBadge.text}
           </Text>
         </View>
       ) : null}
@@ -402,6 +436,8 @@ export function EntityCard({
   crest,
   commentCount,
   statBadge,
+  size,
+  progressBadge,
   onPress,
 }: {
   label: string;
@@ -415,6 +451,8 @@ export function EntityCard({
   commentCount?: number;
   /** Alternate top-right count badge, used when the count is not comments. */
   statBadge?: StatBadge;
+  size?: number;
+  progressBadge?: ProgressBadge;
   onPress?: () => void;
 }) {
   return (
@@ -427,6 +465,8 @@ export function EntityCard({
       crest={crest}
       commentCount={commentCount}
       statBadge={statBadge}
+      size={size}
+      progressBadge={progressBadge}
       onPress={onPress}
     />
   );
