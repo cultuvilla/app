@@ -83,4 +83,6 @@ not directly enforceable in rules.
   `comunidadAutonoma`/`provincia` onto the item via the
   denormalized-read-model pattern.
 - Multi-day/recurring events are needed → reintroduce an explicit end, but as a
-  distinct concept from the single `startDate`.
+  distinct concept from the single `startDate`. (Both happened: `endDate` came
+  back for multi-day events, and weekly recurrence is one event per occurrence
+  — see [weekly-event-series.md](weekly-event-series.md).)

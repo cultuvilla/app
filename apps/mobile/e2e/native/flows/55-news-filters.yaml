@@ -1,0 +1,36 @@
+# The Explora feed's news tab: the category filter keeps the seeded news post
+# under its own category and drops it under another.
+appId: com.cultuvilla.app.dev
+env:
+  EMAIL: e2e-joiner@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+---
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+- tapOn: 'Explora(,.*)?'
+- runFlow: ../subflows/dismiss-push-soft-ask.yaml
+- tapOn: 'Artículos'
+- extendedWaitUntil:
+    visible:
+      id: 'filter-category'
+    timeout: 15000
+- extendedWaitUntil:
+    visible: '.*Noticia Sembrada E2E.*'
+    timeout: 30000
+- tapOn:
+    id: 'filter-category'
+- tapOn:
+    id: 'filter-category-sheet-option-fiesta'
+- extendedWaitUntil:
+    notVisible: '.*Noticia Sembrada E2E.*'
+    timeout: 10000
+- tapOn:
+    id: 'filter-category'
+- tapOn:
+    id: 'filter-category-sheet-option-historia'
+- extendedWaitUntil:
+    visible: '.*Noticia Sembrada E2E.*'
+    timeout: 10000

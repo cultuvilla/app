@@ -1,4 +1,5 @@
 import { render, fireEvent } from '@testing-library/react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { MultiImagePickerRow } from '../MultiImagePickerRow';
 
 describe('<MultiImagePickerRow>', () => {
@@ -44,5 +45,21 @@ describe('<MultiImagePickerRow>', () => {
       />,
     );
     expect(queryByLabelText('add')).not.toBeNull();
+  });
+
+  // A horizontal ScrollView grows by default (flexGrow: 1). On the poster edit
+  // screen that made the photo row fill the whole viewport and pushed the
+  // year, title, dates and save button out of sight (E2E flow 83).
+  it('hugs its thumbnails instead of growing to fill its column', () => {
+    const { UNSAFE_getByType } = render(
+      <MultiImagePickerRow
+        uris={['a']}
+        onAddPress={() => {}}
+        onRemove={() => {}}
+        addLabel="add"
+        removeLabel="remove"
+      />,
+    );
+    expect(StyleSheet.flatten(UNSAFE_getByType(ScrollView).props.style)).toMatchObject({ flexGrow: 0 });
   });
 });

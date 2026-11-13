@@ -9,10 +9,17 @@ import {
   historicalCenturyLabel,
   pickWordOfTheDay,
   variantImageURL,
+  villagePath,
   wordPath,
   type UrlEntityKind,
 } from '@cultuvilla/shared/utils';
-import { WRAPPED_CARDS, wrappedId, type WrappedCard } from '@cultuvilla/shared/models';
+import {
+  OTHER_VILLAGES_SHOWN,
+  VILLAGE_RANKING_DOC,
+  WRAPPED_CARDS,
+  wrappedId,
+  type WrappedCard,
+} from '@cultuvilla/shared/models';
 import { arr, bool, date, num, obj, str, strArr, type Raw } from './read';
 import type { RichTextInput } from './richText';
 
@@ -94,6 +101,74 @@ export async function loadActiveVillages(db: Firestore): Promise<Village[]> {
     .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
 
+export interface AmbassadorView {
+  name: string;
+  photoUrl: string | null;
+  /** The upload itself, for when its `_thumb` variant was never generated. */
+  originalPhotoUrl: string | null;
+  female: boolean;
+  village: Village;
+}
+
+/**
+ * The Embajadores the /embajadores wall shows: each active pueblo's
+ * `community.organizerId`, through their account to the person doc, which is
+ * the profile of record. Only a public, living person appears: the Admin SDK
+ * bypasses the rule that enforces `isPublic` in the app, so it is re-checked
+ * here. Two batched reads, however many pueblos there are.
+ */
+export async function loadAmbassadors(db: Firestore): Promise<AmbassadorView[]> {
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const snap = await db.collection('municipalities').where('communityActive', '==', true).get();
+  const held = snap.docs.flatMap((d) => {
+    const raw = d.data();
+    const uid = str(obj(raw['community'])?.['organizerId']);
+    const village = toVillage(d.id, raw);
+    return uid && village.slug && village.name ? [{ uid, village }] : [];
+  });
+  if (held.length === 0) return [];
+
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const users = await db.getAll(...held.map((h) => db.collection('users').doc(h.uid)));
+  const personIds = users.map((u) => (u.exists ? str(u.get('personId')) : null));
+  const wanted = [...new Set(personIds.filter((id): id is string => id !== null))];
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const persons = wanted.length > 0 ? await db.getAll(...wanted.map((id) => db.collection('persons').doc(id))) : [];
+  const byId = new Map(persons.filter((p) => p.exists).map((p) => [p.id, p.data() ?? {}]));
+
+  return held
+    .flatMap(({ village }, i) => {
+      const id = personIds[i];
+      const p = id ? byId.get(id) : undefined;
+      if (!p || !bool(p['isPublic'])) return [];
+      if (p['deathDate'] != null || p['burialPlace'] != null) return [];
+      const name = [str(p['givenName']), str(p['firstSurname'])].filter(Boolean).join(' ');
+      if (!name) return [];
+      const photo = str(p['photoURL']);
+      return [{ name, photoUrl: variantImageURL(photo, 'thumb'), originalPhotoUrl: photo, female: p['sex'] === 'female', village }];
+    })
+    .sort((a, b) => a.village.name.localeCompare(b.village.name, 'es'));
+}
+
+/**
+ * The best-ranked other pueblos, from the nightly `refreshVillageRanking` doc —
+ * empty until it has run once. The ranking only holds active pueblos.
+ */
+export async function loadOtherVillages(db: Firestore, excludeId: string): Promise<Card[]> {
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const snap = await db.collection('villageRankings').doc(VILLAGE_RANKING_DOC).get();
+  return arr(snap.get('villages'))
+    .map((raw) => obj(raw) ?? {})
+    .filter((v) => str(v['id']) !== excludeId && str(v['slug']) && str(v['name']))
+    .slice(0, OTHER_VILLAGES_SHOWN)
+    .map((v) => ({
+      href: villagePath(str(v['slug']) ?? ''),
+      title: str(v['name']) ?? '',
+      subtitle: str(v['province']),
+      imageUrl: str(v['escudoUrl']),
+    }));
+}
+
 /** Card-sized image; the app writes `_card` variants for its own uploads. */
 export function cardImage(url: string | null): string | null {
   return variantImageURL(url, 'card');
@@ -117,6 +192,8 @@ export interface EventView {
   /** Org-only event: the page withholds everything but the fact it exists. */
   private: boolean;
   municipalityId: string | null;
+  /** The weekly series this occurrence belongs to, or null when standalone. */
+  seriesId: string | null;
 }
 
 const LISTED_EVENT_STATUSES = ['published', 'completed'];
@@ -134,6 +211,7 @@ function toEvent(id: string, d: Raw): EventView {
     cancelled: d['status'] === 'cancelled',
     private: d['visibility'] === 'private' || str(d['visibilityOrgId']) !== null,
     municipalityId: str(d['municipalityId']),
+    seriesId: str(obj(d['series'])?.['id']),
   };
 }
 
@@ -276,11 +354,18 @@ export async function loadOrg(db: Firestore, id: string): Promise<OrgView | null
   return toOrg(snap.id, snap.data() ?? {});
 }
 
-function orgCard(o: OrgView, villageSlug: string): Card {
+export const COMISION_LABEL = 'Comisión de festejos';
+
+export function orgCard(o: OrgView, villageSlug: string): Card {
   return {
     href: entityPath('organization', { id: o.id, title: o.name, villageSlug }),
     title: o.name,
-    subtitle: o.memberCount ? `${String(o.memberCount)} miembros` : null,
+    subtitle:
+      o.type === 'comisión'
+        ? COMISION_LABEL
+        : o.memberCount
+          ? `${String(o.memberCount)} integrantes`
+          : null,
     ...cardImages(o.images[0] ?? null),
   };
 }
@@ -598,12 +683,21 @@ async function listTerms(db: Firestore, m: string): Promise<TermView[]> {
   return snap.docs.map((d) => toTerm(d.id, d.data()));
 }
 
-/** Upcoming first (soonest first), then past (most recent first) — the app's order. */
+/**
+ * Upcoming first (soonest first), then past (most recent first) — the app's
+ * order — with one card per weekly series: its next date, else its latest.
+ */
 export function orderEvents(events: EventView[], now: Date): EventView[] {
   const ends = (e: EventView) => (e.end ?? e.start)?.getTime() ?? 0;
   const upcoming = events.filter((e) => ends(e) >= now.getTime());
   const past = events.filter((e) => ends(e) < now.getTime()).reverse();
-  return [...upcoming, ...past];
+  const seen = new Set<string>();
+  return [...upcoming, ...past].filter((e) => {
+    if (e.seriesId === null) return true;
+    if (seen.has(e.seriesId)) return false;
+    seen.add(e.seriesId);
+    return true;
+  });
 }
 
 export interface VillageHome {

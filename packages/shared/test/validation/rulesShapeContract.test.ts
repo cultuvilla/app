@@ -17,6 +17,17 @@
 import { describe, it, expect } from 'vitest';
 import { buildOrganizationData } from '../../src/models/organization/OrganizationDataModel';
 import { buildOrgMemberData } from '../../src/models/organization/OrgMemberDataModel';
+import {
+  buildCuotaAssignmentData,
+  buildCuotaPaymentData,
+  buildCuotaSettingsData,
+} from '../../src/models/organization/CuotaDataModel';
+import { buildGroupTaskData, buildTaskTemplateData } from '../../src/models/organization/GroupTaskDataModel';
+import { buildCosaData } from '../../src/models/organization/CosaDataModel';
+import { buildCosaRequestData } from '../../src/models/organization/CosaRequestDataModel';
+import { buildGroupNotificationPrefsData } from '../../src/models/notification/NotificationPrefsDataModel';
+import { buildNotificationSettingsData } from '../../src/models/notification/NotificationSettingsDataModel';
+import { buildActaData, buildLedgerEntryData } from '../../src/models/organization/RecordsDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
 import { buildPlaceData, buildBarrioData } from '../../src/models/municipality/MunicipalityDataModel';
@@ -32,13 +43,102 @@ interface ShapeContract {
 
 const SHAPE_CONTRACTS: ShapeContract[] = [
   {
+    label: 'organizations/{orgId}/actas — isValidActaFields (actaKeys)',
+    build: () => buildActaData({ body: 'asamblea_general', heldOn: '2026-03-15', createdBy: 'u1' }),
+    ruleKeys: [
+      'body', 'title', 'heldOn', 'place', 'attendees', 'otherAttendees', 'agenda', 'agreements',
+      'visibleToSocios', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt',
+    ],
+  },
+  {
+    label: 'organizations/{orgId}/ledgerEntries — isValidLedgerEntry',
+    build: () => buildLedgerEntryData({ kind: 'expense', amountCents: 12000, on: '2026-08-14', concept: 'Orquesta', recordedBy: 'u1' }),
+    ruleKeys: ['kind', 'amountCents', 'on', 'concept', 'category', 'reversesId', 'recordedBy', 'recordedAt'],
+  },
+  {
+    label: 'organizations/{orgId}/tasks — isValidGroupTaskCreate (groupTaskKeys)',
+    build: () => buildGroupTaskData({ title: 'Asamblea', createdBy: 'u1' }),
+    ruleKeys: [
+      'title', 'notes', 'assigneeUids', 'dueOn', 'time', 'slots', 'claimedUids', 'waitlistUids',
+      'declinedUids', 'recurrence', 'nextTaskId', 'eventId', 'doneAt', 'doneBy', 'createdBy', 'createdAt',
+    ],
+  },
+  {
+    label: 'organizations/{orgId}/taskTemplates — isValidTaskTemplate',
+    build: () =>
+      buildTaskTemplateData({ name: 'Fiestas', items: [{ title: 'Orquesta', notes: null, offsetDays: -60, time: null, slots: null }], updatedBy: 'u1' }),
+    ruleKeys: ['name', 'items', 'updatedBy', 'updatedAt'],
+  },
+  {
+    label: 'users/{uid}/notificationSettings/account — isValidNotificationSettingsWrite',
+    build: () => buildNotificationSettingsData(),
+    ruleKeys: ['mutedTopics', 'mutedVillages', 'quietHours', 'updatedAt'],
+  },
+  {
+    label: 'users/{uid}/groupPrefs/{orgId} — inline in match /groupPrefs',
+    build: () => buildGroupNotificationPrefsData({ messagesMuted: true }),
+    ruleKeys: ['messagesMuted', 'chatPush', 'orgId', 'updatedAt'],
+  },
+  {
+    label: 'organizations/{orgId}/cuotaSettings — isValidCuotaSettings',
+    build: () =>
+      buildCuotaSettingsData({
+        amountCents: 3000, periodicity: 'yearly', dueMonth: 3, dueDay: 1, graceDays: 30, startPeriod: '2026', configuredBy: 'u1',
+      }),
+    ruleKeys: [
+      'amountCents', 'yearAmounts', 'periodicity', 'dueMonth', 'dueDay', 'graceDays', 'startPeriod', 'tiers',
+      'bizum', 'iban', 'payInstructions', 'remindersEnabled', 'configuredBy', 'updatedAt',
+    ],
+  },
+  {
+    label: 'organizations/{orgId}/cuotaAssignments — isValidCuotaAssignment',
+    build: () => buildCuotaAssignmentData({ updatedBy: 'u1' }),
+    ruleKeys: ['tierId', 'exempt', 'customAmountCents', 'updatedBy', 'updatedAt'],
+  },
+  {
+    label: 'organizations/{orgId}/cuotaPayments — isValidCuotaPayment',
+    build: () =>
+      buildCuotaPaymentData({ socioId: 's1', periodKey: '2026', amountCents: 3000, method: 'bizum', paidOn: '2026-02-20', recordedBy: 'u1' }),
+    ruleKeys: [
+      'socioId', 'periodKey', 'kind', 'reversesId', 'amountCents', 'method', 'paidOn',
+      'note', 'recordedBy', 'recordedAt',
+    ],
+  },
+  {
     label: 'organizations — isValidOrganizationCreate',
     build: () =>
       buildOrganizationData({ name: 'Peña', type: 'peña', municipalityId: 'm1', villageSlug: 'matabuena', requestedBy: 'u1' }),
     ruleKeys: [
       'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
       'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
-      'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
+      'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy', 'sociosListVisible',
+      'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired', 'cosateca',
+    ],
+  },
+  {
+    label: 'cosas — isValidCosaFields (cosaKeys)',
+    build: () =>
+      buildCosaData({
+        municipalityId: 'm1', orgId: 'o1', audience: 'integrantes', ownerUid: 'u1', ownerName: 'Ana',
+        kind: 'prestamo', title: 'Taladro', category: 'herramientas', createdBy: 'u1', createdByName: 'Ana',
+      }),
+    ruleKeys: [
+      'municipalityId', 'orgId', 'audience', 'ownerUid', 'ownerName', 'kind', 'title', 'description',
+      'category', 'imageURL', 'conditions', 'location', 'locationNote', 'status', 'heldBy', 'reserva',
+      'createdBy', 'createdByName', 'createdAt', 'updatedAt',
+    ],
+  },
+  {
+    label: 'cosaRequests — isValidCosaRequestCreate (cosaRequestKeys)',
+    build: () =>
+      buildCosaRequestData({
+        municipalityId: 'm1', orgId: 'o1', cosaId: 'c1', cosaTitle: 'Taladro', cosaKind: 'prestamo',
+        ownerUid: 'u1', requesterUid: 'u2', requesterName: 'Luis',
+      }),
+    ruleKeys: [
+      'municipalityId', 'orgId', 'cosaId', 'cosaTitle', 'cosaKind', 'ownerUid', 'holderUid',
+      'requesterUid', 'requesterName', 'message', 'fromOn', 'untilOn', 'status', 'createdAt', 'respondedAt',
+      'closedAt', 'overdueNotifiedOn', 'startAt', 'endAt',
     ],
   },
   {

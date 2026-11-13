@@ -13,6 +13,7 @@ import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { ProposableForm } from './ProposableForm';
 import { LocationField } from '../LocationField';
 import { OrganizerPicker } from '../OrganizerPicker';
+import { useCallableErrorHandler } from '../../../lib/callableError';
 
 function stepBody(children: React.ReactNode) {
   return (
@@ -40,6 +41,7 @@ export function PlacesManager({
   onCreated?: () => void;
 }) {
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { uid } = useEntityCapabilities(villageId);
 
   // Mint the id up front so each picked image can upload before the doc write.
@@ -65,6 +67,8 @@ export function PlacesManager({
     try {
       const url = await uploadPlaceImage(villageId, placeId, picked);
       setImages((prev) => [...prev, url]);
+    } catch (e) {
+      showCallableError(e, { operation: 'place:uploadImage' });
     } finally {
       setAddingImage(false);
     }

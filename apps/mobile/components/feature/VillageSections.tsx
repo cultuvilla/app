@@ -93,6 +93,7 @@ export function SectionHeader({
 export function Section<T>({
   title,
   onManage,
+  actionLabel,
   isEmpty,
   status = 'ready',
   children,
@@ -106,6 +107,8 @@ export function Section<T>({
   testID?: string;
   /** When provided, renders the "Gestionar" link (admins only). */
   onManage?: () => void;
+  /** Replaces "Gestionar" when the header link does something else ("Ver todos"). */
+  actionLabel?: string;
   isEmpty: boolean;
   /**
    * Load state of this section's own fetch. 'loading' shows a skeleton row,
@@ -136,7 +139,7 @@ export function Section<T>({
     <VStack gap={3} className="pt-4">
       <SectionHeader
         title={title}
-        actionLabel={onManage ? t('village.admin.overview.manage') : undefined}
+        actionLabel={onManage ? (actionLabel ?? t('village.admin.overview.manage')) : undefined}
         onAction={onManage}
       />
       {showSkeleton ? (
@@ -178,6 +181,20 @@ export function Section<T>({
  * `EntityCard` are thin adapters over this one card so people, barrios, places,
  * organizations and peñas all share a single "big picture" style.
  */
+/** A count pill in a card's top-right corner, and how VoiceOver says it. */
+export interface StatBadge {
+  icon: keyof typeof Ionicons.glyphMap;
+  count: number;
+  spoken: 'burials' | 'attendees';
+  testID?: string;
+}
+
+/** A short count over a card's photo, and how VoiceOver says it. */
+export interface ProgressBadge {
+  text: string;
+  spoken: string;
+}
+
 function BigCard({
   label,
   imageUri,
@@ -187,6 +204,8 @@ function BigCard({
   crest,
   commentCount,
   statBadge,
+  size = CARD_W,
+  progressBadge,
   onPress,
 }: {
   label: string;
@@ -212,25 +231,32 @@ function BigCard({
    */
   commentCount?: number;
   /** Alternate top-right count badge, used when the count is not comments. */
-  statBadge?: {
-    icon: keyof typeof Ionicons.glyphMap;
-    count: number;
-    testID?: string;
-  };
+  statBadge?: StatBadge;
+  /** Width and height, for a grid; the rows use the default. */
+  size?: number;
+  /** Top-left, e.g. the tasks done of an event's checklist. */
+  progressBadge?: ProgressBadge;
   onPress?: () => void;
 }) {
+  const { t } = useT();
   const topRightBadge = statBadge && statBadge.count > 0
     ? statBadge
     : commentCount && commentCount > 0
-      ? { icon: 'chatbubble-outline' as const, count: commentCount, testID: 'entity-card-comment-count' }
+      ? { icon: 'chatbubble-outline' as const, count: commentCount, spoken: 'comments' as const, testID: 'entity-card-comment-count' }
       : null;
+  // The card is one accessibility element, so its badge and second line are
+  // spoken only if they are in its label.
+  const spokenCount = topRightBadge
+    ? t(`entityCard.a11y.${topRightBadge.spoken}.${topRightBadge.count === 1 ? 'one' : 'other'}`, { count: topRightBadge.count })
+    : null;
+  const accessibilityLabel = [label, secondary, spokenCount, progressBadge?.spoken].filter(Boolean).join(', ');
 
   const body = crest ? (
     <View
       className="rounded-2xl overflow-hidden"
       style={{
-        width: CARD_W,
-        height: CARD_H,
+        width: size,
+        height: size,
         backgroundColor: CREST_BG,
         borderWidth: accent ? 2 : 1,
         borderColor: ACCENT,
@@ -273,8 +299,8 @@ function BigCard({
     <View
       className="rounded-2xl overflow-hidden"
       style={{
-        width: CARD_W,
-        height: CARD_H,
+        width: size,
+        height: size,
         backgroundColor: PLACEHOLDER_BG,
         ...(accent ? { borderWidth: 1, borderColor: ACCENT } : {}),
       }}
@@ -311,6 +337,28 @@ function BigCard({
         </View>
       ) : null}
 
+      {progressBadge ? (
+        <View
+          testID="entity-card-progress"
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            borderRadius: 12,
+            paddingHorizontal: 6,
+            paddingVertical: 3,
+          }}
+        >
+          <Ionicons name="checkbox-outline" size={iconSizes.sm} color="rgba(255,255,255,0.85)" />
+          <Text variant="bodySm" numberOfLines={1} style={{ color: 'rgba(255,255,255,0.85)', marginLeft: 4 }}>
+            {progressBadge.text}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Bottom scrim keeps the overlaid text legible against any photo. */}
       <View
         style={{
@@ -341,7 +389,7 @@ function BigCard({
   );
   if (!onPress) return body;
   return (
-    <Pressable onPress={onPress} accessibilityLabel={label}>
+    <Pressable onPress={onPress} accessibilityLabel={accessibilityLabel}>
       {body}
     </Pressable>
   );
@@ -388,6 +436,8 @@ export function EntityCard({
   crest,
   commentCount,
   statBadge,
+  size,
+  progressBadge,
   onPress,
 }: {
   label: string;
@@ -400,11 +450,9 @@ export function EntityCard({
   /** Comment count shown as a pill over the photo, when > 0. */
   commentCount?: number;
   /** Alternate top-right count badge, used when the count is not comments. */
-  statBadge?: {
-    icon: keyof typeof Ionicons.glyphMap;
-    count: number;
-    testID?: string;
-  };
+  statBadge?: StatBadge;
+  size?: number;
+  progressBadge?: ProgressBadge;
   onPress?: () => void;
 }) {
   return (
@@ -417,6 +465,8 @@ export function EntityCard({
       crest={crest}
       commentCount={commentCount}
       statBadge={statBadge}
+      size={size}
+      progressBadge={progressBadge}
       onPress={onPress}
     />
   );

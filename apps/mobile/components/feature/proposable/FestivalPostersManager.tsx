@@ -15,6 +15,7 @@ import { useT } from '../../../lib/i18n';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { sanitizeYear, datesToPayload } from './festivalPosterForm';
 import { OrganizerPicker } from '../OrganizerPicker';
+import { useCallableErrorHandler } from '../../../lib/callableError';
 
 function stepBody(children: React.ReactNode) {
   return (
@@ -42,6 +43,7 @@ export function FestivalPostersManager({
   onCreated?: () => void;
 }) {
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { uid } = useEntityCapabilities(villageId);
 
   // Mint the id up front so each picked image can upload before the doc write.
@@ -68,6 +70,8 @@ export function FestivalPostersManager({
     try {
       const url = await uploadFestivalPosterImage(villageId, posterId, picked);
       setImages((prev) => [...prev, url]);
+    } catch (e) {
+      showCallableError(e, { operation: 'poster:uploadImage' });
     } finally {
       setAddingImage(false);
     }

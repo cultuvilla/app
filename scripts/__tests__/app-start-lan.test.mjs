@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -53,3 +53,24 @@ test('a hostname from the environment is used as-is, DNS names included', () => 
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /pnpm --filter cultuvilla-mobile start host=mypc\.local$/m);
 });
+
+// The start scripts themselves, under sh as pnpm runs them, with a stub expo.
+const MOBILE_SCRIPTS = JSON.parse(
+  readFileSync(new URL('../../apps/mobile/package.json', import.meta.url), 'utf8'),
+).scripts;
+
+for (const name of ['start', 'start:tunnel', 'start:lan']) {
+  test(`${name} binds 8081 unless METRO_PORT moves it`, () => {
+    const bin = mkdtempSync(join(tmpdir(), 'app-start-'));
+    writeFileSync(join(bin, 'expo'), '#!/bin/sh\necho "$*"\n');
+    chmodSync(join(bin, 'expo'), 0o755);
+    const port = (env) =>
+      spawnSync('sh', ['-c', MOBILE_SCRIPTS[name]], {
+        encoding: 'utf8',
+        env: { PATH: `${bin}:/usr/bin:/bin`, ...env },
+      }).stdout.match(/--port (\S+)/)?.[1];
+    assert.equal(port({}), '8081');
+    assert.equal(port({ METRO_PORT: '' }), '8081');
+    assert.equal(port({ METRO_PORT: '8090' }), '8090');
+  });
+}

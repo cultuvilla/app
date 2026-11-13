@@ -1,0 +1,337 @@
+# A group's avisos and Charla between its junta and a socio: the admin sends
+# an aviso to every socio through the sendGroupMessage callable (email off, so
+# no Resend), then writes in the Charla; the socio sees the aviso on the group
+# home, opening it marks it read, replies in its own thread, and answers in the
+# Charla. Then "Solo la junta escribe" closes the socio's composer, and is
+# switched off again. Shares e2e-org-asociacion with flows 13–15.
+appId: com.cultuvilla.app.dev
+env:
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  USER_EMAIL: e2e-user@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  ORG_ID: e2e-org-asociacion
+  ADMIN_UID: e2e-admin
+  USER_UID: e2e-user
+# "Solo la junta escribe" outlives the flow; left on, a later flow's member
+# could not write in the Charla. Only boolean writes go through the UI, so the
+# cleanup signs the admin back in, and only when the flag is still on.
+onFlowComplete:
+  - runScript:
+      file: ../scripts/docField.js
+      env:
+        DOC_PATH: 'organizations/${ORG_ID}'
+        FIELD: chatAdminsOnly
+        TIMEOUT_MS: '1000'
+  - runFlow:
+      when:
+        true: ${output.value == 'true'}
+      file: ../subflows/grupos-chat-admins-only.yaml
+      env:
+        EMAIL: ${ADMIN_EMAIL}
+        PASSWORD: ${PASSWORD}
+        ORG_ID: ${ORG_ID}
+        WANT: 'false'
+---
+- evalScript: ${output.stamp = String(Date.now())}
+- evalScript: ${output.avisoTitle = 'Aviso E2E ' + output.stamp}
+- evalScript: ${output.avisoBody = 'Reunion el viernes en el local ' + output.stamp}
+- evalScript: ${output.adminChat = 'Hola desde la junta ' + output.stamp}
+- evalScript: ${output.avisoReply = 'Alli estare ' + output.stamp}
+- evalScript: ${output.userChat = 'Hola junta ' + output.stamp}
+
+# ── The admin sends an aviso to every socio ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/mensajes'
+- extendedWaitUntil:
+    visible:
+      id: 'group-msg-compose-open'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'group-msg-compose-open'
+      EXPECT: 'group-msg-subject'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'group-msg-subject'
+      TEXT: ${output.avisoTitle}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'group-msg-body'
+      TEXT: ${output.avisoBody}
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-msg-audience-trigger'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'group-msg-audience-trigger'
+      EXPECT: 'group-msg-audience-options-all'
+- tapOn:
+    id: 'group-msg-audience-options-all'
+- assertNotVisible:
+    id: 'group-msg-audience-options-all'
+# Email would go through Resend, which the emulator suite has no key for.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'group-msg-email'
+- tapOn:
+    id: 'group-msg-email'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'group-msg-send'
+# The single-button "Enviado a N personas." alert; its OK is the only one on screen.
+- extendedWaitUntil:
+    visible: 'Enviado a .*'
+    timeout: 60000
+- tapOn: 'OK'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/messages'
+      FIELD: title
+      VALUE: ${output.avisoTitle}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.avisoId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/messages/${output.avisoId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@avisoTitle',
+          'body': '@avisoBody',
+          'audience.kind': 'all',
+          'channels.push': true,
+          'channels.email': false,
+          'sentBy': 'e2e-admin',
+          'recipientUids': { 'contains': ['e2e-user'] },
+          'emailCount': 0
+        }
+# Back on the list, the row opens to the sent history.
+- extendedWaitUntil:
+    visible:
+      id: 'group-msg-row-${output.avisoId}'
+    timeout: 20000
+
+# ── The admin writes in the Charla ──
+- openLink: 'cultuvilla://grupos/${ORG_ID}/charla'
+- extendedWaitUntil:
+    visible:
+      id: 'group-chat-input'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'group-chat-input'
+      TEXT: ${output.adminChat}
+# The arrow renders only once the field holds text, while the keyboard settles.
+- extendedWaitUntil:
+    visible:
+      id: 'group-chat-send'
+    timeout: 30000
+- tapOn:
+    id: 'group-chat-send'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/chat'
+      FIELD: body
+      VALUE: ${output.adminChat}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.adminChatId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/chat/${output.adminChatId}'
+      EXPECT_JSON: >-
+        {
+          'authorUid': 'e2e-admin',
+          'authorName': 'Admin E2E',
+          'body': '@adminChat',
+          'createdAt': 'present'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'group-chat-message-${output.adminChatId}'
+    timeout: 20000
+
+# ── The socio: the aviso on the group home, opened, answered ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos?grupo=${ORG_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'group-home-notice-${output.avisoId}'
+    timeout: 45000
+# By text, not the card's inner id: on iOS the card is one accessibility
+# element and hides its children's ids.
+- assertVisible: '.*${output.avisoBody}.*'
+# The home row only lists it; the read is the aviso screen's to mark.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/messages/${output.avisoId}/reads/${USER_UID}'
+      EXPECT: absent
+      TIMEOUT_MS: '1000'
+- assertTrue: ${output.ok == 'true'}
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'group-home-notice-${output.avisoId}'
+      EXPECT: 'group-aviso-head'
+- assertVisible: '.*${output.avisoTitle}.*'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/messages/${output.avisoId}/reads/${USER_UID}'
+      FIELD: readAt
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'group-chat-input'
+      TEXT: ${output.avisoReply}
+- extendedWaitUntil:
+    visible:
+      id: 'group-chat-send'
+    timeout: 30000
+- tapOn:
+    id: 'group-chat-send'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/messages/${output.avisoId}/chat'
+      FIELD: body
+      VALUE: ${output.avisoReply}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/messages/${output.avisoId}/chat/${output.id}'
+      EXPECT_JSON: >-
+        {
+          'authorUid': 'e2e-user',
+          'authorName': 'Usuario E2E',
+          'body': '@avisoReply'
+        }
+# The aviso stays the general Charla's neighbour, not part of it.
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/chat'
+      FIELD: body
+      VALUE: ${output.avisoReply}
+      MIN: '0'
+      MAX: '0'
+      TIMEOUT_MS: '1000'
+- assertTrue: ${output.ok == 'true'}
+
+# The avisos list shows it too, with its way into the thread.
+- openLink: 'cultuvilla://grupos/${ORG_ID}/avisos'
+- extendedWaitUntil:
+    visible:
+      id: 'group-notice-${output.avisoId}'
+    timeout: 45000
+- assertVisible:
+    id: 'group-notice-chat-${output.avisoId}'
+
+# ── The socio answers the admin in the Charla ──
+- openLink: 'cultuvilla://grupos/${ORG_ID}/charla'
+- extendedWaitUntil:
+    visible:
+      id: 'group-chat-message-${output.adminChatId}'
+    timeout: 45000
+- assertVisible: '.*${output.adminChat}.*'
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'group-chat-input'
+      TEXT: ${output.userChat}
+- extendedWaitUntil:
+    visible:
+      id: 'group-chat-send'
+    timeout: 30000
+- tapOn:
+    id: 'group-chat-send'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: 'organizations/${ORG_ID}/chat'
+      FIELD: body
+      VALUE: ${output.userChat}
+      FIELD2: authorUid
+      VALUE2: ${USER_UID}
+      MIN: '1'
+      MAX: '1'
+- assertTrue: ${output.ok == 'true'}
+- extendedWaitUntil:
+    visible:
+      id: 'group-chat-message-${output.id}'
+    timeout: 20000
+
+# ── The junta closes the Charla to its members ──
+- runFlow:
+    file: ../subflows/grupos-chat-admins-only.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+      ORG_ID: ${ORG_ID}
+      WANT: 'true'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: chatAdminsOnly
+      EXPECT: 'true'
+- assertTrue: ${output.ok == 'true'}
+
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${USER_EMAIL}
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://grupos/${ORG_ID}/charla'
+- extendedWaitUntil:
+    visible:
+      id: 'group-chat-closed'
+    timeout: 45000
+- assertNotVisible:
+    id: 'group-chat-input'
+# Reading stays open: the earlier messages are still there.
+- assertVisible:
+    id: 'group-chat-message-${output.adminChatId}'
+
+# ── Back as it was for flows 13–15 ──
+- runFlow:
+    file: ../subflows/grupos-chat-admins-only.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+      ORG_ID: ${ORG_ID}
+      WANT: 'false'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: chatAdminsOnly
+      EXPECT: 'false'
+- assertTrue: ${output.ok == 'true'}

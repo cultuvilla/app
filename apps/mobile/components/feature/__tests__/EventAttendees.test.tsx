@@ -34,6 +34,14 @@ describe('EventAttendees', () => {
     jest.clearAllMocks();
   });
 
+  it('explains that a group-booked event lists its attendees by group', async () => {
+    mockGet.mockResolvedValue([{ id: 'r1', personId: 'p1', name: 'Ana', status: 'confirmed' }]);
+    const { getByTestId } = render(
+      <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired={false} requiresPayment={false} groupSize={3} canManage={false} />,
+    );
+    await waitFor(() => getByTestId('attendees-group-note'));
+  });
+
   it('hides the edit toggle until there is at least one attendee', async () => {
     mockGet.mockResolvedValue([]);
     const { getByText, queryByTestId } = render(

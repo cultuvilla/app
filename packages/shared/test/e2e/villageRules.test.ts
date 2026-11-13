@@ -91,6 +91,29 @@ describe('firestore.rules — /municipalities/{municipalityId}', () => {
     );
   });
 
+  // peopleCount is a server-maintained counter shown to every visitor; a
+  // village admin must not be able to inflate their pueblo's population.
+  it('village admin cannot write peopleCount, but can still edit the village', async () => {
+    await seed(getEnv(), async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'municipalities/m1'), {
+        name: 'Matabuena',
+        communityActive: true,
+        community: { description: 'old' },
+        peopleCount: 12,
+      });
+      await setDoc(doc(ctx.firestore(), 'municipalities/m1/members/alice'), { role: 'admin' });
+    });
+
+    const alice = asUser(getEnv(), 'alice');
+    await assertFails(updateDoc(doc(alice, 'municipalities/m1'), { peopleCount: 9000 }));
+    await assertFails(
+      updateDoc(doc(alice, 'municipalities/m1'), { 'community.description': 'new', peopleCount: 13 }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(alice, 'municipalities/m1'), { 'community.description': 'new' }),
+    );
+  });
+
   it('non-member cannot update a municipality', async () => {
     await seed(getEnv(), async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'municipalities/m1'), { name: 'Salamanca' });

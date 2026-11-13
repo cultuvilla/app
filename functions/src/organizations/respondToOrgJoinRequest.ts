@@ -25,8 +25,8 @@ interface RespondToOrgJoinRequestResult {
 }
 
 /**
- * Resolve a request to join an org whose joinPolicy is `approval` — the only
- * way into such an org other than an admin adding someone directly.
+ * Resolve a request to join an org — the only way in other than an admin adding
+ * someone directly.
  *
  * Authority mirrors the org-member create rule: an org admin, an admin of the
  * org's village, or an app admin. Approval adds the member and its

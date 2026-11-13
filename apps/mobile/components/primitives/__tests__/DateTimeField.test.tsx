@@ -47,3 +47,11 @@ it('picks a minute on the clock, preserving the date and closing the modal', () 
   expect(d.getDate()).toBe(1);
   expect(queryByTestId('dt-time-picker')).toBeNull(); // modal closed after minute pick
 });
+
+it('hides the date button when timeOnly', () => {
+  const { getByTestId, queryByTestId } = render(
+    <DateTimeField label="Fin" value={null} onChange={jest.fn()} timeOnly testID="dt" />,
+  );
+  expect(queryByTestId('dt-date')).toBeNull();
+  expect(getByTestId('dt-time')).toBeTruthy();
+});

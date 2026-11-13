@@ -1,4 +1,4 @@
-import { render, waitFor, act } from '@testing-library/react-native';
+import { render, waitFor, act, fireEvent } from '@testing-library/react-native';
 import { ExistingWordSuggestions } from '../ExistingWordSuggestions';
 import { searchVocabularyWords } from '@cultuvilla/shared/services/vocabularyService';
 
@@ -41,6 +41,14 @@ describe('<ExistingWordSuggestions>', () => {
     const { getByText } = render(<ExistingWordSuggestions query="esbar" onPick={jest.fn()} />);
     await settle();
     await waitFor(() => expect(getByText('Esbardo')).toBeTruthy());
+  });
+
+  it('hands the picked word to the form', async () => {
+    const onPick = jest.fn();
+    const { findByTestId } = render(<ExistingWordSuggestions query="esbar" onPick={onPick} />);
+    await settle();
+    fireEvent.press(await findByTestId('vocabulary-suggestion-esbardo'));
+    expect(onPick).toHaveBeenCalledWith(esbardo);
   });
 
   it('says nothing for a one-letter query — every word would match', async () => {

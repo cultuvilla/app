@@ -11,6 +11,7 @@ import {
 } from '@cultuvilla/shared/utils';
 import {
   loadActiveVillages,
+  loadAmbassadors,
   loadBarrio,
   loadEvent,
   loadHistoryEntry,
@@ -23,6 +24,7 @@ import {
   loadTerm,
   loadVillageById,
   loadVillageBySlug,
+  loadOtherVillages,
   loadVillageHome,
   loadWrapped,
   type Village,
@@ -196,11 +198,12 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
     case 'villages':
       return page(villagesPage(await loadLanding(deps)), path);
     case 'ambassadors': {
-      if (req.method !== 'POST') return page(ambassadorsPage(), path);
+      if (req.method !== 'POST') return page(ambassadorsPage(await loadAmbassadors(db)), path);
       const outcome = await submitAmbassadorLead(db, req.body, req.ip ?? 'unknown', deps.now);
       if (outcome.ok) return { kind: 'redirect', location: '/embajadores/gracias', permanent: false, seeOther: true };
       // The visitor's own answers come back to them, so the edge must never keep this page.
-      return { kind: 'page', page: { ...ambassadorsPage(outcome), status: 400 }, path, deviceDependent: true };
+      // Uncached, so it skips the wall: a bot's malformed POSTs would otherwise each pay its reads.
+      return { kind: 'page', page: { ...ambassadorsPage([], outcome), status: 400 }, path, deviceDependent: true };
     }
     case 'ambassadorsThanks':
       return page(ambassadorsThanksPage(), path);
@@ -223,7 +226,11 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
     case 'village': {
       const v = await loadVillageBySlug(db, route.villageSlug);
       if (!v) return notFound(path);
-      return page(villagePage(v, v.active ? await loadVillageHome(db, bucket, v, deps.now) : null), path);
+      const [home, others] = await Promise.all([
+        v.active ? loadVillageHome(db, bucket, v, deps.now) : null,
+        loadOtherVillages(db, v.id),
+      ]);
+      return page(villagePage(v, home, others), path);
     }
     case 'section': {
       const v = await loadVillageBySlug(db, route.villageSlug);

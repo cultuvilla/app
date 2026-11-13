@@ -1,8 +1,10 @@
 import { openVillage } from '../../lib/navigation/openVillage';
-import { userHref } from '../../lib/navigation/routes';
-import { useCallback, useEffect, useState } from 'react';
+import { userHref, villageSectionHref } from '../../lib/navigation/routes';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { iconSizes, palette } from '@cultuvilla/shared/design-system';
 import {
   Screen,
   VStack,
@@ -33,7 +35,16 @@ import {
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import { getNotifications, markAllAsRead } from '@cultuvilla/shared/services/notificationService';
 import { isOpenableNotification, openNotification } from '../../lib/notifications/openNotification';
+import {
+  getOpenReports,
+  getReportsByMunicipality,
+} from '@cultuvilla/shared/services/contentReportService';
 import { getMyPendingRequests, buildActivityFeed } from '@cultuvilla/shared/services/inboxService';
+import { watchCosaRequestsToAnswer, type CosaRequest } from '@cultuvilla/shared/services/cosatecaService';
+import { CosaRequestRow } from '../../components/feature/groups/cosateca/CosaRows';
+import { useWatch } from '../../lib/hooks/useWatch';
+import { groupCosaRequestHref } from '../../lib/navigation/routes';
+import { useMyGroups } from '../../lib/orgs/useMyGroups';
 import {
   getPendingOrgJoinRequests,
   respondToOrgJoinRequest,
@@ -51,6 +62,7 @@ import type { OrganizationData } from '@cultuvilla/shared/models/organization/Or
 
 type OrganizerRow = OrganizerRequestData & { id: string };
 type OrgRow = OrganizationData & { id: string };
+type ReportsRow = { municipalityId: string; name: string; slug: string; count: number };
 
 export default function InboxScreen() {
   const { t } = useT();
@@ -61,8 +73,26 @@ export default function InboxScreen() {
   const [organizerRows, setOrganizerRows] = useState<OrganizerRow[]>([]);
   const [orgRows, setOrgRows] = useState<OrgRow[]>([]);
   const [joinRows, setJoinRows] = useState<OrgJoinRequestData[]>([]);
+  const [reportRows, setReportRows] = useState<ReportsRow[]>([]);
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [dataLoading, setDataLoading] = useState(false);
+
+  // ─── Cosateca: requests waiting for this user's answer ───────────────────────
+  // Not an approver's queue: anyone who offered something answers here, so it
+  // renders whatever `canApprove` says.
+  const cosaUid = user?.uid ?? null;
+  const myGroups = useMyGroups(cosaUid);
+  const groupsIAdmin = useMemo(
+    () => myGroups.groups.filter((g) => g.role === 'admin').map((g) => g.org.id).sort(),
+    [myGroups.groups],
+  );
+  const cosaReady = cosaUid !== null && myGroups.status === 'ready';
+  const cosaToAnswer = useWatch<CosaRequest[]>(
+    'cosateca:watchCosaRequestsToAnswer',
+    cosaReady ? `${cosaUid}|${groupsIAdmin.join(',')}` : null,
+    cosaReady ? (next, error) => watchCosaRequestsToAnswer(cosaUid, groupsIAdmin, next, error) : null,
+  );
+  const cosaRows = cosaToAnswer.data ?? [];
 
   // ─── Activity feed state ────────────────────────────────────────────────────
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
@@ -208,6 +238,47 @@ export default function InboxScreen() {
     void loadData();
   }, [loadData]);
 
+  // ─── Open reports ────────────────────────────────────────────────────────────
+  // On focus, not on mount: they are resolved on the pushed Denuncias screen, so
+  // coming back here has to drop the ones just dealt with.
+  useFocusEffect(
+    useCallback(() => {
+      if (loading || (!isSuperAdmin && adminVillageIds.length === 0)) return;
+      let cancelled = false;
+
+      void (async () => {
+        try {
+          const reports = isSuperAdmin
+            ? await getOpenReports()
+            : (
+                await Promise.all(
+                  adminVillageIds.map((vid) =>
+                    getReportsByMunicipality(vid, { status: 'open' }).catch(() => []),
+                  ),
+                )
+              ).flat();
+
+          const counts = new Map<string, number>();
+          for (const r of reports) counts.set(r.municipalityId, (counts.get(r.municipalityId) ?? 0) + 1);
+
+          const rows = await Promise.all(
+            [...counts].map(async ([municipalityId, count]) => {
+              const m = await getMunicipality(municipalityId).catch(() => null);
+              return m ? { municipalityId, name: m.name, slug: m.slug, count } : null;
+            }),
+          );
+          if (!cancelled) setReportRows(rows.filter((row) => row !== null));
+        } catch (err) {
+          if (!cancelled) setErrorMessage(err instanceof Error ? err.message : String(err));
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [loading, isSuperAdmin, adminVillageIds]),
+  );
+
   // ─── Activity load ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
@@ -317,7 +388,8 @@ export default function InboxScreen() {
   }
 
   // ─── Render: actionable section ──────────────────────────────────────────────
-  const hasActionable = organizerRows.length > 0 || orgRows.length > 0 || joinRows.length > 0;
+  const hasActionable =
+    organizerRows.length > 0 || orgRows.length > 0 || joinRows.length > 0 || reportRows.length > 0;
 
   function renderActionable() {
     if (dataLoading) {
@@ -333,6 +405,33 @@ export default function InboxScreen() {
     return (
       <VStack gap={4}>
         <Text variant="h2">{t('inbox.needsAction')}</Text>
+
+        {/* Open reports, one row per village: they are resolved on its Denuncias screen */}
+        {reportRows.length > 0 && (
+          <VStack gap={2}>
+            <Text variant="h3">{t('inbox.tab.reports')}</Text>
+            {reportRows.map((row) => (
+              <Pressable
+                key={row.municipalityId}
+                onPress={() => router.push(villageSectionHref(row.slug, 'denuncias'))}
+                accessibilityRole="button"
+                accessibilityLabel={`${row.name}: ${t('inbox.reportsCount', { count: row.count })}`}
+                testID={`inbox-reports-${row.municipalityId}`}
+                className="bg-surface border border-subtle rounded-xl p-3"
+              >
+                <HStack gap={2} className="items-center justify-between">
+                  <VStack gap={0} className="flex-1">
+                    <Text className="font-semibold">{row.name}</Text>
+                    <Text tone="muted" variant="caption">
+                      {t('inbox.reportsCount', { count: row.count })}
+                    </Text>
+                  </VStack>
+                  <Ionicons name="chevron-forward" size={iconSizes.sm} color={palette.terracotta} />
+                </HStack>
+              </Pressable>
+            ))}
+          </VStack>
+        )}
 
         {/* Organizer requests section */}
         {isSuperAdmin && organizerRows.length > 0 && (
@@ -414,6 +513,7 @@ export default function InboxScreen() {
                           variant="ghost"
                           onPress={() => handleOrganizerDecide(row, 'rejected')}
                           loading={busyKey === key}
+                          testID={`reject-organizer-${row.id}`}
                         >
                           {t('inbox.reject')}
                         </Button>
@@ -472,6 +572,7 @@ export default function InboxScreen() {
                       variant="ghost"
                       onPress={() => handleOrgDecide(row, 'rejected')}
                       loading={busyKey === key}
+                      testID={`reject-org-${row.id}`}
                     >
                       {t('inbox.reject')}
                     </Button>
@@ -495,7 +596,27 @@ export default function InboxScreen() {
     if (item.requestType === 'orgJoin') {
       return t('inbox.pendingSent.orgJoin', { name: orgNames[item.label] ?? item.label });
     }
+    if (item.requestType === 'cosa') return t('inbox.pendingSent.cosa', { name: item.label });
     return t('inbox.pendingSent.org', { name: item.label });
+  }
+
+  function renderCosaRequests() {
+    if (cosaRows.length === 0) return null;
+    return (
+      <VStack gap={2} testID="inbox-cosateca">
+        {/* Under the approver's heading when it shows; its own otherwise. */}
+        {canApprove && hasActionable && !dataLoading ? null : <Text variant="h2">{t('inbox.needsAction')}</Text>}
+        <Text variant="h3">{t('groups.cosateca.inbox.title')}</Text>
+        {cosaRows.map((row) => (
+          <CosaRequestRow
+            key={row.id}
+            request={row}
+            showRequester
+            onPress={() => router.push(groupCosaRequestHref(row.orgId, row.id))}
+          />
+        ))}
+      </VStack>
+    );
   }
 
   function renderActivity() {
@@ -556,6 +677,7 @@ export default function InboxScreen() {
     !dataLoading &&
     !activityLoading &&
     !(canApprove && hasActionable) &&
+    cosaRows.length === 0 &&
     activityItems.length === 0;
 
   return (
@@ -566,6 +688,7 @@ export default function InboxScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
         {canApprove && renderActionable()}
+        {renderCosaRequests()}
         {renderActivity()}
         {isEmpty && (
           <View className="p-4">

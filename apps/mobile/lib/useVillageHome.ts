@@ -13,7 +13,6 @@ import {
   isVillageAdmin,
   getVillageMembers,
 } from '@cultuvilla/shared/services/villageMemberService';
-import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
 import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
 import { watchOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 import { getMyOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
@@ -38,6 +37,7 @@ import {
 } from '@cultuvilla/shared/services/vocabularyService';
 import { pickWordOfTheDay } from '@cultuvilla/shared/utils/wordOfTheDay';
 import { upcomingThenPast } from '@cultuvilla/shared/models/event/EventDataModel';
+import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import type { MunicipalityData } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
 import type { BarrioData, PlaceData } from '@cultuvilla/shared/models/municipality';
 import type { OrganizationData } from '@cultuvilla/shared/models/organization';
@@ -86,7 +86,7 @@ export interface VillageHomeState {
   history: HistoryEntryWithId[];
   wordOfTheDay: WordOfTheDay | null;
   vocabularyCount: number;
-  /** null while the members fetch is in flight, so the stat renders "—". */
+  /** Denormalized on the village doc; null while it loads, so the stat renders "—". */
   peopleCount: number | null;
   pendingOrganizerRequest: boolean;
   /** The current user's censo answers (empty if not a member / none yet). */
@@ -131,7 +131,6 @@ const EMPTY: VillageHomeState = {
 interface Chrome {
   villageAdmin: boolean;
   isMember: boolean;
-  peopleCount: number | null;
   pendingOrganizerRequest: boolean;
   myCensoAnswers: ProfileAnswers;
 }
@@ -139,7 +138,6 @@ interface Chrome {
 const NO_CHROME: Chrome = {
   villageAdmin: false,
   isMember: false,
-  peopleCount: null,
   pendingOrganizerRequest: false,
   myCensoAnswers: {},
 };
@@ -213,9 +211,9 @@ export function useVillageHome(municipalityId: string | null) {
   return useMemo<VillageHomeState & { reload: () => Promise<void> }>(() => {
     if (!id) return { ...EMPTY, reload: chrome.reload };
 
-    const events = upcomingThenPast(
-      [...(publicEvents.data ?? NO_ROWS), ...(privateEvents.data ?? NO_ROWS)],
-      new Date(),
+    // One card per weekly series — its next date — rather than one per week.
+    const events = firstOfEachSeries(
+      upcomingThenPast([...(publicEvents.data ?? NO_ROWS), ...(privateEvents.data ?? NO_ROWS)], new Date()),
     );
 
     return {
@@ -223,6 +221,7 @@ export function useVillageHome(municipalityId: string | null) {
       coreError: core.error?.message ?? null,
       village: core.data ?? null,
       ...chrome.value,
+      peopleCount: core.data?.peopleCount ?? null,
       events,
       news: news.data ?? NO_ROWS,
       festivalPosters: posters.data ?? NO_ROWS,
@@ -270,16 +269,6 @@ function useChrome(municipalityId: string | null, uid: string | null) {
     const commit = (next: Chrome) => {
       if (runId.current === myRun) setValue(next);
     };
-    // The people directory is fetched on its own, NOT inside the Promise.all
-    // below. Its rows go through a strict converter, so one doc that predates a
-    // schema field throws — and sharing a Promise.all would take membership,
-    // admin rights and censo answers down with the count, silently rendering the
-    // village as if you weren't a member. Losing just the stat is acceptable.
-    const peopleCount = await withFirestoreErrorLog('villageHome:getMunicipalityPeople', () =>
-      getMunicipalityPeople(municipalityId),
-    )
-      .then((people) => people.length)
-      .catch(() => null);
     try {
       const [isAdmin, myReqs, members] = await Promise.all([
         uid
@@ -301,7 +290,6 @@ function useChrome(municipalityId: string | null, uid: string | null) {
       commit({
         villageAdmin: isAdmin,
         isMember,
-        peopleCount,
         pendingOrganizerRequest: myReqs.some(
           (r) => r.municipalityId === municipalityId && r.status === 'pending',
         ),
@@ -310,7 +298,7 @@ function useChrome(municipalityId: string | null, uid: string | null) {
     } catch {
       // Chrome degrades silently to the non-member view; the error is already
       // logged by withFirestoreErrorLog and must not take down the tab.
-      commit({ ...NO_CHROME, peopleCount });
+      commit(NO_CHROME);
     }
   }, [municipalityId, uid]);
 

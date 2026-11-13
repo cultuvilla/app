@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
+import { ScrollView } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { VStack } from '../primitives/VStack';
 import { HStack } from '../primitives/HStack';
 import { Text } from '../primitives/Text';
 import { Avatar } from '../primitives/Avatar';
 import { Button } from '../primitives/Button';
 import { Pressable } from '../primitives/Pressable';
+import { BottomSheet } from '../primitives/BottomSheet';
 import { DetailSectionHeading } from './DetailSectionHeading';
 import { userHref } from '../../lib/navigation/routes';
 import { showAlert } from '../../lib/dialogs';
@@ -71,7 +75,12 @@ export function OrgJoinRequestRow({
         >
           {t('organization.joinRequests.approve')}
         </Button>
-        <Button variant="ghost" onPress={() => onDecide('rejected')} loading={busy}>
+        <Button
+          variant="ghost"
+          onPress={() => onDecide('rejected')}
+          loading={busy}
+          testID={`reject-join-${request.orgId}-${request.userId}`}
+        >
           {t('organization.joinRequests.reject')}
         </Button>
       </HStack>
@@ -81,13 +90,23 @@ export function OrgJoinRequestRow({
 
 /**
  * The pending join requests of one `approval` org, for someone who manages it.
- * Renders nothing when there are none.
+ * Renders nothing when there are none. `banner` folds them into one line with
+ * a "Revisar" button that opens them in a sheet (the Socios screen).
  */
-export function OrgJoinRequests({ orgId, onResolved }: { orgId: string; onResolved?: () => void }) {
+export function OrgJoinRequests({
+  orgId,
+  onResolved,
+  banner = false,
+}: {
+  orgId: string;
+  onResolved?: () => void;
+  banner?: boolean;
+}) {
   const { t } = useT();
   const [requests, setRequests] = useState<OrgJoinRequestData[]>([]);
   const [requesters, setRequesters] = useState<Record<string, Requester>>({});
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   const load = useCallback(async () => {
     const pending = await getPendingOrgJoinRequests(orgId).catch(() => []);
@@ -115,19 +134,48 @@ export function OrgJoinRequests({ orgId, onResolved }: { orgId: string; onResolv
 
   if (requests.length === 0) return null;
 
+  const rows = requests.map((r) => (
+    <OrgJoinRequestRow
+      key={r.userId}
+      request={r}
+      requester={requesters[r.userId] ?? { name: r.userId, photoURL: null }}
+      subtitle={t('organization.joinRequests.wantsToJoin')}
+      busy={busyUserId === r.userId}
+      onDecide={(decision) => decide(r, decision)}
+    />
+  ));
+
+  if (banner) {
+    return (
+      <>
+        <HStack gap={3} className="items-center bg-surface-elevated border border-accent rounded-xl p-3" testID="org-join-banner">
+          <Ionicons name="hand-left-outline" size={iconSizes.md} color={colors.light.fg.accent} />
+          <Text className="flex-1 font-bold">{t('organization.joinRequests.banner', { count: requests.length })}</Text>
+          <Button onPress={() => setReviewing(true)} testID="org-join-review">
+            {t('organization.joinRequests.review')}
+          </Button>
+        </HStack>
+        <BottomSheet
+          visible={reviewing}
+          onClose={() => setReviewing(false)}
+          title={t('organization.joinRequests.title')}
+          closeLabel={t('common.close')}
+          testID="org-join-sheet"
+        >
+          <ScrollView style={{ flexShrink: 1 }}>
+            <VStack gap={2} className="px-5 pb-2">
+              {rows}
+            </VStack>
+          </ScrollView>
+        </BottomSheet>
+      </>
+    );
+  }
+
   return (
     <VStack gap={2}>
       <DetailSectionHeading>{t('organization.joinRequests.title')}</DetailSectionHeading>
-      {requests.map((r) => (
-        <OrgJoinRequestRow
-          key={r.userId}
-          request={r}
-          requester={requesters[r.userId] ?? { name: r.userId, photoURL: null }}
-          subtitle={t('organization.joinRequests.wantsToJoin')}
-          busy={busyUserId === r.userId}
-          onDecide={(decision) => decide(r, decision)}
-        />
-      ))}
+      {rows}
     </VStack>
   );
 }

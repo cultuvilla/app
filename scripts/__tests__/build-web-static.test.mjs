@@ -1,9 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildRobotsTxt, buildWebStatic } from '../build-web-static.mjs';
+
+/** A stand-in for the studio build, which these tests do not run. */
+function fakeStudio() {
+  const dir = mkdtempSync(join(tmpdir(), 'studio-dist-'));
+  writeFileSync(join(dir, 'index.html'), '<!doctype html><title>Estudio</title>');
+  return dir;
+}
 
 // dev and beta are public *.web.app sites full of demo seed data under the
 // Cultuvilla name. Allowing them is an invitation to index them.
@@ -21,7 +28,7 @@ test('prod: points crawlers at the sitemap on the brand domain', () => {
 
 test('prod: keeps people, invite links and private screens out', () => {
   const txt = buildRobotsTxt('prod');
-  for (const path of ['/persona/', '/*/unirse$', '/*/plaza/', '/mis-inscripciones', '/mis-pueblos', '/buzon', '/ajustes', '/admin']) {
+  for (const path of ['/persona/', '/*/unirse$', '/*/plaza/', '/mis-inscripciones', '/mis-pueblos', '/buzon', '/ajustes', '/admin', '/estudio']) {
     assert.ok(txt.includes(`Disallow: ${path}\n`), `missing Disallow: ${path}`);
   }
   // A bare "Disallow: /" on prod would de-index the whole site.
@@ -30,7 +37,7 @@ test('prod: keeps people, invite links and private screens out', () => {
 
 for (const env of ['dev', 'beta', 'prod']) {
   test(`${env}: assembles its own deep-link identities, robots and brand files`, () => {
-    const out = buildWebStatic(env, mkdtempSync(join(tmpdir(), 'web-static-')));
+    const out = buildWebStatic(env, mkdtempSync(join(tmpdir(), 'web-static-')), fakeStudio());
     const aasa = readFileSync(join(out, '.well-known/apple-app-site-association'), 'utf8');
     assert.equal(aasa, readFileSync(new URL(`../../web/well-known/${env}/apple-app-site-association`, import.meta.url), 'utf8'));
     assert.ok(existsSync(join(out, '.well-known/assetlinks.json')));
@@ -41,8 +48,14 @@ for (const env of ['dev', 'beta', 'prod']) {
       readFileSync(new URL('../../packages/shared/assets/brand/cultuvilla-lettering.svg', import.meta.url), 'utf8'),
     );
     assert.ok(existsSync(join(out, 'favicon.ico')));
+    assert.ok(existsSync(join(out, 'estudio/index.html')));
   });
 }
+
+test('refuses to assemble without the studio build', () => {
+  const missing = mkdtempSync(join(tmpdir(), 'no-studio-'));
+  assert.throws(() => buildWebStatic('dev', mkdtempSync(join(tmpdir(), 'web-static-')), missing), /studio is not built/);
+});
 
 test('rejects an unknown env', () => {
   assert.throws(() => buildWebStatic('staging'), /unknown env/);

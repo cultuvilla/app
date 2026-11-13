@@ -15,6 +15,9 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  orderBy,
+  query,
+  where,
   type Firestore,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
@@ -129,10 +132,49 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
       await assertSucceeds(getDoc(doc(db, `contentReports/${REPORT}`)));
     });
 
+    it("the village's admin can list their municipality's open reports, as the inbox does", async () => {
+      await seedFixtures();
+      const db = asUser(getEnv(), VILLAGE_ADMIN);
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'contentReports'),
+            where('municipalityId', '==', MUNI),
+            where('status', '==', 'open'),
+            orderBy('createdAt', 'desc'),
+          ),
+        ),
+      );
+    });
+
+    it("an admin of another village cannot list this municipality's reports", async () => {
+      await seed(getEnv(), async (ctx) => {
+        const db = ctx.firestore() as unknown as Firestore;
+        await setDoc(doc(db, `municipalities/${OTHER_MUNI}/members/${OUTSIDER}`), { role: 'admin' });
+      });
+      await seedFixtures();
+      const db = asUser(getEnv(), OUTSIDER);
+      await assertFails(
+        getDocs(query(collection(db, 'contentReports'), where('municipalityId', '==', MUNI))),
+      );
+    });
+
     it('an app admin can read any report', async () => {
       await seedFixtures();
       const db = await asAdmin(getEnv(), APP_ADMIN);
       await assertSucceeds(getDoc(doc(db, `contentReports/${REPORT}`)));
+    });
+
+    it("an app admin can list every village's open reports, as the Buzón does", async () => {
+      await seedFixtures();
+      const db = await asAdmin(getEnv(), APP_ADMIN);
+      await assertSucceeds(getDocs(query(collection(db, 'contentReports'), where('status', '==', 'open'))));
+    });
+
+    it("a village admin cannot list every village's open reports", async () => {
+      await seedFixtures();
+      const db = asUser(getEnv(), VILLAGE_ADMIN);
+      await assertFails(getDocs(query(collection(db, 'contentReports'), where('status', '==', 'open'))));
     });
 
     it('the reporter cannot read back their own report', async () => {

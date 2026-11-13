@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { render, within } from '@testing-library/react-native';
 import CommunityScreen from '../comunidad';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 
@@ -18,9 +18,14 @@ jest.mock('../../../lib/navigation/VillageRouteGate');
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({ useEntityCapabilities: jest.fn() }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../components/feature/CommunitySettingsEditor', () => ({
-  CommunitySettingsEditor: () => {
-    const { Text } = require('react-native');
-    return <Text>COMMUNITY_EDITOR</Text>;
+  CommunitySettingsEditor: ({ afterFiestas }: { afterFiestas?: React.ReactNode }) => {
+    const { Text, View } = require('react-native');
+    return (
+      <View testID="community-editor">
+        <Text>COMMUNITY_EDITOR</Text>
+        {afterFiestas}
+      </View>
+    );
   },
 }));
 
@@ -33,6 +38,12 @@ describe('CommunityScreen (role-gated)', () => {
     mockCaps.mockReturnValue({ canManage: true, canApprove: true, uid: 'u1', loading: false });
     const { getByText } = render(<CommunityScreen />);
     expect(getByText('COMMUNITY_EDITOR')).toBeTruthy();
+  });
+
+  it('puts the fiestas summary entry inside the editor, not in the sticky footer', () => {
+    mockCaps.mockReturnValue({ canManage: true, canApprove: true, uid: 'u1', loading: false });
+    const { getByTestId } = render(<CommunityScreen />);
+    expect(within(getByTestId('community-editor')).getByTestId('community-wrapped')).toBeTruthy();
   });
 
   it('a villager is redirected back to the village', () => {

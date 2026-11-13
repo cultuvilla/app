@@ -32,6 +32,8 @@ export type FilterSheetProps = {
   allLabel: string;
   searchable?: boolean;
   searchPlaceholder?: string;
+  /** Each row is `<testID>-option-<value>`, the "all" row `<testID>-option-all`. */
+  testID?: string;
 };
 
 type Row = { value: string | null; label: string };
@@ -46,6 +48,7 @@ export function FilterSheet({
   allLabel,
   searchable = false,
   searchPlaceholder,
+  testID,
 }: FilterSheetProps) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
@@ -133,6 +136,7 @@ export function FilterSheet({
             <View className="flex-row items-center mx-4 mt-3 px-3 rounded-md border border-subtle bg-surface">
               <Ionicons name="search-outline" size={18} color="#a6a897" />
               <TextInput
+                testID={testID ? `${testID}-search` : undefined}
                 value={search}
                 onChangeText={setSearch}
                 placeholder={searchPlaceholder}
@@ -152,6 +156,7 @@ export function FilterSheet({
               return (
                 <Pressable
                   onPress={() => close(() => onSelect(item.value))}
+                  testID={testID ? `${testID}-option-${item.value ?? 'all'}` : undefined}
                   className="flex-row items-center justify-between px-5 py-4 border-b border-subtle"
                 >
                   <Text tone={isSelected ? 'primary' : 'muted'} className={isSelected ? 'font-bold' : ''}>

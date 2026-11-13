@@ -7,3 +7,5 @@ export * from './PushQueueDataModel';
 export * from './VillageEntityCopy';
 export * from './DeviceTokenDataModel';
 export * from './NotificationPrefsDataModel';
+export * from './NotificationTopic';
+export * from './NotificationSettingsDataModel';

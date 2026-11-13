@@ -71,4 +71,27 @@ describe('useOrgCapabilities', () => {
     expect(result.current.canManage).toBe(false);
     expect(result.current.uid).toBeNull();
   });
+
+  // The organizations delete rule admits only a village admin or an app admin.
+  // The edit screen offered its delete to every org admin, whose tap was then
+  // refused with no message (E2E flow 74).
+  it('org admin: may manage but not delete', async () => {
+    mockIsOrgAdmin.mockResolvedValue(true);
+    const { result } = renderHook(() => useOrgCapabilities('org1', 'm1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.canDelete).toBe(false);
+  });
+
+  it('village admin and app admin: may delete', async () => {
+    mockIsVillageAdmin.mockResolvedValue(true);
+    const village = renderHook(() => useOrgCapabilities('org1', 'm1'));
+    await waitFor(() => expect(village.result.current.loading).toBe(false));
+    expect(village.result.current.canDelete).toBe(true);
+
+    mockIsVillageAdmin.mockResolvedValue(false);
+    mockAppAdmin.mockReturnValue({ isAppAdmin: true, loading: false });
+    const app = renderHook(() => useOrgCapabilities('org1', 'm1'));
+    await waitFor(() => expect(app.result.current.loading).toBe(false));
+    expect(app.result.current.canDelete).toBe(true);
+  });
 });

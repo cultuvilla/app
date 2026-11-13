@@ -1,0 +1,36 @@
+# Choose ${VILLAGE_ID} in the VillagePicker ${PICKER}, found by typing ${SEARCH}.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: ${PICKER}
+- tapOn:
+    id: ${PICKER}
+- extendedWaitUntil:
+    visible:
+      id: ${PICKER}-search
+    timeout: 10000
+- runFlow:
+    file: type-into.yaml
+    env:
+      INPUT: ${PICKER}-search
+      TEXT: ${SEARCH}
+- extendedWaitUntil:
+    visible:
+      id: ${PICKER}-option-${VILLAGE_ID}
+    timeout: 20000
+# With the search keyboard up, the first tap on an option can go to closing
+# the keyboard instead; tap until the picker closes.
+- repeat:
+    times: 3
+    while:
+      visible:
+        id: ${PICKER}-search
+    commands:
+      - tapOn:
+          id: ${PICKER}-option-${VILLAGE_ID}
+      - waitForAnimationToEnd:
+          timeout: 2000
+- assertNotVisible:
+    id: ${PICKER}-search

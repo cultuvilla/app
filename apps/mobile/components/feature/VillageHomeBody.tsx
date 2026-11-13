@@ -42,6 +42,7 @@ import { WordOfTheDayCard } from './vocabulary/WordOfTheDayCard';
 import { LocationMap } from './LocationMap';
 import { JoinVillageModal } from './JoinVillageModal';
 import { VillageWrappedStrip } from './wrapped/VillageWrappedStrip';
+import { OtherVillagesSection } from './OtherVillagesSection';
 import { WrappedPrompt } from './wrapped/WrappedPrompt';
 import { StatsRow } from './StatsRow';
 import { useAuth } from '../../lib/auth/useAuth';
@@ -57,6 +58,7 @@ import {
 } from '@cultuvilla/shared/services/villageMemberService';
 import { getVillageViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { MAP_ZOOM_DEFAULT } from '@cultuvilla/shared/services/mapsService';
+import { useScrollEnabledWhileZooming } from '../primitives/ImageZoomOverlay';
 import { newsImageDownloadURL } from '@cultuvilla/shared/services/imageService';
 import type { NewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import { formatDate, formatFestivalPosterDates } from '@cultuvilla/shared/utils';
@@ -65,6 +67,7 @@ import {
   hasManualEscudo,
 } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
 import type { VillageHomeState } from '../../lib/useVillageHome';
+import { VillageCosatecaEntry } from './groups/cosateca/VillageCosatecaEntry';
 
 export interface VillageHomeBodyProps {
   data: VillageHomeState;
@@ -80,6 +83,7 @@ export interface VillageHomeBodyProps {
  * "offer to join". Editar (admins) and Compartir (everyone) follow it.
  */
 export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
+  const scrollEnabled = useScrollEnabledWhileZooming();
   const { user, refreshProfile } = useAuth();
   const { offerPush } = usePush();
   const gate = useRegisterGate();
@@ -129,34 +133,37 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
       }
     };
     return (
-      <View className="flex-1 items-center justify-center px-8">
-        <VStack gap={2} className="items-center">
-          <Escudo
-            url={escudoFullUrl(village)}
-            size={96}
-            fallbackInitial={village.name}
-            zoomable
-            accessibilityLabel={village.name}
-          />
-          <Text variant="h2" className="mt-2 text-center">
-            {village.name}
-          </Text>
-          <Text tone="muted" variant="bodySm">
-            {village.province}
-          </Text>
-          <Text className="text-center mt-4">
-            {t('village.notRegistered.body', { name: village.name })}
-          </Text>
-          <Button
-            className="mt-4"
-            onPress={() => void joinDormant()}
-            loading={joining}
-            testID="village-join-dormant"
-          >
-            {user ? t('village.join') : t('village.signInToJoin')}
-          </Button>
-        </VStack>
-      </View>
+      <ScrollView contentContainerClassName="flex-grow pb-10" scrollEnabled={scrollEnabled}>
+        <View className="flex-1 items-center justify-center px-8 py-8">
+          <VStack gap={2} className="items-center">
+            <Escudo
+              url={escudoFullUrl(village)}
+              size={96}
+              fallbackInitial={village.name}
+              zoomable
+              accessibilityLabel={village.name}
+            />
+            <Text variant="h2" className="mt-2 text-center">
+              {village.name}
+            </Text>
+            <Text tone="muted" variant="bodySm">
+              {village.province}
+            </Text>
+            <Text className="text-center mt-4">
+              {t('village.notRegistered.body', { name: village.name })}
+            </Text>
+            <Button
+              className="mt-4"
+              onPress={() => void joinDormant()}
+              loading={joining}
+              testID="village-join-dormant"
+            >
+              {user ? t('village.join') : t('village.signInToJoin')}
+            </Button>
+          </VStack>
+        </View>
+        <OtherVillagesSection municipalityId={village.id} />
+      </ScrollView>
     );
   }
 
@@ -176,6 +183,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
   const canManage = isAppAdmin || villageAdmin;
   // Wiki phase: active but no organizer granted yet (community.organizerId null).
   const noOrganizer = village.community?.organizerId == null;
+  const description = village.community?.description?.trim() || null;
   const villageSlug = village.slug;
 
   const caps = { canManage, uid: user?.uid ?? null };
@@ -231,7 +239,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
 
   return (
     <>
-      <ScrollView contentContainerClassName="pb-10">
+      <ScrollView contentContainerClassName="pb-10" scrollEnabled={scrollEnabled}>
         {/* ── Header (escudo + name) ───────────────────────────── */}
         <VStack gap={2} className="px-4 pt-4">
           <HStack gap={4} className="items-center">
@@ -254,6 +262,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               </Text>
             </VStack>
           </HStack>
+          {description ? <Text testID="village-description">{description}</Text> : null}
         </VStack>
 
         {/* ── Stats ────────────────────────────────────────────── */}
@@ -350,6 +359,81 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           </View>
         ) : null}
 
+        {/* ── Agrupaciones (everything but peñas) ──────────────── */}
+        <Section
+          title={t('village.hub.organizations')}
+          testID="village-orgs-row"
+          isEmpty={agrupaciones.length === 0}
+          status={sectionStatus.organizations}
+        >
+          {agrupaciones.map((o) => (
+            <EntityCard
+              key={o.id}
+              label={o.name}
+              sub={
+                o.type === 'comisión'
+                  ? t('organization.comisión')
+                  : t('village.hub.memberCount', { count: o.memberCount })
+              }
+              icon={o.type === 'comisión' ? 'sparkles-outline' : 'business-outline'}
+              imageUri={o.images[0] ?? null}
+              commentCount={o.commentCount}
+              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
+            />
+          ))}
+        </Section>
+
+        {/* ── Peñas ────────────────────────────────────────────── */}
+        <Section
+          title={t('village.hub.penas')}
+          isEmpty={penas.length === 0}
+          status={sectionStatus.organizations}
+        >
+          {penas.map((o) => (
+            <EntityCard
+              key={o.id}
+              label={o.name}
+              sub={t('village.hub.memberCount', { count: o.memberCount })}
+              icon="people-circle-outline"
+              imageUri={o.images[0] ?? null}
+              commentCount={o.commentCount}
+              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
+            />
+          ))}
+        </Section>
+
+        {/* ── Historia + Vocabulario: open to everyone, including non-members —
+            a pueblo's past and its words are exactly what is worth not losing ─── */}
+        {sectionStatus.history === 'loading' ? (
+          <Section title={t('village.history.title')} isEmpty status="loading" />
+        ) : null}
+        {sectionStatus.history === 'ready' ? (
+          <HistoryRail entries={data.history} villageSlug={villageSlug} />
+        ) : null}
+        {sectionStatus.vocabulary === 'ready' && data.wordOfTheDay ? (
+          <WordOfTheDayCard
+            word={data.wordOfTheDay}
+            count={data.vocabularyCount}
+            villageSlug={villageSlug}
+            villageName={village.name}
+          />
+        ) : null}
+
+        {/* ── Artículos ────────────────────────────────────────── */}
+        <Section
+          title={t('village.newsFeed.title')}
+          isEmpty={news.length === 0}
+          status={sectionStatus.news}
+        >
+          {news.map((n) => (
+            <NewsEntityCard
+              key={n.id}
+              post={n}
+              onPress={() => router.push(newsHref({ ...n, villageSlug }))}
+            />
+          ))}
+        </Section>
+
         {/* ── Eventos ──────────────────────────────────────────── */}
         <Section
           title={t('village.events.label')}
@@ -367,27 +451,13 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               statBadge={{
                 icon: 'person-outline',
                 count: e.confirmedCount,
+                spoken: 'attendees',
                 testID: 'entity-card-event-attendee-count',
               }}
               onPress={() => router.push(eventHref({ ...e, villageSlug }))}
             />
           )}
         />
-
-        {/* ── Artículos ────────────────────────────────────────── */}
-        <Section
-          title={t('village.newsFeed.title')}
-          isEmpty={news.length === 0}
-          status={sectionStatus.news}
-        >
-          {news.map((n) => (
-            <NewsEntityCard
-              key={n.id}
-              post={n}
-              onPress={() => router.push(newsHref({ ...n, villageSlug }))}
-            />
-          ))}
-        </Section>
 
         {/* ── Carteles de fiestas ──────────────────────────────── */}
         <Section
@@ -459,6 +529,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
                   ? {
                       icon: 'person-outline',
                       count: p.burialCount,
+                      spoken: 'burials',
                       testID: 'entity-card-burial-count',
                     }
                   : undefined
@@ -468,57 +539,8 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           ))}
         </Section>
 
-        {/* ── Agrupaciones (ayuntamiento + asociación) ─────────── */}
-        <Section
-          title={t('village.hub.organizations')}
-          isEmpty={agrupaciones.length === 0}
-          status={sectionStatus.organizations}
-        >
-          {agrupaciones.map((o) => (
-            <EntityCard
-              key={o.id}
-              label={o.name}
-              sub={t('village.hub.memberCount', { count: o.memberCount })}
-              icon="business-outline"
-              imageUri={o.images[0] ?? null}
-              commentCount={o.commentCount}
-              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
-            />
-          ))}
-        </Section>
-
-        {/* ── Peñas ────────────────────────────────────────────── */}
-        <Section
-          title={t('village.hub.penas')}
-          isEmpty={penas.length === 0}
-          status={sectionStatus.organizations}
-        >
-          {penas.map((o) => (
-            <EntityCard
-              key={o.id}
-              label={o.name}
-              sub={t('village.hub.memberCount', { count: o.memberCount })}
-              icon="people-circle-outline"
-              imageUri={o.images[0] ?? null}
-              commentCount={o.commentCount}
-              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
-            />
-          ))}
-        </Section>
-
-        {/* ── Historia + Vocabulario: open to everyone, including non-members —
-            a pueblo's past and its words are exactly what is worth not losing ─── */}
-        {sectionStatus.history === 'ready' ? (
-          <HistoryRail entries={data.history} villageSlug={villageSlug} />
-        ) : null}
-        {sectionStatus.vocabulary === 'ready' && data.wordOfTheDay ? (
-          <WordOfTheDayCard
-            word={data.wordOfTheDay}
-            count={data.vocabularyCount}
-            villageSlug={villageSlug}
-            villageName={village.name}
-          />
-        ) : null}
+        {/* ── Cosateca del pueblo: what the groups lend to every vecino ─── */}
+        <VillageCosatecaEntry municipalityId={village.id} villageSlug={villageSlug} isMember={isMember} />
 
         {/* ── Censo: only villagers of a configured village fill; admins also configure ─── */}
         {(isMember && censoConfigured) || canManage ? (
@@ -540,6 +562,9 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
 
         {/* ── The latest published fiestas Wrapped, closing the page ── */}
         <VillageWrappedStrip municipalityId={village.id} villageSlug={villageSlug} />
+
+        {/* ── Somewhere to go next: the pueblos with the most to show ── */}
+        <OtherVillagesSection municipalityId={village.id} />
       </ScrollView>
       <JoinVillageModal
         municipality={

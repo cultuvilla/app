@@ -1,4 +1,5 @@
 export * from './EventDataModel';
+export * from './EventSeriesModel';
 export * from './SignupFieldModel';
 export * from './RegistrationDataModel';
 export * from './RegistrationEventDataModel';

@@ -14,6 +14,7 @@ import { entityPath, type EntityLinkTarget } from '../utils/urls';
  */
 
 import { webOriginForProject } from '../utils/webOrigin';
+import { escapeHtml } from './html';
 
 const FOOTER_TEXT = 'Cultuvilla · cultuvilla.app@gmail.com';
 
@@ -79,15 +80,6 @@ function isCancellation(
   content: RegistrationEmailContent,
 ): content is Extract<RegistrationEmailContent, { kind: 'cancellation' | 'removed' }> {
   return content.kind === 'cancellation' || content.kind === 'removed';
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /**

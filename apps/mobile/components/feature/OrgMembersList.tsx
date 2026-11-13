@@ -172,8 +172,9 @@ export function OrgMembersList({
                     onPress={() => changeRole(r)}
                     accessibilityLabel={t(
                       r.role === 'admin'
-                        ? 'organization.membersList.demote'
-                        : 'organization.membersList.promote',
+                        ? 'organization.membersList.demoteMember'
+                        : 'organization.membersList.promoteMember',
+                      { name: r.name },
                     )}
                     hitSlop={8}
                   >
@@ -187,7 +188,7 @@ export function OrgMembersList({
                     testID={`org-member-remove-${r.id}`}
                     disabled={pendingUserId != null}
                     onPress={() => removeMember(r)}
-                    accessibilityLabel={t('organization.membersList.remove')}
+                    accessibilityLabel={t('organization.membersList.removeMember', { name: r.name })}
                     hitSlop={8}
                   >
                     <Ionicons name="trash-outline" size={iconSizes.sm} color="#9ca3af" />

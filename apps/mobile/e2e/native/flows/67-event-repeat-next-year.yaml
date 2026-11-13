@@ -1,0 +1,152 @@
+# "Repetir el año que viene" on a yearly event that is over. Only its
+# organizer is offered it: a villager reading the same event is not. The
+# organizer's copy opens the create form prefilled from last year (yearly,
+# fixed date moved a year, same place and organizers), and saving it makes a
+# NEW event while the seeded one stays. The form cannot create a past event,
+# so the past edition is seeded (`e2e-event-fiestas-pasadas`, ended four
+# weeks ago). Split from 66 to keep each under Maestro's 15-minute limit.
+#
+# The copy's title is stamped: the seeded edition keeps the same one, and the
+# new doc must be told apart from it.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_SLUG: altozano-de-prueba
+  PAST_EVENT_ID: e2e-event-fiestas-pasadas
+  PAST_TITLE: 'Fiestas Pasadas E2E'
+---
+- evalScript: ${output.copyTitle = 'Fiestas Pasadas E2E ' + Date.now()}
+# A fixed date moves exactly a year (the form's nextYear), so the copy's day
+# is last year's with the year bumped.
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'events/${PAST_EVENT_ID}'
+      FIELD: startDate
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.nextStartDay = (Number(output.value.substring(0, 4)) + 1) + output.value.substring(4, 10)}
+
+# ── A villager is not offered the repeat ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${PAST_EVENT_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-share-action'
+    timeout: 45000
+# The button sits right under the summary: with it on screen, absent means absent.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'event-series-summary'
+- assertVisible:
+    id: 'event-series-summary'
+    text: 'Cada a.o'
+- assertNotVisible:
+    id: 'event-repeat-next'
+- assertNotVisible:
+    id: 'event-edit-action'
+
+# ── Its organizer repeats it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-admin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/evento/_${PAST_EVENT_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'event-repeat-next'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'event-repeat-next'
+      EXPECT: 'event-title'
+# The form shows a spinner until the copy loads, so the title being there
+# means the prefill ran.
+- extendedWaitUntil:
+    visible: ${PAST_TITLE}
+    timeout: 20000
+- runFlow:
+    file: ../subflows/replace-text.yaml
+    env:
+      INPUT: 'event-title'
+      TEXT: ${output.copyTitle}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+# Repetition comes over on: yearly, fixed date, so the date is filled in.
+- extendedWaitUntil:
+    visible:
+      id: 'event-recurrence-yearly-hint'
+    timeout: 10000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: 'event-recurring'
+          checked: true
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'signup-enabled'
+    timeout: 10000
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.copyTitle}
+      FIELD2: status
+      VALUE2: published
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.copyId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${output.copyId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@copyTitle',
+          'description': { 'prefix': 'Fiestas del a' },
+          'createdBy': 'e2e-admin',
+          'organizerUserIds': ['e2e-admin'],
+          'organizerOrgIds': ['e2e-org-ayto'],
+          'municipalityId': 'e2e-village-altozano',
+          'location.displayName': 'Plaza Mayor, Altozano de Prueba',
+          'repeatsYearly': true,
+          'repeatDateVaries': false,
+          'series': 'absent',
+          'startDate': { 'prefix': '@nextStartDay' },
+          'endDate': 'present'
+        }
+# Last year's edition is untouched.
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${PAST_EVENT_ID}'
+      EXPECT_JSON: "{ 'title': 'Fiestas Pasadas E2E', 'status': 'published' }"
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+- assertVisible: ${output.copyTitle}

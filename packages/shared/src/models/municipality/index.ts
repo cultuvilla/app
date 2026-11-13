@@ -11,3 +11,4 @@ export * from './SettlementSeedModel'
 export * from './FiestaBlockModel';
 export * from './municipalitySlug';
 export * from './villageTitle';
+export * from './VillageRankingDataModel';

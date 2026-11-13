@@ -20,12 +20,14 @@ import { uploadPlaceImage } from '@cultuvilla/shared/services/imageService';
 import { PLACE_KINDS, type PlaceKind } from '@cultuvilla/shared/models/municipality';
 import type { VisibilityStatus } from '@cultuvilla/shared/models';
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
+import { useCallableErrorHandler } from '../../../../lib/callableError';
 
 function PlaceEditScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { lugar: lugarRef } = useLocalSearchParams<{ lugar: string }>();
   const placeId = parseEntityRef(lugarRef ?? '') ?? '';
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { canManage, canEdit, canDelete, uid, loading: capLoading } = useEntityCapabilities(villageId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -104,6 +106,8 @@ function PlaceEditScreen() {
       const next = [...images, url];
       await updatePlace(villageId, placeId, { images: next });
       setImages(next);
+    } catch (e) {
+      showCallableError(e, { operation: 'place:uploadImage' });
     } finally {
       setAddingImage(false);
     }

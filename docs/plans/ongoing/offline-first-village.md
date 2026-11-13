@@ -1,7 +1,7 @@
 # Offline-first — the whole village on the device
 
 **Priority:** high — the main reason the app feels slow
-**Landed:** dev
+**Landed:** prod
 **Gate:** none
 **Next:** layer 3 (village sync) — warm the cache for the user's villages on launch and foreground
 
@@ -23,7 +23,7 @@ live sync; the JS SDK on RN just cannot use it.
 
 ## Layers, in order
 
-### 1. Native Firebase SDKs — built
+### 1. Native Firebase SDKs — built (on prod since 1.10.0, 2026-10-09; layer 2 too)
 
 - Every client Firebase import goes through `packages/shared/src/firebase/sdk/`
   (firestore, auth, functions, storage): a JS-SDK file for Node and a

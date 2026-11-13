@@ -57,7 +57,7 @@ jest.mock('../../../components/feature/OrganizerPicker', () => ({ OrganizerPicke
 
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 
-function mockCaps(canEdit: boolean) {
+function mockCaps(canEdit: boolean, canDelete: boolean = canEdit) {
   const spy = jest.fn(() => canEdit);
   (useEntityCapabilities as jest.Mock).mockReturnValue({
     canManage: false,
@@ -65,7 +65,7 @@ function mockCaps(canEdit: boolean) {
     uid: 'intruder',
     loading: false,
     canEdit: spy,
-    canDelete: jest.fn(() => canEdit),
+    canDelete: jest.fn(() => canDelete),
   });
   return spy;
 }
@@ -87,5 +87,23 @@ describe('NewNewsScreen edit guard', () => {
     // Stepper, so which inputs are mounted depends on the current step.
     await waitFor(() => expect(canEdit).toHaveBeenCalledWith('author', ['author']));
     expect(mockRedirect).not.toHaveBeenCalled();
+  });
+});
+
+// The delete button called deleteNewsPost, which only the author or an admin
+// may use, while any co-writer could reach the screen — so a co-writer's
+// delete failed silently and the article stayed up (E2E flow 80).
+describe('NewNewsScreen delete button', () => {
+  it('is hidden from a co-writer who may edit but not delete', async () => {
+    const canEdit = mockCaps(true, false);
+    const screen = render(<NewNewsScreen />);
+    await waitFor(() => expect(canEdit).toHaveBeenCalled());
+    expect(screen.queryByTestId('news-delete')).toBeNull();
+  });
+
+  it('is shown to whoever may delete it', async () => {
+    mockCaps(true, true);
+    const screen = render(<NewNewsScreen />);
+    await waitFor(() => expect(screen.getByTestId('news-delete')).toBeTruthy());
   });
 });

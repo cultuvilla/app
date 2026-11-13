@@ -91,6 +91,34 @@ describe('onNotificationCreated', () => {
     expect((await queueDoc('n3')).exists).toBe(false);
   });
 
+  it('mutes one group’s messages, and only that group’s', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-15T10:00:00Z'));
+    await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
+    await fire('g1', notification('group_message', { entityKind: 'organization', entityId: 'org-muted' }));
+    expect(deliverPush).not.toHaveBeenCalled();
+    expect((await queueDoc('g1')).exists).toBe(false);
+
+    await fire('g2', notification('group_message', { entityKind: 'organization', entityId: 'org-other' }));
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+    expect((await queueDoc('g2')).data()).toMatchObject({ category: 'groups' });
+  });
+
+  it('silencing the avisos leaves a chat the member turned on', async () => {
+    // Outside quiet hours, or the push is deferred and this fails when run at night.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-15T10:00:00Z'));
+    await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
+    await fire('g3', notification('group_message', { entityKind: 'organization', entityId: 'org-muted', chatThreadId: 'general' }));
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+  });
+
+  it('never lets a group mute hold back the cuota reminder', async () => {
+    await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
+    await fire('c1', notification('cuota_reminder', { entityKind: 'organization', entityId: 'org-muted' }));
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+  });
+
   it('holds a village broadcast overnight until 08:00 Madrid', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-07-15T21:30:00Z')); // 23:30 CEST
@@ -122,6 +150,90 @@ describe('onNotificationCreated', () => {
     });
     await fire('n6', notification('village_entity_published', { entityKind: 'event', entityId: 'e1' }));
     expect(deliverPush).toHaveBeenCalledTimes(1);
+  });
+
+  describe('per-topic switches (notificationSettings/account)', () => {
+    const DAY = new Date('2026-07-15T10:00:00Z');
+    const settings = (data: Record<string, unknown>) =>
+      admin.firestore().doc(`users/${UID}/notificationSettings/account`).set({
+        mutedTopics: [],
+        mutedVillages: [],
+        quietHours: true,
+        updatedAt: admin.firestore.Timestamp.now(),
+        ...data,
+      });
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(DAY);
+    });
+
+    it('mutes one cosateca topic and lets the group’s tasks through', async () => {
+      await settings({ mutedTopics: ['cosateca_reservas'] });
+      const group = { entityKind: 'organization', entityId: 'org1' };
+      await fire('t1', notification('group_task', { ...group, topic: 'cosateca_reservas', cosaRequestId: 'r1' }));
+      expect(deliverPush).not.toHaveBeenCalled();
+      expect((await queueDoc('t1')).exists).toBe(false);
+
+      await fire('t2', notification('group_task', { ...group, topic: 'group_tasks' }));
+      expect(deliverPush).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads a group_task without a topic as a task', async () => {
+      await settings({ mutedTopics: ['group_tasks'] });
+      await fire('t3', notification('group_task', { entityKind: 'organization', entityId: 'org1' }));
+      expect(deliverPush).not.toHaveBeenCalled();
+    });
+
+    it('mutes one kind of village news and not another', async () => {
+      await settings({ mutedTopics: ['village_news'] });
+      await fire('v1', notification('village_entity_published', { entityKind: 'news', entityId: 'n1' }));
+      expect(deliverPush).not.toHaveBeenCalled();
+      await fire('v2', notification('village_entity_published', { entityKind: 'event', entityId: 'e1' }));
+      expect(deliverPush).toHaveBeenCalledTimes(1);
+    });
+
+    it('mutes a pueblo’s news but not a seat held there', async () => {
+      await settings({ mutedVillages: ['mun'] });
+      await fire('v3', notification('village_entity_published', { entityKind: 'event', entityId: 'e1' }));
+      expect(deliverPush).not.toHaveBeenCalled();
+      await fire('v4', notification('waitlist_promoted', { eventId: 'ev1' }));
+      expect(deliverPush).toHaveBeenCalledTimes(1);
+    });
+
+    it('mutes the chats account-wide, over a group’s opt-in', async () => {
+      await settings({ mutedTopics: ['group_chats'] });
+      await fire('c2', notification('group_message', { entityKind: 'organization', entityId: 'org1', chatThreadId: 'general' }));
+      expect(deliverPush).not.toHaveBeenCalled();
+      await fire('c3', notification('group_message', { entityKind: 'organization', entityId: 'org1' }));
+      expect(deliverPush).toHaveBeenCalledTimes(1);
+    });
+
+    it('still honours a coarse switch an older app turned off', async () => {
+      await settings({});
+      await admin.firestore().doc(`users/${UID}/preferences/notifications`).set({
+        mine: true,
+        village: true,
+        social: false,
+        quietHours: true,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+      await fire('s1', notification('comment_reply', { entityKind: 'news', entityId: 'n1' }));
+      expect(deliverPush).not.toHaveBeenCalled();
+    });
+
+    it('ignores a malformed doc instead of failing every push', async () => {
+      await settings({ mutedTopics: [1] });
+      await fire('m1', notification('village_entity_published', { entityKind: 'news', entityId: 'n1' }));
+      expect(deliverPush).toHaveBeenCalledTimes(1);
+    });
+
+    it('takes quiet hours from the new doc', async () => {
+      vi.setSystemTime(new Date('2026-07-15T01:00:00Z')); // 03:00 CEST
+      await settings({ quietHours: false });
+      await fire('q1', notification('village_entity_published', { entityKind: 'event', entityId: 'e1' }));
+      expect(deliverPush).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('refuses a doc that does not match the schema instead of pushing garbage', async () => {

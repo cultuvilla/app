@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { LocationDataSchema, LatLngSchema, type LatLng } from '../core/LocationDataModel';
 import { SignupFieldsSchema, type SignupFieldSpec } from './SignupFieldModel';
+import { EventSeriesSchema, type EventSeries } from './EventSeriesModel';
 
 /**
  * Upper bound on `signupGroupSize`. Groups are seated atomically, so a large
@@ -107,6 +108,24 @@ export const EventDataSchema = z.object({
   // by firestore.rules on create/update, and by isPrivateEvent below, which
   // reads the id rather than the enum so a half-written doc fails closed.
   visibilityOrgId: z.string().nullable().default(null),
+  // Non-null when the event is one occurrence of a weekly series (see
+  // EventSeriesModel). `.default(null)` so events created before series parse
+  // through the strict converter (existing docs are backfilled to null by
+  // `event-series`). Immutable after create — firestore.rules refuses a change.
+  series: EventSeriesSchema.nullable().default(null),
+  // A yearly event (las fiestas): only this year's edition exists, since next
+  // year's date is not known yet; its organizers repeat it once it has passed.
+  // Never on a series. `.default(false)` for events that predate it
+  // (backfilled by `event-recurrence`) and for binaries that never send it.
+  repeatsYearly: z.boolean().default(false),
+  // A monthly event whose day changes every time, so only the next one exists
+  // and its organizers repeat it once it has passed. A monthly event on a fixed
+  // day is a series instead. `.default(false)` as above, backfilled by
+  // `event-repeat-date-varies`.
+  repeatsMonthly: z.boolean().default(false),
+  // On a repeating edition: the next one's date can't be derived, so repeating
+  // it asks for the date rather than prefilling it. Always true on `repeatsMonthly`.
+  repeatDateVaries: z.boolean().default(false),
   status: EventStatusSchema,
   organizerUserIds: z.array(z.string()),
   organizerOrgIds: z.array(z.string()),
@@ -164,6 +183,10 @@ export interface EventDataInput {
   maxBirthYear?: number | null;
   visibility?: EventVisibility;
   visibilityOrgId?: string | null;
+  series?: EventSeries | null;
+  repeatsYearly?: boolean;
+  repeatsMonthly?: boolean;
+  repeatDateVaries?: boolean;
   status?: EventStatus;
   organizerUserIds: string[];
   organizerOrgIds: string[];
@@ -186,6 +209,8 @@ export function buildEventData(input: EventDataInput): EventData {
   // on a public event would make the feed's private query surface it twice.
   const visibilityOrgId = input.visibility === 'organization' ? (input.visibilityOrgId ?? null) : null;
   const visibility = visibilityOrgId === null ? 'public' : 'organization';
+  const repeatsYearly = (input.repeatsYearly ?? false) && !input.series;
+  const repeatsMonthly = (input.repeatsMonthly ?? false) && !input.series && !repeatsYearly;
   return {
     title: input.title,
     description: input.description,
@@ -205,6 +230,10 @@ export function buildEventData(input: EventDataInput): EventData {
     maxBirthYear: input.maxBirthYear ?? null,
     visibility,
     visibilityOrgId,
+    series: input.series ?? null,
+    repeatsYearly,
+    repeatsMonthly,
+    repeatDateVaries: repeatsMonthly || (repeatsYearly && (input.repeatDateVaries ?? false)),
     status: input.status ?? 'published',
     organizerUserIds: input.organizerUserIds,
     organizerOrgIds: input.organizerOrgIds,

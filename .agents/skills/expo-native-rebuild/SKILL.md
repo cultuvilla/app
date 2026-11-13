@@ -70,7 +70,7 @@ DEV_LOGIN_EMAILS= DEV_LOGIN_PASSWORD= eas build --profile development --platform
 *Configure expo-updates* with "Runtime version mismatch". The dev client still gets
 the dev login buttons at runtime from Metro's manifest.
 
-After the build completes, install the new binary on the device/emulator before launching the JS bundle:
+After the build completes, install the new binary on the device/emulator before launching the JS bundle. On native Linux, `adb install -r cultuvilla-dev.apk` with the SDK's adb; under WSL:
 
 ```bash
 ADB=/mnt/c/Users/alvar/AppData/Local/Android/Sdk/platform-tools/adb.exe

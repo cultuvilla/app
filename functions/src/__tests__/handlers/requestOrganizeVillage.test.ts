@@ -39,6 +39,7 @@ async function seedMunicipality(
       escudoThumbUrl: null,
       escudoManualUrl: null,
       communityActive,
+      peopleCount: 0,
       community: communityActive
         ? { description: '', organizerId, organizerSex: null, profileForm: null, fiestas: [], activatedAt: now }
         : null,

@@ -7,8 +7,10 @@ import {
   cardImage,
   eventWhen,
   posterTitle,
+  type AmbassadorView,
   type Card,
   type DefinitionView,
+  COMISION_LABEL,
   type EventView,
   type HistoryView,
   type NewsView,
@@ -56,6 +58,7 @@ const ORG_TYPE: Readonly<Partial<Record<string, string>>> = {
   peña: 'Peña',
   asociación: 'Asociación',
   otros: 'Entidad',
+  comisión: COMISION_LABEL,
 };
 const TERM_KIND: Readonly<Partial<Record<string, string>>> = {
   palabra: 'Palabra',
@@ -121,16 +124,17 @@ function gallery(urls: string[], alt: string): Child {
 
 // ── Village ─────────────────────────────────────────────────────────────────
 
-export function villagePage(v: Village, home: VillageHome | null): Page {
+export function villagePage(v: Village, home: VillageHome | null, others: Card[] = []): Page {
   const where = v.province ? `${v.name}, ${v.province}` : v.name;
   const intro = html`<div style="display:flex;gap:16px;align-items:center">${img(v.escudoUrl, `Escudo de ${v.name}`, 'escudo')}<div><h1>${v.name}</h1>${
     v.province ? html`<p class="meta">${v.province}</p>` : null
   }</div></div>`;
+  const discover = section('Descubre otros pueblos', others, '/pueblos');
 
   if (!v.active || !home) {
     return {
       head: { title: v.name, description: `${where} aún no tiene comunidad en Cultuvilla.`, noindex: true },
-      body: html`${intro}<div class="notice"><p>${v.name} aún no está en Cultuvilla. Cualquier vecino puede darlo de alta desde la app y empezar a compartir sus fiestas, noticias e historia.</p></div>${appCta(villagePath(v.slug), 'Traer mi pueblo a Cultuvilla')}`,
+      body: html`${intro}<div class="notice"><p>${v.name} aún no está en Cultuvilla. Cualquier vecino puede darlo de alta desde la app y empezar a compartir sus fiestas, noticias e historia.</p></div>${appCta(villagePath(v.slug), 'Traer mi pueblo a Cultuvilla')}${discover}`,
     };
   }
 
@@ -161,6 +165,7 @@ ${section('Lugares', home.places, villageSectionPath(v.slug, 'lugares'))}
 ${section('Barrios', home.barrios, villageSectionPath(v.slug, 'barrios'))}
 ${section('Historia', home.history, villageSectionPath(v.slug, 'historia'))}
 ${word}
+${discover}
 ${appCta(villagePath(v.slug), `Sigue a ${v.name} en la app`)}`,
   };
 }
@@ -195,8 +200,8 @@ export function sectionPage(v: Village, data: SectionData): Page {
 export function eventPage(v: Village, e: EventView, appPath: string): Page {
   if (e.private) {
     return {
-      head: { title: 'Evento privado', description: 'Solo visible para los miembros de la organización.', noindex: true },
-      body: html`${backTo(v)}<h1>Evento privado</h1><p>Este evento solo es visible para los miembros de la organización que lo publica.</p>${appCta(appPath, 'Ver en la app')}`,
+      head: { title: 'Evento privado', description: 'Solo visible para los integrantes de la organización.', noindex: true },
+      body: html`${backTo(v)}<h1>Evento privado</h1><p>Este evento solo es visible para los integrantes de la organización que lo publica.</p>${appCta(appPath, 'Ver en la app')}`,
     };
   }
   const when = eventWhen(e);
@@ -263,7 +268,7 @@ export function newsPage(v: Village, n: NewsView, appPath: string): Page {
 
 export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean, events: Card[]): Page {
   const kind = label(ORG_TYPE, o.type) ?? 'Entidad';
-  const facts = [kind, o.memberCount ? `${String(o.memberCount)} miembros` : null].filter(Boolean).join(' · ');
+  const facts = [kind, o.memberCount ? `${String(o.memberCount)} integrantes` : null].filter(Boolean).join(' · ');
   return {
     head: {
       title: invite ? `Únete a ${o.name}` : o.name,
@@ -540,7 +545,30 @@ ${formError(errors, 'form')}
 </form><script>${raw(AMBASSADOR_PICKER)}</script>`;
 }
 
-export function ambassadorsPage(submitted?: { form: AmbassadorForm; errors: AmbassadorFormErrors }): Page {
+/**
+ * The Embajadores who already look after a pueblo, as the app's carnet: face
+ * with the Cultuvilla seal, name, gendered title and the pueblo's escudo. Each
+ * opens its pueblo. Absent until there is one to show.
+ */
+function ambassadorWall(ambassadors: AmbassadorView[]): Child {
+  if (ambassadors.length === 0) return null;
+  return html`<section class="blk amb-wall"><div class="in"><div class="head"><span class="eyebrow">Ya cuidan su pueblo</span><h2>${
+    `${String(ambassadors.length)} ${ambassadors.length === 1 ? 'Embajador' : 'Embajadores'}`
+  }</h2></div><ul class="carnets">${ambassadors.map((a) => {
+    const initial = a.name.trim().charAt(0).toUpperCase();
+    const face = a.photoUrl
+      ? img(a.photoUrl, a.name, 'face', a.originalPhotoUrl)
+      : html`<span class="face" aria-hidden="true">${initial}</span>`;
+    return html`<li><a href="${villagePath(a.village.slug)}"><span class="face-wrap">${face}<span class="seal" aria-hidden="true"></span></span><b>${a.name}</b><span class="tt">${
+      a.female ? 'Embajadora' : 'Embajador'
+    } de ${a.village.name}</span><span class="pv">${img(cardImage(a.village.escudoUrl), '', 'escudo', a.village.escudoUrl)}${a.village.province}</span></a></li>`;
+  })}</ul></div></section>`;
+}
+
+export function ambassadorsPage(
+  ambassadors: AmbassadorView[],
+  submitted?: { form: AmbassadorForm; errors: AmbassadorFormErrors },
+): Page {
   return {
     layout: 'landing',
     head: {
@@ -550,6 +578,7 @@ export function ambassadorsPage(submitted?: { form: AmbassadorForm; errors: Amba
     body: html`<div class="amb-page">${BUNTING}
 <section class="in top amb-top"><div><h1 class="amb-q"><span>¿Presumes de</span> <em>pueblo</em> <span>allá donde vas?</span></h1><p class="lead">Hazte su Embajador: activa la página de tu pueblo y cuida su cultura para siempre. Déjanos tu teléfono y lo ponemos en marcha contigo.</p></div>${phoneVideo('cultuvilla-embajador-vertical', 'Vídeo: hazte Embajador de Cultuvilla')}</section>
 <section class="in amb-form-row">${ambassadorForm(submitted?.form ?? null, submitted?.errors ?? {})}</section>
+${ambassadorWall(ambassadors)}
 <section class="blk amb-more"><div class="in"><ul class="amb-does">
 <li><b>Lo pone en marcha</b><span>Activa la página del pueblo, con su escudo.</span></li>
 <li><b>Suma a su gente</b><span>Invita a los vecinos, a sus peñas y al ayuntamiento.</span></li>

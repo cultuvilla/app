@@ -1,5 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoginScreen from '../entrar';
+import { readPendingOtp, rememberPendingOtp } from '../../../lib/auth/pendingOtp';
 
 jest.mock('../../../lib/i18n', () => ({
   useT: () => ({
@@ -8,6 +10,8 @@ jest.mock('../../../lib/i18n', () => ({
       vars ? `${key}:${JSON.stringify(vars)}` : key,
   }),
 }));
+
+jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 
 const mockSendOtpCode = jest.fn();
 const mockVerifyOtpCode = jest.fn();
@@ -134,6 +138,59 @@ describe('<LoginScreen>', () => {
     submitEmail(getByTestId);
     await waitFor(() => expect(getByTestId('login-code-input')).toBeTruthy());
     expect(getByTestId('login-code-input').props.value).toBe('');
+  });
+
+  // Reading the code means leaving for the mail app, and a phone short on memory
+  // closes this one meanwhile. Coming back used to mean a blank email step.
+  describe('when the OS closes the app on the code step', () => {
+    beforeEach(() => AsyncStorage.clear());
+
+    it('remembers the address only once the code has been sent', async () => {
+      mockSendOtpCode.mockRejectedValueOnce(new Error('Email inválido.'));
+      const { getByTestId, findByText } = render(<LoginScreen />);
+
+      submitEmail(getByTestId);
+      await findByText('Email inválido.');
+      expect(await readPendingOtp()).toBeNull();
+
+      mockSendOtpCode.mockResolvedValue(undefined);
+      submitEmail(getByTestId);
+      await waitFor(() => expect(getByTestId('login-code-input')).toBeTruthy());
+      await waitFor(async () => expect(await readPendingOtp()).toBe(EMAIL));
+    });
+
+    it('reopens on the code step for the remembered address', async () => {
+      await rememberPendingOtp(EMAIL);
+      mockVerifyOtpCode.mockResolvedValue(undefined);
+      const { findByTestId, getByTestId } = render(<LoginScreen />);
+
+      fireEvent.changeText(await findByTestId('login-code-input'), '123456');
+      fireEvent.press(getByTestId('login-verify-code'));
+
+      await waitFor(() => expect(mockVerifyOtpCode).toHaveBeenCalledWith(EMAIL, '123456'));
+    });
+
+    it('forgets the address when the user goes back to change it', async () => {
+      await rememberPendingOtp(EMAIL);
+      const { findByTestId, getByTestId } = render(<LoginScreen />);
+
+      await findByTestId('login-code-input');
+      fireEvent.press(getByTestId('login-change-email'));
+
+      await waitFor(async () => expect(await readPendingOtp()).toBeNull());
+    });
+
+    // Unmounting is every deliberate way out (back, or signed in), and the one
+    // thing a killed process never does.
+    it('forgets the address when the user leaves the screen', async () => {
+      await rememberPendingOtp(EMAIL);
+      const { findByTestId, unmount } = render(<LoginScreen />);
+
+      await findByTestId('login-code-input');
+      unmount();
+
+      await waitFor(async () => expect(await readPendingOtp()).toBeNull());
+    });
   });
 
   // Regression: a bad connection during signup used to render the SDK's own

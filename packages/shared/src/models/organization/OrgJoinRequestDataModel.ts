@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * A pending request to join an organization whose `joinPolicy` is `approval`.
+ * A pending request to join an organization.
  * Stored at /organizations/{orgId}/joinRequests/{userId} — one per requester.
  * The requester files and withdraws it; an org admin resolves it through the
  * respondToOrgJoinRequest callable, which deletes it.

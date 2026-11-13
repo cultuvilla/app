@@ -29,6 +29,8 @@ export const palette = {
   peach: '#dcab93',
   sage: '#a6a897',
   rust: '#be6b47',
+  // Sage darkened until it reads as text: 4.5:1 or better on cream and on white.
+  moss: '#696c5a',
 } as const;
 
 export type PaletteColor = keyof typeof palette;
@@ -50,7 +52,7 @@ const light = {
   },
   fg: {
     primary: palette.olive,
-    muted: palette.sage,
+    muted: palette.moss,
     'on-subtle': '#3f4635',
     'on-accent': palette.cream,
     'on-secondary': palette.cream,

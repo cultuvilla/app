@@ -2,9 +2,11 @@
 import { getMyOrganizerRequests } from './organizerRequestService';
 import { getMyOrganizations } from './organizationService';
 import { getMyPendingOrgJoinRequests } from './orgJoinRequestService';
+import { getMyPendingCosaRequests } from './cosatecaService';
+import { observability } from './observability/observabilityService';
 import type { NotificationData } from '../models/notification/NotificationDataModel';
 
-export type PendingRequestType = 'organizer' | 'org' | 'orgJoin';
+export type PendingRequestType = 'organizer' | 'org' | 'orgJoin' | 'cosa';
 
 export type ActivityItem =
   | { kind: 'notification'; id: string; notification: NotificationData & { id: string } }
@@ -55,13 +57,19 @@ export function buildActivityFeed(
  * Fetches the user's own pending "sent" requests across the request types.
  * Labels use only fields already present on the request doc — no extra
  * name-resolution reads (the screen resolves ids to names): a municipalityId
- * for `organizer`, the org name for `org`, the orgId for `orgJoin`.
+ * for `organizer`, the org name for `org`, the orgId for `orgJoin`, the cosa's
+ * title for `cosa`.
  */
 export async function getMyPendingRequests(uid: string): Promise<PendingSentRequest[]> {
-  const [organizerRequests, organizations, joinRequests] = await Promise.all([
+  const [organizerRequests, organizations, joinRequests, cosaRequests] = await Promise.all([
     getMyOrganizerRequests(uid),
     getMyOrganizations(uid),
     getMyPendingOrgJoinRequests(uid),
+    // One unreadable list must not blank the rest of the Buzón — but it is reported.
+    getMyPendingCosaRequests(uid).catch((err: unknown) => {
+      observability.captureError(err, { operation: 'inbox:getMyPendingCosaRequests' });
+      return [];
+    }),
   ]);
 
   const pendingOrganizer: PendingSentRequest[] = organizerRequests
@@ -90,5 +98,12 @@ export async function getMyPendingRequests(uid: string): Promise<PendingSentRequ
     createdAt: r.createdAt,
   }));
 
-  return [...pendingOrganizer, ...pendingOrg, ...pendingJoin];
+  const pendingCosa: PendingSentRequest[] = cosaRequests.map((r) => ({
+    requestType: 'cosa' as const,
+    id: r.id,
+    label: r.cosaTitle,
+    createdAt: r.createdAt,
+  }));
+
+  return [...pendingOrganizer, ...pendingOrg, ...pendingJoin, ...pendingCosa];
 }

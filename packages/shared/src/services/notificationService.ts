@@ -1,6 +1,5 @@
 import {
   addDoc,
-  getDoc,
   setDoc,
   deleteDoc,
   getDocs,
@@ -18,21 +17,25 @@ import {
   userDeviceDoc,
   userDevicesCollection,
   userNotificationPrefsDoc,
+  userNotificationSettingsDoc,
 } from '../firebase/refs/client';
 import {
   buildNotificationData,
   buildDeviceTokenData,
   buildNotificationPrefsData,
-  DEFAULT_NOTIFICATION_PREFS,
+  buildNotificationSettingsData,
+  resolveNotificationSettings,
   type NotificationData,
   type NotificationDataInput,
   type DeviceTokenData,
   type DeviceTokenDataInput,
   type NotificationPrefsData,
-  type NotificationPrefsDataInput,
+  type NotificationSettingsData,
+  type NotificationSettingsDataInput,
+  type ResolvedNotificationSettings,
 } from '../models/notification';
 import { observability } from './observability/observabilityService';
-import { watchCount, type Unwatch, type WatchError } from './watch';
+import { watchCount, watchDoc, type Unwatch, type WatchError } from './watch';
 
 export async function getNotifications(
   userId: string,
@@ -138,18 +141,54 @@ export async function getDevices(userId: string): Promise<DeviceTokenData[]> {
 // PUSH PREFERENCES
 // ============================================================================
 
-// Returns the defaults when the account has never saved preferences — the doc
-// is genuinely optional (see NotificationPrefsDataModel), not missing data.
-export async function getNotificationPrefs(userId: string): Promise<NotificationPrefsData> {
-  const snap = await getDoc(userNotificationPrefsDoc(getDb(), userId));
-  return snap.exists() ? snap.data() : DEFAULT_NOTIFICATION_PREFS;
+/**
+ * The account's push switches, live: the per-topic doc with the old coarse
+ * switches folded in (see `resolveNotificationSettings`). Emits once both docs
+ * have answered; neither has to exist.
+ */
+export function watchNotificationSettings(
+  userId: string,
+  onNext: (settings: ResolvedNotificationSettings) => void,
+  onError: WatchError,
+): Unwatch {
+  const db = getDb();
+  let legacy: NotificationPrefsData | null | undefined;
+  let settings: NotificationSettingsData | null | undefined;
+  const emit = () => {
+    if (legacy !== undefined && settings !== undefined) onNext(resolveNotificationSettings(legacy, settings));
+  };
+  const unwatchLegacy = watchDoc(userNotificationPrefsDoc(db, userId), (row) => {
+    legacy = row;
+    emit();
+  }, onError);
+  const unwatchSettings = watchDoc(userNotificationSettingsDoc(db, userId), (row) => {
+    settings = row;
+    emit();
+  }, onError);
+  return () => {
+    unwatchLegacy();
+    unwatchSettings();
+  };
 }
 
-// Full write, not a merge: the form always submits every toggle, and a partial
-// update against a non-existent doc would be denied (see AGENTS/updateDoc note).
-export async function saveNotificationPrefs(
+/**
+ * Saves the switches, and writes the old coarse doc back all-on with quiet hours
+ * in step: an old mute has been folded into topics by now, and a device still on
+ * an older binary then shows the same quiet-hours choice. One batch, so the two
+ * never disagree on the server. A full write, not a merge: the screen always
+ * holds every switch, and rules deny a partial update to a doc that may not exist.
+ */
+export async function saveNotificationSettings(
   userId: string,
-  input: NotificationPrefsDataInput,
+  input: Required<Omit<NotificationSettingsDataInput, 'updatedAt'>>,
 ): Promise<void> {
-  await setDoc(userNotificationPrefsDoc(getDb(), userId), buildNotificationPrefsData(input));
+  const db = getDb();
+  const updatedAt = new Date();
+  const batch = writeBatch(db);
+  batch.set(userNotificationSettingsDoc(db, userId), buildNotificationSettingsData({ ...input, updatedAt }));
+  batch.set(
+    userNotificationPrefsDoc(db, userId),
+    buildNotificationPrefsData({ mine: true, village: true, social: true, quietHours: input.quietHours, updatedAt }),
+  );
+  await batch.commit();
 }

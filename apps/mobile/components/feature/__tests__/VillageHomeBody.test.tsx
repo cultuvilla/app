@@ -1,9 +1,11 @@
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { ScrollView } from 'react-native';
 import { VillageHomeBody } from '../VillageHomeBody';
 import type { VillageHomeState } from '../../../lib/useVillageHome';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import { buildPlaceData } from '@cultuvilla/shared/models/municipality';
+import { buildOrganizationData, type OrganizationType } from '@cultuvilla/shared/models/organization';
 
 const mockRefreshProfile = jest.fn(async () => undefined);
 let mockUser: { uid: string } | null = { uid: 'u1' };
@@ -61,6 +63,19 @@ jest.mock('../wrapped/WrappedPrompt', () => {
   return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
 });
 const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+let mockRankedVillages: unknown[] = [];
+jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
+  watchRankedVillages: (next: (rows: unknown[]) => void) => {
+    next(mockRankedVillages);
+    return () => undefined;
+  },
+}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
+  watchVillageCosas: (_m: string, onNext: (rows: unknown[]) => void) => {
+    onNext([]);
+    return () => undefined;
+  },
+}));
 jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
   getPublishedVillageWrapped: (...a: unknown[]) => mockGetPublishedVillageWrapped(...a),
 }));
@@ -210,6 +225,25 @@ describe('VillageHomeBody', () => {
       expect(router.push).not.toHaveBeenCalled();
     });
 
+    // The recommendations sit below the invitation, so the dormant view has to
+    // scroll to reach them on a short screen.
+    it('ends with other pueblos to discover, inside a scrollable view', () => {
+      mockRankedVillages = [
+        { id: 'm1', name: 'Anaya', slug: 'anaya', province: 'Segovia', escudoUrl: null, manualEscudo: false, score: 9 },
+        { id: 'm2', name: 'Matabuena', slug: 'matabuena', province: 'Segovia', escudoUrl: null, manualEscudo: false, score: 8 },
+      ];
+      try {
+        const { UNSAFE_getByType } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
+        const scroll = within(UNSAFE_getByType(ScrollView));
+        expect(scroll.getByText('Descubre otros pueblos')).toBeTruthy();
+        expect(scroll.getByText('Matabuena')).toBeTruthy();
+        fireEvent.press(scroll.getByText('Matabuena'));
+        expect(router.push).toHaveBeenCalledWith('/matabuena');
+      } finally {
+        mockRankedVillages = [];
+      }
+    });
+
     it('sends a guest through the register gate instead of joining', () => {
       mockUser = null;
       const { getByTestId } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
@@ -266,6 +300,35 @@ describe('VillageHomeBody', () => {
     expect(queryByTestId('entity-card-comment-count')).toBeNull();
   });
 
+  it('lists the comisión de festejos under Grupos, identified on its card', () => {
+    const org = (id: string, name: string, type: OrganizationType) => ({
+      ...buildOrganizationData({ name, type, status: 'approved', municipalityId: 'm1', villageSlug: 'villa', requestedBy: 'u2' }),
+      id,
+    });
+    const { toJSON } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          organizations: [
+            org('c1', 'Comisión 2026', 'comisión'),
+            org('p1', 'Peña El Frontón', 'peña'),
+            org('a1', 'La Anduela', 'asociación'),
+          ],
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    const texts: string[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof node === 'string') texts.push(node);
+      else if (Array.isArray(node)) node.forEach(walk);
+      else if (node && typeof node === 'object' && 'children' in node) walk((node as { children: unknown }).children);
+    };
+    walk(toJSON());
+    const order = ['Comisión 2026', 'Comisión de festejos', 'La Anduela', 'Peñas', 'Peña El Frontón'];
+    expect(texts.filter((x) => order.includes(x))).toEqual(order);
+  });
+
   it('shows event cards with a confirmed-attendee count badge', () => {
     const event: VillageHomeState['events'][number] = {
       id: 'event-1',
@@ -282,6 +345,10 @@ describe('VillageHomeBody', () => {
     attendeesVisibility: 'members' as const,
     visibility: 'public' as const,
     visibilityOrgId: null,
+    series: null,
+    repeatsYearly: false,
+    repeatsMonthly: false,
+    repeatDateVaries: false,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,
@@ -383,6 +450,31 @@ describe('VillageHomeBody', () => {
     expect(router.push).toHaveBeenCalledWith('/anaya/entidades?type=pena');
   });
 
+  // The team writes the description in the app; every visitor reads it here,
+  // members or not, as they do on the web village page.
+  it('shows the village description under its name, to a non-member too', () => {
+    const described = {
+      ...village,
+      community: {
+        ...(village as unknown as { community: Record<string, unknown> }).community,
+        description: 'Pueblo serrano junto al río.',
+      },
+    } as unknown as VillageHomeState['village'];
+    const { getByTestId } = render(
+      <VillageHomeBody data={{ ...base, village: described, isMember: false }} reload={jest.fn()} />,
+    );
+    expect(getByTestId('village-description')).toHaveTextContent('Pueblo serrano junto al río.');
+  });
+
+  it('shows no description block when the team has written none', () => {
+    const blank = {
+      ...village,
+      community: { ...(village as unknown as { community: Record<string, unknown> }).community, description: '  ' },
+    } as unknown as VillageHomeState['village'];
+    const { queryByTestId } = render(<VillageHomeBody data={{ ...base, village: blank }} reload={jest.fn()} />);
+    expect(queryByTestId('village-description')).toBeNull();
+  });
+
   it('shows the censo fill CTA to a villager of a village with a configured censo', () => {
     const censoVillage = {
       ...village,
@@ -417,6 +509,53 @@ describe('VillageHomeBody', () => {
     // Admins still configure the censo, but filling requires being a villager.
     expect(queryByText('Rellenar censo')).toBeNull();
     expect(queryByText('Configurar censo')).toBeTruthy();
+  });
+
+  it('orders the page: map, groups and history first, then articles and events, then the place itself', () => {
+    const { toJSON } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          village: {
+            ...village,
+            coordinates: { lat: 40.4, lng: -3.7 },
+            locationLabel: 'Mapa del pueblo',
+          } as VillageHomeState['village'],
+          sectionStatus: {
+            events: 'loading',
+            news: 'loading',
+            festivalPosters: 'loading',
+            barrios: 'loading',
+            places: 'loading',
+            organizations: 'loading',
+            history: 'loading',
+            vocabulary: 'loading',
+          },
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    const texts: string[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof node === 'string') texts.push(node);
+      else if (Array.isArray(node)) node.forEach(walk);
+      else if (node && typeof node === 'object' && 'children' in node) walk((node as { children: unknown }).children);
+    };
+    walk(toJSON());
+    const order = [
+      'Mapa del pueblo',
+      'Grupos',
+      'Peñas',
+      'Historia',
+      'Artículos',
+      'Eventos',
+      'Carteles de fiestas',
+      'Barrios',
+      'Lugares',
+    ];
+    // Past the stats row, which carries "Grupos" and "Lugares" too.
+    const page = texts.slice(texts.indexOf('Mapa del pueblo'));
+    expect(page.filter((x) => order.includes(x))).toEqual(order);
   });
 
   it('shows a skeleton row for a section whose fetch is still in flight', () => {

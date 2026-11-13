@@ -14,6 +14,7 @@ import { Button } from '../../../components/primitives/Button';
 import { Pressable } from '../../../components/primitives/Pressable';
 import { PartialDateField } from '../../../components/primitives/PartialDateField';
 import { NaturalImage } from '../../../components/primitives/NaturalImage';
+import { ZoomableImage } from '../../../components/primitives/ZoomableImage';
 import { EntityDetailScaffold } from '../../../components/feature/EntityDetailScaffold';
 import { LocationMap } from '../../../components/feature/LocationMap';
 import { BuryFab } from '../../../components/feature/BuryFab';
@@ -189,7 +190,9 @@ function PlaceDetailScreen() {
             {place.images.length > 1 ? (
               <VStack gap={2} className="pt-2">
                 {place.images.slice(1).map((uri) => (
-                  <NaturalImage key={uri} uri={uri} />
+                  <ZoomableImage key={uri} uri={uri} accessibilityLabel={place.name}>
+                  <NaturalImage uri={uri} />
+                </ZoomableImage>
                 ))}
               </VStack>
             ) : null}

@@ -1,9 +1,8 @@
-# Joining an `approval` peña (docs/decisions/org-join-policy.md): the FAB does
-# NOT write a member doc, it files organizations/{orgId}/joinRequests/{uid};
+# Joining a peña (docs/decisions/org-join-policy.md): the FAB does NOT write a
+# member doc, it files organizations/{orgId}/joinRequests/{uid};
 # the org admin admits the requester from the Buzón's actionable section, which
 # calls respondToOrgJoinRequest — member doc in, request out, one transaction.
 #
-# The open-org path (instant self-service) is flow 70; this is its counterpart.
 # Each hop is asserted on Firestore. The org id mirrors
 # scripts/data/seed-fixtures/e2e/fixtures.mjs (`approvalOrg.docId`), where
 # e2e-admin is its only member and admin.
@@ -13,6 +12,7 @@ env:
   VILLAGE_SLUG: altozano-de-prueba
   ORG_ID: e2e-org-pena-cerrada
   JOINER_UID: e2e-joiner
+  REJECTED_UID: e2e-user
 ---
 # ── The villager asks to join. ──
 - runFlow:
@@ -43,7 +43,26 @@ env:
     visible: 'Solicitud enviada'
     timeout: 20000
 
-# ── The org admin admits them from the Buzón. ──
+# ── A second villager asks too; this one is turned down below. ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${ORG_ID}'
+- extendedWaitUntil:
+    visible: 'Solicitar unirme'
+    timeout: 45000
+- tapOn:
+    id: 'join-org-fab'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/joinRequests/${REJECTED_UID}'
+      EXPECT: present
+- assertTrue: ${output.ok == 'true'}
+
+# ── The org admin admits one and turns the other down from the Buzón. ──
 - runFlow:
     file: ../subflows/login.yaml
     env:
@@ -69,5 +88,25 @@ env:
     file: ../scripts/docField.js
     env:
       DOC_PATH: 'organizations/${ORG_ID}/joinRequests/${JOINER_UID}'
+      EXPECT: absent
+- assertTrue: ${output.ok == 'true'}
+- scrollUntilVisible:
+    element:
+      id: 'reject-join-${ORG_ID}-${REJECTED_UID}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'reject-join-${ORG_ID}-${REJECTED_UID}'
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/joinRequests/${REJECTED_UID}'
+      EXPECT: absent
+      TIMEOUT_MS: '60000'
+- assertTrue: ${output.ok == 'true'}
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}/members/${REJECTED_UID}'
       EXPECT: absent
 - assertTrue: ${output.ok == 'true'}

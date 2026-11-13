@@ -138,6 +138,7 @@ async function main() {
         escudoManualUrl: null,
         community: null,
         communityActive: false,
+        peopleCount: 0,
         createdAt: FieldValue.serverTimestamp(),
       });
     }

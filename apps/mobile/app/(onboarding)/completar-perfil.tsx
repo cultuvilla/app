@@ -220,6 +220,7 @@ export default function CompleteProfileScreen() {
           </>
         )}
         minAgeYears={MIN_SELF_REGISTRATION_AGE}
+        recoverPickedPhoto
         consentSatisfied={acceptedTerms}
         renderConsent={() => (
           <Checkbox

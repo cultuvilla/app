@@ -27,6 +27,8 @@ interface Props {
   onShareLink?: () => void;
   /** Share the card on screen as an image. Absent where a card cannot be shared as a file. */
   onShareCard?: (card: StoryCard) => void;
+  /** Save the card on screen to the photo library. Absent where a card cannot be saved as a file. */
+  onSaveCard?: (card: StoryCard) => void;
   /** Leave for the village home, from the closing screen. */
   onOpenVillage?: () => void;
 }
@@ -48,6 +50,7 @@ export function WrappedStoryViewer({
   onClose,
   onShareLink,
   onShareCard,
+  onSaveCard,
   onOpenVillage,
 }: Props) {
   const { t } = useT();
@@ -149,6 +152,18 @@ export function WrappedStoryViewer({
           ))}
         </View>
         <View style={styles.actions} pointerEvents="box-none">
+          {current && onSaveCard ? (
+            <RNPressable
+              onPress={() => onSaveCard(current)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('village.wrapped.viewer.saveCard')}
+              testID="wrapped-save-card"
+              style={styles.iconButton}
+            >
+              <Ionicons name="download-outline" size={iconSizes.md} color="#ffffff" />
+            </RNPressable>
+          ) : null}
           {current && onShareCard ? (
             <RNPressable
               onPress={() => onShareCard(current)}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ScrollView } from 'react-native';
 import {
   requestOrganization, newOrganizationId, approveOrganization,
 } from '@cultuvilla/shared/services/organizationService';
@@ -14,6 +15,7 @@ import { useT } from '../../../lib/i18n';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { ProposableForm } from './ProposableForm';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
+import { useCallableErrorHandler } from '../../../lib/callableError';
 
 /**
  * "Añadir agrupación" form. A villager proposes a peña/asociación/otros
@@ -31,6 +33,7 @@ export function OrganizationsManager({
   onCreated?: () => void;
 }) {
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { canManage, uid } = useEntityCapabilities(villageId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -51,6 +54,8 @@ export function OrganizationsManager({
     try {
       const url = await uploadOrganizationImage(orgId, picked);
       setImages((prev) => [...prev, url]);
+    } catch (e) {
+      showCallableError(e, { operation: 'org:uploadImage' });
     } finally {
       setAddingImage(false);
     }
@@ -97,8 +102,10 @@ export function OrganizationsManager({
 
   const typeLabel = (ty: OrganizationType) => t(`organization.${ty}`);
 
+  // A ScrollView that takes taps: on iOS the multiline description's keyboard
+  // otherwise covers the submit with no way to close it (return adds a line).
   return (
-    <VStack gap={3} className="p-4">
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="p-4">
       <ProposableForm
         images={images}
         onAddImage={addImage}
@@ -143,6 +150,6 @@ export function OrganizationsManager({
         saving={saving}
         disabled={!name.trim()}
       />
-    </VStack>
+    </ScrollView>
   );
 }

@@ -1,3 +1,4 @@
+import type ExcelJS from 'exceljs';
 import { palette } from '@cultuvilla/shared/design-system';
 import type { RosterExportModel } from '@cultuvilla/shared/export/rosterExport';
 import { CULTUVILLA_LOGO_PNG_BASE64 } from './cultuvillaLogo';
@@ -18,23 +19,35 @@ const DATE_FORMAT = 'dd/mm/yyyy hh:mm';
 // on one would print every attendee as born at 0:00.
 const DATE_ONLY_FORMAT = 'dd/mm/yyyy';
 
+const EUROS_FORMAT = '#,##0.00 "€"';
+
 const TITLE_ROW = 1;
 const SUBTITLE_ROW = 2;
 const HEADER_ROW = 4;
 
 /**
- * Build the branded .xlsx for an event's attendee roster. ExcelJS loads on
+ * Build the branded .xlsx for an export model (an event's attendee roster, a cuota period). ExcelJS loads on
  * demand (see loadExcelJs), so pressing "Exportar" is what pays for it. The
  * function returns the raw bytes; handing them to the user is `downloadFile`'s
  * job.
  */
 export async function buildRosterWorkbook(model: RosterExportModel): Promise<ArrayBuffer> {
+  return buildWorkbook([model], model.title);
+}
+
+/** One workbook, one sheet per model, in order — the Registros' "Exportar todo". */
+export async function buildWorkbook(models: readonly RosterExportModel[], title: string): Promise<ArrayBuffer> {
   const ExcelJS = await loadExcelJs();
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Cultuvilla';
-  workbook.title = `${model.title} — asistentes`;
+  workbook.title = title;
+  const logoId = workbook.addImage({ base64: CULTUVILLA_LOGO_PNG_BASE64, extension: 'png' });
+  for (const model of models) addSheet(workbook, model, logoId);
+  return workbook.xlsx.writeBuffer();
+}
 
+function addSheet(workbook: ExcelJS.Workbook, model: RosterExportModel, logoId: number): void {
   const sheet = workbook.addWorksheet(model.sheetName, {
     views: [{ state: 'frozen', ySplit: HEADER_ROW }],
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
@@ -42,7 +55,6 @@ export async function buildRosterWorkbook(model: RosterExportModel): Promise<Arr
 
   sheet.columns = model.columns.map((c) => ({ key: c.key, width: c.width }));
 
-  const logoId = workbook.addImage({ base64: CULTUVILLA_LOGO_PNG_BASE64, extension: 'png' });
   // Floated over the top-left corner rather than placed in a cell, so it never
   // shifts the table when a column is added.
   sheet.addImage(logoId, { tl: { col: 0.15, row: 0.15 }, ext: { width: 46, height: 46 } });
@@ -86,6 +98,7 @@ export async function buildRosterWorkbook(model: RosterExportModel): Promise<Arr
       if (column.type === 'date' && cell.value instanceof Date) cell.numFmt = DATE_FORMAT;
       // A partial birth date ('Marzo 1980') arrives as text and keeps it.
       if (column.type === 'dateOnly' && cell.value instanceof Date) cell.numFmt = DATE_ONLY_FORMAT;
+      if (column.type === 'euros' && typeof cell.value === 'number') cell.numFmt = EUROS_FORMAT;
       // Phone numbers are text: Excel would otherwise eat the leading zero of
       // a landline and render long numbers in scientific notation.
       if (column.key === 'phone') cell.alignment = { horizontal: 'left' };
@@ -104,9 +117,7 @@ export async function buildRosterWorkbook(model: RosterExportModel): Promise<Arr
   }
 
   const totalsCell = sheet.getCell(lastDataRow + 2, 1);
-  totalsCell.value = `Confirmados: ${model.totals.confirmed}   ·   Lista de espera: ${model.totals.waitlisted}   ·   Total: ${model.totals.total}`;
+  totalsCell.value = model.summary;
   totalsCell.font = { bold: true, color: { argb: argb(palette.olive) } };
   sheet.mergeCells(lastDataRow + 2, 1, lastDataRow + 2, Math.max(2, lastColumn));
-
-  return workbook.xlsx.writeBuffer();
 }

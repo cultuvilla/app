@@ -11,10 +11,11 @@ import type { OrganizationType } from '@cultuvilla/shared/models/organization/Or
 const TYPE_ALIASES: Record<string, OrganizationType> = {
   pena: 'peña',
   asociacion: 'asociación',
+  comision: 'comisión',
   otros: 'otros',
 };
 
-// Agrupaciones create surface: any member proposes a peña/asociación/otros;
+// Agrupaciones create surface: any member proposes a peña/comisión/asociación/otros;
 // organizers create (auto-approved). After submit we return to the pueblo tab.
 function VillageOrganizations() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();

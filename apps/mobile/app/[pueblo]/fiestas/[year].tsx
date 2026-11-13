@@ -62,6 +62,7 @@ function WrappedViewerScreen() {
           onClose={close}
           onShareLink={share.shareLink}
           onShareCard={share.shareCard}
+          onSaveCard={share.saveCard}
           onOpenVillage={toVillage}
         />
       </Screen>

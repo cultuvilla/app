@@ -24,4 +24,22 @@ describe('DeleteHeaderButton', () => {
     spy.mockRestore();
   });
 
+  it('offers the alternative as its own destructive button', () => {
+    const onConfirm = jest.fn();
+    const onAlternative = jest.fn();
+    const spy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, btns) => {
+      btns?.find((b) => b.text === 'Este y los siguientes')?.onPress?.();
+    });
+    const { getByLabelText } = render(
+      <DeleteHeaderButton
+        {...props}
+        onConfirm={onConfirm}
+        alternative={{ label: 'Este y los siguientes', onConfirm: onAlternative }}
+      />,
+    );
+    fireEvent.press(getByLabelText('Eliminar'));
+    expect(onAlternative).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });

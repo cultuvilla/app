@@ -20,30 +20,14 @@ const rootPkg = JSON.parse(read('package.json')) as { scripts: Record<string, st
 const nativeDir = 'apps/mobile/e2e/native';
 
 describe('ios-e2e workflow gating', () => {
-  it('always runs on the beta/main release paths, like Android', () => {
+  // Merging to develop never waits on the macOS suite (decided 2026-10-10,
+  // user): it runs on the release paths and by hand, exactly like Android.
+  it('runs only on the beta/main release paths and by dispatch, like Android', () => {
     const triggers = workflow.slice(workflow.indexOf('on:'), workflow.indexOf('permissions:'));
-    expect(triggers).toMatch(/pull_request:\s*\n\s*branches:\s*\[develop, beta, main\]/);
+    expect(triggers).toMatch(/pull_request:\s*\n\s*branches:\s*\[beta, main\]/);
     expect(triggers).toMatch(/push:\s*\n\s*branches:\s*\[beta, main\]/);
     expect(triggers).toMatch(/workflow_dispatch:/);
-  });
-
-  // A develop PR runs the macOS job only when it touches the harness or the
-  // shared flows; every other PR (and every release-path event) is decided by
-  // the gate job, never by a trigger-level `paths:` that would also filter beta.
-  it('runs develop PRs only when they touch the iOS harness or the flows', () => {
-    expect(workflow).not.toMatch(/^\s*paths:/m);
-    expect(workflow).toMatch(/needs: gate/);
-    expect(workflow).toMatch(/if: needs\.gate\.outputs\.run == 'true'/);
-    const gate = workflow.slice(workflow.indexOf('  gate:'), workflow.indexOf('  build:'));
-    for (const path of [
-      'scripts/(run-ios-e2e|build-ios-e2e-app|run-tests-with-emulators)',
-      'scripts/lib/(maestro-suite|e2e-build-env|ios-simulator)',
-      'package\\.json',
-      'scripts/seed/e2e',
-      'apps/mobile/e2e/native/',
-    ]) {
-      expect(gate).toContain(path);
-    }
+    expect(triggers).not.toMatch(/develop/);
   });
 
   // Run 8 timed out mid-suite and the upload, gated on !cancelled(), was
@@ -315,11 +299,18 @@ describe('iOS quarantine', () => {
     ([, name]) => name,
   );
 
-  // Two: 45 needs airplane mode, which Maestro cannot toggle on iOS at all, and
-  // 50 is the AVD-tuned onboarding keyboard choreography. A third needs this
-  // bound raised on purpose, in review.
-  it('holds out at most two flows', () => {
-    expect(quarantined.length).toBeLessThanOrEqual(2);
+  // Three: 45 needs airplane mode, which Maestro cannot toggle on iOS at all;
+  // 55's news tab never finished loading for a villager on the Simulator; and
+  // 83's poster needs a photo, and iOS photo uploads did not land on the shared
+  // runners (#560). A fourth needs this bound raised on purpose, in review.
+  it('holds out at most three flows', () => {
+    expect(quarantined.length).toBeLessThanOrEqual(3);
+  });
+
+  // 50 left the quarantine once its rewrite passed on iOS; a quiet return
+  // would drop onboarding from the iOS gate again.
+  it('runs onboarding (50) on iOS', () => {
+    expect(quarantined).not.toContain('50-onboarding-complete-profile.yaml');
   });
 
   it('names only flows that exist', () => {

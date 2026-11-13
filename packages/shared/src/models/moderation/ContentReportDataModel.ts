@@ -43,6 +43,13 @@ export const ContentReportDataSchema = z.object({
   reporterUserId: z.string(),
   reason: ReportReasonSchema,
   note: z.string().max(500).nullable(),
+  /**
+   * A copy of the reported words, so moderators can read them from the queue. A
+   * group chat message is also private to the group, so its report (`comment`,
+   * with the message's path as `targetId`) has no other way to show them. The
+   * reporter supplies the text.
+   */
+  targetText: z.string().max(2000).nullable().default(null),
   status: ReportStatusSchema,
   createdAt: z.date(),
 });
@@ -56,6 +63,7 @@ export interface ContentReportDataInput {
   reporterUserId: string;
   reason: ReportReason;
   note?: string | null;
+  targetText?: string | null;
   createdAt?: Date;
 }
 
@@ -68,6 +76,7 @@ export function buildContentReportData(input: ContentReportDataInput): ContentRe
     reporterUserId: input.reporterUserId,
     reason: input.reason,
     note: input.note?.trim() ? input.note.trim() : null,
+    targetText: input.targetText ?? null,
     // A report always lands unreviewed: `status` is the moderator's field, and
     // the create rule pins it to 'open' so a reporter cannot self-resolve.
     status: 'open',

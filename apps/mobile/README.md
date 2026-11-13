@@ -28,7 +28,7 @@ From the repo root:
 |---|---|
 | `pnpm app:start` | Default. Works when your dev machine and phone are on the same Wi-Fi and the LAN allows direct connections. |
 | `pnpm app:start:tunnel` | When the phone is not on your network. Routes through Expo's ngrok-style tunnel. Slower bundle. |
-| `pnpm app:start:lan` | **Use this on WSL2.** Advertises the Windows host's LAN IP so the phone can scan the QR on the same Wi-Fi (needs the Windows portproxy for 8081 — see the `drive-android-avd` skill). Off WSL it is plain `expo start --lan`. |
+| `pnpm app:start:lan` | **Use this on WSL2.** Advertises the Windows host's LAN IP so the phone can scan the QR on the same Wi-Fi (needs the Windows portproxy for 8081 — see the `drive-android-avd` skill). Off WSL it is plain `expo start --lan` on the same port. |
 | `pnpm app:android` / `pnpm app:ios` | Auto-open on a connected emulator / simulator. |
 
 ### 3. Connect from your phone
@@ -37,7 +37,7 @@ Install **Expo Go** (iOS App Store / Google Play). On Android, scan the QR with 
 
 If the QR scan never connects:
 - WSL2 / Linux desktop → use `pnpm app:start:tunnel`.
-- Native Linux/Mac on same Wi-Fi → check firewall isn't blocking port 8081 (8082 if 8081 was taken).
+- Native Linux/Mac on same Wi-Fi → check firewall isn't blocking port 8081, which `pnpm app:start` binds. If something else holds it, Expo stops rather than choosing another port: `METRO_PORT=8090 pnpm app:start`.
 - Corporate / guest networks often block peer-to-peer LAN → tunnel mode.
 
 If the app launches but immediately shows a red error screen:

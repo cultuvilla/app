@@ -23,6 +23,8 @@ import {
   buildEventData,
   buildLocationData,
   buildPlaceData,
+  buildBarrioData,
+  buildNewsPostData,
   buildCommentData,
 } from '@cultuvilla/shared/models';
 import {
@@ -33,14 +35,22 @@ import {
   organizerlessVillage,
   org,
   approvalOrg,
+  groupOrg,
+  switchOrg,
+  pastYearlyEvent,
   event,
   capacityEvent,
+  farEvent,
   groupEvent,
   signupEvent,
   privateEvent,
   otherUserComment,
   dependentPerson,
   place,
+  cemetery,
+  burialPersons,
+  barrio,
+  newsPost,
 } from '../data/seed-fixtures/e2e/fixtures.mjs';
 
 if (!EMULATOR) {
@@ -71,7 +81,7 @@ async function run() {
   // Auth accounts + persons/{id} + users/{uid} profile docs. The person is
   // linked via personId so the app treats the user as onboarded (otherwise the
   // register FAB never renders — it diverts to complete-profile).
-  for (const u of [users.admin, users.attendee, users.superAdmin, users.joiner]) {
+  for (const u of [users.admin, users.attendee, users.superAdmin, users.joiner, users.throwaway]) {
     await upsertUser(u);
     await db
       .collection('persons')
@@ -258,6 +268,63 @@ async function run() {
     .doc(users.admin.uid)
     .set(buildOrgMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
 
+  // The Grupos flows' asociación: admin + one integrante (see fixtures.mjs).
+  // The other two orgs only seed their admin; here the member matters.
+  for (const [orgFixture, adminUid, memberUids] of [
+    [groupOrg, users.admin.uid, [users.attendee.uid]],
+    [switchOrg, users.attendee.uid, []],
+  ]) {
+    await db
+      .collection('organizations')
+      .doc(orgFixture.docId)
+      .set(
+        buildOrganizationData({
+          name: orgFixture.name,
+          type: orgFixture.type,
+          description: orgFixture.description,
+          municipalityId: village.docId,
+          villageSlug: village.slug,
+          requestedBy: adminUid,
+          status: 'approved',
+          reviewedBy: users.admin.uid,
+          reviewedAt: new Date(),
+        }),
+        { merge: true },
+      );
+    const members = db.collection('organizations').doc(orgFixture.docId).collection('members');
+    await members.doc(adminUid).set(buildOrgMemberData({ userId: adminUid, role: 'admin' }), { merge: true });
+    for (const uid of memberUids) {
+      await members.doc(uid).set(buildOrgMemberData({ userId: uid, role: 'member' }), { merge: true });
+    }
+  }
+
+  await db
+    .collection('events')
+    .doc(pastYearlyEvent.docId)
+    .set(
+      buildEventData({
+        title: pastYearlyEvent.title,
+        description: pastYearlyEvent.description,
+        startDate: new Date(Date.now() + pastYearlyEvent.startOffsetDays * DAY_MS),
+        endDate: new Date(Date.now() + pastYearlyEvent.endOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Plaza Mayor, ${village.name}`,
+        }),
+        telephoneRequired: false,
+        status: pastYearlyEvent.status,
+        repeatsYearly: true,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [org.docId],
+        createdBy: users.admin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
   // Upcoming published event in the village
   const startDate = new Date(Date.now() + event.startOffsetDays * DAY_MS);
   await db
@@ -308,6 +375,32 @@ async function run() {
         villageName: village.name,
         villageSlug: village.slug,
         villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('events')
+    .doc(farEvent.docId)
+    .set(
+      buildEventData({
+        title: farEvent.title,
+        description: farEvent.description,
+        startDate: new Date(Date.now() + farEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: joinVillage.coordinates,
+          displayName: `Plaza, ${joinVillage.name}`,
+        }),
+        maxAttendees: farEvent.maxAttendees,
+        telephoneRequired: false,
+        status: farEvent.status,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [],
+        createdBy: users.admin.uid,
+        municipalityId: joinVillage.docId,
+        villageName: joinVillage.name,
+        villageSlug: joinVillage.slug,
+        villageCoordinates: joinCoords,
       }),
       { merge: true },
     );
@@ -430,6 +523,71 @@ async function run() {
       }),
       { merge: true },
     );
+
+  await db
+    .collection('municipalities')
+    .doc(village.docId)
+    .collection('barrios')
+    .doc(barrio.docId)
+    .set(
+      buildBarrioData({
+        name: barrio.name,
+        municipalityId: village.docId,
+        proposedBy: users.admin.uid,
+      }),
+      { merge: true },
+    );
+
+  const newsAt = new Date();
+  await db
+    .collection('news')
+    .doc(newsPost.docId)
+    .set(
+      buildNewsPostData({
+        municipalityId: village.docId,
+        villageSlug: village.slug,
+        createdBy: users.admin.uid,
+        organizerUserIds: [users.admin.uid],
+        title: newsPost.title,
+        body: newsPost.body,
+        category: newsPost.category,
+        createdAt: newsAt,
+        updatedAt: newsAt,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('municipalities')
+    .doc(village.docId)
+    .collection('places')
+    .doc(cemetery.docId)
+    .set(
+      buildPlaceData({
+        name: cemetery.name,
+        kind: cemetery.kind,
+        description: cemetery.description,
+        municipalityId: village.docId,
+        proposedBy: users.admin.uid,
+      }),
+      { merge: true },
+    );
+  for (const p of burialPersons) {
+    await db
+      .collection('persons')
+      .doc(p.docId)
+      .set(
+        buildPersonData({
+          givenName: p.givenName,
+          firstSurname: p.firstSurname,
+          isPublic: p.isPublic,
+          createdBy: users.attendee.uid,
+          userId: null,
+          municipalityLinks: [{ municipalityId: village.docId, barrioId: null }],
+        }),
+        { merge: true },
+      );
+  }
 
   console.log(
     `[seed:e2e] seeded emulator (users=${users.admin.uid},${users.attendee.uid},` +

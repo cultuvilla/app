@@ -55,6 +55,33 @@ afterAll(() => {
 });
 
 describe('village entity broadcast', () => {
+  describe('a new event', () => {
+    const event = { municipalityId: MUN, createdBy: ACTOR, title: 'Paella', status: 'published', organizerOrgIds: ['org-1'] };
+
+    it("reaches the village's members, and nobody else", async () => {
+      await fireCreate(onEventPublished, 'events/e1', event, { eventId: 'e1' });
+
+      const [n, ...rest] = await notificationsOf('member-1');
+      expect(rest).toHaveLength(0);
+      expect(n.id).toBe('village_entity_event_e1');
+      expect(await notificationsOf('member-2')).toHaveLength(1);
+      expect(await notificationsOf('visitor')).toHaveLength(0);
+    });
+
+    it('announces a private event to nobody', async () => {
+      await fireCreate(
+        onEventPublished,
+        'events/e2',
+        { ...event, visibility: 'organization', visibilityOrgId: 'org-1' },
+        { eventId: 'e2' },
+      );
+
+      for (const uid of ['visitor', 'member-1', 'member-2']) {
+        expect(await notificationsOf(uid)).toHaveLength(0);
+      }
+    });
+  });
+
   it('tells every member except the author about a new post', async () => {
     await fireCreate(
       onNewsPublished,
@@ -114,6 +141,20 @@ describe('village entity broadcast', () => {
     );
     const [n] = await notificationsOf('member-1');
     expect(n.data()).toMatchObject({ entityKind: 'event', entityId: 'e2', title: 'Nuevo evento en Matabuena' });
+  });
+
+  it('announces a weekly series once, on its first occurrence', async () => {
+    const series = (index: number) => ({ id: 's1', index, weekdays: [2, 4], until: new Date('2026-12-01') });
+    for (const index of [0, 1, 2]) {
+      await fireCreate(
+        onEventPublished,
+        `events/s1-${String(index)}`,
+        { municipalityId: MUN, createdBy: ACTOR, title: 'Yoga', status: 'published', series: series(index) },
+        { eventId: `s1-${String(index)}` },
+      );
+    }
+    const notes = await notificationsOf('member-1');
+    expect(notes.map((d) => d.id)).toEqual(['village_entity_event_s1-0']);
   });
 
   it('announces a place proposed by a person', async () => {

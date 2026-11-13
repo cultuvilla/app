@@ -136,6 +136,47 @@ describe('firestore.rules — /organizations/{orgId} update + delete', () => {
     });
   });
 
+  // The ayuntamiento is a per-village singleton only requestAyuntamiento mints,
+  // so `type` may move among the self-service kinds but never to or from it.
+  describe('type', () => {
+    it('an org admin can move a peña to asociación, and on to otros', async () => {
+      await seedOrgAndMembers();
+      const db = asUser(getEnv(), ORG_ADMIN);
+      await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'asociación' }));
+      await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'otros' }));
+    });
+
+    it('an org admin can move a group to a comisión and back', async () => {
+      await seedOrgAndMembers();
+      const db = asUser(getEnv(), ORG_ADMIN);
+      await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'comisión' }));
+      await assertSucceeds(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'asociación' }));
+    });
+
+    it('nobody can turn a group into the ayuntamiento', async () => {
+      await seedOrgAndMembers();
+      for (const db of [asUser(getEnv(), ORG_ADMIN), asUser(getEnv(), VILLAGE_ADMIN), await asAdmin(getEnv(), APP_ADMIN)]) {
+        await assertFails(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'ayuntamiento' }));
+      }
+    });
+
+    it('nobody can turn the ayuntamiento into a group', async () => {
+      await seedOrgAndMembers();
+      await seed(getEnv(), async (ctx) => {
+        await updateDoc(doc(ctx.firestore(), `organizations/${ORG_ID}`), { type: 'ayuntamiento' });
+      });
+      for (const db of [asUser(getEnv(), ORG_ADMIN), await asAdmin(getEnv(), APP_ADMIN)]) {
+        await assertFails(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'peña' }));
+      }
+    });
+
+    it('rejects a type outside the enum', async () => {
+      await seedOrgAndMembers();
+      const db = asUser(getEnv(), ORG_ADMIN);
+      await assertFails(updateDoc(doc(db, `organizations/${ORG_ID}`), { type: 'club' }));
+    });
+  });
+
   describe('delete', () => {
     it('a village admin of the org municipality can delete', async () => {
       await seedOrgAndMembers();

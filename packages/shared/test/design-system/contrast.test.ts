@@ -23,7 +23,23 @@ function contrastRatio(foreground: string, background: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+const TEXT_TOKENS = ['primary', 'muted', 'secondary'] as const;
+const PAGE_BACKGROUNDS = ['surface', 'surface-elevated'] as const;
+
 describe('color contrast', () => {
+  for (const [mode, tokens] of Object.entries(colors)) {
+    for (const text of TEXT_TOKENS) {
+      for (const background of PAGE_BACKGROUNDS) {
+        it(`${mode}: text-${text} is AA on bg-${background}`, () => {
+          expect(contrastRatio(tokens.fg[text], tokens.bg[background])).toBeGreaterThanOrEqual(
+            AA_NORMAL_TEXT_RATIO,
+          );
+        });
+      }
+    }
+  }
+
+
   it('keeps text readable on tinted subtle surfaces', () => {
     expect(contrastRatio(colors.light.fg['on-subtle'], colors.light.bg.subtle)).toBeGreaterThanOrEqual(
       AA_NORMAL_TEXT_RATIO,

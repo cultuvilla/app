@@ -31,7 +31,12 @@ they authored for the community (news, events) is **kept** and reattributed to
 the `DELETED_USER_UID` sentinel (`packages/shared/src/models/user/deletedUser.ts`),
 rendered as "Usuario eliminado". This is the RGPD-compliant balance for a
 community app: personal data must go, but a village's published history
-shouldn't disappear because one contributor left.
+shouldn't disappear because one contributor left. Free text with no editorial
+value is hard-deleted instead: comments and group chat messages (leaving a group
+keeps a member's chat messages under their name; erasing the account does not).
+The cosateca follows the same split: the user's own cosas and their requests go.
+What they gave to a group is already the group's (`ownerUid: null`) and stays,
+with whoever holds it; only their name comes off it (`createdByName` blanked).
 
 **Sole-admin block.** `checkAccountDeletable` refuses deletion (surfacing the
 blocking villages/orgs) if the user is the only admin anywhere — deleting them

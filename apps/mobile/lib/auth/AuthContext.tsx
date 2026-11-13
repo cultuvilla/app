@@ -50,6 +50,14 @@ import {
 } from './otpTokenCache';
 import { fetchUserIdHash } from '../observability/errorBridge';
 import { unregisterPushForSignOut } from '../push/pushSession';
+import { discardLegacySession, restoreLegacySession } from './legacySession';
+import { clearSessionMarker, markSessionOpen, reportIfSessionLost } from './sessionMarker';
+
+/** Back-off between attempts at a profile read that failed at sign-in. */
+const PROFILE_RETRY_MS = [1000, 2000, 5000, 10000, 30000];
+
+/** How long the launch waits for a pre-native session before showing the app signed out. */
+const LEGACY_RESTORE_TIMEOUT_MS = 8000;
 
 declare const __DEV__: boolean;
 
@@ -234,10 +242,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const auth = getAuth();
+    let launchResolved = false;
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
-      setLoading(false);
-      if (!u) setProfileChecked(true);
+      const firstAnswer = !launchResolved;
+      launchResolved = true;
+      void (u
+        ? markSessionOpen((u.providerData ?? []).map((p) => p.providerId))
+        : reportIfSessionLost()
+      ).catch((err: unknown) => {
+        observability.captureError(err, { operation: 'auth:sessionMarker' });
+      });
+      if (u) {
+        setLoading(false);
+        void discardLegacySession().catch((err: unknown) => {
+          observability.captureError(err, { operation: 'auth:discardLegacySession' });
+        });
+        return;
+      }
+      if (!firstAnswer) {
+        setLoading(false);
+        setProfileChecked(true);
+        return;
+      }
+      // Hold the signed-out state until a pre-native session has had its chance,
+      // so someone being restored never sees the app as a guest first.
+      const restore = restoreLegacySession().catch((err: unknown) => {
+        observability.captureError(err, { operation: 'auth:restoreLegacySession' });
+      });
+      void settleWithin(restore, LEGACY_RESTORE_TIMEOUT_MS).then(() => {
+        if (!getAuth().currentUser) setProfileChecked(true);
+        setLoading(false);
+      });
     });
   }, []);
 
@@ -318,10 +354,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.remove();
   }, []);
 
+  // profileChecked means "the read answered", never "the read failed": a failed
+  // read taken as a missing profile sent a signed-in user to onboarding, where
+  // abandonSignUp deletes what it takes for a fresh sign-up. A failure leaves it
+  // unchecked and is rethrown; the sign-in load below retries it.
+  // A read whose account is no longer the signed-in one (a switch while it was
+  // in flight) touches no state: its "no profile" would otherwise stand for
+  // the new account.
   const loadProfile = useCallback(async (uid: string, currentEmail: string | null) => {
+    const current = () => getAuth().currentUser?.uid === uid;
     setProfileLoading(true);
+    let answered = false;
     try {
       const p = await getUserProfile(uid);
+      if (!current()) return;
+      answered = true;
       setProfile(p);
       if (p) {
         // Defer setUserContext until the hashed uid resolves — never forward
@@ -339,12 +386,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // via the link, or a Google-linked account's email changes at Google).
       // The token's email is always the source of truth; the rules permit a
       // client email patch equal to it (Task 2).
+      // Not worth failing the load over: the next resume tries again.
       if (p && currentEmail && p.email !== currentEmail) {
-        await patchUserProfile(uid, { email: currentEmail });
+        await patchUserProfile(uid, { email: currentEmail }).catch((err: unknown) => {
+          observability.captureError(err, { operation: 'auth:syncProfileEmail' });
+        });
       }
     } finally {
-      setProfileLoading(false);
-      setProfileChecked(true);
+      if (current()) {
+        setProfileLoading(false);
+        if (answered) setProfileChecked(true);
+      }
     }
   }, []);
 
@@ -357,7 +409,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setProfileChecked(false);
     setProfileLoading(true);
-    loadProfile(user.uid, user.email);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    const attempt = (n: number) => {
+      loadProfile(user.uid, user.email).catch((err: unknown) => {
+        observability.captureError(err, { operation: 'auth:loadProfile', attempt: n });
+        if (stopped) return;
+        timer = setTimeout(() => attempt(n + 1), PROFILE_RETRY_MS[Math.min(n, PROFILE_RETRY_MS.length - 1)]);
+      });
+    };
+    attempt(0);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [user, loadProfile]);
 
   const refreshProfile = useCallback(async () => {
@@ -563,6 +628,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Never let a half-spent sign-in credential outlive the session it belongs to.
     clearPendingToken();
     await AsyncStorage.removeItem(PENDING_REAUTH_KEY);
+    await clearSessionMarker();
   };
 
   const devLogin = getDevLogin();

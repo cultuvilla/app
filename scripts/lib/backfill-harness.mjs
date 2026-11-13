@@ -54,6 +54,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
   return {
     env: value('--env'),
     id: value('--id'),
+    phase: value('--phase'),
     apply: argv.includes('--apply'),
     confirm: argv.includes('--confirm'),
     verbose: argv.includes('--verbose'),

@@ -20,6 +20,7 @@ import { Text } from '../primitives/Text';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useIsAppAdmin } from '../../lib/auth/useIsAppAdmin';
 import { useT } from '../../lib/i18n';
+import { showConfirm } from '../../lib/dialogs';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
 import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberService';
 
@@ -99,6 +100,15 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
   async function handleSignOut() {
     await signOut();
     router.replace('/(tabs)');
+  }
+
+  function confirmSignOut() {
+    showConfirm(
+      t('menu.signOutConfirmTitle'),
+      t('menu.signOutConfirmBody'),
+      () => close(() => void handleSignOut()),
+      { confirmText: t('menu.signOut'), cancelText: t('common.cancel') },
+    );
   }
 
   const sections: MenuSection[] = [
@@ -269,14 +279,6 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
                     {email}
                   </Text>
                 ) : null}
-                <Pressable
-                  onPress={() => close(() => router.push(routes.profile))}
-                  className="mt-2 self-start px-3 py-1 rounded-md border border-strong"
-                >
-                  <Text variant="caption" className="font-semibold">
-                    {t('menu.editProfile')}
-                  </Text>
-                </Pressable>
               </View>
             </View>
 
@@ -327,7 +329,7 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
             </Text>
 
             <Pressable
-              onPress={() => close(() => void handleSignOut())}
+              onPress={confirmSignOut}
               className="flex-row items-center justify-center bg-surface rounded-md border border-subtle py-4"
             >
               <Ionicons name="log-out-outline" size={20} color="#dc2626" />

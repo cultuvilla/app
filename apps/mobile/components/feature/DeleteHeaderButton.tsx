@@ -16,6 +16,11 @@ export type DeleteHeaderButtonProps = {
   confirmMessage: string;
   confirmLabel: string;
   cancelLabel: string;
+  /**
+   * A second destructive choice offered next to `confirmLabel` — e.g. a weekly
+   * event's "este y los siguientes" beside "solo este día".
+   */
+  alternative?: { label: string; onConfirm: () => void | Promise<void> };
   /** Per-entity wait message shown on the blocking overlay, e.g. "Eliminando evento…". */
   deletingLabel: string;
   /** Rendered inside an orange `ScreenHeader accent` bar → use the light tint. */
@@ -40,21 +45,25 @@ export function DeleteHeaderButton({
   confirmMessage,
   confirmLabel,
   cancelLabel,
+  alternative,
   deletingLabel,
   onAccent = false,
   testID,
 }: DeleteHeaderButtonProps) {
   const [deleting, setDeleting] = useState(false);
 
-  const doDelete = () => {
+  const doDelete = (action: () => void | Promise<void>) => {
     setDeleting(true);
-    Promise.resolve(onConfirm()).catch(() => setDeleting(false));
+    Promise.resolve(action()).catch(() => setDeleting(false));
   };
 
   const run = () => {
     Alert.alert(confirmTitle, confirmMessage, [
       { text: cancelLabel, style: 'cancel' },
-      { text: confirmLabel, style: 'destructive', onPress: doDelete },
+      { text: confirmLabel, style: 'destructive', onPress: () => doDelete(onConfirm) },
+      ...(alternative
+        ? [{ text: alternative.label, style: 'destructive' as const, onPress: () => doDelete(alternative.onConfirm) }]
+        : []),
     ]);
   };
 

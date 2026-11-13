@@ -35,7 +35,9 @@ export function MultiImagePickerRow({
   testID,
 }: MultiImagePickerRowProps) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    // A horizontal ScrollView grows by default (flexGrow: 1); in a column that
+    // can let the row swallow the screen and push the fields below it away.
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
       <View style={{ flexDirection: 'row', gap: spacing[2] }}>
         {uris.map((uri, i) => (
           <View key={uri} style={{ width: THUMB, height: THUMB }}>
