@@ -205,10 +205,12 @@ onFlowComplete:
           'remindersEnabled': false,
           'configuredBy': 'e2e-admin'
         }
-# This year's price, not the base one, is what the period asks for.
+# This year's price, not the base one, is what the period asks for. On iOS
+# the screen can show it only once the SDK's watch stream is back from an
+# emulator ping timeout (run 43433993304), so wait as long as for the save.
 - extendedWaitUntil:
     visible: '.*25,00.*vence el.*'
-    timeout: 20000
+    timeout: 150000
 
 # ── A socio without the app, numbered by the trigger, then renumbered. ──
 - openLink: 'cultuvilla://grupos/${ORG_ID}/socios'

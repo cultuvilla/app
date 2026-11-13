@@ -29,6 +29,16 @@ onFlowComplete:
         FIELD: title
         VALUE: ${output.taskEditTitle}
 ---
+# Flow 13 switches the group's phone requirement off on the way out, but not
+# when it is killed at the per-flow cap; left on, it holds e2e-user at the
+# contact gate here (run 43433993304).
+- runScript:
+    file: ../scripts/setField.js
+    env:
+      DOC_PATH: 'organizations/${ORG_ID}'
+      FIELD: socioPhoneRequired
+      VALUE: 'false'
+      TYPE: boolean
 - evalScript: ${output.stamp = String(Date.now())}
 - evalScript: ${output.taskTitle = 'Montar el escenario ' + output.stamp}
 - evalScript: ${output.taskEditTitle = 'Montar y desmontar el escenario ' + output.stamp}
