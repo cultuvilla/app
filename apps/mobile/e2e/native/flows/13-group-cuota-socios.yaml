@@ -171,10 +171,13 @@ onFlowComplete:
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'cuota-settings-save'
+# The form closes on the server's ack. On iOS the native SDK's connection to
+# the emulator drops now and then just after a write and takes up to a minute
+# to come back (seen in runs 43378981108: 16-50 s), so wait out a reconnect.
 - extendedWaitUntil:
     notVisible:
       id: 'cuota-settings-sheet'
-    timeout: 20000
+    timeout: 90000
 - runScript:
     file: ../scripts/assertDoc.js
     env:
