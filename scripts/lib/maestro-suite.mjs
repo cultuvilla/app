@@ -68,8 +68,10 @@ export function arg(name) {
 // shard 1 of an early sharded run threw `deviceInfo … 500` and then sat until
 // the job's 75-minute timeout, so its six flows reported nothing at all. Kill
 // a call that outlives this and count it as a failure; the next flow gets a
-// fresh Maestro.
-export const MAESTRO_CALL_TIMEOUT_MS = Number(process.env.E2E_FLOW_TIMEOUT_MS || 15 * 60_000);
+// fresh Maestro. 20 minutes, not 15: flow 13 passes on iOS in 14–15 minutes,
+// so a 15-minute cap killed it in its own cleanup, and the retry then found
+// the driver unreachable (ios-e2e 43481140813, 43481145635).
+export const MAESTRO_CALL_TIMEOUT_MS = Number(process.env.E2E_FLOW_TIMEOUT_MS || 20 * 60_000);
 
 export function run(label, cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, killSignal: 'SIGKILL', ...opts });
