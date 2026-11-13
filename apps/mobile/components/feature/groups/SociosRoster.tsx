@@ -270,7 +270,8 @@ export function SociosRoster({
                 key={s.id}
                 testID={`socio-row-${s.id}`}
                 accessibilityRole="button"
-                accessibilityLabel={name}
+                // A label replaces what its children read out, so it carries the number too.
+                accessibilityLabel={s.socioNumber !== null ? `${s.socioNumber}, ${name}` : name}
                 onPress={() => setSheet({ kind: 'socio', socio: s })}
               >
                 {body}
