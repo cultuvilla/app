@@ -50,7 +50,9 @@ _None._
 
 ## Blocked
 
-_None._
+| Plan | Pri | Landed | Advanced | Waiting on | Next |
+|---|---|---|---|---|---|
+| [apple-team-transfer](ongoing/apple-team-transfer.md) | high | none | this cycle | Álvaro's go on the decisions in § Open decisions | on the go: port Órdago's Sign in with Apple migration script, move the APNs Team ID into the `APNS_AUTH_KEY` secret, list both Team IDs in the AASA files; all three must be on `main` before Jaime presses Transfer |
 
 ## How `Advanced` is derived
 
