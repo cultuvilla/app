@@ -110,7 +110,7 @@ which the rule does not gate — see
 | Play service account JSON | GCP → service account key, then Play Console → Users and permissions → invite `play-publisher@cultuvilla-prod.iam.gserviceaccount.com` with the app permissions below | repo secret `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` |
 | App signing key SHA-256 | Play Console → **Protected with Play → Play Store protection → Play app signing** | committed into `web/well-known/{env}/assetlinks.json` |
 | App signing key SHA-1 | same screen | **new Android OAuth client** in the `cultuvilla-prod` GCP project |
-| Apple Team ID | Apple Developer → Membership | committed into `web/well-known/{env}/apple-app-site-association` **and** `apps/mobile/eas.json` (`submit.production.ios.appleTeamId`) |
+| Apple Team ID | Apple Developer → Membership | committed into `web/well-known/{env}/apple-app-site-association` **and** `apps/mobile/eas.json` (`submit.production.ios.appleTeamId`), and inside the `APNS_AUTH_KEY` secret (`scripts/set-apns-key.mjs`) |
 | App Store Connect app id | App Store Connect → App Information | repo var `ASC_APP_ID` |
 | ASC API Key `.p8` file | App Store Connect → Users and Access → Integrations → App Store Connect API | repo secret `APPLE_ASC_API_KEY_P8` |
 | ASC API Key ID | same screen | repo var `APPLE_ASC_KEY_ID` |

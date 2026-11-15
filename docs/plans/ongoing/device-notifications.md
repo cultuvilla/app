@@ -29,7 +29,7 @@ Merged: #337 (code), #344 (Android config). Each item below was verified from th
 In order:
 
 1. ✅ **Load the real APNs key.** Done 2026-10-05: version 2 of `APNS_AUTH_KEY` added on dev, beta and prod at 08:49 UTC, and the prod push functions (`onNotificationCreated`, `flushPushQueue`) redeployed at 08:57 bound to version 2. No iOS push has gone out since, so delivery is still unproven. For the record, how it is done:
-   `printf '%s' '{"keyId":"<KEYID>","privateKey":"<.p8 contents with real newlines>"}' | gcloud secrets versions add APNS_AUTH_KEY --data-file=- --project=cultuvilla-prod`
+   `node scripts/set-apns-key.mjs --env=prod --team-id=<TEAM> --key-id=<KEYID> --key-file=<AuthKey.p8> --confirm` (the secret carries the Team ID since 2026-11-15; see [apple-team-transfer](apple-team-transfer.md))
    (repeat for `villa-events` to test on a dev build). **A new version only
    takes effect on the next deploy of the push functions** — v2 binds the
    version at deploy time — so re-run the env's deploy afterwards.
