@@ -52,7 +52,7 @@ _None._
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [apple-team-transfer](ongoing/apple-team-transfer.md) | high | none | this cycle | Jaime runs § Jaime's part and presses Transfer; then Álvaro accepts in App Store Connect — console steps no agent can take | Jaime runs § Jaime's part on 2026-11-16, in parallel with Órdago's acceptance; the code in this plan reaches prod with the next release, which must land before the transfer completes or iOS push is down until it does |
+| [apple-team-transfer](ongoing/apple-team-transfer.md) | high | dev | this cycle | Jaime makes the 2 transfer ids (§ Jaime's part, steps 1–4); then Álvaro accepts in App Store Connect — console steps no agent can take | Jaime runs § Jaime's part steps 1–4 now, while the request is pending; Álvaro accepts Cultuvilla only once they are in the bucket AND this plan's code is live in prod, and before 2026-11-29. Órdago is accepted on its own on 2026-11-16 |
 
 ## How `Advanced` is derived
 
