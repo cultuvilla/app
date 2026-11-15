@@ -8,14 +8,13 @@ Current cycle **v1.12.0** (cut 2026-11-12)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · device-notifications · offline-first-village · village-first-urls-prod-finish · sign-in-account-loss · spanish-settlement-dataset
+> **Not advanced in 2+ cycles:** app-check-rollout · offline-first-village · village-first-urls-prod-finish · sign-in-account-loss · spanish-settlement-dataset
 
 ## Actionable now
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 33 cycles ago \* | — |
-| [device-notifications](ongoing/device-notifications.md) ⚠️ | high | prod | 5 cycles ago \* | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
 | [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | prod | 5 cycles ago \* | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
 | [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` ⚠️ | medium | — | 3 cycles ago | — |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
@@ -23,6 +22,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
 | [web-studio](ongoing/web-studio.md) | medium | dev | 1 cycle ago \* | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle | promote with the next release (all four phases are on develop) |
+| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
 
 ## Waiting on release 1.11.0
@@ -52,7 +52,7 @@ _None._
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [apple-team-transfer](ongoing/apple-team-transfer.md) | high | none | this cycle | Álvaro's go on the decisions in § Open decisions | on the go: port Órdago's Sign in with Apple migration script, move the APNs Team ID into the `APNS_AUTH_KEY` secret, list both Team IDs in the AASA files; all three must be on `main` before Jaime presses Transfer |
+| [apple-team-transfer](ongoing/apple-team-transfer.md) | high | none | this cycle | Jaime runs § Jaime's part and presses Transfer; then Álvaro accepts in App Store Connect — console steps no agent can take | Jaime runs § Jaime's part on 2026-11-16, in parallel with Órdago's acceptance; the code in this plan reaches prod with the next release, which must land before the transfer completes or iOS push is down until it does |
 
 ## How `Advanced` is derived
 
