@@ -222,9 +222,11 @@ describe('prod deep-link association files', () => {
   });
 
   it('pairs a real Apple Team ID with the same bundle identifier', () => {
-    expect(association.applinks.details[0].appID).toMatch(
-      new RegExp(`^[A-Z0-9]{10}\\.${PROD_PACKAGE.replace(/\./g, '\\.')}$`),
-    );
+    for (const detail of association.applinks.details) {
+      expect(detail.appID).toMatch(
+        new RegExp(`^[A-Z0-9]{10}\\.${PROD_PACKAGE.replace(/\./g, '\\.')}$`),
+      );
+    }
   });
 
   it('claims only paths the App Store build can open', () => {
@@ -236,12 +238,9 @@ describe('prod deep-link association files', () => {
     // village-first routes is live on the App Store, prod claims only the legacy
     // paths 1.0.0 routes: links shared before the change still open the app, and
     // every new URL opens on the web. Widen to the dev/beta claim then.
-    expect(association.applinks.details[0].paths).toEqual([
-      '/event/*',
-      '/news/*',
-      '/village/*',
-      '/o/*',
-    ]);
+    for (const detail of association.applinks.details) {
+      expect(detail.paths).toEqual(['/event/*', '/news/*', '/village/*', '/o/*']);
+    }
   });
 });
 
@@ -299,6 +298,13 @@ describe('beta auto-submit workflow', () => {
     const ios = wf.slice(wf.indexOf('  ios:'));
     expect(android).toMatch(/if: \$\{\{ vars\.PLAY_SUBMIT_PAUSED != 'true' \}\}/);
     expect(ios).not.toContain('PLAY_SUBMIT_PAUSED');
+  });
+
+  it('freezes TestFlight on its own, leaving the Play beta flowing', () => {
+    const android = wf.slice(wf.indexOf('  android:'), wf.indexOf('  ios:'));
+    const ios = wf.slice(wf.indexOf('  ios:'));
+    expect(ios).toMatch(/if: \$\{\{ vars\.TESTFLIGHT_SUBMIT_PAUSED != 'true' \}\}/);
+    expect(android).not.toContain('TESTFLIGHT_SUBMIT_PAUSED');
   });
 
   // eas submit adds the build to no TestFlight group, so external testers

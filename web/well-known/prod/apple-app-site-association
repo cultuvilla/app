@@ -10,6 +10,15 @@
           "/village/*",
           "/o/*"
         ]
+      },
+      {
+        "appID": "8HWS4483VD.com.cultuvilla.app",
+        "paths": [
+          "/event/*",
+          "/news/*",
+          "/village/*",
+          "/o/*"
+        ]
       }
     ]
   }

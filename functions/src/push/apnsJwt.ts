@@ -31,20 +31,30 @@ export function buildApnsJwt(creds: ApnsCredentials, now: Date): string {
   return `${signingInput}.${base64url(signature)}`;
 }
 
-export function parseApnsSecret(raw: string): Omit<ApnsCredentials, 'teamId'> | null {
+/**
+ * The `APNS_AUTH_KEY` secret: `{ teamId, keyId, privateKey }`. The Team ID
+ * travels with the key, not in code, because a key only signs for the team that
+ * issued it — moving the app to another Apple team (docs/plans/ongoing/
+ * apple-team-transfer.md) has to swap both at once, and a secret version is
+ * that one atomic swap.
+ */
+export function parseApnsSecret(raw: string): ApnsCredentials | null {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (
       typeof parsed === 'object' &&
       parsed !== null &&
+      'teamId' in parsed &&
       'keyId' in parsed &&
       'privateKey' in parsed &&
+      typeof parsed.teamId === 'string' &&
       typeof parsed.keyId === 'string' &&
       typeof parsed.privateKey === 'string' &&
+      /^[A-Z0-9]{10}$/.test(parsed.teamId) &&
       parsed.keyId.length > 0 &&
       parsed.privateKey.includes('PRIVATE KEY')
     ) {
-      return { keyId: parsed.keyId, privateKey: parsed.privateKey };
+      return { teamId: parsed.teamId, keyId: parsed.keyId, privateKey: parsed.privateKey };
     }
     return null;
   } catch {

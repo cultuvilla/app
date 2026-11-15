@@ -13,9 +13,11 @@ import config from '../app.config';
 const EAS_OWNER = 'cultuvilla.app';
 const EAS_PROJECT_ID = '53188e5f-c5a1-4b1c-a009-44108826d54d';
 
-// The Apple team the app ships under. Not a secret — it is served publicly in
-// every app's apple-app-site-association.
-const APPLE_TEAM_ID = '78RB67NT38';
+// The Apple teams the app ships under. Not a secret — they are served publicly
+// in every app's apple-app-site-association. Both are listed while the app moves
+// from Jaime's team to Álvaro's (docs/plans/ongoing/apple-team-transfer.md):
+// installed builds stay signed by the old team until each user updates.
+const APPLE_TEAM_IDS = ['78RB67NT38', '8HWS4483VD'];
 
 describe('app.config EAS identity', () => {
   it('pins the owning EAS account', () => {
@@ -50,12 +52,12 @@ describe('apple-app-site-association', () => {
     prod: 'com.cultuvilla.app',
   } as const;
 
-  it.each(envs)('carries the real Apple Team ID for %s', (env) => {
+  it.each(envs)('carries both Apple Team IDs for %s', (env) => {
     const path = join(__dirname, '..', '..', '..', 'web', 'well-known', env, 'apple-app-site-association');
     const aasa = JSON.parse(readFileSync(path, 'utf8'));
 
     const appIDs = aasa.applinks.details.map((d: { appID: string }) => d.appID);
-    expect(appIDs).toContain(`${APPLE_TEAM_ID}.${bundleIdPerEnv[env]}`);
+    for (const teamId of APPLE_TEAM_IDS) expect(appIDs).toContain(`${teamId}.${bundleIdPerEnv[env]}`);
   });
 });
 

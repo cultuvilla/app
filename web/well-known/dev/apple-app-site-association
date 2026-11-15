@@ -5,6 +5,10 @@
       {
         "appID": "78RB67NT38.com.cultuvilla.app.dev",
         "paths": ["NOT /entrar", "NOT /entrar/*", "*"]
+      },
+      {
+        "appID": "8HWS4483VD.com.cultuvilla.app.dev",
+        "paths": ["NOT /entrar", "NOT /entrar/*", "*"]
       }
     ]
   }
