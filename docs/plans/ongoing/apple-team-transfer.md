@@ -1,9 +1,9 @@
 # Apple team transfer — move the iOS app from Jaime's team to Álvaro's
 
 **Priority:** high — Jaime's Apple membership renews on 2026-11-29 and the app must be out before it
-**Landed:** none
-**Gate:** blocked:Jaime runs § Jaime's part and presses Transfer; then Álvaro accepts in App Store Connect — console steps no agent can take
-**Next:** Jaime runs § Jaime's part on 2026-11-16, in parallel with Órdago's acceptance; the code in this plan reaches prod with the next release, which must land before the transfer completes or iOS push is down until it does
+**Landed:** dev
+**Gate:** blocked:Jaime makes the 2 transfer ids (§ Jaime's part, steps 1–4); then Álvaro accepts in App Store Connect — console steps no agent can take
+**Next:** Jaime runs § Jaime's part steps 1–4 now, while the request is pending; Álvaro accepts Cultuvilla only once they are in the bucket AND this plan's code is live in prod, and before 2026-11-29. Órdago is accepted on its own on 2026-11-16
 
 Decided 2026-10-03 (Álvaro, with Jaime's agreement): Cultuvilla's iOS app leaves
 Jaime's Individual team for Álvaro's, in the same window as Órdago's, and later
@@ -63,6 +63,28 @@ moves into the secret; the AASA lists both teams.
   `com.cultuvilla.app.dev` / `com.cultuvilla.app.beta` on Álvaro's team — they do
   not move with the app.
 
+## Where it stands (2026-11-15)
+
+**Jaime already pressed Transfer for Cultuvilla on 2026-11-14** (Apple's request
+mail reached Álvaro at 18:34 UTC; Órdago's at 17:29). Álvaro has until
+**2027-01-13** to accept, so the order is now:
+
+1. **Jaime makes the transfer ids now** (§ Jaime's part, steps 1–4), while the
+   request is pending and the app is still on his team. No ids were made before
+   he pressed: the export only existed from 2026-11-15. **If Apple refuses**
+   (no key can be created for an app mid-transfer, or `invalid_client`): he
+   cancels the transfer in App Store Connect, makes the ids, and presses Transfer
+   again (step 5).
+2. **The next release brings this plan's code to prod** — the APNs Team ID read
+   from the secret. Accepting before it means iOS push is down until it lands.
+3. **Álvaro accepts Cultuvilla** (§ On the day), only once 1 and 2 are done, and
+   before 2026-11-29: Apple wants both accounts in good standing, and Jaime's
+   membership renews that day.
+
+Without the ids the 2 Apple users would lose their accounts for good: both hid
+their email, and Apple gives them a new relay address under the new team, so
+there is nothing to match them by.
+
 ## Jaime's part
 
 Run with his own Claude Code from a clone of this public repo on `develop`
@@ -93,7 +115,7 @@ Cultuvilla's Firebase.
    gcloud storage cp ~/backups/cultuvilla/apple-team-transfer/transfer-ids.jsonl \
      gs://ordago-prod-apple-team-transfer/cultuvilla/transfer-ids.jsonl --project=ordago-prod
    ```
-5. **App Store Connect, Cultuvilla:** no version waiting for review, in review,
+5. *(Done 2026-11-14 — only again if step 1 forced a cancel.)* **App Store Connect, Cultuvilla:** no version waiting for review, in review,
    pending release or processing; TestFlight → **export the testers to CSV**
    (internal and external groups) and send it to Álvaro; then turn TestFlight off,
    remove builds and testers, clear test information. Then **App Information →
@@ -102,9 +124,10 @@ Cultuvilla's Firebase.
 6. Keep the `.p8` and `D9ANCTTW73` alive until Álvaro confirms the re-link and
    pushes from his key, for both apps.
 
-**Before Jaime turns TestFlight off**, set `TESTFLIGHT_SUBMIT_PAUSED=true` once
-this plan's code is on `beta` (a release merged in the window would otherwise
-upload a build).
+TestFlight is already off for Cultuvilla (Apple refuses a transfer otherwise), so
+**set `TESTFLIGHT_SUBMIT_PAUSED=true` before the next merge to `beta`** — that
+release would otherwise try to upload a build to an app mid-transfer. Ask Jaime
+whether he exported the testers before removing them.
 
 ## On the day (Álvaro)
 
