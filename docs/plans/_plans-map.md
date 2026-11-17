@@ -52,7 +52,7 @@ _None._
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [apple-team-transfer](ongoing/apple-team-transfer.md) | high | dev | this cycle | Jaime makes the 2 transfer ids (§ Jaime's part, steps 1–4); then Álvaro accepts in App Store Connect — console steps no agent can take | Jaime runs § Jaime's part steps 1–4 now, while the request is pending; Álvaro accepts Cultuvilla only once they are in the bucket AND this plan's code is live in prod, and before 2026-11-29. Órdago is accepted on its own on 2026-11-16 |
+| [apple-team-transfer](ongoing/apple-team-transfer.md) | high | dev | this cycle | this plan's code (#663) reaches prod, then Álvaro accepts in App Store Connect — a console step no agent can take | the next release carries #663 to prod; then Álvaro accepts Cultuvilla, before 2026-11-29, and runs § On the day. Jaime's part is done (2026-11-17); `TESTFLIGHT_SUBMIT_PAUSED=true` since 2026-11-17 |
 
 ## How `Advanced` is derived
 
