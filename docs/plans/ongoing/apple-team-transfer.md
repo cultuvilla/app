@@ -2,8 +2,8 @@
 
 **Priority:** high — Jaime's Apple membership renews on 2026-11-29 and the app must be out before it
 **Landed:** dev
-**Gate:** blocked:Jaime makes the 2 transfer ids (§ Jaime's part, steps 1–4); then Álvaro accepts in App Store Connect — console steps no agent can take
-**Next:** Jaime runs § Jaime's part steps 1–4 now, while the request is pending; Álvaro accepts Cultuvilla only once they are in the bucket AND this plan's code is live in prod, and before 2026-11-29. Órdago is accepted on its own on 2026-11-16
+**Gate:** blocked:this plan's code (#663) reaches prod, then Álvaro accepts in App Store Connect — a console step no agent can take
+**Next:** the next release carries #663 to prod; then Álvaro accepts Cultuvilla, before 2026-11-29, and runs § On the day. Jaime's part is done (2026-11-17); `TESTFLIGHT_SUBMIT_PAUSED=true` since 2026-11-17
 
 Decided 2026-10-03 (Álvaro, with Jaime's agreement): Cultuvilla's iOS app leaves
 Jaime's Individual team for Álvaro's, in the same window as Órdago's, and later
@@ -86,6 +86,11 @@ their email, and Apple gives them a new relay address under the new team, so
 there is nothing to match them by.
 
 ## Jaime's part
+
+**Done 2026-11-17**, without cancelling the transfer (Apple allowed the key mid-transfer):
+Sign in with Apple key `GMXJM4XYU6` on `78RB67NT38`, `generate` → 2 transfer ids, uploaded
+to the bucket (checked: 2 rows, both uids from the export). TestFlight testers: only Moisés
+Rodríguez, on two addresses, was left when Jaime removed them; nothing else was noted.
 
 Run with his own Claude Code from a clone of this public repo on `develop`
 (`git clone https://github.com/cultuvilla/app.git`; only Node is needed — the two
