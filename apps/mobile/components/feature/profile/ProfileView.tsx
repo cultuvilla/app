@@ -223,7 +223,9 @@ export function ProfileView({
 
       {villages.length > 0 ? (
         <>
-          <ProfileSectionHeader title={t('profile.villagesEntry')} />
+          <ProfileSectionHeader
+            title={t(isSelf ? 'profile.villagesEntry' : 'profile.villagesEntryOther')}
+          />
           <VillagesScroll
             villages={villages}
             activeId={activeMunicipalityId}
