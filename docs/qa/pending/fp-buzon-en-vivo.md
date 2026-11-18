@@ -16,3 +16,5 @@ source: full-pass-2026-11-18
 **Esperado:** La propuesta desaparece del Buzón del admin sin recargar; el user ve la aprobación en su actividad y al pulsarla abre el grupo. `organizations/<id>.status` = `approved`.
 
 **Roto se ve así:** Lo resuelto se queda en el Buzón, o la notificación no lleva a ninguna parte.
+
+**Pasada completa 2026-11-18 (Android, agente):** ❌ la notificación «Organización aprobada» abre el formulario «Añadir grupo», no el grupo (`NotificationRoute.ts`, `org_approved`). Lo demás bien: desaparece en vivo del Buzón del admin y llega a la actividad del user.

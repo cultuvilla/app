@@ -150,6 +150,21 @@ $S/fs.mjs query events municipalityId EQUAL '"<id>"' 20
   `apps/mobile/e2e/native/README.md` § *Maestro traps* — read it before the
   first `run`. Reuse its subflows (`confirm-alert.yaml`, `pick-photo.yaml`,
   `tap-until.yaml`, `type-into.yaml`) with `runFlow:`.
+- Learned on the first pass (2026-11-18):
+  - Close the soft keyboard with `qa.sh kb` (ESC), never
+    BACK; a tap on a control under the keyboard reports COMPLETED and does nothing.
+  - Text selectors match anywhere: `tapOn: "Pueblo"` hit Explora's filter, not
+    the tab. Prefer `id:`; tabs by their a11y text.
+  - Tap coordinates: 2× the half-size screenshot (AVDs differ in resolution).
+  - Emoji / non-ASCII text: `setClipboard: "<text>"` then `pasteText`.
+  - `qa.sh link <word>` treats a bare word as a village slug. Tab routes:
+    `mi-pueblo`, `perfil`, `grupos`, `ajustes`, `mis-inscripciones`, `buzon`.
+  - An OTP doc is `authOtpCodes/<sha256 of the lower-cased email>`; the send
+    cap (5 per address per 15 min) is shared by parallel agents.
+  - Parallel agents (one AVD each, same backend) work, but undo writes to capped
+    seed events: `e2e-event-aforo` has `maxAttendees: 1`.
+  - Maestro here may differ from CI's pin (`MAESTRO_VERSION` in `android-e2e.yml`);
+    a quirk that looks like an app bug may be the version.
 - **Verify the write, not just the screen**: every entry with a write gets an
   `fs.mjs` check of the doc path and field it names.
 - Before calling anything a failure, take a settled screenshot again and re-read
