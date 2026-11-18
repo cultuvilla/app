@@ -78,6 +78,7 @@ Work in your own detached worktree, never the main checkout:
 git -C ~/githubs/cultuvilla/app fetch origin
 git -C ~/githubs/cultuvilla/app worktree add .claude/worktrees/qa-<name> --detach origin/develop
 cd ~/githubs/cultuvilla/app/.claude/worktrees/qa-<name>
+git submodule update --init          # agent-env.sh is a symlink into the submodule
 source scripts/agent-env.sh          # deps + this worktree's own emulator ports
 ```
 
