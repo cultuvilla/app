@@ -37,4 +37,13 @@ describe('<Toggle>', () => {
     );
     expect(getByText('Acepto términos')).toBeTruthy();
   });
+
+  // QA pass 2026-11-18: «Los integrantes del grupo son visibles para el pu…»
+  // ran off the right edge of the add-group form instead of wrapping.
+  it('lets a long label wrap beside the switch instead of overflowing', () => {
+    const label = 'Los integrantes del grupo son visibles para el pueblo';
+    const { getByText } = render(<Toggle value onValueChange={jest.fn()} label={label} />);
+    expect(getByText(label).props.className).toMatch(/\bshrink\b/);
+    expect(getByText(label).props.numberOfLines).toBeUndefined();
+  });
 });
