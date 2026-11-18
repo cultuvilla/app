@@ -482,7 +482,7 @@
         "add": "Añadir barrio",
         "editTitle": "Editar barrio",
         "name": "Nombre del barrio",
-        "residentCount": "{count} vecinos",
+        "residentCount": "{count, plural, one {# vecino} other {# vecinos}}",
         "addImage": "Añadir imagen",
         "removeImage": "Quitar imagen"
       },
@@ -570,7 +570,7 @@
       "penas": "Peñas",
       "censo": "Censo",
       "news": "Anuncios",
-      "memberCount": "{count} personas"
+      "memberCount": "{count, plural, one {# persona} other {# personas}}"
     },
     "barrioDetail": {
       "residents": "Vecinos",
