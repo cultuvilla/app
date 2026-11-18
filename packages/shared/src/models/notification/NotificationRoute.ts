@@ -75,9 +75,10 @@ export function notificationRoute(
     if (kind) return at(kind, n.entityId);
   }
 
-  if (n.type === 'org_approved' || n.type === 'org_rejected') {
-    return villageSectionPath(villageSlug, 'entidades');
-  }
+  // An approved group opened through the entity branch above. What reaches here
+  // is a rejection, or an approval stored before it carried the group's id —
+  // never `/<pueblo>/entidades`, which is the «Añadir grupo» form.
+  if (n.type === 'org_approved' || n.type === 'org_rejected') return villagePath(villageSlug);
   if (n.type === 'village_wrapped_reminder') {
     const year = yearOfWrappedId(n.entityId);
     const screen = villageSectionPath(villageSlug, 'resumen');
