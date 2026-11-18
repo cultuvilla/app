@@ -207,6 +207,16 @@ export function createFakeFirestoreModule() {
           return true;
         });
       }
+      if (constraint['_type'] === 'orderBy') {
+        const field = constraint['field'] as string;
+        const sign = constraint['dir'] === 'desc' ? -1 : 1;
+        const key = (v: unknown) => (v instanceof Date ? v.getTime() : v);
+        docs = [...docs].sort((a, b) => {
+          const x = key(a.data()[field]) as number | string;
+          const y = key(b.data()[field]) as number | string;
+          return x < y ? -sign : x > y ? sign : 0;
+        });
+      }
       if (constraint['_type'] === 'limit') {
         const n = constraint['n'] as number;
         docs = docs.slice(0, n);

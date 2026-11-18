@@ -8,7 +8,10 @@ import { createFakeFirestoreModule, fakeStore, resetFakeFirestore } from '../hel
 vi.mock('../../src/firebase', () => ({ getDb: () => ({}), getFirebaseFunctions: vi.fn(() => ({})) }));
 vi.mock('firebase/firestore', () => createFakeFirestoreModule());
 
-import { watchUserRegistrationsAcrossEvents } from '../../src/services/registrationService';
+import {
+  watchEventRegistrations,
+  watchUserRegistrationsAcrossEvents,
+} from '../../src/services/registrationService';
 import { watchUnreadCount } from '../../src/services/notificationService';
 import { watchPersonByUserId, watchPersonsByCreator } from '../../src/services/personService';
 import { watchUserMemberships } from '../../src/services/villageMemberService';
@@ -53,6 +56,23 @@ describe('watchUserRegistrationsAcrossEvents', () => {
       ['r1', 'events/e1'],
       ['r2', 'events/e2'],
     ]);
+  });
+});
+
+describe('watchEventRegistrations', () => {
+  // `position` is derived from the registration count at write time, so a
+  // cancellation frees a number that a later sign-up reuses. Ordering by the
+  // sign-up moment is what keeps the roster's timestamps monotonic.
+  it("emits only that event's roster, ordered by sign-up moment rather than position", () => {
+    const store = fakeStore();
+    store['events/e1/registrations/late'] = { registeredAt: 300, position: 1, status: 'confirmed' };
+    store['events/e1/registrations/early'] = { registeredAt: 100, position: 2, status: 'confirmed' };
+    store['events/e1/registrations/mid'] = { registeredAt: 200, position: 3, status: 'waitlisted' };
+    store['events/e2/registrations/other'] = { registeredAt: 50, position: 1, status: 'confirmed' };
+
+    const rows = firstEmission(watchEventRegistrations, 'e1');
+
+    expect(rows.map((r) => r.id)).toEqual(['early', 'mid', 'late']);
   });
 });
 

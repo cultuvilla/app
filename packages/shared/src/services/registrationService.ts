@@ -31,7 +31,7 @@ import {
 import type { RegistrationEventData } from '../models/event/RegistrationEventDataModel';
 import type { SignupAnswers } from '../models/event/SignupFieldModel';
 import { PartialDateSchema, type PartialDate } from '../models/person/PersonDataModel';
-import { watchQueryWith, type Unwatch, type WatchError } from './watch';
+import { watchQuery, watchQueryWith, type Unwatch, type WatchError } from './watch';
 
 export interface RegisterInput {
   personId: string;
@@ -81,13 +81,18 @@ export function determineRegistrationStatus(
 // the registration count at write time, so a cancellation frees a number that a
 // later sign-up reuses, and waitlist promotion never renumbers. `registeredAt`
 // is the honest queue order and needs no composite index (single-field sort on
-// a subcollection).
-export async function getEventRegistrations(
+// a subcollection). Live, so a sign-up or cancel made on the event screen shows
+// in its roster without a reload.
+export function watchEventRegistrations(
   eventId: string,
-): Promise<(RegistrationData & { id: string })[]> {
-  const q = query(eventRegistrationsCollection(getDb(), eventId), orderBy('registeredAt', 'asc'));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  onNext: (registrations: (RegistrationData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(
+    query(eventRegistrationsCollection(getDb(), eventId), orderBy('registeredAt', 'asc')),
+    onNext,
+    onError,
+  );
 }
 
 export type RegistrationEventWithId = RegistrationEventData & { id: string };
