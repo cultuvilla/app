@@ -26,6 +26,9 @@ function errorKey(error: unknown): string {
       return 'studio.pairing.error.expired';
     case 'failed-precondition':
       return 'studio.pairing.error.used';
+    // A malformed pairing id: retrying the same link can only fail again.
+    case 'invalid-argument':
+      return 'studio.pairing.error.invalid';
     default:
       return 'studio.pairing.error.generic';
   }

@@ -55,6 +55,12 @@ describe('studio pairing screen', () => {
     expect((await findByTestId('studio-pairing-result')).props.children).toBe('studio.pairing.error.expired');
   });
 
+  it('explains a malformed link instead of offering a retry', async () => {
+    inspect.mockRejectedValue(Object.assign(new Error('bad id'), { code: 'functions/invalid-argument' }));
+    const { findByTestId } = render(<StudioPairingScreen />);
+    expect((await findByTestId('studio-pairing-result')).props.children).toBe('studio.pairing.error.invalid');
+  });
+
   it('sends a guest to sign in and back to this pairing', async () => {
     mockAuth.user = null;
     const { getByTestId } = render(<StudioPairingScreen />);
