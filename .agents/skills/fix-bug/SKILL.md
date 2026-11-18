@@ -73,6 +73,7 @@ There's no jest/RTL config in `apps/web/` yet. If the bug is purely in a web com
 - [ ] Fix obeys AGENTS.md (no silent fallbacks, services-only ingress, models first).
 - [ ] Original repro re-walked.
 - [ ] Commit message: `fix(...)` prefix, root cause in the body.
+- [ ] A user-visible fix: a QA entry in `docs/qa/pending/` (`release-qa` Part A), or one line saying the regression test proves it.
 
 ## Don't
 

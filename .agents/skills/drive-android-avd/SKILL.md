@@ -27,6 +27,8 @@ Under WSL2 the Android emulator runs on the **Windows host**. The Linux-side `ad
 
 The wrapper `scripts/avd-dev.sh` already encodes this. Reach for it before reinventing the chain.
 
+> Signing in as a seeded user against hermetic emulators, with a Firestore reader, for QA: the `release-qa` skill (Part B).
+
 ## Quickstart
 
 ```bash
