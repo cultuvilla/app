@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { resolveVillageRoute } from '@cultuvilla/shared/services/municipalityService';
 import { ErrorState, Screen } from '../../components/primitives';
+import { EntityDetailHeader } from '../../components/feature/EntityDetailHeader';
 import { useT } from '../i18n';
 
 export interface VillageRoute {
@@ -66,8 +67,12 @@ export function VillageRouteGate({ children }: { children: ReactNode }) {
     );
   }
 
+  // The gate is often the first screen of a cold-start link, so there may be no
+  // history: the header's back falls back to the home tab, so an unknown pueblo
+  // is never a dead end on iOS (no hardware back).
   return (
-    <Screen>
+    <Screen padded={false} topInset={false}>
+      <EntityDetailHeader />
       {resolution.status === 'loading' ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
