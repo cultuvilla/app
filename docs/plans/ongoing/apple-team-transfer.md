@@ -81,6 +81,8 @@ mail reached Álvaro at 18:34 UTC; Órdago's at 17:29). Álvaro has until
    before 2026-11-29: Apple wants both accounts in good standing, and Jaime's
    membership renews that day.
 
+**Accept attempted too early, 2026-11-18 ~20:00 CET** (from the Órdago session, on Álvaro's "accept now"): Apple refused it four times with `ITC.ATB.Agmnt.unableProcessRequest` ("no podemos procesar la solicitud"), so nothing changed and the offer still waits. Step 2 was not done either: the 1.12.0 release (#660) is still open, so #663 is not on prod. Do not retry until it is; if Apple still refuses then, check in App Store Connect (Jaime's side) that no Cultuvilla version or build is in review or processing.
+
 Without the ids the 2 Apple users would lose their accounts for good: both hid
 their email, and Apple gives them a new relay address under the new team, so
 there is nothing to match them by.
