@@ -83,14 +83,26 @@ source scripts/agent-env.sh          # deps + this worktree's own emulator ports
 
 **Backend = local Firebase emulators with the e2e seed** (`scripts/seed/e2e.mjs`,
 fixtures in `scripts/data/seed-fixtures/e2e/fixtures.mjs`). Hermetic: the agent
-signs in as any fixture itself and nothing real can be touched. Run it in the
-background, bounded:
+signs in as any fixture itself and nothing real can be touched.
+
+**On the repo's default ports, not the worktree's slot.** The APK hardcodes
+8080/9099/5001/9199 at `10.0.2.2`, and @react-native-firebase rewrites a
+`127.0.0.1` emulator host to `10.0.2.2` on an AVD — so `adb reverse` onto slot
+ports cannot work (tried 2026-11-18: `Failed to connect to /10.0.2.2:9099`).
+Check they are free (`qa.sh ports`), set the slot config aside for the pass,
+and run the backend in the background, bounded:
 
 ```bash
-node scripts/run-tests-with-emulators.mjs --label seed pnpm seed:e2e \
-  --label hold node .agents/skills/release-qa/scripts/hold.mjs     # run_in_background
+mv firebase.agent.json firebase.agent.json.off      # restore it after the pass
+PATH=$PWD/node_modules/.bin:$PATH node scripts/run-tests-with-emulators.mjs --label seed pnpm seed:e2e \
+  --label hold node ~/githubs/cultuvilla/app/.agents/skills/release-qa/scripts/hold.mjs   # run_in_background
 # stop:  touch .qa-stop   (also stops itself after QA_MAX_HOURS, default 6)
+# PATH: the wrapper spawns a bare `firebase`, which is only on PATH under a pnpm script.
+# Ready when the log shows `[qa-hold] emulators up` (functions build + seed ≈ 2 min).
 ```
+
+While it runs, another session's default-port emulator suite cannot start;
+keep the pass short or tell the other session.
 
 An entry marked `data: mirror:<village>` needs real shapes and counts: with the
 emulators up, `FIRESTORE_EMULATOR_HOST=127.0.0.1:<firestore port> pnpm
@@ -108,15 +120,9 @@ users cannot be signed into.
 - **The emulator-armed release APK**, bundle baked in, so the device runs exactly
   the commit under test — no Metro:
   ```bash
-  JAVA_HOME=/usr/lib/jvm/java-17-openjdk EXPO_PUBLIC_EMULATOR_HOST=127.0.0.1 \
-    node scripts/build-android-e2e-apk.mjs          # ~4 min warm, much longer cold
+  JAVA_HOME=/usr/lib/jvm/java-17-openjdk node scripts/build-android-e2e-apk.mjs   # ~4 min warm, ~15 cold
   adb -s $QA_SERIAL install -r -d apps/mobile/android/app/build/outputs/apk/release/app-release.apk
   ```
-  **Why `127.0.0.1`, not the default `10.0.2.2`:** the app hardcodes ports
-  8080/9099/5001/9199, but `agent-env.sh` moved this worktree's emulators to its
-  slot's ports. Built against loopback, `qa.sh ports` (`adb reverse`) maps the
-  device's 8080… onto the slot ports, so no other session's emulators are hit.
-  The fixture-login allowlist accepts loopback.
 - Switch off Gboard's corrections once (it rewrites what Maestro types):
   `node -e "import('./scripts/lib/android-keyboard.mjs').then(m=>m.disableKeyboardRewriting({adbBin:'adb',device:process.env.QA_SERIAL,log:console.log}))"`.
 - Picker images: `adb push` into `/sdcard/Pictures` + `adb shell content call --uri content://media --method scan_volume --arg external_primary`
@@ -127,10 +133,9 @@ users cannot be signed into.
 ```bash
 export QA_SERIAL=emulator-5610 QA_ROOT=$PWD OUT=<scratchpad>/qa
 S=.agents/skills/release-qa/scripts
-$S/qa.sh ports                 # once per boot
 $S/qa.sh login user            # admin | user | superadmin | joiner | throwaway | fresh
 $S/qa.sh link perfil           # deep link (always name a route — bare cultuvilla:// never starts)
-$S/qa.sh shot a1               # then Read the PNG
+$S/qa.sh shot a1               # half-size PNG; then Read it
 $S/qa.sh tree                  # texts + testIDs + bounds — find ids before tapping
 $S/qa.sh run '- tapOn: { id: "profile-edit-action" }'
 $S/fs.mjs get persons/e2e-person-user
