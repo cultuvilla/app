@@ -1747,7 +1747,7 @@
       "confirmWord": "ELIMINAR",
       "blockerIntro": "Antes de eliminar tu cuenta, debes nombrar a otra persona en:",
       "blockerVillage": "Pueblo de {name} — eres la única persona en su equipo",
-      "blockerOrg": "Grupo de {name} — eres el único administrador",
+      "blockerOrg": "{name} — eres el único administrador",
       "submit": "Eliminar mi cuenta",
       "success": "Tu cuenta ha sido eliminada",
       "error": {

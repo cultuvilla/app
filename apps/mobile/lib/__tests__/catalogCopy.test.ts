@@ -14,3 +14,13 @@ describe('count copy agrees in number', () => {
     expect(t(key, { count: 3 })).toBe(other);
   });
 });
+
+describe('delete-account blockers', () => {
+  // Group names often already start with the kind («Grupo QA Buzón», «Peña El
+  // Rollo»), so prefixing it read «Grupo de Grupo QA Buzón».
+  it('shows a group by its own name, without prefixing the kind', () => {
+    const line = t('settings.deleteAccount.blockerOrg', { name: 'Grupo QA Buzon' });
+    expect(line).toContain('Grupo QA Buzon');
+    expect(line).not.toMatch(/Grupo de Grupo/);
+  });
+});
