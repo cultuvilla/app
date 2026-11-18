@@ -9,6 +9,12 @@ import {
 
 const ACCENT = colors.light.fg.accent;
 const HORIZONTAL_PADDING = 12;
+const BORDER_WIDTH = 1.5;
+/**
+ * Glyph widths don't scale exactly linearly with font size on Android, so a
+ * label scaled to the exact width can still come out a pixel too wide.
+ */
+const FIT_SLACK = 2;
 
 /**
  * Width given to the off-screen measuring copy. Anything far wider than a
@@ -65,7 +71,9 @@ export function ActionPill({
       accessibilityState={{ disabled }}
       testID={testID}
       onLayout={(e) =>
-        setAvailableWidth(e.nativeEvent.layout.width - HORIZONTAL_PADDING * 2)
+        setAvailableWidth(
+          e.nativeEvent.layout.width - (HORIZONTAL_PADDING + BORDER_WIDTH) * 2 - FIT_SLACK,
+        )
       }
       className={`flex-row items-center justify-center bg-surface${
         disabled ? '' : ' active:opacity-70'
@@ -79,7 +87,7 @@ export function ActionPill({
         paddingVertical: 5,
         paddingHorizontal: HORIZONTAL_PADDING,
         borderRadius: 24,
-        borderWidth: 1.5,
+        borderWidth: BORDER_WIDTH,
         borderColor: ACCENT,
         minHeight: 32,
         // The measuring copy below is deliberately wider than any screen;
@@ -88,8 +96,11 @@ export function ActionPill({
         ...(disabled ? { opacity: 0.5 } : null),
       }}
     >
+      {/* One line is enforced only at the measured base size. A shrunk label
+          is sized to fit but not clamped: should it still come out a hair too
+          wide, it wraps instead of ellipsizing («Inicia sesión para uni…»). */}
       <RNText
-        numberOfLines={fitsOneLine ? 1 : undefined}
+        numberOfLines={fitsOneLine && fontSize === base ? 1 : undefined}
         maxFontSizeMultiplier={MAX_LABEL_FONT_MULTIPLIER}
         className="font-semibold text-center"
         style={{ color: ACCENT, fontSize, lineHeight: typography.body.lineHeight }}

@@ -29,7 +29,7 @@ export function Toggle({ value, onValueChange, label, disabled = false, testID }
     >
       <HStack gap={2} align="center" className={disabled ? 'opacity-50' : ''}>
         <View
-          className={`w-12 h-7 rounded-full px-1 justify-center ${
+          className={`w-12 h-7 shrink-0 rounded-full px-1 justify-center ${
             value ? 'bg-accent' : 'bg-subtle'
           }`}
         >
@@ -39,7 +39,9 @@ export function Toggle({ value, onValueChange, label, disabled = false, testID }
             }`}
           />
         </View>
-        {label ? <Text>{label}</Text> : null}
+        {/* `shrink`: a row child keeps its natural width and runs off the
+            screen; shrinking lets a long label wrap beside the switch. */}
+        {label ? <Text className="shrink">{label}</Text> : null}
       </HStack>
     </Pressable>
   );
