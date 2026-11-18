@@ -70,9 +70,14 @@ describe('notificationRoute', () => {
     expect(notificationRoute({ ...base, entityKind: 'place', entityId: 'x' }, null)).toBeNull();
   });
 
-  it('sends organization outcomes to the village’s organizations list', () => {
-    expect(notificationRoute({ ...base, type: 'org_approved' }, 'villa')).toBe('/villa/entidades');
-    expect(notificationRoute({ ...base, type: 'org_rejected' }, 'villa')).toBe('/villa/entidades');
+  it('opens the approved group, not the «Añadir grupo» form (QA 2026-11-18)', () => {
+    const n = { ...base, type: 'org_approved' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, 'villa')).toBe('/villa/entidad/_org1');
+  });
+
+  it('sends an organization outcome without a group id to the village, never the create form', () => {
+    expect(notificationRoute({ ...base, type: 'org_approved' }, 'villa')).toBe('/villa');
+    expect(notificationRoute({ ...base, type: 'org_rejected' }, 'villa')).toBe('/villa');
   });
 
   it('sends the Wrapped reminder to the create screen, for the year it is about', () => {
