@@ -1,6 +1,6 @@
 # Términos de Uso
 
-**Última actualización:** 10 de julio de 2026
+**Última actualización:** 20 de noviembre de 2026
 **Versión:** 1.0
 
 Los presentes Términos de Uso (los "Términos") regulan el acceso y la utilización de
@@ -21,13 +21,17 @@ Comercio Electrónico (LSSI-CE):
 
 ## 2. Descripción del Servicio
 
-Cultuvilla es una plataforma para las comunidades de pueblos de España. Las
-organizaciones (ayuntamientos, peñas, asociaciones) publican eventos; las personas
-residentes y visitantes los descubren, se inscriben a sí mismas y a sus familiares, y las
+Cultuvilla es una plataforma para las comunidades de pueblos de España. Las organizaciones
+(ayuntamientos, peñas, asociaciones) publican eventos; las personas residentes y
+visitantes los descubren, se inscriben a sí mismas y a sus familiares, y las
 administraciones de cada pueblo gestionan invitaciones y aprobaciones de organizaciones.
+Los grupos gestionan además sus integrantes y socios, cuotas, mensajes, tareas y cosateca.
 
-El Servicio se presta actualmente a través de su versión web. Nos reservamos el derecho a
-modificar, ampliar o suspender total o parcialmente las funcionalidades del Servicio.
+El Servicio se presta a través de las aplicaciones de Cultuvilla para iOS y Android. La
+web cultuvilla.es es un sitio público de lectura de la información de los pueblos,
+accesible sin cuenta; en ella también está el estudio de redacción (/estudio), al que se
+entra vinculándolo con la Aplicación. Nos reservamos el derecho a modificar, ampliar o
+suspender total o parcialmente las funcionalidades del Servicio.
 
 ## 3. Requisitos de acceso
 
@@ -40,11 +44,12 @@ modificar, ampliar o suspender total o parcialmente las funcionalidades del Serv
 
 ## 4. Registro y autenticación
 
-El acceso se realiza **sin contraseña**, mediante enlace de acceso enviado a tu correo
-electrónico ("enlace mágico") o mediante inicio de sesión con Google. Debes conservar el
-control de tu cuenta de correo o de Google asociada, ya que quien tenga acceso a ella
-podrá acceder a tu cuenta en el Servicio. Notifícanos de inmediato cualquier uso no
-autorizado.
+El acceso se realiza **sin contraseña**: con un código de 6 dígitos que te enviamos a tu
+correo electrónico, con tu cuenta de Google o, en iPhone, con tu cuenta de Apple. El
+estudio de redacción de la web no tiene cuentas propias: se abre vinculándolo desde la
+Aplicación, con la sesión que ya tienes en ella. Debes conservar el control de tu cuenta
+de correo, de Google o de Apple asociada, ya que quien tenga acceso a ella podrá acceder a
+tu cuenta en el Servicio. Notifícanos de inmediato cualquier uso no autorizado.
 
 ## 5. Uso aceptable
 
@@ -64,13 +69,22 @@ En particular, **no está permitido**:
 ## 6. Contenido de las personas usuarias
 
 Eres responsable del contenido que publicas (perfiles, eventos, noticias, imágenes,
-comentarios y demás aportaciones). Al publicar contenido garantizas que dispones de los
-derechos necesarios para ello, incluida la autorización de las personas que aparezcan en
-las imágenes que subas.
+comentarios, mensajes de grupo, lo que ofreces en la cosateca y demás aportaciones). Al
+publicar contenido garantizas que dispones de los derechos necesarios para ello, incluida
+la autorización de las personas que aparezcan en las imágenes que subas.
 
 Nos concedes una licencia no exclusiva, gratuita y limitada para alojar, reproducir y
 mostrar dicho contenido con la única finalidad de prestar y promocionar el Servicio dentro
 de la propia plataforma. Conservas la titularidad de tu contenido.
+
+El contenido público de los pueblos (eventos, noticias, lugares, organizaciones) se
+muestra también en la web cultuvilla.es, accesible sin cuenta y por los buscadores, y en
+las vistas previas de los enlaces que se comparten. [PENDIENTE: confirmar que la licencia
+del párrafo anterior ("dentro de la propia plataforma") cubre la web pública, los
+buscadores y las vistas previas.]
+
+Cualquier persona usuaria puede denunciar un comentario o bloquear a otra persona; el
+equipo del pueblo revisa las denuncias y puede ocultar el contenido.
 
 Podemos retirar contenido que infrinja estos Términos o la legislación aplicable.
 

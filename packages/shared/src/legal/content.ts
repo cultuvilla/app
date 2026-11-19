@@ -20,7 +20,7 @@ export interface LegalDoc {
   sections: LegalSection[];
 }
 
-const updated = '10 de julio de 2026';
+const updated = '20 de noviembre de 2026';
 
 const privacy: LegalDoc = {
   title: 'Política de privacidad',
@@ -28,6 +28,7 @@ const privacy: LegalDoc = {
   version: CURRENT_TERMS_VERSION,
   intro: [
     'La presente Política de Privacidad regula el tratamiento de los datos personales de las personas usuarias de Cultuvilla (en adelante, la "Aplicación" o el "Servicio"). Al registrarte y utilizar el Servicio aceptas el tratamiento de tus datos en los términos aquí descritos.',
+    'El Servicio se presta a través de las aplicaciones de Cultuvilla para iOS y Android. La web cultuvilla.es es un sitio público de lectura, que incluye el formulario para quien quiere ser Embajador o Embajadora de su pueblo y el estudio de redacción (/estudio), al que se entra vinculándolo con la Aplicación. Esta política se aplica a todos ellos.',
   ],
   sections: [
     {
@@ -45,7 +46,7 @@ const privacy: LegalDoc = {
       body: [
         'Tratamos únicamente los datos necesarios para prestar el Servicio:',
         'a) Datos de cuenta',
-        '• Dirección de correo electrónico (identificador de acceso, mediante enlace mágico o inicio de sesión con Google).',
+        '• Dirección de correo electrónico: es tu identificador de acceso. Entras con un código de 6 dígitos que te enviamos por correo, con tu cuenta de Google o, en iPhone, con tu cuenta de Apple. Si usas Google o Apple, recibimos de ese proveedor tu correo y el identificador de tu cuenta.',
         '• Número de teléfono, cuando lo facilitas.',
         'b) Datos de perfil ("persona")',
         '• Nombre y apellidos.',
@@ -55,12 +56,25 @@ const privacy: LegalDoc = {
         '• Biografía (texto libre que decides aportar).',
         '• Fotografía de perfil, cuando la subes.',
         '• Pueblo y barrio de residencia.',
+        '• Apodo y oficios, cuando los indicas.',
+        '• En los perfiles de familiares, también la fecha de fallecimiento y el lugar de enterramiento, cuando se trata de familiares fallecidos.',
+        'El perfil de persona de quien tiene cuenta es visible para las demás personas usuarias del Servicio. Quien crea el perfil de un familiar puede hacerlo privado; aun así, su nombre sigue apareciendo en los listados de vecinos del pueblo. Los perfiles de persona no se publican en la web, salvo el nombre, el primer apellido y la fotografía de quien es Embajador o Embajadora de un pueblo, que aparecen en cultuvilla.es/embajadores.',
         'c) Datos de actividad en la comunidad',
-        '• Inscripciones a eventos (propias y de familiares que registres como "personas").',
+        '• Inscripciones a eventos (propias y de familiares que registres como "personas"), incluidas las respuestas a los campos que la organización del evento añada al formulario de inscripción.',
         '• Pertenencia a pueblos y organizaciones (peñas, asociaciones, ayuntamientos) y el rol que ostentas en ellas.',
-        '• Solicitudes que envías o gestionas (organizador, creación de organización) y el registro de auditoría asociado.',
-        'd) Datos técnicos',
-        '• Datos de uso y diagnóstico generados por el funcionamiento de la Aplicación (por ejemplo, informes de errores y estadísticas de uso agregadas), tratados a través de los encargados indicados en el apartado 5.',
+        '• En los grupos con lista de socios: tu número de socio y tus fechas de alta y baja, el registro de cuotas que lleva la tesorería (Cultuvilla no cobra ni guarda datos bancarios: los pagos se hacen fuera de la Aplicación), las actas en las que figuras como asistente y, si decides compartirlos con la junta, tu teléfono y tu correo. La junta de un grupo también puede añadir a la lista de socios a personas que no usan la Aplicación, con su nombre y, si lo tiene, su teléfono y su correo. [PENDIENTE: qué papel tiene cada grupo respecto a los datos de sus socios (responsable o corresponsable) y con qué base los trata Cultuvilla.]',
+        '• Mensajes, tareas y conversaciones de los grupos, y lo que ofreces, prestas o pides en la cosateca.',
+        '• Comentarios, denuncias de contenido y personas que bloqueas.',
+        '• Solicitudes que envías o gestionas (Embajador o Embajadora de un pueblo, creación de organización, unirte a un grupo) y el registro de auditoría asociado.',
+        'd) Ubicación',
+        '• Solo si lo autorizas, la Aplicación lee la ubicación de tu dispositivo una vez, para situar un lugar en el mapa. No se lee en segundo plano.',
+        'e) Datos técnicos',
+        '• El identificador de notificaciones de tu dispositivo, para enviarte avisos push. Se borra al cerrar sesión.',
+        '• Estadísticas de uso de la Aplicación e informes de errores, tratados a través de los encargados indicados en el apartado 5.',
+        '• Una huella irreversible (hash) de tu dirección IP y de tu correo, para limitar los intentos de acceso.',
+        '• En la web, contamos las visitas por tipo de página y de dispositivo, sin guardar la dirección que visitas ni los datos de tu navegador. [PENDIENTE: confirmar si los registros técnicos de la web guardan la dirección IP y durante cuánto tiempo.]',
+        'f) Formulario de Embajadores de la web',
+        '• Nombre, teléfono y pueblo de quien pide, desde cultuvilla.es/embajadores, ser Embajador o Embajadora de su pueblo, aunque no tenga cuenta.',
         'No solicitamos ni tratamos categorías especiales de datos (salud, ideología, religión, etc.). Te pedimos que no incluyas ese tipo de información en campos de texto libre como la biografía.',
       ],
     },
@@ -71,16 +85,17 @@ const privacy: LegalDoc = {
         '1. Crear y gestionar tu cuenta y tu perfil de persona.',
         '2. Permitirte descubrir eventos, inscribirte a ti y a tus familiares, y participar en la vida de tu pueblo y de sus organizaciones.',
         '3. Gestionar la pertenencia a pueblos y organizaciones, los roles de administración y las solicitudes entre usuarias y administraciones.',
-        '4. Enviarte notificaciones relacionadas con el Servicio (resultado de solicitudes, inscripciones, cambios relevantes).',
+        '4. Enviarte notificaciones relacionadas con el Servicio (resultado de solicitudes, inscripciones, cambios relevantes, mensajes de tus grupos), en la Aplicación, por notificación push o por correo electrónico.',
         '5. Mantener la seguridad del Servicio, prevenir abusos y cumplir obligaciones legales.',
         '6. Analizar el uso de la Aplicación y diagnosticar errores para mantener y mejorar el Servicio.',
+        '7. Atender las solicitudes para ser Embajador o Embajadora de un pueblo, incluidas las del formulario de la web, y contactar contigo para ello.',
       ],
     },
     {
       heading: '4. Bases jurídicas',
       body: [
         '• Ejecución de un contrato (art. 6.1.b RGPD): la prestación del Servicio que solicitas al registrarte (gestión de cuenta, perfil, eventos, pertenencias).',
-        '• Consentimiento (art. 6.1.a RGPD): los datos opcionales que decides aportar (biografía, fotografía, teléfono) y las estadísticas de uso no imprescindibles. Puedes retirar tu consentimiento en cualquier momento, sin que ello afecte a la licitud del tratamiento previo.',
+        '• Consentimiento (art. 6.1.a RGPD): los datos opcionales que decides aportar (biografía, fotografía, teléfono) y las estadísticas de uso no imprescindibles. Puedes retirar tu consentimiento en cualquier momento, sin que ello afecte a la licitud del tratamiento previo. [PENDIENTE: hoy la Aplicación activa las estadísticas de uso al arrancar, sin pedir un consentimiento aparte ni ofrecer un ajuste para retirarlo; hay que decidir si se cambia la base o se añade ese ajuste.]',
         '• Interés legítimo (art. 6.1.f RGPD): la seguridad del Servicio, la prevención de abusos y el diagnóstico de errores.',
         '• Cumplimiento de obligaciones legales (art. 6.1.c RGPD): cuando la normativa nos obligue a conservar o comunicar determinada información.',
       ],
@@ -89,15 +104,22 @@ const privacy: LegalDoc = {
       heading: '5. Encargados del tratamiento y terceros',
       body: [
         'Para prestar el Servicio nos apoyamos en proveedores que actúan como encargados del tratamiento, tratando los datos por cuenta del Responsable y bajo contrato conforme al art. 28 RGPD:',
-        '• Google Firebase (Google Ireland Limited / Google LLC): autenticación, base de datos (Firestore), almacenamiento de archivos (Storage), funciones de servidor (Cloud Functions) y alojamiento web (Hosting). La infraestructura utilizada se ubica en la Unión Europea.',
-        '• Google Analytics for Firebase y Firebase Crashlytics (mismo proveedor): estadísticas de uso e informes de errores para el mantenimiento y mejora del Servicio.',
+        '• Google Firebase y Google Cloud (Google Ireland Limited / Google LLC): autenticación (incluido el inicio de sesión con Google), base de datos (Firestore), almacenamiento de archivos (Storage), funciones de servidor (Cloud Functions), alojamiento web (Hosting), notificaciones push en Android (Firebase Cloud Messaging) y registro de errores (Cloud Logging). La base de datos se ubica en la Unión Europea (Madrid); el almacenamiento de archivos y parte de las funciones de servidor, en Estados Unidos (ver el apartado 6).',
+        '• Google Analytics for Firebase (mismo proveedor): estadísticas de uso de la Aplicación.',
+        '• Apple: inicio de sesión con Apple y notificaciones push en iPhone (Apple Push Notification service).',
+        '• Resend: envío de los correos del Servicio (códigos de acceso, avisos de eventos y mensajes de los grupos).',
+        '• Telegram: cuando alguien pide ser Embajador o Embajadora de un pueblo, en la Aplicación o en la web, se avisa al equipo de Cultuvilla en un grupo privado de Telegram con su nombre, su teléfono y el pueblo. [PENDIENTE: confirmar el encaje legal de este aviso y si Telegram debe figurar como encargado.]',
+        '• Expo: distribución de las actualizaciones de la Aplicación, que recibe datos técnicos del dispositivo cuando la Aplicación busca una actualización.',
+        '• El mapa de la Aplicación lo sirve Google Maps en Android y Apple Maps en iPhone.',
+        '[PENDIENTE: razón social, país y contrato de encargo (art. 28 RGPD) de Apple, Resend, Telegram y Expo.]',
+        'Dentro del Servicio, otras personas usuarias ven lo que corresponde a su papel: la organización de un evento ve las inscripciones a él; la junta de un grupo, su lista de socios y los datos de contacto que hayas decidido compartir; y el equipo de un pueblo, las solicitudes y el registro de auditoría de ese pueblo. El contenido público de los pueblos (eventos, noticias, lugares, organizaciones) también se muestra en la web, sin necesidad de cuenta.',
         'No vendemos ni cedemos tus datos personales a terceros con fines comerciales. Solo se comunicarán datos a terceros cuando exista una obligación legal.',
       ],
     },
     {
       heading: '6. Transferencias internacionales',
       body: [
-        'Nuestro proveedor pertenece a un grupo con presencia internacional. Cuando un tratamiento implique una transferencia de datos fuera del Espacio Económico Europeo, esta se ampara en las garantías previstas en el RGPD (decisiones de adecuación o cláusulas contractuales tipo aprobadas por la Comisión Europea).',
+        'Parte del tratamiento se realiza fuera del Espacio Económico Europeo: los archivos (por ejemplo, las fotografías) se almacenan en Estados Unidos, y parte de las funciones de servidor —entre ellas las de inicio de sesión y eliminación de cuenta— se ejecutan allí. Varios de los proveedores del apartado 5 tienen también sede en Estados Unidos. Cuando un tratamiento implique una transferencia de datos fuera del Espacio Económico Europeo, esta se ampara en las garantías previstas en el RGPD (decisiones de adecuación o cláusulas contractuales tipo aprobadas por la Comisión Europea).',
       ],
     },
     {
@@ -162,8 +184,8 @@ const terms: LegalDoc = {
     {
       heading: '2. Descripción del Servicio',
       body: [
-        'Cultuvilla es una plataforma para las comunidades de pueblos de España. Las organizaciones (ayuntamientos, peñas, asociaciones) publican eventos; las personas residentes y visitantes los descubren, se inscriben a sí mismas y a sus familiares, y las administraciones de cada pueblo gestionan invitaciones y aprobaciones de organizaciones.',
-        'El Servicio se presta actualmente a través de su versión web. Nos reservamos el derecho a modificar, ampliar o suspender total o parcialmente las funcionalidades del Servicio.',
+        'Cultuvilla es una plataforma para las comunidades de pueblos de España. Las organizaciones (ayuntamientos, peñas, asociaciones) publican eventos; las personas residentes y visitantes los descubren, se inscriben a sí mismas y a sus familiares, y las administraciones de cada pueblo gestionan invitaciones y aprobaciones de organizaciones. Los grupos gestionan además sus integrantes y socios, cuotas, mensajes, tareas y cosateca.',
+        'El Servicio se presta a través de las aplicaciones de Cultuvilla para iOS y Android. La web cultuvilla.es es un sitio público de lectura de la información de los pueblos, accesible sin cuenta; en ella también está el estudio de redacción (/estudio), al que se entra vinculándolo con la Aplicación. Nos reservamos el derecho a modificar, ampliar o suspender total o parcialmente las funcionalidades del Servicio.',
       ],
     },
     {
@@ -177,7 +199,7 @@ const terms: LegalDoc = {
     {
       heading: '4. Registro y autenticación',
       body: [
-        'El acceso se realiza sin contraseña, mediante enlace de acceso enviado a tu correo electrónico ("enlace mágico") o mediante inicio de sesión con Google. Debes conservar el control de tu cuenta de correo o de Google asociada, ya que quien tenga acceso a ella podrá acceder a tu cuenta en el Servicio. Notifícanos de inmediato cualquier uso no autorizado.',
+        'El acceso se realiza sin contraseña: con un código de 6 dígitos que te enviamos a tu correo electrónico, con tu cuenta de Google o, en iPhone, con tu cuenta de Apple. El estudio de redacción de la web no tiene cuentas propias: se abre vinculándolo desde la Aplicación, con la sesión que ya tienes en ella. Debes conservar el control de tu cuenta de correo, de Google o de Apple asociada, ya que quien tenga acceso a ella podrá acceder a tu cuenta en el Servicio. Notifícanos de inmediato cualquier uso no autorizado.',
       ],
     },
     {
@@ -195,8 +217,10 @@ const terms: LegalDoc = {
     {
       heading: '6. Contenido de las personas usuarias',
       body: [
-        'Eres responsable del contenido que publicas (perfiles, eventos, noticias, imágenes, comentarios y demás aportaciones). Al publicar contenido garantizas que dispones de los derechos necesarios para ello, incluida la autorización de las personas que aparezcan en las imágenes que subas.',
+        'Eres responsable del contenido que publicas (perfiles, eventos, noticias, imágenes, comentarios, mensajes de grupo, lo que ofreces en la cosateca y demás aportaciones). Al publicar contenido garantizas que dispones de los derechos necesarios para ello, incluida la autorización de las personas que aparezcan en las imágenes que subas.',
         'Nos concedes una licencia no exclusiva, gratuita y limitada para alojar, reproducir y mostrar dicho contenido con la única finalidad de prestar y promocionar el Servicio dentro de la propia plataforma. Conservas la titularidad de tu contenido.',
+        'El contenido público de los pueblos (eventos, noticias, lugares, organizaciones) se muestra también en la web cultuvilla.es, accesible sin cuenta y por los buscadores, y en las vistas previas de los enlaces que se comparten. [PENDIENTE: confirmar que la licencia del párrafo anterior ("dentro de la propia plataforma") cubre la web pública, los buscadores y las vistas previas.]',
+        'Cualquier persona usuaria puede denunciar un comentario o bloquear a otra persona; el equipo del pueblo revisa las denuncias y puede ocultar el contenido.',
         'Podemos retirar contenido que infrinja estos Términos o la legislación aplicable.',
       ],
     },
@@ -264,6 +288,7 @@ const accountDeletion: LegalDoc = {
         '• Abre el menú y entra en Ajustes.',
         '• Pulsa "Eliminar cuenta".',
         '• Confirma la eliminación.',
+        'Si eres la única persona del equipo de un pueblo o la única administradora de un grupo, la Aplicación te pedirá antes que nombres a otra.',
         'La eliminación es inmediata y definitiva: no hay periodo de recuperación.',
       ],
     },
@@ -280,7 +305,9 @@ const accountDeletion: LegalDoc = {
         '• Tu perfil de persona: nombre, fecha y lugar de nacimiento, biografía y fotografía.',
         '• Los perfiles de familiares que hayas creado y que no tengan cuenta propia.',
         '• Tu pertenencia a pueblos y organizaciones, y tus inscripciones a eventos.',
-        '• Tus comentarios: se borran por completo, no se anonimizan.',
+        '• Tus comentarios y tus mensajes en las conversaciones de los grupos: se borran por completo, no se anonimizan.',
+        '• Lo que ofreces o pides en la cosateca.',
+        '• Tus notificaciones, tus preferencias de avisos y los dispositivos registrados para recibir notificaciones push.',
         '• Las fotografías que hayas subido.',
         'Los eventos y las noticias que hayas publicado sí se conservan, pero dejan de estar asociados a tu identidad: pasan a figurar como publicados por un usuario eliminado. Son información de la vida del pueblo que otras personas necesitan, y el contenido publicado en nombre de una organización sigue perteneciendo a esa organización.',
       ],
@@ -290,6 +317,7 @@ const accountDeletion: LegalDoc = {
       body: [
         'Registro de auditoría de administradores: cada alta, baja o cambio de rol en un pueblo u organización deja una entrada en un registro interno. Guarda tu identificador de usuario —nunca tu nombre ni tu correo— y se conserva mientras exista ese pueblo u organización, con acceso restringido a sus administradores.',
         'Registros técnicos de seguridad y diagnóstico: se conservan un máximo de 30 días y después se suprimen automáticamente.',
+        '[PENDIENTE: en los grupos con lista de socios, tu fila de socio (nombre, número, fechas de alta y baja) se conserva con fecha de baja como libro de socios, y no está claro qué pasa con el teléfono y el correo que compartiste con la junta; hay que decidir qué se borra y añadirlo aquí.]',
         'No conservamos ningún otro dato personal tuyo. Ver la Política de privacidad para el detalle.',
       ],
     },
