@@ -20,14 +20,16 @@ export interface ButtonProps {
 
 const VARIANT_BG: Record<Variant, string> = {
   primary: 'bg-accent',
-  secondary: 'bg-subtle',
+  // Outlined so it never competes with the one filled accent action per screen;
+  // the old peach fill read olive-on-peach at 3.3:1.
+  secondary: 'bg-transparent border border-accent',
   ghost: 'bg-transparent',
   danger: 'bg-danger',
 };
 
-const VARIANT_TONE: Record<Variant, 'primary' | 'muted' | 'onAccent' | 'danger'> = {
+const VARIANT_TONE: Record<Variant, 'primary' | 'muted' | 'onAccent' | 'danger' | 'accent'> = {
   primary: 'onAccent',
-  secondary: 'primary',
+  secondary: 'accent',
   ghost: 'primary',
   danger: 'onAccent',
 };
@@ -71,7 +73,9 @@ export function Button({
         {loading && (
           <ActivityIndicator testID={`${testID ?? 'btn'}-spinner`} />
         )}
-        <Text tone={VARIANT_TONE[variant]}>{children}</Text>
+        <Text tone={VARIANT_TONE[variant]} className={variant === 'secondary' ? 'font-semibold' : undefined}>
+          {children}
+        </Text>
       </View>
     </Pressable>
   );

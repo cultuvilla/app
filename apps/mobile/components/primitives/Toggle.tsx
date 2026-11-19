@@ -16,7 +16,7 @@ export interface ToggleProps {
 // to satisfy the NativeWind/RN-Web constraint: styles must not go on className
 // of Animated components. Token names match existing primitives:
 //   bg-accent  — active track  (same as Button primary)
-//   bg-subtle  — inactive track (same as Button secondary / Input border)
+//   bg-subtle  — inactive track (same as the Input border)
 //   bg-surface — thumb  (same as Input background)
 export function Toggle({ value, onValueChange, label, disabled = false, testID }: ToggleProps) {
   return (
