@@ -9,6 +9,7 @@ import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesMo
 import { compareTasksByDue, hasSocioRoster, isActiveSocio, periodLabel, personalizeGroupMessage } from '@cultuvilla/shared/models/organization';
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import { watchOrgSocios, type Socio } from '@cultuvilla/shared/services/socioService';
+import { watchActas, watchSocioVisibleActas, type Acta } from '@cultuvilla/shared/services/recordsService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '../../components/primitives';
 import { StatsRow } from '../../components/feature/StatsRow';
@@ -136,6 +137,12 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
     org.id,
     (next, error) => watchEventsByOrganization(org.id, { includePrivate: true }, next, error),
   );
+  // An admin counts every acta; a socio only those the junta shared, the ones the rules let them read.
+  const actas = useWatch<Acta[]>(
+    isAdmin ? 'groups:watchActas' : 'groups:watchSocioVisibleActas',
+    roster ? org.id : null,
+    roster ? (next, error) => (isAdmin ? watchActas : watchSocioVisibleActas)(org.id, next, error) : null,
+  );
   // Only what is still ahead: the row is "Próximos eventos".
   const eventRows = useMemo(() => {
     const now = new Date();
@@ -207,6 +214,15 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
                   onPress: isAdmin ? () => open('miembros') : undefined,
                 },
             { label: t('groups.stats.events'), value: events.status === 'ready' ? eventRows.length : null, onPress: () => open('eventos') },
+            ...(roster
+              ? [
+                  {
+                    label: t('groups.stats.actas'),
+                    value: actas.status === 'ready' ? (actas.data ?? []).length : null,
+                    onPress: () => open(isAdmin ? 'registros' : 'actas'),
+                  },
+                ]
+              : []),
           ]}
         />
       </View>
@@ -231,7 +247,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
       ) : null}
 
       <VStack gap={3} className="px-4 pt-4">
-        {roster ? <SocioConsentCard orgId={org.id} requirement={org} onlyWhenUnanswered /> : null}
+        {roster ? <SocioConsentCard orgId={org.id} requirement={org} /> : null}
       </VStack>
 
       <Section

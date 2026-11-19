@@ -1818,7 +1818,8 @@
     "stats": {
       "socios": "Socios",
       "members": "Integrantes",
-      "events": "Eventos"
+      "events": "Eventos",
+      "actas": "Actas"
     },
     "home": {
       "avisosWithNew": "Avisos ({count} sin leer)",
@@ -1858,9 +1859,6 @@
       "email": "Email",
       "save": "Guardar",
       "saved": "Tus datos de contacto se han guardado.",
-      "edit": "Cambiar qué datos ve la junta",
-      "sharingSummary": "La junta ve: {items}",
-      "sharingNothing": "La junta no ve ningún dato de contacto tuyo.",
       "error": "No se han podido guardar tus datos. Inténtalo de nuevo."
     },
     "contactGate": {
@@ -1885,7 +1883,8 @@
       "confirmRemoveBody": "{name} dejará de ser socio/a. Quedará en el libro de socios con la fecha de baja.",
       "error": "No se ha podido completar. Inténtalo de nuevo.",
       "chipSocio": "{name} · nº {number}",
-      "chipAdd": "{name} · ＋ Hacer socio"
+      "add": "Hacer socio a una persona a tu cargo",
+      "pickTitle": "¿A quién haces socio?"
     },
     "socios": {
       "listHidden": "La junta no muestra la lista de socios.",

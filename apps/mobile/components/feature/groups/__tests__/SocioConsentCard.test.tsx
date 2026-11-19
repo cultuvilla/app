@@ -56,19 +56,11 @@ describe('SocioConsentCard', () => {
     );
   });
 
-  it('on the org page, disappears once answered', () => {
+  it('disappears once answered, with no way to change what the junta sees', () => {
     setWatched('mySocios', [ownRow]);
     setWatched('socioPrivate', { id: 's1', phone: null, email: 'ana@x.es', consentAnsweredAt: new Date() });
-    const { queryByTestId } = render(<SocioConsentCard orgId="org1" requirement={NO_REQUIREMENT} onlyWhenUnanswered />);
+    const { queryByTestId, toJSON } = render(<SocioConsentCard orgId="org1" requirement={NO_REQUIREMENT} />);
     expect(queryByTestId('socio-consent-card')).toBeNull();
-    expect(queryByTestId('socio-consent-edit')).toBeNull();
-  });
-
-  it('in the Grupos tab, summarises the answer with a way to change it', () => {
-    setWatched('mySocios', [ownRow]);
-    setWatched('socioPrivate', { id: 's1', phone: null, email: 'ana@x.es', consentAnsweredAt: new Date() });
-    const { getByTestId } = render(<SocioConsentCard orgId="org1" requirement={NO_REQUIREMENT} />);
-    fireEvent.press(getByTestId('socio-consent-edit'));
-    expect(getByTestId('socio-consent-card')).toBeTruthy();
+    expect(toJSON()).toBeNull();
   });
 });
