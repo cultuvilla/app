@@ -63,6 +63,7 @@ let mockCuota = NO_CUOTA;
 jest.mock('../../../lib/orgs/useMyCuota', () => ({ useMyCuota: () => mockCuota }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({ watchEventsByOrganization: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/socioService', () => ({ watchOrgSocios: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/recordsService', () => ({ watchActas: jest.fn(), watchSocioVisibleActas: jest.fn() }));
 const mockPush = jest.fn();
 const mockSetParams = jest.fn();
 let mockParams: { grupo?: string; aviso?: string } = {};
@@ -82,9 +83,9 @@ jest.mock('../../../components/layout/AppHeader', () => ({
   },
 }));
 jest.mock('../../../components/feature/groups/SocioConsentCard', () => ({
-  SocioConsentCard: ({ onlyWhenUnanswered }: { onlyWhenUnanswered?: boolean }) => {
+  SocioConsentCard: () => {
     const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
-    return <Text testID={onlyWhenUnanswered ? 'stub-consent-unanswered' : 'stub-consent'}>consent</Text>;
+    return <Text testID="stub-consent">consent</Text>;
   },
 }));
 
@@ -146,7 +147,7 @@ describe('Grupos tab', () => {
     mockGroups = [group('Anduela')];
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getByTestId('stub-consent-unanswered')).toBeTruthy();
+    expect(getByTestId('stub-consent')).toBeTruthy();
     for (const s of ['charla', 'cuota', 'actas', 'socios']) {
       expect(getByTestId(`group-section-${s}`)).toBeTruthy();
     }
@@ -244,13 +245,15 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     expect(getByText('groups.stats.events')).toBeTruthy();
+    expect(getByText('groups.stats.actas')).toBeTruthy();
     // A member of a group whose estatutos keep the roster private sees no socio count.
     expect(() => getByText('groups.stats.socios')).toThrow();
-    // A notice card is its title and text, cut at one box, and the day: no pinned badge, no sender.
-    expect(getByTestId('group-home-notice-m1')).toHaveStyle({ height: 150 });
+    // A notice card is its title, cut at one box, and the day: no text, no pinned badge, no sender.
+    expect(getByTestId('group-home-notice-m1')).toHaveStyle({ height: 110 });
     const notice = getByTestId('group-home-notice-m1-text');
-    expect(notice.props.numberOfLines).toBe(4);
-    expect(notice).toHaveTextContent(/Cena\s*El sábado/);
+    expect(notice.props.numberOfLines).toBe(3);
+    expect(notice).toHaveTextContent('Cena');
+    expect(getByTestId('group-home-notice-m1')).not.toHaveTextContent(/El sábado/);
     expect(getByTestId('group-home-notice-m1')).not.toHaveTextContent(/groups\.messages\.(pinnedBadge|sentBy)|La junta/);
     fireEvent.press(getByTestId('group-home-notice-m1'));
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/aviso/m1');
@@ -320,7 +323,7 @@ describe('Grupos tab', () => {
     mockGroups = [group('Ayto', { type: 'ayuntamiento' }, 'admin')];
     const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
-    expect(queryByTestId('stub-consent-unanswered')).toBeNull();
+    expect(queryByTestId('stub-consent')).toBeNull();
     expect(queryByTestId('group-section-cuota')).toBeNull();
     expect(queryByTestId('group-section-cobros')).toBeNull();
     expect(getByTestId('group-section-charla')).toBeTruthy();

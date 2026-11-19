@@ -284,7 +284,7 @@ export default function OrgDetailScreen() {
             </Text>
           ) : null}
           {/* Asked once, right after joining: what the junta may see. */}
-          {isMember && hasSocioRoster(org.type) ? <SocioConsentCard orgId={org.id} requirement={org} onlyWhenUnanswered /> : null}
+          {isMember && hasSocioRoster(org.type) ? <SocioConsentCard orgId={org.id} requirement={org} /> : null}
           {org.description ? <Text>{org.description}</Text> : null}
           {org.images.length > 1 ? (
             <VStack gap={2} className="pt-2">

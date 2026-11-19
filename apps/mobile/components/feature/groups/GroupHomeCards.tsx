@@ -9,12 +9,13 @@ import type { MemberFace } from '../../../lib/orgs/useOrgMembers';
 import { useT } from '../../../lib/i18n';
 
 // Set here so these cards never depend on how their `flex-1` children measure
-// inside a horizontal ScrollView. Room for the four lines and the date.
-const NOTICE_CARD_HEIGHT = 150;
+// inside a horizontal ScrollView. Room for a three-line title and the date.
+const NOTICE_CARD_HEIGHT = 110;
 const PLACEHOLDER_MIN_HEIGHT = 96;
 
-/** A notice in the group home's Avisos row: its title and text, cut to one
- * box so every card is the same size, and the day it was sent.
+/** A notice in the group home's Avisos row: its title and the day it was
+ * sent, never the text (decided 2026-11-19, user), cut to one box so every
+ * card is the same size.
  * The cards fill their row with `flex-1`, never `h-full`: on native Yoga
  * resolves height:100% against the ScrollView viewport, so a card grew
  * without end (same bug as DetailInfoCard). */
@@ -23,11 +24,8 @@ export function NoticeCard({ message, onPress }: { message: GroupMessage; onPres
     <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-notice-${message.id}`} style={{ width: 260, height: NOTICE_CARD_HEIGHT }}>
       <Card className="flex-1">
         <VStack gap={1} className="flex-1">
-          <Text variant="bodySm" numberOfLines={4} className="flex-1" testID={`group-home-notice-${message.id}-text`}>
-            <Text variant="bodySm" className="font-bold">
-              {message.title}
-            </Text>
-            {`\n${message.body}`}
+          <Text variant="bodySm" numberOfLines={3} className="flex-1 font-bold" testID={`group-home-notice-${message.id}-text`}>
+            {message.title}
           </Text>
           <Text variant="caption" tone="muted" numberOfLines={1}>
             {formatDate(message.sentAt, 'dayMonthShort')}

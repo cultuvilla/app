@@ -7,7 +7,7 @@ import {
   type Socio,
   type SocioPrivate,
 } from '@cultuvilla/shared/services/socioService';
-import { Button, Card, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { Button, Card, Input, Text, Toggle, VStack } from '../../primitives';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useAuth } from '../../../lib/auth/useAuth';
 import { useT } from '../../../lib/i18n';
@@ -17,18 +17,16 @@ import { showAlert } from '../../../lib/dialogs';
  * Asks a member, once, which contact data the junta may see, and stores the
  * answer on their own roster row (`socioPrivate`). Appears as soon as the
  * `syncOrgSocioRoster` trigger has given them a row — seconds after joining.
- * `onlyWhenUnanswered` hides it once answered (the org page, the group home); the Socios screen
- * keeps a one-line summary with a way to change it. What the group requires
- * (`requirement`) is shared from the account and not on offer to change.
+ * Once answered it is gone everywhere (decided 2026-11-19, user): sharing with
+ * the junta is part of being a socio, not a setting to revisit. What the group
+ * requires (`requirement`) is shared from the account and not on offer at all.
  */
 export function SocioConsentCard({
   orgId,
   requirement,
-  onlyWhenUnanswered = false,
 }: {
   orgId: string;
   requirement: SocioContactRequirement;
-  onlyWhenUnanswered?: boolean;
 }) {
   const { t } = useT();
   const { user, profile } = useAuth();
@@ -47,46 +45,16 @@ export function SocioConsentCard({
     row ? `${orgId}|${row.id}` : null,
     row ? (next, error) => watchSocioPrivate(orgId, row.id, next, error) : null,
   );
-  const answered = contact.data?.consentAnsweredAt != null;
-  const [editing, setEditing] = useState(false);
-
-  if (!row || contact.status !== 'ready') return null;
-  if (answered && !editing) {
-    if (onlyWhenUnanswered) return null;
-    const items = [
-      contact.data?.phone ? t('groups.consent.phone') : null,
-      contact.data?.email ? t('groups.consent.email') : null,
-    ].filter((x): x is string => x !== null);
-    return (
-      <HStack gap={2} align="center" className="flex-wrap">
-        <Text tone="muted" variant="bodySm">
-          {items.length > 0
-            ? t('groups.consent.sharingSummary', { items: items.join(', ') })
-            : t('groups.consent.sharingNothing')}
-        </Text>
-        {requirement.socioPhoneRequired && requirement.socioEmailRequired ? null : (
-          <Pressable testID="socio-consent-edit" accessibilityRole="button" onPress={() => setEditing(true)}>
-            <Text variant="bodySm" className="text-accent">
-              {t('groups.consent.edit')}
-            </Text>
-          </Pressable>
-        )}
-      </HStack>
-    );
-  }
+  if (!row || contact.status !== 'ready' || contact.data?.consentAnsweredAt != null) return null;
 
   return (
     <ConsentForm
       initialPhone={contact.data?.phone ?? profile?.telephone ?? ''}
       initialEmail={contact.data?.email ?? profile?.email ?? user?.email ?? ''}
-      // A first answer starts from "share both"; a change starts from the last one.
-      initialSharePhone={answered ? contact.data?.phone != null : true}
-      initialShareEmail={answered ? contact.data?.email != null : true}
       phoneRequired={requirement.socioPhoneRequired}
       emailRequired={requirement.socioEmailRequired}
       onSave={async ({ phone, email }) => {
         await saveSocioContactSharing(orgId, row.id, { phone, email });
-        setEditing(false);
       }}
     />
   );
@@ -95,16 +63,12 @@ export function SocioConsentCard({
 function ConsentForm({
   initialPhone,
   initialEmail,
-  initialSharePhone,
-  initialShareEmail,
   phoneRequired,
   emailRequired,
   onSave,
 }: {
   initialPhone: string;
   initialEmail: string;
-  initialSharePhone: boolean;
-  initialShareEmail: boolean;
   phoneRequired: boolean;
   emailRequired: boolean;
   onSave: (contact: { phone: string | null; email: string | null }) => Promise<void>;
@@ -112,8 +76,8 @@ function ConsentForm({
   const { t } = useT();
   const [phone, setPhone] = useState(initialPhone);
   const [email, setEmail] = useState(initialEmail);
-  const [sharePhone, setSharePhone] = useState(initialSharePhone || phoneRequired);
-  const [shareEmail, setShareEmail] = useState(initialShareEmail || emailRequired);
+  const [sharePhone, setSharePhone] = useState(true);
+  const [shareEmail, setShareEmail] = useState(true);
   const [saving, setSaving] = useState(false);
   useEffect(() => setPhone(initialPhone), [initialPhone]);
   useEffect(() => setEmail(initialEmail), [initialEmail]);
