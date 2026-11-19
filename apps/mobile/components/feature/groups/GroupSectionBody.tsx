@@ -6,6 +6,7 @@ import { Text, VStack } from '../../primitives';
 import { OrgJoinRequests } from '../OrgJoinRequests';
 import { OrgMembersList } from '../OrgMembersList';
 import { CuotaAdmin } from './CuotaAdmin';
+import { GroupAccounts } from './GroupAccounts';
 import { GroupMessagesAdmin } from './GroupMessagesAdmin';
 import { GroupNotices } from './GroupNotices';
 import { GroupSettings } from './GroupSettings';
@@ -16,6 +17,8 @@ import { MySocioRecord } from './MySocioRecord';
 import { RecordsAdmin } from './RecordsAdmin';
 import { SocioConsentCard } from './SocioConsentCard';
 import { SociosRoster } from './SociosRoster';
+import { TransparentAvisos } from './TransparentAvisos';
+import { TransparentCuota } from './TransparentCuota';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import type { MyGroup } from '../../../lib/orgs/useMyGroups';
@@ -47,10 +50,27 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
   const adminUids = useAdminUids(org.id, section === 'socios' || (isAdmin && section === 'cobros'));
 
   switch (section) {
-    case 'avisos':
-      return <GroupNotices orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.avisos')} />} />;
-    case 'cuota':
-      return <MyCuota orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.cuota')} />} />;
+    case 'avisos': {
+      const empty = <Empty text={t('groups.sections.empty.avisos')} />;
+      return org.transparency.avisos ? (
+        <TransparentAvisos orgId={org.id} uid={uid} empty={empty} />
+      ) : (
+        <GroupNotices orgId={org.id} uid={uid} empty={empty} />
+      );
+    }
+    case 'cuota': {
+      const mine = <MyCuota orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.cuota')} />} />;
+      return org.transparency.cuota ? (
+        <VStack gap={6}>
+          {mine}
+          <TransparentCuota orgId={org.id} />
+        </VStack>
+      ) : (
+        mine
+      );
+    }
+    case 'cuentas':
+      return <GroupAccounts orgId={org.id} />;
     case 'actas':
       return <MyActas orgId={org.id} orgName={org.name} empty={<Empty text={t('groups.sections.empty.actas')} />} />;
     case 'socios': {
@@ -95,6 +115,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           hasRoster={hasSocioRoster(org.type)}
           chatAdminsOnly={org.chatAdminsOnly}
           cosateca={org.cosateca}
+          transparency={org.transparency}
         />
       );
     // Their own full-height screens, not this scrolling body: see [seccion].tsx.

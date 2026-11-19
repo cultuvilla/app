@@ -1845,7 +1845,60 @@
         "cuota": "El grupo aún no ha configurado la cuota.",
         "actas": "La junta aún no ha compartido actas."
       },
-      "cosateca": "Cosateca"
+      "cosateca": "Cosateca",
+      "cuentas": "Cuentas"
+    },
+    "transparency": {
+      "settings": {
+        "title": "Qué ven todos los socios",
+        "cuota": {
+          "label": "Cuota pública",
+          "hint": "Cada socio ve la lista de socios de este año con su nombre y si está al día o pendiente. Nunca importes, fechas ni formas de pago."
+        },
+        "avisos": {
+          "label": "Avisos públicos",
+          "hint": "Cada socio ve todos los avisos de la junta, también los enviados solo a algunos, y los resultados de las votaciones. Nunca quién los ha leído ni quién votó qué."
+        },
+        "cuentas": {
+          "label": "Cuentas públicas",
+          "hint": "Cada socio ve las cuentas del año (ingresos y gastos) sin poder cambiarlas. El libro de socios y las actas siguen con su propio ajuste."
+        }
+      },
+      "cuota": {
+        "title": "Los socios este periodo ({period})",
+        "status": {
+          "al_dia": "Al día",
+          "pendiente": "Pendiente"
+        },
+        "summary": "{alDia} al día · {pendiente} pendientes",
+        "empty": "Aún no hay socios en la cuota."
+      },
+      "avisos": {
+        "title": "Todos los avisos de la junta",
+        "audience": {
+          "all": "A todos los socios",
+          "junta": "A la junta",
+          "cuota": "A quien tenía la cuota pendiente",
+          "event": "A los apuntados a {event}"
+        },
+        "results": "Resultados",
+        "votes": "{count} votos",
+        "noVotes": "Aún no ha votado nadie."
+      },
+      "cuentas": {
+        "cuotas": "Cuotas",
+        "cuotaPeriod": "{period}: {amount}",
+        "otherIncome": "Otros ingresos",
+        "income": "Ingresos",
+        "expenses": "Gastos",
+        "balance": "Saldo",
+        "entries": "Movimientos",
+        "noEntries": "No hay movimientos este año.",
+        "reversed": "anulado",
+        "prev": "Año anterior",
+        "next": "Año siguiente"
+      },
+      "error": "No se ha podido cargar. Inténtalo de nuevo."
     },
     "empty": "Ya no perteneces a ningún grupo.",
     "loadError": "No se han podido cargar tus grupos.",

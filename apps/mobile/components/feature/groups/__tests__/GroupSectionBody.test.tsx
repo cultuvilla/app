@@ -18,10 +18,13 @@ jest.mock('../../OrgJoinRequests', () => ({ OrgJoinRequests: mockStub('requests'
 jest.mock('../../OrgMembersList', () => ({ OrgMembersList: () => null }));
 jest.mock('../CuotaAdmin', () => ({ CuotaAdmin: () => null }));
 jest.mock('../GroupMessagesAdmin', () => ({ GroupMessagesAdmin: () => null }));
-jest.mock('../GroupNotices', () => ({ GroupNotices: () => null }));
+jest.mock('../GroupNotices', () => ({ GroupNotices: mockStub('notices') }));
+jest.mock('../TransparentAvisos', () => ({ TransparentAvisos: mockStub('all-avisos') }));
+jest.mock('../TransparentCuota', () => ({ TransparentCuota: mockStub('cuota-list') }));
+jest.mock('../GroupAccounts', () => ({ GroupAccounts: mockStub('accounts') }));
 jest.mock('../GroupSettings', () => ({ GroupSettings: () => null }));
 jest.mock('../MyActas', () => ({ MyActas: () => null }));
-jest.mock('../MyCuota', () => ({ MyCuota: () => null }));
+jest.mock('../MyCuota', () => ({ MyCuota: mockStub('my-cuota') }));
 jest.mock('../RecordsAdmin', () => ({ RecordsAdmin: () => null }));
 
 function renderSocios(role: 'admin' | 'member', sociosListVisible: boolean) {
@@ -52,5 +55,37 @@ describe('the Socios screen', () => {
     expect(getByTestId('requests')).toBeTruthy();
     expect(getByTestId('personas')).toBeTruthy();
     expect(queryByTestId('socios-list-hidden')).toBeNull();
+  });
+});
+
+describe('what the junta makes public', () => {
+  const OFF = { cuota: false, avisos: false, cuentas: false };
+  function renderSection(section: 'avisos' | 'cuota' | 'cuentas', transparency = OFF) {
+    const group = { org: { id: 'org1', name: 'Peña', type: 'peña', transparency }, role: 'member' } as unknown as MyGroup;
+    return render(<GroupSectionBody group={group} section={section} uid="u1" />);
+  }
+
+  it('shows a member only their own avisos and cuota while the switches are off', () => {
+    const avisos = renderSection('avisos');
+    expect(avisos.getByTestId('notices')).toBeTruthy();
+    expect(avisos.queryByTestId('all-avisos')).toBeNull();
+    avisos.unmount();
+    const cuota = renderSection('cuota');
+    expect(cuota.getByTestId('my-cuota')).toBeTruthy();
+    expect(cuota.queryByTestId('cuota-list')).toBeNull();
+  });
+
+  it('adds every aviso, and the cuota list below their own, once each is on', () => {
+    const avisos = renderSection('avisos', { ...OFF, avisos: true });
+    expect(avisos.getByTestId('all-avisos')).toBeTruthy();
+    expect(avisos.queryByTestId('notices')).toBeNull();
+    avisos.unmount();
+    const cuota = renderSection('cuota', { ...OFF, cuota: true });
+    expect(cuota.getByTestId('my-cuota')).toBeTruthy();
+    expect(cuota.getByTestId('cuota-list')).toBeTruthy();
+  });
+
+  it('opens the accounts on their own screen', () => {
+    expect(renderSection('cuentas', { ...OFF, cuentas: true }).getByTestId('accounts')).toBeTruthy();
   });
 });

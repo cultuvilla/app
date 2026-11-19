@@ -205,6 +205,7 @@ export const GROUP_SECTIONS = [
   'cosateca',
   'cuota',
   'actas',
+  'cuentas',
   'socios',
   'cobros',
   'mensajes',

@@ -1,17 +1,28 @@
 import { useState } from 'react';
-import { DEFAULT_COSATECA_SETTINGS, type CosatecaAudience, type CosatecaSettings } from '@cultuvilla/shared/models/organization';
+import {
+  DEFAULT_COSATECA_SETTINGS,
+  DEFAULT_GROUP_TRANSPARENCY,
+  type CosatecaAudience,
+  type CosatecaSettings,
+  type GroupTransparency,
+  type GroupTransparencyView,
+} from '@cultuvilla/shared/models/organization';
 import { saveCuotaSettings, watchCuotaSettings, type CuotaSettings } from '@cultuvilla/shared/services/cuotaService';
 import { updateOrganization } from '@cultuvilla/shared/services/organizationService';
-import { Toggle, VStack } from '../../primitives';
+import { Text, Toggle, VStack } from '../../primitives';
 import { SegmentedToggle } from '../SegmentedToggle';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { useWatch } from '../../../lib/hooks/useWatch';
 
+const TRANSPARENCY_VIEWS: readonly GroupTransparencyView[] = ['cuota', 'avisos', 'cuentas'];
+
 /**
  * A group's rules, for its admins: whether socios see the roster, what contact
  * data being a socio requires, who writes in the Charla, whether it runs a
- * cosateca and for whom, and, once the cuota is configured, its reminders. A
+ * cosateca and for whom, what the junta makes public to every integrante (the
+ * cuota's al día list, every aviso, the accounts), and, once the cuota is
+ * configured, its reminders. A
  * member's own notifications are in Ajustes → Notificaciones, not here.
  */
 export function GroupSettings({
@@ -23,6 +34,7 @@ export function GroupSettings({
   hasRoster = true,
   chatAdminsOnly = false,
   cosateca = DEFAULT_COSATECA_SETTINGS,
+  transparency = DEFAULT_GROUP_TRANSPARENCY,
 }: {
   orgId: string;
   uid: string;
@@ -32,6 +44,7 @@ export function GroupSettings({
   hasRoster?: boolean;
   chatAdminsOnly?: boolean;
   cosateca?: CosatecaSettings;
+  transparency?: GroupTransparency;
 }) {
   const { t } = useT();
   const cuota = useWatch<CuotaSettings | null>(
@@ -46,7 +59,8 @@ export function GroupSettings({
       | { chatAdminsOnly: boolean }
       | { socioPhoneRequired: boolean }
       | { socioEmailRequired: boolean }
-      | { cosateca: CosatecaSettings },
+      | { cosateca: CosatecaSettings }
+      | { transparency: GroupTransparency },
   ) => {
     setSaving(true);
     updateOrganization(orgId, patch)
@@ -114,6 +128,25 @@ export function GroupSettings({
             if (!saving && audience !== cosateca.audience) save({ cosateca: { ...cosateca, audience } });
           }}
         />
+      ) : null}
+      {hasRoster ? (
+        <VStack gap={3} testID="group-settings-transparency">
+          <Text className="font-bold">{t('groups.transparency.settings.title')}</Text>
+          {TRANSPARENCY_VIEWS.map((view) => (
+            <VStack key={view} gap={1}>
+              <Toggle
+                testID={`group-settings-transparency-${view}`}
+                value={transparency[view]}
+                disabled={saving}
+                label={t(`groups.transparency.settings.${view}.label`)}
+                onValueChange={(next) => save({ transparency: { ...transparency, [view]: next } })}
+              />
+              <Text variant="caption" tone="muted">
+                {t(`groups.transparency.settings.${view}.hint`)}
+              </Text>
+            </VStack>
+          ))}
+        </VStack>
       ) : null}
       {cuota.data ? (
         <Toggle

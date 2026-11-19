@@ -57,6 +57,19 @@ beforeEach(() => {
 });
 
 describe('GroupNotices', () => {
+  it("shows a poll's results only when the junta has made its avisos public", () => {
+    const poll = { question: '¿Cena?', kind: 'yes_no', options: ['Sí', 'No'] };
+    setWatched('messages', [message('q', { poll })]);
+    setWatched('reads', []);
+    const hidden = render(<GroupNotices orgId="org1" uid="u1" />);
+    expect(hidden.queryByTestId('group-notice-results-q')).toBeNull();
+    hidden.unmount();
+    const shown = render(<GroupNotices orgId="org1" uid="u1" tallies={new Map([['q', [3, 1]]])} />);
+    expect(shown.getByTestId('group-notice-results-q')).toBeTruthy();
+    expect(shown.getByText('groups.transparency.avisos.votes:3')).toBeTruthy();
+    expect(shown.getByText('groups.transparency.avisos.votes:1')).toBeTruthy();
+  });
+
   it('shows nothing while no message reached the member', () => {
     setWatched('messages', []);
     const { queryByTestId } = render(<GroupNotices orgId="org1" uid="u1" />);
