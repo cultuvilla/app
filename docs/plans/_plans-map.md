@@ -56,6 +56,8 @@ _None._
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
 | [apple-team-transfer](ongoing/apple-team-transfer.md) | high | dev | this cycle | this plan's code (#663) reaches prod, then Álvaro accepts in App Store Connect — a console step no agent can take | the next release carries #663 to prod; then Álvaro accepts Cultuvilla, before 2026-11-29, and runs § On the day. Jaime's part is done (2026-11-17); `TESTFLIGHT_SUBMIT_PAUSED=true` since 2026-11-17 |
+| [buzon-badge-counts-all-actions](ready/buzon-badge-counts-all-actions.md) `ready` | medium | — | this cycle | buzon-inbox-model | — |
+| [mobile-neutral-grey-tokens](ready/mobile-neutral-grey-tokens.md) `ready` | low | — | this cycle | mobile-raw-hex-to-tokens | — |
 
 ## How `Advanced` is derived
 
