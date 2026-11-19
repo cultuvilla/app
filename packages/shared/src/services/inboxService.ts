@@ -1,10 +1,18 @@
 // packages/shared/src/services/inboxService.ts
-import { getMyOrganizerRequests } from './organizerRequestService';
-import { getMyOrganizations } from './organizationService';
-import { getMyPendingOrgJoinRequests } from './orgJoinRequestService';
+import { getMyOrganizerRequests, getPendingOrganizerRequests } from './organizerRequestService';
+import {
+  getMyOrganizations,
+  getOrganizationsByMunicipality,
+  getPendingOrganizations,
+} from './organizationService';
+import { getMyPendingOrgJoinRequests, getPendingOrgJoinRequests } from './orgJoinRequestService';
+import { getOpenReports, getReportsByMunicipality, type ContentReport } from './contentReportService';
 import { getMyPendingCosaRequests } from './cosatecaService';
 import { observability } from './observability/observabilityService';
 import type { NotificationData } from '../models/notification/NotificationDataModel';
+import type { OrganizerRequestData } from '../models/municipality/OrganizerRequestDataModel';
+import type { OrganizationData } from '../models/organization/OrganizationDataModel';
+import type { OrgJoinRequestData } from '../models/organization/OrgJoinRequestDataModel';
 
 export type PendingRequestType = 'organizer' | 'org' | 'orgJoin' | 'cosa';
 
@@ -106,4 +114,107 @@ export async function getMyPendingRequests(uid: string): Promise<PendingSentRequ
   }));
 
   return [...pendingOrganizer, ...pendingOrg, ...pendingJoin, ...pendingCosa];
+}
+
+// ─── Actionable queues ("Necesita tu acción") ─────────────────────────────────
+//
+// The one definition of which request queues an approver reads and how widely.
+// The Buzón and the header bell's badge both go through it, so a new request
+// type is added here once. The cosateca queue is deliberately not a kind: it
+// is not an approver's queue (anyone who offered something answers it) and it
+// is read live by `watchCosaRequestsToAnswer`.
+
+export type ActionableKind = 'organizer' | 'orgs' | 'joins' | 'reports';
+
+const ACTIONABLE_KINDS: readonly ActionableKind[] = ['organizer', 'orgs', 'joins', 'reports'];
+
+/** Every village (`'all'`), or only the listed ones. */
+export type VillageReach = 'all' | string[];
+
+export interface ActionableScope {
+  /** Organizer (Embajador) requests: super admins only. */
+  organizer: boolean;
+  /** Org-creation requests. */
+  orgs: VillageReach;
+  /** Join requests, per org the user administers. */
+  joins: string[];
+  /** Open content reports. */
+  reports: VillageReach;
+}
+
+export interface ApproverRoles {
+  isSuperAdmin: boolean;
+  adminVillageIds: string[];
+  adminOrgIds: string[];
+}
+
+export interface ActionableRequests {
+  organizer: (OrganizerRequestData & { id: string })[];
+  orgs: (OrganizationData & { id: string })[];
+  joins: OrgJoinRequestData[];
+  reports: ContentReport[];
+}
+
+/** Maps what a user administers to the queues they resolve. Pure — no I/O. */
+export function actionableScope(roles: ApproverRoles): ActionableScope {
+  const villages: VillageReach = roles.isSuperAdmin ? 'all' : [...roles.adminVillageIds];
+  return {
+    organizer: roles.isSuperAdmin,
+    orgs: villages,
+    joins: [...roles.adminOrgIds],
+    reports: villages,
+  };
+}
+
+async function readOrganizer(scope: ActionableScope): Promise<ActionableRequests['organizer']> {
+  return scope.organizer ? getPendingOrganizerRequests() : [];
+}
+
+// One village's failed org-creation read fails the whole call, as it always has.
+async function readOrgs(scope: ActionableScope): Promise<ActionableRequests['orgs']> {
+  if (scope.orgs === 'all') return getPendingOrganizations();
+  const perVillage = await Promise.all(
+    scope.orgs.map((vid) => getOrganizationsByMunicipality(vid, 'pending')),
+  );
+  return perVillage.flat();
+}
+
+// Per org, each allowed to fail alone: one org's denied read must not hide
+// every other org's requests.
+async function readJoins(scope: ActionableScope): Promise<OrgJoinRequestData[]> {
+  const perOrg = await Promise.all(
+    scope.joins.map((oid) => getPendingOrgJoinRequests(oid).catch((): OrgJoinRequestData[] => [])),
+  );
+  return perOrg.flat();
+}
+
+async function readReports(scope: ActionableScope): Promise<ContentReport[]> {
+  if (scope.reports === 'all') return getOpenReports();
+  const perVillage = await Promise.all(
+    scope.reports.map((vid) =>
+      getReportsByMunicipality(vid, { status: 'open' }).catch((): ContentReport[] => []),
+    ),
+  );
+  return perVillage.flat();
+}
+
+/**
+ * Reads the actionable queues `scope` covers, limited to `kinds` (all of them
+ * by default). A kind left out, or out of scope, comes back empty without a
+ * read. An organizer, org-creation or app-wide reports read that fails
+ * rejects the call; a single org's join read or a single village's reports
+ * read that fails counts as empty.
+ */
+export async function getActionableRequests(
+  scope: ActionableScope,
+  kinds: readonly ActionableKind[] = ACTIONABLE_KINDS,
+): Promise<ActionableRequests> {
+  const wants = (kind: ActionableKind) => kinds.includes(kind);
+  const [organizer, orgs, joins, reports] = await Promise.all([
+    wants('organizer') ? readOrganizer(scope) : [],
+    wants('orgs') ? readOrgs(scope) : [],
+    wants('joins') ? readJoins(scope) : [],
+    wants('reports') ? readReports(scope) : [],
+  ]);
+  return { organizer, orgs, joins, reports };
 }
