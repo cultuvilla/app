@@ -1,6 +1,6 @@
 import { ContentReportsInbox } from '../../components/feature/ContentReportsInbox';
-import { useActiveVillageId } from '../../lib/village/useActiveVillageId';
 
+// App admins moderate every pueblo, whichever village they have open.
 export default function AdminReportsScreen() {
-  return <ContentReportsInbox municipalityId={useActiveVillageId()} />;
+  return <ContentReportsInbox allVillages />;
 }

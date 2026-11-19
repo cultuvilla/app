@@ -1891,13 +1891,16 @@ service cloud.firestore {
     // report — but only against themselves as reporter, and always unreviewed:
     // `status` is the moderator's field, so the create rule pins it to 'open'.
     // Reads are moderator-only; a reporter cannot enumerate reports, which
-    // keeps the reported person from learning who filed.
+    // keeps the reported person from learning who filed. Nobody resolves a
+    // report about their own content — another moderator has to — whatever
+    // role they hold.
     match /contentReports/{reportId} {
       allow read: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
       allow create: if isAuthenticated()
                       && request.resource.data.reporterUserId == request.auth.uid
                       && isValidContentReportCreate(request.resource.data);
       allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin())
+                      && resource.data.get('targetAuthorUserId', null) != request.auth.uid
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
                       && request.resource.data.status in ['open', 'reviewed', 'dismissed'];
       allow delete: if false;
