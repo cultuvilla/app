@@ -76,7 +76,7 @@ describe('OrgEditScreen photo upload', () => {
 });
 
 describe('OrgEditScreen join policy', () => {
-  const org = { id: 'org1', name: 'Peña', description: null, type: 'peña', images: [], municipalityId: 'm1', villageSlug: 'villa', joinPolicy: 'approval' };
+  const org = { id: 'org1', name: 'Peña', description: null, type: 'peña', images: [], municipalityId: 'm1', villageSlug: 'villa', joinPolicy: 'open' };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -84,42 +84,13 @@ describe('OrgEditScreen join policy', () => {
     (getOrganization as jest.Mock).mockResolvedValue(org);
   });
 
-  it('warns before opening the group, and saves it open once confirmed', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const { findByTestId, getByTestId } = render(<OrgEditScreen />);
-    fireEvent.press(await findByTestId('org-edit-join-policy-toggle'));
-
-    expect(alert).toHaveBeenCalledWith(
-      'organization.joinPolicy.switchToOpenTitle',
-      'organization.joinPolicy.switchToOpenBody',
-      expect.any(Array),
-    );
-    const buttons = alert.mock.calls[0]![2]!;
-    act(() => buttons[buttons.length - 1]!.onPress!());
-    fireEvent.press(getByTestId('org-edit-submit'));
-
-    await waitFor(() =>
-      expect(updateOrganization).toHaveBeenCalledWith('org1', expect.objectContaining({ joinPolicy: 'open' })),
-    );
-    alert.mockRestore();
-  });
-
-  it('stays closed if the warning is not confirmed', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const { findByTestId, getByTestId } = render(<OrgEditScreen />);
-    fireEvent.press(await findByTestId('org-edit-join-policy-toggle'));
-    fireEvent.press(getByTestId('org-edit-submit'));
-
-    await waitFor(() =>
-      expect(updateOrganization).toHaveBeenCalledWith('org1', expect.objectContaining({ joinPolicy: 'approval' })),
-    );
-    alert.mockRestore();
-  });
-
-  it('offers an ayuntamiento no switch', async () => {
-    (getOrganization as jest.Mock).mockResolvedValue({ ...org, type: 'ayuntamiento' });
-    const { findByTestId, queryByTestId } = render(<OrgEditScreen />);
+  it('lives in the group\'s Ajustes now, so saving the profile leaves it alone', async () => {
+    const { findByTestId, getByTestId, queryByTestId } = render(<OrgEditScreen />);
     await findByTestId('org-edit-submit');
     expect(queryByTestId('org-edit-join-policy-toggle')).toBeNull();
+    fireEvent.press(getByTestId('org-edit-submit'));
+    await waitFor(() => expect(updateOrganization).toHaveBeenCalled());
+    expect(jest.mocked(updateOrganization).mock.calls[0]![1]).not.toHaveProperty('joinPolicy');
   });
 });
+
