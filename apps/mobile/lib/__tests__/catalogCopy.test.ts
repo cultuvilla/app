@@ -9,9 +9,16 @@ describe('count copy agrees in number', () => {
   it.each([
     ['village.hub.memberCount', '1 persona', '3 personas'],
     ['village.admin.barrios.residentCount', '1 vecino', '3 vecinos'],
+    ['village.vocabulary.inVillages', 'en 1 pueblo', 'en 3 pueblos'],
+    ['village.vocabulary.definitionCount', '1 significado', '3 significados'],
   ])('%s', (key, one, other) => {
     expect(t(key, { count: 1 })).toBe(one);
     expect(t(key, { count: 3 })).toBe(other);
+  });
+
+  it('village.vocabulary.joiningWord', () => {
+    expect(t('village.vocabulary.joiningWord', { count: 1 })).toContain('recogida en 1 pueblo.');
+    expect(t('village.vocabulary.joiningWord', { count: 3 })).toContain('recogida en 3 pueblos.');
   });
 });
 

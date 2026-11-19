@@ -752,11 +752,16 @@ function placeCard(p: PlaceView, villageSlug: string): Card {
   };
 }
 
+/** «1 vecino», «3 vecinos». */
+export function residentsLabel(count: number): string {
+  return `${String(count)} ${count === 1 ? 'vecino' : 'vecinos'}`;
+}
+
 function barrioCard(b: BarrioView, villageSlug: string): Card {
   return {
     href: entityPath('barrio', { id: b.id, title: b.name, villageSlug }),
     title: b.name,
-    subtitle: b.residentCount ? `${String(b.residentCount)} vecinos` : null,
+    subtitle: b.residentCount ? residentsLabel(b.residentCount) : null,
     ...cardImages(b.images[0] ?? null),
   };
 }

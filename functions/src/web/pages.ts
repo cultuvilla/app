@@ -7,6 +7,7 @@ import {
   cardImage,
   eventWhen,
   posterTitle,
+  residentsLabel,
   type AmbassadorView,
   type Card,
   type DefinitionView,
@@ -299,7 +300,7 @@ export function barrioPage(v: Village, b: BarrioView, appPath: string): Page {
   const kind = label(BARRIO_KIND, b.kind) ?? 'Barrio';
   return {
     head: { title: `${b.name} · ${v.name}`, description: `${kind} de ${v.name}.`, imageUrl: b.images[0] ?? null },
-    body: html`${backTo(v)}${gallery(b.images, b.name)}<h1>${b.name}</h1><p class="meta">${kind}${b.residentCount ? ` · ${String(b.residentCount)} vecinos` : ''}</p>${appCta(appPath, '¿Eres de aquí? Únete desde la app')}`,
+    body: html`${backTo(v)}${gallery(b.images, b.name)}<h1>${b.name}</h1><p class="meta">${kind}${b.residentCount ? ` · ${residentsLabel(b.residentCount)}` : ''}</p>${appCta(appPath, '¿Eres de aquí? Únete desde la app')}`,
   };
 }
 

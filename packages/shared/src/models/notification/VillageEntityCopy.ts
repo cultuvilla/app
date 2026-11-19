@@ -27,7 +27,7 @@ const HEADLINE: Record<BroadcastEntityKind, string> = {
   historyEntry: 'Nueva entrada de historia',
   place: 'Nuevo lugar',
   barrio: 'Nuevo barrio',
-  organization: 'Nueva organización',
+  organization: 'Nuevo grupo',
   festivalPoster: 'Nuevo cartel de fiestas',
 };
 
@@ -38,7 +38,7 @@ const UNNAMED: Record<BroadcastEntityKind, string> = {
   historyEntry: 'Una entrada de historia nueva',
   place: 'Un lugar nuevo',
   barrio: 'Un barrio nuevo',
-  organization: 'Una organización nueva',
+  organization: 'Un grupo nuevo',
   festivalPoster: 'Un cartel de fiestas nuevo',
 };
 
