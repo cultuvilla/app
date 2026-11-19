@@ -740,7 +740,7 @@ Landing that PR on develop is enough to unblock beta and prod deploys: the
 
 **Priority orders the queue; it never gates it.** An approved `low` plan is worked when nothing ranked above it is waiting.
 
-Two shared skills run on this policy: **`advance-plans`** builds the approved pool in parallel — `ongoing/`, then `ready/`, then pre-approved ideas straight from `ideas/` — and **`review-ideas`** verifies ideas against the code and asks the user for the yeses (tagging the pre-approved ones `Pre-Approved: <slug>` so the builder finds them).
+Three shared skills run on this policy: **`enhance-repo`** measures the repo (churn × size × fix density, co-change, test gaps), files the best improvements as `ideas/` plans and has a second agent fact-check each one before it lands — plans only, never code, tuned by *Enhance* below; **`advance-plans`** builds the approved pool in parallel — `ongoing/`, then `ready/`, then pre-approved ideas straight from `ideas/`; and **`review-ideas`** verifies ideas against the code and asks the user for the yeses (tagging the pre-approved ones `Pre-Approved: <slug>` so the builder finds them). So "improve the repo" is `enhance-repo`, then `advance-plans`.
 
 **The line is subjectivity** (decided 2026-10-05, adopting ordago's policy). The user's consent is for what is a matter of judgement they hold — product, business, taste — and not for engineering the agents and the tests can verify. So the default for objective work is *do it and report it*, and a new gate needs a subjective reason.
 
@@ -802,6 +802,16 @@ other's tests. The leader frees the slot with `source scripts/agent-env.sh --cle
 before removing the worktree.
 
 **This repo overrides two `superpowers` skills.** `superpowers:brainstorming`'s one-question-per-message rule and `superpowers:finishing-a-development-branch`'s stop-and-ask merge menu are **superseded by `ship-a-feature`**. Every other superpowers skill still applies.
+
+## Enhance
+
+Tunes the shared `enhance-repo` pass (format in its skill). Data, not procedure.
+
+- **Source / tests:** `apps/mobile` (jest, `pnpm app:test`) · `apps/studio` · `packages/shared` (vitest in `packages/shared/test/`, emulator suites) · `functions/src` (vitest under emulators, `pnpm test:functions`; the read site is `functions/src/web/`) · `firestore.rules` (`pnpm test:rules`) · `scripts/` (backfills: `pnpm backfills:test`). Measure with `node scripts/enhance-measure.js`.
+- **Invariants a design must keep:** *Architecture invariants* above (1–6); the skills `touch-service`, `guardrail-enforcement`, `denormalized-read-model`, `add-firestore-collection`, `i18n-add-string`, `observability-conventions`; [municipality-vs-village.md](docs/architecture/municipality-vs-village.md), [denormalized-read-models.md](docs/architecture/denormalized-read-models.md), [web-is-a-read-site.md](docs/decisions/web-is-a-read-site.md), [breaking-change-and-hard-wall.md](docs/decisions/breaking-change-and-hard-wall.md).
+- **Lenses:** + **conventions** — the list in *Things to flag in PRs* below, swept repo-wide: Firebase reached outside a service, `as any` / `@ts-nocheck` / `eslint-disable`, Spanish that escaped the i18n catalog, a service with no test, the same enum, status string, threshold or hex colour in two places, an entity detail screen not built on `EntityDetailScaffold`, raw palette classes on a screen otherwise migrated. Each is pre-approved under *consolidating duplicates* or *debt and refactors* only when nothing a user sees changes.
+- **Never propose:** splitting `packages/i18n/messages/es.json` or `firestore.rules` because they are hot — they are registries every feature touches (and Firestore deploys rules as one file); reading churn in `apps/mobile/app.config.ts` / `package.json` (release bumps) or `functions/src/index.ts` (the export barrel) as a smell; anything web-side beyond the read site and the studio (invariant 6); a global store or query cache (*State and data fetching*); a retrocompat shim (*No retrocompat shims*); a release cut or store notes.
+- **Gates:** a change to a callable's contract, a rule older binaries write against, or a stored schema follows expand → migrate → contract, and a `Breaking-Client:` contract step needs a yes (`decision:`). Production data operations stay the user's.
 
 ## Things to flag in PRs (or right here when you find them)
 
