@@ -293,6 +293,7 @@
   "location-map": "device-only: the native map view (react-native-maps); jest mocks the map, and the flows pick a location with the GPS button rather than by panning it",
   "login-apple-button": "unit-tested: app/(auth)/__tests__/entrar.test.tsx",
   "login-change-email": "unit-tested: app/(auth)/__tests__/entrar.test.tsx",
+  "login-code-resent": "unit-tested: app/(auth)/__tests__/entrar.test.tsx",
   "login-dev-account-*": "unit-tested: app/(auth)/__tests__/entrar.test.tsx",
   "login-google-button": "unit-tested: app/(auth)/__tests__/entrar.test.tsx",
   "login-resend-code": "unit-tested: app/(auth)/__tests__/entrar.test.tsx",

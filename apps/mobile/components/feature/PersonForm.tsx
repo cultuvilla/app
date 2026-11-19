@@ -56,14 +56,9 @@ export interface PersonFormProps {
   loading?: boolean;
   error?: string | null;
   /**
-   * Require given name + both surnames + birthday (self-registration at
-   * onboarding). Implies `requireFirstSurname`.
-   */
-  requireFullName?: boolean;
-  /**
-   * Require given name + first surname + sex + birthday, without forcing the
-   * second surname. Used by the linked-persona create flow — a lighter gate than
-   * `requireFullName` (no second surname, no age floor).
+   * Require given name + first surname + sex + birthday. The second surname is
+   * never required: many people have only one. Used by self-registration at
+   * onboarding and by the linked-persona create flow.
    */
   requireFirstSurname?: boolean;
   /** Editing an existing person → every step is directly clickable. */
@@ -107,7 +102,6 @@ export function PersonForm({
   submitLabel,
   loading,
   error,
-  requireFullName = false,
   requireFirstSurname = false,
   editing = false,
   selfProfile = false,
@@ -229,8 +223,7 @@ export function PersonForm({
       validate: () => {
         const errs: string[] = [];
         if (!givenName.trim()) errs.push('givenName');
-        if ((requireFullName || requireFirstSurname) && !firstSurname.trim()) errs.push('firstSurname');
-        if (requireFullName && !secondSurname.trim()) errs.push('secondSurname');
+        if (requireFirstSurname && !firstSurname.trim()) errs.push('firstSurname');
         if (!sex) errs.push('sex');
         if (consentSatisfied === false) errs.push('consent');
         return errs;
@@ -317,7 +310,7 @@ export function PersonForm({
       icon: 'location-outline',
       validate: () => {
         const errs: string[] = [];
-        if ((requireFullName || requireFirstSurname) && !birthday) errs.push('birthday');
+        if (requireFirstSurname && !birthday) errs.push('birthday');
         if (birthdayTooYoung) errs.push('birthday-min-age');
         return errs;
       },
