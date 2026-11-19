@@ -18,6 +18,7 @@ import { Screen } from '../../components/primitives/Screen';
 import { Text } from '../../components/primitives/Text';
 import { Pressable } from '../../components/primitives/Pressable';
 import { Fab } from '../../components/primitives/Fab';
+import { Button } from '../../components/primitives/Button';
 import { ErrorState } from '../../components/primitives/ErrorState';
 import { EventCard } from '../../components/feature/EventCard';
 import { NewsCard } from '../../components/feature/NewsCard';
@@ -31,6 +32,7 @@ import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
 import { useMyRegistrations } from '../../lib/registrations/MyRegistrationsContext';
 import { useT } from '../../lib/i18n';
 import { useWatch } from '../../lib/hooks/useWatch';
+import { hasActiveFeedFilter, type DatePreset, type FeedTab } from '../../lib/feed/feedFilters';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import {
   haversineKm,
@@ -58,8 +60,6 @@ const FEED_TARGET_CARDS = 20;
 
 type FeedEvent = EventData & { id: string };
 type FeedNews = NewsPostData & { id: string };
-type FeedTab = 'eventos' | 'noticias';
-type DatePreset = 'hoy' | 'semana' | 'mes';
 type ActiveSheet = 'village' | 'date' | 'category' | 'sort' | null;
 type Village = {
   id: string;
@@ -271,6 +271,35 @@ export default function FeedScreen() {
     label: t(`news.compose.category.${c}`),
   }));
 
+  const filters = { search, villageId: villageFilter, date: dateFilter, category: categoryFilter };
+  const eventsFiltered = hasActiveFeedFilter('eventos', filters);
+  const newsFiltered = hasActiveFeedFilter('noticias', filters);
+
+  function clearFilters() {
+    setSearch('');
+    setSearchOpen(false);
+    setVillageFilter(null);
+    setDateFilter(null);
+    setCategoryFilter(null);
+    setSortByProximity(false);
+  }
+
+  function emptyState(icon: keyof typeof Ionicons.glyphMap, message: string, filtered: boolean) {
+    return (
+      <View className="items-center justify-center px-8">
+        <Ionicons name={filtered ? 'search-outline' : icon} size={48} color="#64748b" />
+        <Text tone="muted" className="mt-3 text-center">
+          {message}
+        </Text>
+        {filtered ? (
+          <Button variant="secondary" onPress={clearFilters} className="mt-4" testID="feed-clear-filters">
+            {t('feed.emptyFiltered.clear')}
+          </Button>
+        ) : null}
+      </View>
+    );
+  }
+
   const selectedVillageName = villages.find((v) => v.id === villageFilter)?.name ?? null;
   const dateLabel = dateFilter ? t(`feed.filter.date${dateFilter === 'hoy' ? 'Today' : dateFilter === 'semana' ? 'Week' : 'Month'}`) : null;
   const categoryLabel = categoryFilter ? t(`news.compose.category.${categoryFilter}`) : null;
@@ -459,14 +488,11 @@ export default function FeedScreen() {
         }
         data={visibleEvents}
         keyExtractor={(e) => e.id}
-        ListEmptyComponent={
-          <View className="items-center justify-center px-8">
-            <Ionicons name="calendar-outline" size={48} color="#64748b" />
-            <Text tone="muted" className="mt-3 text-center">
-              {t('feed.empty')}
-            </Text>
-          </View>
-        }
+        ListEmptyComponent={emptyState(
+          'calendar-outline',
+          eventsFiltered ? t('feed.emptyFiltered.events') : t('feed.empty'),
+          eventsFiltered,
+        )}
         renderItem={({ item }) => (
           <EventCard
             event={{
@@ -514,14 +540,11 @@ export default function FeedScreen() {
         }
         data={visibleNews}
         keyExtractor={(n) => n.id}
-        ListEmptyComponent={
-          <View className="items-center justify-center px-8">
-            <Ionicons name="newspaper-outline" size={48} color="#64748b" />
-            <Text tone="muted" className="mt-3 text-center">
-              {t('feed.news.empty')}
-            </Text>
-          </View>
-        }
+        ListEmptyComponent={emptyState(
+          'newspaper-outline',
+          newsFiltered ? t('feed.emptyFiltered.news') : t('feed.news.empty'),
+          newsFiltered,
+        )}
         renderItem={({ item }) => (
           <NewsCard
             post={item}
