@@ -176,6 +176,7 @@
   "fair-share": "unit-tested: components/feature/groups/__tests__/GroupTasks.test.tsx",
   "fair-share-*": "unit-tested: components/feature/groups/__tests__/GroupTasks.test.tsx",
   "feed-card-comment-count": "unit-tested: components/feature/FeedCard.test.tsx",
+  "feed-clear-filters": "unit-tested: app/(tabs)/__tests__/index.test.tsx",
   "format-toolbar": "unit-tested: components/feature/__tests__/MentionTextInput.test.tsx",
   "group-accounts": "unit-tested: components/feature/groups/__tests__/GroupTransparency.test.tsx",
   "group-accounts-balance": "unit-tested: components/feature/groups/__tests__/GroupTransparency.test.tsx",
