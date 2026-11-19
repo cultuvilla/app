@@ -13,7 +13,7 @@
  *
  * The group must already run a cosateca. Demo people are Auth users at
  * `cosateca-demo-N@example.com` (no password: nobody signs in as them). Every
- * doc has a `seed-cd-` id and `seedBatch: cosateca-demo`; `--wipe` deletes the
+ * doc has a `seed-cd-<orgId>-` id and `seedBatch: cosateca-demo`; `--wipe` deletes the
  * cosas, requests, chats and slots, and takes the demo people out of the group
  * and the pueblo, leaving their accounts.
  *
@@ -22,21 +22,23 @@
 import {
   buildCosaData,
   buildCosaRequestData,
-  buildUserData,
   buildVillageMemberData,
   DEFAULT_RESERVA_CONFIG,
   reservaSlotKey,
 } from '@cultuvilla/shared/models';
 import { WIPE, auth, db, uidForEmail } from './lib/context.mjs';
 import { runAsMain } from './lib/run.mjs';
+import { DEMO_PEOPLE, demoEmail, ensureDemoPerson } from './lib/demo-people.mjs';
 
 const BATCH = 'cosateca-demo';
 const tag = (data) => ({ ...data, seedBatch: BATCH });
-const id = (kind, n) => `seed-cd-${kind}-${String(n).padStart(2, '0')}`;
+// Ids carry the group, so seeding a second group never overwrites the first's.
+const ORG = process.env.COSATECA_DEMO_ORG ?? '';
+const id = (kind, n) => `seed-cd-${ORG}-${kind}-${String(n).padStart(2, '0')}`;
 
-const PEOPLE = ['Lucía Martín', 'Paco Herrero', 'Marisa Gómez', 'Toni Sanz', 'Rocío Llorente', 'Andrés Pastor'];
+const PEOPLE = DEMO_PEOPLE;
 const [LUCIA, PACO, MARISA, TONI, ROCIO, ANDRES] = PEOPLE.map((_, i) => i);
-const emailOf = (i) => `cosateca-demo-${i + 1}@example.com`;
+const emailOf = demoEmail;
 
 const DAY = 86_400_000;
 const daysAgo = (n) => new Date(Date.now() - n * DAY);
@@ -51,19 +53,6 @@ function madridAt(day, time) {
   const wall = new Date(guess.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
   const utc = new Date(guess.toLocaleString('en-US', { timeZone: 'UTC' }));
   return new Date(guess.getTime() - (wall.getTime() - utc.getTime()));
-}
-
-async function ensurePerson(i) {
-  const email = emailOf(i);
-  let user;
-  try {
-    user = await auth.getUserByEmail(email);
-  } catch (err) {
-    if (err.code !== 'auth/user-not-found') throw err;
-    user = await auth.createUser({ email, displayName: PEOPLE[i], emailVerified: true });
-  }
-  await db.doc(`users/${user.uid}`).set(tag(buildUserData({ displayName: PEOPLE[i], email })), { merge: true });
-  return user.uid;
 }
 
 /** Adds a membership, or completes one an earlier run wrote short; never changes a role. */
@@ -106,7 +95,7 @@ async function seed(orgId, myUid) {
 
   const uids = [];
   for (let i = 0; i < PEOPLE.length; i++) {
-    const uid = await ensurePerson(i);
+    const uid = await ensureDemoPerson(i, BATCH);
     uids.push(uid);
     await joinIfMissing(`municipalities/${org.municipalityId}/members/${uid}`, buildVillageMemberData({ userId: uid, joinedAt: daysAgo(60 + i) }));
     await joinIfMissing(`organizations/${orgId}/members/${uid}`, { userId: uid, role: 'member', joinedAt: daysAgo(40 + i) });
