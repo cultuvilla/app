@@ -309,7 +309,7 @@ service cloud.firestore {
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
               'sociosListVisible', 'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired',
-              'cosateca',
+              'cosateca', 'transparency',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -338,7 +338,8 @@ service cloud.firestore {
           && d.get('chatAdminsOnly', false) is bool
           && d.get('socioPhoneRequired', false) is bool
           && d.get('socioEmailRequired', false) is bool
-          && isValidCosatecaSettings(d.get('cosateca', {'enabled': false, 'audience': 'integrantes'}));
+          && isValidCosatecaSettings(d.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
+          && isValidGroupTransparency(d.get('transparency', defaultGroupTransparency()));
     }
 
     // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
@@ -617,6 +618,22 @@ service cloud.firestore {
     // See CosaDataModel / CosaRequestDataModel. `cosas.audience` and
     // `cosas.heldBy` are function-owned (syncCosaAudience, respondToCosaRequest);
     // a request moves past `pending` only through respondToCosaRequest.
+    // What the junta opens to every integrante (see GroupTransparencyModel).
+    // Only the ledger is opened here: the cuota and the avisos carry fields no
+    // socio may read, so getGroupTransparency serves those.
+    function defaultGroupTransparency() {
+      return {'cuota': false, 'avisos': false, 'cuentas': false};
+    }
+    function isValidGroupTransparency(t) {
+      return t is map
+          && t.keys().hasOnly(['cuota', 'avisos', 'cuentas'])
+          && t.keys().hasAll(['cuota', 'avisos', 'cuentas'])
+          && t.cuota is bool && t.avisos is bool && t.cuentas is bool;
+    }
+    function orgCuentasPublic(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data
+        .get('transparency', defaultGroupTransparency()).get('cuentas', false) == true;
+    }
     function isValidCosatecaSettings(c) {
       return c is map
           && c.keys().hasOnly(['enabled', 'audience'])
@@ -1917,6 +1934,7 @@ service cloud.firestore {
         && request.resource.data.get('socioPhoneRequired', false) is bool
         && request.resource.data.get('socioEmailRequired', false) is bool
         && isValidCosatecaSettings(request.resource.data.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
+        && isValidGroupTransparency(request.resource.data.get('transparency', defaultGroupTransparency()))
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']
                 && request.resource.data.type in ['peña', 'asociación', 'otros', 'comisión']))
@@ -2257,8 +2275,9 @@ service cloud.firestore {
       // Income and expenses beyond the cuota. Append-only like cuotaPayments: a
       // mistake is cancelled by a reversal at `rev_<entryId>` that copies the
       // entry, so an entry is reversed at most once and a reversal never.
+      // The junta may open them to every integrante ("Cuentas públicas").
       match /ledgerEntries/{entryId} {
-        allow read: if isOrgAdmin(orgId);
+        allow read: if isOrgAdmin(orgId) || (isOrgMember(orgId) && orgCuentasPublic(orgId));
         allow create: if isOrgAdmin(orgId)
           && orgHasSocioRoster(orgId)
           && isValidLedgerEntry(request.resource.data)

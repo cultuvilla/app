@@ -5,6 +5,7 @@ import {
   type ReviewStatus,
 } from '../core/ReviewableDataModel';
 import { CosatecaSettingsSchema, DEFAULT_COSATECA_SETTINGS, type CosatecaSettings } from './CosaDataModel';
+import { DEFAULT_GROUP_TRANSPARENCY, GroupTransparencySchema, type GroupTransparency } from './GroupTransparencyModel';
 
 export const OrganizationTypeSchema = z.enum(['ayuntamiento', 'peña', 'asociación', 'otros', 'comisión']);
 export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
@@ -86,6 +87,11 @@ export const OrganizationDataSchema = z.object({
   // installed binaries create orgs without it; existing docs are backfilled by
   // scripts/backfill-org-cosateca.mjs.
   cosateca: CosatecaSettingsSchema.default(DEFAULT_COSATECA_SETTINGS),
+  // What the junta opens to every integrante: the cuota's al día list, every
+  // aviso and its results, the accounts (see GroupTransparencyModel). Defaults
+  // because installed binaries create orgs without it; existing docs are
+  // backfilled by scripts/backfill-org-transparency.mjs.
+  transparency: GroupTransparencySchema.default(DEFAULT_GROUP_TRANSPARENCY),
   // status + reviewedBy + reviewedAt
   ...reviewDecisionFields,
 });
@@ -113,6 +119,7 @@ export interface OrganizationDataInput {
   socioPhoneRequired?: boolean;
   socioEmailRequired?: boolean;
   cosateca?: CosatecaSettings;
+  transparency?: GroupTransparency;
 }
 
 export function buildOrganizationData(input: OrganizationDataInput): OrganizationData {
@@ -138,6 +145,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     socioPhoneRequired: input.socioPhoneRequired ?? false,
     socioEmailRequired: input.socioEmailRequired ?? false,
     cosateca: input.cosateca ?? { ...DEFAULT_COSATECA_SETTINGS },
+    transparency: input.transparency ?? { ...DEFAULT_GROUP_TRANSPARENCY },
   };
 }
 

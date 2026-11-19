@@ -13,6 +13,7 @@ export * from './GroupChatDataModel';
 export * from './RecordsDataModel';
 export * from './recordsLogic';
 export * from './CosaDataModel';
+export * from './GroupTransparencyModel';
 export * from './CosaRequestDataModel';
 export * from './cosatecaLogic';
 export * from './reservaLogic';
