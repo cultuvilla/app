@@ -131,7 +131,7 @@ describe('GroupTasks', () => {
     const { getByTestId } = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('checklist-toggle-ev1'));
     fireEvent.press(getByTestId('checklist-save-ev1'));
-    expect(getByTestId('template-item-offset-0').props.value).toBe('-4');
+    expect(getByTestId('template-item-when-0')).toHaveTextContent('groups.tasks.templates.offsetBefore:4');
     fireEvent.press(getByTestId('template-save'));
     await waitFor(() =>
       expect(saveTaskTemplate).toHaveBeenCalledWith(
@@ -172,12 +172,37 @@ describe('GroupTasks', () => {
     const { getByTestId, queryByTestId } = render(<GroupTasks orgId="org1" uid="admin" isAdmin includePrivateEvents={false} suggestAsamblea={false} />);
     fireEvent.press(getByTestId('templates-new'));
     expect(getByTestId('template-sheet')).toBeTruthy();
-    fireEvent.changeText(getByTestId('template-item-title-0'), 'Montar el escenario');
-    fireEvent.changeText(getByTestId('template-item-offset-0'), '-1');
-    fireEvent.changeText(getByTestId('template-item-slots-0'), '4');
+    expect(getByTestId('template-items-empty')).toBeTruthy();
+
+    // Each task is written on its own, in a sheet over the template.
     fireEvent.press(getByTestId('template-add-item'));
-    fireEvent.press(getByTestId('template-item-remove-1'));
-    expect(queryByTestId('template-item-title-1')).toBeNull();
+    expect(getByTestId('template-item-sheet')).toBeTruthy();
+    expect(getByTestId('template-item-when')).toBeTruthy();
+    expect(queryByTestId('template-item-days')).toBeNull();
+    fireEvent.changeText(getByTestId('template-item-title'), 'Montar el escenario');
+    fireEvent.press(getByTestId('template-item-when-before'));
+    fireEvent.changeText(getByTestId('template-item-days'), '1');
+    fireEvent.changeText(getByTestId('template-item-slots'), '4');
+    fireEvent.press(getByTestId('template-item-done'));
+    expect(queryByTestId('template-item-sheet')).toBeNull();
+    expect(getByTestId('template-item-when-0')).toHaveTextContent(
+      'groups.tasks.templates.offsetBefore:1 · groups.tasks.templates.slotsCount:4',
+    );
+
+    fireEvent.press(getByTestId('template-add-item'));
+    fireEvent.press(getByTestId('template-item-done'));
+    expect(getByTestId('template-item-error')).toHaveTextContent('groups.tasks.templates.itemTitleRequired');
+    fireEvent.changeText(getByTestId('template-item-title'), 'Recoger');
+    fireEvent.press(getByTestId('template-item-done'));
+    fireEvent.press(getByTestId('template-item-1'));
+    expect(getByTestId('template-item-title').props.value).toBe('Recoger');
+    fireEvent.press(getByTestId('template-item-remove'));
+    expect(queryByTestId('template-item-1')).toBeNull();
+
+    fireEvent.press(getByTestId('template-item-0'));
+    expect(getByTestId('template-item-days').props.value).toBe('1');
+    fireEvent.press(getByTestId('template-item-done'));
+
     fireEvent.press(getByTestId('template-save'));
     expect(getByTestId('template-error')).toHaveTextContent('groups.tasks.templates.nameRequired');
     fireEvent.changeText(getByTestId('template-name'), 'Fiestas');
