@@ -110,16 +110,40 @@ describe('<LoginScreen>', () => {
     await waitFor(() => expect(mockVerifyOtpCode).toHaveBeenCalledWith(EMAIL, '123456'));
   });
 
-  it('resends the code from the code step', async () => {
+  it('resends the code, confirms it inline and clears the stale code', async () => {
     mockSendOtpCode.mockResolvedValue(undefined);
-    const { getByTestId } = render(<LoginScreen />);
+    const { getByTestId, findByTestId, queryByTestId } = render(<LoginScreen />);
+
+    submitEmail(getByTestId);
+    await waitFor(() => expect(getByTestId('login-code-input')).toBeTruthy());
+    expect(queryByTestId('login-code-resent')).toBeNull();
+
+    fireEvent.changeText(getByTestId('login-code-input'), '999999');
+    fireEvent.press(getByTestId('login-resend-code'));
+
+    await waitFor(() => expect(mockSendOtpCode).toHaveBeenCalledTimes(2));
+    expect((await findByTestId('login-code-resent')).props.children).toBe('auth.otp.resent');
+    expect(getByTestId('login-code-input').props.value).toBe('');
+
+    // The confirmation is about the send, so it goes once the new code is typed.
+    fireEvent.changeText(getByTestId('login-code-input'), '1');
+    expect(queryByTestId('login-code-resent')).toBeNull();
+  });
+
+  it('shows the error, not a confirmation, and keeps the code when the resend fails', async () => {
+    mockSendOtpCode.mockResolvedValueOnce(undefined);
+    const { getByTestId, findByText, queryByTestId } = render(<LoginScreen />);
 
     submitEmail(getByTestId);
     await waitFor(() => expect(getByTestId('login-code-input')).toBeTruthy());
 
+    fireEvent.changeText(getByTestId('login-code-input'), '123456');
+    mockSendOtpCode.mockRejectedValueOnce(new Error('Has pedido demasiados códigos.'));
     fireEvent.press(getByTestId('login-resend-code'));
 
-    await waitFor(() => expect(mockSendOtpCode).toHaveBeenCalledTimes(2));
+    await findByText('Has pedido demasiados códigos.');
+    expect(queryByTestId('login-code-resent')).toBeNull();
+    expect(getByTestId('login-code-input').props.value).toBe('123456');
   });
 
   it('goes back to the email step so a typo can be corrected before verifying', async () => {

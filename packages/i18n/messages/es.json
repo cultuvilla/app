@@ -80,6 +80,7 @@
       "codeLabel": "Código de 6 dígitos",
       "verify": "Verificar código",
       "resend": "Reenviar código",
+      "resent": "Código enviado",
       "changeEmail": "Usar otro correo"
     },
     "error": {
@@ -1446,7 +1447,7 @@
       "village": "Tu pueblo (opcional)",
       "givenName": "Nombre",
       "firstSurname": "Primer apellido",
-      "secondSurname": "Segundo apellido",
+      "secondSurname": "Segundo apellido (opcional)",
       "photo": "Foto de perfil (opcional)",
       "nickname": "Apodo (opcional)",
       "sex": "Sexo",
