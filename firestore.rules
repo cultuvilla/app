@@ -1139,7 +1139,7 @@ service cloud.firestore {
           // Advertised birth-year window. Advisory only — the sign-up sheet
           // warns and lets the user proceed — so rules check the shape, not
           // the eligibility of anyone signing up. Bounds mirror
-          // MIN/MAX_EVENT_BIRTH_YEAR in EventFormSchema; keep the two in step.
+          // MIN/MAX_EVENT_BIRTH_YEAR in EventDataModel; keep the two in step.
           && isNumberOrNull(d.minBirthYear)
           && isNumberOrNull(d.maxBirthYear)
           && (d.minBirthYear == null || (d.minBirthYear is int && d.minBirthYear >= 1900 && d.minBirthYear <= 2200))
