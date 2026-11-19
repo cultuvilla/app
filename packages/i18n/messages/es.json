@@ -2025,6 +2025,12 @@
       "cosatecaAudience": {
         "integrantes": "Solo integrantes",
         "pueblo": "Todo el pueblo"
+      },
+      "sections": {
+        "entry": "Entrar al grupo",
+        "charla": "Charla",
+        "cosateca": "Cosateca",
+        "cuota": "Cuota"
       }
     },
     "cuota": {

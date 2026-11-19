@@ -1,4 +1,5 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { buildLedgerEntryData } from '@cultuvilla/shared/models/organization';
 import {
@@ -54,6 +55,45 @@ beforeEach(() => {
   resetWatchers();
   jest.clearAllMocks();
   setWatched('cuota', null);
+});
+
+describe('GroupSettings — sections', () => {
+  it('groups a roster group\'s settings under one heading per question', () => {
+    setWatched('cuota', { id: 'cuota', remindersEnabled: true });
+    const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible />);
+    for (const id of ['group-settings-entry', 'group-settings-transparency', 'group-settings-charla', 'group-settings-cosateca-section', 'group-settings-cuota']) {
+      expect(r.getByTestId(id)).toBeTruthy();
+    }
+    for (const k of ['entry', 'charla', 'cosateca', 'cuota']) expect(r.getByText(`groups.settings.sections.${k}`)).toBeTruthy();
+    expect(r.getByText('groups.transparency.settings.title')).toBeTruthy();
+  });
+
+  it('gives an ayuntamiento no entry or socio sections', () => {
+    const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} isAyuntamiento />);
+    expect(r.queryByTestId('group-settings-entry')).toBeNull();
+    expect(r.queryByTestId('group-settings-join-policy')).toBeNull();
+    expect(r.getByTestId('group-settings-charla')).toBeTruthy();
+  });
+
+  it('warns before opening the group, and opens it once confirmed', () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} />);
+    expect(r.getByText('organization.joinPolicy.approvalHint')).toBeTruthy();
+    fireEvent.press(r.getByTestId('group-settings-join-policy'));
+    expect(alert).toHaveBeenCalledWith('organization.joinPolicy.switchToOpenTitle', 'organization.joinPolicy.switchToOpenBody', expect.any(Array));
+    expect(updateOrganization).not.toHaveBeenCalled();
+    const buttons = alert.mock.calls[0]![2]!;
+    act(() => buttons[buttons.length - 1]!.onPress!());
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { joinPolicy: 'open' });
+    alert.mockRestore();
+  });
+
+  it('closes an open group without asking', () => {
+    const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} joinPolicy="open" />);
+    expect(r.getByText('organization.joinPolicy.openHint')).toBeTruthy();
+    fireEvent.press(r.getByTestId('group-settings-join-policy'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { joinPolicy: 'approval' });
+  });
 });
 
 describe('GroupSettings — what every socio sees', () => {

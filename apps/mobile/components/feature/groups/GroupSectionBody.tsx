@@ -116,6 +116,8 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           chatAdminsOnly={org.chatAdminsOnly}
           cosateca={org.cosateca}
           transparency={org.transparency}
+          joinPolicy={org.joinPolicy}
+          isAyuntamiento={org.type === 'ayuntamiento'}
         />
       );
     // Their own full-height screens, not this scrolling body: see [seccion].tsx.
