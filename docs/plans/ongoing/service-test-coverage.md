@@ -1,6 +1,9 @@
 # Service export test ratchet
 
 **Priority:** medium — 156 of 400 service exports have no test at all, including write paths with real logic (`updateEvent`'s feed boundary, `saveProfileAnswers`' completion flag), and nothing stops the count growing.
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 **Goal:** every export in `packages/shared/src/services/` is exercised by a test or sits on a list that may only shrink. A new service function then ships with its test, and the riskiest untested writes get theirs now.
 

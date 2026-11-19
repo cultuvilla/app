@@ -1,6 +1,9 @@
 # One definition of the Buzón's actionable queues
 
 **Priority:** medium — the Buzón gained three actionable queues in seven weeks (join requests, open reports, cosateca) and the bell's badge hook, whose comment says it mirrors the screen, was touched by none of them
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 **Goal:** Move "which request queues does this approver read, and how are they fetched" out of `apps/mobile/app/buzon/index.tsx` into one tested `inboxService` function that both the Buzón and the bell's badge call, so a new request type is added in one place and the badge can no longer drift from the screen without anyone noticing.
 

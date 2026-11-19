@@ -1,7 +1,7 @@
 # Lint-gate invariants 1 and 5 in the mobile app and the studio
 
 **Priority:** medium — the two largest client workspaces (~760 TS files in `apps/mobile` alone) hold two of the six architecture invariants by convention only, and a probe run already finds them broken
-**Gate:** blocked:PR #680 (edits `completar-perfil.test.tsx` and `completar-perfil.tsx`, which hold 9 of the dead `eslint-disable` lines this plan deletes)
+**Gate:** blocked:PR #680 and branch feat/sheets-drag-only (both edit files holding the dead `eslint-disable` lines this plan deletes: `completar-perfil*.tsx`, `AttendeeSheet.tsx`, `BuriedSheet.tsx`, `GroupSignupSheet.tsx`)
 
 **Goal:** Give `apps/mobile` and `apps/studio` an ESLint config that enforces only the invariant rules (no Firebase SDK outside the seam and the auth boundary, no `any`), wired into `pnpm lint` and so into CI, so the next bypass fails a PR instead of waiting for a reviewer to spot it.
 

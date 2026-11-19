@@ -1,6 +1,9 @@
 # Event form state as one pure, tested module
 
 **Priority:** medium — the event form is the hottest screen in the app (churn 21, 5 fix commits), and a new event field has to be added in four hand-synced places inside it
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 **Goal:** Move the event form's draft (its fields, prefill from an existing event, derived rules and the create/update payloads) out of `apps/mobile/app/crear/evento.tsx` into one pure module with direct jest tests. A new field then lands in one place, and a bug in how the payload is derived fails a plain unit test instead of a 22-mock screen render.
 

@@ -1,6 +1,7 @@
 # Replace mobile hex literals that copy a design token with the token
 
 **Priority:** low — cleanup: 81 literals copy a token's value, and nothing stops the next one
+**Gate:** blocked:PRs #677, #680 and branch feat/sheets-drag-only (they edit files this plan rewrites, e.g. `(tabs)/index.tsx`, `completar-perfil.tsx`, `RegisterSheet.tsx`)
 
 **Goal:** Every quoted hex in `apps/mobile/app` and `apps/mobile/components` whose value
 equals a colour token reads that token instead, and a jest scan fails on a new one, so a
