@@ -24,6 +24,9 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle | promote with the next release (all four phases are on develop) |
 | [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
+| [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [event-form-state-module](ongoing/event-form-state-module.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [service-test-coverage](ongoing/service-test-coverage.md) | medium | none | this cycle | verify the plan against develop, then build it |
 
 ## Waiting on release 1.11.0
 
@@ -62,6 +65,7 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
+| `4b30925f` | 2026-11-20 | 5 | docs(plans): start buzon-inbox-model, event-form-state-module, service-test-coverage; gate hex and lint on open work |
 | `f9438880` | 2026-11-07 | 7 | docs(plans): retire finished plans, refresh gates |
 | `78b72653` | 2026-09-30 | 18 | docs(plans): migrate to agent-plans v2 (Priority/Gate/Next block), vendor v2.0.1 |
 
