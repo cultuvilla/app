@@ -213,6 +213,42 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
       await assertFails(updateDoc(doc(db, `contentReports/${REPORT}`), { status: 'dismissed' }));
     });
 
+    it('a village admin cannot resolve a report about their own content', async () => {
+      await seed(getEnv(), async (ctx) => {
+        const db = ctx.firestore() as unknown as Firestore;
+        await setDoc(doc(db, `contentReports/own`), report({ targetAuthorUserId: VILLAGE_ADMIN }));
+      });
+      await seedFixtures();
+      const db = asUser(getEnv(), VILLAGE_ADMIN);
+      await assertFails(updateDoc(doc(db, 'contentReports/own'), { status: 'dismissed' }));
+      await assertFails(updateDoc(doc(db, 'contentReports/own'), { status: 'reviewed' }));
+    });
+
+    it('an app admin cannot resolve a report about their own content either', async () => {
+      await seed(getEnv(), async (ctx) => {
+        const db = ctx.firestore() as unknown as Firestore;
+        await setDoc(doc(db, `contentReports/own`), report({ targetAuthorUserId: APP_ADMIN }));
+      });
+      const db = await asAdmin(getEnv(), APP_ADMIN);
+      await assertFails(updateDoc(doc(db, 'contentReports/own'), { status: 'dismissed' }));
+    });
+
+    it('an app admin can resolve a report about somebody else', async () => {
+      await seedFixtures();
+      const db = await asAdmin(getEnv(), APP_ADMIN);
+      await assertSucceeds(updateDoc(doc(db, `contentReports/${REPORT}`), { status: 'dismissed' }));
+    });
+
+    it('a report with no known author stays resolvable', async () => {
+      await seed(getEnv(), async (ctx) => {
+        const db = ctx.firestore() as unknown as Firestore;
+        await setDoc(doc(db, `contentReports/anon`), report({ targetAuthorUserId: null }));
+      });
+      await seedFixtures();
+      const db = asUser(getEnv(), VILLAGE_ADMIN);
+      await assertSucceeds(updateDoc(doc(db, 'contentReports/anon'), { status: 'reviewed' }));
+    });
+
     it('nobody deletes a report — the queue is the audit trail', async () => {
       await seedFixtures();
       const db = await asAdmin(getEnv(), APP_ADMIN);
