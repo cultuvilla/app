@@ -44,6 +44,18 @@ describe('groupSections', () => {
     expect(canOpenGroupSection(group(), 'tareas')).toBe(true);
   });
 
+  it('gives a socio Cuentas only while the junta makes the accounts public; the junta keeps them in Registros', () => {
+    const open = { cuota: false, avisos: false, cuentas: true };
+    expect(groupSections(group({ transparency: open })).member).toEqual([
+      'avisos', 'charla', 'eventos', 'tareas', 'cuota', 'actas', 'cuentas', 'socios',
+    ]);
+    expect(groupSections(group({ transparency: { ...open, cuentas: false } })).member).not.toContain('cuentas');
+    expect(canOpenGroupSection(group({ transparency: open }), 'cuentas')).toBe(true);
+    expect(canOpenGroupSection(group(), 'cuentas')).toBe(false);
+    expect(groupSections(group({ transparency: open }, 'admin')).member).not.toContain('cuentas');
+    expect(groupSections(group({ type: 'ayuntamiento', transparency: open })).member).not.toContain('cuentas');
+  });
+
   it('shows Avisos with the megaphone, on the row and on the admin button', () => {
     expect(GROUP_SECTION_ICONS.avisos).toBe('megaphone-outline');
     expect(GROUP_SECTION_ICONS.mensajes).toBe('megaphone-outline');

@@ -14,6 +14,7 @@ export const GROUP_SECTION_ICONS: Record<GroupSection, IconName> = {
   cosateca: 'cube-outline',
   cuota: 'wallet-outline',
   actas: 'document-text-outline',
+  cuentas: 'stats-chart-outline',
   socios: 'people-outline',
   cobros: 'cash-outline',
   mensajes: 'megaphone-outline',
@@ -37,7 +38,8 @@ export interface GroupSectionLists {
  * under Gestionar, so the member list leaves them out. Socios is everyone's: it
  * is where a member makes their personas a cargo socios, whether or not the
  * estatutos let them read the list. The cosateca is every integrante's, once an
- * admin switches it on.
+ * admin switches it on; so are the accounts, once the junta makes them public
+ * ("Cuentas públicas") — an admin reads them under Registros instead.
  */
 export function groupSections({ org, role }: MyGroup): GroupSectionLists {
   const roster = hasSocioRoster(org.type);
@@ -50,6 +52,7 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
     ...(org.cosateca.enabled ? (['cosateca'] as const) : []),
     ...(roster ? (['cuota'] as const) : []),
     ...(roster && !isAdmin ? (['actas'] as const) : []),
+    ...(roster && !isAdmin && org.transparency.cuentas ? (['cuentas'] as const) : []),
     ...(roster ? (['socios'] as const) : []),
   ];
   const admin: GroupSection[] = isAdmin

@@ -18,13 +18,25 @@ import { groupAvisoHref } from '../../../lib/navigation/routes';
 import { useGroupChatUnread } from '../../../lib/orgs/useGroupChatUnread';
 import { useGroupNotices } from '../../../lib/orgs/useGroupNotices';
 import { useMyMessageValues } from '../../../lib/orgs/useMyMessageValues';
+import { PollResults } from './PollResults';
 
 /**
  * The member's side of messaging, on the group's notices screen: the notices that reached
  * them, newest first, each marked read once shown, with its poll to
- * answer; and the switch that mutes this group's message pushes.
+ * answer; and the switch that mutes this group's message pushes. With
+ * `tallies` (the junta made its avisos public) each poll shows its results.
  */
-export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string; empty?: ReactNode }) {
+export function GroupNotices({
+  orgId,
+  uid,
+  empty,
+  tallies,
+}: {
+  orgId: string;
+  uid: string;
+  empty?: ReactNode;
+  tallies?: ReadonlyMap<string, readonly number[]>;
+}) {
   const { t } = useT();
   const { notices, status, readsStatus, readIds } = useGroupNotices(orgId, uid);
   const myValues = useMyMessageValues(orgId, uid);
@@ -101,6 +113,9 @@ export function GroupNotices({ orgId, uid, empty }: { orgId: string; uid: string
                       ? t('groups.messages.tapToVote')
                       : t('groups.messages.yourVote', { option: m.poll.options[myVote] ?? '' })}
                   </Text>
+                  {tallies?.get(m.id) ? (
+                    <PollResults poll={m.poll} tally={tallies.get(m.id) ?? []} testID={`group-notice-results-${m.id}`} />
+                  ) : null}
                 </VStack>
               ) : null}
               <Pressable
