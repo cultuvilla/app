@@ -5,11 +5,10 @@ import {
   newWordHref,
   villageSectionHref,
 } from '../../lib/navigation/routes';
-import { Modal, Pressable as RNPressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable as RNPressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, HStack } from '../primitives';
+import { BottomSheet, Text, HStack } from '../primitives';
 import { ACCENT } from './VillageSections';
 import { useT } from '../../lib/i18n';
 
@@ -53,16 +52,9 @@ function optionsFor(villageId: string, villageSlug: string, canManage: boolean):
   ];
 }
 
-/**
- * Bottom action sheet opened from the village home's "Añadir contenido" button.
- * Uses a fade-in Modal + bottom-anchored card (not an Animated translateY) so it
- * behaves on the web build, where RN-Web translateY springs don't move.
- */
+/** Bottom action sheet opened from the village home's "Añadir contenido" button. */
 export function AddContentSheet({ visible, onClose, villageId, villageSlug, canManage }: AddContentSheetProps) {
   const { t } = useT();
-  const insets = useSafeAreaInsets();
-
-  if (!visible) return null;
 
   const pick = (href: string) => {
     onClose();
@@ -70,74 +62,34 @@ export function AddContentSheet({ visible, onClose, villageId, villageSlug, canM
   };
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      {/* absoluteFillObject (not flex-1): RN-Web collapses a flex-1 Modal child to
-          zero height, leaving no tappable backdrop to dismiss the sheet. */}
-      <RNPressable
-        accessible={false}
-        onPress={onClose}
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-        ]}
-      >
-        <RNPressable
-          accessible={false}
-          // Its backdrop is not an accessibility element, so VoiceOver closes the
-          // sheet with the escape gesture instead.
-          onAccessibilityEscape={onClose}
-          onPress={() => {}}
-          className="bg-surface-elevated border-t border-subtle"
-          style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: insets.bottom + 12 }}
-        >
-          {/* Tapping the grab handle also dismisses — the primary close affordance
-              on web, where there's no swipe-down gesture. */}
-          <RNPressable onPress={onClose} className="items-center pt-3 pb-1 active:opacity-60">
-            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1' }} />
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={t('village.addContent.title')}
+      closeLabel={t('common.close')}
+      maxHeightRatio={0.92}
+      testID="add-content-sheet"
+    >
+      {/* Every option fits on a phone; the ScrollView is the fallback for a
+          viewport too short to hold the whole list. */}
+      <ScrollView>
+        {optionsFor(villageId, villageSlug, canManage).map((opt) => (
+          <RNPressable
+            key={opt.key}
+            onPress={() => pick(opt.href)}
+            accessibilityLabel={t(`village.addContent.items.${opt.key}`)}
+            className="border-b border-subtle active:opacity-70"
+          >
+            <HStack gap={3} className="items-center px-5 py-4">
+              <Ionicons name={opt.icon} size={24} color={ACCENT} />
+              <Text className="flex-1 font-semibold">
+                {t(`village.addContent.items.${opt.key}`)}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+            </HStack>
           </RNPressable>
-          {/* Explicit X close button: on web mobile there's no Escape key, no
-              hardware back, and no swipe-to-dismiss (RN-Web translateY springs
-              don't move), so the backdrop tap + hair-thin grab handle were the
-              only ways out — neither discoverable. This is the primary close
-              affordance. Olive title (tone primary) matches the village name;
-              1px larger than option rows (body = 16), same semibold weight. */}
-          <HStack gap={3} className="items-center px-5 pt-2 pb-1">
-            <Text tone="primary" className="flex-1 font-semibold" style={{ fontSize: 17 }}>
-              {t('village.addContent.title')}
-            </Text>
-            <RNPressable
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.close')}
-              hitSlop={12}
-              className="active:opacity-60"
-            >
-              <Ionicons name="close" size={24} color="#94a3b8" />
-            </RNPressable>
-          </HStack>
-          {/* No maxHeight cap: the sheet grows to fit every option so all are
-              visible at a glance without scrolling. ScrollView stays only as a
-              fallback for viewports too short to hold the full list. */}
-          <ScrollView style={{ maxHeight: '100%' }}>
-            {optionsFor(villageId, villageSlug, canManage).map((opt) => (
-              <RNPressable
-                key={opt.key}
-                onPress={() => pick(opt.href)}
-                accessibilityLabel={t(`village.addContent.items.${opt.key}`)}
-                className="border-b border-subtle active:opacity-70"
-              >
-                <HStack gap={3} className="items-center px-5 py-4">
-                  <Ionicons name={opt.icon} size={24} color={ACCENT} />
-                  <Text className="flex-1 font-semibold">
-                    {t(`village.addContent.items.${opt.key}`)}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-                </HStack>
-              </RNPressable>
-            ))}
-          </ScrollView>
-        </RNPressable>
-      </RNPressable>
-    </Modal>
+        ))}
+      </ScrollView>
+    </BottomSheet>
   );
 }

@@ -57,16 +57,31 @@ describe('<BottomSheet>', () => {
     expect(queryByText('contenido')).toBeNull();
   });
 
-  it('closes from the ✕ button', () => {
+  // No ✕ (decided 2026-11-20): the grab bar is the only visible way out.
+  it('has no ✕ button', () => {
+    const { queryByTestId, UNSAFE_queryAllByProps } = setup();
+    expect(queryByTestId('sheet-close')).toBeNull();
+    expect(UNSAFE_queryAllByProps({ name: 'close' })).toHaveLength(0);
+  });
+
+  it('closes when the grab bar is tapped', () => {
     const { getByTestId, onClose } = setup();
-    fireEvent.press(getByTestId('sheet-close'));
+    fireEvent.press(getByTestId('sheet-handle'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('closes from the ✕ found by its accessibility label', () => {
+  it('exposes the grab bar to screen readers as the close button', () => {
     const onClose = jest.fn();
     const { getByLabelText } = setup(onClose);
-    fireEvent.press(getByLabelText('Cerrar'));
+    const handle = getByLabelText('Cerrar');
+    expect(handle.props.accessibilityRole).toBe('button');
+    fireEvent.press(handle);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('puts the drag gesture on the grab area, not on the body', () => {
+    const { getByTestId } = setup();
+    expect(getByTestId('sheet-grab').props.onMoveShouldSetResponderCapture).toEqual(expect.any(Function));
+    expect(getByTestId('sheet').props.onMoveShouldSetResponderCapture).toBeUndefined();
   });
 });

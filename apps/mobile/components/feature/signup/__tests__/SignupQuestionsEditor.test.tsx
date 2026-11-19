@@ -3,6 +3,10 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { SignupQuestionsEditor, signupFieldErrors } from '../SignupQuestionsEditor';
 import type { SignupFieldSpec } from '@cultuvilla/shared/models/event/SignupFieldModel';
 
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 
 /** The editor is controlled, so drive it through a stateful host. */

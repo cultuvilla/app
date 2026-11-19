@@ -3,14 +3,11 @@ import {
   Animated,
   Modal,
   PanResponder,
-  Platform,
   Pressable as RNPressable,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { iconSizes } from '@cultuvilla/shared/design-system';
 import { HStack } from './HStack';
 import { KeyboardAvoider } from './KeyboardAvoider';
 import { Text } from './Text';
@@ -31,12 +28,77 @@ export function shouldDismissOnRelease(dy: number, vy: number): boolean {
   return dy > DISMISS_DISTANCE || vy > DISMISS_VELOCITY;
 }
 
+/**
+ * The drag-down-to-close gesture every sheet shares. Spread `panHandlers` on
+ * the area that should grab (the handle and the title, never the scrolling
+ * body) and put `translateY` on the sheet's `style` transform.
+ */
+export function useDragToDismiss(onClose: () => void, visible: boolean) {
+  const translateY = useRef(new Animated.Value(0)).current;
+  // PanResponder is built once, so it must reach `onClose` through a ref rather
+  // than closing over the first render's prop.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  // A dismissed-by-drag sheet keeps its offset; reset it so the next open does
+  // not start off-screen.
+  useEffect(() => {
+    if (visible) translateY.setValue(0);
+  }, [visible, translateY]);
+
+  const pan = useRef(
+    PanResponder.create({
+      // Downward-only, and clearly more vertical than horizontal. Capture as
+      // well as bubble: the handle is itself a Pressable (tap closes), and it
+      // already holds the touch by the time the finger moves.
+      onMoveShouldSetPanResponderCapture: (_e, g) => g.dy > 8 && g.dy > Math.abs(g.dx),
+      onMoveShouldSetPanResponder: (_e, g) => g.dy > 8 && g.dy > Math.abs(g.dx),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: (_e, g) => {
+        if (g.dy > 0) translateY.setValue(g.dy);
+      },
+      onPanResponderRelease: (_e, g) => {
+        if (shouldDismissOnRelease(g.dy, g.vy)) {
+          closeRef.current();
+          return;
+        }
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+      },
+    }),
+  ).current;
+
+  return { translateY, panHandlers: pan.panHandlers };
+}
+
+/**
+ * The grab bar at the top of every sheet, and its only visible way out: drag
+ * it down, or tap it. It is the accessible "close" button too, so VoiceOver and
+ * TalkBack users have a named control where sighted users have the bar.
+ */
+export function SheetHandle({ onClose, label, testID }: { onClose: () => void; label: string; testID?: string }) {
+  return (
+    <RNPressable
+      onPress={onClose}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      testID={testID}
+      hitSlop={{ top: 8, bottom: 8, left: 40, right: 40 }}
+      className="items-center pt-3 pb-2 active:opacity-60"
+    >
+      <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#cbd5e1' }} />
+    </RNPressable>
+  );
+}
+
 export interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
-  /** Rendered next to the close button in the header; omit for a bare sheet. */
+  /** Shown under the grab bar; omit for a bare sheet. */
   title?: string;
-  /** Accessibility label for the ✕ button. */
+  /** Accessibility label for the grab bar, which closes the sheet when tapped. */
   closeLabel: string;
   /** Fraction of the viewport the sheet may grow to before its body scrolls. */
   maxHeightRatio?: number;
@@ -50,15 +112,9 @@ export interface BottomSheetProps {
  * Bottom-anchored modal sheet: grows with its content up to `maxHeightRatio` of
  * the viewport, then lets the caller's body scroll inside it.
  *
- * Four ways out, because no single one works everywhere:
- *
- * - **drag the sheet down** — native only. RN-Web does not move a translateY
- *   spring (the reason `AddContentSheet` never had a swipe), so the gesture is
- *   simply not attached there rather than half-working.
- * - **tap the grab handle** — the web stand-in for the drag.
- * - **the ✕ button** — on web mobile there is no Escape key, no hardware back
- *   and no swipe, so this is the primary affordance there.
- * - **tap the backdrop.**
+ * There is no ✕ (decided 2026-11-20, Álvaro): the grab bar is the way out.
+ * Drag it (or the title) down, or tap it. The backdrop tap, Android's back
+ * button and VoiceOver's escape gesture also close it.
  *
  * The transform lives on `style`, never `className`: NativeWind drops
  * `className` on an `Animated.View`.
@@ -75,37 +131,7 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const translateY = useRef(new Animated.Value(0)).current;
-  // PanResponder is built once, so it must reach `onClose` through a ref rather
-  // than closing over the first render's prop.
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  // A dismissed-by-drag sheet keeps its offset; reset it so the next open does
-  // not start off-screen.
-  useEffect(() => {
-    if (visible) translateY.setValue(0);
-  }, [visible, translateY]);
-
-  const pan = useRef(
-    PanResponder.create({
-      // Downward-only, and clearly more vertical than horizontal, so the body's
-      // own scrolling is never hijacked.
-      onMoveShouldSetPanResponder: (_e, g) => g.dy > 12 && g.dy > Math.abs(g.dx),
-      onPanResponderMove: (_e, g) => {
-        if (g.dy > 0) translateY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_e, g) => {
-        if (shouldDismissOnRelease(g.dy, g.vy)) {
-          closeRef.current();
-          return;
-        }
-        Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
-      },
-    }),
-  ).current;
-
-  const dragHandlers = pan.panHandlers;
+  const { translateY, panHandlers } = useDragToDismiss(onClose, visible);
 
   if (!visible) return null;
 
@@ -139,31 +165,15 @@ export function BottomSheet({
                 maxHeight: windowHeight * maxHeightRatio,
               }}
             >
-              <View {...dragHandlers}>
-                <RNPressable onPress={onClose} className="items-center pt-3 pb-1 active:opacity-60">
-                  <View
-                    style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1' }}
-                  />
-                </RNPressable>
-                <HStack gap={3} className="items-center px-5 pt-2 pb-1">
-                  {title ? (
+              <View {...panHandlers} testID={testID ? `${testID}-grab` : undefined}>
+                <SheetHandle onClose={onClose} label={closeLabel} testID={testID ? `${testID}-handle` : undefined} />
+                {title ? (
+                  <HStack gap={3} className="items-center px-5 pb-1">
                     <Text tone="primary" className="flex-1 font-semibold" style={{ fontSize: 17 }}>
                       {title}
                     </Text>
-                  ) : (
-                    <View className="flex-1" />
-                  )}
-                  <RNPressable
-                    onPress={onClose}
-                    accessibilityRole="button"
-                    accessibilityLabel={closeLabel}
-                    testID={testID ? `${testID}-close` : undefined}
-                    hitSlop={12}
-                    className="active:opacity-60"
-                  >
-                    <Ionicons name="close" size={iconSizes.lg} color="#94a3b8" />
-                  </RNPressable>
-                </HStack>
+                  </HStack>
+                ) : null}
               </View>
               {children}
               {footer}

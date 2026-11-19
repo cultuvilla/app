@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { FlatList, Image, Modal, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlatList, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes, radii, spacing } from '@cultuvilla/shared/design-system';
-import { Button, HStack, Pressable, Text } from '../../primitives';
+import { BottomSheet, Button, Pressable, Text } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 import type { ChoiceOption } from './ChoiceList';
 import { RemoteImage } from '../../primitives/RemoteImage';
@@ -24,7 +23,6 @@ export function EntityChoicePicker({
   onChange,
 }: EntityChoicePickerProps) {
   const { t } = useT();
-  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const selectedValues = Array.isArray(value)
     ? value
@@ -75,46 +73,27 @@ export function EntityChoicePicker({
         />
       </Pressable>
 
-      <Modal
+      <BottomSheet
         visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
+        onClose={() => setOpen(false)}
+        title={title}
+        closeLabel={t('common.close')}
+        maxHeightRatio={0.8}
+        testID="entity-choice-sheet"
+        footer={
+          mode === 'multi' ? (
+            <View className="px-5 pt-3">
+              <Button fullWidth variant="secondary" onPress={() => setOpen(false)}>
+                {t('common.done')}
+              </Button>
+            </View>
+          ) : null
+        }
       >
-        <View style={styles.modalRoot}>
-          <Pressable
-            onPress={() => setOpen(false)}
-            accessibilityLabel={t('common.cancel')}
-            style={StyleSheet.absoluteFill}
-          >
-            <View />
-          </Pressable>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[2] }]}>
-            <HStack align="center" justify="between" className="px-4 py-3 border-b border-subtle">
-              <Text variant="h3" numberOfLines={2} className="flex-1 pr-3">
-                {title}
-              </Text>
-              {mode === 'multi' ? (
-                <Button variant="secondary" onPress={() => setOpen(false)}>
-                  {t('common.done')}
-                </Button>
-              ) : (
-                <Pressable
-                  onPress={() => setOpen(false)}
-                  accessibilityLabel={t('common.close')}
-                  className="p-2"
-                >
-                  <Ionicons
-                    name="close"
-                    size={iconSizes.lg}
-                    color={colors.light.fg.primary}
-                  />
-                </Pressable>
-              )}
-            </HStack>
             <FlatList
               data={options}
               keyExtractor={(option) => option.value}
+              style={{ flexShrink: 1 }}
               contentContainerStyle={{ paddingBottom: spacing[2] }}
               renderItem={({ item }) => {
                 const isSelected = selectedValues.includes(item.value);
@@ -139,9 +118,7 @@ export function EntityChoicePicker({
                 );
               }}
             />
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </>
   );
 }
@@ -172,22 +149,3 @@ function EntityThumbnail({ option, size }: { option: ChoiceOption; size: number 
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  modalRoot: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  sheet: {
-    height: '72%',
-    backgroundColor: colors.light.bg['surface-elevated'],
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    overflow: 'hidden',
-  },
-});
