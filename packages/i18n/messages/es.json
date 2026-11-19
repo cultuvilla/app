@@ -177,6 +177,11 @@
   "feed": {
     "title": "Inicio",
     "empty": "No hay eventos próximos",
+    "emptyFiltered": {
+      "events": "Ningún evento coincide con tu búsqueda o tus filtros.",
+      "news": "Ningún artículo coincide con tu búsqueda o tus filtros.",
+      "clear": "Quitar filtros"
+    },
     "tab": {
       "events": "Eventos",
       "news": "Artículos"
