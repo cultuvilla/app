@@ -1,6 +1,7 @@
 # App Check rollout (mobile)
 
 **Priority:** high
+**Gate:** decision:start Stage 1 now? It adds the native App Check module, which changes the app's fingerprint, so the next OTA stops reaching installed binaries until a new store build ships; AGENTS.md also says to leave the seam untouched unless explicitly asked
 
 ## Goal
 

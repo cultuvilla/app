@@ -1139,7 +1139,7 @@ service cloud.firestore {
           // Advertised birth-year window. Advisory only — the sign-up sheet
           // warns and lets the user proceed — so rules check the shape, not
           // the eligibility of anyone signing up. Bounds mirror
-          // MIN/MAX_EVENT_BIRTH_YEAR in EventFormSchema; keep the two in step.
+          // MIN/MAX_EVENT_BIRTH_YEAR in EventDataModel; keep the two in step.
           && isNumberOrNull(d.minBirthYear)
           && isNumberOrNull(d.maxBirthYear)
           && (d.minBirthYear == null || (d.minBirthYear is int && d.minBirthYear >= 1900 && d.minBirthYear <= 2200))
@@ -1891,13 +1891,16 @@ service cloud.firestore {
     // report — but only against themselves as reporter, and always unreviewed:
     // `status` is the moderator's field, so the create rule pins it to 'open'.
     // Reads are moderator-only; a reporter cannot enumerate reports, which
-    // keeps the reported person from learning who filed.
+    // keeps the reported person from learning who filed. Nobody resolves a
+    // report about their own content — another moderator has to — whatever
+    // role they hold.
     match /contentReports/{reportId} {
       allow read: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
       allow create: if isAuthenticated()
                       && request.resource.data.reporterUserId == request.auth.uid
                       && isValidContentReportCreate(request.resource.data);
       allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin())
+                      && resource.data.get('targetAuthorUserId', null) != request.auth.uid
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
                       && request.resource.data.status in ['open', 'reviewed', 'dismissed'];
       allow delete: if false;

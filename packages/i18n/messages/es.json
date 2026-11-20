@@ -80,6 +80,7 @@
       "codeLabel": "Código de 6 dígitos",
       "verify": "Verificar código",
       "resend": "Reenviar código",
+      "resent": "Código enviado",
       "changeEmail": "Usar otro correo"
     },
     "error": {
@@ -127,7 +128,7 @@
         "vocabularyTerm": "Palabra",
         "historyEntry": "Acontecimiento"
       },
-      "noVillage": "Elige un pueblo activo para ver sus denuncias."
+      "ownContent": "Es sobre algo tuyo, así que tiene que revisarla otra persona del equipo."
     }
   },
   "occupations": {
@@ -176,6 +177,11 @@
   "feed": {
     "title": "Inicio",
     "empty": "No hay eventos próximos",
+    "emptyFiltered": {
+      "events": "Ningún evento coincide con tu búsqueda o tus filtros.",
+      "news": "Ningún artículo coincide con tu búsqueda o tus filtros.",
+      "clear": "Quitar filtros"
+    },
     "tab": {
       "events": "Eventos",
       "news": "Artículos"
@@ -304,8 +310,8 @@
       "addDefinition": "Añadir otro significado",
       "addingMeaningTo": "Nuevo significado para",
       "alreadyRecorded": "Ya recogida en otros pueblos",
-      "inVillages": "en {count} pueblos",
-      "joiningWord": "Esta palabra ya está recogida en {count} pueblos. Añádela al tuyo con tu significado.",
+      "inVillages": "en {count, plural, one {# pueblo} other {# pueblos}}",
+      "joiningWord": "Esta palabra ya está recogida en {count, plural, one {# pueblo} other {# pueblos}}. Añádela al tuyo con tu significado.",
       "alsoSaidIn": "También se dice en",
       "stepWord": "La palabra",
       "stepMeaning": "El significado",
@@ -328,7 +334,7 @@
       "definition": "Qué significa",
       "definitionPlaceholder": "Explícalo con tus palabras",
       "definitions": "Significados",
-      "definitionCount": "{count} significados",
+      "definitionCount": "{count, plural, one {# significado} other {# significados}}",
       "example": "Ejemplo de uso",
       "examplePlaceholder": "Úsala en una frase, como se dice aquí",
       "castellano": "En castellano",
@@ -698,7 +704,7 @@
       },
       "prompt": {
         "title": "¿Hacemos el resumen de Fiestas {year}?",
-        "body": "Ha habido movimiento en el pueblo: {events} eventos con gente apuntada y comentando. Conviértelo en un resumen con fotos y números para compartir.",
+        "body": "Ha habido movimiento en el pueblo: {events, plural, one {# evento} other {# eventos}} con gente apuntada y comentando. Conviértelo en un resumen con fotos y números para compartir.",
         "create": "Generar resumen",
         "draftTitle": "El resumen de Fiestas {year} está listo",
         "draftBody": "Revísalo, descarga la portada o compártela, y publícalo para que aparezca en el pueblo.",
@@ -827,7 +833,6 @@
     "paid": "Pagado",
     "signUp": "Inscribirse",
     "cancelSignUp": "Cancelar inscripción",
-    "spotsLeft": "{count} plazas disponibles",
     "full": "Completo",
     "waitlist": "Lista de espera",
     "confirmed": "Confirmado",
@@ -836,7 +841,7 @@
     "export": {
       "action": "Exportar asistentes",
       "title": "Exportar asistentes",
-      "body": "Se generará la lista completa ({count} personas), incluida la lista de espera.",
+      "body": "Se generará la lista completa ({count, plural, one {# persona} other {# personas}}), incluida la lista de espera.",
       "excel": "Exportar a Excel (.xlsx)",
       "csv": "Exportar a CSV",
       "error": "No se pudo generar el archivo. Inténtalo de nuevo."
@@ -1446,7 +1451,7 @@
       "village": "Tu pueblo (opcional)",
       "givenName": "Nombre",
       "firstSurname": "Primer apellido",
-      "secondSurname": "Segundo apellido",
+      "secondSurname": "Segundo apellido (opcional)",
       "photo": "Foto de perfil (opcional)",
       "nickname": "Apodo (opcional)",
       "sex": "Sexo",
@@ -1838,7 +1843,7 @@
       "registros": "Registros",
       "miembros": "Integrantes",
       "ajustes": "Ajustes",
-      "withCount": "{label}, {count} pendientes",
+      "withCount": "{label}, {count, plural, one {# pendiente} other {# pendientes}}",
       "adminHint": "Solo para quien gestiona el grupo",
       "empty": {
         "avisos": "La junta no ha enviado avisos.",
@@ -1871,7 +1876,7 @@
           "al_dia": "Al día",
           "pendiente": "Pendiente"
         },
-        "summary": "{alDia} al día · {pendiente} pendientes",
+        "summary": "{alDia} al día · {pendiente, plural, one {# pendiente} other {# pendientes}}",
         "empty": "Aún no hay socios en la cuota."
       },
       "avisos": {
@@ -1883,7 +1888,7 @@
           "event": "A los apuntados a {event}"
         },
         "results": "Resultados",
-        "votes": "{count} votos",
+        "votes": "{count, plural, one {# voto} other {# votos}}",
         "noVotes": "Aún no ha votado nadie."
       },
       "cuentas": {
@@ -2083,7 +2088,7 @@
         "empty": "Nadie en esta lista.",
         "more": "Más opciones",
         "ofTotal": "de {total}",
-        "ofPaid": "de {count} pagadas",
+        "ofPaid": "de {count, plural, one {# pagada} other {# pagadas}}",
         "search": "Buscar socio",
         "paid": "Pagó",
         "payRest": "Anotar el resto",
@@ -2233,7 +2238,7 @@
       "error": "No se ha podido guardar. Inténtalo de nuevo.",
       "deleteConfirm": "¿Eliminar esta tarea?",
       "shift": {
-        "slots": "{claimed} de {slots} plazas",
+        "slots": "{claimed} de {slots, plural, one {# plaza} other {# plazas}}",
         "full": "Completo",
         "claim": "Me apunto",
         "decline": "No puedo",
@@ -2262,7 +2267,7 @@
         "slots": "Personas que hacen falta",
         "slotsInvalid": "Escribe cuántas personas hacen falta, de 1 a 100.",
         "shiftNeedsDate": "Un turno necesita fecha.",
-        "slotsBelowClaimed": "Ya hay {count} apuntados: no puede haber menos plazas.",
+        "slotsBelowClaimed": "Ya hay {count, plural, one {# apuntado} other {# apuntados}}: no puede haber menos plazas.",
         "repeat": "Se repite",
         "repeatNone": "No",
         "repeatCalendar": "En fecha fija",
@@ -2323,7 +2328,7 @@
       "checklists": {
         "title": "Tareas por evento",
         "none": "No hay eventos próximos.",
-        "progress": "{done} de {total} hechas",
+        "progress": "{done} de {total, plural, one {# hecha} other {# hechas}}",
         "empty": "Sin tareas",
         "sheetTitle": "Tareas de «{event}»",
         "noTasks": "Este evento aún no tiene tareas.",
@@ -2529,7 +2534,7 @@
       "sentWhatsapp": "Ahora envía los WhatsApp desde el mensaje, en el historial.",
       "error": "No se ha podido enviar. Inténtalo de nuevo.",
       "summary": "{date} · {audience}",
-      "whatsappCount": "WhatsApp: {sent} de {total} enviados",
+      "whatsappCount": "WhatsApp: {sent} de {total, plural, one {# enviado} other {# enviados}}",
       "newBadge": "Nuevo",
       "sentBy": "Enviado por {name} el {date}",
       "readBy": "Leído por {read} de {total}",

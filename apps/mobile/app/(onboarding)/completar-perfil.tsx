@@ -196,7 +196,7 @@ export default function CompleteProfileScreen() {
         }
       />
       <PersonForm
-        requireFullName
+        requireFirstSurname
         selfProfile
         submitLabel={t('onboarding.completeProfile.submit')}
         loading={loading}

@@ -2,12 +2,12 @@
 verifier: agent
 accounts: admin+user
 platform: android
-data: mirror:Matabuena
+data: seed
 source: full-pass-2026-11-18
 ---
 # Censo, miembros y resumen del pueblo se ven bien según quién mira
 
-**Preparación:** el seed e2e no enlaza a los miembros con el pueblo (`municipalityLinks: []`), así que Personas solo lista personas a cargo: copia un pueblo real con `pnpm mirror:village --municipality=Matabuena` y haz admin y user miembros de él desde la app. Sesión como admin, luego user.
+**Preparación:** seed e2e: en Altozano de Prueba son miembros e2e-admin (admin), e2e-user y e2e-joiner, y Personas los lista junto a las personas enlazadas al pueblo. Sesión como admin, luego user.
 
 **Pasos:**
 1. Como admin: Mi pueblo → miembros, censo, resumen.

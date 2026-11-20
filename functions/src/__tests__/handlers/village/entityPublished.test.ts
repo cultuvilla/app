@@ -231,7 +231,7 @@ describe('village entity broadcast', () => {
 
     const [n] = await notificationsOf('member-1');
     expect(n.id).toBe('village_entity_organization_o1');
-    expect(n.data()).toMatchObject({ entityKind: 'organization', title: 'Nueva organización en Matabuena' });
+    expect(n.data()).toMatchObject({ entityKind: 'organization', title: 'Nuevo grupo en Matabuena' });
   });
 
   it('does not broadcast a rejection', async () => {

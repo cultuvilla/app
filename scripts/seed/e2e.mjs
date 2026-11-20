@@ -78,6 +78,18 @@ async function upsertUser({ uid, email, displayName }) {
 }
 
 async function run() {
+  // Altozano's villagers. A member's person carries the residence link that
+  // joinVillage writes in the app — the syncMunicipalityPeople trigger projects
+  // it into municipalityPeople, which the village's Personas list reads.
+  const villageMembers = [
+    { user: users.admin, role: 'admin' },
+    { user: users.attendee, role: 'user' },
+    // Joins joinVillage in flow 30, but is already "another villager" of
+    // Altozano for flows 52, 53, 55, 70, 72 and 82.
+    { user: users.joiner, role: 'user' },
+  ];
+  const villageMemberUids = new Set(villageMembers.map(({ user }) => user.uid));
+
   // Auth accounts + persons/{id} + users/{uid} profile docs. The person is
   // linked via personId so the app treats the user as onboarded (otherwise the
   // register FAB never renders — it diverts to complete-profile).
@@ -92,6 +104,9 @@ async function run() {
           firstSurname: u.firstSurname,
           createdBy: u.uid,
           userId: u.uid,
+          municipalityLinks: villageMemberUids.has(u.uid)
+            ? [{ municipalityId: village.docId, barrioId: null }]
+            : [],
         }),
         { merge: true },
       );
@@ -156,15 +171,9 @@ async function run() {
       { merge: true },
     );
   const members = db.collection('municipalities').doc(village.docId).collection('members');
-  await members
-    .doc(users.admin.uid)
-    .set(buildVillageMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
-  await members
-    .doc(users.attendee.uid)
-    .set(buildVillageMemberData({ userId: users.attendee.uid, role: 'user' }), { merge: true });
-  await members
-    .doc(users.joiner.uid)
-    .set(buildVillageMemberData({ userId: users.joiner.uid, role: 'user' }), { merge: true });
+  for (const { user, role } of villageMembers) {
+    await members.doc(user.uid).set(buildVillageMemberData({ userId: user.uid, role }), { merge: true });
+  }
 
   const joinCoords = new GeoPoint(joinVillage.coordinates.lat, joinVillage.coordinates.lng);
   await db

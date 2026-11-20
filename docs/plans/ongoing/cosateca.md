@@ -2,7 +2,7 @@
 
 **Priority:** high
 **Landed:** none
-**Gate:** none
+**Gate:** soak:the next release Álvaro cuts carries it to prod (agents never propose a cut)
 **Next:** promote with the next release (all four phases are on develop)
 
 Decided 2026-11-10 (user): build the cosateca as a group tool, taking the agent's picks

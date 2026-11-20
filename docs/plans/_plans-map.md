@@ -8,25 +8,20 @@ Current cycle **v1.12.0** (cut 2026-11-12)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · offline-first-village · village-first-urls-prod-finish · sign-in-account-loss · spanish-settlement-dataset
+> **Not advanced in 2+ cycles:** app-check-rollout · offline-first-village · sign-in-account-loss · spanish-settlement-dataset
 
 ## Actionable now
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 33 cycles ago \* | — |
 | [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | prod | 5 cycles ago \* | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
-| [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` ⚠️ | medium | — | 3 cycles ago | — |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
-| [group-chat](ongoing/group-chat.md) | high | dev | 1 cycle ago | promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias) |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
-| [web-studio](ongoing/web-studio.md) | medium | dev | 1 cycle ago \* | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
-| [cosateca](ongoing/cosateca.md) | high | none | this cycle | promote with the next release (all four phases are on develop) |
-| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
-| [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
+| [auth-session-state-machine](ongoing/auth-session-state-machine.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | none | this cycle | verify the plan against develop, then build it |
-| [event-form-state-module](ongoing/event-form-state-module.md) | medium | none | this cycle | verify the plan against develop, then build it |
-| [service-test-coverage](ongoing/service-test-coverage.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [firestore-collection-registry](ongoing/firestore-collection-registry.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [read-site-shared-list-rules](ongoing/read-site-shared-list-rules.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | none | this cycle | land the AASA widening + tests + docs on develop; the store-console steps and the post-deploy iPhone check are Álvaro's |
 
 ## Waiting on release 1.11.0
 
@@ -44,18 +39,29 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
+| [group-chat](ongoing/group-chat.md) | high | dev | 1 cycle ago \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias) |
 | [comision-de-festejos-type](ongoing/comision-de-festejos-type.md) | medium | dev | 1 cycle ago | both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`) | after that release is live in prod, retire this plan |
 | [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | 1 cycle ago | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
+| [cosateca](ongoing/cosateca.md) | high | none | this cycle \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote with the next release (all four phases are on develop) |
+| [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
 
 ## Waiting on you
 
-_None._
+| Plan | Pri | Landed | Advanced | Waiting on | Next |
+|---|---|---|---|---|---|
+| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 33 cycles ago \* | start Stage 1 now? It adds the native App Check module, which changes the app's fingerprint, so the next OTA stops reaching installed binaries until a new store build ships; AGENTS.md also says to leave the seam untouched unless explicitly asked | — |
 
 ## Blocked
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago \* | Álvaro ticks the Android and iOS streams in GA4 Admin → BigQuery links on prod — a console step | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
+| [web-studio](ongoing/web-studio.md) | medium | dev | 1 cycle ago \* | a human pairs a real phone with a dev build at villa-events.web.app/estudio and runs the write/edit/delete check | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
 | [apple-team-transfer](ongoing/apple-team-transfer.md) | high | dev | this cycle | this plan's code (#663) reaches prod, then Álvaro accepts in App Store Connect — a console step no agent can take | the next release carries #663 to prod; then Álvaro accepts Cultuvilla, before 2026-11-29, and runs § On the day. Jaime's part is done (2026-11-17); `TESTFLIGHT_SUBMIT_PAUSED=true` since 2026-11-17 |
+| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle \* | human console steps — Jaime ticks the time-sensitive entitlement in the Apple portal (step 3); Álvaro declares "Device or other IDs" in Play Data Safety (step 4) | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
+| [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle \* | Álvaro promotes it with a release and runs the La Anduela trial — a human step | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
+| [buzon-badge-counts-all-actions](ready/buzon-badge-counts-all-actions.md) `ready` | medium | — | this cycle | buzon-inbox-model | — |
+| [mobile-neutral-grey-tokens](ready/mobile-neutral-grey-tokens.md) `ready` | low | — | this cycle | mobile-raw-hex-to-tokens | — |
 
 ## How `Advanced` is derived
 
@@ -66,6 +72,7 @@ Sweeps walked past, newest first:
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
 | `4b30925f` | 2026-11-20 | 5 | docs(plans): start buzon-inbox-model, event-form-state-module, service-test-coverage; gate hex and lint on open work |
+| `e960dc6a` | 2026-11-20 | 14 | docs(plans): night triage — start 5 plans, gate release/console-bound rows, reopen read-site after #679 |
 | `f9438880` | 2026-11-07 | 7 | docs(plans): retire finished plans, refresh gates |
 | `78b72653` | 2026-09-30 | 18 | docs(plans): migrate to agent-plans v2 (Priority/Gate/Next block), vendor v2.0.1 |
 

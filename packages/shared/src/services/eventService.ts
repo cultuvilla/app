@@ -5,7 +5,6 @@ import {
   getDocs,
   setDoc,
   updateDoc,
-  deleteDoc,
   writeBatch,
   query,
   orderBy,
@@ -324,10 +323,6 @@ export async function updateEventStatus(eventId: string, status: EventStatus): P
     status,
     updatedAt: serverTimestamp(),
   });
-}
-
-export async function deleteEvent(eventId: string): Promise<void> {
-  await deleteDoc(eventDoc(getDb(), eventId));
 }
 
 function organizerEventsQuery(userId: string) {
