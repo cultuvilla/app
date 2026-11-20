@@ -64,6 +64,7 @@ export const routes = {
   discover: href('/descubrir'),
   terms: href('/legal/terminos'),
   privacy: href('/legal/privacidad'),
+  attributions: href('/legal/atribuciones'),
   admin: href('/admin'),
   adminOrganizerRequests: href('/admin/solicitudes-organizador'),
   adminReports: href('/admin/denuncias'),

@@ -257,6 +257,7 @@
     "suggestions": "Sugerencias",
     "terms": "Términos de uso",
     "privacy": "Política de privacidad",
+    "attributions": "Atribuciones",
     "rateApp": "Valorar app",
     "shareApp": "Compartir app",
     "comingSoon": "Próximamente",
@@ -267,6 +268,15 @@
       "support": "Soporte",
       "legal": "Legal",
       "app": "App"
+    }
+  },
+  "attributions": {
+    "title": "Atribuciones",
+    "osm": {
+      "heading": "OpenStreetMap",
+      "credit": "© OpenStreetMap contributors",
+      "body": "Los nombres de las pedanías, aldeas, parroquias y barrios de cada pueblo proceden de OpenStreetMap y se usan bajo la licencia Open Database License (ODbL).",
+      "link": "Ver la licencia en openstreetmap.org"
     }
   },
   "me": {
