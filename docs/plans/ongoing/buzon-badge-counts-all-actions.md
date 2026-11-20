@@ -1,9 +1,9 @@
 # The bell badge counts every request you can act on
 
 **Priority:** medium — admins don't see pending join requests or open reports on the bell, only on the Buzón itself
-**Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop (buzon-inbox-model landed in #683), then build it
+**Landed:** dev
+**Gate:** soak:the next release Álvaro cuts carries #699 to prod
+**Next:** witness docs/qa/pending/buzon-badge-all-actions.md on a device once on prod, then retire the plan (watch* follow-up for read cost is in #699's body)
 
 Decided 2026-11-20 (user): approve — the badge should count join requests and open reports too, not only Embajador and new-group requests.
 
