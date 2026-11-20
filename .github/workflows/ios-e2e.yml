@@ -168,6 +168,12 @@ jobs:
       - name: Build functions
         run: pnpm functions:build
 
+      # Spotlight indexes whatever the job writes (node_modules, Maestro's
+      # artifacts) and burst to 80% CPU and ~500 MB beside Firestore SDK ping
+      # timeouts on this 3-core, 7 GB runner. Nothing in the job searches.
+      - name: Turn off Spotlight indexing
+        run: sudo mdutil -a -i off || true
+
       # Boot to completion before the emulators and Maestro start, never
       # overlapping them: a cold boot pins the 3-core runner for minutes, and
       # overlapping the suite's start timed Maestro's driver out. See
@@ -202,10 +208,10 @@ jobs:
           fi
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      # Samples load and the busiest processes every 10 s for the rest of the
-      # job (a background process outlives its step), so a Firestore SDK "ping
-      # timeout" (scripts/run-ios-e2e.mjs counts them) can be read against
-      # what the runner was doing at that moment.
+      # Samples load, swap, the busiest processes and the largest every 10 s
+      # for the rest of the job (a background process outlives its step), so a
+      # Firestore SDK "ping timeout" (scripts/run-ios-e2e.mjs counts them) can
+      # be read against what the runner was doing at that moment.
       - name: Sample runner load
         run: |
           mkdir -p apps/mobile/e2e/native/report
@@ -213,6 +219,8 @@ jobs:
             echo "== $(date -u +%H:%M:%S) load $(sysctl -n vm.loadavg) swap $(sysctl -n vm.swapusage)"
             vm_stat | grep -E 'Pageouts|Swapins|Swapouts' | tr -s ' ' | paste -sd ' ' -
             ps -Ao pid,pcpu,rss,nice,ucomm -r | head -n 10
+            echo "-- largest"
+            ps -Ao pid,pcpu,rss,nice,ucomm -m | sed 1d | head -n 5
           done) > apps/mobile/e2e/native/report/runner-cpu.log 2>&1 &
 
       # The exact command a developer runs locally on a Mac: boots the Firebase

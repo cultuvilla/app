@@ -64,6 +64,59 @@ const IOS_MAESTRO_ENV = {
 };
 const flow = arg('flow') ?? process.env.E2E_NATIVE_FLOW;
 
+// Maestro's per-flow Simulator log, narrowed to what a failure report reads:
+// the app's own lines (JS console, the Firebase SDKs) and any fault. Unfiltered
+// it ran ~550 MB per flow on CI, which the 3-core runner paid for while the
+// app's Firestore streams timed out. The shim fails open, so an unknown app
+// executable (an already-installed app, no --app) leaves Maestro's log whole.
+const SHIM_DIR = path.join(ROOT, 'scripts', 'lib', 'ios-xcrun-shim');
+function simLogPredicate(executable) {
+  return `process == "${executable}" OR messageType == fault`;
+}
+function appExecutable(appPath) {
+  const plist = path.join(appPath, 'Info.plist');
+  const res = spawnSync('plutil', ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', plist], { encoding: 'utf8' });
+  return res.status === 0 ? res.stdout.trim() : undefined;
+}
+function armSimLogFilter(appPath) {
+  const executable = appPath && appExecutable(appPath);
+  if (!executable) {
+    console.warn(`[${LABEL}] app executable unknown; Maestro's Simulator log stays unfiltered`);
+    return;
+  }
+  IOS_MAESTRO_ENV.PATH = `${SHIM_DIR}${path.delimiter}${IOS_MAESTRO_ENV.PATH ?? ''}`;
+  IOS_MAESTRO_ENV.IOS_E2E_SIM_LOG_PREDICATE = simLogPredicate(executable);
+  console.log(`[${LABEL}] Maestro's Simulator log filtered to: ${IOS_MAESTRO_ENV.IOS_E2E_SIM_LOG_PREDICATE}`);
+}
+
+// Simulator daemons nothing in the app or the suite uses, stopped for the run
+// so the 3-core, 7 GB runner has their CPU and memory for the app and the
+// emulators. Matched against `launchctl list` (the label can move between iOS
+// releases) and booted out, so launchd cannot start them again on demand.
+// Never apsd: once flow 92 grants notifications the app asks it for a push
+// token, so stopping it would change what the app does.
+//   mediaanalysisd      — Photos' on-device analysis of the picker images
+//                         (addmedia); the picker returns a photo without it.
+//   spotlightknowledged — Spotlight's knowledge store; the app has no Spotlight
+//                         integration.
+const STOPPED_SIM_DAEMONS = /^com\.apple\.[\w.]*(mediaanalysisd|spotlightknowledged)$/;
+function stopUnusedSimDaemons(udid) {
+  const list = spawnSync('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list'], { encoding: 'utf8' });
+  const labels = (list.stdout ?? '')
+    .split('\n')
+    .map((line) => line.trim().split(/\s+/)[2])
+    .filter((label) => label && STOPPED_SIM_DAEMONS.test(label));
+  if (labels.length === 0) console.log(`[${LABEL}] no unused Simulator daemon to stop`);
+  const bootout = (target) =>
+    spawnSync('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'bootout', target], { encoding: 'utf8' });
+  // Best effort: a daemon that will not stop costs speed, never correctness.
+  for (const label of labels) {
+    let res = bootout(`system/${label}`);
+    if (res.status !== 0) res = bootout(`user/foreground/${label}`);
+    console.log(`[${LABEL}] stopping ${label}: exit ${res.status} ${(res.stderr ?? '').trim()}`);
+  }
+}
+
 function simctlDevices(...filter) {
   const res = spawnSync('xcrun', ['simctl', 'list', 'devices', ...filter, '--json'], { encoding: 'utf8' });
   if (res.status !== 0) {
@@ -151,6 +204,8 @@ if (app) {
 
 // Stock the photo picker; see PICKER_IMAGES.
 if (run(LABEL, 'xcrun', ['simctl', 'addmedia', device, ...PICKER_IMAGES]) !== 0) process.exit(1);
+stopUnusedSimDaemons(device);
+armSimLogFilter(app && path.resolve(ROOT, app));
 
 // 3. See the flow's header. Fatal: if the prompt cannot be answered, every
 //    flow would fail on its first link, naming the wrong cause each time.

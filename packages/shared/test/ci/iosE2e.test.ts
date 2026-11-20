@@ -1,5 +1,6 @@
 import { beforeAll, describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -170,6 +171,60 @@ describe('iOS runner', () => {
   it('keeps the trust flow outside flows/', () => {
     expect(readdirSync(resolve(repoRoot, nativeDir, 'flows'))).not.toContain('trust-deep-links.yaml');
     expect(read(`${nativeDir}/ios/trust-deep-links.yaml`)).toContain('appId: com.cultuvilla.app.dev');
+  });
+});
+
+// Maestro's unfiltered per-flow Simulator log cost the 3-core runner most of a
+// core while the Firestore SDK's streams timed out. The shim narrows exactly
+// that one call and must never break any other: a future Maestro that changes
+// the call gets its full log back, not a broken stream.
+describe('iOS xcrun shim', () => {
+  const shim = resolve(repoRoot, 'scripts/lib/ios-xcrun-shim/xcrun');
+  // `realXcrun` stands in for /usr/bin/xcrun and prints what it was given.
+  const call = (args: string[], predicate?: string, realXcrun = 'echo') =>
+    spawnSync('bash', [shim, ...args], {
+      encoding: 'utf8',
+      env: {
+        PATH: process.env['PATH'],
+        IOS_E2E_REAL_XCRUN: realXcrun,
+        ...(predicate ? { IOS_E2E_SIM_LOG_PREDICATE: predicate } : {}),
+      },
+    });
+  const maestroStream = ['simctl', 'spawn', 'UDID', 'log', 'stream', '--style', 'syslog'];
+
+  it('is executable, so Maestro can run it from PATH', () => {
+    expect(statSync(shim).mode & 0o111).not.toBe(0);
+  });
+
+  it("narrows Maestro's unfiltered log stream by the predicate, and says so", () => {
+    const res = call(maestroStream, 'process == "Dev"');
+    expect(res.status).toBe(0);
+    const [banner, invoked] = res.stdout.trim().split('\n');
+    expect(banner).toBe('[ios-e2e] filtered by scripts/lib/ios-xcrun-shim: process == "Dev"');
+    expect(invoked).toBe([...maestroStream, '--predicate', 'process == "Dev"'].join(' '));
+  });
+
+  it('fails open: any other call, or no predicate, runs the real xcrun unchanged', () => {
+    const others = [
+      ['simctl', 'list', 'devices', '--json'],
+      [...maestroStream, '--level', 'debug'],
+      ['simctl', 'spawn', 'UDID', 'log', 'stream', '--style', 'compact'],
+      ['simctl', 'spawn', 'UDID', 'log', 'stream', '--style', 'syslog', '--predicate', 'x'],
+    ];
+    for (const args of others) {
+      // printf '%s\n' prints one argument per line, so quoting survives.
+      const res = call(['%s\n', ...args], 'p == 1', 'printf');
+      expect(res.stdout, args.join(' ')).toBe(args.map((a) => `${a}\n`).join(''));
+    }
+    expect(call(maestroStream).stdout.trim()).toBe(maestroStream.join(' '));
+  });
+
+  it('is armed by the runner with the app executable before Maestro first runs, and leaves apsd running', () => {
+    expect(runner).toMatch(/IOS_MAESTRO_ENV\.PATH = `\$\{SHIM_DIR\}/);
+    expect(runner).toMatch(/process == "\$\{executable\}" OR messageType == fault/);
+    expect(runner.indexOf('armSimLogFilter(app')).toBeLessThan(runner.indexOf("'ios', 'trust-deep-links.yaml'"));
+    // Flow 92 grants notifications, and the app then asks apsd for a push token.
+    expect(runner).not.toMatch(/STOPPED_SIM_DAEMONS = .*apsd/);
   });
 });
 
