@@ -1,6 +1,9 @@
 # One declaration per Firestore collection
 
 **Priority:** medium — the refs files and the conformance gate are three hand-synced lists that have drifted at least five times in 90 days, and three subcollections are not gated today
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 **Goal:** Declare each Firestore collection once (path, schema, which SDKs may reach it) and derive `refs/client.ts`, `refs/admin.ts` and the conformance gate's `REGISTRY` from that declaration, so adding a collection is one entry instead of five files, and the gate cannot miss a collection again.
 

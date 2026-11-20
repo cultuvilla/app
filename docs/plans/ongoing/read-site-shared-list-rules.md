@@ -1,7 +1,9 @@
 # The read site reuses the app's event order and count copy
 
 **Priority:** medium — one live defect (today's events listed as past on the web) and a plural fix being done twice (PR #679) while «1 integrantes» is still live
-**Gate:** blocked:PR #679 (adds `residentsLabel` to `functions/src/web/data.ts` and `pages.ts`; this plan replaces it)
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 **Goal:** make the read site take its event order and its count/label copy from `packages/shared` and `@cultuvilla/i18n`, so a rule fixed for the app is fixed on the web too.
 

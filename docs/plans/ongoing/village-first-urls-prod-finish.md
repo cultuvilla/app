@@ -1,6 +1,9 @@
 # Village-first URLs — finish the prod rollout
 
 **Priority:** medium
+**Landed:** none
+**Gate:** none
+**Next:** land the AASA widening + tests + docs on develop; the store-console steps and the post-deploy iPhone check are Álvaro's
 
 **Goal:** a shared village-first link opens the iOS app on prod, and both store
 consoles declare the Spanish legal URLs.
