@@ -15,7 +15,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
-| [buzon-badge-counts-all-actions](ongoing/buzon-badge-counts-all-actions.md) | medium | none | this cycle | verify the plan against develop (buzon-inbox-model landed in #683), then build it |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | none | this cycle | verify the plan against develop, then build it |
 
 ## Waiting on release 1.11.0
@@ -40,6 +39,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote with the next release (all four phases are on develop) |
 | [offline-first-village](ongoing/offline-first-village.md) | high | prod | this cycle | the next release Álvaro cuts carries layer 3 (village sync, #692 + #698, live on dev) to prod | once layer 3 is on prod, witness docs/qa/pending/pueblos-sin-conexion.md on a device, then retire the plan (bundle/delta optimisation stays a later idea, not this plan) |
 | [auth-session-state-machine](ongoing/auth-session-state-machine.md) | medium | dev | this cycle | the first release carrying #690 is live in prod | once a release carrying #690 is live in prod, confirm sign-in, sign-out and an abandoned sign-up behave (no stray account deletes in logs), then retire this plan |
+| [buzon-badge-counts-all-actions](ongoing/buzon-badge-counts-all-actions.md) | medium | dev | this cycle | the next release Álvaro cuts carries #699 to prod | witness docs/qa/pending/buzon-badge-all-actions.md on a device once on prod, then retire the plan (watch* follow-up for read cost is in #699's body) |
 | [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | dev | this cycle | the first release carrying #683 is live in prod | once prod serves #683, check an admin's Buzón and bell badge show the same requests as before, then retire |
 | [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
 | [firestore-collection-registry](ongoing/firestore-collection-registry.md) | medium | dev | this cycle | the next develop→beta promotion runs Deploy beta's Conformance gate over the 11 newly gated subcollections | confirm the Conformance gate step in that Deploy beta run walked the new subcollections and passed, then retire the plan (built in #695, 3ad7e234) |
