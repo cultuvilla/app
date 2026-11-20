@@ -45,7 +45,6 @@
     "watchGroupMessages",
     "watchGroupNotificationPrefs",
     "watchGroupPollVotes",
-    "watchMyGroupMessageReads",
     "watchMyGroupMessages",
     "watchMyGroupPollVotes"
   ],
