@@ -8,11 +8,14 @@ Current cycle **v1.12.0** (cut 2026-11-12)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · sign-in-account-loss
+> **Not advanced in 2+ cycles:** sign-in-account-loss
 
 ## Actionable now
 
-_None._
+| Plan | Pri | Landed | Advanced | Next |
+|---|---|---|---|---|
+| [app-check-rollout](ongoing/app-check-rollout.md) | high | none | this cycle | verify the plan against develop, then build Stage 1 (native module + real providers in `initMobileAppCheck()`, enforcement off) |
+| [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | lighten the iOS suite on the runner (drop or cap Maestro's ~550 MB per-flow `log stream`, trim Simulator processes) and measure with #710's `Firestore SDK stream errors` count; only at ~0 with flow 13 stable, remove flow 13's re-sign-in fallback and FLOW_TIMEOUT_OVERRIDES_MS |
 
 ## Waiting on release 1.11.0
 
@@ -47,10 +50,7 @@ _None._
 
 ## Waiting on you
 
-| Plan | Pri | Landed | Advanced | Waiting on | Next |
-|---|---|---|---|---|---|
-| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 33 cycles ago \* | start Stage 1 now? It adds the native App Check module, which changes the app's fingerprint, so the next OTA stops reaching installed binaries until a new store build ships; AGENTS.md also says to leave the seam untouched unless explicitly asked | — |
-| [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | the ping timeouts track an overloaded 3-core macOS runner (load peaks ~400, ~2 GB swap; 8 runs in #710 ruled out emulator GC, CPU priority, jar version, apsd) — pay for a larger macOS runner, or try a test-build-only keepalive workaround? | apply the decision and measure with #710's `Firestore SDK stream errors` count and artifacts; only at ~0 and stable flow 13 remove flow 13's re-sign-in fallback and FLOW_TIMEOUT_OVERRIDES_MS (flows 12 and 15 also fail on iOS separately) |
+_None._
 
 ## Blocked
 
