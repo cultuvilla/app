@@ -46,6 +46,7 @@ import {
   isSoleAdminWithOthers,
   type OrgMemberData,
 } from '@cultuvilla/shared/models/organization/OrgMemberDataModel';
+import { noteConsentPromptAction } from '../../../../lib/observability/analyticsConsentPrompt';
 
 type Org = OrganizationData & { id: string };
 
@@ -125,6 +126,7 @@ export default function OrgDetailScreen() {
         municipalityId: org.municipalityId,
         viaInvite: arrivedViaInvite,
       });
+      noteConsentPromptAction('group-join');
       await refresh();
     } catch (e) {
       if (!succeeded) {

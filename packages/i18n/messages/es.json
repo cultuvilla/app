@@ -2925,11 +2925,11 @@
   },
   "privacy": {
     "analyticsConsent": {
-      "question": "¿Nos ayudas a mejorar Cultuvilla compartiendo estadísticas de uso?",
-      "body": "Nos dicen qué partes de la app se usan, para saber qué mejorar. Puedes cambiarlo cuando quieras en Ajustes.",
-      "yes": "Sí",
-      "no": "No",
-      "close": "Cerrar"
+      "title": "¿Nos ayudas a mejorar Cultuvilla?",
+      "lead": "Si dices que sí, la app nos cuenta qué pantallas se usan y dónde la gente se atasca. Así sabemos qué arreglar primero.",
+      "smallPrint": "Nunca incluye lo que escribes, tus fotos ni tus datos de contacto. Puedes cambiarlo cuando quieras en Ajustes → Privacidad.",
+      "yes": "Sí, claro",
+      "no": "No, gracias"
     }
   }
 }

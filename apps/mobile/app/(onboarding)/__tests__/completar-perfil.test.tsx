@@ -4,7 +4,7 @@ import { observability } from '@cultuvilla/shared';
 
 jest.mock('@cultuvilla/shared', () => ({
   ...jest.requireActual('@cultuvilla/shared'),
-  observability: { trackEvent: jest.fn(), captureError: jest.fn() },
+  observability: { trackEvent: jest.fn() },
 }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({
   createPerson: jest.fn().mockResolvedValue('person-1'),
@@ -15,7 +15,6 @@ jest.mock('@cultuvilla/shared/services/personService', () => ({
 jest.mock('@cultuvilla/shared/services/userService', () => ({
   createUserProfile: jest.fn().mockResolvedValue(undefined),
   patchUserProfile: jest.fn().mockResolvedValue(undefined),
-  saveUsageAnalyticsConsent: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
   ensureVillageMembership: jest.fn().mockResolvedValue(undefined),
@@ -263,54 +262,6 @@ describe('CompleteProfileScreen', () => {
     );
   });
 
-  describe('usage analytics question', () => {
-    async function finish(utils: ReturnType<typeof render>, answer?: 'yes' | 'no') {
-      const { getByText, getByLabelText, getByTestId } = utils;
-      fireEvent.changeText(getByLabelText('Nombre'), 'Ana');
-      fireEvent.changeText(getByLabelText('Primer apellido'), 'García');
-      fireEvent.press(getByText('Mujer'));
-      fireEvent.press(getByTestId('accept-terms'));
-      if (answer) fireEvent.press(getByTestId(`analytics-consent-${answer}`));
-      fireEvent.press(getByText('Siguiente'));
-      fireEvent.press(getByTestId('birthday-year'));
-      fireEvent.press(getByTestId('birthday-year-option-1990'));
-      fireEvent.press(getByTestId('birthday-month'));
-      fireEvent.press(getByTestId('birthday-month-option-4'));
-      fireEvent.press(getByTestId('birthday-day'));
-      fireEvent.press(getByTestId('birthday-day-option-5'));
-      fireEvent.press(getByText('Siguiente'));
-      await act(async () => {
-        fireEvent.press(getByText('Crear perfil'));
-      });
-    }
-
-    it('preselects neither answer', () => {
-      const { getByTestId } = render(<CompleteProfileScreen />);
-      expect(getByTestId('analytics-consent-yes').props.accessibilityState).toMatchObject({ checked: false });
-      expect(getByTestId('analytics-consent-no').props.accessibilityState).toMatchObject({ checked: false });
-    });
-
-    it.each([
-      ['yes', true],
-      ['no', false],
-    ] as const)('stores a %s for the new account', async (answer, stored) => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const userService = require('@cultuvilla/shared/services/userService');
-      await finish(render(<CompleteProfileScreen />), answer);
-      await waitFor(() => {
-        expect(userService.saveUsageAnalyticsConsent).toHaveBeenCalledWith('uid-1', stored);
-      });
-    });
-
-    it('stores nothing when skipped, leaving the account unasked', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const userService = require('@cultuvilla/shared/services/userService');
-      await finish(render(<CompleteProfileScreen />));
-      await waitFor(() => expect(userService.createUserProfile).toHaveBeenCalled());
-      expect(userService.saveUsageAnalyticsConsent).not.toHaveBeenCalled();
-    });
-  });
-
   it('does not advance past step 1 until the terms are accepted', async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const userService = require('@cultuvilla/shared/services/userService');
@@ -329,6 +280,13 @@ describe('CompleteProfileScreen', () => {
 
     expect(queryByTestId('birthday-year')).toBeNull();
     expect(userService.createUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing about usage statistics — the full-screen page asks later', () => {
+    const { queryByTestId } = render(<CompleteProfileScreen />);
+    expect(queryByTestId('accept-terms')).toBeTruthy();
+    expect(queryByTestId('analytics-consent-yes')).toBeNull();
+    expect(queryByTestId('analytics-consent-no')).toBeNull();
   });
 
   it('does not offer under-14 birth years in the picker (self-registration age gate)', async () => {
