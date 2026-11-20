@@ -1,8 +1,4 @@
 import { RegistrationEventDataSchema } from '../../models/event/RegistrationEventDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const registrationEventConverterAdmin = makeConverter(
-  RegistrationEventDataSchema,
-  adminSdkCtors,
-);
+export const registrationEventConverterAdmin = adminConverter(RegistrationEventDataSchema);

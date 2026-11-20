@@ -4,10 +4,9 @@ import {
   GroupMessageReadDataSchema,
   GroupPollVoteDataSchema,
 } from '../../models/organization/GroupMessageDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const groupMessageConverterAdmin = makeConverter(GroupMessageDataSchema, adminSdkCtors);
-export const groupMessageDeliveryConverterAdmin = makeConverter(GroupMessageDeliveryDataSchema, adminSdkCtors);
-export const groupMessageReadConverterAdmin = makeConverter(GroupMessageReadDataSchema, adminSdkCtors);
-export const groupPollVoteConverterAdmin = makeConverter(GroupPollVoteDataSchema, adminSdkCtors);
+export const groupMessageConverterAdmin = adminConverter(GroupMessageDataSchema);
+export const groupMessageDeliveryConverterAdmin = adminConverter(GroupMessageDeliveryDataSchema);
+export const groupMessageReadConverterAdmin = adminConverter(GroupMessageReadDataSchema);
+export const groupPollVoteConverterAdmin = adminConverter(GroupPollVoteDataSchema);

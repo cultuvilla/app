@@ -1,5 +1,4 @@
 import { BarrioDataSchema } from '../../models/municipality/MunicipalityDataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
+import { clientConverter } from './sdkAdapters.client';
 
-export const barrioConverterClient = makeConverter(BarrioDataSchema, clientSdkCtors);
+export const barrioConverterClient = clientConverter(BarrioDataSchema);

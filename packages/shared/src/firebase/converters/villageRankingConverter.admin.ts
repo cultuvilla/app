@@ -1,5 +1,4 @@
 import { VillageRankingDataSchema } from '../../models/municipality/VillageRankingDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const villageRankingConverterAdmin = makeConverter(VillageRankingDataSchema, adminSdkCtors);
+export const villageRankingConverterAdmin = adminConverter(VillageRankingDataSchema);

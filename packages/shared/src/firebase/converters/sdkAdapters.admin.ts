@@ -1,4 +1,5 @@
 import { Timestamp, GeoPoint } from 'firebase-admin/firestore';
+import { converterCache } from './makeConverter';
 import type { SdkCtors } from './walkers';
 
 // Duck-type predicates instead of `instanceof`. functions/ is npm-installed
@@ -37,3 +38,6 @@ export const adminSdkCtors: SdkCtors = {
   isTimestamp: isTimestampLike,
   isGeoPoint: isGeoPointLike,
 };
+
+/** This SDK's one converter per schema — see converterCache. */
+export const adminConverter = converterCache(adminSdkCtors);
