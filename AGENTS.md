@@ -674,6 +674,16 @@ background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when y
 are done: it is an indefinite server, so a Metro you leave running holds the port
 the user's next session needs.
 
+**The main checkout follows develop by itself.** [scripts/dev-sync.sh](scripts/dev-sync.sh)
+runs every minute (a systemd user timer from homelab's workstation setup): it
+fast-forwards the checkout to `origin/develop`, installs dependencies when a lockfile
+moved, and sends a desktop notification when the native fingerprint changed, since only
+a dev-client rebuild brings native code to the phone. So the user's Metro always serves
+what merged; never stash, reset or switch that checkout to "help" it. It does nothing
+while the checkout is off develop, mid-merge, ahead of origin, or editing a file the
+update touches. Why: on 2026-11-20 the checkout sat 23 merges behind and the user tested
+a screen that had already been replaced.
+
 Still off-limits — these run indefinitely or bypass CI:
 
 - `firebase emulators:start` directly (standalone long-lived emulator session)
