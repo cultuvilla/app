@@ -21,7 +21,7 @@ describe('shouldDismissOnRelease', () => {
   });
 
   it('needs a shorter pull on a short sheet', () => {
-    expect(shouldDismissOnRelease(60, 0.1, 180)).toBe(true);
+    expect(shouldDismissOnRelease(50, 0.1, 180)).toBe(true);
     expect(shouldDismissOnRelease(40, 0.1, 180)).toBe(false);
   });
 

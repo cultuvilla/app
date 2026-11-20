@@ -16,7 +16,7 @@ import { Text } from './Text';
 /** Drag distance (px) past which a release dismisses instead of springing back. */
 const DISMISS_DISTANCE = 90;
 /** On a short sheet, this share of its height is far enough. */
-const DISMISS_SHARE = 0.3;
+const DISMISS_SHARE = 0.25;
 /** Fling velocity that dismisses regardless of how far the sheet was dragged. */
 const DISMISS_VELOCITY = 0.6;
 
@@ -46,6 +46,10 @@ export function useDragToDismiss(onClose: () => void, visible: boolean) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const heightRef = useRef(0);
+  // Where the finger first touched. `gestureState.dy` counts only from the
+  // grant, which comes after the slop, so on a short sheet near the bottom
+  // edge it under-reports a full drag (seen on both platforms in e2e).
+  const startYRef = useRef<number | null>(null);
 
   // A dismissed-by-drag sheet keeps its offset; reset it so the next open does
   // not start off-screen.
@@ -58,14 +62,21 @@ export function useDragToDismiss(onClose: () => void, visible: boolean) {
       // Downward-only, and clearly more vertical than horizontal. Capture as
       // well as bubble: the handle is itself a Pressable (tap closes), and it
       // already holds the touch by the time the finger moves.
+      onStartShouldSetPanResponderCapture: (e) => {
+        startYRef.current = e.nativeEvent.pageY;
+        return false;
+      },
       onMoveShouldSetPanResponderCapture: (_e, g) => g.dy > 8 && g.dy > Math.abs(g.dx),
       onMoveShouldSetPanResponder: (_e, g) => g.dy > 8 && g.dy > Math.abs(g.dx),
       onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_e, g) => {
         if (g.dy > 0) translateY.setValue(g.dy);
       },
-      onPanResponderRelease: (_e, g) => {
-        if (shouldDismissOnRelease(g.dy, g.vy, heightRef.current || undefined)) {
+      onPanResponderRelease: (e, g) => {
+        const start = startYRef.current;
+        const travel = start === null ? g.dy : Math.max(g.dy, e.nativeEvent.pageY - start);
+        startYRef.current = null;
+        if (shouldDismissOnRelease(travel, g.vy, heightRef.current || undefined)) {
           closeRef.current();
           return;
         }
