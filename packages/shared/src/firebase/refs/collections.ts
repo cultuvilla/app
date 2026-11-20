@@ -74,6 +74,9 @@ import { VocabularyDefinitionDataSchema } from '../../models/vocabulary/Vocabula
 import { VocabularyWordDataSchema } from '../../models/vocabulary/VocabularyWordDataModel';
 import { HistoryEntryDataSchema } from '../../models/history/HistoryEntryDataModel';
 import { WrappedDataSchema } from '../../models/wrapped/WrappedDataModel';
+import { AppVersionConfigSchema } from '../../models/config/AppVersionConfigModel';
+import { AuthEmailRateLimitDataSchema } from '../../models/auth/AuthEmailRateLimitDataModel';
+import { AuthOtpCodeDataSchema } from '../../models/auth/AuthOtpCodeDataModel';
 
 export interface CollectionDef<
   P extends string = string,
@@ -193,6 +196,15 @@ export const COLLECTIONS = {
   contentReports: def('contentReports', ContentReportDataSchema),
   ambassadorLeads: def('ambassadorLeads', AmbassadorLeadDataSchema),
   admins: def('admins', AdminDataSchema),
+  // Public, read by every client, written only by scripts and the announce
+  // poller. Its one doc is `appVersion` (the force-update gate), so the whole
+  // collection shares that schema.
+  config: def('config', AppVersionConfigSchema),
+
+  // ── Sign-in (pre-auth infrastructure, functions only) ────────────────────
+  authEmailRateLimits: serverOnly('authEmailRateLimits', AuthEmailRateLimitDataSchema),
+  authOtpCodes: serverOnly('authOtpCodes', AuthOtpCodeDataSchema),
+
   // OSM settlement reference data per INE code, under `_admin/**` (denied to
   // every client). Raw OSM payload, so no model.
   settlementSeeds: serverOnly('_admin/{settlementsDoc}/seeds', null),

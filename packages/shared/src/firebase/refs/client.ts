@@ -21,6 +21,7 @@ import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel'
 import { municipalityPersonDirectoryId } from '../../models/municipality/MunicipalityPersonDataModel';
 import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
 import { PRIVACY_SETTINGS_DOC_ID } from '../../models/user/PrivacySettingsDataModel';
+import { APP_VERSION_CONFIG_DOC_ID } from '../../models/config/AppVersionConfigModel';
 import { isGeneralChatThread } from '../../models/organization/GroupChatDataModel';
 import {
   COLLECTIONS as C,
@@ -430,6 +431,10 @@ export const occupationDoc = (db: Firestore, occupationId: string) => typedDoc(d
 export const membershipEventsCollection = (db: Firestore) => typedCollection(db, C.membershipEvents);
 
 export const membershipEventDoc = (db: Firestore, id: string) => typedDoc(db, C.membershipEvents, id);
+
+// ── App config ───────────────────────────────────────────────────────────
+
+export const appVersionConfigDoc = (db: Firestore) => typedDoc(db, C.config, APP_VERSION_CONFIG_DOC_ID);
 
 // ── Admin domain ─────────────────────────────────────────────────────────
 

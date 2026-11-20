@@ -19,6 +19,7 @@ import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel'
 import { municipalityPersonDirectoryId } from '../../models/municipality/MunicipalityPersonDataModel';
 import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
 import { PRIVACY_SETTINGS_DOC_ID } from '../../models/user/PrivacySettingsDataModel';
+import { APP_VERSION_CONFIG_DOC_ID } from '../../models/config/AppVersionConfigModel';
 import {
   COLLECTIONS as C,
   collectionId,
@@ -391,6 +392,17 @@ export const moderationEventsCollection = (db: Firestore) => typedCollection(db,
 export const moderationEventDoc = (db: Firestore, id: string) => typedDoc(db, C.moderationEvents, id);
 
 export const ambassadorLeadsCollection = (db: Firestore) => typedCollection(db, C.ambassadorLeads);
+
+// ── App config ───────────────────────────────────────────────────────────
+
+export const appVersionConfigDoc = (db: Firestore) => typedDoc(db, C.config, APP_VERSION_CONFIG_DOC_ID);
+
+// ── Sign-in rate limits and codes (server-only) ──────────────────────────
+
+export const authEmailRateLimitDoc = (db: Firestore, bucketId: string) =>
+  typedDoc(db, C.authEmailRateLimits, bucketId);
+
+export const authOtpCodeDoc = (db: Firestore, bucketId: string) => typedDoc(db, C.authOtpCodes, bucketId);
 
 // ── Admin domain ─────────────────────────────────────────────────────────
 
