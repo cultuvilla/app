@@ -38,7 +38,44 @@ describe('updateEvent', () => {
     expect(doc['endDate']).toBeNull();
   });
 
-  it('leaves endBoundary alone when startDate is not patched', async () => {
+  // A patch carrying one date must not forget the other: endBoundary is always
+  // the boundary of the dates the event has after the write. The stored dates
+  // are Dates here because the read goes through the event converter.
+  it('keeps the stored later endDate when only startDate is patched', async () => {
+    const storedEnd = new Date('2026-08-20T02:00:00Z');
+    fakeStore()['events/e1'] = {
+      title: 'Fiesta',
+      startDate: new Date('2026-08-15T18:00:00Z'),
+      endDate: storedEnd,
+    };
+    await updateEvent('e1', { startDate: new Date('2026-08-14T18:00:00Z') });
+    expect(asDate(fakeStore()['events/e1']['endBoundary'])).toEqual(storedEnd);
+  });
+
+  it('recomputes endBoundary when only endDate is patched', async () => {
+    fakeStore()['events/e1'] = {
+      title: 'Fiesta',
+      startDate: new Date('2026-08-14T18:00:00Z'),
+      endDate: null,
+      endBoundary: 'stale',
+    };
+    const end = new Date('2026-08-16T02:00:00Z');
+    await updateEvent('e1', { endDate: end });
+    expect(asDate(fakeStore()['events/e1']['endBoundary'])).toEqual(end);
+  });
+
+  it('falls back to the stored startDate when endDate is cleared alone', async () => {
+    const storedStart = new Date('2026-08-14T18:00:00Z');
+    fakeStore()['events/e1'] = {
+      title: 'Fiesta',
+      startDate: storedStart,
+      endDate: new Date('2026-08-16T02:00:00Z'),
+    };
+    await updateEvent('e1', { endDate: null });
+    expect(asDate(fakeStore()['events/e1']['endBoundary'])).toEqual(storedStart);
+  });
+
+  it('leaves endBoundary alone when neither date is patched', async () => {
     fakeStore()['events/e1'] = { title: 'Fiesta', endBoundary: 'stored' };
     await updateEvent('e1', { title: 'Fiesta mayor' });
     const doc = fakeStore()['events/e1'];
