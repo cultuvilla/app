@@ -158,12 +158,13 @@ describe('Grupos tab', () => {
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/cuota');
   });
 
-  it('has no buttons for what its rows open, and counts the new avisos in their row', async () => {
+  it('has no button for the avisos its row opens, and counts the new avisos in their row', async () => {
     mockGroups = [group('Anduela')];
     mockUnread = 2;
     const { findByTestId, queryByTestId, getByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    for (const s of ['avisos', 'eventos', 'tareas']) expect(queryByTestId(`group-section-${s}`)).toBeNull();
+    expect(queryByTestId('group-section-avisos')).toBeNull();
+    for (const s of ['eventos', 'tareas']) expect(queryByTestId(`group-section-${s}`)).toBeTruthy();
     expect(getByText(/groups\.home\.avisosWithNew/)).toBeTruthy();
   });
 
@@ -229,9 +230,9 @@ describe('Grupos tab', () => {
       { id: 'old', title: 'Romería pasada', startDate: new Date(Date.now() - 86_400_000 * 30), endDate: null, confirmedCount: 0, imageURL: null, villageCoverImage: null, villageSlug: 'v' },
       { id: 'next', title: 'Matanza', startDate: new Date(Date.now() + 86_400_000 * 10), endDate: null, confirmedCount: 0, imageURL: null, villageCoverImage: null, villageSlug: 'v' },
     ];
-    const { findByTestId, queryByText, getByText } = render(<GroupsTabScreen />);
+    const { findByTestId, queryByText, getByText, getAllByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    expect(getByText('groups.sections.eventos')).toBeTruthy();
+    expect(getAllByText('groups.sections.eventos').length).toBeGreaterThan(0);
     expect(getByText('Matanza')).toBeTruthy();
     expect(queryByText('Romería pasada')).toBeNull();
   });
@@ -302,7 +303,7 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
-    expect(order).toEqual(['charla', 'cuota', 'socios', 'cobros', 'mensajes', 'registros', 'ajustes']);
+    expect(order).toEqual(['charla', 'eventos', 'tareas', 'cuota', 'socios', 'cobros', 'mensajes', 'registros', 'ajustes']);
     expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
     expect(getByTestId('group-section-charla').props.accessibilityHint).toBeUndefined();
     fireEvent.press(getByTestId('group-section-registros'));

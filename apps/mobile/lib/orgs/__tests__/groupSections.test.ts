@@ -38,10 +38,10 @@ describe('groupSections', () => {
     });
   });
 
-  it('leaves the home without buttons for what its rows open, though they still open', () => {
+  it('leaves the home without a button for the avisos its row opens, though they still open', () => {
     const { member } = groupSections(group());
-    expect(homeButtons(member)).toEqual(['charla', 'cuota', 'actas', 'socios']);
-    expect(canOpenGroupSection(group(), 'tareas')).toBe(true);
+    expect(homeButtons(member)).toEqual(['charla', 'eventos', 'tareas', 'cuota', 'actas', 'socios']);
+    expect(canOpenGroupSection(group(), 'avisos')).toBe(true);
   });
 
   it('gives a socio Cuentas only while the junta makes the accounts public; the junta keeps them in Registros', () => {
