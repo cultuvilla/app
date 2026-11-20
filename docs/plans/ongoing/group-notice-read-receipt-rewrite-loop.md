@@ -1,6 +1,9 @@
 # Group notices: stop re-writing a read receipt the rules refuse
 
 **Priority:** medium — a client loop of denied writes (about 1 every 1.3 s while the screen is open) costs battery and writes and floods the error counts; users see nothing
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 **Goal:** Mark each aviso read at most once per user, so an existing receipt is never written again.
 
