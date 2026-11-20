@@ -1,9 +1,9 @@
 # One content policy, checked against the rules emulator
 
 **Priority:** medium — client/server permission drift has been fixed four times since August, and the last two were found only by E2E flows
-**Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop, then build it
+**Landed:** dev
+**Gate:** soak:the first release carrying #694 is live in prod
+**Next:** once prod serves #694, check a hidden vocabulary term shows no delete button to its author, then retire
 
 **Goal:** put the "who may edit or delete this doc" answer in one pure function in `packages/shared`, and test it against `firestore.rules` in the emulator, so a button the server will refuse (or a missing button the server would allow) fails a test instead of reaching a user.
 
