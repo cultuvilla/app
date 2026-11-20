@@ -19,7 +19,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [firestore-collection-registry](ongoing/firestore-collection-registry.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | none | this cycle | verify the plan against develop, then build it |
-| [read-site-shared-list-rules](ongoing/read-site-shared-list-rules.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [typed-organization-join-redirect](ongoing/typed-organization-join-redirect.md) | medium | none | this cycle | verify the plan against develop, then build it |
 
@@ -45,6 +44,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote with the next release (all four phases are on develop) |
 | [auth-session-state-machine](ongoing/auth-session-state-machine.md) | medium | dev | this cycle | the first release carrying #690 is live in prod | once a release carrying #690 is live in prod, confirm sign-in, sign-out and an abandoned sign-up behave (no stray account deletes in logs), then retire this plan |
 | [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
+| [read-site-shared-list-rules](ongoing/read-site-shared-list-rules.md) | medium | dev | this cycle | the first release carrying #691 is live in prod | once prod serves #691, check a village page lists today's events as upcoming and a one-member group says «1 integrante», then retire (villageHomeWatchers' LISTED_STATUSES copy is folded in by the offline-first follow-up) |
 | [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | dev | this cycle | the next release Álvaro cuts (carrying #689) is live in prod | after that prod deploy, Álvaro curls `https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM`, opens a `/<pueblo>/evento/…` link on an iPhone (Apple's CDN may take a day), and sets the privacy-policy URL `https://cultuvilla.es/legal/privacidad` in App Store Connect (every app-info localization) and the Play console (App content) |
 
 ## Waiting on you
