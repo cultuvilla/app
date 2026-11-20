@@ -180,6 +180,11 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
           label: t('menu.privacy'),
           onPress: () => close(() => router.push(routes.privacy)),
         },
+        {
+          icon: 'map-outline',
+          label: t('menu.attributions'),
+          onPress: () => close(() => router.push(routes.attributions)),
+        },
       ],
     },
     ...(isAppAdmin
