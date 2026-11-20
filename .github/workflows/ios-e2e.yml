@@ -245,6 +245,20 @@ jobs:
             -Xlog:gc:file=${{ github.workspace }}/apps/mobile/e2e/native/report/emulator-gc-%p.log:uptime,time
         run: pnpm test:e2e:ios
 
+      # Why the Simulator ended an app process: runningboardd and SpringBoard
+      # log the reason (a crash, a memory limit, a launch watchdog). Maestro's
+      # Simulator log keeps only the app's own lines and faults, so it misses it.
+      - name: Collect the Simulator's termination reasons
+        if: ${{ always() }}
+        run: |
+          udid="$(xcrun simctl list devices booted -j | jq -r '[.devices[][] | select(.state == "Booted")][0].udid // empty')"
+          [ -n "$udid" ] || exit 0
+          mkdir -p apps/mobile/e2e/native/report
+          xcrun simctl spawn "$udid" log show --last 3h --style compact \
+            --predicate 'process == "runningboardd" OR process == "SpringBoard"' 2>/dev/null \
+            | grep -iE 'cultuvilla|jetsam|terminat|watchdog|8badf00d|memory' \
+            > apps/mobile/e2e/native/report/sim-terminations.log || true
+
       # always(), not !cancelled(): a timeout cancels the job, and the
       # screenshots of a run that timed out are exactly the ones needed. The
       # app's crash reports (Dev-*.ips) carry the stack Maestro's "App crashed"
@@ -259,5 +273,6 @@ jobs:
             ~/.maestro/tests/
             firestore-debug.log
             ~/Library/Logs/DiagnosticReports/Dev*
+            ~/Library/Logs/DiagnosticReports/JetsamEvent*
           if-no-files-found: ignore
           retention-days: 7

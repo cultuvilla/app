@@ -42,7 +42,18 @@ describe('ios-e2e workflow gating', () => {
   // crash report on the host, and only it has the stack.
   it("uploads the app's crash reports with the Maestro artifacts", () => {
     const step = workflow.slice(workflow.indexOf('- name: Upload Maestro artifacts'));
-    expect(step.slice(0, step.indexOf('retention-days'))).toContain('~/Library/Logs/DiagnosticReports/Dev*');
+    const paths = step.slice(0, step.indexOf('retention-days'));
+    expect(paths).toContain('~/Library/Logs/DiagnosticReports/Dev*');
+    expect(paths).toContain('~/Library/Logs/DiagnosticReports/JetsamEvent*');
+  });
+
+  it("records why the Simulator ended an app process, even from a failed job", () => {
+    const step = workflow.slice(workflow.indexOf("- name: Collect the Simulator's termination reasons"));
+    expect(step).toMatch(/^- name: Collect the Simulator's termination reasons\s*\n\s*if: \$\{\{ always\(\) \}\}/);
+    expect(step.slice(0, step.indexOf('- name: Upload Maestro artifacts'))).toContain('report/sim-terminations.log');
+    expect(workflow.indexOf("Collect the Simulator's termination reasons")).toBeLessThan(
+      workflow.indexOf('- name: Upload Maestro artifacts'),
+    );
   });
 
   // One build, shared: the build is the slowest step and identical for every
