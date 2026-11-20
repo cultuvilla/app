@@ -13,7 +13,8 @@
     "eas-build-post-install": "pnpm --filter @cultuvilla/shared build",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "typecheck": "tsc --noEmit"
+    "typegen": "expo customize tsconfig.json",
+    "typecheck": "pnpm typegen && tsc --noEmit"
   },
   "dependencies": {
     "@cultuvilla/i18n": "workspace:*",
