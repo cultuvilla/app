@@ -1481,7 +1481,7 @@
       "biography": "Biografía",
       "biographySelf": "Cuenta algo al pueblo sobre ti",
       "submit": "Crear perfil",
-      "requiredFields": "Nombre, ambos apellidos y fecha de nacimiento son obligatorios.",
+      "requiredFields": "El nombre y el primer apellido son obligatorios.",
       "error": "No se pudo guardar el perfil",
       "abandonTitle": "¿Salir del registro?",
       "abandonBody": "Has iniciado sesión como {email}. Si no es tu correo, sal y vuelve a empezar con el correcto.",
