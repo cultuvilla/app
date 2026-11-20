@@ -53,7 +53,10 @@ interface DeleteAccountResult {
  *     Unlike posts these carry no editorial value once the author is gone.
  *  5. Delete personal data: push devices, preferences and queued pushes (first,
  *     so nothing reaches a phone while the rest is torn down), persons (self +
- *     dependents), memberships (with a `removed` audit event each),
+ *     dependents), the phone and email shared with each group's junta (the
+ *     socio rows stay: the libro de socios is the group's record, and leaving
+ *     the membership gives them their baja), memberships (with a `removed`
+ *     audit event each),
  *     registrations, notifications, organizer requests, dangling organizer
  *     pointers, Cloud Storage photos, and the user profile doc.
  *  6. Delete the Firebase Auth user last — once the data is gone the auth
@@ -85,6 +88,7 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
 
     const pushDataDeleted = await deletePushData(uid);
 
+    const socioContactsCleared = await clearSocioContacts(uid);
     const membershipsRemoved = await removeMemberships(uid);
     const personIds = await deletePersons(uid);
     const registrationsDeleted = await deleteRegistrations(uid);
@@ -104,6 +108,7 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
       commentsDeleted,
       chatMessagesDeleted,
       ...cosateca,
+      socioContactsCleared,
       membershipsRemoved,
       personsDeleted: personIds.length,
       registrationsDeleted,
@@ -158,6 +163,29 @@ async function anonymizeAuthoredContent(
     await batch.commit();
   }
   return entries.length;
+}
+
+/**
+ * Clear the phone and email the user shared with each group they were a socio
+ * of, current or past. The group is the controller of its libro de socios, so
+ * the row itself (name, number, alta, baja, cuotas) stays; only the contact
+ * goes. Needs the `socios.uid` collection-group override in
+ * firestore.indexes.json.
+ */
+async function clearSocioContacts(uid: string): Promise<number> {
+  const rows = await db.collectionGroup('socios').where('uid', '==', uid).get();
+  const privateRefs = rows.docs.flatMap((row) => {
+    const org = row.ref.parent.parent;
+    return org ? [org.collection('socioPrivate').doc(row.id)] : [];
+  });
+  const privateSnaps = await Promise.all(privateRefs.map((ref) => ref.get()));
+  const refs = privateSnaps.flatMap((snap) => (snap.exists ? [snap.ref] : []));
+  for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
+    const batch = db.batch();
+    for (const ref of refs.slice(i, i + BATCH_LIMIT)) batch.update(ref, { phone: null, email: null });
+    await batch.commit();
+  }
+  return refs.length;
 }
 
 interface MembershipToRemove {
