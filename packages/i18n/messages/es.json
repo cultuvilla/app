@@ -491,7 +491,14 @@
         "residentCount": "{count, plural, one {# vecino} other {# vecinos}}",
         "addImage": "Añadir imagen",
         "removeImage": "Quitar imagen",
-        "seat": "El pueblo"
+        "seat": "El pueblo",
+        "kindLabel": "Tipo",
+        "kind": {
+          "barrio": "Barrio",
+          "pedania": "Localidad",
+          "aldea": "Aldea",
+          "parroquia": "Parroquia"
+        }
       },
       "places": {
         "title": "Lugares",
