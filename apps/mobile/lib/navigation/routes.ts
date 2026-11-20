@@ -187,5 +187,5 @@ export const newHistoryEntryHref = (villageSlug: string): HrefPath =>
  * rebuilds the URL it came from rather than inventing a title slug it would
  * have to load the doc to know.
  */
-export const entityRefHref = (kind: UrlEntityKind, villageSlug: string, ref: string): HrefPath =>
-  href(`${villagePath(villageSlug)}/${ENTITY_SEGMENT[kind]}/${ref}`);
+export const entityRefHref = (kind: UrlEntityKind, villageSlug: string, ref: string, query?: string): HrefPath =>
+  href(`${villagePath(villageSlug)}/${ENTITY_SEGMENT[kind]}/${ref}${query ? `?${query}` : ''}`);
