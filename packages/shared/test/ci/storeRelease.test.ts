@@ -229,17 +229,13 @@ describe('prod deep-link association files', () => {
     }
   });
 
-  it('claims only paths the App Store build can open', () => {
-    // The association file applies to EVERY installed version of the app, and
-    // the live App Store build (iOS 1.0.0) predates both the village-first URLs
-    // and expo-updates, so no OTA can teach it the new routes. Claiming `*` would
-    // open `/<pueblo>/evento/…` inside an app that has no such screen — a dead
-    // end in place of a web page that works. Until an iOS build carrying the
-    // village-first routes is live on the App Store, prod claims only the legacy
-    // paths 1.0.0 routes: links shared before the change still open the app, and
-    // every new URL opens on the web. Widen to the dev/beta claim then.
+  it('claims the whole host except sign-in, like dev and beta', () => {
+    // A village-first URL can start with any pueblo slug, so the app claims every
+    // path; `/entrar` stays in the browser. The association file applies to EVERY
+    // installed version of the app, so this claim is safe only because every iOS
+    // binary at or above `minSupported` (first: 1.2.1) routes the village-first URLs.
     for (const detail of association.applinks.details) {
-      expect(detail.paths).toEqual(['/event/*', '/news/*', '/village/*', '/o/*']);
+      expect(detail.paths).toEqual(['NOT /entrar', 'NOT /entrar/*', '*']);
     }
   });
 });

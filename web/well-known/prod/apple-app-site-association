@@ -4,21 +4,11 @@
     "details": [
       {
         "appID": "78RB67NT38.com.cultuvilla.app",
-        "paths": [
-          "/event/*",
-          "/news/*",
-          "/village/*",
-          "/o/*"
-        ]
+        "paths": ["NOT /entrar", "NOT /entrar/*", "*"]
       },
       {
         "appID": "8HWS4483VD.com.cultuvilla.app",
-        "paths": [
-          "/event/*",
-          "/news/*",
-          "/village/*",
-          "/o/*"
-        ]
+        "paths": ["NOT /entrar", "NOT /entrar/*", "*"]
       }
     ]
   }
