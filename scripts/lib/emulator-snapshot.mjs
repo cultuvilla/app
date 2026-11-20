@@ -82,13 +82,37 @@ async function setBackgroundTriggers(t, enabled) {
   await call(`http://${t.hub}/functions/${enabled ? 'enable' : 'disable'}BackgroundTriggers`, { method: 'PUT' });
 }
 
+const CLEAR_ATTEMPTS = 3;
+
+/**
+ * Empties the Firestore emulator. Its DELETE can answer HTTP 499 "call already
+ * cancelled" while the app still holds listen streams (ios-e2e 44804913687),
+ * and that status does not say whether the database was cleared. So the clear
+ * is judged by reading the database back, not by the status, and repeated a
+ * few times before it gives up.
+ */
+async function clearDocuments(t) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= CLEAR_ATTEMPTS; attempt++) {
+    try {
+      await call(`http://${t.firestore}/emulator/v1/projects/${t.project}/databases/(default)/documents`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      lastError = error;
+    }
+    const left = (await listDocuments(t)).length;
+    if (left === 0) return;
+    lastError = new Error(`Firestore emulator still holds ${left} documents after clearing`, { cause: lastError });
+  }
+  throw lastError;
+}
+
 /** Puts both emulators back to `snapshot`, exactly. */
 export async function restoreSnapshot(t, snapshot) {
   await setBackgroundTriggers(t, false);
   try {
-    await call(`http://${t.firestore}/emulator/v1/projects/${t.project}/databases/(default)/documents`, {
-      method: 'DELETE',
-    });
+    await clearDocuments(t);
     for (let i = 0; i < snapshot.documents.length; i += BATCH_WRITE_MAX) {
       const writes = snapshot.documents.slice(i, i + BATCH_WRITE_MAX).map((update) => ({ update }));
       await call(`${documentsRoot(t)}:batchWrite`, {

@@ -1,9 +1,9 @@
 # iOS: a JS reload with a fetch in flight crashes the app
 
 **Priority:** high — a native crash (SIGSEGV) instead of a restart, reachable on every iOS sign-out and on the first signed-in launch after a reinstall
-**Landed:** none
-**Gate:** none
-**Next:** confirm the reload trigger with a trace, then make the app's JS reloads safe against in-flight fetches
+**Landed:** dev
+**Gate:** soak:the 3 ios-e2e develop runs from 44826311824 (with #719) upload no Dev-*.ips with `RuntimeScheduler::scheduleTask` or `destroy for JavaScriptPromise`. Before #719 it crashed in 6 of about 8 shard-1 runs, and 1 in about 7 purge reloads, so 3 clean runs is meaningful
+**Next:** read those runs' DiagnosticReports; clean → retire, distilling the cause into a decision record. If the crash recurs, the residual paths are a body read slower than 2 s or a fetch reference captured before startup; then also file the upstream Expo issue (draft in #719's body)
 
 **Goal:** `clearLocalCacheAndRestart()` restarts the JS runtime without ever crashing, whatever requests are in flight.
 
@@ -37,3 +37,7 @@ Pre-approved — "fixing a defect whose correct behaviour is not in dispute — 
 ## Out of scope
 
 Changing when the app signs users out or what the purge removes.
+
+## Outcome so far (2026-11-20)
+
+#719 (5f6e6230, 324aacb6): before `reloadAsync`, the app aborts requests still waiting for headers and awaits open body reads, for at most 2 s. Past that it logs one warn with counts and reloads anyway. The trigger was confirmed in diag run 44811349099 (comment on #719): `purgeRunawayQueueOnce signedIn=true flag=null` on the first launch after a reinstall, then `reloadAsync` at 21:27:03.419. NetInfo's generate_204 request was then cancelled (-999), and the app hit SIGSEGV in `destroy for JavaScriptPromise`. Six other purge reloads in that run did not crash, so it is a race. No Expo patch fixes it as of 56.0.24 / modules-core 56.0.27.
