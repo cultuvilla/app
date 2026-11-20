@@ -7,7 +7,6 @@ import {
   cardImage,
   eventWhen,
   posterTitle,
-  residentsLabel,
   type AmbassadorView,
   type Card,
   type DefinitionView,
@@ -25,29 +24,19 @@ import {
   type VillageHome,
   type WrappedView,
 } from './data';
+import { enumLabel, msg } from './copy';
 import { appCta, type Page } from './document';
 import { html, raw, type Child, type SafeHtml } from './html';
 import type { LegalPage, PublicSection } from './routes';
 import { richText } from './richText';
 import type { AmbassadorForm, AmbassadorFormErrors, AmbassadorFormField } from './ambassadorLead';
 
-// The read site is Spanish-only server output. Enum labels mirror
-// packages/i18n/messages/es.json (news.compose.category, village.admin.places.kind).
-const NEWS_CATEGORY: Readonly<Partial<Record<string, string>>> = {
-  fiesta: 'Fiesta',
-  tradicion: 'Tradición',
-  gastronomia: 'Gastronomía',
-  historia: 'Historia',
-  otro: 'Otro',
-};
-const PLACE_KIND: Readonly<Partial<Record<string, string>>> = {
-  cemetery: 'Cementerio',
-  church: 'Iglesia',
-  hermitage: 'Ermita',
-  plaza: 'Plaza',
-  town_hall: 'Ayuntamiento',
-  otros: 'Otros',
-};
+// The read site is Spanish-only server output. Enum labels the app shares come
+// from its catalog (./copy); these have no catalog entry the web can use —
+// ORG_TYPE's `otros` reads «Entidad» here and «Otros» in the app.
+const NEWS_CATEGORY = 'news.compose.category';
+const PLACE_KIND = 'village.admin.places.kind';
+const TERM_KIND = 'village.vocabulary.kind';
 const BARRIO_KIND: Readonly<Partial<Record<string, string>>> = {
   barrio: 'Barrio',
   pedania: 'Pedanía',
@@ -60,12 +49,6 @@ const ORG_TYPE: Readonly<Partial<Record<string, string>>> = {
   asociación: 'Asociación',
   otros: 'Entidad',
   comisión: COMISION_LABEL,
-};
-const TERM_KIND: Readonly<Partial<Record<string, string>>> = {
-  palabra: 'Palabra',
-  dicho: 'Dicho',
-  mote: 'Mote',
-  toponimo: 'Topónimo',
 };
 const SECTION_TITLE: Readonly<Record<PublicSection, string>> = {
   carteles: 'Carteles de fiestas',
@@ -183,7 +166,7 @@ export function sectionPage(v: Village, data: SectionData): Page {
     case 'vocabulario':
       content = data.terms.length
         ? html`<ul class="list">${data.terms.map(
-            (t) => html`<li><a href="${t.href}">${t.term}</a>${label(TERM_KIND, t.kind) ? html` <span class="meta">· ${label(TERM_KIND, t.kind)}</span>` : null}</li>`,
+            (t) => html`<li><a href="${t.href}">${t.term}</a>${enumLabel(TERM_KIND, t.kind) ? html` <span class="meta">· ${enumLabel(TERM_KIND, t.kind)}</span>` : null}</li>`,
           )}</ul>`
         : html`<p>Todavía no hay palabras.</p>`;
       break;
@@ -248,7 +231,7 @@ export function newsPage(v: Village, n: NewsView, appPath: string): Page {
     return html`<p>${richText(b.rich, ctx)}</p>`;
   });
   const firstText = n.blocks.find((b) => b.type === 'text');
-  const meta = [label(NEWS_CATEGORY, n.category), n.publishedAt ? eventWhen({ start: n.publishedAt, end: null })?.split(',')[0] : null]
+  const meta = [enumLabel(NEWS_CATEGORY, n.category), n.publishedAt ? eventWhen({ start: n.publishedAt, end: null })?.split(',')[0] : null]
     .filter(Boolean)
     .join(' · ');
   return {
@@ -269,7 +252,7 @@ export function newsPage(v: Village, n: NewsView, appPath: string): Page {
 
 export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean, events: Card[]): Page {
   const kind = label(ORG_TYPE, o.type) ?? 'Entidad';
-  const facts = [kind, o.memberCount ? `${String(o.memberCount)} integrantes` : null].filter(Boolean).join(' · ');
+  const facts = [kind, o.memberCount ? msg('organization.membersCount', { count: o.memberCount }) : null].filter(Boolean).join(' · ');
   return {
     head: {
       title: invite ? `Únete a ${o.name}` : o.name,
@@ -284,7 +267,7 @@ export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean
 }
 
 export function placePage(v: Village, p: PlaceView, appPath: string): Page {
-  const kind = label(PLACE_KIND, p.kind);
+  const kind = enumLabel(PLACE_KIND, p.kind);
   return {
     head: {
       title: `${p.name} · ${v.name}`,
@@ -300,7 +283,7 @@ export function barrioPage(v: Village, b: BarrioView, appPath: string): Page {
   const kind = label(BARRIO_KIND, b.kind) ?? 'Barrio';
   return {
     head: { title: `${b.name} · ${v.name}`, description: `${kind} de ${v.name}.`, imageUrl: b.images[0] ?? null },
-    body: html`${backTo(v)}${gallery(b.images, b.name)}<h1>${b.name}</h1><p class="meta">${kind}${b.residentCount ? ` · ${residentsLabel(b.residentCount)}` : ''}</p>${appCta(appPath, '¿Eres de aquí? Únete desde la app')}`,
+    body: html`${backTo(v)}${gallery(b.images, b.name)}<h1>${b.name}</h1><p class="meta">${kind}${b.residentCount ? ` · ${msg('village.admin.barrios.residentCount', { count: b.residentCount })}` : ''}</p>${appCta(appPath, '¿Eres de aquí? Únete desde la app')}`,
   };
 }
 
@@ -325,7 +308,7 @@ export function historyPage(v: Village, h: HistoryView, appPath: string): Page {
 }
 
 export function wordPage(v: Village, term: TermView, definitions: DefinitionView[], appPath: string): Page {
-  const kind = label(TERM_KIND, term.kind) ?? 'Palabra';
+  const kind = enumLabel(TERM_KIND, term.kind) ?? 'Palabra';
   return {
     head: {
       title: `${term.term} · ${v.name}`,
