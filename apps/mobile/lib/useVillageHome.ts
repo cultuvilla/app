@@ -226,10 +226,14 @@ export function useVillageHome(municipalityId: string | null) {
       news: news.data ?? NO_ROWS,
       festivalPosters: posters.data ?? NO_ROWS,
       places: places.data ?? NO_ROWS,
-      // Populated barrios and the biggest orgs first; both counts are
-      // denormalized onto each doc, so this sorts in memory with no extra reads.
+      // The municipal seat leads its section, then populated barrios and the
+      // biggest orgs; both counts are denormalized onto each doc, so this
+      // sorts in memory with no extra reads.
       barrios: [...(barrios.data ?? NO_ROWS)].sort(
-        (a, b) => b.residentCount - a.residentCount || a.name.localeCompare(b.name),
+        (a, b) =>
+          Number(b.isSeat) - Number(a.isSeat) ||
+          b.residentCount - a.residentCount ||
+          a.name.localeCompare(b.name),
       ),
       organizations: [...(orgs.data ?? NO_ROWS)].sort(
         (a, b) => b.memberCount - a.memberCount || a.name.localeCompare(b.name),

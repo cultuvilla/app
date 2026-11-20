@@ -490,7 +490,8 @@
         "name": "Nombre del barrio",
         "residentCount": "{count, plural, one {# vecino} other {# vecinos}}",
         "addImage": "Añadir imagen",
-        "removeImage": "Quitar imagen"
+        "removeImage": "Quitar imagen",
+        "seat": "El pueblo"
       },
       "places": {
         "title": "Lugares",

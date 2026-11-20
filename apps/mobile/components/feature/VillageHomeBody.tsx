@@ -498,9 +498,13 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
                 <EntityCard
                   key={b.id}
                   label={b.name}
-                  sub={t('village.admin.barrios.residentCount', {
-                    count: b.residentCount,
-                  })}
+                  sub={[
+                    b.isSeat ? t('village.admin.barrios.seat') : null,
+                    t('village.admin.barrios.residentCount', { count: b.residentCount }),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  accent={b.isSeat}
                   icon="map-outline"
                   imageUri={b.images[0] ?? null}
                   commentCount={b.commentCount}
