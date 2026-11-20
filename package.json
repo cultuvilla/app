@@ -29,6 +29,7 @@
     "plans:validate": "node scripts/plans-map.js --validate",
     "agent:capacity": "node scripts/agent-capacity.js",
     "agent:dispatch": "bash scripts/agent-dispatch.sh",
+    "agent:reap": "bash scripts/agent-reap.sh",
     "agent:auto-mode": "node scripts/agent-auto-mode.js",
     "app:start": "pnpm --filter cultuvilla-mobile start",
     "app:start:tunnel": "pnpm --filter cultuvilla-mobile start:tunnel",
