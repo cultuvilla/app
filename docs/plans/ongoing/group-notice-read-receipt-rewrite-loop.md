@@ -1,9 +1,9 @@
 # Group notices: stop re-writing a read receipt the rules refuse
 
 **Priority:** medium — a client loop of denied writes (about 1 every 1.3 s while the screen is open) costs battery and writes and floods the error counts; users see nothing
-**Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop, then build it
+**Landed:** dev
+**Gate:** soak:the next ios-e2e run of flow 12 on develop after #718 shows about 0 denied writes on the read receipt
+**Next:** check flow 12's iOS write-stream errors on …/reads/e2e-user, then retire the plan; if denied writes persist, find the caller that bypasses markGroupMessageRead
 
 **Goal:** Mark each aviso read at most once per user, so an existing receipt is never written again.
 

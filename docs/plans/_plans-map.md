@@ -14,7 +14,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [group-notice-read-receipt-rewrite-loop](ongoing/group-notice-read-receipt-rewrite-loop.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [ios-reload-inflight-fetch-crash](ongoing/ios-reload-inflight-fetch-crash.md) | high | none | this cycle | confirm the reload trigger with a trace, then make the app's JS reloads safe against in-flight fetches |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | find the root cause of the iOS ping timeouts, starting with the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings), also covering flows 12 and 15; fix it without app-code workarounds, then add a lasting guard in the lane so a regression shows up on its own |
 
 ## Waiting on release 1.11.0
@@ -43,6 +43,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | dev | this cycle | the first release carrying #683 is live in prod | once prod serves #683, check an admin's Buzón and bell badge show the same requests as before, then retire |
 | [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
 | [firestore-collection-registry](ongoing/firestore-collection-registry.md) | medium | dev | this cycle | the next develop→beta promotion runs Deploy beta's Conformance gate | confirm that Deploy beta run's Conformance gate walked the 11 new subcollections plus config, authEmailRateLimits and authOtpCodes (#714) with no undeclared-root warning, then retire the plan |
+| [group-notice-read-receipt-rewrite-loop](ongoing/group-notice-read-receipt-rewrite-loop.md) | medium | dev | this cycle | the next ios-e2e run of flow 12 on develop after #718 shows about 0 denied writes on the read receipt | check flow 12's iOS write-stream errors on …/reads/e2e-user, then retire the plan; if denied writes persist, find the caller that bypasses markGroupMessageRead |
 | [read-site-shared-list-rules](ongoing/read-site-shared-list-rules.md) | medium | dev | this cycle | the first release carrying #691 is live in prod | once prod serves #691, check a village page lists today's events as upcoming and a one-member group says «1 integrante», then retire (villageHomeWatchers' LISTED_STATUSES copy is folded in by the offline-first follow-up) |
 | [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | dev | this cycle | the first release carrying #694 is live in prod | once prod serves #694, check a hidden vocabulary term shows no delete button to its author, then retire |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | this cycle | the next release Álvaro cuts carries #693, #697, #700, #701, #703 and #704 (live on dev) to prod | once on prod, witness docs/qa/pending/{village-seat-row,osm-attribution,barrio-kind-picker}.md on a device, then retire the plan |

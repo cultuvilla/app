@@ -1,5 +1,6 @@
 // packages/shared/src/services/groupMessageService.ts
 import { doc, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
+import { firebaseErrorCode } from '../firebase/sdk/errors';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
@@ -23,6 +24,7 @@ import {
   type SendGroupMessageResult,
 } from '../models/organization/GroupMessageDataModel';
 import { groupNotifyPrefs, type GroupNotificationPrefsData, type GroupNotifyLevel } from '../models/notification/NotificationPrefsDataModel';
+import { observability } from './observability/observabilityService';
 import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
 
 export type GroupMessage = GroupMessageData & { id: string };
@@ -175,9 +177,47 @@ export function watchMyGroupPollVotes(
   );
 }
 
-/** A recipient opened the message. Written once; rules refuse a second write. */
-export async function markGroupMessageRead(orgId: string, messageId: string, uid: string): Promise<void> {
-  await setDoc(organizationMessageWriteDoc(getDb(), orgId, messageId, 'reads', uid), { readAt: serverTimestamp() });
+/**
+ * The receipts this session has sent or seen refused, by path: the pending
+ * promise while in flight, then a settled one. Rules make a receipt write-once,
+ * and a caller that marks whenever its read list lacks the receipt loops if the
+ * list ever does: each refused rewrite is a pending local write the listener
+ * shows and then rolls back, which re-arms the caller. On iOS (ios-e2e,
+ * 2026-11-20) the aviso screen sent 10+ refused rewrites a second that way.
+ */
+// Keyed by uid too, so another account signed in on the device never inherits
+// one; a receipt stays read for its uid across sign-outs, so nothing to clear.
+const receipts = new Map<string, Promise<void>>();
+
+/**
+ * A recipient opened the message. Written once: a receipt this session has
+ * already written, is writing, or saw the rules refuse (it exists, or the
+ * message is not theirs to mark) is never sent again. Any other failure
+ * rejects, and the next call tries again.
+ */
+export function markGroupMessageRead(orgId: string, messageId: string, uid: string): Promise<void> {
+  const key = `${orgId}/${messageId}/${uid}`;
+  const known = receipts.get(key);
+  if (known) return known;
+  const write = setDoc(organizationMessageWriteDoc(getDb(), orgId, messageId, 'reads', uid), { readAt: serverTimestamp() }).catch(
+    (error: unknown) => {
+      if (firebaseErrorCode(error) === 'permission-denied') {
+        // Usually the receipt already exists (another device, an earlier
+        // install); a refused create — a recipient who left the group — looks
+        // the same. Neither is worth retrying; remembered, so logged once.
+        observability.logger.warn('group message read receipt refused by rules; not retried', {
+          operation: 'markGroupMessageRead',
+          entityKind: 'groupMessage',
+          entityId: messageId,
+        });
+        return;
+      }
+      receipts.delete(key);
+      throw error;
+    },
+  );
+  receipts.set(key, write);
+  return write;
 }
 
 /** One vote per account: a second vote replaces the first. */
