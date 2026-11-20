@@ -36,7 +36,7 @@ import {
   type VocabularyTermWithId,
 } from '@cultuvilla/shared/services/vocabularyService';
 import { pickWordOfTheDay } from '@cultuvilla/shared/utils/wordOfTheDay';
-import { upcomingThenPast } from '@cultuvilla/shared/models/event/EventDataModel';
+import { LISTED_EVENT_STATUSES, upcomingThenPast } from '@cultuvilla/shared/models/event/EventDataModel';
 import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import type { MunicipalityData } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
 import type { BarrioData, PlaceData } from '@cultuvilla/shared/models/municipality';
@@ -142,7 +142,6 @@ const NO_CHROME: Chrome = {
   myCensoAnswers: {},
 };
 
-const LISTED_STATUSES: ['published', 'completed'] = ['published', 'completed'];
 const NEWS_LIMIT = { limit: 10 };
 const NO_ROWS: never[] = [];
 
@@ -177,7 +176,7 @@ export function useVillageHome(municipalityId: string | null) {
   const publicEvents = useWatch<(EventData & { id: string })[]>(
     'villageHome:watchEvents',
     id,
-    id ? (next, error) => watchEventsByMunicipality(id, LISTED_STATUSES, next, error) : null,
+    id ? (next, error) => watchEventsByMunicipality(id, LISTED_EVENT_STATUSES, next, error) : null,
   );
   // Rules do not filter a list, so the private half is one listener per org of
   // the viewer's; losing it must not empty the section.
@@ -185,7 +184,7 @@ export function useVillageHome(municipalityId: string | null) {
   const privateEvents = useWatch<(EventData & { id: string })[]>(
     'villageHome:watchPrivateEvents',
     id ? `${id}|${orgKey}` : null,
-    id ? (next, error) => watchPrivateEventsByMunicipality(id, orgIds, LISTED_STATUSES, next, error) : null,
+    id ? (next, error) => watchPrivateEventsByMunicipality(id, orgIds, LISTED_EVENT_STATUSES, next, error) : null,
   );
   const news = useWatch<(NewsPostData & { id: string })[]>('villageHome:watchNews', id, id ? (next, error) => watchHomeFeed(id, NEWS_LIMIT, next, error) : null);
   const posters = useWatch<FestivalPosterWithId[]>('villageHome:watchFestivalPosters', id, id ? (next, error) => watchFestivalPosters(id, next, error) : null);
