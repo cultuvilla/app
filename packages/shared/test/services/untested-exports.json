@@ -118,7 +118,6 @@
   ],
   "orgJoinRequestService.ts": [
     "cancelOrgJoinRequest",
-    "getPendingOrgJoinRequests",
     "hasPendingOrgJoinRequest"
   ],
   "orgMemberService.ts": [
@@ -134,7 +133,6 @@
   "organizationService.ts": [
     "deleteOrganization",
     "getOrganization",
-    "getPendingOrganizations",
     "newOrganizationId",
     "rejectOrganization",
     "updateOrganization",
