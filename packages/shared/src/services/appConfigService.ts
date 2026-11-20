@@ -1,11 +1,7 @@
-import { doc } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
-import { appVersionConfigConverterClient } from '../firebase/converters/appVersionConfigConverter.client';
+import { appVersionConfigDoc } from '../firebase/refs/client';
 import type { AppVersionConfig } from '../models/config';
 import { watchDoc, type Unwatch, type WatchError } from './watch';
-
-const CONFIG_COLLECTION = 'config';
-const APP_VERSION_DOC = 'appVersion';
 
 /**
  * Live min/latest version config: `null` when the doc is missing, `onError` on
@@ -21,8 +17,5 @@ export function watchAppVersionConfig(
   onNext: (config: AppVersionConfig | null) => void,
   onError: WatchError,
 ): Unwatch {
-  const ref = doc(getDb(), CONFIG_COLLECTION, APP_VERSION_DOC).withConverter(
-    appVersionConfigConverterClient,
-  );
-  return watchDoc(ref, onNext, onError);
+  return watchDoc(appVersionConfigDoc(getDb()), onNext, onError);
 }

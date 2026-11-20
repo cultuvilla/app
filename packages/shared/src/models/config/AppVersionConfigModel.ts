@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+/** `config/appVersion` — the force-update gate's one doc. */
+export const APP_VERSION_CONFIG_DOC_ID = 'appVersion';
+
 const PlatformVersionsSchema = z.object({
   minSupported: z.string(),
   latest: z.string(),

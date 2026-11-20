@@ -79,6 +79,27 @@ describe('verifyAuthOtpCode (callable)', () => {
     ).rejects.toMatchObject({ code: 'invalid-argument' });
   });
 
+  // The expiry is read back as a Date through the typed ref; the right code is
+  // refused after it and accepted before it, and an expired try costs no attempt.
+  it('refuses the right code once expired without spending an attempt', async () => {
+    await seedCode('gina@example.com', '444444', {
+      expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+    });
+    await expect(
+      callVerify({ email: 'gina@example.com', code: '444444' }),
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    const doc = await getFirestore().collection('authOtpCodes').doc(bucketIdFor('gina@example.com')).get();
+    expect((doc.data() as { attempts: number }).attempts).toBe(0);
+  });
+
+  it('accepts the right code a minute before it expires', async () => {
+    await seedCode('hugo@example.com', '555555', {
+      expiresAt: Timestamp.fromMillis(Date.now() + 60 * 1000),
+    });
+    const result = await callVerify({ email: 'hugo@example.com', code: '555555' });
+    expect(typeof result.token).toBe('string');
+  });
+
   it('increments attempts on a wrong code and locks out after 5', async () => {
     await seedCode('erin@example.com', '222222');
     for (let i = 0; i < 5; i += 1) {
