@@ -189,8 +189,8 @@ function resetKeychain() {
 // emulator on the macOS runner the SDK's 30 s gRPC keepalive has timed out
 // ("Unavailable: ping timeout"), and the resumed listen then lost a doc just
 // written (docs/plans/ongoing/ios-e2e-emulator-watch-keepalive.md). The count
-// printed on exit is the measure of that, run against run; the full log is
-// uploaded with the Maestro report.
+// printed on exit is the measure of that, run against run; the lines are in
+// firestore-sdk.log, uploaded with the Maestro report.
 const reportDir = path.join(SUITE_DIR, 'report');
 const firestoreLog = path.join(reportDir, 'firestore-sdk.log');
 function captureFirestoreLog() {
@@ -207,7 +207,6 @@ function captureFirestoreLog() {
     const errors = lines.filter((l) => l.includes('Stream error'));
     const pings = errors.filter((l) => l.includes('ping timeout'));
     console.log(`\n[${LABEL}] Firestore SDK stream errors: ${errors.length} (ping timeout: ${pings.length})`);
-    for (const l of errors) console.log(`[${LABEL}]   ${l}`);
   });
 }
 captureFirestoreLog();

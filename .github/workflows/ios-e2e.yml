@@ -202,14 +202,14 @@ jobs:
           fi
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      # Samples load and the busiest processes every 5 s for the rest of the
+      # Samples load and the busiest processes every 10 s for the rest of the
       # job (a background process outlives its step), so a Firestore SDK "ping
       # timeout" (scripts/run-ios-e2e.mjs counts them) can be read against
       # what the runner was doing at that moment.
       - name: Sample runner load
         run: |
           mkdir -p apps/mobile/e2e/native/report
-          (while sleep 5; do
+          (while sleep 10; do
             echo "== $(date -u +%H:%M:%S) load $(sysctl -n vm.loadavg) swap $(sysctl -n vm.swapusage)"
             vm_stat | grep -E 'Pageouts|Swapins|Swapouts' | tr -s ' ' | paste -sd ' ' -
             ps -Ao pid,pcpu,rss,nice,ucomm -r | head -n 10
