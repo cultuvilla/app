@@ -8,13 +8,12 @@ Current cycle **v1.12.0** (cut 2026-11-12)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · sign-in-account-loss · spanish-settlement-dataset
+> **Not advanced in 2+ cycles:** app-check-rollout · sign-in-account-loss
 
 ## Actionable now
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | none | this cycle | verify the plan against develop, then build it |
 
 ## Waiting on release 1.11.0
@@ -45,6 +44,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [firestore-collection-registry](ongoing/firestore-collection-registry.md) | medium | dev | this cycle | the next develop→beta promotion runs Deploy beta's Conformance gate over the 11 newly gated subcollections | confirm the Conformance gate step in that Deploy beta run walked the new subcollections and passed, then retire the plan (built in #695, 3ad7e234) |
 | [read-site-shared-list-rules](ongoing/read-site-shared-list-rules.md) | medium | dev | this cycle | the first release carrying #691 is live in prod | once prod serves #691, check a village page lists today's events as upcoming and a one-member group says «1 integrante», then retire (villageHomeWatchers' LISTED_STATUSES copy is folded in by the offline-first follow-up) |
 | [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | dev | this cycle | the first release carrying #694 is live in prod | once prod serves #694, check a hidden vocabulary term shows no delete button to its author, then retire |
+| [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | this cycle | the next release Álvaro cuts carries #693, #697, #700, #701, #703 and #704 (live on dev) to prod | once on prod, witness docs/qa/pending/{village-seat-row,osm-attribution,barrio-kind-picker}.md on a device, then retire the plan |
 | [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | dev | this cycle | the next release Álvaro cuts (carrying #689) is live in prod | after that prod deploy, Álvaro curls `https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM`, opens a `/<pueblo>/evento/…` link on an iPhone (Apple's CDN may take a day), and sets the privacy-policy URL `https://cultuvilla.es/legal/privacidad` in App Store Connect (every app-info localization) and the Play console (App content) |
 
 ## Waiting on you
