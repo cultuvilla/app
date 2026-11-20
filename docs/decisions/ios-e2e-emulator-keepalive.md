@@ -32,8 +32,8 @@ The stall came from the client's ping budget. gRPC-Core sends at most two pings
 without data of its own, then holds the next one. A save sends data, so the held
 ping goes out with the write, before the emulator has replied. That is the third
 strike: the emulator drops the connection together with the write. The Simulator
-often missed that close. The write then waited until the SDK's one-minute ping
-timeout gave up on the connection. Android's grpc-java client sees the GOAWAY at
+often missed that close. The write then waited for the next keepalive ping,
+30 s later, and that ping's one-minute timeout: about 90 s in all. Android's grpc-java client sees the GOAWAY at
 once and reconnects, so the same rejection never showed there.
 
 ## Evidence
@@ -41,6 +41,14 @@ once and reconnects, so the same rejection never showed there.
 - **Local reproduction.** `scripts/check-emulator-keepalive.mjs` sends three
   HTTP/2 PINGs to the stock jar. The third is answered with GOAWAY
   `too_many_pings`. With the policy below, all three are acked.
+- **The wire.** A loopback capture of the stock emulator in CI (ios-e2e
+  44763114283, flow 15) shows the whole stall. At 17:03:00.376 the app sends a
+  write and its held keepalive PING in the same burst. At 17:03:01.331 the
+  emulator acks the PING, then sends `GOAWAY ENHANCE_YOUR_CALM too_many_pings`
+  and a FIN. The client never acts on them. Its next keepalive PING, at
+  17:03:31, gets a TCP RST. Sixty seconds after that, at 17:04:34, the SDK logs
+  `ping timeout` on the Watch and Write streams together, then reconnects. The
+  write waited 94 s.
 - **CI timelines.** In 13 runs of flows 12–15, each ~90 s stall started at a
   save tap and ended with `ping timeout` on the Watch and Write streams together:
   `cuota-settings-save` +92–98 s, `task-save` +88–92 s. Flow 15's failure
