@@ -28,8 +28,8 @@
  * start made Maestro's XCTest driver time out; overlapping it with the build
  * halved the build's speed. Run alone, it costs only its own few minutes.
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   MAESTRO,
@@ -185,12 +185,39 @@ function resetKeychain() {
   }
 }
 
+// The Firestore SDK's stream errors, kept for the whole run. Against the
+// emulator on the macOS runner the SDK's 30 s gRPC keepalive has timed out
+// ("Unavailable: ping timeout"), and the resumed listen then lost a doc just
+// written (docs/plans/ongoing/ios-e2e-emulator-watch-keepalive.md). The count
+// printed on exit is the measure of that, run against run; the full log is
+// uploaded with the Maestro report.
+const reportDir = path.join(SUITE_DIR, 'report');
+const firestoreLog = path.join(reportDir, 'firestore-sdk.log');
+function captureFirestoreLog() {
+  mkdirSync(reportDir, { recursive: true });
+  const out = openSync(firestoreLog, 'a');
+  const stream = spawn(
+    'xcrun',
+    ['simctl', 'spawn', device, 'log', 'stream', '--style', 'compact', '--predicate', 'eventMessage CONTAINS "I-FST"'],
+    { stdio: ['ignore', out, out] },
+  );
+  process.on('exit', () => {
+    stream.kill();
+    const lines = readFileSync(firestoreLog, 'utf8').split('\n');
+    const errors = lines.filter((l) => l.includes('Stream error'));
+    const pings = errors.filter((l) => l.includes('ping timeout'));
+    console.log(`\n[${LABEL}] Firestore SDK stream errors: ${errors.length} (ping timeout: ${pings.length})`);
+    for (const l of errors) console.log(`[${LABEL}]   ${l}`);
+  });
+}
+captureFirestoreLog();
+
 await runMaestroSuite({
   label: LABEL,
   device,
   quarantined: QUARANTINED,
   flow,
-  reportDir: path.join(SUITE_DIR, 'report'),
+  reportDir,
   env: IOS_MAESTRO_ENV,
   beforeEachFlow: resetKeychain,
   // One retry, iOS only. The free macOS runner (3 cores) hosts the Simulator,
