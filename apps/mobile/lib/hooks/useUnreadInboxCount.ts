@@ -4,9 +4,9 @@ import { useApproverStatus } from '../auth/useApproverStatus';
 import { useWatch } from './useWatch';
 import { watchUnreadCount } from '@cultuvilla/shared/services/notificationService';
 import {
+  actionableCount,
   actionableScope,
   getActionableRequests,
-  type ActionableKind,
 } from '@cultuvilla/shared/services/inboxService';
 
 export type UseUnreadInboxCountResult = {
@@ -15,16 +15,12 @@ export type UseUnreadInboxCountResult = {
 };
 
 /**
- * The actionable queues the badge counts. Deliberately a subset of what the
- * Buzón lists: join requests, open reports and cosateca requests are not
- * counted. Counting more is a product decision, and a change to this list.
- */
-const BADGE_KINDS: readonly ActionableKind[] = ['organizer', 'orgs'];
-
-/**
- * Badge count for the header bell: unread notifications plus the pending
- * requests in BADGE_KINDS that this user resolves. Which queues a role reads
- * is `actionableScope`'s, the same rule the Buzón uses.
+ * Badge count for the header bell: unread notifications plus every request
+ * the Buzón's *Necesita tu acción* lists for this user (Embajador, new
+ * groups, join requests, open reports). Which queues a role reads is
+ * `actionableScope`'s and how they count is `actionableCount`'s, the same
+ * rules the Buzón uses. Cosateca requests stay out: they are not an
+ * approver's queue (decided 2026-11-20, user).
  *
  * The unread part is a live listener, so it answers offline from the device
  * cache and moves the moment a notification lands or is read. The pending
@@ -62,8 +58,7 @@ export function useUnreadInboxCount(): UseUnreadInboxCountResult {
       try {
         let pendingActionable = 0;
         if (canApprove) {
-          const { organizer, orgs } = await getActionableRequests(scope, BADGE_KINDS);
-          pendingActionable = organizer.length + orgs.length;
+          pendingActionable = actionableCount(await getActionableRequests(scope));
         }
 
         if (!cancelled) setPending(pendingActionable);
