@@ -16,9 +16,16 @@ jest.mock('../../../lib/auth/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+const mockSetUsageAnalytics = jest.fn().mockResolvedValue(undefined);
+let mockAnalyticsAnswer: boolean | null | undefined = null;
+jest.mock('../../../lib/observability/AnalyticsConsentProvider', () => ({
+  useAnalyticsConsent: () => ({ answer: mockAnalyticsAnswer, setUsageAnalytics: mockSetUsageAnalytics }),
+}));
+
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAnalyticsAnswer = null;
     mockUseAuth.mockReturnValue({
       profile: { email: 'ana@test.com', displayName: 'Ana Gil' },
       canChangeEmail: true,
@@ -61,5 +68,31 @@ describe('SettingsScreen', () => {
     fireEvent.press(getByText('settings.changeEmail.label'));
     expect(mockPush).not.toHaveBeenCalled();
     expect(queryByText('settings.changeEmail.googleDisabledHint')).toBeTruthy();
+  });
+
+  describe('Estadísticas de uso switch', () => {
+    it('is off for an account that never answered, and turning it on records a yes', () => {
+      const { getByTestId } = render(<SettingsScreen />);
+      const toggle = getByTestId('settings-usage-analytics');
+      expect(toggle.props.accessibilityState).toMatchObject({ checked: false });
+      fireEvent.press(toggle);
+      expect(mockSetUsageAnalytics).toHaveBeenCalledWith(true);
+    });
+
+    it('shows a yes as on, and turning it off records a no', () => {
+      mockAnalyticsAnswer = true;
+      const { getByTestId } = render(<SettingsScreen />);
+      const toggle = getByTestId('settings-usage-analytics');
+      expect(toggle.props.accessibilityState).toMatchObject({ checked: true });
+      fireEvent.press(toggle);
+      expect(mockSetUsageAnalytics).toHaveBeenCalledWith(false);
+    });
+
+    it('cannot be flipped while the answer is still loading', () => {
+      mockAnalyticsAnswer = undefined;
+      const { getByTestId } = render(<SettingsScreen />);
+      fireEvent.press(getByTestId('settings-usage-analytics'));
+      expect(mockSetUsageAnalytics).not.toHaveBeenCalled();
+    });
   });
 });

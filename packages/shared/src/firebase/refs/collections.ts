@@ -54,6 +54,7 @@ import { PersonDataSchema } from '../../models/person/PersonDataModel';
 import { UserDataSchema } from '../../models/user/UserDataModel';
 import { PublicProfileDataSchema } from '../../models/user/PublicProfileDataModel';
 import { BlockedUserDataSchema } from '../../models/user/BlockedUserDataModel';
+import { PrivacySettingsDataSchema } from '../../models/user/PrivacySettingsDataModel';
 import { NotificationDataSchema } from '../../models/notification/NotificationDataModel';
 import { DeviceTokenDataSchema } from '../../models/notification/DeviceTokenDataModel';
 import { GroupNotificationPrefsDataSchema, NotificationPrefsDataSchema } from '../../models/notification/NotificationPrefsDataModel';
@@ -172,6 +173,8 @@ export const COLLECTIONS = {
   userNotificationSettings: def('users/{userId}/notificationSettings', NotificationSettingsDataSchema),
   userGroupPrefs: def('users/{userId}/groupPrefs', GroupNotificationPrefsDataSchema),
   userBlockedUsers: def('users/{userId}/blockedUsers', BlockedUserDataSchema),
+  // Rules admit exactly one doc here (`account`); absent means "not asked yet".
+  userPrivacySettings: def('users/{userId}/privacySettings', PrivacySettingsDataSchema),
   pushQueue: serverOnly('pushQueue', PushQueueDataSchema),
 
   // ── Content ──────────────────────────────────────────────────────────────

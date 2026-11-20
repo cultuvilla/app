@@ -51,9 +51,16 @@ why.
   drops any key outside `uid, municipalityId, villageId, role, appVersion,
   platform, route, operation_id` before a payload leaves the port.
 
-- **Consent split.** Analytics is consent-gated (denied-by-default; a minimal
-  `ConsentBar` opt-in). Error/log *diagnosis* flows regardless, on legitimate
-  interest — justified because the app has guest browsing and 14+ minors.
+- **Consent split.** Analytics is consent-gated: denied by default, and granted
+  only for a signed-in account that answered yes to «¿Nos ayudas a mejorar
+  Cultuvilla con estadísticas de uso anónimas?» — asked once in the onboarding
+  form (or a sheet for an account that skipped it), stored at
+  `users/{uid}/privacySettings/account`, changeable under Ajustes → Estadísticas
+  de uso. Guests are never tracked. Error/log *diagnosis* flows regardless, on
+  legitimate interest — justified because the app has guest browsing and 14+
+  minors. (Decided 2026-11-20, Álvaro, replacing an interim where analytics ran
+  for everyone from boot on the strength of the Terms acceptance: the Privacy
+  Policy names usage statistics as consent-based and withdrawable.)
 
 - **Taxonomy as a review gate.** Event names live in `OBSERVABILITY_EVENTS`
   (`<domain>.<action>.<outcome>`); the `observability-conventions` skill is the

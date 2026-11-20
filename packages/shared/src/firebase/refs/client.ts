@@ -20,6 +20,7 @@ import { clientConverter } from '../converters/sdkAdapters.client';
 import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
 import { municipalityPersonDirectoryId } from '../../models/municipality/MunicipalityPersonDataModel';
 import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
+import { PRIVACY_SETTINGS_DOC_ID } from '../../models/user/PrivacySettingsDataModel';
 import { isGeneralChatThread } from '../../models/organization/GroupChatDataModel';
 import {
   COLLECTIONS as C,
@@ -395,6 +396,10 @@ export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
 // Optional: absent means every topic pushes. Supersedes `preferences/notifications`.
 export const userNotificationSettingsDoc = (db: Firestore, userId: string) =>
   typedDoc(db, C.userNotificationSettings, userId, NOTIFICATION_SETTINGS_DOC_ID);
+
+// Optional: absent means the account was never asked about usage analytics.
+export const userPrivacySettingsDoc = (db: Firestore, userId: string) =>
+  typedDoc(db, C.userPrivacySettings, userId, PRIVACY_SETTINGS_DOC_ID);
 
 // ── News domain (top-level collections) ──────────────────────────────────
 

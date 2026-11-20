@@ -1366,6 +1366,16 @@ service cloud.firestore {
           && isTimestamp(d.updatedAt);
     }
 
+    // PrivacySettingsData: the account's answer on usage analytics. A full doc
+    // every time — absence means "not asked yet", so a partial doc would be a
+    // third state the app cannot read.
+    function isValidPrivacySettingsWrite(d) {
+      return d.keys().hasOnly(['usageAnalytics', 'updatedAt'])
+          && d.keys().hasAll(['usageAnalytics', 'updatedAt'])
+          && d.usageAnalytics is bool
+          && isTimestamp(d.updatedAt);
+    }
+
     // NotificationSettingsData: the per-topic push switches. Lists of strings,
     // capped like the model (MAX_MUTED_TOPICS / MAX_MUTED_VILLAGES).
     function isValidNotificationSettingsWrite(d) {
@@ -1667,6 +1677,15 @@ service cloud.firestore {
         allow write: if isOwner(userId)
           && settingsId == 'account'
           && isValidNotificationSettingsWrite(request.resource.data);
+      }
+
+      // Usage-analytics consent (PrivacySettingsData). Optional, one doc per
+      // account; only its owner reads or answers it.
+      match /privacySettings/{settingsId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId)
+          && settingsId == 'account'
+          && isValidPrivacySettingsWrite(request.resource.data);
       }
 
       // One group's message pushes muted or not (GroupNotificationPrefsData).

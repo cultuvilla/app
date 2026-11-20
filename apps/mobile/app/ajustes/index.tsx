@@ -11,10 +11,18 @@ import { HStack } from '../../components/primitives/HStack';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
+import { Toggle } from '../../components/primitives/Toggle';
+import { useAnalyticsConsent } from '../../lib/observability/AnalyticsConsentProvider';
+import { showAlert } from '../../lib/dialogs';
 
 export default function SettingsScreen() {
   const { profile, canChangeEmail } = useAuth();
   const { t } = useT();
+  const { answer: analyticsAnswer, setUsageAnalytics } = useAnalyticsConsent();
+
+  function onToggleAnalytics(next: boolean) {
+    setUsageAnalytics(next).catch(() => showAlert(t('settings.analytics.saveError')));
+  }
 
   const changeEmailDisabled = !canChangeEmail;
   const displayName = profile?.displayName ?? '';
@@ -84,6 +92,26 @@ export default function SettingsScreen() {
                 <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
               </HStack>
             </Pressable>
+          </Card>
+        </VStack>
+
+        <VStack gap={2}>
+          <Text variant="caption" tone="muted" className="uppercase">
+            {t('settings.section.privacy')}
+          </Text>
+          <Card variant="flat" className="px-4 py-3">
+            <VStack gap={1}>
+              <Toggle
+                value={analyticsAnswer === true}
+                onValueChange={onToggleAnalytics}
+                disabled={analyticsAnswer === undefined}
+                label={t('settings.analytics.label')}
+                testID="settings-usage-analytics"
+              />
+              <Text variant="caption" tone="muted">
+                {t('settings.analytics.hint')}
+              </Text>
+            </VStack>
           </Card>
         </VStack>
 

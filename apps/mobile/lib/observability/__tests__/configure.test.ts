@@ -1,18 +1,17 @@
 const mockConfigureObservability = jest.fn();
-const mockSetConsent = jest.fn();
 const mockTrackEvent = jest.fn();
+const mockBackendSetConsent = jest.fn();
 const mockSendClientError = jest.fn().mockResolvedValue(undefined);
 const mockAttachGlobalHandlers = jest.fn();
 
 jest.mock('@cultuvilla/shared', () => ({
   configureObservability: (...a: unknown[]) => mockConfigureObservability(...a),
-  observability: { setConsent: (...a: unknown[]) => mockSetConsent(...a) },
   OBSERVABILITY_EVENTS: { APP_EXCEPTION: 'app.exception.thrown' },
 }));
 jest.mock('../analytics', () => ({
   createAnalyticsBackend: () => ({
     trackEvent: mockTrackEvent,
-    setConsent: jest.fn(),
+    setConsent: (...a: unknown[]) => mockBackendSetConsent(...a),
     setUserId: jest.fn(),
   }),
 }));
@@ -29,16 +28,33 @@ jest.mock('../../appVersion', () => ({ getRunningVersion: () => '0.19.0' }));
 import { bootstrapObservability } from '../configure';
 
 describe('bootstrapObservability', () => {
-  it('configures the port and attaches handlers, and captureError double-writes', () => {
+  it('configures the port and attaches handlers without granting analytics', () => {
     bootstrapObservability();
     expect(mockConfigureObservability).toHaveBeenCalledTimes(1);
-    // Analytics consent is granted implicitly via T&C acceptance, not a prompt.
-    expect(mockSetConsent).toHaveBeenCalledWith({ analytics: true });
     expect(mockAttachGlobalHandlers).toHaveBeenCalledTimes(1);
+    // Analytics is opt-in: boot never grants it, for guests or anyone else.
+    expect(mockBackendSetConsent).not.toHaveBeenCalledWith(true);
+  });
+
+  it('reports an error to Cloud Logging always, but the analytics event only with consent', () => {
+    bootstrapObservability();
     const adapter = mockConfigureObservability.mock.calls[0][0];
+
     adapter.captureError(new Error('boom'), { route: '/x' });
     expect(mockSendClientError).toHaveBeenCalledTimes(1);
+    expect(mockTrackEvent).not.toHaveBeenCalled();
+
+    adapter.setConsent({ analytics: true });
+    expect(mockBackendSetConsent).toHaveBeenLastCalledWith(true);
+    adapter.captureError(new Error('boom'), { route: '/x' });
+    expect(mockSendClientError).toHaveBeenCalledTimes(2);
     expect(mockTrackEvent).toHaveBeenCalledWith('app.exception.thrown', expect.any(Object), null);
+
+    mockTrackEvent.mockClear();
+    adapter.setConsent({ analytics: false });
+    expect(mockBackendSetConsent).toHaveBeenLastCalledWith(false);
+    adapter.captureError(new Error('boom'), { route: '/x' });
+    expect(mockTrackEvent).not.toHaveBeenCalled();
   });
 
   // A Firestore denial's message is identical whichever rule refused it, so the
