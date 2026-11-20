@@ -1,9 +1,9 @@
 # The read site reuses the app's event order and count copy
 
 **Priority:** medium — one live defect (today's events listed as past on the web) and a plural fix being done twice (PR #679) while «1 integrantes» is still live
-**Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop, then build it
+**Landed:** dev
+**Gate:** soak:the first release carrying #691 is live in prod
+**Next:** once prod serves #691, check a village page lists today's events as upcoming and a one-member group says «1 integrante», then retire (villageHomeWatchers' LISTED_STATUSES copy is folded in by the offline-first follow-up)
 
 **Goal:** make the read site take its event order and its count/label copy from `packages/shared` and `@cultuvilla/i18n`, so a rule fixed for the app is fixed on the web too.
 
