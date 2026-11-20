@@ -223,6 +223,19 @@ jobs:
             ps -Ao pid,pcpu,rss,nice,ucomm -m | sed 1d | head -n 5
           done) > apps/mobile/e2e/native/report/runner-cpu.log 2>&1 &
 
+      # DIAG (w18, not for merge): what the host's network did, to read the
+      # Firestore SDK's "Network connectivity changed" stream errors against.
+      - name: Watch the host network
+        run: |
+          mkdir -p apps/mobile/e2e/native/report
+          (route -n monitor | while IFS= read -r l; do printf '%s %s\n' "$(date -u +%H:%M:%S)" "$l"; done) \
+            > apps/mobile/e2e/native/report/route-monitor.log 2>&1 &
+          (prev=""; while sleep 2; do
+            cur="$(ifconfig -l) | $(scutil --nwi | grep -E 'Network interfaces|flags|reach' | tr -s ' ' | paste -sd ' ' -)"
+            [ "$cur" != "$prev" ] && echo "$(date -u +%H:%M:%S) $cur"
+            prev="$cur"
+          done) > apps/mobile/e2e/native/report/host-network.log 2>&1 &
+
       # The exact command a developer runs locally on a Mac: boots the Firebase
       # emulators, seeds the deterministic E2E fixtures, then the runner installs
       # E2E_IOS_APP and runs this shard's flows.
@@ -258,6 +271,11 @@ jobs:
             --predicate 'process == "runningboardd" OR process == "SpringBoard"' 2>/dev/null \
             | grep -iE 'cultuvilla|jetsam|terminat|watchdog|8badf00d|memory' \
             > apps/mobile/e2e/native/report/sim-terminations.log || true
+          # DIAG (w18): the app's own network-path and reachability log lines.
+          xcrun simctl spawn "$udid" log show --last 3h --style compact --info --debug \
+            --predicate 'process == "Dev" AND (subsystem BEGINSWITH "com.apple.network" OR subsystem == "com.apple.SystemConfiguration" OR eventMessage CONTAINS[c] "reachab" OR eventMessage CONTAINS[c] "connectivity")' 2>/dev/null \
+            | grep -iE 'path|satisf|reachab|interface|connectivity|nw_' | tail -n 50000 \
+            > apps/mobile/e2e/native/report/sim-network.log || true
 
       # always(), not !cancelled(): a timeout cancels the job, and the
       # screenshots of a run that timed out are exactly the ones needed. The
