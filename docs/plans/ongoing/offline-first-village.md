@@ -2,8 +2,8 @@
 
 **Priority:** high — the main reason the app feels slow
 **Landed:** prod
-**Gate:** none
-**Next:** layer 3 (village sync) — warm the cache for the user's villages on launch and foreground
+**Gate:** soak:the next release Álvaro cuts carries layer 3 (village sync, #692 + #698, live on dev) to prod
+**Next:** once layer 3 is on prod, witness docs/qa/pending/pueblos-sin-conexion.md on a device, then retire the plan (bundle/delta optimisation stays a later idea, not this plan)
 
 ## Goal
 
