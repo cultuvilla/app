@@ -1863,7 +1863,7 @@
         },
         "avisos": {
           "label": "Avisos públicos",
-          "hint": "Cada socio ve todos los avisos de la junta, también los enviados solo a algunos, y los resultados de las votaciones. Nunca quién los ha leído ni quién votó qué."
+          "hint": "Cada socio ve todos los avisos de la junta a los socios, también los enviados solo a algunos, y los resultados de las votaciones. Nunca los avisos solo para la junta, quién los ha leído ni quién votó qué."
         },
         "cuentas": {
           "label": "Cuentas públicas",
