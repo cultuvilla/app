@@ -12,6 +12,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { emulatorTargets, restoreSnapshot, takeSnapshot } from './emulator-snapshot.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const SUITE_DIR = path.join(ROOT, 'apps', 'mobile', 'e2e', 'native');
@@ -116,8 +117,11 @@ export function run(label, cmd, args, opts = {}) {
  *
  * `flow` optionally narrows the run to some flows — see `selectFlows`.
  * `shard` (`i/N`) runs this machine's slice of them — see `shardFlows`.
- * `retries` re-runs a failed flow from a clean start that many times; one that
- * passes only on a retry is reported as FLAKY by name, never silently.
+ * `retries` re-runs a failed flow that many times; one that passes only on a
+ * retry is reported as FLAKY by name, never silently. Each retry starts from the
+ * emulator data the first attempt started from (scripts/lib/emulator-snapshot.mjs),
+ * never from what the failed attempt left; without the emulators to restore,
+ * there is no retry.
  * `beforeEachFlow` runs before every flow: platform-specific state that
  * Maestro's `clearState` does not reach. Leftover backend docs are reset for
  * every platform here.
@@ -144,13 +148,20 @@ export async function runMaestroSuite({
 
   const failed = [];
   const flaky = [];
+  const emulators = retries > 0 ? emulatorTargets() : null;
+  if (retries > 0 && !emulators) {
+    console.warn(`[${label}] !! no emulators to restore between attempts, so a failed flow is not retried`);
+  }
   for (const name of flows) {
     let status = 1;
-    for (let attempt = 1; attempt <= 1 + retries && status !== 0; attempt++) {
+    let start = null;
+    for (let attempt = 1; attempt <= 1 + (emulators ? retries : 0) && status !== 0; attempt++) {
       const retry = attempt > 1 ? ` (retry ${attempt - 1}/${retries})` : '';
       console.log(`\n[${label}] ─── ${name}${retry} ───`);
       await beforeEachFlow(name);
+      if (attempt > 1) await restoreAttemptStart(label, emulators, start);
       await deleteLeftoverDocs(label);
+      if (emulators && attempt === 1) start = await takeSnapshot(emulators);
       status = run(
         label,
         MAESTRO,
@@ -188,6 +199,15 @@ export async function runMaestroSuite({
   }
   console.log(`\n[${label}] all ${flows.length} flow(s) passed${quarantineNote}${flakyNote}`);
   process.exit(0);
+}
+
+async function restoreAttemptStart(label, emulators, start) {
+  const began = Date.now();
+  await restoreSnapshot(emulators, start);
+  console.log(
+    `[${label}] emulator data restored to this flow's start (${start.documents.length} docs, ` +
+      `${start.accounts.length} accounts) in ${Date.now() - began} ms`,
+  );
 }
 
 /**

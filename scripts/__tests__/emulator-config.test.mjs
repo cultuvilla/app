@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import {
   declaredSecrets,
   emulatorHostEnv,
+  emulatorHubPort,
   emulatorPorts,
   ensureEmulatorSecrets,
   resolveEmulatorConfig,
@@ -63,6 +64,15 @@ test('the test processes are pointed at the same ports the emulators bind', () =
     FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:20119',
     FIREBASE_FUNCTIONS_EMULATOR_HOST: '127.0.0.1:20101',
   });
+});
+
+test('the hub is named for the test processes too: the slot port, else the CLI default', () => {
+  assert.equal(emulatorHubPort({ emulators: { hub: { port: 20150 } } }), 20150);
+  assert.equal(emulatorHubPort({ emulators: {} }), 4400);
+  assert.equal(
+    emulatorHostEnv({ auth: 1, firestore: 2, functions: 3, storage: 4 }, 20150).FIREBASE_EMULATOR_HUB,
+    '127.0.0.1:20150',
+  );
 });
 
 test('a config missing an emulator port is an error, not a silent default', () => {

@@ -38,7 +38,13 @@ import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { emulatorHostEnv, emulatorPorts, ensureEmulatorSecrets, resolveEmulatorConfig } from './lib/emulator-config.mjs';
+import {
+  emulatorHostEnv,
+  emulatorHubPort,
+  emulatorPorts,
+  ensureEmulatorSecrets,
+  resolveEmulatorConfig,
+} from './lib/emulator-config.mjs';
 import { KEEPALIVE_POLICY_LINE, emulatorKeepaliveJavaOptions, keepaliveApiMismatch } from './lib/emulator-keepalive.mjs';
 import { probeKeepalive } from './check-emulator-keepalive.mjs';
 
@@ -105,7 +111,7 @@ if (libIsStale()) {
 
 const emulatorEnv = {
   ...process.env,
-  ...emulatorHostEnv(PORTS_BY_SERVICE),
+  ...emulatorHostEnv(PORTS_BY_SERVICE, emulatorHubPort(emulatorConfig.config)),
   GCLOUD_PROJECT: TEST_PROJECT_ID,
   TEST_PROJECT_ID,
   VITEST_RETRY_COUNT: process.env.VITEST_RETRY_COUNT ?? '1',
