@@ -12,9 +12,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 ## Actionable now
 
-| Plan | Pri | Landed | Advanced | Next |
-|---|---|---|---|---|
-| [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | none | this cycle | verify the plan against develop, then build it |
+_None._
 
 ## Waiting on release 1.11.0
 
@@ -52,6 +50,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
 | [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 33 cycles ago \* | start Stage 1 now? It adds the native App Check module, which changes the app's fingerprint, so the next OTA stops reaching installed binaries until a new store build ships; AGENTS.md also says to leave the seam untouched unless explicitly asked | — |
+| [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | the ping timeouts track an overloaded 3-core macOS runner (load peaks ~400, ~2 GB swap; 8 runs in #710 ruled out emulator GC, CPU priority, jar version, apsd) — pay for a larger macOS runner, or try a test-build-only keepalive workaround? | apply the decision and measure with #710's `Firestore SDK stream errors` count and artifacts; only at ~0 and stable flow 13 remove flow 13's re-sign-in fallback and FLOW_TIMEOUT_OVERRIDES_MS (flows 12 and 15 also fail on iOS separately) |
 
 ## Blocked
 
