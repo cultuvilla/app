@@ -43,13 +43,15 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   getMunicipality: async (id: string) =>
     ({ m1: { name: 'Anaya', slug: 'anaya' }, m2: { name: 'Pedraza', slug: 'pedraza' } })[id] ?? null,
 }));
+let mockPendingOrganizer: unknown[] = [];
+let mockPendingOrgs: unknown[] = [];
 jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
-  getPendingOrganizerRequests: async () => [],
+  getPendingOrganizerRequests: async () => mockPendingOrganizer,
   respondToOrganizerRequest: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/personService', () => ({ getPersonByUserId: async () => null }));
 jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getPendingOrganizations: async () => [],
+  getPendingOrganizations: async () => mockPendingOrgs,
   getOrganizationsByMunicipality: async () => [],
   getOrganization: async () => null,
   approveOrganization: jest.fn(),
@@ -60,7 +62,10 @@ jest.mock('@cultuvilla/shared/services/notificationService', () => ({
   markAllAsRead: async () => undefined,
 }));
 let mockActivity: unknown[] = [];
+// The actionable queues come from the real getActionableRequests, over the
+// service mocks above and below.
 jest.mock('@cultuvilla/shared/services/inboxService', () => ({
+  ...jest.requireActual('@cultuvilla/shared/services/inboxService'),
   getMyPendingRequests: async () => [],
   buildActivityFeed: () => mockActivity,
 }));
@@ -184,5 +189,31 @@ describe('Buzón — the cosateca', () => {
     mockActivity = [{ kind: 'pending-sent', id: 'r2', requestType: 'cosa', label: 'Carpa', createdAt: new Date() }];
     const { findByText } = render(<InboxScreen />);
     expect(await findByText('Pediste «Carpa»')).toBeTruthy();
+  });
+});
+
+describe('Buzón — requests an app admin approves', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApprover = { loading: false, isSuperAdmin: true, adminVillageIds: [], adminOrgIds: [], canApprove: true };
+    mockGetOpenReports.mockResolvedValue([]);
+    mockActivity = [];
+    mockCosaRows = [];
+    mockPendingOrganizer = [{ id: 'req1', userId: 'u7', municipalityId: 'm2', motivation: '' }];
+    mockPendingOrgs = [{ id: 'org1', name: 'Peña El Trago', type: 'peña', municipalityId: 'm1' }];
+  });
+
+  afterEach(() => {
+    mockPendingOrganizer = [];
+    mockPendingOrgs = [];
+  });
+
+  it('lists an organizer request and an org to approve, with their village names', async () => {
+    const { findByTestId, getByText } = render(<InboxScreen />);
+
+    expect(await findByTestId('approve-organizer-req1')).toBeTruthy();
+    expect(await findByTestId('approve-org-org1')).toBeTruthy();
+    await waitFor(() => expect(getByText('Pedraza')).toBeTruthy());
+    expect(getByText('Anaya')).toBeTruthy();
   });
 });

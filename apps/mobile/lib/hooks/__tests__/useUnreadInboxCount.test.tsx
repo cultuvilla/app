@@ -32,10 +32,24 @@ jest.mock('@cultuvilla/shared/services/organizationService', () => ({
     mockGetOrganizationsByMunicipality(municipalityId, status),
 }));
 
+// inboxService runs for real: the badge's reads are its `getActionableRequests`.
+const mockGetPendingOrgJoinRequests = jest.fn();
+jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
+  getPendingOrgJoinRequests: (orgId: string) => mockGetPendingOrgJoinRequests(orgId),
+}));
+const mockGetOpenReports = jest.fn();
+const mockGetReportsByMunicipality = jest.fn();
+jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
+  getOpenReports: () => mockGetOpenReports(),
+  getReportsByMunicipality: (municipalityId: string) => mockGetReportsByMunicipality(municipalityId),
+}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({}));
+
 const NOT_APPROVER = {
   loading: false,
   isSuperAdmin: false,
   adminVillageIds: [] as string[],
+  adminOrgIds: [] as string[],
   canApprove: false,
 };
 
@@ -72,6 +86,7 @@ describe('useUnreadInboxCount', () => {
       loading: false,
       isSuperAdmin: true,
       adminVillageIds: [],
+      adminOrgIds: [],
       canApprove: true,
     });
     mockGetPendingOrganizerRequests.mockResolvedValue([{ id: 'o1' }]);
@@ -87,6 +102,7 @@ describe('useUnreadInboxCount', () => {
       loading: false,
       isSuperAdmin: false,
       adminVillageIds: ['v1', 'v2'],
+      adminOrgIds: [],
       canApprove: true,
     });
     mockGetOrganizationsByMunicipality.mockImplementation((vid: string) =>
@@ -97,6 +113,37 @@ describe('useUnreadInboxCount', () => {
     await waitFor(() => expect(result.current.count).toBe(1 + 1));
     expect(mockGetOrganizationsByMunicipality).toHaveBeenCalledWith('v1', 'pending');
     expect(mockGetOrganizationsByMunicipality).toHaveBeenCalledWith('v2', 'pending');
+  });
+
+  // The subset is deliberate (BADGE_KINDS): the Buzón lists more than the bell counts.
+  it('counts only organizer and org-creation requests, never joins or reports', async () => {
+    setWatched('unread', 0);
+    mockUseApproverStatus.mockReturnValue({
+      loading: false,
+      isSuperAdmin: true,
+      adminVillageIds: ['v1'],
+      adminOrgIds: ['o1'],
+      canApprove: true,
+    });
+    mockGetPendingOrganizerRequests.mockResolvedValue([{ id: 'o1' }]);
+    mockGetPendingOrganizations.mockResolvedValue([{ id: 'org1' }]);
+
+    const { result } = renderHook(() => useUnreadInboxCount());
+    await waitFor(() => expect(result.current.count).toBe(2));
+    expect(mockGetPendingOrgJoinRequests).not.toHaveBeenCalled();
+    expect(mockGetOpenReports).not.toHaveBeenCalled();
+    expect(mockGetReportsByMunicipality).not.toHaveBeenCalled();
+  });
+
+  it('org admin only: counts just unread, with no request reads', async () => {
+    setWatched('unread', 1);
+    mockUseApproverStatus.mockReturnValue({ ...NOT_APPROVER, adminOrgIds: ['o1'], canApprove: true });
+
+    const { result } = renderHook(() => useUnreadInboxCount());
+    await waitFor(() => expect(result.current.count).toBe(1));
+    expect(mockGetPendingOrgJoinRequests).not.toHaveBeenCalled();
+    expect(mockGetPendingOrganizations).not.toHaveBeenCalled();
+    expect(mockGetOrganizationsByMunicipality).not.toHaveBeenCalled();
   });
 
   it('service failure: falls back to count 0 rather than throwing', async () => {
