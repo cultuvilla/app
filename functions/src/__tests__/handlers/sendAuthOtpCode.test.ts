@@ -5,7 +5,7 @@
 import { createHash } from 'crypto';
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import functionsTestFactory from 'firebase-functions-test';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { bucketIdFor, IP_RATE_LIMIT_MAX_SENDS } from '../../auth/rateLimit';
 
@@ -108,6 +108,44 @@ describe('sendAuthOtpCode (callable)', () => {
     const sixth = await callSend(data);
     expect(sixth.ok).toBe(true);
     expect(sendMock).toHaveBeenCalledTimes(5);
+  });
+
+  // The rate-limit and code docs go through typed refs that read Timestamps
+  // back as Dates; these pin that each window and expiry comparison still
+  // means what it did, and that the stored fields are still Timestamps.
+  describe('stored times', () => {
+    const email = 'carol@example.com';
+    const bucket = () => getFirestore().collection('authEmailRateLimits').doc(bucketIdFor(email));
+
+    it('stores the code doc with Timestamps and a 10-minute expiry', async () => {
+      const before = Date.now();
+      await callSend({ email });
+      const data = (await getFirestore().collection('authOtpCodes').doc(bucketIdFor(email)).get()).data();
+      expect(data?.expiresAt).toBeInstanceOf(Timestamp);
+      expect(data?.createdAt).toBeInstanceOf(Timestamp);
+      const ttl = (data?.expiresAt as Timestamp).toMillis() - (data?.createdAt as Timestamp).toMillis();
+      expect(ttl).toBe(10 * 60 * 1000);
+      expect((data?.createdAt as Timestamp).toMillis()).toBeGreaterThanOrEqual(before);
+      const limit = (await bucket().get()).data();
+      expect(limit?.windowStart).toBeInstanceOf(Timestamp);
+      expect(limit?.count).toBe(1);
+    });
+
+    it('keeps refusing a full bucket whose window is still open', async () => {
+      await bucket().set({ count: 5, windowStart: Timestamp.fromMillis(Date.now() - 14 * 60 * 1000) });
+      await callSend({ email });
+      expect(sendMock).not.toHaveBeenCalled();
+      expect((await bucket().get()).data()?.count).toBe(5);
+    });
+
+    it('opens a fresh window once the old one is past 15 minutes', async () => {
+      await bucket().set({ count: 5, windowStart: Timestamp.fromMillis(Date.now() - 16 * 60 * 1000) });
+      await callSend({ email });
+      expect(sendMock).toHaveBeenCalledTimes(1);
+      const limit = (await bucket().get()).data();
+      expect(limit?.count).toBe(1);
+      expect((limit?.windowStart as Timestamp).toMillis()).toBeGreaterThan(Date.now() - 60 * 1000);
+    });
   });
 
   // Under the Functions emulator there is no Resend key and no mailbox, so the
