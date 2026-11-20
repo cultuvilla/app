@@ -658,6 +658,19 @@ describe('subdivision sections', () => {
     expect(getByLabelText(/^Matamala, (?!El pueblo)/)).toBeTruthy();
   });
 
+  it('mounts only a window of a Vilalba-sized kind, not every card', () => {
+    // Vilalba carries 745 aldeas; rendering every card eagerly would mount 745
+    // images on the home. The row is a horizontal FlatList that windows them.
+    const aldeas = Array.from({ length: 745 }, (_, i) => row(`a${i}`, `Aldea ${i}`, 'aldea'));
+    const { getByText, queryAllByText } = render(
+      <VillageHomeBody data={{ ...base, barrios: aldeas }} reload={jest.fn()} />,
+    );
+    expect(getByText('Aldea 0')).toBeTruthy();
+    const mounted = queryAllByText(/^Aldea \d+$/).length;
+    expect(mounted).toBeGreaterThan(0);
+    expect(mounted).toBeLessThan(745);
+  });
+
   it('hides the sections a village has no rows for', () => {
     // Section returns null when empty, so a Castilian village with only
     // pedanías must not show an empty Parroquias or Aldeas header.
