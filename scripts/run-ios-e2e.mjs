@@ -253,7 +253,7 @@ function captureFirestoreLog() {
   const out = openSync(firestoreLog, 'a');
   const stream = spawn(
     'xcrun',
-    ['simctl', 'spawn', device, 'log', 'stream', '--style', 'compact', '--predicate', 'eventMessage CONTAINS "I-FST"'],
+    ['simctl', 'spawn', device, 'log', 'stream', '--level', 'debug', '--style', 'compact', '--predicate', 'eventMessage CONTAINS "I-FST"'],
     { stdio: ['ignore', out, out] },
   );
   process.on('exit', () => {

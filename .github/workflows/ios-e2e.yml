@@ -223,6 +223,27 @@ jobs:
             ps -Ao pid,pcpu,rss,nice,ucomm -m | sed 1d | head -n 5
           done) > apps/mobile/e2e/native/report/runner-cpu.log 2>&1 &
 
+      - name: DIAG wire capture + emulator thread dumps
+        run: |
+          R=apps/mobile/e2e/native/report
+          mkdir -p $R
+          # Firebase debug logging for every app in the Simulator (global domain survives clearState)
+          udid="$(xcrun simctl list devices booted --json | python3 -c 'import json,sys;d=json.load(sys.stdin)["devices"];print([x["udid"] for v in d.values() for x in v][0])')"
+          xcrun simctl spawn "$udid" defaults write -g /google/firebase/debug_mode -bool YES || true
+          (
+            until pid="$(lsof -nP -iTCP:8080 -sTCP:LISTEN -t 2>/dev/null | head -n1)" && [ -n "$pid" ]; do sleep 2; done
+            sleep 5
+            lsof -nP -a -p "$pid" -iTCP -sTCP:LISTEN > $R/diag-listen.txt 2>&1
+            ports="$(awk 'NR>1{split($9,a,":");print a[length(a)]}' $R/diag-listen.txt | sort -u | grep -v '^8080$' | grep -v '^9150$')"
+            filter="tcp port 8080"; for p in $ports; do filter="$filter or tcp port $p"; done
+            echo "pid=$pid filter=$filter" >> $R/diag-listen.txt
+            sudo tcpdump -i lo0 -s 0 -U -w $R/diag-lo0.pcap "$filter" > $R/diag-tcpdump.log 2>&1 &
+            while kill -0 "$pid" 2>/dev/null; do
+              { echo "=== $(date -u +%H:%M:%S.%N)"; jcmd "$pid" Thread.print 2>&1; } >> $R/diag-threads.txt
+              sleep 10
+            done
+          ) > $R/diag-bg.log 2>&1 &
+
       # The exact command a developer runs locally on a Mac: boots the Firebase
       # emulators, seeds the deterministic E2E fixtures, then the runner installs
       # E2E_IOS_APP and runs this shard's flows.
@@ -240,6 +261,14 @@ jobs:
 
       # always(), not !cancelled(): a timeout cancels the job, and the
       # screenshots of a run that timed out are exactly the ones needed.
+      - name: DIAG compress
+        if: ${{ always() }}
+        run: |
+          sudo pkill tcpdump || true; sleep 2
+          sudo chmod a+r apps/mobile/e2e/native/report/* || true
+          gzip -f apps/mobile/e2e/native/report/diag-lo0.pcap apps/mobile/e2e/native/report/diag-threads.txt || true
+          ls -la apps/mobile/e2e/native/report/
+
       - name: Upload Maestro artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -249,5 +278,6 @@ jobs:
             apps/mobile/e2e/native/report/
             ~/.maestro/tests/
             firestore-debug.log
+            firebase-debug.log
           if-no-files-found: ignore
           retention-days: 7
