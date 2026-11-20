@@ -311,28 +311,17 @@ export async function updateEvent(
   // Keep the derived feed key in sync: a stale endBoundary would silently hide
   // (or wrongly surface) the event. It derives from both dates, so a patch that
   // carries only one of them reads the other from the stored event.
-  const ref = doc(getDb(), 'events', eventId);
   const patchesStart = data.startDate instanceof Date;
   const patchesEnd = 'endDate' in data;
   if (patchesStart || patchesEnd) {
-    const stored = patchesStart && patchesEnd ? null : await storedEventDates(ref);
+    const stored = patchesStart && patchesEnd ? null : (await getDoc(eventDoc(getDb(), eventId))).data();
     const startDate = data.startDate instanceof Date ? data.startDate : stored?.startDate;
     const endDate = patchesEnd ? (data.endDate ?? null) : (stored?.endDate ?? null);
     if (startDate) {
       updates['endBoundary'] = Timestamp.fromDate(eventEndBoundary({ startDate, endDate }));
     }
   }
-  await updateDoc(ref, updates);
-}
-
-// Raw (unconverted) read: only the two dates are needed, and they arrive as
-// Timestamps.
-async function storedEventDates(
-  ref: ReturnType<typeof doc>,
-): Promise<{ startDate?: Date; endDate: Date | null }> {
-  const snap = await getDoc(ref);
-  const raw = snap.data() as { startDate?: Timestamp; endDate?: Timestamp | null } | undefined;
-  return { startDate: raw?.startDate?.toDate(), endDate: raw?.endDate?.toDate() ?? null };
+  await updateDoc(doc(getDb(), 'events', eventId), updates);
 }
 
 export async function updateEventStatus(eventId: string, status: EventStatus): Promise<void> {

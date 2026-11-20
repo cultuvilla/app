@@ -39,13 +39,14 @@ describe('updateEvent', () => {
   });
 
   // A patch carrying one date must not forget the other: endBoundary is always
-  // the boundary of the dates the event has after the write.
+  // the boundary of the dates the event has after the write. The stored dates
+  // are Dates here because the read goes through the event converter.
   it('keeps the stored later endDate when only startDate is patched', async () => {
     const storedEnd = new Date('2026-08-20T02:00:00Z');
     fakeStore()['events/e1'] = {
       title: 'Fiesta',
-      startDate: { toDate: () => new Date('2026-08-15T18:00:00Z'), _isTimestamp: true },
-      endDate: { toDate: () => storedEnd, _isTimestamp: true },
+      startDate: new Date('2026-08-15T18:00:00Z'),
+      endDate: storedEnd,
     };
     await updateEvent('e1', { startDate: new Date('2026-08-14T18:00:00Z') });
     expect(asDate(fakeStore()['events/e1']['endBoundary'])).toEqual(storedEnd);
@@ -54,7 +55,7 @@ describe('updateEvent', () => {
   it('recomputes endBoundary when only endDate is patched', async () => {
     fakeStore()['events/e1'] = {
       title: 'Fiesta',
-      startDate: { toDate: () => new Date('2026-08-14T18:00:00Z'), _isTimestamp: true },
+      startDate: new Date('2026-08-14T18:00:00Z'),
       endDate: null,
       endBoundary: 'stale',
     };
@@ -67,8 +68,8 @@ describe('updateEvent', () => {
     const storedStart = new Date('2026-08-14T18:00:00Z');
     fakeStore()['events/e1'] = {
       title: 'Fiesta',
-      startDate: { toDate: () => storedStart, _isTimestamp: true },
-      endDate: { toDate: () => new Date('2026-08-16T02:00:00Z'), _isTimestamp: true },
+      startDate: storedStart,
+      endDate: new Date('2026-08-16T02:00:00Z'),
     };
     await updateEvent('e1', { endDate: null });
     expect(asDate(fakeStore()['events/e1']['endBoundary'])).toEqual(storedStart);
