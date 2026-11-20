@@ -8,13 +8,12 @@ Current cycle **v1.12.0** (cut 2026-11-12)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · offline-first-village · sign-in-account-loss · spanish-settlement-dataset
+> **Not advanced in 2+ cycles:** app-check-rollout · sign-in-account-loss · spanish-settlement-dataset
 
 ## Actionable now
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | prod | 5 cycles ago \* | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
 | [buzon-badge-counts-all-actions](ongoing/buzon-badge-counts-all-actions.md) | medium | none | this cycle | verify the plan against develop (buzon-inbox-model landed in #683), then build it |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | none | this cycle | verify the plan against develop, then build it |
@@ -40,6 +39,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [comision-de-festejos-type](ongoing/comision-de-festejos-type.md) | medium | dev | 1 cycle ago | both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`) | after that release is live in prod, retire this plan |
 | [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | 1 cycle ago | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote with the next release (all four phases are on develop) |
+| [offline-first-village](ongoing/offline-first-village.md) | high | prod | this cycle | the next release Álvaro cuts carries layer 3 (village sync, #692 + #698, live on dev) to prod | once layer 3 is on prod, witness docs/qa/pending/pueblos-sin-conexion.md on a device, then retire the plan (bundle/delta optimisation stays a later idea, not this plan) |
 | [auth-session-state-machine](ongoing/auth-session-state-machine.md) | medium | dev | this cycle | the first release carrying #690 is live in prod | once a release carrying #690 is live in prod, confirm sign-in, sign-out and an abandoned sign-up behave (no stray account deletes in logs), then retire this plan |
 | [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | dev | this cycle | the first release carrying #683 is live in prod | once prod serves #683, check an admin's Buzón and bell badge show the same requests as before, then retire |
 | [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
