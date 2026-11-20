@@ -34,6 +34,8 @@
   "admin-report-text-*": "unit-tested: components/feature/__tests__/AdminReports.test.tsx",
   "admin-report-village-*": "unit-tested: components/feature/__tests__/AdminReports.test.tsx",
   "agreement-*": "unit-tested: components/feature/groups/__tests__/MyActas.test.tsx",
+  "analytics-consent-sheet": "unit-tested: lib/observability/__tests__/AnalyticsConsentProvider.test.tsx",
+  "analytics-consent-yes": "unit-tested: app/(onboarding)/__tests__/completar-perfil.test.tsx",
   "apply-template-save": "unit-tested: components/feature/groups/__tests__/GroupTasks.test.tsx",
   "apply-template-sheet": "unit-tested: components/feature/groups/__tests__/GroupTasks.test.tsx",
   "apply-template-target": "unit-tested: components/feature/groups/__tests__/GroupTasks.test.tsx",

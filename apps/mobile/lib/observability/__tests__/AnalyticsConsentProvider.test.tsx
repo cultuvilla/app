@@ -35,7 +35,7 @@ jest.mock('../../../components/feature/AnalyticsConsentSheet', () => {
       onDismiss: () => void;
     }) =>
       visible ? (
-        <View testID="sheet">
+        <View testID="analytics-consent-sheet">
           <RNText onPress={() => onAnswer(true)}>yes</RNText>
           <RNText onPress={() => onAnswer(false)}>no</RNText>
           <RNText onPress={onDismiss}>close</RNText>
@@ -73,7 +73,7 @@ describe('AnalyticsConsentProvider', () => {
     expect(lastConsent()).toEqual({ analytics: false });
     expect(setConsent).not.toHaveBeenCalledWith({ analytics: true });
     expect(watchPrivacySettings).not.toHaveBeenCalled();
-    expect(queryByTestId('sheet')).toBeNull();
+    expect(queryByTestId('analytics-consent-sheet')).toBeNull();
   });
 
   it('keeps analytics off while the answer loads, and for an account never asked', () => {
@@ -105,7 +105,7 @@ describe('AnalyticsConsentProvider', () => {
   it('asks an onboarded account that never answered, once, and stores the answer', async () => {
     const { getByTestId, getByText } = render(tree());
     act(() => emit?.(null));
-    expect(getByTestId('sheet')).toBeTruthy();
+    expect(getByTestId('analytics-consent-sheet')).toBeTruthy();
     await act(async () => {
       fireEvent.press(getByText('no'));
     });
@@ -115,21 +115,21 @@ describe('AnalyticsConsentProvider', () => {
   it('never asks an account that already answered', () => {
     const { queryByTestId } = render(tree());
     act(() => emit?.(no));
-    expect(queryByTestId('sheet')).toBeNull();
+    expect(queryByTestId('analytics-consent-sheet')).toBeNull();
   });
 
   it('does not ask during onboarding — the form asks there', () => {
     mockAuth = { user: { uid: 'uid-1' }, profile: null };
     const { queryByTestId } = render(tree());
     act(() => emit?.(null));
-    expect(queryByTestId('sheet')).toBeNull();
+    expect(queryByTestId('analytics-consent-sheet')).toBeNull();
   });
 
   it('closing the sheet without answering stores nothing and hides it for the session', () => {
     const { getByText, queryByTestId } = render(tree());
     act(() => emit?.(null));
     fireEvent.press(getByText('close'));
-    expect(queryByTestId('sheet')).toBeNull();
+    expect(queryByTestId('analytics-consent-sheet')).toBeNull();
     expect(saveUsageAnalyticsConsent).not.toHaveBeenCalled();
     expect(lastConsent()).toEqual({ analytics: false });
   });
