@@ -17,7 +17,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
 | [buzon-badge-counts-all-actions](ongoing/buzon-badge-counts-all-actions.md) | medium | none | this cycle | verify the plan against develop (buzon-inbox-model landed in #683), then build it |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | none | this cycle | verify the plan against develop, then build it |
-| [typed-organization-join-redirect](ongoing/typed-organization-join-redirect.md) | medium | none | this cycle | verify the plan against develop, then build it |
 
 ## Waiting on release 1.11.0
 
