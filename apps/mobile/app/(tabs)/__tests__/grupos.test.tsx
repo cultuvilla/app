@@ -9,6 +9,7 @@ const mockRemember = jest.fn().mockResolvedValue(undefined);
 let mockRemembered: string | null = null;
 let mockUnread = 0;
 let mockNoticesStatus = 'ready';
+let mockReadIds = new Set<string>();
 let mockNotices: { id: string; title: string; body: string; pinned: boolean; signerName: string; sentAt: Date; sentBy: string }[] = [];
 type TaskRow = {
   id: string;
@@ -38,7 +39,7 @@ jest.mock('../../../lib/orgs/lastGroup', () => ({
   rememberLastGroupId: (id: string) => mockRemember(id),
 }));
 jest.mock('../../../lib/orgs/useGroupNotices', () => ({
-  useGroupNotices: () => ({ unreadCount: mockUnread, notices: mockNotices, status: mockNoticesStatus, readsStatus: 'ready', readIds: new Set() }),
+  useGroupNotices: () => ({ unreadCount: mockUnread, notices: mockNotices, status: mockNoticesStatus, readsStatus: 'ready', readIds: mockReadIds }),
 }));
 let mockChatUnread = { generalUnread: false, unreadAvisoIds: new Set<string>() };
 jest.mock('../../../lib/orgs/useGroupChatUnread', () => ({ useGroupChatUnread: () => mockChatUnread }));
@@ -106,6 +107,7 @@ beforeEach(() => {
   mockOpenTasks = [];
   mockNotices = [];
   mockNoticesStatus = 'ready';
+  mockReadIds = new Set();
   mockEvents = [];
   mockCuota = NO_CUOTA;
   mockRemember.mockClear();
@@ -156,6 +158,20 @@ describe('Grupos tab', () => {
     expect(queryByTestId('group-section-cobros')).toBeNull();
     fireEvent.press(getByTestId('group-section-cuota'));
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/cuota');
+  });
+
+  it('marks with a dot each aviso the user has not opened, nor its new comments', async () => {
+    mockGroups = [group('Anduela')];
+    const notice = (id: string) => ({ id, title: id, body: '', pinned: false, signerName: 'La junta', sentAt: new Date(), sentBy: 'x' });
+    mockNotices = [notice('unread'), notice('read'), notice('commented')];
+    mockReadIds = new Set(['read', 'commented']);
+    mockChatUnread = { generalUnread: false, unreadAvisoIds: new Set(['commented']) };
+    const { findByTestId, queryByTestId } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    expect(queryByTestId('group-home-notice-unread-unread')).toBeTruthy();
+    expect(queryByTestId('group-home-notice-read-unread')).toBeNull();
+    expect(queryByTestId('group-home-notice-commented-unread')).toBeTruthy();
+    mockChatUnread = { generalUnread: false, unreadAvisoIds: new Set() };
   });
 
   it('has no button for the avisos its row opens, and counts the new avisos in their row', async () => {

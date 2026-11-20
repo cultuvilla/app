@@ -240,7 +240,14 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
             <RowPlaceholder text={t(notices.status === 'error' ? 'groups.chat.loadError' : 'groups.sections.empty.avisos')} onPress={() => open('avisos')} />
           ) : (
             notices.notices.slice(0, 5).map((m) => (
-              <NoticeCard key={m.id} message={personalizeGroupMessage(m, myValues)} onPress={() => router.push(groupAvisoHref(org.id, m.id))} />
+              <NoticeCard
+                key={m.id}
+                message={personalizeGroupMessage(m, myValues)}
+                unread={
+                  (notices.readsStatus === 'ready' && !notices.readIds.has(m.id) && m.sentBy !== uid) || chat.unreadAvisoIds.has(m.id)
+                }
+                onPress={() => router.push(groupAvisoHref(org.id, m.id))}
+              />
             ))
           )}
         </Section>
