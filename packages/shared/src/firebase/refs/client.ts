@@ -1,82 +1,97 @@
 // packages/shared/src/firebase/refs/client.ts
+//
+// The client SDK's typed refs. Every collection is declared once in
+// ./collections.ts; this file binds those entries to the client SDK (through
+// the ../sdk/firestore seam) under the names the services import.
 // Type-only and erased at runtime: gives declaration emit a portable name for
 // the JS SDK types these refs return (TS2742 through the ../sdk re-export).
 import type {} from 'firebase/firestore';
-import { collection, collectionGroup, doc, type Firestore } from '../sdk/firestore';
-import { eventConverterClient } from '../converters/eventConverter.client';
-import { registrationConverterClient } from '../converters/registrationConverter.client';
-import { municipalityConverterClient } from '../converters/municipalityConverter.client';
-import { barrioConverterClient } from '../converters/barrioConverter.client';
-import { placeConverterClient } from '../converters/placeConverter.client';
-import { villageMemberConverterClient } from '../converters/villageMemberConverter.client';
-import { censoAnswersConverterClient } from '../converters/censoAnswersConverter.client';
+import {
+  collection,
+  collectionGroup,
+  doc,
+  type CollectionReference,
+  type DocumentReference,
+  type Firestore,
+  type FirestoreDataConverter,
+  type Query,
+} from '../sdk/firestore';
+import { clientConverter } from '../converters/sdkAdapters.client';
 import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
+import { municipalityPersonDirectoryId } from '../../models/municipality/MunicipalityPersonDataModel';
 import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
-import { seatTokenConverterClient } from '../converters/seatTokenConverter.client';
-import { registrationEventConverterClient } from '../converters/registrationEventConverter.client';
-import { organizationConverterClient } from '../converters/organizationConverter.client';
-import { orgMemberConverterClient } from '../converters/orgMemberConverter.client';
-import { orgJoinRequestConverterClient } from '../converters/orgJoinRequestConverter.client';
-import {
-  cuotaAssignmentConverterClient,
-  cuotaPaymentConverterClient,
-  cuotaReminderConverterClient,
-  cuotaSettingsConverterClient,
-} from '../converters/cuotaConverter.client';
-import { groupTaskConverterClient, taskTemplateConverterClient } from '../converters/groupTaskConverter.client';
-import { actaConverterClient, ledgerEntryConverterClient } from '../converters/recordsConverter.client';
-import { socioConverterClient, socioPersonaLockConverterClient, socioPrivateConverterClient } from '../converters/socioConverter.client';
-import { organizerRequestConverterClient } from '../converters/organizerRequestConverter.client';
-import { personConverterClient } from '../converters/personConverter.client';
-import { userConverterClient } from '../converters/userConverter.client';
-import { publicProfileConverterClient } from '../converters/publicProfileConverter.client';
-import { notificationConverterClient } from '../converters/notificationConverter.client';
-import { deviceTokenConverterClient } from '../converters/deviceTokenConverter.client';
-import {
-  groupNotificationPrefsConverterClient,
-  notificationPrefsConverterClient,
-  notificationSettingsConverterClient,
-} from '../converters/notificationPrefsConverter.client';
-import {
-  groupMessageConverterClient,
-  groupMessageDeliveryConverterClient,
-  groupMessageReadConverterClient,
-  groupPollVoteConverterClient,
-} from '../converters/groupMessageConverter.client';
-import {
-  groupChatMessageConverterClient,
-  groupChatReadConverterClient,
-  groupChatThreadConverterClient,
-} from '../converters/groupChatConverter.client';
 import { isGeneralChatThread } from '../../models/organization/GroupChatDataModel';
-import { newsPostConverterClient } from '../converters/newsPostConverter.client';
-import { commentConverterClient } from '../converters/commentConverter.client';
-import { occupationConverterClient } from '../converters/occupationConverter.client';
-import { adminConverterClient } from '../converters/adminConverter.client';
-import { membershipEventConverterClient } from '../converters/membershipEventConverter.client';
-import { festivalPosterConverterClient } from '../converters/festivalPosterConverter.client';
-import { villageWrappedConverterClient } from '../converters/villageWrappedConverter.client';
-import { villageRankingConverterClient } from '../converters/villageRankingConverter.client';
-import { municipalityPersonConverterClient } from '../converters/municipalityPersonConverter.client';
-import { contentReportConverterClient } from '../converters/contentReportConverter.client';
-import { blockedUserConverterClient } from '../converters/blockedUserConverter.client';
-import { vocabularyTermConverterClient } from '../converters/vocabularyTermConverter.client';
-import { historyEntryConverterClient } from '../converters/historyEntryConverter.client';
-import { vocabularyDefinitionConverterClient } from '../converters/vocabularyDefinitionConverter.client';
-import { vocabularyWordConverterClient } from '../converters/vocabularyWordConverter.client';
-import { cosaConverterClient, cosaRequestConverterClient, cosaSlotConverterClient } from '../converters/cosatecaConverter.client';
+import {
+  COLLECTIONS as C,
+  collectionId,
+  collectionSegments,
+  type CollectionDef,
+  type ModelOf,
+  type PathParams,
+  type TypedCollectionDef,
+} from './collections';
 
-export const eventsCollection = (db: Firestore) =>
-  collection(db, 'events').withConverter(eventConverterClient);
+// ── Binder ────────────────────────────────────────────────────────────────
+// Server-only entries are rejected at compile time: their type is not a
+// ClientDef.
 
-export const eventDoc = (db: Firestore, eventId: string) =>
-  doc(db, 'events', eventId).withConverter(eventConverterClient);
+type ClientDef = CollectionDef<string, CollectionDef['schema'], false>;
+type DbModel = Record<string, unknown>;
+
+function converterOf<D extends TypedCollectionDef<false>>(def: D) {
+  return clientConverter(def.schema) as unknown as FirestoreDataConverter<ModelOf<D>, DbModel>;
+}
+
+function typedCollection<D extends TypedCollectionDef<false>>(
+  db: Firestore,
+  def: D,
+  ...ids: PathParams<D['path']>
+): CollectionReference<ModelOf<D>, DbModel> {
+  const [first, ...rest] = collectionSegments(def.path, ids);
+  return collection(db, first, ...rest).withConverter(converterOf(def));
+}
+
+function typedDoc<D extends TypedCollectionDef<false>>(
+  db: Firestore,
+  def: D,
+  ...ids: [...PathParams<D['path']>, string]
+): DocumentReference<ModelOf<D>, DbModel> {
+  const docId = ids[ids.length - 1];
+  const [first, ...rest] = collectionSegments(def.path, ids.slice(0, -1));
+  return doc(db, first, ...rest, docId).withConverter(converterOf(def));
+}
+
+function typedGroup<D extends TypedCollectionDef<false>>(db: Firestore, def: D): Query<ModelOf<D>, DbModel> {
+  return collectionGroup(db, collectionId(def.path)).withConverter(converterOf(def));
+}
+
+/**
+ * Unconverted, for writes that stamp `serverTimestamp()`: rules compare it with
+ * `request.time`, and the strict converter refuses the sentinel. The service
+ * validates each payload with its schema first.
+ */
+function rawCollection<D extends ClientDef>(db: Firestore, def: D, ...ids: PathParams<D['path']>) {
+  const [first, ...rest] = collectionSegments(def.path, ids);
+  return collection(db, first, ...rest);
+}
+
+function rawDoc<D extends ClientDef>(db: Firestore, def: D, ...ids: [...PathParams<D['path']>, string]) {
+  const docId = ids[ids.length - 1];
+  const [first, ...rest] = collectionSegments(def.path, ids.slice(0, -1));
+  return doc(db, first, ...rest, docId);
+}
+
+// ── Events ────────────────────────────────────────────────────────────────
+
+export const eventsCollection = (db: Firestore) => typedCollection(db, C.events);
+
+export const eventDoc = (db: Firestore, eventId: string) => typedDoc(db, C.events, eventId);
 
 export const eventRegistrationsCollection = (db: Firestore, eventId: string) =>
-  collection(db, 'events', eventId, 'registrations').withConverter(registrationConverterClient);
+  typedCollection(db, C.eventRegistrations, eventId);
 
 export const eventRegistrationDoc = (db: Firestore, eventId: string, registrationId: string) =>
-  doc(db, 'events', eventId, 'registrations', registrationId).withConverter(registrationConverterClient);
+  typedDoc(db, C.eventRegistrations, eventId, registrationId);
 
 // Organizer-only private data for one registration: the phone (when the event
 // sets telephoneRequired) plus the answers to the event's custom signupFields.
@@ -84,308 +99,287 @@ export const eventRegistrationDoc = (db: Firestore, eventId: string, registratio
 // answer map is shaped by the event's field specs, not by a fixed model. The
 // factory exists so call sites stay off raw `doc(getDb(), …)`.
 export const eventRegistrationPrivateDoc = (db: Firestore, eventId: string, registrationId: string) =>
-  doc(db, 'events', eventId, 'registrationPrivate', registrationId);
+  rawDoc(db, C.eventRegistrationPrivate, eventId, registrationId);
 
 // Claim tokens for the event's open group seats. THE DOCUMENT ID IS THE SECRET
 // — see SeatTokenModel. Rules limit reads to the group owner and the event's
 // organizers, so the group owner can re-read their own tokens to re-share a
 // link; writes are callable-only.
 export const eventSeatTokensCollection = (db: Firestore, eventId: string) =>
-  collection(db, 'events', eventId, 'seatTokens').withConverter(seatTokenConverterClient);
+  typedCollection(db, C.eventSeatTokens, eventId);
 
 export const eventSeatTokenDoc = (db: Firestore, eventId: string, token: string) =>
-  doc(db, 'events', eventId, 'seatTokens', token).withConverter(seatTokenConverterClient);
+  typedDoc(db, C.eventSeatTokens, eventId, token);
 
 // Append-only audit log of the event's roster changes — see
 // RegistrationEventDataModel. Readable by `isEventOrganizer(eventId)` only
 // (organizers, village admins, app admins); every client write is denied.
 export const eventRegistrationEventsCollection = (db: Firestore, eventId: string) =>
-  collection(db, 'events', eventId, 'registrationEvents').withConverter(registrationEventConverterClient);
+  typedCollection(db, C.eventRegistrationEvents, eventId);
 
 // ── Municipality domain ────────────────────────────────────────────────────
 
-export const municipalitiesCollection = (db: Firestore) =>
-  collection(db, 'municipalities').withConverter(municipalityConverterClient);
+export const municipalitiesCollection = (db: Firestore) => typedCollection(db, C.municipalities);
 
 export const municipalityDoc = (db: Firestore, municipalityId: string) =>
-  doc(db, 'municipalities', municipalityId).withConverter(municipalityConverterClient);
+  typedDoc(db, C.municipalities, municipalityId);
 
 export const municipalityBarriosCollection = (db: Firestore, municipalityId: string) =>
-  collection(db, 'municipalities', municipalityId, 'barrios').withConverter(barrioConverterClient);
+  typedCollection(db, C.municipalityBarrios, municipalityId);
 
 export const municipalityBarrioDoc = (db: Firestore, municipalityId: string, barrioId: string) =>
-  doc(db, 'municipalities', municipalityId, 'barrios', barrioId).withConverter(barrioConverterClient);
+  typedDoc(db, C.municipalityBarrios, municipalityId, barrioId);
 
 export const municipalityPlacesCollection = (db: Firestore, municipalityId: string) =>
-  collection(db, 'municipalities', municipalityId, 'places').withConverter(placeConverterClient);
+  typedCollection(db, C.municipalityPlaces, municipalityId);
 
 export const municipalityPlaceDoc = (db: Firestore, municipalityId: string, placeId: string) =>
-  doc(db, 'municipalities', municipalityId, 'places', placeId).withConverter(placeConverterClient);
+  typedDoc(db, C.municipalityPlaces, municipalityId, placeId);
 
 export const municipalityMembersCollection = (db: Firestore, municipalityId: string) =>
-  collection(db, 'municipalities', municipalityId, 'members').withConverter(villageMemberConverterClient);
+  typedCollection(db, C.municipalityMembers, municipalityId);
 
-export const censoAnswersCollection = (db: Firestore) =>
-  collection(db, 'censoAnswers').withConverter(censoAnswersConverterClient);
+export const censoAnswersCollection = (db: Firestore) => typedCollection(db, C.censoAnswers);
 
 export const censoAnswersDoc = (db: Firestore, municipalityId: string, userId: string) =>
-  doc(db, 'censoAnswers', censoAnswersId(municipalityId, userId)).withConverter(censoAnswersConverterClient);
+  typedDoc(db, C.censoAnswers, censoAnswersId(municipalityId, userId));
 
 export const municipalityMemberDoc = (db: Firestore, municipalityId: string, memberId: string) =>
-  doc(db, 'municipalities', municipalityId, 'members', memberId).withConverter(villageMemberConverterClient);
+  typedDoc(db, C.municipalityMembers, municipalityId, memberId);
 
-export const municipalityPeopleCollection = (db: Firestore) =>
-  collection(db, 'municipalityPeople').withConverter(municipalityPersonConverterClient);
+export const municipalityPeopleCollection = (db: Firestore) => typedCollection(db, C.municipalityPeople);
 
 export const municipalityPersonDoc = (db: Firestore, municipalityId: string, personId: string) =>
-  doc(db, 'municipalityPeople', `${municipalityId}_${personId}`).withConverter(municipalityPersonConverterClient);
+  typedDoc(db, C.municipalityPeople, municipalityPersonDirectoryId(municipalityId, personId));
 
 // ── Organization domain ──────────────────────────────────────────────────
 
-export const organizationsCollection = (db: Firestore) =>
-  collection(db, 'organizations').withConverter(organizationConverterClient);
+export const organizationsCollection = (db: Firestore) => typedCollection(db, C.organizations);
 
 export const organizationDoc = (db: Firestore, organizationId: string) =>
-  doc(db, 'organizations', organizationId).withConverter(organizationConverterClient);
+  typedDoc(db, C.organizations, organizationId);
 
 export const organizationMembersCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'members').withConverter(orgMemberConverterClient);
+  typedCollection(db, C.organizationMembers, organizationId);
 
 export const organizationMemberDoc = (db: Firestore, organizationId: string, memberId: string) =>
-  doc(db, 'organizations', organizationId, 'members', memberId).withConverter(orgMemberConverterClient);
+  typedDoc(db, C.organizationMembers, organizationId, memberId);
 
 // The socio roster and its admin-only contact half (see SocioDataModel).
 export const organizationSociosCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'socios').withConverter(socioConverterClient);
+  typedCollection(db, C.organizationSocios, organizationId);
 
 export const organizationSocioDoc = (db: Firestore, organizationId: string, socioId: string) =>
-  doc(db, 'organizations', organizationId, 'socios', socioId).withConverter(socioConverterClient);
+  typedDoc(db, C.organizationSocios, organizationId, socioId);
 
 export const organizationSocioPrivateCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'socioPrivate').withConverter(socioPrivateConverterClient);
+  typedCollection(db, C.organizationSocioPrivate, organizationId);
 
 export const organizationSocioPrivateDoc = (db: Firestore, organizationId: string, socioId: string) =>
-  doc(db, 'organizations', organizationId, 'socioPrivate', socioId).withConverter(socioPrivateConverterClient);
+  typedDoc(db, C.organizationSocioPrivate, organizationId, socioId);
 
 export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
-  doc(db, 'organizations', organizationId, 'socioPersonaLocks', personId).withConverter(socioPersonaLockConverterClient);
+  typedDoc(db, C.organizationSocioPersonaLocks, organizationId, personId);
 
 // The cuota de socios (see CuotaDataModel): settings, per-socio assignment,
 // the append-only payment ledger, and the reminders the job sent.
 export const organizationCuotaSettingsDoc = (db: Firestore, organizationId: string) =>
-  doc(db, 'organizations', organizationId, 'cuotaSettings', 'current').withConverter(cuotaSettingsConverterClient);
+  typedDoc(db, C.organizationCuotaSettings, organizationId, 'current');
 
 export const organizationCuotaAssignmentsCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'cuotaAssignments').withConverter(cuotaAssignmentConverterClient);
+  typedCollection(db, C.organizationCuotaAssignments, organizationId);
 
 export const organizationCuotaAssignmentDoc = (db: Firestore, organizationId: string, socioId: string) =>
-  doc(db, 'organizations', organizationId, 'cuotaAssignments', socioId).withConverter(cuotaAssignmentConverterClient);
+  typedDoc(db, C.organizationCuotaAssignments, organizationId, socioId);
 
 export const organizationCuotaPaymentsCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'cuotaPayments').withConverter(cuotaPaymentConverterClient);
+  typedCollection(db, C.organizationCuotaPayments, organizationId);
 
 export const organizationCuotaRemindersCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'cuotaReminders').withConverter(cuotaReminderConverterClient);
+  typedCollection(db, C.organizationCuotaReminders, organizationId);
 
-/**
- * Unconverted, for cuota writes only: they stamp `serverTimestamp()` (which
- * rules compare with `request.time`) and the strict converter refuses the
- * sentinel. The service validates each payload with its schema first.
- */
+const CUOTA_WRITE = {
+  cuotaSettings: C.organizationCuotaSettings,
+  cuotaAssignments: C.organizationCuotaAssignments,
+  cuotaPayments: C.organizationCuotaPayments,
+} as const;
+
+/** Unconverted, for cuota writes only — see `rawDoc`. */
 export const organizationCuotaWriteDoc = (
   db: Firestore,
   organizationId: string,
-  collectionName: 'cuotaSettings' | 'cuotaAssignments' | 'cuotaPayments',
+  collectionName: keyof typeof CUOTA_WRITE,
   id: string,
-) => doc(db, 'organizations', organizationId, collectionName, id);
+) => rawDoc(db, CUOTA_WRITE[collectionName], organizationId, id);
 
 // The cosateca (see CosaDataModel, CosaRequestDataModel).
-export const cosasCollection = (db: Firestore) => collection(db, 'cosas').withConverter(cosaConverterClient);
-export const cosaDoc = (db: Firestore, cosaId: string) => doc(db, 'cosas', cosaId).withConverter(cosaConverterClient);
-export const cosaSlotsCollection = (db: Firestore, cosaId: string) =>
-  collection(db, 'cosas', cosaId, 'slots').withConverter(cosaSlotConverterClient);
-export const cosaRequestsCollection = (db: Firestore) => collection(db, 'cosaRequests').withConverter(cosaRequestConverterClient);
-export const cosaRequestDoc = (db: Firestore, requestId: string) =>
-  doc(db, 'cosaRequests', requestId).withConverter(cosaRequestConverterClient);
-/**
- * Unconverted, for cosa and request creates and cosa edits: they stamp
- * `serverTimestamp()` (rules compare it with `request.time`), which the strict
- * converter refuses. The service validates each payload with its schema first.
- */
-export const cosatecaWriteDoc = (db: Firestore, collectionName: 'cosas' | 'cosaRequests', id: string) =>
-  doc(db, collectionName, id);
+export const cosasCollection = (db: Firestore) => typedCollection(db, C.cosas);
+export const cosaDoc = (db: Firestore, cosaId: string) => typedDoc(db, C.cosas, cosaId);
+export const cosaSlotsCollection = (db: Firestore, cosaId: string) => typedCollection(db, C.cosaSlots, cosaId);
+export const cosaRequestsCollection = (db: Firestore) => typedCollection(db, C.cosaRequests);
+export const cosaRequestDoc = (db: Firestore, requestId: string) => typedDoc(db, C.cosaRequests, requestId);
+
+const COSATECA_WRITE = { cosas: C.cosas, cosaRequests: C.cosaRequests } as const;
+
+/** Unconverted, for cosa and request creates and cosa edits — see `rawDoc`. */
+export const cosatecaWriteDoc = (db: Firestore, collectionName: keyof typeof COSATECA_WRITE, id: string) =>
+  rawDoc(db, COSATECA_WRITE[collectionName], id);
 export const cosaRequestChatCollection = (db: Firestore, requestId: string) =>
-  collection(db, 'cosaRequests', requestId, 'chat').withConverter(groupChatMessageConverterClient);
-/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
-export const cosaRequestChatWriteCollection = (db: Firestore, requestId: string) => collection(db, 'cosaRequests', requestId, 'chat');
+  typedCollection(db, C.cosaRequestChat, requestId);
+/** Unconverted, for the client's writes — see `rawDoc`. */
+export const cosaRequestChatWriteCollection = (db: Firestore, requestId: string) =>
+  rawCollection(db, C.cosaRequestChat, requestId);
 
 // Group tasks, shifts and checklist templates (see GroupTaskDataModel).
 export const organizationTasksCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'tasks').withConverter(groupTaskConverterClient);
+  typedCollection(db, C.organizationTasks, organizationId);
 
 export const organizationTaskDoc = (db: Firestore, organizationId: string, taskId: string) =>
-  doc(db, 'organizations', organizationId, 'tasks', taskId).withConverter(groupTaskConverterClient);
+  typedDoc(db, C.organizationTasks, organizationId, taskId);
 
 export const organizationTaskTemplatesCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'taskTemplates').withConverter(taskTemplateConverterClient);
+  typedCollection(db, C.organizationTaskTemplates, organizationId);
 
-/**
- * Unconverted, for task and template writes only: they stamp
- * `serverTimestamp()` (rules compare it with `request.time`), which the strict
- * converter refuses. The service validates each payload with its schema first.
- */
+const TASK_WRITE = { tasks: C.organizationTasks, taskTemplates: C.organizationTaskTemplates } as const;
+
+/** Unconverted, for task and template writes only — see `rawDoc`. */
 export const organizationTaskWriteDoc = (
   db: Firestore,
   organizationId: string,
-  collectionName: 'tasks' | 'taskTemplates',
+  collectionName: keyof typeof TASK_WRITE,
   id: string,
-) => doc(db, 'organizations', organizationId, collectionName, id);
+) => rawDoc(db, TASK_WRITE[collectionName], organizationId, id);
 
 // A group's messages (see GroupMessageDataModel) and their per-recipient halves.
 export const organizationMessagesCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'messages').withConverter(groupMessageConverterClient);
+  typedCollection(db, C.organizationMessages, organizationId);
 
 export const organizationMessageDoc = (db: Firestore, organizationId: string, messageId: string) =>
-  doc(db, 'organizations', organizationId, 'messages', messageId).withConverter(groupMessageConverterClient);
+  typedDoc(db, C.organizationMessages, organizationId, messageId);
 
 export const organizationMessageDeliveriesCollection = (db: Firestore, organizationId: string, messageId: string) =>
-  collection(db, 'organizations', organizationId, 'messages', messageId, 'deliveries').withConverter(groupMessageDeliveryConverterClient);
+  typedCollection(db, C.organizationMessageDeliveries, organizationId, messageId);
 
 export const organizationMessageReadsCollection = (db: Firestore, organizationId: string, messageId: string) =>
-  collection(db, 'organizations', organizationId, 'messages', messageId, 'reads').withConverter(groupMessageReadConverterClient);
+  typedCollection(db, C.organizationMessageReads, organizationId, messageId);
 
 export const organizationMessageReadDoc = (db: Firestore, organizationId: string, messageId: string, uid: string) =>
-  doc(db, 'organizations', organizationId, 'messages', messageId, 'reads', uid).withConverter(groupMessageReadConverterClient);
+  typedDoc(db, C.organizationMessageReads, organizationId, messageId, uid);
 
 export const organizationMessageVotesCollection = (db: Firestore, organizationId: string, messageId: string) =>
-  collection(db, 'organizations', organizationId, 'messages', messageId, 'votes').withConverter(groupPollVoteConverterClient);
+  typedCollection(db, C.organizationMessageVotes, organizationId, messageId);
 
 export const organizationMessageVoteDoc = (db: Firestore, organizationId: string, messageId: string, uid: string) =>
-  doc(db, 'organizations', organizationId, 'messages', messageId, 'votes', uid).withConverter(groupPollVoteConverterClient);
+  typedDoc(db, C.organizationMessageVotes, organizationId, messageId, uid);
 
-/**
- * Unconverted, for the message writes a client makes (a read, a vote, a
- * WhatsApp tick): they stamp `serverTimestamp()`, which rules compare with
- * `request.time` and the strict converter refuses.
- */
+const MESSAGE_WRITE = {
+  reads: C.organizationMessageReads,
+  votes: C.organizationMessageVotes,
+  deliveries: C.organizationMessageDeliveries,
+} as const;
+
+/** Unconverted, for the message writes a client makes (a read, a vote, a WhatsApp tick) — see `rawDoc`. */
 export const organizationMessageWriteDoc = (
   db: Firestore,
   organizationId: string,
   messageId: string,
-  sub: 'reads' | 'votes' | 'deliveries',
+  sub: keyof typeof MESSAGE_WRITE,
   id: string,
-) => doc(db, 'organizations', organizationId, 'messages', messageId, sub, id);
+) => rawDoc(db, MESSAGE_WRITE[sub], organizationId, messageId, id);
 
 // A group's chat (see GroupChatDataModel): the general thread at
 // organizations/{orgId}/chat, an aviso's under its message.
-function organizationChatPath(organizationId: string, threadId: string): [string, ...string[]] {
-  return isGeneralChatThread(threadId)
-    ? ['organizations', organizationId, 'chat']
-    : ['organizations', organizationId, 'messages', threadId, 'chat'];
-}
+export const organizationChatCollection = (db: Firestore, organizationId: string, threadId: string) =>
+  isGeneralChatThread(threadId)
+    ? typedCollection(db, C.organizationGeneralChat, organizationId)
+    : typedCollection(db, C.organizationAvisoChat, organizationId, threadId);
 
-export const organizationChatCollection = (db: Firestore, organizationId: string, threadId: string) => {
-  const [first, ...rest] = organizationChatPath(organizationId, threadId);
-  return collection(db, first, ...rest).withConverter(groupChatMessageConverterClient);
-};
+/** Unconverted, for the client's writes — see `rawDoc`. */
+export const organizationChatWriteCollection = (db: Firestore, organizationId: string, threadId: string) =>
+  isGeneralChatThread(threadId)
+    ? rawCollection(db, C.organizationGeneralChat, organizationId)
+    : rawCollection(db, C.organizationAvisoChat, organizationId, threadId);
 
-/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
-export const organizationChatWriteCollection = (db: Firestore, organizationId: string, threadId: string) => {
-  const [first, ...rest] = organizationChatPath(organizationId, threadId);
-  return collection(db, first, ...rest);
-};
-
-export const organizationChatWriteDoc = (db: Firestore, organizationId: string, threadId: string, chatId: string) => {
-  const [first, ...rest] = organizationChatPath(organizationId, threadId);
-  return doc(db, first, ...rest, chatId);
-};
+export const organizationChatWriteDoc = (db: Firestore, organizationId: string, threadId: string, chatId: string) =>
+  isGeneralChatThread(threadId)
+    ? rawDoc(db, C.organizationGeneralChat, organizationId, chatId)
+    : rawDoc(db, C.organizationAvisoChat, organizationId, threadId, chatId);
 
 export const organizationChatThreadDoc = (db: Firestore, organizationId: string, threadId: string) =>
-  doc(db, 'organizations', organizationId, 'chatThreads', threadId).withConverter(groupChatThreadConverterClient);
+  typedDoc(db, C.organizationChatThreads, organizationId, threadId);
 
 export const organizationChatReadDoc = (db: Firestore, organizationId: string, threadId: string, uid: string) =>
-  doc(db, 'organizations', organizationId, 'chatThreads', threadId, 'reads', uid).withConverter(groupChatReadConverterClient);
+  typedDoc(db, C.organizationChatReads, organizationId, threadId, uid);
 
 export const organizationChatReadWriteDoc = (db: Firestore, organizationId: string, threadId: string, uid: string) =>
-  doc(db, 'organizations', organizationId, 'chatThreads', threadId, 'reads', uid);
+  rawDoc(db, C.organizationChatReads, organizationId, threadId, uid);
 
 // A task's comments share the chat's message shape (see GroupChatDataModel).
 export const organizationTaskCommentsCollection = (db: Firestore, organizationId: string, taskId: string) =>
-  collection(db, 'organizations', organizationId, 'tasks', taskId, 'chat').withConverter(groupChatMessageConverterClient);
+  typedCollection(db, C.organizationTaskComments, organizationId, taskId);
 
-/** Unconverted, for the client's writes: they stamp `serverTimestamp()`, which the rules compare with `request.time`. */
+/** Unconverted, for the client's writes — see `rawDoc`. */
 export const organizationTaskCommentsWriteCollection = (db: Firestore, organizationId: string, taskId: string) =>
-  collection(db, 'organizations', organizationId, 'tasks', taskId, 'chat');
+  rawCollection(db, C.organizationTaskComments, organizationId, taskId);
 
 // The group's records (see RecordsDataModel): actas and the income/expense ledger.
 export const organizationActasCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'actas').withConverter(actaConverterClient);
+  typedCollection(db, C.organizationActas, organizationId);
 
 export const organizationLedgerEntriesCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'ledgerEntries').withConverter(ledgerEntryConverterClient);
+  typedCollection(db, C.organizationLedgerEntries, organizationId);
 
-/**
- * Unconverted, for records writes only: they stamp `serverTimestamp()` (rules
- * compare it with `request.time`), which the strict converter refuses. The
- * service validates each payload with its schema first.
- */
+const RECORDS_WRITE = { actas: C.organizationActas, ledgerEntries: C.organizationLedgerEntries } as const;
+
+/** Unconverted, for records writes only — see `rawDoc`. */
 export const organizationRecordsWriteDoc = (
   db: Firestore,
   organizationId: string,
-  collectionName: 'actas' | 'ledgerEntries',
+  collectionName: keyof typeof RECORDS_WRITE,
   id: string,
-) => doc(db, 'organizations', organizationId, collectionName, id);
+) => rawDoc(db, RECORDS_WRITE[collectionName], organizationId, id);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
-  collection(db, 'organizations', organizationId, 'joinRequests').withConverter(orgJoinRequestConverterClient);
+  typedCollection(db, C.organizationJoinRequests, organizationId);
 
 export const organizationJoinRequestDoc = (db: Firestore, organizationId: string, userId: string) =>
-  doc(db, 'organizations', organizationId, 'joinRequests', userId).withConverter(orgJoinRequestConverterClient);
+  typedDoc(db, C.organizationJoinRequests, organizationId, userId);
 
-export const joinRequestsGroup = (db: Firestore) =>
-  collectionGroup(db, 'joinRequests').withConverter(orgJoinRequestConverterClient);
+export const joinRequestsGroup = (db: Firestore) => typedGroup(db, C.organizationJoinRequests);
 
 // ── Organizer requests ───────────────────────────────────────────────────
 
-export const organizerRequestsCollection = (db: Firestore) =>
-  collection(db, 'organizerRequests').withConverter(organizerRequestConverterClient);
+export const organizerRequestsCollection = (db: Firestore) => typedCollection(db, C.organizerRequests);
 
-export const organizerRequestDoc = (db: Firestore, requestId: string) =>
-  doc(db, 'organizerRequests', requestId).withConverter(organizerRequestConverterClient);
+export const organizerRequestDoc = (db: Firestore, requestId: string) => typedDoc(db, C.organizerRequests, requestId);
 
 // ── Person domain ────────────────────────────────────────────────────────
 
-export const personsCollection = (db: Firestore) =>
-  collection(db, 'persons').withConverter(personConverterClient);
+export const personsCollection = (db: Firestore) => typedCollection(db, C.persons);
 
-export const personDoc = (db: Firestore, personId: string) =>
-  doc(db, 'persons', personId).withConverter(personConverterClient);
+export const personDoc = (db: Firestore, personId: string) => typedDoc(db, C.persons, personId);
 
 // ── User + notifications domain ──────────────────────────────────────────
 
-export const usersCollection = (db: Firestore) =>
-  collection(db, 'users').withConverter(userConverterClient);
+export const usersCollection = (db: Firestore) => typedCollection(db, C.users);
 
-export const userDoc = (db: Firestore, userId: string) =>
-  doc(db, 'users', userId).withConverter(userConverterClient);
+export const userDoc = (db: Firestore, userId: string) => typedDoc(db, C.users, userId);
 
-export const publicProfileDoc = (db: Firestore, userId: string) =>
-  doc(db, 'publicProfiles', userId).withConverter(publicProfileConverterClient);
+export const publicProfileDoc = (db: Firestore, userId: string) => typedDoc(db, C.publicProfiles, userId);
 
 export const userNotificationsCollection = (db: Firestore, userId: string) =>
-  collection(db, 'users', userId, 'notifications').withConverter(notificationConverterClient);
+  typedCollection(db, C.userNotifications, userId);
 
 export const userNotificationDoc = (db: Firestore, userId: string, notificationId: string) =>
-  doc(db, 'users', userId, 'notifications', notificationId).withConverter(notificationConverterClient);
+  typedDoc(db, C.userNotifications, userId, notificationId);
 
 // Push-capable devices. THE DOCUMENT ID IS THE FCM REGISTRATION TOKEN — see
 // DeviceTokenDataModel: that is what makes re-registering on every launch
 // idempotent instead of accumulating a row per session.
-export const userDevicesCollection = (db: Firestore, userId: string) =>
-  collection(db, 'users', userId, 'devices').withConverter(deviceTokenConverterClient);
+export const userDevicesCollection = (db: Firestore, userId: string) => typedCollection(db, C.userDevices, userId);
 
 export const userDeviceDoc = (db: Firestore, userId: string, token: string) =>
-  doc(db, 'users', userId, 'devices', token).withConverter(deviceTokenConverterClient);
+  typedDoc(db, C.userDevices, userId, token);
 
 // Optional: absent means DEFAULT_NOTIFICATION_PREFS. Fixed doc id so there is
 // exactly one preferences document per account.
@@ -393,120 +387,93 @@ export const NOTIFICATION_PREFS_DOC_ID = 'notifications';
 
 // Optional, one per group: absent means the group's messages push.
 export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId: string) =>
-  doc(db, 'users', userId, 'groupPrefs', organizationId).withConverter(groupNotificationPrefsConverterClient);
+  typedDoc(db, C.userGroupPrefs, userId, organizationId);
 
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
-  doc(db, 'users', userId, 'preferences', NOTIFICATION_PREFS_DOC_ID)
-    .withConverter(notificationPrefsConverterClient);
+  typedDoc(db, C.userPreferences, userId, NOTIFICATION_PREFS_DOC_ID);
 
 // Optional: absent means every topic pushes. Supersedes `preferences/notifications`.
 export const userNotificationSettingsDoc = (db: Firestore, userId: string) =>
-  doc(db, 'users', userId, 'notificationSettings', NOTIFICATION_SETTINGS_DOC_ID)
-    .withConverter(notificationSettingsConverterClient);
+  typedDoc(db, C.userNotificationSettings, userId, NOTIFICATION_SETTINGS_DOC_ID);
 
 // ── News domain (top-level collections) ──────────────────────────────────
 
-export const newsCollection = (db: Firestore) =>
-  collection(db, 'news').withConverter(newsPostConverterClient);
+export const newsCollection = (db: Firestore) => typedCollection(db, C.news);
 
-export const newsDoc = (db: Firestore, postId: string) =>
-  doc(db, 'news', postId).withConverter(newsPostConverterClient);
+export const newsDoc = (db: Firestore, postId: string) => typedDoc(db, C.news, postId);
 
 // ── Comments (generic, entity-scoped, top-level) ────────────────────────
 
-export const commentsCollection = (db: Firestore) =>
-  collection(db, 'comments').withConverter(commentConverterClient);
+export const commentsCollection = (db: Firestore) => typedCollection(db, C.comments);
 
-export const commentDoc = (db: Firestore, commentId: string) =>
-  doc(db, 'comments', commentId).withConverter(commentConverterClient);
+export const commentDoc = (db: Firestore, commentId: string) => typedDoc(db, C.comments, commentId);
 
-export const festivalPostersCollection = (db: Firestore) =>
-  collection(db, 'festivalPosters').withConverter(festivalPosterConverterClient);
+export const festivalPostersCollection = (db: Firestore) => typedCollection(db, C.festivalPosters);
 
-export const festivalPosterDoc = (db: Firestore, posterId: string) =>
-  doc(db, 'festivalPosters', posterId).withConverter(festivalPosterConverterClient);
+export const festivalPosterDoc = (db: Firestore, posterId: string) => typedDoc(db, C.festivalPosters, posterId);
 
 // ── Occupation domain (top-level collections) ────────────────────────────
 
-export const occupationsCollection = (db: Firestore) =>
-  collection(db, 'occupations').withConverter(occupationConverterClient);
+export const occupationsCollection = (db: Firestore) => typedCollection(db, C.occupations);
 
-export const occupationDoc = (db: Firestore, occupationId: string) =>
-  doc(db, 'occupations', occupationId).withConverter(occupationConverterClient);
+export const occupationDoc = (db: Firestore, occupationId: string) => typedDoc(db, C.occupations, occupationId);
 
 // ── Membership audit log ─────────────────────────────────────────────────
 // Append-only, top-level, scoped by `municipalityId`. Function-owned: clients
 // only read (firestore.rules denies all client writes).
 
-export const membershipEventsCollection = (db: Firestore) =>
-  collection(db, 'membershipEvents').withConverter(membershipEventConverterClient);
+export const membershipEventsCollection = (db: Firestore) => typedCollection(db, C.membershipEvents);
 
-export const membershipEventDoc = (db: Firestore, id: string) =>
-  doc(db, 'membershipEvents', id).withConverter(membershipEventConverterClient);
+export const membershipEventDoc = (db: Firestore, id: string) => typedDoc(db, C.membershipEvents, id);
 
 // ── Admin domain ─────────────────────────────────────────────────────────
 
-export const adminsCollection = (db: Firestore) =>
-  collection(db, 'admins').withConverter(adminConverterClient);
+export const adminsCollection = (db: Firestore) => typedCollection(db, C.admins);
 
-export const adminDoc = (db: Firestore, userId: string) =>
-  doc(db, 'admins', userId).withConverter(adminConverterClient);
+export const adminDoc = (db: Firestore, userId: string) => typedDoc(db, C.admins, userId);
 
 // ── UGC safety: reports + per-user block lists ───────────────────────────
 
-export const contentReportsCollection = (db: Firestore) =>
-  collection(db, 'contentReports').withConverter(contentReportConverterClient);
+export const contentReportsCollection = (db: Firestore) => typedCollection(db, C.contentReports);
 
-export const contentReportDoc = (db: Firestore, reportId: string) =>
-  doc(db, 'contentReports', reportId).withConverter(contentReportConverterClient);
+export const contentReportDoc = (db: Firestore, reportId: string) => typedDoc(db, C.contentReports, reportId);
 
 export const userBlockedUsersCollection = (db: Firestore, userId: string) =>
-  collection(db, 'users', userId, 'blockedUsers').withConverter(blockedUserConverterClient);
+  typedCollection(db, C.userBlockedUsers, userId);
 
 export const userBlockedUserDoc = (db: Firestore, userId: string, blockedUserId: string) =>
-  doc(db, 'users', userId, 'blockedUsers', blockedUserId).withConverter(blockedUserConverterClient);
+  typedDoc(db, C.userBlockedUsers, userId, blockedUserId);
 
 // ── Vocabulary domain (top-level collections) ────────────────────────────
 // The term id is derived from `municipalityId` + slug (see `vocabularyTermId`),
 // never minted — that is what makes two villagers adding the same word land on
 // one shared doc instead of two.
 
-export const vocabularyTermsCollection = (db: Firestore) =>
-  collection(db, 'vocabularyTerms').withConverter(vocabularyTermConverterClient);
+export const vocabularyTermsCollection = (db: Firestore) => typedCollection(db, C.vocabularyTerms);
 
-export const vocabularyTermDoc = (db: Firestore, termId: string) =>
-  doc(db, 'vocabularyTerms', termId).withConverter(vocabularyTermConverterClient);
+export const vocabularyTermDoc = (db: Firestore, termId: string) => typedDoc(db, C.vocabularyTerms, termId);
 
-export const vocabularyDefinitionsCollection = (db: Firestore) =>
-  collection(db, 'vocabularyDefinitions').withConverter(vocabularyDefinitionConverterClient);
+export const vocabularyDefinitionsCollection = (db: Firestore) => typedCollection(db, C.vocabularyDefinitions);
 
 export const vocabularyDefinitionDoc = (db: Firestore, definitionId: string) =>
-  doc(db, 'vocabularyDefinitions', definitionId).withConverter(vocabularyDefinitionConverterClient);
+  typedDoc(db, C.vocabularyDefinitions, definitionId);
 
 // ── Village history (top-level collection) ───────────────────────────────
 
-export const historyEntriesCollection = (db: Firestore) =>
-  collection(db, 'historyEntries').withConverter(historyEntryConverterClient);
+export const historyEntriesCollection = (db: Firestore) => typedCollection(db, C.historyEntries);
 
-export const historyEntryDoc = (db: Firestore, entryId: string) =>
-  doc(db, 'historyEntries', entryId).withConverter(historyEntryConverterClient);
+export const historyEntryDoc = (db: Firestore, entryId: string) => typedDoc(db, C.historyEntries, entryId);
 
 /** The shared word index — one doc per word across every village. Function-owned. */
-export const vocabularyWordsCollection = (db: Firestore) =>
-  collection(db, 'vocabularyWords').withConverter(vocabularyWordConverterClient);
+export const vocabularyWordsCollection = (db: Firestore) => typedCollection(db, C.vocabularyWords);
 
-export const vocabularyWordDoc = (db: Firestore, slug: string) =>
-  doc(db, 'vocabularyWords', slug).withConverter(vocabularyWordConverterClient);
+export const vocabularyWordDoc = (db: Firestore, slug: string) => typedDoc(db, C.vocabularyWords, slug);
 
-export const villageWrappedCollection = (db: Firestore) =>
-  collection(db, 'villageWrapped').withConverter(villageWrappedConverterClient);
+export const villageWrappedCollection = (db: Firestore) => typedCollection(db, C.villageWrapped);
 
-export const villageWrappedDoc = (db: Firestore, wrappedId: string) =>
-  doc(db, 'villageWrapped', wrappedId).withConverter(villageWrappedConverterClient);
+export const villageWrappedDoc = (db: Firestore, wrappedId: string) => typedDoc(db, C.villageWrapped, wrappedId);
 
 /** The nightly "most to show" ranking of active pueblos. Function-owned. */
-export const villageRankingsCollection = (db: Firestore) =>
-  collection(db, 'villageRankings').withConverter(villageRankingConverterClient);
+export const villageRankingsCollection = (db: Firestore) => typedCollection(db, C.villageRankings);
 
-export const villageRankingDoc = (db: Firestore, rankingId: string) =>
-  doc(db, 'villageRankings', rankingId).withConverter(villageRankingConverterClient);
+export const villageRankingDoc = (db: Firestore, rankingId: string) => typedDoc(db, C.villageRankings, rankingId);

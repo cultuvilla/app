@@ -1,5 +1,4 @@
 import { OrgMemberDataSchema } from '../../models/organization/OrgMemberDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const orgMemberConverterAdmin = makeConverter(OrgMemberDataSchema, adminSdkCtors);
+export const orgMemberConverterAdmin = adminConverter(OrgMemberDataSchema);

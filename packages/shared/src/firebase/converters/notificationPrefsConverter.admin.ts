@@ -3,9 +3,8 @@ import {
   NotificationPrefsDataSchema,
 } from '../../models/notification/NotificationPrefsDataModel';
 import { NotificationSettingsDataSchema } from '../../models/notification/NotificationSettingsDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const notificationPrefsConverterAdmin = makeConverter(NotificationPrefsDataSchema, adminSdkCtors);
-export const groupNotificationPrefsConverterAdmin = makeConverter(GroupNotificationPrefsDataSchema, adminSdkCtors);
-export const notificationSettingsConverterAdmin = makeConverter(NotificationSettingsDataSchema, adminSdkCtors);
+export const notificationPrefsConverterAdmin = adminConverter(NotificationPrefsDataSchema);
+export const groupNotificationPrefsConverterAdmin = adminConverter(GroupNotificationPrefsDataSchema);
+export const notificationSettingsConverterAdmin = adminConverter(NotificationSettingsDataSchema);
