@@ -74,14 +74,13 @@ publicar contenido garantizas que dispones de los derechos necesarios para ello,
 la autorización de las personas que aparezcan en las imágenes que subas.
 
 Nos concedes una licencia no exclusiva, gratuita y limitada para alojar, reproducir y
-mostrar dicho contenido con la única finalidad de prestar y promocionar el Servicio dentro
-de la propia plataforma. Conservas la titularidad de tu contenido.
+mostrar dicho contenido con la única finalidad de prestar y promocionar el Servicio en la
+app, en su web pública y en las vistas previas de enlaces y en buscadores. Conservas la
+titularidad de tu contenido.
 
 El contenido público de los pueblos (eventos, noticias, lugares, organizaciones) se
 muestra también en la web cultuvilla.es, accesible sin cuenta y por los buscadores, y en
-las vistas previas de los enlaces que se comparten. [PENDIENTE: confirmar que la licencia
-del párrafo anterior ("dentro de la propia plataforma") cubre la web pública, los
-buscadores y las vistas previas.]
+las vistas previas de los enlaces que se comparten.
 
 Cualquier persona usuaria puede denunciar un comentario o bloquear a otra persona; el
 equipo del pueblo revisa las denuncias y puede ocultar el contenido.

@@ -28,6 +28,7 @@ tratamiento de tus datos personales o para el ejercicio de tus derechos.
 Tratamos únicamente los datos necesarios para prestar el Servicio:
 
 **a) Datos de cuenta**
+
 - Dirección de correo electrónico: es tu identificador de acceso. Entras con un código de
   6 dígitos que te enviamos por correo, con tu cuenta de Google o, en iPhone, con tu
   cuenta de Apple. Si usas Google o Apple, recibimos de ese proveedor tu correo y el
@@ -35,6 +36,7 @@ Tratamos únicamente los datos necesarios para prestar el Servicio:
 - Número de teléfono, cuando lo facilitas.
 
 **b) Datos de perfil ("persona")**
+
 - Nombre y apellidos.
 - Sexo.
 - Fecha de nacimiento.
@@ -53,6 +55,7 @@ publican en la web, salvo el nombre, el primer apellido y la fotografía de quie
 Embajador o Embajadora de un pueblo, que aparecen en cultuvilla.es/embajadores.
 
 **c) Datos de actividad en la comunidad**
+
 - Inscripciones a eventos (propias y de familiares que registres como "personas"),
   incluidas las respuestas a los campos que la organización del evento añada al formulario
   de inscripción.
@@ -63,9 +66,10 @@ Embajador o Embajadora de un pueblo, que aparecen en cultuvilla.es/embajadores.
   bancarios: los pagos se hacen fuera de la Aplicación), las actas en las que figuras como
   asistente y, si decides compartirlos con la junta, tu teléfono y tu correo. La junta de
   un grupo también puede añadir a la lista de socios a personas que no usan la Aplicación,
-  con su nombre y, si lo tiene, su teléfono y su correo. [PENDIENTE: qué papel tiene cada
-  grupo respecto a los datos de sus socios (responsable o corresponsable) y con qué base
-  los trata Cultuvilla.]
+  con su nombre y, si lo tiene, su teléfono y su correo; al hacerlo, la junta confirma que
+  cuenta con el permiso de esa persona. Cada grupo es el responsable del tratamiento de
+  los datos de sus socios, y Cultuvilla actúa como encargado del tratamiento por cuenta
+  del grupo.
 - Mensajes, tareas y conversaciones de los grupos, y lo que ofreces, prestas o pides en la
   cosateca.
 - Comentarios, denuncias de contenido y personas que bloqueas.
@@ -73,21 +77,29 @@ Embajador o Embajadora de un pueblo, que aparecen en cultuvilla.es/embajadores.
   organización, unirte a un grupo) y el registro de auditoría asociado.
 
 **d) Ubicación**
+
 - Solo si lo autorizas, la Aplicación lee la ubicación de tu dispositivo una vez, para
   situar un lugar en el mapa. No se lee en segundo plano.
 
 **e) Datos técnicos**
+
 - El identificador de notificaciones de tu dispositivo, para enviarte avisos push. Se
   borra al cerrar sesión.
-- Estadísticas de uso de la Aplicación e informes de errores, tratados a través de los
-  encargados indicados en el apartado 5.
+- Estadísticas de uso de la Aplicación, solo si las aceptas: están desactivadas hasta que,
+  con la sesión iniciada, respondes que sí a una pregunta que se hace una sola vez, y
+  puedes cambiarlo cuando quieras en Ajustes → «Estadísticas de uso». Sin sesión iniciada
+  nunca se recogen.
+- Informes de errores de la Aplicación, tratados a través de los encargados indicados en
+  el apartado 5.
 - Una huella irreversible (hash) de tu dirección IP y de tu correo, para limitar los
   intentos de acceso.
 - En la web, contamos las visitas por tipo de página y de dispositivo, sin guardar la
-  dirección que visitas ni los datos de tu navegador. [PENDIENTE: confirmar si los
-  registros técnicos de la web guardan la dirección IP y durante cuánto tiempo.]
+  dirección que visitas ni los datos de tu navegador. Los registros técnicos del servidor
+  (Google Cloud Logging) sí incluyen la dirección IP de cada petición y se conservan 30
+  días.
 
 **f) Formulario de Embajadores de la web**
+
 - Nombre, teléfono y pueblo de quien pide, desde cultuvilla.es/embajadores, ser Embajador
   o Embajadora de su pueblo, aunque no tenga cuenta.
 
@@ -118,11 +130,10 @@ Tratamos tus datos para:
 - **Ejecución de un contrato** (art. 6.1.b RGPD): la prestación del Servicio que solicitas
   al registrarte (gestión de cuenta, perfil, eventos, pertenencias).
 - **Consentimiento** (art. 6.1.a RGPD): los datos opcionales que decides aportar
-  (biografía, fotografía, teléfono) y las estadísticas de uso no imprescindibles. Puedes
-  retirar tu consentimiento en cualquier momento, sin que ello afecte a la licitud del
-  tratamiento previo. [PENDIENTE: hoy la Aplicación activa las estadísticas de uso al
-  arrancar, sin pedir un consentimiento aparte ni ofrecer un ajuste para retirarlo; hay
-  que decidir si se cambia la base o se añade ese ajuste.]
+  (biografía, fotografía, teléfono) y las estadísticas de uso, que solo se activan si
+  respondes que sí cuando la Aplicación te lo pregunta. Puedes retirar tu consentimiento
+  en cualquier momento (las estadísticas, en Ajustes → «Estadísticas de uso»), sin que
+  ello afecte a la licitud del tratamiento previo.
 - **Interés legítimo** (art. 6.1.f RGPD): la seguridad del Servicio, la prevención de
   abusos y el diagnóstico de errores.
 - **Cumplimiento de obligaciones legales** (art. 6.1.c RGPD): cuando la normativa nos
@@ -142,27 +153,28 @@ art. 28 RGPD:
   archivos y parte de las funciones de servidor, en Estados Unidos (ver el apartado 6).
 - **Google Analytics for Firebase** (mismo proveedor): estadísticas de uso de la
   Aplicación.
-- **Apple**: inicio de sesión con Apple y notificaciones push en iPhone (Apple Push
-  Notification service).
-- **Resend**: envío de los correos del Servicio (códigos de acceso, avisos de eventos y
-  mensajes de los grupos).
-- **Telegram**: cuando alguien pide ser Embajador o Embajadora de un pueblo, en la
-  Aplicación o en la web, se avisa al equipo de Cultuvilla en un grupo privado de Telegram
-  con su nombre, su teléfono y el pueblo. [PENDIENTE: confirmar el encaje legal de este
-  aviso y si Telegram debe figurar como encargado.]
-- **Expo**: distribución de las actualizaciones de la Aplicación, que recibe datos
-  técnicos del dispositivo cuando la Aplicación busca una actualización.
+- **Apple** (Apple Distribution International Ltd., Irlanda): inicio de sesión con Apple y
+  notificaciones push en iPhone (Apple Push Notification service).
+- **Resend** (Resend, Inc., Estados Unidos): envío de los correos del Servicio (códigos de
+  acceso, avisos de eventos y mensajes de los grupos).
+- **Expo** (650 Industries, Inc., Estados Unidos): distribución de las actualizaciones de
+  la Aplicación, que recibe datos técnicos del dispositivo cuando la Aplicación busca una
+  actualización.
 - El mapa de la Aplicación lo sirve Google Maps en Android y Apple Maps en iPhone.
 
-[PENDIENTE: razón social, país y contrato de encargo (art. 28 RGPD) de Apple, Resend,
-Telegram y Expo.]
+[PENDIENTE: confirmar que los acuerdos de tratamiento de datos de Resend y Expo están
+aceptados.]
+
+Cuando alguien pide ser Embajador o Embajadora de un pueblo, el equipo de Cultuvilla
+recibe un aviso interno que no incluye datos personales: solo que hay una solicitud nueva
+en ese pueblo y un enlace para revisarla.
 
 Dentro del Servicio, otras personas usuarias ven lo que corresponde a su papel: la
 organización de un evento ve las inscripciones a él; la junta de un grupo, su lista de
-socios y los datos de contacto que hayas decidido compartir; y el equipo de un pueblo, las
-solicitudes y el registro de auditoría de ese pueblo. El contenido público de los pueblos
-(eventos, noticias, lugares, organizaciones) también se muestra en la web, sin necesidad
-de cuenta.
+socios y los datos de contacto que hayas decidido compartir (de esos datos, el grupo es el
+responsable y Cultuvilla, el encargado); y el equipo de un pueblo, las solicitudes y el
+registro de auditoría de ese pueblo. El contenido público de los pueblos (eventos,
+noticias, lugares, organizaciones) también se muestra en la web, sin necesidad de cuenta.
 
 No vendemos ni cedemos tus datos personales a terceros con fines comerciales. Solo se
 comunicarán datos a terceros cuando exista una obligación legal.
@@ -172,17 +184,22 @@ comunicarán datos a terceros cuando exista una obligación legal.
 Parte del tratamiento se realiza fuera del Espacio Económico Europeo: los archivos (por
 ejemplo, las fotografías) se almacenan en Estados Unidos, y parte de las funciones de
 servidor —entre ellas las de inicio de sesión y eliminación de cuenta— se ejecutan allí.
-Varios de los proveedores del apartado 5 tienen también sede en Estados Unidos. Cuando un
-tratamiento implique una transferencia de datos fuera del Espacio Económico Europeo, esta
-se ampara en las garantías previstas en el RGPD (decisiones de adecuación o cláusulas
-contractuales tipo aprobadas por la Comisión Europea).
+Resend y Expo tienen sede en Estados Unidos; con ellos, las transferencias se amparan en
+las cláusulas contractuales tipo del proveedor o en el Marco de Privacidad de Datos UE-EE.
+UU., según corresponda. Cuando un tratamiento implique una transferencia de datos fuera
+del Espacio Económico Europeo, esta se ampara en las garantías previstas en el RGPD
+(decisiones de adecuación o cláusulas contractuales tipo aprobadas por la Comisión
+Europea).
 
 ## 7. Plazos de conservación
 
-Conservamos tus datos mientras tu cuenta permanezca activa. Cuando eliminas tu cuenta,
-tus datos personales se **suprimen o anonimizan**, salvo aquellos que debamos conservar
-durante el plazo legalmente exigible (por ejemplo, registros de auditoría), que se
-mantendrán únicamente durante ese periodo y con acceso restringido.
+Conservamos tus datos mientras tu cuenta permanezca activa. Cuando eliminas tu cuenta, tus
+datos personales se **suprimen o anonimizan**, salvo aquellos que debamos conservar durante el
+plazo legalmente exigible (por ejemplo, registros de auditoría), que se mantendrán
+únicamente durante ese periodo y con acceso restringido. En los grupos con lista de
+socios, se borran el teléfono y el correo que compartiste con la junta; tu ficha de socio
+(nombre, número y fechas de alta y baja) se queda en el libro de socios del grupo, marcada
+como baja.
 
 ## 8. Tus derechos
 
