@@ -76,7 +76,7 @@ jest.mock('../../../lib/i18n', () => ({
         'onboarding.completeProfile.birthPlace': 'Lugar de nacimiento (opcional)',
         'onboarding.completeProfile.biography': 'Biografía (opcional)',
         'onboarding.completeProfile.submit': 'Crear perfil',
-        'onboarding.completeProfile.requiredFields': 'Nombre, ambos apellidos y fecha de nacimiento son obligatorios.',
+        'onboarding.completeProfile.requiredFields': 'El nombre y el primer apellido son obligatorios.',
         'onboarding.completeProfile.error': 'No se pudo guardar el perfil',
         'profile.personForm.stepIdentity': 'Identidad',
         'profile.personForm.stepResidence': 'Origen y residencia',
