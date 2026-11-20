@@ -111,11 +111,13 @@ jobs:
     # ~15 min of setup (emulators, seed, deep-link trust) + a tens-group pair of
     # deep flows, ~45-60 min, plus a retry or two. Generous on purpose, as for
     # Android: timing out mid-suite tells you nothing (75 cut off two shards).
-    timeout-minutes: 120
+    # DIAG (w18): a named-flows dispatch repeats them 5x on one machine.
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        # DIAG (w18, not for merge): a dispatch that names flows uses shard 4 only.
+        shard: ${{ fromJSON(inputs.flows == '' && '[1, 2, 3, 4]' || '[4]') }}
     # Job-level, not just on the suite step: the boot step reads them too, so a
     # shard a dispatched selection leaves empty skips its cold boot.
     env:
@@ -244,7 +246,43 @@ jobs:
           # as an "Unexpected rules runtime error" warning; it is harmless.
           EMULATOR_JAVA_TOOL_OPTIONS: >-
             -Xlog:gc:file=${{ github.workspace }}/apps/mobile/e2e/native/report/emulator-gc-%p.log:uptime,time
-        run: pnpm test:e2e:ios
+          # DIAG (w18): a named-flows dispatch runs them this many times, each on a fresh seed.
+          W18_REPS: ${{ inputs.flows == '' && '1' || '5' }}
+        run: |
+          if [ "$W18_REPS" = 1 ]; then pnpm test:e2e:ios; exit $?; fi
+          set +e
+          # DIAG (w18): debug-level os_log lines live in memory only unless the
+          # subsystem persists them, and `log show` after the fact reads the store.
+          # The SDK logs under subsystem com.google.firebase, category [FirebaseFirestore].
+          udid="$(xcrun simctl list devices booted -j | jq -r '[.devices[][] | select(.state == "Booted")][0].udid')"
+          for sub in com.google.firebase com.google.firebase.firestore; do
+            xcrun simctl spawn "$udid" log config --subsystem "$sub" --mode "level:debug,persist:debug"
+            xcrun simctl spawn "$udid" log config --subsystem "$sub" --status || true
+          done
+          R=apps/mobile/e2e/native/report
+          failed=0
+          for rep in $(seq 1 "$W18_REPS"); do
+            start="$(date '+%Y-%m-%d %H:%M:%S')"
+            echo "== rep $rep start $start ($(date -u +%H:%M:%SZ))" | tee -a "$R/w18-reps.log"
+            pnpm test:e2e:ios; rc=$?
+            echo "== rep $rep end rc=$rc ($(date -u +%H:%M:%SZ))" | tee -a "$R/w18-reps.log"
+            [ "$rc" = 0 ] || failed=1
+            d="$R/rep-$rep"; mkdir -p "$d"
+            cp firestore-debug.log "$d/" 2>/dev/null || true
+            cp "$R"/*.xml "$R/firestore-sdk.log" "$d/" 2>/dev/null || true
+            xcrun simctl spawn "$udid" log show --start "$start" --style compact --info --debug \
+              --predicate 'process == "Dev" AND eventMessage CONTAINS "[w18-trace]"' 2>/dev/null > "$d/w18-trace.log" || true
+            xcrun simctl spawn "$udid" log show --start "$start" --style compact --info --debug \
+              --predicate 'process == "Dev" AND composedMessage CONTAINS "FirebaseFirestore"' 2>/dev/null > "$d/firestore-verbose.log" || true
+            bytes=$(wc -c < "$d/firestore-verbose.log"); dbg=$(grep -c ' Db ' "$d/firestore-verbose.log" || true)
+            echo "== rep $rep verbose ${bytes} bytes, ${dbg} debug lines" | tee -a "$R/w18-reps.log"
+            gzip "$d/firestore-verbose.log"
+            if [ "$rep" = 1 ] && { [ "$bytes" -le 1024 ] || [ "$dbg" = 0 ]; }; then
+              echo "::error::The SDK's debug log was not captured (${bytes} bytes, ${dbg} debug lines); stopping the repetitions."
+              exit 1
+            fi
+          done
+          exit $failed
 
       # Why the Simulator ended an app process: runningboardd and SpringBoard
       # log the reason (a crash, a memory limit, a launch watchdog). Maestro's
@@ -260,13 +298,9 @@ jobs:
             | grep -iE 'cultuvilla|jetsam|terminat|watchdog|8badf00d|memory' \
             > apps/mobile/e2e/native/report/sim-terminations.log || true
           # DIAG (w18): the app's contact-gate and socio-listener trace.
-          xcrun simctl spawn "$udid" log show --last 3h --style compact --info --debug \
+          xcrun simctl spawn "$udid" log show --last 6h --style compact --info --debug \
             --predicate 'process == "Dev" AND eventMessage CONTAINS "[w18-trace]"' 2>/dev/null \
             > apps/mobile/e2e/native/report/w18-trace.log || true
-          # DIAG (w18): the iOS Firestore SDK's verbose log, set by setLogLevel('debug').
-          xcrun simctl spawn "$udid" log show --last 3h --style compact --info --debug \
-            --predicate 'process == "Dev" AND composedMessage CONTAINS "FirebaseFirestore"' 2>/dev/null \
-            | gzip > apps/mobile/e2e/native/report/firestore-verbose.log.gz || true
 
       # always(), not !cancelled(): a timeout cancels the job, and the
       # screenshots of a run that timed out are exactly the ones needed. The
