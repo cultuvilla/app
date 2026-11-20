@@ -118,7 +118,18 @@ const built: [string, string][] = [
   ['createNewsHref', createNewsHref({ newsId: 'n1' })],
   ['discoverOrganizeHref', discoverOrganizeHref('m1')],
   ['entityRefHref', entityRefHref('event', 'villa', '_e1')],
+  ['entityRefHref(query)', entityRefHref('organization', 'villa', 'pena_o1', 'intent=join')],
 ];
+
+describe('entityRefHref', () => {
+  it('appends a query to the entity path', () => {
+    expect(entityRefHref('organization', 'villa', 'pena_o1', 'intent=join')).toBe('/villa/entidad/pena_o1?intent=join');
+  });
+
+  it('builds the bare path without one', () => {
+    expect(entityRefHref('organization', 'villa', 'pena_o1')).toBe('/villa/entidad/pena_o1');
+  });
+});
 
 describe('every in-app path lands on a route file', () => {
   it.each(built)('%s → %s', (_name, path) => {
