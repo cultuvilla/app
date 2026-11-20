@@ -6,7 +6,7 @@ import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { deleteAccount } from '../../account/deleteAccount';
-import { buildCosaData, buildCosaRequestData } from '@cultuvilla/shared/models';
+import { buildCosaData, buildCosaRequestData, buildSocioData, buildSocioPrivateData } from '@cultuvilla/shared/models';
 
 const DELETED_USER_UID = 'deleted-user';
 
@@ -322,6 +322,45 @@ describe('deleteAccount (callable)', () => {
 
     // Auth user deleted.
     await expect(admin.auth().getUser(USER_ID)).rejects.toThrow(/no user record|not.*found/i);
+  });
+
+  it('keeps their socio rows in every group and clears the phone and email they shared', async () => {
+    await seedUserDoc(USER_ID);
+    await seedAuthUser(USER_ID);
+    const altaAt = new Date('2024-05-01T00:00:00Z');
+    const bajaAt = new Date('2025-01-10T00:00:00Z');
+    // An active row in one peña, a row from a membership they already left in another.
+    await db().doc('organizations/o1/socios/s1').set(
+      buildSocioData({ kind: 'member', socioNumber: 7, displayName: 'Ana', uid: USER_ID, altaAt, memberJoinedAt: altaAt, createdBy: USER_ID }),
+    );
+    await db().doc('organizations/o2/socios/s2').set({
+      ...buildSocioData({ kind: 'member', socioNumber: 3, displayName: 'Ana', uid: USER_ID, altaAt, memberJoinedAt: altaAt, createdBy: USER_ID }),
+      bajaAt,
+    });
+    const answeredAt = new Date('2024-05-01T00:00:00Z');
+    await db().doc('organizations/o1/socioPrivate/s1').set(buildSocioPrivateData({ phone: '600111222', email: 'ana@example.com', consentAnsweredAt: answeredAt }));
+    await db().doc('organizations/o2/socioPrivate/s2').set(buildSocioPrivateData({ phone: '600111222', email: null, consentAnsweredAt: answeredAt }));
+    // Somebody else's socio data is not theirs to erase.
+    await db().doc('organizations/o1/socios/other').set(
+      buildSocioData({ kind: 'typed', socioNumber: 8, displayName: 'Luis', createdBy: CO_ADMIN_ID }),
+    );
+    await db().doc('organizations/o1/socioPrivate/other').set(buildSocioPrivateData({ phone: '600999888', email: 'luis@example.com' }));
+
+    await callDelete(USER_ID);
+
+    const s1 = (await db().doc('organizations/o1/socios/s1').get()).data();
+    expect(s1).toMatchObject({ socioNumber: 7, displayName: 'Ana', uid: USER_ID });
+    const s2 = (await db().doc('organizations/o2/socios/s2').get()).data();
+    expect(s2).toMatchObject({ socioNumber: 3, displayName: 'Ana' });
+    expect(s2?.bajaAt?.toDate()).toEqual(bajaAt);
+
+    const p1 = (await db().doc('organizations/o1/socioPrivate/s1').get()).data();
+    expect(p1).toMatchObject({ phone: null, email: null });
+    const p2 = (await db().doc('organizations/o2/socioPrivate/s2').get()).data();
+    expect(p2).toMatchObject({ phone: null, email: null });
+
+    const other = (await db().doc('organizations/o1/socioPrivate/other').get()).data();
+    expect(other).toMatchObject({ phone: '600999888', email: 'luis@example.com' });
   });
 
   it('refuses (failed-precondition) when the caller is the sole admin, deleting nothing', async () => {

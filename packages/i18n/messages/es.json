@@ -1992,6 +1992,7 @@
       "unnamed": "Sin nombre",
       "socioNumber": "Nº de socio (opcional)",
       "socioNumberHint": "Si lo dejas vacío, se le da el siguiente.",
+      "consent": "Confirmo que esta persona ha dado su permiso para que el grupo guarde sus datos.",
       "socioNumberInvalid": "Escribe un número entre 1 y 99999.",
       "socioNumberTaken": "Ese número ya lo tiene otro socio.",
       "numberShort": "Nº {number}",
