@@ -569,11 +569,26 @@ describe('a retry starts from its first attempt’s data', () => {
 
     const docName = (i: number) => `projects/p/databases/(default)/documents/c/d${String(i)}`;
 
+    const CLEAR = '/emulator/v1/projects/p/databases/(default)/documents';
+    const CANCELLED = JSON.stringify({ error: { code: 499, message: 'call already cancelled', status: 'CANCELLED' } });
+
+    /**
+     * How the fake answers the database clear: `ok` clears, `cancelled-cleared`
+     * clears but answers 499 (as the real emulator did with listen streams
+     * open), `cancelled-kept` answers 499 and keeps every document.
+     */
+    type ClearMode = 'ok' | 'cancelled-cleared' | 'cancelled-kept';
+
     // One HTTP server stands in for all three emulators and records each call.
-    async function withFake(fn: (t: Targets, calls: Call[]) => Promise<void>, failOn?: string) {
+    async function withFake(
+      fn: (t: Targets, calls: Call[]) => Promise<void>,
+      failOn?: string,
+      clear: ClearMode[] = ['ok'],
+    ) {
       const http = await import('node:http');
       const calls: Call[] = [];
-      const docs = [1, 2, 3].map((i) => ({ name: docName(i), fields: { n: { integerValue: String(i) } } }));
+      let docs = [1, 2, 3].map((i) => ({ name: docName(i), fields: { n: { integerValue: String(i) } } }));
+      let clears = 0;
       const server = http.createServer((req, res) => {
         let body = '';
         req.on('data', (c: Buffer) => (body += c.toString()));
@@ -582,6 +597,13 @@ describe('a retry starts from its first attempt’s data', () => {
           calls.push({ method: req.method ?? '', url, body });
           if (failOn && url.includes(failOn)) {
             res.writeHead(500).end('boom');
+            return;
+          }
+          if (req.method === 'DELETE' && url === CLEAR) {
+            const mode = clear[Math.min(clears++, clear.length - 1)];
+            if (mode !== 'cancelled-kept') docs = [];
+            if (mode === 'ok') res.writeHead(200).end('{}');
+            else res.writeHead(499, { 'Content-Type': 'application/json' }).end(CANCELLED);
             return;
           }
           let out: unknown = {};
@@ -628,6 +650,7 @@ describe('a retry starts from its first attempt’s data', () => {
         expect(calls.map((c) => `${c.method} ${c.url.replace(/\?.*/, '')}`)).toEqual([
           'PUT /functions/disableBackgroundTriggers',
           'DELETE /emulator/v1/projects/p/databases/(default)/documents',
+          'POST /v1/projects/p/databases/(default)/documents:runQuery',
           'POST /v1/projects/p/databases/(default)/documents:batchWrite',
           'POST /v1/projects/p/databases/(default)/documents:batchWrite',
           'POST /v1/projects/p/databases/(default)/documents:batchWrite',
@@ -647,6 +670,45 @@ describe('a retry starts from its first attempt’s data', () => {
         await expect(snap.restoreSnapshot(t, { documents: [], accounts: [] })).rejects.toThrow(/HTTP 500/);
         expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
       }, 'databases/(default)/documents');
+    });
+
+    const clearCalls = (calls: Call[]) => calls.filter((c) => c.method === 'DELETE' && c.url === CLEAR).length;
+
+    it('goes on when the clear answers 499 but the database is empty', async () => {
+      await withFake(
+        async (t, calls) => {
+          await snap.restoreSnapshot(t, { documents: [], accounts: [] });
+          expect(clearCalls(calls)).toBe(1);
+        },
+        undefined,
+        ['cancelled-cleared'],
+      );
+    });
+
+    it('clears again while documents are left, and stops once it is empty', async () => {
+      await withFake(
+        async (t, calls) => {
+          await snap.restoreSnapshot(t, { documents: [], accounts: [] });
+          expect(clearCalls(calls)).toBe(2);
+        },
+        undefined,
+        ['cancelled-kept', 'ok'],
+      );
+    });
+
+    it('fails loudly, triggers back on, when the database never empties', async () => {
+      await withFake(
+        async (t, calls) => {
+          await expect(snap.restoreSnapshot(t, { documents: [], accounts: [] })).rejects.toThrow(
+            /still holds 3 documents after clearing/,
+          );
+          expect(clearCalls(calls)).toBe(3);
+          expect(calls.some((c) => c.url.includes('batchWrite'))).toBe(false);
+          expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
+        },
+        undefined,
+        ['cancelled-kept'],
+      );
     });
   });
 });
