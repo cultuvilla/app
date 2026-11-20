@@ -275,6 +275,9 @@ export function groupAvisoLinkPath(orgId: string, messageId: string): string {
   return `${groupPath(orgId)}&aviso=${encodeURIComponent(messageId)}`;
 }
 
+/** The super admin's queue of Embajador requests (`apps/mobile/app/admin/solicitudes-organizador.tsx`). */
+export const ADMIN_ORGANIZER_REQUESTS_PATH = '/admin/solicitudes-organizador';
+
 export function userPath(uid: string): string {
   return `/usuario/${uid}`;
 }

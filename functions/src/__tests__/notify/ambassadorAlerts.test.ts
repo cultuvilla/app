@@ -6,41 +6,43 @@ describe('organizerRequestAlert', () => {
   const base = {
     projectId: 'cultuvilla-prod',
     requestId: 'PuQ46SL007v5r8rODa13',
-    requesterName: 'Estefanía Liaño Pérez',
     municipalityName: 'Santillana del Mar',
     province: 'Cantabria',
-    motivation: 'Quiero dar visibilidad a mi pueblo.',
   };
 
-  it('names the pueblo, the requester and the motivation, and links the doc', () => {
+  it('says what happened and where, and links the admin queue in the app', () => {
     const m = organizerRequestAlert(base);
-    expect(m.title).toBe('Solicitud de Embajador: Santillana del Mar (Cantabria)');
-    expect(m.body).toBe('Estefanía Liaño Pérez · desde la app\n«Quiero dar visibilidad a mi pueblo.»');
-    expect(m.link).toBe(
-      'https://console.firebase.google.com/project/cultuvilla-prod/firestore/databases/-default-/data/~2ForganizerRequests~2FPuQ46SL007v5r8rODa13',
-    );
+    expect(m.title).toBe('Nueva solicitud de Embajador');
+    expect(m.body).toBe('Santillana del Mar (Cantabria)');
+    expect(m.link).toBe('https://cultuvilla.es/admin/solicitudes-organizador');
     expect(m.dedupeKey).toBe('organizer-request:PuQ46SL007v5r8rODa13');
   });
 
-  it('survives a request with no motivation, requester name or pueblo', () => {
-    const m = organizerRequestAlert({ ...base, requesterName: null, municipalityName: null, province: null, motivation: null });
-    expect(m.title).toBe('Solicitud de Embajador: pueblo desconocido');
-    expect(m.body).toBe('Alguien · desde la app');
+  it('links the env-own host outside production', () => {
+    expect(organizerRequestAlert({ ...base, projectId: 'cultuvilla-beta' }).link).toBe(
+      'https://cultuvilla-beta.web.app/admin/solicitudes-organizador',
+    );
+  });
+
+  it('survives a request with no pueblo', () => {
+    const m = organizerRequestAlert({ ...base, municipalityName: null, province: null });
+    expect(m.body).toBe('pueblo desconocido');
   });
 });
 
 describe('ambassadorLeadAlert', () => {
-  it('carries name and phone, and flags a pueblo that matched nothing', () => {
+  it('names only the pueblo, flags one that matched nothing, and links the lead doc', () => {
     const m = ambassadorLeadAlert({
       projectId: 'cultuvilla-prod',
       leadId: 'L1',
-      name: 'Juan',
-      phone: '+34612345678',
       municipalityName: 'Villarriba',
       matched: false,
     });
-    expect(m.title).toBe('Embajador desde la web: Villarriba (sin identificar)');
-    expect(m.body).toBe('Juan · +34612345678');
+    expect(m.title).toBe('Nuevo contacto desde /embajadores');
+    expect(m.body).toBe('Villarriba (sin identificar)');
+    expect(m.link).toBe(
+      'https://console.firebase.google.com/project/cultuvilla-prod/firestore/databases/-default-/data/~2FambassadorLeads~2FL1',
+    );
     expect(m.dedupeKey).toBe('ambassador-lead:L1');
   });
 });
@@ -49,17 +51,16 @@ describe('notifyEnvelope', () => {
   const message = organizerRequestAlert({
     projectId: 'cultuvilla-prod',
     requestId: 'r1',
-    requesterName: 'Ana',
     municipalityName: 'Matabuena',
     province: 'Segovia',
-    motivation: null,
   });
 
   it('builds a gateway-valid envelope for the cultuvilla channel', () => {
     const env = notifyEnvelope('cultuvilla-prod', message);
     expect(NotifyEnvelopeSchema.parse(env)).toEqual(env);
     expect(env).toMatchObject({ channel: 'cultuvilla', source: 'cultuvilla-app', severity: 'info', dedupe_key: 'organizer-request:r1' });
-    expect(env.title).toBe('Solicitud de Embajador: Matabuena (Segovia)');
+    expect(env.title).toBe('Nueva solicitud de Embajador');
+    expect(env.body).toBe('Matabuena (Segovia)');
   });
 
   it('tags non-production titles with their environment', () => {
