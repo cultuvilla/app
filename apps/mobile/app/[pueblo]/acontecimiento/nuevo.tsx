@@ -9,7 +9,6 @@ import { HistoryEntryForm } from '../../../components/feature/history/HistoryEnt
 import { useT } from '../../../lib/i18n';
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 import { createHistoryEntry, newHistoryEntryId } from '@cultuvilla/shared/services/historyService';
-import { noteConsentPromptAction } from '../../../lib/observability/analyticsConsentPrompt';
 
 function NewHistoryEntryScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
@@ -42,7 +41,6 @@ function NewHistoryEntryScreen() {
               { ...values, municipalityId: villageId, createdBy: uid, createdAt: new Date() },
               entryId,
             );
-            noteConsentPromptAction('history-publish');
             router.replace(historyEntryHref({ id: entryId, title: values.title, villageSlug }));
           }}
         />

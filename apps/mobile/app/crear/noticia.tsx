@@ -32,7 +32,6 @@ import {
   newsTextToEditorBlock,
 } from '@cultuvilla/shared/models/news/newsEditorBlocks';
 import type { VisibilityStatus } from '@cultuvilla/shared/models';
-import { noteConsentPromptAction } from '../../lib/observability/analyticsConsentPrompt';
 
 // The dedicated card cover: either a freshly-picked image (uploaded on submit)
 // or one already in Storage (edit mode), or none.
@@ -363,7 +362,6 @@ export default function NewNewsScreen() {
       if (editMode) {
         if (postId) router.replace(newsHref({ id: postId, title, villageSlug }));
       } else {
-        noteConsentPromptAction('article-publish');
         setSubmitted(true);
       }
     },

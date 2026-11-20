@@ -9,13 +9,12 @@ jest.mock('react-native-safe-area-context', () => ({
 
 const setup = () => {
   const onAnswer = jest.fn();
-  const onDismiss = jest.fn();
   const view = render(
     <I18nProvider>
-      <AnalyticsConsentPage visible onAnswer={onAnswer} onDismiss={onDismiss} />
+      <AnalyticsConsentPage visible onAnswer={onAnswer} />
     </I18nProvider>,
   );
-  return { ...view, onAnswer, onDismiss };
+  return { ...view, onAnswer };
 };
 
 describe('AnalyticsConsentPage', () => {
@@ -38,10 +37,10 @@ describe('AnalyticsConsentPage', () => {
     expect(onAnswer).toHaveBeenLastCalledWith(false);
   });
 
-  it('Android back only dismisses — no answer', () => {
-    const { UNSAFE_getByType, onAnswer, onDismiss } = setup();
+  it('Android back does nothing — only an answer closes it', () => {
+    const { UNSAFE_getByType, onAnswer, getByTestId } = setup();
     UNSAFE_getByType(Modal).props.onRequestClose();
-    expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(onAnswer).not.toHaveBeenCalled();
+    expect(getByTestId('analytics-consent-page')).toBeTruthy();
   });
 });

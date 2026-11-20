@@ -31,7 +31,6 @@ import {
   VOCABULARY_TERM_KINDS,
   type VocabularyTermKind,
 } from '@cultuvilla/shared/models/vocabulary';
-import { noteConsentPromptAction } from '../../../lib/observability/analyticsConsentPrompt';
 
 function stepBody(children: ReactNode) {
   return (
@@ -81,7 +80,6 @@ function NewVocabularyTermScreen() {
         contributorOrgIds: credit.orgIds,
         ...draft,
       });
-      noteConsentPromptAction('word-publish');
       router.replace(wordHref(villageSlug, termSlugFromId(termId)));
     } finally {
       setSaving(false);

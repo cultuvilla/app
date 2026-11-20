@@ -24,7 +24,6 @@ import {
   joinVillage,
 } from '@cultuvilla/shared/services/villageMemberService';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
-import { noteConsentPromptAction } from '../../lib/observability/analyticsConsentPrompt';
 
 type Muni = MunicipalityData & { id: string };
 const PAGE_SIZE = 20;
@@ -187,7 +186,6 @@ export function VillageDiscovery() {
       await joinVillage(id, user.uid, barrioId);
       succeeded = true;
       observability.trackEvent(OBSERVABILITY_EVENTS.VILLAGE_JOIN_SUCCESS, { villageId: id });
-      noteConsentPromptAction('village-join');
       setJoinedIds((prev) => new Set(prev).add(id));
       setPendingJoin(null);
       offerPush('village_join', { villageName: pendingJoin.name });

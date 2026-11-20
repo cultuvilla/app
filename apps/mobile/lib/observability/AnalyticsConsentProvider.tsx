@@ -1,6 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AppState } from 'react-native';
-import { usePathname } from 'expo-router';
 import { observability } from '@cultuvilla/shared';
 import { analyticsConsentGranted, type PrivacySettingsData } from '@cultuvilla/shared/models/user';
 import {
@@ -9,17 +7,6 @@ import {
 } from '@cultuvilla/shared/services/userService';
 import { useAuth } from '../auth/useAuth';
 import { AnalyticsConsentPage } from '../../components/feature/AnalyticsConsentPage';
-import {
-  isFlowRoute,
-  localDayKey,
-  onConsentPromptAction,
-  promptReason,
-  withAction,
-  withAppDay,
-  withUnansweredClose,
-  type ConsentPromptState,
-} from './analyticsConsentPrompt';
-import { readConsentPromptState, writeConsentPromptState } from './consentPromptStore';
 
 export interface AnalyticsConsentValue {
   /**
@@ -39,7 +26,7 @@ export function useAnalyticsConsent(): AnalyticsConsentValue {
   return v;
 }
 
-/** Lets a navigation transition finish before the page slides in over it. */
+/** Lets the first screen paint before the page slides in over it. */
 export const PAGE_SETTLE_MS = 700;
 
 /**
@@ -48,20 +35,15 @@ export const PAGE_SETTLE_MS = 700;
  * off again the moment it signs out or says no. Error reporting to Cloud Logging
  * is not analytics and never waits on this.
  *
- * It also decides when an account that never answered sees the full-screen
- * question — the rule is analyticsConsentPrompt.ts; this wires it to the
- * device's storage, the calendar day and the current route.
+ * An onboarded account that never answered is asked at once, full screen, the
+ * moment the app opens (decided 2026-11-20, Álvaro: every user answers right
+ * away). There is no way past it but an answer.
  */
 export function AnalyticsConsentProvider({ children }: { children: ReactNode }) {
   const { user, profile } = useAuth();
   const uid = user?.uid ?? null;
   const onboarded = Boolean(profile?.personId);
-  const pathname = usePathname();
   const [settings, setSettings] = useState<{ uid: string; row: PrivacySettingsData | null } | undefined>();
-  const [prompt, setPrompt] = useState<{ uid: string; state: ConsentPromptState } | undefined>();
-  const [today, setToday] = useState(() => localDayKey(new Date()));
-  // After an action, the screen it happened on: the page waits until the user leaves it.
-  const [waitingOnPath, setWaitingOnPath] = useState<string | null>(null);
   // Answered (or failed to store) this session: hidden until the next launch at least.
   const [settledFor, setSettledFor] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
@@ -95,96 +77,30 @@ export function AnalyticsConsentProvider({ children }: { children: ReactNode }) 
   const answer = current === undefined ? undefined : current === null ? null : current.usageAnalytics;
   const value = useMemo(() => ({ answer, setUsageAnalytics }), [answer, setUsageAnalytics]);
 
-  // ── When to ask ──
-  useEffect(() => {
-    setPrompt(undefined);
-    setWaitingOnPath(null);
-    setVisible(false);
-    if (!uid) return;
-    let live = true;
-    void readConsentPromptState(uid).then((state) => {
-      if (live) setPrompt({ uid, state });
-    });
-    return () => {
-      live = false;
-    };
-  }, [uid]);
-
-  const promptState = uid !== null && prompt?.uid === uid ? prompt.state : undefined;
-
-  const update = useCallback(
-    (fn: (s: ConsentPromptState) => ConsentPromptState) => {
-      if (!uid) return;
-      setPrompt((p) => {
-        if (p?.uid !== uid) return p;
-        const next = fn(p.state);
-        if (next === p.state) return p;
-        void writeConsentPromptState(uid, next);
-        return { uid, state: next };
-      });
-    },
-    [uid],
-  );
+  const owed = answer === null && onboarded && settledFor !== uid;
 
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') setToday(localDayKey(new Date()));
-    });
-    return () => sub.remove();
-  }, []);
-
-  // Counts the day once the stored state is in, so it never writes over it.
-  const loaded = promptState !== undefined;
-  useEffect(() => {
-    if (loaded) update((s) => withAppDay(s, today));
-  }, [loaded, today, update]);
-
-  useEffect(
-    () =>
-      onConsentPromptAction(() => {
-        update(withAction);
-        setWaitingOnPath(pathname);
-      }),
-    [update, pathname],
-  );
-
-  useEffect(() => {
-    if (waitingOnPath !== null && pathname !== waitingOnPath) setWaitingOnPath(null);
-  }, [pathname, waitingOnPath]);
-
-  const reason =
-    promptState && settledFor !== uid ? promptReason({ answer, onboarded, state: promptState, today }) : null;
-  const ordinaryScreen = !isFlowRoute(pathname);
-  const showable =
-    reason === 'day' ? ordinaryScreen : reason === 'action' ? ordinaryScreen && waitingOnPath === null : false;
-
-  useEffect(() => {
-    if (!showable) {
-      if (reason === null) setVisible(false);
+    if (!owed) {
+      setVisible(false);
       return;
     }
     const t = setTimeout(() => setVisible(true), PAGE_SETTLE_MS);
     return () => clearTimeout(t);
-  }, [showable, reason]);
+  }, [owed]);
 
   const onAnswer = (next: boolean) => {
     setVisible(false);
     setSettledFor(uid);
     setUsageAnalytics(next).catch((err: unknown) => {
-      // Unstored: it asks again on a later launch, and no close is counted.
+      // Unstored: it asks again on the next launch.
       observability.captureError(err, { operation: 'privacy:saveUsageAnalytics' });
     });
-  };
-
-  const onDismiss = () => {
-    setVisible(false);
-    update((s) => withUnansweredClose(s, today));
   };
 
   return (
     <AnalyticsConsentContext.Provider value={value}>
       {children}
-      <AnalyticsConsentPage visible={visible && reason !== null} onAnswer={onAnswer} onDismiss={onDismiss} />
+      <AnalyticsConsentPage visible={visible && owed} onAnswer={onAnswer} />
     </AnalyticsConsentContext.Provider>
   );
 }

@@ -68,7 +68,6 @@ import {
 } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
 import type { VillageHomeState } from '../../lib/useVillageHome';
 import { VillageCosatecaEntry } from './groups/cosateca/VillageCosatecaEntry';
-import { noteConsentPromptAction } from '../../lib/observability/analyticsConsentPrompt';
 
 export interface VillageHomeBodyProps {
   data: VillageHomeState;
@@ -225,7 +224,6 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
     setJoining(true);
     try {
       await joinVillage(village.id, user.uid, barrioId);
-      noteConsentPromptAction('village-join');
       setPendingJoin(false);
       // Joining earns the first ask: everything added to this village will now
       // reach them. The policy only lets a join have the FIRST ask.

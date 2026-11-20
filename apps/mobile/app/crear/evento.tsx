@@ -70,7 +70,6 @@ import {
   type LoadedEvent,
   type Recurrence,
 } from '../../lib/events/eventDraft';
-import { noteConsentPromptAction } from '../../lib/observability/analyticsConsentPrompt';
 
 /** Every real group size — parejas, tríos, grupos de cuatro. Size 1 isn't a
  *  choice here: it's what the "inscripción por grupos" toggle being off means. */
@@ -543,7 +542,6 @@ export default function NewEventScreen() {
       return firstId;
     },
     onSuccess: (id) => {
-      if (!editMode) noteConsentPromptAction('event-publish');
       if (id) router.replace(eventHref({ id, title, villageSlug, visibilityOrgId }));
     },
     swallow: true,

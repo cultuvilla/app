@@ -7,9 +7,10 @@ import { AnalyticsConsentIllustration } from './AnalyticsConsentIllustration';
 export interface AnalyticsConsentPageProps {
   visible: boolean;
   onAnswer: (granted: boolean) => void;
-  /** Android back: closed without an answer, nothing stored. */
-  onDismiss: () => void;
 }
+
+// Android back does nothing: every account answers before using the app.
+const ignoreBack = () => undefined;
 
 const MAX_ART_WIDTH = 360;
 const GUTTER = 24;
@@ -19,9 +20,9 @@ const GUTTER = 24;
  * drawing, the question, one lead line, the small print, and the two answers
  * pinned at the bottom. Same size, side by side — refusing must be as easy as
  * accepting (RGPD art. 7, EDPB 05/2020); the yes is filled, the no outlined.
- * No close button: an answer, or Android back, are the only ways out.
+ * No close button, and Android back does nothing: an answer is the only way out.
  */
-export function AnalyticsConsentPage({ visible, onAnswer, onDismiss }: AnalyticsConsentPageProps) {
+export function AnalyticsConsentPage({ visible, onAnswer }: AnalyticsConsentPageProps) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -32,7 +33,7 @@ export function AnalyticsConsentPage({ visible, onAnswer, onDismiss }: Analytics
       visible={visible}
       animationType="slide"
       presentationStyle="fullScreen"
-      onRequestClose={onDismiss}
+      onRequestClose={ignoreBack}
       statusBarTranslucent
     >
       <View

@@ -12,7 +12,6 @@ import { Avatar } from '../primitives/Avatar';
 import { DetailSectionHeading } from './DetailSectionHeading';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
-import { noteConsentPromptAction } from '../../lib/observability/analyticsConsentPrompt';
 import { useT } from '../../lib/i18n';
 import {
   addComment,
@@ -325,7 +324,6 @@ export function EntityComments({
       body: trimmed,
       ...(parentCommentId ? { parentCommentId } : {}),
     });
-    noteConsentPromptAction('comment-publish');
     if (parentCommentId) {
       setExpandedReplies((prev) => new Set(prev).add(parentCommentId));
       // Appending to a thread we never fetched would render the new reply

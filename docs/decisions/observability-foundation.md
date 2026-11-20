@@ -57,17 +57,14 @@ why.
   data is pseudonymous), stored at `users/{uid}/privacySettings/account`,
   changeable under Ajustes → Estadísticas de uso. Guests are never tracked.
   The question is a full-screen page, not part of sign-up (decided 2026-11-20,
-  Álvaro: onboarding keeps only the terms checkbox). It asks an account with no
-  answer at the first of its first real action (signing up to an event, joining
-  a group or a village, publishing an event, article, comment, aviso, history
-  entry or word — `CONSENT_PROMPT_ACTIONS`), shown once the user reaches another
-  ordinary screen, never over a form; or the third distinct local day it opens
-  the app signed in. Never during onboarding. «No, gracias» and «Sí, claro» are
-  the same size side by side (no outlined, yes filled) and each closes it;
-  Android back stores nothing and it asks again another day, once — after a
-  second unanswered close it never asks again. The day count and the closes
-  are per user on the device (AsyncStorage); the answer alone is in Firestore.
-  Rule: `apps/mobile/lib/observability/analyticsConsentPrompt.ts`. The drawing
+  Álvaro: onboarding keeps only the terms checkbox). It asks an onboarded account with no
+  answer the moment the app opens, full screen, and nothing gets past it but an
+  answer: Android back does nothing (decided 2026-11-20, Álvaro, replacing a
+  first-real-action-or-third-day rule the same day, so every user answers right
+  away). Never during onboarding. «No, gracias» and «Sí, claro» are the same
+  size side by side (no outlined, yes filled) and each closes it. The answer is
+  in Firestore; an answer that fails to store asks again on the next launch.
+  The drawing
   is built from Views, not SVG: the app ships no react-native-svg, and a native
   module would have waited for a store binary. Error/log *diagnosis* flows regardless, on
   legitimate interest — justified because the app has guest browsing and 14+
