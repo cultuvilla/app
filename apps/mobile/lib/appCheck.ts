@@ -38,10 +38,22 @@ let initialized = false;
  * attestation. Any synchronous failure (no default app, a native module
  * missing from an older binary running a newer bundle) is swallowed: App
  * Check must never take the app down.
+ *
+ * `emulators` is true only when bootstrapFirebase pointed the SDKs at the local
+ * emulators (the E2E builds). Then App Check stays off: the emulators never
+ * enforce it, and the project id those builds carry (`cultuvilla-test`) is no
+ * real project, so every exchange is refused, and the SDKs hold each stream
+ * until that refusal arrives. On a CI runner that wait outlasted Firestore's
+ * 10 s online timer and the app came up "offline". The same wait for real
+ * users is tracked in docs/plans/ongoing/app-check-rollout.md.
  */
-export function initMobileAppCheck(): void {
+export function initMobileAppCheck({ emulators }: { emulators: boolean }): void {
   if (initialized) return;
   initialized = true;
+  if (emulators) {
+    console.info('[app-check] not activated: the app talks to the local emulators, which never enforce it');
+    return;
+  }
   try {
     const providers = appCheckProvidersFor(getAppEnv());
     const provider = new ReactNativeFirebaseAppCheckProvider();

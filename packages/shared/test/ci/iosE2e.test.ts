@@ -38,6 +38,24 @@ describe('ios-e2e workflow gating', () => {
     expect(step).toMatch(/^\s*- name: Upload Maestro artifacts\s*\n\s*if: \$\{\{ always\(\) \}\}/);
   });
 
+  // Maestro's "App crashed" names no cause; the Simulator writes the app's
+  // crash report on the host, and only it has the stack.
+  it("uploads the app's crash reports with the Maestro artifacts", () => {
+    const step = workflow.slice(workflow.indexOf('- name: Upload Maestro artifacts'));
+    const paths = step.slice(0, step.indexOf('retention-days'));
+    expect(paths).toContain('~/Library/Logs/DiagnosticReports/Dev*');
+    expect(paths).toContain('~/Library/Logs/DiagnosticReports/JetsamEvent*');
+  });
+
+  it("records why the Simulator ended an app process, even from a failed job", () => {
+    const step = workflow.slice(workflow.indexOf("- name: Collect the Simulator's termination reasons"));
+    expect(step).toMatch(/^- name: Collect the Simulator's termination reasons\s*\n\s*if: \$\{\{ always\(\) \}\}/);
+    expect(step.slice(0, step.indexOf('- name: Upload Maestro artifacts'))).toContain('report/sim-terminations.log');
+    expect(workflow.indexOf("Collect the Simulator's termination reasons")).toBeLessThan(
+      workflow.indexOf('- name: Upload Maestro artifacts'),
+    );
+  });
+
   // One build, shared: the build is the slowest step and identical for every
   // shard, so it must not run per machine.
   it('builds the app once and shards the suite across machines', () => {
@@ -385,5 +403,122 @@ describe('iOS quarantine', () => {
     const lib = read('scripts/lib/maestro-suite.mjs');
     expect(lib).toMatch(/QUARANTINED, NOT RUN/);
     expect(lib).toMatch(/quarantine names a flow that does not exist/);
+  });
+});
+
+// The stock Firestore emulator allows one client ping per 5 minutes; the SDKs
+// ping every 30 s, which production accepts. It answered with GOAWAY
+// too_many_pings, and on the Simulator a write then stalled ~90 s ("ping
+// timeout"), failing flows 13–15. The lane gives the emulator production's
+// policy and fails loudly whenever that stops being true.
+// docs/decisions/ios-e2e-emulator-keepalive.md
+describe('Firestore emulator keepalive', () => {
+  const wrapper = read('scripts/run-tests-with-emulators.mjs');
+  const policySource = read('scripts/emulator-keepalive/io/grpc/internal/KeepAliveEnforcer.java');
+
+  it('runs the iOS suite with the emulator on production keepalive', () => {
+    const step = workflow.slice(workflow.indexOf('- name: Seed + run the Maestro suite'));
+    expect(step.slice(0, step.indexOf('run: pnpm test:e2e:ios'))).toMatch(/EMULATOR_KEEPALIVE: production/);
+  });
+
+  it('accepts the SDKs’ 30 s keepalive, with or without a call open', async () => {
+    const policy = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/emulator-keepalive.mjs')).href)) as {
+      KEEPALIVE_PERMIT_MS: number;
+      KEEPALIVE_POLICY_LINE: string;
+    };
+    expect(policy.KEEPALIVE_PERMIT_MS).toBeLessThan(30_000);
+    expect(policy.KEEPALIVE_POLICY_LINE).toContain(`${String(policy.KEEPALIVE_PERMIT_MS)} ms, without calls: true`);
+    const lib = read('scripts/lib/emulator-keepalive.mjs');
+    expect(lib).toContain('-Xbootclasspath/a:');
+    expect(lib).toContain('-Dcultuvilla.emulator.permitKeepAliveTimeMs=');
+    expect(lib).toContain("'-Dcultuvilla.emulator.permitKeepAliveWithoutCalls=true'");
+  });
+
+  it('replaces grpc-java’s class under its own name and API, changing only the limits', () => {
+    expect(policySource).toMatch(/^package io\.grpc\.internal;/m);
+    expect(policySource).toMatch(/public final class KeepAliveEnforcer/);
+    for (const member of [
+      'public KeepAliveEnforcer(boolean permitWithoutCalls, long minTime, TimeUnit unit)',
+      'public boolean pingAcceptable()',
+      'public void resetCounters()',
+      'public void onTransportActive()',
+      'public void onTransportIdle()',
+    ]) {
+      expect(policySource).toContain(member);
+    }
+    expect(policySource).toContain('"cultuvilla.emulator.permitKeepAliveTimeMs"');
+    expect(policySource).toContain('"cultuvilla.emulator.permitKeepAliveWithoutCalls"');
+    expect(policySource).toContain('[emulator-keepalive] client pings permitted every ');
+    // The boot class loader cannot see the jar's Guava.
+    expect(policySource.match(/^import .*$/gm)).toEqual(['import java.util.concurrent.TimeUnit;']);
+  });
+
+  it('passes the policy to the emulator JVM only, and checks it before any command runs', () => {
+    expect(wrapper).toMatch(/env: emulatorJavaOptions \? \{ \.\.\.emulatorEnv, JAVA_TOOL_OPTIONS: emulatorJavaOptions \}/);
+    expect(wrapper).not.toMatch(/emulatorEnv = \{[^}]*JAVA_TOOL_OPTIONS/);
+    const checks = wrapper.indexOf('if (KEEPALIVE) {\n  const host');
+    expect(checks).toBeGreaterThan(-1);
+    expect(checks).toBeLessThan(wrapper.indexOf('for (const { label, cmd, args } of commands)'));
+    const block = wrapper.slice(checks, wrapper.indexOf('for (const { label, cmd, args } of commands)'));
+    expect(block).toContain('keepaliveApiMismatch()');
+    expect(block).toContain('probeKeepalive({ host })');
+    expect(block).toContain('KEEPALIVE_POLICY_LINE');
+    expect(block).toMatch(/shutdown\(1\)/);
+  });
+
+  it('fails the shard when the SDK still logs a ping timeout or too_many_pings', () => {
+    const guard = runner.slice(runner.indexOf('function keepaliveErrors'));
+    expect(guard).toContain("l.includes('ping timeout')");
+    expect(guard).toContain("l.includes('too_many_pings')");
+    expect(guard).toMatch(/if \(pingTimeouts \+ tooManyPings === 0\) return;[\s\S]*process\.exitCode = 1;/);
+  });
+
+  describe('probe', () => {
+    type Probe = (opts: { host: string; gapMs?: number }) => Promise<{ ok: boolean; reason?: string }>;
+    let probeKeepalive: Probe;
+    beforeAll(async () => {
+      ({ probeKeepalive } = (await import(
+        pathToFileURL(resolve(repoRoot, 'scripts/check-emulator-keepalive.mjs')).href
+      )) as { probeKeepalive: Probe });
+    });
+
+    // A plain HTTP/2 server acks pings; `strikeOut` makes it answer the third
+    // the way the stock emulator does.
+    async function withServer(strikeOut: boolean, fn: (host: string) => Promise<void>) {
+      const http2 = await import('node:http2');
+      const server = http2.createServer();
+      const sessions: { destroy: () => void }[] = [];
+      server.on('session', (session) => {
+        sessions.push(session);
+        let pings = 0;
+        session.on('ping', () => {
+          pings += 1;
+          if (strikeOut && pings === 3) session.goaway(11, 0, Buffer.from('too_many_pings'));
+        });
+      });
+      await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+      const address = server.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      try {
+        await fn(`127.0.0.1:${String(port)}`);
+      } finally {
+        for (const session of sessions) session.destroy();
+        await new Promise((done) => server.close(done));
+      }
+    }
+
+    it('passes when every ping is acked', async () => {
+      await withServer(false, async (host) => {
+        expect(await probeKeepalive({ host, gapMs: 20 })).toEqual({ ok: true });
+      });
+    });
+
+    it('fails on the stock emulator’s GOAWAY too_many_pings', async () => {
+      await withServer(true, async (host) => {
+        const result = await probeKeepalive({ host, gapMs: 20 });
+        expect(result.ok).toBe(false);
+        expect(result.reason).toContain('too_many_pings');
+      });
+    });
   });
 });

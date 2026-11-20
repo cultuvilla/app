@@ -229,6 +229,13 @@ jobs:
       - name: Seed + run the Maestro suite on a Simulator
         env:
           E2E_FIREBASE_PROJECT: cultuvilla-test
+          # Production's gRPC keepalive policy for the Firestore emulator. The
+          # stock jar dropped the SDK's connections for pinging every 30 s
+          # (GOAWAY too_many_pings), stalling writes ~90 s on the Simulator.
+          # The runner checks the policy took before seeding, and fails the
+          # shard if the SDK logs a ping timeout or too_many_pings anyway.
+          # docs/decisions/ios-e2e-emulator-keepalive.md
+          EMULATOR_KEEPALIVE: production
           # The emulators' JVMs only (scripts/run-tests-with-emulators.mjs): the
           # Firestore emulator and the Storage rules runtime, one GC log each
           # (%p), so a pause long enough to miss a keepalive ping shows. The
@@ -238,8 +245,24 @@ jobs:
             -Xlog:gc:file=${{ github.workspace }}/apps/mobile/e2e/native/report/emulator-gc-%p.log:uptime,time
         run: pnpm test:e2e:ios
 
+      # Why the Simulator ended an app process: runningboardd and SpringBoard
+      # log the reason (a crash, a memory limit, a launch watchdog). Maestro's
+      # Simulator log keeps only the app's own lines and faults, so it misses it.
+      - name: Collect the Simulator's termination reasons
+        if: ${{ always() }}
+        run: |
+          udid="$(xcrun simctl list devices booted -j | jq -r '[.devices[][] | select(.state == "Booted")][0].udid // empty')"
+          [ -n "$udid" ] || exit 0
+          mkdir -p apps/mobile/e2e/native/report
+          xcrun simctl spawn "$udid" log show --last 3h --style compact \
+            --predicate 'process == "runningboardd" OR process == "SpringBoard"' 2>/dev/null \
+            | grep -iE 'cultuvilla|jetsam|terminat|watchdog|8badf00d|memory' \
+            > apps/mobile/e2e/native/report/sim-terminations.log || true
+
       # always(), not !cancelled(): a timeout cancels the job, and the
-      # screenshots of a run that timed out are exactly the ones needed.
+      # screenshots of a run that timed out are exactly the ones needed. The
+      # app's crash reports (Dev-*.ips) carry the stack Maestro's "App crashed"
+      # points at; without them a crash leaves only its last log line.
       - name: Upload Maestro artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -249,5 +272,7 @@ jobs:
             apps/mobile/e2e/native/report/
             ~/.maestro/tests/
             firestore-debug.log
+            ~/Library/Logs/DiagnosticReports/Dev*
+            ~/Library/Logs/DiagnosticReports/JetsamEvent*
           if-no-files-found: ignore
           retention-days: 7

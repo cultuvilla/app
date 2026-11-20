@@ -29,7 +29,7 @@
  * halved the build's speed. Run alone, it costs only its own few minutes.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   MAESTRO,
@@ -240,14 +240,25 @@ function resetKeychain() {
   }
 }
 
-// The Firestore SDK's stream errors, kept for the whole run. Against the
-// emulator on the macOS runner the SDK's 30 s gRPC keepalive has timed out
-// ("Unavailable: ping timeout"), and the resumed listen then lost a doc just
-// written (docs/plans/ongoing/ios-e2e-emulator-watch-keepalive.md). The count
-// printed on exit is the measure of that, run against run; the lines are in
+// The Firestore SDK's stream errors, kept for the whole run, and the guard on
+// the ones the emulator used to cause. The stock emulator dropped the SDK's
+// connections for pinging every 30 s (GOAWAY too_many_pings), and the
+// Simulator often saw that only as a "ping timeout" ~90 s after a write, with
+// the write stalled meanwhile. run-tests-with-emulators.mjs now gives the
+// emulator production's keepalive policy (EMULATOR_KEEPALIVE), so either error
+// means that fix has regressed: the run fails even when every flow passed.
+// docs/decisions/ios-e2e-emulator-keepalive.md. The lines themselves are in
 // firestore-sdk.log, uploaded with the Maestro report.
 const reportDir = path.join(SUITE_DIR, 'report');
 const firestoreLog = path.join(reportDir, 'firestore-sdk.log');
+function keepaliveErrors(log) {
+  const errors = log.split('\n').filter((l) => l.includes('Stream error'));
+  return {
+    errors: errors.length,
+    pingTimeouts: errors.filter((l) => l.includes('ping timeout')).length,
+    tooManyPings: errors.filter((l) => l.includes('too_many_pings')).length,
+  };
+}
 function captureFirestoreLog() {
   mkdirSync(reportDir, { recursive: true });
   const out = openSync(firestoreLog, 'a');
@@ -258,10 +269,17 @@ function captureFirestoreLog() {
   );
   process.on('exit', () => {
     stream.kill();
-    const lines = readFileSync(firestoreLog, 'utf8').split('\n');
-    const errors = lines.filter((l) => l.includes('Stream error'));
-    const pings = errors.filter((l) => l.includes('ping timeout'));
-    console.log(`\n[${LABEL}] Firestore SDK stream errors: ${errors.length} (ping timeout: ${pings.length})`);
+    const { errors, pingTimeouts, tooManyPings } = keepaliveErrors(readFileSync(firestoreLog, 'utf8'));
+    console.log(
+      `\n[${LABEL}] Firestore SDK stream errors: ${errors} (ping timeout: ${pingTimeouts}, too_many_pings: ${tooManyPings})`,
+    );
+    if (pingTimeouts + tooManyPings === 0) return;
+    const message =
+      `Firestore SDK keepalive errors against the emulator: ${pingTimeouts} ping timeout, ${tooManyPings} too_many_pings ` +
+      '(want 0; see docs/decisions/ios-e2e-emulator-keepalive.md and report/firestore-sdk.log)';
+    console.error(`::error::${message}`);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### :x: ${message}\n`);
+    process.exitCode = 1;
   });
 }
 captureFirestoreLog();

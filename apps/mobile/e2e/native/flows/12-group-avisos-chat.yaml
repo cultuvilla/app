@@ -180,8 +180,9 @@ onFlowComplete:
       id: 'group-home-notice-${output.avisoId}'
     timeout: 45000
 # By text, not the card's inner id: on iOS the card is one accessibility
-# element and hides its children's ids.
-- assertVisible: '.*${output.avisoBody}.*'
+# element and hides its children's ids. The card shows the title and the date,
+# never the text (decided 2026-11-19).
+- assertVisible: '.*${output.avisoTitle}.*'
 # The home row only lists it; the read is the aviso screen's to mark.
 - runScript:
     file: ../scripts/docField.js

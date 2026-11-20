@@ -6,6 +6,8 @@ const app = { name: '[DEFAULT]' };
 const configure = jest.fn();
 const initializeAppCheck = jest.fn();
 const getApp = jest.fn(() => app);
+const REAL = { emulators: false };
+const EMULATORS = { emulators: true };
 
 function load(appEnv: string | undefined): AppCheckModule {
   jest.resetModules();
@@ -49,7 +51,7 @@ describe('initMobileAppCheck', () => {
     ['beta', 'playIntegrity', 'appAttestWithDeviceCheckFallback'],
     ['prod', 'playIntegrity', 'appAttestWithDeviceCheckFallback'],
   ])('activates the %s providers on the default app with auto-refresh', (env, android, apple) => {
-    load(env).initMobileAppCheck();
+    load(env).initMobileAppCheck(REAL);
     expect(configure).toHaveBeenCalledWith({
       android: { provider: android },
       apple: { provider: apple },
@@ -62,7 +64,7 @@ describe('initMobileAppCheck', () => {
   });
 
   it('treats a build with no APP_ENV as dev', () => {
-    load(undefined).initMobileAppCheck();
+    load(undefined).initMobileAppCheck(REAL);
     expect(configure).toHaveBeenCalledWith({
       android: { provider: 'debug' },
       apple: { provider: 'debug' },
@@ -71,9 +73,36 @@ describe('initMobileAppCheck', () => {
 
   it('is idempotent across hot reloads of the bootstrap', () => {
     const { initMobileAppCheck } = load('prod');
-    initMobileAppCheck();
-    initMobileAppCheck();
+    initMobileAppCheck(REAL);
+    initMobileAppCheck(REAL);
     expect(initializeAppCheck).toHaveBeenCalledTimes(1);
+  });
+
+  // E2E builds talk to the local emulators, which never enforce App Check, under
+  // a project id (`cultuvilla-test`) no real backend has: an exchange there is
+  // always refused, and the SDKs hold every stream until it is.
+  describe('in a build pointed at the local emulators', () => {
+    it('stays off and says so once', () => {
+      const info = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+      load('dev').initMobileAppCheck(EMULATORS);
+      expect(configure).not.toHaveBeenCalled();
+      expect(initializeAppCheck).not.toHaveBeenCalled();
+      expect(info).toHaveBeenCalledTimes(1);
+      expect(info).toHaveBeenCalledWith(expect.stringContaining('[app-check] not activated'));
+      info.mockRestore();
+    });
+
+    it('keeps the debug provider for a dev build against the real dev project', () => {
+      const info = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+      load('dev').initMobileAppCheck(REAL);
+      expect(configure).toHaveBeenCalledWith({
+        android: { provider: 'debug' },
+        apple: { provider: 'debug' },
+      });
+      expect(initializeAppCheck).toHaveBeenCalledTimes(1);
+      expect(info).not.toHaveBeenCalled();
+      info.mockRestore();
+    });
   });
 
   // The hard requirement: App Check failing must never block or crash boot,
@@ -84,7 +113,7 @@ describe('initMobileAppCheck', () => {
         throw new Error('Invalid configuration');
       });
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-      expect(() => load('prod').initMobileAppCheck()).not.toThrow();
+      expect(() => load('prod').initMobileAppCheck(REAL)).not.toThrow();
       expect(warn).toHaveBeenCalledWith('[app-check] not activated', expect.any(Error));
       warn.mockRestore();
     });
@@ -94,21 +123,21 @@ describe('initMobileAppCheck', () => {
         throw new Error('No Firebase App [DEFAULT] has been created');
       });
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-      expect(() => load('beta').initMobileAppCheck()).not.toThrow();
+      expect(() => load('beta').initMobileAppCheck(REAL)).not.toThrow();
       expect(initializeAppCheck).not.toHaveBeenCalled();
       warn.mockRestore();
     });
 
     it('when the bundle carries an unknown APP_ENV', () => {
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-      expect(() => load('staging').initMobileAppCheck()).not.toThrow();
+      expect(() => load('staging').initMobileAppCheck(REAL)).not.toThrow();
       warn.mockRestore();
     });
 
     it('returns without waiting on a token', () => {
       // Never resolves: if boot awaited attestation it would hang here.
       initializeAppCheck.mockImplementation(() => new Promise(() => undefined));
-      expect(load('prod').initMobileAppCheck()).toBeUndefined();
+      expect(load('prod').initMobileAppCheck(REAL)).toBeUndefined();
     });
   });
 });

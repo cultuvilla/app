@@ -24,15 +24,23 @@
  *                       JAVA_TOOL_OPTIONS. Not set as JAVA_TOOL_OPTIONS on the
  *                       whole run, because the commands under test (Maestro)
  *                       are JVMs too. Used by ios-e2e.yml.
+ *   EMULATOR_KEEPALIVE  "production" gives the Firestore emulator production's
+ *                       gRPC keepalive policy (scripts/lib/emulator-keepalive.mjs)
+ *                       and, once it is up, proves it took: a ping probe and the
+ *                       policy's line in firestore-debug.log, either failing the
+ *                       run. Used by ios-e2e.yml; see
+ *                       docs/decisions/ios-e2e-emulator-keepalive.md.
  *   VITEST_RETRY_COUNT  Defaulted to "1" in the child env if not set by caller.
  *                       Each vitest config reads it and passes to `test.retry`.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { emulatorHostEnv, emulatorPorts, ensureEmulatorSecrets, resolveEmulatorConfig } from './lib/emulator-config.mjs';
+import { KEEPALIVE_POLICY_LINE, emulatorKeepaliveJavaOptions, keepaliveApiMismatch } from './lib/emulator-keepalive.mjs';
+import { probeKeepalive } from './check-emulator-keepalive.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -149,15 +157,27 @@ if (ONLY.split(',').map((s) => s.trim()).includes('functions')) {
   }
 }
 
+const KEEPALIVE = process.env.EMULATOR_KEEPALIVE;
+if (KEEPALIVE && KEEPALIVE !== 'production') {
+  console.error(`[emulators] EMULATOR_KEEPALIVE must be "production" or unset, got "${KEEPALIVE}"`);
+  process.exit(2);
+}
+const emulatorJavaOptions = [process.env.EMULATOR_JAVA_TOOL_OPTIONS, KEEPALIVE && emulatorKeepaliveJavaOptions()]
+  .filter(Boolean)
+  .join(' ');
+
+// The emulator JVM writes its stderr here; the keepalive check reads it, so a
+// line left by an earlier run must not count.
+const FIRESTORE_LOG = path.join(ROOT, 'firestore-debug.log');
+if (KEEPALIVE) rmSync(FIRESTORE_LOG, { force: true });
+
 console.log(`[emulators] starting (project=${TEST_PROJECT_ID}, only=${ONLY})`);
 const emu = spawn(
   'firebase',
   ['emulators:start', '--project', TEST_PROJECT_ID, '--only', ONLY, ...configArgs],
   {
     cwd: ROOT,
-    env: process.env.EMULATOR_JAVA_TOOL_OPTIONS
-      ? { ...emulatorEnv, JAVA_TOOL_OPTIONS: process.env.EMULATOR_JAVA_TOOL_OPTIONS }
-      : emulatorEnv,
+    env: emulatorJavaOptions ? { ...emulatorEnv, JAVA_TOOL_OPTIONS: emulatorJavaOptions } : emulatorEnv,
     stdio: ['ignore', 'inherit', 'inherit'],
   },
 );
@@ -214,6 +234,36 @@ try {
   console.error('[emulators] failed to start:', err.message);
   shutdown(1);
   process.exit(1);
+}
+
+// Three checks, each catching what the others cannot: the jar's own class
+// still has the API our copy replaces (a firebase-tools bump), the emulator
+// really accepts the pings (the probe), and our policy, not some future jar's
+// default, is what accepted them (the log line, printed when the first
+// connection loads the class, so read after the probe).
+if (KEEPALIVE) {
+  const host = `127.0.0.1:${PORTS_BY_SERVICE.firestore}`;
+  let failure;
+  try {
+    failure = keepaliveApiMismatch();
+  } catch (err) {
+    failure = err.message;
+  }
+  if (!failure) {
+    const probe = await probeKeepalive({ host }).catch((err) => ({ ok: false, reason: err.message }));
+    const log = existsSync(FIRESTORE_LOG) ? readFileSync(FIRESTORE_LOG, 'utf8') : '';
+    if (!probe.ok) failure = probe.reason;
+    else if (!log.includes(KEEPALIVE_POLICY_LINE)) failure = `no "${KEEPALIVE_POLICY_LINE}" line in firestore-debug.log`;
+  }
+  if (failure) {
+    console.error(
+      `[emulators] the Firestore emulator is not on production's keepalive policy: ${failure}\n` +
+        'See docs/decisions/ios-e2e-emulator-keepalive.md.',
+    );
+    shutdown(1);
+    await new Promise(() => {});
+  }
+  console.log(`[emulators] Firestore emulator on production's keepalive policy (${host} acked every ping)`);
 }
 
 let firstFailureCode = 0;
