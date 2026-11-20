@@ -10,11 +10,10 @@ import { resolve } from 'node:path';
 // reaches it through `pnpm app:typecheck`.
 
 const repoRoot = resolve(__dirname, '../../../..');
-const mobileScripts = JSON.parse(readFileSync(resolve(repoRoot, 'apps/mobile/package.json'), 'utf8')).scripts as Record<
-  string,
-  string
->;
-const rootScripts = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8')).scripts as Record<string, string>;
+const scriptsOf = (pkg: string): Record<string, string> =>
+  (JSON.parse(readFileSync(resolve(repoRoot, pkg), 'utf8')) as { scripts: Record<string, string> }).scripts;
+const mobileScripts = scriptsOf('apps/mobile/package.json');
+const rootScripts = scriptsOf('package.json');
 
 describe('mobile typecheck sees typed routes', () => {
   it('generates the route types before tsc runs', () => {
