@@ -126,6 +126,21 @@ export function createFakeFirestoreModule() {
     delete store[ref._id];
   }
 
+  // Ops are queued and applied in order on commit, so a test can assert that
+  // nothing lands before the batch commits.
+  function writeBatch(_db?: unknown) {
+    const ops: (() => Promise<void>)[] = [];
+    const batch = {
+      set: (ref: { _id: string }, data: FakeDoc) => (ops.push(() => setDoc(ref, data)), batch),
+      update: (ref: { _id: string }, patch: FakeDoc) => (ops.push(() => updateDoc(ref, patch)), batch),
+      delete: (ref: { _id: string }) => (ops.push(() => deleteDoc(ref)), batch),
+      commit: async () => {
+        for (const op of ops) await op();
+      },
+    };
+    return batch;
+  }
+
   function where(field: string, op: string, value: unknown) {
     return { _type: 'where', field, op, value };
   }
@@ -250,6 +265,7 @@ export function createFakeFirestoreModule() {
     setDoc,
     updateDoc,
     deleteDoc,
+    writeBatch,
     query,
     getDocs,
     where,
