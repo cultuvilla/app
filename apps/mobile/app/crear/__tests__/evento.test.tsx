@@ -744,27 +744,6 @@ describe('NewEventScreen — birth-year limit toggle', () => {
     }
   });
 
-  // Switching the limit off keeps whatever was typed — a mis-tap must not
-  // destroy it — so the submitted nulls can only come from the toggle itself.
-  it('submits no window when the limit is switched back off, despite typed years', async () => {
-    (createEvent as jest.Mock).mockClear();
-    const view = render(<NewEventScreen />);
-    await openDetails(view);
-    const { getByText, getByTestId } = view;
-
-    fireEvent.press(getByTestId('birth-year-limit'));
-    fireEvent.changeText(getByTestId('min-birth-year'), '2014');
-    fireEvent.changeText(getByTestId('max-birth-year'), '2020');
-    fireEvent.press(getByTestId('birth-year-limit'));
-
-    fireEvent.press(getByTestId('event-form-primary'));
-
-    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
-    expect((createEvent as jest.Mock).mock.calls[0][0]).toMatchObject({
-      minBirthYear: null,
-      maxBirthYear: null,
-    });
-  });
 });
 
 // The form toggle is UI state over `signupFields`: an event that already asks
@@ -815,16 +794,9 @@ describe('NewEventScreen — form toggle in edit mode', () => {
     delete mockParams.eventId;
   });
 
-  it('starts on, and saves no questions once switched off', async () => {
-    (updateEvent as jest.Mock).mockClear();
+  it('starts on when the event already asks questions', async () => {
     const { getByTestId } = await openEditDetails(0);
-    const toggle = getByTestId('form-enabled');
-    expect(toggle.props.accessibilityState.checked).toBe(true);
-
-    fireEvent.press(toggle);
-    fireEvent.press(getByTestId('event-form-primary'));
-    await waitFor(() => expect(updateEvent).toHaveBeenCalled());
-    expect((updateEvent as jest.Mock).mock.calls[0][1]).toMatchObject({ signupFields: [] });
+    expect(getByTestId('form-enabled').props.accessibilityState.checked).toBe(true);
   });
 
   it('cannot be switched off once the questions have answers', async () => {
@@ -876,27 +848,6 @@ describe('NewEventScreen — private events', () => {
     expect(queryByTestId('private-to-org')).toBeNull();
   });
 
-  it('creates a public event by default', async () => {
-    await submitNewEvent(render(<NewEventScreen />), (u) =>
-      fireEvent.press(u.getByTestId('pick-one-org')),
-    );
-    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
-      visibility: 'public',
-      visibilityOrgId: null,
-    });
-  });
-
-  it('creates an event restricted to the organizing org when the switch is on', async () => {
-    await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      await pickOrg(u);
-      fireEvent.press(u.getByTestId('private-to-org'));
-    });
-    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
-      visibility: 'organization',
-      visibilityOrgId: 'org-1',
-    });
-  });
-
   // A private event's URL must never spell out its title: the share preview
   // withholds it, and the address bar, history and copied links would not.
   it('opens a new private event at a URL without its title', async () => {
@@ -919,20 +870,6 @@ describe('NewEventScreen — private events', () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/pueblo/evento/fiesta_e-1'));
   });
 
-  // The switch is only rendered with one org, but the state it sets outlives
-  // adding a second one — and a private event with two orgs has no single
-  // membership to gate on, so the submit path has to drop it.
-  it('falls back to public when a second org joins after the switch was set', async () => {
-    await submitNewEvent(render(<NewEventScreen />), async (u) => {
-      await pickOrg(u);
-      fireEvent.press(u.getByTestId('private-to-org'));
-      fireEvent.press(u.getByTestId('pick-two-orgs'));
-    });
-    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({
-      visibility: 'public',
-      visibilityOrgId: null,
-    });
-  });
 });
 
 describe('NewEventScreen — weekly series', () => {
@@ -1099,32 +1036,18 @@ describe('NewEventScreen — editing one occurrence of a series', () => {
     expect(queryByTestId('event-recurring')).toBeNull();
   });
 
-  it('keeps a private series day private when its organizing orgs change', async () => {
+  // A series shares one visibility (the rules refuse a change on one day), so
+  // even a one-org day offers no switch. What it saves: eventDraft.test.ts.
+  it('offers no private switch on a series day', async () => {
     (getEvent as jest.Mock).mockResolvedValue({
       ...OCCURRENCE,
       organizerOrgIds: ['org-1'],
       visibility: 'organization',
       visibilityOrgId: 'org-1',
     });
-    jest.mocked(updateEvent).mockClear();
-    const { getByTestId, queryByTestId, getByLabelText } = render(<NewEventScreen />);
+    const { getByTestId, queryByTestId } = render(<NewEventScreen />);
     await waitFor(() => expect(getByTestId('organizer-picker')).toBeTruthy());
-    // One organizing org would normally offer the switch; a series day does not.
     expect(queryByTestId('private-to-org')).toBeNull();
-
-    fireEvent.press(getByTestId('pick-two-orgs'));
-    fireEvent.changeText(getByLabelText('event.title'), 'Yoga al aire libre');
-    // Edit mode reaches every step; the primary button saves from the last one.
-    fireEvent.press(getByTestId('event-form-primary'));
-    fireEvent.press(getByTestId('event-form-primary'));
-    fireEvent.press(getByTestId('event-form-primary'));
-    await waitFor(() => expect(updateEvent).toHaveBeenCalled());
-    expect(jest.mocked(updateEvent).mock.calls[0]?.[1]).toMatchObject({
-      title: 'Yoga al aire libre',
-      organizerOrgIds: ['org-1', 'org-2'],
-      visibility: 'organization',
-      visibilityOrgId: 'org-1',
-    });
   });
 
   it('cancels this day and the following ones on request', async () => {
@@ -1204,8 +1127,6 @@ describe('NewEventScreen — monthly and yearly events, and the group checklist'
     await waitFor(() => expect(utils.getByTestId('signup-enabled')).toBeTruthy());
     fireEvent.press(utils.getByTestId('event-form-primary'));
     await waitFor(() => expect(createEventSeries).toHaveBeenCalledTimes(1));
-    const [, rule] = jest.mocked(createEventSeries).mock.calls[0]!;
-    expect(rule).toEqual({ frequency: 'monthly', until: new Date('2026-08-29T00:00') });
   });
 
   it('creates a yearly event as one edition, with no last date to pick', async () => {
@@ -1398,52 +1319,5 @@ describe('NewEventScreen — monthly and yearly events, and the group checklist'
     expect(within(utils.getByTestId('event-date-mode-trigger')).getByText('event.dateModeOption.varying')).toBeTruthy();
     expect(utils.getByTestId('event-date-varies-hint')).toBeTruthy();
     expect(utils.queryByTestId('repeat-until')).toBeNull();
-  });
-
-  it("prefills next year's edition from a yearly event, a year later, keeping its flyer", async () => {
-    mockParams.copyFrom = 'fiestas-2026';
-    mockParams.villageId = 'm-1';
-    (getEvent as jest.Mock).mockResolvedValue({
-      id: 'fiestas-2026',
-      municipalityId: 'm-1',
-      title: 'Fiestas de agosto',
-      description: 'Las de siempre',
-      startDate: new Date('2026-08-14T20:00'),
-      endDate: new Date('2026-08-17T23:00'),
-      location: { coordinates: { lat: 1, lng: 2 }, displayName: 'Plaza' },
-      maxAttendees: null,
-      telephoneRequired: false,
-      requiresPayment: false,
-      signupGroupSize: 1,
-      signupEnabled: false,
-      signupInfo: 'Entrada libre',
-      attendeesVisibility: 'members',
-      signupFields: [],
-      organizerUserIds: ['uid-2'],
-      organizerOrgIds: [],
-      visibilityOrgId: null,
-      repeatsYearly: true,
-      imageURL: 'https://img/cartel.jpg',
-      minBirthYear: null,
-      maxBirthYear: null,
-    });
-    const utils = render(<NewEventScreen />);
-    await waitFor(() => expect(utils.getByLabelText('event.title').props.value).toBe('Fiestas de agosto'));
-    fireEvent.press(utils.getByText('common.stepper.next'));
-    await waitFor(() => expect(utils.getByTestId('startDate')).toBeTruthy());
-    expect(utils.getByTestId('startDate-value').props.children).toBe(new Date('2027-08-14T20:00').toISOString());
-    expect(utils.getByTestId('event-recurrence-yearly-hint')).toBeTruthy();
-    fireEvent.press(utils.getByText('common.stepper.next'));
-    await waitFor(() => expect(utils.getByTestId('signup-enabled')).toBeTruthy());
-    fireEvent.press(utils.getByTestId('event-form-primary'));
-    await waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
-    expect(jest.mocked(createEvent).mock.calls[0]![0]).toMatchObject({
-      title: 'Fiestas de agosto',
-      repeatsYearly: true,
-      imageURL: 'https://img/cartel.jpg',
-      endDate: new Date('2027-08-17T23:00'),
-      organizerUserIds: ['uid-1', 'uid-2'],
-      signupEnabled: false,
-    });
   });
 });

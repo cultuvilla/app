@@ -5,4 +5,3 @@ export * from './RegistrationDataModel';
 export * from './RegistrationEventDataModel';
 export * from './SeatTokenModel';
 export * from './RegistrationRibbonModel';
-export * from './EventFormSchema';

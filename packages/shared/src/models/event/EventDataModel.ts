@@ -12,6 +12,11 @@ import { EventSeriesSchema, type EventSeries } from './EventSeriesModel';
  */
 export const MAX_SIGNUP_GROUP_SIZE = 4;
 
+/** Sanity bounds for an advertised birth-year window. Re-checked in
+ *  firestore.rules — keep the two in step. */
+export const MIN_EVENT_BIRTH_YEAR = 1900;
+export const MAX_EVENT_BIRTH_YEAR = 2200;
+
 // Events publish on create — there is no `draft` state.
 export const EventStatusSchema = z.enum(['published', 'cancelled', 'completed']);
 export type EventStatus = z.infer<typeof EventStatusSchema>;
