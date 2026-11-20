@@ -25,7 +25,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
 | [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | none | this cycle | verify the plan against develop, then build it |
-| [event-form-state-module](ongoing/event-form-state-module.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [service-test-coverage](ongoing/service-test-coverage.md) | medium | none | this cycle | verify the plan against develop, then build it |
 
 ## Waiting on release 1.11.0
@@ -46,6 +45,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 |---|---|---|---|---|---|
 | [comision-de-festejos-type](ongoing/comision-de-festejos-type.md) | medium | dev | 1 cycle ago | both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`) | after that release is live in prod, retire this plan |
 | [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | 1 cycle ago | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
+| [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
 
 ## Waiting on you
 
