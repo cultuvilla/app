@@ -229,6 +229,13 @@ jobs:
       - name: Seed + run the Maestro suite on a Simulator
         env:
           E2E_FIREBASE_PROJECT: cultuvilla-test
+          # Production's gRPC keepalive policy for the Firestore emulator. The
+          # stock jar dropped the SDK's connections for pinging every 30 s
+          # (GOAWAY too_many_pings), stalling writes ~90 s on the Simulator.
+          # The runner checks the policy took before seeding, and fails the
+          # shard if the SDK logs a ping timeout or too_many_pings anyway.
+          # docs/decisions/ios-e2e-emulator-keepalive.md
+          EMULATOR_KEEPALIVE: production
           # The emulators' JVMs only (scripts/run-tests-with-emulators.mjs): the
           # Firestore emulator and the Storage rules runtime, one GC log each
           # (%p), so a pause long enough to miss a keepalive ping shows. The
