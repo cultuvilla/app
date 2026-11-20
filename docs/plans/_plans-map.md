@@ -14,6 +14,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
+| [group-notice-read-receipt-rewrite-loop](ongoing/group-notice-read-receipt-rewrite-loop.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | find the root cause of the iOS ping timeouts, starting with the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings), also covering flows 12 and 15; fix it without app-code workarounds, then add a lasting guard in the lane so a regression shows up on its own |
 
 ## Waiting on release 1.11.0
