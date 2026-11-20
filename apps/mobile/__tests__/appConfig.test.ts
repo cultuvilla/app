@@ -42,6 +42,17 @@ describe('native Firebase on iOS', () => {
     expect(options('expo-build-properties')).toMatchObject({ ios: { useFrameworks: 'static' } });
     expect(options('@react-native-firebase/app')).toEqual({ ios: { disableSPM: true } });
   });
+
+  // The App Check plugin registers the native provider factory in the
+  // AppDelegate; without it iOS never attests. The App Attest entitlement stays
+  // out: EAS cannot sync that capability through the App Store Connect API, so
+  // declaring it fails the archive (docs/plans/ongoing/app-check-rollout.md).
+  it('registers App Check without the App Attest entitlement', () => {
+    expect(config.plugins).toContain('@react-native-firebase/app-check');
+    expect(config.ios?.entitlements ?? {}).not.toHaveProperty(
+      'com.apple.developer.devicecheck.appattest-environment',
+    );
+  });
 });
 
 describe('apple-app-site-association', () => {

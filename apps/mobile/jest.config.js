@@ -37,6 +37,7 @@ module.exports = {
     // here, not jest.mock'd, because packages/shared resolves them through a
     // different pnpm path than this app and a jest.mock keys on the path.
     '^@react-native-firebase/app$': '<rootDir>/test/mocks/rnfbApp.ts',
+    '^@react-native-firebase/app-check$': '<rootDir>/test/mocks/rnfbAppCheck.ts',
     '^@react-native-firebase/auth$': '<rootDir>/test/mocks/rnfbAuth.ts',
     '^@react-native-firebase/firestore$': '<rootDir>/test/mocks/rnfbFirestore.ts',
     '^@react-native-firebase/functions$': '<rootDir>/test/mocks/rnfbFunctions.ts',
