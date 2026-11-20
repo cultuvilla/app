@@ -2206,8 +2206,7 @@
     "events": {
       "filter": {
         "upcoming": "Próximos",
-        "past": "Pasados",
-        "all": "Todos"
+        "past": "Pasados"
       }
     },
     "tasks": {
@@ -2362,7 +2361,6 @@
         "templateName": "Nombre de la plantilla",
         "saved": "Plantilla guardada.",
         "addTask": "Añadir tarea",
-        "viewEventPage": "Ver la página del evento",
         "eventUnavailable": "Este evento ya no está disponible."
       },
       "fairShare": {
