@@ -218,3 +218,12 @@ export async function getActionableRequests(
   ]);
   return { organizer, orgs, joins, reports };
 }
+
+/**
+ * How many requests need the user's action: one per request, one per open
+ * report. The bell's badge and the Buzón's list both count this way, so the
+ * number on the bell is what *Necesita tu acción* holds. Pure — no I/O.
+ */
+export function actionableCount(requests: ActionableRequests): number {
+  return requests.organizer.length + requests.orgs.length + requests.joins.length + requests.reports.length;
+}

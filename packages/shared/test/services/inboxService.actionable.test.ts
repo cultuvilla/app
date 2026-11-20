@@ -28,7 +28,7 @@ vi.mock('../../src/services/observability/observabilityService', () => ({
   observability: { captureError: vi.fn() },
 }));
 
-import { actionableScope, getActionableRequests } from '../../src/services/inboxService';
+import { actionableCount, actionableScope, getActionableRequests } from '../../src/services/inboxService';
 
 const NONE = { isSuperAdmin: false, adminVillageIds: [], adminOrgIds: [] };
 
@@ -174,5 +174,22 @@ describe('getActionableRequests', () => {
     await expect(
       getActionableRequests(actionableScope({ ...NONE, isSuperAdmin: true }), ['reports']),
     ).rejects.toThrow('unavailable');
+  });
+});
+
+describe('actionableCount', () => {
+  it('counts every request and every open report', () => {
+    expect(
+      actionableCount({
+        organizer: [{ id: 'a' }],
+        orgs: [{ id: 'b' }, { id: 'c' }],
+        joins: [{ orgId: 'o1', userId: 'u1' }],
+        reports: [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }],
+      } as unknown as Parameters<typeof actionableCount>[0]),
+    ).toBe(7);
+  });
+
+  it('is 0 for empty queues', () => {
+    expect(actionableCount({ organizer: [], orgs: [], joins: [], reports: [] })).toBe(0);
   });
 });
