@@ -246,7 +246,9 @@ jobs:
         run: pnpm test:e2e:ios
 
       # always(), not !cancelled(): a timeout cancels the job, and the
-      # screenshots of a run that timed out are exactly the ones needed.
+      # screenshots of a run that timed out are exactly the ones needed. The
+      # app's crash reports (Dev-*.ips) carry the stack Maestro's "App crashed"
+      # points at; without them a crash leaves only its last log line.
       - name: Upload Maestro artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -256,5 +258,6 @@ jobs:
             apps/mobile/e2e/native/report/
             ~/.maestro/tests/
             firestore-debug.log
+            ~/Library/Logs/DiagnosticReports/Dev*
           if-no-files-found: ignore
           retention-days: 7

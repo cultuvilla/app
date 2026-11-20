@@ -38,6 +38,13 @@ describe('ios-e2e workflow gating', () => {
     expect(step).toMatch(/^\s*- name: Upload Maestro artifacts\s*\n\s*if: \$\{\{ always\(\) \}\}/);
   });
 
+  // Maestro's "App crashed" names no cause; the Simulator writes the app's
+  // crash report on the host, and only it has the stack.
+  it("uploads the app's crash reports with the Maestro artifacts", () => {
+    const step = workflow.slice(workflow.indexOf('- name: Upload Maestro artifacts'));
+    expect(step.slice(0, step.indexOf('retention-days'))).toContain('~/Library/Logs/DiagnosticReports/Dev*');
+  });
+
   // One build, shared: the build is the slowest step and identical for every
   // shard, so it must not run per machine.
   it('builds the app once and shards the suite across machines', () => {
