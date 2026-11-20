@@ -20,6 +20,15 @@ describe('shouldDismissOnRelease', () => {
     expect(shouldDismissOnRelease(30, 0.1)).toBe(false);
   });
 
+  it('needs a shorter pull on a short sheet', () => {
+    expect(shouldDismissOnRelease(60, 0.1, 180)).toBe(true);
+    expect(shouldDismissOnRelease(40, 0.1, 180)).toBe(false);
+  });
+
+  it('never needs more than the fixed pull on a tall sheet', () => {
+    expect(shouldDismissOnRelease(95, 0.1, 800)).toBe(true);
+  });
+
   it('never dismisses on an upward drag', () => {
     expect(shouldDismissOnRelease(-200, -2)).toBe(false);
   });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import {
   Animated,
+  type LayoutChangeEvent,
   Modal,
   PanResponder,
   Pressable as RNPressable,
@@ -14,6 +15,8 @@ import { Text } from './Text';
 
 /** Drag distance (px) past which a release dismisses instead of springing back. */
 const DISMISS_DISTANCE = 90;
+/** On a short sheet, this share of its height is far enough. */
+const DISMISS_SHARE = 0.3;
 /** Fling velocity that dismisses regardless of how far the sheet was dragged. */
 const DISMISS_VELOCITY = 0.6;
 
@@ -22,10 +25,13 @@ const DISMISS_VELOCITY = 0.6;
  * unit-testable — PanResponder's gesture state cannot be driven in jest.
  *
  * Either a long enough pull or a fast enough flick dismisses; a short, slow
- * drag springs the sheet back.
+ * drag springs the sheet back. "Long enough" shrinks with the sheet: a short
+ * sheet sits near the bottom edge, where a finger has little room to travel —
+ * the iOS run of the report sheet's "Gracias" state sprang back on a full drag.
  */
-export function shouldDismissOnRelease(dy: number, vy: number): boolean {
-  return dy > DISMISS_DISTANCE || vy > DISMISS_VELOCITY;
+export function shouldDismissOnRelease(dy: number, vy: number, sheetHeight?: number): boolean {
+  const distance = sheetHeight ? Math.min(DISMISS_DISTANCE, sheetHeight * DISMISS_SHARE) : DISMISS_DISTANCE;
+  return dy > distance || vy > DISMISS_VELOCITY;
 }
 
 /**
@@ -39,6 +45,7 @@ export function useDragToDismiss(onClose: () => void, visible: boolean) {
   // than closing over the first render's prop.
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const heightRef = useRef(0);
 
   // A dismissed-by-drag sheet keeps its offset; reset it so the next open does
   // not start off-screen.
@@ -58,7 +65,7 @@ export function useDragToDismiss(onClose: () => void, visible: boolean) {
         if (g.dy > 0) translateY.setValue(g.dy);
       },
       onPanResponderRelease: (_e, g) => {
-        if (shouldDismissOnRelease(g.dy, g.vy)) {
+        if (shouldDismissOnRelease(g.dy, g.vy, heightRef.current || undefined)) {
           closeRef.current();
           return;
         }
@@ -70,7 +77,12 @@ export function useDragToDismiss(onClose: () => void, visible: boolean) {
     }),
   ).current;
 
-  return { translateY, panHandlers: pan.panHandlers };
+  /** Put on the sheet's outer view so a short sheet needs a shorter drag. */
+  const onLayout = (e: LayoutChangeEvent) => {
+    heightRef.current = e.nativeEvent.layout.height;
+  };
+
+  return { translateY, panHandlers: pan.panHandlers, onLayout };
 }
 
 /**
@@ -131,7 +143,7 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const { translateY, panHandlers } = useDragToDismiss(onClose, visible);
+  const { translateY, panHandlers, onLayout } = useDragToDismiss(onClose, visible);
 
   if (!visible) return null;
 
@@ -148,7 +160,7 @@ export function BottomSheet({
           {/* flexShrink: with the keyboard up the backdrop is shorter than
               `maxHeight`, and the sheet must shrink (its body scrolls) rather
               than overflow off the top of the screen. */}
-          <Animated.View style={{ flexShrink: 1, transform: [{ translateY }] }}>
+          <Animated.View onLayout={onLayout} style={{ flexShrink: 1, transform: [{ translateY }] }}>
             <RNPressable
               accessible={false}
               // Its backdrop is not an accessibility element, so VoiceOver closes the
