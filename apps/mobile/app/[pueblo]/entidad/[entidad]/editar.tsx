@@ -28,7 +28,7 @@ export default function OrgEditScreen() {
   const { t } = useT();
   const showCallableError = useCallableErrorHandler();
   const [municipalityId, setMunicipalityId] = useState<string | undefined>(undefined);
-  const { canManage, canDelete, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
+  const { canManage, can, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<OrganizationType>('peña');
@@ -129,7 +129,7 @@ export default function OrgEditScreen() {
         rightSlot={
           // The organizations delete rule admits a village or app admin, not an
           // org admin, who may otherwise edit everything here.
-          canDelete ? (
+          can('delete') ? (
             <DeleteHeaderButton
               testID="org-delete"
               onAccent

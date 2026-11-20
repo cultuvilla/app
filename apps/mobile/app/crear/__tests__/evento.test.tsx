@@ -82,8 +82,7 @@ jest.mock('../../../lib/auth/useEntityCapabilities', () => ({
     canApprove: true,
     uid: 'u1',
     loading: false,
-    canEdit: () => true,
-    canDelete: () => true,
+    can: () => true,
   }),
 }));
 
@@ -503,7 +502,7 @@ describe('NewEventScreen cover upload', () => {
   });
 });
 
-// Editing an event you don't organize is a real case: `canEdit` lets a village
+// Editing an event you don't organize is a real case: `can('edit', 'event')` lets a village
 // admin in. The screen deliberately does not seed them into organizerUserIds —
 // but the picker force-inserts whatever `lockedUserId` it is handed the moment
 // its sheet is confirmed, so handing it the current user in edit mode silently

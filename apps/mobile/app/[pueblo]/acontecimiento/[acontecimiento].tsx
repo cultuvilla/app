@@ -31,7 +31,7 @@ function HistoryEntryDetailScreen() {
   const entryId = parseEntityRef(acontecimientoRef ?? '') ?? '';
   const { t } = useT();
   const share = useShareDeepLink();
-  const { canManage, canEdit } = useEntityCapabilities(villageId);
+  const { canManage, can } = useEntityCapabilities(villageId);
   const { data: entry = null, status } = useWatch<HistoryEntryWithId | null>(
     'historyEntryDetail:watchHistoryEntry',
     entryId || null,
@@ -55,7 +55,7 @@ function HistoryEntryDetailScreen() {
 
   const actions: EntityDetailAction[] = entry
     ? [
-        ...(canEdit(entry.createdBy)
+        ...(can('edit', 'historyEntry', entry)
           ? [
               {
                 icon: 'create-outline' as const,

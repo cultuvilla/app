@@ -24,7 +24,7 @@ function BarrioEditScreen() {
   const barrioId = parseEntityRef(barrioRef ?? '') ?? '';
   const { t } = useT();
   const showCallableError = useCallableErrorHandler();
-  const { canManage, canEdit, canDelete, loading: capLoading } = useEntityCapabilities(villageId);
+  const { canManage, can, loading: capLoading } = useEntityCapabilities(villageId);
   const [name, setName] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [addingImage, setAddingImage] = useState(false);
@@ -60,7 +60,7 @@ function BarrioEditScreen() {
       </Screen>
     );
   }
-  if (!notFound && !canEdit(proposedBy)) {
+  if (!notFound && !can('edit', 'barrio', { proposedBy })) {
     return <Redirect href={entityRefHref('barrio', villageSlug, barrioRef ?? '')} />;
   }
 
@@ -119,7 +119,7 @@ function BarrioEditScreen() {
         accent
         title={t('village.admin.barrios.editTitle')}
         rightSlot={
-          canDelete(proposedBy, status) ? (
+          can('delete', 'barrio', { proposedBy, status }) ? (
             <DeleteHeaderButton
               testID="barrio-delete"
               onAccent

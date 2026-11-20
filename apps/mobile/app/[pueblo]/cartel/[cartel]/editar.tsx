@@ -37,7 +37,7 @@ function FestivalPosterEditScreen() {
   const posterId = parseEntityRef(cartelRef ?? '') ?? '';
   const { t } = useT();
   const showCallableError = useCallableErrorHandler();
-  const { canManage, canEdit, canDelete, uid, loading: capLoading } = useEntityCapabilities(villageId);
+  const { canManage, can, uid, loading: capLoading } = useEntityCapabilities(villageId);
 
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [title, setTitle] = useState('');
@@ -84,7 +84,7 @@ function FestivalPosterEditScreen() {
       </Screen>
     );
   }
-  if (!notFound && !canEdit(proposedBy)) {
+  if (!notFound && !can('edit', 'festivalPoster', { proposedBy })) {
     return <Redirect href={entityRefHref('festivalPoster', villageSlug, cartelRef ?? '')} />;
   }
 
@@ -144,7 +144,7 @@ function FestivalPosterEditScreen() {
         accent
         title={t('village.festivalPosters.editTitle')}
         rightSlot={
-          canDelete(proposedBy, status) ? (
+          can('delete', 'festivalPoster', { proposedBy, status }) ? (
             <DeleteHeaderButton
               testID="poster-delete"
               onAccent

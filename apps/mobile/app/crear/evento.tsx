@@ -549,7 +549,7 @@ export default function NewEventScreen() {
 
   // Edit mode is organizer-gated (mirrors the event update rules); a
   // non-organizer who deep-links here is sent back to the public detail.
-  const { canEdit, loading: capLoading } = useEntityCapabilities(municipalityId ?? undefined);
+  const { can, loading: capLoading } = useEntityCapabilities(municipalityId ?? undefined);
 
   const headerTitle = editMode ? t('event.editEvent') : t('event.createEvent');
 
@@ -610,7 +610,7 @@ export default function NewEventScreen() {
   }
 
   // ── Edit: non-organizer redirect ──────────────────────────────────────────
-  if (editMode && !capLoading && !canEdit(createdBy, organizerUserIds)) {
+  if (editMode && !capLoading && !can('edit', 'event', { createdBy, organizerUserIds })) {
     return <Redirect href={eventHref({ id: eventId, title, villageSlug, visibilityOrgId })} />;
   }
 
