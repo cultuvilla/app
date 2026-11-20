@@ -33,7 +33,9 @@ What the action *does* is per-entity, but the *location* is uniform:
 ## What this binds
 
 - New entity edit screens put removal in the `ScreenHeader` `rightSlot` via
-  `DeleteHeaderButton`, gated by `canManage` (or author, for news). Do not add a
+  `DeleteHeaderButton`, gated by the shared content policy — `can('delete', kind, doc)`
+  from `useEntityCapabilities` (or `can('delete')` from `useOrgCapabilities`), which
+  `contentPolicyParity.test.ts` holds to the rules. Do not add a
   delete/remove action to a detail (`EntityDetailHeader`) screen.
 - The per-entity *semantics* (soft-cancel / hard-delete / soft-hide) follow the
   entity's own model; only the placement is a fixed convention.

@@ -26,7 +26,7 @@ function FestivalPosterDetailScreen() {
   const { cartel: cartelRef } = useLocalSearchParams<{ cartel: string }>();
   const posterId = parseEntityRef(cartelRef ?? '') ?? '';
   const { t } = useT();
-  const { canManage, canEdit } = useEntityCapabilities(villageId);
+  const { canManage, can } = useEntityCapabilities(villageId);
   const { data: poster = null, status } = useWatch<FestivalPosterWithId | null>(
     'festivalPosterDetail:watchFestivalPoster',
     posterId || null,
@@ -54,7 +54,7 @@ function FestivalPosterDetailScreen() {
     : '';
 
   const actions: EntityDetailAction[] =
-    poster && canEdit(poster.proposedBy)
+    poster && can('edit', 'festivalPoster', poster)
       ? [
           {
             icon: 'create-outline',

@@ -74,7 +74,7 @@ function PlaceDetailScreen() {
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [editingDeathDate, setEditingDeathDate] = useState<PartialDate | null>(null);
   const [savingBurial, setSavingBurial] = useState(false);
-  const { canManage, canEdit, uid } = useEntityCapabilities(villageId);
+  const { canManage, can, uid } = useEntityCapabilities(villageId);
   const insets = useSafeAreaInsets();
   const isCemetery = place?.kind === 'cemetery';
 
@@ -101,7 +101,7 @@ function PlaceDetailScreen() {
 
   const actions: EntityDetailAction[] = place
     ? [
-        ...(canEdit(place.proposedBy)
+        ...(can('edit', 'place', place)
           ? [
               {
                 icon: 'create-outline' as const,

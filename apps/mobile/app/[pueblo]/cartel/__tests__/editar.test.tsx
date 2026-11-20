@@ -42,8 +42,7 @@ function mockCaps(opts: { canManage: boolean; uid: string | null; canEdit: boole
     canApprove: opts.canManage,
     uid: opts.uid,
     loading: false,
-    canEdit: jest.fn(() => opts.canEdit),
-    canDelete: jest.fn(() => opts.canEdit),
+    can: jest.fn(() => opts.canEdit),
   };
   (useEntityCapabilities as jest.Mock).mockReturnValue(caps);
   return caps;
@@ -89,7 +88,7 @@ it('lets the creator edit their own poster without being a village admin', async
   const { findByDisplayValue } = render(<PosterEditScreen />);
   await findByDisplayValue('2025');
   expect(mockRedirect).not.toHaveBeenCalled();
-  expect(caps.canEdit).toHaveBeenCalledWith('creator');
+  expect(caps.can).toHaveBeenCalledWith('edit', 'festivalPoster', expect.objectContaining({ proposedBy: 'creator' }));
 });
 
 // A failed upload used to vanish: the spinner stopped and the photo was gone.
