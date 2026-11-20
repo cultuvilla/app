@@ -258,6 +258,10 @@ jobs:
             --predicate 'process == "runningboardd" OR process == "SpringBoard"' 2>/dev/null \
             | grep -iE 'cultuvilla|jetsam|terminat|watchdog|8badf00d|memory' \
             > apps/mobile/e2e/native/report/sim-terminations.log || true
+          # DIAG (w18): the app's contact-gate and socio-listener trace.
+          xcrun simctl spawn "$udid" log show --last 3h --style compact --info --debug \
+            --predicate 'process == "Dev" AND eventMessage CONTAINS "[w18-trace]"' 2>/dev/null \
+            > apps/mobile/e2e/native/report/w18-trace.log || true
 
       # always(), not !cancelled(): a timeout cancels the job, and the
       # screenshots of a run that timed out are exactly the ones needed. The

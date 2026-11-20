@@ -19,6 +19,17 @@ import { observability } from './observability/observabilityService';
 export type Unwatch = Unsubscribe;
 export type WatchError = (error: Error) => void;
 
+// DIAG (w18, not for merge): trace socio listeners to the Simulator log.
+export function w18Trace(event: string, detail: Record<string, unknown>): void {
+  // console.error: the only console level a Release build sends to os_log.
+  console.error(`[w18-trace] ${String(Date.now())} ${event} ${JSON.stringify(detail)}`);
+}
+
+type TracedSnap = { metadata: { fromCache: boolean; hasPendingWrites: boolean } };
+function snapMeta(snap: TracedSnap) {
+  return { fromCache: snap.metadata.fromCache, pending: snap.metadata.hasPendingWrites };
+}
+
 function allAnswered<T>(parts: (T[] | undefined)[]): parts is T[][] {
   return parts.every((rows) => rows !== undefined);
 }
@@ -66,6 +77,26 @@ export function watchQueryWith<T, R>(
   );
 }
 
+/** DIAG (w18): watchQuery with every emission traced under `label`. */
+export function watchQueryTraced<T>(
+  label: string,
+  q: Query<T>,
+  onNext: (rows: (T & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return onSnapshot(
+    q,
+    (snap) => {
+      w18Trace('query', { label, ids: snap.docs.map((d) => d.id), ...snapMeta(snap as unknown as TracedSnap) });
+      readOrReport(() => snap.docs.map((d) => ({ id: d.id, ...d.data() })), onNext, onError);
+    },
+    (err: unknown) => {
+      w18Trace('query-error', { label, err: String(err) });
+      onError(asError(err));
+    },
+  );
+}
+
 export function watchQuery<T>(
   q: Query<T>,
   onNext: (rows: (T & { id: string })[]) => void,
@@ -88,9 +119,20 @@ export function watchDoc<T>(
   onNext: (row: (T & { id: string }) | null) => void,
   onError: WatchError,
 ): Unwatch {
+  const traced = ref.path.includes('/socioPrivate/');
   return onSnapshot(
     ref,
     (snap) => {
+      if (traced) {
+        const d = snap.exists() ? (snap.data() as Record<string, unknown> | undefined) : undefined;
+        w18Trace('doc', {
+          path: ref.path,
+          exists: snap.exists(),
+          phone: d ? Boolean(d.phone) : null,
+          consent: d ? d.consentAnsweredAt != null : null,
+          ...snapMeta(snap as unknown as TracedSnap),
+        });
+      }
       // Check existence before `data()`: the native SDK runs the converter on a
       // missing doc too, and the strict schema throws on its empty data.
       readOrReport(
@@ -104,6 +146,7 @@ export function watchDoc<T>(
       );
     },
     (err: unknown) => {
+      if (traced) w18Trace('doc-error', { path: ref.path, err: String(err) });
       onError(asError(err));
     },
   );

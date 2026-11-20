@@ -16,6 +16,7 @@ import {
   type SocioPrivate,
 } from '@cultuvilla/shared/services/socioService';
 import { patchUserProfile } from '@cultuvilla/shared/services/userService';
+import { w18Trace } from '@cultuvilla/shared/services/watch';
 import { BottomSheet, Button, Input, Text, VStack } from '../../primitives';
 import { PhoneField } from '../PhoneField';
 import { useAuth } from '../../../lib/auth/useAuth';
@@ -58,6 +59,7 @@ function SocioContactAccept({
   const [saving, setSaving] = useState(false);
 
   const accept = async () => {
+    w18Trace('accept', { asksPhone, asksEmail, hasUser: Boolean(user) });
     const phoneOk = !asksPhone || phone.validateForSubmit();
     const emailOk = !asksEmail || email.includes('@');
     setEmailError(emailOk ? undefined : t('groups.contactGate.emailInvalid'));
@@ -177,6 +179,15 @@ export function GroupContactGate({
     applies && row ? (next, error) => watchSocioPrivate(orgId, row.id, next, error) : null,
   );
 
+  const w18Shown = !(!applies || !org || !uid || !row || contact.status !== 'ready' || !socioContactMissing(org, contact.data));
+  w18Trace('gate', {
+    shown: w18Shown,
+    applies,
+    row: row?.id ?? null,
+    socios: mine.status,
+    contact: contact.status,
+    phone: contact.data ? Boolean(contact.data.phone) : null,
+  });
   if (!applies || !org || !uid || !row || contact.status !== 'ready' || !socioContactMissing(org, contact.data)) {
     return <>{children}</>;
   }

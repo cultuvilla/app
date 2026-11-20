@@ -25,7 +25,7 @@ import {
   type SocioData,
   type SocioPrivateData,
 } from '../models/organization/SocioDataModel';
-import { watchDoc, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
+import { watchDoc, watchMerged, watchQuery, watchQueryTraced, w18Trace, type Unwatch, type WatchError } from './watch';
 
 export type Socio = SocioData & { id: string };
 export type SocioPrivate = SocioPrivateData & { id: string };
@@ -64,8 +64,8 @@ export function watchMySocios(
   const coll = organizationSociosCollection(getDb(), orgId);
   return watchMerged<Socio>(
     [
-      (next, error) => watchQuery(query(coll, where('uid', '==', uid)), next, error),
-      (next, error) => watchQuery(query(coll, where('responsibleUid', '==', uid)), next, error),
+      (next, error) => watchQueryTraced('mySocios:uid', query(coll, where('uid', '==', uid)), next, error),
+      (next, error) => watchQueryTraced('mySocios:responsible', query(coll, where('responsibleUid', '==', uid)), next, error),
     ],
     (rows) => rows,
     onNext,
@@ -209,10 +209,17 @@ export async function saveSocioContactSharing(
   socioId: string,
   contact: SocioContactInput,
 ): Promise<void> {
-  await setDoc(
-    organizationSocioPrivateDoc(getDb(), orgId, socioId),
-    buildSocioPrivateData({ ...contact, consentAnsweredAt: new Date() }),
-  );
+  w18Trace('save-start', { socioId, phone: Boolean(contact.phone) });
+  try {
+    await setDoc(
+      organizationSocioPrivateDoc(getDb(), orgId, socioId),
+      buildSocioPrivateData({ ...contact, consentAnsweredAt: new Date() }),
+    );
+    w18Trace('save-acked', { socioId });
+  } catch (err: unknown) {
+    w18Trace('save-error', { socioId, err: String(err) });
+    throw err;
+  }
 }
 
 /**
