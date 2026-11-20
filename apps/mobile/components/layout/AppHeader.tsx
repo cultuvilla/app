@@ -103,6 +103,7 @@ export function AppHeader({ centerLabel, extraRightSlot }: AppHeaderProps) {
                 else gate.requireAuth(routes.profile, t('guest.menu'));
               }}
               accessibilityLabel={t('header.openMenu')}
+              testID="app-header-menu"
               className="p-1 -mr-1"
             >
               <Ionicons name="menu-sharp" size={30} color="#f9f0e8" />

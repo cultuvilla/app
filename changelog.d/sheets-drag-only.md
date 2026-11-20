@@ -1,0 +1,1 @@
+- Change: los paneles que suben desde abajo ya no tienen ✕ ni botón «Cerrar»: se cierran arrastrando hacia abajo la barra de arriba (o tocándola, o tocando fuera). Lo mismo para el menú de usuario. Todos los paneles comparten ahora la misma barra y el mismo gesto. **Migration:** none.

@@ -29,6 +29,22 @@ env:
       PASSWORD: ${PASSWORD}
 
 # ── Notifications ──
+# Sheets have no ✕: dragging the grab bar down closes them, on both platforms.
+- tapOn:
+    id: 'app-header-menu'
+- extendedWaitUntil:
+    visible:
+      id: 'user-menu-handle'
+    timeout: 15000
+- swipe:
+    from:
+      id: 'user-menu-handle'
+    direction: DOWN
+    duration: 400
+- extendedWaitUntil:
+    notVisible:
+      id: 'user-menu-handle'
+    timeout: 5000
 - openLink: 'cultuvilla://ajustes'
 - extendedWaitUntil:
     visible:

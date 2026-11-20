@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable as RNPressable, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable as RNPressable, ScrollView, View } from 'react-native';
+import { BottomSheet } from '../primitives/BottomSheet';
 import type { PartialDate } from '@cultuvilla/shared/models/person';
 import { Button } from '../primitives/Button';
 import { Text } from '../primitives/Text';
@@ -30,8 +30,7 @@ export interface BuriedSheetProps {
  * cargo (marking any already buried here) plus a create-new row. Phase 2 shows a
  * condolence line and an optional approximate death date, then confirms.
  *
- * Follows AttendeeSheet's RN-Web-safe Modal pattern (styles on style/className,
- * insets.bottom padding).
+ * A `BottomSheet`: it closes from the grab bar like every other sheet.
  */
 export function BuriedSheet({
   visible,
@@ -43,7 +42,6 @@ export function BuriedSheet({
   onConfirm,
 }: BuriedSheetProps) {
   const { t } = useT();
-  const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<string | null>(null);
   const [deathDate, setDeathDate] = useState<PartialDate | null>(null);
 
@@ -61,36 +59,18 @@ export function BuriedSheet({
   const inDatePhase = selected != null;
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => {
+      onClose={() => {
         if (!busy) onClose();
       }}
+      title={inDatePhase ? t('village.placeDetail.condolence') : t('village.placeDetail.addDifunto')}
+      closeLabel={t('common.close')}
+      testID="buried-sheet"
     >
-      <RNPressable
-        accessible={false}
-        onPress={() => {
-          if (!busy) onClose();
-        }}
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        className="justify-end"
-      >
-        <RNPressable
-          accessible={false}
-          // Its backdrop is not an accessibility element, so VoiceOver closes the
-          // sheet with the escape gesture instead.
-          onAccessibilityEscape={() => {
-            if (!busy) onClose();
-          }}
-          onPress={() => {}}
-          className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
-          style={{ paddingBottom: insets.bottom + 20 }}
-        >
+      <View className="px-5 pt-1">
           {inDatePhase ? (
             <VStack gap={3}>
-              <Text variant="h3">{t('village.placeDetail.condolence')}</Text>
               <PartialDateField
                 label={t('village.placeDetail.deathDatePrompt')}
                 value={deathDate}
@@ -109,7 +89,6 @@ export function BuriedSheet({
             </VStack>
           ) : (
             <VStack gap={3}>
-              <Text variant="h3">{t('village.placeDetail.addDifunto')}</Text>
               <ScrollView style={{ maxHeight: 320 }}>
                 <VStack gap={2}>
                   {personas.map((p) => (
@@ -153,8 +132,7 @@ export function BuriedSheet({
               </ScrollView>
             </VStack>
           )}
-        </RNPressable>
-      </RNPressable>
-    </Modal>
+      </View>
+    </BottomSheet>
   );
 }

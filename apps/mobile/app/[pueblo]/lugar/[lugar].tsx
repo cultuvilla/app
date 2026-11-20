@@ -2,15 +2,15 @@ import { placeEditHref } from '../../../lib/navigation/routes';
 import { parseEntityRef } from '@cultuvilla/shared/utils';
 import { useVillageRoute, withVillageRoute } from '../../../lib/navigation/VillageRouteGate';
 import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable as RNPressable, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../../../components/primitives/Text';
 import { VStack } from '../../../components/primitives/VStack';
 import { HStack } from '../../../components/primitives/HStack';
 import { Avatar } from '../../../components/primitives/Avatar';
 import { Button } from '../../../components/primitives/Button';
+import { BottomSheet } from '../../../components/primitives/BottomSheet';
 import { Pressable } from '../../../components/primitives/Pressable';
 import { PartialDateField } from '../../../components/primitives/PartialDateField';
 import { NaturalImage } from '../../../components/primitives/NaturalImage';
@@ -75,7 +75,6 @@ function PlaceDetailScreen() {
   const [editingDeathDate, setEditingDeathDate] = useState<PartialDate | null>(null);
   const [savingBurial, setSavingBurial] = useState(false);
   const { canManage, can, uid } = useEntityCapabilities(villageId);
-  const insets = useSafeAreaInsets();
   const isCemetery = place?.kind === 'cemetery';
 
   const loadBuried = useCallback(async () => {
@@ -284,33 +283,15 @@ function PlaceDetailScreen() {
           onChanged={loadBuried}
         />
       ) : null}
-      <Modal
+      <BottomSheet
         visible={editingPerson !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
+        onClose={() => {
           if (!savingBurial) setEditingPerson(null);
         }}
+        closeLabel={t('common.close')}
+        testID="buried-edit-sheet"
       >
-        <RNPressable
-          accessible={false}
-          onPress={() => {
-            if (!savingBurial) setEditingPerson(null);
-          }}
-          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
-          className="justify-end"
-        >
-          <RNPressable
-            accessible={false}
-            // Its backdrop is not an accessibility element, so VoiceOver closes the
-            // sheet with the escape gesture instead.
-            onAccessibilityEscape={() => {
-              if (!savingBurial) setEditingPerson(null);
-            }}
-            onPress={() => {}}
-            style={{ paddingBottom: insets.bottom + 20 }}
-            className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
-          >
+        <View className="px-5 pt-1">
             {editingPerson ? (
               <VStack gap={4}>
                 <Text variant="h2" className="font-semibold" testID="buried-edit-person-name">
@@ -338,9 +319,8 @@ function PlaceDetailScreen() {
                 </HStack>
               </VStack>
             ) : null}
-          </RNPressable>
-        </RNPressable>
-      </Modal>
+        </View>
+      </BottomSheet>
     </>
   );
 }

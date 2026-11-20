@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
+import { SheetHandle, useDragToDismiss } from '../primitives/BottomSheet';
+import { useT } from '../../lib/i18n';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.6);
@@ -54,6 +56,8 @@ export function FilterSheet({
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [search, setSearch] = useState('');
+  const { t } = useT();
+  const drag = useDragToDismiss(() => close(), visible);
 
   useEffect(() => {
     if (visible) {
@@ -111,25 +115,14 @@ export function FilterSheet({
             backgroundColor: '#ffffff',
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
-            transform: [{ translateY: slideAnim }],
+            transform: [{ translateY: Animated.add(slideAnim, drag.translateY) }],
           }}
         >
-          <View
-            style={{
-              width: 40,
-              height: 4,
-              backgroundColor: '#D1D5DB',
-              borderRadius: 2,
-              alignSelf: 'center',
-              marginTop: 12,
-              marginBottom: 8,
-            }}
-          />
-          <View className="flex-row items-center justify-between px-4 pb-3 border-b border-subtle">
-            <Text variant="h3">{title}</Text>
-            <Pressable onPress={() => close()} accessibilityLabel={title} className="p-2 -mr-2">
-              <Ionicons name="close" size={24} color="#566047" />
-            </Pressable>
+          <View {...drag.panHandlers}>
+            <SheetHandle onClose={() => close()} label={t('common.close')} testID={testID ? `${testID}-handle` : undefined} />
+            <View className="px-4 pb-3 border-b border-subtle">
+              <Text variant="h3">{title}</Text>
+            </View>
           </View>
 
           {searchable ? (
