@@ -9,6 +9,7 @@ import { bootstrapObservability } from '../lib/observability/configure';
 import { ObservabilityErrorBoundary } from '../lib/observability/ObservabilityErrorBoundary';
 import { AppVersionGate } from '../components/AppVersionGate';
 import { OfflineBanner } from '../components/feature/OfflineBanner';
+import { VillageSync } from '../lib/sync/VillageSync';
 import { CopiedToast } from '../components/feature/CopiedToast';
 import { IntroHost, useMarkAppReady } from '../components/intro/IntroHost';
 import { ImageZoomOverlayProvider } from '../components/primitives/ImageZoomOverlay';
@@ -69,6 +70,7 @@ function AppTree() {
                           <AuthGate />
                         </ImageZoomOverlayProvider>
                         <OfflineBanner />
+                        <VillageSync />
                         <CopiedToast />
                       </RegisterGateProvider>
                     </PushProvider>
