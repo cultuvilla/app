@@ -1,6 +1,7 @@
 # A user's own settings, ending with the account deleted for real:
 #
 #   notifications  — push allowed, one topic muted, quiet hours off
+#   analytics      — the usage-analytics switch on, then off
 #   email          — a malformed address refused, a good one sent to verify
 #   delete         — "ELIMINAR" typed and the account gone: profile, person
 #                    and the Auth user
@@ -102,6 +103,30 @@ env:
     env:
       DOC_PATH: 'users/${UID}/preferences/notifications'
       EXPECT_JSON: "{ 'village': true, 'quietHours': false, 'mine': true, 'social': true }"
+
+# ── Usage analytics ──
+# Seeded as an answered "no". Switched on and off again, each read back from
+# the stored doc, so the dev Analytics property is left as the seed found it.
+- openLink: 'cultuvilla://ajustes'
+- scrollUntilVisible:
+    element:
+      id: 'settings-usage-analytics'
+    direction: DOWN
+    timeout: 30000
+- runFlow:
+    file: ../subflows/set-stored-toggle.yaml
+    env:
+      ID: 'settings-usage-analytics'
+      DOC_PATH: 'users/${UID}/privacySettings/account'
+      FIELD: usageAnalytics
+      WANT: 'true'
+- runFlow:
+    file: ../subflows/set-stored-toggle.yaml
+    env:
+      ID: 'settings-usage-analytics'
+      DOC_PATH: 'users/${UID}/privacySettings/account'
+      FIELD: usageAnalytics
+      WANT: 'false'
 
 # ── Change email ──
 - openLink: 'cultuvilla://ajustes/cambiar-email'

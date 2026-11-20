@@ -26,6 +26,7 @@ import {
   buildBarrioData,
   buildNewsPostData,
   buildCommentData,
+  buildPrivacySettingsData,
 } from '@cultuvilla/shared/models';
 import {
   E2E_PASSWORD,
@@ -122,6 +123,14 @@ async function run() {
         }),
         { merge: true },
       );
+    // Answered already, so the one-time usage-analytics sheet never opens over
+    // a flow. A "no": the suite must never feed the dev Analytics property.
+    await db
+      .collection('users')
+      .doc(u.uid)
+      .collection('privacySettings')
+      .doc('account')
+      .set(buildPrivacySettingsData({ usageAnalytics: false }));
   }
 
   await db

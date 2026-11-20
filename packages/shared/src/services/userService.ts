@@ -6,9 +6,10 @@ import {
   serverTimestamp,
 } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
-import { publicProfileDoc, userDoc } from '../firebase/refs/client';
-import type { PublicProfileData, UserData, UserDataInput } from '../models/user';
-import { CURRENT_TERMS_VERSION } from '../models/user';
+import { publicProfileDoc, userDoc, userPrivacySettingsDoc } from '../firebase/refs/client';
+import type { PrivacySettingsData, PublicProfileData, UserData, UserDataInput } from '../models/user';
+import { buildPrivacySettingsData, CURRENT_TERMS_VERSION } from '../models/user';
+import { watchDoc, type Unwatch, type WatchError } from './watch';
 
 /**
  * The signed-in user's OWN account doc. It carries private contact fields, so
@@ -83,4 +84,22 @@ export async function setActiveMunicipality(
   municipalityId: string | null,
 ): Promise<void> {
   await updateDoc(doc(getDb(), 'users', userId), { activeMunicipalityId: municipalityId });
+}
+
+// ============================================================================
+// PRIVACY SETTINGS
+// ============================================================================
+
+/** The account's privacy choices, live. `null` means the account was never asked. */
+export function watchPrivacySettings(
+  userId: string,
+  onNext: (settings: PrivacySettingsData | null) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDoc(userPrivacySettingsDoc(getDb(), userId), onNext, onError);
+}
+
+/** Records the account's answer on usage analytics; also how it is changed later. */
+export async function saveUsageAnalyticsConsent(userId: string, usageAnalytics: boolean): Promise<void> {
+  await setDoc(userPrivacySettingsDoc(getDb(), userId), buildPrivacySettingsData({ usageAnalytics }));
 }

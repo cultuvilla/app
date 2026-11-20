@@ -63,6 +63,13 @@ env:
       TARGET: 'accept-terms-box'
 - tapOn:
     id: 'accept-terms-box'
+# The usage-analytics question: neither answer preselected; "No" is stored.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'analytics-consent-no'
+- tapOn:
+    id: 'analytics-consent-no'
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'person-form-primary'
@@ -192,6 +199,11 @@ env:
           'occupations': { 'contains': ['agricultor', 'Pastora'] },
           'photoURL': { 'prefix': 'http' }
         }
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'users/${UID}/privacySettings/account'
+      EXPECT_JSON: "{ 'usageAnalytics': false }"
 - runScript:
     file: ../scripts/assertDoc.js
     env:

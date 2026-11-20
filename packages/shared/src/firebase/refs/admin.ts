@@ -18,6 +18,7 @@ import { adminConverter } from '../converters/sdkAdapters.admin';
 import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
 import { municipalityPersonDirectoryId } from '../../models/municipality/MunicipalityPersonDataModel';
 import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
+import { PRIVACY_SETTINGS_DOC_ID } from '../../models/user/PrivacySettingsDataModel';
 import {
   COLLECTIONS as C,
   collectionId,
@@ -339,6 +340,10 @@ export const userNotificationSettingsCollection = (db: Firestore, userId: string
 
 export const userNotificationSettingsDoc = (db: Firestore, userId: string) =>
   typedDoc(db, C.userNotificationSettings, userId, NOTIFICATION_SETTINGS_DOC_ID);
+
+// Optional: absent means the account was never asked about usage analytics.
+export const userPrivacySettingsDoc = (db: Firestore, userId: string) =>
+  typedDoc(db, C.userPrivacySettings, userId, PRIVACY_SETTINGS_DOC_ID);
 
 // Server-only push spool — see PushQueueDataModel for why the id is
 // deterministic. `firestore.rules` denies clients both directions.

@@ -26,15 +26,18 @@ vi.mock('firebase/firestore', async () => {
     Timestamp: { fromDate: (d: Date) => ({ toDate: () => d, _d: d }) },
     query: vi.fn(),
     orderBy: vi.fn(),
+    onSnapshot: vi.fn(),
   };
 });
 
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import {
   createUserProfile,
   getPublicProfile,
   getUserProfile,
   patchUserProfile,
+  saveUsageAnalyticsConsent,
+  watchPrivacySettings,
 } from '../../src/services/userService';
 
 describe('createUserProfile', () => {
@@ -214,5 +217,49 @@ describe('getPublicProfile', () => {
     vi.mocked(getDoc).mockResolvedValue({ exists: () => false } as any);
 
     expect(await getPublicProfile('uid-2')).toBeNull();
+  });
+});
+
+describe('saveUsageAnalyticsConsent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([true, false])('writes the whole privacy doc with usageAnalytics=%s', async (answer) => {
+    vi.mocked(setDoc).mockResolvedValue(undefined);
+    await saveUsageAnalyticsConsent('uid-1', answer);
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    const [ref, payload, options] = vi.mocked(setDoc).mock.calls[0] as unknown as [{ _path: unknown[] }, unknown, unknown];
+    expect(ref._path.slice(1)).toEqual(['users', 'uid-1', 'privacySettings', 'account']);
+    expect(payload).toEqual({ usageAnalytics: answer, updatedAt: expect.any(Date) as unknown });
+    // A full write, never a merge: rules require both fields every time.
+    expect(options).toBeUndefined();
+  });
+});
+
+describe('watchPrivacySettings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('emits null for an account that was never asked', () => {
+    vi.mocked(onSnapshot).mockImplementation(((_ref: unknown, next: (s: unknown) => void) => {
+      next({ exists: () => false, data: () => undefined, id: 'account' });
+      return () => {};
+    }) as any);
+    const onNext = vi.fn();
+    watchPrivacySettings('uid-1', onNext, vi.fn());
+    expect(onNext).toHaveBeenCalledWith(null);
+  });
+
+  it('emits the stored answer', () => {
+    const stored = { usageAnalytics: true, updatedAt: new Date(0) };
+    vi.mocked(onSnapshot).mockImplementation(((_ref: unknown, next: (s: unknown) => void) => {
+      next({ exists: () => true, data: () => stored, id: 'account' });
+      return () => {};
+    }) as any);
+    const onNext = vi.fn();
+    watchPrivacySettings('uid-1', onNext, vi.fn());
+    expect(onNext).toHaveBeenCalledWith({ id: 'account', ...stored });
   });
 });

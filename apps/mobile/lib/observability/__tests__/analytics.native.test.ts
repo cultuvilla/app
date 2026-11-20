@@ -56,6 +56,11 @@ describe('createAnalyticsBackend', () => {
     expect(setUserId).toHaveBeenCalledWith({}, 'hash1');
   });
 
+  it('turns native collection off when consent is withdrawn or never given', () => {
+    createAnalyticsBackend().setConsent(false);
+    expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith({}, false);
+  });
+
   it('is a no-op when the build has no native Firebase app', () => {
     mockGetAnalytics.mockImplementation(() => {
       throw new Error("No Firebase App '[DEFAULT]' has been created");

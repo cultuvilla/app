@@ -1738,7 +1738,8 @@
     "section": {
       "account": "Cuenta",
       "safety": "Seguridad",
-      "notifications": "Notificaciones"
+      "notifications": "Notificaciones",
+      "privacy": "Privacidad"
     },
     "blocked": {
       "label": "Personas bloqueadas",
@@ -1777,7 +1778,12 @@
         "generic": "No pudimos eliminar tu cuenta. Inténtalo de nuevo."
       }
     },
-    "deletedUser": "Usuario eliminado"
+    "deletedUser": "Usuario eliminado",
+    "analytics": {
+      "label": "Estadísticas de uso",
+      "hint": "Nos dicen qué partes de la app se usan, para mejorarla. Sin ellas la app funciona igual.",
+      "saveError": "No se ha podido guardar. Inténtalo de nuevo."
+    }
   },
   "comments": {
     "sectionTitle": "Comentarios",
@@ -2915,6 +2921,15 @@
           "image": "Esa imagen no vale: debe ser una imagen de menos de 5 MB."
         }
       }
+    }
+  },
+  "privacy": {
+    "analyticsConsent": {
+      "question": "¿Nos ayudas a mejorar Cultuvilla con estadísticas de uso anónimas?",
+      "body": "Nos dicen qué partes de la app se usan, para saber qué mejorar. Puedes cambiarlo cuando quieras en Ajustes.",
+      "yes": "Sí",
+      "no": "No",
+      "close": "Cerrar"
     }
   }
 }

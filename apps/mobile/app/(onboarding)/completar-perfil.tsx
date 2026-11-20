@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { iconSizes } from '@cultuvilla/shared/design-system';
-import { Screen, VillagePicker, BarrioPicker, Checkbox, Text, Pressable } from '../../components/primitives';
+import { Screen, VillagePicker, BarrioPicker, Checkbox, Text, Pressable, VStack } from '../../components/primitives';
+import { AnalyticsConsentChoice } from '../../components/feature/AnalyticsConsentChoice';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { PersonForm } from '../../components/feature/PersonForm';
 import type { PersonFormPhoto, PersonFormValues } from '../../components/feature/PersonForm';
@@ -18,6 +19,7 @@ import {
 import {
   createUserProfile,
   patchUserProfile,
+  saveUsageAnalyticsConsent,
 } from '@cultuvilla/shared/services/userService';
 import { ensureVillageMembership } from '@cultuvilla/shared/services/villageMemberService';
 import { uploadUserPhoto } from '@cultuvilla/shared/services/imageService';
@@ -48,6 +50,9 @@ export default function CompleteProfileScreen() {
   );
   const [barrioId, setBarrioId] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  // Opt-in and never preselected. Optional here: an account that skips it is
+  // asked once by AnalyticsConsentProvider's sheet after onboarding.
+  const [analyticsAnswer, setAnalyticsAnswer] = useState<boolean | null>(null);
 
   // A guest who tapped "sign in to join" on a village carried it here via
   // pendingVillage; pre-select it so they land already pointed at that pueblo.
@@ -163,6 +168,14 @@ export default function CompleteProfileScreen() {
         await updatePerson(personId, { photoURL: url });
       }
 
+      // Before refreshProfile, so the post-onboarding sheet never asks again what
+      // was just answered. Not worth failing sign-up over: unsaved, the sheet asks.
+      if (analyticsAnswer !== null) {
+        await saveUsageAnalyticsConsent(user.uid, analyticsAnswer).catch((err: unknown) => {
+          observability.captureError(err, { operation: 'onboarding:saveUsageAnalytics' });
+        });
+      }
+
       void clearPendingVillage();
       await refreshProfile();
       observability.trackEvent(
@@ -223,31 +236,37 @@ export default function CompleteProfileScreen() {
         recoverPickedPhoto
         consentSatisfied={acceptedTerms}
         renderConsent={() => (
-          <Checkbox
-            value={acceptedTerms}
-            onValueChange={setAcceptedTerms}
-            testID="accept-terms"
-            label={
-              <Text>
-                {t('onboarding.completeProfile.acceptPrefix')}{' '}
-                <Text
-                  className="text-accent underline"
-                  onPress={() => router.push(routes.terms)}
-                >
-                  {t('menu.terms')}
+          <>
+            <Checkbox
+              value={acceptedTerms}
+              onValueChange={setAcceptedTerms}
+              testID="accept-terms"
+              label={
+                <Text>
+                  {t('onboarding.completeProfile.acceptPrefix')}{' '}
+                  <Text
+                    className="text-accent underline"
+                    onPress={() => router.push(routes.terms)}
+                  >
+                    {t('menu.terms')}
+                  </Text>
+                  {' '}
+                  {t('common.and')}
+                  {' '}
+                  <Text
+                    className="text-accent underline"
+                    onPress={() => router.push(routes.privacy)}
+                  >
+                    {t('menu.privacy')}
+                  </Text>
                 </Text>
-                {' '}
-                {t('common.and')}
-                {' '}
-                <Text
-                  className="text-accent underline"
-                  onPress={() => router.push(routes.privacy)}
-                >
-                  {t('menu.privacy')}
-                </Text>
-              </Text>
-            }
-          />
+              }
+            />
+            <VStack gap={2} className="mt-2">
+              <Text>{t('privacy.analyticsConsent.question')}</Text>
+              <AnalyticsConsentChoice value={analyticsAnswer} onChange={setAnalyticsAnswer} />
+            </VStack>
+          </>
         )}
         onSubmit={onSubmit}
       />

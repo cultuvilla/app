@@ -21,6 +21,7 @@ import {
   userGroupPrefsCollection,
   userNotificationPrefsDoc,
   userNotificationSettingsDoc,
+  userPrivacySettingsDoc,
   pushQueueCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 // Subpath import (not the '@cultuvilla/shared' barrel): the barrel pulls
@@ -407,8 +408,8 @@ async function deleteNotifications(uid: string): Promise<number> {
 
 /**
  * Device tokens address a push at a specific phone, so they are personal data
- * in their own right. The preferences docs (account and per group) and any queued-but-unsent pushes go
- * with them; the queue entries carry the uid.
+ * in their own right. The preferences docs (account and per group), the privacy
+ * choices and any queued-but-unsent pushes go with them; the queue entries carry the uid.
  */
 async function deletePushData(uid: string): Promise<number> {
   const [devices, queued, groupPrefs] = await Promise.all([
@@ -422,6 +423,7 @@ async function deletePushData(uid: string): Promise<number> {
     ...groupPrefs.docs.map((doc) => doc.ref),
     userNotificationPrefsDoc(db, uid).withConverter(null),
     userNotificationSettingsDoc(db, uid).withConverter(null),
+    userPrivacySettingsDoc(db, uid).withConverter(null),
   ]);
 }
 
