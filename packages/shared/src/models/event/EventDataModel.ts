@@ -349,6 +349,12 @@ export function upcomingThenPast<E extends Pick<EventData, 'startDate' | 'endDat
   return [...byStart.filter((e) => !isPast(e)), ...byStart.filter(isPast).reverse()];
 }
 
+/**
+ * The statuses an event list shows, in the app and on the read site. A
+ * cancelled event stays reachable by its link but is never listed.
+ */
+export const LISTED_EVENT_STATUSES: EventStatus[] = ['published', 'completed'];
+
 export function isEventOngoing(
   event: Pick<EventData, 'status' | 'startDate' | 'endDate'>,
   now: Date,
