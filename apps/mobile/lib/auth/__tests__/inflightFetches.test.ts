@@ -1,13 +1,29 @@
+import { observability } from '@cultuvilla/shared';
+
 type Mod = typeof import('../inflightFetches');
+
+jest.mock('@cultuvilla/shared', () => ({ observability: { logger: { warn: jest.fn() } } }));
+
+// A response whose body read settles only when told to.
+function slowBody() {
+  let finish: (text: string) => void = () => undefined;
+  const response = {
+    text: () =>
+      new Promise<string>((resolve) => {
+        finish = resolve;
+      }),
+  };
+  return { response: response as unknown as Response, finish: (t: string) => finish(t) };
+}
 
 // A stand-in for expo/fetch: settles only when told to, or rejects on abort.
 function fakeFetch() {
-  const calls: { signal: AbortSignal; resolve: () => void }[] = [];
+  const calls: { signal: AbortSignal; resolve: (response?: Response) => void }[] = [];
   const fn = jest.fn(
     (_input: unknown, init?: RequestInit) =>
       new Promise<Response>((resolve, reject) => {
         const signal = init?.signal as AbortSignal;
-        calls.push({ signal, resolve: () => resolve({} as Response) });
+        calls.push({ signal, resolve: (response) => resolve(response ?? ({} as Response)) });
         signal.addEventListener('abort', () => {
           const error = new Error('aborted');
           error.name = 'AbortError';
@@ -24,6 +40,7 @@ let fake: ReturnType<typeof fakeFetch>;
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
+  jest.clearAllMocks();
   fake = fakeFetch();
   globalThis.fetch = fake.fn as unknown as typeof fetch;
   jest.isolateModules(() => {
@@ -89,5 +106,41 @@ describe('inflightFetches', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('waits for a body read to finish instead of aborting it', async () => {
+    const body = slowBody();
+    const request = fetch('https://example.test');
+    fake.calls[0]!.resolve(body.response);
+    const response = await request;
+    const events: string[] = [];
+    const read = response.text().then(() => events.push('body-read'));
+    const done = mod.quiesceFetches().then(() => events.push('quiesced'));
+    await Promise.resolve();
+    expect(fake.calls[0]!.signal.aborted).toBe(false);
+    body.finish('ok');
+    await Promise.all([read, done]);
+    expect(events).toEqual(['body-read', 'quiesced']);
+    expect(observability.logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('reloads anyway past the timeout on a slow body, and says what was still open', async () => {
+    const body = slowBody();
+    const request = fetch('https://example.test');
+    fake.calls[0]!.resolve(body.response);
+    void (await request).text();
+    jest.useFakeTimers();
+    try {
+      const done = mod.quiesceFetches(2000);
+      await jest.advanceTimersByTimeAsync(2000);
+      await expect(done).resolves.toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(observability.logger.warn).toHaveBeenCalledTimes(1);
+    expect(observability.logger.warn).toHaveBeenCalledWith(
+      'reload: 0 requests and 1 body reads still open after 2000 ms',
+      { operation: 'reload:quiesceFetches', resultCount: 1 },
+    );
   });
 });
