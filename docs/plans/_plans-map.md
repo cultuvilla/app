@@ -19,9 +19,10 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [auth-session-state-machine](ongoing/auth-session-state-machine.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [firestore-collection-registry](ongoing/firestore-collection-registry.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [read-site-shared-list-rules](ongoing/read-site-shared-list-rules.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | none | this cycle | verify the plan against develop, then build it |
-| [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | none | this cycle | land the AASA widening + tests + docs on develop; the store-console steps and the post-deploy iPhone check are Álvaro's |
+| [typed-organization-join-redirect](ongoing/typed-organization-join-redirect.md) | medium | none | this cycle | verify the plan against develop, then build it |
 
 ## Waiting on release 1.11.0
 
@@ -44,6 +45,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | 1 cycle ago | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote with the next release (all four phases are on develop) |
 | [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
+| [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | dev | this cycle | the next release Álvaro cuts (carrying #689) is live in prod | after that prod deploy, Álvaro curls `https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM`, opens a `/<pueblo>/evento/…` link on an iPhone (Apple's CDN may take a day), and sets the privacy-policy URL `https://cultuvilla.es/legal/privacidad` in App Store Connect (every app-info localization) and the Play console (App content) |
 
 ## Waiting on you
 
