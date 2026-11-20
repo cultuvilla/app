@@ -26,8 +26,9 @@ const NEWS_LIMIT = { limit: 10 };
 /**
  * The listeners behind the village home, one factory per scroll.
  *
- * The home (`useVillageHome`) and the background village sync (`lib/sync`)
- * both build their listeners here, so they ask Firestore the very same
+ * The background village sync (`lib/sync`) builds its listeners here, and so
+ * will the home (`useVillageHome`, which still mirrors these queries inline
+ * until it moves over). Both must ask Firestore the very same
  * queries: the sync then warms exactly the cache the home reads, and while
  * both are open the SDK serves them from one shared target — no second read.
  */
