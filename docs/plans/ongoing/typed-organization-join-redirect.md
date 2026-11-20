@@ -1,6 +1,9 @@
 # Type the organization join redirect
 
 **Priority:** medium
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 ## Goal
 

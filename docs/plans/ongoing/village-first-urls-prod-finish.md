@@ -1,9 +1,9 @@
 # Village-first URLs — finish the prod rollout
 
 **Priority:** medium
-**Landed:** none
-**Gate:** none
-**Next:** land the AASA widening + tests + docs on develop; the store-console steps and the post-deploy iPhone check are Álvaro's
+**Landed:** dev
+**Gate:** soak:the next release Álvaro cuts (carrying #689) is live in prod
+**Next:** after that prod deploy, Álvaro curls `https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM`, opens a `/<pueblo>/evento/…` link on an iPhone (Apple's CDN may take a day), and sets the privacy-policy URL `https://cultuvilla.es/legal/privacidad` in App Store Connect (every app-info localization) and the Play console (App content)
 
 **Goal:** a shared village-first link opens the iOS app on prod, and both store
 consoles declare the Spanish legal URLs.

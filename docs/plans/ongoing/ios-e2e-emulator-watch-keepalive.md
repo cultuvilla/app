@@ -1,6 +1,9 @@
 # iOS e2e: Firestore emulator watch streams time out on the macOS runner
 
 **Priority:** medium — makes flow 13 (and likely any long, write-heavy iOS flow) flaky; iOS e2e is not a required check, so it erodes trust in the lane rather than blocking merges
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 **Goal:** Stop the iOS Firestore SDK's watch and write streams from dying with `Unavailable: ping timeout` against the emulator in `ios-e2e`, so flow 13 passes reliably and the re-sign-in fallback added in #662 is no longer needed.
 
