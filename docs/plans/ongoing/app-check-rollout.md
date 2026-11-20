@@ -1,9 +1,9 @@
 # App Check rollout (mobile)
 
 **Priority:** high
-**Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop, then build Stage 1 (native module + real providers in `initMobileAppCheck()`, enforcement off)
+**Landed:** dev
+**Gate:** blocked:console — App Check app registrations, the DeviceCheck key and the dev debug tokens are console steps for Álvaro (#712 merged; enforcement off)
+**Next:** after Álvaro's console steps (Play Integrity + Play Console link per project, App Attest/DeviceCheck with the .p8 key, the App Check API enabled, dev debug tokens registered), confirm verified tokens in beta's App Check metrics (Stage 2) with enforcement still off
 
 > Decided 2026-11-20 (Álvaro): start Stage 1 now — the next release is breaking anyway, so a fingerprint change that stops OTA for older binaries rides a store build that ships regardless.
 
