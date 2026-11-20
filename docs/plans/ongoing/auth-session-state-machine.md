@@ -1,9 +1,9 @@
 # Auth session state as a pure reducer
 
 **Priority:** medium — two fixes in one day (2026-10-10) on the profile-load state that decides whether `abandonSignUp` deletes an account
-**Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop, then build it
+**Landed:** dev
+**Gate:** soak:the first release carrying #690 is live in prod
+**Next:** once a release carrying #690 is live in prod, confirm sign-in, sign-out and an abandoned sign-up behave (no stray account deletes in logs), then retire this plan
 
 **Goal:** Move `AuthProvider`'s user/profile session state (five `useState` flags, the stale-read guard and the "disposable sign-up" rule) into a pure, directly tested reducer, so the state that gates a destructive account delete changes in one place, atomically, and is tested without mounting the provider.
 
