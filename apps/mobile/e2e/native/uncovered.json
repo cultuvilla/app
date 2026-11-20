@@ -48,6 +48,7 @@
   "attendee-signed-up-*": "unit-tested: components/feature/__tests__/EventAttendees.test.tsx",
   "attendees-group-note": "unit-tested: components/feature/__tests__/EventAttendees.test.tsx",
   "avatar-image": "unit-tested: components/feature/__tests__/LiveAvatar.test.tsx",
+  "barrio-kind*": "unit-tested: components/feature/proposable/__tests__/BarriosManager.test.tsx",
   "birth-year-bounds-error": "unit-tested: app/crear/__tests__/evento.test.tsx",
   "birth-year-range-error": "unit-tested: app/crear/__tests__/evento.test.tsx",
   "birthday-min-age-error": "unit-tested: components/feature/__tests__/PersonForm.test.tsx",
