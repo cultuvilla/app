@@ -522,3 +522,131 @@ describe('Firestore emulator keepalive', () => {
     });
   });
 });
+
+// A retry that runs on the failed attempt's data can only pass by accident: the
+// flow 13 retry in ios-e2e 44764961074 opened the cuota on the part payment its
+// first attempt had recorded. So every retry starts from the emulator data the
+// first attempt started from.
+describe('a retry starts from its first attempt’s data', () => {
+  const lib = read('scripts/lib/maestro-suite.mjs');
+  const loop = lib.slice(lib.indexOf('for (const name of flows)'), lib.indexOf('if (status !== 0) failed.push(name)'));
+
+  it('snapshots before the first attempt and restores before every retry', () => {
+    expect(loop).toMatch(/if \(attempt > 1\) await restoreAttemptStart\(label, emulators, start\);/);
+    expect(loop).toMatch(/if \(emulators && attempt === 1\) start = await takeSnapshot\(emulators\);/);
+    // The snapshot is the state the flow starts from: after the leftover reset,
+    // and taken once, so a retry never snapshots its predecessor's mess.
+    expect(loop.indexOf('deleteLeftoverDocs')).toBeLessThan(loop.indexOf('takeSnapshot'));
+    expect(loop.indexOf('restoreAttemptStart')).toBeLessThan(loop.indexOf('takeSnapshot'));
+  });
+
+  it('does not retry when there are no emulators to restore', () => {
+    expect(loop).toMatch(/attempt <= 1 \+ \(emulators \? retries : 0\)/);
+    expect(lib).toMatch(/no emulators to restore between attempts, so a failed flow is not retried/);
+  });
+
+  it('gives the test processes the hub, which pauses triggers during a restore', () => {
+    expect(read('scripts/run-tests-with-emulators.mjs')).toMatch(
+      /emulatorHostEnv\(PORTS_BY_SERVICE, emulatorHubPort\(emulatorConfig\.config\)\)/,
+    );
+  });
+
+  describe('emulator-snapshot against fake emulators', () => {
+    interface Snapshot {
+      documents: { name: string; fields: Record<string, unknown> }[];
+      accounts: Record<string, unknown>[];
+    }
+    type Targets = { firestore: string; auth: string; hub: string; project: string };
+    type Call = { method: string; url: string; body: string };
+    let snap: {
+      emulatorTargets: (env: Record<string, string | undefined>) => Targets | null;
+      takeSnapshot: (t: Targets) => Promise<Snapshot>;
+      restoreSnapshot: (t: Targets, s: Snapshot) => Promise<void>;
+    };
+    beforeAll(async () => {
+      snap = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/emulator-snapshot.mjs')).href)) as typeof snap;
+    });
+
+    const docName = (i: number) => `projects/p/databases/(default)/documents/c/d${String(i)}`;
+
+    // One HTTP server stands in for all three emulators and records each call.
+    async function withFake(fn: (t: Targets, calls: Call[]) => Promise<void>, failOn?: string) {
+      const http = await import('node:http');
+      const calls: Call[] = [];
+      const docs = [1, 2, 3].map((i) => ({ name: docName(i), fields: { n: { integerValue: String(i) } } }));
+      const server = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', (c: Buffer) => (body += c.toString()));
+        req.on('end', () => {
+          const url = req.url ?? '';
+          calls.push({ method: req.method ?? '', url, body });
+          if (failOn && url.includes(failOn)) {
+            res.writeHead(500).end('boom');
+            return;
+          }
+          let out: unknown = {};
+          if (url.endsWith(':runQuery')) out = [{ readTime: 'x' }, ...docs.map((document) => ({ document }))];
+          if (url.includes('accounts:batchGet')) out = { users: [{ localId: 'u1', passwordHash: 'fakeHash:salt=s:password=p' }] };
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(out));
+        });
+      });
+      await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+      const address = server.address();
+      const host = `127.0.0.1:${String(typeof address === 'object' && address ? address.port : 0)}`;
+      try {
+        await fn({ firestore: host, auth: host, hub: host, project: 'p' }, calls);
+      } finally {
+        await new Promise((done) => server.close(done));
+      }
+    }
+
+    it('needs all three emulators, and the hub, to be named', () => {
+      const env = { FIRESTORE_EMULATOR_HOST: 'h:1', FIREBASE_AUTH_EMULATOR_HOST: 'h:2', GCLOUD_PROJECT: 'p' };
+      expect(snap.emulatorTargets(env)).toBeNull();
+      expect(snap.emulatorTargets({ ...env, FIREBASE_EMULATOR_HUB: 'h:3' })).toEqual({
+        firestore: 'h:1',
+        auth: 'h:2',
+        hub: 'h:3',
+        project: 'p',
+      });
+    });
+
+    it('reads every document with one kindless query and every account with batchGet', async () => {
+      await withFake(async (t, calls) => {
+        const s = await snap.takeSnapshot(t);
+        expect(s.documents.map((d) => d.name.split('/').pop())).toEqual(['d1', 'd2', 'd3']);
+        expect(s.accounts).toHaveLength(1);
+        const query = calls.find((c) => c.url.endsWith(':runQuery'));
+        expect(JSON.parse(query?.body ?? '{}')).toEqual({ structuredQuery: { from: [{ allDescendants: true }] } });
+      });
+    });
+
+    it('restores with triggers paused: clear, write back, then accounts', async () => {
+      await withFake(async (t, calls) => {
+        const documents = Array.from({ length: 1201 }, (_, i) => ({ name: docName(i), fields: {} }));
+        await snap.restoreSnapshot(t, { documents, accounts: [{ localId: 'u1' }] });
+        expect(calls.map((c) => `${c.method} ${c.url.replace(/\?.*/, '')}`)).toEqual([
+          'PUT /functions/disableBackgroundTriggers',
+          'DELETE /emulator/v1/projects/p/databases/(default)/documents',
+          'POST /v1/projects/p/databases/(default)/documents:batchWrite',
+          'POST /v1/projects/p/databases/(default)/documents:batchWrite',
+          'POST /v1/projects/p/databases/(default)/documents:batchWrite',
+          'DELETE /emulator/v1/projects/p/accounts',
+          'POST /identitytoolkit.googleapis.com/v1/projects/p/accounts:batchCreate',
+          'PUT /functions/enableBackgroundTriggers',
+        ]);
+        const sizes = calls
+          .filter((c) => c.url.endsWith(':batchWrite'))
+          .map((c) => (JSON.parse(c.body) as { writes: unknown[] }).writes.length);
+        expect(sizes).toEqual([500, 500, 201]);
+      });
+    });
+
+    it('turns triggers back on even when the restore fails', async () => {
+      await withFake(async (t, calls) => {
+        await expect(snap.restoreSnapshot(t, { documents: [], accounts: [] })).rejects.toThrow(/HTTP 500/);
+        expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
+      }, 'databases/(default)/documents');
+    });
+  });
+});
