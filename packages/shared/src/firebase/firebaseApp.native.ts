@@ -4,7 +4,7 @@
 // accepted only to keep one call site for both SDKs.
 import { getApp, type ReactNativeFirebase } from '@react-native-firebase/app';
 import { getAuth as getNativeAuth } from '@react-native-firebase/auth';
-import { getFirestore } from '@react-native-firebase/firestore';
+import { getFirestore, setLogLevel } from '@react-native-firebase/firestore';
 import { getFunctions } from '@react-native-firebase/functions';
 import { getStorage } from '@react-native-firebase/storage';
 
@@ -29,6 +29,8 @@ let state: InitializedState | null = null;
 export function initFirebase(_config: unknown, options: InitFirebaseOptions = {}): ReactNativeFirebase.FirebaseApp {
   if (state) return state.app;
   const app = getApp();
+  // DIAG (w18, not for merge): the iOS SDK's verbose log (watch stream, acks).
+  setLogLevel('debug');
   // No settings call: the native SDKs keep Firestore's persistent on-device
   // cache on by default — the reason the app runs on them
   // (docs/plans/ongoing/offline-first-village.md) — and a settings call ahead of

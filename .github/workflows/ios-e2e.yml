@@ -124,7 +124,8 @@ jobs:
       # firebase-tools logged "Failed to load function." and the app's callable
       # came back as "No hemos podido contactar con el servidor" (flows 11, 72).
       FUNCTIONS_DISCOVERY_TIMEOUT: '120'
-      E2E_SHARD: ${{ matrix.shard }}/4
+      # DIAG (w18, not for merge): a dispatch that names flows runs them on every shard.
+      E2E_SHARD: ${{ inputs.flows == '' && format('{0}/4', matrix.shard) || '' }}
       # Empty on every event but a dispatch that names flows.
       E2E_NATIVE_FLOW: ${{ inputs.flows }}
 
@@ -262,6 +263,10 @@ jobs:
           xcrun simctl spawn "$udid" log show --last 3h --style compact --info --debug \
             --predicate 'process == "Dev" AND eventMessage CONTAINS "[w18-trace]"' 2>/dev/null \
             > apps/mobile/e2e/native/report/w18-trace.log || true
+          # DIAG (w18): the iOS Firestore SDK's verbose log, set by setLogLevel('debug').
+          xcrun simctl spawn "$udid" log show --last 3h --style compact --info --debug \
+            --predicate 'process == "Dev" AND composedMessage CONTAINS "FirebaseFirestore"' 2>/dev/null \
+            | gzip > apps/mobile/e2e/native/report/firestore-verbose.log.gz || true
 
       # always(), not !cancelled(): a timeout cancels the job, and the
       # screenshots of a run that timed out are exactly the ones needed. The
