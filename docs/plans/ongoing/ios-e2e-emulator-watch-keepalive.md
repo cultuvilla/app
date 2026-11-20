@@ -2,8 +2,8 @@
 
 **Priority:** medium — makes flow 13 (and likely any long, write-heavy iOS flow) flaky; iOS e2e is not a required check, so it erodes trust in the lane rather than blocking merges
 **Landed:** dev
-**Gate:** none
-**Next:** lighten the iOS suite on the runner (drop or cap Maestro's ~550 MB per-flow `log stream`, trim Simulator processes) and measure with #710's `Firestore SDK stream errors` count; only at ~0 with flow 13 stable, remove flow 13's re-sign-in fallback and FLOW_TIMEOUT_OVERRIDES_MS
+**Gate:** decision: pay for a larger macOS runner, or first try a free test of the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings seen)? Lightening (#715) did not clear the ping timeouts: 5, 7 and 4, 4 per run vs 3–8 before; the emulator JVM sat at 1–2% CPU, so a bigger runner is not a sure fix
+**Next:** on Álvaro's answer, either trial a larger macOS runner or test the keepalive/ping-enforcement mismatch; at ~0 ping timeouts with flow 13 stable, remove flow 13's re-sign-in fallback and FLOW_TIMEOUT_OVERRIDES_MS (flows 12 and 15 also fail on iOS)
 
 > Decided 2026-11-20 (Álvaro): keep the tests close to reality — so no test-build-only re-listen workaround (it would hide the very stream failure users could hit). Lighten the suite first; a paid larger runner only if that fails, as a new question.
 
