@@ -202,12 +202,32 @@ jobs:
           fi
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      # Samples load and the busiest processes every 10 s for the rest of the
+      # job (a background process outlives its step), so a Firestore SDK "ping
+      # timeout" (scripts/run-ios-e2e.mjs counts them) can be read against
+      # what the runner was doing at that moment.
+      - name: Sample runner load
+        run: |
+          mkdir -p apps/mobile/e2e/native/report
+          (while sleep 10; do
+            echo "== $(date -u +%H:%M:%S) load $(sysctl -n vm.loadavg) swap $(sysctl -n vm.swapusage)"
+            vm_stat | grep -E 'Pageouts|Swapins|Swapouts' | tr -s ' ' | paste -sd ' ' -
+            ps -Ao pid,pcpu,rss,nice,ucomm -r | head -n 10
+          done) > apps/mobile/e2e/native/report/runner-cpu.log 2>&1 &
+
       # The exact command a developer runs locally on a Mac: boots the Firebase
       # emulators, seeds the deterministic E2E fixtures, then the runner installs
       # E2E_IOS_APP and runs this shard's flows.
       - name: Seed + run the Maestro suite on a Simulator
         env:
           E2E_FIREBASE_PROJECT: cultuvilla-test
+          # The emulators' JVMs only (scripts/run-tests-with-emulators.mjs): the
+          # Firestore emulator and the Storage rules runtime, one GC log each
+          # (%p), so a pause long enough to miss a keepalive ping shows. The
+          # rules runtime reports the JVM's "Picked up JAVA_TOOL_OPTIONS" line
+          # as an "Unexpected rules runtime error" warning; it is harmless.
+          EMULATOR_JAVA_TOOL_OPTIONS: >-
+            -Xlog:gc:file=${{ github.workspace }}/apps/mobile/e2e/native/report/emulator-gc-%p.log:uptime,time
         run: pnpm test:e2e:ios
 
       # always(), not !cancelled(): a timeout cancels the job, and the
@@ -220,5 +240,6 @@ jobs:
           path: |
             apps/mobile/e2e/native/report/
             ~/.maestro/tests/
+            firestore-debug.log
           if-no-files-found: ignore
           retention-days: 7

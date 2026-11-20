@@ -19,6 +19,11 @@
  *   WAIT_TIMEOUT_MS     Per-port wait timeout (default: 180000)
  *   EMULATOR_BIND_HOST  Bind the emulators to this host instead of loopback
  *                       (WSL2 + a Windows-hosted AVD needs 0.0.0.0; see below)
+ *   EMULATOR_JAVA_TOOL_OPTIONS
+ *                       JVM flags for the emulators alone, passed to them as
+ *                       JAVA_TOOL_OPTIONS. Not set as JAVA_TOOL_OPTIONS on the
+ *                       whole run, because the commands under test (Maestro)
+ *                       are JVMs too. Used by ios-e2e.yml.
  *   VITEST_RETRY_COUNT  Defaulted to "1" in the child env if not set by caller.
  *                       Each vitest config reads it and passes to `test.retry`.
  */
@@ -148,7 +153,13 @@ console.log(`[emulators] starting (project=${TEST_PROJECT_ID}, only=${ONLY})`);
 const emu = spawn(
   'firebase',
   ['emulators:start', '--project', TEST_PROJECT_ID, '--only', ONLY, ...configArgs],
-  { cwd: ROOT, env: emulatorEnv, stdio: ['ignore', 'inherit', 'inherit'] },
+  {
+    cwd: ROOT,
+    env: process.env.EMULATOR_JAVA_TOOL_OPTIONS
+      ? { ...emulatorEnv, JAVA_TOOL_OPTIONS: process.env.EMULATOR_JAVA_TOOL_OPTIONS }
+      : emulatorEnv,
+    stdio: ['ignore', 'inherit', 'inherit'],
+  },
 );
 
 let shuttingDown = false;
