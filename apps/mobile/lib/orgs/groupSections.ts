@@ -18,7 +18,6 @@ export const GROUP_SECTION_ICONS: Record<GroupSection, IconName> = {
   socios: 'people-outline',
   cobros: 'cash-outline',
   mensajes: 'megaphone-outline',
-  registros: 'library-outline',
   miembros: 'person-add-outline',
   ajustes: 'settings-outline',
 };
@@ -30,19 +29,22 @@ export interface GroupSectionLists {
 
 /**
  * Which screens a group offers its viewer, in display order. Cuota, socios,
- * avisos and records exist only for orgs with a socio roster (not the
- * ayuntamiento); the Charla, tasks and members are for every org, the settings
- * are the group's rules and so an admin's (a member's notifications live in
- * Ajustes → Notificaciones), and
- * every member manages the tasks, so they have no Gestionar button. An admin reads the actas
- * under Gestionar, so the member list leaves them out. Socios is everyone's: it
- * is where a member makes their personas a cargo socios, whether or not the
- * estatutos let them read the list. The cosateca is every integrante's, once an
- * admin switches it on; so are the accounts, once the junta makes them public
- * ("Cuentas públicas") — an admin reads them under Registros instead.
+ * avisos, actas and cuentas exist only for orgs with a socio roster (not the
+ * ayuntamiento), and the cuota only while the group runs one (`cuotaEnabled`);
+ * the Charla, tasks and members are for every org. Every viewer gets the same
+ * buttons under the same names, and an admin gets more inside them (decided
+ * 2026-11-20, user): Actas and Cuentas open the editable books for an admin
+ * and the shared ones for a socio, who sees Cuentas only once the junta makes
+ * them public. An admin's own buttons say what they do — collect the cuota,
+ * send avisos — and the settings are the group's rules, so an admin's (a
+ * member's notifications live in Ajustes → Notificaciones). Socios is
+ * everyone's: it is where a member makes their personas a cargo socios, and
+ * an admin reaches the libro de socios from it. The cosateca is every
+ * integrante's, once an admin switches it on.
  */
 export function groupSections({ org, role }: MyGroup): GroupSectionLists {
   const roster = hasSocioRoster(org.type);
+  const cuota = roster && org.cuotaEnabled;
   const isAdmin = role === 'admin';
   const member: GroupSection[] = [
     ...(roster ? (['avisos'] as const) : []),
@@ -50,15 +52,15 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
     'eventos',
     'tareas',
     ...(org.cosateca.enabled ? (['cosateca'] as const) : []),
-    ...(roster ? (['cuota'] as const) : []),
-    ...(roster && !isAdmin ? (['actas'] as const) : []),
-    ...(roster && !isAdmin && org.transparency.cuentas ? (['cuentas'] as const) : []),
+    ...(cuota ? (['cuota'] as const) : []),
+    ...(roster ? (['actas'] as const) : []),
+    ...(roster && (isAdmin || org.transparency.cuentas) ? (['cuentas'] as const) : []),
     ...(roster ? (['socios'] as const) : []),
   ];
   const admin: GroupSection[] = isAdmin
     ? [
-        ...(roster ? (['cobros', 'mensajes'] as const) : []),
-        ...(roster ? (['registros'] as const) : []),
+        ...(cuota ? (['cobros'] as const) : []),
+        ...(roster ? (['mensajes'] as const) : []),
         // Where there are socios, every integrante is one: the Socios screen manages both.
         ...(roster ? [] : (['miembros'] as const)),
         'ajustes',

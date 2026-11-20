@@ -1862,9 +1862,8 @@
       "cuota": "Mi cuota",
       "actas": "Actas",
       "socios": "Socios",
-      "cobros": "Cuota",
-      "mensajes": "Avisos",
-      "registros": "Registros",
+      "cobros": "Cobrar cuota",
+      "mensajes": "Enviar avisos",
       "miembros": "Integrantes",
       "ajustes": "Ajustes",
       "withCount": "{label}, {count, plural, one {# pendiente} other {# pendientes}}",
@@ -2052,14 +2051,15 @@
       "chatAdminsOnly": "Solo la junta escribe en la Charla",
       "error": "No se ha podido guardar el ajuste.",
       "cosateca": "Cosateca",
+      "cuotaEnabled": "Cuota",
       "cosatecaAudience": {
         "integrantes": "Solo integrantes",
         "pueblo": "Todo el pueblo"
       },
       "sections": {
+        "features": "Qué usa el grupo",
         "entry": "Entrar al grupo",
         "charla": "Charla",
-        "cosateca": "Cosateca",
         "cuota": "Cuota"
       }
     },

@@ -25,10 +25,17 @@ describe('groupSections', () => {
     expect(groupSections(group({ sociosListVisible: true })).member).toContain('socios');
   });
 
-  it('moves actas under Gestionar for an admin, and keeps Socios with the rest', () => {
+  it('gives an admin the same buttons as a socio, Cuentas included, and their own after', () => {
     const { member, admin } = groupSections(group({}, 'admin'));
-    expect(member).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'socios']);
-    expect(admin).toEqual(['cobros', 'mensajes', 'registros', 'ajustes']);
+    expect(member).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'actas', 'cuentas', 'socios']);
+    expect(admin).toEqual(['cobros', 'mensajes', 'ajustes']);
+  });
+
+  it('drops every cuota button while the group runs no cuota', () => {
+    const { member, admin } = groupSections(group({ cuotaEnabled: false }, 'admin'));
+    expect(member).not.toContain('cuota');
+    expect(admin).not.toContain('cobros');
+    expect(canOpenGroupSection(group({ cuotaEnabled: false }), 'cuota')).toBe(false);
   });
 
   it('an ayuntamiento keeps its chat, events, tasks, members and settings', () => {
@@ -44,7 +51,7 @@ describe('groupSections', () => {
     expect(canOpenGroupSection(group(), 'avisos')).toBe(true);
   });
 
-  it('gives a socio Cuentas only while the junta makes the accounts public; the junta keeps them in Registros', () => {
+  it('gives a socio Cuentas only while the junta makes the accounts public', () => {
     const open = { cuota: false, avisos: false, cuentas: true };
     expect(groupSections(group({ transparency: open })).member).toEqual([
       'avisos', 'charla', 'eventos', 'tareas', 'cuota', 'actas', 'cuentas', 'socios',
@@ -52,7 +59,6 @@ describe('groupSections', () => {
     expect(groupSections(group({ transparency: { ...open, cuentas: false } })).member).not.toContain('cuentas');
     expect(canOpenGroupSection(group({ transparency: open }), 'cuentas')).toBe(true);
     expect(canOpenGroupSection(group(), 'cuentas')).toBe(false);
-    expect(groupSections(group({ transparency: open }, 'admin')).member).not.toContain('cuentas');
     expect(groupSections(group({ type: 'ayuntamiento', transparency: open })).member).not.toContain('cuentas');
   });
 
@@ -69,7 +75,6 @@ describe('groupSections', () => {
   it('refuses a member a Gestionar screen', () => {
     expect(canOpenGroupSection(group(), 'cobros')).toBe(false);
     expect(canOpenGroupSection(group({}, 'admin'), 'cobros')).toBe(true);
-    expect(canOpenGroupSection(group(), 'registros')).toBe(false);
   });
 
   it('opens the cosateca to every integrante only once an admin switches it on', () => {

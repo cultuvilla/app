@@ -7,7 +7,8 @@ import { router } from 'expo-router';
 import { downloadFile } from '../../../../lib/export/downloadFile';
 import { buildWorkbook } from '../../../../lib/export/rosterWorkbook';
 import { latestWatcher, resetWatchers, setWatched } from '../../../../test/watchers';
-import { RecordsAdmin } from '../RecordsAdmin';
+import { AsambleaChecklist } from '../AsambleaChecklist';
+import { LibroDoor } from '../LibroDoor';
 import { ActasAdmin } from '../ActasAdmin';
 import { LibroSocios } from '../LibroSocios';
 import { YearSummaryAdmin } from '../YearSummaryAdmin';
@@ -83,7 +84,7 @@ function pressConfirm() {
   buttons.at(-1)?.onPress?.();
 }
 
-const renderFolder = () => render(<RecordsAdmin orgId="org1" orgName="La Anduela" />);
+const renderFolder = () => render(<AsambleaChecklist orgId="org1" orgName="La Anduela" />);
 const renderLibro = () => render(<LibroSocios orgId="org1" orgName="La Anduela" />);
 const renderActas = () => render(<ActasAdmin orgId="org1" orgName="La Anduela" uid="u-admin" />);
 const renderYear = () => render(<YearSummaryAdmin orgId="org1" orgName="La Anduela" uid="u-admin" />);
@@ -123,16 +124,16 @@ beforeEach(() => {
   ]);
 });
 
-describe('Registros', () => {
-  it('opens three doors, each with its line, and no checklist with no asamblea near', () => {
-    const { getByTestId, queryByTestId } = renderFolder();
-    expect(within(getByTestId('records-admin')).getByTestId('records-door-libro')).toHaveTextContent(/groups\.records\.libro\.summary:2\|1/);
-    expect(getByTestId('records-door-actas')).toHaveTextContent(/groups\.records\.doors\.lastActa:groups\.records\.actas\.body\.asamblea_general/);
-    expect(getByTestId('records-door-cuentas')).toHaveTextContent(new RegExp(`groups\\.records\\.doors\\.cuentasYear:${YEAR}`));
-    expect(getByTestId('records-door-cuentas')).toHaveTextContent(/groups\.records\.doors\.balance:-90,00/);
-    expect(queryByTestId('asamblea-checklist')).toBeNull();
-    fireEvent.press(getByTestId('records-door-cuentas'));
-    expect(router.push).toHaveBeenCalledWith('/grupos/org1/registros/cuentas');
+describe('the books', () => {
+  it("opens the libro from an admin's Socios, with its altas and bajas", () => {
+    const { getByTestId } = render(<LibroDoor orgId="org1" />);
+    expect(getByTestId('records-door-libro')).toHaveTextContent(/groups\.records\.libro\.summary:2\|1/);
+    fireEvent.press(getByTestId('records-door-libro'));
+    expect(router.push).toHaveBeenCalledWith('/grupos/org1/registros/libro');
+  });
+
+  it('shows no checklist with no asamblea near', () => {
+    expect(renderFolder().queryByTestId('asamblea-checklist')).toBeNull();
   });
 
   it('lists what the asamblea still needs, each line opening its door', () => {

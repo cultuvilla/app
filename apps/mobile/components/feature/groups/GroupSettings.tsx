@@ -42,11 +42,13 @@ function Hint({ children }: { children: string }) {
 }
 
 /**
- * A group's rules, for its admins, under one heading per question: how one
+ * A group's rules, for its admins, under one heading per question: first what
+ * the group uses (the cuota, where it has socios, and the cosateca, with whom
+ * it is for; decided 2026-11-20, user), then how one
  * joins (approval, and the contact data being a socio requires), what every
  * socio sees (the roster, the cuota's al día list, every aviso, the accounts),
- * who writes in the Charla, the cosateca and for whom, and, once the cuota is
- * configured, its reminders. An ayuntamiento always admits by approval, so it
+ * who writes in the Charla, and, once the cuota is configured, its reminders.
+ * Switching the cuota off hides its buttons, never its payments. An ayuntamiento always admits by approval, so it
  * has no switch for it. A member's own notifications are in Ajustes →
  * Notificaciones, not here.
  */
@@ -59,6 +61,7 @@ export function GroupSettings({
   hasRoster = true,
   chatAdminsOnly = false,
   cosateca = DEFAULT_COSATECA_SETTINGS,
+  cuotaEnabled = true,
   transparency = DEFAULT_GROUP_TRANSPARENCY,
   joinPolicy = 'approval',
   isAyuntamiento = false,
@@ -71,15 +74,17 @@ export function GroupSettings({
   hasRoster?: boolean;
   chatAdminsOnly?: boolean;
   cosateca?: CosatecaSettings;
+  cuotaEnabled?: boolean;
   transparency?: GroupTransparency;
   joinPolicy?: OrgJoinPolicy;
   isAyuntamiento?: boolean;
 }) {
   const { t } = useT();
+  const runsCuota = hasRoster && cuotaEnabled;
   const cuota = useWatch<CuotaSettings | null>(
     'groups:watchCuotaSettings',
-    hasRoster ? orgId : null,
-    hasRoster ? (next, error) => watchCuotaSettings(orgId, next, error) : null,
+    runsCuota ? orgId : null,
+    runsCuota ? (next, error) => watchCuotaSettings(orgId, next, error) : null,
   );
   const [saving, setSaving] = useState(false);
   const save = (
@@ -89,6 +94,7 @@ export function GroupSettings({
       | { socioPhoneRequired: boolean }
       | { socioEmailRequired: boolean }
       | { cosateca: CosatecaSettings }
+      | { cuotaEnabled: boolean }
       | { transparency: GroupTransparency }
       | { joinPolicy: OrgJoinPolicy },
   ) => {
@@ -116,6 +122,37 @@ export function GroupSettings({
   const requiresApproval = joinPolicy === 'approval';
   return (
     <VStack gap={6} testID="group-settings">
+      <SettingsSection title={t('groups.settings.sections.features')} testID="group-settings-features">
+        {hasRoster ? (
+          <Toggle
+            testID="group-settings-cuota-enabled"
+            value={cuotaEnabled}
+            disabled={saving}
+            label={t('groups.settings.cuotaEnabled')}
+            onValueChange={(next) => save({ cuotaEnabled: next })}
+          />
+        ) : null}
+        <Toggle
+          testID="group-settings-cosateca"
+          value={cosateca.enabled}
+          disabled={saving}
+          label={t('groups.settings.cosateca')}
+          onValueChange={(enabled) => save({ cosateca: { ...cosateca, enabled } })}
+        />
+        {cosateca.enabled ? (
+          <SegmentedToggle<CosatecaAudience>
+            testID="group-settings-cosateca-audience"
+            value={cosateca.audience}
+            options={[
+              { value: 'integrantes', label: t('groups.settings.cosatecaAudience.integrantes') },
+              { value: 'pueblo', label: t('groups.settings.cosatecaAudience.pueblo') },
+            ]}
+            onChange={(audience) => {
+              if (!saving && audience !== cosateca.audience) save({ cosateca: { ...cosateca, audience } });
+            }}
+          />
+        ) : null}
+      </SettingsSection>
       {!isAyuntamiento || hasRoster ? (
         <SettingsSection title={t('groups.settings.sections.entry')} testID="group-settings-entry">
           {!isAyuntamiento ? (
@@ -159,7 +196,7 @@ export function GroupSettings({
             label={t('groups.settings.sociosListVisible')}
             onValueChange={(next) => save({ sociosListVisible: next })}
           />
-          {TRANSPARENCY_VIEWS.map((view) => (
+          {TRANSPARENCY_VIEWS.filter((view) => view !== 'cuota' || cuotaEnabled).map((view) => (
             <VStack key={view} gap={1}>
               <Toggle
                 testID={`group-settings-transparency-${view}`}
@@ -182,29 +219,7 @@ export function GroupSettings({
           onValueChange={(next) => save({ chatAdminsOnly: next })}
         />
       </SettingsSection>
-      <SettingsSection title={t('groups.settings.sections.cosateca')} testID="group-settings-cosateca-section">
-        <Toggle
-          testID="group-settings-cosateca"
-          value={cosateca.enabled}
-          disabled={saving}
-          label={t('groups.settings.cosateca')}
-          onValueChange={(enabled) => save({ cosateca: { ...cosateca, enabled } })}
-        />
-        {cosateca.enabled ? (
-          <SegmentedToggle<CosatecaAudience>
-            testID="group-settings-cosateca-audience"
-            value={cosateca.audience}
-            options={[
-              { value: 'integrantes', label: t('groups.settings.cosatecaAudience.integrantes') },
-              { value: 'pueblo', label: t('groups.settings.cosatecaAudience.pueblo') },
-            ]}
-            onChange={(audience) => {
-              if (!saving && audience !== cosateca.audience) save({ cosateca: { ...cosateca, audience } });
-            }}
-          />
-        ) : null}
-      </SettingsSection>
-      {cuota.data ? (
+      {runsCuota && cuota.data ? (
         <SettingsSection title={t('groups.settings.sections.cuota')} testID="group-settings-cuota">
           <Toggle
             testID="group-settings-cuota-reminders"

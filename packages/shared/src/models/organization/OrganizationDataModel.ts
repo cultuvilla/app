@@ -87,6 +87,11 @@ export const OrganizationDataSchema = z.object({
   // installed binaries create orgs without it; existing docs are backfilled by
   // scripts/backfill-org-cosateca.mjs.
   cosateca: CosatecaSettingsSchema.default(DEFAULT_COSATECA_SETTINGS),
+  // Whether a group with socios runs a cuota: off hides its buttons and banner,
+  // never its payments. On unless an admin turns it off, as every group had it
+  // before the switch. Defaults because installed binaries create orgs without
+  // it; existing docs are backfilled by scripts/backfill-org-cuota-enabled.mjs.
+  cuotaEnabled: z.boolean().default(true),
   // What the junta opens to every integrante: the cuota's al día list, every
   // aviso and its results, the accounts (see GroupTransparencyModel). Defaults
   // because installed binaries create orgs without it; existing docs are
@@ -119,6 +124,7 @@ export interface OrganizationDataInput {
   socioPhoneRequired?: boolean;
   socioEmailRequired?: boolean;
   cosateca?: CosatecaSettings;
+  cuotaEnabled?: boolean;
   transparency?: GroupTransparency;
 }
 
@@ -145,6 +151,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     socioPhoneRequired: input.socioPhoneRequired ?? false,
     socioEmailRequired: input.socioEmailRequired ?? false,
     cosateca: input.cosateca ?? { ...DEFAULT_COSATECA_SETTINGS },
+    cuotaEnabled: input.cuotaEnabled ?? true,
     transparency: input.transparency ?? { ...DEFAULT_GROUP_TRANSPARENCY },
   };
 }

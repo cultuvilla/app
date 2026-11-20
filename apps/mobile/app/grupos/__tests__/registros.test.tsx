@@ -44,7 +44,7 @@ function group(id: string, role: 'admin' | 'member', type: 'asociación' | 'ayun
 
 beforeEach(() => mockRedirect.mockClear());
 
-describe('a Registros door', () => {
+describe("a group's book", () => {
   it.each(['libro', 'actas', 'cuentas'])('opens the %s door for an admin', (door) => {
     mockGroups = [group('Anduela', 'admin')];
     mockParams = { grupo: 'Anduela', puerta: door };
@@ -54,11 +54,11 @@ describe('a Registros door', () => {
     expect(getByTestId(`records-door-screen-${door}`)).toBeTruthy();
   });
 
-  it('sends an unknown door back to the folder', () => {
+  it('sends an unknown door back to the group', () => {
     mockGroups = [group('Anduela', 'admin')];
     mockParams = { grupo: 'Anduela', puerta: 'nada' };
     render(<GroupRecordsDoorScreen />);
-    expect(mockRedirect).toHaveBeenCalledWith({ href: '/grupos/Anduela/registros' });
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/grupos?grupo=Anduela' });
   });
 
   it('sends a member who is not an admin back to the group', () => {

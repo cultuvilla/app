@@ -172,7 +172,8 @@ async function remindOrg(
   result: CuotaReminderRunResult,
 ): Promise<void> {
   const org = (await organizationDoc(firestore, orgId).get()).data();
-  if (!org || org.status !== 'approved' || !hasSocioRoster(org.type)) return;
+  // A group that switched its cuota off is never reminded of it, whatever its settings say.
+  if (!org || org.status !== 'approved' || !hasSocioRoster(org.type) || !org.cuotaEnabled) return;
 
   const today = madridDayKey(now);
   const periodKey = periodKeyFor(settings.periodicity, today);

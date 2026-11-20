@@ -124,7 +124,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const noticeIds = useMemo(() => notices.notices.map((m) => m.id), [notices.notices]);
   const chat = useGroupChatUnread(org.id, uid, noticeIds);
   const myValues = useMyMessageValues(org.id, roster ? uid : null);
-  const cuota = useMyCuota(org.id, roster ? uid : null);
+  const cuota = useMyCuota(org.id, roster && org.cuotaEnabled ? uid : null);
   // Rules let members read the roster only while the estatutos allow it.
   const canReadRoster = roster && (isAdmin || org.sociosListVisible);
   const socios = useWatch<Socio[]>(
@@ -158,7 +158,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const eventTitles = useMemo(() => new Map((events.data ?? []).map((e) => [e.id, e.title])), [events.data]);
   const faces = useMemberFaces(upcomingTasks.flatMap(taskPeople));
   const ownStatus = cuota.statuses.find((s) => cuota.rows.find((r) => r.id === s.socioId)?.kind === 'member') ?? cuota.statuses[0];
-  const cuotaBanner = roster && ownStatus && cuota.periodKey ? { period: cuota.periodKey, status: ownStatus.status } : null;
+  const cuotaBanner = roster && org.cuotaEnabled && ownStatus && cuota.periodKey ? { period: cuota.periodKey, status: ownStatus.status } : null;
 
   const badges: Partial<Record<GroupSection, number>> = {
     charla: chat.generalUnread ? 1 : 0,
@@ -219,7 +219,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
                   {
                     label: t('groups.stats.actas'),
                     value: actas.status === 'ready' ? (actas.data ?? []).length : null,
-                    onPress: () => open(isAdmin ? 'registros' : 'actas'),
+                    onPress: () => open('actas'),
                   },
                 ]
               : []),

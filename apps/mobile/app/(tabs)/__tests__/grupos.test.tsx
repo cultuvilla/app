@@ -319,11 +319,11 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
-    expect(order).toEqual(['charla', 'eventos', 'tareas', 'cuota', 'socios', 'cobros', 'mensajes', 'registros', 'ajustes']);
+    expect(order).toEqual(['charla', 'eventos', 'tareas', 'cuota', 'actas', 'cuentas', 'socios', 'cobros', 'mensajes', 'ajustes']);
     expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
     expect(getByTestId('group-section-charla').props.accessibilityHint).toBeUndefined();
-    fireEvent.press(getByTestId('group-section-registros'));
-    expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/registros');
+    fireEvent.press(getByTestId('group-section-actas'));
+    expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/actas');
   });
 
   it('opens on the group a link names, and remembers it', async () => {
