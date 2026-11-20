@@ -53,7 +53,7 @@ why.
 
 - **Consent split.** Analytics is consent-gated: denied by default, and granted
   only for a signed-in account that answered yes to «¿Nos ayudas a mejorar
-  Cultuvilla con estadísticas de uso anónimas?» — asked once in the onboarding
+  Cultuvilla compartiendo estadísticas de uso?» (not «anónimas»: the analytics id is a hashed uid, so the data is pseudonymous) — asked once in the onboarding
   form (or a sheet for an account that skipped it), stored at
   `users/{uid}/privacySettings/account`, changeable under Ajustes → Estadísticas
   de uso. Guests are never tracked. Error/log *diagnosis* flows regardless, on

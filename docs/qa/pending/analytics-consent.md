@@ -10,7 +10,7 @@ source: fix/analytics-consent
 **Preparación:** Seed de e2e. La cuenta `fresh` no tiene perfil. Para la cuenta ya existente, borra en el emulador `users/<uid>/privacySettings/account` de un usuario sembrado (p. ej. `e2e-attendee`) para simular a alguien que nunca contestó.
 
 **Pasos:**
-1. Entra con `fresh`. En el primer paso de «Completa tu perfil», debajo de los términos, mira la pregunta «¿Nos ayudas a mejorar Cultuvilla con estadísticas de uso anónimas?». Pulsa «No» y termina el registro.
+1. Entra con `fresh`. En el primer paso de «Completa tu perfil», debajo de los términos, mira la pregunta «¿Nos ayudas a mejorar Cultuvilla compartiendo estadísticas de uso?». Pulsa «No» y termina el registro.
 2. Ve a Menú → Ajustes.
 3. Pulsa el interruptor «Estadísticas de uso»; sal de Ajustes y vuelve.
 4. Cierra sesión y entra con la cuenta sembrada sin respuesta.
