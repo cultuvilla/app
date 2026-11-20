@@ -53,10 +53,23 @@ why.
 
 - **Consent split.** Analytics is consent-gated: denied by default, and granted
   only for a signed-in account that answered yes to «¿Nos ayudas a mejorar
-  Cultuvilla compartiendo estadísticas de uso?» (not «anónimas»: the analytics id is a hashed uid, so the data is pseudonymous) — asked once in the onboarding
-  form (or a sheet for an account that skipped it), stored at
-  `users/{uid}/privacySettings/account`, changeable under Ajustes → Estadísticas
-  de uso. Guests are never tracked. Error/log *diagnosis* flows regardless, on
+  Cultuvilla?» (never called «anónimas»: the analytics id is a hashed uid, so the
+  data is pseudonymous), stored at `users/{uid}/privacySettings/account`,
+  changeable under Ajustes → Estadísticas de uso. Guests are never tracked.
+  The question is a full-screen page, not part of sign-up (decided 2026-11-20,
+  Álvaro: onboarding keeps only the terms checkbox). It asks an account with no
+  answer at the first of its first real action (signing up to an event, joining
+  a group or a village, publishing an event, article, comment, aviso, history
+  entry or word — `CONSENT_PROMPT_ACTIONS`), shown once the user reaches another
+  ordinary screen, never over a form; or the third distinct local day it opens
+  the app signed in. Never during onboarding. «No, gracias» and «Sí, claro» are
+  the same size side by side (no outlined, yes filled) and each closes it;
+  Android back stores nothing and it asks again another day, once — after a
+  second unanswered close it never asks again. The day count and the closes
+  are per user on the device (AsyncStorage); the answer alone is in Firestore.
+  Rule: `apps/mobile/lib/observability/analyticsConsentPrompt.ts`. The drawing
+  is built from Views, not SVG: the app ships no react-native-svg, and a native
+  module would have waited for a store binary. Error/log *diagnosis* flows regardless, on
   legitimate interest — justified because the app has guest browsing and 14+
   minors. (Decided 2026-11-20, Álvaro, replacing an interim where analytics ran
   for everyone from boot on the strength of the Terms acceptance: the Privacy

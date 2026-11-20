@@ -78,7 +78,7 @@ instead of the whole shard.
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
 | `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
-| `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, a catalog and a custom occupation, and a "No" to usage analytics — each checked on the person, profile and membership, and on the profile tab. |
+| `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, and a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
 | `51-own-profile` | A user's own profile edited — nickname, sex, birthday, biography, an occupation — and read back. |
 | `54-dependents` | A dependent created with every field, renamed and made private, closed to another villager (a public one is not), then deleted. Split from 51 to stay under the 15-minute limit. |
 | `52-feed-discovery` | Explora's event search and each filter (village, date, proximity sort) narrowing the list and clearing again; the proximity sort proven by order. |

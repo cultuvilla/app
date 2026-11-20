@@ -25,6 +25,7 @@ import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { appendPlaceholder, composerInput, emptyComposerForm, type ComposerError, type ComposerForm, type PollChoice } from '../../../lib/orgs/messaging';
+import { noteConsentPromptAction } from '../../../lib/observability/analyticsConsentPrompt';
 
 type Event = EventData & { id: string };
 
@@ -94,6 +95,7 @@ export function ComposeMessageSheet({
     setSending(true);
     sendGroupMessage(built.input)
       .then((result) => {
+        noteConsentPromptAction('aviso-publish');
         onSent(result);
         onClose();
       })

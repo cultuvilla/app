@@ -82,9 +82,13 @@ that's the signal you're bypassing the chokepoint — don't.
   default is denied, and only `AnalyticsConsentProvider`
   (`apps/mobile/lib/observability/`) grants it: for a signed-in account whose
   `users/{uid}/privacySettings/account` says `usageAnalytics: true`. Guests and
-  accounts that never answered (no doc) are never tracked. The question is asked
-  once — in the onboarding form, or as a sheet for an account that skipped it —
-  and changed under Ajustes → Estadísticas de uso. Without a yes, calls are
+  accounts that never answered (no doc) are never tracked. The question is a
+  full-screen page (`AnalyticsConsentPage`), never part of onboarding: it asks
+  after the account's first real action or on its third app day, at most twice
+  if closed unanswered, and is changed under Ajustes → Estadísticas de uso. The
+  rule is `analyticsConsentPrompt.ts`; a new kind of real action is added to
+  `CONSENT_PROMPT_ACTIONS` there and noted with `noteConsentPromptAction` where
+  it succeeds. Without a yes, calls are
   silently dropped and native collection is off, which is why product funnels go
   quiet in dev until your test account says yes.
 - **An analytics event fired from inside the adapter obeys consent too.**

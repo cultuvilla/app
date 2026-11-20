@@ -32,6 +32,7 @@ import { usePush } from '../../lib/push/PushProvider';
 import { withFirestoreErrorLog } from '../../lib/firestoreErrorLog';
 import { rememberProfilePhone } from '../../lib/profilePhone';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
+import { noteConsentPromptAction } from '../../lib/observability/analyticsConsentPrompt';
 
 export interface RegisterFabProps {
   eventId: string;
@@ -252,6 +253,7 @@ export function RegisterFab({
           if (pid) next.set(pid, { regId: s.id, status: s.status });
         });
         observability.trackEvent(OBSERVABILITY_EVENTS.EVENT_SIGNUP_SUCCESS, { villageId });
+        noteConsentPromptAction('event-signup');
       }
       for (const regId of diff.toCancelRegIds) {
         await cancelRegistration(eventId, regId);
@@ -302,6 +304,7 @@ export function RegisterFab({
       succeeded = true;
       void rememberProfilePhone(userId, savedPhone, phone, onPhoneSaved);
       observability.trackEvent(OBSERVABILITY_EVENTS.EVENT_SIGNUP_SUCCESS, { villageId });
+      noteConsentPromptAction('event-signup');
       setAutoSelectIds([]);
       await load();
       refreshRegistrations();

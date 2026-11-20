@@ -123,8 +123,8 @@ async function run() {
         }),
         { merge: true },
       );
-    // Answered already, so the one-time usage-analytics sheet never opens over
-    // a flow. A "no": the suite must never feed the dev Analytics property.
+    // Answered already, so the usage-analytics page never opens over a flow.
+    // A "no": the suite must never feed the dev Analytics property.
     await db
       .collection('users')
       .doc(u.uid)
@@ -151,6 +151,14 @@ async function run() {
   // The "fresh" user is Auth-only: no persons/{id}, no users/{uid} profile. The
   // onboarding-profile flow signs it in and drives complete-profile from scratch.
   await upsertUser(users.fresh);
+  // Its answer only, under no profile: the onboarding flow must not meet the
+  // usage-analytics page afterwards (nor feed the dev Analytics property).
+  await db
+    .collection('users')
+    .doc(users.fresh.uid)
+    .collection('privacySettings')
+    .doc('account')
+    .set(buildPrivacySettingsData({ usageAnalytics: false }));
 
   // App super-admin grant. Presence of admins/{uid} is what isAppAdmin() tests;
   // it authorizes respondToOrganizerRequest in the organizer-request flow.
