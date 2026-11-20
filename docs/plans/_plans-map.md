@@ -16,10 +16,9 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 |---|---|---|---|---|
 | [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | prod | 5 cycles ago \* | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
-| [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [buzon-badge-counts-all-actions](ongoing/buzon-badge-counts-all-actions.md) | medium | none | this cycle | verify the plan against develop (buzon-inbox-model landed in #683), then build it |
 | [firestore-collection-registry](ongoing/firestore-collection-registry.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | none | this cycle | verify the plan against develop, then build it |
-| [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [typed-organization-join-redirect](ongoing/typed-organization-join-redirect.md) | medium | none | this cycle | verify the plan against develop, then build it |
 
 ## Waiting on release 1.11.0
@@ -43,8 +42,10 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | 1 cycle ago | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
 | [cosateca](ongoing/cosateca.md) | high | none | this cycle \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote with the next release (all four phases are on develop) |
 | [auth-session-state-machine](ongoing/auth-session-state-machine.md) | medium | dev | this cycle | the first release carrying #690 is live in prod | once a release carrying #690 is live in prod, confirm sign-in, sign-out and an abandoned sign-up behave (no stray account deletes in logs), then retire this plan |
+| [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | dev | this cycle | the first release carrying #683 is live in prod | once prod serves #683, check an admin's Buzón and bell badge show the same requests as before, then retire |
 | [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
 | [read-site-shared-list-rules](ongoing/read-site-shared-list-rules.md) | medium | dev | this cycle | the first release carrying #691 is live in prod | once prod serves #691, check a village page lists today's events as upcoming and a one-member group says «1 integrante», then retire (villageHomeWatchers' LISTED_STATUSES copy is folded in by the offline-first follow-up) |
+| [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | dev | this cycle | the first release carrying #694 is live in prod | once prod serves #694, check a hidden vocabulary term shows no delete button to its author, then retire |
 | [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | dev | this cycle | the next release Álvaro cuts (carrying #689) is live in prod | after that prod deploy, Álvaro curls `https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM`, opens a `/<pueblo>/evento/…` link on an iPhone (Apple's CDN may take a day), and sets the privacy-policy URL `https://cultuvilla.es/legal/privacidad` in App Store Connect (every app-info localization) and the Play console (App content) |
 
 ## Waiting on you
@@ -62,7 +63,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [apple-team-transfer](ongoing/apple-team-transfer.md) | high | dev | this cycle | this plan's code (#663) reaches prod, then Álvaro accepts in App Store Connect — a console step no agent can take | the next release carries #663 to prod; then Álvaro accepts Cultuvilla, before 2026-11-29, and runs § On the day. Jaime's part is done (2026-11-17); `TESTFLIGHT_SUBMIT_PAUSED=true` since 2026-11-17 |
 | [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle \* | human console steps — Jaime ticks the time-sensitive entitlement in the Apple portal (step 3); Álvaro declares "Device or other IDs" in Play Data Safety (step 4) | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle \* | Álvaro promotes it with a release and runs the La Anduela trial — a human step | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
-| [buzon-badge-counts-all-actions](ready/buzon-badge-counts-all-actions.md) `ready` | medium | — | this cycle | buzon-inbox-model | — |
 | [mobile-neutral-grey-tokens](ready/mobile-neutral-grey-tokens.md) `ready` | low | — | this cycle | mobile-raw-hex-to-tokens | — |
 
 ## How `Advanced` is derived
