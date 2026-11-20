@@ -97,6 +97,33 @@ The lane fails, rather than warns, on each way this can regress:
    opt-in, the JVM-only scope, the order of the checks, the shard guard and the
    probe's verdicts.
 
+## Not this: "Network connectivity changed"
+
+The keepalive fix leaves about one other SDK stream error per shard:
+`WatchStream … Stream error: 'Unavailable: Network connectivity changed'`.
+It is the SDK restarting its streams because the Simulator's network path
+changed. It is not a dropped write. The iOS SDK (12.18.0) handles it like this:
+
+- `remote_store.cc`: the connectivity callback calls `RestartNetwork()`, which
+  sets the online state to `Unknown` (not `Offline`) and reopens both streams at
+  once. In ios-e2e 44764961074 they were back within 0.45 s.
+- `view.cc`: `ApplyOnlineStateChange` changes a view only on `Offline`, so the
+  restart leaves every query current.
+- `query_listener.cc`: `ShouldRaiseEvent` passes a sync-state-only or
+  pending-writes-only change only with `include_query_metadata_changes`. Our
+  listeners (`packages/shared/src/services/watch.ts`) do not ask for it.
+
+So a restart with no document changed raises no snapshot and no error, and no
+screen re-renders or remounts because of it. A user switching between wifi and
+mobile data does not lose taps or writes on this path.
+
+In that same run, a flow 13 tap on the contact gate's accept button landed
+0.37 s after a restart and did nothing. The gate stayed up 33 s with its button
+idle. A local `setDoc` would have dropped the gate through its own listener, so
+the app never received the tap. The cause is in Maestro or the Simulator, not in
+the app. Whatever makes the Simulator's network path change on the runner is
+an open question for the lane.
+
 ## When to delete it
 
 Delete the drop-in, its wrapper hook and the opt-in once the emulator accepts
