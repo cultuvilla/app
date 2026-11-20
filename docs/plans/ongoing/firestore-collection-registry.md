@@ -2,8 +2,8 @@
 
 **Priority:** medium — the refs files and the conformance gate are three hand-synced lists that have drifted at least five times in 90 days, and three subcollections are not gated today
 **Landed:** dev
-**Gate:** soak:the next develop→beta promotion runs Deploy beta's Conformance gate over the 11 newly gated subcollections
-**Next:** confirm the Conformance gate step in that Deploy beta run walked the new subcollections and passed, then retire the plan (built in #695, 3ad7e234)
+**Gate:** none
+**Next:** the gate warns of 4 undeclared root collections (dev/beta, 2026-11-20): `authEmailRateLimits` (functions/src/auth/rateLimit.ts), `authOtpCodes` (functions/src/auth/*AuthOtpCode.ts), `config` (appConfigService), and `reactions` (rules only, no code — check whether it is dead) — declare each in refs/collections.ts or retire it; then the soak: confirm Deploy beta's Conformance gate walks the 11 new subcollections at the next develop→beta promotion, and retire
 
 **Goal:** Declare each Firestore collection once (path, schema, which SDKs may reach it) and derive `refs/client.ts`, `refs/admin.ts` and the conformance gate's `REGISTRY` from that declaration, so adding a collection is one entry instead of five files, and the gate cannot miss a collection again.
 
