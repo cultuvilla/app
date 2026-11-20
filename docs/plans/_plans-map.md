@@ -12,7 +12,9 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 ## Actionable now
 
-_None._
+| Plan | Pri | Landed | Advanced | Next |
+|---|---|---|---|---|
+| [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | find the root cause of the iOS ping timeouts, starting with the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings), also covering flows 12 and 15; fix it without app-code workarounds, then add a lasting guard in the lane so a regression shows up on its own |
 
 ## Waiting on release 1.11.0
 
@@ -47,9 +49,7 @@ _None._
 
 ## Waiting on you
 
-| Plan | Pri | Landed | Advanced | Waiting on | Next |
-|---|---|---|---|---|---|
-| [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | pay for a larger macOS runner, or first try a free test of the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings seen)? Lightening (#715) did not clear the ping timeouts: 5, 7 and 4, 4 per run vs 3–8 before; the emulator JVM sat at 1–2% CPU, so a bigger runner is not a sure fix | on Álvaro's answer, either trial a larger macOS runner or test the keepalive/ping-enforcement mismatch; at ~0 ping timeouts with flow 13 stable, remove flow 13's re-sign-in fallback and FLOW_TIMEOUT_OVERRIDES_MS (flows 12 and 15 also fail on iOS) |
+_None._
 
 ## Blocked
 
