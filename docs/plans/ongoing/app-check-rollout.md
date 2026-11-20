@@ -2,8 +2,14 @@
 
 **Priority:** high
 **Landed:** dev
-**Gate:** blocked:console — App Check app registrations, the DeviceCheck key and the dev debug tokens are console steps for Álvaro (#712 merged; enforcement off)
+**Gate:** blocked:console — App Check app registrations, the DeviceCheck key, the API and the dev debug tokens are console steps for Álvaro (#712 merged; enforcement off). They must be done in beta and prod before any binary carrying #712 ships (see Launch-latency finding)
 **Next:** after Álvaro's console steps (Play Integrity + Play Console link per project, App Attest/DeviceCheck with the .p8 key, the App Check API enabled, dev debug tokens registered), confirm verified tokens in beta's App Check metrics (Stage 2) with enforcement still off
+
+## Launch-latency finding (2026-11-20, w18, from SDK source)
+
+Both Firestore SDKs wait for the App Check token before every stream open and RPC (iOS 12.18 `Stream::RequestCredentials` / `FirebaseAppCheckCredentialsProvider`; Android `FirestoreCallCredentials` `Tasks.whenAll(auth, appCheck)`), with no Firestore-side timeout. On error they continue with a placeholder token. An HTTP error (403/5xx) backs off exponentially, so a fast 403 costs one round trip; a **network** error triggers no backoff (`GACAppCheckBackoffWrapper`; Android `RetryManager` keys on HTTP codes), so on a slow or lossy network every stream open and write waits again, up to iOS's 60 s `NSURLSession` default and with no timeout on Android. Firestore's 10 s offline timer includes that wait, so the app shows "Sin conexión" at launch. ios-e2e reproduced it (transport failures of about 35 s, each followed by "Could not reach backend within 10 s").
+
+With the API enabled and apps registered, the token is stored and auto-refreshed, so the wait shrinks to roughly the first launch after install or expiry. Hence the gate: the console steps come before a binary with #712 reaches testers or users.
 
 > Decided 2026-11-20 (Álvaro): start Stage 1 now — the next release is breaking anyway, so a fingerprint change that stops OTA for older binaries rides a store build that ships regardless.
 
