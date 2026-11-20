@@ -1147,7 +1147,7 @@
     "requestPending": "Solicitud enviada",
     "joinPolicy": {
       "label": "Unirse requiere aprobación",
-      "approvalHint": "Quien quiera unirse lo solicita y un administrador del grupo lo acepta.",
+      "approvalHint": "Un administrador acepta cada solicitud.",
       "openHint": "Cualquiera puede unirse al momento.",
       "switchToOpenTitle": "Abrir el grupo",
       "switchToOpenBody": "Cualquiera podrá unirse sin aprobación. Entrará al momento en el libro de socios, y podrá leer el chat y las tareas del grupo y ver sus eventos privados."
@@ -1883,15 +1883,15 @@
         "title": "Qué ven todos los socios",
         "cuota": {
           "label": "Cuota pública",
-          "hint": "Cada socio ve la lista de socios de este año con su nombre y si está al día o pendiente. Nunca importes, fechas ni formas de pago."
+          "hint": "Los socios ven quién está al día con la cuota, sin importes."
         },
         "avisos": {
           "label": "Avisos públicos",
-          "hint": "Cada socio ve todos los avisos de la junta a los socios, también los enviados solo a algunos, y los resultados de las votaciones. Nunca los avisos solo para la junta, quién los ha leído ni quién votó qué."
+          "hint": "Los socios ven todos los avisos y los resultados de las votaciones, no quién votó qué."
         },
         "cuentas": {
           "label": "Cuentas públicas",
-          "hint": "Cada socio ve las cuentas del año (ingresos y gastos) sin poder cambiarlas. El libro de socios y las actas siguen con su propio ajuste."
+          "hint": "Los socios ven los ingresos y gastos del año, sin poder cambiarlos."
         }
       },
       "cuota": {

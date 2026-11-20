@@ -23,7 +23,7 @@ const TRANSPARENCY_VIEWS: readonly GroupTransparencyView[] = ['cuota', 'avisos',
 function SettingsSection({ title, children, testID }: { title: string; children: ReactNode; testID?: string }) {
   return (
     <VStack gap={2} testID={testID}>
-      <Text variant="caption" tone="muted" className="font-bold uppercase tracking-wide px-1">
+      <Text variant="caption" tone="muted" className="font-bold uppercase tracking-wide px-1 pt-4">
         {title}
       </Text>
       <Card variant="elevated">
