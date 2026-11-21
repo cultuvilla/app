@@ -9,6 +9,7 @@
     "start:lan": "port=$(bash ../../scripts/metro-port.sh 8081) && expo start --lan --port $port",
     "android": "port=$(bash ../../scripts/metro-port.sh 8081) && expo run:android --port $port",
     "ios": "port=$(bash ../../scripts/metro-port.sh 8081) && expo run:ios --port $port",
+    "lint": "eslint . --max-warnings 0",
     "test": "jest",
     "eas-build-post-install": "pnpm --filter @cultuvilla/shared build",
     "test:watch": "jest --watch",
