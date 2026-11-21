@@ -722,7 +722,7 @@ describe('a retry starts from its first attempt’s data', () => {
           await expect(snap.restoreSnapshot(t, { documents: [], accounts: [] })).rejects.toThrow(
             /still holds 3 documents after clearing/,
           );
-          expect(clearCalls(calls)).toBe(3);
+          expect(clearCalls(calls)).toBe(10);
           expect(calls.some((c) => c.url.includes('batchWrite'))).toBe(false);
           expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
         },
@@ -758,13 +758,25 @@ describe('a retry starts from its first attempt’s data', () => {
       );
     });
 
+    it('keeps sending while dead listen streams fail one write after another', async () => {
+      await withFake(
+        async (t, calls) => {
+          await snap.restoreSnapshot(t, { documents: two, accounts: [] });
+          expect(writeCalls(calls)).toBe(5);
+        },
+        undefined,
+        ['ok'],
+        ['cancelled-partial', 'cancelled-partial', 'cancelled-partial', 'cancelled-partial', 'ok'],
+      );
+    });
+
     it('fails loudly, triggers back on, when documents stay missing', async () => {
       await withFake(
         async (t, calls) => {
           await expect(snap.restoreSnapshot(t, { documents: two, accounts: [] })).rejects.toThrow(
             /holds 1 documents after restoring 2 \(1 missing\)/,
           );
-          expect(writeCalls(calls)).toBe(3);
+          expect(writeCalls(calls)).toBe(10);
           expect(calls.some((c) => c.url.includes('accounts:batchCreate'))).toBe(false);
           expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
         },

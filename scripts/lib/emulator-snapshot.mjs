@@ -85,18 +85,25 @@ async function setBackgroundTriggers(t, enabled) {
   await call(`http://${t.hub}/functions/${enabled ? 'enable' : 'disable'}BackgroundTriggers`, { method: 'PUT' });
 }
 
-const CLEAR_ATTEMPTS = 3;
+/**
+ * How many times the clear, and each batch of the write-back, is sent. The
+ * emulator keeps a listen stream registered after the app has cancelled it, and
+ * the first write that has to tell that stream something throws, so the write
+ * answers HTTP 499 "call already cancelled". Each such failure gets a later
+ * attempt further, but a long suite piles up dead streams: in ios-e2e
+ * 44889372664 one restore went through after three 499s and a later one was
+ * still failing after four.
+ */
+const ATTEMPTS = 10;
 
 /**
- * Empties the Firestore emulator. Its DELETE can answer HTTP 499 "call already
- * cancelled" while the app still holds listen streams (ios-e2e 44804913687),
- * and that status does not say whether the database was cleared. So the clear
- * is judged by reading the database back, not by the status, and repeated a
- * few times before it gives up.
+ * Empties the Firestore emulator. A 499 does not say whether the database was
+ * cleared (ios-e2e 44804913687), so the clear is judged by reading the
+ * database back, not by the status.
  */
 async function clearDocuments(t) {
   let lastError = null;
-  for (let attempt = 1; attempt <= CLEAR_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
       await call(`http://${t.firestore}/emulator/v1/projects/${t.project}/databases/(default)/documents`, {
         method: 'DELETE',
@@ -111,21 +118,16 @@ async function clearDocuments(t) {
   throw lastError;
 }
 
-const WRITE_ATTEMPTS = 3;
-
 /**
- * Writes the snapshot's documents back. The emulator notifies each listener
- * inside the write itself, and a listen stream the app has already dropped
- * makes that notification throw. The batchWrite then answers HTTP 499 "call
- * already cancelled", having applied some, all or none of its writes (ios-e2e
- * 44826311824). Each write replaces a whole document, so a batch is safe to
+ * Writes the snapshot's documents back. A batchWrite that answers 499 has
+ * applied some, all or none of its writes (ios-e2e 44826311824). Each write replaces a whole document, so a batch is safe to
  * send again. As with the clear, the database is read back to judge the result.
  */
 async function writeDocuments(t, documents) {
   let lastError = null;
   for (let i = 0; i < documents.length; i += BATCH_WRITE_MAX) {
     const writes = documents.slice(i, i + BATCH_WRITE_MAX).map((update) => ({ update }));
-    for (let attempt = 1; attempt <= WRITE_ATTEMPTS; attempt++) {
+    for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
       try {
         await call(`${documentsRoot(t)}:batchWrite`, {
           method: 'POST',
