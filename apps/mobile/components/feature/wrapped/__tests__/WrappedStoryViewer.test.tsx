@@ -103,6 +103,19 @@ describe('WrappedStoryViewer', () => {
     expect(onOpenVillage).toHaveBeenCalled();
   });
 
+  it('offers the year’s programme at the end, only when there is one', () => {
+    const onOpenProgramme = jest.fn();
+    const withProgramme = renderViewer({ initialIndex: 1, onOpenProgramme });
+    fireEvent.press(withProgramme.getByTestId('wrapped-story-tap'), tapRight);
+    fireEvent.press(withProgramme.getByTestId('wrapped-open-programme'));
+    expect(onOpenProgramme).toHaveBeenCalled();
+    withProgramme.unmount();
+
+    const without = renderViewer({ initialIndex: 1 });
+    fireEvent.press(without.getByTestId('wrapped-story-tap'), tapRight);
+    expect(without.queryByTestId('wrapped-open-programme')).toBeNull();
+  });
+
   it('downloads the card on screen, and offers no download once the cards run out', () => {
     const { getByTestId, queryByTestId, onSaveCard } = renderViewer({ initialIndex: 1 });
     fireEvent.press(getByTestId('wrapped-save-card'));

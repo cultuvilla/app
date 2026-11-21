@@ -311,6 +311,59 @@ describe('readSite', () => {
     }
   });
 
+  describe('the programa de fiestas', () => {
+    async function seedProgramme(year: number): Promise<void> {
+      const d = db();
+      await d.doc('municipalities/m1').set({ community: { fiestas: [{ id: 'santiago', name: 'Santiago', month: 7 }] } }, { merge: true });
+      const id = `m1_santiago_${String(year)}`;
+      await d.doc(`fiestaEditions/${id}`).set({
+        municipalityId: 'm1', villageSlug: 'matabuena', blockId: 'santiago', year,
+        startDay: `${String(year)}-07-24`, endDay: `${String(year)}-07-26`, proposedBy: 'u1',
+      });
+      const ev = { municipalityId: 'm1', fiestaEditionId: id, visibility: 'public', visibilityOrgId: null, location: { displayName: 'Plaza Mayor' }, endDate: null };
+      await d.doc('events/f1').set({ ...ev, title: 'Pregón', status: 'published', startDate: ts(`${String(year)}-07-24T18:00:00Z`) });
+      await d.doc('events/f2').set({ ...ev, title: 'Misa de Santiago', status: 'completed', startDate: ts(`${String(year)}-07-25T08:00:00Z`) });
+      await d.doc('events/f3').set({ ...ev, title: 'Charanga suspendida', status: 'cancelled', startDate: ts(`${String(year)}-07-25T20:00:00Z`) });
+      await d.doc('events/f4').set({ ...ev, title: 'Cena de la peña', status: 'published', visibility: 'organization', visibilityOrgId: 'o1', startDate: ts(`${String(year)}-07-25T21:00:00Z`) });
+      await d.doc('festivalPosters/c1').set({ municipalityId: 'm1', year, status: 'active', images: ['https://img.test/cartel.jpg'] });
+    }
+
+    it('renders the programme day by day before a Wrapped exists, previewed by the cartel', async () => {
+      await seedProgramme(2027);
+      const { status, body } = await html('/matabuena/fiestas/2027');
+      expect(status).toBe(200);
+      expect(body).toContain('Programa de fiestas 2027');
+      expect(body).toContain('Santiago');
+      expect(body).toContain('sábado, 24 de julio');
+      expect(body.indexOf('Pregón')).toBeLessThan(body.indexOf('Misa de Santiago'));
+      expect(body).toContain('/matabuena/evento/');
+      expect(body).toContain('https://img.test/cartel.jpg');
+      for (const hidden of ['Charanga suspendida', 'Cena de la peña']) expect(body).not.toContain(hidden);
+    });
+
+    // A draft answers as if it did not exist, so its year still shows the programme.
+    it('keeps showing the programme while the Wrapped is only a draft', async () => {
+      await seedProgramme(2025);
+      const { status, body } = await html('/matabuena/fiestas/2025');
+      expect(status).toBe(200);
+      expect(body).toContain('Programa de fiestas 2025');
+      expect(body).not.toContain('cover.png');
+    });
+
+    it('gives way to the published Wrapped', async () => {
+      await seedProgramme(2026);
+      const { body } = await html('/matabuena/fiestas/2026');
+      expect(body).toContain('cover.png');
+      expect(body).not.toContain('Programa de fiestas');
+    });
+
+    it('answers 404 when the edition’s block was removed from the profile', async () => {
+      await seedProgramme(2027);
+      await db().doc('municipalities/m1').set({ community: { fiestas: [] } }, { merge: true });
+      expect((await html('/matabuena/fiestas/2027')).status).toBe(404);
+    });
+  });
+
   it('answers app-only screens with an app hand-off, not a 404', async () => {
     const { status, body } = await html('/ajustes');
     expect(status).toBe(200);

@@ -35,6 +35,11 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
+// The pueblo's fiesta editions, as the form's hook reads them. None by default.
+const mockVillageFiestas: { current: { fiestas: unknown[]; editions: unknown[]; status: 'ready' | 'loading'; error: null } } = {
+  current: { fiestas: [], editions: [], status: 'ready', error: null },
+};
+jest.mock('../../../lib/fiestas/useVillageFiestas', () => ({ useVillageFiestas: () => mockVillageFiestas.current }));
 jest.mock('../../../lib/dialogs', () => ({ showConfirm: jest.fn() }));
 
 // The event's village now comes from the user's joined villages.
@@ -1318,5 +1323,49 @@ describe('NewEventScreen — monthly and yearly events, and the group checklist'
     expect(within(utils.getByTestId('event-date-mode-trigger')).getByText('event.dateModeOption.varying')).toBeTruthy();
     expect(utils.getByTestId('event-date-varies-hint')).toBeTruthy();
     expect(utils.queryByTestId('repeat-until')).toBeNull();
+  });
+});
+
+// An event dated inside a fiesta edition is offered that edition's programme.
+describe('NewEventScreen — fiesta editions', () => {
+  const santiago = { id: 'santiago', name: 'Santiago', month: 8 };
+  const edition = {
+    id: 'm1_santiago_2026', municipalityId: 'm1', villageSlug: 'pueblo', blockId: 'santiago', year: 2026,
+    startDay: '2026-07-31', endDay: '2026-08-02', proposedBy: 'u', createdAt: new Date(), updatedAt: new Date(), block: santiago,
+  };
+
+  beforeEach(() => {
+    jest.mocked(createEvent).mockClear();
+    mockVillageFiestas.current = { fiestas: [santiago], editions: [edition], status: 'ready', error: null };
+  });
+  afterEach(() => {
+    mockVillageFiestas.current = { fiestas: [], editions: [], status: 'ready', error: null };
+  });
+
+  async function submit(utils: ReturnType<typeof render>, untick: boolean) {
+    const { getByText, getByLabelText, getByTestId, queryByTestId } = utils;
+    await waitFor(() => expect(getByLabelText('event.title')).toBeTruthy());
+    fireEvent.changeText(getByLabelText('event.title'), 'Pregón');
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('startDate')).toBeTruthy());
+    expect(queryByTestId('event-fiesta-edition')).toBeNull();
+    fireEvent.press(getByTestId('startDate')); // 1 Aug 2026, inside the edition
+    expect(getByTestId('event-fiesta-edition').props.accessibilityState.checked).toBe(true);
+    if (untick) fireEvent.press(getByTestId('event-fiesta-edition'));
+    fireEvent.press(getByTestId('location-field'));
+    fireEvent.press(getByText('common.stepper.next'));
+    await waitFor(() => expect(getByTestId('signup-enabled')).toBeTruthy());
+    fireEvent.press(getByTestId('event-form-primary'));
+    await waitFor(() => expect(createEvent).toHaveBeenCalled());
+  }
+
+  it('joins the edition by default', async () => {
+    await submit(render(<NewEventScreen />), false);
+    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({ fiestaEditionId: 'm1_santiago_2026' });
+  });
+
+  it('stays off the programme when switched off', async () => {
+    await submit(render(<NewEventScreen />), true);
+    expect(jest.mocked(createEvent).mock.calls[0]?.[0]).toMatchObject({ fiestaEditionId: null });
   });
 });

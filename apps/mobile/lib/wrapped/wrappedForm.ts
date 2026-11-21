@@ -1,4 +1,4 @@
-import { madridDayKey, type FiestaBlock, type WrappedData } from '@cultuvilla/shared/models';
+import { madridDayKey, type FiestaBlock, type FiestaEdition, type WrappedData } from '@cultuvilla/shared/models';
 import {
   coveringRange,
   resolveWrappedRequest,
@@ -26,14 +26,17 @@ export interface WrappedFormState {
  * The form an admin starts from.
  *
  * With a Wrapped already built for the year, its own dates — so regenerating
- * begins from what was shared. Otherwise every block is on unless its month is
- * still ahead (it has not happened yet), and no days are picked: guessing days
- * would put wrong dates on a cover that nobody corrected.
+ * begins from what was shared. Otherwise a block dated for the year (its
+ * fiesta edition, in `editions`) starts from those days, on once they are
+ * over, so the admin confirms rather than picks. Any other block is on unless
+ * its month is still ahead (it has not happened yet), and no days are picked:
+ * guessing days would put wrong dates on a cover that nobody corrected.
  */
 export function initialWrappedForm(
   fiestas: FiestaBlock[],
   today: string,
   existing: Pick<WrappedData, 'blocks' | 'rangeStart' | 'rangeEnd'> | null,
+  editions: readonly Pick<FiestaEdition, 'blockId' | 'startDay' | 'endDay'>[] = [],
 ): WrappedFormState {
   const currentMonth = Number(today.slice(5, 7));
   const sorted = [...fiestas].sort((a, b) => a.month - b.month || a.name.localeCompare(b.name, 'es'));
@@ -55,7 +58,12 @@ export function initialWrappedForm(
     return { blocks, customRange: custom };
   }
   return {
-    blocks: sorted.map((f) => ({ blockId: f.id, name: f.name, month: f.month, enabled: f.month <= currentMonth, range: null })),
+    blocks: sorted.map((f) => {
+      const dated = editions.find((e) => e.blockId === f.id);
+      return dated
+        ? { blockId: f.id, name: f.name, month: f.month, enabled: dated.endDay <= today, range: { startDay: dated.startDay, endDay: dated.endDay } }
+        : { blockId: f.id, name: f.name, month: f.month, enabled: f.month <= currentMonth, range: null };
+    }),
     customRange: null,
   };
 }

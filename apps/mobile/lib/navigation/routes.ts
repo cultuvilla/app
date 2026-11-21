@@ -98,7 +98,9 @@ export const groupRecordsHref = (orgId: string, door: RecordsDoor): HrefPath => 
 export const villageSectionHref = (villageSlug: string, section: VillageSection, query?: string): HrefPath =>
   href(`${villageSectionPath(villageSlug, section)}${query ? `?${query}` : ''}`);
 
-export const wrappedHref = (villageSlug: string, year: number): HrefPath => href(wrappedPath(villageSlug, year));
+/** A village's fiestas for a year: the programme, then the Wrapped. `query` without its `?`. */
+export const wrappedHref = (villageSlug: string, year: number, query?: string): HrefPath =>
+  href(`${wrappedPath(villageSlug, year)}${query ? `?${query}` : ''}`);
 
 export const eventHref = (event: Parameters<typeof eventLinkTarget>[0]): HrefPath =>
   href(entityPath('event', eventLinkTarget(event)));

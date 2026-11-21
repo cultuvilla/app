@@ -33,6 +33,18 @@ describe('initialWrappedForm', () => {
     expect(state.customRange).toBeNull();
   });
 
+  it('starts from the days of the year’s fiesta editions, on once they are over', () => {
+    const state = initialWrappedForm(FIESTAS, TODAY, null, [
+      { blockId: 'santiago', startDay: '2026-07-24', endDay: '2026-07-26' },
+      { blockId: 'pilar', startDay: '2026-10-10', endDay: '2026-10-12' },
+    ]);
+    expect(state.blocks.map((b) => [b.blockId, b.enabled, b.range])).toEqual([
+      ['santiago', true, { startDay: '2026-07-24', endDay: '2026-07-26' }],
+      ['carmen', true, null],
+      ['pilar', false, { startDay: '2026-10-10', endDay: '2026-10-12' }],
+    ]);
+  });
+
   it('starts a regeneration from the dates already built', () => {
     const state = initialWrappedForm(FIESTAS, TODAY, {
       blocks: [

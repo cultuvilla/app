@@ -50,6 +50,7 @@ import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
 import type { UploadableImage } from '@cultuvilla/shared/services/imageService';
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { Stepper, type StepConfig } from '../../components/feature/Stepper';
+import { useVillageFiestas } from '../../lib/fiestas/useVillageFiestas';
 import { DeleteHeaderButton } from '../../components/feature/DeleteHeaderButton';
 import { roundUpToMinuteStep } from '../../lib/date/clockGrid';
 import {
@@ -275,6 +276,7 @@ export default function NewEventScreen() {
     organizerUserIds,
     organizerOrgIds,
     existingImageURL,
+    inFiesta,
   } = draft;
   // Edit mode: the event as loaded — its locks, the series notice, and
   // cancelling "este y los siguientes" from the date it had before any edit.
@@ -301,7 +303,10 @@ export default function NewEventScreen() {
     }
   }
 
-  const derived = deriveEventDraft(draft, loadedEvent);
+  // The pueblo's fiesta editions: an event dated inside one is offered its programme.
+  const fiestas = useVillageFiestas(municipalityId);
+  const derived = deriveEventDraft(draft, loadedEvent, fiestas.status === 'ready' ? fiestas.editions : null);
+  const offeredEdition = fiestas.editions.find((e) => e.id === derived.fiestaEditionOffer) ?? null;
   const {
     visibilityOrgId,
     varyingDate,
@@ -789,6 +794,15 @@ export default function NewEventScreen() {
             <Text tone="danger" variant="bodySm" testID="end-time-error">
               {t('event.endTimeInvalid')}
             </Text>
+          ) : null}
+          {offeredEdition ? (
+            <ToggleField
+              label={t('event.fiestaEdition', { name: offeredEdition.block.name, year: String(offeredEdition.year) })}
+              help={t('event.fiestaEditionHint')}
+              value={inFiesta}
+              onValueChange={set('inFiesta')}
+              testID="event-fiesta-edition"
+            />
           ) : null}
           {weekly ? (
             <VStack gap={1}>

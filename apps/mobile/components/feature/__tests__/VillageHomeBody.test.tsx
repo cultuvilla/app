@@ -62,6 +62,8 @@ jest.mock('../wrapped/WrappedPrompt', () => {
   const { Text } = jest.requireActual('react-native');
   return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
 });
+// The fiestas card watches its own data; FiestasHomeCard's own tests cover it.
+jest.mock('../fiestas/FiestasHomeCard', () => ({ FiestasHomeCard: () => null }));
 const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
 let mockRankedVillages: unknown[] = [];
 jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({

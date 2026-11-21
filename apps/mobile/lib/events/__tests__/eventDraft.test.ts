@@ -36,6 +36,7 @@ const STORED: Stored = {
   imageURL: 'https://img/cartel.jpg',
   repeatsMonthly: false,
   repeatDateVaries: false,
+  fiestaEditionId: null,
 };
 
 function draft(over: Partial<EventDraft> = {}): EventDraft {
@@ -58,6 +59,7 @@ function loaded(over: Partial<LoadedEvent> = {}): LoadedEvent {
     groupSizeLocked: false,
     existingSignupCount: 0,
     signupWasEnabled: true,
+    fiestaEditionId: null,
     ...over,
   };
 }
@@ -387,5 +389,43 @@ describe('create versus update', () => {
     expect(create({ existingImageURL: 'https://img/a.jpg' }).imageURL).toBe('https://img/a.jpg');
     const d = ready({ existingImageURL: 'https://img/a.jpg' });
     expect(buildEventCreateInput(d, deriveEventDraft(d, null), { ...CREATE_CTX, hasNewCover: true }).imageURL).toBeNull();
+  });
+});
+
+describe('fiesta editions', () => {
+  // START is 1 Aug 2026; the Madrid day of 18:00 local is the 1st everywhere CI runs.
+  const asunción = { id: 'm1_asuncion_2026', startDay: '2026-07-30', endDay: '2026-08-02' };
+  const carmen = { id: 'm1_carmen_2026', startDay: '2026-08-14', endDay: '2026-08-17' };
+
+  it('offers the edition the start date falls in, and joins it by default', () => {
+    const x = deriveEventDraft(draft(), null, [carmen, asunción]);
+    expect(x.fiestaEditionOffer).toBe('m1_asuncion_2026');
+    expect(x.fiestaEditionId).toBe('m1_asuncion_2026');
+    expect(buildEventCreateInput(ready(), x, { uid: 'u', municipalityId: 'm1', villageName: 'V', villageCoordinates: null, hasNewCover: false }).fiestaEditionId).toBe('m1_asuncion_2026');
+  });
+
+  it('saves none when switched off, or when no edition covers the date', () => {
+    expect(deriveEventDraft(draft({ inFiesta: false }), null, [asunción]).fiestaEditionId).toBeNull();
+    const out = deriveEventDraft(draft(), null, [carmen]);
+    expect(out.fiestaEditionOffer).toBeNull();
+    expect(buildEventUpdate(ready(), out, { villageName: 'V' }).fiestaEditionId).toBeNull();
+  });
+
+  it('never puts a series on a programme', () => {
+    const weekly = draft({ recurring: true, recurrence: 'weekly', repeatWeekdays: [6], repeatUntil: new Date('2026-08-29T00:00') });
+    expect(deriveEventDraft(weekly, null, [asunción]).fiestaEditionId).toBeNull();
+    const seriesDay = loaded({ series: { id: 's', index: 1, frequency: 'weekly', weekdays: [6], until: new Date('2026-08-29') } });
+    expect(deriveEventDraft(draft(), seriesDay, [asunción]).fiestaEditionId).toBeNull();
+  });
+
+  it('keeps an edit’s edition while the editions are still loading', () => {
+    const tagged = loaded({ fiestaEditionId: 'm1_asuncion_2026' });
+    expect(deriveEventDraft(draft(), tagged, null).fiestaEditionId).toBe('m1_asuncion_2026');
+  });
+
+  it('loads an edit switched on only when the event is on a programme', () => {
+    expect(draftFromEvent(draft(), STORED, { mode: 'edit' }).inFiesta).toBe(false);
+    expect(draftFromEvent(draft(), { ...STORED, fiestaEditionId: 'm1_carmen_2026' }, { mode: 'edit' }).inFiesta).toBe(true);
+    expect(draftFromEvent(draft(), STORED, { mode: 'copy', uid: 'uid-1' }).inFiesta).toBe(true);
   });
 });

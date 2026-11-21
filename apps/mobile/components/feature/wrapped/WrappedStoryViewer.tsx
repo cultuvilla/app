@@ -31,6 +31,8 @@ interface Props {
   onSaveCard?: (card: StoryCard) => void;
   /** Leave for the village home, from the closing screen. */
   onOpenVillage?: () => void;
+  /** Open the year's programa de fiestas, from the closing screen. Absent when it has none. */
+  onOpenProgramme?: () => void;
 }
 
 /**
@@ -52,6 +54,7 @@ export function WrappedStoryViewer({
   onShareCard,
   onSaveCard,
   onOpenVillage,
+  onOpenProgramme,
 }: Props) {
   const { t } = useT();
   const { width, height } = useWindowDimensions();
@@ -130,6 +133,11 @@ export function WrappedStoryViewer({
           {onShareLink ? (
             <Button onPress={onShareLink} fullWidth testID="wrapped-share-link">
               {t('village.wrapped.viewer.shareLink')}
+            </Button>
+          ) : null}
+          {onOpenProgramme ? (
+            <Button variant="secondary" onPress={onOpenProgramme} fullWidth testID="wrapped-open-programme">
+              {t('village.fiestas.programme.openProgramme')}
             </Button>
           ) : null}
           {onOpenVillage ? (
