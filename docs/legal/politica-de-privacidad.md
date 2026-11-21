@@ -86,9 +86,10 @@ Embajador o Embajadora de un pueblo, que aparecen en cultuvilla.es/embajadores.
 - El identificador de notificaciones de tu dispositivo, para enviarte avisos push. Se
   borra al cerrar sesión.
 - Estadísticas de uso de la Aplicación, solo si las aceptas: están desactivadas hasta que,
-  con la sesión iniciada, respondes que sí a una pregunta que se hace una sola vez, y
-  puedes cambiarlo cuando quieras en Ajustes → «Estadísticas de uso». Sin sesión iniciada
-  nunca se recogen.
+  con la sesión iniciada, respondes que sí en la pantalla en la que la Aplicación te lo
+  pregunta, que aparece después de que uses la Aplicación por primera vez y no durante el
+  registro. Puedes cambiarlo cuando quieras en Ajustes → Privacidad → «Estadísticas de
+  uso». Sin sesión iniciada nunca se recogen.
 - Informes de errores de la Aplicación, tratados a través de los encargados indicados en
   el apartado 5.
 - Una huella irreversible (hash) de tu dirección IP y de tu correo, para limitar los
@@ -132,7 +133,7 @@ Tratamos tus datos para:
 - **Consentimiento** (art. 6.1.a RGPD): los datos opcionales que decides aportar
   (biografía, fotografía, teléfono) y las estadísticas de uso, que solo se activan si
   respondes que sí cuando la Aplicación te lo pregunta. Puedes retirar tu consentimiento
-  en cualquier momento (las estadísticas, en Ajustes → «Estadísticas de uso»), sin que
+  en cualquier momento (las estadísticas, en Ajustes → Privacidad → «Estadísticas de uso»), sin que
   ello afecte a la licitud del tratamiento previo.
 - **Interés legítimo** (art. 6.1.f RGPD): la seguridad del Servicio, la prevención de
   abusos y el diagnóstico de errores.
@@ -162,8 +163,10 @@ art. 28 RGPD:
   actualización.
 - El mapa de la Aplicación lo sirve Google Maps en Android y Apple Maps en iPhone.
 
-[PENDIENTE: confirmar que los acuerdos de tratamiento de datos de Resend y Expo están
-aceptados.]
+- Cada uno de estos proveedores trata los datos solo para prestar su servicio y siguiendo
+  nuestras instrucciones, según su acuerdo de tratamiento de datos. Las transferencias fuera
+  del Espacio Económico Europeo se amparan en las cláusulas contractuales tipo aprobadas por
+  la Comisión Europea.
 
 Cuando alguien pide ser Embajador o Embajadora de un pueblo, el equipo de Cultuvilla
 recibe un aviso interno que no incluye datos personales: solo que hay una solicitud nueva
