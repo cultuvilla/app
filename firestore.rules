@@ -308,7 +308,7 @@ service cloud.firestore {
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
-              'sociosListVisible', 'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired',
+              'sociosListVisible', 'chatAdminsOnly', 'sociosSendAvisos', 'socioPhoneRequired', 'socioEmailRequired',
               'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'transparency',
             ])
           && d.keys().hasAll([
@@ -336,6 +336,7 @@ service cloud.firestore {
           && d.get('joinPolicy', 'open') in ['open', 'approval']
           && d.get('sociosListVisible', false) is bool
           && d.get('chatAdminsOnly', false) is bool
+          && d.get('sociosSendAvisos', false) is bool
           && d.get('socioPhoneRequired', false) is bool
           && d.get('socioEmailRequired', false) is bool
           && isValidCosatecaSettings(d.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
@@ -1999,6 +2000,7 @@ service cloud.firestore {
             || request.resource.data.type != 'ayuntamiento')
         && request.resource.data.get('sociosListVisible', false) is bool
         && request.resource.data.get('chatAdminsOnly', false) is bool
+        && request.resource.data.get('sociosSendAvisos', false) is bool
         && request.resource.data.get('socioPhoneRequired', false) is bool
         && request.resource.data.get('socioEmailRequired', false) is bool
         && isValidCosatecaSettings(request.resource.data.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))

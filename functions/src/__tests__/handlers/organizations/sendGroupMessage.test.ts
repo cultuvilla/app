@@ -302,6 +302,73 @@ describe('sendGroupMessage', () => {
     await expect(runSendGroupMessage(db(), 'u-luis', input(), NOW)).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
+  describe('a socio sends, where the group lets its socios', () => {
+    const plain = (over: Partial<SendGroupMessageInput> = {}) =>
+      input({ channels: { push: true, email: false, whatsapp: 'none' }, pinned: false, ...over });
+    const allow = () => db().doc(`organizations/${ORG_ID}`).update({ sociosSendAvisos: true });
+
+    it('not while the setting is off, which is how every group starts', async () => {
+      await expect(runSendGroupMessage(db(), 'u-paco', plain(), NOW)).rejects.toMatchObject({ code: 'permission-denied' });
+      await db().doc(`organizations/${ORG_ID}`).update({ sociosSendAvisos: false });
+      await expect(runSendGroupMessage(db(), 'u-paco', plain(), NOW)).rejects.toMatchObject({ code: 'permission-denied' });
+    });
+
+    it('the text, to every socio, in the app: a Buzón notification each and nothing outside it', async () => {
+      await allow();
+      const result = await runSendGroupMessage(db(), 'u-paco', plain(), NOW);
+      expect(result).toEqual({ messageId: 'Msg0000000001', recipientCount: 4, pushCount: 2, emailCount: 0, whatsappCount: 0 });
+
+      const message = (await db().doc(`organizations/${ORG_ID}/messages/Msg0000000001`).get()).data();
+      expect(message).toMatchObject({
+        sentBy: 'u-paco', signerName: 'Paco', signerTitle: null, poll: null, pinned: false,
+        audience: { kind: 'all', eventId: null, eventTitle: null },
+        channels: { push: true, email: false, whatsapp: 'none' },
+      });
+      expect([...(message?.['recipientUids'] as string[])].sort()).toEqual(['u-eva', 'u-luis', 'u-paco']);
+      expect((await notificationsOf('u-luis'))[0]).toMatchObject({ id: 'group_message_Msg0000000001', type: 'group_message', read: false, chatThreadId: null });
+      expect(await notificationsOf('u-eva')).toHaveLength(1);
+      expect(await notificationsOf('u-paco')).toEqual([]);
+      // The batch runs with nobody in it: no email leaves.
+      expect(sendEmailBatchMock.mock.calls.flatMap((call) => call[0])).toEqual([]);
+    });
+
+    it('refuses a poll, a narrower audience, email and WhatsApp', async () => {
+      await allow();
+      const refused = [
+        plain({ poll: { question: '¿Vienes?', kind: 'yes_no', options: ['Sí', 'No'] } }),
+        plain({ audience: { kind: 'junta', eventId: null } }),
+        plain({ audience: { kind: 'cuota', eventId: null } }),
+        plain({ audience: { kind: 'event', eventId: 'ev-1' } }),
+        plain({ channels: { push: true, email: true, whatsapp: 'none' } }),
+        plain({ channels: { push: true, email: false, whatsapp: 'fallback' } }),
+        plain({ channels: { push: true, email: false, whatsapp: 'all' } }),
+        plain({ channels: { push: false, email: false, whatsapp: 'none' } }),
+        plain({ pinned: true }),
+      ];
+      for (const bad of refused) {
+        await expect(runSendGroupMessage(db(), 'u-paco', bad, NOW)).rejects.toMatchObject({ code: 'permission-denied' });
+      }
+      expect((await db().collection(`organizations/${ORG_ID}/messages`).get()).size).toBe(0);
+      expect(sendEmailBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('not someone who left, nor an integrante with no socio row, nor a stranger', async () => {
+      await allow();
+      // Ido has the baja; his membership doc lingering must not be enough.
+      await db().doc(`organizations/${ORG_ID}/members/u-ido`).set({ userId: 'u-ido', joinedAt: new Date('2025-01-01'), role: 'member' });
+      await expect(runSendGroupMessage(db(), 'u-ido', plain(), NOW)).rejects.toMatchObject({ code: 'permission-denied' });
+      await db().doc(`organizations/${ORG_ID}/members/u-nuevo`).set({ userId: 'u-nuevo', joinedAt: new Date('2025-01-01'), role: 'member' });
+      await expect(runSendGroupMessage(db(), 'u-nuevo', plain(), NOW)).rejects.toMatchObject({ code: 'permission-denied' });
+      await expect(runSendGroupMessage(db(), 'u-nadie', plain(), NOW)).rejects.toMatchObject({ code: 'permission-denied' });
+    });
+
+    it('leaves the junta everything it had', async () => {
+      await allow();
+      const result = await runSendGroupMessage(db(), 'u-luis', input(), NOW);
+      expect(result).toMatchObject({ recipientCount: 4, emailCount: 3, whatsappCount: 1 });
+    });
+  });
+
   it('the callable refuses the unauthenticated and a malformed message', async () => {
     const wrapped = ft.wrap(sendGroupMessage as unknown as Parameters<typeof ft.wrap>[0]);
     const call = (uid: string | null, data: unknown) =>
@@ -312,7 +379,7 @@ describe('sendGroupMessage', () => {
 });
 
 describe('nudgeGroupMessage', () => {
-  it('pushes again only to the unread, then makes the admin wait', async () => {
+  it('reminds only the unread in the Buzón, then makes the admin wait', async () => {
     await runSendGroupMessage(db(), 'u-luis', input(), NOW);
     await db().doc(`organizations/${ORG_ID}/messages/Msg0000000001/reads/u-eva`).set({ readAt: new Date() });
 

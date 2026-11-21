@@ -20,6 +20,7 @@ jest.mock('../../OrgMembersList', () => ({ OrgMembersList: () => null }));
 jest.mock('../CuotaAdmin', () => ({ CuotaAdmin: () => null }));
 jest.mock('../GroupMessagesAdmin', () => ({ GroupMessagesAdmin: () => null }));
 jest.mock('../GroupNotices', () => ({ GroupNotices: mockStub('notices') }));
+jest.mock('../SocioAvisoComposer', () => ({ SocioAvisoComposer: mockStub('socio-aviso') }));
 jest.mock('../TransparentAvisos', () => ({ TransparentAvisos: mockStub('all-avisos') }));
 jest.mock('../TransparentCuota', () => ({ TransparentCuota: mockStub('cuota-list') }));
 jest.mock('../GroupAccounts', () => ({ GroupAccounts: mockStub('accounts') }));
@@ -122,5 +123,36 @@ describe('what the junta makes public', () => {
 
   it('opens the accounts on their own screen', () => {
     expect(renderSection('cuentas', { ...OFF, cuentas: true }).getByTestId('accounts')).toBeTruthy();
+  });
+});
+
+describe('a socio sends an aviso where the junta lets them', () => {
+  function renderAvisos(org: Record<string, unknown>, role: 'admin' | 'member' = 'member') {
+    const group = {
+      org: { id: 'org1', name: 'Peña', type: 'peña', transparency: { cuota: false, avisos: false, cuentas: false }, sociosSendAvisos: false, ...org },
+      role,
+    } as unknown as MyGroup;
+    return render(<GroupSectionBody group={group} section="avisos" uid="u1" />);
+  }
+
+  it('offers nothing to send while the setting is off', () => {
+    const { getByTestId, queryByTestId } = renderAvisos({});
+    expect(queryByTestId('socio-aviso')).toBeNull();
+    expect(getByTestId('notices')).toBeTruthy();
+  });
+
+  it('puts the composer above the avisos once it is on, private or public', () => {
+    const on = renderAvisos({ sociosSendAvisos: true });
+    expect(on.getByTestId('socio-aviso')).toBeTruthy();
+    expect(on.getByTestId('notices')).toBeTruthy();
+    on.unmount();
+    const open = renderAvisos({ sociosSendAvisos: true, transparency: { cuota: false, avisos: true, cuentas: false } });
+    expect(open.getByTestId('socio-aviso')).toBeTruthy();
+    expect(open.getByTestId('all-avisos')).toBeTruthy();
+  });
+
+  it('leaves the junta its own composer, and a group without socios none', () => {
+    expect(renderAvisos({ sociosSendAvisos: true }, 'admin').queryByTestId('socio-aviso')).toBeNull();
+    expect(renderAvisos({ sociosSendAvisos: true, type: 'ayuntamiento' }).queryByTestId('socio-aviso')).toBeNull();
   });
 });

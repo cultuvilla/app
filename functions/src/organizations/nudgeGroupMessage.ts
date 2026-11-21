@@ -61,7 +61,7 @@ export async function runNudgeGroupMessage(
   for (let start = 0; start < unread.length; start += BATCH_SIZE) {
     const batch = firestore.batch();
     for (const uid of unread.slice(start, start + BATCH_SIZE)) {
-      // A fresh id per nudge: an overwrite of the first notification would never push.
+      // A fresh id per nudge: an overwrite of the first notification would not be unread again.
       batch.set(
         userNotificationsCollection(firestore, uid).doc(`group_message_${messageId}_nudge${String(nudgeNumber)}`),
         buildNotificationData({
@@ -84,9 +84,16 @@ export async function runNudgeGroupMessage(
 }
 
 /**
- * Pushes a group message again to the recipients with the app who have not
- * opened it — never to those who have. At most once every 12 hours per
- * message, so a nudge stays a reminder and not a siren. Admins of the org only.
+ * Reminds the recipients with the app who have not opened a group message —
+ * never those who have — with a fresh Buzón notification. It no longer buzzes
+ * a phone: an aviso never pushes (PUSHLESS_TOPICS, enforced by
+ * `onNotificationCreated`). At most once every 12 hours per message. Admins of
+ * the org only.
+ *
+ * The app no longer offers it (decided 2026-11-21, user); it stays callable
+ * for the installed binaries that do. Delete it, with `canNudgeGroupMessage`
+ * and the message's `nudgeCount` / `lastNudgedAt`, once `minSupported` has
+ * passed the release that removed the button.
  */
 export const nudgeGroupMessage = onCall<NudgeGroupMessageData, Promise<NudgeGroupMessageResult>>(
   { region: 'us-central1', cors: true },

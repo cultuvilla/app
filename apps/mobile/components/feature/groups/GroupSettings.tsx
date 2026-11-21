@@ -39,8 +39,8 @@ function SettingsSection({ title, children, testID }: { title: string; children:
  * it is for; decided 2026-11-20, user), then how one
  * joins (approval, and the contact data being a socio requires), what every
  * socio sees (the roster, the cuota's al día list, every aviso, the accounts),
- * what socios (integrantes, in a group without a roster) can do — today, write
- * in the Charla — and, once the cuota is configured, its reminders. Each
+ * what socios (integrantes, in a group without a roster) can do — write in the
+ * Charla and, where there are socios, send avisos to all of them — and, once the cuota is configured, its reminders. Each
  * switch's label reads alone under its heading, so none carries a hint.
  * Switching the cuota, the actas or the cuentas off hides their buttons, never their data. An ayuntamiento always admits by approval, so it
  * has no switch for it. A member's own notifications are in Ajustes →
@@ -54,6 +54,7 @@ export function GroupSettings({
   socioEmailRequired = false,
   hasRoster = true,
   chatAdminsOnly = false,
+  sociosSendAvisos = false,
   cosateca = DEFAULT_COSATECA_SETTINGS,
   cuotaEnabled = true,
   actasEnabled = true,
@@ -69,6 +70,7 @@ export function GroupSettings({
   socioEmailRequired?: boolean;
   hasRoster?: boolean;
   chatAdminsOnly?: boolean;
+  sociosSendAvisos?: boolean;
   cosateca?: CosatecaSettings;
   cuotaEnabled?: boolean;
   actasEnabled?: boolean;
@@ -89,6 +91,7 @@ export function GroupSettings({
     patch:
       | { sociosListVisible: boolean }
       | { chatAdminsOnly: boolean }
+      | { sociosSendAvisos: boolean }
       | { socioPhoneRequired: boolean }
       | { socioEmailRequired: boolean }
       | { cosateca: CosatecaSettings }
@@ -236,6 +239,15 @@ export function GroupSettings({
           label={t('groups.settings.chatMembersWrite')}
           onValueChange={(next) => save({ chatAdminsOnly: !next })}
         />
+        {hasRoster ? (
+          <Toggle
+            testID="group-settings-socios-send-avisos"
+            value={sociosSendAvisos}
+            disabled={saving}
+            label={t('groups.settings.sociosSendAvisos')}
+            onValueChange={(next) => save({ sociosSendAvisos: next })}
+          />
+        ) : null}
       </SettingsSection>
       {runsCuota && cuota.data ? (
         <SettingsSection title={t('groups.settings.sections.cuota')} testID="group-settings-cuota">

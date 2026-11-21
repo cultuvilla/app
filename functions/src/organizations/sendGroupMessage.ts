@@ -23,6 +23,7 @@ import {
   groupMessagePlaceholdersIn,
   groupMessageRecipientValues,
   hasSocioRoster,
+  isSocioGroupMessageInput,
   madridDayKey,
   normalizeLeadPhone,
   periodKeyFor,
@@ -57,7 +58,7 @@ const handler = 'sendGroupMessage';
 /** Firestore's batch ceiling, with room to spare. */
 const BATCH_SIZE = 400;
 /** A notification body is a preview: the message itself is in the group. */
-const PUSH_BODY_MAX = 180;
+const NOTIFICATION_BODY_MAX = 180;
 
 type Socio = SocioData & { id: string };
 
@@ -178,12 +179,14 @@ async function commitInChunks<T>(firestore: Firestore, items: T[], write: (batch
 
 function preview(text: string): string {
   const flat = text.replace(/\s+/g, ' ').trim();
-  return flat.length > PUSH_BODY_MAX ? `${flat.slice(0, PUSH_BODY_MAX - 1)}…` : flat;
+  return flat.length > NOTIFICATION_BODY_MAX ? `${flat.slice(0, NOTIFICATION_BODY_MAX - 1)}…` : flat;
 }
 
 /**
  * Exported for the handler tests; the callable below is the only production
- * caller. `callerUid` must be an admin of the org.
+ * caller. `callerUid` must be an admin of the org — or, where the group lets
+ * its socios send avisos (`sociosSendAvisos`), one of its active socios, and
+ * then only the plain shape: the text, to every socio, in the app.
  */
 export async function runSendGroupMessage(
   firestore: Firestore,
@@ -197,9 +200,19 @@ export async function runSendGroupMessage(
     organizationMemberDoc(firestore, orgId, callerUid).get().then((s) => s.data()),
     organizationSociosCollection(firestore, orgId).where('bajaAt', '==', null).get(),
   ]);
-  if (caller?.role !== 'admin') throw new HttpsError('permission-denied', 'No autorizado.');
+  if (!caller) throw new HttpsError('permission-denied', 'No autorizado.');
   if (!org || org.status !== 'approved' || !hasSocioRoster(org.type)) {
+    // Without the group there is nothing a non-admin could have been allowed.
+    if (caller.role !== 'admin') throw new HttpsError('permission-denied', 'No autorizado.');
     throw new HttpsError('failed-precondition', 'Este grupo no puede enviar mensajes.');
+  }
+  const active: Socio[] = sociosSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  if (caller.role !== 'admin') {
+    const isSocio = active.some((s) => s.kind === 'member' && s.uid === callerUid);
+    if (!org.sociosSendAvisos || !isSocio) throw new HttpsError('permission-denied', 'No autorizado.');
+    if (!isSocioGroupMessageInput(input)) {
+      throw new HttpsError('permission-denied', 'Solo la junta puede enviar este tipo de aviso.');
+    }
   }
 
   const messageRef = organizationMessageDoc(firestore, orgId, messageId);
@@ -209,7 +222,6 @@ export async function runSendGroupMessage(
     return { messageId, recipientCount: existing.recipientCount, pushCount: existing.pushCount, emailCount: existing.emailCount, whatsappCount: existing.whatsappCount };
   }
 
-  const active: Socio[] = sociosSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
   const { recipients, stored } = await resolveAudience(firestore, orgId, input.audience, active);
   if (recipients.length === 0) throw new HttpsError('failed-precondition', 'No hay nadie a quien enviarlo.');
 
@@ -240,7 +252,8 @@ export async function runSendGroupMessage(
     const email = input.channels.email
       ? contact?.email ?? (recipient.uid ? await accountEmail(firestore, recipient.uid) : null)
       : null;
-    // The sender has the message already; their own pocket need not buzz.
+    // The Buzón notification (an aviso never pushes: see PUSHLESS_TOPICS). The
+    // sender has the message already and needs none.
     const push = input.channels.push && recipient.uid !== null && recipient.uid !== callerUid;
     const phone = contact?.phone ? normalizeLeadPhone(contact.phone) : null;
     const wantsWhatsapp =
@@ -367,10 +380,11 @@ export async function runSendGroupMessage(
 }
 
 /**
- * An admin's message to the group: push through the notification pipeline
- * (each account's preferences and the group's mute apply), email in the
- * admin's name, and the WhatsApp links the admin then sends by hand. The
- * message and every recipient's delivery are the group's history.
+ * An aviso to the group: a Buzón notification per account (never a push: see
+ * PUSHLESS_TOPICS), email in the sender's name, and the WhatsApp links the
+ * admin then sends by hand. The message and every recipient's delivery are the
+ * group's history. A socio's, where the group allows it, is the notification
+ * alone.
  *
  * Callable because it fans out to other users' notifications and reads the
  * socios' contact data, which no client may do for the whole roster at once.
