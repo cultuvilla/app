@@ -46,10 +46,10 @@ If a rule here makes the repo worse for a specific change, break the rule and up
 Components, pages, and hooks **must not** import from `firebase/firestore`, `firebase/storage`, `firebase/functions`, or `firebase/auth` directly. All Firebase access goes through a service in [packages/shared/src/services/](packages/shared/src/services/). See [_services-map.md](packages/shared/src/services/_services-map.md) for the catalogue.
 
 - Need `GeoPoint`, `Timestamp`, or the `User` type? Import from `@cultuvilla/shared/firebase` (the shared package re-exports them).
-- The **only** exempt file is [apps/mobile/lib/auth/AuthContext.tsx](apps/mobile/lib/auth/AuthContext.tsx) — it owns the auth boundary (sign-in/out, listeners). Everything else routes through services.
+- The auth boundary, [apps/mobile/lib/auth/AuthContext.tsx](apps/mobile/lib/auth/AuthContext.tsx) (sign-in/out, listeners), is the one screen-side owner of Firebase. Only the bootstrap (`lib/firebaseInit.ts`, `lib/appCheck.ts`, `app.config.ts`) and native analytics (`lib/observability/analytics.ts`, which has no seam twin) share its exemption. Everything else routes through services.
 - **Services import Firebase from the SDK seam** ([packages/shared/src/firebase/sdk/](packages/shared/src/firebase/sdk/README.md)), never `firebase/*`. On device the seam resolves to `@react-native-firebase/*` — the persistent offline cache, and the native Auth session the other SDKs authenticate with; Node tests resolve it to the JS SDK against the emulators. A lint rule forbids direct imports, and `sdkParity.test.ts` fails when a name the code imports is missing from a `.native.ts` twin. Compare error codes with `firebaseErrorCode()` — the two SDKs prefix them differently.
 
-`packages/shared` and `functions/` are ESLint-gated ([packages/shared/eslint.config.mjs](packages/shared/eslint.config.mjs), [functions/eslint.config.mjs](functions/eslint.config.mjs)); `apps/mobile` has no ESLint config yet, so there the rule is convention — don't import `firebase/*` from a screen, add a service instead.
+All four workspaces are ESLint-gated by `pnpm lint` in CI: [packages/shared](packages/shared/eslint.config.mjs), [functions](functions/eslint.config.mjs), and, with invariant rules only, [apps/mobile](apps/mobile/eslint.config.mjs) and [apps/studio](apps/studio/eslint.config.mjs). In the apps a raw SDK import (type imports included) fails anywhere but the files above, and so does reaching the seam or `refs/*` instead of a service (`sdk/errors` aside); the few files that still do are an explicit allowlist in the config, pinned by [appLintRules.test.ts](packages/shared/test/eslint/appLintRules.test.ts). Don't widen it — add a service instead.
 
 > **See also:** the `touch-service` and `guardrail-enforcement` skills for the procedures.
 
@@ -130,7 +130,7 @@ When a query would require N reads or live across collection boundaries, write a
 
 ### 5. Strict TypeScript
 
-`strict: true` everywhere. No `any`. No `@ts-nocheck`. If a type is genuinely unknown at the boundary, use `unknown` and narrow. `@typescript-eslint/no-explicit-any` is an error in `packages/shared` and `functions`; the same standard applies in `apps/mobile` even though it isn't lint-gated yet — fix at the source, never silence with `as any`.
+`strict: true` everywhere. No `any`. No `@ts-nocheck`. If a type is genuinely unknown at the boundary, use `unknown` and narrow. `@typescript-eslint/no-explicit-any` is an error in every workspace (`packages/shared`, `functions`, `apps/mobile`, `apps/studio`), and an `eslint-disable` that silences nothing fails the apps' lint — fix at the source, never silence with `as any`.
 
 ### 6. The app is the product; the web is a read site
 
@@ -521,7 +521,7 @@ Don't explain *what* the code does — name things well instead. Only comment to
 pnpm install          # workspace deps (functions has its own — npm ci in functions/)
 pnpm app:start        # Expo dev server (apps/mobile)
 pnpm check            # lint + typecheck + test + build (CI gate)
-pnpm lint             # eslint --max-warnings 0 in packages/shared + functions
+pnpm lint             # eslint --max-warnings 0 in packages/shared, functions, apps/mobile, apps/studio
 pnpm typecheck        # tsc --noEmit in shared, functions, i18n, mobile
 pnpm test             # vitest (shared) + jest (mobile) + functions, under emulators
 pnpm backfills:list   # registered data migrations (see Backfills)

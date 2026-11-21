@@ -87,7 +87,6 @@ describe('E2E emulator flag guard', () => {
     else process.env['USE_FIREBASE_EMULATOR'] = flag;
     try {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('../app.config');
       });
     } finally {
@@ -134,7 +133,6 @@ describe('E2E native Firebase config override', () => {
     let loaded: typeof config | undefined;
     try {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         loaded = require('../app.config').default;
       });
     } finally {
@@ -184,7 +182,6 @@ describe('dev login gate', () => {
     let devLogin: DevLogin = null;
     try {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const loaded = require('../app.config').default as typeof config;
         devLogin = (loaded.extra?.['devLogin'] ?? null) as DevLogin;
       });

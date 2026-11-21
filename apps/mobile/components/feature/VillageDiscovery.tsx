@@ -2,7 +2,6 @@ import { routes, villageHref } from '../../lib/navigation/routes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ActivityIndicator, View, TextInput } from 'react-native';
 import { router, type Href } from 'expo-router';
-import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { VStack, HStack, Text, Escudo, Pressable } from '../primitives';
 import { JoinVillageModal } from './JoinVillageModal';
@@ -12,6 +11,7 @@ import { usePush } from '../../lib/push/PushProvider';
 import {
   getActiveCommunities,
   listMunicipalitiesPage,
+  type MunicipalityPageCursor,
 } from '@cultuvilla/shared/services/municipalityService';
 import {
   escudoThumbDisplayUrl,
@@ -42,7 +42,7 @@ export function VillageDiscovery() {
   const [search, setSearch] = useState('');
   const [active, setActive] = useState<Muni[] | null>(null);
   const [all, setAll] = useState<Muni[]>([]);
-  const [cursor, setCursor] = useState<QueryDocumentSnapshot | null>(null);
+  const [cursor, setCursor] = useState<MunicipalityPageCursor | null>(null);
   const [exhausted, setExhausted] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   // `all` starts empty, so without this the "no results" hint renders for the

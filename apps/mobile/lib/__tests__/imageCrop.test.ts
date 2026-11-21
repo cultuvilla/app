@@ -26,7 +26,6 @@ function stubXhr() {
     open,
     send,
     set onload(fn: () => void) {
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
       (this as { _onload?: () => void })._onload = fn;
     },
     get onload() {

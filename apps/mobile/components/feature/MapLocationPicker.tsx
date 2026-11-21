@@ -144,7 +144,6 @@ export function MapLocationPicker({
   // A saved pin without a saved name gets one looked up.
   useEffect(() => {
     if (initialCoords && !initialLabel) void updateAddress(initialCoords.lat, initialCoords.lng);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // No saved pin: start on the user's position so confirming is a single tap.
@@ -170,7 +169,6 @@ export function MapLocationPicker({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

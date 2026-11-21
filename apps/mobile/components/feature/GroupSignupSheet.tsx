@@ -137,7 +137,6 @@ export function GroupSignupSheet({
     }
     // Re-seed only on open — a persona list arriving mid-session must not wipe
     // ticks the user has already made.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const autoKey = (autoSelectIds ?? []).join(',');
@@ -148,7 +147,6 @@ export function GroupSignupSheet({
       autoSelectIds.forEach((id) => next.add(id));
       return next;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoKey]);
 
   const selectedInOrder = attendees.filter((a) => selected.has(a.id)).map((a) => a.id);

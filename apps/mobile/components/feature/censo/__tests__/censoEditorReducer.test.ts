@@ -42,8 +42,8 @@ describe('censoEditorReducer', () => {
   });
   it('setSource clears static options', () => {
     const r = censoEditorReducer([cf({ type: 'select', options: ['a'] })], { kind: 'setSource', index: 0, source: 'barrios' });
-    expect((r[0] as any).optionsSource).toBe('barrios');
-    expect((r[0] as any).options).toBeUndefined();
+    expect((r[0] as { optionsSource?: unknown }).optionsSource).toBe('barrios');
+    expect((r[0] as { options?: unknown }).options).toBeUndefined();
   });
   it('move reorders', () => {
     const a = cf({ key: 'a', label: 'A' }); const b = cf({ key: 'b', label: 'B' });

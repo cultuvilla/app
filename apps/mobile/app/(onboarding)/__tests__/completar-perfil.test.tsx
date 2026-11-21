@@ -98,7 +98,6 @@ describe('CompleteProfileScreen', () => {
     jest.clearAllMocks();
     // clearAllMocks doesn't reset implementations, so restore the no-village
     // default each test — otherwise a per-test override leaks forward.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pendingVillage = require('../../../lib/auth/pendingVillage');
     (pendingVillage.readPendingVillage as jest.Mock).mockResolvedValue(null);
   });
@@ -114,9 +113,7 @@ describe('CompleteProfileScreen', () => {
   });
 
   it('writes person first, then account; displayName is set by the Cloud Function trigger', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const personService = require('@cultuvilla/shared/services/personService');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const userService = require('@cultuvilla/shared/services/userService');
     const order: string[] = [];
     (personService.createPerson as jest.Mock).mockImplementation(async () => { order.push('person'); return 'person-1'; });
@@ -171,7 +168,6 @@ describe('CompleteProfileScreen', () => {
   });
 
   it('lets a person with one surname finish (second surname is optional, stored as null)', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const personService = require('@cultuvilla/shared/services/personService');
     const { getByText, getByLabelText, getByTestId } = render(<CompleteProfileScreen />);
 
@@ -206,13 +202,9 @@ describe('CompleteProfileScreen', () => {
     // update rule dereferences a null `resource.data` and Firestore denies it
     // ("Missing or insufficient permissions"), aborting onboarding. So the
     // account write MUST precede the village membership write.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const personService = require('@cultuvilla/shared/services/personService');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const userService = require('@cultuvilla/shared/services/userService');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const villageMemberService = require('@cultuvilla/shared/services/villageMemberService');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pendingVillage = require('../../../lib/auth/pendingVillage');
 
     // A village picked at registration (arrives via the pendingVillage seam) so
@@ -263,7 +255,6 @@ describe('CompleteProfileScreen', () => {
   });
 
   it('does not advance past step 1 until the terms are accepted', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const userService = require('@cultuvilla/shared/services/userService');
 
     const { getByText, getByLabelText, queryByTestId } = render(<CompleteProfileScreen />);

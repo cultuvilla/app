@@ -68,7 +68,6 @@ export function useEntityOptions(villageId: string, fields: ProfileFormField[]) 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [villageId, sourceKey]);
 
   return { optionsByField, loading };

@@ -53,7 +53,6 @@ export function BuriedSheet({
     setSelected(auto);
     setDeathDate(null);
     // personas identity intentionally excluded — re-seed only on open / autoSelect change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, autoSelectId]);
 
   const inDatePhase = selected != null;

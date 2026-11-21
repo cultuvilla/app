@@ -113,7 +113,6 @@ export function AttendeeSheet({
       setConfirmAttempted(false);
     }
     // attendees identity intentionally excluded — re-seed only on open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   // Merge in any auto-select ids (a freshly created dependent returning from
@@ -126,7 +125,6 @@ export function AttendeeSheet({
       autoSelectIds.forEach((id) => next.add(id));
       return next;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoKey]);
 
   function toggle(id: string) {

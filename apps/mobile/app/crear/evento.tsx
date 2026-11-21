@@ -474,7 +474,6 @@ export default function NewEventScreen() {
     callable: async () => {
       if (!municipalityId || !user || !startDate) return;
       // coords is validated non-null before submit() is reachable
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const ready = { ...draft, startDate, coords: coords! };
 
       // ── Edit: patch the existing event; only touch the cover if replaced ──

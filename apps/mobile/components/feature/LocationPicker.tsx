@@ -68,7 +68,6 @@ export function LocationPicker({
     if (!state.selected && state.coords) return;
     onChange(state.coords, state.selected ? state.query : '');
     // onChange identity is stable enough for this controlled-ish usage.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.coords, state.selected, state.query]);
 
   // Debounced geocoding whenever the user is typing a (non-committed) query.

@@ -173,14 +173,12 @@ export function EntityComments({
     revealComposer();
     return () => sub.remove();
     // revealComposer only reads a ref — re-subscribing per render would churn.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composerFocused]);
 
   // A growing field pushes its own bottom edge under the keyboard; follow it.
   useEffect(() => {
     if (!composerFocused) return;
     revealComposer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [body, composerFocused]);
 
   // Resolve author name + photo once per uid (avoid an N+1 refetch per comment).
@@ -206,7 +204,6 @@ export function EntityComments({
     })();
     // authors is read but intentionally excluded — it's the accumulator this
     // effect writes to; including it would re-run on every resolution.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comments, repliesByParent, user, t]);
 
   const runDeleteConfirm = (onConfirm: () => void) => {
