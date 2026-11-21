@@ -83,6 +83,14 @@ export function watchLedgerEntriesForYear(
   );
 }
 
+/**
+ * Admin: every entry the group ever noted. The entry sheet reads it only while
+ * open, to offer the category names past entries used (`ledgerCategoryChoices`).
+ */
+export function watchAllLedgerEntries(orgId: string, onNext: (rows: LedgerEntry[]) => void, onError: WatchError): Unwatch {
+  return watchQuery(organizationLedgerEntriesCollection(getDb(), orgId), onNext, onError);
+}
+
 /** Admin: record an income or an expense. Returns the entry id. Entries are never edited — see `reverseLedgerEntry`. */
 export async function recordLedgerEntry(
   orgId: string,

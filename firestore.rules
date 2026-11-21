@@ -871,6 +871,15 @@ service cloud.firestore {
           && d.recordedAt == request.time;
     }
 
+    // organizations/{orgId}/ledgerCategories — see LedgerCategoryDataModel.
+    // The id (kind + lowercased name) is the service's; entries store the name.
+    function isValidLedgerCategory(d) {
+      return d.keys().hasOnly(['name', 'kind', 'createdBy', 'createdAt'])
+          && d.keys().hasAll(['name', 'kind', 'createdBy', 'createdAt'])
+          && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+          && d.kind in ['income', 'expense'];
+    }
+
     function isValidSocioPrivate(d) {
       return d.keys().hasOnly(['phone', 'email', 'consentAnsweredAt'])
           && d.keys().hasAll(['phone', 'email', 'consentAnsweredAt'])
@@ -2348,6 +2357,22 @@ service cloud.firestore {
                  && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.on == request.resource.data.on)
              );
         allow update, delete: if false;
+      }
+
+      // The categories the admins pick from when noting an entry. Admins only,
+      // like the ledger itself; a rename changes only the name (the service
+      // moves a renamed category to its new id with a delete + create).
+      match /ledgerCategories/{categoryId} {
+        allow read: if isOrgAdmin(orgId);
+        allow create: if isOrgAdmin(orgId)
+          && orgHasSocioRoster(orgId)
+          && isValidLedgerCategory(request.resource.data)
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if isOrgAdmin(orgId)
+          && isValidLedgerCategory(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+        allow delete: if isOrgAdmin(orgId);
       }
 
       // A pending request to join an `approval` org, keyed by the requester's

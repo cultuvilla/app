@@ -14,6 +14,7 @@ import { formatDayKey } from '@cultuvilla/shared/utils';
 import { Button, Card, HStack, Pressable, Text, VStack } from '../../primitives';
 import { ExportButton } from '../ExportButton';
 import { LedgerEntrySheet } from './LedgerEntrySheet';
+import { LedgerCategoriesSheet } from './LedgerCategoriesSheet';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
@@ -29,6 +30,7 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
   const thisYear = todayKey().slice(0, 4);
   const [year, setYear] = useState(thisYear);
   const [adding, setAdding] = useState(false);
+  const [managing, setManaging] = useState(false);
   const cuota = useWatch<CuotaPayment[]>('groups:watchCuotaPaymentsForYear', `${orgId}|${year}`, (next, error) =>
     watchCuotaPaymentsForYear(orgId, year, next, error),
   );
@@ -110,6 +112,16 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
               {t('groups.records.year.add')}
             </Button>
           </HStack>
+          <Pressable
+            testID="ledger-categories-open"
+            accessibilityRole="button"
+            onPress={() => setManaging(true)}
+            className="self-start py-1"
+          >
+            <Text variant="bodySm" className="text-accent font-medium">
+              {t('groups.records.categories.open')}
+            </Text>
+          </Pressable>
           {summary.entries.length === 0 ? (
             <Text variant="bodySm" tone="muted">
               {t('groups.records.year.noEntries')}
@@ -148,11 +160,14 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
 
       <LedgerEntrySheet
         visible={adding}
+        orgId={orgId}
+        uid={uid}
         onSave={async (values) => {
           await recordLedgerEntry(orgId, values, uid);
         }}
         onClose={() => setAdding(false)}
       />
+      <LedgerCategoriesSheet visible={managing} orgId={orgId} uid={uid} onClose={() => setManaging(false)} />
     </VStack>
   );
 }

@@ -18,13 +18,14 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: vi.fn(),
 }));
 
-import { setDoc, updateDoc } from 'firebase/firestore';
+import { onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { buildLedgerEntryData, buildLedgerReversalData } from '../../src/models/organization/RecordsDataModel';
 import {
   createActa,
   recordLedgerEntry,
   reverseLedgerEntry,
   updateActa,
+  watchAllLedgerEntries,
   type LedgerEntry,
 } from '../../src/services/recordsService';
 
@@ -69,6 +70,11 @@ describe('recordsService — actas', () => {
 });
 
 describe('recordsService — ledger', () => {
+  it('watchAllLedgerEntries listens to every entry the group noted, unfiltered', () => {
+    watchAllLedgerEntries('org1', vi.fn(), vi.fn());
+    expect(vi.mocked(onSnapshot).mock.calls[0][0]).toEqual({ _coll: 'organizations/org1/ledgerEntries' });
+  });
+
   it('recordLedgerEntry writes an entry with a fresh id', async () => {
     await recordLedgerEntry('org1', { kind: 'expense', amountCents: 12000, on: '2026-08-01', concept: ' Orquesta ', category: '' }, 'admin1');
     const { path, data } = written();

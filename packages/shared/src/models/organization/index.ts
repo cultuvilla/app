@@ -11,6 +11,7 @@ export * from './GroupMessageDataModel';
 export * from './groupMessagePlaceholders';
 export * from './GroupChatDataModel';
 export * from './RecordsDataModel';
+export * from './LedgerCategoryDataModel';
 export * from './recordsLogic';
 export * from './CosaDataModel';
 export * from './GroupTransparencyModel';

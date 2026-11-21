@@ -45,6 +45,7 @@ export * from './groupMessageService'
 export * from './groupTransparencyService'
 export * from './groupChatService'
 export * from './recordsService'
+export * from './ledgerCategoryService';
 export * from './studioService'
 export * from './mentionCandidateService'
 export * from './cosatecaService'

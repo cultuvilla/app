@@ -1,8 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView } from 'react-native';
-import { parseEuroCents, type LedgerEntryKind } from '@cultuvilla/shared/models/organization';
-import { BottomSheet, Button, DateField, Input, VStack } from '../../primitives';
+import {
+  cleanLedgerCategoryName,
+  ledgerCategoryChoices,
+  ledgerCategoryKey,
+  parseEuroCents,
+  type LedgerCategoryChoice,
+  type LedgerEntryKind,
+} from '@cultuvilla/shared/models/organization';
+import { createLedgerCategory, watchLedgerCategories, type LedgerCategory } from '@cultuvilla/shared/services/ledgerCategoryService';
+import { watchAllLedgerEntries, type LedgerEntry } from '@cultuvilla/shared/services/recordsService';
+import { BottomSheet, Button, DateField, FieldLabel, Input, VStack } from '../../primitives';
 import { SegmentedToggle } from '../SegmentedToggle';
+import { LedgerCategoryChips } from './LedgerCategoryChips';
+import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { dayKeyOfPickedDate, pickedDateOfDayKey, todayKey } from '../../../lib/orgs/cuota';
@@ -12,18 +23,26 @@ export interface LedgerEntryValues {
   amountCents: number;
   on: string;
   concept: string;
-  category: string;
+  category: string | null;
 }
 
 const KINDS: readonly LedgerEntryKind[] = ['income', 'expense'];
 
-/** Note one income or expense beyond the cuota: what, how much, when, and an optional category. */
+/**
+ * Note one income or expense beyond the cuota: what, how much, when, and an
+ * optional category picked from the group's list of that kind. The entry keeps
+ * the category's name, so a later rename leaves it as it was noted.
+ */
 export function LedgerEntrySheet({
   visible,
+  orgId,
+  uid,
   onSave,
   onClose,
 }: {
   visible: boolean;
+  orgId: string;
+  uid: string;
   onSave: (values: LedgerEntryValues) => Promise<void>;
   onClose: () => void;
 }) {
@@ -32,7 +51,7 @@ export function LedgerEntrySheet({
   const [amount, setAmount] = useState('');
   const [on, setOn] = useState(todayKey());
   const [concept, setConcept] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ amount?: string; concept?: string }>({});
   const [saving, setSaving] = useState(false);
 
@@ -42,10 +61,45 @@ export function LedgerEntrySheet({
       setAmount('');
       setOn(todayKey());
       setConcept('');
-      setCategory('');
+      setCategory(null);
       setErrors({});
     }
   }, [visible]);
+
+  const categories = useWatch<LedgerCategory[]>('groups:watchLedgerCategories', visible ? orgId : null, (next, error) =>
+    watchLedgerCategories(orgId, next, error),
+  );
+  const pastEntries = useWatch<LedgerEntry[]>('groups:watchAllLedgerEntries', visible ? orgId : null, (next, error) =>
+    watchAllLedgerEntries(orgId, next, error),
+  );
+  const choices = useMemo(
+    () => ledgerCategoryChoices(categories.data ?? [], pastEntries.data ?? [], kind),
+    [categories.data, pastEntries.data, kind],
+  );
+
+  const changeKind = (next: LedgerEntryKind) => {
+    setKind(next);
+    setCategory(null);
+  };
+  // Not awaited: the write lands in the local cache at once and syncs later, so
+  // the sheet never waits on the network to choose a category.
+  const store = (name: string) => {
+    createLedgerCategory(orgId, { kind, name }, uid).catch(() => showAlert(t('groups.records.error')));
+  };
+  const pick = (choice: LedgerCategoryChoice | null) => {
+    setCategory(choice?.name ?? null);
+    if (choice && !choice.stored) store(choice.name);
+  };
+  const createNamed = (typed: string) => {
+    const existing = choices.find((c) => ledgerCategoryKey(c.name) === ledgerCategoryKey(typed));
+    if (existing) {
+      pick(existing);
+      return;
+    }
+    const name = cleanLedgerCategoryName(typed);
+    setCategory(name);
+    store(name);
+  };
 
   const save = () => {
     const cents = parseEuroCents(amount);
@@ -83,7 +137,7 @@ export function LedgerEntrySheet({
             testID="ledger-kind"
             value={kind}
             options={KINDS.map((k) => ({ value: k, label: t(`groups.records.year.form.kind.${k}`) }))}
-            onChange={setKind}
+            onChange={changeKind}
           />
           <Input
             label={t('groups.records.year.form.amount')}
@@ -107,7 +161,10 @@ export function LedgerEntrySheet({
             maximumDate={new Date()}
             testID="ledger-date"
           />
-          <Input label={t('groups.records.year.form.category')} value={category} onChangeText={setCategory} testID="ledger-category" />
+          <VStack gap={2}>
+            <FieldLabel>{t('groups.records.year.form.category')}</FieldLabel>
+            <LedgerCategoryChips choices={choices} value={category} onPick={pick} onCreate={createNamed} />
+          </VStack>
         </VStack>
       </ScrollView>
     </BottomSheet>
