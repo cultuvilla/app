@@ -208,7 +208,7 @@ export function MembersList({
           <Ionicons
             name="lock-closed-outline"
             size={iconSizes.sm}
-            color="#9ca3af"
+            color={colors.light.fg.quiet}
             accessibilityLabel={t('profile.personPrivate')}
           />
         )}
@@ -229,7 +229,7 @@ export function MembersList({
             <Ionicons
               name={m.censoComplete ? 'checkmark' : 'close'}
               size={iconSizes.sm}
-              color={m.censoComplete ? colors.light.fg.success : '#9ca3af'}
+              color={m.censoComplete ? colors.light.fg.success : colors.light.fg.quiet}
             />
           )}
         </View>
@@ -245,7 +245,7 @@ export function MembersList({
             accessibilityLabel={t('village.membersList.manageRole')}
             hitSlop={8}
           >
-            <Ionicons name="chevron-forward" size={iconSizes.sm} color="#9ca3af" />
+            <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.quiet} />
           </Pressable>
         ) : null}
       </View>

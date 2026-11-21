@@ -154,7 +154,7 @@ export function SignupQuestionsEditor({
               >
                 <HStack gap={2} align="center" justify="between">
                   <Text>{t(`event.signupFields.type.${field.type}`)}</Text>
-                  <Ionicons name="chevron-down" size={18} color="#6b7280" />
+                  <Ionicons name="chevron-down" size={18} color={colors.light.fg.icon} />
                 </HStack>
               </Pressable>
             )}

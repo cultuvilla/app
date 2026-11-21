@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, elevation } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, Pressable, Text as RNText, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
@@ -254,10 +254,10 @@ export default function OrgDetailScreen() {
                 paddingVertical: 10,
                 paddingHorizontal: 22,
                 borderRadius: 999,
-                backgroundColor: awaitingAcceptance ? '#8a7a70' : colors.light.bg.accent,
+                backgroundColor: awaitingAcceptance ? colors.light.bg['status-pending'] : colors.light.bg.accent,
                 opacity: joining ? 0.7 : 1,
                 elevation: 6,
-                shadowColor: '#000',
+                shadowColor: elevation.md.rn.shadowColor,
                 shadowOpacity: 0.25,
                 shadowRadius: 6,
                 shadowOffset: { width: 0, height: 3 },

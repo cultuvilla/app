@@ -1,5 +1,5 @@
 import { personHref } from '../../lib/navigation/routes';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, elevation } from '@cultuvilla/shared/design-system';
 import { useCallback, useRef, useState } from 'react';
 import { Animated, Pressable as RNPressable, Text } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -108,7 +108,7 @@ export function BuryFab({ municipalityId, placeId, userId, buriedHereIds, onChan
             backgroundColor: colors.light.bg.accent,
             opacity: busy ? 0.7 : 1,
             elevation: 6,
-            shadowColor: '#000',
+            shadowColor: elevation.md.rn.shadowColor,
             shadowOpacity: 0.25,
             shadowRadius: 6,
             shadowOffset: { width: 0, height: 3 },

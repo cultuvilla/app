@@ -1,5 +1,5 @@
 import { Animated, Pressable, Text } from 'react-native';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, elevation } from '@cultuvilla/shared/design-system';
 
 export type FabProps = {
   onPress: () => void;
@@ -54,7 +54,7 @@ export function Fab({ onPress, label, testID, opacity = 1, interactive = true }:
           // accent (terracotta) — matches the AppHeader bg-accent token
           backgroundColor: colors.light.bg.accent,
           elevation: 6,
-          shadowColor: '#000',
+          shadowColor: elevation.md.rn.shadowColor,
           shadowOpacity: 0.25,
           shadowRadius: 6,
           shadowOffset: { width: 0, height: 3 },

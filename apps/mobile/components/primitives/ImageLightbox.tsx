@@ -299,7 +299,7 @@ export function ImageLightbox({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  backdrop: { backgroundColor: '#000000' },
+  backdrop: { backgroundColor: colors.light.bg.media },
   touchArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   close: {
     position: 'absolute',

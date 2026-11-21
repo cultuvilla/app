@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, elevation } from '@cultuvilla/shared/design-system';
 import { geocodeSearch, type GeocodePlace } from '@cultuvilla/shared/services/mapsService';
 import { Pressable, Text } from '../primitives';
 import { useT } from '../../lib/i18n';
@@ -139,7 +139,7 @@ export function AddressSearchBar({
           onChangeText={handleTextChange}
           onFocus={onFocus}
           onBlur={handleBlur}
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.light.fg.quiet}
           testID="address-search-input"
         />
         <Pressable
@@ -148,7 +148,7 @@ export function AddressSearchBar({
           accessibilityRole="button"
           accessibilityLabel={t('event.searchAddress')}
         >
-          <Ionicons name="search" size={18} color="#444" />
+          <Ionicons name="search" size={18} color={colors.light.fg.icon} />
         </Pressable>
         {status === 'searching' && !showList ? (
           <View style={styles.loadingContainer}>
@@ -215,7 +215,7 @@ export function AddressSearchBar({
 }
 
 const ACCENT = colors.light.fg.accent;
-const MUTED = '#666';
+const MUTED = colors.light.fg.icon;
 const DANGER = colors.light.fg.danger;
 
 const styles = StyleSheet.create({
@@ -235,9 +235,9 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 44,
-    color: '#333',
+    color: colors.light.fg.strong,
     fontSize: 16,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: colors.light.bg.muted,
     borderRadius: 8,
     paddingLeft: 10,
     paddingRight: 40,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#e0e0e0',
+    backgroundColor: colors.light.bg.placeholder,
   },
   loadingContainer: {
     position: 'absolute',
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: elevation.md.rn.shadowColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -291,11 +291,11 @@ const styles = StyleSheet.create({
     padding: 12,
     minHeight: 46,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.light.border.divider,
   },
   listItemText: {
     fontSize: 14,
-    color: '#333',
+    color: colors.light.fg.strong,
     fontWeight: '500',
   },
 });

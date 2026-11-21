@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, elevation } from '@cultuvilla/shared/design-system';
 import { reverseGeocode, type GeocodePlace } from '@cultuvilla/shared/services/mapsService';
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { Pressable, Text } from '../primitives';
@@ -292,7 +292,7 @@ export function MapLocationPicker({
             style={styles.backButton}
             testID="location-back"
           >
-            <Ionicons name="chevron-back" size={24} color="#333" />
+            <Ionicons name="chevron-back" size={24} color={colors.light.fg.strong} />
           </Pressable>
 
           <View style={styles.searchContainer} pointerEvents="auto">
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     padding: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: elevation.md.rn.shadowColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: elevation.md.rn.shadowColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 35 : 20,
-    shadowColor: '#000',
+    shadowColor: elevation.md.rn.shadowColor,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   },
   addressLabel: {
     fontSize: 12,
-    color: '#888',
+    color: colors.light.fg.icon,
     fontWeight: '600',
     marginBottom: 4,
     textTransform: 'uppercase',
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.light.fg.strong,
     marginBottom: 4,
   },
   addressLoader: {

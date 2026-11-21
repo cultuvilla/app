@@ -21,7 +21,7 @@ const CREST_BG = colors.light.bg.surface; // matches the screen's bg-surface so 
 const CARD_W = 175;
 const CARD_H = 175; // square — same width and height
 const CARD_RADIUS = 16; // matches the cards' rounded-2xl
-const SKELETON_BG = '#e7dccf'; // muted cream — reads as an empty card on bg-surface
+const SKELETON_BG = colors.light.bg.skeleton; // muted cream — reads as an empty card on bg-surface
 
 /** How a section's data is loading; drives skeleton vs content vs hidden. */
 export type SectionStatus = 'loading' | 'ready' | 'error';
@@ -504,9 +504,9 @@ export function SettingsLink({
       onPress={onPress}
       className="flex-row items-center bg-surface border border-subtle rounded-xl p-3"
     >
-      <Ionicons name={icon} size={20} color="#0f172a" />
+      <Ionicons name={icon} size={20} color={colors.light.fg.strong} />
       <Text className="ml-3 flex-1">{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+      <Ionicons name="chevron-forward" size={18} color={colors.light.fg.chevron} />
     </Pressable>
   );
 }

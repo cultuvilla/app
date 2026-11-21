@@ -87,7 +87,7 @@ export function ScreenHeader({
               accessibilityLabel={t('header.back')}
               className="p-1 -ml-1"
             >
-              <Ionicons name="chevron-back" size={24} color="#0f172a" />
+              <Ionicons name="chevron-back" size={24} color={colors.light.fg.strong} />
             </Pressable>
           ) : null}
         </View>

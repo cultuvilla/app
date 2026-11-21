@@ -1,5 +1,5 @@
 import { personHref } from '../../lib/navigation/routes';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, elevation } from '@cultuvilla/shared/design-system';
 import { useCallback, useRef, useState } from 'react';
 import { Animated, Pressable as RNPressable, Text } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -396,10 +396,10 @@ export function RegisterFab({
       ? [{ label: t('event.register.cta'), prefix: '+', bg: colors.light.bg.accent }]
       : [
           ...(confirmedCount > 0
-            ? [{ label: t('event.register.signedUpCount', { count: confirmedCount }), prefix: '✓', bg: '#2f7d4f' }]
+            ? [{ label: t('event.register.signedUpCount', { count: confirmedCount }), prefix: '✓', bg: colors.light.bg['status-confirmed'] }]
             : []),
           ...(waitlistedCount > 0
-            ? [{ label: t('event.register.waitlistedCount', { count: waitlistedCount }), prefix: '⏳', bg: '#b07a1e' }]
+            ? [{ label: t('event.register.waitlistedCount', { count: waitlistedCount }), prefix: '⏳', bg: colors.light.bg['status-waitlisted'] }]
             : []),
         ];
   const pills = pillContent.map((p, i) => ({ ...p, testID: i === 0 ? 'register-fab' : 'register-fab-waitlist' }));
@@ -440,7 +440,7 @@ export function RegisterFab({
               backgroundColor: pill.bg,
               opacity: busy ? 0.7 : 1,
               elevation: 6,
-              shadowColor: '#000',
+              shadowColor: elevation.md.rn.shadowColor,
               shadowOpacity: 0.25,
               shadowRadius: 6,
               shadowOffset: { width: 0, height: 3 },

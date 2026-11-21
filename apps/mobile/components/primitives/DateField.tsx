@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.light.border.input,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
@@ -91,6 +91,6 @@ const styles = StyleSheet.create({
   },
   triggerText: { flexShrink: 1, marginRight: 8 },
   modal: { flex: 1, padding: 16 },
-  modalHeader: { paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e5e7eb' },
+  modalHeader: { paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.light.border.divider },
   modalActions: { paddingTop: 12, flexDirection: 'row', justifyContent: 'flex-end' },
 });

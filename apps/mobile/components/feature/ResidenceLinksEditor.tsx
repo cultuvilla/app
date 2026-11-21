@@ -82,7 +82,7 @@ export function ResidenceLinksEditor({ value, onChange }: ResidenceLinksEditorPr
         accessibilityLabel={t('profile.personForm.addVillage')}
         className="flex-row items-center justify-center rounded-md border border-dashed border-subtle p-3"
       >
-        <Ionicons name="add" size={18} color="#64748b" />
+        <Ionicons name="add" size={18} color={colors.light.fg.icon} />
         <Text className="ml-1">{t('profile.personForm.addVillage')}</Text>
       </Pressable>
     </VStack>

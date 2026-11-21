@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Input, Toggle, Pressable, Text, HStack } from '../../primitives';
 import { OptionsEditor } from '../questions/OptionsEditor';
 import { QuestionCardShell } from '../questions/QuestionCardShell';
@@ -122,7 +123,7 @@ export function QuestionCard({
         >
           <HStack gap={2} align="center" justify="between">
             <Text>{typeLabel}</Text>
-            <Ionicons name="chevron-down" size={18} color="#6b7280" />
+            <Ionicons name="chevron-down" size={18} color={colors.light.fg.icon} />
           </HStack>
         </Pressable>
       ) : (

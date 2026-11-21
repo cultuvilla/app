@@ -1,7 +1,7 @@
 import { routes } from '../../lib/navigation/routes';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { Screen } from '../../components/primitives/Screen';
 import { Card } from '../../components/primitives/Card';
 import { Pressable } from '../../components/primitives/Pressable';
@@ -56,7 +56,7 @@ export default function SettingsScreen() {
                   {t('settings.changeEmail.label')}
                 </Text>
                 {!changeEmailDisabled ? (
-                  <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
+                  <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.chevron} />
                 ) : null}
               </HStack>
               {changeEmailDisabled ? (
@@ -71,7 +71,7 @@ export default function SettingsScreen() {
             >
               <HStack justify="between" align="center">
                 <Text tone="danger">{t('settings.deleteAccount.label')}</Text>
-                <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.chevron} />
               </HStack>
             </Pressable>
           </Card>
@@ -89,7 +89,7 @@ export default function SettingsScreen() {
             >
               <HStack justify="between" align="center">
                 <Text>{t('notifications.settings.label')}</Text>
-                <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.chevron} />
               </HStack>
             </Pressable>
           </Card>
@@ -123,7 +123,7 @@ export default function SettingsScreen() {
             <Pressable onPress={() => router.push(routes.blockedUsers)} className="px-4 py-3">
               <HStack justify="between" align="center">
                 <Text>{t('settings.blocked.label')}</Text>
-                <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.chevron} />
               </HStack>
             </Pressable>
           </Card>

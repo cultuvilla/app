@@ -140,7 +140,7 @@ export default function MyVillagesScreen() {
                     </Text>
                   </View>
                 ) : (
-                  <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                  <Ionicons name="chevron-forward" size={18} color={colors.light.fg.chevron} />
                 )}
               </Pressable>
             );

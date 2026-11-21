@@ -7,6 +7,7 @@ import {
 } from '../../lib/navigation/routes';
 import { Pressable as RNPressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@cultuvilla/shared/design-system';
 import { router } from 'expo-router';
 import { BottomSheet, Text, HStack } from '../primitives';
 import { ACCENT } from './VillageSections';
@@ -85,7 +86,7 @@ export function AddContentSheet({ visible, onClose, villageId, villageSlug, canM
               <Text className="flex-1 font-semibold">
                 {t(`village.addContent.items.${opt.key}`)}
               </Text>
-              <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+              <Ionicons name="chevron-forward" size={18} color={colors.light.fg.chevron} />
             </HStack>
           </RNPressable>
         ))}
