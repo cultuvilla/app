@@ -18,7 +18,7 @@ type Status = 'published' | 'completed' | 'cancelled';
 async function seedEvent(
   id: string,
   startDate: Date,
-  opts: { endDate?: Date | null; status?: Status } = {},
+  opts: { endDate?: Date | null; status?: Status; endBoundary?: Date } = {},
 ) {
   const endDate = opts.endDate ?? null;
   const created = new Date('2026-01-01T00:00:00Z');
@@ -46,7 +46,7 @@ async function seedEvent(
     villageCoordinates: null,
     confirmedCount: 0,
     totalCount: 0,
-    endBoundary: endDate ?? startDate,
+    endBoundary: opts.endBoundary ?? endDate ?? startDate,
     commentCount: 0,
     readCount: 0,
   });
@@ -121,5 +121,29 @@ describe('completeExpiredEvents', () => {
     expect(done.get('status')).toBe('completed');
     // Already-completed events are not rewritten.
     expect(done.get('updatedAt').toDate().getTime()).toBe(seededAt);
+  });
+
+  it('selects by the stored endBoundary, so events still to come are never read', async () => {
+    // A doc whose endBoundary disagrees with its dates cannot pass the rules;
+    // it is seeded here only to prove which field the sweep's query reads.
+    await seedEvent('boundary-future', new Date('2026-06-01T10:00:00Z'), {
+      endBoundary: new Date('2026-06-20T10:00:00Z'),
+    });
+    await seedEvent('boundary-past', new Date('2026-06-20T10:00:00Z'), {
+      endBoundary: new Date('2026-06-14T10:00:00Z'),
+    });
+    await run();
+
+    expect(await statusOf('boundary-future')).toBe('published');
+    expect(await statusOf('boundary-past')).toBe('completed');
+  });
+
+  it('completes every expired event in one run', async () => {
+    const ids = Array.from({ length: 25 }, (_, i) => `old-${String(i)}`);
+    await Promise.all(ids.map((id) => seedEvent(id, new Date('2026-06-01T10:00:00Z'))));
+    await run();
+
+    const statuses = await Promise.all(ids.map(statusOf));
+    expect(statuses.every((s) => s === 'completed')).toBe(true);
   });
 });

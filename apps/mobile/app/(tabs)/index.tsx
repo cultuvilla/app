@@ -41,7 +41,7 @@ import {
 } from '@cultuvilla/shared/services/feedService';
 import { watchAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
 import { getActiveCommunities } from '@cultuvilla/shared/services/municipalityService';
-import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
+import { madridDayKey, type EventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import { firstOfEachSeries, grownFeedSize } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import {
   NEWS_POST_CATEGORIES,
@@ -113,11 +113,11 @@ export default function FeedScreen() {
   // Both feeds are live listeners: they paint from the on-device cache at once
   // and update on their own, so focus no longer refetches them. Bumping a retry
   // counter re-opens a listener after an error. The day is part of the events
-  // key because the feed's lower bound is "start of today".
+  // key because the feed's lower bound is "start of today" in Madrid.
   const [eventsRetry, setEventsRetry] = useState(0);
   const [newsRetry, setNewsRetry] = useState(0);
   const [newsOpened, setNewsOpened] = useState(false);
-  const today = new Date().toDateString();
+  const today = madridDayKey(new Date());
 
   // Two listeners, not one: the public feed is a single query, while the
   // private half is one query per org the viewer belongs to — rules do not
