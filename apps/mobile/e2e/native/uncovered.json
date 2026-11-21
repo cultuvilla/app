@@ -120,6 +120,8 @@
   "cosa-where": "unit-tested: app/grupos/__tests__/cosa.test.tsx",
   "cosa-you-hold-it": "unit-tested: app/grupos/__tests__/cosa.test.tsx",
   "cosa-yours": "unit-tested: app/grupos/__tests__/cosa.test.tsx",
+  "cosateca-calm": "unit-tested: components/feature/groups/__tests__/GroupCosateca.test.tsx",
+  "cosateca-curso": "unit-tested: components/feature/groups/__tests__/GroupCosateca.test.tsx",
   "cosateca-empty": "unit-tested: components/feature/groups/__tests__/GroupCosateca.test.tsx",
   "cosateca-inbox": "unit-tested: components/feature/groups/__tests__/GroupCosateca.test.tsx",
   "cosateca-inbox-open": "unit-tested: components/feature/groups/__tests__/GroupCosateca.test.tsx",

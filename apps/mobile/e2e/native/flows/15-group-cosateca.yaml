@@ -342,6 +342,8 @@ onFlowComplete:
     visible:
       id: 'cosateca-active-${output.requestId}'
     timeout: 20000
+- assertVisible:
+    id: 'cosateca-toca'
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
