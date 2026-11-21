@@ -23,6 +23,7 @@ import { CuotaBanner } from '../../components/feature/groups/CuotaBanner';
 import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGrid';
 import { GroupContactGate } from '../../components/feature/groups/GroupContactGate';
 import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCard';
+import { useCosatecaRequests } from '../../components/feature/groups/cosateca/useCosatecaRequests';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
 import { groupAvisoHref, groupEventHref, groupSectionHref, groupTaskHref } from '../../lib/navigation/routes';
@@ -160,8 +161,11 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const ownStatus = cuota.statuses.find((s) => cuota.rows.find((r) => r.id === s.socioId)?.kind === 'member') ?? cuota.statuses[0];
   const cuotaBanner = roster && org.cuotaEnabled && ownStatus && cuota.periodKey ? { period: cuota.periodKey, status: ownStatus.status } : null;
 
+  // Only what waits on the viewer counts: "En curso" never puts a number on the button.
+  const cosateca = useCosatecaRequests(org.id, uid, isAdmin, org.cosateca.enabled);
   const badges: Partial<Record<GroupSection, number>> = {
     charla: chat.generalUnread ? 1 : 0,
+    cosateca: cosateca.toca.length,
   };
   const newAvisos = notices.unreadCount + chat.unreadAvisoIds.size;
   const open = (section: GroupSection) => router.push(groupSectionHref(org.id, section));

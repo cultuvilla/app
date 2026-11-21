@@ -2671,13 +2671,36 @@
       "search": "Buscar: escalera, paellera…",
       "noMatches": "Nada con ese nombre.",
       "active": {
-        "title": "En marcha",
         "all": "Todo ({count})",
-        "asked": "Te piden «{title}»",
-        "holding": "Tienes «{title}»",
+        "tocaTitle": "Te toca",
+        "cursoTitle": "En curso",
+        "calm": "Nada pendiente por tu parte",
+        "toca": {
+          "answer": "{name} te pide «{title}»",
+          "handOver": "Entrega «{title}» a {name}",
+          "give": "Entrega «{title}» a {name}",
+          "finish": "«{title}» para {name}",
+          "overdueLent": "{name} tiene tu «{title}»",
+          "overdueHeld": "Tienes «{title}»",
+          "talkHint": "Escribe a quien te la prestó"
+        },
+        "lateSince": "Tenía que volver el {date}",
+        "curso": {
+          "holding": "Tienes «{title}»",
+          "lentOut": "{name} tiene «{title}»",
+          "waiting": "Pediste «{title}»",
+          "accepted": "Pediste «{title}»",
+          "booked": "{name} reservó «{title}»",
+          "bookedMine": "Reservaste «{title}»"
+        },
         "backOn": "Vuelve el {date}",
         "passOn": "Pásala a quien la pida",
-        "answer": "Responder"
+        "untilOn": "Hasta el {date}",
+        "noReturnDate": "Sin fecha de vuelta",
+        "waitingAnswer": "Esperando respuesta",
+        "acceptedMeet": "Aceptada: quedad para la entrega",
+        "declineTitle": "¿Rechazar «{title}»?",
+        "declineBody": "{name} verá que la has rechazado."
       },
       "empty": "Aún no hay nada en la cosateca. ¡Ofrece lo primero!",
       "emptyCategory": "Nada en esta categoría.",

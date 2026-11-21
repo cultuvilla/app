@@ -4,20 +4,14 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { iconSizes, palette, spacing } from '@cultuvilla/shared/design-system';
 import { cosatecaCatalogue, usedCosaCategories, type CosaCategory } from '@cultuvilla/shared/models/organization';
-import {
-  watchCosaRequestsToMe,
-  watchGroupCosaRequests,
-  watchGroupCosas,
-  watchMyCosaRequests,
-  type Cosa,
-  type CosaRequest,
-} from '@cultuvilla/shared/services/cosatecaService';
+import { watchGroupCosas, type Cosa } from '@cultuvilla/shared/services/cosatecaService';
 import { Input, Text, VStack } from '../../../primitives';
 import { Fab } from '../../../primitives/Fab';
 import { CategoryChips } from './CosaRows';
 import { CosaSheet } from './CosaSheet';
-import { CosaCard, CosaInboxSheet, EnMarchaStrip } from './Escaparate';
-import { cosatecaInbox, enMarcha, searchCosas } from './escaparate';
+import { CosaCard, CosaInboxSheet, EnMarchaBlock } from './Escaparate';
+import { searchCosas } from './escaparate';
+import { useCosatecaRequests } from './useCosatecaRequests';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useT } from '../../../../lib/i18n';
@@ -25,23 +19,8 @@ import { groupCosaHref, groupCosaRequestHref } from '../../../../lib/navigation/
 import type { MyGroup } from '../../../../lib/orgs/useMyGroups';
 
 /**
- * Requests to answer in this group: those for the viewer's own cosas, and, for
- * an admin, those for the group's own cosas too. Newest first, each once.
- */
-export function requestsToMe(
-  orgId: string,
-  toMe: readonly CosaRequest[],
-  ofGroup: readonly CosaRequest[] | null,
-): CosaRequest[] {
-  const rows = new Map<string, CosaRequest>();
-  for (const r of toMe) if (r.orgId === orgId) rows.set(r.id, r);
-  for (const r of ofGroup ?? []) if (r.ownerUid === null) rows.set(r.id, r);
-  return [...rows.values()].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-}
-
-/**
- * A group's cosateca as a shop window: a search box, "En marcha" (what others
- * ask of the viewer and what they hold) when there is something, and the
+ * A group's cosateca as a shop window: a search box, "En marcha" (what waits
+ * on the viewer, then what is under way) when there is something, and the
  * catalogue as a grid of photos. Every request sits behind "Todo". Any
  * integrante offers something from the button.
  */
@@ -56,24 +35,10 @@ export function GroupCosateca({ group, uid }: { group: MyGroup; uid: string }) {
   const [inboxOpen, setInboxOpen] = useState(false);
 
   const cosas = useWatch<Cosa[]>('cosateca:watchGroupCosas', org.id, (next, error) => watchGroupCosas(org.id, next, error));
-  const mine = useWatch<CosaRequest[]>('cosateca:watchMyCosaRequests', uid, (next, error) => watchMyCosaRequests(uid, next, error));
-  const toMe = useWatch<CosaRequest[]>('cosateca:watchCosaRequestsToMe', uid, (next, error) => watchCosaRequestsToMe(uid, next, error));
-  const ofGroup = useWatch<CosaRequest[]>(
-    'cosateca:watchGroupCosaRequests',
-    isAdmin ? org.id : null,
-    isAdmin ? (next, error) => watchGroupCosaRequests(org.id, next, error) : null,
-  );
-
   const all = cosas.data ?? [];
   const categories = useMemo(() => usedCosaCategories(all), [all]);
   const catalogue = useMemo(() => searchCosas(cosatecaCatalogue(all, category), query), [all, category, query]);
-  const asked = useMemo(() => (mine.data ?? []).filter((r) => r.orgId === org.id), [mine.data, org.id]);
-  const incoming = useMemo(
-    () => requestsToMe(org.id, toMe.data ?? [], isAdmin ? (ofGroup.data ?? []) : null),
-    [org.id, toMe.data, ofGroup.data, isAdmin],
-  );
-  const active = useMemo(() => enMarcha(incoming, asked), [incoming, asked]);
-  const inbox = useMemo(() => cosatecaInbox(incoming, asked), [incoming, asked]);
+  const { toca, curso, inbox } = useCosatecaRequests(org.id, uid, isAdmin);
 
   const openRequest = (requestId: string) => {
     setInboxOpen(false);
@@ -105,7 +70,7 @@ export function GroupCosateca({ group, uid }: { group: MyGroup; uid: string }) {
               rightAdornment={<Ionicons name="search" size={iconSizes.md} color={palette.sage} />}
               testID="cosateca-search"
             />
-            <EnMarchaStrip items={active} total={inbox.length} onOpen={openRequest} onAll={() => setInboxOpen(true)} />
+            <EnMarchaBlock toca={toca} curso={curso} total={inbox.length} uid={uid} onOpen={openRequest} onAll={() => setInboxOpen(true)} />
             {categories.length > 1 ? <CategoryChips categories={categories} value={category} onChange={setCategory} /> : null}
           </VStack>
         }

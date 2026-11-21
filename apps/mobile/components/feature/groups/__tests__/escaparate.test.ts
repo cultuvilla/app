@@ -76,16 +76,56 @@ describe("a card's words", () => {
 });
 
 describe('enMarcha', () => {
-  it('lists what is asked of me (pending first), then what I hold, the soonest back first', () => {
-    const incoming = [request('r1', { status: 'accepted' }), request('r2'), request('r3', { status: 'declined' }), request('r4', { status: 'lent' })];
-    const mine = [
-      request('r5', { status: 'lent', untilOn: null }),
-      request('r6', { status: 'lent', untilOn: '2026-11-14' }),
-      request('r7', { status: 'pending' }),
+  const today = '2026-11-21';
+  const split = (incoming: ReturnType<typeof request>[], mine: ReturnType<typeof request>[]) => {
+    const { toca, curso } = enMarcha(incoming, mine, 'u1', today);
+    return { toca: toca.map((i) => `${i.reason}:${i.request.id}`), curso: curso.map((i) => `${i.reason}:${i.request.id}`) };
+  };
+
+  it('puts what waits on me in "Te toca": answers, hand-overs and what is late, the late first', () => {
+    const incoming = [
+      request('r1'),
+      request('r2', { status: 'accepted' }),
+      request('r3', { status: 'accepted', cosaKind: 'servicio' }),
+      request('r4', { status: 'accepted', cosaKind: 'regalo' }),
+      request('r5', { status: 'lent', untilOn: '2026-11-18' }),
+      request('r6', { status: 'declined' }),
     ];
-    expect(enMarcha(incoming, mine).map((i) => `${i.type}:${i.request.id}`)).toEqual([
-      'asked:r2', 'asked:r1', 'holding:r6', 'holding:r5',
-    ]);
+    expect(split(incoming, []).toca).toEqual(['overdueLent:r5', 'answer:r1', 'handOver:r2', 'finish:r3', 'give:r4']);
+  });
+
+  it('keeps what waits on someone else or on a date in "En curso", soonest first', () => {
+    const incoming = [
+      request('r1', { status: 'lent', untilOn: '2026-11-30' }),
+      request('r2', { status: 'accepted', cosaKind: 'reserva', fromOn: '2026-12-03', untilOn: '2026-12-03' }),
+    ];
+    const mine = [
+      request('r3', { requesterUid: 'u1', status: 'lent', untilOn: '2026-11-25' }),
+      request('r4', { requesterUid: 'u1', status: 'pending' }),
+      request('r5', { requesterUid: 'u1', status: 'accepted' }),
+    ];
+    const { toca, curso } = split(incoming, mine);
+    expect(toca).toEqual([]);
+    expect(curso).toEqual(['holding:r3', 'lentOut:r1', 'booked:r2', 'accepted:r5', 'waiting:r4']);
+  });
+
+  it('makes a loan I hold past its date mine to sort out, with no one-tap move', () => {
+    const { toca } = enMarcha([], [request('r1', { requesterUid: 'u1', status: 'lent', untilOn: '2026-11-18' })], 'u1', today);
+    expect(toca).toEqual([expect.objectContaining({ reason: 'overdueHeld', late: true, primary: null })]);
+  });
+
+  it("leaves a group's cosa someone holds to that holder, and a handed-on one out", () => {
+    const incoming = [
+      request('r1', { ownerUid: null, holderUid: 'u9' }),
+      request('r2', { ownerUid: null, holderUid: null, status: 'lent' }),
+      request('r3', { ownerUid: null, holderUid: 'u1' }),
+    ];
+    expect(split(incoming, [])).toEqual({ toca: ['answer:r3'], curso: [] });
+  });
+
+  it('never asks me to answer my own request', () => {
+    const own = request('r1', { requesterUid: 'u1', ownerUid: null });
+    expect(split([own], [own])).toEqual({ toca: [], curso: ['waiting:r1'] });
   });
 });
 

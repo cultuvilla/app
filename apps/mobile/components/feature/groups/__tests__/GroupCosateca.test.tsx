@@ -1,8 +1,11 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import { buildCosaData, buildCosaRequestData, buildOrganizationData } from '@cultuvilla/shared/models/organization';
-import { GroupCosateca, requestsToMe } from '../cosateca/GroupCosateca';
+import { GroupCosateca } from '../cosateca/GroupCosateca';
+import { requestsToMe } from '../cosateca/useCosatecaRequests';
 
 const mockPush = jest.fn();
+const mockRespond = jest.fn((..._args: unknown[]) => Promise.resolve('accepted'));
+const mockConfirm = jest.fn((_title: string, _body: string, onConfirm: () => void) => onConfirm());
 let mockCosas: unknown[] = [];
 let mockMine: unknown[] = [];
 let mockToMe: unknown[] = [];
@@ -18,7 +21,13 @@ jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
   watchGroupCosaRequests: jest.fn(),
   watchGroupCosas: jest.fn(),
   watchMyCosaRequests: jest.fn(),
+  respondToCosaRequest: (...args: unknown[]) => mockRespond(...args),
 }));
+jest.mock('../../../../lib/dialogs', () => ({
+  showAlert: jest.fn(),
+  showConfirm: (title: string, body: string, onConfirm: () => void) => mockConfirm(title, body, onConfirm),
+}));
+jest.mock('../../../../lib/orgs/cuota', () => ({ todayKey: () => '2026-11-21' }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../../lib/auth/useAuth', () => ({ useAuth: () => ({ user: { uid: 'u1' }, profile: { displayName: 'Ana' } }) }));
 jest.mock('../../../../lib/hooks/useWatch', () => ({
@@ -98,16 +107,18 @@ describe("a group's cosateca", () => {
     expect(queryByTestId('cosateca-active')).toBeNull();
   });
 
-  it('puts what others ask of me and what I hold in "En marcha", and every request behind "Todo"', () => {
+  it('splits "En marcha" into what waits on me and what is under way, and keeps every request behind "Todo"', () => {
     mockToMe = [request('r1'), request('r2', { status: 'returned' })];
     mockMine = [
-      request('r3', { requesterUid: 'u1', ownerUid: 'u2', status: 'lent', untilOn: '2026-11-18' }),
+      request('r3', { requesterUid: 'u1', ownerUid: 'u2', status: 'lent', untilOn: '2026-11-28' }),
       request('r4', { requesterUid: 'u1', ownerUid: 'u2', orgId: 'other', status: 'lent' }),
     ];
     const { getByTestId, queryByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
-    expect(getByTestId('cosateca-active-strip')).toContainElement(getByTestId('cosateca-active-r1'));
-    expect(getByTestId('cosateca-active-r1')).toHaveTextContent(/groups.cosateca.active.asked/);
+    expect(getByTestId('cosateca-toca')).toHaveTextContent(/groups.cosateca.active.tocaTitle\s*1/);
+    expect(getByTestId('cosateca-active-r1')).toHaveTextContent(/groups.cosateca.active.toca.answer/);
+    expect(getByTestId('cosateca-curso')).toContainElement(getByTestId('cosateca-active-r3'));
     expect(getByTestId('cosateca-active-r3')).toHaveTextContent(/groups.cosateca.active.backOn/);
+    expect(queryByTestId('cosateca-calm')).toBeNull();
     expect(queryByTestId('cosateca-active-r2')).toBeNull();
     expect(queryByTestId('cosateca-active-r4')).toBeNull();
     fireEvent.press(getByTestId('cosateca-active-r1'));
@@ -124,10 +135,38 @@ describe("a group's cosateca", () => {
     expect(queryByTestId('cosateca-inbox')).toBeNull();
   });
 
+  it('accepts a request right from its card', async () => {
+    mockToMe = [request('r1')];
+    const { getByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
+    fireEvent.press(getByTestId('cosateca-active-accept-r1'));
+    expect(mockRespond).toHaveBeenCalledWith('r1', 'accept');
+    expect(mockPush).not.toHaveBeenCalled();
+    await act(async () => {});
+  });
+
+  it('asks before refusing a request from its card', async () => {
+    mockToMe = [request('r1')];
+    const { getByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
+    fireEvent.press(getByTestId('cosateca-active-decline-r1'));
+    expect(mockConfirm).toHaveBeenCalled();
+    expect(mockRespond).toHaveBeenCalledWith('r1', 'decline');
+    await act(async () => {});
+  });
+
+  it('says so in green when nothing waits on me, and shows at most three rows under way', () => {
+    mockMine = ['r1', 'r2', 'r3', 'r4'].map((id) => request(id, { requesterUid: 'u1', ownerUid: 'u2', status: 'pending' }));
+    const { getByTestId, queryByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
+    expect(getByTestId('cosateca-calm')).toHaveTextContent(/groups.cosateca.active.calm/);
+    expect(queryByTestId('cosateca-toca')).toBeNull();
+    expect(getByTestId('cosateca-curso')).toContainElement(getByTestId('cosateca-active-r4'));
+    expect(queryByTestId('cosateca-active-r1')).toBeNull();
+  });
+
   it('keeps "Todo" for past requests even when nothing is going on', () => {
     mockMine = [request('r1', { requesterUid: 'u1', ownerUid: 'u2', status: 'returned' })];
     const { getByTestId, queryByTestId } = render(<GroupCosateca group={{ org, role: 'member' }} uid="u1" />);
-    expect(queryByTestId('cosateca-active-strip')).toBeNull();
+    expect(queryByTestId('cosateca-toca')).toBeNull();
+    expect(queryByTestId('cosateca-curso')).toBeNull();
     expect(getByTestId('cosateca-inbox-open')).toHaveTextContent(/groups.cosateca.active.all/);
   });
 

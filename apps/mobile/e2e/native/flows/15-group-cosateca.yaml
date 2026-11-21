@@ -336,7 +336,8 @@ onFlowComplete:
 # (README, "Wait budgets").
 - waitForAnimationToEnd:
     timeout: 3000
-# What is asked of them shows in "En marcha", above the catalogue.
+# What is asked of them shows under "Te toca", above the catalogue. Its title
+# opens the request: the card's centre may be its Aceptar button.
 - extendedWaitUntil:
     visible:
       id: 'cosateca-active-${output.requestId}'
@@ -344,7 +345,7 @@ onFlowComplete:
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
-      TAP: 'cosateca-active-${output.requestId}'
+      TAP: 'cosateca-active-title-${output.requestId}'
       EXPECT: 'cosa-request'
 - assertVisible: '.*${output.askMessage}.*'
 - assertVisible:
