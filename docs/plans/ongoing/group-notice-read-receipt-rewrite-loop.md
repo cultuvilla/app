@@ -2,8 +2,8 @@
 
 **Priority:** medium — a client loop of denied writes (about 1 every 1.3 s while the screen is open) costs battery and writes and floods the error counts; users see nothing
 **Landed:** dev
-**Gate:** soak:the next ios-e2e run of flow 12 on develop after #718 shows about 0 denied writes on the read receipt
-**Next:** check flow 12's iOS write-stream errors on …/reads/e2e-user, then retire the plan; if denied writes persist, find the caller that bypasses markGroupMessageRead
+**Gate:** soak:a store version carrying #718 is live on prod; then prod client errors show no permission-denied writes on `organizations/*/messages/*/reads/*`
+**Next:** once that version is live, query prod Error Reporting / Cloud Logging (read-only) for denied read-receipt writes; none → retire the plan
 
 **Goal:** Mark each aviso read at most once per user, so an existing receipt is never written again.
 
@@ -32,3 +32,7 @@ Pre-approved — "fixing a defect whose correct behaviour is not in dispute". Us
 ## Out of scope
 
 Changing the receipt rule or the unread-dot UI.
+
+## Dev soak (2026-11-21)
+
+Passed: three ios-e2e develop runs (A, B and C = 44901678360 on 7d114713) showed 0 denied writes on the read receipt in every shard that uploaded artifacts.
