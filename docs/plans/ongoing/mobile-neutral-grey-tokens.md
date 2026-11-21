@@ -2,8 +2,8 @@
 
 **Priority:** low — 99 hex literals in `apps/mobile` match no design token, so a brand or dark-mode change cannot reach them
 **Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop (#725 landed the token-equal swap and the hex scan), then build it
+**Gate:** soak:the first release carrying #729 is live in prod
+**Next:** confirm Deploy dev of e0878359 went green (then Landed: dev); the QA pass witnesses docs/qa/pending/neutral-grey-tokens.md; retire once a release carrying #729 is live in prod
 
 Decided 2026-11-20 (user): approve — add neutral/grey tokens and move the remaining hand-written greys onto them, accepting slight visual changes.
 
