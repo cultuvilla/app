@@ -346,9 +346,10 @@ describe('GroupSettings', () => {
 
   const toggle = (r: ReturnType<typeof render>) => r.getByTestId('group-settings-socios-list-visible');
 
-  it('an admin leaves the Charla to the junta; a group with no roster has no socios switch', () => {
+  it('an admin stops integrantes writing in the Charla; a group with no roster has no socios switch', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} chatAdminsOnly={false} />);
     expect(r.queryByTestId('group-settings-socios-list-visible')).toBeNull();
+    expect(r.getByTestId('group-settings-chat-admins-only').props.accessibilityState).toMatchObject({ checked: true });
     fireEvent.press(r.getByTestId('group-settings-chat-admins-only'));
     expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: true });
   });

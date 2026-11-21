@@ -1181,8 +1181,6 @@
     "requestPending": "Solicitud enviada",
     "joinPolicy": {
       "label": "Unirse requiere aprobación",
-      "approvalHint": "Un administrador acepta cada solicitud.",
-      "openHint": "Cualquiera puede unirse al momento.",
       "switchToOpenTitle": "Abrir el grupo",
       "switchToOpenBody": "Cualquiera podrá unirse sin aprobación. Entrará al momento en el libro de socios, y podrá leer el chat y las tareas del grupo y ver sus eventos privados."
     },
@@ -1914,18 +1912,9 @@
     "transparency": {
       "settings": {
         "title": "Qué ven todos los socios",
-        "cuota": {
-          "label": "Cuota pública",
-          "hint": "Los socios ven quién está al día con la cuota, sin importes."
-        },
-        "avisos": {
-          "label": "Avisos públicos",
-          "hint": "Los socios ven todos los avisos y los resultados de las votaciones, no quién votó qué."
-        },
-        "cuentas": {
-          "label": "Cuentas públicas",
-          "hint": "Los socios ven los ingresos y gastos del año, sin poder cambiarlos."
-        }
+        "cuota": "Quién está al día con la cuota",
+        "avisos": "Todos los avisos y votaciones",
+        "cuentas": "Ingresos y gastos del año"
       },
       "cuota": {
         "title": "Los socios este periodo ({period})",
@@ -2082,7 +2071,7 @@
       "sociosListVisible": "Lista de socios visible",
       "socioPhoneRequired": "Pedir el teléfono a los socios",
       "socioEmailRequired": "Pedir el email a los socios",
-      "chatAdminsOnly": "Solo la junta escribe en la Charla",
+      "chatMembersWrite": "Escribir en la Charla",
       "error": "No se ha podido guardar el ajuste.",
       "cosateca": "Cosateca",
       "cuotaEnabled": "Cuota",
@@ -2093,7 +2082,10 @@
       "sections": {
         "features": "Qué usa el grupo",
         "entry": "Entrar al grupo",
-        "charla": "Charla",
+        "membersCan": {
+          "socios": "Qué pueden hacer los socios",
+          "integrantes": "Qué pueden hacer los integrantes"
+        },
         "cuota": "Cuota"
       }
     },
