@@ -19,7 +19,7 @@ import { useMyMessageValues } from '../../../../lib/orgs/useMyMessageValues';
 
 /**
  * One aviso and its chat: the aviso is the thread's first message. Opened from
- * the group's home, the notices, a chat notification, and the aviso's WhatsApp
+ * the notices, a chat notification, and the aviso's WhatsApp
  * and email links, so opening it is what marks it read. The rules let only its recipients and the admins read it.
  */
 export default function GroupAvisoScreen() {
