@@ -15,6 +15,9 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | find the root cause of the iOS ping timeouts, starting with the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings), also covering flows 12 and 15; fix it without app-code workarounds, then add a lasting guard in the lane so a regression shows up on its own |
+| [mobile-eslint-gate](ongoing/mobile-eslint-gate.md) | medium | none | this cycle | verify the plan against develop, then build it |
+| [event-madrid-day-cutoff](ongoing/event-madrid-day-cutoff.md) | low | none | this cycle | verify the plan against develop, then build it |
+| [mobile-raw-hex-to-tokens](ongoing/mobile-raw-hex-to-tokens.md) | low | none | this cycle | verify the plan against develop, then build it |
 
 ## Waiting on release 1.11.0
 
@@ -73,7 +76,7 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
-| `4b30925f` | 2026-11-20 | 5 | docs(plans): start buzon-inbox-model, event-form-state-module, service-test-coverage; gate hex and lint on open work |
+| `e7e588fa` | 2026-11-21 | 5 | docs(plans): start madrid-day cutoff, raw-hex tokens and mobile lint gate; gate e2e ideas on #722 |
 | `e960dc6a` | 2026-11-20 | 14 | docs(plans): night triage — start 5 plans, gate release/console-bound rows, reopen read-site after #679 |
 | `f9438880` | 2026-11-07 | 7 | docs(plans): retire finished plans, refresh gates |
 | `78b72653` | 2026-09-30 | 18 | docs(plans): migrate to agent-plans v2 (Priority/Gate/Next block), vendor v2.0.1 |
