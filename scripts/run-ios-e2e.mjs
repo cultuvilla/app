@@ -44,6 +44,7 @@ import {
   PICKER_IMAGES,
 } from './lib/maestro-suite.mjs';
 import { pickSimulator } from './lib/ios-simulator.mjs';
+import { cancelledWriteFailures } from './lib/emulator-grpc.mjs';
 
 const LABEL = 'ios-e2e';
 
@@ -283,6 +284,28 @@ function captureFirestoreLog() {
   });
 }
 captureFirestoreLog();
+
+// Writes the emulator failed with HTTP 499 because a listener the app had
+// dropped could no longer read the document. run-tests-with-emulators.mjs runs
+// the emulator with that fixed (EMULATOR_CANCELLED_LISTEN), so any such failure
+// means the fix has regressed. The count splits the app's own saves from the
+// retry restore's writes. docs/decisions/ios-e2e-emulator-keepalive.md.
+process.on('exit', () => {
+  const debugLog = path.join(ROOT, 'firestore-debug.log');
+  if (!existsSync(debugLog)) return;
+  const { total, byOperation } = cancelledWriteFailures(readFileSync(debugLog, 'utf8'));
+  const split = Object.entries(byOperation)
+    .map(([op, n]) => `${op}: ${n}`)
+    .join(', ');
+  console.log(`[${LABEL}] Firestore writes failed on a cancelled listener: ${total}${split ? ` (${split})` : ''}`);
+  if (total === 0 || process.env.EMULATOR_CANCELLED_LISTEN !== 'production') return;
+  const message =
+    `the Firestore emulator failed ${total} write(s) on a cancelled listener (${split}); want 0 ` +
+    '(see docs/decisions/ios-e2e-emulator-keepalive.md and firestore-debug.log)';
+  console.error(`::error::${message}`);
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### :x: ${message}\n`);
+  process.exitCode = 1;
+});
 
 await runMaestroSuite({
   label: LABEL,
