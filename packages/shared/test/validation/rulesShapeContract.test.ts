@@ -118,7 +118,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
       'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
       'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
       'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy', 'sociosListVisible',
-      'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired', 'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'transparency',
+      'chatAdminsOnly', 'sociosSendAvisos', 'socioPhoneRequired', 'socioEmailRequired', 'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'transparency',
     ],
   },
   {

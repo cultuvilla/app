@@ -1,8 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Linking, ScrollView } from 'react-native';
 import {
-  canNudgeGroupMessage,
-  GROUP_MESSAGE_NUDGE_INTERVAL_MS,
   groupMessageWhatsappText,
   NEUTRAL_PERSONAL_VALUES,
   personalizeGroupMessage,
@@ -14,7 +12,6 @@ import {
 } from '@cultuvilla/shared/models/organization';
 import { normalizeLeadPhone } from '@cultuvilla/shared/models/ambassadorLead';
 import {
-  nudgeGroupMessage,
   setWhatsappSent,
   watchGroupMessageDeliveries,
   watchGroupMessageReads,
@@ -35,8 +32,8 @@ import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 
 /**
- * One sent message, for the admins: who read it (and a nudge for who did not),
- * the poll's results with the voters, the WhatsApp links to send by hand, and
+ * One sent message, for the admins: who read it and who has not, the poll's
+ * results with the voters, the WhatsApp links to send by hand, and
  * every recipient with their channels.
  */
 export function MessageDetailSheet({
@@ -75,7 +72,6 @@ export function MessageDetailSheet({
     id && needsPhones ? orgId : null,
     id && needsPhones ? (next, error) => watchOrgSocioPrivates(orgId, next, error) : null,
   );
-  const [nudging, setNudging] = useState(false);
 
   const rows = useMemo(() => deliveries.data ?? [], [deliveries.data]);
   const nameOfUid = useMemo(() => new Map(rows.flatMap((d) => (d.uid ? [[d.uid, d.names.join(', ')] as const] : []))), [rows]);
@@ -86,20 +82,11 @@ export function MessageDetailSheet({
   const fail = () => showAlert(t('groups.messages.actionError'));
   const unread = unreadRecipientUids(message, readIds);
   const inApp = message.recipientUids.filter((u) => u !== message.sentBy);
-  const now = new Date();
   const appUrl = `https://${getDeepLinkHost()}${groupAvisoLinkPath(orgId, message.id)}`;
   const textFor = (values: GroupMessagePersonalValues) =>
     groupMessageWhatsappText({ ...personalizeGroupMessage(message, values), orgName }, appUrl);
   const whatsapp = rows.filter((d) => d.whatsappSocioId !== null);
   const tally = message.poll ? tallyGroupPoll(message.poll, votes.data ?? []) : [];
-
-  const nudge = () => {
-    setNudging(true);
-    nudgeGroupMessage(orgId, message.id)
-      .then((r) => showAlert(t('groups.messages.nudged', { count: r.nudged })))
-      .catch(fail)
-      .finally(() => setNudging(false));
-  };
 
   const openWhatsapp = (d: GroupMessageDelivery) => {
     const raw = d.whatsappSocioId ? phoneOf.get(d.whatsappSocioId) : null;
@@ -154,22 +141,9 @@ export function MessageDetailSheet({
                     {t('groups.messages.allRead')}
                   </Text>
                 ) : (
-                  <>
-                    <Text variant="bodySm" tone="muted">
-                      {t('groups.messages.unread')}: {unread.map((u) => nameOfUid.get(u) ?? '—').join(' · ')}
-                    </Text>
-                    {canNudgeGroupMessage(message, now) ? (
-                      <Button onPress={nudge} loading={nudging} testID="group-msg-detail-nudge">
-                        {t('groups.messages.nudge')}
-                      </Button>
-                    ) : (
-                      <Text variant="caption" tone="muted" testID="group-msg-detail-nudge-wait">
-                        {t('groups.messages.nudgeWait', {
-                          date: formatDate(new Date((message.lastNudgedAt ?? now).getTime() + GROUP_MESSAGE_NUDGE_INTERVAL_MS), 'long'),
-                        })}
-                      </Text>
-                    )}
-                  </>
+                  <Text variant="bodySm" tone="muted">
+                    {t('groups.messages.unread')}: {unread.map((u) => nameOfUid.get(u) ?? '—').join(' · ')}
+                  </Text>
                 )}
               </VStack>
             </Card>

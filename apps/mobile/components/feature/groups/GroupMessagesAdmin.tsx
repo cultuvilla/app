@@ -11,8 +11,8 @@ import { SentAvisoCard } from './SentAvisoCard';
 
 /**
  * The junta's avisos: write one to the socios (or a part of them), and the
- * ones sent, each showing its reads, poll result and nudge at a glance and
- * opening its detail — who read, the voters, the WhatsApp list.
+ * ones sent (a socio's too, where the group lets them), each showing its reads
+ * and poll result at a glance and opening its detail — who read, the voters, the WhatsApp list.
  */
 export function GroupMessagesAdmin({
   orgId,
@@ -35,7 +35,7 @@ export function GroupMessagesAdmin({
   const [composing, setComposing] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const rows = messages.data ?? [];
-  // Follow the live doc, so a pin or a nudge shows at once in the open sheet.
+  // Follow the live doc, so the open sheet never shows a stale message.
   const open = rows.find((m) => m.id === openId) ?? null;
 
   return (

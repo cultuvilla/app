@@ -19,6 +19,7 @@ import { ActasAdmin } from './ActasAdmin';
 import { AsambleaChecklist } from './AsambleaChecklist';
 import { LibroDoor } from './LibroDoor';
 import { YearSummaryAdmin } from './YearSummaryAdmin';
+import { SocioAvisoComposer } from './SocioAvisoComposer';
 import { SocioConsentCard } from './SocioConsentCard';
 import { SociosRoster } from './SociosRoster';
 import { TransparentAvisos } from './TransparentAvisos';
@@ -56,10 +57,20 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
   switch (section) {
     case 'avisos': {
       const empty = <Empty text={t('groups.sections.empty.avisos')} />;
-      return org.transparency.avisos ? (
+      const notices = org.transparency.avisos ? (
         <TransparentAvisos orgId={org.id} uid={uid} empty={empty} />
       ) : (
         <GroupNotices orgId={org.id} uid={uid} empty={empty} />
+      );
+      // The junta writes from Gestionar, with everything; a socio from here,
+      // where the group lets them. The server decides either way.
+      return org.sociosSendAvisos && !isAdmin && hasSocioRoster(org.type) ? (
+        <VStack gap={4}>
+          <SocioAvisoComposer orgId={org.id} />
+          {notices}
+        </VStack>
+      ) : (
+        notices
       );
     }
     case 'cuota': {
@@ -126,6 +137,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           socioEmailRequired={org.socioEmailRequired}
           hasRoster={hasSocioRoster(org.type)}
           chatAdminsOnly={org.chatAdminsOnly}
+          sociosSendAvisos={org.sociosSendAvisos}
           cosateca={org.cosateca}
           cuotaEnabled={org.cuotaEnabled}
           actasEnabled={org.actasEnabled}

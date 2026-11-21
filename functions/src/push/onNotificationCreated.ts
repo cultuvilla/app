@@ -3,7 +3,6 @@ import { logger } from 'firebase-functions/v2';
 import { getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
 import {
   pushQueueDoc,
-  userGroupPrefsDoc,
   userNotificationPrefsDoc,
   userNotificationSettingsDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
@@ -17,6 +16,7 @@ import {
   resolveNotificationSettings,
   pushQueueId,
   resolveSendTime,
+  topicPushes,
   type NotificationData,
   type NotificationSettingsData,
 } from '@cultuvilla/shared/models';
@@ -55,6 +55,11 @@ function parseSettings(userId: string, snap: DocumentSnapshot): NotificationSett
  * which is exactly what a `notify()` helper called from seven places could not
  * guarantee.
  *
+ * It is also the one place a push is withheld for good: a topic in
+ * PUSHLESS_TOPICS (a group's avisos) keeps its Buzón entry and never buzzes,
+ * whichever producer wrote it — `sendGroupMessage`, or the `nudgeGroupMessage`
+ * installed binaries still call.
+ *
  * `onDocumentCreated`, not `onWrite`: several producers use deterministic ids
  * so a redelivered Eventarc event overwrites rather than duplicates. An
  * overwrite fires *update*, so that dedup keeps working and a re-run of, say,
@@ -88,6 +93,17 @@ export const onNotificationCreated = onDocumentCreated(
     const category = notificationCategory(notification.type);
     const topic = notificationTopic(notification);
 
+    if (!topicPushes(topic)) {
+      logger.info('No push for this topic; the Buzón has it', {
+        handler: 'onNotificationCreated',
+        userId,
+        notificationId: notifId,
+        type: notification.type,
+        topic,
+      });
+      return;
+    }
+
     const [legacySnap, settingsSnap] = await Promise.all([
       userNotificationPrefsDoc(db, userId).get(),
       userNotificationSettingsDoc(db, userId).withConverter(null).get(),
@@ -106,21 +122,6 @@ export const onNotificationCreated = onDocumentCreated(
         topic,
       });
       return;
-    }
-
-    // A group message is muted per group, never as a category. A chat message
-    // has its own switch, `chatPush`, which decided whether this doc exists at all.
-    if (category === 'groups' && notification.entityId && !notification.chatThreadId) {
-      const groupPrefs = (await userGroupPrefsDoc(db, userId, notification.entityId).get()).data();
-      if (groupPrefs?.messagesMuted) {
-        logger.info('Push suppressed by group mute', {
-          handler: 'onNotificationCreated',
-          userId,
-          notificationId: notifId,
-          orgId: notification.entityId,
-        });
-        return;
-      }
     }
 
     const now = new Date();

@@ -1,7 +1,31 @@
-import { composerInput, emptyComposerForm } from '../messaging';
+import { isSocioGroupMessageInput } from '@cultuvilla/shared/models/organization';
+import { composerInput, emptyComposerForm, socioAvisoInput } from '../messaging';
 
 const ids = { orgId: 'org1', messageId: 'Msg0000000001' };
 const yesNo: [string, string] = ['Sí', 'No'];
+
+describe('socioAvisoInput', () => {
+  it('builds exactly what the server lets a socio send', () => {
+    const out = socioAvisoInput({ title: ' Se vende leña ', body: ' Preguntad por Paco ' }, ids);
+    expect(out).toEqual({
+      input: {
+        ...ids,
+        title: 'Se vende leña',
+        body: 'Preguntad por Paco',
+        audience: { kind: 'all', eventId: null },
+        channels: { push: true, email: false, whatsapp: 'none' },
+        pinned: false,
+        poll: null,
+      },
+    });
+    expect('input' in out && isSocioGroupMessageInput(out.input)).toBe(true);
+  });
+
+  it('asks for the subject, then the text', () => {
+    expect(socioAvisoInput({ title: ' ', body: 'x' }, ids)).toEqual({ error: 'subject' });
+    expect(socioAvisoInput({ title: 'x', body: ' ' }, ids)).toEqual({ error: 'body' });
+  });
+});
 
 describe('composerInput', () => {
   it('builds the callable input from a plain message', () => {

@@ -142,6 +142,22 @@ describe('GroupSettings — what socios can do', () => {
     expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: false });
   });
 
+  it('lets the junta open avisos to its socios, off until it does, and only where there are socios', () => {
+    const off = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} />);
+    const send = off.getByTestId('group-settings-socios-send-avisos');
+    expect(send.props.accessibilityState).toMatchObject({ checked: false });
+    expect(off.getByText('groups.settings.sociosSendAvisos')).toBeTruthy();
+    fireEvent.press(send);
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { sociosSendAvisos: true });
+    off.unmount();
+    const on = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} sociosSendAvisos />);
+    fireEvent.press(on.getByTestId('group-settings-socios-send-avisos'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { sociosSendAvisos: false });
+    on.unmount();
+    const noRoster = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} />);
+    expect(noRoster.queryByTestId('group-settings-socios-send-avisos')).toBeNull();
+  });
+
   it('carries no hint under any switch', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} />);
     expect(r.queryByText(/Hint$|\.hint$/)).toBeNull();

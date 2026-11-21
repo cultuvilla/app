@@ -44,6 +44,33 @@ export function appendPlaceholder(text: string, token: string): string {
   return text === '' || /\s$/.test(text) ? `${text}${token}` : `${text} ${token}`;
 }
 
+/**
+ * A socio's aviso, where the group lets its socios send them: the text, to
+ * every socio, in the app (`isSocioGroupMessageInput`, which the server
+ * enforces). Blank fields come back as the first thing to fix.
+ */
+export function socioAvisoInput(
+  text: { title: string; body: string },
+  ids: { orgId: string; messageId: string },
+): { input: SendGroupMessageInput } | { error: 'subject' | 'body' } {
+  const title = text.title.trim();
+  const body = text.body.trim();
+  if (!title) return { error: 'subject' };
+  if (!body) return { error: 'body' };
+  return {
+    input: {
+      orgId: ids.orgId,
+      messageId: ids.messageId,
+      title,
+      body,
+      audience: { kind: 'all', eventId: null },
+      channels: { push: true, email: false, whatsapp: 'none' },
+      pinned: false,
+      poll: null,
+    },
+  };
+}
+
 export type ComposerError = 'subject' | 'body' | 'event' | 'poll';
 
 /**

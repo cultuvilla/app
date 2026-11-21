@@ -35,6 +35,21 @@ export const NOTIFICATION_TOPICS: readonly NotificationTopic[] = NOTIFICATION_TO
   (section) => NOTIFICATION_TOPIC_SECTIONS[section],
 );
 
+/**
+ * Topics whose notifications never reach the phone as a push: they land in the
+ * Buzón, with its unread state, and nowhere else. A group's avisos are the only
+ * one (decided 2026-11-21, user): a push goes out only where the app writes the
+ * text, and an aviso's text is a person's. Read by the push trigger, which is
+ * what enforces it, and by Ajustes → Notificaciones, which offers no switch for
+ * a push that is never sent. The keys stay in the taxonomy: installed binaries
+ * store them in `mutedTopics`.
+ */
+export const PUSHLESS_TOPICS: readonly NotificationTopic[] = ['group_avisos'];
+
+export function topicPushes(topic: NotificationTopic): boolean {
+  return !PUSHLESS_TOPICS.includes(topic);
+}
+
 export function isNotificationTopic(value: unknown): value is NotificationTopic {
   return typeof value === 'string' && (NOTIFICATION_TOPICS as readonly string[]).includes(value);
 }

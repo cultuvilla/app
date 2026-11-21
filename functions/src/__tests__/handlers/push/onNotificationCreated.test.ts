@@ -91,20 +91,26 @@ describe('onNotificationCreated', () => {
     expect((await queueDoc('n3')).exists).toBe(false);
   });
 
-  it('mutes one group’s messages, and only that group’s', async () => {
+  it('never pushes a group’s aviso — nor its nudge — and queues nothing for it', async () => {
+    // Daytime, no preference stored: nothing else could be what holds it back.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-07-15T10:00:00Z'));
-    await admin.firestore().doc(`users/${UID}/groupPrefs/org-muted`).set({ messagesMuted: true, updatedAt: admin.firestore.Timestamp.now() });
-    await fire('g1', notification('group_message', { entityKind: 'organization', entityId: 'org-muted' }));
+    await fire('group_message_m1', notification('group_message', { entityKind: 'organization', entityId: 'org1' }));
+    await fire('group_message_m1_nudge1', notification('group_message', { entityKind: 'organization', entityId: 'org1' }));
     expect(deliverPush).not.toHaveBeenCalled();
-    expect((await queueDoc('g1')).exists).toBe(false);
+    expect((await queueDoc('group_message_m1')).exists).toBe(false);
+    expect((await queueDoc('group_message_m1_nudge1')).exists).toBe(false);
+  });
 
-    await fire('g2', notification('group_message', { entityKind: 'organization', entityId: 'org-other' }));
+  it('still pushes a chat message of the same group', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-15T10:00:00Z'));
+    await fire('g2', notification('group_message', { entityKind: 'organization', entityId: 'org1', chatThreadId: 'general' }));
     expect(deliverPush).toHaveBeenCalledTimes(1);
     expect((await queueDoc('g2')).data()).toMatchObject({ category: 'groups' });
   });
 
-  it('silencing the avisos leaves a chat the member turned on', async () => {
+  it('a group mute stored by an older binary leaves a chat the member turned on', async () => {
     // Outside quiet hours, or the push is deferred and this fails when run at night.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-07-15T10:00:00Z'));
@@ -205,7 +211,8 @@ describe('onNotificationCreated', () => {
       await settings({ mutedTopics: ['group_chats'] });
       await fire('c2', notification('group_message', { entityKind: 'organization', entityId: 'org1', chatThreadId: 'general' }));
       expect(deliverPush).not.toHaveBeenCalled();
-      await fire('c3', notification('group_message', { entityKind: 'organization', entityId: 'org1' }));
+      // Another group topic is untouched by it.
+      await fire('c3', notification('cuota_reminder', { entityKind: 'organization', entityId: 'org1' }));
       expect(deliverPush).toHaveBeenCalledTimes(1);
     });
 

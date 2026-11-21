@@ -64,15 +64,17 @@ export function buildNotificationPrefsData(
 
 /**
  * A member's push preference for one group's messages, at
- * `users/{uid}/groupPrefs/{orgId}`. Optional like the account's prefs: no doc
- * means the group's messages push. Gates `group_message` pushes only — the
- * Buzón keeps them, and the cuota reminders (push and email) never read it.
+ * `users/{uid}/groupPrefs/{orgId}`. Optional like the account's prefs. Only
+ * `chatPush` still decides anything: `messagesMuted` silenced the avisos'
+ * pushes, and an aviso no longer pushes at all (PUSHLESS_TOPICS). It stays in
+ * the doc because installed binaries write it and the rules require it. The
+ * cuota reminders (push and email) never read this doc.
  */
 export const GroupNotificationPrefsDataSchema = z.object({
   messagesMuted: z.boolean(),
   // Chat messages notify nobody unless they opt in here, one switch for the
   // group's general chat and its avisos' chats. Apart from `messagesMuted`, which
-  // silences only the avisos. Defaults because installed binaries rewrite the whole doc
+  // silenced only the avisos. Defaults because installed binaries rewrite the whole doc
   // without it when they (un)mute — which turns the opt-in off.
   chatPush: z.boolean().default(false),
   // The doc's own id, stored so the chat trigger can find a group's opted-in
@@ -97,9 +99,10 @@ export function buildGroupNotificationPrefsData(input: {
 }
 
 /**
- * How much one group notifies a member, as the three levels Ajustes →
- * Notificaciones offers. Stored as the two switches of the group's prefs doc,
- * which installed binaries still read and write.
+ * How much one group notifies a member. Ajustes → Notificaciones offers `all`
+ * and `avisos` (only what is the person's own); `none` is what installed
+ * binaries still store to silence the avisos, and now equals `avisos`. Stored
+ * as the two switches of the group's prefs doc.
  */
 export const GROUP_NOTIFY_LEVELS = ['all', 'avisos', 'none'] as const;
 export type GroupNotifyLevel = (typeof GROUP_NOTIFY_LEVELS)[number];

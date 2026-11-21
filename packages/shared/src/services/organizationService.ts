@@ -152,6 +152,7 @@ export async function requestOrganization(
     joinPolicy: 'approval',
     sociosListVisible: input.sociosListVisible ?? false,
     chatAdminsOnly: input.chatAdminsOnly ?? false,
+    sociosSendAvisos: false,
     socioPhoneRequired: false,
     socioEmailRequired: false,
     cosateca: { ...DEFAULT_COSATECA_SETTINGS },

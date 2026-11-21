@@ -3,9 +3,11 @@ import { GroupMessagePersonalValuesSchema } from './groupMessagePlaceholders';
 import { ORG_ADMIN_TITLE_SIGNATURE, OrgAdminTitleSchema, type OrgAdminTitle } from './SocioDataModel';
 
 /**
- * A group's messages: composed once by an admin in Gestionar, fanned out by the
- * `sendGroupMessage` callable to push (in-app notification), email and
- * hand-sent WhatsApp links, and kept as the group's history.
+ * A group's messages (avisos): composed once by an admin in Gestionar — or by
+ * a socio, where the group allows it — and fanned out by the `sendGroupMessage`
+ * callable to the app (a Buzón notification; an aviso never pushes, see
+ * PUSHLESS_TOPICS), email and hand-sent WhatsApp links, and kept as the
+ * group's history.
  *
  * - `messages/{messageId}` — the message, its audience and channels, the
  *   accounts it reached (`recipientUids`, which is what lets a recipient read
@@ -109,7 +111,7 @@ export const GroupMessageDeliveryDataSchema = z.object({
   uid: z.string().nullable(),
   socioIds: z.array(z.string()),
   names: z.array(z.string()),
-  /** An in-app notification was written (and pushed, under the account's preferences). */
+  /** An in-app notification was written (the Buzón; an aviso never pushes). */
   push: z.boolean(),
   email: GroupMessageEmailStateSchema.nullable(),
   /** The socio row whose shared phone the WhatsApp link uses; null = no WhatsApp for this recipient. */
@@ -156,6 +158,23 @@ export const SendGroupMessageInputSchema = z.object({
   path: ['poll', 'options'],
 });
 export type SendGroupMessageInput = z.infer<typeof SendGroupMessageInputSchema>;
+
+/**
+ * What a socio who is not an admin may send, where the group lets its socios
+ * send avisos (`sociosSendAvisos`): the text, to every socio, in the app. No
+ * poll, no narrower audience, and neither email nor WhatsApp — those reach
+ * people outside the app in the junta's name. `sendGroupMessage` enforces it.
+ */
+export function isSocioGroupMessageInput(input: Pick<SendGroupMessageInput, 'audience' | 'channels' | 'poll' | 'pinned'>): boolean {
+  return (
+    input.audience.kind === 'all' &&
+    input.poll === null &&
+    !input.pinned &&
+    input.channels.push &&
+    !input.channels.email &&
+    input.channels.whatsapp === 'none'
+  );
+}
 
 export interface SendGroupMessageResult {
   messageId: string;

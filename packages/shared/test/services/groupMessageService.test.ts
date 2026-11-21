@@ -35,7 +35,6 @@ import { setDoc, updateDoc } from 'firebase/firestore';
 import {
   castGroupPollVote,
   markGroupMessageRead,
-  nudgeGroupMessage,
   setGroupNotifyLevel,
   setWhatsappSent,
 } from '../../src/services/groupMessageService';
@@ -83,11 +82,6 @@ describe('groupMessageService', () => {
     expect(vi.mocked(setDoc).mock.calls[0]?.[2]).toEqual({ merge: true });
     await setGroupNotifyLevel('u1', 'org1', 'all');
     expect(call(setDoc, 1).data).toMatchObject({ messagesMuted: false, chatPush: true });
-  });
-
-  it('nudges through the callable', async () => {
-    await expect(nudgeGroupMessage('org1', 'm1')).resolves.toEqual({ nudged: 2 });
-    expect(callable).toHaveBeenCalledWith({ orgId: 'org1', messageId: 'm1' });
   });
 
   describe('a read receipt is written once', () => {

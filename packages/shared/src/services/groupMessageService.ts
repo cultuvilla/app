@@ -19,7 +19,6 @@ import {
   type GroupMessageDeliveryData,
   type GroupMessageReadData,
   type GroupPollVoteData,
-  type NudgeGroupMessageResult,
   type SendGroupMessageInput,
   type SendGroupMessageResult,
 } from '../models/organization/GroupMessageDataModel';
@@ -37,7 +36,7 @@ const ADMIN_HISTORY_LIMIT = 50;
 const MEMBER_NOTICES_LIMIT = 20;
 
 // =============================================================================
-// SENDING — callables (admins only)
+// SENDING — callable
 // =============================================================================
 
 /** A fresh id for the composer: the callable keys the message on it, so a retry sends nothing twice. */
@@ -45,16 +44,14 @@ export function newGroupMessageId(orgId: string): string {
   return doc(organizationMessagesCollection(getDb(), orgId)).id;
 }
 
-/** Admin: send a message. The server resolves the audience and fans out push, email and the WhatsApp list. */
+/**
+ * Send an aviso: an admin, or a socio where the group lets its socios send
+ * them (`isSocioGroupMessageInput`). The server resolves the audience and fans
+ * out the Buzón notification, email and the WhatsApp list.
+ */
 export async function sendGroupMessage(input: SendGroupMessageInput): Promise<SendGroupMessageResult> {
   const fn = httpsCallable<SendGroupMessageInput, SendGroupMessageResult>(getFirebaseFunctions(), 'sendGroupMessage');
   return (await fn(input)).data;
-}
-
-/** Admin: push the message again to the recipients who have not opened it. */
-export async function nudgeGroupMessage(orgId: string, messageId: string): Promise<NudgeGroupMessageResult> {
-  const fn = httpsCallable<{ orgId: string; messageId: string }, NudgeGroupMessageResult>(getFirebaseFunctions(), 'nudgeGroupMessage');
-  return (await fn({ orgId, messageId })).data;
 }
 
 // =============================================================================

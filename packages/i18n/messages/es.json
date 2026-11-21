@@ -1394,10 +1394,6 @@
           "label": "Resumen de las fiestas",
           "hint": "Cuando sale el resumen del año, y al equipo del pueblo, el recordatorio para prepararlo."
         },
-        "group_avisos": {
-          "label": "Avisos de la junta",
-          "hint": "Lo que la junta envía a los integrantes. Puedes silenciar cada grupo por separado."
-        },
         "group_chats": {
           "label": "Charlas",
           "hint": "Mensajes en las charlas de los grupos donde los has activado."
@@ -1455,11 +1451,6 @@
         "title": "Por grupo",
         "hint": "Elige cuánto te avisa cada grupo.",
         "levels": {
-          "all": "De todo",
-          "avisos": "Solo avisos y lo que me toca",
-          "none": "Nada"
-        },
-        "levelsNoAvisos": {
           "all": "De todo",
           "avisos": "Solo lo que me toca"
         },
@@ -2086,6 +2077,7 @@
       "socioPhoneRequired": "Pedir el teléfono a los socios",
       "socioEmailRequired": "Pedir el email a los socios",
       "chatMembersWrite": "Escribir en la Charla",
+      "sociosSendAvisos": "Enviar avisos",
       "error": "No se ha podido guardar el ajuste.",
       "cosateca": "Cosateca",
       "cuotaEnabled": "Cuota",
@@ -2628,6 +2620,9 @@
       "no": "No",
       "send": "Enviar",
       "sent": "Enviado a {count, plural, one {1 persona} other {# personas}}.",
+      "socioCompose": "Enviar un aviso",
+      "socioComposeHint": "Llega a todos los socios en la app, con tu nombre.",
+      "socioNotAllowed": "La junta ya no permite a los socios enviar avisos.",
       "sentWhatsapp": "Ahora envía los WhatsApp desde el mensaje, en el historial.",
       "error": "No se ha podido enviar. Inténtalo de nuevo.",
       "summary": "{date} · {audience}",
@@ -2637,9 +2632,6 @@
       "readBy": "Leído por {read} de {total}",
       "unread": "Sin leer",
       "allRead": "Todos lo han leído.",
-      "nudge": "Recordárselo a quien no lo ha leído",
-      "nudged": "Recordado a {count, plural, one {1 persona} other {# personas}}.",
-      "nudgeWait": "Podrás volver a recordarlo a partir de {date}.",
       "pollResults": "Resultados",
       "votes": "{count, plural, one {1 voto} other {# votos}}",
       "noVotes": "Todavía no ha votado nadie.",
@@ -2666,7 +2658,6 @@
       "placeholderHint": "Toca para añadirlo. A cada socio le llega con sus datos; lo que no tenga, o lo que no sea para todos, se quita.",
       "whatsappShare": "Compartir en WhatsApp",
       "readBar": "{read} de {total} lo han leído",
-      "remind": "Recordar a {count}",
       "pollTally": "{count} {option}",
       "pollNoVote": "{count} sin votar",
       "recipientCount": "{count, plural, one {1 destinatario} other {# destinatarios}}"

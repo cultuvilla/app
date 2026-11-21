@@ -77,6 +77,12 @@ export const OrganizationDataSchema = z.object({
   // installed binaries create orgs without it; existing docs are backfilled by
   // scripts/backfill-org-chat-admins-only.mjs.
   chatAdminsOnly: z.boolean().default(false),
+  // "Enviar avisos": when true, any socio of a group with a roster may send an
+  // aviso to every socio — text only, in the app only (see
+  // isSocioGroupMessageInput). Off unless an admin turns it on. Defaults because
+  // installed binaries create orgs without it; existing docs are backfilled by
+  // scripts/backfill-org-socios-send-avisos.mjs.
+  sociosSendAvisos: z.boolean().default(false),
   // Whether being a socio means sharing the account's phone or email with the
   // group's admins (see socioContactMissing). Default because no installed
   // binary writes them.
@@ -128,6 +134,7 @@ export interface OrganizationDataInput {
   joinPolicy?: OrgJoinPolicy;
   sociosListVisible?: boolean;
   chatAdminsOnly?: boolean;
+  sociosSendAvisos?: boolean;
   socioPhoneRequired?: boolean;
   socioEmailRequired?: boolean;
   cosateca?: CosatecaSettings;
@@ -157,6 +164,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     joinPolicy: input.joinPolicy ?? 'approval',
     sociosListVisible: input.sociosListVisible ?? false,
     chatAdminsOnly: input.chatAdminsOnly ?? false,
+    sociosSendAvisos: input.sociosSendAvisos ?? false,
     socioPhoneRequired: input.socioPhoneRequired ?? false,
     socioEmailRequired: input.socioEmailRequired ?? false,
     cosateca: input.cosateca ?? { ...DEFAULT_COSATECA_SETTINGS },

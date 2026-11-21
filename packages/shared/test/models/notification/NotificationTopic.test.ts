@@ -10,6 +10,7 @@ import {
   buildNotificationData,
   notificationCategory,
   notificationTopic,
+  topicPushes,
   type NotificationType,
 } from '../../../src/models/notification';
 
@@ -35,6 +36,12 @@ describe('notificationTopic', () => {
   it('splits a group’s avisos from its chats', () => {
     expect(notificationTopic(note('group_message'))).toBe('group_avisos');
     expect(notificationTopic(note('group_message', { chatThreadId: 'general' }))).toBe('group_chats');
+  });
+
+  it('pushes every topic but a group’s avisos, whose text is a person’s', () => {
+    expect(NOTIFICATION_TOPICS.filter((topic) => !topicPushes(topic))).toEqual(['group_avisos']);
+    expect(topicPushes(notificationTopic(note('group_message', { chatThreadId: 'general' })))).toBe(true);
+    expect(topicPushes(notificationTopic(note('cuota_reminder')))).toBe(true);
   });
 
   it('reads the stamped topic of a group_task, and only a group_task topic', () => {
