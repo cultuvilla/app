@@ -245,6 +245,11 @@ onFlowComplete:
     file: ../subflows/tap-until.yaml
     env:
       TAP: 'socios-add'
+      EXPECT: 'socios-add-sheet'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'socios-add-sheet-typed'
       EXPECT: 'typed-socio-sheet'
 # Phone first: a phone pad has no Return key on iOS, and the name typed after
 # it is a text field close-sheet-keyboard can blur.
