@@ -13,8 +13,9 @@
  * junta — presidente and secretario — and wrote everything: the cuota, the
  * payments, the tasks, the avisos, the actas, the accounts and the events.
  *
- * Every doc but the memberships has a `seed-gd-` id and `seedBatch: group-demo`;
- * `--wipe` deletes them by id. Memberships are left in place (leaving the group
+ * Every doc but the memberships has a `seed-gd-` id, and `--wipe` deletes them by
+ * id. No doc carries a seed tag: the strict `keys().hasOnly` rules would refuse every
+ * client edit of it. Memberships are left in place (leaving the group
  * is the user's call) — the roster trigger owns the user's socio row either way.
  * Reminders stay off, and typed socios carry no email, so nothing is sent.
  */
@@ -36,7 +37,6 @@ import { ensureDemoPerson } from './lib/demo-people.mjs';
 
 const BATCH = 'group-demo';
 const AS_MEMBER = process.env.GROUP_DEMO_ROLE === 'member';
-const tag = (data) => ({ ...data, seedBatch: BATCH });
 const id = (kind, n) => `seed-gd-${kind}-${String(n).padStart(2, '0')}`;
 
 const TYPED = [
@@ -144,46 +144,44 @@ async function seed(orgId, uid, secondOrgId) {
   const batch = db.batch();
   const socios = TYPED.map(([name, alta], i) => ({ id: id('socio', i + 1), name, n: i + 1, alta }));
   for (const s of socios) {
-    batch.set(db.doc(`${o}/socios/${s.id}`), tag(buildSocioData({ kind: 'typed', socioNumber: 100 + s.n, displayName: s.name, altaAt: new Date(`${s.alta}T10:00:00Z`), createdBy: author })));
-    if (PHONES[s.n]) batch.set(db.doc(`${o}/socioPrivate/${s.id}`), tag(buildSocioPrivateData({ phone: PHONES[s.n] })));
+    batch.set(db.doc(`${o}/socios/${s.id}`), buildSocioData({ kind: 'typed', socioNumber: 100 + s.n, displayName: s.name, altaAt: new Date(`${s.alta}T10:00:00Z`), createdBy: author }));
+    if (PHONES[s.n]) batch.set(db.doc(`${o}/socioPrivate/${s.id}`), buildSocioPrivateData({ phone: PHONES[s.n] }));
     if (JUBILADOS.has(s.n) || EXEMPT.has(s.n)) {
       batch.set(
         db.doc(`${o}/cuotaAssignments/${s.id}`),
-        tag(buildCuotaAssignmentData({ tierId: JUBILADOS.has(s.n) ? 'jubilados' : null, exempt: EXEMPT.has(s.n), updatedBy: author })),
+        buildCuotaAssignmentData({ tierId: JUBILADOS.has(s.n) ? 'jubilados' : null, exempt: EXEMPT.has(s.n), updatedBy: author }),
       );
     }
   }
 
   batch.set(
     db.doc(`${o}/cuotaSettings/current`),
-    tag(
-      buildCuotaSettingsData({
-        amountCents: 1200,
-        periodicity: 'yearly',
-        dueMonth: 3,
-        dueDay: 15,
-        graceDays: 30,
-        startPeriod: '2025',
-        tiers: [{ id: 'jubilados', name: 'Jubilados', amountCents: 600, coversPersonas: false }],
-        bizum: '600 000 000',
-        iban: 'ES00 0000 0000 0000 0000 0000',
-        payInstructions: 'Pon tu nombre en el concepto. Si pagas en mano, dáselo a cualquiera de la junta.',
-        remindersEnabled: false,
-        configuredBy: author,
-      }),
-    ),
+    buildCuotaSettingsData({
+      amountCents: 1200,
+      periodicity: 'yearly',
+      dueMonth: 3,
+      dueDay: 15,
+      graceDays: 30,
+      startPeriod: '2025',
+      tiers: [{ id: 'jubilados', name: 'Jubilados', amountCents: 600, coversPersonas: false }],
+      bizum: '600 000 000',
+      iban: 'ES00 0000 0000 0000 0000 0000',
+      payInstructions: 'Pon tu nombre en el concepto. Si pagas en mano, dáselo a cualquiera de la junta.',
+      remindersEnabled: false,
+      configuredBy: author,
+    }),
   );
   const amount = (n) => (JUBILADOS.has(n) ? 600 : 1200);
   socios.forEach((s, i) => {
     const method = METHODS[i % METHODS.length];
     if (PAID_2025.includes(s.n)) {
-      batch.set(db.doc(`${o}/cuotaPayments/${id('pay25', s.n)}`), tag(buildCuotaPaymentData({ socioId: s.id, periodKey: '2025', amountCents: amount(s.n), method, paidOn: `2025-0${3 + (i % 6)}-1${i % 9}`, recordedBy: author })));
+      batch.set(db.doc(`${o}/cuotaPayments/${id('pay25', s.n)}`), buildCuotaPaymentData({ socioId: s.id, periodKey: '2025', amountCents: amount(s.n), method, paidOn: `2025-0${3 + (i % 6)}-1${i % 9}`, recordedBy: author }));
     }
     if (PAID_2026.includes(s.n)) {
-      batch.set(db.doc(`${o}/cuotaPayments/${id('pay26', s.n)}`), tag(buildCuotaPaymentData({ socioId: s.id, periodKey: '2026', amountCents: amount(s.n), method, paidOn: `2026-0${3 + (i % 5)}-2${i % 8}`, recordedBy: author })));
+      batch.set(db.doc(`${o}/cuotaPayments/${id('pay26', s.n)}`), buildCuotaPaymentData({ socioId: s.id, periodKey: '2026', amountCents: amount(s.n), method, paidOn: `2026-0${3 + (i % 5)}-2${i % 8}`, recordedBy: author }));
     }
   });
-  batch.set(db.doc(`${o}/cuotaPayments/${id('pay25', 0)}`), tag(buildCuotaPaymentData({ socioId: me.id, periodKey: '2025', amountCents: 1200, method: 'bizum', paidOn: '2025-04-03', recordedBy: author })));
+  batch.set(db.doc(`${o}/cuotaPayments/${id('pay25', 0)}`), buildCuotaPaymentData({ socioId: me.id, periodKey: '2025', amountCents: 1200, method: 'bizum', paidOn: '2025-04-03', recordedBy: author }));
 
   const tasks = [
     { title: 'Comprar leña para la matanza', assigneeUids: [uid], dueOn: dayKey(5), notes: 'Dos remolques. Preguntar el precio de este año.' },
@@ -202,13 +200,13 @@ async function seed(orgId, uid, secondOrgId) {
     const { done, ...input } = task;
     const data = buildGroupTaskData({ ...input, createdBy: author });
     if (done) Object.assign(data, { doneAt: new Date(Date.now() - 18 * 86_400_000), doneBy: sender });
-    batch.set(db.doc(`${o}/tasks/${id('task', i + 1)}`), tag(data));
+    batch.set(db.doc(`${o}/tasks/${id('task', i + 1)}`), data);
   });
 
   const message = (n, data) =>
     batch.set(
       db.doc(`${o}/messages/${id('msg', n)}`),
-      tag({
+      {
         audience: { kind: 'all', eventId: null, eventTitle: null },
         channels: { push: true, email: false, whatsapp: 'none' },
         pinned: false,
@@ -224,7 +222,7 @@ async function seed(orgId, uid, secondOrgId) {
         nudgeCount: 0,
         lastNudgedAt: null,
         ...data,
-      }),
+      },
     );
   message(1, { title: 'Cena de la peña: apuntaos antes del 20 de noviembre', body: 'Este año la cena es el sábado 22 en el local. 15 € socios, 20 € no socios. Decídselo a cualquiera de la junta.', pinned: true, sentAt: new Date(Date.now() - 2 * 86_400_000) });
   message(2, { title: 'Excursión de primavera', body: 'Estamos pensando en una excursión en mayo. ¿Adónde os gustaría ir?', poll: { question: '¿Adónde vamos?', kind: 'choice', options: ['Ribera del Duero', 'Sierra de Gredos', 'Segovia'] }, sentAt: new Date(Date.now() - 5 * 86_400_000) });
@@ -234,34 +232,30 @@ async function seed(orgId, uid, secondOrgId) {
   const attendees = [me, ...socios.slice(0, 7)].map((s) => ({ socioId: s.id, name: s.name }));
   batch.set(
     db.doc(`${o}/actas/${id('acta', 1)}`),
-    tag(
-      buildActaData({
-        body: 'asamblea_general',
-        heldOn: '2026-03-21',
-        place: 'Local de la peña',
-        attendees,
-        otherAttendees: 3,
-        agenda: ['Lectura del acta anterior', 'Cuentas de 2025', 'Cuota de 2026', 'Fiestas de agosto'],
-        agreements: ['Se aprueban las cuentas de 2025.', 'La cuota se mantiene en 12 €, 6 € para jubilados.', 'La comida de fiestas será el 15 de agosto.'],
-        visibleToSocios: true,
-        createdBy: author,
-      }),
-    ),
+    buildActaData({
+      body: 'asamblea_general',
+      heldOn: '2026-03-21',
+      place: 'Local de la peña',
+      attendees,
+      otherAttendees: 3,
+      agenda: ['Lectura del acta anterior', 'Cuentas de 2025', 'Cuota de 2026', 'Fiestas de agosto'],
+      agreements: ['Se aprueban las cuentas de 2025.', 'La cuota se mantiene en 12 €, 6 € para jubilados.', 'La comida de fiestas será el 15 de agosto.'],
+      visibleToSocios: true,
+      createdBy: author,
+    }),
   );
   batch.set(
     db.doc(`${o}/actas/${id('acta', 2)}`),
-    tag(
-      buildActaData({
-        body: 'junta_directiva',
-        heldOn: '2026-09-12',
-        place: 'Local de la peña',
-        attendees: attendees.slice(0, 4),
-        agenda: ['Balance de las fiestas', 'Cena de noviembre'],
-        agreements: ['Se reserva el local para el 22 de noviembre.'],
-        visibleToSocios: false,
-        createdBy: author,
-      }),
-    ),
+    buildActaData({
+      body: 'junta_directiva',
+      heldOn: '2026-09-12',
+      place: 'Local de la peña',
+      attendees: attendees.slice(0, 4),
+      agenda: ['Balance de las fiestas', 'Cena de noviembre'],
+      agreements: ['Se reserva el local para el 22 de noviembre.'],
+      visibleToSocios: false,
+      createdBy: author,
+    }),
   );
 
   [
@@ -269,7 +263,7 @@ async function seed(orgId, uid, secondOrgId) {
     { kind: 'expense', amountCents: 18000, on: '2026-01-20', concept: 'Seguro de responsabilidad civil', category: 'Seguros' },
     { kind: 'expense', amountCents: 62000, on: '2026-08-15', concept: 'Comida de fiestas', category: 'Fiestas' },
     { kind: 'income', amountCents: 21000, on: '2026-08-15', concept: 'Rifa de fiestas', category: 'Fiestas' },
-  ].forEach((e, i) => batch.set(db.doc(`${o}/ledgerEntries/${id('entry', i + 1)}`), tag(buildLedgerEntryData({ ...e, recordedBy: author }))));
+  ].forEach((e, i) => batch.set(db.doc(`${o}/ledgerEntries/${id('entry', i + 1)}`), buildLedgerEntryData({ ...e, recordedBy: author })));
 
   const coords = mun.coordinates ? { lat: mun.coordinates.lat, lng: mun.coordinates.lng } : null;
   const at = (days, hour) => {
@@ -284,22 +278,20 @@ async function seed(orgId, uid, secondOrgId) {
   ].forEach((ev, i) =>
     batch.set(
       db.doc(`events/${id(`event-${orgId}`, i + 1)}`),
-      tag(
-        buildEventData({
-          ...ev,
-          location: buildLocationData({
-            coordinates: coords ? new GeoPoint(coords.lat, coords.lng) : null,
-            displayName: `Local de ${org.name}`,
-          }),
-          organizerUserIds: [author],
-          organizerOrgIds: [orgId],
-          createdBy: author,
-          municipalityId: org.municipalityId,
-          villageName: mun.name ?? '',
-          villageSlug: org.villageSlug,
-          villageCoordinates: coords,
+      buildEventData({
+        ...ev,
+        location: buildLocationData({
+          coordinates: coords ? new GeoPoint(coords.lat, coords.lng) : null,
+          displayName: `Local de ${org.name}`,
         }),
-      ),
+        organizerUserIds: [author],
+        organizerOrgIds: [orgId],
+        createdBy: author,
+        municipalityId: org.municipalityId,
+        villageName: mun.name ?? '',
+        villageSlug: org.villageSlug,
+        villageCoordinates: coords,
+      }),
     ),
   );
 
