@@ -37,6 +37,7 @@ import {
 } from '../../models/organization/CuotaDataModel';
 import { GroupTaskDataSchema, TaskReminderDataSchema, TaskTemplateDataSchema } from '../../models/organization/GroupTaskDataModel';
 import { ActaDataSchema, LedgerEntryDataSchema } from '../../models/organization/RecordsDataModel';
+import { LedgerCategoryDataSchema } from '../../models/organization/LedgerCategoryDataModel';
 import {
   GroupMessageDataSchema,
   GroupMessageDeliveryDataSchema,
@@ -149,6 +150,7 @@ export const COLLECTIONS = {
   organizationTaskReminders: def('organizations/{organizationId}/taskReminders', TaskReminderDataSchema),
   organizationActas: def('organizations/{organizationId}/actas', ActaDataSchema),
   organizationLedgerEntries: def('organizations/{organizationId}/ledgerEntries', LedgerEntryDataSchema),
+  organizationLedgerCategories: def('organizations/{organizationId}/ledgerCategories', LedgerCategoryDataSchema),
   organizationMessages: def('organizations/{organizationId}/messages', GroupMessageDataSchema),
   organizationMessageDeliveries: def('organizations/{organizationId}/messages/{messageId}/deliveries', GroupMessageDeliveryDataSchema),
   organizationMessageReads: def('organizations/{organizationId}/messages/{messageId}/reads', GroupMessageReadDataSchema),

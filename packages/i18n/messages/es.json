@@ -2525,8 +2525,24 @@
           "concept": "Concepto",
           "conceptRequired": "Escribe el concepto.",
           "category": "Categoría (opcional)",
-          "save": "Anotar"
+          "save": "Anotar",
+          "newCategory": "+ Nueva",
+          "newCategoryName": "Nombre de la categoría",
+          "newCategoryAdd": "Añadir"
         }
+      },
+      "categories": {
+        "open": "Categorías",
+        "title": "Categorías",
+        "intro": "Las que elegís al anotar un ingreso o un gasto. Cambiarlas no toca lo ya anotado.",
+        "empty": "Ninguna todavía. Se crean al anotar.",
+        "rename": "Renombrar",
+        "delete": "Borrar",
+        "save": "Guardar",
+        "nameRequired": "Escribe un nombre.",
+        "nameTaken": "Ya hay una categoría con ese nombre.",
+        "confirmDeleteTitle": "Borrar la categoría",
+        "confirmDeleteBody": "«{name}» deja de ofrecerse al anotar. Lo ya anotado la conserva."
       }
     },
     "chat": {

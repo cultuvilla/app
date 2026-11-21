@@ -1,8 +1,9 @@
 import { Alert, Share } from 'react-native';
 import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
-import { buildActaData, buildGroupTaskData, buildLedgerEntryData, buildSocioData, type SocioDataInput } from '@cultuvilla/shared/models/organization';
+import { buildActaData, buildGroupTaskData, buildLedgerCategoryData, buildLedgerEntryData, buildSocioData, type SocioDataInput } from '@cultuvilla/shared/models/organization';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import { createActa, deleteActa, recordLedgerEntry, reverseLedgerEntry, updateActa } from '@cultuvilla/shared/services/recordsService';
+import { createLedgerCategory, deleteLedgerCategory, renameLedgerCategory } from '@cultuvilla/shared/services/ledgerCategoryService';
 import { router } from 'expo-router';
 import { downloadFile } from '../../../../lib/export/downloadFile';
 import { buildWorkbook } from '../../../../lib/export/rosterWorkbook';
@@ -37,6 +38,7 @@ jest.mock('@cultuvilla/shared/services/recordsService', () => {
     watchActas: mockWatcher('actas'),
     watchSocioVisibleActas: mockWatcher('visibleActas'),
     watchLedgerEntriesForYear: mockWatcher('ledger'),
+    watchAllLedgerEntries: mockWatcher('allLedger'),
     createActa: jest.fn().mockResolvedValue('new'),
     updateActa: jest.fn().mockResolvedValue(undefined),
     deleteActa: jest.fn().mockResolvedValue(undefined),
@@ -44,6 +46,12 @@ jest.mock('@cultuvilla/shared/services/recordsService', () => {
     reverseLedgerEntry: jest.fn().mockResolvedValue(undefined),
   };
 });
+jest.mock('@cultuvilla/shared/services/ledgerCategoryService', () => ({
+  watchLedgerCategories: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('ledgerCategories'),
+  createLedgerCategory: jest.fn().mockResolvedValue('new'),
+  renameLedgerCategory: jest.fn().mockResolvedValue(undefined),
+  deleteLedgerCategory: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('@cultuvilla/shared/services/cuotaService', () => ({
   watchCuotaPaymentsForYear: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('cuotaYear'),
 }));
@@ -78,6 +86,9 @@ const EXPENSE = {
   id: 'e1',
   ...buildLedgerEntryData({ kind: 'expense', amountCents: 12000, on: `${YEAR}-02-01`, concept: 'Orquesta', category: 'Fiestas', recordedBy: 'u-admin' }),
 };
+
+const ORQUESTA = { id: 'expense_orquesta', ...buildLedgerCategoryData({ name: 'Orquesta', kind: 'expense', createdBy: 'u-admin' }) };
+const LOTERIA = { id: 'income_loter%C3%ADa', ...buildLedgerCategoryData({ name: 'Lotería', kind: 'income', createdBy: 'u-admin' }) };
 
 function pressConfirm() {
   const buttons = (jest.mocked(Alert.alert).mock.calls.at(-1)?.[2] ?? []) as { onPress?: () => void }[];
@@ -119,6 +130,8 @@ beforeEach(() => {
   setWatched('actas', [ACTA]);
   setWatched('tasks', []);
   setWatched('ledger', [EXPENSE]);
+  setWatched('allLedger', [EXPENSE]);
+  setWatched('ledgerCategories', [ORQUESTA, LOTERIA]);
   setWatched('cuotaYear', [
     { id: 'c1', socioId: 'Ana', periodKey: YEAR, kind: 'payment', reversesId: null, amountCents: 3000, method: 'bizum', paidOn: `${YEAR}-01-10`, note: null, recordedBy: 'u-admin', recordedAt: new Date() },
   ]);
@@ -320,7 +333,7 @@ describe('Cuentas del año', () => {
     fireEvent.press(within(getByTestId('ledger-kind')).getByTestId('ledger-kind-income'));
     fireEvent.changeText(getByTestId('ledger-amount'), '300');
     fireEvent.changeText(getByTestId('ledger-concept'), 'Lotería de Navidad');
-    fireEvent.changeText(getByTestId('ledger-category'), 'Lotería');
+    fireEvent.press(getByTestId('ledger-category-Lotería'));
     fireEvent.press(getByTestId('ledger-save'));
     await waitFor(() =>
       expect(recordLedgerEntry).toHaveBeenCalledWith(
@@ -329,6 +342,94 @@ describe('Cuentas del año', () => {
         'u-admin',
       ),
     );
+    expect(createLedgerCategory).not.toHaveBeenCalled();
+  });
+
+  it('offers only the categories of the chosen kind, past names included, and none chosen saves no category', async () => {
+    const { getByTestId, queryByTestId } = renderYear();
+    fireEvent.press(getByTestId('ledger-add'));
+    expect(within(getByTestId('ledger-category')).getByTestId('ledger-category-new')).toBeTruthy();
+    // Gasto by default: the stored Orquesta and Fiestas, which only a past entry used.
+    expect(getByTestId('ledger-category-Orquesta')).toBeTruthy();
+    expect(getByTestId('ledger-category-Fiestas')).toBeTruthy();
+    expect(queryByTestId('ledger-category-Lotería')).toBeNull();
+    fireEvent.press(within(getByTestId('ledger-kind')).getByTestId('ledger-kind-income'));
+    expect(getByTestId('ledger-category-Lotería')).toBeTruthy();
+    expect(queryByTestId('ledger-category-Orquesta')).toBeNull();
+
+    fireEvent.changeText(getByTestId('ledger-amount'), '10');
+    fireEvent.changeText(getByTestId('ledger-concept'), 'Donativo');
+    fireEvent.press(getByTestId('ledger-save'));
+    await waitFor(() =>
+      expect(recordLedgerEntry).toHaveBeenCalledWith('org1', expect.objectContaining({ kind: 'income', category: null }), 'u-admin'),
+    );
+  });
+
+  it('picking a name only past entries used adds it to the list', async () => {
+    const { getByTestId } = renderYear();
+    fireEvent.press(getByTestId('ledger-add'));
+    fireEvent.press(getByTestId('ledger-category-Fiestas'));
+    expect(createLedgerCategory).toHaveBeenCalledWith('org1', { kind: 'expense', name: 'Fiestas' }, 'u-admin');
+    fireEvent.changeText(getByTestId('ledger-amount'), '50');
+    fireEvent.changeText(getByTestId('ledger-concept'), 'Cohetes');
+    fireEvent.press(getByTestId('ledger-save'));
+    await waitFor(() =>
+      expect(recordLedgerEntry).toHaveBeenCalledWith('org1', expect.objectContaining({ category: 'Fiestas' }), 'u-admin'),
+    );
+  });
+
+  it('"+ Nueva" creates a category on the spot and chooses it; an existing name in another case is reused', async () => {
+    const { getByTestId } = renderYear();
+    fireEvent.press(getByTestId('ledger-add'));
+    fireEvent.press(getByTestId('ledger-category-new'));
+    fireEvent.changeText(getByTestId('ledger-category-name'), '  Seguro  ');
+    fireEvent.press(getByTestId('ledger-category-add'));
+    expect(createLedgerCategory).toHaveBeenCalledWith('org1', { kind: 'expense', name: 'Seguro' }, 'u-admin');
+
+    fireEvent.press(getByTestId('ledger-category-new'));
+    fireEvent.changeText(getByTestId('ledger-category-name'), 'orquesta');
+    fireEvent.press(getByTestId('ledger-category-add'));
+    expect(createLedgerCategory).toHaveBeenCalledTimes(1);
+    expect(getByTestId('ledger-category-Orquesta')).toHaveProp('accessibilityState', { selected: true });
+
+    fireEvent.changeText(getByTestId('ledger-amount'), '200');
+    fireEvent.changeText(getByTestId('ledger-concept'), 'Verbena');
+    fireEvent.press(getByTestId('ledger-save'));
+    await waitFor(() =>
+      expect(recordLedgerEntry).toHaveBeenCalledWith('org1', expect.objectContaining({ category: 'Orquesta' }), 'u-admin'),
+    );
+  });
+
+  it('the Categorías sheet renames and deletes, and refuses a name already taken', () => {
+    const { getByTestId, getByText } = renderYear();
+    fireEvent.press(getByTestId('ledger-categories-open'));
+    expect(getByTestId('ledger-categories-sheet')).toBeTruthy();
+    expect(within(getByTestId('ledger-category-row-expense_orquesta')).getByText('Orquesta')).toBeTruthy();
+    expect(within(getByTestId('ledger-categories-expense')).getByText('Orquesta')).toBeTruthy();
+    expect(within(getByTestId('ledger-categories-income')).getByText('Lotería')).toBeTruthy();
+
+    fireEvent.press(getByTestId('ledger-category-rename-expense_orquesta'));
+    fireEvent.changeText(getByTestId('ledger-category-rename-input-expense_orquesta'), '   ');
+    fireEvent.press(getByTestId('ledger-category-rename-save-expense_orquesta'));
+    expect(getByText('groups.records.categories.nameRequired')).toBeTruthy();
+    fireEvent.changeText(getByTestId('ledger-category-rename-input-expense_orquesta'), 'Música');
+    fireEvent.press(getByTestId('ledger-category-rename-save-expense_orquesta'));
+    expect(renameLedgerCategory).toHaveBeenCalledWith('org1', expect.objectContaining({ id: 'expense_orquesta' }), 'Música', 'u-admin');
+
+    fireEvent.press(getByTestId('ledger-category-delete-income_loter%C3%ADa'));
+    pressConfirm();
+    expect(deleteLedgerCategory).toHaveBeenCalledWith('org1', 'income_loter%C3%ADa');
+  });
+
+  it('a rename to a name the kind already has is refused', () => {
+    setWatched('ledgerCategories', [ORQUESTA, { id: 'expense_bar', ...buildLedgerCategoryData({ name: 'Bar', kind: 'expense', createdBy: 'u-admin' }) }]);
+    const { getByTestId, getByText } = renderYear();
+    fireEvent.press(getByTestId('ledger-categories-open'));
+    fireEvent.press(getByTestId('ledger-category-rename-expense_orquesta'));
+    fireEvent.changeText(getByTestId('ledger-category-rename-input-expense_orquesta'), 'BAR');
+    fireEvent.press(getByTestId('ledger-category-rename-save-expense_orquesta'));
+    expect(getByText('groups.records.categories.nameTaken')).toBeTruthy();
+    expect(renameLedgerCategory).not.toHaveBeenCalled();
   });
 
   it('never steps past the current year', () => {

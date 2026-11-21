@@ -331,7 +331,14 @@ export const organizationActasCollection = (db: Firestore, organizationId: strin
 export const organizationLedgerEntriesCollection = (db: Firestore, organizationId: string) =>
   typedCollection(db, C.organizationLedgerEntries, organizationId);
 
-const RECORDS_WRITE = { actas: C.organizationActas, ledgerEntries: C.organizationLedgerEntries } as const;
+export const organizationLedgerCategoriesCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationLedgerCategories, organizationId);
+
+const RECORDS_WRITE = {
+  actas: C.organizationActas,
+  ledgerEntries: C.organizationLedgerEntries,
+  ledgerCategories: C.organizationLedgerCategories,
+} as const;
 
 /** Unconverted, for records writes only — see `rawDoc`. */
 export const organizationRecordsWriteDoc = (
