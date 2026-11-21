@@ -65,7 +65,7 @@ jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
   signOut: jest.fn(),
 }));
 
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getUserProfile, setActiveMunicipality } from '@cultuvilla/shared/services/userService';
 import { clearLocalCacheAndRestart } from '../clearLocalCache';
 
 jest.mock('../clearLocalCache', () => ({ clearLocalCacheAndRestart: jest.fn(async () => undefined) }));
@@ -318,6 +318,43 @@ describe('a failed profile read', () => {
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
     await waitFor(() => expect(result.current.profile).not.toBeNull(), { timeout: 5000 });
     expect(result.current.profileChecked).toBe(true);
+  });
+});
+
+// Device QA, offline: switching village hung. On the native SDK an offline
+// write resolves only on the server's ack, though the cache holds it at once,
+// so the switch must move the profile without waiting for it.
+describe('switchActiveVillage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchUserIdHash as jest.Mock).mockResolvedValue(FAKE_HASH);
+    mockAuthUser = { uid: FAKE_UID, email: 'a@b.com', delete: jest.fn().mockResolvedValue(undefined) };
+    (getUserProfile as jest.Mock).mockResolvedValue({ email: 'a@b.com', activeMunicipalityId: 'm1' });
+  });
+
+  it('moves the active village at once, while the write is still unacknowledged', async () => {
+    (setActiveMunicipality as jest.Mock).mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile?.activeMunicipalityId).toBe('m1'));
+    const reads = (getUserProfile as jest.Mock).mock.calls.length;
+
+    act(() => result.current.switchActiveVillage('m2'));
+
+    expect(result.current.profile?.activeMunicipalityId).toBe('m2');
+    expect(setActiveMunicipality).toHaveBeenCalledWith(FAKE_UID, 'm2');
+    expect(getUserProfile).toHaveBeenCalledTimes(reads);
+  });
+
+  it('reports a refused write and re-reads the profile', async () => {
+    const refused = new Error('permission-denied');
+    (setActiveMunicipality as jest.Mock).mockRejectedValue(refused);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile?.activeMunicipalityId).toBe('m1'));
+
+    await act(async () => result.current.switchActiveVillage('m2'));
+
+    await waitFor(() => expect(result.current.profile?.activeMunicipalityId).toBe('m1'));
+    expect(observability.captureError).toHaveBeenCalledWith(refused, { operation: 'auth:switchActiveVillage' });
   });
 });
 

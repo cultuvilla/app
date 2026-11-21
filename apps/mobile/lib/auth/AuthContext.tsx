@@ -193,6 +193,13 @@ export interface AuthContextValue {
   profileLoading: boolean;
   profileChecked: boolean;
   refreshProfile: () => Promise<void>;
+  /**
+   * Make a village the active one. The profile moves at once and the write is
+   * not awaited: on the native SDK an offline write resolves only on the
+   * server's ack, though the cache holds it immediately and it syncs on
+   * reconnect. A refused write is reported and the profile re-read.
+   */
+  switchActiveVillage: (municipalityId: string) => void;
   signInWithGoogle: () => Promise<void>;
   /** iOS only — throws on any other platform. See AppleButton, shown only on iOS. */
   signInWithApple: () => Promise<void>;
@@ -416,6 +423,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) await loadProfile(user.uid, user.email);
   }, [user, loadProfile]);
 
+  const switchActiveVillage = useCallback(
+    (municipalityId: string) => {
+      if (!user) return;
+      const { uid, email } = user;
+      dispatch({ type: 'activeVillageChosen', uid, municipalityId });
+      setActiveMunicipality(uid, municipalityId).catch((err: unknown) => {
+        observability.captureError(err, { operation: 'auth:switchActiveVillage' });
+        loadProfile(uid, email).catch((readErr: unknown) => {
+          observability.captureError(readErr, { operation: 'auth:loadProfile' });
+        });
+      });
+    },
+    [user, loadProfile],
+  );
+
   // Once the profile is loaded, if the user has no active village, pick their
   // first membership so the header reflects a real village instead of the
   // generic "Cultuvilla" fallback. Runs once per session per user.
@@ -429,10 +451,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const memberships = await getUserMemberships(user.uid);
       const first = memberships[0];
       if (!first) return;
-      await setActiveMunicipality(user.uid, first.municipalityId);
-      await loadProfile(user.uid, user.email);
+      switchActiveVillage(first.municipalityId);
     })();
-  }, [user, profile, loadProfile]);
+  }, [user, profile, switchActiveVillage]);
 
   const signInWithGoogle = async (): Promise<void> => {
     const cfg = getGoogleSignInConfig();
@@ -670,6 +691,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileLoading,
         profileChecked,
         refreshProfile,
+        switchActiveVillage,
         signInWithGoogle,
         signInWithApple,
         sendOtpCode,
