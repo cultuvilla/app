@@ -321,6 +321,27 @@ export function madridDayKey(d: Date): string {
   }).format(d);
 }
 
+/**
+ * The instant the Europe/Madrid day containing `now` began. Exactly the cut
+ * `isStartDayOver` makes, as a Date a query can range on: `d` is a past day
+ * iff `d < startOfMadridDay(now)`. Independent of the device's timezone.
+ */
+export function startOfMadridDay(now: Date): Date {
+  const key = madridDayKey(now);
+  // `key` is YYYY-MM-DD, and ISO date-only strings parse as UTC midnight.
+  const utcMidnight = Date.parse(key);
+  // Madrid is UTC+2 (CEST) or UTC+1 (CET), and its DST switches happen at
+  // 02:00/03:00, so midnight is always one of these two instants.
+  const HOUR = 3_600_000;
+  for (const offset of [2 * HOUR, HOUR]) {
+    const candidate = new Date(utcMidnight - offset);
+    if (madridDayKey(candidate) === key && madridDayKey(new Date(candidate.getTime() - 1)) !== key) {
+      return candidate;
+    }
+  }
+  throw new Error(`startOfMadridDay: no Madrid midnight found for ${key}`);
+}
+
 /** True once `now` is a later Europe/Madrid calendar day than `start`. */
 export function isStartDayOver(start: Date, now: Date): boolean {
   return madridDayKey(now) > madridDayKey(start);
