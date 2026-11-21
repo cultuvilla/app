@@ -208,44 +208,6 @@ describe('SociosRoster — admin', () => {
     await waitFor(() => expect(setOrgMemberRole).toHaveBeenCalledWith('org1', 'u-ana', 'member'));
   });
 
-  it('types in a new socio', async () => {
-    const { getByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('socios-add'));
-    expect(getByTestId('typed-socio-sheet')).toBeTruthy();
-    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
-    fireEvent.press(getByTestId('typed-socio-consent'));
-    fireEvent.changeText(getByTestId('typed-socio-phone'), '622');
-    fireEvent.changeText(getByTestId('typed-socio-email'), '');
-    fireEvent.press(getByTestId('typed-socio-save'));
-    await waitFor(() =>
-      expect(addTypedSocio).toHaveBeenCalledWith('org1', { displayName: 'Lola', socioNumber: null, phone: '622', email: '' }, 'u-admin'),
-    );
-  });
-
-  it('closes the sheet once the new socio is saved', async () => {
-    const { getByTestId, queryByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('socios-add'));
-    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
-    fireEvent.press(getByTestId('typed-socio-consent'));
-    fireEvent.press(getByTestId('typed-socio-save'));
-    await waitFor(() => expect(addTypedSocio).toHaveBeenCalled());
-    await act(async () => {});
-    expect(queryByTestId('typed-socio-sheet')).toBeNull();
-  });
-
-  it('keeps the sheet open and says so when the write is refused', async () => {
-    jest.mocked(addTypedSocio).mockRejectedValueOnce(new Error('permission-denied'));
-    const { getByTestId, queryByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('socios-add'));
-    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
-    fireEvent.press(getByTestId('typed-socio-consent'));
-    fireEvent.press(getByTestId('typed-socio-save'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.socios.error'));
-    expect(getByTestId('typed-socio-sheet')).toBeTruthy();
-    expect(queryByTestId('typed-socio-save-spinner')).toBeNull();
-    expect(getByTestId('typed-socio-name').props.value).toBe('Lola');
-  });
-
   it('tells the admin when a link, a title or a baja is refused', async () => {
     jest.mocked(linkSocioToMember).mockRejectedValueOnce(new Error('failed-precondition'));
     jest.mocked(setSocioAdminTitle).mockRejectedValueOnce(new Error('permission-denied'));

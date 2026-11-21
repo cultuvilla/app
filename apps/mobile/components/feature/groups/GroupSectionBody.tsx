@@ -12,6 +12,7 @@ import { GroupNotices } from './GroupNotices';
 import { GroupSettings } from './GroupSettings';
 import { MyActas } from './MyActas';
 import { MyCuota } from './MyCuota';
+import { AddSocioButton } from './AddSocioButton';
 import { JuntaDirectiva } from './JuntaDirectiva';
 import { MySocioRecord } from './MySocioRecord';
 import { ActasAdmin } from './ActasAdmin';
@@ -92,7 +93,8 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           <SocioConsentCard orgId={org.id} requirement={org} />
           {isAdmin ? <OrgJoinRequests orgId={org.id} banner /> : null}
           {isAdmin ? <LibroDoor orgId={org.id} /> : null}
-          <JuntaDirectiva orgId={org.id} adminUids={adminUids} canReadRoster={canReadRoster} />
+          <AddSocioButton orgId={org.id} uid={uid} isAdmin={isAdmin} />
+          <JuntaDirectiva orgId={org.id} adminUids={adminUids} canReadRoster={canReadRoster} canManage={isAdmin} currentUid={uid} />
           {canReadRoster ? (
             <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />
           ) : (

@@ -9,7 +9,7 @@ jest.mock('../../../../lib/i18n', () => ({
 jest.mock('../../../../lib/orgs/useMyCuota', () => ({ useMyCuota: jest.fn() }));
 jest.mock('../MyPersonasSocios', () => {
   const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
-  return { MyPersonasSocios: () => <Text testID="personas" />, AddPersonaSocio: () => <Text testID="add-persona" /> };
+  return { MyPersonasSocios: () => <Text testID="personas" /> };
 });
 
 const own = { id: 's-me', ...buildSocioData({ kind: 'member', displayName: 'Ana', uid: 'u1', socioNumber: 47, createdBy: 'x' }) };
@@ -26,7 +26,6 @@ describe('MySocioRecord', () => {
     expect(r.getByTestId('my-socio-number').props.children).toBe('groups.socios.myNumber:47');
     expect(r.getByTestId('my-socio-cuota')).toBeTruthy();
     expect(r.getByTestId('personas')).toBeTruthy();
-    expect(r.getByTestId('add-persona')).toBeTruthy();
   });
 
   it('shows no cuota while the group has none, and "Socio" before a number is given', () => {

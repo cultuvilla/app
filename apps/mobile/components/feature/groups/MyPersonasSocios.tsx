@@ -129,22 +129,15 @@ export function MyPersonasSocios({
 }
 
 /**
- * Below the ficha, one button to make a persona a cargo a socio (decided
- * 2026-11-19, user): it opens a sheet to pick who, or to add a new persona.
- * With nobody left to pick it goes straight to adding one.
+ * Making a persona a cargo a socio (decided 2026-11-19, user): a sheet to pick
+ * who, or to add a new persona. With nobody left to pick, `start` goes straight
+ * to adding one. Render `sheet` once, anywhere.
  */
-export function AddPersonaSocio({
-  orgId,
-  uid,
-}: {
-  orgId: string;
-  uid: string;
-}) {
+export function usePersonaSocioPicker(orgId: string, uid: string) {
   const { t } = useT();
   const { ready, personas, rowByPerson } = usePersonasSocios(orgId, uid);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  if (!ready) return null;
   const pickable = personas.filter((p) => !rowByPerson.has(p.id));
 
   const addNew = () => {
@@ -158,56 +151,75 @@ export function AddPersonaSocio({
       .catch(() => showAlert(t("groups.personas.error")))
       .finally(() => setBusy(null));
   };
+  const start = () => (pickable.length > 0 ? setOpen(true) : addNew());
 
+  const sheet = (
+    <BottomSheet
+      visible={open}
+      onClose={() => setOpen(false)}
+      title={t("groups.personas.pickTitle")}
+      closeLabel={t("common.close")}
+      testID="persona-socio-sheet"
+    >
+      <VStack gap={1} className="px-5">
+        {pickable.map((p) => (
+          <Pressable
+            key={p.id}
+            testID={`persona-socio-pick-${p.id}`}
+            accessibilityRole="button"
+            accessibilityState={{ busy: busy === p.id }}
+            disabled={busy !== null}
+            onPress={() => pick(p)}
+            className={`py-3 ${busy === p.id ? "opacity-50" : ""}`}
+          >
+            <Text>{fullName(p)}</Text>
+          </Pressable>
+        ))}
+        <Pressable
+          testID="persona-socio-new"
+          accessibilityRole="button"
+          onPress={addNew}
+          className="py-3"
+        >
+          <HStack gap={2} align="center">
+            <Ionicons
+              name="add"
+              size={iconSizes.md}
+              color={colors.light.fg.accent}
+            />
+            <Text className="text-accent font-medium">
+              {t("groups.personas.new")}
+            </Text>
+          </HStack>
+        </Pressable>
+      </VStack>
+    </BottomSheet>
+  );
+
+  return { ready, start, sheet };
+}
+
+/** A socio's "Añadir socio": all they may add is a persona a cargo. */
+export function AddPersonaSocio({
+  orgId,
+  uid,
+}: {
+  orgId: string;
+  uid: string;
+}) {
+  const { t } = useT();
+  const picker = usePersonaSocioPicker(orgId, uid);
+  if (!picker.ready) return null;
   return (
     <View className="items-center">
       <Button
         variant="secondary"
         testID="persona-socio-add"
-        onPress={() => (pickable.length > 0 ? setOpen(true) : addNew())}
+        onPress={picker.start}
       >
-        {t("groups.personas.add")}
+        {t("groups.socios.add")}
       </Button>
-      <BottomSheet
-        visible={open}
-        onClose={() => setOpen(false)}
-        title={t("groups.personas.pickTitle")}
-        closeLabel={t("common.close")}
-        testID="persona-socio-sheet"
-      >
-        <VStack gap={1} className="px-5">
-          {pickable.map((p) => (
-            <Pressable
-              key={p.id}
-              testID={`persona-socio-pick-${p.id}`}
-              accessibilityRole="button"
-              accessibilityState={{ busy: busy === p.id }}
-              disabled={busy !== null}
-              onPress={() => pick(p)}
-              className={`py-3 ${busy === p.id ? "opacity-50" : ""}`}
-            >
-              <Text>{fullName(p)}</Text>
-            </Pressable>
-          ))}
-          <Pressable
-            testID="persona-socio-new"
-            accessibilityRole="button"
-            onPress={addNew}
-            className="py-3"
-          >
-            <HStack gap={2} align="center">
-              <Ionicons
-                name="add"
-                size={iconSizes.md}
-                color={colors.light.fg.accent}
-              />
-              <Text className="text-accent font-medium">
-                {t("groups.personas.new")}
-              </Text>
-            </HStack>
-          </Pressable>
-        </VStack>
-      </BottomSheet>
+      {picker.sheet}
     </View>
   );
 }
