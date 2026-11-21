@@ -42,7 +42,7 @@ function SettingsSection({ title, children, testID }: { title: string; children:
  * what socios (integrantes, in a group without a roster) can do — today, write
  * in the Charla — and, once the cuota is configured, its reminders. Each
  * switch's label reads alone under its heading, so none carries a hint.
- * Switching the cuota off hides its buttons, never its payments. An ayuntamiento always admits by approval, so it
+ * Switching the cuota, the actas or the cuentas off hides their buttons, never their data. An ayuntamiento always admits by approval, so it
  * has no switch for it. A member's own notifications are in Ajustes →
  * Notificaciones, not here.
  */
@@ -56,6 +56,8 @@ export function GroupSettings({
   chatAdminsOnly = false,
   cosateca = DEFAULT_COSATECA_SETTINGS,
   cuotaEnabled = true,
+  actasEnabled = true,
+  cuentasEnabled = true,
   transparency = DEFAULT_GROUP_TRANSPARENCY,
   joinPolicy = 'approval',
   isAyuntamiento = false,
@@ -69,6 +71,8 @@ export function GroupSettings({
   chatAdminsOnly?: boolean;
   cosateca?: CosatecaSettings;
   cuotaEnabled?: boolean;
+  actasEnabled?: boolean;
+  cuentasEnabled?: boolean;
   transparency?: GroupTransparency;
   joinPolicy?: OrgJoinPolicy;
   isAyuntamiento?: boolean;
@@ -89,6 +93,8 @@ export function GroupSettings({
       | { socioEmailRequired: boolean }
       | { cosateca: CosatecaSettings }
       | { cuotaEnabled: boolean }
+      | { actasEnabled: boolean }
+      | { cuentasEnabled: boolean }
       | { transparency: GroupTransparency }
       | { joinPolicy: OrgJoinPolicy },
   ) => {
@@ -124,6 +130,24 @@ export function GroupSettings({
             disabled={saving}
             label={t('groups.settings.cuotaEnabled')}
             onValueChange={(next) => save({ cuotaEnabled: next })}
+          />
+        ) : null}
+        {hasRoster ? (
+          <Toggle
+            testID="group-settings-actas-enabled"
+            value={actasEnabled}
+            disabled={saving}
+            label={t('groups.settings.actasEnabled')}
+            onValueChange={(next) => save({ actasEnabled: next })}
+          />
+        ) : null}
+        {hasRoster ? (
+          <Toggle
+            testID="group-settings-cuentas-enabled"
+            value={cuentasEnabled}
+            disabled={saving}
+            label={t('groups.settings.cuentasEnabled')}
+            onValueChange={(next) => save({ cuentasEnabled: next })}
           />
         ) : null}
         <Toggle
@@ -187,7 +211,7 @@ export function GroupSettings({
             label={t('groups.settings.sociosListVisible')}
             onValueChange={(next) => save({ sociosListVisible: next })}
           />
-          {TRANSPARENCY_VIEWS.filter((view) => view !== 'cuota' || cuotaEnabled).map((view) => (
+          {TRANSPARENCY_VIEWS.filter((view) => (view !== 'cuota' || cuotaEnabled) && (view !== 'cuentas' || cuentasEnabled)).map((view) => (
             <Toggle
               key={view}
               testID={`group-settings-transparency-${view}`}

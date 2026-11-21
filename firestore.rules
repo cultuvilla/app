@@ -309,7 +309,7 @@ service cloud.firestore {
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
               'sociosListVisible', 'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired',
-              'cosateca', 'cuotaEnabled', 'transparency',
+              'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'transparency',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -340,6 +340,8 @@ service cloud.firestore {
           && d.get('socioEmailRequired', false) is bool
           && isValidCosatecaSettings(d.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
           && d.get('cuotaEnabled', true) is bool
+          && d.get('actasEnabled', true) is bool
+          && d.get('cuentasEnabled', true) is bool
           && isValidGroupTransparency(d.get('transparency', defaultGroupTransparency()));
     }
 
@@ -1992,6 +1994,8 @@ service cloud.firestore {
         && request.resource.data.get('socioEmailRequired', false) is bool
         && isValidCosatecaSettings(request.resource.data.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
         && request.resource.data.get('cuotaEnabled', true) is bool
+        && request.resource.data.get('actasEnabled', true) is bool
+        && request.resource.data.get('cuentasEnabled', true) is bool
         && isValidGroupTransparency(request.resource.data.get('transparency', defaultGroupTransparency()))
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']

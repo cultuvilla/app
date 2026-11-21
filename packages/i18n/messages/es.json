@@ -2075,6 +2075,8 @@
       "error": "No se ha podido guardar el ajuste.",
       "cosateca": "Cosateca",
       "cuotaEnabled": "Cuota",
+      "actasEnabled": "Actas",
+      "cuentasEnabled": "Cuentas",
       "cosatecaAudience": {
         "integrantes": "Solo integrantes",
         "pueblo": "Todo el pueblo"

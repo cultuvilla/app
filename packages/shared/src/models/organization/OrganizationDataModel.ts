@@ -92,6 +92,13 @@ export const OrganizationDataSchema = z.object({
   // before the switch. Defaults because installed binaries create orgs without
   // it; existing docs are backfilled by scripts/backfill-org-cuota-enabled.mjs.
   cuotaEnabled: z.boolean().default(true),
+  // Whether a group with socios keeps its actas and its cuentas: off hides
+  // their buttons and doors, never what was written. On unless an admin turns
+  // them off, as every group had them before the switches. Defaults because
+  // installed binaries create orgs without them; existing docs are backfilled
+  // by scripts/backfill-org-records-enabled.mjs.
+  actasEnabled: z.boolean().default(true),
+  cuentasEnabled: z.boolean().default(true),
   // What the junta opens to every integrante: the cuota's al día list, every
   // aviso and its results, the accounts (see GroupTransparencyModel). Defaults
   // because installed binaries create orgs without it; existing docs are
@@ -125,6 +132,8 @@ export interface OrganizationDataInput {
   socioEmailRequired?: boolean;
   cosateca?: CosatecaSettings;
   cuotaEnabled?: boolean;
+  actasEnabled?: boolean;
+  cuentasEnabled?: boolean;
   transparency?: GroupTransparency;
 }
 
@@ -152,6 +161,8 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     socioEmailRequired: input.socioEmailRequired ?? false,
     cosateca: input.cosateca ?? { ...DEFAULT_COSATECA_SETTINGS },
     cuotaEnabled: input.cuotaEnabled ?? true,
+    actasEnabled: input.actasEnabled ?? true,
+    cuentasEnabled: input.cuentasEnabled ?? true,
     transparency: input.transparency ?? { ...DEFAULT_GROUP_TRANSPARENCY },
   };
 }

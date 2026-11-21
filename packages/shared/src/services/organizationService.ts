@@ -156,6 +156,8 @@ export async function requestOrganization(
     socioEmailRequired: false,
     cosateca: { ...DEFAULT_COSATECA_SETTINGS },
     cuotaEnabled: true,
+    actasEnabled: true,
+    cuentasEnabled: true,
     transparency: { ...DEFAULT_GROUP_TRANSPARENCY },
   };
   await setDoc(newRef, data);
