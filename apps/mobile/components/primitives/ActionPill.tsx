@@ -60,6 +60,10 @@ export function ActionPill({
 
   const base = typography.body.fontSize;
   const { fontSize, fitsOneLine } = fitLabel(naturalWidth, availableWidth, base, MIN_LABEL_SCALE);
+  // Before both widths are in, the label would paint at the base size clamped
+  // to one line — the first frame ellipsized it («Unirme a este pue…», QA
+  // 2026-11-21). It stays invisible for that frame instead.
+  const measured = naturalWidth != null && availableWidth != null;
 
   return (
     <RNPressable
@@ -103,7 +107,7 @@ export function ActionPill({
         numberOfLines={fitsOneLine && fontSize === base ? 1 : undefined}
         maxFontSizeMultiplier={MAX_LABEL_FONT_MULTIPLIER}
         className="font-semibold text-center"
-        style={{ color: ACCENT, fontSize, lineHeight: typography.body.lineHeight }}
+        style={{ color: ACCENT, fontSize, lineHeight: typography.body.lineHeight, opacity: measured ? 1 : 0 }}
       >
         {label}
       </RNText>

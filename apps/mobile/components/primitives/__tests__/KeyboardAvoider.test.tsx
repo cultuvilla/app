@@ -1,5 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
-import { KeyboardAvoidingView, Text, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 import { KeyboardAvoider } from '../KeyboardAvoider';
 
 // Android is edge-to-edge (Expo SDK 54+): the window never resizes for the
@@ -31,5 +31,40 @@ describe('<KeyboardAvoider>', () => {
     });
     expect(UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(88);
     measureInWindow.mockRestore();
+  });
+
+  // QA 2026-11-21: RN computes Android's keyboardDidHide like a show, from the
+  // visible area's height, which leaves the bars' height as padding after the
+  // keyboard closes. So on Android the view only pads while the keyboard is up.
+  describe('on Android', () => {
+    const os = Platform.OS;
+    const listeners = new Map<string, () => void>();
+    beforeEach(() => {
+      Platform.OS = 'android';
+      jest.spyOn(Keyboard, 'isVisible').mockReturnValue(false);
+      jest.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, cb: () => void) => {
+        listeners.set(event, cb);
+        return { remove: () => listeners.delete(event) };
+      }) as unknown as typeof Keyboard.addListener);
+    });
+    afterEach(() => {
+      Platform.OS = os;
+      jest.restoreAllMocks();
+      listeners.clear();
+    });
+
+    it('pads only while the keyboard is up', () => {
+      const { UNSAFE_getByType } = render(
+        <KeyboardAvoider>
+          <Text>x</Text>
+        </KeyboardAvoider>,
+      );
+      const enabled = () => UNSAFE_getByType(KeyboardAvoidingView).props.enabled;
+      expect(enabled()).toBe(false);
+      act(() => listeners.get('keyboardDidShow')?.());
+      expect(enabled()).toBe(true);
+      act(() => listeners.get('keyboardDidHide')?.());
+      expect(enabled()).toBe(false);
+    });
   });
 });

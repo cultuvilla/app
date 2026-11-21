@@ -81,7 +81,8 @@ export interface VillageHomeBodyProps {
  * supplies the header chrome (AppHeader vs ScreenHeader). The action row's first
  * button is "Unirme" (join) for non-members and "Añadir contenido" (opens the
  * add sheet) for members; `!data.isMember` is the single source of truth for
- * "offer to join". Editar (admins) and Compartir (everyone) follow it.
+ * "offer to join", and neither shows until `data.membershipKnown`. Editar
+ * (admins) and Compartir (everyone) follow it.
  */
 export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
   const scrollEnabled = useScrollEnabledWhileZooming();
@@ -182,6 +183,10 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
     sectionStatus,
   } = data;
   const canManage = isAppAdmin || villageAdmin;
+  // A guest is never a member; a signed-in viewer's membership is a read that
+  // lands after the village paints, and offering «Unirme» to a member until
+  // then flashed the wrong action.
+  const membershipSettled = !user || data.membershipKnown;
   // Wiki phase: active but no organizer granted yet (community.organizerId null).
   const noOrganizer = village.community?.organizerId == null;
   const description = village.community?.description?.trim() || null;
@@ -292,21 +297,23 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
         {/* ── slot 1: Unirme (non-members) / Añadir contenido (members)
             + Editar (admins) + Compartir (everyone) ─────────────── */}
         <HStack gap={3} className="px-4 pt-2 pb-2">
-          {!isMember ? (
+          {!membershipSettled ? (
+            // Holds slot 1's width so Compartir does not jump when it resolves.
+            <View style={{ flex: 1 }} />
+          ) : isMember ? (
+            <ActionPill
+              label={t('village.addContent.button')}
+              onPress={() => setAddOpen(true)}
+              testID="village-add-content-action"
+            />
+          ) : (
             <ActionPill
               label={user ? t('village.join') : t('village.signInToJoin')}
               onPress={onJoin}
               disabled={joining}
               testID="village-join-action"
             />
-          ) : null}
-          {isMember ? (
-            <ActionPill
-              label={t('village.addContent.button')}
-              onPress={() => setAddOpen(true)}
-              testID="village-add-content-action"
-            />
-          ) : null}
+          )}
           <ActionPill
             label={t('village.share.title')}
             onPress={() => void share(getVillageViewLink(villageSlug), village.name)}

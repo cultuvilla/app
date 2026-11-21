@@ -68,6 +68,19 @@ describe('<ActionPill>', () => {
     expect(visible.props.ellipsizeMode).toBeUndefined();
   });
 
+  // QA 2026-11-21: the first frame showed «Unirme a este pue…» — the label
+  // painted at full size, clamped to one line, before it had been measured.
+  it('keeps the label invisible until it has been measured', () => {
+    const { getAllByText, getByTestId } = render(
+      <ActionPill label="Unirme a este pueblo" onPress={jest.fn()} testID="p" />,
+    );
+    const visible = () => getAllByText('Unirme a este pueblo', { includeHiddenElements: true })[0];
+    expect(visible()?.props.style).toMatchObject({ opacity: 0 });
+    fireEvent(getByTestId('p'), 'layout', layout(160));
+    fireEvent(getAllByText('Unirme a este pueblo', { includeHiddenElements: true })[1]!, 'layout', layout(120));
+    expect(visible()?.props.style).toMatchObject({ opacity: 1 });
+  });
+
   // A 200% system font on a 3-up action row leaves nothing to shrink into.
   it('caps OS font scaling', () => {
     const { getAllByText } = render(<ActionPill label="Unirme" onPress={jest.fn()} testID="p" />);

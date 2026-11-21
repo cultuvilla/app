@@ -175,7 +175,7 @@ export function AddPersonaSocio({
         closeLabel={t("common.close")}
         testID="persona-socio-sheet"
       >
-        <VStack gap={1}>
+        <VStack gap={1} className="px-5">
           {pickable.map((p) => (
             <Pressable
               key={p.id}

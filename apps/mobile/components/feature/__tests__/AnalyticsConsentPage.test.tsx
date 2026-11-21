@@ -1,11 +1,15 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import { Modal } from 'react-native';
-import { AnalyticsConsentPage } from '../AnalyticsConsentPage';
+import { StatusBar } from 'expo-status-bar';
+import { AnalyticsConsentPage, STATUS_BAR_LEAD_MS } from '../AnalyticsConsentPage';
 import { I18nProvider } from '../../../lib/i18n';
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
+
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => jest.useRealTimers());
 
 const setup = () => {
   const onAnswer = jest.fn();
@@ -14,6 +18,7 @@ const setup = () => {
       <AnalyticsConsentPage visible onAnswer={onAnswer} />
     </I18nProvider>,
   );
+  act(() => jest.advanceTimersByTime(STATUS_BAR_LEAD_MS));
   return { ...view, onAnswer };
 };
 
@@ -42,5 +47,30 @@ describe('AnalyticsConsentPage', () => {
     UNSAFE_getByType(Modal).props.onRequestClose();
     expect(onAnswer).not.toHaveBeenCalled();
     expect(getByTestId('analytics-consent-page')).toBeTruthy();
+  });
+
+  // QA 2026-11-21: white status-bar icons on the cream page. The Modal window
+  // copies the status-bar style once, as it opens, so the dark style is set first.
+  it('turns the status bar dark before the page opens', () => {
+    const onAnswer = jest.fn();
+    const { UNSAFE_getByType, queryByTestId } = render(
+      <I18nProvider>
+        <AnalyticsConsentPage visible onAnswer={onAnswer} />
+      </I18nProvider>,
+    );
+    expect(UNSAFE_getByType(StatusBar).props.style).toBe('dark');
+    expect(UNSAFE_getByType(Modal).props.visible).toBe(false);
+    expect(queryByTestId('analytics-consent-page')).toBeNull();
+    act(() => jest.advanceTimersByTime(STATUS_BAR_LEAD_MS));
+    expect(UNSAFE_getByType(Modal).props.visible).toBe(true);
+  });
+
+  it('leaves the status bar alone while hidden', () => {
+    const { UNSAFE_queryByType } = render(
+      <I18nProvider>
+        <AnalyticsConsentPage visible={false} onAnswer={jest.fn()} />
+      </I18nProvider>,
+    );
+    expect(UNSAFE_queryByType(StatusBar)).toBeNull();
   });
 });
