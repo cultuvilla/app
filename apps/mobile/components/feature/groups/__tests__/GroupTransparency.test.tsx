@@ -83,6 +83,20 @@ describe('GroupSettings — sections', () => {
     expect(off.getByTestId('group-settings-transparency-cuentas')).toBeTruthy();
   });
 
+  it('switches the actas and the cuentas off, the cuentas taking their public view with them', () => {
+    const actas = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible />);
+    fireEvent.press(actas.getByTestId('group-settings-actas-enabled'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { actasEnabled: false });
+    actas.unmount();
+    const cuentas = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible />);
+    fireEvent.press(cuentas.getByTestId('group-settings-cuentas-enabled'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { cuentasEnabled: false });
+    cuentas.unmount();
+    const off = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible cuentasEnabled={false} />);
+    expect(off.getByTestId('group-settings-cuentas-enabled').props.accessibilityState).toMatchObject({ checked: false });
+    expect(off.queryByTestId('group-settings-transparency-cuentas')).toBeNull();
+  });
+
   it('gives an ayuntamiento no entry or socio sections, and no cuota switch', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} isAyuntamiento />);
     expect(r.queryByTestId('group-settings-entry')).toBeNull();

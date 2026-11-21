@@ -53,8 +53,8 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
     'tareas',
     ...(org.cosateca.enabled ? (['cosateca'] as const) : []),
     ...(cuota ? (['cuota'] as const) : []),
-    ...(roster ? (['actas'] as const) : []),
-    ...(roster && (isAdmin || org.transparency.cuentas) ? (['cuentas'] as const) : []),
+    ...(roster && org.actasEnabled ? (['actas'] as const) : []),
+    ...(roster && org.cuentasEnabled && (isAdmin || org.transparency.cuentas) ? (['cuentas'] as const) : []),
     ...(roster ? (['socios'] as const) : []),
   ];
   const admin: GroupSection[] = isAdmin

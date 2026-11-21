@@ -37,7 +37,7 @@ const DOOR_OF: Record<AsambleaCheck['item'], RecordsDoor> = { libro: 'libro', ac
  * Shown only while the group's asamblea task is close: what the folder still
  * lacks for it, each line opening its door, and one file with all of it.
  */
-export function AsambleaChecklist({ orgId, orgName }: { orgId: string; orgName: string }) {
+export function AsambleaChecklist({ orgId, orgName, cuentasEnabled = true }: { orgId: string; orgName: string; cuentasEnabled?: boolean }) {
   const { t } = useT();
   const today = todayKey();
   const tasks = useWatch<GroupTask[]>('groups:watchOpenGroupTasks', orgId, (next, error) => watchOpenGroupTasks(orgId, next, error));
@@ -66,6 +66,7 @@ export function AsambleaChecklist({ orgId, orgName }: { orgId: string; orgName: 
   );
   if (!ready || !summary) return null;
 
+  // A group that switched its cuentas off has no accounts to bring.
   const checks = asambleaChecklist({
     asambleaDay: asamblea.dueOn,
     socios: socios.data ?? [],
@@ -73,7 +74,7 @@ export function AsambleaChecklist({ orgId, orgName }: { orgId: string; orgName: 
     accountsYear: year,
     accountsEntries:
       summary.cuotaByPeriod.reduce((sum, p) => sum + p.payments, 0) + summary.entries.filter((e) => !e.reversed).length,
-  });
+  }).filter((check) => cuentasEnabled || check.item !== 'cuentas');
 
   const exportAll = async () => {
     setBusy(true);
@@ -81,7 +82,7 @@ export function AsambleaChecklist({ orgId, orgName }: { orgId: string; orgName: 
       const models = [
         buildLibroSociosExport({ orgName, socios: libroDeSocios(socios.data ?? []) }),
         buildActasExport({ orgName, actas: actas.data ?? [] }),
-        buildYearSummaryExport({ orgName, summary }),
+        ...(cuentasEnabled ? [buildYearSummaryExport({ orgName, summary })] : []),
       ];
       await downloadFile(await buildWorkbook(models, t('groups.records.title')), `${recordsBundleFileName(orgName)}.xlsx`, XLSX_MIME);
     } catch (error) {

@@ -24,7 +24,9 @@ export default function GroupRecordsDoorScreen() {
   const door = puerta && isRecordsDoor(puerta) ? puerta : null;
 
   if (!door) return <Redirect href={grupo ? groupHref(grupo) : routes.groups} />;
-  if (uid && status !== 'loading' && (!group || group.role !== 'admin' || !hasSocioRoster(group.org.type))) {
+  // A book the group switched off has no door: its data stays, unreachable until it is on again.
+  const doorOff = group !== null && ((door === 'actas' && !group.org.actasEnabled) || (door === 'cuentas' && !group.org.cuentasEnabled));
+  if (uid && status !== 'loading' && (!group || group.role !== 'admin' || !hasSocioRoster(group.org.type) || doorOff)) {
     return <Redirect href={grupo ? groupHref(grupo) : routes.groups} />;
   }
 

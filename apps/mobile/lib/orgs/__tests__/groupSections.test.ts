@@ -38,6 +38,13 @@ describe('groupSections', () => {
     expect(canOpenGroupSection(group({ cuotaEnabled: false }), 'cuota')).toBe(false);
   });
 
+  it('drops the actas and the cuentas a group switched off', () => {
+    expect(groupSections(group({ actasEnabled: false }, 'admin')).member).not.toContain('actas');
+    expect(groupSections(group({ cuentasEnabled: false }, 'admin')).member).not.toContain('cuentas');
+    expect(canOpenGroupSection(group({ actasEnabled: false }), 'actas')).toBe(false);
+    expect(canOpenGroupSection(group({ cuentasEnabled: false }, 'admin'), 'cuentas')).toBe(false);
+  });
+
   it('an ayuntamiento keeps its chat, events, tasks, members and settings', () => {
     expect(groupSections(group({ type: 'ayuntamiento' }, 'admin'))).toEqual({
       member: ['charla', 'eventos', 'tareas'],

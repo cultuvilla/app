@@ -79,7 +79,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
     case 'actas':
       return isAdmin ? (
         <VStack gap={4}>
-          <AsambleaChecklist orgId={org.id} orgName={org.name} />
+          <AsambleaChecklist orgId={org.id} orgName={org.name} cuentasEnabled={org.cuentasEnabled} />
           <ActasAdmin orgId={org.id} orgName={org.name} uid={uid} />
         </VStack>
       ) : (
@@ -128,6 +128,8 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           chatAdminsOnly={org.chatAdminsOnly}
           cosateca={org.cosateca}
           cuotaEnabled={org.cuotaEnabled}
+          actasEnabled={org.actasEnabled}
+          cuentasEnabled={org.cuentasEnabled}
           transparency={org.transparency}
           joinPolicy={org.joinPolicy}
           isAyuntamiento={org.type === 'ayuntamiento'}
