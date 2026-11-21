@@ -15,7 +15,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | find the root cause of the iOS ping timeouts, starting with the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings), also covering flows 12 and 15; fix it without app-code workarounds, then add a lasting guard in the lane so a regression shows up on its own |
-| [event-madrid-day-cutoff](ongoing/event-madrid-day-cutoff.md) | low | none | this cycle | verify the plan against develop, then build it |
 | [mobile-neutral-grey-tokens](ongoing/mobile-neutral-grey-tokens.md) | low | none | this cycle | verify the plan against develop (#725 landed the token-equal swap and the hex scan), then build it |
 
 ## Waiting on release 1.11.0
@@ -50,7 +49,8 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | dev | this cycle | the first release carrying #694 is live in prod | once prod serves #694, check a hidden vocabulary term shows no delete button to its author, then retire |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | this cycle | the next release Álvaro cuts carries #693, #697, #700, #701, #703 and #704 (live on dev) to prod | once on prod, witness docs/qa/pending/{village-seat-row,osm-attribution,barrio-kind-picker}.md on a device, then retire the plan |
 | [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | dev | this cycle | the next release Álvaro cuts (carrying #689) is live in prod | after that prod deploy, Álvaro curls `https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM`, opens a `/<pueblo>/evento/…` link on an iPhone (Apple's CDN may take a day), and sets the privacy-policy URL `https://cultuvilla.es/legal/privacidad` in App Store Connect (every app-info localization) and the Play console (App content) |
-| [mobile-raw-hex-to-tokens](ongoing/mobile-raw-hex-to-tokens.md) | low | none | this cycle | Deploy dev of e216f789 (#725) is green | once dev deploys #725, set Landed: dev; it is a byte-identical refactor guarded by noTokenHexLiterals.test.ts, so retire once the first release carrying #725 is live in prod |
+| [event-madrid-day-cutoff](ongoing/event-madrid-day-cutoff.md) | low | dev | this cycle | the first release carrying #726 is live in prod | in prod Cloud Logging, check `completeExpiredEvents` logs `Completed expired events` hourly with no warn lines and past-day published events move to `completed`, then retire |
+| [mobile-raw-hex-to-tokens](ongoing/mobile-raw-hex-to-tokens.md) | low | dev | this cycle | the first release carrying #725 is live in prod | byte-identical refactor guarded by noTokenHexLiterals.test.ts; retire once a release carrying #725 is live in prod |
 
 ## Waiting on you
 
