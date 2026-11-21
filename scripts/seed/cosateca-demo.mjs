@@ -13,9 +13,10 @@
  *
  * The group must already run a cosateca. Demo people are Auth users at
  * `cosateca-demo-N@example.com` (no password: nobody signs in as them). Every
- * doc has a `seed-cd-<orgId>-` id and `seedBatch: cosateca-demo`; `--wipe` deletes the
- * cosas, requests, chats and slots, and takes the demo people out of the group
- * and the pueblo, leaving their accounts.
+ * doc has a `seed-cd-<orgId>-` id, and `--wipe` deletes the cosas, requests,
+ * chats and slots by it (no doc carries a seed tag: the strict `keys().hasOnly`
+ * rules would refuse every client edit of it), and takes the demo people out of
+ * the group and the pueblo, leaving their accounts.
  *
  * Pending requests notify the user like real ones would, which is the point.
  */
@@ -31,7 +32,6 @@ import { runAsMain } from './lib/run.mjs';
 import { DEMO_PEOPLE, demoEmail, ensureDemoPerson } from './lib/demo-people.mjs';
 
 const BATCH = 'cosateca-demo';
-const tag = (data) => ({ ...data, seedBatch: BATCH });
 // Ids carry the group, so seeding a second group never overwrites the first's.
 const ORG = process.env.COSATECA_DEMO_ORG ?? '';
 const id = (kind, n) => `seed-cd-${ORG}-${kind}-${String(n).padStart(2, '0')}`;
@@ -200,9 +200,9 @@ async function seed(orgId, myUid) {
     slots.push({ key: reservaSlotKey(startAt), data: { requestId: reqId, startAt, endAt, status: 'accepted' } });
   }
 
-  for (const k of Object.keys(cosas)) batch.set(db.doc(`cosas/${cosas[k].id}`), tag(cosas[k].data));
-  for (const s of slots) batch.set(db.doc(`cosas/${cosas[15].id}/slots/${s.key}`), tag(s.data));
-  for (const r of requests) batch.set(db.doc(`cosaRequests/${r.id}`), tag(r.data));
+  for (const k of Object.keys(cosas)) batch.set(db.doc(`cosas/${cosas[k].id}`), cosas[k].data);
+  for (const s of slots) batch.set(db.doc(`cosas/${cosas[15].id}/slots/${s.key}`), s.data);
+  for (const r of requests) batch.set(db.doc(`cosaRequests/${r.id}`), r.data);
   await batch.commit();
 
   // Chats after their requests exist, so the push trigger finds its parties.
@@ -215,7 +215,7 @@ async function seed(orgId, myUid) {
   for (const [reqN, msgs] of chats) {
     msgs.forEach(([author, body, ago], i) => {
       const a = who(author);
-      chatBatch.set(db.doc(`cosaRequests/${id('req', reqN)}/chat/${id('chat', reqN * 10 + i)}`), tag({ authorUid: a.uid, authorName: a.name, body, createdAt: daysAgo(ago) }));
+      chatBatch.set(db.doc(`cosaRequests/${id('req', reqN)}/chat/${id('chat', reqN * 10 + i)}`), { authorUid: a.uid, authorName: a.name, body, createdAt: daysAgo(ago) });
     });
   }
   await chatBatch.commit();
@@ -226,8 +226,8 @@ async function seed(orgId, myUid) {
 async function wipe(orgId) {
   const batch = db.batch();
   for (const kind of ['cosas', 'cosaRequests']) {
-    const snap = await db.collection(kind).where('orgId', '==', orgId).where('seedBatch', '==', BATCH).get();
-    for (const d of snap.docs) {
+    const snap = await db.collection(kind).where('orgId', '==', orgId).get();
+    for (const d of snap.docs.filter((doc) => doc.id.startsWith(`seed-cd-${orgId}-`))) {
       for (const sub of kind === 'cosas' ? ['slots'] : ['chat']) {
         for (const child of (await d.ref.collection(sub).get()).docs) batch.delete(child.ref);
       }
