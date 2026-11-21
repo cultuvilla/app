@@ -165,7 +165,7 @@ export function LocationPicker({
                 <Ionicons
                   name="remove-circle-outline"
                   size={28}
-                  color={zoom <= MAP_ZOOM_MIN ? '#cbd5e1' : ACCENT}
+                  color={zoom <= MAP_ZOOM_MIN ? colors.light.fg.chevron : ACCENT}
                 />
               </Pressable>
               <Pressable
@@ -176,7 +176,7 @@ export function LocationPicker({
                 <Ionicons
                   name="add-circle-outline"
                   size={28}
-                  color={zoom >= MAP_ZOOM_MAX ? '#cbd5e1' : ACCENT}
+                  color={zoom >= MAP_ZOOM_MAX ? colors.light.fg.chevron : ACCENT}
                 />
               </Pressable>
             </HStack>

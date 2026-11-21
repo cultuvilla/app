@@ -98,7 +98,7 @@ export function BarrioPicker({
         testID={testID}
       >
         <Text tone={disabled ? 'muted' : undefined}>{triggerText}</Text>
-        <Ionicons name="chevron-down" size={16} color="#64748b" />
+        <Ionicons name="chevron-down" size={16} color={colors.light.fg.icon} />
       </Pressable>
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <SafeAreaView style={styles.modal} edges={['top', 'bottom']}>
@@ -120,7 +120,7 @@ export function BarrioPicker({
                   testID={testID ? `${testID}-option-whole` : undefined}
                 >
                   <View style={styles.thumbPlaceholder}>
-                    <Ionicons name="albums-outline" size={18} color="#94a3b8" />
+                    <Ionicons name="albums-outline" size={18} color={colors.light.fg.quiet} />
                   </View>
                   <Text>{wholeVillageLabel}</Text>
                 </Pressable>
@@ -144,7 +144,7 @@ export function BarrioPicker({
                     />
                   ) : (
                     <View style={styles.thumbPlaceholder}>
-                      <Ionicons name="map-outline" size={18} color="#94a3b8" />
+                      <Ionicons name="map-outline" size={18} color={colors.light.fg.quiet} />
                     </View>
                   )}
                   <Text>{item.name}</Text>
@@ -169,14 +169,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.light.border.input,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
     backgroundColor: colors.light.bg['surface-elevated'],
   },
-  triggerDisabled: { backgroundColor: '#f3f4f6' },
+  triggerDisabled: { backgroundColor: colors.light.bg.muted },
   modal: { flex: 1, padding: 16, gap: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   row: {
@@ -185,19 +185,19 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.light.border.divider,
   },
   thumb: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.light.bg.muted,
   },
   thumbPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.light.bg.muted,
     alignItems: 'center',
     justifyContent: 'center',
   },

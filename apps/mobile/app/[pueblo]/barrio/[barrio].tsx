@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { Text } from '../../../components/primitives/Text';
 import { VStack } from '../../../components/primitives/VStack';
 import { HStack } from '../../../components/primitives/HStack';
@@ -145,7 +145,7 @@ function BarrioDetailScreen() {
                       <Ionicons
                         name="lock-closed-outline"
                         size={iconSizes.sm}
-                        color="#9ca3af"
+                        color={colors.light.fg.quiet}
                         accessibilityLabel={t('profile.personPrivate')}
                       />
                     )}

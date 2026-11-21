@@ -196,7 +196,7 @@ export function WrappedStoryViewer({
 // Fixed colours, not theme tokens: the cards are drawn on a dark ground in both
 // themes, so the frame around them is dark in both too.
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000000' },
+  root: { flex: 1, backgroundColor: colors.light.bg.media },
   title: { ...typography.h2, color: colors.light.fg['on-media'] },
   dim: { ...typography.body, color: 'rgba(255,255,255,0.75)', marginBottom: 8 },
   backdropDim: { backgroundColor: 'rgba(0,0,0,0.35)' },

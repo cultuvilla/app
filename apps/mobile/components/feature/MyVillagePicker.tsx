@@ -68,7 +68,7 @@ export function MyVillagePicker({
           style={styles.trigger}
         >
           {selectedRow}
-          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#64748b" />
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.light.fg.icon} />
         </Pressable>
       )}
 
@@ -111,19 +111,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.light.border.input,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
     backgroundColor: colors.light.bg['surface-elevated'],
   },
-  triggerDisabled: { backgroundColor: '#f8fafc' },
+  triggerDisabled: { backgroundColor: colors.light.bg.muted },
   triggerInner: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   list: {
     marginTop: 4,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.light.border.divider,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: colors.light.bg['surface-elevated'],
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
-  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb' },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.light.border.divider },
   rowText: { flex: 1 },
   hint: { marginTop: 4 },
 });

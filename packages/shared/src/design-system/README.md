@@ -19,7 +19,7 @@ tight:
 |---|---|
 | `tokens/spacing` | `{ 0, 1, 2, 3, 4, 6, 8, 12, 16 }` → `{ 0, 4, 8, 12, 16, 24, 32, 48, 64 }` px |
 | `tokens/typography` | 7 variants: `display`, `h1`, `h2`, `h3`, `body`, `bodySm`, `caption`. Each carries `fontSize`, `lineHeight`, `fontWeight`. |
-| `tokens/colors` | Semantic light-mode palette (`bg.surface`, `text.primary`, `accent.DEFAULT`, …). Dark mode added later by adding `colors.dark` with the same keys. `fg.faint` (placeholders, inactive tab icons) and `fg.on-media` (text and icons over photos and scrims) cover what a NativeWind class cannot reach. |
+| `tokens/colors` | Semantic light-mode palette (`bg.surface`, `text.primary`, `accent.DEFAULT`, …). Dark mode added later by adding `colors.dark` with the same keys. `fg.faint` (placeholders, inactive tab icons) and `fg.on-media` (text and icons over photos and scrims) cover what a NativeWind class cannot reach, and so do the neutral greys (`fg.strong` / `icon` / `quiet` / `chevron`, `border.input` / `divider`, `bg.muted` / `placeholder` / `skeleton` / `media`) and the pill statuses (`bg.status-*`). The app's quoted hexes all read a token (`noTokenHexLiterals.test.ts`); shadows read `elevation`. |
 | `tokens/radii` | `none / sm / md / lg / xl / full`. |
 | `tokens/elevation` | `none / sm / md`. Each carries a `web` CSS string and an `rn` descriptor for React Native. |
 | `tokens/zIndex` | Named layers: `base / dropdown / sticky / sheet / modal / toast`. |

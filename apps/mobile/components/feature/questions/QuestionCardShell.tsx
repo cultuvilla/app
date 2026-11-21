@@ -102,7 +102,7 @@ export function QuestionCardShell({
                     testID={testID ? `${testID}-up` : undefined}
                     className="p-1"
                   >
-                    <Ionicons name="arrow-up" size={20} color="#6b7280" />
+                    <Ionicons name="arrow-up" size={20} color={colors.light.fg.icon} />
                   </Pressable>
                   <Pressable
                     onPress={() => onMove(1)}
@@ -110,7 +110,7 @@ export function QuestionCardShell({
                     testID={testID ? `${testID}-down` : undefined}
                     className="p-1"
                   >
-                    <Ionicons name="arrow-down" size={20} color="#6b7280" />
+                    <Ionicons name="arrow-down" size={20} color={colors.light.fg.icon} />
                   </Pressable>
                 </>
               ) : null}

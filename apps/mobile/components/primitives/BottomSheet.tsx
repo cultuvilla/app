@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '@cultuvilla/shared/design-system';
 import { HStack } from './HStack';
 import { KeyboardAvoider } from './KeyboardAvoider';
 import { Text } from './Text';
@@ -111,7 +112,7 @@ export function SheetHandle({ onClose, label, testID }: { onClose: () => void; l
       hitSlop={{ top: 8, bottom: 8, left: 40, right: 40 }}
       className="items-center pt-3 pb-2 active:opacity-60"
     >
-      <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#cbd5e1' }} />
+      <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: colors.light.fg.chevron }} />
     </RNPressable>
   );
 }

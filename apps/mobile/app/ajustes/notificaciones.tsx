@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import {
   groupNotifyLevel,
   NOTIFICATION_TOPIC_SECTIONS,
@@ -356,7 +356,7 @@ function GroupNotifyRow({
           <Text tone="muted" variant="bodySm" testID={`push-group-level-${org.id}`}>
             {prefs.status === 'ready' ? labelOf(level) : ''}
           </Text>
-          <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
+          <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.chevron} />
         </HStack>
       </Pressable>
       <OptionsSheet

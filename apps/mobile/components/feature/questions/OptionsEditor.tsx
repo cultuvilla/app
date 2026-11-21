@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Input, Pressable, Text, VStack, HStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 
@@ -28,7 +29,7 @@ export function OptionsEditor({
     <VStack gap={1}>
       {options.map((opt, i) => (
         <HStack key={i} gap={2} align="center">
-          <Ionicons name={glyph} size={20} color="#9ca3af" />
+          <Ionicons name={glyph} size={20} color={colors.light.fg.quiet} />
           <View className="flex-1">
             <Input
               value={opt}
@@ -43,7 +44,7 @@ export function OptionsEditor({
             testID={testIDPrefix ? `${testIDPrefix}-option-remove-${i}` : undefined}
             className="p-1"
           >
-            <Ionicons name="close" size={20} color="#9ca3af" />
+            <Ionicons name="close" size={20} color={colors.light.fg.quiet} />
           </Pressable>
         </HStack>
       ))}
@@ -54,7 +55,7 @@ export function OptionsEditor({
         className="py-2"
       >
         <HStack gap={2} align="center">
-          <Ionicons name={glyph} size={20} color="#d1d5db" />
+          <Ionicons name={glyph} size={20} color={colors.light.fg.chevron} />
           <Text tone="muted">{t('questions.addOption')}</Text>
         </HStack>
       </Pressable>

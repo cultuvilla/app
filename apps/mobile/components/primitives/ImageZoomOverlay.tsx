@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { colors } from '@cultuvilla/shared/design-system';
 import type { ImageContentFit } from 'expo-image';
 import Animated, {
   useAnimatedStyle,
@@ -132,5 +133,5 @@ export function ImageZoomOverlayProvider({ children }: { children: ReactNode }) 
 }
 
 const styles = StyleSheet.create({
-  backdrop: { backgroundColor: '#000000' },
+  backdrop: { backgroundColor: colors.light.bg.media },
 });

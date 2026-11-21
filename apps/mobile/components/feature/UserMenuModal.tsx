@@ -309,7 +309,7 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
                         <Ionicons
                           name={item.icon}
                           size={22}
-                          color={disabled ? '#94a3b8' : '#0f172a'}
+                          color={disabled ? colors.light.fg.quiet : colors.light.fg.strong}
                         />
                         <Text className="flex-1 ml-3" tone={disabled ? 'muted' : 'primary'}>
                           {item.label}
@@ -319,7 +319,7 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
                             {t('menu.comingSoon')}
                           </Text>
                         ) : (
-                          <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                          <Ionicons name="chevron-forward" size={18} color={colors.light.fg.chevron} />
                         )}
                       </Pressable>
                     );

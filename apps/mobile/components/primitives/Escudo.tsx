@@ -1,4 +1,5 @@
 import { View, StyleSheet } from 'react-native';
+import { colors } from '@cultuvilla/shared/design-system';
 import { RemoteImage } from './RemoteImage';
 import { Text } from './Text';
 import { ZoomableImage } from './ZoomableImage';
@@ -88,7 +89,7 @@ export function Escudo({
 
 const styles = StyleSheet.create({
   placeholder: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.light.bg.placeholder,
     alignItems: 'center',
     justifyContent: 'center',
   },

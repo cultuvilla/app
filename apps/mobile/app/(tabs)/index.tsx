@@ -288,7 +288,7 @@ export default function FeedScreen() {
   function emptyState(icon: keyof typeof Ionicons.glyphMap, message: string, filtered: boolean) {
     return (
       <View className="items-center justify-center px-8">
-        <Ionicons name={filtered ? 'search-outline' : icon} size={48} color="#64748b" />
+        <Ionicons name={filtered ? 'search-outline' : icon} size={48} color={colors.light.fg.icon} />
         <Text tone="muted" className="mt-3 text-center">
           {message}
         </Text>
