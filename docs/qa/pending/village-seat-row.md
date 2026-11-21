@@ -17,3 +17,5 @@ source: feat/village-seat-row
 **Esperado:** Paso 2: la primera tarjeta es la cabecera (Figueruela de Arriba), aunque tenga menos vecinos que otra localidad; lleva borde de color y su subtítulo dice «El pueblo · N vecinos». Las demás solo dicen «N vecinos» y no tienen borde. Paso 3: se lee «Figueruela de Arriba, El pueblo · N vecinos».
 
 **Roto se ve así:** la cabecera aparece en medio, ordenada por vecinos; no hay borde; o el subtítulo muestra una clave sin traducir (`village.admin.barrios.seat`).
+
+**Pasada 2026-11-21 (Android, agente):** ✅ solo la pantalla, con localidades escritas a mano como las siembra el código (orden, borde, «El pueblo · 1 vecino», TalkBack). Sin probar: que `startVillage` siembre la cabecera con `isSeat: true` — el emulador no tiene datos de OSM.

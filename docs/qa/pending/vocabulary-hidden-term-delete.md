@@ -17,3 +17,5 @@ source: refactor/entity-capability-policy
 **Esperado:** Paso 1: no hay papelera en la cabecera. Paso 2: la papelera sí aparece y borra la palabra. Paso 3: el admin ve la papelera y puede borrarla.
 
 **Roto se ve así:** en el paso 1 aparece la papelera y al pulsarla no pasa nada o sale un error de permisos.
+
+**Pasada 2026-11-21 (Android, agente):** ⏭ «Añadir palabra» exige un significado, así que la app no deja crear una palabra sin significados: hace falta crearla a mano en Firestore antes del paso 1.
