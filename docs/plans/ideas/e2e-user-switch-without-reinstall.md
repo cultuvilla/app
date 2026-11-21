@@ -1,6 +1,7 @@
 # e2e: switch user without reinstalling the app
 
 **Priority:** medium — about half of iOS flow 13's 16 min is reinstall and settle cost, which keeps `FLOW_TIMEOUT_OVERRIDES_MS` alive and makes every multi-user flow slow on both platforms
+**Gate:** blocked:PR #722 (open e2e work edits packages/shared/test/ci/iosE2e.test.ts and the Maestro suite seeding this plan changes)
 
 **Goal:** Let a Maestro flow change the signed-in user without `clearState`'s uninstall/reinstall, so a login costs seconds instead of about a minute and the per-flow timeout overrides can go.
 

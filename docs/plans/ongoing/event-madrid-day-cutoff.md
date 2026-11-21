@@ -1,6 +1,9 @@
 # One Madrid-day cutoff for the feed and the completion sweep
 
 **Priority:** low — one small live defect (the feed's "from today" cutoff follows the phone's clock, not Madrid's) and an hourly job whose reads grow with every event ever published
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it
 
 **Goal:** Put "the start of today in Europe/Madrid" in `EventDataModel` next to `madridDayKey`, and use it in the two places that cut events off by day: the home feed's `endBoundary >= today` query, and `completeExpiredEvents`, which then queries only the events whose day is over instead of reading every published event each hour.
 
