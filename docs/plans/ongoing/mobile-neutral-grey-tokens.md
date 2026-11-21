@@ -1,7 +1,9 @@
 # Neutral grey tokens for the app's hand-written greys
 
 **Priority:** low — 99 hex literals in `apps/mobile` match no design token, so a brand or dark-mode change cannot reach them
-**Gate:** blocked:mobile-raw-hex-to-tokens
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop (#725 landed the token-equal swap and the hex scan), then build it
 
 Decided 2026-11-20 (user): approve — add neutral/grey tokens and move the remaining hand-written greys onto them, accepting slight visual changes.
 

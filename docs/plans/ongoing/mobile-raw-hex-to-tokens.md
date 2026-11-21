@@ -2,8 +2,8 @@
 
 **Priority:** low — cleanup: 81 literals copy a token's value, and nothing stops the next one
 **Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop, then build it
+**Gate:** soak:Deploy dev of e216f789 (#725) is green
+**Next:** once dev deploys #725, set Landed: dev; it is a byte-identical refactor guarded by noTokenHexLiterals.test.ts, so retire once the first release carrying #725 is live in prod
 
 **Goal:** Every quoted hex in `apps/mobile/app` and `apps/mobile/components` whose value
 equals a colour token reads that token instead, and a jest scan fails on a new one, so a
