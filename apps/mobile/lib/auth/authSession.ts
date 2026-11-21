@@ -27,6 +27,8 @@ export type SessionEvent<U extends { uid: string }> =
   | { type: 'launchSettled'; currentUid: string | null }
   | { type: 'profileRequested'; uid: string }
   | { type: 'profileAnswered'; uid: string; profile: Profile }
+  /** The account chose its active village; applied before the write is acknowledged. */
+  | { type: 'activeVillageChosen'; uid: string; municipalityId: string }
   /** The read finished; `answered` is false when it failed. */
   | { type: 'profileSettled'; uid: string; answered: boolean };
 
@@ -70,6 +72,9 @@ export function authSessionReducer<U extends { uid: string }>(
     case 'profileAnswered':
       if (!isFor(state, event.uid)) return state;
       return { ...state, profile: event.profile };
+    case 'activeVillageChosen':
+      if (!isFor(state, event.uid) || !state.profile) return state;
+      return { ...state, profile: { ...state.profile, activeMunicipalityId: event.municipalityId } };
     case 'profileSettled':
       if (!isFor(state, event.uid)) return state;
       return {

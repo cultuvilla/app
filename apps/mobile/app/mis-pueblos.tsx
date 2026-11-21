@@ -18,7 +18,6 @@ import {
   getUserMemberships,
   type UserMembership,
 } from '@cultuvilla/shared/services/villageMemberService';
-import { setActiveMunicipality } from '@cultuvilla/shared/services/userService';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import { escudoThumbDisplayUrl, villageTitle } from '@cultuvilla/shared/models/municipality';
 import type { Sex } from '@cultuvilla/shared/models/core/SexModel';
@@ -32,11 +31,10 @@ type Row = UserMembership & {
 };
 
 export default function MyVillagesScreen() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, switchActiveVillage } = useAuth();
   const { t } = useT();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -66,16 +64,9 @@ export default function MyVillagesScreen() {
     void load();
   }, [load]);
 
-  async function selectVillage(municipalityId: string) {
-    if (!user) return;
-    setSwitchingId(municipalityId);
-    try {
-      await setActiveMunicipality(user.uid, municipalityId);
-      await refreshProfile();
-      router.replace(routes.myVillage);
-    } finally {
-      setSwitchingId(null);
-    }
+  function selectVillage(municipalityId: string) {
+    switchActiveVillage(municipalityId);
+    router.replace(routes.myVillage);
   }
 
   const activeId = profile?.activeMunicipalityId ?? null;
@@ -107,11 +98,10 @@ export default function MyVillagesScreen() {
             const title = user
               ? villageTitle({ userId: user.uid, role: item.role, organizerId: item.organizerId })
               : 'member';
-            const isBusy = switchingId === item.municipalityId;
             return (
               <Pressable
                 onPress={() => selectVillage(item.municipalityId)}
-                disabled={isActive || isBusy}
+                disabled={isActive}
                 className={
                   'flex-row items-center p-3 rounded-md border ' +
                   (isActive ? 'border-strong bg-surface-elevated' : 'border-subtle bg-surface')
@@ -130,9 +120,7 @@ export default function MyVillagesScreen() {
                     )}
                   </VStack>
                 </View>
-                {isBusy ? (
-                  <ActivityIndicator />
-                ) : isActive ? (
+                {isActive ? (
                   <View className="flex-row items-center">
                     <Ionicons name="checkmark-circle" size={20} color={colors.light.fg.success} />
                     <Text variant="caption" tone="success" className="ml-1 font-semibold uppercase">
