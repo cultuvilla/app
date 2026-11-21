@@ -8,7 +8,7 @@ import type { PartialDate } from '../models/person';
 
 const LOCALE = 'es-ES';
 
-export type DateStyle = 'short' | 'dayMonth' | 'dayMonthShort' | 'monthYear' | 'long' | 'time' | 'datetime';
+export type DateStyle = 'short' | 'dayMonth' | 'dayMonthShort' | 'monthYear' | 'long' | 'weekdayDayMonth' | 'time' | 'datetime';
 
 /**
  * `timeZone` is an IANA zone (e.g. `Europe/Madrid`). Omit it in client code —
@@ -59,6 +59,9 @@ export function formatDate(date: Date, style: DateStyle = 'short', timeZone?: st
         month: 'long',
         year: 'numeric',
       }).format(date);
+    // A day of a programme, whose year is already in its title: "viernes, 24 de julio".
+    case 'weekdayDayMonth':
+      return new Intl.DateTimeFormat(LOCALE, { ...tz, weekday: 'long', day: 'numeric', month: 'long' }).format(date);
     case 'time':
       return new Intl.DateTimeFormat(LOCALE, { ...tz,
         hour: '2-digit',

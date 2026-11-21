@@ -14,6 +14,7 @@ import {
   type UrlEntityKind,
 } from '@cultuvilla/shared/utils';
 import {
+  fiestaProgrammeDays,
   firstOfEachSeries,
   LISTED_EVENT_STATUSES,
   OTHER_VILLAGES_SHOWN,
@@ -611,6 +612,70 @@ export async function loadWrapped(db: Firestore, municipalityId: string, year: n
     eventCount: num(stats['eventCount']),
     personCount: num(stats['uniquePersonCount']),
   };
+}
+
+// ── Programa de fiestas ─────────────────────────────────────────────────────
+
+export interface ProgrammeEditionView {
+  /** The block's name as the profile has it today. */
+  name: string;
+  startDay: string;
+  endDay: string;
+  /** The edition's public events by the Madrid day they start on, in order. */
+  days: { day: string; events: EventView[] }[];
+}
+
+export interface ProgrammeView {
+  year: number;
+  editions: ProgrammeEditionView[];
+  /** The year's cartel, for the link preview. */
+  posterUrl: string | null;
+}
+
+/**
+ * The year's programa de fiestas: every dated edition whose block still
+ * exists, each with its public, listed events by day — the app's own reads
+ * (editions by village and start day, events by edition and visibility), so
+ * they ride the indexes the app declared. Null when the year has no edition
+ * with a block to name it.
+ */
+export async function loadFiestaProgramme(db: Firestore, municipalityId: string, year: number): Promise<ProgrammeView | null> {
+  const editionSnap = await byMunicipality(db, 'fiestaEditions', municipalityId).orderBy('startDay', 'asc').get();
+  const dated = editionSnap.docs.filter((d) => num(d.get('year')) === year);
+  if (dated.length === 0) return null;
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const village = await db.collection('municipalities').doc(municipalityId).get();
+  const blocks = arr(obj(village.get('community'))?.['fiestas']);
+  const blockName = (id: string | null) => {
+    const block = blocks.map((b) => obj(b)).find((b) => b !== null && str(b['id']) === id);
+    return block ? str(block['name']) : null;
+  };
+  const editions = await Promise.all(
+    dated.map(async (doc): Promise<ProgrammeEditionView | null> => {
+      const name = blockName(str(doc.get('blockId')));
+      const startDay = str(doc.get('startDay'));
+      const endDay = str(doc.get('endDay'));
+      if (!name || !startDay || !endDay) return null;
+      const events = await db
+        .collection('events')
+        .where('fiestaEditionId', '==', doc.id)
+        .where('visibility', '==', 'public')
+        .orderBy('startDate', 'asc')
+        .get();
+      const listed = events.docs.filter((d) => isListedStatus(str(d.get('status')))).map((d) => toEvent(d.id, d.data()));
+      return { name, startDay, endDay, days: programmeDays(listed) };
+    }),
+  );
+  const named = editions.filter((e): e is ProgrammeEditionView => e !== null);
+  if (named.length === 0) return null;
+  const posters = await byMunicipality(db, 'festivalPosters', municipalityId).where('status', '==', 'active').orderBy('year', 'desc').get();
+  const poster = posters.docs.map((d) => toPoster(d.id, d.data())).find((p) => p.year === year && p.images.length > 0);
+  return { year, editions: named, posterUrl: poster?.images[0] ?? null };
+}
+
+function programmeDays(events: EventView[]): ProgrammeEditionView['days'] {
+  const rows = events.flatMap((event) => (event.start ? [{ event, startDate: event.start }] : []));
+  return fiestaProgrammeDays(rows).map(({ day, events: list }) => ({ day, events: list.map((r) => r.event) }));
 }
 
 // ── Village-wide lists ──────────────────────────────────────────────────────

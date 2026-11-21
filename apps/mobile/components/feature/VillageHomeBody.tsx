@@ -44,6 +44,7 @@ import { JoinVillageModal } from './JoinVillageModal';
 import { VillageWrappedStrip } from './wrapped/VillageWrappedStrip';
 import { OtherVillagesSection } from './OtherVillagesSection';
 import { WrappedPrompt } from './wrapped/WrappedPrompt';
+import { FiestasHomeCard } from './fiestas/FiestasHomeCard';
 import { StatsRow } from './StatsRow';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
@@ -311,6 +312,10 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
             onPress={() => void share(getVillageViewLink(villageSlug), village.name)}
           />
         </HStack>
+
+        {/* ── The fiestas: their programme while they are on or coming up, or
+            an invitation to date them in the month they are due ────── */}
+        <FiestasHomeCard municipalityId={village.id} villageSlug={villageSlug} isMember={isMember} />
 
         {/* ── Admins: an invitation to sum up the fiestas, once the village
             has had movement worth summing up ─────────────────────── */}

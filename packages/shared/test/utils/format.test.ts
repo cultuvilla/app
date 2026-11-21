@@ -26,6 +26,7 @@ describe('formatDate', () => {
   it('formats a card date as day and short month, without a trailing period', () => {
     expect(formatDate(new Date(2026, 11, 6, 12), 'dayMonthShort')).toBe('6 dic');
     expect(formatDayKey('2026-12-06', 'dayMonthShort')).toBe('6 dic');
+    expect(formatDayKey('2026-07-24', 'weekdayDayMonth')).toBe('viernes, 24 de julio');
   });
 
   it('formats time-only', () => {

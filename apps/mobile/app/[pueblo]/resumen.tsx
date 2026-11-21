@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { madridDayKey, madridYear, type FiestaBlock } from '@cultuvilla/shared/models';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
+import { getFiestaEditions } from '@cultuvilla/shared/services/fiestaEditionService';
 import {
   buildVillageWrapped,
   getVillageWrappedForYear,
@@ -52,11 +53,16 @@ function WrappedScreen() {
     if (!villageId) return;
     setLoadError(null);
     try {
-      const [m, w] = await Promise.all([getMunicipality(villageId), getVillageWrappedForYear(villageId, year)]);
+      const [m, w, editions] = await Promise.all([
+        getMunicipality(villageId),
+        getVillageWrappedForYear(villageId, year),
+        getFiestaEditions(villageId),
+      ]);
       const blocks = m?.community?.fiestas ?? [];
       setFiestas(blocks);
       setWrapped(w);
-      setForm(initialWrappedForm(blocks, today, w));
+      // The year's fiesta editions give the days, so the admin confirms instead of picking.
+      setForm(initialWrappedForm(blocks, today, w, editions.filter((e) => e.year === year)));
     } catch (error) {
       // Surfaced, not swallowed: the screen's whole render gates on `fiestas`,
       // so a rejected read here is indistinguishable from a slow one and shows

@@ -12,6 +12,7 @@ import {
 } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import { isUsableSignupField, type SignupFieldSpec } from '@cultuvilla/shared/models/event/SignupFieldModel';
 import { buildLocationData, type LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
+import { editionContaining, type FiestaEdition } from '@cultuvilla/shared/models/fiesta/FiestaEditionModel';
 
 export type Recurrence = 'weekly' | 'monthly' | 'yearly';
 
@@ -68,10 +69,14 @@ export interface EventDraft {
   organizerOrgIds: string[];
   /** The cover already stored (edit), or last year's flyer (copy). */
   existingImageURL: string | null;
+  /** Put the event on the programme of the fiesta edition its date falls in,
+   *  when there is one. On by default: an event dated in the fiestas usually
+   *  is part of them, and turning it off is one tap. */
+  inFiesta: boolean;
 }
 
 /** What edit mode knows about the event as loaded, before any edit. */
-export interface LoadedEvent extends Pick<EventData, 'series' | 'startDate' | 'visibilityOrgId' | 'createdBy'> {
+export interface LoadedEvent extends Pick<EventData, 'series' | 'startDate' | 'visibilityOrgId' | 'createdBy' | 'fiestaEditionId'> {
   id: string;
   /** Answers already collected are keyed by these rows' ids, so once the event
    *  has sign-ups the existing rows are frozen and only new ones can be added. */
@@ -115,6 +120,7 @@ export function blankEventDraft(startDate: Date | null, organizerOrgId?: string)
     organizerUserIds: [],
     organizerOrgIds: organizerOrgId ? [organizerOrgId] : [],
     existingImageURL: null,
+    inFiesta: true,
   };
 }
 
@@ -155,6 +161,7 @@ type PrefillSource = Pick<
   | 'imageURL'
   | 'repeatsMonthly'
   | 'repeatDateVaries'
+  | 'fiestaEditionId'
 >;
 
 /**
@@ -198,6 +205,7 @@ export function draftFromEvent(
       startDate: ev.startDate,
       endDate: ev.endDate ?? null,
       organizerUserIds: ev.organizerUserIds ?? [],
+      inFiesta: ev.fiestaEditionId != null,
     };
   }
   return {
@@ -208,11 +216,14 @@ export function draftFromEvent(
     recurring: true,
     recurrence: ev.repeatsMonthly ? 'monthly' : 'yearly',
     dateVaries: ev.repeatDateVaries,
+    // Next year's edition joins next year's fiestas, once they are dated.
+    inFiesta: true,
   };
 }
 
 export function loadedFromEvent(
   ev: Pick<EventData, 'series' | 'startDate' | 'visibilityOrgId' | 'createdBy' | 'signupFields' | 'totalCount' | 'signupEnabled'> & {
+    fiestaEditionId?: string | null;
     id: string;
   },
 ): LoadedEvent {
@@ -222,6 +233,7 @@ export function loadedFromEvent(
     startDate: ev.startDate,
     visibilityOrgId: ev.visibilityOrgId,
     createdBy: ev.createdBy,
+    fiestaEditionId: ev.fiestaEditionId ?? null,
     lockedFieldCount: ev.totalCount > 0 ? (ev.signupFields ?? []).length : 0,
     groupSizeLocked: ev.totalCount > 0,
     existingSignupCount: ev.totalCount,
@@ -256,13 +268,27 @@ export interface DerivedEventDraft {
   /** Saving would wipe the roster: sign-ups are being switched off on an event that has some. */
   signupsWouldBeWiped: boolean;
   lockedFieldCount: number;
+  /** The fiesta edition the start date falls in — what the form offers to join. Never for a series. */
+  fiestaEditionOffer: string | null;
+  /** What is saved: the offer when `inFiesta`, else null. */
+  fiestaEditionId: string | null;
 }
 
 const yearOutOfBounds = (y: number | null) =>
   y !== null && (!Number.isInteger(y) || y < MIN_EVENT_BIRTH_YEAR || y > MAX_EVENT_BIRTH_YEAR);
 
-/** `loaded` is the event being edited, or null when composing a new one. */
-export function deriveEventDraft(d: EventDraft, loaded: LoadedEvent | null): DerivedEventDraft {
+type EditionDays = Pick<FiestaEdition, 'id' | 'startDay' | 'endDay'>;
+
+/**
+ * `loaded` is the event being edited, or null when composing a new one.
+ * `editions` are the village's fiesta editions, or null while they load —
+ * then an edit keeps the edition it has, so a quick save never drops it.
+ */
+export function deriveEventDraft(
+  d: EventDraft,
+  loaded: LoadedEvent | null,
+  editions: readonly EditionDays[] | null = [],
+): DerivedEventDraft {
   const visibilityOrgId = loaded?.series
     ? loaded.visibilityOrgId
     : d.privateToOrg && d.organizerOrgIds.length === 1
@@ -301,6 +327,12 @@ export function deriveEventDraft(d: EventDraft, loaded: LoadedEvent | null): Der
         (!weekly || d.repeatWeekdays.length > 0) &&
         seriesOccurrences({ startDate, endDate: null }, seriesRule).length === 0));
 
+  const onSeries = isSeries || (loaded?.series ?? null) !== null;
+  const fiestaEditionOffer =
+    onSeries || !startDate || editions === null ? null : (editionContaining(editions, startDate)?.id ?? null);
+  const fiestaEditionId =
+    editions === null ? (loaded?.fiestaEditionId ?? null) : d.inFiesta ? fiestaEditionOffer : null;
+
   return {
     visibilityOrgId,
     varyingDate,
@@ -318,6 +350,8 @@ export function deriveEventDraft(d: EventDraft, loaded: LoadedEvent | null): Der
     signupsWouldBeWiped:
       loaded !== null && loaded.signupWasEnabled && !d.signupEnabled && loaded.existingSignupCount > 0,
     lockedFieldCount: loaded?.lockedFieldCount ?? 0,
+    fiestaEditionOffer,
+    fiestaEditionId,
   };
 }
 
@@ -370,6 +404,7 @@ function commonFields(d: ReadyEventDraft, x: DerivedEventDraft, villageName: str
     organizerOrgIds: d.organizerOrgIds,
     visibility: x.visibilityOrgId === null ? ('public' as const) : ('organization' as const),
     visibilityOrgId: x.visibilityOrgId,
+    fiestaEditionId: x.fiestaEditionId,
   };
 }
 

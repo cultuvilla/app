@@ -2,7 +2,7 @@ import { APP_STORES } from '@cultuvilla/shared/config';
 import { palette } from '@cultuvilla/shared/design-system';
 import { LEGAL_DOCS } from '@cultuvilla/shared/legal';
 import type { WrappedCard } from '@cultuvilla/shared/models';
-import { villagePath, villageSectionPath } from '@cultuvilla/shared/utils';
+import { entityPath, formatDate, formatDayKey, villagePath, villageSectionPath } from '@cultuvilla/shared/utils';
 import {
   cardImage,
   eventWhen,
@@ -18,6 +18,7 @@ import {
   type PlaceView,
   type BarrioView,
   type PosterView,
+  type ProgrammeView,
   type SectionData,
   type TermView,
   type Village,
@@ -343,6 +344,39 @@ export function wrappedPage(v: Village, w: WrappedView, appPath: string): Page {
     body: html`${backTo(v)}<h1>${title}</h1>${figures.length ? html`<p class="meta">${figures.join(' · ')}</p>` : null}${w.images.map(
       (u, i) => html`<p>${img(u, `${title} · ${v.name} (${String(i + 1)}/${String(w.images.length)})`)}</p>`,
     )}${appCta(appPath, 'Verlo y compartirlo en la app')}`,
+  };
+}
+
+const programmeDates = (startDay: string, endDay: string) =>
+  startDay === endDay ? formatDayKey(startDay, 'dayMonth') : `${formatDayKey(startDay, 'dayMonth')} – ${formatDayKey(endDay, 'dayMonth')}`;
+
+/**
+ * The programa de fiestas, for the WhatsApp reader before and during them:
+ * each edition's days and, on each, its events by start time, each linking to
+ * its own page. No «Hoy»: the edge keeps the page, and today moves.
+ */
+export function programmePage(v: Village, p: ProgrammeView, appPath: string): Page {
+  const title = `Programa de fiestas ${String(p.year)}`;
+  const summary = p.editions.map((e) => `${e.name}: ${programmeDates(e.startDay, e.endDay)}`).join(' · ');
+  return {
+    head: {
+      title: `${title} · ${v.name}`,
+      description: `${summary}. El programa de las fiestas de ${v.name}, día a día.`,
+      imageUrl: p.posterUrl,
+    },
+    body: html`${backTo(v)}<h1>${title}</h1>${p.editions.map(
+      (e) => html`<h2>${e.name}</h2><p class="meta">${programmeDates(e.startDay, e.endDay)}</p>${
+        e.days.length
+          ? e.days.map(
+              (d) => html`<h3>${formatDayKey(d.day, 'weekdayDayMonth')}</h3><ul>${d.events.map(
+                (ev) => html`<li><a href="${entityPath('event', { id: ev.id, title: ev.title, villageSlug: v.slug })}">${
+                  ev.start ? `${formatDate(ev.start, 'time', 'Europe/Madrid')} · ` : ''
+                }${ev.title}</a>${ev.locationName ? html` <span class="meta">· ${ev.locationName}</span>` : null}</li>`,
+              )}</ul>`,
+            )
+          : html`<p>Todavía no hay eventos en el programa.</p>`
+      }`,
+    )}${appCta(appPath, 'Verlo en la app y apuntarte')}`,
   };
 }
 
