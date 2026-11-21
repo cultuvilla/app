@@ -63,10 +63,10 @@ describe('GroupSettings — sections', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible />);
     const ids = ['group-settings-features', 'group-settings-entry', 'group-settings-transparency', 'group-settings-charla', 'group-settings-cuota'];
     for (const id of ids) expect(r.getByTestId(id)).toBeTruthy();
-    for (const k of ['features', 'entry', 'charla', 'cuota']) expect(r.getByText(`groups.settings.sections.${k}`)).toBeTruthy();
+    for (const k of ['features', 'entry', 'membersCan.socios', 'cuota']) expect(r.getByText(`groups.settings.sections.${k}`)).toBeTruthy();
     // What the group uses comes first.
     const order = r.getAllByTestId(/^group-settings-(features|entry|transparency|charla|cuota)$/).map((el) => el.props.testID as string);
-    expect(order[0]).toBe('group-settings-features');
+    expect(order).toEqual(ids);
     expect(r.getByText('groups.transparency.settings.title')).toBeTruthy();
   });
 
@@ -88,6 +88,8 @@ describe('GroupSettings — sections', () => {
     expect(r.queryByTestId('group-settings-entry')).toBeNull();
     expect(r.queryByTestId('group-settings-join-policy')).toBeNull();
     expect(r.getByTestId('group-settings-charla')).toBeTruthy();
+    expect(r.getByText('groups.settings.sections.membersCan.integrantes')).toBeTruthy();
+    expect(r.queryByText('groups.settings.sections.membersCan.socios')).toBeNull();
     expect(r.queryByTestId('group-settings-cuota-enabled')).toBeNull();
     expect(r.getByTestId('group-settings-cosateca')).toBeTruthy();
   });
@@ -95,7 +97,6 @@ describe('GroupSettings — sections', () => {
   it('warns before opening the group, and opens it once confirmed', () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} />);
-    expect(r.getByText('organization.joinPolicy.approvalHint')).toBeTruthy();
     fireEvent.press(r.getByTestId('group-settings-join-policy'));
     expect(alert).toHaveBeenCalledWith('organization.joinPolicy.switchToOpenTitle', 'organization.joinPolicy.switchToOpenBody', expect.any(Array));
     expect(updateOrganization).not.toHaveBeenCalled();
@@ -107,18 +108,38 @@ describe('GroupSettings — sections', () => {
 
   it('closes an open group without asking', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} joinPolicy="open" />);
-    expect(r.getByText('organization.joinPolicy.openHint')).toBeTruthy();
     fireEvent.press(r.getByTestId('group-settings-join-policy'));
     expect(updateOrganization).toHaveBeenCalledWith('org1', { joinPolicy: 'approval' });
   });
 });
 
+describe('GroupSettings — what socios can do', () => {
+  it('shows the Charla switch on while socios may write, and saves its inverse', () => {
+    const open = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} />);
+    const write = open.getByTestId('group-settings-chat-admins-only');
+    expect(write.props.accessibilityState).toMatchObject({ checked: true });
+    expect(open.getByText('groups.settings.chatMembersWrite')).toBeTruthy();
+    fireEvent.press(write);
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: true });
+    open.unmount();
+    const closed = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} chatAdminsOnly />);
+    expect(closed.getByTestId('group-settings-chat-admins-only').props.accessibilityState).toMatchObject({ checked: false });
+    fireEvent.press(closed.getByTestId('group-settings-chat-admins-only'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: false });
+  });
+
+  it('carries no hint under any switch', () => {
+    const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} />);
+    expect(r.queryByText(/Hint$|\.hint$/)).toBeNull();
+  });
+});
+
 describe('GroupSettings — what every socio sees', () => {
-  it('offers the three switches, off by default, each with its hint, only where there are socios', () => {
+  it('offers the three switches, off by default, labelled to read alone, only where there are socios', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} />);
     for (const view of ['cuota', 'avisos', 'cuentas']) {
       expect(r.getByTestId(`group-settings-transparency-${view}`).props.accessibilityState).toMatchObject({ checked: false });
-      expect(r.getByText(`groups.transparency.settings.${view}.hint`)).toBeTruthy();
+      expect(r.getByText(`groups.transparency.settings.${view}`)).toBeTruthy();
     }
     r.unmount();
     const ayto = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} />);

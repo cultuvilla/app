@@ -33,21 +33,15 @@ function SettingsSection({ title, children, testID }: { title: string; children:
   );
 }
 
-function Hint({ children }: { children: string }) {
-  return (
-    <Text variant="caption" tone="muted">
-      {children}
-    </Text>
-  );
-}
-
 /**
  * A group's rules, for its admins, under one heading per question: first what
  * the group uses (the cuota, where it has socios, and the cosateca, with whom
  * it is for; decided 2026-11-20, user), then how one
  * joins (approval, and the contact data being a socio requires), what every
  * socio sees (the roster, the cuota's al día list, every aviso, the accounts),
- * who writes in the Charla, and, once the cuota is configured, its reminders.
+ * what socios (integrantes, in a group without a roster) can do — today, write
+ * in the Charla — and, once the cuota is configured, its reminders. Each
+ * switch's label reads alone under its heading, so none carries a hint.
  * Switching the cuota off hides its buttons, never its payments. An ayuntamiento always admits by approval, so it
  * has no switch for it. A member's own notifications are in Ajustes →
  * Notificaciones, not here.
@@ -156,16 +150,13 @@ export function GroupSettings({
       {!isAyuntamiento || hasRoster ? (
         <SettingsSection title={t('groups.settings.sections.entry')} testID="group-settings-entry">
           {!isAyuntamiento ? (
-            <VStack gap={1}>
-              <Toggle
-                testID="group-settings-join-policy"
-                value={requiresApproval}
-                disabled={saving}
-                label={t('organization.joinPolicy.label')}
-                onValueChange={setRequiresApproval}
-              />
-              <Hint>{t(requiresApproval ? 'organization.joinPolicy.approvalHint' : 'organization.joinPolicy.openHint')}</Hint>
-            </VStack>
+            <Toggle
+              testID="group-settings-join-policy"
+              value={requiresApproval}
+              disabled={saving}
+              label={t('organization.joinPolicy.label')}
+              onValueChange={setRequiresApproval}
+            />
           ) : null}
           {hasRoster ? (
             <>
@@ -197,26 +188,29 @@ export function GroupSettings({
             onValueChange={(next) => save({ sociosListVisible: next })}
           />
           {TRANSPARENCY_VIEWS.filter((view) => view !== 'cuota' || cuotaEnabled).map((view) => (
-            <VStack key={view} gap={1}>
-              <Toggle
-                testID={`group-settings-transparency-${view}`}
-                value={transparency[view]}
-                disabled={saving}
-                label={t(`groups.transparency.settings.${view}.label`)}
-                onValueChange={(next) => save({ transparency: { ...transparency, [view]: next } })}
-              />
-              <Hint>{t(`groups.transparency.settings.${view}.hint`)}</Hint>
-            </VStack>
+            <Toggle
+              key={view}
+              testID={`group-settings-transparency-${view}`}
+              value={transparency[view]}
+              disabled={saving}
+              label={t(`groups.transparency.settings.${view}`)}
+              onValueChange={(next) => save({ transparency: { ...transparency, [view]: next } })}
+            />
           ))}
         </SettingsSection>
       ) : null}
-      <SettingsSection title={t('groups.settings.sections.charla')} testID="group-settings-charla">
+      {/* The ids predate the section's rename; the E2E flows tap them. The switch
+          reads "can write", so it shows and saves the inverse of chatAdminsOnly. */}
+      <SettingsSection
+        title={t(hasRoster ? 'groups.settings.sections.membersCan.socios' : 'groups.settings.sections.membersCan.integrantes')}
+        testID="group-settings-charla"
+      >
         <Toggle
           testID="group-settings-chat-admins-only"
-          value={chatAdminsOnly}
+          value={!chatAdminsOnly}
           disabled={saving}
-          label={t('groups.settings.chatAdminsOnly')}
-          onValueChange={(next) => save({ chatAdminsOnly: next })}
+          label={t('groups.settings.chatMembersWrite')}
+          onValueChange={(next) => save({ chatAdminsOnly: !next })}
         />
       </SettingsSection>
       {runsCuota && cuota.data ? (
