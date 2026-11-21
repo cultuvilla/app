@@ -1,9 +1,9 @@
 # Programa de fiestas — one link for the fiestas, before and after
 
 **Priority:** medium — the fiestas are the season Cultuvilla is built around, and today they have a poster and a summary but no programme
-**Landed:** none
-**Gate:** none
-**Next:** verify the plan against develop, then build it (first version: editions + tagged-event programme at the fiestas URL, app and read site; push later)
+**Landed:** dev
+**Gate:** soak:the first release carrying #732 is live in prod
+**Next:** QA pass on docs/qa/pending/programa-de-fiestas.md, then retire into docs/decisions/ and pick the follow-ups (push, Wrapped reminder from edition dates, event-detail label)
 
 Decided 2026-11-21 (user): yes — editions plus a tagged-event programme at the existing fiestas URL, push left for later (the recommended answer).
 
