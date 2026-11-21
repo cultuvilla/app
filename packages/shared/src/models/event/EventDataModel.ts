@@ -131,6 +131,12 @@ export const EventDataSchema = z.object({
   // On a repeating edition: the next one's date can't be derived, so repeating
   // it asks for the date rather than prefilling it. Always true on `repeatsMonthly`.
   repeatDateVaries: z.boolean().default(false),
+  // The fiesta edition (`fiestaEditions/{id}`) whose programme lists this
+  // event, or null. Tagging only arranges the programme: the Wrapped still
+  // counts by date range, tagged or not. Never on a series. `.default(null)`
+  // for events that predate it (backfilled by `event-fiesta-edition`) and for
+  // binaries that never send it.
+  fiestaEditionId: z.string().nullable().default(null),
   status: EventStatusSchema,
   organizerUserIds: z.array(z.string()),
   organizerOrgIds: z.array(z.string()),
@@ -192,6 +198,7 @@ export interface EventDataInput {
   repeatsYearly?: boolean;
   repeatsMonthly?: boolean;
   repeatDateVaries?: boolean;
+  fiestaEditionId?: string | null;
   status?: EventStatus;
   organizerUserIds: string[];
   organizerOrgIds: string[];
@@ -239,6 +246,7 @@ export function buildEventData(input: EventDataInput): EventData {
     repeatsYearly,
     repeatsMonthly,
     repeatDateVaries: repeatsMonthly || (repeatsYearly && (input.repeatDateVaries ?? false)),
+    fiestaEditionId: input.series ? null : (input.fiestaEditionId ?? null),
     status: input.status ?? 'published',
     organizerUserIds: input.organizerUserIds,
     organizerOrgIds: input.organizerOrgIds,

@@ -349,6 +349,7 @@ describe('VillageHomeBody', () => {
     repeatsYearly: false,
     repeatsMonthly: false,
     repeatDateVaries: false,
+    fiestaEditionId: null,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,

@@ -368,6 +368,10 @@ export const festivalPostersCollection = (db: Firestore) => typedCollection(db, 
 
 export const festivalPosterDoc = (db: Firestore, posterId: string) => typedDoc(db, C.festivalPosters, posterId);
 
+export const fiestaEditionsCollection = (db: Firestore) => typedCollection(db, C.fiestaEditions);
+
+export const fiestaEditionDoc = (db: Firestore, editionId: string) => typedDoc(db, C.fiestaEditions, editionId);
+
 // ── Occupation domain (top-level collections) ────────────────────────────
 
 export const occupationsCollection = (db: Firestore) => typedCollection(db, C.occupations);

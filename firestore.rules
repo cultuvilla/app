@@ -1077,6 +1077,38 @@ service cloud.firestore {
         && rs.weekdays == d.series.weekdays;
     }
 
+    // An event on a fiesta edition's programme must name an edition of its
+    // own pueblo — otherwise anyone could slot an event into another village's
+    // programa. Optional: binaries that predate editions never send it.
+    function isValidFiestaEditionRef(d) {
+      let id = d.get('fiestaEditionId', null);
+      return id == null
+        || (id is string
+            && topLevelEntityInVillage(/databases/$(database)/documents/fiestaEditions/$(id), d.municipalityId));
+    }
+
+    // One block's days for one year (FiestaEditionModel). The id is fixed per
+    // block and year, so a second proposal is an update, which only the
+    // proposer and the village's admins may make. The days are Madrid calendar
+    // days; the edition starts in its year and may run into the next one.
+    function isValidFiestaEdition(d, editionId) {
+      return d.keys().hasOnly(['municipalityId', 'villageSlug', 'blockId', 'year', 'startDay', 'endDay', 'proposedBy', 'createdAt', 'updatedAt'])
+          && d.keys().hasAll(['municipalityId', 'villageSlug', 'blockId', 'year', 'startDay', 'endDay', 'proposedBy', 'createdAt', 'updatedAt'])
+          && isString(d.municipalityId)
+          && isString(d.villageSlug)
+          && d.blockId is string && d.blockId.matches('^[a-z0-9-]+$')
+          && d.year is int && d.year >= 1900 && d.year <= 2200
+          && editionId == d.municipalityId + '_' + d.blockId + '_' + string(d.year)
+          && isDayKey(d.startDay)
+          && isDayKey(d.endDay)
+          && d.startDay.matches(string(d.year) + '-.*')
+          && (d.endDay.matches(string(d.year) + '-.*') || d.endDay.matches(string(d.year + 1) + '-.*'))
+          && d.endDay >= d.startDay
+          && isString(d.proposedBy)
+          && isTimestamp(d.createdAt)
+          && isTimestamp(d.updatedAt);
+    }
+
     function isValidEventCreate(d) {
       return d.keys().hasOnly([
               'title', 'description', 'startDate', 'endDate', 'endBoundary', 'location',
@@ -1084,6 +1116,7 @@ service cloud.firestore {
               'signupFields', 'signupEnabled', 'signupInfo', 'attendeesVisibility', 'signupGroupSize',
               'minBirthYear', 'maxBirthYear',
               'visibility', 'visibilityOrgId', 'series', 'repeatsYearly', 'repeatsMonthly', 'repeatDateVaries',
+              'fiestaEditionId',
               'status', 'organizerUserIds', 'organizerOrgIds', 'createdBy',
               'createdAt', 'updatedAt', 'municipalityId', 'villageName', 'villageSlug',
               'villageCoverImage', 'villageCoordinates',
@@ -1157,6 +1190,7 @@ service cloud.firestore {
           // send it, and their creates must keep working.
           && isValidEventSeries(d, d.get('series', null))
           && isValidRepeat(d)
+          && isValidFiestaEditionRef(d)
           && d.status in ['published', 'cancelled', 'completed']
           && d.organizerUserIds is list
           && d.organizerOrgIds is list
@@ -2406,6 +2440,8 @@ service cloud.firestore {
         && isFrozenGroupSizeChange(resource.data, request.resource.data)
         && isValidVisibilityChange(resource.data, request.resource.data)
         && isValidRepeat(request.resource.data)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['fiestaEditionId'])
+            || isValidFiestaEditionRef(request.resource.data))
         // A series shares one visibility: "este y los siguientes" finds its
         // siblings within it, and a day made private on its own would split it.
         && (resource.data.get('series', null) == null
@@ -2619,6 +2655,22 @@ service cloud.firestore {
            ]);
       allow delete: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin()
         || (isOwner(resource.data.proposedBy) && resource.data.status == 'active');
+    }
+
+    match /fiestaEditions/{editionId} {
+      // Public: the programme is made to be forwarded, signed in or not.
+      allow read: if true;
+      allow create: if isValidFiestaEdition(request.resource.data, editionId)
+        && request.resource.data.proposedBy == request.auth.uid
+        && (isVillageMember(request.resource.data.municipalityId) || isAppAdmin());
+      // Members propose, the proposer and the admins correct (the carteles
+      // pattern). The identity of an edition never changes, only its days.
+      allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin() || isOwner(resource.data.proposedBy))
+        && isValidFiestaEdition(request.resource.data, editionId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+             'municipalityId', 'villageSlug', 'blockId', 'year', 'proposedBy', 'createdAt',
+           ]);
+      allow delete: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin() || isOwner(resource.data.proposedBy);
     }
 
     // Collection-group queries: these rules are evaluated for CG list

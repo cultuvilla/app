@@ -26,6 +26,7 @@ function makeEvent(over: Partial<ManagedEvent> & { id: string }): ManagedEvent {
     repeatsYearly: false,
     repeatsMonthly: false,
     repeatDateVaries: false,
+    fiestaEditionId: null,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,

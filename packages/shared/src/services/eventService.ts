@@ -211,6 +211,40 @@ export function watchEventsByOrganization(
   );
 }
 
+function fiestaEditionEventsQuery(editionId: string) {
+  return query(
+    eventsCollection(getDb()),
+    where('fiestaEditionId', '==', editionId),
+    publicOnly(),
+    orderBy('startDate', 'asc'),
+  );
+}
+
+/**
+ * The programa de fiestas: the public events tagged to any of these editions
+ * (a year's blocks), listed statuses only, in start order. One listener per
+ * edition — a year has one or two — merged as one list. Public only: the
+ * programme is what a village forwards, so a peña's private event is never on it.
+ */
+export function watchFiestaProgrammeEvents(
+  editionIds: string[],
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchMerged<EventWithId>(
+    editionIds.map((id) => (next: (rows: EventWithId[]) => void, error: WatchError) =>
+      watchQuery(fiestaEditionEventsQuery(id), next, error),
+    ),
+    // Status is filtered here so the query reuses one three-field index.
+    (rows) =>
+      rows
+        .filter((e) => LISTED_STATUSES.includes(e.status))
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime()),
+    onNext,
+    onError,
+  );
+}
+
 export async function createEvent(input: Omit<EventDataInput, 'villageSlug'>): Promise<string> {
   const newRef = doc(eventsCollection(getDb()));
   const villageSlug = await getVillageSlug(input.municipalityId);

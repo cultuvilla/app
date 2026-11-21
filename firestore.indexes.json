@@ -798,6 +798,38 @@
       ]
     },
     {
+      "collectionGroup": "fiestaEditions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "municipalityId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startDay",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "fiestaEditionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "visibility",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "festivalPosters",
       "queryScope": "COLLECTION",
       "fields": [
