@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, FlatList, Image, Modal, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerDisabled: { backgroundColor: '#f3f4f6' },
   modal: { flex: 1, padding: 16, gap: 12 },

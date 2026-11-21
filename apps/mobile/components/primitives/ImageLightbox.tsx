@@ -25,7 +25,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { RemoteImage } from './RemoteImage';
 import {
   DOUBLE_TAP_SCALE,
@@ -290,7 +290,7 @@ export function ImageLightbox({
           testID="image-lightbox-close"
           style={[styles.close, { top: topInset + 8 }]}
         >
-          <Ionicons name="close" size={iconSizes.md} color="#ffffff" />
+          <Ionicons name="close" size={iconSizes.md} color={colors.light.fg['on-media']} />
         </RNPressable>
       </GestureHandlerRootView>
     </Modal>

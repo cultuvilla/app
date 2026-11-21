@@ -1,4 +1,5 @@
 import { routes } from '../../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useEffect, useRef, useState } from 'react';
 import {
   Modal,
@@ -245,7 +246,7 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
             right: 0,
             bottom: 0,
             height: SCREEN_HEIGHT,
-            backgroundColor: '#ffffff',
+            backgroundColor: colors.light.bg['surface-elevated'],
             transform: [{ translateY: Animated.add(slideAnim, drag.translateY) }],
           }}
         >
@@ -335,7 +336,7 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
               onPress={confirmSignOut}
               className="flex-row items-center justify-center bg-surface rounded-md border border-subtle py-4"
             >
-              <Ionicons name="log-out-outline" size={20} color="#dc2626" />
+              <Ionicons name="log-out-outline" size={20} color={colors.light.fg.danger} />
               <Text tone="danger" className="ml-2 font-semibold">
                 {t('menu.signOut')}
               </Text>

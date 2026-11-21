@@ -1,5 +1,6 @@
 // apps/mobile/components/feature/LocationPicker.tsx
 import { useEffect, useReducer } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, Image, View } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +19,7 @@ import {
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { initialLocationState, locationReducer } from './locationPickerState';
 
-const ACCENT = '#bb5d3a';
+const ACCENT = colors.light.fg.accent;
 
 export function LocationPicker({
   value,

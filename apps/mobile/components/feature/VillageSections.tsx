@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Animated, FlatList, Image, ScrollView, View } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { iconSizes, spacing } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes, spacing } from '@cultuvilla/shared/design-system';
 import { VStack, HStack, Text, Pressable, TopCropImage } from '../primitives';
 import { useT } from '../../lib/i18n';
 import { SectionTitle } from './SectionTitle';
@@ -15,9 +15,9 @@ import { RemoteImage } from '../primitives/RemoteImage';
  * and simply hides itself when it has no entities.
  */
 
-export const ACCENT = '#bb5d3a';
-const PLACEHOLDER_BG = '#dcab93'; // palette.peach — keeps the white scrim text legible over the fallback
-const CREST_BG = '#f9f0e8'; // palette.cream — matches the screen's bg-surface so the crest card reads as an outline
+export const ACCENT = colors.light.fg.accent;
+const PLACEHOLDER_BG = colors.light.bg.subtle; // keeps the white scrim text legible over the fallback
+const CREST_BG = colors.light.bg.surface; // matches the screen's bg-surface so the crest card reads as an outline
 const CARD_W = 175;
 const CARD_H = 175; // square — same width and height
 const CARD_RADIUS = 16; // matches the cards' rounded-2xl
@@ -372,7 +372,7 @@ function BigCard({
           backgroundColor: 'rgba(0,0,0,0.45)',
         }}
       >
-        <Text variant="body" className="font-medium" numberOfLines={2} style={{ color: '#ffffff' }}>
+        <Text variant="body" className="font-medium" numberOfLines={2} style={{ color: colors.light.fg['on-media'] }}>
           {label}
         </Text>
         {secondary ? (

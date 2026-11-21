@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, Pressable, Text as RNText, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
@@ -253,7 +254,7 @@ export default function OrgDetailScreen() {
                 paddingVertical: 10,
                 paddingHorizontal: 22,
                 borderRadius: 999,
-                backgroundColor: awaitingAcceptance ? '#8a7a70' : '#bb5d3a',
+                backgroundColor: awaitingAcceptance ? '#8a7a70' : colors.light.bg.accent,
                 opacity: joining ? 0.7 : 1,
                 elevation: 6,
                 shadowColor: '#000',
@@ -263,11 +264,11 @@ export default function OrgDetailScreen() {
               }}
             >
               {joining ? (
-                <ActivityIndicator color="#f9f0e8" style={{ marginRight: 8 }} />
+                <ActivityIndicator color={colors.light.fg['on-accent']} style={{ marginRight: 8 }} />
               ) : requested ? null : (
-                <RNText style={{ color: '#f9f0e8', fontSize: 18, lineHeight: 22, marginRight: 8 }}>+</RNText>
+                <RNText style={{ color: colors.light.fg['on-accent'], fontSize: 18, lineHeight: 22, marginRight: 8 }}>+</RNText>
               )}
-              <RNText style={{ color: '#f9f0e8', fontSize: 16, fontWeight: '700' }}>
+              <RNText style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>
                 {joinLabel}
               </RNText>
             </Pressable>

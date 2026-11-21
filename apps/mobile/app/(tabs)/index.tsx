@@ -1,4 +1,5 @@
 import { createEventHref, createNewsHref, eventHref, newsHref } from '../../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -49,7 +50,7 @@ import {
 } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 
-const ACCENT = '#bb5d3a'; // colors.ts: light.bg.accent (terracotta)
+const ACCENT = colors.light.fg.accent;
 // Breathing room between the filter bar and the first card. Lives in the feed's
 // top padding (the content behind), not in the filter component itself.
 const FEED_TOP_GAP = 12;
@@ -380,7 +381,7 @@ export default function FeedScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: '#ffffff',
+            backgroundColor: colors.light.bg['surface-elevated'],
             borderRadius: 24,
             borderWidth: 1.5,
             borderColor: ACCENT,
@@ -397,7 +398,7 @@ export default function FeedScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder={t('feed.filter.searchPlaceholder')}
-            placeholderTextColor="#a6a897"
+            placeholderTextColor={colors.light.fg.faint}
             // Fixed-height container + zero-padding input keeps the oval the same
             // height as the other pills; text scrolls inside the fixed width.
             style={{
@@ -409,7 +410,7 @@ export default function FeedScreen() {
               height: '100%',
               textAlignVertical: 'center',
               includeFontPadding: false,
-              color: '#566047',
+              color: colors.light.fg.primary,
             }}
           />
           <Pressable
