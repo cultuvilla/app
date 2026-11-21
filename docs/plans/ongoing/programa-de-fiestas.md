@@ -1,7 +1,11 @@
 # Programa de fiestas — one link for the fiestas, before and after
 
 **Priority:** medium — the fiestas are the season Cultuvilla is built around, and today they have a poster and a summary but no programme
-**Gate:** decision:should a village's fiestas get a programme (that year's dates plus the events in them, day by day) at `/<pueblo>/fiestas/<año>`, the same link that later shows the Wrapped?
+**Landed:** none
+**Gate:** none
+**Next:** verify the plan against develop, then build it (first version: editions + tagged-event programme at the fiestas URL, app and read site; push later)
+
+Decided 2026-11-21 (user): yes — editions plus a tagged-event programme at the existing fiestas URL, push left for later (the recommended answer).
 
 **Goal:** a fiesta block gets that year's dates and its events grouped into a day-by-day
 *programa* that people forward before and during the fiestas, at the one link that
@@ -113,7 +117,7 @@ As of 2026-11-21:
 
 ## Approval
 
-**Needs your yes.** It changes what users see and adds a stored collection and a field on
+Approved by the user on 2026-11-21 (above). It changes what users see and adds a stored collection and a field on
 `events` (*Approval*: "anything a user can see or do differently"). The `Gate` question;
 recommended answer: **yes, editions plus a tagged-event programme at the existing fiestas
 URL, with push left for later**. The fiestas are the moment a whole village forwards one
