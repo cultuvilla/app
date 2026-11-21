@@ -239,6 +239,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
           {notices.notices.length === 0 ? (
             <RowPlaceholder text={t(notices.status === 'error' ? 'groups.chat.loadError' : 'groups.sections.empty.avisos')} onPress={() => open('avisos')} />
           ) : (
+            // A card opens the avisos screen, not the aviso's chat: there the poll is answered and the chat is one tap away (decided 2026-11-21).
             notices.notices.slice(0, 5).map((m) => (
               <NoticeCard
                 key={m.id}
@@ -246,7 +247,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
                 unread={
                   (notices.readsStatus === 'ready' && !notices.readIds.has(m.id) && m.sentBy !== uid) || chat.unreadAvisoIds.has(m.id)
                 }
-                onPress={() => router.push(groupAvisoHref(org.id, m.id))}
+                onPress={() => open('avisos')}
               />
             ))
           )}

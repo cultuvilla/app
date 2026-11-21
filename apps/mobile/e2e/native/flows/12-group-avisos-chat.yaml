@@ -1,9 +1,9 @@
 # A group's avisos and Charla between its junta and a socio: the admin sends
 # an aviso to every socio through the sendGroupMessage callable (email off, so
 # no Resend), then writes in the Charla; the socio sees the aviso on the group
-# home, opening it marks it read, replies in its own thread, and answers in the
-# Charla. Then "Solo la junta escribe" closes the socio's composer, and is
-# switched off again. Shares e2e-org-asociacion with flows 13–15.
+# home, whose card opens the avisos screen and marks it read; from there the
+# socio replies in its own thread, and answers in the Charla. Then "Solo la
+# junta escribe" closes the socio's composer, and is switched off again. Shares e2e-org-asociacion with flows 13–15.
 appId: com.cultuvilla.app.dev
 env:
   ADMIN_EMAIL: e2e-admin@cultuvilla.test
@@ -183,7 +183,7 @@ onFlowComplete:
 # element and hides its children's ids. The card shows the title and the date,
 # never the text (decided 2026-11-19).
 - assertVisible: '.*${output.avisoTitle}.*'
-# The home row only lists it; the read is the aviso screen's to mark.
+# The home row only lists it; the read is the avisos screen's to mark.
 - runScript:
     file: ../scripts/docField.js
     env:
@@ -191,12 +191,13 @@ onFlowComplete:
       EXPECT: absent
       TIMEOUT_MS: '1000'
 - assertTrue: ${output.ok == 'true'}
+# The card opens the avisos screen, where its poll is answered (decided
+# 2026-11-21), and the aviso's chat is one tap further.
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
       TAP: 'group-home-notice-${output.avisoId}'
-      EXPECT: 'group-aviso-head'
-- assertVisible: '.*${output.avisoTitle}.*'
+      EXPECT: 'group-notice-${output.avisoId}'
 - runScript:
     file: ../scripts/docField.js
     env:
@@ -204,6 +205,12 @@ onFlowComplete:
       FIELD: readAt
       EXPECT: present
 - assertTrue: ${output.ok == 'true'}
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'group-notice-chat-${output.avisoId}'
+      EXPECT: 'group-aviso-head'
+- assertVisible: '.*${output.avisoTitle}.*'
 - runFlow:
     file: ../subflows/type-into.yaml
     env:
@@ -245,15 +252,6 @@ onFlowComplete:
       MAX: '0'
       TIMEOUT_MS: '1000'
 - assertTrue: ${output.ok == 'true'}
-
-# The avisos list shows it too, with its way into the thread.
-- openLink: 'cultuvilla://grupos/${ORG_ID}/avisos'
-- extendedWaitUntil:
-    visible:
-      id: 'group-notice-${output.avisoId}'
-    timeout: 45000
-- assertVisible:
-    id: 'group-notice-chat-${output.avisoId}'
 
 # ── The socio answers the admin in the Charla ──
 - openLink: 'cultuvilla://grupos/${ORG_ID}/charla'

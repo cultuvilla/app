@@ -273,7 +273,8 @@ describe('Grupos tab', () => {
     expect(getByTestId('group-home-notice-m1')).not.toHaveTextContent(/El sábado/);
     expect(getByTestId('group-home-notice-m1')).not.toHaveTextContent(/groups\.messages\.(pinnedBadge|sentBy)|La junta/);
     fireEvent.press(getByTestId('group-home-notice-m1'));
-    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/aviso/m1');
+    // The avisos screen, where its poll is voted and its chat opens; not the chat itself.
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/avisos');
     expect(getByTestId('group-home-events')).toBeTruthy();
     expect(getByText('Matanza')).toBeTruthy();
   });
