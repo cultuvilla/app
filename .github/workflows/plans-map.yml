@@ -1,6 +1,6 @@
 # Validates plan metadata blocks on PRs and regenerates docs/plans/_plans-map.md on
 # develop. Copied from .agents/_shared/templates/plans-map.yml (a workflow cannot be a
-# symlink into a submodule); the script it runs is the shared one.
+# symlink); the script it runs is the shared one, in the committed copy there.
 #
 # The map is a PURE FUNCTION of the plan files, so CI computes it rather than
 # checking that a human remembered to. A PR-side staleness check cost more than it
@@ -21,13 +21,13 @@ on:
       # newest `## vX.Y.Z` heading in CHANGELOG.md.
       - 'CHANGELOG.md'
       - 'AGENTS.md'
-      - '.agents/_shared'
+      - '.agents/_shared/**'
       - '.github/workflows/plans-map.yml'
   pull_request:
     paths:
       - 'docs/plans/**'
       - 'AGENTS.md'
-      - '.agents/_shared'
+      - '.agents/_shared/**'
       - '.github/workflows/plans-map.yml'
 
 # Two pushes landing together would race to regenerate and one would reject the
@@ -47,8 +47,6 @@ jobs:
     steps:
       # Shallow on purpose: `--validate` returns before anything git-dependent.
       - uses: actions/checkout@v5
-        with:
-          submodules: true
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -65,7 +63,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: true
           # develop requires a merge queue and status checks, and a repo ruleset
           # cannot list GitHub Actions as a bypass actor — only deploy keys. This
           # write key is the one thing allowed to push the map past the queue.

@@ -54,9 +54,6 @@ fi
 log "updated ${old:0:8}..${new:0:8}"
 
 changed=$(git diff --name-only "$old" "$new")
-if grep -qxE '\.gitmodules|\.agents/_shared' <<<"$changed"; then
-  git submodule update --init --quiet
-fi
 if grep -qE '(^|/)(pnpm-lock\.yaml|package\.json)$' <<<"$changed"; then
   if pnpm install --frozen-lockfile --silent >>"$state/log" 2>&1; then
     log "installed dependencies"

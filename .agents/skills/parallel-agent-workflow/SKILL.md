@@ -21,14 +21,11 @@ in a worktree before checking this.
    ```
 
    It allocates a slot (a block of 100 ports from 20000 up, in the machine-wide
-   registry `~/.agents/slots.json`), initialises the `.agents/_shared` submodule,
+   registry `~/.agents/slots.json`),
    runs the install steps from `.agents/orchestrate.config.json` (pnpm + the
    separate `functions/` npm install), and writes `firebase.agent.json` — the
    repo's `firebase.json` with every emulator moved into the slot. Report the slot
    number it prints.
-
-   If `scripts/agent-env.sh` itself is missing, the submodule is empty (git does
-   not populate it in new worktrees): run `git submodule update --init` first.
 
 2. **Run tests normally.** `scripts/run-tests-with-emulators.mjs` starts from
    `firebase.agent.json` whenever it exists and points the tests at its ports, so
