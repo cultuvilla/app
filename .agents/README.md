@@ -21,20 +21,21 @@ instructions locally: repository-specific policy belongs in `AGENTS.md`. This co
 a plans-lifecycle plugin install; if you also installed that plugin globally, disable it for
 this project to avoid exposing two copies.
 
-Shared skills link into the `.agents/_shared` submodule
-([agent-skills](https://github.com/alvaro-francisco-gil/agent-skills)): `ship-a-feature`,
+Shared skills link into `.agents/_shared`, a committed copy of
+[agent-skills](https://github.com/ghostaff-ai/agent-skills) pinned in
+`.agents/_shared/VENDORED.md`: `ship-a-feature`,
 `orchestrate`, `advance-plans`, `review-ideas` and `enhance-repo`, plus the scripts `scripts/pr-land.js`,
 `scripts/plans-map.js`, `scripts/agent-env.sh`, `scripts/agent-capacity.js`,
 `scripts/agent-dispatch.sh`, `scripts/pr-land-bg.sh`, `scripts/ideas-review-order.js`,
 `scripts/agent-auto-mode.js`, `scripts/enhance-measure.js` and the hook `.claude/hooks/guard-lander-kill.sh`. Their
 repo-specific values live in `land.config.json`, `orchestrate.config.json` and
-`auto-mode.json` here — never edit the submodule to fit this repo.
+`auto-mode.json` here — never edit the copy to fit this repo; refresh it with the
+workspace's `vendor-agent-skills.py`.
 
 `auto-mode.json` is the repo's policy phrased for Claude Code's auto-mode classifier,
 which never reads a repo's own settings. Install it into your user settings with
 `pnpm agent:auto-mode` (preview) and `pnpm agent:auto-mode --write`; re-run after it
-changes. It must stay a restatement of `AGENTS.md` § Approval and the Autonomy contract. Run `git submodule update --init --recursive` after cloning and in new
-worktrees; until then every one of those links dangles.
+changes. It must stay a restatement of `AGENTS.md` § Approval and the Autonomy contract.
 
 References: [Claude instructions](https://code.claude.com/docs/en/memory#read-agentsmd),
 [Claude skills](https://code.claude.com/docs/en/skills),

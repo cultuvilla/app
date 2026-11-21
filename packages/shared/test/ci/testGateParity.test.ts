@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ALL_INCLUDE, UNIT_INCLUDE } from '../../vitest.suites';
 
@@ -54,11 +54,13 @@ describe('root pnpm test covers CI', () => {
     expect(rootPkg.scripts['agents:test']).toContain('.agents/_shared/scripts/__tests__/');
   });
 
-  // agents:test reads the .agents/_shared submodule; an unpopulated one
-  // matches no files and node --test fails the job.
-  it('CI checks out the submodule in the job that runs pnpm test', () => {
+  // agents:test reads .agents/_shared, a committed copy of agent-skills. As a
+  // submodule it was empty wherever nobody initialised it, and node --test then
+  // matched no files and failed the job.
+  it('keeps the shared agent tooling as committed files, not a submodule', () => {
     const job = ciWorkflow.slice(ciWorkflow.indexOf('emulator-tests:'));
     expect(job).toMatch(/run: pnpm test\n/);
-    expect(job).toMatch(/submodules: true/);
+    expect(existsSync(resolve(repoRoot, '.gitmodules'))).toBe(false);
+    expect(existsSync(resolve(repoRoot, '.agents/_shared/scripts/__tests__'))).toBe(true);
   });
 });
