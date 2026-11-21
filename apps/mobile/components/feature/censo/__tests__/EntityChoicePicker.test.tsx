@@ -69,3 +69,18 @@ it('shows option images and selects a single entity', () => {
   expect(onChange).toHaveBeenCalledWith('plaza');
   expect(queryByText('Frontón')).toBeNull();
 });
+
+// No ✕ (decided 2026-11-20): the grab bar is the way out.
+it('closes the picker from its grab bar (entity-choice-sheet-handle)', () => {
+  const { getByText, getByTestId, queryByText } = renderPicker({
+    title: 'Lugar favorito',
+    options,
+    mode: 'single',
+    value: undefined,
+    onChange: jest.fn(),
+  });
+  fireEvent.press(getByText('Selecciona una opción'));
+  expect(getByTestId('entity-choice-sheet')).toBeTruthy();
+  fireEvent.press(getByTestId('entity-choice-sheet-handle'));
+  expect(queryByText('Plaza Mayor')).toBeNull();
+});

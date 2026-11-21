@@ -28,10 +28,35 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 describe('TypedSocioSheet', () => {
+  it('will not add a socio until the admin confirms the person agreed to the group keeping their data', async () => {
+    const onSave = jest.fn(() => Promise.resolve());
+    const { getByTestId } = render(<TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={onSave} onClose={jest.fn()} />);
+    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    expect(getByTestId('typed-socio-save').props.accessibilityState).toMatchObject({ disabled: true });
+    fireEvent.press(getByTestId('typed-socio-save'));
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.press(getByTestId('typed-socio-consent'));
+    expect(getByTestId('typed-socio-save').props.accessibilityState).toMatchObject({ disabled: false });
+    fireEvent.press(getByTestId('typed-socio-save'));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'Lola' })));
+  });
+
+  it('asks again each time the sheet opens to add someone, and never when correcting a socio', () => {
+    const props = { isNumberTaken: free, onSave: jest.fn(), onClose: jest.fn() };
+    const { getByTestId, queryByTestId, rerender } = render(<TypedSocioSheet {...props} visible initial={null} />);
+    fireEvent.press(getByTestId('typed-socio-consent'));
+    rerender(<TypedSocioSheet {...props} visible={false} initial={null} />);
+    rerender(<TypedSocioSheet {...props} visible initial={null} />);
+    expect(getByTestId('typed-socio-consent').props.accessibilityState).toMatchObject({ checked: false });
+    rerender(<TypedSocioSheet {...props} visible initial={PACO} />);
+    expect(queryByTestId('typed-socio-consent')).toBeNull();
+  });
+
   it('refuses a blank name and says why, without saving', () => {
     const onSave = jest.fn();
     const { getByTestId, getByText } = render(<TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={onSave} onClose={jest.fn()} />);
     fireEvent.changeText(getByTestId('typed-socio-name'), '   ');
+    fireEvent.press(getByTestId('typed-socio-consent'));
     fireEvent.press(getByTestId('typed-socio-save'));
     expect(getByText('groups.socios.nameRequired')).toBeTruthy();
     expect(onSave).not.toHaveBeenCalled();
@@ -44,6 +69,7 @@ describe('TypedSocioSheet', () => {
       <TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={() => save.promise} onClose={onClose} />,
     );
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-consent'));
     fireEvent.press(getByTestId('typed-socio-save'));
     expect(getByTestId('typed-socio-save-spinner')).toBeTruthy();
     await act(async () => save.resolve());
@@ -59,6 +85,7 @@ describe('TypedSocioSheet', () => {
       <TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={onSave} onClose={onClose} />,
     );
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-consent'));
     fireEvent.press(getByTestId('typed-socio-save'));
     await act(async () => save.reject(new Error('permission-denied')));
     expect(Alert.alert).toHaveBeenCalledWith('groups.socios.error');
@@ -94,6 +121,7 @@ describe('TypedSocioSheet', () => {
     const onSave = jest.fn(() => Promise.resolve());
     const { getByTestId } = render(<TypedSocioSheet visible initial={null} isNumberTaken={free} onSave={onSave} onClose={jest.fn()} />);
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-consent'));
     fireEvent.changeText(getByTestId('typed-socio-number'), ' 120 ');
     fireEvent.press(getByTestId('typed-socio-save'));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'Lola', socioNumber: 120 })));
@@ -108,6 +136,7 @@ describe('TypedSocioSheet', () => {
       <TypedSocioSheet visible initial={null} isNumberTaken={(n) => n === 7} onSave={onSave} onClose={jest.fn()} />,
     );
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-consent'));
     fireEvent.changeText(getByTestId('typed-socio-number'), '7a');
     fireEvent.press(getByTestId('typed-socio-save'));
     expect(getByText('groups.socios.socioNumberInvalid')).toBeTruthy();

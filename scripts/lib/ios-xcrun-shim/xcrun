@@ -1,0 +1,22 @@
+#!/bin/bash
+# Put first on Maestro's PATH by scripts/run-ios-e2e.mjs. Maestro (2.11) starts
+# an UNFILTERED `xcrun simctl spawn <udid> log stream --style syslog` for every
+# flow and offers no switch to turn it off. On the 3-core CI runner that stream
+# wrote ~550 MB per flow and kept diagnosticd + log at ~2/3 of a core, while the
+# Firestore SDK's streams died with "ping timeout"
+# (docs/plans/ongoing/ios-e2e-emulator-watch-keepalive.md).
+#
+# This rewrites exactly that call into the same stream narrowed by
+# IOS_E2E_SIM_LOG_PREDICATE: the app's own lines and any fault — what a failure
+# report reads. It fails OPEN: any other call, a future Maestro that adds an
+# argument, or no predicate set, runs the real xcrun unchanged.
+real="${IOS_E2E_REAL_XCRUN:-/usr/bin/xcrun}"
+
+if [[ -n "${IOS_E2E_SIM_LOG_PREDICATE:-}" && $# -eq 7 && "$1" == simctl && "$2" == spawn &&
+  "$4" == log && "$5" == stream && "$6" == --style && "$7" == syslog ]]; then
+  # The first line of Maestro's device-simulator.log, so a reader knows it is filtered.
+  echo "[ios-e2e] filtered by scripts/lib/ios-xcrun-shim: ${IOS_E2E_SIM_LOG_PREDICATE}"
+  exec "$real" "$@" --predicate "$IOS_E2E_SIM_LOG_PREDICATE"
+fi
+
+exec "$real" "$@"

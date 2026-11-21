@@ -5,36 +5,18 @@ import { useMyOrgIds } from './orgs/useMyOrgIds';
 import { withFirestoreErrorLog } from './firestoreErrorLog';
 import { useWatch, type WatchStatus } from './hooks/useWatch';
 import {
-  watchBarrios,
-  watchMunicipality,
-  watchPlaces,
-} from '@cultuvilla/shared/services/municipalityService';
-import {
   isVillageAdmin,
   getVillageMembers,
 } from '@cultuvilla/shared/services/villageMemberService';
 import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
-import { watchOrganizationsByMunicipality } from '@cultuvilla/shared/services/organizationService';
 import { getMyOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
-import {
-  watchEventsByMunicipality,
-  watchPrivateEventsByMunicipality,
-} from '@cultuvilla/shared/services/eventService';
-import { watchHomeFeed } from '@cultuvilla/shared/services/newsService';
-import {
-  watchFestivalPosters,
-  type FestivalPosterWithId,
-} from '@cultuvilla/shared/services/festivalPosterService';
-import {
-  watchHistoryEntries,
-  type HistoryEntryWithId,
-} from '@cultuvilla/shared/services/historyService';
-import {
-  watchVocabularyDefinitions,
-  watchVocabularyTerms,
-  type VocabularyDefinitionWithId,
-  type VocabularyTermWithId,
+import type { FestivalPosterWithId } from '@cultuvilla/shared/services/festivalPosterService';
+import type { HistoryEntryWithId } from '@cultuvilla/shared/services/historyService';
+import type {
+  VocabularyDefinitionWithId,
+  VocabularyTermWithId,
 } from '@cultuvilla/shared/services/vocabularyService';
+import { villageHomeWatchers as w } from './village/villageHomeWatchers';
 import { pickWordOfTheDay } from '@cultuvilla/shared/utils/wordOfTheDay';
 import { upcomingThenPast } from '@cultuvilla/shared/models/event/EventDataModel';
 import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesModel';
@@ -142,8 +124,6 @@ const NO_CHROME: Chrome = {
   myCensoAnswers: {},
 };
 
-const LISTED_STATUSES: ['published', 'completed'] = ['published', 'completed'];
-const NEWS_LIMIT = { limit: 10 };
 const NO_ROWS: never[] = [];
 
 function sectionStatus(...statuses: WatchStatus[]): SectionStatus {
@@ -173,11 +153,11 @@ export function useVillageHome(municipalityId: string | null) {
   const uid = user?.uid ?? null;
   const id = municipalityId;
 
-  const core = useWatch<(MunicipalityData & { id: string }) | null>('villageHome:watchMunicipality', id, id ? (next, error) => watchMunicipality(id, next, error) : null);
+  const core = useWatch<(MunicipalityData & { id: string }) | null>('villageHome:watchMunicipality', id, id ? w.municipality(id) : null);
   const publicEvents = useWatch<(EventData & { id: string })[]>(
     'villageHome:watchEvents',
     id,
-    id ? (next, error) => watchEventsByMunicipality(id, LISTED_STATUSES, next, error) : null,
+    id ? w.publicEvents(id) : null,
   );
   // Rules do not filter a list, so the private half is one listener per org of
   // the viewer's; losing it must not empty the section.
@@ -185,15 +165,15 @@ export function useVillageHome(municipalityId: string | null) {
   const privateEvents = useWatch<(EventData & { id: string })[]>(
     'villageHome:watchPrivateEvents',
     id ? `${id}|${orgKey}` : null,
-    id ? (next, error) => watchPrivateEventsByMunicipality(id, orgIds, LISTED_STATUSES, next, error) : null,
+    id ? w.privateEvents(id, orgIds) : null,
   );
-  const news = useWatch<(NewsPostData & { id: string })[]>('villageHome:watchNews', id, id ? (next, error) => watchHomeFeed(id, NEWS_LIMIT, next, error) : null);
-  const posters = useWatch<FestivalPosterWithId[]>('villageHome:watchFestivalPosters', id, id ? (next, error) => watchFestivalPosters(id, next, error) : null);
-  const places = useWatch<(PlaceData & { id: string })[]>('villageHome:watchPlaces', id, id ? (next, error) => watchPlaces(id, next, error) : null);
-  const barrios = useWatch<(BarrioData & { id: string })[]>('villageHome:watchBarrios', id, id ? (next, error) => watchBarrios(id, next, error) : null);
-  const orgs = useWatch<(OrganizationData & { id: string })[]>('villageHome:watchOrganizations', id, id ? (next, error) => watchOrganizationsByMunicipality(id, undefined, next, error) : null);
-  const history = useWatch<HistoryEntryWithId[]>('villageHome:watchHistoryEntries', id, id ? (next, error) => watchHistoryEntries(id, next, error) : null);
-  const terms = useWatch<VocabularyTermWithId[]>('villageHome:watchVocabularyTerms', id, id ? (next, error) => watchVocabularyTerms(id, next, error) : null);
+  const news = useWatch<(NewsPostData & { id: string })[]>('villageHome:watchNews', id, id ? w.news(id) : null);
+  const posters = useWatch<FestivalPosterWithId[]>('villageHome:watchFestivalPosters', id, id ? w.festivalPosters(id) : null);
+  const places = useWatch<(PlaceData & { id: string })[]>('villageHome:watchPlaces', id, id ? w.places(id) : null);
+  const barrios = useWatch<(BarrioData & { id: string })[]>('villageHome:watchBarrios', id, id ? w.barrios(id) : null);
+  const orgs = useWatch<(OrganizationData & { id: string })[]>('villageHome:watchOrganizations', id, id ? w.organizations(id) : null);
+  const history = useWatch<HistoryEntryWithId[]>('villageHome:watchHistoryEntries', id, id ? w.history(id) : null);
+  const terms = useWatch<VocabularyTermWithId[]>('villageHome:watchVocabularyTerms', id, id ? w.vocabularyTerms(id) : null);
 
   // One word a day, so its meanings are watched only once the terms are in.
   const todaysTerm = useMemo(
@@ -203,7 +183,7 @@ export function useVillageHome(municipalityId: string | null) {
   const definitions = useWatch<VocabularyDefinitionWithId[]>(
     'villageHome:watchVocabularyDefinitions',
     todaysTerm?.id ?? null,
-    todaysTerm ? (next, error) => watchVocabularyDefinitions(todaysTerm.id, next, error) : null,
+    todaysTerm ? w.vocabularyDefinitions(todaysTerm.id) : null,
   );
 
   const chrome = useChrome(id, uid);
@@ -226,10 +206,14 @@ export function useVillageHome(municipalityId: string | null) {
       news: news.data ?? NO_ROWS,
       festivalPosters: posters.data ?? NO_ROWS,
       places: places.data ?? NO_ROWS,
-      // Populated barrios and the biggest orgs first; both counts are
-      // denormalized onto each doc, so this sorts in memory with no extra reads.
+      // The municipal seat leads its section, then populated barrios and the
+      // biggest orgs; both counts are denormalized onto each doc, so this
+      // sorts in memory with no extra reads.
       barrios: [...(barrios.data ?? NO_ROWS)].sort(
-        (a, b) => b.residentCount - a.residentCount || a.name.localeCompare(b.name),
+        (a, b) =>
+          Number(b.isSeat) - Number(a.isSeat) ||
+          b.residentCount - a.residentCount ||
+          a.name.localeCompare(b.name),
       ),
       organizations: [...(orgs.data ?? NO_ROWS)].sort(
         (a, b) => b.memberCount - a.memberCount || a.name.localeCompare(b.name),

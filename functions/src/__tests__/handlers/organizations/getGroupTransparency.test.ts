@@ -100,7 +100,7 @@ describe('getGroupTransparency — cuota', () => {
 });
 
 describe('getGroupTransparency — avisos', () => {
-  it('returns every aviso, with neutral placeholders and the poll tally, never recipients or reads', async () => {
+  it('returns every aviso to the junta, with neutral placeholders and the poll tally, never recipients or reads', async () => {
     await seedMessage('m1');
     await seedMessage('m2', {
       title: 'Cena', body: '¿Venís?', audience: { kind: 'junta', eventId: null, eventTitle: null }, recipientUids: ['u-luis'],
@@ -111,7 +111,7 @@ describe('getGroupTransparency — avisos', () => {
     await db().doc(`organizations/${ORG_ID}/messages/m2/votes/u-ana`).set({ option: 0, votedAt: new Date() });
     await db().doc(`organizations/${ORG_ID}/messages/m1/reads/u-ana`).set({ readAt: new Date() });
 
-    const result = await runGetGroupTransparency(db(), 'u-paco', { orgId: ORG_ID, view: 'avisos' }, NOW);
+    const result = await runGetGroupTransparency(db(), 'u-luis', { orgId: ORG_ID, view: 'avisos' }, NOW);
     if (result.view !== 'avisos') throw new Error('wrong view');
     expect(result.avisos.map((a) => a.id)).toEqual(['m2', 'm1']);
     expect(result.avisos[0]).toEqual({
@@ -125,6 +125,23 @@ describe('getGroupTransparency — avisos', () => {
     for (const secret of ['u-ana', 'u-paco', 'recipient', 'readAt', 'votedAt', 'pushCount', 'emailCount']) {
       expect(raw).not.toContain(secret);
     }
+  });
+});
+
+describe('getGroupTransparency — avisos for a socio', () => {
+  it("leaves out what the junta sent only to itself, and keeps the rest with its results", async () => {
+    await seedMessage('m1', { poll: { question: '¿Excursión?', kind: 'yes_no', options: ['Sí', 'No'] } });
+    await seedMessage('m2', {
+      title: 'Multa de Pepe', body: 'Lo hablamos', audience: { kind: 'junta', eventId: null, eventTitle: null }, recipientUids: ['u-luis'],
+      sentAt: new Date('2026-03-25T10:00:00Z'),
+    });
+    await db().doc(`organizations/${ORG_ID}/messages/m1/votes/u-ana`).set({ option: 0, votedAt: new Date() });
+
+    const result = await runGetGroupTransparency(db(), 'u-paco', { orgId: ORG_ID, view: 'avisos' }, NOW);
+    if (result.view !== 'avisos') throw new Error('wrong view');
+    expect(result.avisos.map((a) => a.id)).toEqual(['m1']);
+    expect(result.avisos[0]?.tally).toEqual([1, 0]);
+    expect(JSON.stringify(result)).not.toContain('Pepe');
   });
 });
 

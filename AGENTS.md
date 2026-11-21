@@ -327,7 +327,7 @@ Header ≤ 100 chars. Direct-to-`develop` is fine for small self-contained chang
   - **`production` is automatic on `main`** since 2026-10-06; merging the promotion PR is the release decision. Stop one with `[skip-ota]` in the merge commit or the repo variable `PROD_OTA_PAUSED=true`. A manual `workflow_dispatch` on mobile-ota.yml still publishes to any channel.
   - **A binary only receives updates if it was built after `expo-updates` landed** and its profile names a channel (all of `preview-dev` / `beta` / `production` do). Testers on an older build need one manual install before OTA reaches them at all.
 
-- **Deep links:** the per-env association files (`web/well-known/{env}/{apple-app-site-association,assetlinks.json}`) are copied into place at hosting-deploy time by `scripts/build-web-static.mjs`. Signing identities are **committed** there, not injected from CI — they ship in a world-readable file, so there is nothing to hide, and a value in git is reviewable and identical for a local deploy. `prod` carries the real Apple Team ID and the Play **app signing** SHA-256 (Play re-signs every AAB, so it is never the upload key); `dev` and `beta` still hold `REPLACE_SHA256_FINGERPRINT_*` and get theirs when those builds are distributed. An env with a placeholder simply opens the read site instead of the app — expected, not a bug. What must always work is that every deep link resolves on the **read site** too (each share URL, including invite `…/unirse` paths, needs a route in [functions/src/web/routes.ts](functions/src/web/routes.ts) and a screen under `apps/mobile/app/**`). URLs are Spanish and village-first (`/<pueblo>/evento/<titulo>_<id>`), built only by `packages/shared/src/utils/urls.ts` — read [docs/decisions/spanish-village-urls.md](docs/decisions/spanish-village-urls.md) before adding a route; a new top-level route must also be added to `RESERVED_ROOT_SEGMENTS` (Hosting sends every page to `readSite`, which answers reserved segments with the app hand-off). **Prod's AASA deliberately lags:** it claims only the legacy paths the live iOS 1.0.0 binary can route (it predates OTA), until an iOS build with the village-first routes is on sale — see that decision record before widening it.
+- **Deep links:** the per-env association files (`web/well-known/{env}/{apple-app-site-association,assetlinks.json}`) are copied into place at hosting-deploy time by `scripts/build-web-static.mjs`. Signing identities are **committed** there, not injected from CI — they ship in a world-readable file, so there is nothing to hide, and a value in git is reviewable and identical for a local deploy. `prod` carries the real Apple Team ID and the Play **app signing** SHA-256 (Play re-signs every AAB, so it is never the upload key); `dev` and `beta` still hold `REPLACE_SHA256_FINGERPRINT_*` and get theirs when those builds are distributed. An env with a placeholder simply opens the read site instead of the app — expected, not a bug. What must always work is that every deep link resolves on the **read site** too (each share URL, including invite `…/unirse` paths, needs a route in [functions/src/web/routes.ts](functions/src/web/routes.ts) and a screen under `apps/mobile/app/**`). URLs are Spanish and village-first (`/<pueblo>/evento/<titulo>_<id>`), built only by `packages/shared/src/utils/urls.ts` — read [docs/decisions/spanish-village-urls.md](docs/decisions/spanish-village-urls.md) before adding a route; a new top-level route must also be added to `RESERVED_ROOT_SEGMENTS` (Hosting sends every page to `readSite`, which answers reserved segments with the app hand-off). Every env's AASA claims the whole host except `/entrar`; it applies to every installed binary, so claiming a path an older binary cannot route waits for `minSupported` — see that decision record.
 - **Marketing version** (`app.config.ts` `version`, semver `MAJOR.MINOR.PATCH`) is the single source of truth; `apps/mobile/package.json` mirrors it. MAJOR = redesign/breaking migration, MINOR = new feature, PATCH = fixes.
 - **The bump follows the commits since beta:** any breaking change (`type!:` or a `BREAKING CHANGE:` footer) → MAJOR, any `feat` → MINOR, otherwise PATCH. `pnpm release:cut` proposes it; `--bump=` / `--version=` override when the release is a product call (a MAJOR always is).
 - **Never propose a cut.** Álvaro decides when (decided 2026-11-01). Work stays on `develop` until he asks; leave releases, store-notes drafts included, out of end-of-task reports, decision lists and next steps.
@@ -674,6 +674,16 @@ background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when y
 are done: it is an indefinite server, so a Metro you leave running holds the port
 the user's next session needs.
 
+**The main checkout follows develop by itself.** [scripts/dev-sync.sh](scripts/dev-sync.sh)
+runs every minute (a systemd user timer from homelab's workstation setup): it
+fast-forwards the checkout to `origin/develop`, installs dependencies when a lockfile
+moved, and sends a desktop notification when the native fingerprint changed, since only
+a dev-client rebuild brings native code to the phone. So the user's Metro always serves
+what merged; never stash, reset or switch that checkout to "help" it. It does nothing
+while the checkout is off develop, mid-merge, ahead of origin, or editing a file the
+update touches. Why: on 2026-11-20 the checkout sat 23 merges behind and the user tested
+a screen that had already been replaced.
+
 Still off-limits — these run indefinitely or bypass CI:
 
 - `firebase emulators:start` directly (standalone long-lived emulator session)
@@ -740,7 +750,7 @@ Landing that PR on develop is enough to unblock beta and prod deploys: the
 
 **Priority orders the queue; it never gates it.** An approved `low` plan is worked when nothing ranked above it is waiting.
 
-Two shared skills run on this policy: **`advance-plans`** builds the approved pool in parallel — `ongoing/`, then `ready/`, then pre-approved ideas straight from `ideas/` — and **`review-ideas`** verifies ideas against the code and asks the user for the yeses (tagging the pre-approved ones `Pre-Approved: <slug>` so the builder finds them).
+Three shared skills run on this policy: **`enhance-repo`** measures the repo (churn × size × fix density, co-change, test gaps), files the best improvements as `ideas/` plans and has a second agent fact-check each one before it lands — plans only, never code, tuned by *Enhance* below; **`advance-plans`** builds the approved pool in parallel — `ongoing/`, then `ready/`, then pre-approved ideas straight from `ideas/`; and **`review-ideas`** verifies ideas against the code and asks the user for the yeses (tagging the pre-approved ones `Pre-Approved: <slug>` so the builder finds them). So "improve the repo" is `enhance-repo`, then `advance-plans`.
 
 **The line is subjectivity** (decided 2026-10-05, adopting ordago's policy). The user's consent is for what is a matter of judgement they hold — product, business, taste — and not for engineering the agents and the tests can verify. So the default for objective work is *do it and report it*, and a new gate needs a subjective reason.
 
@@ -802,6 +812,16 @@ other's tests. The leader frees the slot with `source scripts/agent-env.sh --cle
 before removing the worktree.
 
 **This repo overrides two `superpowers` skills.** `superpowers:brainstorming`'s one-question-per-message rule and `superpowers:finishing-a-development-branch`'s stop-and-ask merge menu are **superseded by `ship-a-feature`**. Every other superpowers skill still applies.
+
+## Enhance
+
+Tunes the shared `enhance-repo` pass (format in its skill). Data, not procedure.
+
+- **Source / tests:** `apps/mobile` (jest, `pnpm app:test`) · `apps/studio` · `packages/shared` (vitest in `packages/shared/test/`, emulator suites) · `functions/src` (vitest under emulators, `pnpm test:functions`; the read site is `functions/src/web/`) · `firestore.rules` (`pnpm test:rules`) · `scripts/` (backfills: `pnpm backfills:test`). Measure with `node scripts/enhance-measure.js`.
+- **Invariants a design must keep:** *Architecture invariants* above (1–6); the skills `touch-service`, `guardrail-enforcement`, `denormalized-read-model`, `add-firestore-collection`, `i18n-add-string`, `observability-conventions`; [municipality-vs-village.md](docs/architecture/municipality-vs-village.md), [denormalized-read-models.md](docs/architecture/denormalized-read-models.md), [web-is-a-read-site.md](docs/decisions/web-is-a-read-site.md), [breaking-change-and-hard-wall.md](docs/decisions/breaking-change-and-hard-wall.md).
+- **Lenses:** + **conventions** — the list in *Things to flag in PRs* below, swept repo-wide: Firebase reached outside a service, `as any` / `@ts-nocheck` / `eslint-disable`, Spanish that escaped the i18n catalog, a service with no test, the same enum, status string, threshold or hex colour in two places, an entity detail screen not built on `EntityDetailScaffold`, raw palette classes on a screen otherwise migrated. Each is pre-approved under *consolidating duplicates* or *debt and refactors* only when nothing a user sees changes.
+- **Never propose:** splitting `packages/i18n/messages/es.json` or `firestore.rules` because they are hot — they are registries every feature touches (and Firestore deploys rules as one file); reading churn in `apps/mobile/app.config.ts` / `package.json` (release bumps) or `functions/src/index.ts` (the export barrel) as a smell; anything web-side beyond the read site and the studio (invariant 6); a global store or query cache (*State and data fetching*); a retrocompat shim (*No retrocompat shims*); a release cut or store notes.
+- **Gates:** a change to a callable's contract, a rule older binaries write against, or a stored schema follows expand → migrate → contract, and a `Breaking-Client:` contract step needs a yes (`decision:`). Production data operations stay the user's.
 
 ## Things to flag in PRs (or right here when you find them)
 

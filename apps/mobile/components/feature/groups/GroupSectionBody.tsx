@@ -14,7 +14,10 @@ import { MyActas } from './MyActas';
 import { MyCuota } from './MyCuota';
 import { JuntaDirectiva } from './JuntaDirectiva';
 import { MySocioRecord } from './MySocioRecord';
-import { RecordsAdmin } from './RecordsAdmin';
+import { ActasAdmin } from './ActasAdmin';
+import { AsambleaChecklist } from './AsambleaChecklist';
+import { LibroDoor } from './LibroDoor';
+import { YearSummaryAdmin } from './YearSummaryAdmin';
 import { SocioConsentCard } from './SocioConsentCard';
 import { SociosRoster } from './SociosRoster';
 import { TransparentAvisos } from './TransparentAvisos';
@@ -69,10 +72,18 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
         mine
       );
     }
+    // An admin keeps the books, a socio reads what the junta shares: same button, more inside.
     case 'cuentas':
-      return <GroupAccounts orgId={org.id} />;
+      return isAdmin ? <YearSummaryAdmin orgId={org.id} orgName={org.name} uid={uid} /> : <GroupAccounts orgId={org.id} />;
     case 'actas':
-      return <MyActas orgId={org.id} orgName={org.name} empty={<Empty text={t('groups.sections.empty.actas')} />} />;
+      return isAdmin ? (
+        <VStack gap={4}>
+          <AsambleaChecklist orgId={org.id} orgName={org.name} />
+          <ActasAdmin orgId={org.id} orgName={org.name} uid={uid} />
+        </VStack>
+      ) : (
+        <MyActas orgId={org.id} orgName={org.name} empty={<Empty text={t('groups.sections.empty.actas')} />} />
+      );
     case 'socios': {
       const canReadRoster = isAdmin || org.sociosListVisible;
       return (
@@ -80,6 +91,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           <MySocioRecord orgId={org.id} uid={uid} />
           <SocioConsentCard orgId={org.id} requirement={org} />
           {isAdmin ? <OrgJoinRequests orgId={org.id} banner /> : null}
+          {isAdmin ? <LibroDoor orgId={org.id} /> : null}
           <JuntaDirectiva orgId={org.id} adminUids={adminUids} canReadRoster={canReadRoster} />
           {canReadRoster ? (
             <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />
@@ -95,8 +107,6 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
       return <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} />;
     case 'mensajes':
       return <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents />;
-    case 'registros':
-      return <RecordsAdmin orgId={org.id} orgName={org.name} />;
     case 'miembros':
       return (
         <VStack gap={4}>
@@ -115,6 +125,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           hasRoster={hasSocioRoster(org.type)}
           chatAdminsOnly={org.chatAdminsOnly}
           cosateca={org.cosateca}
+          cuotaEnabled={org.cuotaEnabled}
           transparency={org.transparency}
           joinPolicy={org.joinPolicy}
           isAyuntamiento={org.type === 'ayuntamiento'}

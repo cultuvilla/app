@@ -60,7 +60,7 @@ describe('OrgEditScreen photo upload', () => {
   });
 
   it('says so when the upload fails, and keeps the org without the photo', async () => {
-    (useOrgCapabilities as jest.Mock).mockReturnValue({ canManage: true, canDelete: false, uid: 'boss', loading: false });
+    (useOrgCapabilities as jest.Mock).mockReturnValue({ canManage: true, can: (action: string) => action === 'edit', uid: 'boss', loading: false });
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     (pickImageAsBlob as jest.Mock).mockResolvedValueOnce({ blob: {} as Blob, filename: 'a.jpg', contentType: 'image/jpeg', previewUri: 'file://a.jpg' });
     (uploadOrganizationImage as jest.Mock).mockRejectedValueOnce(
@@ -80,7 +80,7 @@ describe('OrgEditScreen join policy', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useOrgCapabilities as jest.Mock).mockReturnValue({ canManage: true, canDelete: false, uid: 'boss', loading: false });
+    (useOrgCapabilities as jest.Mock).mockReturnValue({ canManage: true, can: (action: string) => action === 'edit', uid: 'boss', loading: false });
     (getOrganization as jest.Mock).mockResolvedValue(org);
   });
 

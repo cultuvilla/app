@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { parseSocioNumber } from '@cultuvilla/shared/models/organization';
-import { BottomSheet, Button, Input, Text, VStack } from '../../primitives';
+import { BottomSheet, Button, Checkbox, Input, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 
@@ -22,7 +22,12 @@ export interface TypedSocioSaved {
 
 const EMPTY: TypedSocioValues = { displayName: '', socioNumber: '', phone: '', email: '' };
 
-/** Add or correct a socio who has no account: a name, and optional number, phone and email. */
+/**
+ * Add or correct a socio who has no account: a name, and optional number, phone
+ * and email. The group is the controller of its socios' data, so adding one
+ * waits for the admin to confirm the person agreed to it. Nothing is stored
+ * about the confirmation: the row exists only because it was given.
+ */
 export function TypedSocioSheet({
   visible,
   initial,
@@ -42,6 +47,9 @@ export function TypedSocioSheet({
   const [error, setError] = useState<string | undefined>();
   const [numberError, setNumberError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [consented, setConsented] = useState(false);
+  const needsConsent = initial === null;
+  const blocked = needsConsent && !consented;
 
   // Reset on open only: `initial` is rebuilt on every parent render, and a
   // roster snapshot landing mid-edit must not wipe what is being typed.
@@ -50,10 +58,12 @@ export function TypedSocioSheet({
       setValues(initial ?? EMPTY);
       setError(undefined);
       setNumberError(undefined);
+      setConsented(false);
     }
   }, [visible]);
 
   const save = () => {
+    if (blocked) return;
     const socioNumber = parseSocioNumber(values.socioNumber);
     const nameError = values.displayName.trim() ? undefined : t('groups.socios.nameRequired');
     const numberProblem =
@@ -81,7 +91,7 @@ export function TypedSocioSheet({
       testID="typed-socio-sheet"
       footer={
         <VStack className="px-5 pt-3">
-          <Button onPress={save} loading={saving} fullWidth testID="typed-socio-save">
+          <Button onPress={save} loading={saving} disabled={blocked} fullWidth testID="typed-socio-save">
             {t('groups.socios.save')}
           </Button>
         </VStack>
@@ -128,6 +138,14 @@ export function TypedSocioSheet({
           autoCapitalize="none"
           testID="typed-socio-email"
         />
+        {needsConsent ? (
+          <Checkbox
+            value={consented}
+            onValueChange={setConsented}
+            label={<Text className="flex-1">{t('groups.socios.consent')}</Text>}
+            testID="typed-socio-consent"
+          />
+        ) : null}
       </VStack>
       </ScrollView>
     </BottomSheet>

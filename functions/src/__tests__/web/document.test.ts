@@ -31,6 +31,14 @@ describe('renderDocument', () => {
     );
   });
 
+  it('credits OpenStreetMap on every page, as ODbL requires', () => {
+    // Village, barrio and section pages show settlement names seeded from OSM;
+    // the footer is the one place every one of them shares.
+    expect(doc({ title: 'a' })).toContain(
+      '<a href="https://www.openstreetmap.org/copyright" rel="noopener">© OpenStreetMap contributors</a>',
+    );
+  });
+
   it('marks noindex pages', () => {
     expect(doc({ title: 'a', noindex: true })).toContain('<meta name="robots" content="noindex,follow"/>');
     expect(doc({ title: 'a' })).not.toContain('name="robots"');

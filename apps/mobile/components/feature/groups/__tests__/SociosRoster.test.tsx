@@ -172,7 +172,7 @@ describe('SociosRoster — admin', () => {
     ids.forEach((id) => expect(r.getByTestId(id)).toBeTruthy());
     expect(r.queryByTestId('socio-baja-Ana')).toBeNull();
     expect(r.queryByTestId('socio-title-Ana')).toBeNull();
-    fireEvent.press(r.getByTestId('socio-sheet-close'));
+    fireEvent.press(r.getByTestId('socio-sheet-handle'));
     fireEvent.press(r.getByTestId('socio-row-Paco'));
     ['socio-edit-Paco', 'socio-link-Paco', 'socio-baja-Paco'].forEach((id) => expect(r.getByTestId(id)).toBeTruthy());
     expect(r.queryByTestId('socio-number-Paco')).toBeNull();
@@ -184,7 +184,7 @@ describe('SociosRoster — admin', () => {
     expect(r.getByTestId('socio-title-Tesorera')).toBeTruthy();
     expect(r.queryByTestId('socio-role-Tesorera')).toBeNull();
     expect(r.queryByTestId('socio-remove-Tesorera')).toBeNull();
-    fireEvent.press(r.getByTestId('socio-sheet-close'));
+    fireEvent.press(r.getByTestId('socio-sheet-handle'));
     fireEvent.press(r.getByTestId('socios-filter-bajas'));
     fireEvent.press(r.getByTestId('socio-row-Viejo'));
     expect(r.queryByTestId('socio-number-Viejo')).toBeNull();
@@ -213,6 +213,7 @@ describe('SociosRoster — admin', () => {
     fireEvent.press(getByTestId('socios-add'));
     expect(getByTestId('typed-socio-sheet')).toBeTruthy();
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-consent'));
     fireEvent.changeText(getByTestId('typed-socio-phone'), '622');
     fireEvent.changeText(getByTestId('typed-socio-email'), '');
     fireEvent.press(getByTestId('typed-socio-save'));
@@ -225,6 +226,7 @@ describe('SociosRoster — admin', () => {
     const { getByTestId, queryByTestId } = renderAdmin();
     fireEvent.press(getByTestId('socios-add'));
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-consent'));
     fireEvent.press(getByTestId('typed-socio-save'));
     await waitFor(() => expect(addTypedSocio).toHaveBeenCalled());
     await act(async () => {});
@@ -236,6 +238,7 @@ describe('SociosRoster — admin', () => {
     const { getByTestId, queryByTestId } = renderAdmin();
     fireEvent.press(getByTestId('socios-add'));
     fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
+    fireEvent.press(getByTestId('typed-socio-consent'));
     fireEvent.press(getByTestId('typed-socio-save'));
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.socios.error'));
     expect(getByTestId('typed-socio-sheet')).toBeTruthy();

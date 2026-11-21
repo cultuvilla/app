@@ -1,14 +1,68 @@
-// Mobile App Check is wired here when product is ready to roll out.
-// Per-env opt-in (debug provider on dev, real attestation on beta/prod).
-// Until then, this is a no-op so the rest of the app boots without App Check.
-//
-// To enable: install @react-native-firebase/app-check (or the managed
-// Expo equivalent), then in initMobileAppCheck() call the provider for
-// DeviceCheck (iOS) / Play Integrity (Android) when an env-specific
-// site key / token provider is configured.
-//
-// See docs/plans/ready/app-check-rollout.md for the
-// per-env opt-in pattern.
-export function initMobileAppCheck(): void {
-  // intentionally empty
+import { getApp } from '@react-native-firebase/app';
+import {
+  initializeAppCheck,
+  ReactNativeFirebaseAppCheckProvider,
+} from '@react-native-firebase/app-check';
+
+import { getAppEnv, type AppEnv } from './env';
+
+type AndroidProvider = 'debug' | 'playIntegrity';
+type AppleProvider = 'debug' | 'appAttestWithDeviceCheckFallback';
+
+export interface AppCheckProviders {
+  android: AndroidProvider;
+  apple: AppleProvider;
+}
+
+/**
+ * Dev builds (the dev client, the sideloaded preview-dev APK, and the E2E
+ * builds that talk to local emulators) are never installed from a store, so
+ * Play Integrity and App Attest cannot vouch for them: they use the debug
+ * provider, which needs no console setup. Each install logs its own debug
+ * token (logcat `DebugAppCheckProvider` / Xcode console); register it under
+ * App Check → Manage debug tokens in `villa-events` to get verified tokens.
+ */
+export function appCheckProvidersFor(env: AppEnv): AppCheckProviders {
+  if (env === 'dev') return { android: 'debug', apple: 'debug' };
+  return { android: 'playIntegrity', apple: 'appAttestWithDeviceCheckFallback' };
+}
+
+let initialized = false;
+
+/**
+ * Activates App Check on the native default app. Enforcement is a console
+ * switch, not code: until it is on, a failed attestation only shows up as
+ * "unverified" in the metrics. The native SDKs never fail a Firestore,
+ * Storage or Functions call on a token error — a failed exchange resolves to a
+ * placeholder token — and nothing here awaits a token, so boot never waits on
+ * attestation. Any synchronous failure (no default app, a native module
+ * missing from an older binary running a newer bundle) is swallowed: App
+ * Check must never take the app down.
+ *
+ * `emulators` is true only when bootstrapFirebase pointed the SDKs at the local
+ * emulators (the E2E builds). Then App Check stays off: the emulators never
+ * enforce it, and the project id those builds carry (`cultuvilla-test`) is no
+ * real project, so every exchange is refused, and the SDKs hold each stream
+ * until that refusal arrives. On a CI runner that wait outlasted Firestore's
+ * 10 s online timer and the app came up "offline". The same wait for real
+ * users is tracked in docs/plans/ongoing/app-check-rollout.md.
+ */
+export function initMobileAppCheck({ emulators }: { emulators: boolean }): void {
+  if (initialized) return;
+  initialized = true;
+  if (emulators) {
+    console.info('[app-check] not activated: the app talks to the local emulators, which never enforce it');
+    return;
+  }
+  try {
+    const providers = appCheckProvidersFor(getAppEnv());
+    const provider = new ReactNativeFirebaseAppCheckProvider();
+    provider.configure({
+      android: { provider: providers.android },
+      apple: { provider: providers.apple },
+    });
+    initializeAppCheck(getApp(), { provider, isTokenAutoRefreshEnabled: true });
+  } catch (error) {
+    console.warn('[app-check] not activated', error);
+  }
 }

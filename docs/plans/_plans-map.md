@@ -8,22 +8,13 @@ Current cycle **v1.12.0** (cut 2026-11-12)
 
 Read this top-down: **Actionable now** is what a batch can pick up today; the release sections empty themselves when that version is cut; **Waiting on you** is the escalation list. ⚠️ marks a plan not advanced in 2+ release cycles — the ones easiest to forget. `\*` in **Advanced** means a sweep commit was walked past to reach that date — see [how `Advanced` is derived](#how-advanced-is-derived).
 
-> **Not advanced in 2+ cycles:** app-check-rollout · offline-first-village · village-first-urls-prod-finish · sign-in-account-loss · spanish-settlement-dataset
+> **Not advanced in 2+ cycles:** sign-in-account-loss
 
 ## Actionable now
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [app-check-rollout](ready/app-check-rollout.md) `ready` ⚠️ | high | — | 33 cycles ago \* | — |
-| [offline-first-village](ongoing/offline-first-village.md) ⚠️ | high | prod | 5 cycles ago \* | layer 3 (village sync) — warm the cache for the user's villages on launch and foreground |
-| [village-first-urls-prod-finish](ready/village-first-urls-prod-finish.md) `ready` ⚠️ | medium | — | 3 cycles ago | — |
-| [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) ⚠️ | medium | prod | 2 cycles ago | render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet) |
-| [group-chat](ongoing/group-chat.md) | high | dev | 1 cycle ago | promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias) |
-| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
-| [web-studio](ongoing/web-studio.md) | medium | dev | 1 cycle ago \* | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
-| [cosateca](ongoing/cosateca.md) | high | none | this cycle | promote with the next release (all four phases are on develop) |
-| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
-| [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
+| [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | find the root cause of the iOS ping timeouts, starting with the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings), also covering flows 12 and 15; fix it without app-code workarounds, then add a lasting guard in the lane so a regression shows up on its own |
 
 ## Waiting on release 1.11.0
 
@@ -41,8 +32,22 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
+| [group-chat](ongoing/group-chat.md) | high | dev | 1 cycle ago \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias) |
 | [comision-de-festejos-type](ongoing/comision-de-festejos-type.md) | medium | dev | 1 cycle ago | both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`) | after that release is live in prod, retire this plan |
 | [group-integrantes-by-approval](ongoing/group-integrantes-by-approval.md) | medium | dev | 1 cycle ago | the first release carrying this is live in prod | check on prod that `org-join-by-approval` ran and that a group's switch works, then retire this plan |
+| [cosateca](ongoing/cosateca.md) | high | none | this cycle \* | the next release Álvaro cuts carries it to prod (agents never propose a cut) | promote with the next release (all four phases are on develop) |
+| [ios-reload-inflight-fetch-crash](ongoing/ios-reload-inflight-fetch-crash.md) | high | dev | this cycle | the 3 ios-e2e develop runs from 44826311824 (with #719) upload no Dev-*.ips with `RuntimeScheduler::scheduleTask` or `destroy for JavaScriptPromise`. Before #719 it crashed in 6 of about 8 shard-1 runs, and 1 in about 7 purge reloads, so 3 clean runs is meaningful | read those runs' DiagnosticReports; clean → retire, distilling the cause into a decision record. If the crash recurs, the residual paths are a body read slower than 2 s or a fetch reference captured before startup; then also file the upstream Expo issue (draft in #719's body) |
+| [offline-first-village](ongoing/offline-first-village.md) | high | prod | this cycle | the next release Álvaro cuts carries layer 3 (village sync, #692 + #698, live on dev) to prod | once layer 3 is on prod, witness docs/qa/pending/pueblos-sin-conexion.md on a device, then retire the plan (bundle/delta optimisation stays a later idea, not this plan) |
+| [auth-session-state-machine](ongoing/auth-session-state-machine.md) | medium | dev | this cycle | the first release carrying #690 is live in prod | once a release carrying #690 is live in prod, confirm sign-in, sign-out and an abandoned sign-up behave (no stray account deletes in logs), then retire this plan |
+| [buzon-badge-counts-all-actions](ongoing/buzon-badge-counts-all-actions.md) | medium | dev | this cycle | the next release Álvaro cuts carries #699 to prod | witness docs/qa/pending/buzon-badge-all-actions.md on a device once on prod, then retire the plan (watch* follow-up for read cost is in #699's body) |
+| [buzon-inbox-model](ongoing/buzon-inbox-model.md) | medium | dev | this cycle | the first release carrying #683 is live in prod | once prod serves #683, check an admin's Buzón and bell badge show the same requests as before, then retire |
+| [event-form-state-module](ongoing/event-form-state-module.md) | medium | dev | this cycle | the first release carrying #685 is live in prod | once a release carrying #685 is live in prod, smoke-test create/edit/copy of an event and retire this plan |
+| [firestore-collection-registry](ongoing/firestore-collection-registry.md) | medium | dev | this cycle | the next develop→beta promotion runs Deploy beta's Conformance gate | confirm that Deploy beta run's Conformance gate walked the 11 new subcollections plus config, authEmailRateLimits and authOtpCodes (#714) with no undeclared-root warning, then retire the plan |
+| [group-notice-read-receipt-rewrite-loop](ongoing/group-notice-read-receipt-rewrite-loop.md) | medium | dev | this cycle | the next ios-e2e run of flow 12 on develop after #718 shows about 0 denied writes on the read receipt | check flow 12's iOS write-stream errors on …/reads/e2e-user, then retire the plan; if denied writes persist, find the caller that bypasses markGroupMessageRead |
+| [read-site-shared-list-rules](ongoing/read-site-shared-list-rules.md) | medium | dev | this cycle | the first release carrying #691 is live in prod | once prod serves #691, check a village page lists today's events as upcoming and a one-member group says «1 integrante», then retire (villageHomeWatchers' LISTED_STATUSES copy is folded in by the offline-first follow-up) |
+| [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | dev | this cycle | the first release carrying #694 is live in prod | once prod serves #694, check a hidden vocabulary term shows no delete button to its author, then retire |
+| [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | this cycle | the next release Álvaro cuts carries #693, #697, #700, #701, #703 and #704 (live on dev) to prod | once on prod, witness docs/qa/pending/{village-seat-row,osm-attribution,barrio-kind-picker}.md on a device, then retire the plan |
+| [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | dev | this cycle | the next release Álvaro cuts (carrying #689) is live in prod | after that prod deploy, Álvaro curls `https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM`, opens a `/<pueblo>/evento/…` link on an iPhone (Apple's CDN may take a day), and sets the privacy-policy URL `https://cultuvilla.es/legal/privacidad` in App Store Connect (every app-info localization) and the Play console (App content) |
 
 ## Waiting on you
 
@@ -52,7 +57,13 @@ _None._
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
+| [product-analytics-behavioral-dashboard](ongoing/product-analytics-behavioral-dashboard.md) | high | prod | 1 cycle ago \* | Álvaro ticks the Android and iOS streams in GA4 Admin → BigQuery links on prod — a console step | in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy |
+| [web-studio](ongoing/web-studio.md) | medium | dev | 1 cycle ago \* | a human pairs a real phone with a dev build at villa-events.web.app/estudio and runs the write/edit/delete check | pair a real phone with a dev build at villa-events.web.app/estudio (live there since the 2026-10-24 merge) and write, edit and delete an article, then edit it in the app and back |
+| [app-check-rollout](ongoing/app-check-rollout.md) | high | dev | this cycle | console — App Check app registrations, the DeviceCheck key, the API and the dev debug tokens are console steps for Álvaro (#712 merged; enforcement off). They must be done in beta and prod before any binary carrying #712 ships (see Launch-latency finding) | after Álvaro's console steps (Play Integrity + Play Console link per project, App Attest/DeviceCheck with the .p8 key, the App Check API enabled, dev debug tokens registered), confirm verified tokens in beta's App Check metrics (Stage 2) with enforcement still off |
 | [apple-team-transfer](ongoing/apple-team-transfer.md) | high | dev | this cycle | this plan's code (#663) reaches prod, then Álvaro accepts in App Store Connect — a console step no agent can take | the next release carries #663 to prod; then Álvaro accepts Cultuvilla, before 2026-11-29, and runs § On the day. Jaime's part is done (2026-11-17); `TESTFLIGHT_SUBMIT_PAUSED=true` since 2026-11-17 |
+| [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle \* | human console steps — Jaime ticks the time-sensitive entitlement in the Apple portal (step 3); Álvaro declares "Device or other IDs" in Play Data Safety (step 4) | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
+| [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle \* | Álvaro promotes it with a release and runs the La Anduela trial — a human step | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
+| [mobile-neutral-grey-tokens](ready/mobile-neutral-grey-tokens.md) `ready` | low | — | this cycle | mobile-raw-hex-to-tokens | — |
 
 ## How `Advanced` is derived
 
@@ -62,6 +73,8 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
+| `4b30925f` | 2026-11-20 | 5 | docs(plans): start buzon-inbox-model, event-form-state-module, service-test-coverage; gate hex and lint on open work |
+| `e960dc6a` | 2026-11-20 | 14 | docs(plans): night triage — start 5 plans, gate release/console-bound rows, reopen read-site after #679 |
 | `f9438880` | 2026-11-07 | 7 | docs(plans): retire finished plans, refresh gates |
 | `78b72653` | 2026-09-30 | 18 | docs(plans): migrate to agent-plans v2 (Priority/Gate/Next block), vendor v2.0.1 |
 

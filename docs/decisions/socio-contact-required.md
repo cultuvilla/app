@@ -21,3 +21,18 @@ a change to every group where the value is already shared.
 
 The notice is what tells people their data is shared. Its wording has not had legal
 review.
+
+## Who controls a group's socio data
+
+Decided 2026-11-20 (Álvaro): each group is the data controller of its socios' data
+and Cultuvilla processes it on the group's behalf.
+
+- **Typed socios.** Adding someone with no account asks the admin to confirm that
+  person agreed to the group keeping their data (`TypedSocioSheet`); saving waits
+  for the tick. Nothing records the confirmation: the row exists only because it
+  was given. Correcting an existing row does not ask again.
+- **Account deletion.** `deleteAccount` keeps every socio row the user had (name,
+  number, alta, baja, cuotas: the libro is the group's record) and clears `phone`
+  and `email` in each `socioPrivate`. The baja comes from the membership delete,
+  through `syncOrgSocioRoster`. The query needs the `socios.uid` collection-group
+  override in `firestore.indexes.json`.

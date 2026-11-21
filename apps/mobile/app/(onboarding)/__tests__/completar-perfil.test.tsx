@@ -64,7 +64,7 @@ jest.mock('../../../lib/i18n', () => ({
         'onboarding.completeProfile.village': 'Tu pueblo (opcional)',
         'onboarding.completeProfile.givenName': 'Nombre',
         'onboarding.completeProfile.firstSurname': 'Primer apellido',
-        'onboarding.completeProfile.secondSurname': 'Segundo apellido',
+        'onboarding.completeProfile.secondSurname': 'Segundo apellido (opcional)',
         'onboarding.completeProfile.photo': 'Foto de perfil (opcional)',
         'onboarding.completeProfile.nickname': 'Apodo (opcional)',
         'onboarding.completeProfile.sex': 'Sexo (opcional)',
@@ -75,7 +75,7 @@ jest.mock('../../../lib/i18n', () => ({
         'onboarding.completeProfile.birthPlace': 'Lugar de nacimiento (opcional)',
         'onboarding.completeProfile.biography': 'Biografía (opcional)',
         'onboarding.completeProfile.submit': 'Crear perfil',
-        'onboarding.completeProfile.requiredFields': 'Nombre, ambos apellidos y fecha de nacimiento son obligatorios.',
+        'onboarding.completeProfile.requiredFields': 'El nombre y el primer apellido son obligatorios.',
         'onboarding.completeProfile.error': 'No se pudo guardar el perfil',
         'profile.personForm.stepIdentity': 'Identidad',
         'profile.personForm.stepResidence': 'Origen y residencia',
@@ -127,13 +127,13 @@ describe('CompleteProfileScreen', () => {
     // Step 1: fill identity fields.
     fireEvent.changeText(getByLabelText('Nombre'), 'Ana');
     fireEvent.changeText(getByLabelText('Primer apellido'), 'García');
-    fireEvent.changeText(getByLabelText('Segundo apellido'), 'López');
+    fireEvent.changeText(getByLabelText('Segundo apellido (opcional)'), 'López');
     fireEvent.press(getByText('Mujer')); // sex is required to advance
     // Terms acceptance lives at the end of step 1, which is gated on it.
     fireEvent.press(getByTestId('accept-terms'));
     fireEvent.press(getByText('Siguiente'));
 
-    // Step 2: fill birthday (required when requireFullName=true).
+    // Step 2: fill birthday (required when requireFirstSurname=true).
     fireEvent.press(getByTestId('birthday-year'));
     fireEvent.press(getByTestId('birthday-year-option-1990'));
     fireEvent.press(getByTestId('birthday-month'));
@@ -170,6 +170,36 @@ describe('CompleteProfileScreen', () => {
     expect(userArgs).not.toHaveProperty('displayName');
   });
 
+  it('lets a person with one surname finish (second surname is optional, stored as null)', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const personService = require('@cultuvilla/shared/services/personService');
+    const { getByText, getByLabelText, getByTestId } = render(<CompleteProfileScreen />);
+
+    fireEvent.changeText(getByLabelText('Nombre'), 'Ana');
+    fireEvent.changeText(getByLabelText('Primer apellido'), 'García');
+    fireEvent.press(getByText('Mujer'));
+    fireEvent.press(getByTestId('accept-terms'));
+    fireEvent.press(getByText('Siguiente'));
+
+    fireEvent.press(getByTestId('birthday-year'));
+    fireEvent.press(getByTestId('birthday-year-option-1990'));
+    fireEvent.press(getByTestId('birthday-month'));
+    fireEvent.press(getByTestId('birthday-month-option-4'));
+    fireEvent.press(getByTestId('birthday-day'));
+    fireEvent.press(getByTestId('birthday-day-option-5'));
+    fireEvent.press(getByText('Siguiente'));
+
+    await act(async () => {
+      fireEvent.press(getByText('Crear perfil'));
+    });
+
+    await waitFor(() => {
+      expect(personService.createPerson).toHaveBeenCalledWith(
+        expect.objectContaining({ givenName: 'Ana', firstSurname: 'García', secondSurname: null }),
+      );
+    });
+  });
+
   it('creates the user doc before joining a village (users/{uid} must exist before setActiveMunicipality)', async () => {
     // Regression: joinVillage -> setActiveMunicipality does an updateDoc on
     // users/{uid}. If that runs before the profile write creates the doc, the
@@ -201,7 +231,7 @@ describe('CompleteProfileScreen', () => {
 
     fireEvent.changeText(getByLabelText('Nombre'), 'Ana');
     fireEvent.changeText(getByLabelText('Primer apellido'), 'García');
-    fireEvent.changeText(getByLabelText('Segundo apellido'), 'López');
+    fireEvent.changeText(getByLabelText('Segundo apellido (opcional)'), 'López');
     fireEvent.press(getByText('Mujer'));
     // Terms acceptance lives at the end of step 1, which is gated on it.
     fireEvent.press(getByTestId('accept-terms'));
@@ -240,7 +270,7 @@ describe('CompleteProfileScreen', () => {
 
     fireEvent.changeText(getByLabelText('Nombre'), 'Ana');
     fireEvent.changeText(getByLabelText('Primer apellido'), 'García');
-    fireEvent.changeText(getByLabelText('Segundo apellido'), 'López');
+    fireEvent.changeText(getByLabelText('Segundo apellido (opcional)'), 'López');
     fireEvent.press(getByText('Mujer'));
     // Terms live at the end of step 1 and gate it: pressing Next without
     // accepting them must keep us on step 1 (birthday belongs to step 2).
@@ -252,12 +282,19 @@ describe('CompleteProfileScreen', () => {
     expect(userService.createUserProfile).not.toHaveBeenCalled();
   });
 
+  it('asks nothing about usage statistics — the full-screen page asks later', () => {
+    const { queryByTestId } = render(<CompleteProfileScreen />);
+    expect(queryByTestId('accept-terms')).toBeTruthy();
+    expect(queryByTestId('analytics-consent-yes')).toBeNull();
+    expect(queryByTestId('analytics-consent-no')).toBeNull();
+  });
+
   it('does not offer under-14 birth years in the picker (self-registration age gate)', async () => {
     const { getByText, getByLabelText, getByTestId, queryByTestId } = render(<CompleteProfileScreen />);
 
     fireEvent.changeText(getByLabelText('Nombre'), 'Ana');
     fireEvent.changeText(getByLabelText('Primer apellido'), 'García');
-    fireEvent.changeText(getByLabelText('Segundo apellido'), 'López');
+    fireEvent.changeText(getByLabelText('Segundo apellido (opcional)'), 'López');
     fireEvent.press(getByText('Mujer'));
     // Terms acceptance lives at the end of step 1, which is gated on it.
     fireEvent.press(getByTestId('accept-terms'));

@@ -609,13 +609,13 @@ describe('VillageHomeBody', () => {
 });
 
 describe('subdivision sections', () => {
-  const row = (id: string, name: string, kind: string) =>
+  const row = (id: string, name: string, kind: string, isSeat = false) =>
     ({
       id,
       name,
       kind,
       source: 'osm',
-      isSeat: false,
+      isSeat,
       images: [],
       residentCount: 0,
       commentCount: 0,
@@ -640,6 +640,35 @@ describe('subdivision sections', () => {
     expect(getByText('Localidades')).toBeTruthy();
     expect(getByText('El Arrabal')).toBeTruthy();
     expect(getByText('Villarino de Manzanas')).toBeTruthy();
+  });
+
+  it('labels the municipal seat "El pueblo" so it reads apart from its pedanías', () => {
+    const { getByLabelText, getAllByText } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          barrios: [row('s1', 'Matabuena', 'pedania', true), row('p1', 'Matamala', 'pedania')],
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    // Only the seat carries the label; its pedanías keep the bare count.
+    expect(getAllByText(/^El pueblo · /)).toHaveLength(1);
+    expect(getByLabelText(/^Matabuena, El pueblo · /)).toBeTruthy();
+    expect(getByLabelText(/^Matamala, (?!El pueblo)/)).toBeTruthy();
+  });
+
+  it('mounts only a window of a Vilalba-sized kind, not every card', () => {
+    // Vilalba carries 745 aldeas; rendering every card eagerly would mount 745
+    // images on the home. The row is a horizontal FlatList that windows them.
+    const aldeas = Array.from({ length: 745 }, (_, i) => row(`a${i}`, `Aldea ${i}`, 'aldea'));
+    const { getByText, queryAllByText } = render(
+      <VillageHomeBody data={{ ...base, barrios: aldeas }} reload={jest.fn()} />,
+    );
+    expect(getByText('Aldea 0')).toBeTruthy();
+    const mounted = queryAllByText(/^Aldea \d+$/).length;
+    expect(mounted).toBeGreaterThan(0);
+    expect(mounted).toBeLessThan(745);
   });
 
   it('hides the sections a village has no rows for', () => {

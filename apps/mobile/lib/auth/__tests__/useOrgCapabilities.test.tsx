@@ -79,19 +79,20 @@ describe('useOrgCapabilities', () => {
     mockIsOrgAdmin.mockResolvedValue(true);
     const { result } = renderHook(() => useOrgCapabilities('org1', 'm1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.canDelete).toBe(false);
+    expect(result.current.can('edit')).toBe(true);
+    expect(result.current.can('delete')).toBe(false);
   });
 
   it('village admin and app admin: may delete', async () => {
     mockIsVillageAdmin.mockResolvedValue(true);
     const village = renderHook(() => useOrgCapabilities('org1', 'm1'));
     await waitFor(() => expect(village.result.current.loading).toBe(false));
-    expect(village.result.current.canDelete).toBe(true);
+    expect(village.result.current.can('delete')).toBe(true);
 
     mockIsVillageAdmin.mockResolvedValue(false);
     mockAppAdmin.mockReturnValue({ isAppAdmin: true, loading: false });
     const app = renderHook(() => useOrgCapabilities('org1', 'm1'));
     await waitFor(() => expect(app.result.current.loading).toBe(false));
-    expect(app.result.current.canDelete).toBe(true);
+    expect(app.result.current.can('delete')).toBe(true);
   });
 });

@@ -2,8 +2,8 @@
 
 **Priority:** medium
 **Landed:** prod
-**Gate:** none
-**Next:** render the seat row first and styled distinctly / labelled "el pueblo" in the village home (no `isSeat` reader in `apps/mobile` yet)
+**Gate:** soak:the next release Álvaro cuts carries #693, #697, #700, #701, #703 and #704 (live on dev) to prod
+**Next:** once on prod, witness docs/qa/pending/{village-seat-row,osm-attribution,barrio-kind-picker}.md on a device, then retire the plan
 
 > Decided 2026-08-24; D8 decided 2026-10-17. Stages 1–4 shipped 2026-08 (on prod)
 > — the dataset already carries `isSeat`. Origin: a
@@ -230,10 +230,10 @@ Galician villages complain. Nesting lugares under parroquias is the fallback.
 - [x] Settle **D8** — include the seat, `isSeat: true`
 - [x] Write `scripts/fetch-settlements.mjs` (Overpass, per province, retry/backoff
       for 429 + 504 + truncated-200, as in `fetch-localities.mjs`)
-- [ ] Exclude `place=locality` explicitly (the script does; the test is not found), with a test asserting Figueruela
+- [x] Exclude `place=locality` explicitly (the script does; the test is not found), with a test asserting Figueruela
       yields 6–7 settlements and not 260
 - [x] Fetch and commit `settlements-es.json`; record per-province counts
-- [ ] Add "© OpenStreetMap contributors" attribution to the app's legal screen —
+- [x] Add "© OpenStreetMap contributors" attribution to the app's legal screen —
       CHANGELOG says it shipped, but no app or i18n string carries it; verify
 
 ### Stage 2 — Model
@@ -253,9 +253,9 @@ Galician villages complain. Nesting lugares under parroquias is the fallback.
 ### Stage 4 — UI
 
 - [x] `useVillageHome` splits barrios by kind
-- [ ] One `<Section>` per kind, virtualized path for large ones; the seat row
+- [x] One `<Section>` per kind, virtualized path for large ones; the seat row
       first, styled distinctly ("el pueblo")
-- [ ] Kind picker in the add-barrio form
+- [x] Kind picker in the add-barrio form
 - [x] i18n strings
 
 ## Out of scope

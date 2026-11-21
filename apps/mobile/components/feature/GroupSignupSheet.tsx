@@ -1,16 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Modal,
-  Pressable as RNPressable,
-  ScrollView,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable as RNPressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { Button } from '../primitives/Button';
-import { KeyboardAvoider } from '../primitives/KeyboardAvoider';
+import { BottomSheet } from '../primitives/BottomSheet';
 import { Text } from '../primitives/Text';
 import { VStack } from '../primitives/VStack';
 import { HStack } from '../primitives/HStack';
@@ -116,8 +109,6 @@ export function GroupSignupSheet({
   onConfirm,
 }: GroupSignupSheetProps) {
   const { t } = useT();
-  const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
   const listRef = useRef<ScrollView>(null);
   const rowOffsets = useRef<Record<string, number>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -229,36 +220,17 @@ export function GroupSignupSheet({
   }
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible && !hidden}
-      transparent
-      animationType="fade"
-      onRequestClose={() => {
+      onClose={() => {
         if (!busy) onClose();
       }}
+      title={t('event.group.title', { count: groupSize })}
+      closeLabel={t('common.close')}
+      maxHeightRatio={0.9}
+      testID="group-signup-sheet"
     >
-      <KeyboardAvoider>
-        <RNPressable
-          accessible={false}
-          onPress={() => {
-            if (!busy) onClose();
-          }}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          className="justify-end"
-        >
-          <RNPressable
-            accessible={false}
-            // Its backdrop is not an accessibility element, so VoiceOver closes the
-            // sheet with the escape gesture instead.
-            onAccessibilityEscape={() => {
-              if (!busy) onClose();
-            }}
-            onPress={() => {}}
-            className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
-            style={{ paddingBottom: insets.bottom + 20, maxHeight: windowHeight * 0.9 }}
-          >
-            <VStack gap={3} className="shrink">
-              <Text variant="h3">{t('event.group.title', { count: groupSize })}</Text>
+            <VStack gap={3} className="shrink px-5 pt-1">
 
               {hasGroup ? (
                 <VStack gap={2} testID="group-summary">
@@ -467,9 +439,6 @@ export function GroupSignupSheet({
                 </>
               )}
             </VStack>
-          </RNPressable>
-        </RNPressable>
-      </KeyboardAvoider>
-    </Modal>
+    </BottomSheet>
   );
 }

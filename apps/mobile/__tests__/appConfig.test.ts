@@ -42,6 +42,17 @@ describe('native Firebase on iOS', () => {
     expect(options('expo-build-properties')).toMatchObject({ ios: { useFrameworks: 'static' } });
     expect(options('@react-native-firebase/app')).toEqual({ ios: { disableSPM: true } });
   });
+
+  // The App Check plugin registers the native provider factory in the
+  // AppDelegate; without it iOS never attests. The App Attest entitlement stays
+  // out: EAS cannot sync that capability through the App Store Connect API, so
+  // declaring it fails the archive (the plugins comment in app.config.ts).
+  it('registers App Check without the App Attest entitlement', () => {
+    expect(config.plugins).toContain('@react-native-firebase/app-check');
+    expect(config.ios?.entitlements ?? {}).not.toHaveProperty(
+      'com.apple.developer.devicecheck.appattest-environment',
+    );
+  });
 });
 
 describe('apple-app-site-association', () => {
@@ -146,13 +157,13 @@ describe('E2E native Firebase config override', () => {
 });
 
 describe('universal link paths', () => {
-  // Prod is excluded on purpose: it keeps the legacy claim the live iOS 1.0.0
-  // binary can route, pinned in packages/shared/test/ci/storeRelease.test.ts.
   it('claims every path except sign-in, since URLs start with the pueblo slug', () => {
-    for (const env of ['dev', 'beta'] as const) {
+    for (const env of ['dev', 'beta', 'prod'] as const) {
       const path = join(__dirname, '..', '..', '..', 'web', 'well-known', env, 'apple-app-site-association');
       const aasa = JSON.parse(readFileSync(path, 'utf8'));
-      expect(aasa.applinks.details[0].paths).toEqual(['NOT /entrar', 'NOT /entrar/*', '*']);
+      for (const detail of aasa.applinks.details) {
+        expect(detail.paths).toEqual(['NOT /entrar', 'NOT /entrar/*', '*']);
+      }
     }
   });
 });

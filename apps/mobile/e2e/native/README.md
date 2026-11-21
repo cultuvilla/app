@@ -78,7 +78,7 @@ instead of the whole shard.
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
 | `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
-| `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
+| `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, and a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
 | `51-own-profile` | A user's own profile edited — nickname, sex, birthday, biography, an occupation — and read back. |
 | `54-dependents` | A dependent created with every field, renamed and made private, closed to another villager (a public one is not), then deleted. Split from 51 to stay under the 15-minute limit. |
 | `52-feed-discovery` | Explora's event search and each filter (village, date, proximity sort) narrowing the list and clearing again; the proximity sort proven by order. |
@@ -105,7 +105,7 @@ instead of the whole shard.
 | `85-history-edit` | 84's entry edited to a BC year with no month or range, every text changed; then withdrawn. Depends on 84. Split from it to stay under Maestro's 15-minute limit. |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
-| `92-settings-and-delete-account` | Push allowed, a category muted and quiet hours on; a bad email refused and a good one sent to verify; then a throwaway account deleted for real. |
+| `92-settings-and-delete-account` | Push allowed, a category muted and quiet hours on; the usage-analytics switch on and off; a bad email refused and a good one sent to verify; then a throwaway account deleted for real. |
 | `93-place-burials` | The cemetery's burials: a public and a private persona buried with partial dates, a date edited, the joiner's view (the private one hidden, the count on the card), both removed. |
 | `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |
 

@@ -78,10 +78,21 @@ that's the signal you're bypassing the chokepoint — don't.
 
 ## The consent split
 
-- **`observability.trackEvent` is gated on `setConsent({ analytics })`.** If
-  the user hasn't opted in (default: denied, per the `ConsentBar`), calls are
-  silently dropped — no Firebase Analytics event fires. This is why product
-  funnels can go quiet in dev if you haven't accepted the consent bar.
+- **`observability.trackEvent` is gated on `setConsent({ analytics })`.** The
+  default is denied, and only `AnalyticsConsentProvider`
+  (`apps/mobile/lib/observability/`) grants it: for a signed-in account whose
+  `users/{uid}/privacySettings/account` says `usageAnalytics: true`. Guests and
+  accounts that never answered (no doc) are never tracked. The question is a
+  full-screen page (`AnalyticsConsentPage`), never part of onboarding: an
+  onboarded account with no answer gets it as soon as the app opens, with no
+  way past it but an answer, and changes it under Ajustes → Estadísticas de uso.
+  Without a yes, calls are
+  silently dropped and native collection is off, which is why product funnels go
+  quiet in dev until your test account says yes.
+- **An analytics event fired from inside the adapter obeys consent too.**
+  `captureError` also logs `app.exception.thrown` to Analytics; `configure.ts`
+  sends that only while consent is granted. The Cloud Logging report beside it
+  always goes.
 - **`observability.captureError` and `observability.logger.*` are NOT
   consent-gated.** Crash/error diagnosis and structured logging are treated as
   legitimate interest (keeping the app working), not marketing analytics, so

@@ -40,7 +40,7 @@ function BarrioDetailScreen() {
   const { t } = useT();
   const { user } = useAuth();
   const share = useShareDeepLink();
-  const { canManage, canEdit } = useEntityCapabilities(villageId);
+  const { canManage, can } = useEntityCapabilities(villageId);
   const { data: barrio = null, status } = useWatch<Barrio | null>(
     'barrioDetail:watchBarrio',
     villageId && barrioId ? `${villageId}/${barrioId}` : null,
@@ -74,7 +74,7 @@ function BarrioDetailScreen() {
 
   const actions: EntityDetailAction[] = barrio
     ? [
-        ...(canEdit(barrio.proposedBy)
+        ...(can('edit', 'barrio', barrio)
           ? [
               {
                 icon: 'create-outline' as const,

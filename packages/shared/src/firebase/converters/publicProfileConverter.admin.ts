@@ -1,5 +1,4 @@
 import { PublicProfileDataSchema } from '../../models/user/PublicProfileDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const publicProfileConverterAdmin = makeConverter(PublicProfileDataSchema, adminSdkCtors);
+export const publicProfileConverterAdmin = adminConverter(PublicProfileDataSchema);

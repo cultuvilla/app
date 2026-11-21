@@ -259,6 +259,15 @@ onFlowComplete:
       INPUT: 'typed-socio-name'
       TEXT: ${output.typedName}
 - runFlow: ../subflows/close-sheet-keyboard.yaml
+# The group keeps this person's data only with their permission: saving waits for the tick.
+# Not scroll-to.yaml: its iOS keyboard-closing tap would land on the sheet's backdrop.
+- scrollUntilVisible:
+    element:
+      id: 'typed-socio-consent-box'
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: 'typed-socio-consent-box'
 - runFlow:
     file: ../subflows/grupos-sheet-save.yaml
     env:

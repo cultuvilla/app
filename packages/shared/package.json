@@ -67,6 +67,10 @@
     "./wrapped": {
       "types": "./dist/wrapped/index.d.ts",
       "default": "./dist/wrapped/index.js"
+    },
+    "./policy": {
+      "types": "./dist/policy/index.d.ts",
+      "default": "./dist/policy/index.js"
     }
   },
   "main": "dist/index.js",

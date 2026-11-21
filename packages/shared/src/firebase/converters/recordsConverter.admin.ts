@@ -1,6 +1,5 @@
 import { ActaDataSchema, LedgerEntryDataSchema } from '../../models/organization/RecordsDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const actaConverterAdmin = makeConverter(ActaDataSchema, adminSdkCtors);
-export const ledgerEntryConverterAdmin = makeConverter(LedgerEntryDataSchema, adminSdkCtors);
+export const actaConverterAdmin = adminConverter(ActaDataSchema);
+export const ledgerEntryConverterAdmin = adminConverter(LedgerEntryDataSchema);

@@ -67,9 +67,11 @@ function pressableTags(source: string): { at: number; tag: string }[] {
 describe('modal press-catchers stay out of the accessibility tree', () => {
   const files = ROOTS.flatMap(tsxFiles).filter((f) => !EXEMPT.has(relative(MOBILE, f)));
 
+  // Most sheets now share BottomSheet's one catcher; the floor only proves the
+  // scan still finds the files it guards.
   it('finds the sheets it guards', () => {
     const withCatcher = files.filter((f) => readFileSync(f, 'utf8').includes('onPress={() => {}}'));
-    expect(withCatcher.length).toBeGreaterThanOrEqual(10);
+    expect(withCatcher.length).toBeGreaterThanOrEqual(5);
   });
 
   it.each(files.map((f) => [relative(MOBILE, f), f]))('%s', (_name, file) => {

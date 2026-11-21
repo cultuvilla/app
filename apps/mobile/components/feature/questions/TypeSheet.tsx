@@ -1,12 +1,8 @@
-import { Dimensions, Modal, Pressable as RNPressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, HStack } from '../../primitives';
+import { BottomSheet, Pressable, Text, HStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 import { ACCENT } from '../VillageSections';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SHEET_MAX_HEIGHT = Math.round(SCREEN_HEIGHT * 0.9);
 
 export interface TypeSheetRow {
   /** Stable identifier handed back to `onSelect`. */
@@ -66,45 +62,26 @@ export function TypeSheet({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      {/* absoluteFill (not flex-1): RN-Web collapses a flex-1 Modal child to zero
-          height, which in turn starved the sheet's max-height calculation and
-          cropped the last rows with no way to scroll to them. */}
-      <RNPressable
-        accessible={false}
-        onPress={onClose}
-        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }]}
-      >
-        {/* No-op onPress stops a tap on the sheet itself from bubbling to the
-            backdrop and closing the sheet. */}
-        <RNPressable
-          accessible={false}
-          // Its backdrop is not an accessibility element, so VoiceOver closes the
-          // sheet with the escape gesture instead.
-          onAccessibilityEscape={onClose}
-          onPress={() => {}}
-          className="bg-surface rounded-t-2xl overflow-hidden"
-          style={{ maxHeight: SHEET_MAX_HEIGHT }}
-        >
-          <SafeAreaView edges={['bottom']} className="shrink">
-            <View className="px-4 pt-4 pb-2">
-              <Text variant="h3">{t(titleKey)}</Text>
-            </View>
-            <ScrollView className="shrink">
-              {sections.map((section, i) => (
-                <View key={section.headingKey ?? String(i)}>
-                  {section.headingKey ? (
-                    <View className="px-4 pt-4 pb-1">
-                      <Text variant="bodySm" tone="muted">{t(section.headingKey)}</Text>
-                    </View>
-                  ) : null}
-                  {section.rows.map(renderRow)}
-                </View>
-              ))}
-            </ScrollView>
-          </SafeAreaView>
-        </RNPressable>
-      </RNPressable>
-    </Modal>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={t(titleKey)}
+      closeLabel={t('common.close')}
+      maxHeightRatio={0.9}
+      testID="type-sheet"
+    >
+      <ScrollView className="shrink">
+        {sections.map((section, i) => (
+          <View key={section.headingKey ?? String(i)}>
+            {section.headingKey ? (
+              <View className="px-4 pt-4 pb-1">
+                <Text variant="bodySm" tone="muted">{t(section.headingKey)}</Text>
+              </View>
+            ) : null}
+            {section.rows.map(renderRow)}
+          </View>
+        ))}
+      </ScrollView>
+    </BottomSheet>
   );
 }

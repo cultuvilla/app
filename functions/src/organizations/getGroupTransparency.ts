@@ -58,10 +58,12 @@ async function cuotaView(firestore: Firestore, orgId: string, now: Date): Promis
   return { view: 'cuota', periodKey, socios: rows };
 }
 
-async function avisosView(firestore: Firestore, orgId: string): Promise<TransparentAvisosResult> {
+async function avisosView(firestore: Firestore, orgId: string, forJunta: boolean): Promise<TransparentAvisosResult> {
   const snap = await organizationMessagesCollection(firestore, orgId).orderBy('sentAt', 'desc').limit(TRANSPARENT_AVISOS_LIMIT).get();
+  // An aviso the junta sent only to itself is its own working note, not something it made public.
+  const docs = forJunta ? snap.docs : snap.docs.filter((d) => d.data().audience.kind !== 'junta');
   const avisos = await Promise.all(
-    snap.docs.map(async (d) => {
+    docs.map(async (d) => {
       const m = d.data();
       // The results only: who voted what stays the junta's.
       const tally = m.poll
@@ -126,7 +128,7 @@ export async function runGetGroupTransparency(
     case 'cuota':
       return cuotaView(firestore, orgId, now);
     case 'avisos':
-      return avisosView(firestore, orgId);
+      return avisosView(firestore, orgId, caller.role === 'admin');
     case 'cuentas':
       return cuentasView(firestore, orgId, input.year);
   }

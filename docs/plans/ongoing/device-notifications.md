@@ -2,7 +2,7 @@
 
 **Priority:** high
 **Landed:** prod
-**Gate:** none
+**Gate:** blocked:human console steps — Jaime ticks the time-sensitive entitlement in the Apple portal (step 3); Álvaro declares "Device or other IDs" in Play Data Safety (step 4)
 **Next:** restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07)
 
 ## Done

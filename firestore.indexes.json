@@ -1035,6 +1035,20 @@
       ]
     },
     {
+      "collectionGroup": "socios",
+      "fieldPath": "uid",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        },
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "notifications",
       "fieldPath": "cosaRequestId",
       "indexes": [

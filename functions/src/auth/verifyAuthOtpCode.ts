@@ -2,13 +2,13 @@ import { createHash } from 'crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { isValidEmail } from '@cultuvilla/shared/utils';
 import { logger } from 'firebase-functions/v2';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
+import { authOtpCodeDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { getAuth } from 'firebase-admin/auth';
 import { bucketIdFor } from './rateLimit';
 
 const handler = 'verifyAuthOtpCode';
 
-const OTP_COLLECTION = 'authOtpCodes';
 const MAX_ATTEMPTS = 5;
 
 interface VerifyAuthOtpCodeData {
@@ -22,13 +22,6 @@ interface VerifyAuthOtpCodeResult {
 
 function hashCode(code: string): string {
   return createHash('sha256').update(code).digest('hex');
-}
-
-interface OtpDoc {
-  codeHash: string;
-  expiresAt: Timestamp;
-  attempts: number;
-  createdAt: Timestamp;
 }
 
 /** Core logic, separated from the onCall envelope so it is unit-testable. */
@@ -48,13 +41,13 @@ export async function runVerifyAuthOtpCode(
   const trimmedEmail = email.trim();
   const bucketId = bucketIdFor(trimmedEmail.toLowerCase());
   const db = getFirestore();
-  const ref = db.collection(OTP_COLLECTION).doc(bucketId);
+  const ref = authOtpCodeDoc(db, bucketId);
 
   const matched = await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists) return false;
-    const otp = snap.data() as OtpDoc;
-    if (otp.expiresAt.toMillis() < Date.now()) return false;
+    const otp = snap.data();
+    if (!otp) return false;
+    if (otp.expiresAt.getTime() < Date.now()) return false;
     if (otp.attempts >= MAX_ATTEMPTS) return false;
     if (otp.codeHash !== hashCode(code)) {
       tx.update(ref, { attempts: otp.attempts + 1 });

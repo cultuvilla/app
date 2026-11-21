@@ -1,5 +1,6 @@
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Redirect, useLocalSearchParams } from 'expo-router';
+import { hasSocioRoster } from '@cultuvilla/shared/models/organization';
 import { isRecordsDoor } from '@cultuvilla/shared/utils';
 import { Screen } from '../../../../components/primitives';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
@@ -9,11 +10,10 @@ import { YearSummaryAdmin } from '../../../../components/feature/groups/YearSumm
 import { GroupContactGate } from '../../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../../lib/auth/useAuth';
 import { useT } from '../../../../lib/i18n';
-import { groupHref, groupSectionHref, routes } from '../../../../lib/navigation/routes';
-import { canOpenGroupSection } from '../../../../lib/orgs/groupSections';
+import { groupHref, routes } from '../../../../lib/navigation/routes';
 import { useMyGroups } from '../../../../lib/orgs/useMyGroups';
 
-/** One door of a group's Registros — the libro de socios, the actas or the accounts — on a screen of its own. */
+/** One of a group's books — the libro de socios, the actas or the accounts — on an admin's screen of its own. */
 export default function GroupRecordsDoorScreen() {
   const { t } = useT();
   const { user } = useAuth();
@@ -23,8 +23,8 @@ export default function GroupRecordsDoorScreen() {
   const group = groups.find((g) => g.org.id === grupo) ?? null;
   const door = puerta && isRecordsDoor(puerta) ? puerta : null;
 
-  if (!door) return <Redirect href={grupo ? groupSectionHref(grupo, 'registros') : routes.groups} />;
-  if (uid && status !== 'loading' && (!group || !canOpenGroupSection(group, 'registros'))) {
+  if (!door) return <Redirect href={grupo ? groupHref(grupo) : routes.groups} />;
+  if (uid && status !== 'loading' && (!group || group.role !== 'admin' || !hasSocioRoster(group.org.type))) {
     return <Redirect href={grupo ? groupHref(grupo) : routes.groups} />;
   }
 

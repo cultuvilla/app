@@ -1,5 +1,4 @@
 import {
-  addDoc,
   setDoc,
   deleteDoc,
   getDocs,
@@ -20,13 +19,11 @@ import {
   userNotificationSettingsDoc,
 } from '../firebase/refs/client';
 import {
-  buildNotificationData,
   buildDeviceTokenData,
   buildNotificationPrefsData,
   buildNotificationSettingsData,
   resolveNotificationSettings,
   type NotificationData,
-  type NotificationDataInput,
   type DeviceTokenData,
   type DeviceTokenDataInput,
   type NotificationPrefsData,
@@ -81,20 +78,6 @@ export function watchUnreadCount(
   onError: WatchError,
 ): Unwatch {
   return watchCount(unreadNotificationsQuery(userId), onNext, onError);
-}
-
-export async function createNotification(
-  userId: string,
-  input: NotificationDataInput,
-): Promise<string> {
-  // addDoc routes through the typed converter, so createdAt must be a plain
-  // Date (serverTimestamp sentinels are rejected by the schema). The converter
-  // re-marshals the Date to a Firestore Timestamp on write.
-  const ref = await addDoc(
-    userNotificationsCollection(getDb(), userId),
-    buildNotificationData(input),
-  );
-  return ref.id;
 }
 
 export async function markAsRead(userId: string, notificationId: string): Promise<void> {

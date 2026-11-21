@@ -1,5 +1,4 @@
 import { DeviceTokenDataSchema } from '../../models/notification/DeviceTokenDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const deviceTokenConverterAdmin = makeConverter(DeviceTokenDataSchema, adminSdkCtors);
+export const deviceTokenConverterAdmin = adminConverter(DeviceTokenDataSchema);

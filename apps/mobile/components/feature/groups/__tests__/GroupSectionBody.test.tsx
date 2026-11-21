@@ -25,7 +25,10 @@ jest.mock('../GroupAccounts', () => ({ GroupAccounts: mockStub('accounts') }));
 jest.mock('../GroupSettings', () => ({ GroupSettings: () => null }));
 jest.mock('../MyActas', () => ({ MyActas: () => null }));
 jest.mock('../MyCuota', () => ({ MyCuota: mockStub('my-cuota') }));
-jest.mock('../RecordsAdmin', () => ({ RecordsAdmin: () => null }));
+jest.mock('../ActasAdmin', () => ({ ActasAdmin: mockStub('actas-admin') }));
+jest.mock('../AsambleaChecklist', () => ({ AsambleaChecklist: mockStub('asamblea') }));
+jest.mock('../YearSummaryAdmin', () => ({ YearSummaryAdmin: mockStub('year-admin') }));
+jest.mock('../LibroDoor', () => ({ LibroDoor: mockStub('libro-door') }));
 
 function renderSocios(role: 'admin' | 'member', sociosListVisible: boolean) {
   const group = { org: { id: 'org1', name: 'Peña', type: 'pena', sociosListVisible }, role } as unknown as MyGroup;
@@ -49,12 +52,32 @@ describe('the Socios screen', () => {
     expect(queryByTestId('socios-list-hidden')).toBeNull();
   });
 
-  it('always shows an admin the list and the join requests', () => {
+  it('always shows an admin the list, the join requests and the libro', () => {
     const { getByTestId, queryByTestId } = renderSocios('admin', false);
+    expect(getByTestId('libro-door')).toBeTruthy();
     expect(getByTestId('roster')).toBeTruthy();
     expect(getByTestId('requests')).toBeTruthy();
     expect(getByTestId('personas')).toBeTruthy();
     expect(queryByTestId('socios-list-hidden')).toBeNull();
+  });
+});
+
+describe('the same button, more inside for an admin', () => {
+  function renderAs(role: 'admin' | 'member', section: 'actas' | 'cuentas') {
+    const group = { org: { id: 'org1', name: 'Peña', type: 'peña', transparency: { cuota: false, avisos: false, cuentas: true } }, role } as unknown as MyGroup;
+    return render(<GroupSectionBody group={group} section={section} uid="u1" />);
+  }
+
+  it('opens the editable actas, with the asamblea checklist, for an admin', () => {
+    const { getByTestId } = renderAs('admin', 'actas');
+    expect(getByTestId('asamblea')).toBeTruthy();
+    expect(getByTestId('actas-admin')).toBeTruthy();
+    expect(renderAs('member', 'actas').queryByTestId('actas-admin')).toBeNull();
+  });
+
+  it('opens the editable accounts for an admin and the shared ones for a socio', () => {
+    expect(renderAs('admin', 'cuentas').getByTestId('year-admin')).toBeTruthy();
+    expect(renderAs('member', 'cuentas').getByTestId('accounts')).toBeTruthy();
   });
 });
 

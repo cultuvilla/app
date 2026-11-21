@@ -47,7 +47,10 @@ const call = (fn: typeof setDoc | typeof updateDoc, i = 0) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(setDoc).mockResolvedValue(undefined);
 });
+
+const denied = () => Object.assign(new Error('Missing or insufficient permissions.'), { code: 'firestore/permission-denied' });
 
 describe('groupMessageService', () => {
   it('a read and a vote are the member’s own docs, stamped by the server', async () => {
@@ -85,5 +88,51 @@ describe('groupMessageService', () => {
   it('nudges through the callable', async () => {
     await expect(nudgeGroupMessage('org1', 'm1')).resolves.toEqual({ nudged: 2 });
     expect(callable).toHaveBeenCalledWith({ orgId: 'org1', messageId: 'm1' });
+  });
+
+  describe('a read receipt is written once', () => {
+    // The ios-e2e loop (2026-11-20): the aviso screen marks whenever its read
+    // list lacks the receipt, and each refused rewrite is a pending local write
+    // that rolls back — which leaves the list lacking it again.
+    it('a refused rewrite does not re-arm a caller that marks on every rollback', async () => {
+      vi.mocked(setDoc).mockResolvedValueOnce(undefined).mockRejectedValue(denied());
+      let rollbacks = 0;
+      const screenSeesItUnread = async (): Promise<void> => {
+        await markGroupMessageRead('org-loop', 'm1', 'u1').catch(() => undefined);
+        if (vi.mocked(setDoc).mock.calls.length > 1 && rollbacks < 20) {
+          rollbacks += 1;
+          await screenSeesItUnread();
+        }
+      };
+      await screenSeesItUnread();
+      await screenSeesItUnread();
+      await screenSeesItUnread();
+      expect(setDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('a receipt the rules refuse counts as read and is never sent again', async () => {
+      vi.mocked(setDoc).mockRejectedValue(denied());
+      await expect(markGroupMessageRead('org-denied', 'm1', 'u1')).resolves.toBeUndefined();
+      await expect(markGroupMessageRead('org-denied', 'm1', 'u1')).resolves.toBeUndefined();
+      expect(setDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('two callers marking at once share one write', async () => {
+      await Promise.all([markGroupMessageRead('org-twice', 'm1', 'u1'), markGroupMessageRead('org-twice', 'm1', 'u1')]);
+      expect(setDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('a transient failure rejects, and the next mark tries again', async () => {
+      vi.mocked(setDoc).mockRejectedValueOnce(Object.assign(new Error('offline'), { code: 'unavailable' }));
+      await expect(markGroupMessageRead('org-flaky', 'm1', 'u1')).rejects.toThrow('offline');
+      await markGroupMessageRead('org-flaky', 'm1', 'u1');
+      expect(setDoc).toHaveBeenCalledTimes(2);
+    });
+
+    it('another account on the device writes its own receipt', async () => {
+      await markGroupMessageRead('org-two', 'm1', 'u1');
+      await markGroupMessageRead('org-two', 'm1', 'u2');
+      expect(setDoc).toHaveBeenCalledTimes(2);
+    });
   });
 });

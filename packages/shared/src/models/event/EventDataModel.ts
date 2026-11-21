@@ -12,6 +12,11 @@ import { EventSeriesSchema, type EventSeries } from './EventSeriesModel';
  */
 export const MAX_SIGNUP_GROUP_SIZE = 4;
 
+/** Sanity bounds for an advertised birth-year window. Re-checked in
+ *  firestore.rules — keep the two in step. */
+export const MIN_EVENT_BIRTH_YEAR = 1900;
+export const MAX_EVENT_BIRTH_YEAR = 2200;
+
 // Events publish on create — there is no `draft` state.
 export const EventStatusSchema = z.enum(['published', 'cancelled', 'completed']);
 export type EventStatus = z.infer<typeof EventStatusSchema>;
@@ -343,6 +348,12 @@ export function upcomingThenPast<E extends Pick<EventData, 'startDate' | 'endDat
   const isPast = (e: E) => isStartDayOver(eventEndBoundary(e), now);
   return [...byStart.filter((e) => !isPast(e)), ...byStart.filter(isPast).reverse()];
 }
+
+/**
+ * The statuses an event list shows, in the app and on the read site. A
+ * cancelled event stays reachable by its link but is never listed.
+ */
+export const LISTED_EVENT_STATUSES: EventStatus[] = ['published', 'completed'];
 
 export function isEventOngoing(
   event: Pick<EventData, 'status' | 'startDate' | 'endDate'>,

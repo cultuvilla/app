@@ -36,13 +36,23 @@ export function emulatorPorts(config) {
   );
 }
 
+/**
+ * The emulator hub's port: the config's, else the CLI's own default. The native
+ * suites reach it to pause background triggers while they restore a snapshot
+ * (scripts/lib/emulator-snapshot.mjs).
+ */
+export function emulatorHubPort(config) {
+  return config?.emulators?.hub?.port ?? 4400;
+}
+
 /** The env the test processes need to dial these emulators. */
-export function emulatorHostEnv(ports) {
+export function emulatorHostEnv(ports, hubPort) {
   return {
     FIRESTORE_EMULATOR_HOST: `127.0.0.1:${ports.firestore}`,
     FIREBASE_AUTH_EMULATOR_HOST: `127.0.0.1:${ports.auth}`,
     FIREBASE_STORAGE_EMULATOR_HOST: `127.0.0.1:${ports.storage}`,
     FIREBASE_FUNCTIONS_EMULATOR_HOST: `127.0.0.1:${ports.functions}`,
+    ...(hubPort ? { FIREBASE_EMULATOR_HUB: `127.0.0.1:${hubPort}` } : {}),
   };
 }
 

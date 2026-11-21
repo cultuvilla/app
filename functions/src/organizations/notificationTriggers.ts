@@ -48,12 +48,12 @@ export const onOrganizationUpdated = onDocumentUpdated(
     let body: string;
     if (afterStatus === 'approved') {
       type = 'org_approved';
-      title = 'Organización aprobada';
-      body = `Tu organización "${orgName}" fue aprobada.`;
+      title = 'Grupo aprobado';
+      body = `Tu grupo "${orgName}" fue aprobado.`;
     } else if (afterStatus === 'rejected') {
       type = 'org_rejected';
-      title = 'Organización rechazada';
-      body = `Tu organización "${orgName}" fue rechazada.`;
+      title = 'Grupo rechazado';
+      body = `Tu grupo "${orgName}" fue rechazado.`;
     } else {
       return;
     }

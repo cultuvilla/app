@@ -309,7 +309,7 @@ service cloud.firestore {
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
               'sociosListVisible', 'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired',
-              'cosateca', 'transparency',
+              'cosateca', 'cuotaEnabled', 'transparency',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -339,6 +339,7 @@ service cloud.firestore {
           && d.get('socioPhoneRequired', false) is bool
           && d.get('socioEmailRequired', false) is bool
           && isValidCosatecaSettings(d.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
+          && d.get('cuotaEnabled', true) is bool
           && isValidGroupTransparency(d.get('transparency', defaultGroupTransparency()));
     }
 
@@ -1139,7 +1140,7 @@ service cloud.firestore {
           // Advertised birth-year window. Advisory only — the sign-up sheet
           // warns and lets the user proceed — so rules check the shape, not
           // the eligibility of anyone signing up. Bounds mirror
-          // MIN/MAX_EVENT_BIRTH_YEAR in EventFormSchema; keep the two in step.
+          // MIN/MAX_EVENT_BIRTH_YEAR in EventDataModel; keep the two in step.
           && isNumberOrNull(d.minBirthYear)
           && isNumberOrNull(d.maxBirthYear)
           && (d.minBirthYear == null || (d.minBirthYear is int && d.minBirthYear >= 1900 && d.minBirthYear <= 2200))
@@ -1363,6 +1364,16 @@ service cloud.firestore {
           && d.village is bool
           && d.social is bool
           && d.quietHours is bool
+          && isTimestamp(d.updatedAt);
+    }
+
+    // PrivacySettingsData: the account's answer on usage analytics. A full doc
+    // every time — absence means "not asked yet", so a partial doc would be a
+    // third state the app cannot read.
+    function isValidPrivacySettingsWrite(d) {
+      return d.keys().hasOnly(['usageAnalytics', 'updatedAt'])
+          && d.keys().hasAll(['usageAnalytics', 'updatedAt'])
+          && d.usageAnalytics is bool
           && isTimestamp(d.updatedAt);
     }
 
@@ -1669,6 +1680,15 @@ service cloud.firestore {
           && isValidNotificationSettingsWrite(request.resource.data);
       }
 
+      // Usage-analytics consent (PrivacySettingsData). Optional, one doc per
+      // account; only its owner reads or answers it.
+      match /privacySettings/{settingsId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId)
+          && settingsId == 'account'
+          && isValidPrivacySettingsWrite(request.resource.data);
+      }
+
       // One group's message pushes muted or not (GroupNotificationPrefsData).
       // Optional like the account's prefs; the doc id is the org.
       match /groupPrefs/{orgId} {
@@ -1891,13 +1911,16 @@ service cloud.firestore {
     // report — but only against themselves as reporter, and always unreviewed:
     // `status` is the moderator's field, so the create rule pins it to 'open'.
     // Reads are moderator-only; a reporter cannot enumerate reports, which
-    // keeps the reported person from learning who filed.
+    // keeps the reported person from learning who filed. Nobody resolves a
+    // report about their own content — another moderator has to — whatever
+    // role they hold.
     match /contentReports/{reportId} {
       allow read: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
       allow create: if isAuthenticated()
                       && request.resource.data.reporterUserId == request.auth.uid
                       && isValidContentReportCreate(request.resource.data);
       allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin())
+                      && resource.data.get('targetAuthorUserId', null) != request.auth.uid
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
                       && request.resource.data.status in ['open', 'reviewed', 'dismissed'];
       allow delete: if false;
@@ -1934,6 +1957,7 @@ service cloud.firestore {
         && request.resource.data.get('socioPhoneRequired', false) is bool
         && request.resource.data.get('socioEmailRequired', false) is bool
         && isValidCosatecaSettings(request.resource.data.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
+        && request.resource.data.get('cuotaEnabled', true) is bool
         && isValidGroupTransparency(request.resource.data.get('transparency', defaultGroupTransparency()))
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']

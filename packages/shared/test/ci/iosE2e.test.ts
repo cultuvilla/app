@@ -1,5 +1,6 @@
 import { beforeAll, describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -35,6 +36,24 @@ describe('ios-e2e workflow gating', () => {
   it('uploads the Maestro artifacts even from a cancelled or timed-out job', () => {
     const step = workflow.slice(workflow.indexOf('- name: Upload Maestro artifacts'));
     expect(step).toMatch(/^\s*- name: Upload Maestro artifacts\s*\n\s*if: \$\{\{ always\(\) \}\}/);
+  });
+
+  // Maestro's "App crashed" names no cause; the Simulator writes the app's
+  // crash report on the host, and only it has the stack.
+  it("uploads the app's crash reports with the Maestro artifacts", () => {
+    const step = workflow.slice(workflow.indexOf('- name: Upload Maestro artifacts'));
+    const paths = step.slice(0, step.indexOf('retention-days'));
+    expect(paths).toContain('~/Library/Logs/DiagnosticReports/Dev*');
+    expect(paths).toContain('~/Library/Logs/DiagnosticReports/JetsamEvent*');
+  });
+
+  it("records why the Simulator ended an app process, even from a failed job", () => {
+    const step = workflow.slice(workflow.indexOf("- name: Collect the Simulator's termination reasons"));
+    expect(step).toMatch(/^- name: Collect the Simulator's termination reasons\s*\n\s*if: \$\{\{ always\(\) \}\}/);
+    expect(step.slice(0, step.indexOf('- name: Upload Maestro artifacts'))).toContain('report/sim-terminations.log');
+    expect(workflow.indexOf("Collect the Simulator's termination reasons")).toBeLessThan(
+      workflow.indexOf('- name: Upload Maestro artifacts'),
+    );
   });
 
   // One build, shared: the build is the slowest step and identical for every
@@ -170,6 +189,60 @@ describe('iOS runner', () => {
   it('keeps the trust flow outside flows/', () => {
     expect(readdirSync(resolve(repoRoot, nativeDir, 'flows'))).not.toContain('trust-deep-links.yaml');
     expect(read(`${nativeDir}/ios/trust-deep-links.yaml`)).toContain('appId: com.cultuvilla.app.dev');
+  });
+});
+
+// Maestro's unfiltered per-flow Simulator log cost the 3-core runner most of a
+// core while the Firestore SDK's streams timed out. The shim narrows exactly
+// that one call and must never break any other: a future Maestro that changes
+// the call gets its full log back, not a broken stream.
+describe('iOS xcrun shim', () => {
+  const shim = resolve(repoRoot, 'scripts/lib/ios-xcrun-shim/xcrun');
+  // `realXcrun` stands in for /usr/bin/xcrun and prints what it was given.
+  const call = (args: string[], predicate?: string, realXcrun = 'echo') =>
+    spawnSync('bash', [shim, ...args], {
+      encoding: 'utf8',
+      env: {
+        PATH: process.env['PATH'],
+        IOS_E2E_REAL_XCRUN: realXcrun,
+        ...(predicate ? { IOS_E2E_SIM_LOG_PREDICATE: predicate } : {}),
+      },
+    });
+  const maestroStream = ['simctl', 'spawn', 'UDID', 'log', 'stream', '--style', 'syslog'];
+
+  it('is executable, so Maestro can run it from PATH', () => {
+    expect(statSync(shim).mode & 0o111).not.toBe(0);
+  });
+
+  it("narrows Maestro's unfiltered log stream by the predicate, and says so", () => {
+    const res = call(maestroStream, 'process == "Dev"');
+    expect(res.status).toBe(0);
+    const [banner, invoked] = res.stdout.trim().split('\n');
+    expect(banner).toBe('[ios-e2e] filtered by scripts/lib/ios-xcrun-shim: process == "Dev"');
+    expect(invoked).toBe([...maestroStream, '--predicate', 'process == "Dev"'].join(' '));
+  });
+
+  it('fails open: any other call, or no predicate, runs the real xcrun unchanged', () => {
+    const others = [
+      ['simctl', 'list', 'devices', '--json'],
+      [...maestroStream, '--level', 'debug'],
+      ['simctl', 'spawn', 'UDID', 'log', 'stream', '--style', 'compact'],
+      ['simctl', 'spawn', 'UDID', 'log', 'stream', '--style', 'syslog', '--predicate', 'x'],
+    ];
+    for (const args of others) {
+      // printf '%s\n' prints one argument per line, so quoting survives.
+      const res = call(['%s\n', ...args], 'p == 1', 'printf');
+      expect(res.stdout, args.join(' ')).toBe(args.map((a) => `${a}\n`).join(''));
+    }
+    expect(call(maestroStream).stdout.trim()).toBe(maestroStream.join(' '));
+  });
+
+  it('is armed by the runner with the app executable before Maestro first runs, and leaves apsd running', () => {
+    expect(runner).toMatch(/IOS_MAESTRO_ENV\.PATH = `\$\{SHIM_DIR\}/);
+    expect(runner).toMatch(/process == "\$\{executable\}" OR messageType == fault/);
+    expect(runner.indexOf('armSimLogFilter(app')).toBeLessThan(runner.indexOf("'ios', 'trust-deep-links.yaml'"));
+    // Flow 92 grants notifications, and the app then asks apsd for a push token.
+    expect(runner).not.toMatch(/STOPPED_SIM_DAEMONS = .*apsd/);
   });
 });
 
@@ -330,5 +403,312 @@ describe('iOS quarantine', () => {
     const lib = read('scripts/lib/maestro-suite.mjs');
     expect(lib).toMatch(/QUARANTINED, NOT RUN/);
     expect(lib).toMatch(/quarantine names a flow that does not exist/);
+  });
+});
+
+// The stock Firestore emulator allows one client ping per 5 minutes; the SDKs
+// ping every 30 s, which production accepts. It answered with GOAWAY
+// too_many_pings, and on the Simulator a write then stalled ~90 s ("ping
+// timeout"), failing flows 13–15. The lane gives the emulator production's
+// policy and fails loudly whenever that stops being true.
+// docs/decisions/ios-e2e-emulator-keepalive.md
+describe('Firestore emulator keepalive', () => {
+  const wrapper = read('scripts/run-tests-with-emulators.mjs');
+  const policySource = read('scripts/emulator-keepalive/io/grpc/internal/KeepAliveEnforcer.java');
+
+  it('runs the iOS suite with the emulator on production keepalive', () => {
+    const step = workflow.slice(workflow.indexOf('- name: Seed + run the Maestro suite'));
+    expect(step.slice(0, step.indexOf('run: pnpm test:e2e:ios'))).toMatch(/EMULATOR_KEEPALIVE: production/);
+  });
+
+  it('accepts the SDKs’ 30 s keepalive, with or without a call open', async () => {
+    const policy = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/emulator-keepalive.mjs')).href)) as {
+      KEEPALIVE_PERMIT_MS: number;
+      KEEPALIVE_POLICY_LINE: string;
+    };
+    expect(policy.KEEPALIVE_PERMIT_MS).toBeLessThan(30_000);
+    expect(policy.KEEPALIVE_POLICY_LINE).toContain(`${String(policy.KEEPALIVE_PERMIT_MS)} ms, without calls: true`);
+    const lib = read('scripts/lib/emulator-keepalive.mjs');
+    expect(lib).toContain('-Xbootclasspath/a:');
+    expect(lib).toContain('-Dcultuvilla.emulator.permitKeepAliveTimeMs=');
+    expect(lib).toContain("'-Dcultuvilla.emulator.permitKeepAliveWithoutCalls=true'");
+  });
+
+  it('replaces grpc-java’s class under its own name and API, changing only the limits', () => {
+    expect(policySource).toMatch(/^package io\.grpc\.internal;/m);
+    expect(policySource).toMatch(/public final class KeepAliveEnforcer/);
+    for (const member of [
+      'public KeepAliveEnforcer(boolean permitWithoutCalls, long minTime, TimeUnit unit)',
+      'public boolean pingAcceptable()',
+      'public void resetCounters()',
+      'public void onTransportActive()',
+      'public void onTransportIdle()',
+    ]) {
+      expect(policySource).toContain(member);
+    }
+    expect(policySource).toContain('"cultuvilla.emulator.permitKeepAliveTimeMs"');
+    expect(policySource).toContain('"cultuvilla.emulator.permitKeepAliveWithoutCalls"');
+    expect(policySource).toContain('[emulator-keepalive] client pings permitted every ');
+    // The boot class loader cannot see the jar's Guava.
+    expect(policySource.match(/^import .*$/gm)).toEqual(['import java.util.concurrent.TimeUnit;']);
+  });
+
+  it('passes the policy to the emulator JVM only, and checks it before any command runs', () => {
+    expect(wrapper).toMatch(/env: emulatorJavaOptions \? \{ \.\.\.emulatorEnv, JAVA_TOOL_OPTIONS: emulatorJavaOptions \}/);
+    expect(wrapper).not.toMatch(/emulatorEnv = \{[^}]*JAVA_TOOL_OPTIONS/);
+    const checks = wrapper.indexOf('if (KEEPALIVE) {\n  const host');
+    expect(checks).toBeGreaterThan(-1);
+    expect(checks).toBeLessThan(wrapper.indexOf('for (const { label, cmd, args } of commands)'));
+    const block = wrapper.slice(checks, wrapper.indexOf('for (const { label, cmd, args } of commands)'));
+    expect(block).toContain('keepaliveApiMismatch()');
+    expect(block).toContain('probeKeepalive({ host })');
+    expect(block).toContain('KEEPALIVE_POLICY_LINE');
+    expect(block).toMatch(/shutdown\(1\)/);
+  });
+
+  it('fails the shard when the SDK still logs a ping timeout or too_many_pings', () => {
+    const guard = runner.slice(runner.indexOf('function keepaliveErrors'));
+    expect(guard).toContain("l.includes('ping timeout')");
+    expect(guard).toContain("l.includes('too_many_pings')");
+    expect(guard).toMatch(/if \(pingTimeouts \+ tooManyPings === 0\) return;[\s\S]*process\.exitCode = 1;/);
+  });
+
+  describe('probe', () => {
+    type Probe = (opts: { host: string; gapMs?: number }) => Promise<{ ok: boolean; reason?: string }>;
+    let probeKeepalive: Probe;
+    beforeAll(async () => {
+      ({ probeKeepalive } = (await import(
+        pathToFileURL(resolve(repoRoot, 'scripts/check-emulator-keepalive.mjs')).href
+      )) as { probeKeepalive: Probe });
+    });
+
+    // A plain HTTP/2 server acks pings; `strikeOut` makes it answer the third
+    // the way the stock emulator does.
+    async function withServer(strikeOut: boolean, fn: (host: string) => Promise<void>) {
+      const http2 = await import('node:http2');
+      const server = http2.createServer();
+      const sessions: { destroy: () => void }[] = [];
+      server.on('session', (session) => {
+        sessions.push(session);
+        let pings = 0;
+        session.on('ping', () => {
+          pings += 1;
+          if (strikeOut && pings === 3) session.goaway(11, 0, Buffer.from('too_many_pings'));
+        });
+      });
+      await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+      const address = server.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      try {
+        await fn(`127.0.0.1:${String(port)}`);
+      } finally {
+        for (const session of sessions) session.destroy();
+        await new Promise((done) => server.close(done));
+      }
+    }
+
+    it('passes when every ping is acked', async () => {
+      await withServer(false, async (host) => {
+        expect(await probeKeepalive({ host, gapMs: 20 })).toEqual({ ok: true });
+      });
+    });
+
+    it('fails on the stock emulator’s GOAWAY too_many_pings', async () => {
+      await withServer(true, async (host) => {
+        const result = await probeKeepalive({ host, gapMs: 20 });
+        expect(result.ok).toBe(false);
+        expect(result.reason).toContain('too_many_pings');
+      });
+    });
+  });
+});
+
+// A retry that runs on the failed attempt's data can only pass by accident: the
+// flow 13 retry in ios-e2e 44764961074 opened the cuota on the part payment its
+// first attempt had recorded. So every retry starts from the emulator data the
+// first attempt started from.
+describe('a retry starts from its first attempt’s data', () => {
+  const lib = read('scripts/lib/maestro-suite.mjs');
+  const loop = lib.slice(lib.indexOf('for (const name of flows)'), lib.indexOf('if (status !== 0) failed.push(name)'));
+
+  it('snapshots before the first attempt and restores before every retry', () => {
+    expect(loop).toMatch(/if \(attempt > 1\) await restoreAttemptStart\(label, emulators, start\);/);
+    expect(loop).toMatch(/if \(emulators && attempt === 1\) start = await takeSnapshot\(emulators\);/);
+    // The snapshot is the state the flow starts from: after the leftover reset,
+    // and taken once, so a retry never snapshots its predecessor's mess.
+    expect(loop.indexOf('deleteLeftoverDocs')).toBeLessThan(loop.indexOf('takeSnapshot'));
+    expect(loop.indexOf('restoreAttemptStart')).toBeLessThan(loop.indexOf('takeSnapshot'));
+  });
+
+  it('does not retry when there are no emulators to restore', () => {
+    expect(loop).toMatch(/attempt <= 1 \+ \(emulators \? retries : 0\)/);
+    expect(lib).toMatch(/no emulators to restore between attempts, so a failed flow is not retried/);
+  });
+
+  it('gives the test processes the hub, which pauses triggers during a restore', () => {
+    expect(read('scripts/run-tests-with-emulators.mjs')).toMatch(
+      /emulatorHostEnv\(PORTS_BY_SERVICE, emulatorHubPort\(emulatorConfig\.config\)\)/,
+    );
+  });
+
+  describe('emulator-snapshot against fake emulators', () => {
+    interface Snapshot {
+      documents: { name: string; fields: Record<string, unknown> }[];
+      accounts: Record<string, unknown>[];
+    }
+    type Targets = { firestore: string; auth: string; hub: string; project: string };
+    type Call = { method: string; url: string; body: string };
+    let snap: {
+      emulatorTargets: (env: Record<string, string | undefined>) => Targets | null;
+      takeSnapshot: (t: Targets) => Promise<Snapshot>;
+      restoreSnapshot: (t: Targets, s: Snapshot) => Promise<void>;
+    };
+    beforeAll(async () => {
+      snap = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/emulator-snapshot.mjs')).href)) as typeof snap;
+    });
+
+    const docName = (i: number) => `projects/p/databases/(default)/documents/c/d${String(i)}`;
+
+    const CLEAR = '/emulator/v1/projects/p/databases/(default)/documents';
+    const CANCELLED = JSON.stringify({ error: { code: 499, message: 'call already cancelled', status: 'CANCELLED' } });
+
+    /**
+     * How the fake answers the database clear: `ok` clears, `cancelled-cleared`
+     * clears but answers 499 (as the real emulator did with listen streams
+     * open), `cancelled-kept` answers 499 and keeps every document.
+     */
+    type ClearMode = 'ok' | 'cancelled-cleared' | 'cancelled-kept';
+
+    // One HTTP server stands in for all three emulators and records each call.
+    async function withFake(
+      fn: (t: Targets, calls: Call[]) => Promise<void>,
+      failOn?: string,
+      clear: ClearMode[] = ['ok'],
+    ) {
+      const http = await import('node:http');
+      const calls: Call[] = [];
+      let docs = [1, 2, 3].map((i) => ({ name: docName(i), fields: { n: { integerValue: String(i) } } }));
+      let clears = 0;
+      const server = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', (c: Buffer) => (body += c.toString()));
+        req.on('end', () => {
+          const url = req.url ?? '';
+          calls.push({ method: req.method ?? '', url, body });
+          if (failOn && url.includes(failOn)) {
+            res.writeHead(500).end('boom');
+            return;
+          }
+          if (req.method === 'DELETE' && url === CLEAR) {
+            const mode = clear[Math.min(clears++, clear.length - 1)];
+            if (mode !== 'cancelled-kept') docs = [];
+            if (mode === 'ok') res.writeHead(200).end('{}');
+            else res.writeHead(499, { 'Content-Type': 'application/json' }).end(CANCELLED);
+            return;
+          }
+          let out: unknown = {};
+          if (url.endsWith(':runQuery')) out = [{ readTime: 'x' }, ...docs.map((document) => ({ document }))];
+          if (url.includes('accounts:batchGet')) out = { users: [{ localId: 'u1', passwordHash: 'fakeHash:salt=s:password=p' }] };
+          res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(out));
+        });
+      });
+      await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+      const address = server.address();
+      const host = `127.0.0.1:${String(typeof address === 'object' && address ? address.port : 0)}`;
+      try {
+        await fn({ firestore: host, auth: host, hub: host, project: 'p' }, calls);
+      } finally {
+        await new Promise((done) => server.close(done));
+      }
+    }
+
+    it('needs all three emulators, and the hub, to be named', () => {
+      const env = { FIRESTORE_EMULATOR_HOST: 'h:1', FIREBASE_AUTH_EMULATOR_HOST: 'h:2', GCLOUD_PROJECT: 'p' };
+      expect(snap.emulatorTargets(env)).toBeNull();
+      expect(snap.emulatorTargets({ ...env, FIREBASE_EMULATOR_HUB: 'h:3' })).toEqual({
+        firestore: 'h:1',
+        auth: 'h:2',
+        hub: 'h:3',
+        project: 'p',
+      });
+    });
+
+    it('reads every document with one kindless query and every account with batchGet', async () => {
+      await withFake(async (t, calls) => {
+        const s = await snap.takeSnapshot(t);
+        expect(s.documents.map((d) => d.name.split('/').pop())).toEqual(['d1', 'd2', 'd3']);
+        expect(s.accounts).toHaveLength(1);
+        const query = calls.find((c) => c.url.endsWith(':runQuery'));
+        expect(JSON.parse(query?.body ?? '{}')).toEqual({ structuredQuery: { from: [{ allDescendants: true }] } });
+      });
+    });
+
+    it('restores with triggers paused: clear, write back, then accounts', async () => {
+      await withFake(async (t, calls) => {
+        const documents = Array.from({ length: 1201 }, (_, i) => ({ name: docName(i), fields: {} }));
+        await snap.restoreSnapshot(t, { documents, accounts: [{ localId: 'u1' }] });
+        expect(calls.map((c) => `${c.method} ${c.url.replace(/\?.*/, '')}`)).toEqual([
+          'PUT /functions/disableBackgroundTriggers',
+          'DELETE /emulator/v1/projects/p/databases/(default)/documents',
+          'POST /v1/projects/p/databases/(default)/documents:runQuery',
+          'POST /v1/projects/p/databases/(default)/documents:batchWrite',
+          'POST /v1/projects/p/databases/(default)/documents:batchWrite',
+          'POST /v1/projects/p/databases/(default)/documents:batchWrite',
+          'DELETE /emulator/v1/projects/p/accounts',
+          'POST /identitytoolkit.googleapis.com/v1/projects/p/accounts:batchCreate',
+          'PUT /functions/enableBackgroundTriggers',
+        ]);
+        const sizes = calls
+          .filter((c) => c.url.endsWith(':batchWrite'))
+          .map((c) => (JSON.parse(c.body) as { writes: unknown[] }).writes.length);
+        expect(sizes).toEqual([500, 500, 201]);
+      });
+    });
+
+    it('turns triggers back on even when the restore fails', async () => {
+      await withFake(async (t, calls) => {
+        await expect(snap.restoreSnapshot(t, { documents: [], accounts: [] })).rejects.toThrow(/HTTP 500/);
+        expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
+      }, 'databases/(default)/documents');
+    });
+
+    const clearCalls = (calls: Call[]) => calls.filter((c) => c.method === 'DELETE' && c.url === CLEAR).length;
+
+    it('goes on when the clear answers 499 but the database is empty', async () => {
+      await withFake(
+        async (t, calls) => {
+          await snap.restoreSnapshot(t, { documents: [], accounts: [] });
+          expect(clearCalls(calls)).toBe(1);
+        },
+        undefined,
+        ['cancelled-cleared'],
+      );
+    });
+
+    it('clears again while documents are left, and stops once it is empty', async () => {
+      await withFake(
+        async (t, calls) => {
+          await snap.restoreSnapshot(t, { documents: [], accounts: [] });
+          expect(clearCalls(calls)).toBe(2);
+        },
+        undefined,
+        ['cancelled-kept', 'ok'],
+      );
+    });
+
+    it('fails loudly, triggers back on, when the database never empties', async () => {
+      await withFake(
+        async (t, calls) => {
+          await expect(snap.restoreSnapshot(t, { documents: [], accounts: [] })).rejects.toThrow(
+            /still holds 3 documents after clearing/,
+          );
+          expect(clearCalls(calls)).toBe(3);
+          expect(calls.some((c) => c.url.includes('batchWrite'))).toBe(false);
+          expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
+        },
+        undefined,
+        ['cancelled-kept'],
+      );
+    });
   });
 });

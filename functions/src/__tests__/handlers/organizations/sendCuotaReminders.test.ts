@@ -185,6 +185,14 @@ describe('sendCuotaReminders', () => {
     expect((await runCuotaReminders(db(), AFTER)).reminderCount).toBe(0);
   });
 
+  it('reminds nobody in a group that switched its cuota off', async () => {
+    await seedSettings();
+    await seedMember('u-ana', 'Ana');
+    await db().doc(`organizations/${ORG_ID}`).update({ cuotaEnabled: false });
+    expect((await runCuotaReminders(db(), BEFORE)).reminderCount).toBe(0);
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
   it('signs with the admin who configured the cuota when nobody is tesorero', async () => {
     await seedSettings();
     await db().doc(`organizations/${ORG_ID}/socios/Luis`).update({ adminTitle: null });

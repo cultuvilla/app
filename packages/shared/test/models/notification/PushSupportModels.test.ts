@@ -93,6 +93,15 @@ describe('villageEntityPublishedCopy', () => {
     }
   });
 
+  it('calls an organization a grupo, as the rest of the app does', () => {
+    expect(villageEntityPublishedCopy('organization', 'Peña El Rollo', 'Matabuena').title).toBe(
+      'Nuevo grupo en Matabuena',
+    );
+    expect(villageEntityPublishedCopy('organization', null, 'Matabuena').body).toBe(
+      'Un grupo nuevo en tu pueblo.',
+    );
+  });
+
   it('covers the entity family and excludes vocabulary terms', () => {
     expect([...BROADCAST_ENTITY_KINDS].sort()).toEqual(
       ['barrio', 'event', 'festivalPoster', 'historyEntry', 'news', 'organization', 'place'].sort(),

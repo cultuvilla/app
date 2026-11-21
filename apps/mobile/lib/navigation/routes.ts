@@ -64,6 +64,7 @@ export const routes = {
   discover: href('/descubrir'),
   terms: href('/legal/terminos'),
   privacy: href('/legal/privacidad'),
+  attributions: href('/legal/atribuciones'),
   admin: href('/admin'),
   adminOrganizerRequests: href('/admin/solicitudes-organizador'),
   adminReports: href('/admin/denuncias'),
@@ -187,5 +188,5 @@ export const newHistoryEntryHref = (villageSlug: string): HrefPath =>
  * rebuilds the URL it came from rather than inventing a title slug it would
  * have to load the doc to know.
  */
-export const entityRefHref = (kind: UrlEntityKind, villageSlug: string, ref: string): HrefPath =>
-  href(`${villagePath(villageSlug)}/${ENTITY_SEGMENT[kind]}/${ref}`);
+export const entityRefHref = (kind: UrlEntityKind, villageSlug: string, ref: string, query?: string): HrefPath =>
+  href(`${villagePath(villageSlug)}/${ENTITY_SEGMENT[kind]}/${ref}${query ? `?${query}` : ''}`);

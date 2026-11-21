@@ -4,10 +4,9 @@ import {
   CuotaReminderDataSchema,
   CuotaSettingsDataSchema,
 } from '../../models/organization/CuotaDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const cuotaSettingsConverterAdmin = makeConverter(CuotaSettingsDataSchema, adminSdkCtors);
-export const cuotaAssignmentConverterAdmin = makeConverter(CuotaAssignmentDataSchema, adminSdkCtors);
-export const cuotaPaymentConverterAdmin = makeConverter(CuotaPaymentDataSchema, adminSdkCtors);
-export const cuotaReminderConverterAdmin = makeConverter(CuotaReminderDataSchema, adminSdkCtors);
+export const cuotaSettingsConverterAdmin = adminConverter(CuotaSettingsDataSchema);
+export const cuotaAssignmentConverterAdmin = adminConverter(CuotaAssignmentDataSchema);
+export const cuotaPaymentConverterAdmin = adminConverter(CuotaPaymentDataSchema);
+export const cuotaReminderConverterAdmin = adminConverter(CuotaReminderDataSchema);

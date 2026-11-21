@@ -57,8 +57,7 @@ function mockCaps(canEdit: boolean) {
     canManage: false,
     uid: 'u1',
     loading: false,
-    canEdit: jest.fn(() => canEdit),
-    canDelete: jest.fn(() => canEdit),
+    can: jest.fn(() => canEdit),
   });
 }
 

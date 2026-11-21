@@ -270,4 +270,12 @@ describe('AttendeeSheet', () => {
     fireEvent.press(getByTestId('attendee-confirm'));
     expect(onConfirm).toHaveBeenCalledWith(['self', 'dep1'], undefined, {});
   });
+
+  // No ✕ (decided 2026-11-20): the grab bar is the way out.
+  it('closes from its grab bar (attendee-sheet-handle)', () => {
+    const { getByTestId } = render(<AttendeeSheet {...baseProps} attendees={[{ id: 'self', name: 'Ana' }]} />);
+    expect(getByTestId('attendee-sheet')).toBeTruthy();
+    fireEvent.press(getByTestId('attendee-sheet-handle'));
+    expect(baseProps.onClose).toHaveBeenCalledTimes(1);
+  });
 });

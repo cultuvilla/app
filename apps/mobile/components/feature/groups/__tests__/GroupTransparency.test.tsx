@@ -61,18 +61,35 @@ describe('GroupSettings — sections', () => {
   it('groups a roster group\'s settings under one heading per question', () => {
     setWatched('cuota', { id: 'cuota', remindersEnabled: true });
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible />);
-    for (const id of ['group-settings-entry', 'group-settings-transparency', 'group-settings-charla', 'group-settings-cosateca-section', 'group-settings-cuota']) {
-      expect(r.getByTestId(id)).toBeTruthy();
-    }
-    for (const k of ['entry', 'charla', 'cosateca', 'cuota']) expect(r.getByText(`groups.settings.sections.${k}`)).toBeTruthy();
+    const ids = ['group-settings-features', 'group-settings-entry', 'group-settings-transparency', 'group-settings-charla', 'group-settings-cuota'];
+    for (const id of ids) expect(r.getByTestId(id)).toBeTruthy();
+    for (const k of ['features', 'entry', 'charla', 'cuota']) expect(r.getByText(`groups.settings.sections.${k}`)).toBeTruthy();
+    // What the group uses comes first.
+    const order = r.getAllByTestId(/^group-settings-(features|entry|transparency|charla|cuota)$/).map((el) => el.props.testID as string);
+    expect(order[0]).toBe('group-settings-features');
     expect(r.getByText('groups.transparency.settings.title')).toBeTruthy();
   });
 
-  it('gives an ayuntamiento no entry or socio sections', () => {
+  it('switches the cuota off, and with it its reminders and its public list', () => {
+    setWatched('cuota', { id: 'cuota', remindersEnabled: true });
+    const on = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible />);
+    fireEvent.press(on.getByTestId('group-settings-cuota-enabled'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { cuotaEnabled: false });
+    on.unmount();
+    const off = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible cuotaEnabled={false} />);
+    expect(off.getByTestId('group-settings-cuota-enabled').props.accessibilityState).toMatchObject({ checked: false });
+    expect(off.queryByTestId('group-settings-cuota')).toBeNull();
+    expect(off.queryByTestId('group-settings-transparency-cuota')).toBeNull();
+    expect(off.getByTestId('group-settings-transparency-cuentas')).toBeTruthy();
+  });
+
+  it('gives an ayuntamiento no entry or socio sections, and no cuota switch', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} isAyuntamiento />);
     expect(r.queryByTestId('group-settings-entry')).toBeNull();
     expect(r.queryByTestId('group-settings-join-policy')).toBeNull();
     expect(r.getByTestId('group-settings-charla')).toBeTruthy();
+    expect(r.queryByTestId('group-settings-cuota-enabled')).toBeNull();
+    expect(r.getByTestId('group-settings-cosateca')).toBeTruthy();
   });
 
   it('warns before opening the group, and opens it once confirmed', () => {

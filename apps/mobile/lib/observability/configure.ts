@@ -1,7 +1,6 @@
 import { Platform } from 'react-native';
 import {
   configureObservability,
-  observability,
   OBSERVABILITY_EVENTS,
   type ObservabilityAdapter,
   type UserContext,
@@ -47,28 +46,35 @@ export function bootstrapObservability(): void {
   booted = true;
 
   const analytics = createAnalyticsBackend();
+  // Mirrors the port's consent so the exception event below, which the adapter
+  // fires itself rather than through the port's gated trackEvent, obeys it too.
+  let analyticsGranted = false;
 
   const adapter: ObservabilityAdapter = {
     trackEvent: (name, params, user) => analytics.trackEvent(name, params, user ? userIdOf(user) : null),
     captureError: (error, context) => {
-      // Both sinks (design decision): Cloud Logging for diagnosis + an
-      // analytics event for funnel/impact correlation.
+      // Both sinks (design decision): Cloud Logging for diagnosis, which is
+      // legitimate interest and always goes, and an analytics event for
+      // funnel/impact correlation, which is usage analytics and needs consent.
       void sendClientError(toErrorPayload(error, context));
-      analytics.trackEvent(OBSERVABILITY_EVENTS.APP_EXCEPTION, context, null);
+      if (analyticsGranted) analytics.trackEvent(OBSERVABILITY_EVENTS.APP_EXCEPTION, context, null);
     },
     log: (_level, _msg, _fields) => {
       // Client structured logs currently ride the error bridge only for errors;
       // info/warn are dev-console today. Native Crashlytics breadcrumbs later.
     },
     setUserContext: (user) => analytics.setUserId(user ? userIdOf(user) : null),
-    setConsent: (consent) => analytics.setConsent(consent.analytics),
+    setConsent: (consent) => {
+      analyticsGranted = consent.analytics;
+      analytics.setConsent(consent.analytics);
+    },
   };
 
+  // The port starts with analytics denied and replays that here, which turns
+  // native collection off on every launch. Only AnalyticsConsentProvider grants
+  // it, for a signed-in account that answered yes (opt-in, Privacy Policy §4).
+  // Before any JS runs, apps/mobile/firebase.json (analytics_auto_collection_enabled:
+  // false) keeps a fresh install's native SDK from collecting on its own.
   configureObservability(adapter);
-  // Analytics is enabled app-wide with no per-session consent prompt: the Terms of
-  // Use + Privacy Policy — accepted via the single registration checkbox — cover
-  // usage analytics (Google Analytics for Firebase is named in the Privacy Policy).
-  // Granted once at boot; pre-registration/guest sessions are included by design.
-  observability.setConsent({ analytics: true });
   attachGlobalHandlers();
 }

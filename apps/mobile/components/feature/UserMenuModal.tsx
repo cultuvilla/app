@@ -17,6 +17,7 @@ import Constants from 'expo-constants';
 import { Avatar } from '../primitives/Avatar';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
+import { SheetHandle, useDragToDismiss } from '../primitives/BottomSheet';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useIsAppAdmin } from '../../lib/auth/useIsAppAdmin';
 import { useT } from '../../lib/i18n';
@@ -49,6 +50,7 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const drag = useDragToDismiss(() => close(), visible);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [photoURL, setPhotoURL] = useState<string | null>(null);
   const [villageCount, setVillageCount] = useState(0);
@@ -180,6 +182,11 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
           label: t('menu.privacy'),
           onPress: () => close(() => router.push(routes.privacy)),
         },
+        {
+          icon: 'map-outline',
+          label: t('menu.attributions'),
+          onPress: () => close(() => router.push(routes.attributions)),
+        },
       ],
     },
     ...(isAppAdmin
@@ -239,23 +246,19 @@ export function UserMenuModal({ visible, onClose }: UserMenuModalProps) {
             bottom: 0,
             height: SCREEN_HEIGHT,
             backgroundColor: '#ffffff',
-            transform: [{ translateY: slideAnim }],
+            transform: [{ translateY: Animated.add(slideAnim, drag.translateY) }],
           }}
         >
+          {/* No ✕ (decided 2026-11-20): drag the bar or the title down, or tap the bar. */}
           <View
-            className="flex-row items-center justify-between px-4 border-b border-subtle"
-            style={{ paddingTop: insets.top + 8, paddingBottom: 12 }}
+            {...drag.panHandlers}
+            className="px-4 border-b border-subtle"
+            style={{ paddingTop: insets.top, paddingBottom: 12 }}
           >
+            <SheetHandle onClose={() => close()} label={t('menu.close')} testID="user-menu-handle" />
             <Text variant="h1" className="text-accent">
               {t('menu.title')}
             </Text>
-            <Pressable
-              onPress={() => close()}
-              accessibilityLabel={t('menu.close')}
-              className="p-2 -mr-2"
-            >
-              <Ionicons name="close" size={26} color="#0f172a" />
-            </Pressable>
           </View>
 
           <ScrollView

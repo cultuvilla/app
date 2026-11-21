@@ -41,8 +41,7 @@ function mockCaps(opts: { canManage: boolean; uid: string | null; canEdit: boole
     canApprove: opts.canManage,
     uid: opts.uid,
     loading: false,
-    canEdit: jest.fn(() => opts.canEdit),
-    canDelete: jest.fn(() => opts.canEdit),
+    can: jest.fn(() => opts.canEdit),
   };
   (useEntityCapabilities as jest.Mock).mockReturnValue(caps);
   return caps;
@@ -72,7 +71,7 @@ describe('BarrioEditScreen guard', () => {
     const { findByDisplayValue } = render(<BarrioEditScreen />);
     await findByDisplayValue('Centro');
     expect(mockRedirect).not.toHaveBeenCalled();
-    expect(caps.canEdit).toHaveBeenCalledWith('creator');
+    expect(caps.can).toHaveBeenCalledWith('edit', 'barrio', expect.objectContaining({ proposedBy: 'creator' }));
   });
 });
 

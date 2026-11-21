@@ -2,7 +2,7 @@
 
 **Priority:** high
 **Landed:** dev
-**Gate:** none
+**Gate:** blocked:Álvaro promotes it with a release and runs the La Anduela trial — a human step
 **Next:** the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later*
 
 Decided 2026-10-20 (user): build all five phases, taking the agent's picks on the

@@ -155,6 +155,7 @@ export async function requestOrganization(
     socioPhoneRequired: false,
     socioEmailRequired: false,
     cosateca: { ...DEFAULT_COSATECA_SETTINGS },
+    cuotaEnabled: true,
     transparency: { ...DEFAULT_GROUP_TRANSPARENCY },
   };
   await setDoc(newRef, data);

@@ -15,18 +15,29 @@ const PLACEHOLDER_MIN_HEIGHT = 96;
 
 /** A notice in the group home's Avisos row: its title and the day it was
  * sent, never the text (decided 2026-11-19, user), cut to one box so every
- * card is the same size.
+ * card is the same size. A dot marks it until the user opens it or its new
+ * comments (2026-11-20, user).
  * The cards fill their row with `flex-1`, never `h-full`: on native Yoga
  * resolves height:100% against the ScrollView viewport, so a card grew
  * without end (same bug as DetailInfoCard). */
-export function NoticeCard({ message, onPress }: { message: GroupMessage; onPress: () => void }) {
+export function NoticeCard({ message, unread = false, onPress }: { message: GroupMessage; unread?: boolean; onPress: () => void }) {
+  const { t } = useT();
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-notice-${message.id}`} style={{ width: 260, height: NOTICE_CARD_HEIGHT }}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={unread ? `${message.title}. ${t('groups.messages.newBadge')}` : undefined}
+      testID={`group-home-notice-${message.id}`}
+      style={{ width: 260, height: NOTICE_CARD_HEIGHT }}
+    >
       <Card className="flex-1">
         <VStack gap={1} className="flex-1">
-          <Text variant="bodySm" numberOfLines={3} className="flex-1 font-bold" testID={`group-home-notice-${message.id}-text`}>
-            {message.title}
-          </Text>
+          <HStack gap={2} className="flex-1 items-start">
+            <Text variant="bodySm" numberOfLines={3} className="flex-1 font-bold" testID={`group-home-notice-${message.id}-text`}>
+              {message.title}
+            </Text>
+            {unread ? <View className="mt-1 h-2.5 w-2.5 rounded-full bg-accent" testID={`group-home-notice-${message.id}-unread`} /> : null}
+          </HStack>
           <Text variant="caption" tone="muted" numberOfLines={1}>
             {formatDate(message.sentAt, 'dayMonthShort')}
           </Text>

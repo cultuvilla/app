@@ -1,8 +1,8 @@
 /**
- * Every string that appears on a Wrapped image. Server-rendered templates in
- * this repo keep their Spanish as module constants (see the registration email
- * template) because `@cultuvilla/i18n` is not consumed server-side; keeping all
- * of it in one file is what makes it findable when it is.
+ * Every string that appears on a Wrapped image. These are image-only strings,
+ * kept here as module constants rather than in `@cultuvilla/i18n` (which the
+ * read site does consume server-side, through functions/src/web/copy.ts);
+ * keeping all of them in one file is what makes them findable.
  *
  * The verbs are deliberate: every figure is a SIGN-UP. `checkedInAt` is never
  * set, so nothing here may say "asistieron".

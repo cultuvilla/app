@@ -6,6 +6,7 @@ import {
   watchUpcomingFeed,
 } from '@cultuvilla/shared/services/feedService';
 import { getAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
+import { getActiveCommunities } from '@cultuvilla/shared/services/municipalityService';
 import { buildEventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 
@@ -302,5 +303,43 @@ describe('FeedScreen live listener', () => {
     expect(listeners[0]?.closed).toBe(true);
     act(() => current().next([event]));
     expect(await findByText('Verbena')).toBeTruthy();
+  });
+});
+
+// An empty feed under a search or a filter means "nothing matches", not
+// "nothing exists" — so it says so, and offers the way back.
+describe('FeedScreen empty states', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRibbonFor.mockReturnValue(null);
+    (getAllVillagesFeed as jest.Mock).mockResolvedValue([]);
+    (getPrivateUpcomingFeed as jest.Mock).mockResolvedValue([]);
+    (getActiveCommunities as jest.Mock).mockResolvedValue([
+      { id: 'mun1', name: 'Sotos de Mayorga', coordinates: null },
+    ]);
+  });
+
+  it('keeps the plain empty state when no filter is set', async () => {
+    (getUpcomingFeed as jest.Mock).mockResolvedValue({ events: [] });
+    const { findByText, queryByText } = render(<FeedScreen />);
+    expect(await findByText('feed.empty', undefined, { timeout: 5000 })).toBeTruthy();
+    expect(queryByText('feed.emptyFiltered.events')).toBeNull();
+    expect(queryByText('feed.emptyFiltered.clear')).toBeNull();
+  });
+
+  it('says nothing matches a search that hides every event, and clears it', async () => {
+    (getUpcomingFeed as jest.Mock).mockResolvedValue({ events: [event] });
+    const { findByText, findByTestId, getByTestId, queryByText } = render(<FeedScreen />);
+    await findByText('Verbena', undefined, { timeout: 5000 });
+
+    fireEvent.press(await findByTestId('filter-search'));
+    fireEvent.changeText(getByTestId('filter-search-input'), 'zzz');
+
+    expect(await findByText('feed.emptyFiltered.events')).toBeTruthy();
+    expect(queryByText('feed.empty')).toBeNull();
+
+    fireEvent.press(getByTestId('feed-clear-filters'));
+    expect(await findByText('Verbena')).toBeTruthy();
+    expect(queryByText('feed.emptyFiltered.events')).toBeNull();
   });
 });

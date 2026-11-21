@@ -1,0 +1,1 @@
+- Feature: el número de la campana cuenta todo lo que te espera en *Necesita tu acción*: además de las solicitudes de Embajador y de nuevos grupos, las solicitudes para unirse a tus grupos y las denuncias abiertas de tus pueblos. **Migration:** none.

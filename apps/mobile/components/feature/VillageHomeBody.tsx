@@ -488,26 +488,32 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
         {BARRIO_SECTIONS.map(({ kind, titleKey }) => {
           const rows = barrios.filter((b) => b.kind === kind);
           return (
+            // Virtualized: a Galician village can carry hundreds of aldeas
+            // (Vilalba has 745), so only a window of cards is mounted.
             <Section
               key={kind}
               title={t(titleKey)}
               isEmpty={rows.length === 0}
               status={sectionStatus.barrios}
-            >
-              {rows.map((b) => (
+              data={rows}
+              keyExtractor={(b) => b.id}
+              renderItem={({ item: b }) => (
                 <EntityCard
-                  key={b.id}
                   label={b.name}
-                  sub={t('village.admin.barrios.residentCount', {
-                    count: b.residentCount,
-                  })}
+                  sub={[
+                    b.isSeat ? t('village.admin.barrios.seat') : null,
+                    t('village.admin.barrios.residentCount', { count: b.residentCount }),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  accent={b.isSeat}
                   icon="map-outline"
                   imageUri={b.images[0] ?? null}
                   commentCount={b.commentCount}
                   onPress={() => router.push(barrioHref(villageSlug, b))}
                 />
-              ))}
-            </Section>
+              )}
+            />
           );
         })}
 

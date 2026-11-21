@@ -23,10 +23,10 @@ this project to avoid exposing two copies.
 
 Shared skills link into the `.agents/_shared` submodule
 ([agent-skills](https://github.com/alvaro-francisco-gil/agent-skills)): `ship-a-feature`,
-`orchestrate`, `advance-plans` and `review-ideas`, plus the scripts `scripts/pr-land.js`,
+`orchestrate`, `advance-plans`, `review-ideas` and `enhance-repo`, plus the scripts `scripts/pr-land.js`,
 `scripts/plans-map.js`, `scripts/agent-env.sh`, `scripts/agent-capacity.js`,
 `scripts/agent-dispatch.sh`, `scripts/pr-land-bg.sh`, `scripts/ideas-review-order.js`,
-`scripts/agent-auto-mode.js` and the hook `.claude/hooks/guard-lander-kill.sh`. Their
+`scripts/agent-auto-mode.js`, `scripts/enhance-measure.js` and the hook `.claude/hooks/guard-lander-kill.sh`. Their
 repo-specific values live in `land.config.json`, `orchestrate.config.json` and
 `auto-mode.json` here — never edit the submodule to fit this repo.
 

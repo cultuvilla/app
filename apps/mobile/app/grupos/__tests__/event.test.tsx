@@ -66,7 +66,7 @@ describe("a group's event screen", () => {
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/tarea/soon');
   });
 
-  it('keeps the public page one button away', () => {
+  it('opens the public page from the event card', () => {
     const { getByTestId } = render(<GroupEventScreen />);
     fireEvent.press(getByTestId('group-event-public-page'));
     expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/v/evento/'));

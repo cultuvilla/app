@@ -46,7 +46,8 @@ export const users = {
     firstSurname: 'Admin',
     appAdmin: true,
   },
-  // Onboarded villager who is NOT a member of any org — joins an open peña in
+  // Onboarded villager of `village` (the second villager several flows need) who
+  // is NOT a member of any org, and joins `joinVillage` in flow 30. Joins an open peña in
   // the org-create-approve-join flow and asks to join `approvalOrg` in the
   // org-join-request flow.
   joiner: {

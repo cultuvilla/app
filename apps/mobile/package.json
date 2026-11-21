@@ -13,7 +13,8 @@
     "eas-build-post-install": "pnpm --filter @cultuvilla/shared build",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "typecheck": "tsc --noEmit"
+    "typegen": "expo customize tsconfig.json",
+    "typecheck": "pnpm typegen && tsc --noEmit"
   },
   "dependencies": {
     "@cultuvilla/i18n": "workspace:*",
@@ -25,6 +26,7 @@
     "@react-native-community/netinfo": "12.0.1",
     "@react-native-firebase/analytics": "^26.4.0",
     "@react-native-firebase/app": "^26.4.0",
+    "@react-native-firebase/app-check": "26.4.0",
     "@react-native-firebase/auth": "^26.4.0",
     "@react-native-firebase/firestore": "^26.4.0",
     "@react-native-firebase/functions": "^26.4.0",

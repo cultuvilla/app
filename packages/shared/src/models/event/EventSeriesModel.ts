@@ -127,7 +127,7 @@ export function seriesOccurrences(first: OccurrenceTimes, rule: SeriesRule): Occ
  * already in display order, so a calendar shows one card per series — its next
  * date — instead of one per week.
  */
-export function firstOfEachSeries<E extends { series: EventSeries | null }>(events: readonly E[]): E[] {
+export function firstOfEachSeries<E extends { series: Pick<EventSeries, 'id'> | null }>(events: readonly E[]): E[] {
   const seen = new Set<string>();
   return events.filter((e) => {
     if (!e.series) return true;

@@ -49,6 +49,23 @@ appId: com.cultuvilla.app.dev
           timeout: 20000
 - assertVisible: 'Apuntarme'
 
+# A guest's sign-up opens the register sheet. It has no ✕: dragging the grab
+# bar down closes it, on both platforms.
+- tapOn: 'Apuntarme'
+- extendedWaitUntil:
+    visible:
+      id: 'register-sheet-handle'
+    timeout: 15000
+- swipe:
+    from:
+      id: 'register-sheet-handle'
+    direction: DOWN
+    duration: 400
+- extendedWaitUntil:
+    notVisible:
+      id: 'register-sheet-handle'
+    timeout: 5000
+
 # A seat-claim link asks a signed-out visitor to sign in before anything else;
 # the token is only read once they claim, so any token shows it.
 - openLink: cultuvilla://altozano-de-prueba/evento/_e2e-event-fiesta/plaza/e2e-any-token

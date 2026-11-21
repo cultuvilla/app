@@ -2,7 +2,7 @@
 
 **Priority:** high
 **Landed:** prod
-**Gate:** none
+**Gate:** blocked:Álvaro ticks the Android and iOS streams in GA4 Admin → BigQuery links on prod — a console step
 **Next:** in GA4 Admin → BigQuery links on prod, tick the Android and iOS streams (still no native rows on 2026-11-07, a month after 1.7.1 shipped); then verify step 1. Phase 3 is live on prod (2026-11-08): watch prod alerts until 2026-11-15 and retune `THRESHOLDS` in `scripts/lib/monitoring.mjs` if they are noisy
 
 Decided 2026-10-06 (user): Phase 2 (Firestore→BigQuery extension + Looker Studio) and Phase 3 (Cloud Monitoring dashboard + alert policies) are approved, including their running cost. BigQuery export stays **prod-only** (no beta).

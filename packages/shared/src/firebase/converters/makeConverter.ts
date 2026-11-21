@@ -30,3 +30,22 @@ export function makeConverter<S extends z.ZodType>(schema: S, sdk: SdkCtors) {
     },
   };
 }
+
+export type Converter<S extends z.ZodType> = ReturnType<typeof makeConverter<S>>;
+
+/**
+ * One converter per schema for an SDK, memoized. Every ref to a collection
+ * must carry the same converter object: the JS SDK's `refEqual` compares
+ * `converter ===`, so two `makeConverter` calls for one schema would make two
+ * refs to the same doc compare unequal.
+ */
+export function converterCache(sdk: SdkCtors) {
+  const cache = new WeakMap<z.ZodType, unknown>();
+  return <S extends z.ZodType>(schema: S): Converter<S> => {
+    const hit = cache.get(schema) as Converter<S> | undefined;
+    if (hit) return hit;
+    const made = makeConverter(schema, sdk);
+    cache.set(schema, made);
+    return made;
+  };
+}

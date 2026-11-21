@@ -68,10 +68,10 @@ export default function EventDetailScreen() {
     villageId ? (next, error) => watchMunicipality(villageId, next, error) : null,
   );
   const [person, setPerson] = useState<PersonDoc | null>(null);
-  const { canManage, canEdit, isMember } = useEntityCapabilities(event?.municipalityId);
+  const { canManage, can, isMember } = useEntityCapabilities(event?.municipalityId);
   // Organizing an event IS editing it: author, named organizer, or an admin of
   // the event's pueblo — the same three identities every entity kind accepts.
-  const canOrganize = canEdit(event?.createdBy, event?.organizerUserIds);
+  const canOrganize = can('edit', 'event', event ?? {});
 
   const loadPerson = useCallback(async () => {
     if (user) setPerson(await getPersonByUserId(user.uid, user.uid));

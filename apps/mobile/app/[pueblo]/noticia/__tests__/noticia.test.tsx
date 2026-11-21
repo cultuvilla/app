@@ -66,8 +66,7 @@ function mockCaps(canEdit: boolean) {
     canApprove: false,
     uid: canEdit ? 'u1' : null,
     loading: false,
-    canEdit: spy,
-    canDelete: jest.fn(() => canEdit),
+    can: spy,
   });
   return spy;
 }
@@ -98,7 +97,11 @@ describe('NewsDetailScreen', () => {
     const canEdit = mockCaps(true);
     const { findByLabelText } = render(<NewsDetailScreen />);
     expect(await findByLabelText('news.compose.editTitle')).toBeTruthy();
-    expect(canEdit).toHaveBeenCalledWith('u9', ['u1']);
+    expect(canEdit).toHaveBeenCalledWith(
+      'edit',
+      'news',
+      expect.objectContaining({ createdBy: 'u9', organizerUserIds: ['u1'] }),
+    );
   });
 
   it('hides the edit action when the hook says no', async () => {
