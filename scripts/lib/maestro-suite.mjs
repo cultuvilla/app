@@ -203,10 +203,18 @@ export async function runMaestroSuite({
 
 async function restoreAttemptStart(label, emulators, start) {
   const began = Date.now();
-  await restoreSnapshot(emulators, start);
+  const stats = { clears: 0, writes: 0, cancelled: 0 };
+  const attempts = () =>
+    `${stats.clears} clear(s), ${stats.writes} batchWrite(s), ${stats.cancelled} answered 499`;
+  try {
+    await restoreSnapshot(emulators, start, stats);
+  } catch (error) {
+    console.error(`[${label}] emulator restore failed after ${attempts()}`);
+    throw error;
+  }
   console.log(
     `[${label}] emulator data restored to this flow's start (${start.documents.length} docs, ` +
-      `${start.accounts.length} accounts) in ${Date.now() - began} ms`,
+      `${start.accounts.length} accounts) in ${Date.now() - began} ms: ${attempts()}`,
   );
 }
 
