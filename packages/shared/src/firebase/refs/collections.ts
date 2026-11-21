@@ -63,6 +63,7 @@ import { PushQueueDataSchema } from '../../models/notification/PushQueueDataMode
 import { NewsPostDataSchema } from '../../models/news/NewsPostDataModel';
 import { CommentDataSchema } from '../../models/interaction/CommentDataModel';
 import { FestivalPosterDataSchema } from '../../models/festivalPoster/FestivalPosterDataModel';
+import { FiestaEditionDataSchema } from '../../models/fiesta/FiestaEditionModel';
 import { OccupationDataSchema } from '../../models/occupation/OccupationDataModel';
 import { MembershipEventDataSchema } from '../../models/membership/MembershipEventDataModel';
 import { ModerationEventDataSchema } from '../../models/moderation/ModerationEventDataModel';
@@ -184,6 +185,7 @@ export const COLLECTIONS = {
   news: def('news', NewsPostDataSchema),
   comments: def('comments', CommentDataSchema),
   festivalPosters: def('festivalPosters', FestivalPosterDataSchema),
+  fiestaEditions: def('fiestaEditions', FiestaEditionDataSchema),
   occupations: def('occupations', OccupationDataSchema),
   vocabularyTerms: def('vocabularyTerms', VocabularyTermDataSchema),
   vocabularyDefinitions: def('vocabularyDefinitions', VocabularyDefinitionDataSchema),
