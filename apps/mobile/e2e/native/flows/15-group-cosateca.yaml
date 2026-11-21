@@ -332,6 +332,10 @@ onFlowComplete:
     visible:
       id: 'group-cosateca'
     timeout: 45000
+# Restarts Maestro's wait clock, so the next wait gets its own timeout
+# (README, "Wait budgets").
+- waitForAnimationToEnd:
+    timeout: 3000
 # What is asked of them shows in "En marcha", above the catalogue.
 - extendedWaitUntil:
     visible:

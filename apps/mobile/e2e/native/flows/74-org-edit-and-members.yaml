@@ -242,6 +242,10 @@ env:
     timeout: 45000
 - assertNotVisible:
     id: 'org-edit-action'
+# Restarts Maestro's wait clock, so the next wait gets its own timeout
+# (README, "Wait budgets").
+- waitForAnimationToEnd:
+    timeout: 3000
 - extendedWaitUntil:
     visible: 'Solicitar unirme'
     timeout: 20000

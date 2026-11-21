@@ -89,6 +89,10 @@ onFlowComplete:
     notVisible:
       id: 'offline-banner'
     timeout: 60000
+# Restarts Maestro's wait clock, so the next wait gets its own timeout
+# (README, "Wait budgets").
+- waitForAnimationToEnd:
+    timeout: 3000
 - extendedWaitUntil:
     visible: ${RENAMED_TITLE}
     timeout: 60000
