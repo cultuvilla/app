@@ -31,9 +31,20 @@ appId: com.cultuvilla.app.dev
 # full-bleed hero, title, date/location cards, organisers and village have had
 # their say. Guarded by `when: notVisible` so a
 # future layout that does fit it on screen doesn't start scrolling past it.
-# The button renders after the event loads; deciding whether to scroll before
-# it exists sends a scroll at a screen that cannot scroll, which fails while
-# the button sits in plain view (seen on iOS). Give it a moment first.
+#
+# The CTA can render well after the title on a cold iOS simulator, and two
+# Maestro 2.11.0 behaviours turn that into a failure:
+# - an extendedWaitUntil's timeout counts from the last command that acted on
+#   the app, not from its own start (Orchestra.kt, adjustedToLatestInteraction).
+#   After the title wait the clock still reads from openLink, so a slow title
+#   used to leave the CTA wait nothing.
+#   `waitForAnimationToEnd` acts, so it restarts the clock.
+# - scrollUntilVisible looks before each swipe, never after the last one, and
+#   an iOS swipe's own settle has taken 18 s. A CTA that renders during that
+#   settle is on screen when the scroll gives up — so the scroll is optional
+#   and the required wait after it is what decides.
+- waitForAnimationToEnd:
+    timeout: 3000
 - extendedWaitUntil:
     visible: 'Apuntarme'
     timeout: 15000
@@ -47,7 +58,12 @@ appId: com.cultuvilla.app.dev
             text: 'Apuntarme'
           direction: DOWN
           timeout: 20000
-- assertVisible: 'Apuntarme'
+          optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- extendedWaitUntil:
+    visible: 'Apuntarme'
+    timeout: 15000
 
 # A guest's sign-up opens the register sheet. It has no ✕: dragging the grab
 # bar down closes it, on both platforms.
