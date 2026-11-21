@@ -37,7 +37,7 @@ export function PushSoftAskSheet({
       closeLabel={t('notifications.softAsk.close')}
       testID="push-soft-ask-sheet"
       footer={
-        <VStack gap={2}>
+        <VStack gap={2} className="px-5 pt-3">
           <Button fullWidth onPress={onAccept} loading={busy} testID="push-soft-ask-accept">
             {t('notifications.softAsk.accept')}
           </Button>
@@ -53,7 +53,7 @@ export function PushSoftAskSheet({
         </VStack>
       }
     >
-      <VStack gap={3} align="center" className="px-2 pb-2">
+      <VStack gap={3} align="center" className="px-5 pb-2">
         <View className="h-14 w-14 items-center justify-center rounded-full bg-accent-subtle">
           <Ionicons name="notifications-outline" size={iconSizes.lg} color={colors.light.fg.accent} />
         </View>

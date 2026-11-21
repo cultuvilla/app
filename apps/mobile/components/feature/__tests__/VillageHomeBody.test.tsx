@@ -112,6 +112,7 @@ const base: VillageHomeState = {
   village,
   villageAdmin: false,
   isMember: true,
+  membershipKnown: true,
   barrios: [],
   places: [],
   organizations: [],
@@ -193,6 +194,26 @@ describe('VillageHomeBody', () => {
     // activeMunicipalityId immediately, not only after an app restart.
     await waitFor(() => expect(mockRefreshProfile).toHaveBeenCalled());
     expect(mockOfferPush).toHaveBeenCalledWith('village_join', { villageName: expect.any(String) });
+  });
+
+  it('offers neither join nor add-content until the membership read lands', () => {
+    const { queryByTestId, getByTestId, rerender } = render(
+      <VillageHomeBody data={{ ...base, isMember: false, membershipKnown: false }} reload={jest.fn()} />,
+    );
+    expect(queryByTestId('village-join-action')).toBeNull();
+    expect(queryByTestId('village-add-content-action')).toBeNull();
+    expect(getByTestId('village-primary-action-pending')).toBeTruthy();
+    rerender(<VillageHomeBody data={{ ...base, isMember: true, membershipKnown: true }} reload={jest.fn()} />);
+    expect(getByTestId('village-add-content-action')).toBeTruthy();
+    expect(queryByTestId('village-join-action')).toBeNull();
+  });
+
+  it('offers a guest «sign in to join» at once — a guest is never a member', () => {
+    mockUser = null;
+    const { getByTestId } = render(
+      <VillageHomeBody data={{ ...base, isMember: false, membershipKnown: false }} reload={jest.fn()} />,
+    );
+    expect(getByTestId('village-join-action')).toBeTruthy();
   });
 
   it('logged-out "sign in to join" carries the village across auth', () => {

@@ -56,6 +56,12 @@ export interface VillageHomeState {
   village: (MunicipalityData & { id: string }) | null;
   villageAdmin: boolean;
   isMember: boolean;
+  /**
+   * The viewer's membership has been read at least once for this village. Until
+   * then `isMember` is only a default, so nothing that depends on it — the
+   * join action above all — may render yet.
+   */
+  membershipKnown: boolean;
   /** Ordered by resident count desc, then name — populated barrios lead. */
   barrios: (BarrioData & { id: string })[];
   places: (PlaceData & { id: string })[];
@@ -94,6 +100,7 @@ const EMPTY: VillageHomeState = {
   village: null,
   villageAdmin: false,
   isMember: false,
+  membershipKnown: false,
   barrios: [],
   places: [],
   organizations: [],
@@ -113,6 +120,7 @@ const EMPTY: VillageHomeState = {
 interface Chrome {
   villageAdmin: boolean;
   isMember: boolean;
+  membershipKnown: boolean;
   pendingOrganizerRequest: boolean;
   myCensoAnswers: ProfileAnswers;
 }
@@ -120,6 +128,7 @@ interface Chrome {
 const NO_CHROME: Chrome = {
   villageAdmin: false,
   isMember: false,
+  membershipKnown: false,
   pendingOrganizerRequest: false,
   myCensoAnswers: {},
 };
@@ -274,6 +283,7 @@ function useChrome(municipalityId: string | null, uid: string | null) {
       commit({
         villageAdmin: isAdmin,
         isMember,
+        membershipKnown: true,
         pendingOrganizerRequest: myReqs.some(
           (r) => r.municipalityId === municipalityId && r.status === 'pending',
         ),
@@ -282,7 +292,7 @@ function useChrome(municipalityId: string | null, uid: string | null) {
     } catch {
       // Chrome degrades silently to the non-member view; the error is already
       // logged by withFirestoreErrorLog and must not take down the tab.
-      commit(NO_CHROME);
+      commit({ ...NO_CHROME, membershipKnown: true });
     }
   }, [municipalityId, uid]);
 
