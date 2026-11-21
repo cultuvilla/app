@@ -101,15 +101,17 @@ const ATTEMPTS = 10;
  * cleared (ios-e2e 44804913687), so the clear is judged by reading the
  * database back, not by the status.
  */
-async function clearDocuments(t) {
+async function clearDocuments(t, stats) {
   let lastError = null;
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    stats.clears++;
     try {
       await call(`http://${t.firestore}/emulator/v1/projects/${t.project}/databases/(default)/documents`, {
         method: 'DELETE',
       });
     } catch (error) {
       lastError = error;
+      countCancelled(stats, error);
     }
     const left = (await listDocuments(t)).length;
     if (left === 0) return;
@@ -120,14 +122,16 @@ async function clearDocuments(t) {
 
 /**
  * Writes the snapshot's documents back. A batchWrite that answers 499 has
- * applied some, all or none of its writes (ios-e2e 44826311824). Each write replaces a whole document, so a batch is safe to
- * send again. As with the clear, the database is read back to judge the result.
+ * applied some, all or none of its writes (ios-e2e 44826311824). Each write
+ * replaces a whole document, so a batch is safe to send again. As with the
+ * clear, the database is read back to judge the result.
  */
-async function writeDocuments(t, documents) {
+async function writeDocuments(t, documents, stats) {
   let lastError = null;
   for (let i = 0; i < documents.length; i += BATCH_WRITE_MAX) {
     const writes = documents.slice(i, i + BATCH_WRITE_MAX).map((update) => ({ update }));
     for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+      stats.writes++;
       try {
         await call(`${documentsRoot(t)}:batchWrite`, {
           method: 'POST',
@@ -136,6 +140,7 @@ async function writeDocuments(t, documents) {
         break;
       } catch (error) {
         lastError = error;
+        countCancelled(stats, error);
       }
       const held = new Set((await listDocuments(t)).map((d) => d.name));
       if (writes.every(({ update }) => held.has(update.name))) break;
@@ -151,12 +156,20 @@ async function writeDocuments(t, documents) {
   }
 }
 
-/** Puts both emulators back to `snapshot`, exactly. */
-export async function restoreSnapshot(t, snapshot) {
+function countCancelled(stats, error) {
+  if (/HTTP 499/.test(String(error?.message))) stats.cancelled++;
+}
+
+/**
+ * Puts both emulators back to `snapshot`, exactly. `stats` counts the clears
+ * and batchWrites it sent and how many answered 499, filled in even when the
+ * restore throws, so a suite can show whether dead listen streams pile up.
+ */
+export async function restoreSnapshot(t, snapshot, stats = { clears: 0, writes: 0, cancelled: 0 }) {
   await setBackgroundTriggers(t, false);
   try {
-    await clearDocuments(t);
-    await writeDocuments(t, snapshot.documents);
+    await clearDocuments(t, stats);
+    await writeDocuments(t, snapshot.documents, stats);
     await call(`http://${t.auth}/emulator/v1/projects/${t.project}/accounts`, {
       method: 'DELETE',
     });

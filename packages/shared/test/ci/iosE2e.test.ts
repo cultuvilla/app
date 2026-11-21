@@ -558,10 +558,11 @@ describe('a retry starts from its first attempt’s data', () => {
     }
     type Targets = { firestore: string; auth: string; hub: string; project: string };
     type Call = { method: string; url: string; body: string };
+    type RestoreStats = { clears: number; writes: number; cancelled: number };
     let snap: {
       emulatorTargets: (env: Record<string, string | undefined>) => Targets | null;
       takeSnapshot: (t: Targets) => Promise<Snapshot>;
-      restoreSnapshot: (t: Targets, s: Snapshot) => Promise<void>;
+      restoreSnapshot: (t: Targets, s: Snapshot, stats?: RestoreStats) => Promise<void>;
     };
     beforeAll(async () => {
       snap = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/emulator-snapshot.mjs')).href)) as typeof snap;
@@ -761,8 +762,10 @@ describe('a retry starts from its first attempt’s data', () => {
     it('keeps sending while dead listen streams fail one write after another', async () => {
       await withFake(
         async (t, calls) => {
-          await snap.restoreSnapshot(t, { documents: two, accounts: [] });
+          const stats = { clears: 0, writes: 0, cancelled: 0 };
+          await snap.restoreSnapshot(t, { documents: two, accounts: [] }, stats);
           expect(writeCalls(calls)).toBe(5);
+          expect(stats).toEqual({ clears: 1, writes: 5, cancelled: 4 });
         },
         undefined,
         ['ok'],
@@ -773,10 +776,12 @@ describe('a retry starts from its first attempt’s data', () => {
     it('fails loudly, triggers back on, when documents stay missing', async () => {
       await withFake(
         async (t, calls) => {
-          await expect(snap.restoreSnapshot(t, { documents: two, accounts: [] })).rejects.toThrow(
+          const stats = { clears: 0, writes: 0, cancelled: 0 };
+          await expect(snap.restoreSnapshot(t, { documents: two, accounts: [] }, stats)).rejects.toThrow(
             /holds 1 documents after restoring 2 \(1 missing\)/,
           );
           expect(writeCalls(calls)).toBe(10);
+          expect(stats).toEqual({ clears: 1, writes: 10, cancelled: 10 });
           expect(calls.some((c) => c.url.includes('accounts:batchCreate'))).toBe(false);
           expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
         },
