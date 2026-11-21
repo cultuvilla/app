@@ -17,7 +17,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | find the root cause of the iOS ping timeouts, starting with the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings), also covering flows 12 and 15; fix it without app-code workarounds, then add a lasting guard in the lane so a regression shows up on its own |
 | [mobile-eslint-gate](ongoing/mobile-eslint-gate.md) | medium | none | this cycle | verify the plan against develop, then build it |
 | [event-madrid-day-cutoff](ongoing/event-madrid-day-cutoff.md) | low | none | this cycle | verify the plan against develop, then build it |
-| [mobile-raw-hex-to-tokens](ongoing/mobile-raw-hex-to-tokens.md) | low | none | this cycle | verify the plan against develop, then build it |
+| [mobile-neutral-grey-tokens](ongoing/mobile-neutral-grey-tokens.md) | low | none | this cycle | verify the plan against develop (#725 landed the token-equal swap and the hex scan), then build it |
 
 ## Waiting on release 1.11.0
 
@@ -51,6 +51,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [shared-entity-capability-policy](ongoing/shared-entity-capability-policy.md) | medium | dev | this cycle | the first release carrying #694 is live in prod | once prod serves #694, check a hidden vocabulary term shows no delete button to its author, then retire |
 | [spanish-settlement-dataset](ongoing/spanish-settlement-dataset.md) | medium | prod | this cycle | the next release Álvaro cuts carries #693, #697, #700, #701, #703 and #704 (live on dev) to prod | once on prod, witness docs/qa/pending/{village-seat-row,osm-attribution,barrio-kind-picker}.md on a device, then retire the plan |
 | [village-first-urls-prod-finish](ongoing/village-first-urls-prod-finish.md) | medium | dev | this cycle | the next release Álvaro cuts (carrying #689) is live in prod | after that prod deploy, Álvaro curls `https://cultuvilla.es/.well-known/apple-app-site-association?cb=$RANDOM`, opens a `/<pueblo>/evento/…` link on an iPhone (Apple's CDN may take a day), and sets the privacy-policy URL `https://cultuvilla.es/legal/privacidad` in App Store Connect (every app-info localization) and the Play console (App content) |
+| [mobile-raw-hex-to-tokens](ongoing/mobile-raw-hex-to-tokens.md) | low | none | this cycle | Deploy dev of e216f789 (#725) is green | once dev deploys #725, set Landed: dev; it is a byte-identical refactor guarded by noTokenHexLiterals.test.ts, so retire once the first release carrying #725 is live in prod |
 
 ## Waiting on you
 
@@ -66,7 +67,6 @@ _None._
 | [apple-team-transfer](ongoing/apple-team-transfer.md) | high | dev | this cycle | this plan's code (#663) reaches prod, then Álvaro accepts in App Store Connect — a console step no agent can take | the next release carries #663 to prod; then Álvaro accepts Cultuvilla, before 2026-11-29, and runs § On the day. Jaime's part is done (2026-11-17); `TESTFLIGHT_SUBMIT_PAUSED=true` since 2026-11-17 |
 | [device-notifications](ongoing/device-notifications.md) | high | prod | this cycle \* | human console steps — Jaime ticks the time-sensitive entitlement in the Apple portal (step 3); Álvaro declares "Device or other IDs" in Play Data Safety (step 4) | restore the time-sensitive entitlement once Jaime ticks it in the Apple portal (step 3), and declare "Device or other IDs" in Play Data Safety (step 4); delivery is verified on prod on both platforms (2026-11-07) |
 | [group-toolkit](ongoing/group-toolkit.md) | high | dev | this cycle \* | Álvaro promotes it with a release and runs the La Anduela trial — a human step | the toolkit is complete on develop (all five phases) — promote it to beta and run the La Anduela trial; the open items are each phase's *Left for later* |
-| [mobile-neutral-grey-tokens](ready/mobile-neutral-grey-tokens.md) `ready` | low | — | this cycle | mobile-raw-hex-to-tokens | — |
 
 ## How `Advanced` is derived
 
