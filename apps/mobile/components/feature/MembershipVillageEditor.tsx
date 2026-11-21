@@ -81,7 +81,6 @@ export function MembershipVillageEditor({ userId }: MembershipVillageEditorProps
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   async function onChangeBarrio(municipalityId: string, barrioId: string | null) {

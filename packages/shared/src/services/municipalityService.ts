@@ -204,9 +204,12 @@ export async function getVillagesWhereAmbassador(
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/** Opaque `listMunicipalitiesPage` cursor; callers only hand it back. */
+export type MunicipalityPageCursor = QueryDocumentSnapshot;
+
 export interface MunicipalitiesPage {
   items: (MunicipalityData & { id: string })[];
-  nextCursor: QueryDocumentSnapshot | null;
+  nextCursor: MunicipalityPageCursor | null;
 }
 
 /**
@@ -222,7 +225,7 @@ export interface MunicipalitiesPage {
  */
 export async function listMunicipalitiesPage(opts: {
   search?: string;
-  cursor?: QueryDocumentSnapshot | null;
+  cursor?: MunicipalityPageCursor | null;
   limit?: number;
 }): Promise<MunicipalitiesPage> {
   const pageSize = opts.limit ?? 20;
@@ -240,7 +243,7 @@ export async function listMunicipalitiesPage(opts: {
   // erase the converter's model generic to the public QueryDocumentSnapshot.
   const nextCursor =
     snap.docs.length === pageSize
-      ? (snap.docs[snap.docs.length - 1] as QueryDocumentSnapshot)
+      ? (snap.docs[snap.docs.length - 1] as MunicipalityPageCursor)
       : null;
   return { items, nextCursor };
 }

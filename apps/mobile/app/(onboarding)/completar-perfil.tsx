@@ -59,7 +59,6 @@ export default function CompleteProfileScreen() {
       if (id) setMunicipalityId((current) => current ?? id);
     });
     // Seed once, on mount, for a fresh profile-less user.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // AuthGate routes a user with no personId here and to nowhere else, so this
