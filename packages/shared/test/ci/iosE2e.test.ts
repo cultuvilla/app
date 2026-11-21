@@ -578,17 +578,27 @@ describe('a retry starts from its first attempt’s data', () => {
      * open), `cancelled-kept` answers 499 and keeps every document.
      */
     type ClearMode = 'ok' | 'cancelled-cleared' | 'cancelled-kept';
+    /**
+     * How the fake answers a batchWrite: `ok` applies it, `cancelled-applied`
+     * applies it but answers 499, `cancelled-partial` applies only its first
+     * write and answers 499, as the emulator did when a dropped listen stream
+     * threw mid-batch.
+     */
+    type WriteMode = 'ok' | 'cancelled-applied' | 'cancelled-partial';
+    type Doc = { name: string; fields: unknown };
 
     // One HTTP server stands in for all three emulators and records each call.
     async function withFake(
       fn: (t: Targets, calls: Call[]) => Promise<void>,
       failOn?: string,
       clear: ClearMode[] = ['ok'],
+      write: WriteMode[] = ['ok'],
     ) {
       const http = await import('node:http');
       const calls: Call[] = [];
-      let docs = [1, 2, 3].map((i) => ({ name: docName(i), fields: { n: { integerValue: String(i) } } }));
+      let docs: Doc[] = [1, 2, 3].map((i) => ({ name: docName(i), fields: { n: { integerValue: String(i) } } }));
       let clears = 0;
+      let batches = 0;
       const server = http.createServer((req, res) => {
         let body = '';
         req.on('data', (c: Buffer) => (body += c.toString()));
@@ -602,6 +612,15 @@ describe('a retry starts from its first attempt’s data', () => {
           if (req.method === 'DELETE' && url === CLEAR) {
             const mode = clear[Math.min(clears++, clear.length - 1)];
             if (mode !== 'cancelled-kept') docs = [];
+            if (mode === 'ok') res.writeHead(200).end('{}');
+            else res.writeHead(499, { 'Content-Type': 'application/json' }).end(CANCELLED);
+            return;
+          }
+          if (url.endsWith(':batchWrite')) {
+            const mode = write[Math.min(batches++, write.length - 1)];
+            const updates = (JSON.parse(body) as { writes: { update: Doc }[] }).writes.map((w) => w.update);
+            const applied = mode === 'cancelled-partial' ? updates.slice(0, 1) : updates;
+            docs = [...docs.filter((d) => !applied.some((u) => u.name === d.name)), ...applied];
             if (mode === 'ok') res.writeHead(200).end('{}');
             else res.writeHead(499, { 'Content-Type': 'application/json' }).end(CANCELLED);
             return;
@@ -654,6 +673,7 @@ describe('a retry starts from its first attempt’s data', () => {
           'POST /v1/projects/p/databases/(default)/documents:batchWrite',
           'POST /v1/projects/p/databases/(default)/documents:batchWrite',
           'POST /v1/projects/p/databases/(default)/documents:batchWrite',
+          'POST /v1/projects/p/databases/(default)/documents:runQuery',
           'DELETE /emulator/v1/projects/p/accounts',
           'POST /identitytoolkit.googleapis.com/v1/projects/p/accounts:batchCreate',
           'PUT /functions/enableBackgroundTriggers',
@@ -708,6 +728,49 @@ describe('a retry starts from its first attempt’s data', () => {
         },
         undefined,
         ['cancelled-kept'],
+      );
+    });
+
+    const writeCalls = (calls: Call[]) => calls.filter((c) => c.url.endsWith(':batchWrite')).length;
+    const two = Array.from({ length: 2 }, (_, i) => ({ name: docName(10 + i), fields: {} }));
+
+    it('goes on when a batchWrite answers 499 but every document is back', async () => {
+      await withFake(
+        async (t, calls) => {
+          await snap.restoreSnapshot(t, { documents: two, accounts: [] });
+          expect(writeCalls(calls)).toBe(1);
+        },
+        undefined,
+        ['ok'],
+        ['cancelled-applied'],
+      );
+    });
+
+    it('sends a batch again when a 499 left part of it unwritten', async () => {
+      await withFake(
+        async (t, calls) => {
+          await snap.restoreSnapshot(t, { documents: two, accounts: [] });
+          expect(writeCalls(calls)).toBe(2);
+        },
+        undefined,
+        ['ok'],
+        ['cancelled-partial', 'ok'],
+      );
+    });
+
+    it('fails loudly, triggers back on, when documents stay missing', async () => {
+      await withFake(
+        async (t, calls) => {
+          await expect(snap.restoreSnapshot(t, { documents: two, accounts: [] })).rejects.toThrow(
+            /holds 1 documents after restoring 2 \(1 missing\)/,
+          );
+          expect(writeCalls(calls)).toBe(3);
+          expect(calls.some((c) => c.url.includes('accounts:batchCreate'))).toBe(false);
+          expect(calls.at(-1)?.url).toBe('/functions/enableBackgroundTriggers');
+        },
+        undefined,
+        ['ok'],
+        ['cancelled-partial'],
       );
     });
   });

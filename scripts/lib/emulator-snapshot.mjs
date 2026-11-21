@@ -16,6 +16,9 @@
  *     timestamps included.
  *   - Auth: `accounts:batchGet` / `accounts:batchCreate`, as the emulator's own
  *     export and import do (passwords come back as the emulator's fake hash).
+ * Both the clear and the write-back are checked by reading the database again,
+ * because the emulator can answer either one with HTTP 499 and still have done
+ * some or all of the work.
  * Background triggers are paused through the hub while the restore writes, or
  * every restored document would fire its onCreate again.
  *
@@ -108,18 +111,50 @@ async function clearDocuments(t) {
   throw lastError;
 }
 
+const WRITE_ATTEMPTS = 3;
+
+/**
+ * Writes the snapshot's documents back. The emulator notifies each listener
+ * inside the write itself, and a listen stream the app has already dropped
+ * makes that notification throw. The batchWrite then answers HTTP 499 "call
+ * already cancelled", having applied some, all or none of its writes (ios-e2e
+ * 44826311824). Each write replaces a whole document, so a batch is safe to
+ * send again. As with the clear, the database is read back to judge the result.
+ */
+async function writeDocuments(t, documents) {
+  let lastError = null;
+  for (let i = 0; i < documents.length; i += BATCH_WRITE_MAX) {
+    const writes = documents.slice(i, i + BATCH_WRITE_MAX).map((update) => ({ update }));
+    for (let attempt = 1; attempt <= WRITE_ATTEMPTS; attempt++) {
+      try {
+        await call(`${documentsRoot(t)}:batchWrite`, {
+          method: 'POST',
+          body: JSON.stringify({ writes }),
+        });
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+      const held = new Set((await listDocuments(t)).map((d) => d.name));
+      if (writes.every(({ update }) => held.has(update.name))) break;
+    }
+  }
+  const held = new Set((await listDocuments(t)).map((d) => d.name));
+  const missing = documents.filter((d) => !held.has(d.name)).length;
+  if (missing > 0 || held.size !== documents.length) {
+    throw new Error(
+      `Firestore emulator holds ${held.size} documents after restoring ${documents.length} (${missing} missing)`,
+      { cause: lastError },
+    );
+  }
+}
+
 /** Puts both emulators back to `snapshot`, exactly. */
 export async function restoreSnapshot(t, snapshot) {
   await setBackgroundTriggers(t, false);
   try {
     await clearDocuments(t);
-    for (let i = 0; i < snapshot.documents.length; i += BATCH_WRITE_MAX) {
-      const writes = snapshot.documents.slice(i, i + BATCH_WRITE_MAX).map((update) => ({ update }));
-      await call(`${documentsRoot(t)}:batchWrite`, {
-        method: 'POST',
-        body: JSON.stringify({ writes }),
-      });
-    }
+    await writeDocuments(t, snapshot.documents);
     await call(`http://${t.auth}/emulator/v1/projects/${t.project}/accounts`, {
       method: 'DELETE',
     });
