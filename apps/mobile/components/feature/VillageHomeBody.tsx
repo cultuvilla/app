@@ -298,7 +298,7 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
         <HStack gap={3} className="px-4 pt-2 pb-2">
           {!membershipSettled ? (
             // Holds slot 1's width so Compartir does not jump when it resolves.
-            <View style={{ flex: 1 }} testID="village-primary-action-pending" />
+            <View style={{ flex: 1 }} />
           ) : isMember ? (
             <ActionPill
               label={t('village.addContent.button')}

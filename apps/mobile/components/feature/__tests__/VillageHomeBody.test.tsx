@@ -197,12 +197,12 @@ describe('VillageHomeBody', () => {
   });
 
   it('offers neither join nor add-content until the membership read lands', () => {
-    const { queryByTestId, getByTestId, rerender } = render(
+    const { queryByTestId, getByTestId, getByText, rerender } = render(
       <VillageHomeBody data={{ ...base, isMember: false, membershipKnown: false }} reload={jest.fn()} />,
     );
     expect(queryByTestId('village-join-action')).toBeNull();
     expect(queryByTestId('village-add-content-action')).toBeNull();
-    expect(getByTestId('village-primary-action-pending')).toBeTruthy();
+    expect(getByText('Compartir pueblo')).toBeTruthy();
     rerender(<VillageHomeBody data={{ ...base, isMember: true, membershipKnown: true }} reload={jest.fn()} />);
     expect(getByTestId('village-add-content-action')).toBeTruthy();
     expect(queryByTestId('village-join-action')).toBeNull();
