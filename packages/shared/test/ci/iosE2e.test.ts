@@ -454,7 +454,7 @@ describe('Firestore emulator keepalive', () => {
   });
 
   it('passes the policy to the emulator JVM only, and checks it before any command runs', () => {
-    expect(wrapper).toMatch(/env: emulatorJavaOptions \? \{ \.\.\.emulatorEnv, JAVA_TOOL_OPTIONS: emulatorJavaOptions \}/);
+    expect(wrapper).toMatch(/\.\.\.\(emulatorJavaOptions \? \{ JAVA_TOOL_OPTIONS: emulatorJavaOptions \} : \{\}\)/);
     expect(wrapper).not.toMatch(/emulatorEnv = \{[^}]*JAVA_TOOL_OPTIONS/);
     const checks = wrapper.indexOf('if (KEEPALIVE) {\n  const host');
     expect(checks).toBeGreaterThan(-1);
@@ -520,6 +520,148 @@ describe('Firestore emulator keepalive', () => {
         expect(result.reason).toContain('too_many_pings');
       });
     });
+  });
+});
+
+// The Firestore emulator keeps a Listen stream its client cancelled. When a
+// later write makes that stream's document unreadable to it, the emulator tells
+// the stream its target was removed from inside a catch block, grpc-java throws
+// "call already cancelled", and the write answers HTTP 499. Late in a shard
+// every retry restore failed that way (ios-e2e 44914149484). The lane runs the
+// emulator with grpc-java's ServerCalls patched on that one path, proves it at
+// start-up, and fails when a write still fails so.
+// docs/decisions/ios-e2e-emulator-keepalive.md
+describe('Firestore emulator and cancelled listeners', () => {
+  const wrapper = read('scripts/run-tests-with-emulators.mjs');
+  const serverCalls = read('scripts/emulator-grpc/io/grpc/stub/ServerCalls.java');
+  type Grpc = {
+    serverCallsClasses: (entries: string[]) => string[];
+    comparableSignature: (javap: string) => string;
+    grpcApiMismatch: (a: {
+      theirs: string[];
+      ours: string[];
+      signature: (side: string, cls: string) => string;
+    }) => string | null;
+    mainClass: (manifest: string) => string;
+    classPathUrl: (fromDir: string, target: string) => string;
+    cancelledWriteFailures: (log: string) => { total: number; byOperation: Record<string, number> };
+  };
+  type Probe = {
+    listenRequestFrame: (database: string, documentName: string, targetId?: number) => Buffer;
+    PROBE_POST: { readable: string; unreadable: string };
+  };
+  let grpc: Grpc;
+  let probe: Probe;
+  beforeAll(async () => {
+    grpc = (await import(pathToFileURL(resolve(repoRoot, 'scripts/lib/emulator-grpc.mjs')).href)) as Grpc;
+    probe = (await import(pathToFileURL(resolve(repoRoot, 'scripts/check-emulator-cancelled-listen.mjs')).href)) as Probe;
+  });
+
+  it('runs the iOS suite with the fix', () => {
+    const step = workflow.slice(workflow.indexOf('- name: Seed + run the Maestro suite'));
+    expect(step.slice(0, step.indexOf('run: pnpm test:e2e:ios'))).toMatch(/EMULATOR_CANCELLED_LISTEN: production/);
+  });
+
+  it('changes grpc-java only where the emulator removes a gone listener’s target', () => {
+    expect(serverCalls).toMatch(/^package io\.grpc\.stub;/m);
+    expect(serverCalls).toContain("grpc-java v1.67.1's stub/src/main/java/io/grpc/stub/ServerCalls.java");
+    // The jar has no com.google.common.annotations.
+    expect(serverCalls).not.toMatch(/^import com\.google\.common\.annotations/m);
+    const onNext = serverCalls.slice(serverCalls.indexOf('public void onNext(RespT response)'));
+    const cancelled = onNext.slice(0, onNext.indexOf('checkState(!aborted'));
+    expect(cancelled).toMatch(/if \(calledFromTargetRemove\(\)\) \{\s*return;\s*\}\s*throw Status\.CANCELLED/);
+    expect(serverCalls).toMatch(/getMethodName\(\)\.startsWith\("notifyTargetRemove"\)/);
+    expect(serverCalls).toMatch(/getClassName\(\)\.endsWith\("ListenStream"\)/);
+  });
+
+  it('builds a launcher only when it replaces exactly the jar’s ServerCalls classes', () => {
+    expect(
+      grpc.serverCallsClasses([
+        'io/grpc/stub/ServerCalls.class',
+        'io/grpc/stub/ServerCalls$UnaryMethod.class',
+        'io/grpc/stub/ServerCallStreamObserver.class',
+        'io/grpc/stub/ServerCalls.java',
+      ]),
+    ).toEqual(['io.grpc.stub.ServerCalls', 'io.grpc.stub.ServerCalls$UnaryMethod']);
+    const javap = (extra = '') =>
+      `Compiled from "ServerCalls.java"\nclass io.grpc.stub.ServerCalls$X {\n${extra}  void onNext(java.lang.Object);\n}`;
+    expect(grpc.comparableSignature(javap('  final io.grpc.stub.ServerCalls$Y this$0;\n'))).toBe(
+      grpc.comparableSignature(javap()),
+    );
+    const same = () => javap();
+    expect(grpc.grpcApiMismatch({ theirs: ['a', 'b'], ours: ['a', 'b'], signature: same })).toBeNull();
+    expect(grpc.grpcApiMismatch({ theirs: ['a', 'b'], ours: ['a'], signature: same })).toMatch(/are not the ones/);
+    expect(
+      grpc.grpcApiMismatch({
+        theirs: ['a'],
+        ours: ['a'],
+        signature: (side) => (side === 'jar' ? javap() : javap('  public void extra();\n')),
+      }),
+    ).toMatch(/no longer matches scripts\/emulator-grpc/);
+  });
+
+  it('launches the stock jar’s main class with the stock jar on its class path', () => {
+    expect(grpc.mainClass('Manifest-Version: 1.0\r\nMain-Class: com.example.Main\r\nMulti-Release: true\r\n')).toBe(
+      'com.example.Main',
+    );
+    expect(() => grpc.mainClass('Manifest-Version: 1.0\n')).toThrow(/no Main-Class/);
+    expect(grpc.classPathUrl('/a/node_modules/.cache/x', '/home/me/.cache/firebase/emu lators/fs.jar')).toBe(
+      '../../../../home/me/.cache/firebase/emu%20lators/fs.jar',
+    );
+  });
+
+  it('frames one Listen on one document for gRPC', () => {
+    const db = 'projects/p/databases/(default)';
+    const doc = `${db}/documents/news/x`;
+    const frame = probe.listenRequestFrame(db, doc);
+    expect(frame[0]).toBe(0);
+    expect(frame.readUInt32BE(1)).toBe(frame.length - 5);
+    expect(frame.includes(Buffer.from(db))).toBe(true);
+    expect(frame.includes(Buffer.from(doc))).toBe(true);
+  });
+
+  it('probes with a post the rules let anyone read only while it is active', () => {
+    const rules = read('firestore.rules');
+    const news = rules.slice(rules.indexOf('match /news/{postId}'));
+    expect(news.slice(0, news.indexOf(';'))).toMatch(
+      new RegExp(`allow read: if resource\\.data\\.status == '${probe.PROBE_POST.readable}'\\s*\\|\\|`),
+    );
+    expect(probe.PROBE_POST.unreadable).not.toBe(probe.PROBE_POST.readable);
+  });
+
+  it('runs the emulator from the launcher only, and proves the fix before any command runs', () => {
+    expect(wrapper).toMatch(/\.\.\.\(firestoreJar \? \{ FIRESTORE_EMULATOR_BINARY_PATH: firestoreJar \} : \{\}\)/);
+    expect(wrapper).not.toMatch(/emulatorEnv = \{[^}]*FIRESTORE_EMULATOR_BINARY_PATH/);
+    const build = wrapper.slice(wrapper.indexOf('if (CANCELLED_LISTEN) {\n  try {'));
+    expect(build.slice(0, build.indexOf('const emulatorJavaOptions'))).toMatch(
+      /firestoreJar = cancelledListenJar\(\);\s*\} catch \(err\) \{[\s\S]*process\.exit\(1\);/,
+    );
+    const checks = wrapper.indexOf('if (CANCELLED_LISTEN) {\n  const host');
+    const commands = wrapper.indexOf('for (const { label, cmd, args } of commands)');
+    expect(checks).toBeGreaterThan(-1);
+    expect(checks).toBeLessThan(commands);
+    const block = wrapper.slice(checks, commands);
+    expect(block).toContain('probeCancelledListen(');
+    expect(block).toMatch(/shutdown\(1\)/);
+  });
+
+  it('counts the writes that still fail on a cancelled listener, and fails the shard on any', () => {
+    const failure = (op: string) =>
+      [
+        'Nov 21, 2026 4:13:14 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError',
+        'WARNING: Operation failed: io.grpc.StatusRuntimeException: CANCELLED: call already cancelled. Use …',
+        '\tat com.google.cloud.datastore.emulator.impl.firestore.CloudFirestoreV1ListenStream.notifyTargetRemove(…)',
+        `\tat com.google.cloud.datastore.emulator.impl.firestore.CloudFirestoreV1Router.${op}(CloudFirestoreV1Router.java:278)`,
+        'Caused by: io.grpc.StatusRuntimeException: CANCELLED: call already cancelled.',
+      ].join('\n');
+    const log = [failure('batchWrite'), failure('commit'), failure('batchWrite'), 'WARNING: Operation failed: other'].join(
+      '\n',
+    );
+    expect(grpc.cancelledWriteFailures(log)).toEqual({ total: 3, byOperation: { batchWrite: 2, commit: 1 } });
+    expect(grpc.cancelledWriteFailures('')).toEqual({ total: 0, byOperation: {} });
+    const guard = runner.slice(runner.indexOf('cancelledWriteFailures(readFileSync'));
+    expect(guard).toMatch(/if \(total === 0 \|\| process\.env\.EMULATOR_CANCELLED_LISTEN !== 'production'\) return;/);
+    expect(guard).toContain('process.exitCode = 1;');
   });
 });
 

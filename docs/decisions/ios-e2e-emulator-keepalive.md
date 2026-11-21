@@ -131,3 +131,72 @@ the SDKs' keepalive by itself. That happens when firebase-tools#11238 is fixed,
 or when the emulator exposes the setting (then pass that instead). The probe
 tells you which: run `node scripts/check-emulator-keepalive.mjs` against a stock
 emulator. While it fails, keep the patch.
+
+## A write must survive a listener the app dropped
+
+The retry restore (`scripts/lib/emulator-snapshot.mjs`) clears the emulator and
+writes the first attempt's documents back. Late in a shard every one of those
+writes answered HTTP 499 `call already cancelled`. ios-e2e 44889372664 lost 85
+of its documents after 3 attempts. 44901678360 lost 81 of 121 after 3, and
+44914149484 lost 75 of 128 after 10 attempts, each of them answered 499. So
+adding attempts could not fix it, and the shard ended on the spot. The same
+failure hits the app's own saves (`commit`), though rarely: one in 44901678360.
+
+**Cause, read from the 1.19.8 jar.** A listener the client cancels stays
+registered: `CloudFirestoreV1ListenStream.onError` ignores `CANCELLED` and
+never calls `ListenStreamManager.removeStream`. A later write notifies the
+listeners on what it changed, inside the write. For a gone listener grpc-java's
+`ServerCalls` throws `call already cancelled`, which `WrappedStreamObserver`
+turns into `StreamTransportClosedException`. `notifyDocumentListeners` catches
+that and drops the listener's target, which is fine. But when the listener's
+re-read fails first (the rules now deny it the changed document, which the
+restore's clear can cause by deleting the documents those rules read), the
+manager tells the
+listener its target was removed from **inside** its `catch (DatastoreException)`
+block. The throw then escapes, and the write that caused it answers 499,
+having applied some, all or none of its work. Production never fails a write
+because a listener went away.
+
+**Decision.** The lane runs the emulator with grpc-java's `ServerCalls` patched
+on that one path, under `EMULATOR_CANCELLED_LISTEN=production`
+(`scripts/lib/emulator-grpc.mjs`, `scripts/emulator-grpc/`). On a cancelled
+streaming call, `onNext` drops the message when `ListenStream.notifyTargetRemove`
+is on the stack, as grpc-java does for any call with an `onCancelHandler`.
+Everywhere else it throws as before, so the emulator still drops gone listeners
+the way it always has. No app code changes, and nothing restarts: Auth,
+Functions, Storage, triggers and rules keep their state.
+
+- **How it's loaded.** The class cannot go on the boot class path like the
+  keepalive drop-in, because it links against the jar's own io.grpc and Guava.
+  So it is compiled against the jar into a small launcher jar: its manifest
+  names the emulator's `Main-Class` and puts the stock jar on its `Class-Path`.
+- **How firebase-tools runs it.** Through its `FIRESTORE_EMULATOR_BINARY_PATH`
+  override (`downloadableEmulators.js`). The stock jar is downloaded first with
+  `firebase setup:emulators:firestore`.
+- **Why not restart Firestore before a restore.** The hub cannot restart one
+  emulator. A Firestore the suite ran itself would lose the triggers and rules
+  that firebase-tools registers only at start-up: `functionsEmulator.js` ignores
+  a Firestore trigger while that emulator is not running.
+
+**The guard.** A run never falls back to the stock jar silently. Each of these
+fails it:
+
+- The launcher cannot be built.
+- The jar's `ServerCalls` classes differ from ours in name or API (`javap`).
+- The start-up probe fails. `scripts/check-emulator-cancelled-listen.mjs`
+  listens to an active news post without credentials and cancels the listener,
+  then hides the post, which the rules no longer let it read, and requires that
+  write to answer 200. The stock emulator answers 499.
+- After the suite, `run-ios-e2e.mjs` counts the writes `firestore-debug.log`
+  shows failing that way, split by operation (`commit` for the app's own saves,
+  `batchWrite` and `clearData` for the restore), and fails the shard on any.
+  #735's read-back and its per-restore "answered 499" count stay. With the fix,
+  that count should read 0.
+
+**When to delete it.** Run the probe against a stock emulator after each
+firebase-tools bump: `node scripts/check-emulator-cancelled-listen.mjs --host …`.
+Once it passes, the emulator no longer fails a write over a gone listener.
+Delete `scripts/emulator-grpc/`, `scripts/lib/emulator-grpc.mjs`, the probe and
+the `EMULATOR_CANCELLED_LISTEN` opt-in. A bump whose jar no longer matches the
+copy stops the run: re-derive the copy from the grpc-java version that jar
+carries.

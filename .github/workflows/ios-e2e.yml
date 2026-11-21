@@ -236,6 +236,11 @@ jobs:
           # shard if the SDK logs a ping timeout or too_many_pings anyway.
           # docs/decisions/ios-e2e-emulator-keepalive.md
           EMULATOR_KEEPALIVE: production
+          # A write must not fail because a listener the app already dropped
+          # can no longer read the document. The stock emulator answers it with
+          # HTTP 499, which late in a shard failed every retry restore. The
+          # runner proves the fix took before seeding. Same decision record.
+          EMULATOR_CANCELLED_LISTEN: production
           # The emulators' JVMs only (scripts/run-tests-with-emulators.mjs): the
           # Firestore emulator and the Storage rules runtime, one GC log each
           # (%p), so a pause long enough to miss a keepalive ping shows. The
