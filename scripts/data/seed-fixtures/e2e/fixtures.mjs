@@ -164,11 +164,16 @@ export const pastYearlyEvent = {
   status: 'published',
 };
 
+// Nine days out, not seven: flow 52 asserts it is outside "Esta semana", which
+// ends seven days after the RUN day's local midnight. At +7 it fell inside
+// whenever the suite seeded before midnight and reached flow 52 after it; +9
+// stays out for a run up to two days after the seed. The capacity, group and
+// signup events sit after it so the village row keeps this order (flow 45).
 export const event = {
   docId: 'e2e-event-fiesta',
   title: 'Fiesta de Prueba E2E',
   description: 'Evento de prueba para el flujo de inscripción end-to-end.',
-  startOffsetDays: 7,
+  startOffsetDays: 9,
   maxAttendees: 100,
   status: 'published',
 };
@@ -189,7 +194,7 @@ export const capacityEvent = {
   docId: 'e2e-event-aforo',
   title: 'Evento con Aforo E2E',
   description: 'Evento con aforo, donde comenta otra persona (flujo 41).',
-  startOffsetDays: 8,
+  startOffsetDays: 10,
   maxAttendees: 1,
   status: 'published',
 };
@@ -203,7 +208,7 @@ export const signupEvent = {
   docId: 'e2e-event-inscripcion',
   title: 'Inscripción Completa E2E',
   description: 'Evento con teléfono, pago, años de nacimiento y preguntas.',
-  startOffsetDays: 10,
+  startOffsetDays: 12,
   maxAttendees: 2,
   telephoneRequired: true,
   requiresPayment: true,
@@ -225,7 +230,7 @@ export const groupEvent = {
   docId: 'e2e-event-grupo',
   title: 'Comida en Grupo E2E',
   description: 'Evento con plazas por grupo, para el flujo de reclamar una plaza.',
-  startOffsetDays: 9,
+  startOffsetDays: 11,
   maxAttendees: 50,
   signupGroupSize: 2,
   status: 'published',
