@@ -9,6 +9,11 @@ import {
 
 type Task = GroupTaskData & { id: string };
 
+/** Midnight on 1 January in Madrid, which is always on CET (+01:00): where "done this year" starts. */
+export function startOfMadridYear(year: string): Date {
+  return new Date(`${year}-01-01T00:00:00+01:00`);
+}
+
 /** The filters of the group's Tareas screen. They combine; none on is every pending task. */
 export const TASK_FILTERS = ['mine', 'unassigned', 'overdue', 'week', 'shiftOpen', 'done'] as const;
 export type TaskFilter = (typeof TASK_FILTERS)[number];

@@ -9,15 +9,15 @@ import { firstOfEachSeries } from '@cultuvilla/shared/models/event/EventSeriesMo
 import { compareTasksByDue, hasSocioRoster, isActiveSocio, periodLabel, personalizeGroupMessage } from '@cultuvilla/shared/models/organization';
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import { watchOrgSocios, type Socio } from '@cultuvilla/shared/services/socioService';
-import { watchActas, watchSocioVisibleActas, type Acta } from '@cultuvilla/shared/services/recordsService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '../../components/primitives';
 import { StatsRow } from '../../components/feature/StatsRow';
 import { EntityCard, Section, SectionHeader } from '../../components/feature/VillageSections';
 import { NoticeCard, RowPlaceholder, TaskCard } from '../../components/feature/groups/GroupHomeCards';
-import { taskPeople } from '../../lib/orgs/taskBoard';
+import { startOfMadridYear, taskPeople } from '../../lib/orgs/taskBoard';
 import { useMemberFaces } from '../../lib/orgs/useOrgMembers';
-import { watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
+import { watchGroupTasksDoneSince, watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
+import { madridDayKey } from '@cultuvilla/shared/models/event';
 import { AppHeader } from '../../components/layout/AppHeader';
 import { GroupSwitcherSheet } from '../../components/feature/groups/GroupSwitcher';
 import { CuotaBanner } from '../../components/feature/groups/CuotaBanner';
@@ -139,11 +139,10 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
     org.id,
     (next, error) => watchEventsByOrganization(org.id, { includePrivate: true }, next, error),
   );
-  // An admin counts every acta; a socio only those the junta shared, the ones the rules let them read.
-  const actas = useWatch<Acta[]>(
-    isAdmin ? 'groups:watchActas' : 'groups:watchSocioVisibleActas',
-    roster ? org.id : null,
-    roster ? (next, error) => (isAdmin ? watchActas : watchSocioVisibleActas)(org.id, next, error) : null,
+  // Every task the group finished this year: the third stat, for any group.
+  const year = madridDayKey(new Date()).slice(0, 4);
+  const doneTasks = useWatch<GroupTask[]>('groups:watchGroupTasksDoneSince', `${org.id}|${year}`, (next, error) =>
+    watchGroupTasksDoneSince(org.id, startOfMadridYear(year), next, error),
   );
   // Only what is still ahead: the row is "Próximos eventos".
   const eventRows = useMemo(() => {
@@ -219,15 +218,11 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
                   onPress: isAdmin ? () => open('miembros') : undefined,
                 },
             { label: t('groups.stats.events'), value: events.status === 'ready' ? eventRows.length : null, onPress: () => open('eventos') },
-            ...(roster
-              ? [
-                  {
-                    label: t('groups.stats.actas'),
-                    value: actas.status === 'ready' ? (actas.data ?? []).length : null,
-                    onPress: () => open('actas'),
-                  },
-                ]
-              : []),
+            {
+              label: t('groups.stats.tasksDone'),
+              value: doneTasks.status === 'ready' ? (doneTasks.data ?? []).length : null,
+              onPress: () => open('tareas'),
+            },
           ]}
         />
       </View>

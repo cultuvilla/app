@@ -55,7 +55,7 @@ jest.mock('../../../lib/hooks/useWatch', () => ({
     error: null,
   }),
 }));
-jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({ watchOpenGroupTasks: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({ watchOpenGroupTasks: jest.fn(), watchGroupTasksDoneSince: jest.fn() }));
 jest.mock('../../../lib/orgs/useOrgMembers', () => ({
   useMemberFaces: () => ({ a1: { name: 'Ana', photoURL: null }, a2: { name: 'Blas', photoURL: null } }),
 }));
@@ -64,7 +64,6 @@ let mockCuota = NO_CUOTA;
 jest.mock('../../../lib/orgs/useMyCuota', () => ({ useMyCuota: () => mockCuota }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({ watchEventsByOrganization: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/socioService', () => ({ watchOrgSocios: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/recordsService', () => ({ watchActas: jest.fn(), watchSocioVisibleActas: jest.fn() }));
 const mockPush = jest.fn();
 const mockSetParams = jest.fn();
 let mockParams: { grupo?: string; aviso?: string } = {};
@@ -262,7 +261,7 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
     expect(getByText('groups.stats.events')).toBeTruthy();
-    expect(getByText('groups.stats.actas')).toBeTruthy();
+    expect(getByText('groups.stats.tasksDone')).toBeTruthy();
     // A member of a group whose estatutos keep the roster private sees no socio count.
     expect(() => getByText('groups.stats.socios')).toThrow();
     // A notice card is its title, cut at one box, and the day: no text, no pinned badge, no sender.

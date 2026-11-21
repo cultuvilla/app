@@ -1882,7 +1882,7 @@
       "socios": "Socios",
       "members": "Integrantes",
       "events": "Eventos",
-      "actas": "Actas"
+      "tasksDone": "Tareas hechas"
     },
     "home": {
       "avisosWithNew": "Avisos ({count} sin leer)",

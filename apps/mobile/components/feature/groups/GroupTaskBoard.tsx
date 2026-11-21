@@ -29,6 +29,7 @@ import {
   TASK_FILTERS,
   filterTasks,
   groupTasksByEvent,
+  startOfMadridYear,
   taskLeaderboard,
   taskPeople,
   type TaskFilter,
@@ -43,11 +44,6 @@ type Sheet =
   | { kind: 'apply'; template: TaskTemplate | null; event: ChecklistEvent | null }
   | { kind: 'leaderboard' }
   | null;
-
-/** Midnight on 1 January in Madrid, which is always on CET (+01:00). */
-function startOfYear(year: string): Date {
-  return new Date(`${year}-01-01T00:00:00+01:00`);
-}
 
 /**
  * The group's Tareas: who has helped most (a strip that opens the
@@ -64,7 +60,7 @@ export function GroupTaskBoard({ group, uid }: { group: MyGroup; uid: string }) 
   const { members, nameOf } = useOrgMembers(org.id);
   const open = useWatch<GroupTask[]>('groups:watchOpenGroupTasks', org.id, (next, error) => watchOpenGroupTasks(org.id, next, error));
   const done = useWatch<GroupTask[]>('groups:watchGroupTasksDoneSince', `${org.id}|${year}`, (next, error) =>
-    watchGroupTasksDoneSince(org.id, startOfYear(year), next, error),
+    watchGroupTasksDoneSince(org.id, startOfMadridYear(year), next, error),
   );
   const events = useWatch<(EventData & { id: string })[]>('groups:watchEventsByOrganization', org.id, (next, error) =>
     watchEventsByOrganization(org.id, { includePrivate: true }, next, error),
