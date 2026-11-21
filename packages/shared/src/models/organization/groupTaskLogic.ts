@@ -354,8 +354,8 @@ export function creditedUids(task: Pick<GroupTaskData, 'slots' | 'claimedUids' |
 }
 
 /**
- * Tasks done per member in a calendar year (Madrid) — the admin-only fair
- * share view. Members with nothing done are listed at 0, most done first.
+ * Tasks done per member in a calendar year (Madrid), most done first —
+ * what the group's leaderboard counts. Members with nothing done are listed at 0.
  */
 export function fairShareCounts(
   tasks: Pick<GroupTaskData, 'slots' | 'claimedUids' | 'assigneeUids' | 'doneBy' | 'doneAt'>[],

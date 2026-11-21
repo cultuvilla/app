@@ -8,7 +8,7 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Avatar, Button, HStack, Pressable, Screen, Text, VStack } from '../../../../components/primitives';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
-import { taskPeople } from '../../../../components/feature/groups/GroupHomeCards';
+import { taskPeople } from '../../../../lib/orgs/taskBoard';
 import { TaskComments } from '../../../../components/feature/groups/TaskComments';
 import { TaskSignupBar } from '../../../../components/feature/groups/TaskRows';
 import { TaskSheet } from '../../../../components/feature/groups/TaskSheet';

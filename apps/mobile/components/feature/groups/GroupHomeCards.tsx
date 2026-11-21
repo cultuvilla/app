@@ -6,6 +6,7 @@ import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { View } from 'react-native';
 import { Avatar, Card, HStack, Pressable, Text, VStack } from '../../primitives';
 import type { MemberFace } from '../../../lib/orgs/useOrgMembers';
+import { taskPeople } from '../../../lib/orgs/taskBoard';
 import { useT } from '../../../lib/i18n';
 
 // Set here so these cards never depend on how their `flex-1` children measure
@@ -58,11 +59,6 @@ export function RowPlaceholder({ text, onPress }: { text: string; onPress: () =>
       </Card>
     </Pressable>
   );
-}
-
-/** Who a card shows as on the task: its assignees, or a shift's volunteers. */
-export function taskPeople(task: Pick<GroupTask, 'slots' | 'assigneeUids' | 'claimedUids'>): string[] {
-  return task.slots !== null ? task.claimedUids : task.assigneeUids;
 }
 
 const MAX_FACES = 4;

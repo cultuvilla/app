@@ -130,17 +130,19 @@ onFlowComplete:
         }
 
 # ── Its detail, from the board; a comment ──
-# Scroll, not wait: the board is sorted by due day, and earlier flows may
-# have left tasks ahead of this one.
+# "Mías" opens every group it leaves, so the task shows whichever group it
+# falls in. Scroll, not wait: earlier flows may have left tasks ahead of it.
+- tapOn:
+    id: 'group-tasks-filter-mine'
 - scrollUntilVisible:
     element:
-      id: 'group-home-task-${output.taskId}'
+      id: 'task-edit-${output.taskId}'
     direction: DOWN
     timeout: 20000
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
-      TAP: 'group-home-task-${output.taskId}'
+      TAP: 'task-edit-${output.taskId}'
       EXPECT: 'group-task-done'
 - assertVisible: '.*${output.taskTitle}.*'
 - assertVisible: '.*${output.taskNotes}.*'

@@ -2245,9 +2245,32 @@
     },
     "tasks": {
       "filter": {
-        "open": "Pendientes",
         "mine": "Mías",
+        "unassigned": "Sin asignar",
+        "overdue": "Atrasadas",
+        "week": "Esta semana",
+        "shiftOpen": "Turnos con hueco",
         "done": "Hechas"
+      },
+      "noMatches": "Ninguna tarea con esos filtros.",
+      "doneOn": "Hecha el {date}",
+      "groupCount": "{count, plural, one {1 tarea} other {# tareas}}",
+      "otherTasks": "Otras tareas",
+      "leaderboard": {
+        "title": "Quién más ayuda",
+        "leads": "{name} lleva {count, plural, one {1 tarea} other {# tareas}} este año",
+        "youLead": "Vas en cabeza con {count, plural, one {1 tarea} other {# tareas}} este año",
+        "yourPlace": "Tú vas {rank}.º con {count, plural, one {1} other {#}} · Ver quién más ayuda",
+        "seeAll": "Ver quién más ayuda",
+        "year": "Este año",
+        "month": "Este mes",
+        "you": "Tú",
+        "empty": "Aún nadie ha hecho tareas en este periodo.",
+        "nudgeFirst": "Vas en cabeza. ¡Gracias por tirar del grupo!",
+        "nudgeBehind": "Te {count, plural, one {falta 1 tarea} other {faltan # tareas}} para pasar a {name}.",
+        "nudgeTied": "Estás empatado en cabeza.",
+        "nudgeNone": "Aún no tienes tareas hechas en este periodo.",
+        "unassigned": "{count, plural, one {Hay 1 tarea sin asignar} other {Hay # tareas sin asignar}} · Ver"
       },
       "detail": {
         "title": "Tarea",
@@ -2384,8 +2407,6 @@
         "offsetSame": "El mismo día"
       },
       "checklists": {
-        "title": "Tareas por evento",
-        "none": "No hay eventos próximos.",
         "progress": "{done} de {total, plural, one {# hecha} other {# hechas}}",
         "empty": "Sin tareas",
         "sheetTitle": "Tareas de «{event}»",
@@ -2396,11 +2417,6 @@
         "saved": "Plantilla guardada.",
         "addTask": "Añadir tarea",
         "eventUnavailable": "Este evento ya no está disponible."
-      },
-      "fairShare": {
-        "title": "Reparto del trabajo {year}",
-        "hint": "Tareas hechas por cada integrante este año. Solo lo ven los administradores.",
-        "count": "{count, plural, one {1 tarea} other {# tareas}}"
       },
       "asamblea": {
         "suggestionTitle": "Asamblea anual",
