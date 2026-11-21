@@ -1987,7 +1987,6 @@
       "confirmRemoveBody": "{name} dejará de ser socio/a. Quedará en el libro de socios con la fecha de baja.",
       "error": "No se ha podido completar. Inténtalo de nuevo.",
       "chipSocio": "{name} · nº {number}",
-      "add": "Hacer socio a una persona a tu cargo",
       "pickTitle": "¿A quién haces socio?"
     },
     "socios": {
@@ -2027,7 +2026,7 @@
       "numberTitle": "Nº de socio de {name}",
       "numberLabel": "Nº de socio",
       "numberClearHint": "Déjalo vacío para quitarle el número.",
-      "book": "Libro de socios",
+      "list": "Socios",
       "search": "Nombre o número",
       "empty": "Nadie con ese nombre",
       "filters": {
@@ -2054,6 +2053,21 @@
       },
       "junta": "Junta directiva",
       "juntaMember": "Junta",
+      "juntaEdit": {
+        "add": "Añadir a la junta",
+        "pickTitle": "¿A quién añades a la junta?",
+        "pickHint": "Solo socios con la app. Podrán gestionar el grupo.",
+        "pickEmpty": "No hay más socios con la app.",
+        "title": "Cambiar cargo",
+        "remove": "Quitar de la junta"
+      },
+      "addMenu": {
+        "title": "¿A quién añades?",
+        "typed": "Alguien sin la app",
+        "typedHint": "Escribes su nombre y, si quieres, su contacto.",
+        "persona": "Una persona a tu cargo",
+        "personaHint": "Un hijo, un mayor… que no tiene la app."
+      },
       "myRecord": "Tu ficha",
       "myNumber": "Socio nº {number}",
       "mySocio": "Socio",

@@ -13,6 +13,7 @@ function mockStub(testID: string) {
 jest.mock('../SociosRoster', () => ({ SociosRoster: mockStub('roster') }));
 jest.mock('../MySocioRecord', () => ({ MySocioRecord: mockStub('personas') }));
 jest.mock('../JuntaDirectiva', () => ({ JuntaDirectiva: mockStub('junta') }));
+jest.mock('../AddSocioButton', () => ({ AddSocioButton: mockStub('add-socio') }));
 jest.mock('../SocioConsentCard', () => ({ SocioConsentCard: mockStub('consent') }));
 jest.mock('../../OrgJoinRequests', () => ({ OrgJoinRequests: mockStub('requests') }));
 jest.mock('../../OrgMembersList', () => ({ OrgMembersList: () => null }));
@@ -59,6 +60,17 @@ describe('the Socios screen', () => {
     expect(getByTestId('requests')).toBeTruthy();
     expect(getByTestId('personas')).toBeTruthy();
     expect(queryByTestId('socios-list-hidden')).toBeNull();
+  });
+
+  it('orders an admin\'s screen: ficha, consent, requests, libro, one Añadir socio, junta, list', () => {
+    const { toJSON } = renderSocios('admin', false);
+    const ids = JSON.stringify(toJSON()).match(/"testID":"[a-z-]+"/g)?.map((m) => m.slice(10, -1)) ?? [];
+    const order = ['personas', 'consent', 'requests', 'libro-door', 'add-socio', 'junta', 'roster'];
+    expect(ids.filter((id) => order.includes(id))).toEqual(order);
+  });
+
+  it('gives a member the Añadir socio button too', () => {
+    expect(renderSocios('member', true).getByTestId('add-socio')).toBeTruthy();
   });
 });
 
