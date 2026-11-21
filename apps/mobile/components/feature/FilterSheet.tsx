@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import {
   Modal,
   View,
@@ -17,7 +18,7 @@ import { useT } from '../../lib/i18n';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.6);
-const ACCENT = '#bb5d3a'; // colors.ts: light.bg.accent (terracotta)
+const ACCENT = colors.light.fg.accent;
 
 export type FilterSheetOption = { value: string; label: string };
 
@@ -112,7 +113,7 @@ export function FilterSheet({
             right: 0,
             bottom: 0,
             height: SHEET_HEIGHT + insets.bottom,
-            backgroundColor: '#ffffff',
+            backgroundColor: colors.light.bg['surface-elevated'],
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             transform: [{ translateY: Animated.add(slideAnim, drag.translateY) }],
@@ -127,14 +128,14 @@ export function FilterSheet({
 
           {searchable ? (
             <View className="flex-row items-center mx-4 mt-3 px-3 rounded-md border border-subtle bg-surface">
-              <Ionicons name="search-outline" size={18} color="#a6a897" />
+              <Ionicons name="search-outline" size={18} color={colors.light.fg.faint} />
               <TextInput
                 testID={testID ? `${testID}-search` : undefined}
                 value={search}
                 onChangeText={setSearch}
                 placeholder={searchPlaceholder}
-                placeholderTextColor="#a6a897"
-                style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 8, color: '#566047' }}
+                placeholderTextColor={colors.light.fg.faint}
+                style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 8, color: colors.light.fg.primary }}
               />
             </View>
           ) : null}

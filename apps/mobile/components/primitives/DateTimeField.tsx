@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerText: { flexShrink: 1 },
   backdrop: {

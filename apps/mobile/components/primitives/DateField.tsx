@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerText: { flexShrink: 1, marginRight: 8 },
   modal: { flex: 1, padding: 16 },

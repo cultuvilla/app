@@ -53,11 +53,15 @@ const light = {
   fg: {
     primary: palette.olive,
     muted: palette.moss,
+    // Below text contrast on purpose: placeholders, inactive tab icons, input glyphs.
+    faint: palette.sage,
     'on-subtle': '#3f4635',
     'on-accent': palette.cream,
     'on-secondary': palette.cream,
     'on-danger': '#ffffff',
     'on-success': '#ffffff',
+    // Text and icons over photos and dark scrims.
+    'on-media': '#ffffff',
     accent: palette.terracotta,
     secondary: palette.olive,
     danger: '#dc2626',

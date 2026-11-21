@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from './Text';
 import { VStack } from './VStack';
@@ -41,7 +42,7 @@ export function ErrorState({ error, title, message, onRetry }: ErrorStateProps) 
     <View className="flex-1 items-center justify-center px-8">
       <VStack gap={2} className="items-center">
         {/* Terracotta accent (colors.ts light.bg.accent), not the default blue. */}
-        <Ionicons name={ICON[kind]} size={48} color="#bb5d3a" />
+        <Ionicons name={ICON[kind]} size={48} color={colors.light.fg.accent} />
         {title ? (
           <Text variant="h3" className="text-center">
             {title}

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, FlatList, Modal, TextInput, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerInner: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   modal: { flex: 1, padding: 16, gap: 12 },

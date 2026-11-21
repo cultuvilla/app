@@ -413,7 +413,7 @@ export default function NewNewsScreen() {
         <ScreenHeader title={headerTitle} />
         <View className="flex-1 items-center justify-center px-8">
           <VStack gap={4} className="items-center">
-            <Ionicons name="checkmark-circle-outline" size={48} color="#16a34a" />
+            <Ionicons name="checkmark-circle-outline" size={48} color={colors.light.fg.success} />
             <Text className="text-center">{t('news.compose.successPublished')}</Text>
             <Button onPress={() => router.back()}>{t('common.back')}</Button>
           </VStack>

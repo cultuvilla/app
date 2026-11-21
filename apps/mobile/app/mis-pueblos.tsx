@@ -1,4 +1,5 @@
 import { routes } from '../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
@@ -133,7 +134,7 @@ export default function MyVillagesScreen() {
                   <ActivityIndicator />
                 ) : isActive ? (
                   <View className="flex-row items-center">
-                    <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+                    <Ionicons name="checkmark-circle" size={20} color={colors.light.fg.success} />
                     <Text variant="caption" tone="success" className="ml-1 font-semibold uppercase">
                       {t('me.villages.activeBadge')}
                     </Text>

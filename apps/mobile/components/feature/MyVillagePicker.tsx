@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
@@ -92,7 +93,7 @@ export function MyVillagePicker({
                   <Text>{v.name}</Text>
                   <Text tone="muted" variant="caption">{v.province}</Text>
                 </View>
-                {v.id === value ? <Ionicons name="checkmark" size={20} color="#16a34a" /> : null}
+                {v.id === value ? <Ionicons name="checkmark" size={20} color={colors.light.fg.success} /> : null}
               </Pressable>
             ))
           )}
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerDisabled: { backgroundColor: '#f8fafc' },
   triggerInner: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
@@ -125,7 +126,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   empty: { padding: 12 },
   row: {

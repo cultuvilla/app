@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, Toggle, VStack, HStack } from '../../primitives';
@@ -123,7 +124,7 @@ export function QuestionCardShell({
                   testID={testID ? `${testID}-remove` : undefined}
                   className="p-1"
                 >
-                  <Ionicons name="trash-outline" size={20} color="#dc2626" />
+                  <Ionicons name="trash-outline" size={20} color={colors.light.fg.danger} />
                 </Pressable>
               ) : null}
             </HStack>

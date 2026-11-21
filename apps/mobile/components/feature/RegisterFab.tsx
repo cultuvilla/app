@@ -1,4 +1,5 @@
 import { personHref } from '../../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useCallback, useRef, useState } from 'react';
 import { Animated, Pressable as RNPressable, Text } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -392,7 +393,7 @@ export function RegisterFab({
   // openable via a stable handle regardless of the split.
   const pillContent: { label: string; prefix: string; bg: string }[] =
     count === 0
-      ? [{ label: t('event.register.cta'), prefix: '+', bg: '#bb5d3a' }]
+      ? [{ label: t('event.register.cta'), prefix: '+', bg: colors.light.bg.accent }]
       : [
           ...(confirmedCount > 0
             ? [{ label: t('event.register.signedUpCount', { count: confirmedCount }), prefix: '✓', bg: '#2f7d4f' }]
@@ -445,8 +446,8 @@ export function RegisterFab({
               shadowOffset: { width: 0, height: 3 },
             }}
           >
-            <Text style={{ color: '#f9f0e8', fontSize: 18, lineHeight: 22, marginRight: 8 }}>{pill.prefix}</Text>
-            <Text style={{ color: '#f9f0e8', fontSize: 16, fontWeight: '700' }}>{pill.label}</Text>
+            <Text style={{ color: colors.light.fg['on-accent'], fontSize: 18, lineHeight: 22, marginRight: 8 }}>{pill.prefix}</Text>
+            <Text style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>{pill.label}</Text>
           </RNPressable>
         ))}
       </Animated.View>

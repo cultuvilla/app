@@ -73,7 +73,7 @@ export function DeleteHeaderButton({
         <Ionicons
           name="trash-outline"
           size={iconSizes.md}
-          color={onAccent ? '#f9f0e8' : colors.light.fg.accent}
+          color={onAccent ? colors.light.fg['on-accent'] : colors.light.fg.accent}
         />
       </Pressable>
       <BlockingOverlay visible={deleting} label={deletingLabel} />

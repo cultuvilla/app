@@ -10,7 +10,7 @@ import {
 } from '@cultuvilla/shared/services/villageMemberService';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { villageTitle } from '@cultuvilla/shared/models/municipality';
 import { VStack, HStack, Text, Avatar, Pressable, BottomSheet, Button } from '../primitives';
 import { VillageTitleBadge } from './VillageTitleBadge';
@@ -229,7 +229,7 @@ export function MembersList({
             <Ionicons
               name={m.censoComplete ? 'checkmark' : 'close'}
               size={iconSizes.sm}
-              color={m.censoComplete ? '#16a34a' : '#9ca3af'}
+              color={m.censoComplete ? colors.light.fg.success : '#9ca3af'}
             />
           )}
         </View>

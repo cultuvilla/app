@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,7 +54,7 @@ export function ScreenHeader({
                   accessibilityLabel={t('header.back')}
                   className="p-1 -ml-1"
                 >
-                  <Ionicons name="chevron-back" size={26} color="#f9f0e8" />
+                  <Ionicons name="chevron-back" size={26} color={colors.light.fg['on-accent']} />
                 </Pressable>
               ) : null}
             </View>

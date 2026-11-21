@@ -323,7 +323,7 @@ function ImageBlock({
           testID={testID ? `${testID}-remove` : undefined}
           className="absolute right-2 top-2 h-8 w-8 items-center justify-center rounded-full bg-black/50"
         >
-          <Ionicons name="close" size={20} color="#ffffff" />
+          <Ionicons name="close" size={20} color={colors.light.fg['on-media']} />
         </Pressable>
       </View>
       <MentionTextInput

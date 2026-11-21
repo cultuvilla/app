@@ -1,4 +1,5 @@
 import { personHref } from '../../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useCallback, useRef, useState } from 'react';
 import { Animated, Pressable as RNPressable, Text } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -104,7 +105,7 @@ export function BuryFab({ municipalityId, placeId, userId, buriedHereIds, onChan
             paddingVertical: 10,
             paddingHorizontal: 22,
             borderRadius: 999,
-            backgroundColor: '#bb5d3a',
+            backgroundColor: colors.light.bg.accent,
             opacity: busy ? 0.7 : 1,
             elevation: 6,
             shadowColor: '#000',
@@ -113,8 +114,8 @@ export function BuryFab({ municipalityId, placeId, userId, buriedHereIds, onChan
             shadowOffset: { width: 0, height: 3 },
           }}
         >
-          <Text style={{ color: '#f9f0e8', fontSize: 18, lineHeight: 22, marginRight: 8 }}>＋</Text>
-          <Text style={{ color: '#f9f0e8', fontSize: 16, fontWeight: '700' }}>{t('village.placeDetail.addDifunto')}</Text>
+          <Text style={{ color: colors.light.fg['on-accent'], fontSize: 18, lineHeight: 22, marginRight: 8 }}>＋</Text>
+          <Text style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>{t('village.placeDetail.addDifunto')}</Text>
         </RNPressable>
       </Animated.View>
 

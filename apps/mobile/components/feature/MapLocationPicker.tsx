@@ -352,7 +352,7 @@ export function MapLocationPicker({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.light.bg['surface-elevated'],
     overflow: 'hidden',
   },
   map: {

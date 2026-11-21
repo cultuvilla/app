@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { VStack, HStack, Text, Escudo, Pressable } from '../primitives';
 import { JoinVillageModal } from './JoinVillageModal';
 import { useT } from '../../lib/i18n';
+import { colors } from '@cultuvilla/shared/design-system';
 import { usePush } from '../../lib/push/PushProvider';
 import {
   getActiveCommunities,
@@ -27,7 +28,7 @@ import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 
 type Muni = MunicipalityData & { id: string };
 const PAGE_SIZE = 20;
-const ACCENT = '#bb5d3a';
+const ACCENT = colors.light.fg.accent;
 
 // One FlatList renders two labelled sections: a fixed "Municipios activos" group
 // (client-filtered) followed by the cursor-paginated "Todos" group. The groups
@@ -292,7 +293,7 @@ export function VillageDiscovery() {
                     </Pressable>
                     {joined ? (
                       <View accessibilityLabel={t('discover.alreadyMember')} className="p-2">
-                        <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
+                        <Ionicons name="checkmark-circle" size={22} color={colors.light.fg.success} />
                       </View>
                     ) : (
                       <Pressable

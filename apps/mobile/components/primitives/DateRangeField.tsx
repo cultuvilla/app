@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   disabled: { opacity: 0.5 },
   triggerText: { flexShrink: 1, marginRight: 8 },
