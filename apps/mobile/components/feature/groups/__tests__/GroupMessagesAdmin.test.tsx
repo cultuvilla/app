@@ -102,7 +102,8 @@ describe('GroupMessagesAdmin', () => {
     fireEvent.press(getByTestId('group-msg-event-ev1'));
     fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
     fireEvent.press(getByTestId('group-msg-whatsapp-options-fallback'));
-    fireEvent.press(getByTestId('group-msg-poll-yes_no'));
+    fireEvent.press(getByTestId('group-msg-poll'));
+    fireEvent.press(getByTestId('type-sheet-row-yes_no'));
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Vienes?');
     fireEvent.press(getByTestId('group-msg-send'));
 
@@ -268,13 +269,18 @@ describe('GroupMessagesAdmin', () => {
     fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
     fireEvent.press(getByTestId('group-msg-whatsapp-options-all'));
     expect(getByTestId('group-msg-poll')).toBeTruthy();
-    fireEvent.press(getByTestId('group-msg-poll-choice'));
+    // Like an event's form: add the poll, pick how it is answered, then write the options.
+    fireEvent.press(getByTestId('group-msg-poll'));
+    fireEvent.press(getByTestId('type-sheet-row-choice'));
+    expect(getByTestId('group-msg-poll-card')).toBeTruthy();
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Qué día?');
-    fireEvent.press(getByTestId('group-msg-poll-add'));
+    // Two options are the least a poll has: neither can be removed.
+    expect(queryByTestId('group-msg-poll-option-remove-0')).toBeNull();
+    fireEvent.press(getByTestId('group-msg-poll-option-add'));
     fireEvent.changeText(getByTestId('group-msg-poll-option-0'), '12');
     fireEvent.changeText(getByTestId('group-msg-poll-option-1'), '19');
     fireEvent.changeText(getByTestId('group-msg-poll-option-2'), 'nunca');
-    fireEvent.press(getByTestId('group-msg-poll-remove-2'));
+    fireEvent.press(getByTestId('group-msg-poll-option-remove-2'));
     fireEvent.press(getByTestId('group-msg-send'));
     await waitFor(() =>
       expect(sendGroupMessage).toHaveBeenCalledWith(
@@ -285,6 +291,23 @@ describe('GroupMessagesAdmin', () => {
         }),
       ),
     );
+  });
+
+  it('drops the poll from its card, and says on the card what is missing', () => {
+    const { getByTestId, queryByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-compose-open'));
+    fireEvent.changeText(getByTestId('group-msg-subject'), 'Cena');
+    fireEvent.changeText(getByTestId('group-msg-body'), 'Votad.');
+    fireEvent.press(getByTestId('group-msg-poll'));
+    fireEvent.press(getByTestId('type-sheet-row-yes_no'));
+    fireEvent.press(getByTestId('group-msg-send'));
+    expect(getByTestId('group-msg-poll-card')).toHaveTextContent(/groups.messages.pollInvalid/);
+    fireEvent.press(getByTestId('group-msg-poll-type'));
+    fireEvent.press(getByTestId('type-sheet-row-choice'));
+    expect(getByTestId('group-msg-poll-option-0')).toBeTruthy();
+    fireEvent.press(getByTestId('group-msg-poll-card-remove'));
+    expect(queryByTestId('group-msg-poll-card')).toBeNull();
+    expect(getByTestId('group-msg-poll')).toBeTruthy();
   });
 
   it('lists the recipients with their channels and unticks a WhatsApp not sent', () => {

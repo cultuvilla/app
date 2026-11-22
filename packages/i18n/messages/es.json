@@ -2611,15 +2611,13 @@
         "all": "A todos los que tengan teléfono"
       },
       "pollLabel": "Encuesta",
+      "pollAdd": "Añadir encuesta",
+      "pollTypeTitle": "¿Cómo se responde?",
       "poll": {
-        "none": "Sin encuesta",
         "yes_no": "Sí o no",
-        "choice": "Varias opciones"
+        "choice": "Elegir una opción"
       },
-      "pollQuestion": "Pregunta",
-      "pollOption": "Opción {n}",
-      "pollAddOption": "Añadir opción",
-      "pollRemoveOption": "Quitar la opción {n}",
+      "pollQuestionPlaceholder": "Escribe la pregunta",
       "pollInvalid": "Escribe la pregunta y al menos dos opciones.",
       "yes": "Sí",
       "no": "No",

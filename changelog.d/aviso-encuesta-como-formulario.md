@@ -1,0 +1,1 @@
+- A new aviso adds its encuesta the way an event adds a form question: «Añadir encuesta», pick «Sí o no» or «Elegir una opción», and edit the options in the same card. **Migration:** none.

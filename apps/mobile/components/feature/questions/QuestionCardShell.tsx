@@ -36,8 +36,9 @@ export function QuestionCardShell({
   subline?: string;
   /** Already-translated error message; replaces the subline when set. */
   error?: string;
-  required: boolean;
-  onRequiredChange: (next: boolean) => void;
+  required?: boolean;
+  /** Omitted when the question has no "required" switch (an aviso's poll). */
+  onRequiredChange?: (next: boolean) => void;
   active: boolean;
   onActivate: () => void;
   /** Omitted when the question can't be reordered (e.g. answers already keyed by order). */
@@ -87,12 +88,16 @@ export function QuestionCardShell({
 
         <View className="border-t border-subtle pt-3">
           <HStack gap={3} align="center" justify="between">
-            <Toggle
-              label={t('questions.required')}
-              value={required}
-              onValueChange={onRequiredChange}
-              testID={testID ? `${testID}-required` : undefined}
-            />
+            {onRequiredChange ? (
+              <Toggle
+                label={t('questions.required')}
+                value={required ?? false}
+                onValueChange={onRequiredChange}
+                testID={testID ? `${testID}-required` : undefined}
+              />
+            ) : (
+              <View />
+            )}
             <HStack gap={3} align="center">
               {onMove ? (
                 <>
