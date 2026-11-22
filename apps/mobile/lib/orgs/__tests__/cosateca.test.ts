@@ -1,4 +1,5 @@
-import { cosaAvailabilityLabel, cosaHeldSinceLabel, cosaOwnerLabel, cosaRequestDatesLabel, cosatecaErrorMessage } from '../cosateca';
+import type { CosaRequestStatus } from '@cultuvilla/shared/models/organization';
+import { cosaAvailabilityLabel, cosaHeldSinceLabel, cosaOwnerLabel, cosaRequestDatesLabel, cosaRequestSteps, cosatecaErrorMessage } from '../cosateca';
 
 const t = (k: string, v?: Record<string, string | number>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k);
 
@@ -48,5 +49,25 @@ describe('cosateca labels', () => {
     expect(cosatecaErrorMessage(t, Object.assign(new Error('Ya tienes 2 reservas'), { code: 'functions/resource-exhausted' }))).toBe(
       'Ya tienes 2 reservas',
     );
+  });
+});
+
+describe('cosaRequestSteps', () => {
+  const req = (cosaKind: 'prestamo' | 'servicio' | 'regalo' | 'reserva', status: CosaRequestStatus, ownerUid: string | null = 'o') => ({ cosaKind, status, ownerUid });
+  it('walks a loan from asked to returned', () => {
+    expect(cosaRequestSteps(req('prestamo', 'lent'))).toEqual({ steps: ['pending', 'accepted', 'lent', 'returned'], current: 2 });
+  });
+  it("ends a shared cosa's request handed on, or left in its place", () => {
+    expect(cosaRequestSteps(req('prestamo', 'accepted', null))?.steps).toEqual(['pending', 'accepted', 'lent', 'passed']);
+    expect(cosaRequestSteps(req('prestamo', 'returned', null))).toEqual({ steps: ['pending', 'accepted', 'lent', 'returned'], current: 3 });
+  });
+  it('gives a servicio, a regalo and a reserva their own road', () => {
+    expect(cosaRequestSteps(req('servicio', 'done'))?.steps).toEqual(['pending', 'accepted', 'done']);
+    expect(cosaRequestSteps(req('regalo', 'pending'))).toEqual({ steps: ['pending', 'accepted', 'given'], current: 0 });
+    expect(cosaRequestSteps(req('reserva', 'accepted'))?.steps).toEqual(['pending', 'accepted']);
+  });
+  it('shows no road for a declined or cancelled request', () => {
+    expect(cosaRequestSteps(req('prestamo', 'declined'))).toBeNull();
+    expect(cosaRequestSteps(req('prestamo', 'cancelled'))).toBeNull();
   });
 });

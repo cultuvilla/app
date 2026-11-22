@@ -34,9 +34,15 @@ jest.mock('../../../components/layout/ScreenHeader', () => ({
 }));
 
 jest.mock('../../../components/feature/groups/cosateca/CosaRequestChat', () => ({
-  CosaRequestChat: ({ canModerate }: { canModerate: boolean }) => {
-    const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
-    return <Text testID="stub-chat">{canModerate ? 'moderator' : 'party'}</Text>;
+  CosaRequestChat: ({ canModerate, head, footer }: { canModerate: boolean; head: React.ReactNode; footer: React.ReactNode }) => {
+    const { Text, View } = jest.requireActual<typeof import('react-native')>('react-native');
+    return (
+      <View>
+        {head}
+        <Text testID="stub-chat">{canModerate ? 'moderator' : 'party'}</Text>
+        {footer}
+      </View>
+    );
   },
 }));
 
@@ -67,7 +73,8 @@ describe('a request for a cosa', () => {
     expect(getByTestId('cosa-request')).toHaveTextContent(/Para el sábado/);
     expect(getByTestId('cosa-request-status')).toHaveTextContent('groups.cosateca.status.pending');
     expect(getByTestId('cosa-request-dates')).toHaveTextContent('groups.cosateca.request.range');
-    expect(actionsOf(getAllByTestId)).toEqual(['cosa-request-accept', 'cosa-request-decline']);
+    // The way out first, the way on last, where the thumb is.
+    expect(actionsOf(getAllByTestId)).toEqual(['cosa-request-decline', 'cosa-request-accept']);
     fireEvent.press(getByTestId('cosa-request-accept'));
     await waitFor(() => expect(respondToCosaRequest).toHaveBeenCalledWith('r1', 'accept'));
   });
@@ -113,6 +120,13 @@ describe('a request for a cosa', () => {
     mockUid = 'someone';
     mockGroups = [];
     expect(render(<CosaRequestScreen />).queryByTestId('stub-chat')).toBeNull();
+  });
+
+  it('shows the road a loan walks, and none once it is declined', () => {
+    mockRequest = request({ status: 'lent' });
+    expect(render(<CosaRequestScreen />).getByTestId('cosa-request-steps')).toHaveTextContent(/groups\.cosateca\.status\.returned/);
+    mockRequest = request({ status: 'declined' });
+    expect(render(<CosaRequestScreen />).queryByTestId('cosa-request-steps')).toBeNull();
   });
 
   it('lets either side mark a servicio done', () => {
