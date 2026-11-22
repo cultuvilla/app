@@ -156,6 +156,14 @@ describe('GroupTaskBoard — the list', () => {
     expect(lines(screen, 'other')).toEqual(['luces']);
   });
 
+  it('reopens a group closed by hand when a filter changes, so its matches show', () => {
+    const screen = render(<GroupTaskBoard group={asMember} uid="admin" />);
+    fireEvent.press(screen.getByTestId('task-group-toggle-ev1'));
+    expect(lines(screen, 'ev1')).toEqual([]);
+    fireEvent.press(screen.getByTestId('group-tasks-filter-mine'));
+    expect(lines(screen, 'ev1')).toEqual(['escenario']);
+  });
+
   it('filters shifts with free places', () => {
     const screen = render(<GroupTaskBoard group={asMember} uid="u-ana" />);
     fireEvent.press(screen.getByTestId('group-tasks-filter-shiftOpen'));
@@ -211,6 +219,16 @@ describe('GroupTaskBoard — the leaderboard', () => {
     expect(screen.getByTestId('task-leaderboard-periods')).toBeTruthy();
     fireEvent.press(screen.getByTestId('task-leaderboard-period-ev2'));
     expect(screen.getByTestId('task-leaderboard-empty')).toBeTruthy();
+  });
+
+  it('names the viewer in the strip when they share first place', () => {
+    setWatched('done', [
+      task('extintores', { assigneeUids: ['u-luis'], doneAt: new Date(), doneBy: 'u-luis' }),
+      task('sillas', { assigneeUids: ['admin'], doneAt: new Date(), doneBy: 'admin' }),
+    ]);
+    const screen = render(<GroupTaskBoard group={asMember} uid="admin" />);
+    expect(screen.getByTestId('task-leaderboard-strip')).toHaveTextContent(/groups.tasks.leaderboard.youLead:1/);
+    expect(screen.getByTestId('task-leaderboard-strip')).toHaveTextContent(/groups.tasks.leaderboard.seeAll/);
   });
 
   it('hides the strip until someone has done a task', () => {

@@ -38,9 +38,10 @@ export function LeaderboardStrip({
   onOpen: () => void;
 }) {
   const { t } = useT();
-  const top = rows[0];
-  if (!top) return null;
   const mine = rows.find((r) => r.uid === uid);
+  // Tied for first, the viewer is the one named: "Admin lleva 2 · Tú vas 1.º con 2" reads as if they trailed.
+  const top = mine?.rank === 1 ? mine : rows[0];
+  if (!top) return null;
   return (
     <Pressable
       testID="task-leaderboard-strip"

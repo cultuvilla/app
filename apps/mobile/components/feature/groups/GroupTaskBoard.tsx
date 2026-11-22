@@ -85,8 +85,10 @@ export function GroupTaskBoard({ group, uid }: { group: MyGroup; uid: string }) 
       live = false;
     };
   }, [org.id]);
+  // A fold closed by hand would otherwise hide the very matches a new filter asks for.
   const changeFilters = (next: Set<TaskFilter>) => {
     setFilters(next);
+    setFolds({});
     void rememberTaskFilters(org.id, [...next]);
   };
   const toggleFilter = (f: TaskFilter) => {
