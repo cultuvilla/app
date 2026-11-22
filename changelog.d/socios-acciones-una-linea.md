@@ -1,0 +1,1 @@
+- On a group's Socios screen, «Añadir socio» and «Añadir a la junta» sit side by side, and the «Añadir socio» menu shows its choices as icon rows like the village's «Añadir contenido». **Migration:** none.

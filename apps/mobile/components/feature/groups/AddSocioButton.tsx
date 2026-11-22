@@ -46,8 +46,8 @@ function AdminAddSocio({ orgId, uid }: { orgId: string; uid: string }) {
   };
 
   return (
-    <View className="items-center">
-      <Button variant="secondary" testID="socios-add" onPress={() => setSheet('menu')}>
+    <View>
+      <Button variant="secondary" fullWidth testID="socios-add" onPress={() => setSheet('menu')}>
         {t('groups.socios.add')}
       </Button>
       <OptionsSheet
@@ -55,9 +55,9 @@ function AdminAddSocio({ orgId, uid }: { orgId: string; uid: string }) {
         testID="socios-add-sheet"
         title={t('groups.socios.addMenu.title')}
         options={[
-          { key: 'typed', label: t('groups.socios.addMenu.typed'), description: t('groups.socios.addMenu.typedHint') },
+          { key: 'typed', icon: 'person-add-outline', label: t('groups.socios.addMenu.typed'), description: t('groups.socios.addMenu.typedHint') },
           ...(persona.ready
-            ? [{ key: 'persona', label: t('groups.socios.addMenu.persona'), description: t('groups.socios.addMenu.personaHint') }]
+            ? [{ key: 'persona', icon: 'people-outline' as const, label: t('groups.socios.addMenu.persona'), description: t('groups.socios.addMenu.personaHint') }]
             : []),
         ]}
         onPick={(key) => after(key === 'typed' ? () => setSheet('typed') : persona.start)}

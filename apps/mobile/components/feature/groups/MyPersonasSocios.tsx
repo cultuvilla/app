@@ -211,9 +211,10 @@ export function AddPersonaSocio({
   const picker = usePersonaSocioPicker(orgId, uid);
   if (!picker.ready) return null;
   return (
-    <View className="items-center">
+    <View>
       <Button
         variant="secondary"
+        fullWidth
         testID="persona-socio-add"
         onPress={picker.start}
       >

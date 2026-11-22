@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { hasSocioRoster, type OrgMemberData } from '@cultuvilla/shared/models/organization';
 import { watchOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
 import type { GroupSection } from '@cultuvilla/shared/utils';
-import { Text, VStack } from '../../primitives';
+import { View } from 'react-native';
+import { HStack, Text, VStack } from '../../primitives';
 import { OrgJoinRequests } from '../OrgJoinRequests';
 import { OrgMembersList } from '../OrgMembersList';
 import { CuotaAdmin } from './CuotaAdmin';
@@ -13,7 +14,7 @@ import { GroupSettings } from './GroupSettings';
 import { MyActas } from './MyActas';
 import { MyCuota } from './MyCuota';
 import { AddSocioButton } from './AddSocioButton';
-import { JuntaDirectiva } from './JuntaDirectiva';
+import { AddToJuntaButton, JuntaDirectiva } from './JuntaDirectiva';
 import { MySocioRecord } from './MySocioRecord';
 import { ActasAdmin } from './ActasAdmin';
 import { AsambleaChecklist } from './AsambleaChecklist';
@@ -104,7 +105,16 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           <SocioConsentCard orgId={org.id} requirement={org} />
           {isAdmin ? <OrgJoinRequests orgId={org.id} banner /> : null}
           {isAdmin ? <LibroDoor orgId={org.id} /> : null}
-          <AddSocioButton orgId={org.id} uid={uid} isAdmin={isAdmin} />
+          <HStack gap={2}>
+            <View className="flex-1">
+              <AddSocioButton orgId={org.id} uid={uid} isAdmin={isAdmin} />
+            </View>
+            {isAdmin ? (
+              <View className="flex-1">
+                <AddToJuntaButton orgId={org.id} adminUids={adminUids} />
+              </View>
+            ) : null}
+          </HStack>
           <JuntaDirectiva orgId={org.id} adminUids={adminUids} canReadRoster={canReadRoster} canManage={isAdmin} currentUid={uid} />
           {canReadRoster ? (
             <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />

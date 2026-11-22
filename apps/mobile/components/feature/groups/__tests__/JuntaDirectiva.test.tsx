@@ -4,7 +4,7 @@ import { setOrgMemberRole } from '@cultuvilla/shared/services/orgMemberService';
 import { setSocioAdminTitle } from '@cultuvilla/shared/services/socioService';
 import { buildSocioData } from '@cultuvilla/shared/models/organization';
 import { resetWatchers, setWatched, watchersOf } from '../../../../test/watchers';
-import { JuntaDirectiva } from '../JuntaDirectiva';
+import { AddToJuntaButton, JuntaDirectiva } from '../JuntaDirectiva';
 
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
@@ -65,6 +65,7 @@ describe('JuntaDirectiva for an admin', () => {
   const renderAdmin = () =>
     render(<JuntaDirectiva orgId="org1" adminUids={['u-pres', 'u-tes']} canReadRoster canManage currentUid="u-pres" />);
   const settle = () => act(() => jest.runAllTimers());
+  const renderAdd = () => render(<AddToJuntaButton orgId="org1" adminUids={['u-pres', 'u-tes']} />);
 
   it('stays read-only for a socio', () => {
     const r = render(<JuntaDirectiva orgId="org1" adminUids={['u-pres']} canReadRoster />);
@@ -74,7 +75,7 @@ describe('JuntaDirectiva for an admin', () => {
   });
 
   it('adds a socio with the app to the junta with a cargo: the role first, then the cargo', async () => {
-    const r = renderAdmin();
+    const r = renderAdd();
     fireEvent.press(r.getByTestId('junta-add'));
     expect(r.getByTestId('junta-add-sheet')).toBeTruthy();
     expect(r.queryByTestId('junta-add-sheet-s-u-tes')).toBeNull();
@@ -91,7 +92,7 @@ describe('JuntaDirectiva for an admin', () => {
 
   it('gives no cargo when the role change is refused', async () => {
     jest.mocked(setOrgMemberRole).mockRejectedValueOnce(new Error('permission-denied'));
-    const r = renderAdmin();
+    const r = renderAdd();
     fireEvent.press(r.getByTestId('junta-add'));
     fireEvent.press(r.getByTestId('junta-add-sheet-s-u-new'));
     settle();

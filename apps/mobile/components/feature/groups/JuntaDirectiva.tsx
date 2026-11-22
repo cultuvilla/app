@@ -16,6 +16,14 @@ const TITLE_ORDER = new Map<OrgAdminTitle, number>(ORG_ADMIN_TITLES.map((title, 
 /** iOS will not present a sheet (nor an alert) while another is still being dismissed. */
 const SHEET_SWAP_MS = 350;
 
+type Translate = ReturnType<typeof useT>['t'];
+
+const titleOptions = (t: Translate, current: OrgAdminTitle | null | undefined) => [
+  ...ORG_ADMIN_TITLES.map((title) => ({ key: title, label: t(`groups.titles.${title}`), selected: current === title })),
+  { key: 'none', label: t('groups.socios.noTitle'), selected: current === null },
+];
+const titleOf = (key: string) => ORG_ADMIN_TITLES.find((title) => title === key) ?? null;
+
 interface JuntaPerson {
   uid: string;
   socioId: string | null;
@@ -25,8 +33,6 @@ interface JuntaPerson {
 }
 
 type Sheet =
-  | { kind: 'add' }
-  | { kind: 'addTitle'; uid: string; socioId: string }
   | { kind: 'face'; person: JuntaPerson }
   | { kind: 'title'; person: JuntaPerson }
   | null;
@@ -37,8 +43,7 @@ type Sheet =
  * only while the list is visible (`canReadRoster`); otherwise each face reads
  * "Junta".
  *
- * An admin (`canManage`) also adds a socio with the app to the junta, with a
- * cargo, and taps a face to change its cargo or take it out of the junta.
+ * An admin (`canManage`) taps a face to change its cargo or take it out of the junta.
  * Their own face offers only the cargo, as in the libro: nobody locks
  * themselves out.
  */
@@ -62,7 +67,7 @@ export function JuntaDirectiva({
     canReadRoster ? orgId : null,
     canReadRoster ? (next, error) => watchOrgSocios(orgId, next, error) : null,
   );
-  const { changeRole, setTitle, addToJunta } = useJuntaActions(orgId);
+  const { changeRole, setTitle } = useJuntaActions(orgId);
   const [sheet, setSheet] = useState<Sheet>(null);
   const swap = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
@@ -93,13 +98,6 @@ export function JuntaDirectiva({
       });
   }, [adminUids, faces, memberRows]);
 
-  const candidates = useMemo(() => {
-    const admins = new Set(adminUids);
-    return memberRows
-      .filter((s) => s.uid !== null && !admins.has(s.uid))
-      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
-  }, [adminUids, memberRows]);
-
   if (people.length === 0) return null;
 
   const after = (step: () => void) => {
@@ -107,11 +105,6 @@ export function JuntaDirectiva({
     if (swap.current) clearTimeout(swap.current);
     swap.current = setTimeout(step, SHEET_SWAP_MS);
   };
-  const titleOptions = (current: OrgAdminTitle | null | undefined) => [
-    ...ORG_ADMIN_TITLES.map((title) => ({ key: title, label: t(`groups.titles.${title}`), selected: current === title })),
-    { key: 'none', label: t('groups.socios.noTitle'), selected: current === null },
-  ];
-  const titleOf = (key: string) => ORG_ADMIN_TITLES.find((title) => title === key) ?? null;
   const nameOf = (p: JuntaPerson) => p.name || t('groups.socios.unnamed');
 
   const face = (p: JuntaPerson) => (
@@ -136,14 +129,7 @@ export function JuntaDirectiva({
 
   return (
     <VStack gap={2} testID="junta-directiva">
-      <HStack gap={2} align="center" justify="between">
-        <DetailSectionHeading>{t('groups.socios.junta')}</DetailSectionHeading>
-        {canManage ? (
-          <Button variant="secondary" testID="junta-add" onPress={() => setSheet({ kind: 'add' })}>
-            {t('groups.socios.juntaEdit.add')}
-          </Button>
-        ) : null}
-      </HStack>
+      <DetailSectionHeading>{t('groups.socios.junta')}</DetailSectionHeading>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {people.map((p) =>
           canManage && (p.socioId !== null || p.uid !== currentUid) ? (
@@ -168,35 +154,6 @@ export function JuntaDirectiva({
       {canManage ? (
         <>
           <OptionsSheet
-            visible={sheet?.kind === 'add'}
-            testID="junta-add-sheet"
-            title={t('groups.socios.juntaEdit.pickTitle')}
-            hint={t('groups.socios.juntaEdit.pickHint')}
-            emptyLabel={t('groups.socios.juntaEdit.pickEmpty')}
-            options={candidates.map((s) => ({ key: s.id, label: s.displayName || t('groups.socios.unnamed') }))}
-            onPick={(socioId) => {
-              const row = candidates.find((s) => s.id === socioId);
-              if (row?.uid) {
-                const uid = row.uid;
-                after(() => setSheet({ kind: 'addTitle', uid, socioId }));
-              }
-            }}
-            onClose={() => setSheet(null)}
-          />
-          <OptionsSheet
-            visible={sheet?.kind === 'addTitle'}
-            testID="junta-add-title-sheet"
-            title={t('groups.socios.titleLabel')}
-            options={titleOptions(undefined)}
-            onPick={(key) => {
-              if (sheet?.kind !== 'addTitle') return;
-              const { uid, socioId } = sheet;
-              setSheet(null);
-              void addToJunta(uid, socioId, titleOf(key));
-            }}
-            onClose={() => setSheet(null)}
-          />
-          <OptionsSheet
             visible={facing !== null}
             testID="junta-face-sheet"
             title={facing ? nameOf(facing) : ''}
@@ -213,7 +170,7 @@ export function JuntaDirectiva({
             visible={sheet?.kind === 'title'}
             testID="junta-title-sheet"
             title={t('groups.socios.titleLabel')}
-            options={titleOptions(sheet?.kind === 'title' ? sheet.person.title : undefined)}
+            options={titleOptions(t, sheet?.kind === 'title' ? sheet.person.title : undefined)}
             onPick={(key) => {
               if (sheet?.kind !== 'title' || !sheet.person.socioId) return;
               const socioId = sheet.person.socioId;
@@ -225,5 +182,71 @@ export function JuntaDirectiva({
         </>
       ) : null}
     </VStack>
+  );
+}
+
+/**
+ * An admin's "Añadir a la junta", on the Socios screen's action line beside
+ * "Añadir socio": pick a socio with the app, then their cargo. The role
+ * changes first, through the audited callable, and only then the cargo.
+ */
+export function AddToJuntaButton({ orgId, adminUids }: { orgId: string; adminUids: string[] }) {
+  const { t } = useT();
+  const socios = useWatch<Socio[]>('groups:watchOrgSocios', orgId, (next, error) => watchOrgSocios(orgId, next, error));
+  const { addToJunta } = useJuntaActions(orgId);
+  const [sheet, setSheet] = useState<{ kind: 'add' } | { kind: 'addTitle'; uid: string; socioId: string } | null>(null);
+  const swap = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (swap.current) clearTimeout(swap.current);
+  }, []);
+
+  const candidates = useMemo(() => {
+    const admins = new Set(adminUids);
+    return (socios.data ?? [])
+      .filter((s) => s.kind === 'member' && s.uid !== null && isActiveSocio(s) && !admins.has(s.uid))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
+  }, [adminUids, socios.data]);
+
+  const after = (step: () => void) => {
+    setSheet(null);
+    if (swap.current) clearTimeout(swap.current);
+    swap.current = setTimeout(step, SHEET_SWAP_MS);
+  };
+
+  return (
+    <>
+      <Button variant="secondary" fullWidth testID="junta-add" onPress={() => setSheet({ kind: 'add' })}>
+        {t('groups.socios.juntaEdit.add')}
+      </Button>
+      <OptionsSheet
+        visible={sheet?.kind === 'add'}
+        testID="junta-add-sheet"
+        title={t('groups.socios.juntaEdit.pickTitle')}
+        hint={t('groups.socios.juntaEdit.pickHint')}
+        emptyLabel={t('groups.socios.juntaEdit.pickEmpty')}
+        options={candidates.map((s) => ({ key: s.id, label: s.displayName || t('groups.socios.unnamed') }))}
+        onPick={(socioId) => {
+          const row = candidates.find((s) => s.id === socioId);
+          if (row?.uid) {
+            const uid = row.uid;
+            after(() => setSheet({ kind: 'addTitle', uid, socioId }));
+          }
+        }}
+        onClose={() => setSheet(null)}
+      />
+      <OptionsSheet
+        visible={sheet?.kind === 'addTitle'}
+        testID="junta-add-title-sheet"
+        title={t('groups.socios.titleLabel')}
+        options={titleOptions(t, undefined)}
+        onPick={(key) => {
+          if (sheet?.kind !== 'addTitle') return;
+          const { uid, socioId } = sheet;
+          setSheet(null);
+          void addToJunta(uid, socioId, titleOf(key));
+        }}
+        onClose={() => setSheet(null)}
+      />
+    </>
   );
 }
