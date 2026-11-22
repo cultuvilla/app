@@ -132,6 +132,7 @@
   "cuota-desk": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
   "cuota-desk-amount": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
   "cuota-desk-card": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
+  "cuota-desk-hint": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
   "cuota-desk-last": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
   "cuota-desk-method-*": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
   "cuota-desk-none": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",

@@ -2213,7 +2213,9 @@
       },
       "desk": {
         "title": "Cobrar en la mesa",
-        "search": "Nombre o número",
+        "searchLabel": "¿Quién paga?",
+        "search": "Busca por nombre o nº de socio",
+        "hint": "Escribe el nombre o el número de socio de quien paga. Luego toca cómo ha pagado.",
         "number": "Nº {number}",
         "owes": "Debe {amount}",
         "none": "Nadie con ese nombre",

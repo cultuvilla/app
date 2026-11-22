@@ -385,7 +385,10 @@ describe('CuotaAdmin', () => {
     fireEvent.press(getByTestId('cuota-desk-open'));
     expect(getByTestId('cuota-desk')).toBeTruthy();
     expect(getByTestId('cuota-desk-scroll')).toBeTruthy();
+    // Before typing, the desk says what to type.
+    expect(getByTestId('cuota-desk-hint')).toHaveTextContent(/groups.cuota.desk.hint/);
     fireEvent.changeText(getByTestId('cuota-desk-search'), 'zzz');
+    expect(queryByTestId('cuota-desk-hint')).toBeNull();
     expect(getByTestId('cuota-desk-none')).toBeTruthy();
     fireEvent.changeText(getByTestId('cuota-desk-search'), 'pac');
     fireEvent.press(getByTestId('cuota-desk-result-Paco'));
