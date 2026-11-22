@@ -4,8 +4,9 @@
  * of its own (scripts/lib/emulator-grpc.mjs). Edits, each marked CULTUVILLA
  * except the last: onNext on a cancelled streaming call drops the message
  * instead of throwing when the emulator is telling a listener its target was
- * removed; calledFromTargetRemove() is added; the Guava @VisibleForTesting
- * annotations are dropped (the jar has no com.google.common.annotations).
+ * removed or that it is in sync; calledFromUncaughtNotify() is added; the
+ * Guava @VisibleForTesting annotations are dropped (the jar has no
+ * com.google.common.annotations).
  * Delete this copy once the pinned emulator no longer answers a write with
  * HTTP 499 after a listener on its document was cancelled.
  */
@@ -369,14 +370,16 @@ public final class ServerCalls {
         if (serverStreamingOrBidi) {
           // CULTUVILLA: grpc-java v1.67.1 always throws here. The Firestore
           // emulator catches that throw when it notifies a listener whose
-          // client has gone, and drops the listener. But when the listener's
-          // re-read fails (its rules deny it now), the emulator tells it its
-          // target is removed from inside a catch block, the throw escapes, and
-          // the write that caused it answers HTTP 499. On that path alone the
-          // message is dropped, as grpc-java does for a call with an
-          // onCancelHandler; everywhere else the throw keeps the cleanup.
+          // client has gone, and drops the listener. Two of its messages are
+          // sent where nothing catches it, so the throw escapes and the write
+          // that caused it answers HTTP 499: telling a listener its target is
+          // removed (from inside the catch block, when its rules deny it the
+          // re-read) and telling it it is in sync (after the loop, when its
+          // client went away during the write). On those two the message is
+          // dropped, as grpc-java does for a call with an onCancelHandler;
+          // everywhere else the throw keeps the cleanup.
           // Why: docs/decisions/ios-e2e-emulator-keepalive.md.
-          if (calledFromTargetRemove()) {
+          if (calledFromUncaughtNotify()) {
             return;
           }
           throw Status.CANCELLED
@@ -522,12 +525,14 @@ public final class ServerCalls {
     }
   }
 
-  // CULTUVILLA: true when the emulator's ListenStream.notifyTargetRemove is on
-  // the stack. Should the emulator rename it, the throw comes back and the
-  // startup probe (scripts/check-emulator-cancelled-listen.mjs) fails the run.
-  private static boolean calledFromTargetRemove() {
+  // CULTUVILLA: true when the emulator's ListenStream.notifyTargetRemove or
+  // notifySynced is on the stack. Should the emulator rename either, the throw
+  // comes back: the startup probe (scripts/check-emulator-cancelled-listen.mjs)
+  // fails the run for the first, the firestore-debug.log count for both.
+  private static boolean calledFromUncaughtNotify() {
     return StackWalker.getInstance().walk(frames -> frames.anyMatch(
-        f -> f.getMethodName().startsWith("notifyTargetRemove")
+        f -> (f.getMethodName().startsWith("notifyTargetRemove")
+                || f.getMethodName().equals("notifySynced"))
             && f.getClassName().endsWith("ListenStream")));
   }
 }

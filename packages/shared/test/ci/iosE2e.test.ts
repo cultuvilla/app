@@ -562,15 +562,19 @@ describe('Firestore emulator and cancelled listeners', () => {
     expect(step.slice(0, step.indexOf('run: pnpm test:e2e:ios'))).toMatch(/EMULATOR_CANCELLED_LISTEN: production/);
   });
 
-  it('changes grpc-java only where the emulator removes a gone listener’s target', () => {
+  it('changes grpc-java only where the emulator’s notice to a gone listener escapes its catch', () => {
     expect(serverCalls).toMatch(/^package io\.grpc\.stub;/m);
     expect(serverCalls).toContain("grpc-java v1.67.1's stub/src/main/java/io/grpc/stub/ServerCalls.java");
     // The jar has no com.google.common.annotations.
     expect(serverCalls).not.toMatch(/^import com\.google\.common\.annotations/m);
     const onNext = serverCalls.slice(serverCalls.indexOf('public void onNext(RespT response)'));
     const cancelled = onNext.slice(0, onNext.indexOf('checkState(!aborted'));
-    expect(cancelled).toMatch(/if \(calledFromTargetRemove\(\)\) \{\s*return;\s*\}\s*throw Status\.CANCELLED/);
+    expect(cancelled).toMatch(/if \(calledFromUncaughtNotify\(\)\) \{\s*return;\s*\}\s*throw Status\.CANCELLED/);
     expect(serverCalls).toMatch(/getMethodName\(\)\.startsWith\("notifyTargetRemove"\)/);
+    // ios-e2e 44927921605: a commit died notifying a listener gone mid-write that it was in sync.
+    expect(serverCalls).toMatch(/getMethodName\(\)\.equals\("notifySynced"\)/);
+    // Never the plain notify: the emulator drops a gone listener by catching that throw.
+    expect(serverCalls).not.toMatch(/"notify"\)/);
     expect(serverCalls).toMatch(/getClassName\(\)\.endsWith\("ListenStream"\)/);
   });
 

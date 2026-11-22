@@ -154,14 +154,18 @@ restore's clear can cause by deleting the documents those rules read), the
 manager tells the
 listener its target was removed from **inside** its `catch (DatastoreException)`
 block. The throw then escapes, and the write that caused it answers 499,
-having applied some, all or none of its work. Production never fails a write
-because a listener went away.
+having applied some, all or none of its work. The same happens after the loop,
+when the manager tells each listener it notified that it is in sync
+(`notifySynced`, caught by nothing) and a client went away during the write:
+ios-e2e 44927921605 lost a callable's commit that way with the first fix in
+place. Production never fails a write because a listener went away.
 
 **Decision.** The lane runs the emulator with grpc-java's `ServerCalls` patched
 on that one path, under `EMULATOR_CANCELLED_LISTEN=production`
 (`scripts/lib/emulator-grpc.mjs`, `scripts/emulator-grpc/`). On a cancelled
 streaming call, `onNext` drops the message when `ListenStream.notifyTargetRemove`
-is on the stack, as grpc-java does for any call with an `onCancelHandler`.
+or `ListenStream.notifySynced` is on the stack, as grpc-java does for any call
+with an `onCancelHandler`.
 Everywhere else it throws as before, so the emulator still drops gone listeners
 the way it always has. No app code changes, and nothing restarts: Auth,
 Functions, Storage, triggers and rules keep their state.
@@ -186,7 +190,9 @@ fails it:
 - The start-up probe fails. `scripts/check-emulator-cancelled-listen.mjs`
   listens to an active news post without credentials and cancels the listener,
   then hides the post, which the rules no longer let it read, and requires that
-  write to answer 200. The stock emulator answers 499.
+  write to answer 200. The stock emulator answers 499. It covers the
+  target-removed path only: the in-sync one needs a client to leave during a
+  write, a race no probe can set up on demand, so the count below covers it.
 - After the suite, `run-ios-e2e.mjs` counts the writes `firestore-debug.log`
   shows failing that way, split by operation (`commit` for the app's own saves,
   `batchWrite` and `clearData` for the restore), and fails the shard on any.
@@ -195,8 +201,9 @@ fails it:
 
 **When to delete it.** Run the probe against a stock emulator after each
 firebase-tools bump: `node scripts/check-emulator-cancelled-listen.mjs --host …`.
-Once it passes, the emulator no longer fails a write over a gone listener.
-Delete `scripts/emulator-grpc/`, `scripts/lib/emulator-grpc.mjs`, the probe and
+Once it passes, and an ios-e2e run without `EMULATOR_CANCELLED_LISTEN` counts
+no write failed on a cancelled listener, the emulator no longer fails a write
+over a gone listener. Delete `scripts/emulator-grpc/`, `scripts/lib/emulator-grpc.mjs`, the probe and
 the `EMULATOR_CANCELLED_LISTEN` opt-in. A bump whose jar no longer matches the
 copy stops the run: re-derive the copy from the grpc-java version that jar
 carries.
