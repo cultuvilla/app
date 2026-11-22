@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { asambleaTaskInput, isAsambleaTask } from '@cultuvilla/shared/models/organization';
 import { createGroupTask, type GroupTask, type TaskTemplate } from '@cultuvilla/shared/services/groupTaskService';
 import { Button, Card, HStack, Pressable, Text, VStack } from '../../primitives';
@@ -7,7 +9,7 @@ import { showAlert } from '../../../lib/dialogs';
 import { offsetLabel } from '../../../lib/orgs/tasks';
 
 /**
- * What closes the group's Tareas screen for its admins: the templates (open
+ * The admins' part of the group's Tareas screen, above the leaderboard that closes it: the templates (open
  * one, apply one, write a new one) and, for a group with a socio roster that
  * tracks no asamblea, the offer of a yearly one — never created for it.
  */
@@ -62,31 +64,38 @@ export function GroupTasks({
         </Card>
       ) : null}
 
-      <HStack justify="between" align="center" className="pt-2">
-        <Text className="font-bold">{t('groups.tasks.templates.title')}</Text>
-        <Button size="md" variant="ghost" onPress={() => onOpenTemplate(null)} testID="templates-new">
-          {t('groups.tasks.templates.new')}
-        </Button>
-      </HStack>
-      {templates.length === 0 ? (
-        <Text variant="bodySm" tone="muted">
-          {t('groups.tasks.templates.none')}
-        </Text>
-      ) : (
-        templates.map((tpl) => (
-          <HStack key={tpl.id} gap={3} align="center" className="py-1" testID={`template-${tpl.id}`}>
-            <Pressable className="flex-1" accessibilityRole="button" onPress={() => onOpenTemplate(tpl)} testID={`template-open-${tpl.id}`}>
-              <Text className="font-bold">{tpl.name}</Text>
-              <Text variant="bodySm" tone="muted">
-                {[t('groups.tasks.templates.items', { count: tpl.items.length }), ...tpl.items.slice(0, 2).map((i) => `${i.title} (${offsetLabel(t, i.offsetDays)})`)].join(' · ')}
-              </Text>
-            </Pressable>
-            <Button size="md" variant="secondary" onPress={() => onApplyTemplate(tpl)} testID={`template-apply-${tpl.id}`}>
-              {t('groups.tasks.templates.apply')}
+      <Card testID="templates-section">
+        <VStack gap={3}>
+          <HStack justify="between" align="center">
+            <HStack gap={2} align="center" className="flex-1">
+              <Ionicons name="copy-outline" size={iconSizes.md} color={colors.light.fg.primary} />
+              <Text className="font-bold">{t('groups.tasks.templates.title')}</Text>
+            </HStack>
+            <Button size="md" variant="secondary" onPress={() => onOpenTemplate(null)} testID="templates-new">
+              {t('groups.tasks.templates.new')}
             </Button>
           </HStack>
-        ))
-      )}
+          {templates.length === 0 ? (
+            <Text variant="bodySm" tone="muted">
+              {t('groups.tasks.templates.none')}
+            </Text>
+          ) : (
+            templates.map((tpl) => (
+              <HStack key={tpl.id} gap={3} align="center" className="pt-3 border-t border-subtle" testID={`template-${tpl.id}`}>
+                <Pressable className="flex-1" accessibilityRole="button" onPress={() => onOpenTemplate(tpl)} testID={`template-open-${tpl.id}`}>
+                  <Text className="font-bold">{tpl.name}</Text>
+                  <Text variant="bodySm" tone="muted">
+                    {[t('groups.tasks.templates.items', { count: tpl.items.length }), ...tpl.items.slice(0, 2).map((i) => `${i.title} (${offsetLabel(t, i.offsetDays)})`)].join(' · ')}
+                  </Text>
+                </Pressable>
+                <Button size="md" onPress={() => onApplyTemplate(tpl)} testID={`template-apply-${tpl.id}`}>
+                  {t('groups.tasks.templates.apply')}
+                </Button>
+              </HStack>
+            ))
+          )}
+        </VStack>
+      </Card>
     </VStack>
   );
 }

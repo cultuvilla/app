@@ -2250,7 +2250,11 @@
         "overdue": "Atrasadas",
         "week": "Esta semana",
         "shiftOpen": "Turnos con hueco",
-        "done": "Hechas"
+        "done": "Hechas",
+        "all": "Filtros",
+        "allWithCount": "Filtros ({count} activos)",
+        "sheetTitle": "Filtrar tareas",
+        "clear": "Quitar filtros"
       },
       "noMatches": "Ninguna tarea con esos filtros.",
       "doneOn": "Hecha el {date}",
@@ -2409,12 +2413,7 @@
       "checklists": {
         "progress": "{done} de {total, plural, one {# hecha} other {# hechas}}",
         "empty": "Sin tareas",
-        "sheetTitle": "Tareas de «{event}»",
         "noTasks": "Este evento aún no tiene tareas.",
-        "applyTemplate": "Aplicar una plantilla",
-        "saveAsTemplate": "Guardar como plantilla",
-        "templateName": "Nombre de la plantilla",
-        "saved": "Plantilla guardada.",
         "addTask": "Añadir tarea",
         "eventUnavailable": "Este evento ya no está disponible."
       },

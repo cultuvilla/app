@@ -23,7 +23,6 @@ export function TemplateSheet({
   orgId,
   uid,
   template,
-  initial = null,
   onClose,
 }: {
   visible: boolean;
@@ -31,8 +30,6 @@ export function TemplateSheet({
   uid: string;
   /** null = a new template. */
   template: TaskTemplate | null;
-  /** A new template's starting point — an event's checklist being saved. */
-  initial?: { name: string; items: TaskTemplateItem[] } | null;
   onClose: () => void;
 }) {
   const { t } = useT();
@@ -44,12 +41,11 @@ export function TemplateSheet({
 
   useEffect(() => {
     if (!visible) return;
-    const start = template ?? initial;
-    setName(start?.name ?? '');
-    setItems(start?.items ?? []);
+    setName(template?.name ?? '');
+    setItems(template?.items ?? []);
     setEditing(null);
     setError(null);
-  }, [visible, template, initial]);
+  }, [visible, template]);
 
   const editIndex = editing?.index ?? null;
 

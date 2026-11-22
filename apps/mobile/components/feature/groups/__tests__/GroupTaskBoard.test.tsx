@@ -164,16 +164,29 @@ describe('GroupTaskBoard — the list', () => {
     expect(lines(screen, 'ev1')).toEqual(['escenario']);
   });
 
-  it('filters shifts with free places', () => {
+  it('keeps one line of the most used filters, and the rest behind its button', () => {
     const screen = render(<GroupTaskBoard group={asMember} uid="u-ana" />);
-    fireEvent.press(screen.getByTestId('group-tasks-filter-shiftOpen'));
+    expect(screen.getByTestId('group-tasks-filter-mine')).toBeTruthy();
+    expect(screen.queryByTestId('group-tasks-filter-shiftOpen')).toBeNull();
+    fireEvent.press(screen.getByTestId('group-tasks-filter-all'));
+    expect(screen.getByTestId('task-filter-sheet')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('task-filter-option-shiftOpen'));
     expect(lines(screen, 'ev1')).toEqual(['escenario']);
     expect(screen.queryByTestId('task-group-other')).toBeNull();
+    // On, it shows on the line too, where it can be turned off.
+    expect(screen.getByTestId('group-tasks-filter-shiftOpen')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('task-filter-clear'));
+    expect(screen.queryByTestId('group-tasks-filter-shiftOpen')).toBeNull();
+  });
+
+  it('closes the screen with the leaderboard, under every task', () => {
+    const screen = render(<GroupTaskBoard group={asMember} uid="admin" />);
+    const order = screen.getAllByTestId(/^(task-group-(?!toggle)|task-leaderboard-strip$)/).map((el) => el.props.testID as string);
+    expect(order[order.length - 1]).toBe('task-leaderboard-strip');
   });
 
   it('adds a task straight onto an event, or a loose one from the button', async () => {
     const screen = render(<GroupTaskBoard group={asMember} uid="u-ana" />);
-    expect(screen.queryByTestId('checklist-apply-ev1')).toBeNull();
     expect(screen.queryByTestId('group-tasks')).toBeNull();
     fireEvent.press(screen.getByTestId('checklist-add-ev1'));
     fireEvent.changeText(screen.getByTestId('task-title'), 'Pedir las sillas');
@@ -263,33 +276,16 @@ describe('GroupTaskBoard — an admin', () => {
     expect(screen.queryByTestId('asamblea-suggestion')).toBeNull();
   });
 
-  it("applies a template to an event from its group, dated from the event's start", async () => {
+  it("applies a template from the Plantillas section to an event, dated from the event's start", async () => {
     const screen = render(<GroupTaskBoard group={asAdmin} uid="admin" />);
-    fireEvent.press(screen.getByTestId('checklist-apply-ev1'));
-    fireEvent.press(screen.getByTestId('apply-template-pick-tpl'));
+    expect(screen.queryByTestId('checklist-apply-ev1')).toBeNull();
+    expect(screen.queryByTestId('checklist-save-ev1')).toBeNull();
+    expect(screen.getByTestId('templates-section')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('template-apply-tpl'));
+    fireEvent.press(screen.getByTestId('apply-template-event-ev1'));
     fireEvent.press(screen.getByTestId('apply-template-save'));
     await waitFor(() =>
       expect(applyTaskTemplate).toHaveBeenCalledWith('org1', expect.objectContaining({ id: 'tpl' }), madridDayKey(EVENT_START), 'ev1', 'admin'),
-    );
-  });
-
-  it("saves an event's whole checklist as a template, as offsets from its start", async () => {
-    const screen = render(<GroupTaskBoard group={asAdmin} uid="admin" />);
-    fireEvent.press(screen.getByTestId('checklist-save-ev1'));
-    fireEvent.press(screen.getByTestId('template-save'));
-    await waitFor(() =>
-      expect(saveTaskTemplate).toHaveBeenCalledWith(
-        'org1',
-        null,
-        {
-          name: 'Fiestas de agosto',
-          items: expect.arrayContaining([
-            expect.objectContaining({ title: 'escenario', offsetDays: -4 }),
-            expect.objectContaining({ title: 'carteles' }),
-          ]),
-        },
-        'admin',
-      ),
     );
   });
 

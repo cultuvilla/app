@@ -17,6 +17,8 @@ export function startOfMadridYear(year: string): Date {
 /** The filters of the group's Tareas screen. They combine; none on is every pending task. */
 export const TASK_FILTERS = ['mine', 'unassigned', 'overdue', 'week', 'shiftOpen', 'done'] as const;
 export type TaskFilter = (typeof TASK_FILTERS)[number];
+/** The ones always on the screen's single filter line; the rest wait behind its filter button. */
+export const QUICK_TASK_FILTERS: readonly TaskFilter[] = ['mine', 'unassigned', 'done'];
 
 /** Who a task is on: a shift's claimers, else its assignees. */
 export function taskPeople(task: Pick<GroupTaskData, 'slots' | 'assigneeUids' | 'claimedUids'>): string[] {

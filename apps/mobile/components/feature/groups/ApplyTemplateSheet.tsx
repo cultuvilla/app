@@ -19,32 +19,25 @@ type Target = 'event' | 'date';
 
 /**
  * Admin: generate a template's tasks, dated from an anchor — one of the
- * group's upcoming events (its start day in Madrid) or a bare day. Opened with
- * a template (pick where) or from an event (pick which template).
+ * group's upcoming events (its start day in Madrid) or a bare day. Opened from
+ * a template in the Plantillas section.
  */
 export function ApplyTemplateSheet({
   visible,
   orgId,
   uid,
   template,
-  event,
-  templates,
   events,
   onClose,
 }: {
   visible: boolean;
   orgId: string;
   uid: string;
-  /** null = pick one of `templates`. */
   template: TaskTemplate | null;
-  /** Set = apply to this event. */
-  event: ChecklistEvent | null;
-  templates: TaskTemplate[];
   events: ChecklistEvent[];
   onClose: () => void;
 }) {
   const { t } = useT();
-  const [templateId, setTemplateId] = useState<string | null>(null);
   const [target, setTarget] = useState<Target>('event');
   const [eventId, setEventId] = useState<string | null>(null);
   const [day, setDay] = useState(todayKey());
@@ -52,14 +45,13 @@ export function ApplyTemplateSheet({
 
   useEffect(() => {
     if (!visible) return;
-    setTemplateId(template?.id ?? null);
-    setTarget(event || events.length > 0 ? 'event' : 'date');
-    setEventId(event?.id ?? null);
+    setTarget(events.length > 0 ? 'event' : 'date');
+    setEventId(null);
     setDay(todayKey());
-  }, [visible, template, event, events.length]);
+  }, [visible, events.length]);
 
-  const chosen = template ?? templates.find((x) => x.id === templateId) ?? null;
-  const anchorEvent = event ?? events.find((e) => e.id === eventId) ?? null;
+  const chosen = template;
+  const anchorEvent = events.find((e) => e.id === eventId) ?? null;
   const ready = chosen !== null && (target === 'date' || anchorEvent !== null);
 
   const apply = () => {
@@ -97,7 +89,7 @@ export function ApplyTemplateSheet({
     <BottomSheet
       visible={visible}
       onClose={onClose}
-      title={chosen ? t('groups.tasks.templates.applyTitle', { name: chosen.name }) : t('groups.tasks.checklists.applyTemplate')}
+      title={chosen ? t('groups.tasks.templates.applyTitle', { name: chosen.name }) : undefined}
       closeLabel={t('common.close')}
       testID="apply-template-sheet"
       footer={
@@ -110,15 +102,7 @@ export function ApplyTemplateSheet({
     >
       <ScrollView style={{ flexShrink: 1 }}>
         <VStack gap={2} className="px-5 pb-4">
-          {template ? null : templates.length === 0 ? (
-            <Text tone="muted">{t('groups.tasks.templates.none')}</Text>
-          ) : (
-            templates.map((x) =>
-              pickRow(x.id, x.name, t('groups.tasks.templates.items', { count: x.items.length }), x.id === templateId, () => setTemplateId(x.id), `apply-template-pick-${x.id}`),
-            )
-          )}
-          {event ? null : (
-            <>
+          <>
               <SegmentedToggle
                 testID="apply-template-target"
                 value={target}
@@ -144,8 +128,7 @@ export function ApplyTemplateSheet({
                   testID="apply-template-date"
                 />
               )}
-            </>
-          )}
+          </>
         </VStack>
       </ScrollView>
     </BottomSheet>

@@ -1,0 +1,1 @@
+- A group's Tareas keeps its filters on one line («Mías», «Sin asignar», «Hechas») with a button for the rest, shows the templates in their own Plantillas card, and closes with the leaderboard. Events no longer offer applying or saving a template. **Migration:** none.
