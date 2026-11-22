@@ -2084,6 +2084,7 @@
       "actasEnabled": "Actas",
       "cuentasEnabled": "Cuentas",
       "cosatecaAudience": {
+        "label": "Quién puede ver la Cosateca",
         "integrantes": "Solo integrantes",
         "pueblo": "Todo el pueblo"
       },
@@ -2094,7 +2095,7 @@
           "socios": "Qué pueden hacer los socios",
           "integrantes": "Qué pueden hacer los integrantes"
         },
-        "cuota": "Cuota"
+        "tools": "Cómo funcionan"
       }
     },
     "cuota": {

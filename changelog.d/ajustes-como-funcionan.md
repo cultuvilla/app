@@ -1,0 +1,1 @@
+- In a group's Ajustes, «Qué usa el grupo» only switches tools on and off; who can see the Cosateca now sits beside the cuota's reminders, in a section called «Cómo funcionan». **Migration:** none.

@@ -63,7 +63,7 @@ describe('GroupSettings — sections', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible />);
     const ids = ['group-settings-features', 'group-settings-entry', 'group-settings-transparency', 'group-settings-charla', 'group-settings-cuota'];
     for (const id of ids) expect(r.getByTestId(id)).toBeTruthy();
-    for (const k of ['features', 'entry', 'membersCan.socios', 'cuota']) expect(r.getByText(`groups.settings.sections.${k}`)).toBeTruthy();
+    for (const k of ['features', 'entry', 'membersCan.socios', 'tools']) expect(r.getByText(`groups.settings.sections.${k}`)).toBeTruthy();
     // What the group uses comes first.
     const order = r.getAllByTestId(/^group-settings-(features|entry|transparency|charla|cuota)$/).map((el) => el.props.testID as string);
     expect(order).toEqual(ids);

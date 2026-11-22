@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { buildSocioData, type SocioDataInput } from '@cultuvilla/shared/models/organization';
 import {
   addTypedSocio,
@@ -325,6 +325,9 @@ describe('GroupSettings', () => {
     const on = render(
       <GroupSettings orgId="org1" uid="u1" sociosListVisible={false} cosateca={{ enabled: true, audience: 'integrantes' }} />,
     );
+    // Who sees it is set beside the cuota's reminders, not under «Qué usa el grupo».
+    expect(within(on.getByTestId('group-settings-cuota')).getByTestId('group-settings-cosateca-audience')).toBeTruthy();
+    expect(within(on.getByTestId('group-settings-features')).queryByTestId('group-settings-cosateca-audience')).toBeNull();
     fireEvent.press(on.getByTestId('group-settings-cosateca-audience-pueblo'));
     expect(updateOrganization).toHaveBeenLastCalledWith('org1', { cosateca: { enabled: true, audience: 'pueblo' } });
   });

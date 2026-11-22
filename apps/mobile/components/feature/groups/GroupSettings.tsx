@@ -160,19 +160,6 @@ export function GroupSettings({
           label={t('groups.settings.cosateca')}
           onValueChange={(enabled) => save({ cosateca: { ...cosateca, enabled } })}
         />
-        {cosateca.enabled ? (
-          <SegmentedToggle<CosatecaAudience>
-            testID="group-settings-cosateca-audience"
-            value={cosateca.audience}
-            options={[
-              { value: 'integrantes', label: t('groups.settings.cosatecaAudience.integrantes') },
-              { value: 'pueblo', label: t('groups.settings.cosatecaAudience.pueblo') },
-            ]}
-            onChange={(audience) => {
-              if (!saving && audience !== cosateca.audience) save({ cosateca: { ...cosateca, audience } });
-            }}
-          />
-        ) : null}
       </SettingsSection>
       {!isAyuntamiento || hasRoster ? (
         <SettingsSection title={t('groups.settings.sections.entry')} testID="group-settings-entry">
@@ -249,15 +236,34 @@ export function GroupSettings({
           />
         ) : null}
       </SettingsSection>
-      {runsCuota && cuota.data ? (
-        <SettingsSection title={t('groups.settings.sections.cuota')} testID="group-settings-cuota">
-          <Toggle
-            testID="group-settings-cuota-reminders"
-            value={cuota.data.remindersEnabled}
-            disabled={saving}
-            label={t('groups.settings.cuotaReminders')}
-            onValueChange={setReminders}
-          />
+      {/* How each tool works, apart from the switches that turn the tools on. */}
+      {(runsCuota && cuota.data) || cosateca.enabled ? (
+        <SettingsSection title={t('groups.settings.sections.tools')} testID="group-settings-cuota">
+          {runsCuota && cuota.data ? (
+            <Toggle
+              testID="group-settings-cuota-reminders"
+              value={cuota.data.remindersEnabled}
+              disabled={saving}
+              label={t('groups.settings.cuotaReminders')}
+              onValueChange={setReminders}
+            />
+          ) : null}
+          {cosateca.enabled ? (
+            <VStack gap={2}>
+              <Text>{t('groups.settings.cosatecaAudience.label')}</Text>
+              <SegmentedToggle<CosatecaAudience>
+                testID="group-settings-cosateca-audience"
+                value={cosateca.audience}
+                options={[
+                  { value: 'integrantes', label: t('groups.settings.cosatecaAudience.integrantes') },
+                  { value: 'pueblo', label: t('groups.settings.cosatecaAudience.pueblo') },
+                ]}
+                onChange={(audience) => {
+                  if (!saving && audience !== cosateca.audience) save({ cosateca: { ...cosateca, audience } });
+                }}
+              />
+            </VStack>
+          ) : null}
         </SettingsSection>
       ) : null}
     </VStack>
