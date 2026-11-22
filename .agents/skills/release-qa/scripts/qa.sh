@@ -51,7 +51,9 @@ case "${1:-}" in
            | grep -v 'Activity not started\|Starting: Intent' || true ;;
   shot)  # Half size: a full-resolution frame costs ~4x the context and reads no better.
     "${ADB[@]}" exec-out screencap -p > "$OUT/${2:?name}.png"
-    command -v magick >/dev/null && magick "$OUT/$2.png" -resize 50% "$OUT/$2.png"
+    # ImageMagick 7 ships `magick`; Ubuntu 24.04's ImageMagick 6 (powerserver) only `convert`.
+    if command -v magick >/dev/null; then magick "$OUT/$2.png" -resize 50% "$OUT/$2.png"
+    elif command -v convert >/dev/null; then convert "$OUT/$2.png" -resize 50% "$OUT/$2.png"; fi
     echo "$OUT/$2.png" ;;
   tree)  # app nodes with a text, testID or a11y label only — the raw tree is mostly ViewGroups and systemui
     "$MAESTRO" --device "$QA_SERIAL" hierarchy --compact 2>/dev/null \
