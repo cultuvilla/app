@@ -2083,6 +2083,7 @@
       "cuotaEnabled": "Cuota",
       "actasEnabled": "Actas",
       "cuentasEnabled": "Cuentas",
+      "chatEnabled": "Charla",
       "cosatecaAudience": {
         "label": "Quién puede ver la Cosateca",
         "integrantes": "Solo integrantes",

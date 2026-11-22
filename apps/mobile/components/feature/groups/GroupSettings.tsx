@@ -59,6 +59,7 @@ export function GroupSettings({
   cuotaEnabled = true,
   actasEnabled = true,
   cuentasEnabled = true,
+  chatEnabled = true,
   transparency = DEFAULT_GROUP_TRANSPARENCY,
   joinPolicy = 'approval',
   isAyuntamiento = false,
@@ -75,6 +76,7 @@ export function GroupSettings({
   cuotaEnabled?: boolean;
   actasEnabled?: boolean;
   cuentasEnabled?: boolean;
+  chatEnabled?: boolean;
   transparency?: GroupTransparency;
   joinPolicy?: OrgJoinPolicy;
   isAyuntamiento?: boolean;
@@ -98,6 +100,7 @@ export function GroupSettings({
       | { cuotaEnabled: boolean }
       | { actasEnabled: boolean }
       | { cuentasEnabled: boolean }
+      | { chatEnabled: boolean }
       | { transparency: GroupTransparency }
       | { joinPolicy: OrgJoinPolicy },
   ) => {
@@ -153,6 +156,13 @@ export function GroupSettings({
             onValueChange={(next) => save({ cuentasEnabled: next })}
           />
         ) : null}
+        <Toggle
+          testID="group-settings-chat-enabled"
+          value={chatEnabled}
+          disabled={saving}
+          label={t('groups.settings.chatEnabled')}
+          onValueChange={(next) => save({ chatEnabled: next })}
+        />
         <Toggle
           testID="group-settings-cosateca"
           value={cosateca.enabled}
@@ -215,27 +225,31 @@ export function GroupSettings({
       ) : null}
       {/* The ids predate the section's rename; the E2E flows tap them. The switch
           reads "can write", so it shows and saves the inverse of chatAdminsOnly. */}
-      <SettingsSection
-        title={t(hasRoster ? 'groups.settings.sections.membersCan.socios' : 'groups.settings.sections.membersCan.integrantes')}
-        testID="group-settings-charla"
-      >
-        <Toggle
-          testID="group-settings-chat-admins-only"
-          value={!chatAdminsOnly}
-          disabled={saving}
-          label={t('groups.settings.chatMembersWrite')}
-          onValueChange={(next) => save({ chatAdminsOnly: !next })}
-        />
-        {hasRoster ? (
-          <Toggle
-            testID="group-settings-socios-send-avisos"
-            value={sociosSendAvisos}
-            disabled={saving}
-            label={t('groups.settings.sociosSendAvisos')}
-            onValueChange={(next) => save({ sociosSendAvisos: next })}
-          />
-        ) : null}
-      </SettingsSection>
+      {chatEnabled || hasRoster ? (
+        <SettingsSection
+          title={t(hasRoster ? 'groups.settings.sections.membersCan.socios' : 'groups.settings.sections.membersCan.integrantes')}
+          testID="group-settings-charla"
+        >
+          {chatEnabled ? (
+            <Toggle
+              testID="group-settings-chat-admins-only"
+              value={!chatAdminsOnly}
+              disabled={saving}
+              label={t('groups.settings.chatMembersWrite')}
+              onValueChange={(next) => save({ chatAdminsOnly: !next })}
+            />
+          ) : null}
+          {hasRoster ? (
+            <Toggle
+              testID="group-settings-socios-send-avisos"
+              value={sociosSendAvisos}
+              disabled={saving}
+              label={t('groups.settings.sociosSendAvisos')}
+              onValueChange={(next) => save({ sociosSendAvisos: next })}
+            />
+          ) : null}
+        </SettingsSection>
+      ) : null}
       {/* How each tool works, apart from the switches that turn the tools on. */}
       {(runsCuota && cuota.data) || cosateca.enabled ? (
         <SettingsSection title={t('groups.settings.sections.tools')} testID="group-settings-cuota">

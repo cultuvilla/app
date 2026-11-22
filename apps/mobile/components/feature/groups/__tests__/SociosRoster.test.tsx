@@ -316,6 +316,17 @@ describe('GroupSettings', () => {
     expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: true });
   });
 
+  it('an admin switches the Charla off, and with it who may write there', () => {
+    const on = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} />);
+    fireEvent.press(on.getByTestId('group-settings-chat-enabled'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { chatEnabled: false });
+    on.unmount();
+    const off = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} chatEnabled={false} />);
+    expect(off.getByTestId('group-settings-chat-enabled').props.accessibilityState).toMatchObject({ checked: false });
+    expect(off.queryByTestId('group-settings-chat-admins-only')).toBeNull();
+    expect(off.queryByTestId('group-settings-charla')).toBeNull();
+  });
+
   it('an admin switches the cosateca on, then opens it to the whole pueblo', () => {
     const off = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} />);
     expect(off.queryByTestId('group-settings-cosateca-audience')).toBeNull();

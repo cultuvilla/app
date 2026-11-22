@@ -45,6 +45,11 @@ describe('groupSections', () => {
     expect(canOpenGroupSection(group({ cuentasEnabled: false }, 'admin'), 'cuentas')).toBe(false);
   });
 
+  it('drops the Charla a group switched off', () => {
+    expect(groupSections(group({ chatEnabled: false }, 'admin')).member).not.toContain('charla');
+    expect(canOpenGroupSection(group({ chatEnabled: false }), 'charla')).toBe(false);
+  });
+
   it('an ayuntamiento keeps its chat, events, tasks, members and settings', () => {
     expect(groupSections(group({ type: 'ayuntamiento' }, 'admin'))).toEqual({
       member: ['charla', 'eventos', 'tareas'],

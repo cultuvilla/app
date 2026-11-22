@@ -105,6 +105,11 @@ export const OrganizationDataSchema = z.object({
   // by scripts/backfill-org-records-enabled.mjs.
   actasEnabled: z.boolean().default(true),
   cuentasEnabled: z.boolean().default(true),
+  // Whether the group keeps its Charla: off hides it, never what was written.
+  // On unless an admin turns it off, as every group had it before the switch.
+  // Defaults because installed binaries create orgs without it; existing docs
+  // are backfilled by scripts/backfill-org-chat-enabled.mjs.
+  chatEnabled: z.boolean().default(true),
   // What the junta opens to every integrante: the cuota's al día list, every
   // aviso and its results, the accounts (see GroupTransparencyModel). Defaults
   // because installed binaries create orgs without it; existing docs are
@@ -141,6 +146,7 @@ export interface OrganizationDataInput {
   cuotaEnabled?: boolean;
   actasEnabled?: boolean;
   cuentasEnabled?: boolean;
+  chatEnabled?: boolean;
   transparency?: GroupTransparency;
 }
 
@@ -171,6 +177,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     cuotaEnabled: input.cuotaEnabled ?? true,
     actasEnabled: input.actasEnabled ?? true,
     cuentasEnabled: input.cuentasEnabled ?? true,
+    chatEnabled: input.chatEnabled ?? true,
     transparency: input.transparency ?? { ...DEFAULT_GROUP_TRANSPARENCY },
   };
 }

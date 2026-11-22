@@ -159,6 +159,7 @@ export async function requestOrganization(
     cuotaEnabled: true,
     actasEnabled: true,
     cuentasEnabled: true,
+    chatEnabled: true,
     transparency: { ...DEFAULT_GROUP_TRANSPARENCY },
   };
   await setDoc(newRef, data);

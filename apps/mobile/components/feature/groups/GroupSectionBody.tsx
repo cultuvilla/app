@@ -152,6 +152,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           cuotaEnabled={org.cuotaEnabled}
           actasEnabled={org.actasEnabled}
           cuentasEnabled={org.cuentasEnabled}
+          chatEnabled={org.chatEnabled}
           transparency={org.transparency}
           joinPolicy={org.joinPolicy}
           isAyuntamiento={org.type === 'ayuntamiento'}

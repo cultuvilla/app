@@ -309,7 +309,7 @@ service cloud.firestore {
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
               'sociosListVisible', 'chatAdminsOnly', 'sociosSendAvisos', 'socioPhoneRequired', 'socioEmailRequired',
-              'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'transparency',
+              'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'chatEnabled', 'transparency',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -343,6 +343,7 @@ service cloud.firestore {
           && d.get('cuotaEnabled', true) is bool
           && d.get('actasEnabled', true) is bool
           && d.get('cuentasEnabled', true) is bool
+          && d.get('chatEnabled', true) is bool
           && isValidGroupTransparency(d.get('transparency', defaultGroupTransparency()));
     }
 
@@ -2007,6 +2008,7 @@ service cloud.firestore {
         && request.resource.data.get('cuotaEnabled', true) is bool
         && request.resource.data.get('actasEnabled', true) is bool
         && request.resource.data.get('cuentasEnabled', true) is bool
+        && request.resource.data.get('chatEnabled', true) is bool
         && isValidGroupTransparency(request.resource.data.get('transparency', defaultGroupTransparency()))
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']

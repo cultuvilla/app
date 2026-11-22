@@ -31,7 +31,7 @@ export interface GroupSectionLists {
  * Which screens a group offers its viewer, in display order. Cuota, socios,
  * avisos, actas and cuentas exist only for orgs with a socio roster (not the
  * ayuntamiento), and the cuota only while the group runs one (`cuotaEnabled`);
- * the Charla, tasks and members are for every org. Every viewer gets the same
+ * tasks and members are for every org, and the Charla while it is on (`chatEnabled`). Every viewer gets the same
  * buttons under the same names, and an admin gets more inside them (decided
  * 2026-11-20, user): Actas and Cuentas open the editable books for an admin
  * and the shared ones for a socio, who sees Cuentas only once the junta makes
@@ -48,7 +48,7 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
   const isAdmin = role === 'admin';
   const member: GroupSection[] = [
     ...(roster ? (['avisos'] as const) : []),
-    'charla',
+    ...(org.chatEnabled ? (['charla'] as const) : []),
     'eventos',
     'tareas',
     ...(org.cosateca.enabled ? (['cosateca'] as const) : []),

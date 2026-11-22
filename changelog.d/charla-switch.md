@@ -1,0 +1,1 @@
+- A group's admins can switch its Charla off in Ajustes, under «Qué usa el grupo». Off hides the Charla and its «Escribir en la Charla» setting; nothing written is deleted. **Migration:** `scripts/backfill-org-chat-enabled.mjs` sets `organizations.chatEnabled: true` where missing (pre-deploy, applied by the deploy).
