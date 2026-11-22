@@ -23,7 +23,16 @@
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { firestoreEmulatorJar } from './emulator-keepalive.mjs';
@@ -124,7 +133,8 @@ export function cancelledListenJar(stockJar = firestoreEmulatorJar()) {
   writeFileSync(
     manifest,
     `Main-Class: ${mainClass(run('unzip', ['-p', stockJar, 'META-INF/MANIFEST.MF']))}\n` +
-      `Class-Path: ${classPathUrl(CACHE_DIR, stockJar)}\n`,
+      // Real paths: the JVM resolves the relative entry after following symlinks (a linked node_modules).
+      `Class-Path: ${classPathUrl(realpathSync(CACHE_DIR), realpathSync(stockJar))}\n`,
   );
   const tmp = `${jar}.tmp`;
   rmSync(tmp, { force: true });
