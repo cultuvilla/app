@@ -74,6 +74,13 @@ onFlowComplete:
     env:
       INPUT: 'task-notes'
       TEXT: ${output.taskNotes}
+- runFlow: ../subflows/close-keyboard.yaml
+# Step 2 of 3: when.
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'task-next'
+      EXPECT: 'task-due'
 - runFlow:
     file: ../subflows/pick-date.yaml
     env:
@@ -88,6 +95,13 @@ onFlowComplete:
     env:
       INPUT: 'task-time'
       TEXT: ${TASK_TIME}
+- runFlow: ../subflows/close-keyboard.yaml
+# Step 3 of 3: who.
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'task-next'
+      EXPECT: 'task-assignees'
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
@@ -244,6 +258,12 @@ onFlowComplete:
       INPUT: 'task-title'
       TEXT: ${output.taskEditTitle}
 - runFlow: ../subflows/close-keyboard.yaml
+# Editing opens every step; Guardar is on the last one.
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'step-dot-2'
+      EXPECT: 'task-save'
 - tapOn:
     id: 'task-save'
 - runScript:
@@ -286,16 +306,11 @@ onFlowComplete:
       id: 'shift-claim-${output.taskId}'
     timeout: 20000
 
-# ── Deleted: the admin, though another member created it ──
+# ── Deleted: the admin, though another member created it, from the task's screen ──
 - runFlow:
     file: ../subflows/scroll-to.yaml
     env:
-      TARGET: 'group-task-edit'
-- runFlow:
-    file: ../subflows/tap-until.yaml
-    env:
-      TAP: 'group-task-edit'
-      EXPECT: 'task-delete'
+      TARGET: 'task-delete'
 - tapOn:
     id: 'task-delete'
 - runFlow:

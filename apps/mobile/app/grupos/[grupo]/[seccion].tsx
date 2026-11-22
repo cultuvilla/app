@@ -8,7 +8,7 @@ import { GroupChat } from '../../../components/feature/groups/GroupChat';
 import { GroupEvents } from '../../../components/feature/groups/GroupEvents';
 import { GroupTaskBoard } from '../../../components/feature/groups/GroupTaskBoard';
 import { GroupCosateca } from '../../../components/feature/groups/cosateca/GroupCosateca';
-import { GroupSectionBody } from '../../../components/feature/groups/GroupSectionBody';
+import { GroupSectionBody, sectionScrollsItself } from '../../../components/feature/groups/GroupSectionBody';
 import { GroupContactGate } from '../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../lib/auth/useAuth';
 import { useT } from '../../../lib/i18n';
@@ -35,8 +35,14 @@ export default function GroupSectionScreen() {
     return <Redirect href={grupo ? groupHref(grupo) : routes.groups} />;
   }
 
+  const scrollsItself = group !== null && sectionScrollsItself(section, group.role === 'admin');
+
   return (
-    <Screen padded={false} topInset={false} bottomInset={section === 'charla' || section === 'eventos' || section === 'tareas' || section === 'cosateca'}>
+    <Screen
+      padded={false}
+      topInset={false}
+      bottomInset={section === 'charla' || section === 'eventos' || section === 'tareas' || section === 'cosateca' || scrollsItself}
+    >
       <ScreenHeader accent title={t(`groups.sections.${section}`)} />
       <GroupContactGate group={group} uid={uid}>
       {!uid || !group ? (
@@ -60,6 +66,8 @@ export default function GroupSectionScreen() {
           canModerate={group.role === 'admin'}
           closedHint={group.org.chatAdminsOnly && group.role !== 'admin' ? t('groups.chat.adminsOnly') : undefined}
         />
+      ) : scrollsItself ? (
+        <GroupSectionBody key={group.org.id} group={group} section={section} uid={uid} />
       ) : (
         <ScrollView contentContainerClassName="px-4 pt-3 pb-16" keyboardShouldPersistTaps="handled" testID={`group-section-screen-${section}`}>
           <GroupSectionBody key={group.org.id} group={group} section={section} uid={uid} />

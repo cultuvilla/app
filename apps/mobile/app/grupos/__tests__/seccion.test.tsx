@@ -36,6 +36,7 @@ jest.mock('../../../components/feature/groups/GroupSectionBody', () => ({
     const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
     return <Text testID="section-body">{`${group.org.id}:${section}`}</Text>;
   },
+  sectionScrollsItself: (section: string, isAdmin: boolean) => isAdmin && (section === 'actas' || section === 'cuentas'),
 }));
 
 function group(id: string, overrides: Partial<Parameters<typeof buildOrganizationData>[0]> = {}, role: 'admin' | 'member' = 'member'): MyGroup {

@@ -38,16 +38,14 @@ export default function GroupRecordsDoorScreen() {
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator />
           </View>
-        ) : (
-          <ScrollView contentContainerClassName="px-4 pt-3 pb-16" keyboardShouldPersistTaps="handled" testID={`records-door-screen-${door}`}>
-            {door === 'libro' ? (
-              <LibroSocios key={group.org.id} orgId={group.org.id} orgName={group.org.name} />
-            ) : door === 'actas' ? (
-              <ActasAdmin key={group.org.id} orgId={group.org.id} orgName={group.org.name} uid={uid} />
-            ) : (
-              <YearSummaryAdmin key={group.org.id} orgId={group.org.id} orgName={group.org.name} uid={uid} />
-            )}
+        ) : door === 'libro' ? (
+          <ScrollView contentContainerClassName="px-4 pt-3 pb-16" keyboardShouldPersistTaps="handled" testID="records-door-screen-libro">
+            <LibroSocios key={group.org.id} orgId={group.org.id} orgName={group.org.name} />
           </ScrollView>
+        ) : door === 'actas' ? (
+          <ActasAdmin key={group.org.id} orgId={group.org.id} orgName={group.org.name} uid={uid} testID="records-door-screen-actas" />
+        ) : (
+          <YearSummaryAdmin key={group.org.id} orgId={group.org.id} orgName={group.org.name} uid={uid} testID="records-door-screen-cuentas" />
         )}
       </GroupContactGate>
     </Screen>

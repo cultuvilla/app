@@ -26,9 +26,14 @@ jest.mock('../../../components/layout/ScreenHeader', () => ({
   },
 }));
 function mockDoor(name: string) {
-  return ({ orgId }: { orgId: string }) => {
-    const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
-    return <Text testID="door-body">{`${orgId}:${name}`}</Text>;
+  // Actas and Cuentas scroll themselves and take the page's testID.
+  return ({ orgId, testID }: { orgId: string; testID?: string }) => {
+    const { Text, View } = jest.requireActual<typeof import('react-native')>('react-native');
+    return (
+      <View testID={testID}>
+        <Text testID="door-body">{`${orgId}:${name}`}</Text>
+      </View>
+    );
   };
 }
 jest.mock('../../../components/feature/groups/LibroSocios', () => ({ LibroSocios: mockDoor('libro') }));
@@ -45,13 +50,17 @@ function group(id: string, role: 'admin' | 'member', type: 'asociación' | 'ayun
 beforeEach(() => mockRedirect.mockClear());
 
 describe("a group's book", () => {
-  it.each(['libro', 'actas', 'cuentas'])('opens the %s door for an admin', (door) => {
+  it.each([
+    ['libro', 'records-door-screen-libro'],
+    ['actas', 'records-door-screen-actas'],
+    ['cuentas', 'records-door-screen-cuentas'],
+  ])('opens the %s door for an admin', (door, page) => {
     mockGroups = [group('Anduela', 'admin')];
     mockParams = { grupo: 'Anduela', puerta: door };
     const { getByTestId } = render(<GroupRecordsDoorScreen />);
     expect(getByTestId('screen-title').props.children).toBe(`groups.records.doors.${door}`);
     expect(getByTestId('door-body').props.children).toBe(`Anduela:${door}`);
-    expect(getByTestId(`records-door-screen-${door}`)).toBeTruthy();
+    expect(getByTestId(page)).toBeTruthy();
   });
 
   it('sends an unknown door back to the group', () => {

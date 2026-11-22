@@ -2347,8 +2347,10 @@
       "form": {
         "titleNew": "Nueva tarea",
         "titleEdit": "Editar tarea",
+        "stepWhat": "Qué",
+        "stepWhen": "Cuándo",
+        "stepWho": "Quién",
         "name": "Qué hay que hacer",
-        "nameRequired": "Escribe qué hay que hacer.",
         "notes": "Notas",
         "due": "Fecha",
         "time": "Hora (por ejemplo 10:00)",
@@ -2492,6 +2494,8 @@
         "form": {
           "titleNew": "Nueva acta",
           "titleEdit": "Editar acta",
+          "stepMeeting": "Reunión",
+          "stepAgreements": "Acuerdos",
           "body": "Órgano",
           "heading": "Título (opcional)",
           "date": "Fecha",
@@ -2518,7 +2522,7 @@
         "cuotaPeriod": "Cuotas {period}: {amount}",
         "entries": "Anotaciones",
         "noEntries": "No hay otros ingresos ni gastos este año.",
-        "add": "Anotar ingreso o gasto",
+        "add": "Añadir movimiento",
         "reverse": "Anular",
         "reversed": "Anulado",
         "confirmReverseTitle": "Anular la anotación",
@@ -2528,6 +2532,8 @@
         "noCategory": "Sin categoría",
         "form": {
           "title": "Anotar ingreso o gasto",
+          "stepAmount": "Importe",
+          "stepDetail": "Detalle",
           "kind": {
             "income": "Ingreso",
             "expense": "Gasto"
@@ -2536,7 +2542,6 @@
           "amountInvalid": "Escribe un importe mayor que cero.",
           "date": "Fecha",
           "concept": "Concepto",
-          "conceptRequired": "Escribe el concepto.",
           "category": "Categoría (opcional)",
           "save": "Anotar",
           "newCategory": "+ Nueva",
@@ -2741,6 +2746,9 @@
       "form": {
         "titleNew": "Ofrecer algo",
         "titleEdit": "Editar",
+        "stepPhoto": "Foto",
+        "stepWhat": "Qué es",
+        "stepHow": "Cómo se comparte",
         "kind": "Qué es",
         "kindSentences": {
           "prestamo": "La presto",
@@ -2749,7 +2757,6 @@
           "reserva": "Se reserva por horas"
         },
         "name": "Nombre",
-        "nameRequired": "Ponle un nombre.",
         "description": "Descripción",
         "conditions": "Condiciones",
         "conditionsPlaceholder": "Devolver limpia",
@@ -2762,7 +2769,6 @@
         "ownerGroup": "Del grupo",
         "save": "Guardar",
         "publish": "Publicar",
-        "next": "Siguiente",
         "noPhoto": "Sin foto",
         "takePhoto": "Hacer foto",
         "pickPhoto": "Elegir foto",

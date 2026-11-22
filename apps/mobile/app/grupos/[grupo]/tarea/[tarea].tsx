@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
-import { setGroupTaskDone, watchGroupTask, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
+import { deleteGroupTask, setGroupTaskDone, watchGroupTask, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { watchEvent } from '@cultuvilla/shared/services/eventService';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { Avatar, Button, HStack, Pressable, Screen, Text, VStack } from '../../../../components/primitives';
@@ -14,7 +14,7 @@ import { TaskSignupBar } from '../../../../components/feature/groups/TaskRows';
 import { TaskSheet } from '../../../../components/feature/groups/TaskSheet';
 import { GroupContactGate } from '../../../../components/feature/groups/GroupContactGate';
 import { useAuth } from '../../../../lib/auth/useAuth';
-import { showAlert } from '../../../../lib/dialogs';
+import { showAlert, showConfirm } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { DetailScrollProvider } from '../../../../lib/keyboard/DetailScrollContext';
 import { useComposerKeyboardGap, useKeyboardOpen } from '../../../../lib/keyboard/useKeyboardOpen';
@@ -27,7 +27,7 @@ import { useMemberFaces, useOrgMembers } from '../../../../lib/orgs/useOrgMember
 /**
  * One task of a group: when it is, who is on it, its comments, and closing or
  * reopening it. Any member does all of that; the group's admins and whoever
- * created it may also delete it, from the edit form.
+ * created it may also delete it.
  */
 export default function GroupTaskScreen() {
   const { t } = useT();
@@ -69,6 +69,19 @@ export default function GroupTaskScreen() {
     setGroupTaskDone(orgId, task.id, done, uid)
       .catch(() => showAlert(t('groups.tasks.error')))
       .finally(() => setSaving(false));
+  };
+
+  const canDelete = task !== null && (isAdmin || task.createdBy === uid);
+  const remove = () => {
+    if (!orgId || !task) return;
+    showConfirm(
+      t('groups.tasks.form.delete'),
+      t('groups.tasks.deleteConfirm'),
+      () => {
+        deleteGroupTask(orgId, task.id).catch(() => showAlert(t('groups.tasks.error')));
+      },
+      { confirmText: t('common.delete'), cancelText: t('common.cancel') },
+    );
   };
 
   return (
@@ -151,6 +164,11 @@ export default function GroupTaskScreen() {
                 <Button fullWidth variant="secondary" testID="group-task-edit" onPress={() => setEditing(true)}>
                   {t('common.edit')}
                 </Button>
+                {canDelete ? (
+                  <Button fullWidth variant="ghost" testID="task-delete" onPress={remove}>
+                    {t('groups.tasks.form.delete')}
+                  </Button>
+                ) : null}
               </VStack>
 
               <DetailScrollProvider scrollRef={scrollRef}>
@@ -168,7 +186,6 @@ export default function GroupTaskScreen() {
             task={task}
             eventId={task.eventId}
             members={members}
-            canDelete={isAdmin || task.createdBy === uid}
             onClose={() => setEditing(false)}
           />
         </>

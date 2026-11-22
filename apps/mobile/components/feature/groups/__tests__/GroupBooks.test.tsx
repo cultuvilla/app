@@ -221,8 +221,10 @@ describe('Actas', () => {
     fireEvent.press(getByTestId('acta-new'));
     fireEvent.press(getByTestId('acta-body-junta_directiva'));
     fireEvent.changeText(getByTestId('acta-place'), 'Bar de la plaza');
+    fireEvent.press(getByTestId('acta-next'));
     fireEvent.press(getByTestId('acta-attendee-Ana'));
     fireEvent.changeText(getByTestId('acta-others'), '2');
+    fireEvent.press(getByTestId('acta-next'));
     fireEvent.changeText(getByTestId('acta-agenda'), 'Fiestas\n\nCuentas');
     fireEvent.changeText(getByTestId('acta-agreements'), 'Contratar la orquesta');
     fireEvent.press(getByTestId('acta-save'));
@@ -249,10 +251,12 @@ describe('Actas', () => {
     expect(getByTestId('acta-sheet')).toBeTruthy();
     expect(within(getByTestId('acta-body')).getByTestId('acta-body-asamblea_general')).toBeTruthy();
     fireEvent.changeText(getByTestId('acta-title'), 'Asamblea extraordinaria');
+    expect(getByTestId('acta-scroll')).toBeTruthy();
+    fireEvent.press(getByTestId('acta-next'));
     fireEvent.press(getByTestId('acta-attendees-all'));
     fireEvent.press(getByTestId('acta-attendees-none'));
     fireEvent.press(getByTestId('acta-attendee-Carla'));
-    expect(getByTestId('acta-scroll')).toBeTruthy();
+    fireEvent.press(getByTestId('acta-next'));
     fireEvent.press(getByTestId('acta-save'));
     await waitFor(() =>
       expect(createActa).toHaveBeenCalledWith(
@@ -264,11 +268,15 @@ describe('Actas', () => {
   });
 
   it('offers only active socios to tick, and refuses a non-numeric count', () => {
-    const { getByTestId, queryByTestId } = renderActas();
+    const { getByTestId, getByText, queryByTestId } = renderActas();
     fireEvent.press(getByTestId('acta-new'));
+    fireEvent.press(getByTestId('acta-next'));
     expect(queryByTestId('acta-attendee-Benito')).toBeNull();
     fireEvent.changeText(getByTestId('acta-others'), 'dos');
-    fireEvent.press(getByTestId('acta-save'));
+    expect(getByText('groups.records.actas.form.othersInvalid')).toBeTruthy();
+    // The count is wrong, so the step does not move on to the acuerdos.
+    fireEvent.press(getByTestId('acta-next'));
+    expect(queryByTestId('acta-agenda')).toBeNull();
     expect(createActa).not.toHaveBeenCalled();
   });
 
@@ -282,11 +290,18 @@ describe('Actas', () => {
     expect(share).toHaveBeenCalledWith({ message: expect.stringContaining('ACTA — Asamblea general\nLa Anduela') });
 
     fireEvent.press(getByTestId('acta-edit'));
+    fireEvent.press(getByTestId('step-dot-2'));
     fireEvent(getByTestId('acta-visible'), 'onValueChange', true);
     fireEvent.press(getByTestId('acta-save'));
     await waitFor(() =>
       expect(updateActa).toHaveBeenCalledWith('org1', 'a1', expect.objectContaining({ visibleToSocios: true, agenda: ['Cuentas'] }), 'u-admin'),
     );
+  });
+
+  it('scrolls itself, with Nueva acta floating outside the page', () => {
+    const { getByTestId } = render(<ActasAdmin orgId="org1" orgName="La Anduela" uid="u-admin" testID="group-section-screen-actas" />);
+    expect(getByTestId('group-section-screen-actas')).toContainElement(getByTestId('actas-admin'));
+    expect(getByTestId('group-section-screen-actas')).not.toContainElement(getByTestId('acta-new'));
   });
 
   it('deletes an acta after confirming', async () => {
@@ -309,10 +324,26 @@ describe('Cuentas del año', () => {
     expect(getByTestId('ledger-entry-e1')).toHaveTextContent(/Orquesta/);
   });
 
-  it('notes an expense, and reverses a wrong one after confirming', async () => {
-    const { getByTestId } = renderYear();
+  /** Opens the sheet and fills its first step: the kind and how much. */
+  function noteAmount(utils: ReturnType<typeof renderYear>, amount: string, kind: 'income' | 'expense' = 'expense') {
+    fireEvent.press(utils.getByTestId('ledger-add'));
+    if (kind === 'income') fireEvent.press(within(utils.getByTestId('ledger-kind')).getByTestId('ledger-kind-income'));
+    fireEvent.changeText(utils.getByTestId('ledger-amount'), amount);
+    fireEvent.press(utils.getByTestId('ledger-next'));
+  }
+
+  it('notes an expense in two steps, and reverses a wrong one after confirming', async () => {
+    const utils = renderYear();
+    const { getByTestId, queryByTestId } = utils;
     fireEvent.press(getByTestId('ledger-add'));
+    expect(within(getByTestId('ledger-sheet')).getByTestId('ledger-scroll')).toBeTruthy();
+    // No amount, no second step; a wrong one says so.
+    fireEvent.press(getByTestId('ledger-next'));
+    expect(queryByTestId('ledger-concept')).toBeNull();
+    fireEvent.changeText(getByTestId('ledger-amount'), '0');
+    expect(utils.getByText('groups.records.year.form.amountInvalid')).toBeTruthy();
     fireEvent.changeText(getByTestId('ledger-amount'), '45,50');
+    fireEvent.press(getByTestId('ledger-next'));
     fireEvent.press(getByTestId('ledger-save'));
     expect(recordLedgerEntry).not.toHaveBeenCalled();
     fireEvent.changeText(getByTestId('ledger-concept'), 'Seguro');
@@ -327,14 +358,11 @@ describe('Cuentas del año', () => {
   });
 
   it('notes an income with its category', async () => {
-    const { getByTestId } = renderYear();
-    fireEvent.press(getByTestId('ledger-add'));
-    expect(within(getByTestId('ledger-sheet')).getByTestId('ledger-scroll')).toBeTruthy();
-    fireEvent.press(within(getByTestId('ledger-kind')).getByTestId('ledger-kind-income'));
-    fireEvent.changeText(getByTestId('ledger-amount'), '300');
-    fireEvent.changeText(getByTestId('ledger-concept'), 'Lotería de Navidad');
-    fireEvent.press(getByTestId('ledger-category-Lotería'));
-    fireEvent.press(getByTestId('ledger-save'));
+    const utils = renderYear();
+    noteAmount(utils, '300', 'income');
+    fireEvent.changeText(utils.getByTestId('ledger-concept'), 'Lotería de Navidad');
+    fireEvent.press(utils.getByTestId('ledger-category-Lotería'));
+    fireEvent.press(utils.getByTestId('ledger-save'));
     await waitFor(() =>
       expect(recordLedgerEntry).toHaveBeenCalledWith(
         'org1',
@@ -346,18 +374,20 @@ describe('Cuentas del año', () => {
   });
 
   it('offers only the categories of the chosen kind, past names included, and none chosen saves no category', async () => {
-    const { getByTestId, queryByTestId } = renderYear();
-    fireEvent.press(getByTestId('ledger-add'));
+    const utils = renderYear();
+    const { getByTestId, queryByTestId, getByText } = utils;
+    noteAmount(utils, '10');
     expect(within(getByTestId('ledger-category')).getByTestId('ledger-category-new')).toBeTruthy();
     // Gasto by default: the stored Orquesta and Fiestas, which only a past entry used.
     expect(getByTestId('ledger-category-Orquesta')).toBeTruthy();
     expect(getByTestId('ledger-category-Fiestas')).toBeTruthy();
     expect(queryByTestId('ledger-category-Lotería')).toBeNull();
+    fireEvent.press(getByText('common.stepper.back'));
     fireEvent.press(within(getByTestId('ledger-kind')).getByTestId('ledger-kind-income'));
+    fireEvent.press(getByTestId('ledger-next'));
     expect(getByTestId('ledger-category-Lotería')).toBeTruthy();
     expect(queryByTestId('ledger-category-Orquesta')).toBeNull();
 
-    fireEvent.changeText(getByTestId('ledger-amount'), '10');
     fireEvent.changeText(getByTestId('ledger-concept'), 'Donativo');
     fireEvent.press(getByTestId('ledger-save'));
     await waitFor(() =>
@@ -366,21 +396,21 @@ describe('Cuentas del año', () => {
   });
 
   it('picking a name only past entries used adds it to the list', async () => {
-    const { getByTestId } = renderYear();
-    fireEvent.press(getByTestId('ledger-add'));
-    fireEvent.press(getByTestId('ledger-category-Fiestas'));
+    const utils = renderYear();
+    noteAmount(utils, '50');
+    fireEvent.press(utils.getByTestId('ledger-category-Fiestas'));
     expect(createLedgerCategory).toHaveBeenCalledWith('org1', { kind: 'expense', name: 'Fiestas' }, 'u-admin');
-    fireEvent.changeText(getByTestId('ledger-amount'), '50');
-    fireEvent.changeText(getByTestId('ledger-concept'), 'Cohetes');
-    fireEvent.press(getByTestId('ledger-save'));
+    fireEvent.changeText(utils.getByTestId('ledger-concept'), 'Cohetes');
+    fireEvent.press(utils.getByTestId('ledger-save'));
     await waitFor(() =>
       expect(recordLedgerEntry).toHaveBeenCalledWith('org1', expect.objectContaining({ category: 'Fiestas' }), 'u-admin'),
     );
   });
 
   it('"+ Nueva" creates a category on the spot and chooses it; an existing name in another case is reused', async () => {
-    const { getByTestId } = renderYear();
-    fireEvent.press(getByTestId('ledger-add'));
+    const utils = renderYear();
+    const { getByTestId } = utils;
+    noteAmount(utils, '200');
     fireEvent.press(getByTestId('ledger-category-new'));
     fireEvent.changeText(getByTestId('ledger-category-name'), '  Seguro  ');
     fireEvent.press(getByTestId('ledger-category-add'));
@@ -392,7 +422,6 @@ describe('Cuentas del año', () => {
     expect(createLedgerCategory).toHaveBeenCalledTimes(1);
     expect(getByTestId('ledger-category-Orquesta')).toHaveProp('accessibilityState', { selected: true });
 
-    fireEvent.changeText(getByTestId('ledger-amount'), '200');
     fireEvent.changeText(getByTestId('ledger-concept'), 'Verbena');
     fireEvent.press(getByTestId('ledger-save'));
     await waitFor(() =>
@@ -430,6 +459,12 @@ describe('Cuentas del año', () => {
     fireEvent.press(getByTestId('ledger-category-rename-save-expense_orquesta'));
     expect(getByText('groups.records.categories.nameTaken')).toBeTruthy();
     expect(renameLedgerCategory).not.toHaveBeenCalled();
+  });
+
+  it('scrolls itself, with the button to note a movement floating outside the page', () => {
+    const { getByTestId } = render(<YearSummaryAdmin orgId="org1" orgName="La Anduela" uid="u-admin" testID="group-section-screen-cuentas" />);
+    expect(getByTestId('group-section-screen-cuentas')).toContainElement(getByTestId('year-summary'));
+    expect(getByTestId('group-section-screen-cuentas')).not.toContainElement(getByTestId('ledger-add'));
   });
 
   it('never steps past the current year', () => {

@@ -196,6 +196,8 @@ describe('GroupTaskBoard — the list', () => {
     expect(screen.queryByTestId('group-tasks')).toBeNull();
     fireEvent.press(screen.getByTestId('checklist-add-ev1'));
     fireEvent.changeText(screen.getByTestId('task-title'), 'Pedir las sillas');
+    fireEvent.press(screen.getByTestId('task-next'));
+    fireEvent.press(screen.getByTestId('task-next'));
     fireEvent.press(screen.getByTestId('task-save'));
     await waitFor(() =>
       expect(createGroupTask).toHaveBeenCalledWith('org1', expect.objectContaining({ title: 'Pedir las sillas', eventId: 'ev1' }), 'u-ana'),

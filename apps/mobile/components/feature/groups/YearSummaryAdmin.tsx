@@ -11,7 +11,9 @@ import {
 } from '@cultuvilla/shared/services/recordsService';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { formatDayKey } from '@cultuvilla/shared/utils';
-import { Button, Card, HStack, Pressable, Text, VStack } from '../../primitives';
+import { Card, HStack, Pressable, Text, VStack } from '../../primitives';
+import { Fab } from '../../primitives/Fab';
+import { ScrollWithFab } from '../../layout/ScrollWithFab';
 import { ExportButton } from '../ExportButton';
 import { LedgerEntrySheet } from './LedgerEntrySheet';
 import { LedgerCategoriesSheet } from './LedgerCategoriesSheet';
@@ -23,9 +25,21 @@ import { centsLabel, todayKey } from '../../../lib/orgs/cuota';
 /**
  * The Registros' Cuentas door — the year's money for the asamblea: cuota income (from the cuota
  * ledger, net of anulaciones), other income and expenses the treasurer notes
- * here, the balance, and the export. A summary, not bookkeeping.
+ * from the floating button, the balance, and the export. A summary, not
+ * bookkeeping. It scrolls itself, so the button stays on screen.
  */
-export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgName: string; uid: string }) {
+export function YearSummaryAdmin({
+  orgId,
+  orgName,
+  uid,
+  testID,
+}: {
+  orgId: string;
+  orgName: string;
+  uid: string;
+  /** The scrolling page's testID. */
+  testID?: string;
+}) {
   const { t } = useT();
   const thisYear = todayKey().slice(0, 4);
   const [year, setYear] = useState(thisYear);
@@ -57,6 +71,10 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
   const canGoForward = year < thisYear;
 
   return (
+    <ScrollWithFab
+      testID={testID}
+      fab={<Fab testID="ledger-add" label={t('groups.records.year.add')} onPress={() => setAdding(true)} />}
+    >
     <VStack gap={2} testID="year-summary">
       <HStack align="center" justify="between" className="py-1">
         <HStack gap={4} align="center">
@@ -106,12 +124,7 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
             </VStack>
           </Card>
 
-          <HStack justify="between" align="center" className="pt-1">
-            <Text className="font-bold">{t('groups.records.year.entries')}</Text>
-            <Button size="md" variant="secondary" onPress={() => setAdding(true)} testID="ledger-add">
-              {t('groups.records.year.add')}
-            </Button>
-          </HStack>
+          <Text className="font-bold pt-1">{t('groups.records.year.entries')}</Text>
           <Pressable
             testID="ledger-categories-open"
             accessibilityRole="button"
@@ -169,6 +182,7 @@ export function YearSummaryAdmin({ orgId, orgName, uid }: { orgId: string; orgNa
       />
       <LedgerCategoriesSheet visible={managing} orgId={orgId} uid={uid} onClose={() => setManaging(false)} />
     </VStack>
+    </ScrollWithFab>
   );
 }
 

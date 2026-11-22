@@ -47,6 +47,11 @@ function useAdminUids(orgId: string, enabled: boolean): string[] {
   return useMemo(() => (members.data ?? []).filter((m) => m.role === 'admin').map((m) => m.userId), [members.data]);
 }
 
+/** An admin's Actas and Cuentas scroll themselves, so their floating button stays on screen. */
+export function sectionScrollsItself(section: GroupSection, isAdmin: boolean): boolean {
+  return isAdmin && (section === 'actas' || section === 'cuentas');
+}
+
 /** One screen of a group: the section's existing component, full height. */
 export function GroupSectionBody({ group, section, uid }: { group: MyGroup; section: GroupSection; uid: string }) {
   const { t } = useT();
@@ -87,13 +92,20 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
     }
     // An admin keeps the books, a socio reads what the junta shares: same button, more inside.
     case 'cuentas':
-      return isAdmin ? <YearSummaryAdmin orgId={org.id} orgName={org.name} uid={uid} /> : <GroupAccounts orgId={org.id} />;
+      return isAdmin ? (
+        <YearSummaryAdmin orgId={org.id} orgName={org.name} uid={uid} testID="group-section-screen-cuentas" />
+      ) : (
+        <GroupAccounts orgId={org.id} />
+      );
     case 'actas':
       return isAdmin ? (
-        <VStack gap={4}>
-          <AsambleaChecklist orgId={org.id} orgName={org.name} cuentasEnabled={org.cuentasEnabled} />
-          <ActasAdmin orgId={org.id} orgName={org.name} uid={uid} />
-        </VStack>
+        <ActasAdmin
+          orgId={org.id}
+          orgName={org.name}
+          uid={uid}
+          header={<AsambleaChecklist orgId={org.id} orgName={org.name} cuentasEnabled={org.cuentasEnabled} />}
+          testID="group-section-screen-actas"
+        />
       ) : (
         <MyActas orgId={org.id} orgName={org.name} empty={<Empty text={t('groups.sections.empty.actas')} />} />
       );

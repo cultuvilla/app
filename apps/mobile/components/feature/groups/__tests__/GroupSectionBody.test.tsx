@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react';
 import { render } from '@testing-library/react-native';
-import { GroupSectionBody } from '../GroupSectionBody';
+import { GroupSectionBody, sectionScrollsItself } from '../GroupSectionBody';
 import type { MyGroup } from '../../../../lib/orgs/useMyGroups';
 
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -27,7 +28,17 @@ jest.mock('../GroupAccounts', () => ({ GroupAccounts: mockStub('accounts') }));
 jest.mock('../GroupSettings', () => ({ GroupSettings: () => null }));
 jest.mock('../MyActas', () => ({ MyActas: () => null }));
 jest.mock('../MyCuota', () => ({ MyCuota: mockStub('my-cuota') }));
-jest.mock('../ActasAdmin', () => ({ ActasAdmin: mockStub('actas-admin') }));
+jest.mock('../ActasAdmin', () => ({
+  ActasAdmin: ({ header }: { header?: ReactNode }) => {
+    const { Text: RNText, View } = jest.requireActual<typeof import('react-native')>('react-native');
+    return (
+      <View>
+        {header}
+        <RNText testID="actas-admin" />
+      </View>
+    );
+  },
+}));
 jest.mock('../AsambleaChecklist', () => ({ AsambleaChecklist: mockStub('asamblea') }));
 jest.mock('../YearSummaryAdmin', () => ({ YearSummaryAdmin: mockStub('year-admin') }));
 jest.mock('../LibroDoor', () => ({ LibroDoor: mockStub('libro-door') }));
@@ -86,6 +97,13 @@ describe('the same button, more inside for an admin', () => {
     expect(getByTestId('asamblea')).toBeTruthy();
     expect(getByTestId('actas-admin')).toBeTruthy();
     expect(renderAs('member', 'actas').queryByTestId('actas-admin')).toBeNull();
+  });
+
+  it("lets only an admin's actas and cuentas scroll themselves, for their floating button", () => {
+    expect(sectionScrollsItself('actas', true)).toBe(true);
+    expect(sectionScrollsItself('cuentas', true)).toBe(true);
+    expect(sectionScrollsItself('actas', false)).toBe(false);
+    expect(sectionScrollsItself('socios', true)).toBe(false);
   });
 
   it('opens the editable accounts for an admin and the shared ones for a socio', () => {

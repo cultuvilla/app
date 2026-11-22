@@ -15,6 +15,9 @@ export interface StepConfig {
   icon?: keyof typeof Ionicons.glyphMap;
   render: () => ReactNode;
   validate?: () => string[];
+  /** Replaces "Siguiente" on this step, e.g. "Sin foto" while a photo is optional and unpicked. */
+  nextLabel?: string;
+  nextVariant?: 'primary' | 'secondary' | 'ghost';
 }
 
 export interface StepperProps {
@@ -35,6 +38,15 @@ export interface StepperProps {
    * E2E driver advances the whole wizard through one selector.
    */
   primaryTestID?: string;
+  /** testID of the primary button on the last step, when it should differ from `primaryTestID`. */
+  submitTestID?: string;
+  /**
+   * Controlled step index, for a form that moves on by itself (picking a photo
+   * goes to the next step) or walks back from its own header. Pair with
+   * `onStepChange`; leave both out and the stepper keeps its own.
+   */
+  step?: number;
+  onStepChange?: (index: number) => void;
 }
 
 export function Stepper({
@@ -45,11 +57,22 @@ export function Stepper({
   submitError,
   allStepsReachable = false,
   primaryTestID,
+  submitTestID,
+  step: controlledStep,
+  onStepChange,
 }: StepperProps) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
-  const [current, setCurrent] = useState(0);
+  const [ownStep, setOwnStep] = useState(0);
+  const current = controlledStep ?? ownStep;
+  const setCurrent = (index: number) => {
+    if (controlledStep === undefined) setOwnStep(index);
+    onStepChange?.(index);
+  };
   const [highestReached, setHighestReached] = useState(allStepsReachable ? steps.length - 1 : 0);
+  useEffect(() => {
+    setHighestReached((h) => Math.max(h, current));
+  }, [current]);
 
   // Slide the incoming step in from the side whenever the step changes — by
   // Next/Back or a dot tap. Forward slides in from the right, back from
@@ -73,7 +96,11 @@ export function Stepper({
   // satisfies tsc's noUncheckedIndexedAccess without a runtime guard.
   const step = steps[current]!;
   const isLast = current === steps.length - 1;
-  const stepValid = (step.validate?.() ?? []).length === 0;
+  const complete = steps.map((s) => (s.validate?.() ?? []).length === 0);
+  const stepValid = complete[current]!;
+  // Editing reaches the last step without passing the others, so submitting
+  // checks every step, not just the one on screen.
+  const allValid = complete.every(Boolean);
 
   function goTo(index: number) {
     // Edit mode: jump anywhere freely. Otherwise back nav is free, forward nav
@@ -87,9 +114,7 @@ export function Stepper({
 
   function handleNext() {
     if (!stepValid) return;
-    const next = current + 1;
-    setCurrent(next);
-    setHighestReached((h) => Math.max(h, next));
+    setCurrent(current + 1);
   }
 
   function goBack() {
@@ -107,7 +132,7 @@ export function Stepper({
           onStepPress={goTo}
           icons={steps.map((s) => s.icon)}
           labels={steps.map((s) => s.title)}
-          complete={steps.map((s) => (s.validate?.() ?? []).length === 0)}
+          complete={complete}
           allReachable={allStepsReachable}
         />
       </View>
@@ -139,12 +164,13 @@ export function Stepper({
           <View className="flex-1">
             <Button
               onPress={() => { if (isLast) void onComplete(); else handleNext(); }}
+              variant={isLast ? 'primary' : (step.nextVariant ?? 'primary')}
               loading={loading}
-              disabled={!stepValid}
+              disabled={isLast ? !allValid : !stepValid}
               fullWidth
-              testID={primaryTestID}
+              testID={isLast ? (submitTestID ?? primaryTestID) : primaryTestID}
             >
-              {isLast ? submitLabel : t('common.stepper.next')}
+              {isLast ? submitLabel : (step.nextLabel ?? t('common.stepper.next'))}
             </Button>
           </View>
         </HStack>

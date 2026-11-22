@@ -175,8 +175,8 @@ describe('CosaSheet', () => {
     toHow(utils, 'Sala');
     fireEvent.press(getByTestId('cosa-kind-reserva'));
     fireEvent.changeText(getByTestId('reserva-opens-2'), '23:00');
-    fireEvent.press(getByTestId('cosa-save'));
     expect(getByTestId('reserva-config-error')).toHaveTextContent('groups.cosateca.reserva.errors.order');
+    fireEvent.press(getByTestId('cosa-save'));
     expect(createCosa).not.toHaveBeenCalled();
   });
 
@@ -190,6 +190,7 @@ describe('CosaSheet', () => {
     };
     existing.reserva = { ...existing.reserva!, blackouts: ['2026-12-25'] };
     const { getByTestId, queryByTestId, onClose } = sheet({ isAdmin: true, cosa: existing });
+    fireEvent.press(getByTestId('step-dot-2'));
     expect(queryByTestId('cosa-kind')).toBeNull();
     expect(getByTestId('cosa-kind-fixed')).toBeTruthy();
     fireEvent.press(getByTestId('cosa-save'));
@@ -206,6 +207,7 @@ describe('CosaSheet', () => {
       }),
     };
     const { getByTestId, queryByTestId, onClose } = sheet({ isAdmin: true, cosa: existing });
+    fireEvent.press(getByTestId('step-dot-2'));
     expect(queryByTestId('cosa-owner')).toBeNull();
     expect(getByTestId('cosa-owner-fixed')).toHaveTextContent('groups.cosateca.form.ownerGroup');
     expect(getByTestId('cosa-location-note').props.value).toBe('En la peña');
@@ -272,11 +274,15 @@ describe('CosaSheet', () => {
       }),
       status: 'paused' as const,
     };
-    const { getByTestId, onClose } = sheet({ cosa, canDelete: true });
-    expect(getByTestId('cosa-delete')).toBeTruthy();
-    // Editing shows every section on one page.
+    const { getByTestId, queryByTestId, onClose } = sheet({ cosa });
+    // Editing opens the same steps, any of them a tap away; taking it out is on its own screen.
     expect(getByTestId('cosa-step-photo')).toBeTruthy();
+    expect(queryByTestId('cosa-delete')).toBeNull();
+    // It has a photo already: the photo step just moves on.
+    expect(getByTestId('cosa-next')).toHaveTextContent('common.stepper.next');
+    fireEvent.press(getByTestId('step-dot-1'));
     expect(getByTestId('cosa-title').props.value).toBe('Carpa');
+    fireEvent.press(getByTestId('step-dot-2'));
     expect(getByTestId('cosa-kind-fixed')).toHaveTextContent('groups.cosateca.form.kindSentences.prestamo');
     fireEvent.changeText(getByTestId('cosa-conditions'), 'Devolver seca');
     fireEvent.press(getByTestId('cosa-save'));

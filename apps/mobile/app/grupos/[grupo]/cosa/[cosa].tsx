@@ -5,6 +5,7 @@ import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { router, useLocalSearchParams } from 'expo-router';
 import { cosaAvailability, cosaHasPlace, cosaHolderUid, isActiveReserva, isOpenCosaRequest, isSharedCosa } from '@cultuvilla/shared/models/organization';
 import {
+  deleteCosa,
   respondToCosaRequest,
   updateCosa,
   watchCosa,
@@ -26,7 +27,7 @@ import { CosaRequestRow } from '../../../../components/feature/groups/cosateca/C
 import { CosaSheet } from '../../../../components/feature/groups/cosateca/CosaSheet';
 import { MyReservas, ReservaBlackouts, ReservaBooking } from '../../../../components/feature/groups/cosateca/Reserva';
 import { useAuth } from '../../../../lib/auth/useAuth';
-import { showAlert } from '../../../../lib/dialogs';
+import { showAlert, showConfirm } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useT } from '../../../../lib/i18n';
 import { groupCosaRequestHref } from '../../../../lib/navigation/routes';
@@ -154,6 +155,22 @@ export default function CosaScreen() {
               },
             ]
           : []),
+        {
+          icon: 'trash-outline' as const,
+          onPress: () =>
+            showConfirm(
+              t('groups.cosateca.form.delete'),
+              t('groups.cosateca.form.deleteConfirm'),
+              () => {
+                deleteCosa(cosa.id)
+                  .then(() => router.back())
+                  .catch(() => showAlert(t('groups.cosateca.errors.save')));
+              },
+              { confirmText: t('common.delete'), cancelText: t('common.cancel') },
+            ),
+          accessibilityLabel: t('groups.cosateca.form.delete'),
+          testID: 'cosa-delete',
+        },
       ]
     : [];
 
@@ -297,7 +314,6 @@ export default function CosaScreen() {
           myName={profile?.displayName ?? ''}
           isAdmin={isAdmin}
           cosa={cosa}
-          canDelete={isManager}
           onClose={() => setEditing(false)}
         />
       ) : null}
