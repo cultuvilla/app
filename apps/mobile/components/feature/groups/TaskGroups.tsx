@@ -6,7 +6,8 @@ import type { GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { formatDate, formatDayKey } from '@cultuvilla/shared/utils';
 import { Avatar, Checkbox, HStack, Pressable, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
-import { taskPeople, type TaskGroup } from '../../../lib/orgs/taskBoard';
+import { taskHolders } from '@cultuvilla/shared/models/organization';
+import type { TaskGroup } from '../../../lib/orgs/taskBoard';
 import type { MemberFace } from '../../../lib/orgs/useOrgMembers';
 
 const MAX_FACES = 3;
@@ -32,7 +33,7 @@ export function TaskLine({
   const { t } = useT();
   const done = task.doneAt !== null;
   const late = isTaskOverdue(task, today);
-  const people = taskPeople(task);
+  const people = taskHolders(task);
   const when = done && task.doneAt
     ? t('groups.tasks.doneOn', { date: formatDate(task.doneAt, 'short') })
     : task.dueOn

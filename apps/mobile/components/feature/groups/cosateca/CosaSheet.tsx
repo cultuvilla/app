@@ -18,7 +18,8 @@ import {
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { createCosa, updateCosa, type Cosa } from '@cultuvilla/shared/services/cosatecaService';
 import { uploadCosaImage, type UploadableImage } from '@cultuvilla/shared/services/imageService';
-import { Button, FieldLabel, HStack, ImagePickerField, Input, Pressable, Text, VStack } from '../../../primitives';
+import { Button, FieldLabel, HStack, Input, Pressable, Text, VStack } from '../../../primitives';
+import { EventCoverPicker } from '../../EventCoverPicker';
 import { Stepper, type StepConfig } from '../../Stepper';
 import { FormModal } from '../../../layout/FormModal';
 import { SegmentedToggle } from '../../SegmentedToggle';
@@ -34,9 +35,9 @@ type Owner = 'mine' | 'group';
 const KINDS: readonly CosaKind[] = ['prestamo', 'regalo', 'servicio', 'reserva'];
 
 /**
- * Offer something to a group's cosateca, or edit it, in three steps: the photo
- * (camera, gallery, or none), what it is, and how it is shared, said as a
- * sentence ("La presto"). Editing opens the same steps, each reachable at
+ * Offer something to a group's cosateca, or edit it, in two steps: what it is,
+ * with its photo shown whole (camera, gallery, or none), and how it is shared,
+ * said as a sentence ("La presto"). Editing opens the same steps, each reachable at
  * once. Taking it out of the cosateca is on its own screen.
  *
  * An integrante offers their own, or gives a physical cosa to the group, which
@@ -121,7 +122,6 @@ export function CosaSheet({
       .then((next) => {
         if (!next) return;
         setPhoto(next);
-        if (creating) setStep((current) => (current === 0 ? 1 : current));
       })
       .catch((error: unknown) => {
         showAlert(t(error instanceof CameraPermissionDeniedError ? 'groups.cosateca.form.cameraDenied' : 'groups.cosateca.errors.generic'));
@@ -185,20 +185,18 @@ export function CosaSheet({
 
   const steps: StepConfig[] = [
     {
-      key: 'photo',
-      title: t('groups.cosateca.form.stepPhoto'),
-      icon: 'camera-outline',
-      // The photo is optional: until there is one, the button says so.
-      nextLabel: previewUri ? undefined : t('groups.cosateca.form.noPhoto'),
-      nextVariant: previewUri ? 'primary' : 'ghost',
+      key: 'what',
+      title: t('groups.cosateca.form.stepWhat'),
+      icon: 'create-outline',
+      validate: () => (title.trim() ? [] : ['title']),
       render: () =>
         stepBody(
-          'cosa-step-photo',
+          'cosa-step-what',
           <>
-            <ImagePickerField
+            <FieldLabel>{t('groups.cosateca.form.photo')}</FieldLabel>
+            {/* The whole photo, at its own shape, like an event's flyer. */}
+            <EventCoverPicker
               uri={previewUri}
-              width="100%"
-              height={260}
               onPress={() => choosePhoto('gallery')}
               label={t('groups.cosateca.form.pickPhoto')}
               testID="cosa-photo-preview"
@@ -215,18 +213,6 @@ export function CosaSheet({
                 </Button>
               </View>
             </HStack>
-          </>,
-        ),
-    },
-    {
-      key: 'what',
-      title: t('groups.cosateca.form.stepWhat'),
-      icon: 'create-outline',
-      validate: () => (title.trim() ? [] : ['title']),
-      render: () =>
-        stepBody(
-          'cosa-step-what',
-          <>
             <Input
               label={t('groups.cosateca.form.name')}
               value={title}

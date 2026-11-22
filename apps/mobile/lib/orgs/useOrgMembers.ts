@@ -9,6 +9,7 @@ import { useWatch } from '../hooks/useWatch';
 export interface GroupMember {
   uid: string;
   name: string;
+  photoURL: string | null;
   role: OrgMemberRole;
 }
 
@@ -24,10 +25,6 @@ async function memberFace(uid: string): Promise<MemberFace> {
   if (fromPerson) return { name: fromPerson, photoURL: person?.photoURL ?? null };
   const user = await getPublicProfile(uid).catch(() => null);
   return { name: user?.displayName || uid, photoURL: null };
-}
-
-async function memberName(uid: string): Promise<string> {
-  return (await memberFace(uid)).name;
 }
 
 /**
@@ -55,32 +52,32 @@ export function useMemberFaces(uids: readonly string[]): Record<string, MemberFa
 }
 
 /**
- * The group's members with a display name each, by name — who a task can be
- * assigned to, and whose name a task or a shift shows. Live membership; names
- * are resolved once per member.
+ * The group's members with a display name and photo each, by name — who a
+ * task can be assigned to, and whose name a task or a shift shows. Live
+ * membership; faces are resolved once per member.
  */
 export function useOrgMembers(orgId: string): { members: GroupMember[]; nameOf: (uid: string) => string } {
   const watched = useWatch<(OrgMemberData & { id: string })[]>('groups:watchOrgMembers', orgId, (next, error) =>
     watchOrgMembers(orgId, next, error),
   );
-  const [names, setNames] = useState<Record<string, string>>({});
+  const [faces, setFaces] = useState<Record<string, MemberFace>>({});
 
   useEffect(() => {
-    const missing = (watched.data ?? []).map((m) => m.userId).filter((uid) => !(uid in names));
+    const missing = (watched.data ?? []).map((m) => m.userId).filter((uid) => !(uid in faces));
     if (missing.length === 0) return;
     let live = true;
-    void Promise.all(missing.map(async (uid) => [uid, await memberName(uid)] as const)).then((pairs) => {
-      if (live) setNames((prev) => ({ ...prev, ...Object.fromEntries(pairs) }));
+    void Promise.all(missing.map(async (uid) => [uid, await memberFace(uid)] as const)).then((pairs) => {
+      if (live) setFaces((prev) => ({ ...prev, ...Object.fromEntries(pairs) }));
     });
     return () => {
       live = false;
     };
-  }, [watched.data, names]);
+  }, [watched.data, faces]);
 
   return useMemo(() => {
     const members = (watched.data ?? [])
-      .map((m) => ({ uid: m.userId, name: names[m.userId] ?? '…', role: m.role }))
+      .map((m) => ({ uid: m.userId, name: faces[m.userId]?.name ?? '…', photoURL: faces[m.userId]?.photoURL ?? null, role: m.role }))
       .sort((a, b) => a.name.localeCompare(b.name, 'es'));
-    return { members, nameOf: (uid: string) => names[uid] ?? '…' };
-  }, [watched.data, names]);
+    return { members, nameOf: (uid: string) => faces[uid]?.name ?? '…' };
+  }, [watched.data, faces]);
 }

@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
-import { eventTaskProgress, hasSocioRoster } from '@cultuvilla/shared/models/organization';
+import { eventTaskProgress, hasSocioRoster, taskHolders } from '@cultuvilla/shared/models/organization';
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
 import {
   setGroupTaskDone,
@@ -34,7 +34,6 @@ import {
   groupTasksByEvent,
   startOfMadridYear,
   taskLeaderboard,
-  taskPeople,
   type TaskFilter,
 } from '../../../lib/orgs/taskBoard';
 import { readTaskFilters, rememberTaskFilters } from '../../../lib/orgs/taskFilterStore';
@@ -124,8 +123,8 @@ export function GroupTaskBoard({ group, uid }: { group: MyGroup; uid: string }) 
   const progress = useMemo(() => eventTaskProgress([...openTasks, ...doneTasks]), [openTasks, doneTasks]);
   const memberUids = useMemo(() => members.map((m) => m.uid), [members]);
   const board = useMemo(() => taskLeaderboard(doneTasks, memberUids, { kind: 'year' }), [doneTasks, memberUids]);
-  const unassignedCount = useMemo(() => openTasks.filter((task) => taskPeople(task).length === 0).length, [openTasks]);
-  const faces = useMemberFaces([...groups.flatMap((g) => g.tasks.flatMap(taskPeople)), ...board.map((r) => r.uid)]);
+  const unassignedCount = useMemo(() => openTasks.filter((task) => taskHolders(task).length === 0).length, [openTasks]);
+  const faces = useMemberFaces([...groups.flatMap((g) => g.tasks.flatMap(taskHolders)), ...board.map((r) => r.uid)]);
   const templateList = useMemo(() => [...(templates.data ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'es')), [templates.data]);
   const status = showingDone ? done.status : open.status;
   // A filter turned on from the sheet stays on the line, so it can be seen and turned off.

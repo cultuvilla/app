@@ -46,6 +46,10 @@ export const respondToTaskShift = onCall<RespondToTaskShiftData, Promise<{ state
       if (current.doneAt !== null || (current.dueOn !== null && current.dueOn < madridDayKey(now))) {
         throw new HttpsError('failed-precondition', 'Ese turno ya ha pasado.');
       }
+      // An encargado is already on it: a volunteer slot would count them twice.
+      if (answer === 'claim' && current.assigneeUids.includes(uid)) {
+        throw new HttpsError('failed-precondition', 'Ya te encargas tú de esta tarea.');
+      }
       const next = answerShift(current, uid, answer as ShiftAnswer);
       // Unconverted: a partial update of the three function-owned lists.
       tx.update(snap.ref.withConverter(null), {

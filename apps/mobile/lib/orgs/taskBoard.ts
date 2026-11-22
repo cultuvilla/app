@@ -4,6 +4,7 @@ import {
   fairShareCounts,
   freeSlots,
   isTaskOverdue,
+  taskHolders,
   type GroupTaskData,
 } from '@cultuvilla/shared/models/organization';
 
@@ -20,10 +21,6 @@ export type TaskFilter = (typeof TASK_FILTERS)[number];
 /** The ones always on the screen's single filter line; the rest wait behind its filter button. */
 export const QUICK_TASK_FILTERS: readonly TaskFilter[] = ['mine', 'unassigned', 'done'];
 
-/** Who a task is on: a shift's claimers, else its assignees. */
-export function taskPeople(task: Pick<GroupTaskData, 'slots' | 'assigneeUids' | 'claimedUids'>): string[] {
-  return task.slots !== null ? task.claimedUids : task.assigneeUids;
-}
 
 function addDays(dayKey: string, days: number): string {
   const d = new Date(`${dayKey}T12:00:00Z`);
@@ -45,8 +42,8 @@ export function filterTasks<T extends Task>(
   const weekEnd = addDays(today, 6);
   return (filters.has('done') ? done : open).filter(
     (task) =>
-      (!filters.has('mine') || taskPeople(task).includes(uid) || task.doneBy === uid) &&
-      (!filters.has('unassigned') || taskPeople(task).length === 0) &&
+      (!filters.has('mine') || taskHolders(task).includes(uid) || task.doneBy === uid) &&
+      (!filters.has('unassigned') || taskHolders(task).length === 0) &&
       (!filters.has('overdue') || isTaskOverdue(task, today)) &&
       (!filters.has('week') || (task.dueOn !== null && task.dueOn >= today && task.dueOn <= weekEnd)) &&
       (!filters.has('shiftOpen') || (task.slots !== null && freeSlots(task) > 0)),

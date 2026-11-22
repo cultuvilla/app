@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, Image } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildCosaData, buildOrganizationData } from '@cultuvilla/shared/models/organization';
 import { createCosa, updateCosa } from '@cultuvilla/shared/services/cosatecaService';
@@ -48,9 +48,8 @@ const sheet = (props: Partial<Parameters<typeof CosaSheet>[0]> = {}) => {
   return { ...utils, onClose };
 };
 
-/** Through a new offer's first two steps: no photo, then its name. */
+/** Through a new offer's first step: its name, no photo. */
 const toHow = (utils: ReturnType<typeof render>, title: string) => {
-  fireEvent.press(utils.getByTestId('cosa-next'));
   fireEvent.changeText(utils.getByTestId('cosa-title'), title);
   fireEvent.press(utils.getByTestId('cosa-next'));
 };
@@ -61,15 +60,13 @@ beforeEach(() => {
 });
 
 describe('CosaSheet', () => {
-  it('offers in three steps: the photo, what it is, and how it is shared', () => {
+  it('offers in two steps: what it is with its photo, then how it is shared', () => {
     const utils = sheet();
     const { getByTestId, queryByTestId } = utils;
-    expect(getByTestId('cosa-step-photo')).toBeTruthy();
-    expect(queryByTestId('cosa-title')).toBeNull();
-    expect(getByTestId('cosa-next')).toHaveTextContent('groups.cosateca.form.noPhoto');
-    fireEvent.press(getByTestId('cosa-next'));
-    expect(getByTestId('cosa-step-what')).toBeTruthy();
-    expect(queryByTestId('cosa-step-photo')).toBeNull();
+    const what = getByTestId('cosa-step-what');
+    expect(what).toContainElement(getByTestId('cosa-photo-preview'));
+    expect(what).toContainElement(getByTestId('cosa-title'));
+    // No name, no moving on.
     fireEvent.press(getByTestId('cosa-next'));
     expect(queryByTestId('cosa-step-how')).toBeNull();
     fireEvent.changeText(getByTestId('cosa-title'), 'Taladro');
@@ -81,23 +78,21 @@ describe('CosaSheet', () => {
     fireEvent.press(utils.getAllByLabelText('header.back')[0]!);
     expect(getByTestId('cosa-title').props.value).toBe('Taladro');
     fireEvent.press(utils.getAllByLabelText('header.back')[0]!);
-    expect(getByTestId('cosa-step-photo')).toBeTruthy();
-    fireEvent.press(utils.getAllByLabelText('header.back')[0]!);
     expect(utils.onClose).toHaveBeenCalled();
   });
 
-  it('takes the photo with the camera and moves on to what it is', async () => {
+  it('takes the photo with the camera and shows it whole', async () => {
     jest.mocked(takePhotoAsBlob).mockResolvedValue({ blob: {} as Blob, filename: 'c.jpg', contentType: 'image/jpeg', previewUri: 'file://c' });
     const { getByTestId } = sheet();
     fireEvent.press(getByTestId('cosa-photo-camera'));
-    await waitFor(() => expect(getByTestId('cosa-step-what')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('cosa-photo-preview').findByType(Image).props.source).toEqual({ uri: 'file://c' }));
   });
 
   it('picks the photo from the gallery too', async () => {
     jest.mocked(pickImageAsBlob).mockResolvedValue({ blob: {} as Blob, filename: 'g.jpg', contentType: 'image/jpeg', previewUri: 'file://g' });
     const { getByTestId } = sheet();
     fireEvent.press(getByTestId('cosa-photo'));
-    await waitFor(() => expect(getByTestId('cosa-step-what')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('cosa-photo-preview').findByType(Image).props.source).toEqual({ uri: 'file://g' }));
   });
 
   it('says how to allow the camera when it is refused', async () => {
@@ -105,7 +100,7 @@ describe('CosaSheet', () => {
     const { getByTestId } = sheet();
     fireEvent.press(getByTestId('cosa-photo-camera'));
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.cosateca.form.cameraDenied'));
-    expect(getByTestId('cosa-step-photo')).toBeTruthy();
+    expect(getByTestId('cosa-step-what')).toBeTruthy();
   });
 
   it('lets any integrante give a prestamo to the group, with where it is kept', async () => {
@@ -190,7 +185,7 @@ describe('CosaSheet', () => {
     };
     existing.reserva = { ...existing.reserva!, blackouts: ['2026-12-25'] };
     const { getByTestId, queryByTestId, onClose } = sheet({ isAdmin: true, cosa: existing });
-    fireEvent.press(getByTestId('step-dot-2'));
+    fireEvent.press(getByTestId('step-dot-1'));
     expect(queryByTestId('cosa-kind')).toBeNull();
     expect(getByTestId('cosa-kind-fixed')).toBeTruthy();
     fireEvent.press(getByTestId('cosa-save'));
@@ -207,7 +202,7 @@ describe('CosaSheet', () => {
       }),
     };
     const { getByTestId, queryByTestId, onClose } = sheet({ isAdmin: true, cosa: existing });
-    fireEvent.press(getByTestId('step-dot-2'));
+    fireEvent.press(getByTestId('step-dot-1'));
     expect(queryByTestId('cosa-owner')).toBeNull();
     expect(getByTestId('cosa-owner-fixed')).toHaveTextContent('groups.cosateca.form.ownerGroup');
     expect(getByTestId('cosa-location-note').props.value).toBe('En la peña');
@@ -220,7 +215,6 @@ describe('CosaSheet', () => {
   it('needs a name', () => {
     const { getByTestId } = sheet();
     fireEvent.press(getByTestId('cosa-next'));
-    fireEvent.press(getByTestId('cosa-next'));
     expect(getByTestId('cosa-step-what')).toBeTruthy();
     expect(createCosa).not.toHaveBeenCalled();
   });
@@ -228,7 +222,6 @@ describe('CosaSheet', () => {
   it("offers an integrante's own, under their name, with the group's audience", async () => {
     const { getByTestId, onClose } = sheet();
     expect(getByTestId('cosa-sheet')).toBeTruthy();
-    fireEvent.press(getByTestId('cosa-next'));
     expect(getByTestId('cosa-category')).toBeTruthy();
     fireEvent.changeText(getByTestId('cosa-description'), 'Con brocas');
     fireEvent.changeText(getByTestId('cosa-title'), ' Taladro ');
@@ -252,8 +245,7 @@ describe('CosaSheet', () => {
     jest.mocked(pickImageAsBlob).mockResolvedValue({ blob: {} as Blob, filename: 'a.jpg', contentType: 'image/jpeg', previewUri: 'file://a' });
     const { getByTestId, onClose } = sheet({ isAdmin: true });
     fireEvent.press(getByTestId('cosa-photo-preview'));
-    await waitFor(() => expect(getByTestId('cosa-step-what')).toBeTruthy());
-    expect(pickImageAsBlob).toHaveBeenCalled();
+    await waitFor(() => expect(pickImageAsBlob).toHaveBeenCalled());
     fireEvent.changeText(getByTestId('cosa-title'), 'Clases de yoga');
     fireEvent.press(getByTestId('cosa-next'));
     fireEvent.press(getByTestId('cosa-kind-servicio'));
@@ -276,13 +268,9 @@ describe('CosaSheet', () => {
     };
     const { getByTestId, queryByTestId, onClose } = sheet({ cosa });
     // Editing opens the same steps, any of them a tap away; taking it out is on its own screen.
-    expect(getByTestId('cosa-step-photo')).toBeTruthy();
-    expect(queryByTestId('cosa-delete')).toBeNull();
-    // It has a photo already: the photo step just moves on.
-    expect(getByTestId('cosa-next')).toHaveTextContent('common.stepper.next');
-    fireEvent.press(getByTestId('step-dot-1'));
     expect(getByTestId('cosa-title').props.value).toBe('Carpa');
-    fireEvent.press(getByTestId('step-dot-2'));
+    expect(queryByTestId('cosa-delete')).toBeNull();
+    fireEvent.press(getByTestId('step-dot-1'));
     expect(getByTestId('cosa-kind-fixed')).toHaveTextContent('groups.cosateca.form.kindSentences.prestamo');
     fireEvent.changeText(getByTestId('cosa-conditions'), 'Devolver seca');
     fireEvent.press(getByTestId('cosa-save'));

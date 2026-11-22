@@ -15,9 +15,6 @@ export interface StepConfig {
   icon?: keyof typeof Ionicons.glyphMap;
   render: () => ReactNode;
   validate?: () => string[];
-  /** Replaces "Siguiente" on this step, e.g. "Sin foto" while a photo is optional and unpicked. */
-  nextLabel?: string;
-  nextVariant?: 'primary' | 'secondary' | 'ghost';
 }
 
 export interface StepperProps {
@@ -41,8 +38,8 @@ export interface StepperProps {
   /** testID of the primary button on the last step, when it should differ from `primaryTestID`. */
   submitTestID?: string;
   /**
-   * Controlled step index, for a form that moves on by itself (picking a photo
-   * goes to the next step) or walks back from its own header. Pair with
+   * Controlled step index, for a form that walks back a step from its own
+   * header. Pair with
    * `onStepChange`; leave both out and the stepper keeps its own.
    */
   step?: number;
@@ -164,13 +161,12 @@ export function Stepper({
           <View className="flex-1">
             <Button
               onPress={() => { if (isLast) void onComplete(); else handleNext(); }}
-              variant={isLast ? 'primary' : (step.nextVariant ?? 'primary')}
               loading={loading}
               disabled={isLast ? !allValid : !stepValid}
               fullWidth
               testID={isLast ? (submitTestID ?? primaryTestID) : primaryTestID}
             >
-              {isLast ? submitLabel : (step.nextLabel ?? t('common.stepper.next'))}
+              {isLast ? submitLabel : t('common.stepper.next')}
             </Button>
           </View>
         </HStack>

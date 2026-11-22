@@ -158,9 +158,7 @@ onFlowComplete:
     env:
       TAP: 'cosateca-offer'
       EXPECT: 'cosa-sheet'
-# Offering goes photo → what it is → how it is shared.
-- tapOn:
-    id: 'cosa-next'
+# Offering goes what it is (with its photo, here none) → how it is shared.
 - runFlow:
     file: ../subflows/type-into.yaml
     env:

@@ -136,6 +136,15 @@ describe("a group's task screen", () => {
     expect(render(<GroupTaskScreen />).queryByTestId('stub-signup')).toBeNull();
   });
 
+  it('lists the encargados and the volunteers together, saying who is in charge', () => {
+    mockTask = task({ assigneeUids: ['a1'], slots: 2, dueOn: '2030-01-01', claimedUids: ['a3'] });
+    const { getByTestId, queryByTestId } = render(<GroupTaskScreen />);
+    expect(getByTestId('group-task-person-a1')).toBeTruthy();
+    expect(getByTestId('group-task-person-a3')).toBeTruthy();
+    expect(getByTestId('group-task-encargado-a1')).toHaveTextContent('groups.tasks.detail.encargado');
+    expect(queryByTestId('group-task-encargado-a3')).toBeNull();
+  });
+
   it('shows who waits on a shift to admins only', () => {
     mockTask = task({ slots: 1, dueOn: '2030-01-01', claimedUids: ['a3'], waitlistUids: ['a4'] });
     const member = render(<GroupTaskScreen />);

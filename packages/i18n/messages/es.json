@@ -2289,7 +2289,8 @@
         "event": "Evento: {title}",
         "markDone": "Marcar como hecha",
         "reopen": "Reabrir",
-        "unavailable": "Esta tarea ya no existe."
+        "unavailable": "Esta tarea ya no existe.",
+        "encargado": "Se encarga"
       },
       "comments": {
         "title": "Comentarios",
@@ -2339,7 +2340,8 @@
         "state": {
           "claimed": "Estás apuntado",
           "waitlisted": "En lista de espera ({position}º)",
-          "declined": "Has dicho que no puedes"
+          "declined": "Has dicho que no puedes",
+          "encargado": "Te encargas tú"
         },
         "waiting": "En espera: {names}",
         "noVolunteers": "Nadie apuntado todavía."
@@ -2356,9 +2358,9 @@
         "time": "Hora (por ejemplo 10:00)",
         "timeInvalid": "Escribe la hora como 10:00.",
         "assignees": "Quién se encarga",
-        "isShift": "Es un turno de voluntarios",
-        "slots": "Personas que hacen falta",
-        "slotsInvalid": "Escribe cuántas personas hacen falta, de 1 a 100.",
+        "isShift": "Se buscan voluntarios",
+        "slots": "Cuántos voluntarios más hacen falta",
+        "slotsInvalid": "Escribe cuántos voluntarios hacen falta, de 1 a 100.",
         "shiftNeedsDate": "Un turno necesita fecha.",
         "slotsBelowClaimed": "Ya hay {count, plural, one {# apuntado} other {# apuntados}}: no puede haber menos plazas.",
         "repeat": "Se repite",
@@ -2746,7 +2748,6 @@
       "form": {
         "titleNew": "Ofrecer algo",
         "titleEdit": "Editar",
-        "stepPhoto": "Foto",
         "stepWhat": "Qué es",
         "stepHow": "Cómo se comparte",
         "kind": "Qué es",
@@ -2769,7 +2770,7 @@
         "ownerGroup": "Del grupo",
         "save": "Guardar",
         "publish": "Publicar",
-        "noPhoto": "Sin foto",
+        "photo": "Foto (opcional)",
         "takePhoto": "Hacer foto",
         "pickPhoto": "Elegir foto",
         "cameraDenied": "Para hacer la foto, permite la cámara en los ajustes del móvil.",

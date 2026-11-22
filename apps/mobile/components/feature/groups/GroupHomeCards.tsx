@@ -6,7 +6,7 @@ import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { View } from 'react-native';
 import { Avatar, Card, HStack, Pressable, Text, VStack } from '../../primitives';
 import type { MemberFace } from '../../../lib/orgs/useOrgMembers';
-import { taskPeople } from '../../../lib/orgs/taskBoard';
+import { taskHolders } from '@cultuvilla/shared/models/organization';
 import { useT } from '../../../lib/i18n';
 
 // Set here so these cards never depend on how their `flex-1` children measure
@@ -85,7 +85,7 @@ export function TaskCard({
   onPress: () => void;
 }) {
   const { t } = useT();
-  const people = taskPeople(task);
+  const people = taskHolders(task);
   const shown = people.slice(0, MAX_FACES);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-task-${task.id}`} style={{ width, minHeight: TASK_CARD_MIN_HEIGHT }}>

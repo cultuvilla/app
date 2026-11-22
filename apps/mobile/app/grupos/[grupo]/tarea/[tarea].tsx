@@ -8,7 +8,7 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Avatar, Button, HStack, Pressable, Screen, Text, VStack } from '../../../../components/primitives';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
-import { taskPeople } from '../../../../lib/orgs/taskBoard';
+import { taskHolders } from '@cultuvilla/shared/models/organization';
 import { TaskComments } from '../../../../components/feature/groups/TaskComments';
 import { TaskSignupBar } from '../../../../components/feature/groups/TaskRows';
 import { TaskSheet } from '../../../../components/feature/groups/TaskSheet';
@@ -51,7 +51,7 @@ export default function GroupTaskScreen() {
     eventId ? (next, error) => watchEvent(eventId, next, error) : null,
   );
   const { members, nameOf } = useOrgMembers(orgId ?? '');
-  const people = task ? taskPeople(task) : [];
+  const people = task ? taskHolders(task) : [];
   const faces = useMemberFaces(people);
   const scrollRef = useRef<ScrollView>(null);
   const keyboardOpen = useKeyboardOpen();
@@ -147,6 +147,12 @@ export default function GroupTaskScreen() {
                       <Text className="flex-1" numberOfLines={1}>
                         {nameOf(personUid)}
                       </Text>
+                      {/* With volunteers too, say who was put in charge. */}
+                      {task.slots !== null && task.assigneeUids.includes(personUid) ? (
+                        <Text variant="caption" tone="muted" testID={`group-task-encargado-${personUid}`}>
+                          {t('groups.tasks.detail.encargado')}
+                        </Text>
+                      ) : null}
                     </HStack>
                   ))
                 )}

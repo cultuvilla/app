@@ -93,12 +93,11 @@ describe('<Stepper>', () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it("says a step's own next label, and gives the last step its own testID", () => {
-    const steps = makeSteps([{ nextLabel: 'Sin foto' }]);
+  it('gives the last step its own testID', () => {
     const { getByTestId } = render(
-      <Stepper steps={steps} submitLabel="Crear" onComplete={() => {}} primaryTestID="next" submitTestID="save" />,
+      <Stepper steps={makeSteps()} submitLabel="Crear" onComplete={() => {}} primaryTestID="next" submitTestID="save" />,
     );
-    expect(getByTestId('next')).toHaveTextContent('Sin foto');
+    expect(getByTestId('next')).toHaveTextContent('common.stepper.next');
     fireEvent.press(getByTestId('next'));
     expect(getByTestId('save')).toHaveTextContent('Crear');
   });

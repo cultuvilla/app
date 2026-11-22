@@ -14,7 +14,8 @@ import { Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '..
 import { StatsRow } from '../../components/feature/StatsRow';
 import { EntityCard, Section, SectionHeader } from '../../components/feature/VillageSections';
 import { NoticeCard, RowPlaceholder, TaskCard } from '../../components/feature/groups/GroupHomeCards';
-import { startOfMadridYear, taskPeople } from '../../lib/orgs/taskBoard';
+import { taskHolders } from '@cultuvilla/shared/models/organization';
+import { startOfMadridYear } from '../../lib/orgs/taskBoard';
 import { useMemberFaces } from '../../lib/orgs/useOrgMembers';
 import { watchGroupTasksDoneSince, watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
@@ -157,7 +158,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   );
   const upcomingTasks = useMemo(() => [...(openTasks.data ?? [])].sort(compareTasksByDue), [openTasks.data]);
   const eventTitles = useMemo(() => new Map((events.data ?? []).map((e) => [e.id, e.title])), [events.data]);
-  const faces = useMemberFaces(upcomingTasks.flatMap(taskPeople));
+  const faces = useMemberFaces(upcomingTasks.flatMap(taskHolders));
   const ownStatus = cuota.statuses.find((s) => cuota.rows.find((r) => r.id === s.socioId)?.kind === 'member') ?? cuota.statuses[0];
   const cuotaBanner = roster && org.cuotaEnabled && ownStatus && cuota.periodKey ? { period: cuota.periodKey, status: ownStatus.status } : null;
 

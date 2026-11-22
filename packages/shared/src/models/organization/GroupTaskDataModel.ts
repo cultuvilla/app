@@ -13,6 +13,8 @@ import { DayKeySchema } from '../municipality/FiestaBlockModel';
  * - a volunteer shift (`slots` set): members answer through the
  *   `respondToTaskShift` callable, which keeps `claimedUids` within the cap and
  *   the waiting list in order. The three answer lists are function-owned.
+ *   A shift may also have assignees — its encargados — and `slots` counts only
+ *   the volunteers sought on top of them; an encargado takes no slot.
  *
  * Dates are Madrid calendar days (`YYYY-MM-DD`), like the cuota's.
  */

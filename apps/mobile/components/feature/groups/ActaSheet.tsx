@@ -3,10 +3,12 @@ import { ScrollView } from 'react-native';
 import { ACTA_BODIES, isActiveSocio, type ActaAttendee, type ActaBody, type ActaInput } from '@cultuvilla/shared/models/organization';
 import type { Acta } from '@cultuvilla/shared/services/recordsService';
 import type { Socio } from '@cultuvilla/shared/services/socioService';
-import { Checkbox, DateField, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
+import { DateField, HStack, Input, Pressable, Text, Toggle, VStack } from '../../primitives';
 import { SegmentedToggle } from '../SegmentedToggle';
 import { FormModal } from '../../layout/FormModal';
 import { Stepper, type StepConfig } from '../Stepper';
+import { PersonCheckbox } from './PersonCheckbox';
+import { useMemberFaces } from '../../../lib/orgs/useOrgMembers';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { dayKeyOfPickedDate, pickedDateOfDayKey, todayKey } from '../../../lib/orgs/cuota';
@@ -73,6 +75,9 @@ export function ActaSheet({
     () => socios.filter((s) => isActiveSocio(s) || present.has(s.id)).sort((a, b) => a.displayName.localeCompare(b.displayName, 'es')),
     [socios, present],
   );
+
+  // A socio with the app shows their photo; one without, their initial.
+  const faces = useMemberFaces(choices.flatMap((s) => (s.uid ? [s.uid] : [])));
 
   const toggle = (socio: Socio, on: boolean) =>
     setPresent((prev) => {
@@ -164,11 +169,12 @@ export function ActaSheet({
               </HStack>
             </HStack>
             {choices.map((s) => (
-              <Checkbox
+              <PersonCheckbox
                 key={s.id}
+                name={s.displayName}
+                photoURL={s.uid ? (faces[s.uid]?.photoURL ?? null) : null}
                 value={present.has(s.id)}
                 onValueChange={(on) => toggle(s, on)}
-                label={s.displayName}
                 testID={`acta-attendee-${s.id}`}
               />
             ))}

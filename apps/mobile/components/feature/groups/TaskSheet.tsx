@@ -8,10 +8,11 @@ import {
   type TaskRecurrence,
 } from '@cultuvilla/shared/models/organization';
 import { createGroupTask, updateGroupTask, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
-import { Checkbox, DateField, Input, Text, Toggle, VStack } from '../../primitives';
+import { DateField, Input, Text, Toggle, VStack } from '../../primitives';
 import { SegmentedToggle } from '../SegmentedToggle';
 import { FormModal } from '../../layout/FormModal';
 import { Stepper, type StepConfig } from '../Stepper';
+import { PersonCheckbox } from './PersonCheckbox';
 import { useT } from '../../../lib/i18n';
 import { showAlert } from '../../../lib/dialogs';
 import { dayKeyOfPickedDate, pickedDateOfDayKey } from '../../../lib/orgs/cuota';
@@ -40,8 +41,8 @@ interface Errors {
 /**
  * Any member: create or edit one task, in three steps — what it is; when it is
  * and whether it repeats on a fixed date or some time after it was done; and
- * who does it, or whether it is a volunteer shift and how many people it
- * needs. A new task can be put on an event's checklist. Deleting is on the
+ * who is in charge of it, and whether it still looks for volunteers and how
+ * many more. A new task can be put on an event's checklist. Deleting is on the
  * task's own screen.
  */
 export function TaskSheet({
@@ -126,8 +127,7 @@ export function TaskSheet({
     const fields = {
       title,
       notes: notes.trim() ? notes : null,
-      // A shift is filled by volunteers, not assigned.
-      assigneeUids: isShift ? [] : assignees,
+      assigneeUids: assignees,
       dueOn,
       time: parsedTime,
       slots: parsedSlots,
@@ -220,6 +220,22 @@ export function TaskSheet({
       render: () =>
         stepBody(
           <>
+            <VStack gap={1} testID="task-assignees">
+              <Text variant="bodySm" className="font-bold">
+                {t('groups.tasks.form.assignees')}
+              </Text>
+              {members.map((m) => (
+                <PersonCheckbox
+                  key={m.uid}
+                  name={m.name}
+                  photoURL={m.photoURL}
+                  value={assignees.includes(m.uid)}
+                  onValueChange={(on) => toggleAssignee(m.uid, on)}
+                  testID={`task-assignee-${m.uid}`}
+                />
+              ))}
+            </VStack>
+            {/* Encargados and a call for more volunteers can go together. */}
             <Toggle label={t('groups.tasks.form.isShift')} value={isShift} onValueChange={setIsShift} testID="task-is-shift" />
             {isShift ? (
               <>
@@ -237,22 +253,7 @@ export function TaskSheet({
                   </Text>
                 ) : null}
               </>
-            ) : (
-              <VStack gap={1} testID="task-assignees">
-                <Text variant="bodySm" className="font-bold">
-                  {t('groups.tasks.form.assignees')}
-                </Text>
-                {members.map((m) => (
-                  <Checkbox
-                    key={m.uid}
-                    label={m.name}
-                    value={assignees.includes(m.uid)}
-                    onValueChange={(on) => toggleAssignee(m.uid, on)}
-                    testID={`task-assignee-${m.uid}`}
-                  />
-                ))}
-              </VStack>
-            )}
+            ) : null}
           </>,
         ),
     },

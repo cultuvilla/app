@@ -87,6 +87,28 @@ describe('TaskSheet', () => {
     );
   });
 
+  it('keeps encargados and still looks for more volunteers', async () => {
+    const { getByTestId } = sheet();
+    fireEvent.changeText(getByTestId('task-title'), 'Barra de las fiestas');
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.press(getByTestId('step-dot-0'));
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.press(getByTestId('task-assignee-u-ana'));
+    fireEvent(getByTestId('task-is-shift'), 'onValueChange', true);
+    // Encargados stay on screen with the call for volunteers.
+    expect(getByTestId('task-assignees')).toBeTruthy();
+    expect(getByTestId('task-shift-due-error')).toBeTruthy();
+    fireEvent.press(getByTestId('step-dot-1'));
+    fireEvent(getByTestId('task-due'), 'onChange', new Date(2030, 7, 14));
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.changeText(getByTestId('task-slots'), '3');
+    fireEvent.press(getByTestId('task-save'));
+    await waitFor(() =>
+      expect(createGroupTask).toHaveBeenCalledWith('org1', expect.objectContaining({ assigneeUids: ['u-ana'], slots: 3, dueOn: '2030-08-14' }), 'admin'),
+    );
+  });
+
   it('needs a date for a shift', () => {
     const { getByTestId } = sheet();
     fireEvent.changeText(getByTestId('task-title'), 'Barra');
@@ -119,7 +141,7 @@ describe('TaskSheet', () => {
     fireEvent.press(getByTestId('step-dot-2'));
     fireEvent.press(getByTestId('task-save'));
     await waitFor(() =>
-      expect(updateGroupTask).toHaveBeenCalledWith('org1', 'asamblea', expect.objectContaining({ slots: 4, time: '09:30', assigneeUids: [] })),
+      expect(updateGroupTask).toHaveBeenCalledWith('org1', 'asamblea', expect.objectContaining({ slots: 4, time: '09:30', assigneeUids: ['u-ana'] })),
     );
   });
 });
