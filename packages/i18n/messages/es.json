@@ -1871,7 +1871,7 @@
       "socios": "Socios",
       "members": "Integrantes",
       "events": "Eventos",
-      "tasksDone": "Tareas hechas"
+      "tasksDone": "Tareas"
     },
     "home": {
       "avisosWithNew": "Avisos ({count} sin leer)",
