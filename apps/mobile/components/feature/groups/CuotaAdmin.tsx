@@ -61,19 +61,17 @@ type Sheet =
 
 /**
  * Where a socio stands this period, in words: paid, what they owe, what they
- * already paid of it, or why they owe nothing. Late, the due date alone turns
- * red. The «Cobrar» button beside it is the action, so this line never reads
+ * already paid of it, or why they owe nothing. Late, it starts with a red
+ * «Vencida». The «Cobrar» button beside it is the action, so this line never reads
  * like one.
  */
 function RowState({
   status: s,
   late,
-  dueLabel,
   householdName,
 }: {
   status: SocioCuotaStatus;
   late: boolean;
-  dueLabel: string;
   householdName: string;
 }) {
   const { t } = useT();
@@ -107,7 +105,7 @@ function RowState({
     <Text variant="bodySm" tone="muted">
       {late ? (
         <Text variant="bodySm" tone="danger" className="font-bold">
-          {`${t('groups.cuota.overdueSince', { date: dueLabel })} · `}
+          {`${t('groups.cuota.status.vencida')} · `}
         </Text>
       ) : null}
       {head}
@@ -225,7 +223,6 @@ export function CuotaAdmin({
       </>
     );
   }
-  const dueLabel = formatDayKey(periodDueDay(cuota, periodKey), 'dayMonthShort');
 
   const summary = summarizeCollection(statuses);
   const progress = summary.totalCents > 0 ? Math.min(1, summary.collectedCents / summary.totalCents) : 0;
@@ -407,15 +404,15 @@ export function CuotaAdmin({
                   testID={`cuota-row-${s.socioId}`}
                   accessibilityRole="button"
                   onPress={() => setSheet({ kind: 'socio', socio })}
-                  className={`px-3 py-2.5 ${i > 0 ? 'border-t border-subtle' : ''}`}
+                  className={`px-3 py-2 ${i > 0 ? 'border-t border-subtle' : ''}`}
                 >
                   <HStack gap={2} align="center">
                     <Text variant="bodySm" tone="muted" className="w-8 text-right">
                       {socio.socioNumber ?? ''}
                     </Text>
-                    <VStack className="flex-1">
+                    <VStack gap={0} className="flex-1">
                       <Text className={socio.bajaAt ? 'text-muted' : ''}>{socio.displayName}</Text>
-                      <RowState status={s} late={late} dueLabel={dueLabel} householdName={socioById.get(s.householdOf ?? '')?.displayName ?? '—'} />
+                      <RowState status={s} late={late} householdName={socioById.get(s.householdOf ?? '')?.displayName ?? '—'} />
                     </VStack>
                     {s.basis === 'unpaid' ? (
                       <Pressable
