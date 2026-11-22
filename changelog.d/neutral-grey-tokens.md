@@ -1,1 +1,0 @@
-- Style: los grises de la app (flechas, bordes de campos, separadores, campos deshabilitados, el buscador de direcciones) leen ahora colores compartidos; algunos grises casi iguales pasan a ser uno solo. **Migration:** none.

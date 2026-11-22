@@ -4,6 +4,8 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+## v1.13.0 — 2026-11-22
+
 <!-- store-notes -->
 - **Programa de fiestas**: apunta los días de las fiestas de tu pueblo y sigue su programa día a día, en la app y en la web.
 - **Grupos**: tareas por evento con encargados y voluntarios, cuentas con categorías, y la junta puede abrir la cuota, los avisos y las cuentas a los socios.
@@ -11,6 +13,252 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 - Tus pueblos se abren al instante, también sin conexión.
 - Correcciones y mejoras.
 <!-- /store-notes -->
+
+- A group admin's extra buttons now say «Cuotas» and «Avisos» instead of
+  «Cobrar cuota» and «Enviar avisos». **Migration:** none.
+- In a group's Ajustes, «Qué usa el grupo» only switches tools on and off; who can see the Cosateca now sits beside the cuota's reminders, in a section called «Cómo funcionan». **Migration:** none.
+- A group's Ajustes is now grouped under headings — «Entrar al grupo», «Qué ven
+  todos los socios», «Charla», «Cosateca» and «Cuota» — instead of one list of
+  switches, and «Unirse requiere aprobación» moved there from «Editar grupo»
+  (it saves at once, still asking before opening the group). **Migration:** none.
+- Usage statistics (Google Analytics for Firebase) are now opt-in, as the
+  Privacy Policy says: off for guests and for every account until it says yes.
+  Signing up no longer asks: as soon as the app opens, an account that has not
+  answered gets a full-screen page — «¿Nos ayudas a mejorar Cultuvilla?», with
+  «No, gracias» and «Sí, claro» side by side — and answers before going on.
+  The answer can be changed anytime in Ajustes → «Estadísticas de uso». Error
+  reports keep reaching us either way.
+  **Migration:** none — an account with no answer stored simply has not been
+  asked yet.
+- Internal: the app now sends Firebase App Check tokens — Play Integrity on
+  Android and App Attest (DeviceCheck fallback) on iOS in beta and production,
+  the debug provider in dev and E2E builds. Enforcement stays off, so nothing
+  changes for users; it adds a native module, so OTA updates from this release
+  on reach only binaries built with it. **Migration:** none.
+- Fix: an event's «Asistentes» list now updates as soon as you sign up or
+  cancel on the same screen, instead of only after leaving and reopening the
+  event. **Migration:** none.
+- Change: on a group's home, tapping an aviso opens the Avisos screen, where
+  its poll can be answered, instead of going straight to its chat; the chat is
+  one tap further, under the aviso. **Migration:** none.
+- A new aviso adds its encuesta the way an event adds a form question: «Añadir encuesta», pick «Sí o no» or «Elegir una opción», and edit the options in the same card. **Migration:** none.
+- Change: los avisos de un grupo ya no suenan en el móvil. Siguen llegando al
+  grupo y al Buzón, con su punto de no leído, y por email a quien no tiene la
+  app; lo que sí notifica en el móvil es lo que escribe la propia app (cuota,
+  tareas, eventos, solicitudes) y las conversaciones (Charla, comentarios). Con
+  ello desaparecen el botón «Recordárselo a quien no lo ha leído», el
+  interruptor «Avisos de la junta» de Ajustes → Notificaciones y el nivel
+  «Nada» de cada grupo, que solo silenciaba esos avisos. **Migration:** none
+  (`nudgeGroupMessage` stays callable for installed binaries; delete it once
+  `minSupported` passes this release).
+- Feature: «Enviar avisos», un ajuste nuevo del grupo en «Qué pueden hacer los
+  socios», apagado en todos los grupos. Con él, cualquier socio envía desde
+  Avisos un aviso a todos los socios: solo texto, solo en la app.
+  **Migration:** `organizations.sociosSendAvisos` (false) is written by
+  `scripts/backfill-org-socios-send-avisos.mjs`, which the deploy applies itself
+  (pre-deploy, autoApply).
+- Village admins adding a barrio can now pick its type — Barrio, Localidad,
+  Aldea or Parroquia — to add a settlement the OpenStreetMap seed missed.
+  Members still add barrios only. **Migration:** none.
+- Feature: el número de la campana cuenta todo lo que te espera en *Necesita tu acción*: además de las solicitudes de Embajador y de nuevos grupos, las solicitudes para unirse a tus grupos y las denuncias abiertas de tus pueblos. **Migration:** none.
+- A group's admins can switch its Charla off in Ajustes, under «Qué usa el grupo». Off hides the Charla and its «Escribir en la Charla» setting; nothing written is deleted. **Migration:** `scripts/backfill-org-chat-enabled.mjs` sets `organizations.chatEnabled: true` where missing (pre-deploy, applied by the deploy).
+- The Cosateca's object screen now opens with its photo full width, a clear availability line and its facts as icon rows, with «Pedirlo» pinned at the bottom; editing and pausing moved to the top bar. A request is now a conversation: the object on top (tap to open it), the steps it has walked, the chat filling the screen and the next step's buttons side by side above the composer. Light buttons across the app are now orange and bold, so they read as buttons. **Migration:** none.
+- The Cosateca's «En marcha» now splits what waits on you from what is only under
+  way. «Te toca» shows each request to answer, thing to hand over or late loan as a
+  bold card with its button on it (Aceptar, Rechazar, Ya lo he entregado…), late
+  ones in red and first. «En curso» lists what you asked for, hold or lent as quiet
+  rows, up to three. When nothing waits on you it says «Nada pendiente por tu
+  parte» in green. The group home's Cosateca button shows how many things wait on
+  you. **Migration:** none.
+- Fix: more counts of one read in the singular — «1 voto», «de 1 pagada»,
+  «0 de 1 plaza», «Ya hay 1 apuntado», «0 de 1 hecha», «1 de 1 enviado»,
+  «1 pendiente», the attendee export's «(1 persona)» and the Wrapped prompt's
+  «1 evento». **Migration:** none.
+- In a group's Cobros list each socio's line says where they stand in words (paid, what they owe, what they already paid, exempt, in a family cuota), a late one starts with a red «Vencida», and the action is a «Cobrar» button instead of «✓ Pagó». **Migration:** none.
+- «Cobrar en la mesa» opens with the keyboard up and says to search the socio by name or number. **Migration:** none.
+- When a search or a filter in Explora hides every event or article, it now says
+  nothing matches instead of «No hay eventos próximos», with a «Quitar filtros»
+  button that clears the search and every filter. **Migration:** none.
+- A group with socios can now switch its Actas and its Cuentas off in Ajustes, under
+  «Qué usa el grupo», next to Cuota and Cosateca. Off hides their buttons, their
+  doors and the cuentas line of the asamblea checklist
+  (and the «Cuentas» visibility switch); nothing written is deleted, and turning them
+  back on brings it all back. **Migration:** `scripts/backfill-org-records-enabled.mjs`
+  sets both on for every existing group (per env; the deploy applies it).
+- A group's home shows the same buttons to everyone: an admin now gets «Actas» and
+  «Cuentas» like any socio, opening the editable books, and «Registros» is gone (the
+  libro de socios is reached from «Socios»). The admin-only buttons say what they do:
+  «Cobrar cuota» and «Enviar avisos». «Eventos» and «Tareas» have their own buttons,
+  unread avisos carry a dot, a group's event shows as a card with its flyer, and the
+  events filter is just «Próximos» and «Pasados».
+- Ajustes opens with «Qué usa el grupo»: an admin switches the cuota and the cosateca
+  on or off. With the cuota off its buttons, banner and reminders disappear; its
+  payments are kept. **Migration:** `organizations.cuotaEnabled` is set to `true` where
+  missing by `scripts/backfill-org-cuota-enabled.mjs` (pre-deploy, auto-applied).
+- A group's Ajustes reads shorter: the grey hint under each switch is gone, the
+  «Qué ven todos los socios» switches are relabelled to read alone («Quién está
+  al día con la cuota», «Todos los avisos y votaciones», «Ingresos y gastos del
+  año»), and «Charla» becomes «Qué pueden hacer los socios» (or «…los
+  integrantes» in a group without socios) with one switch, «Escribir en la
+  Charla», on while socios may write. **Migration:** none — the stored
+  `chatAdminsOnly` keeps its meaning.
+- A group's home shows «Tareas hechas» this year as its third stat, in place of
+  «Actas»; it opens Tareas. **Migration:** none.
+- Feature: la junta de un grupo con socios puede hacer públicas, una a una desde Ajustes, tres cosas para todos sus socios: la cuota (quién está al día y quién pendiente, sin importes ni fechas), los avisos (todos los que ha enviado, también a solo algunos socios, con los resultados de las votaciones, sin quién los leyó) y las cuentas del año (ingresos y gastos, solo para ver, en una nueva sección «Cuentas»). Los datos de contacto nunca se muestran. Todo empieza apagado. **Migration:** `scripts/backfill-org-transparency.mjs` (registered `org-transparency`, `pre-deploy`, autoApply) gives every organization `transparency: { cuota: false, avisos: false, cuentas: false }`.
+- Fix: notifications about groups said «organización» («Organización aprobada»,
+  «Nueva organización en …») while the rest of the app says «grupo»; they now
+  read «Grupo aprobado», «Grupo rechazado» and «Nuevo grupo en …». And more
+  «1 …» plurals agree in number: «en 1 pueblo» and «1 significado» in the
+  vocabulary, and «1 vecino» on the web page of a barrio. **Migration:** none.
+- In a group, a new tarea, acta, cosa and ingreso o gasto are written step by
+  step, with the same step bar as creating an event; editing one opens the same
+  steps, each a tap away. «Nueva acta» and «Añadir movimiento» are floating
+  buttons, and removing a tarea or a cosa is on its own screen. **Migration:** none.
+- Fix: the cuota settings form no longer resets to its old values while its
+  first save is still on the way. **Migration:** none.
+- Fix: VoiceOver reads a socio's number along with the name in the socios
+  roster. **Migration:** none.
+- Fix: on iOS, signing out (or the first launch after reinstalling while still
+  signed in) could crash the app instead of restarting it, when a network check
+  was still running. **Migration:** none.
+- In a group's Cuentas, the category of an ingreso or gasto is now picked from
+  the group's own list, separate for gastos and ingresos, instead of typed each
+  time. «+ Nueva» adds one on the spot, names past entries already used are
+  offered too, and «Categorías» lets the admins rename or delete them. Entries
+  keep the name they were noted with. **Migration:** none.
+- The Terms of Use and the Privacy Policy (in the app and at cultuvilla.es/legal)
+  now describe the product as it works today: an iOS/Android app with a public
+  read site and the /estudio studio, sign-in by 6-digit email code, Google or
+  Apple, and the data flows that were missing (groups and socios, location,
+  push, Resend, Expo, where data is stored). Usage statistics are described as
+  opt-in, each group as controller of its socios' data, and the content licence
+  as covering the public web, link previews and search engines. Dated
+  20 November 2026; terms version unchanged. **Migration:** none.
+- Fix: on a phone outside Spain's peninsular timezone (Canarias, or abroad),
+  the Inicio feed dropped today's events early — it cut off at the phone's
+  midnight instead of Madrid's. The hourly event-completion sweep now reads
+  only the events whose day is over instead of every published event.
+  **Migration:** none.
+- Style: los grises de la app (flechas, bordes de campos, separadores, campos deshabilitados, el buscador de direcciones) leen ahora colores compartidos; algunos grises casi iguales pasan a ser uno solo. **Migration:** none.
+- Fix: without a connection, switching the active village in Mis pueblos spun
+  forever and from the profile did nothing. It now switches at once and syncs
+  when the connection comes back. **Migration:** none.
+- Tus pueblos se abren al instante y sin conexión: al abrir la app se ponen al
+  día en el móvil el pueblo activo y cada pueblo del que eres vecino, con las
+  imágenes de sus primeras tarjetas. **Migration:** none.
+- Fix: tapping «Organización aprobada» in the Buzón opens the group instead of
+  the «Añadir grupo» form; «Organización rechazada», and approvals sent before
+  this fix, open the pueblo. **Migration:** none — new approvals carry the
+  group's id, older notifications land on the pueblo.
+- The menu's Legal section gains «Atribuciones», crediting «© OpenStreetMap
+  contributors» for the pedanías, aldeas, parroquias and barrios names, as the
+  ODbL licence requires. **Migration:** none.
+- Change: on iPhone, a shared village-first link (`cultuvilla.es/<pueblo>/evento/…`)
+  opens the app instead of Safari. Prod's `apple-app-site-association` now claims
+  the whole host except `/entrar`, like dev and beta; it waited until the wall
+  (`minSupported` 1.10.0) passed iOS 1.2.1, the first build with these routes.
+  **Migration:** none.
+- New: programa de fiestas. Any village member can add the days of a fiesta for
+  the year (the proposer and the village admins can correct them), and an event
+  dated in those days can join its programme from the event form (on by
+  default). `/<pueblo>/fiestas/<año>` now shows the programme day by day, in the
+  app and on the web, until that year's Wrapped is published, which then keeps
+  the programme a tap away. The village home shows the programme in the weeks
+  before and during the fiestas, and asks members for the days in the month
+  they are due. The Wrapped create form starts from those days.
+  **Migration:** `events.fiestaEditionId` is seeded to null by the registered
+  pre-deploy backfill `scripts/backfill-event-fiesta-edition.mjs` (autoApply on
+  every env).
+- Fix: four wrong texts found by the device QA pass — another user's profile
+  headed their villages «Mis pueblos» (now «Pueblos»); group, peña and barrio
+  cards said «1 personas» / «1 vecinos»; the delete-account blocker read «Grupo
+  de Grupo …»; and a malformed Estudio pairing link said «Inténtalo de nuevo»
+  instead of that the link is not valid. **Migration:** none.
+- Fix: texts no longer cut off on Android — the guest's «Inicia sesión para
+  unirte» button on a village, long switch labels (the add-group privacy
+  switch and every other one) and two-letter initials in small avatars.
+  **Migration:** none.
+- Fix: on the pueblo home a member no longer sees «Unirme a este pueblo» flash
+  (cut off with «…») before «Añadir contenido»; the action waits until we know
+  whether you belong to the pueblo. Action pills no longer show a clipped first
+  frame. **Migration:** none.
+- Fix: the statistics question shows dark status-bar icons on Android instead of
+  white ones on the cream page. **Migration:** none.
+- Fix: the «¿A quién haces socio?» and «¿Te avisamos si cambia algo?» sheets keep
+  their rows and buttons off the screen edge. **Migration:** none.
+- Fix: on Android, closing the keyboard in a form or sheet (Nuevo aviso, Nueva
+  tarea, Añadir socio…) no longer leaves a cream strip under the bottom button
+  bar. **Migration:** none.
+- The web read site credits «© OpenStreetMap contributors» in its footer, for
+  the settlement names it shows. **Migration:** none.
+- On the web page of a pueblo, today's events stay at the top of the list until
+  the day ends, as in the app, instead of dropping behind every future event once
+  they start; and a group with one member reads «1 integrante». The web now takes
+  its event order and its counts from the app's own rules and catalog.
+  **Migration:** none.
+- An app admin's Admin → Denuncias now lists the open reports of every pueblo,
+  each row naming its pueblo, instead of nothing until a village was picked. And
+  nobody can resolve, dismiss or delete through a report about their own content:
+  the row says another person of the team has to review it, and the rules refuse
+  the change. **Migration:** none.
+- Change: los botones secundarios («Añadir socio», «Cancelar», «No puedo»…) pasan de fondo melocotón a un contorno terracota con texto terracota, más legible y sin competir con el botón principal. **Migration:** none.
+- Change: los paneles que suben desde abajo ya no tienen ✕ ni botón «Cerrar»: se cierran arrastrando hacia abajo la barra de arriba (o tocándola, o tocando fuera). Lo mismo para el menú de usuario. Todos los paneles comparten ahora la misma barra y el mismo gesto. **Migration:** none.
+- The second surname is optional when creating your profile (and when adding or
+  editing a persona), and its field now says «(opcional)»: someone with one
+  surname is no longer stuck on the first step. **Migration:** none.
+- On the email-code login, «Reenviar código» now confirms «Código enviado» under
+  the field and empties it, so the old code isn't verified by mistake; a failed
+  send still shows its error. **Migration:** none.
+- Adding a socio by hand now asks the junta to confirm that person agreed to the
+  group keeping their data; it cannot be saved until that box is ticked.
+- Deleting your account now also clears the phone and email you shared with each
+  group's junta. Your socio record (name, number, dates, cuotas) stays in the
+  group's libro de socios, marked as baja. **Migration:** none.
+- On a group's Socios screen, «Añadir socio» and «Añadir a la junta» sit side by side, and the «Añadir socio» menu shows its choices as icon rows like the village's «Añadir contenido». **Migration:** none.
+- The Socios screen has one «Añadir socio» button, above the junta: an admin
+  picks «Alguien sin la app» or «Una persona a tu cargo», a socio goes straight
+  to their personas. The junta can now be edited from its own block: «Añadir a
+  la junta» makes a socio with the app an admin with a cargo, and tapping a
+  face changes its cargo or takes it out of the junta. The list below is now
+  headed «Socios». **Migration:** none.
+- Grupos: the Socios screen no longer says which contact data the junta sees
+  or offers to change it; the question is asked once, on joining. Personas a
+  cargo become socios through one button below your ficha, which asks who.
+  The Avisos cards on the group home show only the title and the date. Actas
+  is a stat next to Eventos. **Migration:** none.
+- A group's Tareas is now one list: each task on a single line (tick it done
+  right there, its date in red when late, the faces of who is on it), grouped
+  under its event, each event folding open or closed with its progress
+  («3 de 7 hechas») always in view; tasks of no event go under «Otras tareas».
+  The Pendientes/Mías/Hechas switch is replaced by filters that combine
+  (Mías, Sin asignar, Atrasadas, Esta semana, Turnos con hueco, Hechas), kept
+  on the phone. «Reparto del trabajo» is now «Quién más ayuda», for every
+  integrante: a strip on top with the three who did most and your place, and a
+  leaderboard for this year, this month or one event — nobody listed at zero.
+  **Migration:** none.
+- A group's tarea can have encargados and still look for volunteers: «Se buscan
+  voluntarios» asks for more people on top of whoever is in charge, both are
+  reminded and counted, and an encargado is not offered a volunteer slot. The
+  list to tick encargados, and the acta's socios presentes, show each
+  person's photo. Offering something in the Cosateca puts its photo, shown
+  whole, in the same step as its name. **Migration:** none.
+- A group's Tareas keeps its filters on one line («Mías», «Sin asignar», «Hechas») with a button for the rest, shows the templates in their own Plantillas card, and closes with the leaderboard. Events no longer offer applying or saving a template. **Migration:** none.
+- In a group's Tareas a late task shows only its date in red, without the word «Vencida», and the leaderboard is a card at the end of the screen instead of a strip that opens another screen. **Migration:** none.
+- A task template's tasks are now written one at a time: «Añadir tarea» opens a
+  sheet with just that task — what to do, then «Antes / El mismo día / Después»
+  and how many days — instead of a growing form of cards with negative day
+  counts. The template shows each task as one line («4 días antes · 3 plazas»);
+  tap it to edit or remove it. **Migration:** none.
+- With «Avisos públicos» on, socios no longer see the avisos the junta sent
+  only to itself — those stay the junta's private notes. Avisos to all or some
+  socios, and their poll results, are still shown. **Migration:** none.
+- Fix: opening a link to a pueblo that doesn't exist (mistyped, or renamed since it was shared) left the «No encontramos este pueblo» message with no way out on iOS or from a cold start. It now has a header with a back arrow that returns to the previous screen, or to the home tab when there is none. **Migration:** none.
+- The village home now leads its pedanías (or aldeas) with the municipal seat,
+  labelled «El pueblo» and outlined, so residents of the main village find
+  their own settlement first. **Migration:** none.
+- Fix: the author of a word that moderation had hidden was still shown a
+  delete button on it, whose tap then failed; it now appears only where the
+  server allows the delete. **Migration:** none.
 
 ## v1.12.0 — 2026-11-12
 

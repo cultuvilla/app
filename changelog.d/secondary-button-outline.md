@@ -1,1 +1,0 @@
-- Change: los botones secundarios («Añadir socio», «Cancelar», «No puedo»…) pasan de fondo melocotón a un contorno terracota con texto terracota, más legible y sin competir con el botón principal. **Migration:** none.

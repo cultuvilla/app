@@ -1,1 +1,0 @@
-- Fix: opening a link to a pueblo that doesn't exist (mistyped, or renamed since it was shared) left the «No encontramos este pueblo» message with no way out on iOS or from a cold start. It now has a header with a back arrow that returns to the previous screen, or to the home tab when there is none. **Migration:** none.

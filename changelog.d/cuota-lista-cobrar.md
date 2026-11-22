@@ -1,1 +1,0 @@
-- In a group's Cobros list each socio's line says where they stand in words (paid, what they owe, what they already paid, exempt, in a family cuota), a late one starts with a red «Vencida», and the action is a «Cobrar» button instead of «✓ Pagó». **Migration:** none.

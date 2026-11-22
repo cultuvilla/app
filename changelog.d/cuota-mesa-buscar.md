@@ -1,1 +1,0 @@
-- «Cobrar en la mesa» opens with the keyboard up and says to search the socio by name or number. **Migration:** none.
