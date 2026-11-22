@@ -197,9 +197,12 @@ describe('CuotaAdmin', () => {
     expect(getByTestId('cuota-filter')).toBeTruthy();
     expect(queryByTestId('cuota-row-Ana')).toBeNull();
     expect(getByTestId('cuota-row-Paco')).toBeTruthy();
-    expect(getByTestId('cuota-record-Paco')).toBeTruthy();
+    // The row says what is owed; the button beside it is the action, «Cobrar».
+    expect(getByTestId('cuota-row-Paco')).toHaveTextContent(/groups\.cuota\.admin\.row\.owes:30,00/);
+    expect(getByTestId('cuota-record-Paco')).toHaveTextContent(/groups\.cuota\.admin\.charge/);
     fireEvent.press(getByTestId('cuota-filter-paid'));
-    expect(getByTestId('cuota-row-Ana')).toHaveTextContent(/groups\.cuota\.status\.al_dia/);
+    expect(getByTestId('cuota-row-Ana')).toHaveTextContent(/groups\.cuota\.admin\.row\.paid:30,00/);
+    expect(queryByTestId('cuota-record-Ana')).toBeNull();
     expect(queryByTestId('cuota-row-Paco')).toBeNull();
     fireEvent.press(getByTestId('cuota-filter-exempt'));
     expect(getByTestId('cuota-empty')).toBeTruthy();
@@ -220,7 +223,7 @@ describe('CuotaAdmin', () => {
     expect(getByTestId('cuota-socio-reminder')).toHaveTextContent(/groups\.cuota\.admin\.reminderSent/);
   });
 
-  it('"✓ Pagó" asks only how they paid and records what is owed, dated today', async () => {
+  it('"Cobrar" asks only how they paid and records what is owed, dated today', async () => {
     setWatched('settings', SETTINGS);
     const { getByTestId } = renderAdmin();
     fireEvent.press(getByTestId('cuota-record-Paco'));

@@ -420,7 +420,7 @@ onFlowComplete:
     env:
       TAP: 'cuota-record-${output.userSocioId}'
       EXPECT: 'cuota-payment-sheet'
-# "✓ Pagó" asks only how they paid; a part payment goes through "Otro importe".
+# "Cobrar" asks only how they paid; a part payment goes through "Otro importe".
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:

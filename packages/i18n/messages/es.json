@@ -2151,8 +2151,15 @@
         "ofTotal": "de {total}",
         "ofPaid": "de {count, plural, one {# pagada} other {# pagadas}}",
         "search": "Buscar socio",
-        "paid": "Pagó",
-        "payRest": "Anotar el resto",
+        "charge": "Cobrar",
+        "chargeRest": "Cobrar {amount}",
+        "row": {
+          "paid": "Pagada · {amount}",
+          "owes": "Debe {amount}",
+          "paidPart": "Ha pagado {amount}",
+          "exempt": "No paga · exento/a",
+          "household": "Va en la cuota de {name}"
+        },
         "filters": {
           "pending": "Por pagar {count}",
           "vencida": "Vencidas {count}",

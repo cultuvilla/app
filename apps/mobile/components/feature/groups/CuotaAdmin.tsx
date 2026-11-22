@@ -41,7 +41,7 @@ import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { runExport, type ExportFormat } from '../../../lib/export/runExport';
-import { centsLabel, CUOTA_STATUS_TONE, todayKey } from '../../../lib/orgs/cuota';
+import { centsLabel, todayKey } from '../../../lib/orgs/cuota';
 import {
   COLLECTION_FILTERS,
   inCollectionFilter,
@@ -58,6 +58,62 @@ type Sheet =
   | { kind: 'payment'; socio: Socio; status: SocioCuotaStatus; quick: boolean }
   | { kind: 'assign'; socio: Socio }
   | null;
+
+/**
+ * Where a socio stands this period, in words: paid, what they owe, what they
+ * already paid of it, or why they owe nothing. Late, the due date alone turns
+ * red. The «Cobrar» button beside it is the action, so this line never reads
+ * like one.
+ */
+function RowState({
+  status: s,
+  late,
+  dueLabel,
+  householdName,
+}: {
+  status: SocioCuotaStatus;
+  late: boolean;
+  dueLabel: string;
+  householdName: string;
+}) {
+  const { t } = useT();
+  if (s.basis === 'household') {
+    return (
+      <Text variant="bodySm" tone="muted">
+        {t('groups.cuota.admin.row.household', { name: householdName })}
+      </Text>
+    );
+  }
+  if (s.basis === 'exempt') {
+    return (
+      <Text variant="bodySm" tone="muted">
+        {t('groups.cuota.admin.row.exempt')}
+      </Text>
+    );
+  }
+  if (s.basis === 'paid') {
+    return (
+      <HStack gap={1} align="center">
+        <Ionicons name="checkmark-circle" size={iconSizes.sm} color={colors.light.fg.success} />
+        <Text variant="bodySm" tone="success" className="font-semibold">
+          {t('groups.cuota.admin.row.paid', { amount: centsLabel(s.paidCents) })}
+        </Text>
+      </HStack>
+    );
+  }
+  const owes = t('groups.cuota.admin.row.owes', { amount: centsLabel(Math.max(0, s.owedCents - s.paidCents)) });
+  const head = s.paidCents > 0 ? `${t('groups.cuota.admin.row.paidPart', { amount: centsLabel(s.paidCents) })} · ${owes}` : owes;
+  return (
+    <Text variant="bodySm" tone="muted">
+      {late ? (
+        <Text variant="bodySm" tone="danger" className="font-bold">
+          {`${t('groups.cuota.overdueSince', { date: dueLabel })} · `}
+        </Text>
+      ) : null}
+      {head}
+    </Text>
+  );
+}
 
 /**
  * The treasurer's collection list: collected vs total for the period, the
@@ -169,6 +225,7 @@ export function CuotaAdmin({
       </>
     );
   }
+  const dueLabel = formatDayKey(periodDueDay(cuota, periodKey), 'dayMonthShort');
 
   const summary = summarizeCollection(statuses);
   const progress = summary.totalCents > 0 ? Math.min(1, summary.collectedCents / summary.totalCents) : 0;
@@ -342,6 +399,8 @@ export function CuotaAdmin({
               const socio = socioById.get(s.socioId);
               if (!socio) return null;
               const partial = s.basis === 'unpaid' && s.paidCents > 0;
+              const left = Math.max(0, s.owedCents - s.paidCents);
+              const late = s.basis === 'unpaid' && s.status === 'vencida';
               return (
                 <Pressable
                   key={s.socioId}
@@ -356,36 +415,20 @@ export function CuotaAdmin({
                     </Text>
                     <VStack className="flex-1">
                       <Text className={socio.bajaAt ? 'text-muted' : ''}>{socio.displayName}</Text>
-                      <Text variant="bodySm" tone={s.basis === 'unpaid' && s.status === 'vencida' ? 'danger' : 'muted'}>
-                        {s.basis === 'unpaid' && s.status === 'vencida'
-                          ? `${t('groups.cuota.status.vencida')} · ${detailOf(s)}`
-                          : detailOf(s)}
-                      </Text>
+                      <RowState status={s} late={late} dueLabel={dueLabel} householdName={socioById.get(s.householdOf ?? '')?.displayName ?? '—'} />
                     </VStack>
                     {s.basis === 'unpaid' ? (
                       <Pressable
                         testID={`cuota-record-${s.socioId}`}
                         accessibilityRole="button"
-                        accessibilityLabel={partial ? t('groups.cuota.admin.payRest') : t('groups.cuota.admin.paid')}
                         hitSlop={6}
                         onPress={() => setSheet({ kind: 'payment', socio, status: s, quick: true })}
-                        className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${partial ? 'border border-accent' : 'bg-accent'}`}
+                        className={`rounded-full px-3 py-1.5 border border-accent ${partial ? '' : 'bg-accent'}`}
                       >
-                        <Ionicons
-                          name={partial ? 'add' : 'checkmark'}
-                          size={iconSizes.sm}
-                          color={partial ? colors.light.fg.accent : colors.light.fg['on-accent']}
-                        />
-                        {partial ? null : (
-                          <Text variant="bodySm" tone="onAccent" className="font-bold">
-                            {t('groups.cuota.admin.paid')}
-                          </Text>
-                        )}
+                        <Text variant="bodySm" tone={partial ? 'accent' : 'onAccent'} className="font-bold">
+                          {partial ? t('groups.cuota.admin.chargeRest', { amount: centsLabel(left) }) : t('groups.cuota.admin.charge')}
+                        </Text>
                       </Pressable>
-                    ) : s.basis === 'paid' ? (
-                      <Text variant="bodySm" tone={CUOTA_STATUS_TONE[s.status]} className="font-bold">
-                        {t('groups.cuota.status.al_dia')}
-                      </Text>
                     ) : null}
                   </HStack>
                 </Pressable>
