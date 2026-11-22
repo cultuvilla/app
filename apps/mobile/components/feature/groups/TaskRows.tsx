@@ -36,21 +36,23 @@ export function TaskRow({
       : task.assigneeUids.length > 0
         ? t('groups.tasks.assignedTo', { names: task.assigneeUids.map(nameOf).join(', ') })
         : t('groups.tasks.unassigned');
-  const lines = [
+  const when =
     done && task.doneAt
       ? t('groups.tasks.doneBy', { name: task.doneBy ? nameOf(task.doneBy) : '—', date: formatDate(task.doneAt, 'short') })
-      : taskWhenLabel(t, task),
-    who,
-    task.recurrence ? recurrenceLabel(t, task.recurrence) : null,
-  ].filter(Boolean);
+      : taskWhenLabel(t, task);
+  const rest = [who, task.recurrence ? recurrenceLabel(t, task.recurrence) : null].filter(Boolean);
 
   const body = (
     <VStack gap={0} className="flex-1">
       <Text className={done ? 'line-through' : 'font-bold'} tone={done ? 'muted' : 'primary'}>
         {task.title}
       </Text>
-      <Text variant="bodySm" tone={overdue ? 'danger' : 'muted'}>
-        {overdue ? `${t('groups.tasks.overdue')} · ${lines.join(' · ')}` : lines.join(' · ')}
+      {/* Late, the date alone turns red: no word for it. */}
+      <Text variant="bodySm" tone="muted">
+        <Text variant="bodySm" tone={overdue ? 'danger' : 'muted'} className={overdue ? 'font-bold' : undefined}>
+          {when}
+        </Text>
+        {rest.map((line) => ` · ${line}`).join('')}
       </Text>
       {task.notes ? (
         <Text variant="bodySm" tone="muted" numberOfLines={2}>

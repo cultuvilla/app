@@ -454,7 +454,6 @@
   "task-leaderboard-period-*": "unit-tested: components/feature/groups/__tests__/GroupTaskBoard.test.tsx",
   "task-leaderboard-periods": "unit-tested: components/feature/groups/__tests__/GroupTaskBoard.test.tsx",
   "task-leaderboard-row-*": "unit-tested: components/feature/groups/__tests__/GroupTaskBoard.test.tsx",
-  "task-leaderboard-strip": "unit-tested: components/feature/groups/__tests__/GroupTaskBoard.test.tsx",
   "task-leaderboard-unassigned": "unit-tested: components/feature/groups/__tests__/GroupTaskBoard.test.tsx",
   "task-repeat": "unit-tested: components/feature/groups/__tests__/TaskSheet.test.tsx",
   "task-repeat-interval": "unit-tested: components/feature/groups/__tests__/TaskSheet.test.tsx",

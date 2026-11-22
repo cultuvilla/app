@@ -179,10 +179,16 @@ describe('GroupTaskBoard — the list', () => {
     expect(screen.queryByTestId('group-tasks-filter-shiftOpen')).toBeNull();
   });
 
+  it('shows a late task by its date alone, without calling it late', () => {
+    setWatched('open', [task('pasada', { eventId: 'ev1', dueOn: '2020-01-10' })]);
+    const screen = render(<GroupTaskBoard group={asMember} uid="u-ana" />);
+    expect(screen.getByTestId('task-row-pasada')).not.toHaveTextContent(/groups.tasks.overdue/);
+  });
+
   it('closes the screen with the leaderboard, under every task', () => {
     const screen = render(<GroupTaskBoard group={asMember} uid="admin" />);
-    const order = screen.getAllByTestId(/^(task-group-(?!toggle)|task-leaderboard-strip$)/).map((el) => el.props.testID as string);
-    expect(order[order.length - 1]).toBe('task-leaderboard-strip');
+    const order = screen.getAllByTestId(/^(task-group-(?!toggle)|task-leaderboard$)/).map((el) => el.props.testID as string);
+    expect(order[order.length - 1]).toBe('task-leaderboard');
   });
 
   it('adds a task straight onto an event, or a loose one from the button', async () => {
@@ -200,10 +206,8 @@ describe('GroupTaskBoard — the list', () => {
 });
 
 describe('GroupTaskBoard — the leaderboard', () => {
-  it('shows everyone who has helped this year, the viewer highlighted, nobody at zero', () => {
+  it('shows everyone who has helped this year right on the screen, the viewer highlighted, nobody at zero', () => {
     const screen = render(<GroupTaskBoard group={asMember} uid="admin" />);
-    expect(screen.getByTestId('task-leaderboard-strip')).toHaveTextContent(/groups.tasks.leaderboard.leads:u-luis\|2/);
-    fireEvent.press(screen.getByTestId('task-leaderboard-strip'));
     expect(screen.getByTestId('task-leaderboard-row-u-luis')).toHaveTextContent(/u-luis/);
     expect(screen.getByTestId('task-leaderboard-row-admin')).toHaveTextContent(/groups.tasks.leaderboard.you/);
     expect(screen.queryByTestId('task-leaderboard-row-u-ana')).toBeNull();
@@ -213,12 +217,10 @@ describe('GroupTaskBoard — the leaderboard', () => {
   it("counts one event's tasks on their own, and leads to the tasks nobody has taken", () => {
     setWatched('open', [task('sillas', { eventId: 'ev1' })]);
     const screen = render(<GroupTaskBoard group={asMember} uid="u-ana" />);
-    fireEvent.press(screen.getByTestId('task-leaderboard-strip'));
     fireEvent.press(screen.getByTestId('task-leaderboard-period-ev1'));
     expect(screen.getByTestId('task-leaderboard-row-admin')).toBeTruthy();
     expect(screen.getByTestId('task-leaderboard-nudge')).toHaveTextContent(/nudgeNone/);
     fireEvent.press(screen.getByTestId('task-leaderboard-unassigned'));
-    expect(screen.queryByTestId('task-leaderboard')).toBeNull();
     expect(lines(screen, 'ev1')).toEqual(['sillas']);
   });
 
@@ -228,26 +230,15 @@ describe('GroupTaskBoard — the leaderboard', () => {
       task('anon', { eventId: 'ev2', doneAt: new Date(), doneBy: null }),
     ]);
     const screen = render(<GroupTaskBoard group={asMember} uid="u-ana" />);
-    fireEvent.press(screen.getByTestId('task-leaderboard-strip'));
     expect(screen.getByTestId('task-leaderboard-periods')).toBeTruthy();
     fireEvent.press(screen.getByTestId('task-leaderboard-period-ev2'));
     expect(screen.getByTestId('task-leaderboard-empty')).toBeTruthy();
   });
 
-  it('names the viewer in the strip when they share first place', () => {
-    setWatched('done', [
-      task('extintores', { assigneeUids: ['u-luis'], doneAt: new Date(), doneBy: 'u-luis' }),
-      task('sillas', { assigneeUids: ['admin'], doneAt: new Date(), doneBy: 'admin' }),
-    ]);
-    const screen = render(<GroupTaskBoard group={asMember} uid="admin" />);
-    expect(screen.getByTestId('task-leaderboard-strip')).toHaveTextContent(/groups.tasks.leaderboard.youLead:1/);
-    expect(screen.getByTestId('task-leaderboard-strip')).toHaveTextContent(/groups.tasks.leaderboard.seeAll/);
-  });
-
-  it('hides the strip until someone has done a task', () => {
+  it('hides the card until someone has done a task', () => {
     setWatched('done', []);
     const screen = render(<GroupTaskBoard group={asMember} uid="u-ana" />);
-    expect(screen.queryByTestId('task-leaderboard-strip')).toBeNull();
+    expect(screen.queryByTestId('task-leaderboard')).toBeNull();
   });
 });
 

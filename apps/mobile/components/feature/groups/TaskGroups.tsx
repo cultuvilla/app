@@ -38,13 +38,7 @@ export function TaskLine({
     : task.dueOn
       ? formatDayKey(task.dueOn, 'dayMonthShort')
       : t('groups.tasks.noDate');
-  const detail = [
-    late ? t('groups.tasks.overdue') : null,
-    when,
-    task.slots !== null ? t('groups.tasks.shift.slots', { claimed: task.claimedUids.length, slots: task.slots }) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const slots = task.slots !== null ? t('groups.tasks.shift.slots', { claimed: task.claimedUids.length, slots: task.slots }) : null;
 
   return (
     <HStack gap={3} className="items-center px-3 py-2 border-t border-subtle" testID={`task-row-${task.id}`}>
@@ -55,8 +49,12 @@ export function TaskLine({
             <Text className={done ? 'line-through' : 'font-semibold'} tone={done ? 'muted' : 'primary'} numberOfLines={1}>
               {task.title}
             </Text>
-            <Text variant="caption" tone={late ? 'danger' : 'muted'} className={late ? 'font-bold' : undefined} numberOfLines={1}>
-              {detail}
+            {/* Late, the date alone turns red: no word for it. */}
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              <Text variant="caption" tone={late ? 'danger' : 'muted'} className={late ? 'font-bold' : undefined}>
+                {when}
+              </Text>
+              {slots ? ` · ${slots}` : null}
             </Text>
           </VStack>
           {people.length > 0 ? (

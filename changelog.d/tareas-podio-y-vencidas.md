@@ -1,0 +1,1 @@
+- In a group's Tareas a late task shows only its date in red, without the word «Vencida», and the leaderboard is a card at the end of the screen instead of a strip that opens another screen. **Migration:** none.

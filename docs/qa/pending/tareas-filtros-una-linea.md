@@ -17,6 +17,6 @@ source: develop
 5. Baja hasta el final de la pantalla.
 6. En Plantillas, toca «Aplicar» en una plantilla.
 
-**Esperado:** En el paso 1 hay una sola línea: «Mías», «Sin asignar», «Hechas» y, a la derecha, un botón con el icono de filtros. En el paso 2 la lista se filtra, el botón muestra «1» y «Turnos con hueco» aparece en la línea; el paso 3 lo quita. En el paso 4 solo está «Añadir tarea», con forma de botón. En el paso 5 aparece una tarjeta «Plantillas» separada y, cerrando la pantalla, el podio (quién ha hecho más tareas). El paso 6 deja elegir el evento o una fecha.
+**Esperado:** En el paso 1 hay una sola línea: «Mías», «Sin asignar», «Hechas» y, a la derecha, un botón con el icono de filtros. En el paso 2 la lista se filtra, el botón muestra «1» y «Turnos con hueco» aparece en la línea; el paso 3 lo quita. En el paso 4 solo está «Añadir tarea», con forma de botón. En el paso 5 aparece una tarjeta «Plantillas» separada y, cerrando la pantalla, la tarjeta «Quién más ayuda». El paso 6 deja elegir el evento o una fecha.
 
 **Roto se ve así:** Los filtros ocupan dos líneas; un filtro activado desde la hoja no se ve en la línea; los eventos siguen ofreciendo «Aplicar una plantilla» o «Guardar como plantilla»; el podio sigue arriba.

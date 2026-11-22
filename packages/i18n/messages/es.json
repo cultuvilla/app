@@ -2264,10 +2264,6 @@
       "otherTasks": "Otras tareas",
       "leaderboard": {
         "title": "Quién más ayuda",
-        "leads": "{name} lleva {count, plural, one {1 tarea} other {# tareas}} este año",
-        "youLead": "Vas en cabeza con {count, plural, one {1 tarea} other {# tareas}} este año",
-        "yourPlace": "Tú vas {rank}.º con {count, plural, one {1} other {#}} · Ver quién más ayuda",
-        "seeAll": "Ver quién más ayuda",
         "year": "Este año",
         "month": "Este mes",
         "you": "Tú",
@@ -2306,7 +2302,6 @@
       "noDone": "Aún no se ha hecho ninguna este año.",
       "due": "Para el {date}",
       "dueAt": "{date} a las {time}",
-      "overdue": "Vencida",
       "noDate": "Sin fecha",
       "unassigned": "Sin asignar",
       "assignedTo": "Para {names}",

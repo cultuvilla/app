@@ -20,7 +20,7 @@ import { Fab } from '../../primitives/Fab';
 import { ApplyTemplateSheet } from './ApplyTemplateSheet';
 import { GroupTasks } from './GroupTasks';
 import { TaskGroupFold, TaskLine } from './TaskGroups';
-import { LeaderboardSheet, LeaderboardStrip } from './TaskLeaderboard';
+import { LeaderboardCard } from './TaskLeaderboard';
 import { TaskFilterSheet } from './TaskFilterSheet';
 import { TaskSheet } from './TaskSheet';
 import { TemplateSheet } from './TemplateSheet';
@@ -45,7 +45,6 @@ type Sheet =
   | { kind: 'task'; eventId: string | null }
   | { kind: 'template'; template: TaskTemplate | null }
   | { kind: 'apply'; template: TaskTemplate }
-  | { kind: 'leaderboard' }
   | { kind: 'filters' }
   | null;
 
@@ -238,7 +237,16 @@ export function GroupTaskBoard({ group, uid }: { group: MyGroup; uid: string }) 
         ) : null}
 
         <VStack className="pt-4">
-          <LeaderboardStrip rows={board} uid={uid} faces={faces} nameOf={nameOf} onOpen={() => setSheet({ kind: 'leaderboard' })} />
+          <LeaderboardCard
+            doneTasks={doneTasks}
+            memberUids={memberUids}
+            events={eventList}
+            uid={uid}
+            faces={faces}
+            nameOf={nameOf}
+            unassignedCount={unassignedCount}
+            onShowUnassigned={() => changeFilters(new Set<TaskFilter>(['unassigned']))}
+          />
         </VStack>
       </ScrollView>
 
@@ -273,21 +281,6 @@ export function GroupTaskBoard({ group, uid }: { group: MyGroup; uid: string }) 
         onToggle={toggleFilter}
         onClear={() => changeFilters(new Set())}
         onClose={close}
-      />
-      <LeaderboardSheet
-        visible={sheet?.kind === 'leaderboard'}
-        onClose={close}
-        doneTasks={doneTasks}
-        memberUids={memberUids}
-        events={eventList}
-        uid={uid}
-        faces={faces}
-        nameOf={nameOf}
-        unassignedCount={unassignedCount}
-        onShowUnassigned={() => {
-          close();
-          changeFilters(new Set<TaskFilter>(['unassigned']));
-        }}
       />
     </View>
   );
