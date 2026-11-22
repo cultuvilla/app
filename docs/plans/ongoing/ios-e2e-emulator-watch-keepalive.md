@@ -3,7 +3,7 @@
 **Priority:** medium — makes flow 13 (and likely any long, write-heavy iOS flow) flaky; iOS e2e is not a required check, so it erodes trust in the lane rather than blocking merges
 **Landed:** dev
 **Gate:** none
-**Next:** find the root cause of the iOS ping timeouts, starting with the SDK's 30 s keepalive against the emulator's gRPC ping enforcement (GOAWAY too_many_pings), also covering flows 12 and 15; fix it without app-code workarounds, then add a lasting guard in the lane so a regression shows up on its own
+**Next:** classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first
 
 > Decided 2026-11-20 (Álvaro): keep the tests close to reality — so no test-build-only re-listen workaround (it would hide the very stream failure users could hit). Lighten the suite first; a paid larger runner only if that fails, as a new question.
 
@@ -36,3 +36,19 @@ Workarounds in place: flow 13 signs in again when the cuota disappears, and only
   3. report the stale resumed-listen answer upstream to firebase-tools.
 - Last resort, test build only: drop the stream and listen again from scratch after a stream error. Invasive.
 - Once the root cause is fixed, delete the re-sign-in fallback and flow 13's cap override (*Delete > deprecate*).
+
+## Status 2026-11-22
+
+- Keepalive and ping enforcement are fixed and soaked. Three develop runs had 0 ping timeouts, 0 too_many_pings and 0 crash reports.
+- Restore failures had a second cause: a Firestore emulator bug (1.19.8). A listener the app cancels stays registered. When a later write's rules re-read is denied, the emulator throws "call already cancelled" and the write answers 499. That hit restores, and once a server commit (deleteNewsPost).
+  - #735 added read-back and retries.
+  - #746 patches grpc's ServerCalls in a launcher jar (FIRESTORE_EMULATOR_BINARY_PATH, iOS only, EMULATOR_CANCELLED_LISTEN). It fails loudly if the patch isn't applied, and fails a shard on any such 499.
+  - Removal condition and evidence: see the decision record `ios-e2e-emulator-keepalive.md`.
+- #745 fixed flow 91's stale «Grupo de» assertion, which could never pass.
+- Open:
+  - Gate run 2's failures are not yet classified.
+  - Two `simctl openurl` ETIMEDOUTs (flows 10, 71) passed on retry.
+  - Flow 70's join request never appeared (unclassified; see `ideas/ios-e2e-unclassified-first-attempts.md`).
+  - Whether android-e2e should opt into the patch.
+  - The contact gate: 5 of 17 runs stuck.
+- After this plan: the e2e ideas waiting on these files are `e2e-callable-cold-start`, `e2e-user-switch-without-reinstall` and `ios-e2e-unclassified-first-attempts`. Flows 12:5,15 and the subflow `grupos-chat-admins-only.yaml:1` still say "Solo la junta escribe" in comments. The setting is now shown as «Escribir en la Charla».
