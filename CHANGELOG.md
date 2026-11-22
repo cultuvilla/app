@@ -4,6 +4,14 @@ All notable changes to this project. Format adapted from [Keep a Changelog](http
 
 ## [Unreleased]
 
+<!-- store-notes -->
+- **Programa de fiestas**: apunta los días de las fiestas de tu pueblo y sigue su programa día a día, en la app y en la web.
+- **Grupos**: tareas por evento con encargados y voluntarios, cuentas con categorías, y la junta puede abrir la cuota, los avisos y las cuentas a los socios.
+- **Cosateca**: cada préstamo es una conversación y ves de un vistazo lo que te toca.
+- Tus pueblos se abren al instante, también sin conexión.
+- Correcciones y mejoras.
+<!-- /store-notes -->
+
 ## v1.12.0 — 2026-11-12
 
 <!-- store-notes -->
