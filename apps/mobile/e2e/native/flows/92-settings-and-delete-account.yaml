@@ -81,14 +81,18 @@ env:
       FIELD: mutedTopics.0
       WANT: 'village_news'
 # The last row, well below the fold since the screen has a switch per topic.
-# Centred: left at the bottom edge, its switch sat clipped under the iOS home
-# indicator and the tap never reached it.
+# Left at the bottom edge, its switch sat under the iOS home indicator and the
+# tap never reached it; centring it cannot work either (it is the last row, and
+# on iOS centerElement then burned its timeout). One more scroll takes the
+# content to its end, where the bottom padding lifts the row clear.
 - scrollUntilVisible:
     element:
       id: 'push-pref-quietHours'
     direction: DOWN
-    centerElement: true
     timeout: 20000
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
 - runFlow:
     file: ../subflows/set-stored-toggle.yaml
     env:
