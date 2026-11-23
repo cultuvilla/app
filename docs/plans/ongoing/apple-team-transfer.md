@@ -1,9 +1,9 @@
 # Apple team transfer — move the iOS app from Jaime's team to Álvaro's
 
 **Priority:** high — Jaime's Apple membership renews on 2026-11-29 and the app must be out before it
-**Landed:** dev
-**Gate:** blocked:this plan's code (#663) reaches prod, then Álvaro accepts in App Store Connect — a console step no agent can take
-**Next:** the next release carries #663 to prod; then Álvaro accepts Cultuvilla, before 2026-11-29, and runs § On the day. Jaime's part is done (2026-11-17); `TESTFLIGHT_SUBMIT_PAUSED=true` since 2026-11-17
+**Landed:** prod
+**Gate:** blocked:Álvaro accepts in App Store Connect — a console step no agent can take
+**Next:** #663 is live in prod since the 1.13.0 deploy (2026-11-23); Álvaro accepts Cultuvilla before 2026-11-29 and runs § On the day. Builds 34 and 35 (1.13.0) were uploaded to TestFlight on Jaime's team on 2026-11-23 by mobile-release: if Apple refuses the acceptance over them, Jaime expires them. Don't submit 1.13.0 for App Review until the transfer is done
 
 Decided 2026-10-03 (Álvaro, with Jaime's agreement): Cultuvilla's iOS app leaves
 Jaime's Individual team for Álvaro's, in the same window as Órdago's, and later
