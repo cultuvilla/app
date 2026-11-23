@@ -81,10 +81,13 @@ env:
       FIELD: mutedTopics.0
       WANT: 'village_news'
 # The last row, well below the fold since the screen has a switch per topic.
+# Centred: left at the bottom edge, its switch sat clipped under the iOS home
+# indicator and the tap never reached it.
 - scrollUntilVisible:
     element:
       id: 'push-pref-quietHours'
     direction: DOWN
+    centerElement: true
     timeout: 20000
 - runFlow:
     file: ../subflows/set-stored-toggle.yaml
