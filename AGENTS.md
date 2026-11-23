@@ -515,6 +515,39 @@ look. The generator is shared (`scripts/plans-map.js` links into `.agents/_share
 
 Don't explain *what* the code does — name things well instead. Only comment to explain *why* something non-obvious is the way it is: a security constraint, a Firestore quirk, a workaround for a specific bug.
 
+## UI and UX
+
+<!-- base:ui -->
+Minimal by default: every screen asks as little of the person's attention as it can. The
+repo's own design system, tokens and brand kit win wherever they differ from this.
+
+- **One main action per screen.** Everything else on it is visibly quieter.
+- **Show what most people need; fold the rest.** Advanced options, long lists and rare
+  settings sit behind a "more", a details row or a second screen. Never fold what people
+  use on every visit.
+- **Fewer choices, good defaults.** Preselect the likely option. Keep the visible choices to
+  about five to seven; past that, group, search or fold.
+- **Remove before adding.** A new element earns its place; merging or deleting an existing
+  one comes first.
+- **Reuse what the app already has**: its components, tokens, spacing and patterns, no
+  one-off styles. A new screen works the way the others do.
+- **Hierarchy from spacing and type size, not boxes, borders and colour.** One accent
+  colour, two or three text sizes per screen.
+- **Plain words.** Buttons are verbs ("Save", "Send invite"). No jargon or internal names.
+  An empty screen says what to do next.
+- **Every state is designed**: loading, empty, error and success. An error says what
+  happened and how to fix it, next to where it happened.
+- **Accessibility is the floor.** Readable contrast, a visible focus, labels on icon-only
+  buttons, tap targets of at least 44 px, everything reachable by keyboard on the web, and
+  motion that respects the reduced-motion setting.
+- **Motion only explains a change** (where something came from or went), and stays short.
+- **Review web UI against Vercel's Web Interface Guidelines** before calling it done: read
+  `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`
+  and check the changed files against it. Native screens take the rules that apply.
+- **A public landing page may be bolder.** There the `frontend-design` skill sets the look;
+  the product's own screens stay minimal.
+<!-- /base:ui -->
+
 ## Commands
 
 ```bash
