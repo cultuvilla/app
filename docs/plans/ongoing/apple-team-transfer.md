@@ -2,8 +2,8 @@
 
 **Priority:** high — Jaime's Apple membership renews on 2026-11-29 and the app must be out before it
 **Landed:** dev
-**Gate:** blocked:#663's push code is live in prod, then Álvaro accepts in App Store Connect — a console step no agent can take
-**Next:** 1.13.0 is a breaking release, so its prod backend is HELD (prod functions still date from 2026-10-09, bound to `APNS_AUTH_KEY` v2) until both stores serve it and `pnpm release:publish` runs. Either that, or a targeted prod deploy of `onNotificationCreated` + `flushPushQueue` from `main` (Álvaro's go), brings #663 to prod; then Álvaro accepts, before 2026-11-29. A 1.13.0 in App Review on Jaime's team blocks the acceptance until Apple decides. Builds 34 and 35 went to TestFlight on 2026-11-23; if Apple refuses the acceptance over them, Jaime expires them
+**Gate:** blocked:Álvaro accepts in App Store Connect (a console step no agent can take), before 2026-11-29
+**Next:** #663's push code is live in prod: `onNotificationCreated` + `flushPushQueue` deployed from `main` (3d9e36c6) on 2026-11-23, bound to `APNS_AUTH_KEY` v3. Apple refused builds 34 and 35 of 1.13.0 with ITMS-90748 (*App is Pending Transfer*) and Jaime could not cancel the transfer, so decided 2026-11-23 (Álvaro): accept first, then ship 1.13.0 from the new team. Next: Jaime checks nothing is in review or processing, Álvaro accepts, then § On the day, then build 36 from `8HWS4483VD` and re-run *Production release* 45145495667
 
 Decided 2026-10-03 (Álvaro, with Jaime's agreement): Cultuvilla's iOS app leaves
 Jaime's Individual team for Álvaro's, in the same window as Órdago's, and later
