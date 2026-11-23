@@ -281,6 +281,16 @@ describe('gradle build headroom', () => {
   it('builds with --no-daemon so a fatal build dies instead of hanging', () => {
     expect(apkScript).toMatch(/'--no-daemon'/);
   });
+
+  // On 2026-11-22 the kernel OOM-killed the build inside the release agent's
+  // tmux scope, and systemd then stopped the whole scope, session included.
+  // Its own capped scope makes the build fail alone.
+  it('runs gradle in its own memory-capped scope off CI, and plainly on CI', () => {
+    expect(apkScript).toMatch(/ownScope\('\.\/gradlew', gradleArgs\)/);
+    expect(apkScript).toMatch(/'systemd-run',\s*\[\s*'--user', '--scope'/);
+    expect(apkScript).toMatch(/MemoryMax=\$\{memoryMax\}/);
+    expect(apkScript).toMatch(/if \(process\.env\.CI\) return \[cmd, args\]/);
+  });
 });
 
 describe('native flow suite', () => {
