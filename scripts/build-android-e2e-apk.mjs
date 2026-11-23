@@ -33,7 +33,16 @@
  *      We raise the ceiling AND build with `--no-daemon` so a fatal build dies
  *      immediately instead of hanging for another 45 minutes.
  *
- *   4. The emulator-armed env and the re-pointed google-services.json are
+ *   4. Off CI, Gradle runs in its own systemd scope with a memory cap. On a
+ *      shared host (powerserver runs CI lanes too) the build is the largest
+ *      process by far, and when memory ran out on 2026-11-22 the kernel killed
+ *      it inside the agent's tmux scope, whose default OOM policy then stopped
+ *      every process in it, the Claude session included. In its own capped
+ *      scope the build fails alone and the session sees a failed command.
+ *      `E2E_GRADLE_MEMORY_MAX` overrides the cap; CI runners have no user
+ *      systemd, so they build as before.
+ *
+ *   5. The emulator-armed env and the re-pointed google-services.json are
  *      shared with the iOS build — see scripts/lib/e2e-build-env.mjs for why
  *      each one must hold.
  *
@@ -63,6 +72,20 @@ function run(cmd, args, cwd) {
     console.error(`[android-e2e-apk] "${cmd} ${args.join(' ')}" failed`);
     process.exit(res.status ?? 1);
   }
+}
+
+// See requirement 4 above. Probed rather than assumed: a host without a user
+// systemd (CI, a container) must still build.
+function ownScope(cmd, args) {
+  if (process.env.CI) return [cmd, args];
+  const probe = spawnSync('systemd-run', ['--user', '--scope', '--quiet', 'true'], { stdio: 'ignore' });
+  if (probe.status !== 0) return [cmd, args];
+  const memoryMax = process.env.E2E_GRADLE_MEMORY_MAX || '8G';
+  console.log(`[android-e2e-apk] gradle in its own scope, MemoryMax=${memoryMax}`);
+  return [
+    'systemd-run',
+    ['--user', '--scope', '--quiet', '--collect', '-p', `MemoryMax=${memoryMax}`, '-p', 'MemorySwapMax=0', '--', cmd, ...args],
+  ];
 }
 
 if (!process.argv.includes('--skip-prebuild')) {
@@ -106,7 +129,9 @@ writeFileSync(
 // largest chunk of wall-clock here — minutes, for an APK that is installed on
 // exactly one x86_64 emulator and then thrown away.
 const abi = process.env.E2E_ANDROID_ABI || 'x86_64';
-run('./gradlew', ['assembleRelease', `-PreactNativeArchitectures=${abi}`, '--no-daemon'], ANDROID);
+const gradleArgs = ['assembleRelease', `-PreactNativeArchitectures=${abi}`, '--no-daemon'];
+const [gradleCmd, gradleCmdArgs] = ownScope('./gradlew', gradleArgs);
+run(gradleCmd, gradleCmdArgs, ANDROID);
 
 console.log(`[android-e2e-apk] emulator host baked in: ${EMULATOR_HOST}`);
 console.log(APK);
