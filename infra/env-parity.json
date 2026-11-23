@@ -93,6 +93,7 @@
       "serviceAccount:<number>-compute@developer.gserviceaccount.com roles/editor",
       "serviceAccount:<number>-compute@developer.gserviceaccount.com roles/eventarc.eventReceiver",
       "serviceAccount:<number>-compute@developer.gserviceaccount.com roles/run.invoker",
+      "serviceAccount:<number>-compute@developer.gserviceaccount.com roles/storage.objectAdmin",
       "serviceAccount:<number>@cloudbuild.gserviceaccount.com roles/cloudbuild.builds.builder",
       "serviceAccount:<number>@cloudservices.gserviceaccount.com roles/editor",
       "serviceAccount:firebase-adminsdk-fbsvc@<project>.iam.gserviceaccount.com roles/firebase.sdkAdminServiceAgent",

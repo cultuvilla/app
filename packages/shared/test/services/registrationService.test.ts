@@ -18,16 +18,12 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     updateDoc: vi.fn(),
     serverTimestamp: vi.fn(() => '__SERVER_TS__'),
     collection: vi.fn(() => ({ withConverter: () => ({ __collection: 'registrations' }) })),
-    orderBy: vi.fn((field: string, direction: string) => ({ __orderBy: field, direction })),
-    query: vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constraints })),
-    getDocs: vi.fn(() => Promise.resolve({ docs: [] })),
   };
 });
 
-import { updateDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { updateDoc, serverTimestamp } from 'firebase/firestore';
 import {
   determineRegistrationStatus,
-  getEventRegistrations,
   setRegistrationPaid,
 } from '../../src/services/registrationService';
 
@@ -58,17 +54,5 @@ describe('setRegistrationPaid', () => {
     await setRegistrationPaid('e1', 'r1', false);
     const arg = vi.mocked(updateDoc).mock.calls.at(-1)?.[1];
     expect(arg).toEqual({ paidAt: null });
-  });
-});
-
-describe('getEventRegistrations', () => {
-  // `position` is derived from the registration count at write time, so a
-  // cancellation frees a number that a later sign-up reuses and the roster
-  // stops reflecting who actually signed up first. Ordering by the sign-up
-  // moment is what makes the displayed timestamps monotonic.
-  it('orders the roster by sign-up moment, not by position', async () => {
-    await getEventRegistrations('e1');
-    expect(orderBy).toHaveBeenCalledWith('registeredAt', 'asc');
-    expect(vi.mocked(orderBy).mock.calls.every(([field]) => field !== 'position')).toBe(true);
   });
 });

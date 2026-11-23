@@ -37,6 +37,30 @@ export async function pickImageAsBlob(
     mediaTypes: ['images'],
     quality: 0.8,
   });
+  return pickedImage(result);
+}
+
+/** Thrown by {@link takePhotoAsBlob} when the camera permission is refused, so the screen can say so. */
+export class CameraPermissionDeniedError extends Error {
+  constructor() {
+    super('camera-permission-denied');
+    this.name = 'CameraPermissionDeniedError';
+  }
+}
+
+/**
+ * Opens the camera for one photo and returns it like {@link pickImageAsBlob}:
+ * null when the user takes none. Asks for the camera permission first, and
+ * throws {@link CameraPermissionDeniedError} when it is refused.
+ */
+export async function takePhotoAsBlob(): Promise<UploadableImage | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) throw new CameraPermissionDeniedError();
+  const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+  return pickedImage(result);
+}
+
+async function pickedImage(result: ImagePicker.ImagePickerResult): Promise<UploadableImage | null> {
   if (result.canceled || !result.assets[0]) return null;
   const asset = result.assets[0];
   const scaled = await downscaleForUpload({

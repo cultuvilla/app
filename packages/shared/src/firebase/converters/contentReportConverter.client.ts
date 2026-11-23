@@ -1,5 +1,4 @@
 import { ContentReportDataSchema } from '../../models/moderation/ContentReportDataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
+import { clientConverter } from './sdkAdapters.client';
 
-export const contentReportConverterClient = makeConverter(ContentReportDataSchema, clientSdkCtors);
+export const contentReportConverterClient = clientConverter(ContentReportDataSchema);

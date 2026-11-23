@@ -1,5 +1,4 @@
 import { MunicipalityDataSchema } from '../../models/municipality/MunicipalityDataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
+import { clientConverter } from './sdkAdapters.client';
 
-export const municipalityConverterClient = makeConverter(MunicipalityDataSchema, clientSdkCtors);
+export const municipalityConverterClient = clientConverter(MunicipalityDataSchema);

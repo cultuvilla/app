@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Text } from '../primitives';
 import { useT } from '../../lib/i18n';
@@ -63,7 +64,7 @@ export function CensoAnswers({
   }
   return (
     <ScrollView contentContainerClassName="p-4 pb-12">
-      <Text variant="h2" style={{ color: '#566047' }} className="px-1 mb-3">
+      <Text variant="h2" style={{ color: colors.light.fg.primary }} className="px-1 mb-3">
         {t('censo.fillIntro')}
       </Text>
       <CensoForm villageId={villageId} villageSlug={villageSlug} userId={userId} schema={schema ?? []} initialAnswers={initialAnswers} entityOptionsByField={optionsByField} />

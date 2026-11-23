@@ -23,7 +23,10 @@ import {
   buildEventData,
   buildLocationData,
   buildPlaceData,
+  buildBarrioData,
+  buildNewsPostData,
   buildCommentData,
+  buildPrivacySettingsData,
 } from '@cultuvilla/shared/models';
 import {
   E2E_PASSWORD,
@@ -33,14 +36,22 @@ import {
   organizerlessVillage,
   org,
   approvalOrg,
+  groupOrg,
+  switchOrg,
+  pastYearlyEvent,
   event,
   capacityEvent,
+  farEvent,
   groupEvent,
   signupEvent,
   privateEvent,
   otherUserComment,
   dependentPerson,
   place,
+  cemetery,
+  burialPersons,
+  barrio,
+  newsPost,
 } from '../data/seed-fixtures/e2e/fixtures.mjs';
 
 if (!EMULATOR) {
@@ -68,10 +79,22 @@ async function upsertUser({ uid, email, displayName }) {
 }
 
 async function run() {
+  // Altozano's villagers. A member's person carries the residence link that
+  // joinVillage writes in the app — the syncMunicipalityPeople trigger projects
+  // it into municipalityPeople, which the village's Personas list reads.
+  const villageMembers = [
+    { user: users.admin, role: 'admin' },
+    { user: users.attendee, role: 'user' },
+    // Joins joinVillage in flow 30, but is already "another villager" of
+    // Altozano for flows 52, 53, 55, 70, 72 and 82.
+    { user: users.joiner, role: 'user' },
+  ];
+  const villageMemberUids = new Set(villageMembers.map(({ user }) => user.uid));
+
   // Auth accounts + persons/{id} + users/{uid} profile docs. The person is
   // linked via personId so the app treats the user as onboarded (otherwise the
   // register FAB never renders — it diverts to complete-profile).
-  for (const u of [users.admin, users.attendee, users.superAdmin, users.joiner]) {
+  for (const u of [users.admin, users.attendee, users.superAdmin, users.joiner, users.throwaway]) {
     await upsertUser(u);
     await db
       .collection('persons')
@@ -82,6 +105,9 @@ async function run() {
           firstSurname: u.firstSurname,
           createdBy: u.uid,
           userId: u.uid,
+          municipalityLinks: villageMemberUids.has(u.uid)
+            ? [{ municipalityId: village.docId, barrioId: null }]
+            : [],
         }),
         { merge: true },
       );
@@ -97,6 +123,14 @@ async function run() {
         }),
         { merge: true },
       );
+    // Answered already, so the usage-analytics page never opens over a flow.
+    // A "no": the suite must never feed the dev Analytics property.
+    await db
+      .collection('users')
+      .doc(u.uid)
+      .collection('privacySettings')
+      .doc('account')
+      .set(buildPrivacySettingsData({ usageAnalytics: false }));
   }
 
   await db
@@ -117,6 +151,14 @@ async function run() {
   // The "fresh" user is Auth-only: no persons/{id}, no users/{uid} profile. The
   // onboarding-profile flow signs it in and drives complete-profile from scratch.
   await upsertUser(users.fresh);
+  // Its answer only, under no profile: the onboarding flow must not meet the
+  // usage-analytics page afterwards (nor feed the dev Analytics property).
+  await db
+    .collection('users')
+    .doc(users.fresh.uid)
+    .collection('privacySettings')
+    .doc('account')
+    .set(buildPrivacySettingsData({ usageAnalytics: false }));
 
   // App super-admin grant. Presence of admins/{uid} is what isAppAdmin() tests;
   // it authorizes respondToOrganizerRequest in the organizer-request flow.
@@ -146,15 +188,9 @@ async function run() {
       { merge: true },
     );
   const members = db.collection('municipalities').doc(village.docId).collection('members');
-  await members
-    .doc(users.admin.uid)
-    .set(buildVillageMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
-  await members
-    .doc(users.attendee.uid)
-    .set(buildVillageMemberData({ userId: users.attendee.uid, role: 'user' }), { merge: true });
-  await members
-    .doc(users.joiner.uid)
-    .set(buildVillageMemberData({ userId: users.joiner.uid, role: 'user' }), { merge: true });
+  for (const { user, role } of villageMembers) {
+    await members.doc(user.uid).set(buildVillageMemberData({ userId: user.uid, role }), { merge: true });
+  }
 
   const joinCoords = new GeoPoint(joinVillage.coordinates.lat, joinVillage.coordinates.lng);
   await db
@@ -258,6 +294,63 @@ async function run() {
     .doc(users.admin.uid)
     .set(buildOrgMemberData({ userId: users.admin.uid, role: 'admin' }), { merge: true });
 
+  // The Grupos flows' asociación: admin + one integrante (see fixtures.mjs).
+  // The other two orgs only seed their admin; here the member matters.
+  for (const [orgFixture, adminUid, memberUids] of [
+    [groupOrg, users.admin.uid, [users.attendee.uid]],
+    [switchOrg, users.attendee.uid, []],
+  ]) {
+    await db
+      .collection('organizations')
+      .doc(orgFixture.docId)
+      .set(
+        buildOrganizationData({
+          name: orgFixture.name,
+          type: orgFixture.type,
+          description: orgFixture.description,
+          municipalityId: village.docId,
+          villageSlug: village.slug,
+          requestedBy: adminUid,
+          status: 'approved',
+          reviewedBy: users.admin.uid,
+          reviewedAt: new Date(),
+        }),
+        { merge: true },
+      );
+    const members = db.collection('organizations').doc(orgFixture.docId).collection('members');
+    await members.doc(adminUid).set(buildOrgMemberData({ userId: adminUid, role: 'admin' }), { merge: true });
+    for (const uid of memberUids) {
+      await members.doc(uid).set(buildOrgMemberData({ userId: uid, role: 'member' }), { merge: true });
+    }
+  }
+
+  await db
+    .collection('events')
+    .doc(pastYearlyEvent.docId)
+    .set(
+      buildEventData({
+        title: pastYearlyEvent.title,
+        description: pastYearlyEvent.description,
+        startDate: new Date(Date.now() + pastYearlyEvent.startOffsetDays * DAY_MS),
+        endDate: new Date(Date.now() + pastYearlyEvent.endOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: village.coordinates,
+          displayName: `Plaza Mayor, ${village.name}`,
+        }),
+        telephoneRequired: false,
+        status: pastYearlyEvent.status,
+        repeatsYearly: true,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [org.docId],
+        createdBy: users.admin.uid,
+        municipalityId: village.docId,
+        villageName: village.name,
+        villageSlug: village.slug,
+        villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
   // Upcoming published event in the village
   const startDate = new Date(Date.now() + event.startOffsetDays * DAY_MS);
   await db
@@ -308,6 +401,32 @@ async function run() {
         villageName: village.name,
         villageSlug: village.slug,
         villageCoordinates: coords,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('events')
+    .doc(farEvent.docId)
+    .set(
+      buildEventData({
+        title: farEvent.title,
+        description: farEvent.description,
+        startDate: new Date(Date.now() + farEvent.startOffsetDays * DAY_MS),
+        location: buildLocationData({
+          coordinates: joinVillage.coordinates,
+          displayName: `Plaza, ${joinVillage.name}`,
+        }),
+        maxAttendees: farEvent.maxAttendees,
+        telephoneRequired: false,
+        status: farEvent.status,
+        organizerUserIds: [users.admin.uid],
+        organizerOrgIds: [],
+        createdBy: users.admin.uid,
+        municipalityId: joinVillage.docId,
+        villageName: joinVillage.name,
+        villageSlug: joinVillage.slug,
+        villageCoordinates: joinCoords,
       }),
       { merge: true },
     );
@@ -430,6 +549,71 @@ async function run() {
       }),
       { merge: true },
     );
+
+  await db
+    .collection('municipalities')
+    .doc(village.docId)
+    .collection('barrios')
+    .doc(barrio.docId)
+    .set(
+      buildBarrioData({
+        name: barrio.name,
+        municipalityId: village.docId,
+        proposedBy: users.admin.uid,
+      }),
+      { merge: true },
+    );
+
+  const newsAt = new Date();
+  await db
+    .collection('news')
+    .doc(newsPost.docId)
+    .set(
+      buildNewsPostData({
+        municipalityId: village.docId,
+        villageSlug: village.slug,
+        createdBy: users.admin.uid,
+        organizerUserIds: [users.admin.uid],
+        title: newsPost.title,
+        body: newsPost.body,
+        category: newsPost.category,
+        createdAt: newsAt,
+        updatedAt: newsAt,
+      }),
+      { merge: true },
+    );
+
+  await db
+    .collection('municipalities')
+    .doc(village.docId)
+    .collection('places')
+    .doc(cemetery.docId)
+    .set(
+      buildPlaceData({
+        name: cemetery.name,
+        kind: cemetery.kind,
+        description: cemetery.description,
+        municipalityId: village.docId,
+        proposedBy: users.admin.uid,
+      }),
+      { merge: true },
+    );
+  for (const p of burialPersons) {
+    await db
+      .collection('persons')
+      .doc(p.docId)
+      .set(
+        buildPersonData({
+          givenName: p.givenName,
+          firstSurname: p.firstSurname,
+          isPublic: p.isPublic,
+          createdBy: users.attendee.uid,
+          userId: null,
+          municipalityLinks: [{ municipalityId: village.docId, barrioId: null }],
+        }),
+        { merge: true },
+      );
+  }
 
   console.log(
     `[seed:e2e] seeded emulator (users=${users.admin.uid},${users.attendee.uid},` +

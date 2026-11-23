@@ -1,5 +1,5 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Share } from 'react-native';
+import { Alert, Share } from 'react-native';
 import { UserMenuModal } from '../UserMenuModal';
 
 const mockPush = jest.fn();
@@ -45,6 +45,12 @@ describe('UserMenuModal menu actions', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/ajustes'));
   });
 
+  it('opens the data attributions from the Legal section', async () => {
+    const { getByText } = render(<UserMenuModal visible onClose={jest.fn()} />);
+    fireEvent.press(getByText('menu.attributions'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/legal/atribuciones'));
+  });
+
   it('shares the Cultuvilla website', async () => {
     const shareSpy = jest
       .spyOn(Share, 'share')
@@ -65,13 +71,28 @@ describe('UserMenuModal menu actions', () => {
     expect(queryByText('menu.myRequests')).toBeNull();
   });
 
-  it('returns to the explore tab after signing out', async () => {
+  it('does not sign out until the user confirms', () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    const { getByText } = render(<UserMenuModal visible onClose={jest.fn()} />);
+
+    fireEvent.press(getByText('menu.signOut'));
+
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(mockSignOut).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('returns to the explore tab after confirming the sign-out', async () => {
+    const alertSpy = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_title, _message, buttons) => buttons?.[1]?.onPress?.());
     const { getByText } = render(<UserMenuModal visible onClose={jest.fn()} />);
 
     fireEvent.press(getByText('menu.signOut'));
 
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledTimes(1));
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+    alertSpy.mockRestore();
   });
 
   it('renders the menu title with the larger green heading style', () => {

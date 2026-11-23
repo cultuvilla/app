@@ -1,5 +1,4 @@
 import { FestivalPosterDataSchema } from '../../models/festivalPoster/FestivalPosterDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const festivalPosterConverterAdmin = makeConverter(FestivalPosterDataSchema, adminSdkCtors);
+export const festivalPosterConverterAdmin = adminConverter(FestivalPosterDataSchema);

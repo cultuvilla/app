@@ -16,6 +16,22 @@ var PROJECT = typeof E2E_FIREBASE_PROJECT !== 'undefined' && E2E_FIREBASE_PROJEC
 var BASE = 'http://' + HOST + '/v1/projects/' + PROJECT + '/databases/(default)/documents';
 var HEADERS = { Authorization: 'Bearer owner' };
 
+var PAUSE_URL =
+  typeof POLL_PAUSE_URL !== 'undefined' && POLL_PAUSE_URL ? POLL_PAUSE_URL : 'http://127.0.0.1:9399/pause?ms=1000';
+
+function deleteDoc(name) {
+  var deadline = Date.now() + 90000;
+  while (true) {
+    var res = http.request('http://' + HOST + '/v1/' + name, { method: 'DELETE', headers: HEADERS });
+    if (res.status === 200 || Date.now() >= deadline) return res;
+    try {
+      http.get(PAUSE_URL);
+    } catch (e) {
+      // No pause server: retry at once.
+    }
+  }
+}
+
 var deleted = 0;
 var res = http.get(BASE + '/' + COLLECTION_PATH + '?pageSize=300', { headers: HEADERS });
 if (res.status !== 200) throw new Error('listing ' + COLLECTION_PATH + ' failed: HTTP ' + res.status);
@@ -24,7 +40,9 @@ for (var i = 0; i < docs.length; i++) {
   var v = docs[i].fields ? docs[i].fields[FIELD] : undefined;
   if (!v || v.stringValue !== VALUE) continue;
   // `name` is the full resource path; the REST DELETE takes it after /v1/.
-  var del = http.request('http://' + HOST + '/v1/' + docs[i].name, { method: 'DELETE', headers: HEADERS });
+  // A doc a killed attempt was still writing can stay locked for a while, and
+  // the emulator answers a delete then with 499 (run 43418909974): retry.
+  var del = deleteDoc(docs[i].name);
   if (del.status !== 200) throw new Error('deleting ' + docs[i].name + ' failed: HTTP ' + del.status);
   deleted++;
 }

@@ -1,0 +1,27 @@
+# Set a DateField (testID ${FIELD}) to ${DAY} (YYYY-MM-DD). The calendar opens
+# on the field's month, or today's when empty, and pages forward until the day
+# is on screen. pick-datetime.yaml is the date-and-time twin.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: ${FIELD}-trigger
+- tapOn:
+    id: ${FIELD}-trigger
+- extendedWaitUntil:
+    visible:
+      id: ${FIELD}-calendar
+    timeout: 10000
+- repeat:
+    times: 13
+    while:
+      notVisible:
+        id: ${FIELD}-calendar-day-${DAY}
+    commands:
+      - tapOn:
+          id: ${FIELD}-calendar-next
+- tapOn:
+    id: ${FIELD}-calendar-day-${DAY}
+- assertNotVisible:
+    id: ${FIELD}-calendar

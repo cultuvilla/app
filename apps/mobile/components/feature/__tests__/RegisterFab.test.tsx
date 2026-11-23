@@ -375,6 +375,32 @@ describe('RegisterFab — group sign-up', () => {
     expect(getByTestId('group-confirm').props.accessibilityState.disabled).toBe(false);
   });
 
+  it('counts the seats left and asks each ticked member the questions', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([dep]);
+    const fields = [{ id: 'talla', label: 'Talla', type: 'text' as const, required: true, options: [] }];
+    const { getByTestId } = render(<RegisterFab {...groupProps} signupFields={fields} />);
+    await waitFor(() => expect(getByTestId('register-fab')).toBeTruthy());
+    fireEvent.press(getByTestId('register-fab'));
+
+    await waitFor(() => expect(getByTestId('group-remaining')).toHaveTextContent('event.group.remaining'));
+    expect(getByTestId('group-answer-p1-talla')).toBeTruthy();
+    fireEvent.press(getByTestId('group-row-p2'));
+    expect(getByTestId('group-remaining')).toHaveTextContent('event.group.complete');
+    expect(getByTestId('group-answer-p2-talla')).toBeTruthy();
+  });
+
+  // No ✕ (decided 2026-11-20): the group sheet closes from its grab bar.
+  it('closes the group sheet from its grab bar (group-signup-sheet-handle)', async () => {
+    mockGetPersonsByCreator.mockResolvedValue([dep]);
+    const { getByTestId, queryByTestId } = render(<RegisterFab {...groupProps} />);
+    await waitFor(() => expect(getByTestId('register-fab')).toBeTruthy());
+    fireEvent.press(getByTestId('register-fab'));
+    await waitFor(() => expect(getByTestId('group-row-p2')).toBeTruthy());
+    expect(getByTestId('group-signup-sheet')).toBeTruthy();
+    fireEvent.press(getByTestId('group-signup-sheet-handle'));
+    await waitFor(() => expect(queryByTestId('group-attendee-list')).toBeNull());
+  });
+
   // The same iOS Modal problem, through the group sheet's "Crear una nueva persona".
   it('hides the group sheet while another screen is in front, and brings it back as it was', async () => {
     mockGetPersonsByCreator.mockResolvedValue([dep]);

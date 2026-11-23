@@ -5,6 +5,14 @@ import {
   entityPath,
   eventLinkTarget,
   festivalPosterLinkTarget,
+  groupAvisoPath,
+  groupEventPath,
+  groupTaskPath,
+  groupCosaPath,
+  groupCosaRequestPath,
+  groupPath,
+  groupSectionPath,
+  groupRecordsPath,
   newWordPath,
   orgJoinPath,
   personPath,
@@ -15,6 +23,8 @@ import {
   wordPath,
   wrappedPath,
   type EntityLinkTarget,
+  type GroupSection,
+  type RecordsDoor,
   type UrlEntityKind,
   type VillageSection,
 } from '@cultuvilla/shared/utils';
@@ -40,6 +50,7 @@ export const routes = {
   home: href('/(tabs)'),
   myVillage: href('/(tabs)/mi-pueblo'),
   profile: href('/(tabs)/perfil'),
+  groups: href('/(tabs)/grupos'),
   login: href('/(auth)/entrar'),
   completeProfile: href('/(onboarding)/completar-perfil'),
   inbox: href('/buzon'),
@@ -53,6 +64,7 @@ export const routes = {
   discover: href('/descubrir'),
   terms: href('/legal/terminos'),
   privacy: href('/legal/privacidad'),
+  attributions: href('/legal/atribuciones'),
   admin: href('/admin'),
   adminOrganizerRequests: href('/admin/solicitudes-organizador'),
   adminReports: href('/admin/denuncias'),
@@ -65,10 +77,30 @@ export function myVillageHref(villageId?: string): HrefPath {
 
 export const villageHref = (villageSlug: string): HrefPath => href(villagePath(villageSlug));
 
+/** The Grupos tab, opened on one group. */
+export const groupHref = (orgId: string): HrefPath => href(groupPath(orgId));
+
+/** One aviso and its chat. */
+export const groupAvisoHref = (orgId: string, messageId: string): HrefPath => href(groupAvisoPath(orgId, messageId));
+
+export const groupEventHref = (orgId: string, eventId: string): HrefPath => href(groupEventPath(orgId, eventId));
+
+export const groupTaskHref = (orgId: string, taskId: string): HrefPath => href(groupTaskPath(orgId, taskId));
+
+/** One cosa of a group's cosateca. */
+export const groupCosaHref = (orgId: string, cosaId: string): HrefPath => href(groupCosaPath(orgId, cosaId));
+/** One request for a cosa. */
+export const groupCosaRequestHref = (orgId: string, requestId: string): HrefPath => href(groupCosaRequestPath(orgId, requestId));
+export const groupSectionHref = (orgId: string, section: GroupSection): HrefPath => href(groupSectionPath(orgId, section));
+/** One door of a group's Registros. */
+export const groupRecordsHref = (orgId: string, door: RecordsDoor): HrefPath => href(groupRecordsPath(orgId, door));
+
 export const villageSectionHref = (villageSlug: string, section: VillageSection, query?: string): HrefPath =>
   href(`${villageSectionPath(villageSlug, section)}${query ? `?${query}` : ''}`);
 
-export const wrappedHref = (villageSlug: string, year: number): HrefPath => href(wrappedPath(villageSlug, year));
+/** A village's fiestas for a year: the programme, then the Wrapped. `query` without its `?`. */
+export const wrappedHref = (villageSlug: string, year: number, query?: string): HrefPath =>
+  href(`${wrappedPath(villageSlug, year)}${query ? `?${query}` : ''}`);
 
 export const eventHref = (event: Parameters<typeof eventLinkTarget>[0]): HrefPath =>
   href(entityPath('event', eventLinkTarget(event)));
@@ -121,7 +153,8 @@ export const personHref = (personId: string, query?: string): HrefPath =>
 export const userHref = (uid: string): HrefPath => href(userPath(uid));
 
 /** Create-or-edit screens take their subject as query params, not a path. */
-export function createEventHref(params: { villageId?: string; eventId?: string } = {}): HrefPath {
+/** `copyFrom` opens the create form prefilled from that event: its next edition. */
+export function createEventHref(params: { villageId?: string; eventId?: string; copyFrom?: string; organizerOrgId?: string } = {}): HrefPath {
   return href(`/crear/evento${toQuery(params)}`);
 }
 
@@ -157,5 +190,5 @@ export const newHistoryEntryHref = (villageSlug: string): HrefPath =>
  * rebuilds the URL it came from rather than inventing a title slug it would
  * have to load the doc to know.
  */
-export const entityRefHref = (kind: UrlEntityKind, villageSlug: string, ref: string): HrefPath =>
-  href(`${villagePath(villageSlug)}/${ENTITY_SEGMENT[kind]}/${ref}`);
+export const entityRefHref = (kind: UrlEntityKind, villageSlug: string, ref: string, query?: string): HrefPath =>
+  href(`${villagePath(villageSlug)}/${ENTITY_SEGMENT[kind]}/${ref}${query ? `?${query}` : ''}`);

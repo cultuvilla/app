@@ -26,6 +26,10 @@ el prompt de App Tracking Transparency.
 | Diagnostics → Crash Data, Other Diagnostic Data | Sí | Sí | App Functionality |
 | Sensitive Info | **No** | — | la política de privacidad pide expresamente no volcar categorías especiales en texto libre |
 
+La foto que se hace con la cámara al ofrecer algo en una cosateca se sube como
+cualquier otra imagen, así que entra en *Photos or Videos* y no cambia la
+etiqueta (la app pide permiso con `NSCameraUsageDescription`).
+
 Otros datos que Apple lista y **no** recogemos: Health & Fitness, Financial Info,
 Contacts, Search History, Browsing History, Purchases, Audio Data.
 

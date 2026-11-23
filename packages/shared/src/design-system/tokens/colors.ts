@@ -29,6 +29,8 @@ export const palette = {
   peach: '#dcab93',
   sage: '#a6a897',
   rust: '#be6b47',
+  // Sage darkened until it reads as text: 4.5:1 or better on cream and on white.
+  moss: '#696c5a',
 } as const;
 
 export type PaletteColor = keyof typeof palette;
@@ -47,15 +49,39 @@ const light = {
     'danger-subtle': '#fef2f2',
     success: '#16a34a',
     'success-subtle': '#f0fdf4',
+    // Neutral fills: disabled triggers, search inputs, thumbnail wells.
+    muted: '#f3f4f6',
+    // An image that has not loaded or does not exist (avatar, escudo).
+    placeholder: '#e5e7eb',
+    // Loading cards on bg-surface: a darker cream, not a grey.
+    skeleton: '#e7dccf',
+    // Behind photos and full-screen media (lightbox, Wrapped).
+    media: '#000000',
+    // Registration and join-request pills, under fg.on-accent labels.
+    'status-confirmed': '#2f7d4f',
+    'status-waitlisted': '#b07a1e',
+    'status-pending': '#8a7a70',
   },
   fg: {
     primary: palette.olive,
-    muted: palette.sage,
+    muted: palette.moss,
+    // Below text contrast on purpose: placeholders, inactive tab icons, input glyphs.
+    faint: palette.sage,
     'on-subtle': '#3f4635',
     'on-accent': palette.cream,
     'on-secondary': palette.cream,
     'on-danger': '#ffffff',
     'on-success': '#ffffff',
+    // Text and icons over photos and dark scrims.
+    'on-media': '#ffffff',
+    // Neutral icon greys, darkest first. strong: icons beside headings.
+    // icon: secondary glyphs (dropdown chevrons, empty states), still 3:1.
+    // quiet: close/search glyphs and disabled items. chevron: disclosure
+    // chevrons, grab handles and disabled glyphs.
+    strong: '#0f172a',
+    icon: '#64748b',
+    quiet: '#94a3b8',
+    chevron: '#cbd5e1',
     accent: palette.terracotta,
     secondary: palette.olive,
     danger: '#dc2626',
@@ -67,6 +93,9 @@ const light = {
     accent: palette.terracotta,
     secondary: palette.olive,
     danger: '#dc2626',
+    // Neutral outlines of inputs and pickers, and hairline list dividers.
+    input: '#d1d5db',
+    divider: '#e5e7eb',
   },
 } as const;
 

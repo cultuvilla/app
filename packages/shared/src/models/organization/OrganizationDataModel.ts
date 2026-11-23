@@ -4,8 +4,10 @@ import {
   reviewDecisionFields,
   type ReviewStatus,
 } from '../core/ReviewableDataModel';
+import { CosatecaSettingsSchema, DEFAULT_COSATECA_SETTINGS, type CosatecaSettings } from './CosaDataModel';
+import { DEFAULT_GROUP_TRANSPARENCY, GroupTransparencySchema, type GroupTransparency } from './GroupTransparencyModel';
 
-export const OrganizationTypeSchema = z.enum(['ayuntamiento', 'peña', 'asociación', 'otros']);
+export const OrganizationTypeSchema = z.enum(['ayuntamiento', 'peña', 'asociación', 'otros', 'comisión']);
 export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
 
 /**
@@ -15,14 +17,16 @@ export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
  */
 export const PROPOSABLE_ORGANIZATION_TYPES: readonly OrganizationType[] = [
   'peña',
+  'comisión',
   'asociación',
   'otros',
 ] as const;
 
 /**
- * How people become members. `open`: anyone joins instantly (self-service).
- * `approval`: people ask, and an org admin admits them — the only kind of org
- * whose membership is vetted, so the only kind that may hold private events.
+ * Every org admits its members, so this is always `approval` and nothing here
+ * reads it. It stays written for installed binaries, which offer an instant join
+ * on `open` and treat a missing value as `open`: it goes once `minSupported`
+ * passes the release that stopped reading it. See docs/decisions/org-join-policy.md.
  */
 export const OrgJoinPolicySchema = z.enum(['open', 'approval']);
 export type OrgJoinPolicy = z.infer<typeof OrgJoinPolicySchema>;
@@ -36,7 +40,10 @@ export const OrganizationDataSchema = z.object({
   /** Public download URLs for the organization's pictures (max 5). `images[0]`
    *  is the hero/cover shown in the detail scaffold. */
   images: z.array(z.string()).max(5),
-  type: OrganizationTypeSchema,
+  // A type this build doesn't know reads as `otros`: one unknown type in a
+  // village would otherwise make the strict converter throw and blank that
+  // village's whole group list on every installed binary older than the type.
+  type: OrganizationTypeSchema.catch('otros'),
   municipalityId: z.string(),
   /** The village's permanent URL slug, denormalized so a card can link without a read. */
   villageSlug: z.string(),
@@ -57,9 +64,57 @@ export const OrganizationDataSchema = z.object({
   // included); when true, it is shown to everyone. Display preference, not a
   // security boundary — member identities are world-readable. Default true.
   membersPublic: z.boolean(),
-  // Defaults to `open` because installed binaries still create orgs without it
-  // (the rules accept that too); existing docs are backfilled explicitly.
-  joinPolicy: OrgJoinPolicySchema.default('open'),
+  // The admin's choice: `approval` takes join requests, `open` takes anyone on
+  // the spot. A group starts on `approval`, and the ayuntamiento stays there.
+  joinPolicy: OrgJoinPolicySchema.default('approval'),
+  // "Los estatutos permiten ver la lista de socios": when true, socios may read
+  // the roster's names (never contact data). Off unless an admin turns it on.
+  // Defaults because installed binaries create orgs without it; existing docs
+  // are backfilled by scripts/backfill-org-socios-list-visible.mjs.
+  sociosListVisible: z.boolean().default(false),
+  // "Solo la junta escribe": when true, only the group's admins write in its
+  // general chat (avisos' chats stay open to their recipients). Defaults because
+  // installed binaries create orgs without it; existing docs are backfilled by
+  // scripts/backfill-org-chat-admins-only.mjs.
+  chatAdminsOnly: z.boolean().default(false),
+  // "Enviar avisos": when true, any socio of a group with a roster may send an
+  // aviso to every socio — text only, in the app only (see
+  // isSocioGroupMessageInput). Off unless an admin turns it on. Defaults because
+  // installed binaries create orgs without it; existing docs are backfilled by
+  // scripts/backfill-org-socios-send-avisos.mjs.
+  sociosSendAvisos: z.boolean().default(false),
+  // Whether being a socio means sharing the account's phone or email with the
+  // group's admins (see socioContactMissing). Default because no installed
+  // binary writes them.
+  socioPhoneRequired: z.boolean().default(false),
+  socioEmailRequired: z.boolean().default(false),
+  // The cosateca: whether the group runs one, and whether it is for its
+  // integrantes or the whole pueblo (see CosaDataModel). Defaults because
+  // installed binaries create orgs without it; existing docs are backfilled by
+  // scripts/backfill-org-cosateca.mjs.
+  cosateca: CosatecaSettingsSchema.default(DEFAULT_COSATECA_SETTINGS),
+  // Whether a group with socios runs a cuota: off hides its buttons and banner,
+  // never its payments. On unless an admin turns it off, as every group had it
+  // before the switch. Defaults because installed binaries create orgs without
+  // it; existing docs are backfilled by scripts/backfill-org-cuota-enabled.mjs.
+  cuotaEnabled: z.boolean().default(true),
+  // Whether a group with socios keeps its actas and its cuentas: off hides
+  // their buttons and doors, never what was written. On unless an admin turns
+  // them off, as every group had them before the switches. Defaults because
+  // installed binaries create orgs without them; existing docs are backfilled
+  // by scripts/backfill-org-records-enabled.mjs.
+  actasEnabled: z.boolean().default(true),
+  cuentasEnabled: z.boolean().default(true),
+  // Whether the group keeps its Charla: off hides it, never what was written.
+  // On unless an admin turns it off, as every group had it before the switch.
+  // Defaults because installed binaries create orgs without it; existing docs
+  // are backfilled by scripts/backfill-org-chat-enabled.mjs.
+  chatEnabled: z.boolean().default(true),
+  // What the junta opens to every integrante: the cuota's al día list, every
+  // aviso and its results, the accounts (see GroupTransparencyModel). Defaults
+  // because installed binaries create orgs without it; existing docs are
+  // backfilled by scripts/backfill-org-transparency.mjs.
+  transparency: GroupTransparencySchema.default(DEFAULT_GROUP_TRANSPARENCY),
   // status + reviewedBy + reviewedAt
   ...reviewDecisionFields,
 });
@@ -82,6 +137,17 @@ export interface OrganizationDataInput {
   reviewedAt?: Date | null;
   membersPublic?: boolean;
   joinPolicy?: OrgJoinPolicy;
+  sociosListVisible?: boolean;
+  chatAdminsOnly?: boolean;
+  sociosSendAvisos?: boolean;
+  socioPhoneRequired?: boolean;
+  socioEmailRequired?: boolean;
+  cosateca?: CosatecaSettings;
+  cuotaEnabled?: boolean;
+  actasEnabled?: boolean;
+  cuentasEnabled?: boolean;
+  chatEnabled?: boolean;
+  transparency?: GroupTransparency;
 }
 
 export function buildOrganizationData(input: OrganizationDataInput): OrganizationData {
@@ -101,7 +167,18 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     readCount: 0,
     memberCount: 0,
     membersPublic: input.membersPublic ?? true,
-    joinPolicy: input.joinPolicy ?? 'open',
+    joinPolicy: input.joinPolicy ?? 'approval',
+    sociosListVisible: input.sociosListVisible ?? false,
+    chatAdminsOnly: input.chatAdminsOnly ?? false,
+    sociosSendAvisos: input.sociosSendAvisos ?? false,
+    socioPhoneRequired: input.socioPhoneRequired ?? false,
+    socioEmailRequired: input.socioEmailRequired ?? false,
+    cosateca: input.cosateca ?? { ...DEFAULT_COSATECA_SETTINGS },
+    cuotaEnabled: input.cuotaEnabled ?? true,
+    actasEnabled: input.actasEnabled ?? true,
+    cuentasEnabled: input.cuentasEnabled ?? true,
+    chatEnabled: input.chatEnabled ?? true,
+    transparency: input.transparency ?? { ...DEFAULT_GROUP_TRANSPARENCY },
   };
 }
 

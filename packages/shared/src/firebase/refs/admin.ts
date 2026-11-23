@@ -1,54 +1,91 @@
 // packages/shared/src/firebase/refs/admin.ts
-import type { Firestore } from 'firebase-admin/firestore';
-import { eventConverterAdmin } from '../converters/eventConverter.admin';
-import { registrationConverterAdmin } from '../converters/registrationConverter.admin';
-import { seatTokenConverterAdmin } from '../converters/seatTokenConverter.admin';
-import { registrationEventConverterAdmin } from '../converters/registrationEventConverter.admin';
-import { municipalityConverterAdmin } from '../converters/municipalityConverter.admin';
-import { barrioConverterAdmin } from '../converters/barrioConverter.admin';
-import { placeConverterAdmin } from '../converters/placeConverter.admin';
-import { villageMemberConverterAdmin } from '../converters/villageMemberConverter.admin';
-import { censoAnswersConverterAdmin } from '../converters/censoAnswersConverter.admin';
+//
+// The Admin SDK's typed refs. Every collection is declared once in
+// ./collections.ts; this file binds those entries to the Admin SDK under the
+// names functions and scripts import, and derives the conformance gate's
+// targets from the same table.
+//
+// Admin refs are built with method calls on the `db` the caller passes, never
+// an SDK import: functions/ is npm-installed with its own firebase-admin copy.
+import type {
+  CollectionGroup,
+  CollectionReference,
+  DocumentReference,
+  Firestore,
+  FirestoreDataConverter,
+} from 'firebase-admin/firestore';
+import { adminConverter } from '../converters/sdkAdapters.admin';
 import { censoAnswersId } from '../../models/municipality/CensoAnswersDataModel';
-import { organizationConverterAdmin } from '../converters/organizationConverter.admin';
-import { orgMemberConverterAdmin } from '../converters/orgMemberConverter.admin';
-import { orgJoinRequestConverterAdmin } from '../converters/orgJoinRequestConverter.admin';
-import { organizerRequestConverterAdmin } from '../converters/organizerRequestConverter.admin';
-import { personConverterAdmin } from '../converters/personConverter.admin';
-import { userConverterAdmin } from '../converters/userConverter.admin';
-import { publicProfileConverterAdmin } from '../converters/publicProfileConverter.admin';
-import { notificationConverterAdmin } from '../converters/notificationConverter.admin';
-import { deviceTokenConverterAdmin } from '../converters/deviceTokenConverter.admin';
-import { notificationPrefsConverterAdmin } from '../converters/notificationPrefsConverter.admin';
-import { pushQueueConverterAdmin } from '../converters/pushQueueConverter.admin';
-import { newsPostConverterAdmin } from '../converters/newsPostConverter.admin';
-import { commentConverterAdmin } from '../converters/commentConverter.admin';
-import { occupationConverterAdmin } from '../converters/occupationConverter.admin';
-import { adminConverterAdmin } from '../converters/adminConverter.admin';
-import { membershipEventConverterAdmin } from '../converters/membershipEventConverter.admin';
-import { moderationEventConverterAdmin } from '../converters/moderationEventConverter.admin';
-import { ambassadorLeadConverterAdmin } from '../converters/ambassadorLeadConverter.admin';
-import { festivalPosterConverterAdmin } from '../converters/festivalPosterConverter.admin';
-import { villageWrappedConverterAdmin } from '../converters/villageWrappedConverter.admin';
-import { municipalityPersonConverterAdmin } from '../converters/municipalityPersonConverter.admin';
-import { contentReportConverterAdmin } from '../converters/contentReportConverter.admin';
-import { blockedUserConverterAdmin } from '../converters/blockedUserConverter.admin';
-import { vocabularyTermConverterAdmin } from '../converters/vocabularyTermConverter.admin';
-import { historyEntryConverterAdmin } from '../converters/historyEntryConverter.admin';
-import { vocabularyDefinitionConverterAdmin } from '../converters/vocabularyDefinitionConverter.admin';
-import { vocabularyWordConverterAdmin } from '../converters/vocabularyWordConverter.admin';
+import { municipalityPersonDirectoryId } from '../../models/municipality/MunicipalityPersonDataModel';
+import { NOTIFICATION_SETTINGS_DOC_ID } from '../../models/notification/NotificationSettingsDataModel';
+import { PRIVACY_SETTINGS_DOC_ID } from '../../models/user/PrivacySettingsDataModel';
+import { APP_VERSION_CONFIG_DOC_ID } from '../../models/config/AppVersionConfigModel';
+import {
+  COLLECTIONS as C,
+  collectionId,
+  collectionSegments,
+  type CollectionDef,
+  type ModelOf,
+  type PathParams,
+  type TypedCollectionDef,
+} from './collections';
 
-export const eventsCollection = (db: Firestore) =>
-  db.collection('events').withConverter(eventConverterAdmin);
+// ── Binder ────────────────────────────────────────────────────────────────
 
-export const eventDoc = (db: Firestore, eventId: string) =>
-  db.collection('events').doc(eventId).withConverter(eventConverterAdmin);
+function converterOf<D extends TypedCollectionDef>(def: D) {
+  return adminConverter(def.schema) as unknown as FirestoreDataConverter<ModelOf<D>>;
+}
+
+function typedCollection<D extends TypedCollectionDef>(
+  db: Firestore,
+  def: D,
+  ...ids: PathParams<D['path']>
+): CollectionReference<ModelOf<D>> {
+  return db.collection(collectionSegments(def.path, ids).join('/')).withConverter(converterOf(def));
+}
+
+function typedDoc<D extends TypedCollectionDef>(
+  db: Firestore,
+  def: D,
+  ...ids: [...PathParams<D['path']>, string]
+): DocumentReference<ModelOf<D>> {
+  const docId = ids[ids.length - 1];
+  return db.collection(collectionSegments(def.path, ids.slice(0, -1)).join('/')).doc(docId).withConverter(converterOf(def));
+}
+
+function typedGroup<D extends TypedCollectionDef>(db: Firestore, def: D): CollectionGroup<ModelOf<D>> {
+  return db.collectionGroup(collectionId(def.path)).withConverter(converterOf(def));
+}
+
+/** Unconverted — for a collection no fixed model describes. */
+function rawDoc<D extends CollectionDef>(db: Firestore, def: D, ...ids: [...PathParams<D['path']>, string]) {
+  const docId = ids[ids.length - 1];
+  return db.collection(collectionSegments(def.path, ids.slice(0, -1)).join('/')).doc(docId);
+}
+
+/**
+ * What the conformance gate (scripts/check-dev-conformance.mjs) walks: every
+ * collection with a schema, subcollections at any depth included, each with
+ * the converter its readers use.
+ */
+export const conformanceTargets = Object.values(C)
+  .filter((def): def is Extract<(typeof C)[keyof typeof C], TypedCollectionDef> => def.schema !== null)
+  .map((def) => ({ path: def.path, converter: adminConverter(def.schema) }));
+
+/** Every collection path declared in ./collections.ts, schema or not. */
+export const collectionPaths: readonly string[] = Object.values(C).map((def) => def.path);
+
+// ── Events ────────────────────────────────────────────────────────────────
+
+export const eventsCollection = (db: Firestore) => typedCollection(db, C.events);
+
+export const eventDoc = (db: Firestore, eventId: string) => typedDoc(db, C.events, eventId);
 
 export const eventRegistrationsCollection = (db: Firestore, eventId: string) =>
-  db.collection('events').doc(eventId).collection('registrations').withConverter(registrationConverterAdmin);
+  typedCollection(db, C.eventRegistrations, eventId);
 
 export const eventRegistrationDoc = (db: Firestore, eventId: string, registrationId: string) =>
-  db.collection('events').doc(eventId).collection('registrations').doc(registrationId).withConverter(registrationConverterAdmin);
+  typedDoc(db, C.eventRegistrations, eventId, registrationId);
 
 // Organizer-only private data for one registration: the phone (when the event
 // sets telephoneRequired) plus the answers to the event's custom signupFields.
@@ -56,219 +93,338 @@ export const eventRegistrationDoc = (db: Firestore, eventId: string, registratio
 // answer map is shaped by the event's field specs, not by a fixed model. The
 // factory exists so call sites stay off raw `db.doc(...)`.
 export const eventRegistrationPrivateDoc = (db: Firestore, eventId: string, registrationId: string) =>
-  db.collection('events').doc(eventId).collection('registrationPrivate').doc(registrationId);
+  rawDoc(db, C.eventRegistrationPrivate, eventId, registrationId);
 
 // Claim tokens for the event's open group seats. THE DOCUMENT ID IS THE SECRET
 // — see SeatTokenModel. Never fold this collection into a query whose results
 // reach a client that isn't the group owner or an organizer.
 export const eventSeatTokensCollection = (db: Firestore, eventId: string) =>
-  db.collection('events').doc(eventId).collection('seatTokens').withConverter(seatTokenConverterAdmin);
+  typedCollection(db, C.eventSeatTokens, eventId);
 
 export const eventSeatTokenDoc = (db: Firestore, eventId: string, token: string) =>
-  db.collection('events').doc(eventId).collection('seatTokens').doc(token).withConverter(seatTokenConverterAdmin);
+  typedDoc(db, C.eventSeatTokens, eventId, token);
 
 // Append-only audit log of the event's roster changes — see
 // RegistrationEventDataModel. Written only from `writeRegistrationEvent`, in
 // the same transaction as the mutation it records.
 export const eventRegistrationEventsCollection = (db: Firestore, eventId: string) =>
-  db.collection('events').doc(eventId).collection('registrationEvents').withConverter(registrationEventConverterAdmin);
+  typedCollection(db, C.eventRegistrationEvents, eventId);
 
 // ── Municipality domain ────────────────────────────────────────────────────
 
-export const municipalitiesCollection = (db: Firestore) =>
-  db.collection('municipalities').withConverter(municipalityConverterAdmin);
+export const municipalitiesCollection = (db: Firestore) => typedCollection(db, C.municipalities);
 
 export const municipalityDoc = (db: Firestore, municipalityId: string) =>
-  db.collection('municipalities').doc(municipalityId).withConverter(municipalityConverterAdmin);
+  typedDoc(db, C.municipalities, municipalityId);
 
 export const municipalityBarriosCollection = (db: Firestore, municipalityId: string) =>
-  db.collection('municipalities').doc(municipalityId).collection('barrios').withConverter(barrioConverterAdmin);
+  typedCollection(db, C.municipalityBarrios, municipalityId);
 
 export const municipalityBarrioDoc = (db: Firestore, municipalityId: string, barrioId: string) =>
-  db.collection('municipalities').doc(municipalityId).collection('barrios').doc(barrioId).withConverter(barrioConverterAdmin);
+  typedDoc(db, C.municipalityBarrios, municipalityId, barrioId);
 
 export const municipalityPlacesCollection = (db: Firestore, municipalityId: string) =>
-  db.collection('municipalities').doc(municipalityId).collection('places').withConverter(placeConverterAdmin);
+  typedCollection(db, C.municipalityPlaces, municipalityId);
 
 export const municipalityPlaceDoc = (db: Firestore, municipalityId: string, placeId: string) =>
-  db.collection('municipalities').doc(municipalityId).collection('places').doc(placeId).withConverter(placeConverterAdmin);
+  typedDoc(db, C.municipalityPlaces, municipalityId, placeId);
 
 export const municipalityMembersCollection = (db: Firestore, municipalityId: string) =>
-  db.collection('municipalities').doc(municipalityId).collection('members').withConverter(villageMemberConverterAdmin);
+  typedCollection(db, C.municipalityMembers, municipalityId);
 
-export const censoAnswersCollection = (db: Firestore) =>
-  db.collection('censoAnswers').withConverter(censoAnswersConverterAdmin);
+export const censoAnswersCollection = (db: Firestore) => typedCollection(db, C.censoAnswers);
 
 export const censoAnswersDoc = (db: Firestore, municipalityId: string, userId: string) =>
-  db.collection('censoAnswers').doc(censoAnswersId(municipalityId, userId)).withConverter(censoAnswersConverterAdmin);
+  typedDoc(db, C.censoAnswers, censoAnswersId(municipalityId, userId));
 
 export const municipalityMemberDoc = (db: Firestore, municipalityId: string, memberId: string) =>
-  db.collection('municipalities').doc(municipalityId).collection('members').doc(memberId).withConverter(villageMemberConverterAdmin);
+  typedDoc(db, C.municipalityMembers, municipalityId, memberId);
 
-export const municipalityPeopleCollection = (db: Firestore) =>
-  db.collection('municipalityPeople').withConverter(municipalityPersonConverterAdmin);
+export const municipalityPeopleCollection = (db: Firestore) => typedCollection(db, C.municipalityPeople);
 
 export const municipalityPersonDoc = (db: Firestore, municipalityId: string, personId: string) =>
-  db.collection('municipalityPeople').doc(`${municipalityId}_${personId}`).withConverter(municipalityPersonConverterAdmin);
+  typedDoc(db, C.municipalityPeople, municipalityPersonDirectoryId(municipalityId, personId));
 
 // ── Organization domain ──────────────────────────────────────────────────
 
-export const organizationsCollection = (db: Firestore) =>
-  db.collection('organizations').withConverter(organizationConverterAdmin);
+export const organizationsCollection = (db: Firestore) => typedCollection(db, C.organizations);
 
 export const organizationDoc = (db: Firestore, organizationId: string) =>
-  db.collection('organizations').doc(organizationId).withConverter(organizationConverterAdmin);
+  typedDoc(db, C.organizations, organizationId);
 
 export const organizationMembersCollection = (db: Firestore, organizationId: string) =>
-  db.collection('organizations').doc(organizationId).collection('members').withConverter(orgMemberConverterAdmin);
+  typedCollection(db, C.organizationMembers, organizationId);
 
 export const organizationMemberDoc = (db: Firestore, organizationId: string, memberId: string) =>
-  db.collection('organizations').doc(organizationId).collection('members').doc(memberId).withConverter(orgMemberConverterAdmin);
+  typedDoc(db, C.organizationMembers, organizationId, memberId);
+
+// The socio roster and its admin-only contact half (see SocioDataModel).
+export const organizationSociosCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationSocios, organizationId);
+
+export const organizationSocioDoc = (db: Firestore, organizationId: string, socioId: string) =>
+  typedDoc(db, C.organizationSocios, organizationId, socioId);
+
+export const organizationSocioPrivateCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationSocioPrivate, organizationId);
+
+export const organizationSocioPrivateDoc = (db: Firestore, organizationId: string, socioId: string) =>
+  typedDoc(db, C.organizationSocioPrivate, organizationId, socioId);
+
+export const organizationSocioPersonaLocksCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationSocioPersonaLocks, organizationId);
+
+export const organizationSocioPersonaLockDoc = (db: Firestore, organizationId: string, personId: string) =>
+  typedDoc(db, C.organizationSocioPersonaLocks, organizationId, personId);
+
+// The socio-number counter (see SocioNumberingDataSchema). Function-owned.
+export const organizationSocioNumberingDoc = (db: Firestore, organizationId: string) =>
+  typedDoc(db, C.organizationSocioNumbering, organizationId, 'current');
+
+export const organizationSocioNumberingCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationSocioNumbering, organizationId);
+
+// The cuota de socios (see CuotaDataModel).
+export const organizationCuotaSettingsDoc = (db: Firestore, organizationId: string) =>
+  typedDoc(db, C.organizationCuotaSettings, organizationId, 'current');
+
+export const organizationCuotaSettingsCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationCuotaSettings, organizationId);
+
+/** Every org's cuota settings — the reminder job's starting point. */
+export const cuotaSettingsGroup = (db: Firestore) => typedGroup(db, C.organizationCuotaSettings);
+
+export const organizationCuotaAssignmentsCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationCuotaAssignments, organizationId);
+
+export const organizationCuotaAssignmentDoc = (db: Firestore, organizationId: string, socioId: string) =>
+  typedDoc(db, C.organizationCuotaAssignments, organizationId, socioId);
+
+export const organizationCuotaPaymentsCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationCuotaPayments, organizationId);
+
+export const organizationCuotaRemindersCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationCuotaReminders, organizationId);
+
+export const organizationCuotaReminderDoc = (db: Firestore, organizationId: string, reminderId: string) =>
+  typedDoc(db, C.organizationCuotaReminders, organizationId, reminderId);
+
+// The cosateca (see CosaDataModel, CosaRequestDataModel).
+export const cosasCollection = (db: Firestore) => typedCollection(db, C.cosas);
+export const cosaDoc = (db: Firestore, cosaId: string) => typedDoc(db, C.cosas, cosaId);
+export const cosaSlotsCollection = (db: Firestore, cosaId: string) => typedCollection(db, C.cosaSlots, cosaId);
+export const cosaSlotDoc = (db: Firestore, cosaId: string, slotKey: string) => typedDoc(db, C.cosaSlots, cosaId, slotKey);
+export const cosaRequestsCollection = (db: Firestore) => typedCollection(db, C.cosaRequests);
+export const cosaRequestDoc = (db: Firestore, requestId: string) => typedDoc(db, C.cosaRequests, requestId);
+export const cosaRequestChatCollection = (db: Firestore, requestId: string) =>
+  typedCollection(db, C.cosaRequestChat, requestId);
+
+// Group tasks, shifts and checklist templates (see GroupTaskDataModel).
+export const organizationTasksCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationTasks, organizationId);
+
+export const organizationTaskDoc = (db: Firestore, organizationId: string, taskId: string) =>
+  typedDoc(db, C.organizationTasks, organizationId, taskId);
+
+/** Every org's tasks — the reminder job's starting point. */
+export const groupTasksGroup = (db: Firestore) => typedGroup(db, C.organizationTasks);
+
+export const organizationTaskTemplatesCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationTaskTemplates, organizationId);
+
+// The group's records (see RecordsDataModel).
+export const organizationActasCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationActas, organizationId);
+
+export const organizationLedgerEntriesCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationLedgerEntries, organizationId);
+
+export const organizationTaskRemindersCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationTaskReminders, organizationId);
+
+export const organizationTaskReminderDoc = (db: Firestore, organizationId: string, reminderId: string) =>
+  typedDoc(db, C.organizationTaskReminders, organizationId, reminderId);
+
+// A group's messages (see GroupMessageDataModel).
+export const organizationMessagesCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationMessages, organizationId);
+
+export const organizationMessageDoc = (db: Firestore, organizationId: string, messageId: string) =>
+  typedDoc(db, C.organizationMessages, organizationId, messageId);
+
+export const organizationMessageDeliveriesCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  typedCollection(db, C.organizationMessageDeliveries, organizationId, messageId);
+
+export const organizationMessageReadsCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  typedCollection(db, C.organizationMessageReads, organizationId, messageId);
+
+export const organizationMessageVotesCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  typedCollection(db, C.organizationMessageVotes, organizationId, messageId);
+
+// A group's chat (see GroupChatDataModel). The general thread's messages; an
+// aviso's live under its message.
+export const organizationGeneralChatCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationGeneralChat, organizationId);
+
+export const organizationAvisoChatCollection = (db: Firestore, organizationId: string, messageId: string) =>
+  typedCollection(db, C.organizationAvisoChat, organizationId, messageId);
+
+export const organizationChatThreadsCollection = (db: Firestore, organizationId: string) =>
+  typedCollection(db, C.organizationChatThreads, organizationId);
+
+export const organizationChatThreadDoc = (db: Firestore, organizationId: string, threadId: string) =>
+  typedDoc(db, C.organizationChatThreads, organizationId, threadId);
+
+export const organizationChatReadsCollection = (db: Firestore, organizationId: string, threadId: string) =>
+  typedCollection(db, C.organizationChatReads, organizationId, threadId);
 
 export const organizationJoinRequestsCollection = (db: Firestore, organizationId: string) =>
-  db.collection('organizations').doc(organizationId).collection('joinRequests').withConverter(orgJoinRequestConverterAdmin);
+  typedCollection(db, C.organizationJoinRequests, organizationId);
 
 export const organizationJoinRequestDoc = (db: Firestore, organizationId: string, userId: string) =>
-  db.collection('organizations').doc(organizationId).collection('joinRequests').doc(userId).withConverter(orgJoinRequestConverterAdmin);
+  typedDoc(db, C.organizationJoinRequests, organizationId, userId);
 
 // ── Organizer requests ───────────────────────────────────────────────────
 
-export const organizerRequestsCollection = (db: Firestore) =>
-  db.collection('organizerRequests').withConverter(organizerRequestConverterAdmin);
+export const organizerRequestsCollection = (db: Firestore) => typedCollection(db, C.organizerRequests);
 
-export const organizerRequestDoc = (db: Firestore, requestId: string) =>
-  db.collection('organizerRequests').doc(requestId).withConverter(organizerRequestConverterAdmin);
+export const organizerRequestDoc = (db: Firestore, requestId: string) => typedDoc(db, C.organizerRequests, requestId);
 
 // ── Person domain ────────────────────────────────────────────────────────
 
-export const personsCollection = (db: Firestore) =>
-  db.collection('persons').withConverter(personConverterAdmin);
+export const personsCollection = (db: Firestore) => typedCollection(db, C.persons);
 
-export const personDoc = (db: Firestore, personId: string) =>
-  db.collection('persons').doc(personId).withConverter(personConverterAdmin);
+export const personDoc = (db: Firestore, personId: string) => typedDoc(db, C.persons, personId);
 
 // ── User + notifications domain ──────────────────────────────────────────
 
-export const usersCollection = (db: Firestore) =>
-  db.collection('users').withConverter(userConverterAdmin);
+export const usersCollection = (db: Firestore) => typedCollection(db, C.users);
 
-export const userDoc = (db: Firestore, userId: string) =>
-  db.collection('users').doc(userId).withConverter(userConverterAdmin);
+export const userDoc = (db: Firestore, userId: string) => typedDoc(db, C.users, userId);
 
-export const publicProfilesCollection = (db: Firestore) =>
-  db.collection('publicProfiles').withConverter(publicProfileConverterAdmin);
+export const publicProfilesCollection = (db: Firestore) => typedCollection(db, C.publicProfiles);
 
-export const publicProfileDoc = (db: Firestore, userId: string) =>
-  db.collection('publicProfiles').doc(userId).withConverter(publicProfileConverterAdmin);
+export const publicProfileDoc = (db: Firestore, userId: string) => typedDoc(db, C.publicProfiles, userId);
 
 export const userNotificationsCollection = (db: Firestore, userId: string) =>
-  db.collection('users').doc(userId).collection('notifications').withConverter(notificationConverterAdmin);
+  typedCollection(db, C.userNotifications, userId);
 
 export const userNotificationDoc = (db: Firestore, userId: string, notificationId: string) =>
-  db.collection('users').doc(userId).collection('notifications').doc(notificationId).withConverter(notificationConverterAdmin);
+  typedDoc(db, C.userNotifications, userId, notificationId);
 
 // Push-capable devices. THE DOCUMENT ID IS THE FCM REGISTRATION TOKEN — see
 // DeviceTokenDataModel. Dead tokens are pruned by path when FCM reports
 // `registration-token-not-registered`, so the send site needs no lookup.
-export const userDevicesCollection = (db: Firestore, userId: string) =>
-  db.collection('users').doc(userId).collection('devices').withConverter(deviceTokenConverterAdmin);
+export const userDevicesCollection = (db: Firestore, userId: string) => typedCollection(db, C.userDevices, userId);
 
 export const userDeviceDoc = (db: Firestore, userId: string, token: string) =>
-  db.collection('users').doc(userId).collection('devices').doc(token).withConverter(deviceTokenConverterAdmin);
+  typedDoc(db, C.userDevices, userId, token);
 
-// Rules admit exactly one doc here (`notifications`), so the whole collection
-// shares its schema — which is what lets the conformance gate walk it.
 export const userPreferencesCollection = (db: Firestore, userId: string) =>
-  db.collection('users').doc(userId).collection('preferences')
-    .withConverter(notificationPrefsConverterAdmin);
+  typedCollection(db, C.userPreferences, userId);
+
+// Optional, one per group: absent means the group's messages push.
+export const userGroupPrefsCollection = (db: Firestore, userId: string) =>
+  typedCollection(db, C.userGroupPrefs, userId);
+
+export const userGroupPrefsDoc = (db: Firestore, userId: string, organizationId: string) =>
+  typedDoc(db, C.userGroupPrefs, userId, organizationId);
 
 // Optional: absent means DEFAULT_NOTIFICATION_PREFS.
 export const userNotificationPrefsDoc = (db: Firestore, userId: string) =>
-  userPreferencesCollection(db, userId).doc('notifications');
+  typedDoc(db, C.userPreferences, userId, 'notifications');
+
+// Optional, and its own collection so the conformance gate reads it with its own
+// schema: rules admit exactly one doc here (`account`).
+export const userNotificationSettingsCollection = (db: Firestore, userId: string) =>
+  typedCollection(db, C.userNotificationSettings, userId);
+
+export const userNotificationSettingsDoc = (db: Firestore, userId: string) =>
+  typedDoc(db, C.userNotificationSettings, userId, NOTIFICATION_SETTINGS_DOC_ID);
+
+// Optional: absent means the account was never asked about usage analytics.
+export const userPrivacySettingsDoc = (db: Firestore, userId: string) =>
+  typedDoc(db, C.userPrivacySettings, userId, PRIVACY_SETTINGS_DOC_ID);
 
 // Server-only push spool — see PushQueueDataModel for why the id is
 // deterministic. `firestore.rules` denies clients both directions.
-export const pushQueueCollection = (db: Firestore) =>
-  db.collection('pushQueue').withConverter(pushQueueConverterAdmin);
+export const pushQueueCollection = (db: Firestore) => typedCollection(db, C.pushQueue);
 
-export const pushQueueDoc = (db: Firestore, id: string) =>
-  db.collection('pushQueue').doc(id).withConverter(pushQueueConverterAdmin);
+export const pushQueueDoc = (db: Firestore, id: string) => typedDoc(db, C.pushQueue, id);
 
 // ── News domain (top-level collections) ──────────────────────────────────
 
-export const newsCollection = (db: Firestore) =>
-  db.collection('news').withConverter(newsPostConverterAdmin);
+export const newsCollection = (db: Firestore) => typedCollection(db, C.news);
 
-export const newsDoc = (db: Firestore, postId: string) =>
-  db.collection('news').doc(postId).withConverter(newsPostConverterAdmin);
+export const newsDoc = (db: Firestore, postId: string) => typedDoc(db, C.news, postId);
 
 // ── Comments (generic, entity-scoped, top-level) ────────────────────────
 
-export const commentsCollection = (db: Firestore) =>
-  db.collection('comments').withConverter(commentConverterAdmin);
+export const commentsCollection = (db: Firestore) => typedCollection(db, C.comments);
 
-export const commentDoc = (db: Firestore, commentId: string) =>
-  db.collection('comments').doc(commentId).withConverter(commentConverterAdmin);
+export const commentDoc = (db: Firestore, commentId: string) => typedDoc(db, C.comments, commentId);
 
-export const festivalPostersCollection = (db: Firestore) =>
-  db.collection('festivalPosters').withConverter(festivalPosterConverterAdmin);
+export const festivalPostersCollection = (db: Firestore) => typedCollection(db, C.festivalPosters);
 
-export const festivalPosterDoc = (db: Firestore, posterId: string) =>
-  db.collection('festivalPosters').doc(posterId).withConverter(festivalPosterConverterAdmin);
+export const festivalPosterDoc = (db: Firestore, posterId: string) => typedDoc(db, C.festivalPosters, posterId);
+
+export const fiestaEditionsCollection = (db: Firestore) => typedCollection(db, C.fiestaEditions);
+
+export const fiestaEditionDoc = (db: Firestore, editionId: string) => typedDoc(db, C.fiestaEditions, editionId);
 
 // ── Occupation domain (top-level collections) ────────────────────────────
 
-export const occupationsCollection = (db: Firestore) =>
-  db.collection('occupations').withConverter(occupationConverterAdmin);
+export const occupationsCollection = (db: Firestore) => typedCollection(db, C.occupations);
 
-export const occupationDoc = (db: Firestore, occupationId: string) =>
-  db.collection('occupations').doc(occupationId).withConverter(occupationConverterAdmin);
+export const occupationDoc = (db: Firestore, occupationId: string) => typedDoc(db, C.occupations, occupationId);
 
 // ── Membership audit log ─────────────────────────────────────────────────
 // Append-only, top-level, scoped by `municipalityId`. Function-owned: clients
 // only read (firestore.rules denies all client writes).
 
-export const membershipEventsCollection = (db: Firestore) =>
-  db.collection('membershipEvents').withConverter(membershipEventConverterAdmin);
+export const membershipEventsCollection = (db: Firestore) => typedCollection(db, C.membershipEvents);
 
-export const membershipEventDoc = (db: Firestore, id: string) =>
-  db.collection('membershipEvents').doc(id).withConverter(membershipEventConverterAdmin);
+export const membershipEventDoc = (db: Firestore, id: string) => typedDoc(db, C.membershipEvents, id);
 
 // ── Moderation audit log ─────────────────────────────────────────────────
 // Append-only, top-level, scoped by `municipalityId`. Function-owned: clients
 // only read (firestore.rules denies all client writes). Sibling of
 // `membershipEvents` — one log per concern (roles vs content).
 
-export const moderationEventsCollection = (db: Firestore) =>
-  db.collection('moderationEvents').withConverter(moderationEventConverterAdmin);
+export const moderationEventsCollection = (db: Firestore) => typedCollection(db, C.moderationEvents);
 
-export const moderationEventDoc = (db: Firestore, id: string) =>
-  db.collection('moderationEvents').doc(id).withConverter(moderationEventConverterAdmin);
+export const moderationEventDoc = (db: Firestore, id: string) => typedDoc(db, C.moderationEvents, id);
 
-export const ambassadorLeadsCollection = (db: Firestore) =>
-  db.collection('ambassadorLeads').withConverter(ambassadorLeadConverterAdmin);
+export const ambassadorLeadsCollection = (db: Firestore) => typedCollection(db, C.ambassadorLeads);
+
+// ── App config ───────────────────────────────────────────────────────────
+
+export const appVersionConfigDoc = (db: Firestore) => typedDoc(db, C.config, APP_VERSION_CONFIG_DOC_ID);
+
+// ── Sign-in rate limits and codes (server-only) ──────────────────────────
+
+export const authEmailRateLimitDoc = (db: Firestore, bucketId: string) =>
+  typedDoc(db, C.authEmailRateLimits, bucketId);
+
+export const authOtpCodeDoc = (db: Firestore, bucketId: string) => typedDoc(db, C.authOtpCodes, bucketId);
 
 // ── Admin domain ─────────────────────────────────────────────────────────
 
-export const adminsCollection = (db: Firestore) =>
-  db.collection('admins').withConverter(adminConverterAdmin);
+export const adminsCollection = (db: Firestore) => typedCollection(db, C.admins);
 
-export const adminDoc = (db: Firestore, userId: string) =>
-  db.collection('admins').doc(userId).withConverter(adminConverterAdmin);
+export const adminDoc = (db: Firestore, userId: string) => typedDoc(db, C.admins, userId);
 
 // ── UGC safety: reports + per-user block lists ───────────────────────────
 
-export const contentReportsCollection = (db: Firestore) =>
-  db.collection('contentReports').withConverter(contentReportConverterAdmin);
+export const contentReportsCollection = (db: Firestore) => typedCollection(db, C.contentReports);
 
-export const contentReportDoc = (db: Firestore, reportId: string) =>
-  db.collection('contentReports').doc(reportId).withConverter(contentReportConverterAdmin);
+export const contentReportDoc = (db: Firestore, reportId: string) => typedDoc(db, C.contentReports, reportId);
 
 export const userBlockedUsersCollection = (db: Firestore, userId: string) =>
-  db.collection('users').doc(userId).collection('blockedUsers').withConverter(blockedUserConverterAdmin);
+  typedCollection(db, C.userBlockedUsers, userId);
 
 export const userBlockedUserDoc = (db: Firestore, userId: string, blockedUserId: string) =>
-  db.collection('users').doc(userId).collection('blockedUsers').doc(blockedUserId).withConverter(blockedUserConverterAdmin);
+  typedDoc(db, C.userBlockedUsers, userId, blockedUserId);
 
 /**
  * The OSM settlement reference data for one municipality, keyed by INE code.
@@ -280,39 +436,35 @@ export const userBlockedUserDoc = (db: Firestore, userId: string, blockedUserId:
  * this one is four.)
  */
 export const settlementSeedDoc = (db: Firestore, codigoINE: string) =>
-  db.collection('_admin').doc('settlements').collection('seeds').doc(codigoINE);
+  rawDoc(db, C.settlementSeeds, 'settlements', codigoINE);
 
 // ── Vocabulary domain (top-level collections) ────────────────────────────
 
-export const vocabularyTermsCollection = (db: Firestore) =>
-  db.collection('vocabularyTerms').withConverter(vocabularyTermConverterAdmin);
+export const vocabularyTermsCollection = (db: Firestore) => typedCollection(db, C.vocabularyTerms);
 
-export const vocabularyTermDoc = (db: Firestore, termId: string) =>
-  db.collection('vocabularyTerms').doc(termId).withConverter(vocabularyTermConverterAdmin);
+export const vocabularyTermDoc = (db: Firestore, termId: string) => typedDoc(db, C.vocabularyTerms, termId);
 
-export const vocabularyDefinitionsCollection = (db: Firestore) =>
-  db.collection('vocabularyDefinitions').withConverter(vocabularyDefinitionConverterAdmin);
+export const vocabularyDefinitionsCollection = (db: Firestore) => typedCollection(db, C.vocabularyDefinitions);
 
 export const vocabularyDefinitionDoc = (db: Firestore, definitionId: string) =>
-  db.collection('vocabularyDefinitions').doc(definitionId).withConverter(vocabularyDefinitionConverterAdmin);
+  typedDoc(db, C.vocabularyDefinitions, definitionId);
 
 // ── Village history (top-level collection) ───────────────────────────────
 
-export const historyEntriesCollection = (db: Firestore) =>
-  db.collection('historyEntries').withConverter(historyEntryConverterAdmin);
+export const historyEntriesCollection = (db: Firestore) => typedCollection(db, C.historyEntries);
 
-export const historyEntryDoc = (db: Firestore, entryId: string) =>
-  db.collection('historyEntries').doc(entryId).withConverter(historyEntryConverterAdmin);
+export const historyEntryDoc = (db: Firestore, entryId: string) => typedDoc(db, C.historyEntries, entryId);
 
 /** The shared word index — one doc per word across every village. Function-owned. */
-export const vocabularyWordsCollection = (db: Firestore) =>
-  db.collection('vocabularyWords').withConverter(vocabularyWordConverterAdmin);
+export const vocabularyWordsCollection = (db: Firestore) => typedCollection(db, C.vocabularyWords);
 
-export const vocabularyWordDoc = (db: Firestore, slug: string) =>
-  db.collection('vocabularyWords').doc(slug).withConverter(vocabularyWordConverterAdmin);
+export const vocabularyWordDoc = (db: Firestore, slug: string) => typedDoc(db, C.vocabularyWords, slug);
 
-export const villageWrappedCollection = (db: Firestore) =>
-  db.collection('villageWrapped').withConverter(villageWrappedConverterAdmin);
+export const villageWrappedCollection = (db: Firestore) => typedCollection(db, C.villageWrapped);
 
-export const villageWrappedDoc = (db: Firestore, wrappedId: string) =>
-  db.collection('villageWrapped').doc(wrappedId).withConverter(villageWrappedConverterAdmin);
+export const villageWrappedDoc = (db: Firestore, wrappedId: string) => typedDoc(db, C.villageWrapped, wrappedId);
+
+/** The nightly "most to show" ranking of active pueblos. Function-owned. */
+export const villageRankingsCollection = (db: Firestore) => typedCollection(db, C.villageRankings);
+
+export const villageRankingDoc = (db: Firestore, rankingId: string) => typedDoc(db, C.villageRankings, rankingId);

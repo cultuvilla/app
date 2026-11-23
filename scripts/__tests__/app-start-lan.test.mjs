@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -53,3 +53,35 @@ test('a hostname from the environment is used as-is, DNS names included', () => 
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /pnpm --filter cultuvilla-mobile start host=mypc\.local$/m);
 });
+
+// The Metro scripts themselves, under sh from apps/mobile as pnpm runs them,
+// with a stub expo.
+const MOBILE_DIR = new URL('../../apps/mobile/', import.meta.url).pathname;
+const MOBILE_SCRIPTS = JSON.parse(readFileSync(join(MOBILE_DIR, 'package.json'), 'utf8')).scripts;
+
+function runMobile(name, { env = {}, stubs = {} } = {}) {
+  const bin = mkdtempSync(join(tmpdir(), 'app-start-'));
+  for (const [cmd, body] of Object.entries({ expo: 'echo "expo $*"', ...stubs })) {
+    writeFileSync(join(bin, cmd), `#!/bin/sh\n${body}\n`);
+    chmodSync(join(bin, cmd), 0o755);
+  }
+  return spawnSync('sh', ['-c', MOBILE_SCRIPTS[name]], {
+    cwd: MOBILE_DIR,
+    encoding: 'utf8',
+    env: { PATH: `${bin}:/usr/bin:/bin`, ...env },
+  });
+}
+
+for (const name of ['start', 'start:tunnel', 'start:lan', 'android', 'ios']) {
+  test(`${name} starts Metro on the port metro-port.sh picks`, () => {
+    const port = (env) => runMobile(name, { env }).stdout.match(/--port (\S+)/)?.[1];
+    assert.match(port({}) ?? '', /^8(0[89]|1[0-7])1$/);
+    assert.equal(port({ METRO_PORT: '8090' }), '8090');
+  });
+
+  test(`${name} does not start Metro when no port can be picked`, () => {
+    const r = runMobile(name, { stubs: { bash: 'exit 1' } });
+    assert.notEqual(r.status, 0);
+    assert.doesNotMatch(r.stdout, /expo/);
+  });
+}

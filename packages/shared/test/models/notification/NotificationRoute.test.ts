@@ -36,14 +36,48 @@ describe('notificationRoute', () => {
     ).toBe('/villa/palabra/esbardo');
   });
 
+  it('opens a cuota reminder on the group\'s cuota screen, slug or not', () => {
+    const n = { ...base, type: 'cuota_reminder' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, 'villa')).toBe('/grupos/org1/cuota');
+    expect(notificationRoute(n, null)).toBe('/grupos/org1/cuota');
+  });
+
+  it('opens a group task notification on the group\'s tasks', () => {
+    const n = { ...base, type: 'group_task' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, null)).toBe('/grupos/org1/tareas');
+  });
+
+  it('a cosateca notification opens its request', () => {
+    const n = { ...base, type: 'group_task' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute({ ...n, cosaRequestId: 'r1' }, null)).toBe('/grupos/org1/prestamo/r1');
+    expect(notificationRoute({ ...n, cosaRequestId: null }, null)).toBe('/grupos/org1/tareas');
+  });
+
+  it('a chat message opens its thread: the Charla, or the aviso', () => {
+    const n = { ...base, type: 'group_message' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute({ ...n, chatThreadId: 'general' }, null)).toBe('/grupos/org1/charla');
+    expect(notificationRoute({ ...n, chatThreadId: 'm1' }, null)).toBe('/grupos/org1/aviso/m1');
+    expect(notificationRoute({ ...n, chatThreadId: null }, null)).toBe('/grupos/org1/avisos');
+  });
+
+  it('opens a group message on the group\'s notices', () => {
+    const n = { ...base, type: 'group_message' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, null)).toBe('/grupos/org1/avisos');
+  });
+
   it('cannot address anything without the pueblo slug', () => {
     expect(notificationRoute({ ...base, type: 'event_cancelled', eventId: 'ev1' }, null)).toBeNull();
     expect(notificationRoute({ ...base, entityKind: 'place', entityId: 'x' }, null)).toBeNull();
   });
 
-  it('sends organization outcomes to the village’s organizations list', () => {
-    expect(notificationRoute({ ...base, type: 'org_approved' }, 'villa')).toBe('/villa/entidades');
-    expect(notificationRoute({ ...base, type: 'org_rejected' }, 'villa')).toBe('/villa/entidades');
+  it('opens the approved group, not the «Añadir grupo» form (QA 2026-11-18)', () => {
+    const n = { ...base, type: 'org_approved' as const, entityKind: 'organization' as const, entityId: 'org1' };
+    expect(notificationRoute(n, 'villa')).toBe('/villa/entidad/_org1');
+  });
+
+  it('sends an organization outcome without a group id to the village, never the create form', () => {
+    expect(notificationRoute({ ...base, type: 'org_approved' }, 'villa')).toBe('/villa');
+    expect(notificationRoute({ ...base, type: 'org_rejected' }, 'villa')).toBe('/villa');
   });
 
   it('sends the Wrapped reminder to the create screen, for the year it is about', () => {

@@ -61,6 +61,20 @@ describe('OrgEventsSection', () => {
     expect(mockPush).toHaveBeenCalledTimes(1);
   });
 
+  it('shows a weekly series as one card, at its next date', () => {
+    const now = Date.now();
+    const series = { id: 'yoga', index: 0, weekdays: [2], until: new Date(now + 90 * day) };
+    answerWith([
+      { ...event('y0', 'Yoga', new Date(now - 7 * day)), series },
+      { ...event('y1', 'Yoga', new Date(now + 1 * day)), series },
+      { ...event('y2', 'Yoga', new Date(now + 8 * day)), series },
+    ]);
+    render(<OrgEventsSection orgId="org-1" includePrivate={false} />);
+    expect(screen.getAllByText('Yoga')).toHaveLength(1);
+    fireEvent.press(screen.getByText('Yoga'));
+    expect(String(mockPush.mock.calls[0]?.[0])).toMatch(/_y1$/);
+  });
+
   it('passes the private flag through to the watcher', () => {
     answerWith([]);
     render(<OrgEventsSection orgId="org-1" includePrivate />);

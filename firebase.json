@@ -49,6 +49,14 @@
           }
         },
         {
+          "source": "/estudio",
+          "destination": "/estudio/index.html"
+        },
+        {
+          "source": "/estudio/**",
+          "destination": "/estudio/index.html"
+        },
+        {
           "source": "**",
           "function": {
             "functionId": "readSite",
@@ -81,6 +89,50 @@
             {
               "key": "Content-Type",
               "value": "application/json"
+            }
+          ]
+        },
+        {
+          "source": "/estudio/assets/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "/estudio",
+          "headers": [
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "X-Robots-Tag",
+              "value": "noindex"
+            }
+          ]
+        },
+        {
+          "source": "/estudio/**",
+          "headers": [
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "X-Robots-Tag",
+              "value": "noindex"
+            }
+          ]
+        },
+        {
+          "source": "/estudio/index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
             }
           ]
         }

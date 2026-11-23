@@ -28,6 +28,7 @@ export interface CreateContentReportInput {
   reporterUserId: string;
   reason: ReportReason;
   note?: string | null;
+  targetText?: string | null;
 }
 
 /**
@@ -54,6 +55,12 @@ export async function getReportsByMunicipality(
     ...(options.limit ? [fsLimit(options.limit)] : []),
   );
   const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Every village's open queue, for app admins. One equality filter, so no composite index. */
+export async function getOpenReports(): Promise<ContentReport[]> {
+  const snap = await getDocs(query(contentReportsCollection(getDb()), where('status', '==', 'open')));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 

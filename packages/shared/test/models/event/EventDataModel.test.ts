@@ -6,6 +6,8 @@ import {
   isEventSignupOpen,
   isEventOngoing,
   isStartDayOver,
+  madridDayKey,
+  startOfMadridDay,
   isGroupSignupEvent,
   MAX_SIGNUP_GROUP_SIZE,
   upcomingThenPast,
@@ -242,6 +244,58 @@ describe('isStartDayOver', () => {
   });
   it('true next Madrid day', () => {
     expect(isStartDayOver(new Date('2026-06-15T08:00:00Z'), new Date('2026-06-15T23:30:00Z'))).toBe(true);
+  });
+});
+
+describe('startOfMadridDay', () => {
+  const iso = (d: Date) => d.toISOString();
+
+  it('is Madrid midnight in summer (CEST, UTC+2)', () => {
+    expect(iso(startOfMadridDay(new Date('2026-06-15T22:30:00Z')))).toBe('2026-06-15T22:00:00.000Z');
+    expect(iso(startOfMadridDay(new Date('2026-06-15T21:59:59Z')))).toBe('2026-06-14T22:00:00.000Z');
+  });
+
+  it('is Madrid midnight in winter (CET, UTC+1)', () => {
+    expect(iso(startOfMadridDay(new Date('2026-01-10T12:00:00Z')))).toBe('2026-01-09T23:00:00.000Z');
+  });
+
+  it('handles the spring-forward day (29 March 2026, midnight still CET)', () => {
+    expect(iso(startOfMadridDay(new Date('2026-03-29T10:00:00Z')))).toBe('2026-03-28T23:00:00.000Z');
+    // The day after starts in CEST.
+    expect(iso(startOfMadridDay(new Date('2026-03-30T10:00:00Z')))).toBe('2026-03-29T22:00:00.000Z');
+  });
+
+  it('handles the fall-back day (25 October 2026, midnight still CEST)', () => {
+    expect(iso(startOfMadridDay(new Date('2026-10-25T20:00:00Z')))).toBe('2026-10-24T22:00:00.000Z');
+    expect(iso(startOfMadridDay(new Date('2026-10-26T10:00:00Z')))).toBe('2026-10-25T23:00:00.000Z');
+  });
+
+  it('is the exact instant the Madrid day key changes', () => {
+    const now = new Date('2026-08-15T03:00:00Z');
+    const start = startOfMadridDay(now);
+    expect(madridDayKey(start)).toBe(madridDayKey(now));
+    expect(madridDayKey(new Date(start.getTime() - 1))).not.toBe(madridDayKey(now));
+  });
+
+  it('agrees with isStartDayOver: an instant is over exactly when it is before the start of today', () => {
+    const now = new Date('2026-06-15T22:30:00Z');
+    const cut = startOfMadridDay(now);
+    for (const t of ['2026-06-15T21:30:00Z', '2026-06-15T21:59:59.999Z', '2026-06-15T22:00:00Z', '2026-06-16T10:00:00Z']) {
+      const d = new Date(t);
+      expect(d < cut).toBe(isStartDayOver(d, now));
+    }
+  });
+
+  it('does not depend on the process timezone', () => {
+    const prev = process.env.TZ;
+    try {
+      for (const tz of ['America/Mexico_City', 'Atlantic/Canary', 'Asia/Tokyo', 'UTC']) {
+        process.env.TZ = tz;
+        expect(iso(startOfMadridDay(new Date('2026-06-15T22:30:00Z')))).toBe('2026-06-15T22:00:00.000Z');
+      }
+    } finally {
+      process.env.TZ = prev;
+    }
   });
 });
 

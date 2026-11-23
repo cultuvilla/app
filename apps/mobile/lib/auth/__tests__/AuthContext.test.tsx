@@ -10,6 +10,9 @@ import { signInWithCredential, signInWithCustomToken } from '@cultuvilla/shared/
 import { verifyAuthOtpCode } from '@cultuvilla/shared/services/authEmailService';
 import { clearPendingToken } from '../otpTokenCache';
 import { unregisterPushForSignOut } from '../../push/pushSession';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { discardLegacySession, restoreLegacySession } from '../legacySession';
+import { markSessionOpen } from '../sessionMarker';
 
 const FAKE_UID = 'user-raw-uid-123';
 const FAKE_HASH = 'a'.repeat(64);
@@ -21,6 +24,8 @@ interface MockAuthUser {
 }
 
 let mockAuthUser: MockAuthUser | null = { uid: FAKE_UID, email: 'a@b.com' };
+// The provider's auth listener, so a test can deliver a later sign-in or sign-out.
+let mockAuthListener: ((u: unknown) => void) | null = null;
 
 jest.mock('@cultuvilla/shared/firebase', () => ({
   getAuth: () => ({
@@ -38,6 +43,7 @@ jest.mock('@cultuvilla/shared/firebase', () => ({
 
 jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
   onAuthStateChanged: (_auth: unknown, cb: (u: unknown) => void) => {
+    mockAuthListener = cb;
     cb(mockAuthUser);
     return () => {};
   },
@@ -59,7 +65,7 @@ jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
   signOut: jest.fn(),
 }));
 
-import { getUserProfile } from '@cultuvilla/shared/services/userService';
+import { getUserProfile, setActiveMunicipality } from '@cultuvilla/shared/services/userService';
 import { clearLocalCacheAndRestart } from '../clearLocalCache';
 
 jest.mock('../clearLocalCache', () => ({ clearLocalCacheAndRestart: jest.fn(async () => undefined) }));
@@ -88,6 +94,11 @@ jest.mock('../../observability/errorBridge', () => ({
   fetchUserIdHash: jest.fn(),
 }));
 
+jest.mock('../legacySession', () => ({
+  restoreLegacySession: jest.fn().mockResolvedValue(undefined),
+  discardLegacySession: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../push/pushSession', () => ({
   unregisterPushForSignOut: jest.fn().mockResolvedValue(undefined),
 }));
@@ -95,6 +106,7 @@ jest.mock('../../push/pushSession', () => ({
 jest.mock('@cultuvilla/shared', () => ({
   observability: {
     setUserContext: jest.fn(),
+    captureError: jest.fn(),
   },
 }));
 
@@ -105,11 +117,51 @@ describe('AuthProvider', () => {
     (getUserProfile as jest.Mock).mockResolvedValue({ activeMunicipalityId: 'm1' });
   });
 
-  it('exposes a null user before sign-in', () => {
+  it('exposes a null user before sign-in', async () => {
     mockAuthUser = null;
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
     expect(result.current.user).toBeNull();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.profileChecked).toBe(true);
+  });
+
+  it('holds the signed-out state until a pre-native session has had its chance', async () => {
+    mockAuthUser = null;
+    let finishRestore: () => void = () => undefined;
+    (restoreLegacySession as jest.Mock).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishRestore = resolve;
+      }),
+    );
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.profileChecked).toBe(false);
+
+    await act(async () => finishRestore());
+
     expect(result.current.loading).toBe(false);
+    expect(result.current.profileChecked).toBe(true);
+  });
+
+  it('shows the app signed out when restoring a pre-native session fails', async () => {
+    mockAuthUser = null;
+    const failure = new Error('offline');
+    (restoreLegacySession as jest.Mock).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(observability.captureError).toHaveBeenCalledWith(failure, {
+      operation: 'auth:restoreLegacySession',
+    });
+  });
+
+  it('drops a pre-native session, without using it, when the native SDK has a user', async () => {
+    renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(discardLegacySession).toHaveBeenCalled());
+    expect(restoreLegacySession).not.toHaveBeenCalled();
   });
 
   it('never forwards the raw uid to observability.setUserContext — only the resolved hash', async () => {
@@ -203,6 +255,152 @@ describe('abandonSignUp', () => {
     });
 
     expect(fbSignOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+// A profile read that FAILS is not a profile that is missing. Read as missing,
+// it sent a signed-in user to "Completa tu perfil", whose abandon button then
+// deleted their account as a fresh sign-up (seen under a loaded emulator,
+// 2026-10-10).
+describe('a failed profile read', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchUserIdHash as jest.Mock).mockResolvedValue(FAKE_HASH);
+    mockAuthUser = { uid: FAKE_UID, email: 'a@b.com', delete: jest.fn().mockResolvedValue(undefined) };
+  });
+
+  it('leaves the profile unchecked, so nothing routes to onboarding', async () => {
+    (getUserProfile as jest.Mock).mockRejectedValue(new Error('unavailable'));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+    await act(async () => {});
+    expect(result.current.profileChecked).toBe(false);
+  });
+
+  it('never deletes the account from abandonSignUp', async () => {
+    (getUserProfile as jest.Mock).mockRejectedValue(new Error('unavailable'));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+    const deleteFn = mockAuthUser!.delete!;
+    await act(async () => {
+      await result.current.abandonSignUp();
+    });
+    expect(deleteFn).not.toHaveBeenCalled();
+    expect(fbSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  // An account switch while the first read is in flight: the old account's
+  // late "no profile" must not land in the new account's state, where
+  // abandonSignUp would take it for a fresh sign-up and delete the new account.
+  it('ignores a read that answers after its account is no longer signed in', async () => {
+    let answerFirst: (v: unknown) => void = () => {};
+    (getUserProfile as jest.Mock).mockReturnValueOnce(new Promise((r) => { answerFirst = r; }));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(getUserProfile).toHaveBeenCalledWith(FAKE_UID));
+
+    const deleteB = jest.fn().mockResolvedValue(undefined);
+    mockAuthUser = { uid: 'other-uid', email: 'b@b.com', delete: deleteB };
+    await act(async () => {
+      answerFirst(null);
+    });
+
+    expect(result.current.profileChecked).toBe(false);
+    await act(async () => {
+      await result.current.abandonSignUp();
+    });
+    expect(deleteB).not.toHaveBeenCalled();
+  });
+
+  it('tries again and loads the profile once the read succeeds', async () => {
+    (getUserProfile as jest.Mock)
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValue({ activeMunicipalityId: 'm1' });
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile).not.toBeNull(), { timeout: 5000 });
+    expect(result.current.profileChecked).toBe(true);
+  });
+});
+
+// Device QA, offline: switching village hung. On the native SDK an offline
+// write resolves only on the server's ack, though the cache holds it at once,
+// so the switch must move the profile without waiting for it.
+describe('switchActiveVillage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchUserIdHash as jest.Mock).mockResolvedValue(FAKE_HASH);
+    mockAuthUser = { uid: FAKE_UID, email: 'a@b.com', delete: jest.fn().mockResolvedValue(undefined) };
+    (getUserProfile as jest.Mock).mockResolvedValue({ email: 'a@b.com', activeMunicipalityId: 'm1' });
+  });
+
+  it('moves the active village at once, while the write is still unacknowledged', async () => {
+    (setActiveMunicipality as jest.Mock).mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile?.activeMunicipalityId).toBe('m1'));
+    const reads = (getUserProfile as jest.Mock).mock.calls.length;
+
+    act(() => result.current.switchActiveVillage('m2'));
+
+    expect(result.current.profile?.activeMunicipalityId).toBe('m2');
+    expect(setActiveMunicipality).toHaveBeenCalledWith(FAKE_UID, 'm2');
+    expect(getUserProfile).toHaveBeenCalledTimes(reads);
+  });
+
+  it('reports a refused write and re-reads the profile', async () => {
+    const refused = new Error('permission-denied');
+    (setActiveMunicipality as jest.Mock).mockRejectedValue(refused);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile?.activeMunicipalityId).toBe('m1'));
+
+    await act(async () => result.current.switchActiveVillage('m2'));
+
+    await waitFor(() => expect(result.current.profile?.activeMunicipalityId).toBe('m1'));
+    expect(observability.captureError).toHaveBeenCalledWith(refused, { operation: 'auth:switchActiveVillage' });
+  });
+});
+
+// A guest who signs in, or a sign-in after abandonSignUp (which does not reload
+// the app the way signOut does), follows a sign-out in the same JS session. The
+// sign-out marked the profile checked; the new account must not inherit that
+// flag for even one render, or AuthGate reads "signed in, checked, no profile"
+// as a fresh sign-up and routes a returning user to onboarding.
+describe('a sign-in after a sign-out in the same session', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchUserIdHash as jest.Mock).mockResolvedValue(FAKE_HASH);
+    mockAuthUser = { uid: FAKE_UID, email: 'a@b.com', delete: jest.fn().mockResolvedValue(undefined) };
+    (getUserProfile as jest.Mock).mockResolvedValue({ activeMunicipalityId: 'm1' });
+  });
+
+  it('never shows the new account a checked, empty profile before its read answers', async () => {
+    const seen: { uid: string | null; checked: boolean; profile: unknown }[] = [];
+    const { result } = renderHook(
+      () => {
+        const auth = useAuth();
+        seen.push({ uid: auth.user?.uid ?? null, checked: auth.profileChecked, profile: auth.profile });
+        return auth;
+      },
+      { wrapper: AuthProvider },
+    );
+    await waitFor(() => expect(result.current.profile).not.toBeNull());
+
+    mockAuthUser = null;
+    await act(async () => mockAuthListener?.(null));
+    expect(result.current.user).toBeNull();
+    expect(result.current.profileChecked).toBe(true);
+
+    let answerB: (v: unknown) => void = () => {};
+    (getUserProfile as jest.Mock).mockReturnValueOnce(new Promise((r) => { answerB = r; }));
+    const userB = { uid: 'returning-uid', email: 'b@b.com', delete: jest.fn().mockResolvedValue(undefined) };
+    seen.length = 0;
+    mockAuthUser = userB;
+    await act(async () => mockAuthListener?.(userB));
+
+    expect(seen.filter((s) => s.uid === userB.uid && s.checked && s.profile === null)).toEqual([]);
+    expect(result.current.profileChecked).toBe(false);
+
+    await act(async () => answerB({ activeMunicipalityId: 'm1', personId: 'p1' }));
+    expect(result.current.profileChecked).toBe(true);
+    expect(result.current.profile).not.toBeNull();
   });
 });
 
@@ -388,6 +586,16 @@ describe('signOut', () => {
     await waitFor(() => expect(fbSignOut).toHaveBeenCalledTimes(1));
     await signingOut;
     expect(settled).toBe(true);
+  });
+
+  it('marks the session as ended on purpose, so it is not reported as lost', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(result.current.profile).not.toBeNull());
+    await markSessionOpen(['google.com']);
+
+    await act(async () => result.current.signOut());
+
+    expect(await AsyncStorage.getItem('cultuvilla.sessionMarker')).toBeNull();
   });
 
   it('waits for the push-row delete when it settles promptly', async () => {

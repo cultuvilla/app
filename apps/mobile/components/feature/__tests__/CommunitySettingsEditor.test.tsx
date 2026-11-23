@@ -151,3 +151,51 @@ describe('fiestas persistence', () => {
     await waitFor(() => expect(showAlert).toHaveBeenCalledWith('fiesta blocks must have unique ids'));
   });
 });
+
+// Leaving the editor with "Listo" right after typing never blurred the field,
+// so a description saved only on blur was dropped (E2E flow 31). It now also
+// saves once typing pauses, without waiting for a blur.
+describe('CommunitySettingsEditor description persistence', () => {
+  it('saves a typed description once typing pauses, without a blur', async () => {
+    const { getByTestId } = render(<CommunitySettingsEditor villageId="m1" />);
+    const input = await waitFor(() => getByTestId('community-description'));
+
+    fireEvent.changeText(input, 'Pueblo serrano');
+
+    await waitFor(
+      () => expect(updateCommunity).toHaveBeenCalledWith('m1', { description: 'Pueblo serrano' }),
+      { timeout: 3000 },
+    );
+  });
+
+  it('saves a description typed just before leaving, before the pause', async () => {
+    const { getByTestId, unmount } = render(<CommunitySettingsEditor villageId="m1" />);
+    const input = await waitFor(() => getByTestId('community-description'));
+
+    fireEvent.changeText(input, 'Pueblo serrano');
+    unmount();
+
+    expect(updateCommunity).toHaveBeenCalledWith('m1', { description: 'Pueblo serrano' });
+  });
+
+  it('retries a description whose write failed', async () => {
+    (updateCommunity as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    const { getByTestId } = render(<CommunitySettingsEditor villageId="m1" />);
+    const input = await waitFor(() => getByTestId('community-description'));
+
+    fireEvent.changeText(input, 'Pueblo serrano');
+    fireEvent(input, 'blur');
+    await waitFor(() => expect(updateCommunity).toHaveBeenCalledTimes(1));
+    fireEvent(input, 'blur');
+
+    await waitFor(() => expect(updateCommunity).toHaveBeenCalledTimes(2));
+    expect(updateCommunity).toHaveBeenLastCalledWith('m1', { description: 'Pueblo serrano' });
+  });
+
+  it('does not write the description just for loading it', async () => {
+    const { getByTestId } = render(<CommunitySettingsEditor villageId="m1" />);
+    await waitFor(() => getByTestId('community-description'));
+    await new Promise((r) => setTimeout(r, 1200));
+    expect(updateCommunity).not.toHaveBeenCalled();
+  });
+});

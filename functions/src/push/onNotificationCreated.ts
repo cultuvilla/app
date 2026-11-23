@@ -1,24 +1,50 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
 import {
   pushQueueDoc,
   userNotificationPrefsDoc,
+  userNotificationSettingsDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import {
-  DEFAULT_NOTIFICATION_PREFS,
   NotificationDataSchema,
-  allowsPush,
+  NotificationSettingsDataSchema,
+  allowsTopicPush,
   buildPushQueueData,
   notificationCategory,
+  notificationTopic,
+  resolveNotificationSettings,
   pushQueueId,
   resolveSendTime,
+  topicPushes,
   type NotificationData,
+  type NotificationSettingsData,
 } from '@cultuvilla/shared/models';
 import { deliverPush } from './deliverPush';
 import { APNS_AUTH_KEY } from './secret';
 
 const db = getFirestore();
+
+/**
+ * The per-topic switches, read raw: rules cannot check a list's items, so a
+ * client could store a doc the strict converter rejects, and that must cost the
+ * owner their switches, not every push they are sent. Absent or malformed reads
+ * as "nothing muted" here.
+ */
+function parseSettings(userId: string, snap: DocumentSnapshot): NotificationSettingsData | null {
+  if (!snap.exists) return null;
+  const raw: Record<string, unknown> = snap.data() ?? {};
+  const stamp = raw['updatedAt'];
+  const updatedAt = stamp instanceof Timestamp ? stamp.toDate() : stamp;
+  const parsed = NotificationSettingsDataSchema.safeParse({ ...raw, updatedAt });
+  if (parsed.success) return parsed.data;
+  logger.warn('Notification settings do not match the schema; ignored', {
+    handler: 'onNotificationCreated',
+    userId,
+    issues: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+  });
+  return null;
+}
 
 /**
  * The single seam between the notification log and the device.
@@ -28,6 +54,11 @@ const db = getFirestore();
  * nothing — it gets push for free — and no producer can forget to send one,
  * which is exactly what a `notify()` helper called from seven places could not
  * guarantee.
+ *
+ * It is also the one place a push is withheld for good: a topic in
+ * PUSHLESS_TOPICS (a group's avisos) keeps its Buzón entry and never buzzes,
+ * whichever producer wrote it — `sendGroupMessage`, or the `nudgeGroupMessage`
+ * installed binaries still call.
  *
  * `onDocumentCreated`, not `onWrite`: several producers use deterministic ids
  * so a redelivered Eventarc event overwrites rather than duplicates. An
@@ -60,12 +91,27 @@ export const onNotificationCreated = onDocumentCreated(
     }
     const notification: NotificationData = parsed.data;
     const category = notificationCategory(notification.type);
+    const topic = notificationTopic(notification);
 
-    const prefsSnap = await userNotificationPrefsDoc(db, userId).get();
-    const prefs = prefsSnap.data() ?? DEFAULT_NOTIFICATION_PREFS;
+    if (!topicPushes(topic)) {
+      logger.info('No push for this topic; the Buzón has it', {
+        handler: 'onNotificationCreated',
+        userId,
+        notificationId: notifId,
+        type: notification.type,
+        topic,
+      });
+      return;
+    }
 
-    if (!allowsPush(prefs, category)) {
-      // The in-app Buzón still has it — muting a category suppresses the buzz,
+    const [legacySnap, settingsSnap] = await Promise.all([
+      userNotificationPrefsDoc(db, userId).get(),
+      userNotificationSettingsDoc(db, userId).withConverter(null).get(),
+    ]);
+    const settings = resolveNotificationSettings(legacySnap.data() ?? null, parseSettings(userId, settingsSnap));
+
+    if (!allowsTopicPush(settings, topic, notification.municipalityId)) {
+      // The in-app Buzón still has it — muting a topic suppresses the buzz,
       // never the record.
       logger.info('Push suppressed by preference', {
         handler: 'onNotificationCreated',
@@ -73,6 +119,7 @@ export const onNotificationCreated = onDocumentCreated(
         notificationId: notifId,
         type: notification.type,
         category,
+        topic,
       });
       return;
     }
@@ -80,7 +127,7 @@ export const onNotificationCreated = onDocumentCreated(
     const now = new Date();
     const sendAfter = resolveSendTime({
       category,
-      quietHoursEnabled: prefs.quietHours,
+      quietHoursEnabled: settings.quietHours,
       now,
     });
 

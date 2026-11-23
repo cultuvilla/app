@@ -9,18 +9,24 @@ import {
   eventsCollection,
   municipalitiesCollection,
   newsCollection,
+  cosasCollection,
+  cosaRequestsCollection,
+  cosaSlotDoc,
   organizationDoc,
   organizerRequestsCollection,
   personsCollection,
   userDoc,
   userNotificationsCollection,
   userDevicesCollection,
+  userGroupPrefsCollection,
   userNotificationPrefsDoc,
+  userNotificationSettingsDoc,
+  userPrivacySettingsDoc,
   pushQueueCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 // Subpath import (not the '@cultuvilla/shared' barrel): the barrel pulls
 // react-native into the functions esbuild bundle. See helpers/membershipAudit.ts.
-import { DELETED_USER_UID } from '@cultuvilla/shared/models';
+import { DELETED_USER_UID, reservaSlotKey } from '@cultuvilla/shared/models';
 import { computeDeletionBlockers } from './blockers';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
 
@@ -43,11 +49,15 @@ interface DeleteAccountResult {
  *     never trusted. Any blocker aborts BEFORE anything is deleted.
  *  3. Anonymize authored content that is KEPT (news + events): swap `createdBy`
  *     to the DELETED_USER_UID sentinel and pull the uid from `organizerUserIds`.
- *  4. Hard-delete free-text/PII interactions the user authored: comments.
+ *  4. Hard-delete free-text/PII interactions the user authored: comments,
+ *     group chat messages, and their cosateca (own cosas, requests either way).
  *     Unlike posts these carry no editorial value once the author is gone.
  *  5. Delete personal data: push devices, preferences and queued pushes (first,
  *     so nothing reaches a phone while the rest is torn down), persons (self +
- *     dependents), memberships (with a `removed` audit event each),
+ *     dependents), the phone and email shared with each group's junta (the
+ *     socio rows stay: the libro de socios is the group's record, and leaving
+ *     the membership gives them their baja), memberships (with a `removed`
+ *     audit event each),
  *     registrations, notifications, organizer requests, dangling organizer
  *     pointers, Cloud Storage photos, and the user profile doc.
  *  6. Delete the Firebase Auth user last — once the data is gone the auth
@@ -74,9 +84,12 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
     const anonymizedEvents = await anonymizeAuthoredContent(eventsCollection(db), uid);
 
     const commentsDeleted = await deleteUserComments(uid);
+    const chatMessagesDeleted = await deleteUserChatMessages(uid);
+    const cosateca = await deleteUserCosateca(uid);
 
     const pushDataDeleted = await deletePushData(uid);
 
+    const socioContactsCleared = await clearSocioContacts(uid);
     const membershipsRemoved = await removeMemberships(uid);
     const personIds = await deletePersons(uid);
     const registrationsDeleted = await deleteRegistrations(uid);
@@ -94,6 +107,9 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
       anonymizedNews,
       anonymizedEvents,
       commentsDeleted,
+      chatMessagesDeleted,
+      ...cosateca,
+      socioContactsCleared,
       membershipsRemoved,
       personsDeleted: personIds.length,
       registrationsDeleted,
@@ -148,6 +164,29 @@ async function anonymizeAuthoredContent(
     await batch.commit();
   }
   return entries.length;
+}
+
+/**
+ * Clear the phone and email the user shared with each group they were a socio
+ * of, current or past. The group is the controller of its libro de socios, so
+ * the row itself (name, number, alta, baja, cuotas) stays; only the contact
+ * goes. Needs the `socios.uid` collection-group override in
+ * firestore.indexes.json.
+ */
+async function clearSocioContacts(uid: string): Promise<number> {
+  const rows = await db.collectionGroup('socios').where('uid', '==', uid).get();
+  const privateRefs = rows.docs.flatMap((row) => {
+    const org = row.ref.parent.parent;
+    return org ? [org.collection('socioPrivate').doc(row.id)] : [];
+  });
+  const privateSnaps = await Promise.all(privateRefs.map((ref) => ref.get()));
+  const refs = privateSnaps.flatMap((snap) => (snap.exists ? [snap.ref] : []));
+  for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
+    const batch = db.batch();
+    for (const ref of refs.slice(i, i + BATCH_LIMIT)) batch.update(ref, { phone: null, email: null });
+    await batch.commit();
+  }
+  return refs.length;
 }
 
 interface MembershipToRemove {
@@ -266,6 +305,72 @@ async function deleteUserComments(uid: string): Promise<number> {
 }
 
 /**
+ * Hard-delete every group chat message the user wrote, in the general threads
+ * the avisos' and the tasks' comments. Leaving a group keeps them under the name they had; erasing
+ * the account does not — each one carries the name and free text. Needs the
+ * `chat.authorUid` collection-group override in firestore.indexes.json.
+ */
+async function deleteUserChatMessages(uid: string): Promise<number> {
+  const snap = await db.collectionGroup('chat').where('authorUid', '==', uid).get();
+  return deleteRefsInChunks(snap.docs.map((doc) => doc.ref));
+}
+
+/**
+ * The user's cosateca: the cosas they own, the requests they made and the
+ * requests made of their cosas (each names a person and carries free text).
+ * What they gave to a group is the group's and stays, without their name on
+ * it (`createdByName` blanked). A cosa they hold is let go (`heldBy` cleared),
+ * its request gone; the requests waiting on them as a shared cosa's holder go
+ * back to the group's admins (`holderUid` cleared).
+ */
+async function deleteUserCosateca(uid: string): Promise<{ cosasDeleted: number; cosasUnnamed: number; cosaRequestsDeleted: number }> {
+  const [owned, offered, asked, askedOfMe, held, askedOfHolder] = await Promise.all([
+    cosasCollection(db).where('ownerUid', '==', uid).get(),
+    cosasCollection(db).where('createdBy', '==', uid).get(),
+    cosaRequestsCollection(db).where('requesterUid', '==', uid).get(),
+    cosaRequestsCollection(db).where('ownerUid', '==', uid).get(),
+    cosasCollection(db).where('heldBy.uid', '==', uid).get(),
+    cosaRequestsCollection(db).where('holderUid', '==', uid).get(),
+  ]);
+  const deletedCosaIds = new Set(owned.docs.map((d) => d.id));
+  const unnamed = offered.docs.filter((d) => !deletedCosaIds.has(d.id) && d.data().createdByName !== '');
+  if (unnamed.length > 0) {
+    const batch = db.batch();
+    for (const d of unnamed) batch.update(d.ref.withConverter(null), { createdByName: '' });
+    await batch.commit();
+  }
+  const heldElsewhere = held.docs.filter((d) => !deletedCosaIds.has(d.id));
+  if (heldElsewhere.length > 0) {
+    const batch = db.batch();
+    for (const d of heldElsewhere) batch.update(d.ref.withConverter(null), { heldBy: null });
+    await batch.commit();
+  }
+  const goneIds = new Set([...asked.docs, ...askedOfMe.docs].map((d) => d.id));
+  const repoint = askedOfHolder.docs.filter((d) => !goneIds.has(d.id));
+  if (repoint.length > 0) {
+    const batch = db.batch();
+    for (const d of repoint) batch.update(d.ref.withConverter(null), { holderUid: null });
+    await batch.commit();
+  }
+  // A booking they made frees its slot; a reserva they own takes its slots with it.
+  const slotRefs = asked.docs.flatMap((d) => {
+    const req = d.data();
+    return req.cosaKind === 'reserva' && req.startAt ? [cosaSlotDoc(db, req.cosaId, reservaSlotKey(req.startAt))] : [];
+  });
+  const slotSnaps = await Promise.all(slotRefs.map((ref) => ref.get()));
+  await deleteRefsInChunks(
+    slotSnaps.filter((snap) => asked.docs.some((d) => d.id === snap.data()?.requestId)).map((snap) => snap.ref),
+  );
+  for (const d of owned.docs) await db.recursiveDelete(d.ref.collection('slots'));
+  const requestRefs = new Map([...asked.docs, ...askedOfMe.docs].map((d) => [d.id, d.ref]));
+  // A request's chat goes with it: the other party's messages could never be reached again.
+  for (const ref of requestRefs.values()) await db.recursiveDelete(ref.collection('chat'));
+  const cosaRequestsDeleted = await deleteRefsInChunks([...requestRefs.values()]);
+  const cosasDeleted = await deleteRefsInChunks(owned.docs.map((d) => d.ref));
+  return { cosasDeleted, cosasUnnamed: unnamed.length, cosaRequestsDeleted };
+}
+
+/**
  * Delete the departing user's uploaded photos from Cloud Storage: their account
  * avatar and every persona photo they uploaded. Both onboarding and the person
  * editor write to `users/{uid}/photo/...` (via `uploadUserPhoto`), so that
@@ -303,18 +408,22 @@ async function deleteNotifications(uid: string): Promise<number> {
 
 /**
  * Device tokens address a push at a specific phone, so they are personal data
- * in their own right. The preferences doc and any queued-but-unsent pushes go
- * with them; the queue entries carry the uid.
+ * in their own right. The preferences docs (account and per group), the privacy
+ * choices and any queued-but-unsent pushes go with them; the queue entries carry the uid.
  */
 async function deletePushData(uid: string): Promise<number> {
-  const [devices, queued] = await Promise.all([
+  const [devices, queued, groupPrefs] = await Promise.all([
     raw(userDevicesCollection(db, uid)).get(),
     raw(pushQueueCollection(db)).where('userId', '==', uid).get(),
+    raw(userGroupPrefsCollection(db, uid)).get(),
   ]);
   return deleteRefsInChunks([
     ...devices.docs.map((doc) => doc.ref),
     ...queued.docs.map((doc) => doc.ref),
+    ...groupPrefs.docs.map((doc) => doc.ref),
     userNotificationPrefsDoc(db, uid).withConverter(null),
+    userNotificationSettingsDoc(db, uid).withConverter(null),
+    userPrivacySettingsDoc(db, uid).withConverter(null),
   ]);
 }
 

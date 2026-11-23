@@ -1,16 +1,24 @@
 import { routes } from '../../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
+import { useResumePendingLogin } from '../../lib/auth/pendingOtp';
 import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
 import { useGuestActiveVillage } from '../../lib/village/GuestActiveVillageContext';
+import { useMyGroups } from '../../lib/orgs/useMyGroups';
 
 export default function TabsLayout() {
   const { user, loading } = useAuth();
   const { t } = useT();
   const gate = useRegisterGate();
   const { guestVillageId } = useGuestActiveVillage();
+  // Grupos is a tab only for someone in at least one group.
+  const { groups } = useMyGroups(user?.uid ?? null);
+  // Here rather than in AuthGate: a launch from a deep link never lands on the
+  // tabs, so it keeps its destination.
+  useResumePendingLogin(!loading && !user);
 
   if (loading) return null;
 
@@ -21,8 +29,8 @@ export default function TabsLayout() {
         // Crossfade between tabs so the shared header/stats/buttons appear to
         // stay put while only the content swaps (village ↔ profile share a layout).
         animation: 'fade',
-        tabBarActiveTintColor: '#bb5d3a',
-        tabBarInactiveTintColor: '#a6a897',
+        tabBarActiveTintColor: colors.light.fg.accent,
+        tabBarInactiveTintColor: colors.light.fg.faint,
       }}
     >
       <Tabs.Screen
@@ -51,6 +59,16 @@ export default function TabsLayout() {
               gate.requireAuth(routes.myVillage, t('guest.village'));
             }
           },
+        }}
+      />
+      <Tabs.Screen
+        name="grupos"
+        options={{
+          title: t('tabs.groups'),
+          href: groups.length > 0 ? undefined : null,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

@@ -2,13 +2,15 @@ import { APP_STORES } from '@cultuvilla/shared/config';
 import { palette } from '@cultuvilla/shared/design-system';
 import { LEGAL_DOCS } from '@cultuvilla/shared/legal';
 import type { WrappedCard } from '@cultuvilla/shared/models';
-import { villagePath, villageSectionPath } from '@cultuvilla/shared/utils';
+import { entityPath, formatDate, formatDayKey, villagePath, villageSectionPath } from '@cultuvilla/shared/utils';
 import {
   cardImage,
   eventWhen,
   posterTitle,
+  type AmbassadorView,
   type Card,
   type DefinitionView,
+  COMISION_LABEL,
   type EventView,
   type HistoryView,
   type NewsView,
@@ -16,35 +18,26 @@ import {
   type PlaceView,
   type BarrioView,
   type PosterView,
+  type ProgrammeView,
   type SectionData,
   type TermView,
   type Village,
   type VillageHome,
   type WrappedView,
 } from './data';
+import { enumLabel, msg } from './copy';
 import { appCta, type Page } from './document';
 import { html, raw, type Child, type SafeHtml } from './html';
 import type { LegalPage, PublicSection } from './routes';
 import { richText } from './richText';
 import type { AmbassadorForm, AmbassadorFormErrors, AmbassadorFormField } from './ambassadorLead';
 
-// The read site is Spanish-only server output. Enum labels mirror
-// packages/i18n/messages/es.json (news.compose.category, village.admin.places.kind).
-const NEWS_CATEGORY: Readonly<Partial<Record<string, string>>> = {
-  fiesta: 'Fiesta',
-  tradicion: 'Tradición',
-  gastronomia: 'Gastronomía',
-  historia: 'Historia',
-  otro: 'Otro',
-};
-const PLACE_KIND: Readonly<Partial<Record<string, string>>> = {
-  cemetery: 'Cementerio',
-  church: 'Iglesia',
-  hermitage: 'Ermita',
-  plaza: 'Plaza',
-  town_hall: 'Ayuntamiento',
-  otros: 'Otros',
-};
+// The read site is Spanish-only server output. Enum labels the app shares come
+// from its catalog (./copy); these have no catalog entry the web can use —
+// ORG_TYPE's `otros` reads «Entidad» here and «Otros» in the app.
+const NEWS_CATEGORY = 'news.compose.category';
+const PLACE_KIND = 'village.admin.places.kind';
+const TERM_KIND = 'village.vocabulary.kind';
 const BARRIO_KIND: Readonly<Partial<Record<string, string>>> = {
   barrio: 'Barrio',
   pedania: 'Pedanía',
@@ -56,12 +49,7 @@ const ORG_TYPE: Readonly<Partial<Record<string, string>>> = {
   peña: 'Peña',
   asociación: 'Asociación',
   otros: 'Entidad',
-};
-const TERM_KIND: Readonly<Partial<Record<string, string>>> = {
-  palabra: 'Palabra',
-  dicho: 'Dicho',
-  mote: 'Mote',
-  toponimo: 'Topónimo',
+  comisión: COMISION_LABEL,
 };
 const SECTION_TITLE: Readonly<Record<PublicSection, string>> = {
   carteles: 'Carteles de fiestas',
@@ -121,16 +109,17 @@ function gallery(urls: string[], alt: string): Child {
 
 // ── Village ─────────────────────────────────────────────────────────────────
 
-export function villagePage(v: Village, home: VillageHome | null): Page {
+export function villagePage(v: Village, home: VillageHome | null, others: Card[] = []): Page {
   const where = v.province ? `${v.name}, ${v.province}` : v.name;
   const intro = html`<div style="display:flex;gap:16px;align-items:center">${img(v.escudoUrl, `Escudo de ${v.name}`, 'escudo')}<div><h1>${v.name}</h1>${
     v.province ? html`<p class="meta">${v.province}</p>` : null
   }</div></div>`;
+  const discover = section('Descubre otros pueblos', others, '/pueblos');
 
   if (!v.active || !home) {
     return {
       head: { title: v.name, description: `${where} aún no tiene comunidad en Cultuvilla.`, noindex: true },
-      body: html`${intro}<div class="notice"><p>${v.name} aún no está en Cultuvilla. Cualquier vecino puede darlo de alta desde la app y empezar a compartir sus fiestas, noticias e historia.</p></div>${appCta(villagePath(v.slug), 'Traer mi pueblo a Cultuvilla')}`,
+      body: html`${intro}<div class="notice"><p>${v.name} aún no está en Cultuvilla. Cualquier vecino puede darlo de alta desde la app y empezar a compartir sus fiestas, noticias e historia.</p></div>${appCta(villagePath(v.slug), 'Traer mi pueblo a Cultuvilla')}${discover}`,
     };
   }
 
@@ -161,6 +150,7 @@ ${section('Lugares', home.places, villageSectionPath(v.slug, 'lugares'))}
 ${section('Barrios', home.barrios, villageSectionPath(v.slug, 'barrios'))}
 ${section('Historia', home.history, villageSectionPath(v.slug, 'historia'))}
 ${word}
+${discover}
 ${appCta(villagePath(v.slug), `Sigue a ${v.name} en la app`)}`,
   };
 }
@@ -177,7 +167,7 @@ export function sectionPage(v: Village, data: SectionData): Page {
     case 'vocabulario':
       content = data.terms.length
         ? html`<ul class="list">${data.terms.map(
-            (t) => html`<li><a href="${t.href}">${t.term}</a>${label(TERM_KIND, t.kind) ? html` <span class="meta">· ${label(TERM_KIND, t.kind)}</span>` : null}</li>`,
+            (t) => html`<li><a href="${t.href}">${t.term}</a>${enumLabel(TERM_KIND, t.kind) ? html` <span class="meta">· ${enumLabel(TERM_KIND, t.kind)}</span>` : null}</li>`,
           )}</ul>`
         : html`<p>Todavía no hay palabras.</p>`;
       break;
@@ -195,8 +185,8 @@ export function sectionPage(v: Village, data: SectionData): Page {
 export function eventPage(v: Village, e: EventView, appPath: string): Page {
   if (e.private) {
     return {
-      head: { title: 'Evento privado', description: 'Solo visible para los miembros de la organización.', noindex: true },
-      body: html`${backTo(v)}<h1>Evento privado</h1><p>Este evento solo es visible para los miembros de la organización que lo publica.</p>${appCta(appPath, 'Ver en la app')}`,
+      head: { title: 'Evento privado', description: 'Solo visible para los integrantes de la organización.', noindex: true },
+      body: html`${backTo(v)}<h1>Evento privado</h1><p>Este evento solo es visible para los integrantes de la organización que lo publica.</p>${appCta(appPath, 'Ver en la app')}`,
     };
   }
   const when = eventWhen(e);
@@ -242,7 +232,7 @@ export function newsPage(v: Village, n: NewsView, appPath: string): Page {
     return html`<p>${richText(b.rich, ctx)}</p>`;
   });
   const firstText = n.blocks.find((b) => b.type === 'text');
-  const meta = [label(NEWS_CATEGORY, n.category), n.publishedAt ? eventWhen({ start: n.publishedAt, end: null })?.split(',')[0] : null]
+  const meta = [enumLabel(NEWS_CATEGORY, n.category), n.publishedAt ? eventWhen({ start: n.publishedAt, end: null })?.split(',')[0] : null]
     .filter(Boolean)
     .join(' · ');
   return {
@@ -263,7 +253,7 @@ export function newsPage(v: Village, n: NewsView, appPath: string): Page {
 
 export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean, events: Card[]): Page {
   const kind = label(ORG_TYPE, o.type) ?? 'Entidad';
-  const facts = [kind, o.memberCount ? `${String(o.memberCount)} miembros` : null].filter(Boolean).join(' · ');
+  const facts = [kind, o.memberCount ? msg('organization.membersCount', { count: o.memberCount }) : null].filter(Boolean).join(' · ');
   return {
     head: {
       title: invite ? `Únete a ${o.name}` : o.name,
@@ -278,7 +268,7 @@ export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean
 }
 
 export function placePage(v: Village, p: PlaceView, appPath: string): Page {
-  const kind = label(PLACE_KIND, p.kind);
+  const kind = enumLabel(PLACE_KIND, p.kind);
   return {
     head: {
       title: `${p.name} · ${v.name}`,
@@ -294,7 +284,7 @@ export function barrioPage(v: Village, b: BarrioView, appPath: string): Page {
   const kind = label(BARRIO_KIND, b.kind) ?? 'Barrio';
   return {
     head: { title: `${b.name} · ${v.name}`, description: `${kind} de ${v.name}.`, imageUrl: b.images[0] ?? null },
-    body: html`${backTo(v)}${gallery(b.images, b.name)}<h1>${b.name}</h1><p class="meta">${kind}${b.residentCount ? ` · ${String(b.residentCount)} vecinos` : ''}</p>${appCta(appPath, '¿Eres de aquí? Únete desde la app')}`,
+    body: html`${backTo(v)}${gallery(b.images, b.name)}<h1>${b.name}</h1><p class="meta">${kind}${b.residentCount ? ` · ${msg('village.admin.barrios.residentCount', { count: b.residentCount })}` : ''}</p>${appCta(appPath, '¿Eres de aquí? Únete desde la app')}`,
   };
 }
 
@@ -319,7 +309,7 @@ export function historyPage(v: Village, h: HistoryView, appPath: string): Page {
 }
 
 export function wordPage(v: Village, term: TermView, definitions: DefinitionView[], appPath: string): Page {
-  const kind = label(TERM_KIND, term.kind) ?? 'Palabra';
+  const kind = enumLabel(TERM_KIND, term.kind) ?? 'Palabra';
   return {
     head: {
       title: `${term.term} · ${v.name}`,
@@ -354,6 +344,39 @@ export function wrappedPage(v: Village, w: WrappedView, appPath: string): Page {
     body: html`${backTo(v)}<h1>${title}</h1>${figures.length ? html`<p class="meta">${figures.join(' · ')}</p>` : null}${w.images.map(
       (u, i) => html`<p>${img(u, `${title} · ${v.name} (${String(i + 1)}/${String(w.images.length)})`)}</p>`,
     )}${appCta(appPath, 'Verlo y compartirlo en la app')}`,
+  };
+}
+
+const programmeDates = (startDay: string, endDay: string) =>
+  startDay === endDay ? formatDayKey(startDay, 'dayMonth') : `${formatDayKey(startDay, 'dayMonth')} – ${formatDayKey(endDay, 'dayMonth')}`;
+
+/**
+ * The programa de fiestas, for the WhatsApp reader before and during them:
+ * each edition's days and, on each, its events by start time, each linking to
+ * its own page. No «Hoy»: the edge keeps the page, and today moves.
+ */
+export function programmePage(v: Village, p: ProgrammeView, appPath: string): Page {
+  const title = `Programa de fiestas ${String(p.year)}`;
+  const summary = p.editions.map((e) => `${e.name}: ${programmeDates(e.startDay, e.endDay)}`).join(' · ');
+  return {
+    head: {
+      title: `${title} · ${v.name}`,
+      description: `${summary}. El programa de las fiestas de ${v.name}, día a día.`,
+      imageUrl: p.posterUrl,
+    },
+    body: html`${backTo(v)}<h1>${title}</h1>${p.editions.map(
+      (e) => html`<h2>${e.name}</h2><p class="meta">${programmeDates(e.startDay, e.endDay)}</p>${
+        e.days.length
+          ? e.days.map(
+              (d) => html`<h3>${formatDayKey(d.day, 'weekdayDayMonth')}</h3><ul>${d.events.map(
+                (ev) => html`<li><a href="${entityPath('event', { id: ev.id, title: ev.title, villageSlug: v.slug })}">${
+                  ev.start ? `${formatDate(ev.start, 'time', 'Europe/Madrid')} · ` : ''
+                }${ev.title}</a>${ev.locationName ? html` <span class="meta">· ${ev.locationName}</span>` : null}</li>`,
+              )}</ul>`,
+            )
+          : html`<p>Todavía no hay eventos en el programa.</p>`
+      }`,
+    )}${appCta(appPath, 'Verlo en la app y apuntarte')}`,
   };
 }
 
@@ -540,7 +563,30 @@ ${formError(errors, 'form')}
 </form><script>${raw(AMBASSADOR_PICKER)}</script>`;
 }
 
-export function ambassadorsPage(submitted?: { form: AmbassadorForm; errors: AmbassadorFormErrors }): Page {
+/**
+ * The Embajadores who already look after a pueblo, as the app's carnet: face
+ * with the Cultuvilla seal, name, gendered title and the pueblo's escudo. Each
+ * opens its pueblo. Absent until there is one to show.
+ */
+function ambassadorWall(ambassadors: AmbassadorView[]): Child {
+  if (ambassadors.length === 0) return null;
+  return html`<section class="blk amb-wall"><div class="in"><div class="head"><span class="eyebrow">Ya cuidan su pueblo</span><h2>${
+    `${String(ambassadors.length)} ${ambassadors.length === 1 ? 'Embajador' : 'Embajadores'}`
+  }</h2></div><ul class="carnets">${ambassadors.map((a) => {
+    const initial = a.name.trim().charAt(0).toUpperCase();
+    const face = a.photoUrl
+      ? img(a.photoUrl, a.name, 'face', a.originalPhotoUrl)
+      : html`<span class="face" aria-hidden="true">${initial}</span>`;
+    return html`<li><a href="${villagePath(a.village.slug)}"><span class="face-wrap">${face}<span class="seal" aria-hidden="true"></span></span><b>${a.name}</b><span class="tt">${
+      a.female ? 'Embajadora' : 'Embajador'
+    } de ${a.village.name}</span><span class="pv">${img(cardImage(a.village.escudoUrl), '', 'escudo', a.village.escudoUrl)}${a.village.province}</span></a></li>`;
+  })}</ul></div></section>`;
+}
+
+export function ambassadorsPage(
+  ambassadors: AmbassadorView[],
+  submitted?: { form: AmbassadorForm; errors: AmbassadorFormErrors },
+): Page {
   return {
     layout: 'landing',
     head: {
@@ -550,6 +596,7 @@ export function ambassadorsPage(submitted?: { form: AmbassadorForm; errors: Amba
     body: html`<div class="amb-page">${BUNTING}
 <section class="in top amb-top"><div><h1 class="amb-q"><span>¿Presumes de</span> <em>pueblo</em> <span>allá donde vas?</span></h1><p class="lead">Hazte su Embajador: activa la página de tu pueblo y cuida su cultura para siempre. Déjanos tu teléfono y lo ponemos en marcha contigo.</p></div>${phoneVideo('cultuvilla-embajador-vertical', 'Vídeo: hazte Embajador de Cultuvilla')}</section>
 <section class="in amb-form-row">${ambassadorForm(submitted?.form ?? null, submitted?.errors ?? {})}</section>
+${ambassadorWall(ambassadors)}
 <section class="blk amb-more"><div class="in"><ul class="amb-does">
 <li><b>Lo pone en marcha</b><span>Activa la página del pueblo, con su escudo.</span></li>
 <li><b>Suma a su gente</b><span>Invita a los vecinos, a sus peñas y al ayuntamiento.</span></li>

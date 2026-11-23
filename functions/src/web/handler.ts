@@ -11,6 +11,7 @@ import {
 } from '@cultuvilla/shared/utils';
 import {
   loadActiveVillages,
+  loadAmbassadors,
   loadBarrio,
   loadEvent,
   loadHistoryEntry,
@@ -23,8 +24,10 @@ import {
   loadTerm,
   loadVillageById,
   loadVillageBySlug,
+  loadOtherVillages,
   loadVillageHome,
   loadWrapped,
+  loadFiestaProgramme,
   type Village,
 } from './data';
 import type { Page } from './document';
@@ -49,6 +52,7 @@ import {
   villagePage,
   wordPage,
   wrappedPage,
+  programmePage,
 } from './pages';
 import { matchRoute, type WebRoute } from './routes';
 import { searchPueblos, submitAmbassadorLead } from './ambassadorLead';
@@ -196,11 +200,12 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
     case 'villages':
       return page(villagesPage(await loadLanding(deps)), path);
     case 'ambassadors': {
-      if (req.method !== 'POST') return page(ambassadorsPage(), path);
+      if (req.method !== 'POST') return page(ambassadorsPage(await loadAmbassadors(db)), path);
       const outcome = await submitAmbassadorLead(db, req.body, req.ip ?? 'unknown', deps.now);
       if (outcome.ok) return { kind: 'redirect', location: '/embajadores/gracias', permanent: false, seeOther: true };
       // The visitor's own answers come back to them, so the edge must never keep this page.
-      return { kind: 'page', page: { ...ambassadorsPage(outcome), status: 400 }, path, deviceDependent: true };
+      // Uncached, so it skips the wall: a bot's malformed POSTs would otherwise each pay its reads.
+      return { kind: 'page', page: { ...ambassadorsPage([], outcome), status: 400 }, path, deviceDependent: true };
     }
     case 'ambassadorsThanks':
       return page(ambassadorsThanksPage(), path);
@@ -223,7 +228,11 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
     case 'village': {
       const v = await loadVillageBySlug(db, route.villageSlug);
       if (!v) return notFound(path);
-      return page(villagePage(v, v.active ? await loadVillageHome(db, bucket, v, deps.now) : null), path);
+      const [home, others] = await Promise.all([
+        v.active ? loadVillageHome(db, bucket, v, deps.now) : null,
+        loadOtherVillages(db, v.id),
+      ]);
+      return page(villagePage(v, home, others), path);
     }
     case 'section': {
       const v = await loadVillageBySlug(db, route.villageSlug);
@@ -237,9 +246,14 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
       return canonical(path, wanted, () => wordPage(v, found.term, found.definitions, wanted));
     }
     case 'wrapped': {
+      // One link all year: the programme until a Wrapped is published, then
+      // the Wrapped. A draft still answers as if it did not exist.
       const v = await loadVillageBySlug(db, route.villageSlug);
-      const w = v ? await loadWrapped(db, v.id, route.year) : null;
-      return v && w ? page(wrappedPage(v, w, path), path) : notFound(path);
+      if (!v) return notFound(path);
+      const w = await loadWrapped(db, v.id, route.year);
+      if (w) return page(wrappedPage(v, w, path), path);
+      const programme = await loadFiestaProgramme(db, v.id, route.year);
+      return programme ? page(programmePage(v, programme, path), path) : notFound(path);
     }
     case 'entity':
       return entity(deps, route, route.kind, path);

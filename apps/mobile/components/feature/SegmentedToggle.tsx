@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { View, Animated, Easing } from 'react-native';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
@@ -12,16 +13,16 @@ export type SegmentedToggleProps<T extends string> = {
   options: readonly SegmentedToggleOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  /** Each segment gets `${testID}-${value}`. */
+  testID?: string;
 };
 
 // NativeWind 4 strips `className` from Animated.View on the web target, so
 // any class set there silently no-ops (the indicator was rendering without
 // `position: absolute`, which pushed both pressables into the right half).
-// All Animated.View styling is therefore inlined. Colors mirror the design
-// tokens at packages/shared/src/design-system/tokens/colors.ts:
-//   surface         = palette.cream (#f9f0e8)
-//   subtle          = palette.peach (#dcab93)  (applied via the View track)
-const INDICATOR_BG = '#f9f0e8';
+// All Animated.View styling is therefore inlined; the track itself is a View
+// with `bg-subtle`.
+const INDICATOR_BG = colors.light.bg.surface;
 
 /**
  * Pill-style segmented toggle with an animated sliding indicator.
@@ -31,6 +32,7 @@ export function SegmentedToggle<T extends string>({
   options,
   value,
   onChange,
+  testID,
 }: SegmentedToggleProps<T>) {
   const [trackWidth, setTrackWidth] = useState(0);
   const activeIndex = Math.max(
@@ -54,6 +56,7 @@ export function SegmentedToggle<T extends string>({
   return (
     <View
       className="flex-row bg-subtle rounded-md p-[2px]"
+      testID={testID}
       onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
     >
       <Animated.View
@@ -84,12 +87,16 @@ export function SegmentedToggle<T extends string>({
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
-            className="flex-1 py-2 items-center justify-center"
+            testID={testID ? `${testID}-${opt.value}` : undefined}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
+            className="flex-1 py-2 px-1 items-center justify-center"
           >
             <Text
               variant="caption"
               tone={isActive ? 'primary' : 'onSubtle'}
-              className="uppercase font-semibold"
+              className="uppercase font-semibold text-center"
+              numberOfLines={2}
             >
               {opt.label}
             </Text>

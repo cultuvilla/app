@@ -51,9 +51,26 @@ why.
   drops any key outside `uid, municipalityId, villageId, role, appVersion,
   platform, route, operation_id` before a payload leaves the port.
 
-- **Consent split.** Analytics is consent-gated (denied-by-default; a minimal
-  `ConsentBar` opt-in). Error/log *diagnosis* flows regardless, on legitimate
-  interest — justified because the app has guest browsing and 14+ minors.
+- **Consent split.** Analytics is consent-gated: denied by default, and granted
+  only for a signed-in account that answered yes to «¿Nos ayudas a mejorar
+  Cultuvilla?» (never called «anónimas»: the analytics id is a hashed uid, so the
+  data is pseudonymous), stored at `users/{uid}/privacySettings/account`,
+  changeable under Ajustes → Estadísticas de uso. Guests are never tracked.
+  The question is a full-screen page, not part of sign-up (decided 2026-11-20,
+  Álvaro: onboarding keeps only the terms checkbox). It asks an onboarded account with no
+  answer the moment the app opens, full screen, and nothing gets past it but an
+  answer: Android back does nothing (decided 2026-11-20, Álvaro, replacing a
+  first-real-action-or-third-day rule the same day, so every user answers right
+  away). Never during onboarding. «No, gracias» and «Sí, claro» are the same
+  size side by side (no outlined, yes filled) and each closes it. The answer is
+  in Firestore; an answer that fails to store asks again on the next launch.
+  The drawing
+  is built from Views, not SVG: the app ships no react-native-svg, and a native
+  module would have waited for a store binary. Error/log *diagnosis* flows regardless, on
+  legitimate interest — justified because the app has guest browsing and 14+
+  minors. (Decided 2026-11-20, Álvaro, replacing an interim where analytics ran
+  for everyone from boot on the strength of the Terms acceptance: the Privacy
+  Policy names usage statistics as consent-based and withdrawable.)
 
 - **Taxonomy as a review gate.** Event names live in `OBSERVABILITY_EVENTS`
   (`<domain>.<action>.<outcome>`); the `observability-conventions` skill is the

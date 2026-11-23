@@ -53,7 +53,7 @@ function VocabularyTermScreen() {
   const termId = palabra ? vocabularyTermId(villageId, palabra) : '';
   const { t } = useT();
   const { user } = useAuth();
-  const { canManage, isMember } = useEntityCapabilities(villageId);
+  const { canManage, can, isMember } = useEntityCapabilities(villageId);
 
   const termWatch = useWatch<VocabularyTermWithId | null>(
     'vocabularyTerm:watchVocabularyTerm',
@@ -97,9 +97,7 @@ function VocabularyTermScreen() {
     router.back();
   }
 
-  const isOwnTerm = Boolean(user && term && term.createdBy === user.uid);
-  const canDeleteTerm =
-    Boolean(term) && (canManage || (isOwnTerm && (term?.definitionCount ?? 0) === 0));
+  const canDeleteTerm = term != null && can('delete', 'vocabularyTerm', term);
 
   return (
     <Screen padded={false} bottomInset={false}>
@@ -174,20 +172,21 @@ function VocabularyTermScreen() {
                       {user ? (
                         <Pressable
                           onPress={() =>
-                            definition.createdBy === user.uid || canManage
+                            can('delete', 'vocabularyDefinition', definition)
                               ? void removeDefinition(definition.id)
                               : setReportTarget({
                                   kind: 'vocabularyTerm',
                                   id: term.id,
                                   municipalityId: term.municipalityId,
                                   authorUserId: definition.createdBy,
+                                  text: `${term.term}: ${definition.definition}`,
                                 })
                           }
                           testID={`vocabulary-definition-action-${definition.id}`}
                         >
                           <Ionicons
                             name={
-                              definition.createdBy === user.uid || canManage
+                              can('delete', 'vocabularyDefinition', definition)
                                 ? 'trash-outline'
                                 : 'flag-outline'
                             }

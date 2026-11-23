@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import {
   Modal,
   View,
@@ -12,10 +13,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
+import { SheetHandle, useDragToDismiss } from '../primitives/BottomSheet';
+import { useT } from '../../lib/i18n';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.6);
-const ACCENT = '#bb5d3a'; // colors.ts: light.bg.accent (terracotta)
+const ACCENT = colors.light.fg.accent;
 
 export type FilterSheetOption = { value: string; label: string };
 
@@ -32,6 +35,8 @@ export type FilterSheetProps = {
   allLabel: string;
   searchable?: boolean;
   searchPlaceholder?: string;
+  /** Each row is `<testID>-option-<value>`, the "all" row `<testID>-option-all`. */
+  testID?: string;
 };
 
 type Row = { value: string | null; label: string };
@@ -46,11 +51,14 @@ export function FilterSheet({
   allLabel,
   searchable = false,
   searchPlaceholder,
+  testID,
 }: FilterSheetProps) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [search, setSearch] = useState('');
+  const { t } = useT();
+  const drag = useDragToDismiss(() => close(), visible);
 
   useEffect(() => {
     if (visible) {
@@ -105,39 +113,29 @@ export function FilterSheet({
             right: 0,
             bottom: 0,
             height: SHEET_HEIGHT + insets.bottom,
-            backgroundColor: '#ffffff',
+            backgroundColor: colors.light.bg['surface-elevated'],
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
-            transform: [{ translateY: slideAnim }],
+            transform: [{ translateY: Animated.add(slideAnim, drag.translateY) }],
           }}
         >
-          <View
-            style={{
-              width: 40,
-              height: 4,
-              backgroundColor: '#D1D5DB',
-              borderRadius: 2,
-              alignSelf: 'center',
-              marginTop: 12,
-              marginBottom: 8,
-            }}
-          />
-          <View className="flex-row items-center justify-between px-4 pb-3 border-b border-subtle">
-            <Text variant="h3">{title}</Text>
-            <Pressable onPress={() => close()} accessibilityLabel={title} className="p-2 -mr-2">
-              <Ionicons name="close" size={24} color="#566047" />
-            </Pressable>
+          <View {...drag.panHandlers}>
+            <SheetHandle onClose={() => close()} label={t('common.close')} testID={testID ? `${testID}-handle` : undefined} />
+            <View className="px-4 pb-3 border-b border-subtle">
+              <Text variant="h3">{title}</Text>
+            </View>
           </View>
 
           {searchable ? (
             <View className="flex-row items-center mx-4 mt-3 px-3 rounded-md border border-subtle bg-surface">
-              <Ionicons name="search-outline" size={18} color="#a6a897" />
+              <Ionicons name="search-outline" size={18} color={colors.light.fg.faint} />
               <TextInput
+                testID={testID ? `${testID}-search` : undefined}
                 value={search}
                 onChangeText={setSearch}
                 placeholder={searchPlaceholder}
-                placeholderTextColor="#a6a897"
-                style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 8, color: '#566047' }}
+                placeholderTextColor={colors.light.fg.faint}
+                style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 8, color: colors.light.fg.primary }}
               />
             </View>
           ) : null}
@@ -152,6 +150,7 @@ export function FilterSheet({
               return (
                 <Pressable
                   onPress={() => close(() => onSelect(item.value))}
+                  testID={testID ? `${testID}-option-${item.value ?? 'all'}` : undefined}
                   className="flex-row items-center justify-between px-5 py-4 border-b border-subtle"
                 >
                   <Text tone={isSelected ? 'primary' : 'muted'} className={isSelected ? 'font-bold' : ''}>

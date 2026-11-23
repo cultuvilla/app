@@ -1,5 +1,10 @@
-import { NotificationPrefsDataSchema } from '../../models/notification/NotificationPrefsDataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
+import {
+  GroupNotificationPrefsDataSchema,
+  NotificationPrefsDataSchema,
+} from '../../models/notification/NotificationPrefsDataModel';
+import { NotificationSettingsDataSchema } from '../../models/notification/NotificationSettingsDataModel';
+import { clientConverter } from './sdkAdapters.client';
 
-export const notificationPrefsConverterClient = makeConverter(NotificationPrefsDataSchema, clientSdkCtors);
+export const notificationPrefsConverterClient = clientConverter(NotificationPrefsDataSchema);
+export const groupNotificationPrefsConverterClient = clientConverter(GroupNotificationPrefsDataSchema);
+export const notificationSettingsConverterClient = clientConverter(NotificationSettingsDataSchema);

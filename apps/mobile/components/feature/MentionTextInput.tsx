@@ -16,8 +16,8 @@ import {
   adjustMentions,
   deleteMentionAt,
   insertMention,
-  type MentionCandidate,
 } from '../../lib/mentionText';
+import type { MentionCandidate } from '@cultuvilla/shared/services/mentionCandidateService';
 import {
   detectPastedUrl,
   applyCustomTextLink,

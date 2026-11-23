@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { colors } from '@cultuvilla/shared/design-system';
+import { colors, typography } from '@cultuvilla/shared/design-system';
 import { RemoteImage } from './RemoteImage';
 import { Pressable } from './Pressable';
 import { Text } from './Text';
@@ -36,7 +36,17 @@ export function Avatar({ uri, size = 96, initials, onPress, ambassador = false }
         { width: size, height: size, borderRadius: radius },
       ]}
     >
-      <Text variant="h2" tone="muted">{initials ?? '+'}</Text>
+      <Text
+        variant="h2"
+        tone="muted"
+        numberOfLines={1}
+        // The circle has a fixed size, so its letters must not grow with the
+        // OS font scale either.
+        maxFontSizeMultiplier={1}
+        style={{ fontSize: initialsFontSize(size), lineHeight: Math.round(initialsFontSize(size) * 1.25) }}
+      >
+        {initials ?? '+'}
+      </Text>
     </View>
   );
 
@@ -55,6 +65,14 @@ export function Avatar({ uri, size = 96, initials, onPress, ambassador = false }
       {content}
     </Pressable>
   );
+}
+
+/**
+ * Two initials («AP») at the h2 size are wider than a 32dp circle, so small
+ * avatars scale the letters to the circle; large ones keep the h2 size.
+ */
+export function initialsFontSize(size: number): number {
+  return Math.min(typography.h2.fontSize, Math.floor(size * 0.4));
 }
 
 function AmbassadorSeal({ avatarSize }: { avatarSize: number }) {
@@ -89,7 +107,7 @@ function AmbassadorSeal({ avatarSize }: { avatarSize: number }) {
 
 const styles = StyleSheet.create({
   placeholder: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.light.bg.placeholder,
     alignItems: 'center',
     justifyContent: 'center',
   },

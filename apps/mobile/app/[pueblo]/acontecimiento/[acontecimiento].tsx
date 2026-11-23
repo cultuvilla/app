@@ -6,6 +6,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '../../../components/primitives/Text';
 import { VStack } from '../../../components/primitives/VStack';
 import { NaturalImage } from '../../../components/primitives/NaturalImage';
+import { ZoomableImage } from '../../../components/primitives/ZoomableImage';
 import { EntityDetailScaffold } from '../../../components/feature/EntityDetailScaffold';
 import type { EntityDetailAction } from '../../../components/feature/EntityDetailHeader';
 import { EntityComments } from '../../../components/feature/EntityComments';
@@ -30,7 +31,7 @@ function HistoryEntryDetailScreen() {
   const entryId = parseEntityRef(acontecimientoRef ?? '') ?? '';
   const { t } = useT();
   const share = useShareDeepLink();
-  const { canManage, canEdit } = useEntityCapabilities(villageId);
+  const { canManage, can } = useEntityCapabilities(villageId);
   const { data: entry = null, status } = useWatch<HistoryEntryWithId | null>(
     'historyEntryDetail:watchHistoryEntry',
     entryId || null,
@@ -54,7 +55,7 @@ function HistoryEntryDetailScreen() {
 
   const actions: EntityDetailAction[] = entry
     ? [
-        ...(canEdit(entry.createdBy)
+        ...(can('edit', 'historyEntry', entry)
           ? [
               {
                 icon: 'create-outline' as const,
@@ -108,7 +109,9 @@ function HistoryEntryDetailScreen() {
             <VStack gap={3} className="pt-2">
               {gallery.map((img) => (
                 <VStack key={img.url} gap={1}>
-                  <NaturalImage uri={img.url} />
+                  <ZoomableImage uri={img.url} accessibilityLabel={img.caption ?? entry.title}>
+                    <NaturalImage uri={img.url} />
+                  </ZoomableImage>
                   {img.caption ? (
                     <Text tone="muted" variant="caption" className="text-center">
                       {img.caption}

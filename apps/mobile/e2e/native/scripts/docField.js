@@ -38,13 +38,18 @@ function scalar(v) {
   return null;
 }
 
-// A dotted FIELD walks into map fields; a `*` segment takes the map's first
+// A dotted FIELD walks into map fields, and a numeric segment indexes an
+// array ("mutedTopics.0"); a `*` segment takes the map's first
 // key, for maps keyed by generated ids (registration answers are keyed by a
 // random signup-field id the flow cannot know). Only for a single-entry map:
 // with two keys, which one is "first" is not defined.
 function walk(fields, path) {
   var v = fields[path[0]];
   for (var i = 1; i < path.length; i++) {
+    if (v && v.arrayValue && /^\d+$/.test(path[i])) {
+      v = (v.arrayValue.values || [])[Number(path[i])];
+      continue;
+    }
     var inner = v && v.mapValue && v.mapValue.fields;
     if (!inner) return null;
     var key = path[i] === '*' ? Object.keys(inner)[0] : path[i];

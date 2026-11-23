@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { PersonProfileView } from '../PersonProfileView';
 
 const mockGetMunicipality = jest.fn();
@@ -144,4 +144,13 @@ test('renders the photo in a square box, matching the 1:1 upload crop', async ()
 
   const box = await findByTestId('person-photo');
   expect(box.props.style).toEqual(expect.objectContaining({ aspectRatio: 1 }));
+});
+
+test('shows a persona photo that opens full size', async () => {
+  const { findByTestId } = render(
+    <PersonProfileView person={person({ photoURL: 'https://example.test/marta.jpg' })} />,
+  );
+  fireEvent.press(await findByTestId('person-photo-zoom'));
+  const full = (await findByTestId('image-lightbox-image')).props as { recyclingKey: string };
+  expect(full.recyclingKey).toBe('https://example.test/marta.jpg');
 });

@@ -3,6 +3,10 @@ import { buildOrgJoinRequestData } from '@cultuvilla/shared/models/organization/
 import { OrgJoinRequests } from '../OrgJoinRequests';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 
 const mockGetPending = jest.fn();
 const mockRespond = jest.fn();
@@ -97,5 +101,19 @@ describe('OrgJoinRequests', () => {
     await waitFor(() => expect(mockShowAlert).toHaveBeenCalledWith('Ya no administras esta entidad.'));
     expect(onResolved).not.toHaveBeenCalled();
     expect(screen.getByTestId(`approve-join-${ORG}-u-ana`)).toBeTruthy();
+  });
+
+  it('as a banner, counts who is waiting and opens them in a sheet to decide', async () => {
+    mockGetPending.mockResolvedValueOnce([request('u-ana'), request('u-bea')]).mockResolvedValue([request('u-bea')]);
+    mockRespond.mockResolvedValue(undefined);
+    render(<OrgJoinRequests orgId={ORG} banner />);
+    expect(await screen.findByTestId('org-join-banner')).toBeTruthy();
+    expect(screen.queryByTestId(`approve-join-${ORG}-u-ana`)).toBeNull();
+    fireEvent.press(screen.getByTestId('org-join-review'));
+    expect(screen.getByTestId('org-join-sheet')).toBeTruthy();
+    fireEvent.press(screen.getByTestId(`approve-join-${ORG}-u-ana`));
+    await waitFor(() => expect(mockRespond).toHaveBeenCalledWith(ORG, 'u-ana', 'approved'));
+    await waitFor(() => expect(screen.queryByTestId(`approve-join-${ORG}-u-ana`)).toBeNull());
+    expect(screen.getByTestId(`approve-join-${ORG}-u-bea`)).toBeTruthy();
   });
 });

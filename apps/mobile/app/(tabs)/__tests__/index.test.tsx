@@ -6,6 +6,7 @@ import {
   watchUpcomingFeed,
 } from '@cultuvilla/shared/services/feedService';
 import { getAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
+import { getActiveCommunities } from '@cultuvilla/shared/services/municipalityService';
 import { buildEventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 
@@ -75,7 +76,7 @@ jest.mock('../../../lib/auth/RegisterGateContext', () => ({
 }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),
-  reportFirestoreError: jest.fn(),
+  reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn(),
 }));
 jest.mock('../../../components/layout/AppHeader', () => ({
   AppHeader: () => null,
@@ -262,6 +263,37 @@ describe('FeedScreen live listener', () => {
     expect(watchUpcomingFeed).toHaveBeenCalledTimes(1);
   });
 
+  const occurrence = (i: number, seriesId = 'yoga') => ({
+    ...event,
+    id: `${seriesId}-${String(i)}`,
+    title: seriesId === 'yoga' ? 'Yoga' : 'Mercadillo',
+    startDate: new Date(Date.UTC(2099, 5, 1 + i, 18)),
+    endBoundary: new Date(Date.UTC(2099, 5, 1 + i, 18)),
+    series: { id: seriesId, index: i, weekdays: [1, 2, 3, 4, 5, 6, 7], until: new Date('2099-12-01') },
+  });
+
+  it('shows a weekly series as one card, at its next date', async () => {
+    const { findByText, findAllByText } = render(<FeedScreen />);
+    act(() => current().next([occurrence(0), occurrence(1), event, occurrence(2)]));
+    expect(await findByText('Verbena')).toBeTruthy();
+    expect(await findAllByText('Yoga')).toHaveLength(1);
+  });
+
+  it('reads further when one series fills the page, keeping the cards up meanwhile', async () => {
+    const { findByText, getByText } = render(<FeedScreen />);
+    const page = Array.from({ length: 50 }, (_, i) => occurrence(i));
+    act(() => current().next(page));
+    expect(await findByText('Yoga')).toBeTruthy();
+
+    // The full page made a single card, so the listener re-opens twice as big…
+    expect(watchUpcomingFeed).toHaveBeenLastCalledWith(100, expect.any(Function), expect.any(Function));
+    expect(getByText('Yoga')).toBeTruthy();
+
+    // …and the event the daily series had pushed out of the first page shows.
+    act(() => current().next([...page, { ...event, startDate: new Date('2099-08-01'), endBoundary: new Date('2099-08-01') }]));
+    expect(await findByText('Verbena')).toBeTruthy();
+  });
+
   it('re-opens a failed listener from the error state and recovers', async () => {
     const { findByText } = render(<FeedScreen />);
     act(() => current().fail(new Error('unavailable')));
@@ -271,5 +303,43 @@ describe('FeedScreen live listener', () => {
     expect(listeners[0]?.closed).toBe(true);
     act(() => current().next([event]));
     expect(await findByText('Verbena')).toBeTruthy();
+  });
+});
+
+// An empty feed under a search or a filter means "nothing matches", not
+// "nothing exists" — so it says so, and offers the way back.
+describe('FeedScreen empty states', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRibbonFor.mockReturnValue(null);
+    (getAllVillagesFeed as jest.Mock).mockResolvedValue([]);
+    (getPrivateUpcomingFeed as jest.Mock).mockResolvedValue([]);
+    (getActiveCommunities as jest.Mock).mockResolvedValue([
+      { id: 'mun1', name: 'Sotos de Mayorga', coordinates: null },
+    ]);
+  });
+
+  it('keeps the plain empty state when no filter is set', async () => {
+    (getUpcomingFeed as jest.Mock).mockResolvedValue({ events: [] });
+    const { findByText, queryByText } = render(<FeedScreen />);
+    expect(await findByText('feed.empty', undefined, { timeout: 5000 })).toBeTruthy();
+    expect(queryByText('feed.emptyFiltered.events')).toBeNull();
+    expect(queryByText('feed.emptyFiltered.clear')).toBeNull();
+  });
+
+  it('says nothing matches a search that hides every event, and clears it', async () => {
+    (getUpcomingFeed as jest.Mock).mockResolvedValue({ events: [event] });
+    const { findByText, findByTestId, getByTestId, queryByText } = render(<FeedScreen />);
+    await findByText('Verbena', undefined, { timeout: 5000 });
+
+    fireEvent.press(await findByTestId('filter-search'));
+    fireEvent.changeText(getByTestId('filter-search-input'), 'zzz');
+
+    expect(await findByText('feed.emptyFiltered.events')).toBeTruthy();
+    expect(queryByText('feed.empty')).toBeNull();
+
+    fireEvent.press(getByTestId('feed-clear-filters'));
+    expect(await findByText('Verbena')).toBeTruthy();
+    expect(queryByText('feed.emptyFiltered.events')).toBeNull();
   });
 });

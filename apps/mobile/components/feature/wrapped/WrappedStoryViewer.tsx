@@ -3,7 +3,7 @@ import { Image, Pressable as RNPressable, Text as RNText, StyleSheet, View, useW
 import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
-import { iconSizes, typography } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes, typography } from '@cultuvilla/shared/design-system';
 import type { WrappedCard } from '@cultuvilla/shared/models';
 import { Button, VStack } from '../../primitives';
 import { barFill, startAt, step, tapDirection, tick } from '../../../lib/wrapped/storyProgress';
@@ -27,8 +27,12 @@ interface Props {
   onShareLink?: () => void;
   /** Share the card on screen as an image. Absent where a card cannot be shared as a file. */
   onShareCard?: (card: StoryCard) => void;
+  /** Save the card on screen to the photo library. Absent where a card cannot be saved as a file. */
+  onSaveCard?: (card: StoryCard) => void;
   /** Leave for the village home, from the closing screen. */
   onOpenVillage?: () => void;
+  /** Open the year's programa de fiestas, from the closing screen. Absent when it has none. */
+  onOpenProgramme?: () => void;
 }
 
 /**
@@ -48,7 +52,9 @@ export function WrappedStoryViewer({
   onClose,
   onShareLink,
   onShareCard,
+  onSaveCard,
   onOpenVillage,
+  onOpenProgramme,
 }: Props) {
   const { t } = useT();
   const { width, height } = useWindowDimensions();
@@ -129,6 +135,11 @@ export function WrappedStoryViewer({
               {t('village.wrapped.viewer.shareLink')}
             </Button>
           ) : null}
+          {onOpenProgramme ? (
+            <Button variant="secondary" onPress={onOpenProgramme} fullWidth testID="wrapped-open-programme">
+              {t('village.fiestas.programme.openProgramme')}
+            </Button>
+          ) : null}
           {onOpenVillage ? (
             <Button variant="secondary" onPress={onOpenVillage} fullWidth testID="wrapped-open-village">
               {t('village.wrapped.viewer.openVillage')}
@@ -149,6 +160,18 @@ export function WrappedStoryViewer({
           ))}
         </View>
         <View style={styles.actions} pointerEvents="box-none">
+          {current && onSaveCard ? (
+            <RNPressable
+              onPress={() => onSaveCard(current)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('village.wrapped.viewer.saveCard')}
+              testID="wrapped-save-card"
+              style={styles.iconButton}
+            >
+              <Ionicons name="download-outline" size={iconSizes.md} color={colors.light.fg['on-media']} />
+            </RNPressable>
+          ) : null}
           {current && onShareCard ? (
             <RNPressable
               onPress={() => onShareCard(current)}
@@ -158,7 +181,7 @@ export function WrappedStoryViewer({
               testID="wrapped-share-card"
               style={styles.iconButton}
             >
-              <Ionicons name="share-outline" size={iconSizes.md} color="#ffffff" />
+              <Ionicons name="share-outline" size={iconSizes.md} color={colors.light.fg['on-media']} />
             </RNPressable>
           ) : null}
           <RNPressable
@@ -169,7 +192,7 @@ export function WrappedStoryViewer({
             testID="wrapped-story-close"
             style={styles.iconButton}
           >
-            <Ionicons name="close" size={iconSizes.md} color="#ffffff" />
+            <Ionicons name="close" size={iconSizes.md} color={colors.light.fg['on-media']} />
           </RNPressable>
         </View>
       </View>
@@ -181,14 +204,14 @@ export function WrappedStoryViewer({
 // Fixed colours, not theme tokens: the cards are drawn on a dark ground in both
 // themes, so the frame around them is dark in both too.
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000000' },
-  title: { ...typography.h2, color: '#ffffff' },
+  root: { flex: 1, backgroundColor: colors.light.bg.media },
+  title: { ...typography.h2, color: colors.light.fg['on-media'] },
   dim: { ...typography.body, color: 'rgba(255,255,255,0.75)', marginBottom: 8 },
   backdropDim: { backgroundColor: 'rgba(0,0,0,0.35)' },
   top: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 12 },
   bars: { flexDirection: 'row', gap: 4 },
   bar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)', overflow: 'hidden' },
-  barFill: { height: 3, backgroundColor: '#ffffff' },
+  barFill: { height: 3, backgroundColor: colors.light.fg['on-media'] },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 10 },
   iconButton: { padding: 6, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.35)' },
 });

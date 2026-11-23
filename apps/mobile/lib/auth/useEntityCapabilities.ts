@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getVillageMemberRole } from '@cultuvilla/shared/services/villageMemberService';
-import type { VillageMemberRole, VisibilityStatus } from '@cultuvilla/shared/models';
+import type { VillageMemberRole } from '@cultuvilla/shared/models';
+import { can, type PolicyAction, type PolicyDoc, type PolicyKind } from '@cultuvilla/shared/policy';
 import { useAuth } from './useAuth';
 import { useIsAppAdmin } from './useIsAppAdmin';
 
@@ -9,27 +10,18 @@ import { useIsAppAdmin } from './useIsAppAdmin';
  * village admin or app admin: they can manage optimistic content directly and
  * approve/reject approval-gated organization requests.
  *
- * `canEdit` / `canDelete` add the identity axis the Firestore rules carry: an
- * entity is maintained by an admin, by whoever created it, or by anyone named
- * in its organizer set. This is the ONE definition of "may I edit this?" for
- * every entity kind — event, news, place, barrio, cartel. Keep it in step with
- * the `allow update` / `allow delete` clauses those collections declare.
+ * `can(action, kind, doc)` answers "may I edit / delete this doc?" from the
+ * shared content policy (`@cultuvilla/shared/policy`), which a rules-emulator
+ * test holds equal to `firestore.rules`. This hook only resolves who the viewer
+ * is in this pueblo.
  */
 export interface EntityCapabilities {
   /** Commit directly / edit live items (organizer). */
   canManage: boolean;
   /** Approve or reject pending org requests (same axis as canManage). */
   canApprove: boolean;
-  /**
-   * Admin, the doc's creator (`proposedBy` / `createdBy`), or a user named in
-   * `organizerUserIds` — pass that set for the kinds that have one.
-   */
-  canEdit: (creatorId: string | null | undefined, organizerUserIds?: readonly string[]) => boolean;
-  /**
-   * Admin, or the creator of a doc that is still `active` — once moderation has
-   * hidden it, withdrawing it would undo the moderation, so only admins can.
-   */
-  canDelete: (creatorId: string | null | undefined, status: VisibilityStatus) => boolean;
+  /** The content policy, for a doc of this pueblo. Pass the doc itself. */
+  can: (action: PolicyAction, kind: Exclude<PolicyKind, 'organization'>, doc: PolicyDoc) => boolean;
   /**
    * Joined the entity's pueblo (any role). Village-scoped reads that are open
    * to residents but not to the open web — the event attendee roster — gate on
@@ -66,16 +58,12 @@ export function useEntityCapabilities(municipalityId: string | undefined): Entit
   const loading = authLoading || appAdminLoading || role === undefined;
   const canManage = isAppAdmin || role === 'admin';
   const uid = user?.uid ?? null;
-  const isCreator = (creatorId: string | null | undefined) => uid != null && creatorId === uid;
-  const isOrganizer = (organizerUserIds?: readonly string[]) =>
-    uid != null && organizerUserIds != null && organizerUserIds.includes(uid);
+  const actor = { uid, isAppAdmin, isVillageAdmin: role === 'admin' };
 
   return {
     canManage,
     canApprove: canManage,
-    canEdit: (creatorId, organizerUserIds) =>
-      canManage || isCreator(creatorId) || isOrganizer(organizerUserIds),
-    canDelete: (creatorId, status) => canManage || (isCreator(creatorId) && status === 'active'),
+    can: (action, kind, doc) => can(action, kind, actor, doc),
     // App admins act everywhere, so they count as members of every pueblo for
     // read purposes — the same equivalence canManage already makes.
     isMember: isAppAdmin || role != null,

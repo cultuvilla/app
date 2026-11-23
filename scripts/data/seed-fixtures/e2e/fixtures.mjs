@@ -46,7 +46,8 @@ export const users = {
     firstSurname: 'Admin',
     appAdmin: true,
   },
-  // Onboarded villager who is NOT a member of any org — joins an open peña in
+  // Onboarded villager of `village` (the second villager several flows need) who
+  // is NOT a member of any org, and joins `joinVillage` in flow 30. Joins an open peña in
   // the org-create-approve-join flow and asks to join `approvalOrg` in the
   // org-join-request flow.
   joiner: {
@@ -56,6 +57,16 @@ export const users = {
     personId: 'e2e-person-joiner',
     givenName: 'Vecino',
     firstSurname: 'Nuevo',
+  },
+  // Onboarded, a plain member of nothing it would leave headless: the settings
+  // flow deletes this account for real, so nothing else may depend on it.
+  throwaway: {
+    uid: 'e2e-throwaway',
+    email: 'e2e-throwaway@cultuvilla.test',
+    displayName: 'E2E Throwaway',
+    personId: 'e2e-person-throwaway',
+    givenName: 'Cuenta',
+    firstSurname: 'Desechable',
   },
   // Auth account ONLY — no persons/{id}, no users/{uid} profile. Signing in
   // diverts to complete-profile, which is exactly what the onboarding flow drives.
@@ -122,12 +133,60 @@ export const approvalOrg = {
   description: 'Peña con admisión por solicitud, para el flujo de unión con aprobación.',
 };
 
+// A group with a socio roster and a second member, for the Grupos flows
+// (12–15: avisos and chat, cuota and socios, tareas, cosateca). `users.admin`
+// is its admin and `users.attendee` (e2e-user) an integrante, so every feature has a writer
+// and a reader. Nothing else touches it: the 7x flows change approvalOrg.
+export const groupOrg = {
+  docId: 'e2e-org-asociacion',
+  name: 'Asociación Cultural E2E',
+  type: 'asociación',
+  description: 'Asociación con socios, avisos, cuota, tareas y cosateca para los flujos de Grupos.',
+};
+
+// An "otros" group `users.attendee` (e2e-user) runs, which flow 75 switches to a comisión de
+// festejos from its edit screen.
+export const switchOrg = {
+  docId: 'e2e-org-amigos',
+  name: 'Amigos del Pueblo E2E',
+  type: 'otros',
+  description: 'Grupo que pasa a ser comisión de festejos en el flujo 75.',
+};
+
+// A yearly event that has already ended, so its organizer is offered
+// "Repetir el año que viene" (flow 66). The form cannot create a past event.
+export const pastYearlyEvent = {
+  docId: 'e2e-event-fiestas-pasadas',
+  title: 'Fiestas Pasadas E2E',
+  description: 'Fiestas del año pasado, que se repiten cada año.',
+  startOffsetDays: -30,
+  endOffsetDays: -28,
+  status: 'published',
+};
+
+// Nine days out, not seven: flow 52 asserts it is outside "Esta semana", which
+// ends seven days after the RUN day's local midnight. At +7 it fell inside
+// whenever the suite seeded before midnight and reached flow 52 after it; +9
+// stays out for a run up to two days after the seed. The capacity, group and
+// signup events sit after it so the village row keeps this order (flow 45).
 export const event = {
   docId: 'e2e-event-fiesta',
   title: 'Fiesta de Prueba E2E',
   description: 'Evento de prueba para el flujo de inscripción end-to-end.',
-  startOffsetDays: 7,
+  startOffsetDays: 9,
   maxAttendees: 100,
+  status: 'published',
+};
+
+// A public event in `joinVillage`, sooner than `event` but further from
+// `village`: the feed's date order puts it first and "Por cercanía" from
+// `village` puts it after (flow 52).
+export const farEvent = {
+  docId: 'e2e-event-lejana',
+  title: 'Fiesta Lejana E2E',
+  description: 'Evento en otro pueblo para comprobar el orden por cercanía.',
+  startOffsetDays: 3,
+  maxAttendees: 50,
   status: 'published',
 };
 
@@ -135,7 +194,7 @@ export const capacityEvent = {
   docId: 'e2e-event-aforo',
   title: 'Evento con Aforo E2E',
   description: 'Evento con aforo, donde comenta otra persona (flujo 41).',
-  startOffsetDays: 8,
+  startOffsetDays: 10,
   maxAttendees: 1,
   status: 'published',
 };
@@ -149,7 +208,7 @@ export const signupEvent = {
   docId: 'e2e-event-inscripcion',
   title: 'Inscripción Completa E2E',
   description: 'Evento con teléfono, pago, años de nacimiento y preguntas.',
-  startOffsetDays: 10,
+  startOffsetDays: 12,
   maxAttendees: 2,
   telephoneRequired: true,
   requiresPayment: true,
@@ -171,7 +230,7 @@ export const groupEvent = {
   docId: 'e2e-event-grupo',
   title: 'Comida en Grupo E2E',
   description: 'Evento con plazas por grupo, para el flujo de reclamar una plaza.',
-  startOffsetDays: 9,
+  startOffsetDays: 11,
   maxAttendees: 50,
   signupGroupSize: 2,
   status: 'published',
@@ -209,6 +268,36 @@ export const dependentPerson = {
   // birth-year confirm.
   birthday: { year: 2020, month: 5, day: 3 },
 };
+
+// A published news post of `village`, so the feed's category filter has
+// something to keep and something to drop.
+export const newsPost = {
+  docId: 'e2e-news-historia',
+  title: 'Noticia Sembrada E2E',
+  body: 'Historia sembrada para comprobar los filtros del feed.',
+  category: 'historia',
+};
+
+// A barrio of `village`, so the onboarding flow can pick one as residence.
+export const barrio = {
+  docId: 'e2e-barrio-alto',
+  name: 'Barrio Alto E2E',
+};
+
+// A cemetery of `village`, and two personas of `users.attendee` to bury there
+// (flow 93): one public, one private — a private burial shows only to its
+// creator. Separate from `dependentPerson`, whom the registration flows sign up.
+export const cemetery = {
+  docId: 'e2e-place-cementerio',
+  name: 'Cementerio E2E',
+  kind: 'cemetery',
+  description: 'Cementerio usado para comprobar los enterramientos.',
+};
+
+export const burialPersons = [
+  { docId: 'e2e-person-abuela', givenName: 'Abuela', firstSurname: 'Publica', isPublic: true },
+  { docId: 'e2e-person-abuelo', givenName: 'Abuelo', firstSurname: 'Privado', isPublic: false },
+];
 
 export const place = {
   docId: 'e2e-place-plaza',

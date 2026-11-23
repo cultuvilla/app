@@ -398,3 +398,49 @@ describe('<OrganizerPicker>', () => {
     });
   });
 });
+
+// The villager and group lists load once, as the picker mounts, and a failed
+// read became an empty list for good: "Sin resultados" with no error and no
+// retry (E2E flows 81 and 83 on a loaded iOS runner). Opening a sheet with
+// nothing loaded now loads again.
+describe('<OrganizerPicker> list loading', () => {
+  it('loads the villagers again when the sheet opens after a failed read', async () => {
+    defaultMocks();
+    mockGetVillageMembers.mockRejectedValueOnce(new Error('unavailable'));
+    const { getByTestId, findByTestId } = render(
+      <OrganizerPicker
+        municipalityId={MUNICIPALITY_ID}
+        selectedUserIds={[CREATOR_ID]}
+        selectedOrgIds={[]}
+        lockedUserId={CREATOR_ID}
+        onChangeUsers={jest.fn()}
+        onChangeOrgs={jest.fn()}
+      />,
+    );
+    await waitFor(() => expect(mockGetVillageMembers).toHaveBeenCalledTimes(1));
+
+    fireEvent.press(getByTestId('add-user-btn'));
+
+    expect(await findByTestId(`villager-row-${OTHER_USER_ID}`)).toBeTruthy();
+  });
+
+  it('loads the groups again when the sheet opens after a failed read', async () => {
+    defaultMocks();
+    mockGetOrganizationsByMunicipality.mockRejectedValueOnce(new Error('unavailable'));
+    const { getByTestId, findByTestId } = render(
+      <OrganizerPicker
+        municipalityId={MUNICIPALITY_ID}
+        selectedUserIds={[CREATOR_ID]}
+        selectedOrgIds={[]}
+        lockedUserId={CREATOR_ID}
+        onChangeUsers={jest.fn()}
+        onChangeOrgs={jest.fn()}
+      />,
+    );
+    await waitFor(() => expect(mockGetOrganizationsByMunicipality).toHaveBeenCalledTimes(1));
+
+    fireEvent.press(getByTestId('add-org-btn'));
+
+    expect(await findByTestId(`org-row-${ORG_ID}`)).toBeTruthy();
+  });
+});

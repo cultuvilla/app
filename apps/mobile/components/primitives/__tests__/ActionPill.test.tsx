@@ -41,15 +41,24 @@ describe('<ActionPill>', () => {
   // The three assertions below are the actual bug: a long label used to wrap
   // onto a second line. It must shrink instead, and must never ellipsize.
   it('keeps the base size when the label fits', () => {
-    const visible = measured('Compartir', 200, 100); // 176 usable
+    const visible = measured('Compartir', 200, 100); // 171 usable
     expect(visible.props.style).toMatchObject({ fontSize: 16 });
     expect(visible.props.numberOfLines).toBe(1);
   });
 
   it('shrinks the label to keep it on one line', () => {
-    const visible = measured('Añadir contenido', 124, 125); // 100 usable, needs 80%
+    const visible = measured('Añadir contenido', 129, 125); // 100 usable, needs 80%
     expect(visible.props.style).toMatchObject({ fontSize: 16 * 0.8 });
-    expect(visible.props.numberOfLines).toBe(1);
+  });
+
+  // QA pass 2026-11-18: «Inicia sesión para unirte» showed as «Inicia sesión
+  // para uni…» in a half-width pill. The fit ignored the 1.5dp border, and a
+  // shrunk label was clamped to one line, so any overshoot became an ellipsis.
+  it('fits inside the border and never clamps a shrunk label', () => {
+    const visible = measured('Inicia sesión para unirte', 160, 160);
+    // 160 - 2×12 padding - 2×1.5 border - 2 slack = 131 usable
+    expect(visible.props.style).toMatchObject({ fontSize: (16 * 131) / 160 });
+    expect(visible.props.numberOfLines).toBeUndefined();
   });
 
   it('wraps rather than ellipsizing when even the smallest size overflows', () => {
@@ -57,6 +66,19 @@ describe('<ActionPill>', () => {
     expect(visible.props.style).toMatchObject({ fontSize: 12 });
     expect(visible.props.numberOfLines).toBeUndefined();
     expect(visible.props.ellipsizeMode).toBeUndefined();
+  });
+
+  // QA 2026-11-21: the first frame showed «Unirme a este pue…» — the label
+  // painted at full size, clamped to one line, before it had been measured.
+  it('keeps the label invisible until it has been measured', () => {
+    const { getAllByText, getByTestId } = render(
+      <ActionPill label="Unirme a este pueblo" onPress={jest.fn()} testID="p" />,
+    );
+    const visible = () => getAllByText('Unirme a este pueblo', { includeHiddenElements: true })[0];
+    expect(visible()?.props.style).toMatchObject({ opacity: 0 });
+    fireEvent(getByTestId('p'), 'layout', layout(160));
+    fireEvent(getAllByText('Unirme a este pueblo', { includeHiddenElements: true })[1]!, 'layout', layout(120));
+    expect(visible()?.props.style).toMatchObject({ opacity: 1 });
   });
 
   // A 200% system font on a 3-up action row leaves nothing to shrink into.

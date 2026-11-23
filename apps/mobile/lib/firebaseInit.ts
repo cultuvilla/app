@@ -62,9 +62,10 @@ function getFirebaseOptions(): FirebaseOptions {
  * grep gate keeps these symbols confined to their allowlisted files.
  */
 let emulatorsConnected = false;
-function connectEmulatorsIfEnabled(): void {
-  if (emulatorsConnected) return;
-  if (Constants.expoConfig?.extra?.useEmulator !== true) return;
+/** True when the SDKs talk to the local emulators. */
+function connectEmulatorsIfEnabled(): boolean {
+  if (emulatorsConnected) return true;
+  if (Constants.expoConfig?.extra?.useEmulator !== true) return false;
   emulatorsConnected = true;
   // An Android AVD reaches the host's emulators through `10.0.2.2`, not loopback
   // (`127.0.0.1` is the device itself); EXPO_PUBLIC_EMULATOR_HOST is baked in at
@@ -75,6 +76,7 @@ function connectEmulatorsIfEnabled(): void {
   connectFirestoreEmulator(getDb(), host, 8080);
   connectFunctionsEmulator(getFirebaseFunctions(), host, 5001);
   connectStorageEmulator(getFirebaseStorage(), host, 9199);
+  return true;
 }
 
 /**
@@ -87,7 +89,7 @@ export function bootstrapFirebase(): void {
   initFirebase(getFirebaseOptions());
   // Must run before any service issues a read/write; connect*Emulator throws
   // once the SDK has been used against production hosts.
-  connectEmulatorsIfEnabled();
-  initMobileAppCheck();
+  const emulators = connectEmulatorsIfEnabled();
+  initMobileAppCheck({ emulators });
   installUnhandledFirestoreDenyHook();
 }

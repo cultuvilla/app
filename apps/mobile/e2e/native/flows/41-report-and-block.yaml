@@ -51,8 +51,17 @@ onFlowComplete:
 - extendedWaitUntil:
     visible: 'Gracias.*'
     timeout: 15000
-- tapOn:
-    id: 'report-sheet-close'
+# The sheet has no ✕: dragging its grab bar down is the way out, on both
+# platforms. A tap would also close it, so a swipe is what proves the drag.
+- swipe:
+    from:
+      id: 'report-sheet-handle'
+    direction: DOWN
+    duration: 400
+- extendedWaitUntil:
+    notVisible:
+      id: 'report-sheet-handle'
+    timeout: 5000
 - runScript:
     file: ../scripts/queryCollection.js
     env:
@@ -76,8 +85,15 @@ onFlowComplete:
 - extendedWaitUntil:
     visible: 'Persona bloqueada.*'
     timeout: 15000
-- tapOn:
-    id: 'report-sheet-close'
+- swipe:
+    from:
+      id: 'report-sheet-handle'
+    direction: DOWN
+    duration: 400
+- extendedWaitUntil:
+    notVisible:
+      id: 'report-sheet-handle'
+    timeout: 5000
 - runScript:
     file: ../scripts/docField.js
     env:

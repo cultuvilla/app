@@ -2,15 +2,16 @@ import { routes, villageHref } from '../../lib/navigation/routes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ActivityIndicator, View, TextInput } from 'react-native';
 import { router, type Href } from 'expo-router';
-import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { VStack, HStack, Text, Escudo, Pressable } from '../primitives';
 import { JoinVillageModal } from './JoinVillageModal';
 import { useT } from '../../lib/i18n';
+import { colors } from '@cultuvilla/shared/design-system';
 import { usePush } from '../../lib/push/PushProvider';
 import {
   getActiveCommunities,
   listMunicipalitiesPage,
+  type MunicipalityPageCursor,
 } from '@cultuvilla/shared/services/municipalityService';
 import {
   escudoThumbDisplayUrl,
@@ -27,7 +28,7 @@ import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 
 type Muni = MunicipalityData & { id: string };
 const PAGE_SIZE = 20;
-const ACCENT = '#bb5d3a';
+const ACCENT = colors.light.fg.accent;
 
 // One FlatList renders two labelled sections: a fixed "Municipios activos" group
 // (client-filtered) followed by the cursor-paginated "Todos" group. The groups
@@ -41,7 +42,7 @@ export function VillageDiscovery() {
   const [search, setSearch] = useState('');
   const [active, setActive] = useState<Muni[] | null>(null);
   const [all, setAll] = useState<Muni[]>([]);
-  const [cursor, setCursor] = useState<QueryDocumentSnapshot | null>(null);
+  const [cursor, setCursor] = useState<MunicipalityPageCursor | null>(null);
   const [exhausted, setExhausted] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   // `all` starts empty, so without this the "no results" hint renders for the
@@ -292,7 +293,7 @@ export function VillageDiscovery() {
                     </Pressable>
                     {joined ? (
                       <View accessibilityLabel={t('discover.alreadyMember')} className="p-2">
-                        <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
+                        <Ionicons name="checkmark-circle" size={22} color={colors.light.fg.success} />
                       </View>
                     ) : (
                       <Pressable

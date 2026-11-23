@@ -5,7 +5,6 @@ import {
 } from '../../../src/models/notification/DeviceTokenDataModel';
 import {
   DEFAULT_NOTIFICATION_PREFS,
-  allowsPush,
   buildNotificationPrefsData,
 } from '../../../src/models/notification/NotificationPrefsDataModel';
 import { buildPushQueueData, pushQueueId } from '../../../src/models/notification/PushQueueDataModel';
@@ -60,12 +59,6 @@ describe('NotificationPrefs', () => {
     const p = buildNotificationPrefsData({ village: false });
     expect(p).toMatchObject({ mine: true, village: false, social: true, quietHours: true });
   });
-
-  it('gates push per category', () => {
-    const p = buildNotificationPrefsData({ social: false });
-    expect(allowsPush(p, 'mine')).toBe(true);
-    expect(allowsPush(p, 'social')).toBe(false);
-  });
 });
 
 describe('PushQueue', () => {
@@ -98,6 +91,15 @@ describe('villageEntityPublishedCopy', () => {
       const copy = villageEntityPublishedCopy('festivalPoster', label, 'Matabuena');
       expect(copy.body).toBe('Un cartel de fiestas nuevo en tu pueblo.');
     }
+  });
+
+  it('calls an organization a grupo, as the rest of the app does', () => {
+    expect(villageEntityPublishedCopy('organization', 'Peña El Rollo', 'Matabuena').title).toBe(
+      'Nuevo grupo en Matabuena',
+    );
+    expect(villageEntityPublishedCopy('organization', null, 'Matabuena').body).toBe(
+      'Un grupo nuevo en tu pueblo.',
+    );
   });
 
   it('covers the entity family and excludes vocabulary terms', () => {

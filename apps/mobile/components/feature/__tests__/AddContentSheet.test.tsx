@@ -20,10 +20,9 @@ const baseProps = {
 beforeEach(() => jest.clearAllMocks());
 
 describe('AddContentSheet', () => {
-  // Regression: on web mobile there is no Escape key, no hardware back and no
-  // swipe-to-dismiss, so the sheet MUST expose an explicit, labelled close
-  // affordance. Backdrop-tap + the grab handle alone left users unable to close.
-  it('exposes an explicit close button that dismisses the sheet', () => {
+  // The grab bar is the sheet's only visible way out, so screen readers must
+  // find it as a labelled close button.
+  it('exposes the grab bar as a labelled close button', () => {
     const onClose = jest.fn();
     const { getByLabelText } = render(<AddContentSheet {...baseProps} onClose={onClose} />);
     fireEvent.press(getByLabelText('common.close'));

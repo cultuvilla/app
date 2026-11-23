@@ -39,6 +39,7 @@ jest.mock('../../../lib/useCallable', () => ({
   }),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityService', () => ({ getMunicipality: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/fiestaEditionService', () => ({ getFiestaEditions: jest.fn(() => Promise.resolve([])) }));
 jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
   getVillageWrappedForYear: jest.fn(),
   buildVillageWrapped: jest.fn(),
@@ -74,8 +75,9 @@ describe('WrappedScreen', () => {
 
   it('points a village without fiestas to add them', async () => {
     mockMunicipality.mockResolvedValue({ ...village, community: { fiestas: [] } });
-    const { findByText } = render(<WrappedScreen />);
+    const { findByText, getByTestId } = render(<WrappedScreen />);
     expect(await findByText('village.wrapped.noFiestas')).toBeTruthy();
+    expect(getByTestId('wrapped-go-fiestas')).toBeTruthy();
   });
 
   it('shows a built draft and publishes it', async () => {

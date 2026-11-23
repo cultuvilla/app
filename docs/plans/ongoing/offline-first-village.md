@@ -1,9 +1,9 @@
 # Offline-first — the whole village on the device
 
 **Priority:** high — the main reason the app feels slow
-**Landed:** dev
-**Gate:** none
-**Next:** layer 3 (village sync) — warm the cache for the user's villages on launch and foreground
+**Landed:** prod
+**Gate:** soak:the next release Álvaro cuts carries layer 3 (village sync, #692 + #698, live on dev) to prod
+**Next:** once layer 3 is on prod, witness docs/qa/pending/pueblos-sin-conexion.md on a device, then retire the plan (bundle/delta optimisation stays a later idea, not this plan)
 
 ## Goal
 
@@ -23,7 +23,7 @@ live sync; the JS SDK on RN just cannot use it.
 
 ## Layers, in order
 
-### 1. Native Firebase SDKs — built
+### 1. Native Firebase SDKs — built (on prod since 1.10.0, 2026-10-09; layer 2 too)
 
 - Every client Firebase import goes through `packages/shared/src/firebase/sdk/`
   (firestore, auth, functions, storage): a JS-SDK file for Node and a

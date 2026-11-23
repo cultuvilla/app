@@ -1,0 +1,104 @@
+import { useEffect, useState } from 'react';
+import { Modal, ScrollView, View, useWindowDimensions } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, HStack, Text, VStack } from '../primitives';
+import { useT } from '../../lib/i18n';
+import { AnalyticsConsentIllustration } from './AnalyticsConsentIllustration';
+
+export interface AnalyticsConsentPageProps {
+  visible: boolean;
+  onAnswer: (granted: boolean) => void;
+}
+
+// Android back does nothing: every account answers before using the app.
+const ignoreBack = () => undefined;
+
+/**
+ * How long the status bar gets to turn dark before the page opens. An Android
+ * Modal is its own window and copies the activity's status-bar style once, as
+ * it opens; a style set from inside it afterwards never reaches it. Under the
+ * app's dark headers that style is light, which left white icons on the cream
+ * page (QA 2026-11-21).
+ */
+export const STATUS_BAR_LEAD_MS = 120;
+
+const MAX_ART_WIDTH = 360;
+const GUTTER = 24;
+
+/**
+ * The usage-analytics question as a full-screen page: the village-chart
+ * drawing, the question, one lead line, the small print, and the two answers
+ * pinned at the bottom. Same size, side by side — refusing must be as easy as
+ * accepting (RGPD art. 7, EDPB 05/2020); the yes is filled, the no outlined.
+ * No close button, and Android back does nothing: an answer is the only way out.
+ */
+export function AnalyticsConsentPage({ visible, onAnswer }: AnalyticsConsentPageProps) {
+  const { t } = useT();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const artWidth = Math.min(width - GUTTER * 2, MAX_ART_WIDTH);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setOpen(false);
+      return;
+    }
+    const timer = setTimeout(() => setOpen(true), STATUS_BAR_LEAD_MS);
+    return () => clearTimeout(timer);
+  }, [visible]);
+
+  return (
+    <>
+      {visible ? <StatusBar style="dark" /> : null}
+      <Modal
+        visible={open}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={ignoreBack}
+        statusBarTranslucent
+      >
+        <View
+          className="flex-1 bg-surface"
+          style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+          testID="analytics-consent-page"
+        >
+          <ScrollView contentContainerClassName="px-6 pt-6 pb-4" bounces={false}>
+            <VStack gap={4}>
+              <View className="items-center">
+                <AnalyticsConsentIllustration width={artWidth} />
+              </View>
+              <Text variant="h2" className="font-bold" accessibilityRole="header">
+                {t('privacy.analyticsConsent.title')}
+              </Text>
+              <Text>{t('privacy.analyticsConsent.lead')}</Text>
+              <Text variant="bodySm" tone="muted">
+                {t('privacy.analyticsConsent.smallPrint')}
+              </Text>
+            </VStack>
+          </ScrollView>
+          <HStack gap={3} className="px-6 pt-3 pb-6">
+            <Button
+              variant="secondary"
+              size="lg"
+              className="flex-1 border-2"
+              onPress={() => onAnswer(false)}
+              testID="analytics-consent-no"
+            >
+              {t('privacy.analyticsConsent.no')}
+            </Button>
+            <Button
+              size="lg"
+              className="flex-1 border-2 border-accent"
+              onPress={() => onAnswer(true)}
+              testID="analytics-consent-yes"
+            >
+              {t('privacy.analyticsConsent.yes')}
+            </Button>
+          </HStack>
+        </View>
+      </Modal>
+    </>
+  );
+}

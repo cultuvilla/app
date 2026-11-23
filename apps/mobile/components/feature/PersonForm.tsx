@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -16,6 +16,8 @@ import {
 } from '../primitives';
 import { useT } from '../../lib/i18n';
 import { pickImageAsBlob } from '../../lib/images';
+import { recoverPickedSquare } from '../../lib/imageCrop';
+import { observability } from '@cultuvilla/shared';
 import type { Sex } from '@cultuvilla/shared/models/core';
 import type { UploadableImage } from '@cultuvilla/shared/services/imageService';
 import {
@@ -54,14 +56,9 @@ export interface PersonFormProps {
   loading?: boolean;
   error?: string | null;
   /**
-   * Require given name + both surnames + birthday (self-registration at
-   * onboarding). Implies `requireFirstSurname`.
-   */
-  requireFullName?: boolean;
-  /**
-   * Require given name + first surname + sex + birthday, without forcing the
-   * second surname. Used by the linked-persona create flow — a lighter gate than
-   * `requireFullName` (no second surname, no age floor).
+   * Require given name + first surname + sex + birthday. The second surname is
+   * never required: many people have only one. Used by self-registration at
+   * onboarding and by the linked-persona create flow.
    */
   requireFirstSurname?: boolean;
   /** Editing an existing person → every step is directly clickable. */
@@ -95,6 +92,8 @@ export interface PersonFormProps {
    * undefined for family personas, which have no age floor.
    */
   minAgeYears?: number;
+  /** Pick up a photo Android closed the app behind the picker on. See recoverPickedSquare. */
+  recoverPickedPhoto?: boolean;
   onSubmit: (values: PersonFormValues, photo: PersonFormPhoto | null) => Promise<void> | void;
 }
 
@@ -103,7 +102,6 @@ export function PersonForm({
   submitLabel,
   loading,
   error,
-  requireFullName = false,
   requireFirstSurname = false,
   editing = false,
   selfProfile = false,
@@ -111,11 +109,24 @@ export function PersonForm({
   renderConsent,
   consentSatisfied,
   minAgeYears,
+  recoverPickedPhoto = false,
   onSubmit,
 }: PersonFormProps) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
   const [photo, setPhoto] = useState<PersonFormPhoto | null>(null);
+
+  useEffect(() => {
+    if (!recoverPickedPhoto) return;
+    void recoverPickedSquare()
+      .then((recovered) => {
+        if (recovered) setPhoto((current) => current ?? recovered);
+      })
+      .catch((err: unknown) => {
+        observability.captureError(err, { operation: 'personForm:recoverPhoto' });
+      });
+  }, [recoverPickedPhoto]);
+
   const [givenName, setGivenName] = useState(initial?.givenName ?? '');
   const [firstSurname, setFirstSurname] = useState(initial?.firstSurname ?? '');
   const [secondSurname, setSecondSurname] = useState(initial?.secondSurname ?? '');
@@ -212,8 +223,7 @@ export function PersonForm({
       validate: () => {
         const errs: string[] = [];
         if (!givenName.trim()) errs.push('givenName');
-        if ((requireFullName || requireFirstSurname) && !firstSurname.trim()) errs.push('firstSurname');
-        if (requireFullName && !secondSurname.trim()) errs.push('secondSurname');
+        if (requireFirstSurname && !firstSurname.trim()) errs.push('firstSurname');
         if (!sex) errs.push('sex');
         if (consentSatisfied === false) errs.push('consent');
         return errs;
@@ -300,7 +310,7 @@ export function PersonForm({
       icon: 'location-outline',
       validate: () => {
         const errs: string[] = [];
-        if ((requireFullName || requireFirstSurname) && !birthday) errs.push('birthday');
+        if (requireFirstSurname && !birthday) errs.push('birthday');
         if (birthdayTooYoung) errs.push('birthday-min-age');
         return errs;
       },

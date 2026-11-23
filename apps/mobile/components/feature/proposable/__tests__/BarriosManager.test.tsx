@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { BarriosManager } from '../BarriosManager';
 import { createBarrio, newBarrioId } from '@cultuvilla/shared/services/municipalityService';
@@ -42,7 +43,12 @@ describe('<BarriosManager>', () => {
     );
   });
 
-  it('an admin creates the barrio the same way', async () => {
+  it('a member sees no kind picker: the rules let them create only a barrio', () => {
+    const { queryByTestId } = render(<BarriosManager villageId="m1" />);
+    expect(queryByTestId('barrio-kind-pedania')).toBeNull();
+  });
+
+  it('an admin creates a barrio by default', async () => {
     mockCaps.mockReturnValue({ canManage: true, canApprove: true, uid: 'boss', loading: false });
     const { getByTestId } = render(<BarriosManager villageId="m1" />);
     fireEvent.changeText(getByTestId('barrio-name-input'), 'Norte');
@@ -50,7 +56,25 @@ describe('<BarriosManager>', () => {
     await waitFor(() =>
       expect(createBarrio).toHaveBeenCalledWith(
         'm1',
-        { name: 'Norte', municipalityId: 'm1', proposedBy: 'boss', images: [] },
+        { name: 'Norte', municipalityId: 'm1', proposedBy: 'boss', images: [], kind: 'barrio' },
+        'new-id',
+      ),
+    );
+  });
+
+  it('an admin can add a settlement the OSM seed missed, as any kind', async () => {
+    mockCaps.mockReturnValue({ canManage: true, canApprove: true, uid: 'boss', loading: false });
+    const { getByTestId, getByText } = render(<BarriosManager villageId="m1" />);
+    for (const k of ['barrio', 'pedania', 'aldea', 'parroquia']) {
+      expect(getByText(`village.admin.barrios.kind.${k}`)).toBeTruthy();
+    }
+    fireEvent.changeText(getByTestId('barrio-name-input'), 'Cañicosa');
+    fireEvent.press(getByTestId('barrio-kind-pedania'));
+    fireEvent.press(getByTestId('barrio-submit'));
+    await waitFor(() =>
+      expect(createBarrio).toHaveBeenCalledWith(
+        'm1',
+        expect.objectContaining({ name: 'Cañicosa', kind: 'pedania' }),
         'new-id',
       ),
     );
@@ -76,5 +100,21 @@ describe('<BarriosManager>', () => {
   it('mints the barrio id up front via newBarrioId', () => {
     render(<BarriosManager villageId="m1" />);
     expect(newBarrioId).toHaveBeenCalledWith('m1');
+  });
+});
+
+// A failed upload used to vanish: the spinner stopped and the photo was gone,
+// with only an unhandled rejection that a release build shows nobody.
+describe('<BarriosManager> photo upload', () => {
+  it('says so when the upload fails, and adds no photo', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (uploadBarrioImage as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('Max retry time exceeded'), { code: 'storage/retry-limit-exceeded' }),
+    );
+    const { getByTestId, queryByTestId } = render(<BarriosManager villageId="m1" />);
+    fireEvent.press(getByTestId('barrio-images-add'));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Sin conexión', expect.any(String), expect.any(Array), expect.anything()));
+    expect(queryByTestId('barrio-images-remove-0')).toBeNull();
+    alert.mockRestore();
   });
 });

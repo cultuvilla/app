@@ -29,13 +29,15 @@ import {
   uploadFestivalPosterImage,
 } from '@cultuvilla/shared/services/imageService';
 import type { VisibilityStatus } from '@cultuvilla/shared/models';
+import { useCallableErrorHandler } from '../../../../lib/callableError';
 
 function FestivalPosterEditScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { cartel: cartelRef } = useLocalSearchParams<{ cartel: string }>();
   const posterId = parseEntityRef(cartelRef ?? '') ?? '';
   const { t } = useT();
-  const { canManage, canEdit, canDelete, uid, loading: capLoading } = useEntityCapabilities(villageId);
+  const showCallableError = useCallableErrorHandler();
+  const { canManage, can, uid, loading: capLoading } = useEntityCapabilities(villageId);
 
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [title, setTitle] = useState('');
@@ -82,7 +84,7 @@ function FestivalPosterEditScreen() {
       </Screen>
     );
   }
-  if (!notFound && !canEdit(proposedBy)) {
+  if (!notFound && !can('edit', 'festivalPoster', { proposedBy })) {
     return <Redirect href={entityRefHref('festivalPoster', villageSlug, cartelRef ?? '')} />;
   }
 
@@ -107,6 +109,8 @@ function FestivalPosterEditScreen() {
     try {
       const url = await uploadFestivalPosterImage(villageId, posterId, picked);
       setImages((prev) => [...prev, url]);
+    } catch (e) {
+      showCallableError(e, { operation: 'poster:uploadImage' });
     } finally {
       setAddingImage(false);
     }
@@ -140,7 +144,7 @@ function FestivalPosterEditScreen() {
         accent
         title={t('village.festivalPosters.editTitle')}
         rightSlot={
-          canDelete(proposedBy, status) ? (
+          can('delete', 'festivalPoster', { proposedBy, status }) ? (
             <DeleteHeaderButton
               testID="poster-delete"
               onAccent

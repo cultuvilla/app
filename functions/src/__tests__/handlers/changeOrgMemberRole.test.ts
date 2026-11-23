@@ -137,6 +137,6 @@ describe('changeOrgMemberRole (callable)', () => {
     await seedOrgMember(ORG_ADMIN_ID, 'admin');
     await expect(
       callChange({ uid: ORG_ADMIN_ID, data: { orgId: ORG_ID, targetUserId: 'ghost', role: 'admin' } }),
-    ).rejects.toThrow(/no es miembro|not.?found/i);
+    ).rejects.toThrow(/no es integrante|not.?found/i);
   });
 });

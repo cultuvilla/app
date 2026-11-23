@@ -45,7 +45,7 @@ describe('buildRosterExport', () => {
     expect(model.rows).toHaveLength(2);
     expect(model.rows[0].slice(0, 4)).toEqual([1, 'Ana Pérez', 'Confirmado', true]);
     expect(model.rows[1].slice(0, 4)).toEqual([2, 'Luis', 'Lista de espera', false]);
-    expect(model.totals).toEqual({ confirmed: 1, waitlisted: 1, total: 2 });
+    expect(model.summary).toBe('Confirmados: 1   ·   Lista de espera: 1   ·   Total: 2');
   });
 
   // `position` is derived from the registration count at write time, so a

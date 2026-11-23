@@ -20,13 +20,15 @@ import { uploadPlaceImage } from '@cultuvilla/shared/services/imageService';
 import { PLACE_KINDS, type PlaceKind } from '@cultuvilla/shared/models/municipality';
 import type { VisibilityStatus } from '@cultuvilla/shared/models';
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
+import { useCallableErrorHandler } from '../../../../lib/callableError';
 
 function PlaceEditScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { lugar: lugarRef } = useLocalSearchParams<{ lugar: string }>();
   const placeId = parseEntityRef(lugarRef ?? '') ?? '';
   const { t } = useT();
-  const { canManage, canEdit, canDelete, uid, loading: capLoading } = useEntityCapabilities(villageId);
+  const showCallableError = useCallableErrorHandler();
+  const { canManage, can, uid, loading: capLoading } = useEntityCapabilities(villageId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [kind, setKind] = useState<PlaceKind>('cemetery');
@@ -76,7 +78,7 @@ function PlaceEditScreen() {
       </Screen>
     );
   }
-  if (!notFound && !canEdit(proposedBy)) {
+  if (!notFound && !can('edit', 'place', { proposedBy })) {
     return <Redirect href={entityRefHref('place', villageSlug, lugarRef ?? '')} />;
   }
 
@@ -104,6 +106,8 @@ function PlaceEditScreen() {
       const next = [...images, url];
       await updatePlace(villageId, placeId, { images: next });
       setImages(next);
+    } catch (e) {
+      showCallableError(e, { operation: 'place:uploadImage' });
     } finally {
       setAddingImage(false);
     }
@@ -139,7 +143,7 @@ function PlaceEditScreen() {
         accent
         title={t('village.admin.places.editTitle')}
         rightSlot={
-          canDelete(proposedBy, status) ? (
+          can('delete', 'place', { proposedBy, status }) ? (
             <DeleteHeaderButton
               onAccent
               onConfirm={removePlace}

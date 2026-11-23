@@ -8,6 +8,7 @@ import { buildDisplayName } from '@cultuvilla/shared/models/person';
 import { isCatalogOccupation, occupationI18nKey } from '@cultuvilla/shared/models/occupation';
 import type { PersonData } from '@cultuvilla/shared/models/person';
 import { RemoteImage } from '../../primitives/RemoteImage';
+import { useScrollEnabledWhileZooming } from '../../primitives/ImageZoomOverlay';
 import { ZoomableImage } from '../../primitives/ZoomableImage';
 
 export interface PersonProfileViewProps {
@@ -36,6 +37,7 @@ const PHOTO_ASPECT_RATIO = 1;
  */
 export function PersonProfileView({ person }: PersonProfileViewProps) {
   const { t } = useT();
+  const scrollEnabled = useScrollEnabledWhileZooming();
   const { birthPlace, villages, barrios } = usePersonPlaces(person);
   const occupations = person.occupations ?? [];
   const displayName = buildDisplayName(person);
@@ -58,7 +60,7 @@ export function PersonProfileView({ person }: PersonProfileViewProps) {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+    <ScrollView contentContainerStyle={{ paddingBottom: 32 }} scrollEnabled={scrollEnabled}>
       <View className="px-4 pt-4">
         <ScreenTitle>{displayName}</ScreenTitle>
       </View>

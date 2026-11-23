@@ -19,15 +19,49 @@
  *   WAIT_TIMEOUT_MS     Per-port wait timeout (default: 180000)
  *   EMULATOR_BIND_HOST  Bind the emulators to this host instead of loopback
  *                       (WSL2 + a Windows-hosted AVD needs 0.0.0.0; see below)
+ *   EMULATOR_JAVA_TOOL_OPTIONS
+ *                       JVM flags for the emulators alone, passed to them as
+ *                       JAVA_TOOL_OPTIONS. Not set as JAVA_TOOL_OPTIONS on the
+ *                       whole run, because the commands under test (Maestro)
+ *                       are JVMs too. Used by ios-e2e.yml.
+ *   EMULATOR_KEEPALIVE  "production" gives the Firestore emulator production's
+ *                       gRPC keepalive policy (scripts/lib/emulator-keepalive.mjs)
+ *                       and, once it is up, proves it took: a ping probe and the
+ *                       policy's line in firestore-debug.log, either failing the
+ *                       run. Used by ios-e2e.yml; see
+ *                       docs/decisions/ios-e2e-emulator-keepalive.md.
+ *   EMULATOR_CANCELLED_LISTEN
+ *                       "production" runs the Firestore emulator from a launcher
+ *                       jar whose gRPC server lets a write through when a gone
+ *                       listener could not be told its target was removed
+ *                       (scripts/lib/emulator-grpc.mjs), and, once it is up,
+ *                       proves it with scripts/check-emulator-cancelled-listen.mjs.
+ *                       A launcher that cannot be built or a failed probe fails
+ *                       the run. Used by ios-e2e.yml; same decision record.
  *   VITEST_RETRY_COUNT  Defaulted to "1" in the child env if not set by caller.
  *                       Each vitest config reads it and passes to `test.retry`.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { emulatorHostEnv, emulatorPorts, ensureEmulatorSecrets, resolveEmulatorConfig } from './lib/emulator-config.mjs';
+import {
+  emulatorHostEnv,
+  emulatorHubPort,
+  emulatorPorts,
+  ensureEmulatorSecrets,
+  resolveEmulatorConfig,
+} from './lib/emulator-config.mjs';
+import {
+  KEEPALIVE_POLICY_LINE,
+  emulatorKeepaliveJavaOptions,
+  firestoreEmulatorJar,
+  keepaliveApiMismatch,
+} from './lib/emulator-keepalive.mjs';
+import { probeKeepalive } from './check-emulator-keepalive.mjs';
+import { cancelledListenJar } from './lib/emulator-grpc.mjs';
+import { probeCancelledListen } from './check-emulator-cancelled-listen.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -92,7 +126,7 @@ if (libIsStale()) {
 
 const emulatorEnv = {
   ...process.env,
-  ...emulatorHostEnv(PORTS_BY_SERVICE),
+  ...emulatorHostEnv(PORTS_BY_SERVICE, emulatorHubPort(emulatorConfig.config)),
   GCLOUD_PROJECT: TEST_PROJECT_ID,
   TEST_PROJECT_ID,
   VITEST_RETRY_COUNT: process.env.VITEST_RETRY_COUNT ?? '1',
@@ -144,11 +178,57 @@ if (ONLY.split(',').map((s) => s.trim()).includes('functions')) {
   }
 }
 
+const KEEPALIVE = process.env.EMULATOR_KEEPALIVE;
+if (KEEPALIVE && KEEPALIVE !== 'production') {
+  console.error(`[emulators] EMULATOR_KEEPALIVE must be "production" or unset, got "${KEEPALIVE}"`);
+  process.exit(2);
+}
+const CANCELLED_LISTEN = process.env.EMULATOR_CANCELLED_LISTEN;
+if (CANCELLED_LISTEN && CANCELLED_LISTEN !== 'production') {
+  console.error(`[emulators] EMULATOR_CANCELLED_LISTEN must be "production" or unset, got "${CANCELLED_LISTEN}"`);
+  process.exit(2);
+}
+let firestoreJar;
+if (CANCELLED_LISTEN) {
+  try {
+    // firebase-tools downloads the stock jar at start-up, too late for the
+    // launcher that points at it; its own setup command fetches it now.
+    if (!existsSync(firestoreEmulatorJar())) {
+      const setup = spawnSync('firebase', ['setup:emulators:firestore'], { cwd: ROOT, stdio: 'inherit' });
+      if (setup.status !== 0) throw new Error('firebase setup:emulators:firestore failed');
+    }
+    firestoreJar = cancelledListenJar();
+  } catch (err) {
+    console.error(
+      `[emulators] cannot build the Firestore emulator launcher, and the stock jar fails writes after a cancelled listener: ${err.message}\n` +
+        'See docs/decisions/ios-e2e-emulator-keepalive.md.',
+    );
+    process.exit(1);
+  }
+  console.log(`[emulators] Firestore emulator from ${path.relative(ROOT, firestoreJar)}`);
+}
+const emulatorJavaOptions = [process.env.EMULATOR_JAVA_TOOL_OPTIONS, KEEPALIVE && emulatorKeepaliveJavaOptions()]
+  .filter(Boolean)
+  .join(' ');
+
+// The emulator JVM writes its stderr here; the keepalive check reads it, so a
+// line left by an earlier run must not count.
+const FIRESTORE_LOG = path.join(ROOT, 'firestore-debug.log');
+if (KEEPALIVE) rmSync(FIRESTORE_LOG, { force: true });
+
 console.log(`[emulators] starting (project=${TEST_PROJECT_ID}, only=${ONLY})`);
 const emu = spawn(
   'firebase',
   ['emulators:start', '--project', TEST_PROJECT_ID, '--only', ONLY, ...configArgs],
-  { cwd: ROOT, env: emulatorEnv, stdio: ['ignore', 'inherit', 'inherit'] },
+  {
+    cwd: ROOT,
+    env: {
+      ...emulatorEnv,
+      ...(emulatorJavaOptions ? { JAVA_TOOL_OPTIONS: emulatorJavaOptions } : {}),
+      ...(firestoreJar ? { FIRESTORE_EMULATOR_BINARY_PATH: firestoreJar } : {}),
+    },
+    stdio: ['ignore', 'inherit', 'inherit'],
+  },
 );
 
 let shuttingDown = false;
@@ -203,6 +283,54 @@ try {
   console.error('[emulators] failed to start:', err.message);
   shutdown(1);
   process.exit(1);
+}
+
+// Three checks, each catching what the others cannot: the jar's own class
+// still has the API our copy replaces (a firebase-tools bump), the emulator
+// really accepts the pings (the probe), and our policy, not some future jar's
+// default, is what accepted them (the log line, printed when the first
+// connection loads the class, so read after the probe).
+if (KEEPALIVE) {
+  const host = `127.0.0.1:${PORTS_BY_SERVICE.firestore}`;
+  let failure;
+  try {
+    failure = keepaliveApiMismatch();
+  } catch (err) {
+    failure = err.message;
+  }
+  if (!failure) {
+    const probe = await probeKeepalive({ host }).catch((err) => ({ ok: false, reason: err.message }));
+    const log = existsSync(FIRESTORE_LOG) ? readFileSync(FIRESTORE_LOG, 'utf8') : '';
+    if (!probe.ok) failure = probe.reason;
+    else if (!log.includes(KEEPALIVE_POLICY_LINE)) failure = `no "${KEEPALIVE_POLICY_LINE}" line in firestore-debug.log`;
+  }
+  if (failure) {
+    console.error(
+      `[emulators] the Firestore emulator is not on production's keepalive policy: ${failure}\n` +
+        'See docs/decisions/ios-e2e-emulator-keepalive.md.',
+    );
+    shutdown(1);
+    await new Promise(() => {});
+  }
+  console.log(`[emulators] Firestore emulator on production's keepalive policy (${host} acked every ping)`);
+}
+
+if (CANCELLED_LISTEN) {
+  const host = `127.0.0.1:${PORTS_BY_SERVICE.firestore}`;
+  const probe = await probeCancelledListen({
+    host,
+    project: TEST_PROJECT_ID,
+    hub: emulatorEnv.FIREBASE_EMULATOR_HUB,
+  }).catch((err) => ({ ok: false, reason: err.message }));
+  if (!probe.ok) {
+    console.error(
+      `[emulators] the Firestore emulator still fails a write after a cancelled listener: ${probe.reason}\n` +
+        'See docs/decisions/ios-e2e-emulator-keepalive.md.',
+    );
+    shutdown(1);
+    await new Promise(() => {});
+  }
+  console.log(`[emulators] Firestore emulator lets a write through after a cancelled listener (${host})`);
 }
 
 let firstFailureCode = 0;

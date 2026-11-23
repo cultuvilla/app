@@ -24,8 +24,12 @@ work had carried but never delivered.
   `Timestamp` ↔ `Date`, `GeoPoint` ↔ `{lat, lng}`. Coordinates are detected
   structurally — an object with **exactly** the numeric keys `lat` and `lng`.
 - **SDK adapters** (`sdkAdapters.client.ts`, `sdkAdapters.admin.ts`) bind the
-  generic factory to either the client SDK or admin SDK; each collection has a
-  `*Converter.client.ts` / `*Converter.admin.ts` pair.
+  generic factory to either the client SDK or admin SDK, and memoize exactly one
+  converter per schema per SDK (`clientConverter` / `adminConverter`): the JS
+  SDK's `refEqual` compares converters by identity.
+- **A collection is declared once**, in `firebase/refs/collections.ts` (path
+  template, schema, `serverOnly`). Both refs files bind that table, and the
+  conformance gate walks every entry with a schema.
 - **All Firestore access goes through ref factories** in `firebase/refs/client.ts`
   and `firebase/refs/admin.ts`, exposed as distinct **subpath exports**
   (`@cultuvilla/shared/firebase/refs/{client,admin}`) so the admin SDK never

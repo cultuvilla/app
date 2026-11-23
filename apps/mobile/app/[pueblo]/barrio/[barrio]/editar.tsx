@@ -16,13 +16,15 @@ import { getBarrio, updateBarrio, deleteBarrio } from '@cultuvilla/shared/servic
 import { hideContent } from '@cultuvilla/shared/services/moderationService';
 import { uploadBarrioImage } from '@cultuvilla/shared/services/imageService';
 import type { VisibilityStatus } from '@cultuvilla/shared/models';
+import { useCallableErrorHandler } from '../../../../lib/callableError';
 
 function BarrioEditScreen() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { barrio: barrioRef } = useLocalSearchParams<{ barrio: string }>();
   const barrioId = parseEntityRef(barrioRef ?? '') ?? '';
   const { t } = useT();
-  const { canManage, canEdit, canDelete, loading: capLoading } = useEntityCapabilities(villageId);
+  const showCallableError = useCallableErrorHandler();
+  const { canManage, can, loading: capLoading } = useEntityCapabilities(villageId);
   const [name, setName] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [addingImage, setAddingImage] = useState(false);
@@ -58,7 +60,7 @@ function BarrioEditScreen() {
       </Screen>
     );
   }
-  if (!notFound && !canEdit(proposedBy)) {
+  if (!notFound && !can('edit', 'barrio', { proposedBy })) {
     return <Redirect href={entityRefHref('barrio', villageSlug, barrioRef ?? '')} />;
   }
 
@@ -86,6 +88,8 @@ function BarrioEditScreen() {
       const next = [...images, url];
       await updateBarrio(villageId, barrioId, { images: next });
       setImages(next);
+    } catch (e) {
+      showCallableError(e, { operation: 'barrio:uploadImage' });
     } finally {
       setAddingImage(false);
     }
@@ -115,7 +119,7 @@ function BarrioEditScreen() {
         accent
         title={t('village.admin.barrios.editTitle')}
         rightSlot={
-          canDelete(proposedBy, status) ? (
+          can('delete', 'barrio', { proposedBy, status }) ? (
             <DeleteHeaderButton
               testID="barrio-delete"
               onAccent

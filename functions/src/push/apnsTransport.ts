@@ -5,13 +5,6 @@ import { buildApnsJwt, parseApnsSecret, type ApnsCredentials } from './apnsJwt';
 import { APNS_AUTH_KEY } from './secret';
 import type { TransportResult, TransportTarget } from './transport';
 
-/**
- * Apple Developer Team ID. Not a secret — it is published in the prod
- * apple-app-site-association (apps/mobile/public/.well-known/prod/) — so it
- * lives here rather than beside the key.
- */
-const APPLE_TEAM_ID = '78RB67NT38';
-
 const APNS_HOST: Record<ApnsEnvironment, string> = {
   production: 'https://api.push.apple.com',
   sandbox: 'https://api.sandbox.push.apple.com',
@@ -31,8 +24,7 @@ const JWT_TTL_MS = 50 * 60 * 1000;
 let cachedJwt: { value: string; mintedAt: number; keyId: string } | null = null;
 
 function credentials(): ApnsCredentials | null {
-  const parsed = parseApnsSecret(APNS_AUTH_KEY.value());
-  return parsed ? { ...parsed, teamId: APPLE_TEAM_ID } : null;
+  return parseApnsSecret(APNS_AUTH_KEY.value());
 }
 
 function providerToken(creds: ApnsCredentials, now: Date): string {

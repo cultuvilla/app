@@ -25,7 +25,9 @@ import type {
   OrganizationDataInput,
   OrganizationStatus,
 } from '../models/organization/OrganizationDataModel';
-import { watchDoc, watchQuery, type Unwatch, type WatchError } from './watch';
+import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
+import { DEFAULT_COSATECA_SETTINGS } from '../models/organization/CosaDataModel';
+import { DEFAULT_GROUP_TRANSPARENCY } from '../models/organization/GroupTransparencyModel';
 
 export async function getPendingOrganizations(): Promise<(OrganizationData & { id: string })[]> {
   const q = query(
@@ -60,6 +62,15 @@ export function watchOrganization(
   onError: WatchError,
 ): Unwatch {
   return watchDoc(organizationDoc(getDb(), orgId), onNext, onError);
+}
+
+/** Several organizations by id, in the order given; missing ones are dropped. */
+export function watchOrganizationsByIds(
+  orgIds: string[],
+  onNext: (orgs: (OrganizationData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchDocsByIds(orgIds, (id, next, error) => watchOrganization(id, next, error), onNext, onError);
 }
 
 function municipalityOrganizationsQuery(municipalityId: string, status?: OrganizationStatus) {
@@ -138,7 +149,18 @@ export async function requestOrganization(
     readCount: 0,
     memberCount: 0,
     membersPublic: input.membersPublic ?? true,
-    joinPolicy: input.joinPolicy ?? 'open',
+    joinPolicy: 'approval',
+    sociosListVisible: input.sociosListVisible ?? false,
+    chatAdminsOnly: input.chatAdminsOnly ?? false,
+    sociosSendAvisos: false,
+    socioPhoneRequired: false,
+    socioEmailRequired: false,
+    cosateca: { ...DEFAULT_COSATECA_SETTINGS },
+    cuotaEnabled: true,
+    actasEnabled: true,
+    cuentasEnabled: true,
+    chatEnabled: true,
+    transparency: { ...DEFAULT_GROUP_TRANSPARENCY },
   };
   await setDoc(newRef, data);
   return newRef.id;

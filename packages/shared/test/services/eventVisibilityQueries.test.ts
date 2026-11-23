@@ -6,7 +6,7 @@
 // The contract under test is narrow but load-bearing: rules do not filter a
 // list, so a query that forgets to pin `visibility` either leaks private events
 // or fails outright. These assertions are on the CONSTRAINTS, not the results.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../src/firebase', () => ({ getDb: vi.fn() }));
 vi.mock('firebase/firestore', async () => {
@@ -81,5 +81,39 @@ describe('private queries stay one org at a time', () => {
     await getPrivateUpcomingFeed(['org1']);
     expect(where).toHaveBeenCalledWith('visibilityOrgId', '==', 'org1');
     expect(where).toHaveBeenCalledWith('status', '==', 'published');
+  });
+});
+
+describe('the feed cuts off at the start of the Madrid day', () => {
+  // 00:30 on 16 June in Madrid; still 15 June on a phone in Mexico City.
+  const NOW = new Date('2026-06-15T22:30:00Z');
+  const MADRID_MIDNIGHT = new Date('2026-06-15T22:00:00Z');
+  let prevTz: string | undefined;
+
+  beforeEach(() => {
+    prevTz = process.env.TZ;
+    process.env.TZ = 'America/Mexico_City';
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    process.env.TZ = prevTz;
+  });
+
+  const cutoff = () => {
+    const call = vi.mocked(where).mock.calls.find(([field, op]) => field === 'endBoundary' && op === '>=');
+    return (call?.[2] as { _d: Date } | undefined)?._d.toISOString();
+  };
+
+  it('the public feed', async () => {
+    await getUpcomingFeed(10);
+    expect(cutoff()).toBe(MADRID_MIDNIGHT.toISOString());
+  });
+
+  it('the private feed', async () => {
+    await getPrivateUpcomingFeed(['org1']);
+    expect(cutoff()).toBe(MADRID_MIDNIGHT.toISOString());
   });
 });

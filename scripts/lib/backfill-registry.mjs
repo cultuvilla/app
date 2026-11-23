@@ -188,14 +188,22 @@ export function topoSort(metas) {
 
 /**
  * The subset the deploy may run unattended: opted in for this env and
- * idempotent, in dependency order. The deploy applies these before the
- * conformance gate reads the data, so the order here is the order the data is
- * actually mutated in.
+ * idempotent, in dependency order. The deploy makes two passes. The default
+ * one runs before the conformance gate reads the data (so the order here is
+ * the order the data is actually mutated in) and takes everything but
+ * `post-deploy`. `{ phase: 'post-deploy' }` is the pass after the functions
+ * deploy, for work only durable once the new code is live.
  */
-export function selectAutoApplicable(metas, env) {
+export function selectAutoApplicable(metas, env, { phase } = {}) {
+  const inPass = (m) => (phase === 'post-deploy' ? m.phase === 'post-deploy' : m.phase !== 'post-deploy');
   return topoSort(
     (metas || []).filter(
-      (m) => applicable(m, env) && m.idempotent === true && Array.isArray(m.autoApply) && m.autoApply.includes(env),
+      (m) =>
+        applicable(m, env) &&
+        inPass(m) &&
+        m.idempotent === true &&
+        Array.isArray(m.autoApply) &&
+        m.autoApply.includes(env),
     ),
   );
 }

@@ -1,6 +1,7 @@
 {
   "name": "@cultuvilla/shared",
   "version": "0.1.0",
+  "license": "EUPL-1.2",
   "private": true,
   "exports": {
     ".": {
@@ -66,6 +67,10 @@
     "./wrapped": {
       "types": "./dist/wrapped/index.d.ts",
       "default": "./dist/wrapped/index.js"
+    },
+    "./policy": {
+      "types": "./dist/policy/index.d.ts",
+      "default": "./dist/policy/index.js"
     }
   },
   "main": "dist/index.js",
@@ -86,7 +91,7 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "peerDependencies": {
     "@react-native-firebase/app": "^26.4.0",

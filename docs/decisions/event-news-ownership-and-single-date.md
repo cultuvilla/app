@@ -25,12 +25,13 @@ not directly enforceable in rules.
   - `createdBy: string` stays as immutable audit; the creator is always forced
     into `organizerUserIds` at create time.
 - **Control predicate, identical everywhere** (rules `update`/`delete`, the
-  client's `useEntityCapabilities().canEdit`, and the walk-in authorization
+  client's content policy `can('edit', …)` in `@cultuvilla/shared/policy`, held
+  to the rules by `contentPolicyParity.test.ts`, and the walk-in authorization
   Cloud Function): `createdBy || request.auth.uid in organizerUserIds ||
   villageAdmin || appAdmin`. The `in`-operator form is expressible in rules with
   no triggers, no admin-callable, no denormalized controller list. The same
   predicate governs the other entity kinds (place, barrio, cartel), which simply
-  have no organizer set — so `canEdit` is the one definition for all five.
+  have no organizer set — so one policy row shape answers all five.
 - **Names are never denormalized.** Display resolves live via `useOwnerSummary`
   / `LiveOwnerChip` (`users/{id}.displayName`, `organizations/{id}.name`).
 - **`createdBy` and `municipalityId` are immutable** on update.
@@ -83,4 +84,6 @@ not directly enforceable in rules.
   `comunidadAutonoma`/`provincia` onto the item via the
   denormalized-read-model pattern.
 - Multi-day/recurring events are needed → reintroduce an explicit end, but as a
-  distinct concept from the single `startDate`.
+  distinct concept from the single `startDate`. (Both happened: `endDate` came
+  back for multi-day events, and weekly recurrence is one event per occurrence
+  — see [weekly-event-series.md](weekly-event-series.md).)

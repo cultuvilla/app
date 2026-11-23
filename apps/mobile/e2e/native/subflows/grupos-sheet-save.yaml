@@ -1,0 +1,32 @@
+# Tap ${TAP} in the bottom sheet ${TARGET} until the sheet closes.
+#
+# The Grupos sheets end on a numeric field (socio number, amount), and iOS
+# number and phone pads have no Return key, so close-sheet-keyboard.yaml's
+# Enter cannot dismiss them, and close-keyboard.yaml's margin tap would land on
+# the sheet's backdrop and close it unsaved. The first tap with the keyboard up
+# may only dismiss the keyboard, so tap again while the sheet is still up; the
+# wait between taps is long enough that a slow save is never tapped twice.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: 'com.google.android.inputmethod.latin:id/keyboard_holder'
+    commands:
+      - pressKey: back
+      - waitForAnimationToEnd:
+          timeout: 2000
+- repeat:
+    times: 3
+    while:
+      visible:
+        id: ${TARGET}
+    commands:
+      - tapOn:
+          id: ${TAP}
+      - extendedWaitUntil:
+          notVisible:
+            id: ${TARGET}
+          timeout: 10000
+          optional: true

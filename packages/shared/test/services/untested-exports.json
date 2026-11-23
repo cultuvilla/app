@@ -1,0 +1,203 @@
+{
+  "censoService.ts": [
+    "updateCensoSchema"
+  ],
+  "cosatecaService.ts": [
+    "deleteCosa",
+    "watchCosa",
+    "watchCosaRequest",
+    "watchCosaRequestsToMe",
+    "watchGroupCosaRequests",
+    "watchGroupCosas",
+    "watchMyCosaRequests"
+  ],
+  "cuotaService.ts": [
+    "watchCuotaAssignments",
+    "watchCuotaAssignmentsOf",
+    "watchCuotaPaymentsForYear",
+    "watchCuotaPeriodPayments",
+    "watchCuotaPeriodReminders",
+    "watchCuotaSettings",
+    "watchSocioCuotaPayments"
+  ],
+  "deepLinkService.ts": [
+    "getDeepLinkHost",
+    "getHistoryEntryViewLink"
+  ],
+  "eventService.ts": [
+    "createEvent",
+    "getEvent",
+    "watchEvent"
+  ],
+  "feedService.ts": [
+    "watchUpcomingFeed"
+  ],
+  "festivalPosterService.ts": [
+    "newFestivalPosterId"
+  ],
+  "groupChatService.ts": [
+    "watchMyGroupChatReads"
+  ],
+  "groupMessageService.ts": [
+    "newGroupMessageId",
+    "watchGroupMessageDeliveries",
+    "watchGroupMessageReads",
+    "watchGroupMessages",
+    "watchGroupNotificationPrefs",
+    "watchGroupPollVotes",
+    "watchMyGroupMessages",
+    "watchMyGroupPollVotes"
+  ],
+  "groupTaskService.ts": [
+    "createGroupTasks",
+    "deleteGroupTask",
+    "deleteTaskTemplate",
+    "saveTaskTemplate",
+    "watchEventGroupTasks",
+    "watchGroupTasksDoneSince",
+    "watchOpenGroupTasks",
+    "watchTaskComments",
+    "watchTaskTemplates"
+  ],
+  "historyService.ts": [
+    "newHistoryEntryId",
+    "watchHistoryEntries",
+    "watchHistoryEntry"
+  ],
+  "imageService.ts": [
+    "newsImageDownloadURL",
+    "uploadBarrioImage",
+    "uploadCosaImage",
+    "uploadFestivalPosterImage",
+    "uploadHistoryEntryImage",
+    "uploadMunicipalityImage",
+    "uploadOrganizationImage",
+    "uploadPlaceImage"
+  ],
+  "mapsService.ts": [
+    "MAP_ZOOM_STEP"
+  ],
+  "membershipProfileService.ts": [
+    "getMyCensoAnswers",
+    "getVillageCensoAnswers",
+    "profileCompletedAtToDate"
+  ],
+  "municipalityService.ts": [
+    "createBarrio",
+    "createPlace",
+    "deleteBarrio",
+    "deletePlace",
+    "getVillagesWhereAmbassador",
+    "newBarrioId",
+    "newPlaceId",
+    "searchMunicipalities",
+    "updateBarrio",
+    "updateMunicipality",
+    "updatePlace",
+    "watchBarrio",
+    "watchBarrios",
+    "watchMunicipality",
+    "watchPlace",
+    "watchPlaces"
+  ],
+  "newsService.ts": [
+    "watchAllVillagesFeed"
+  ],
+  "notificationService.ts": [
+    "getDevices",
+    "markAllAsRead",
+    "markAsRead",
+    "watchNotificationSettings"
+  ],
+  "observability/observabilityService.ts": [
+    "ALLOWED_CONTEXT_KEYS"
+  ],
+  "occupationService.ts": [
+    "getOccupations"
+  ],
+  "orgJoinRequestService.ts": [
+    "cancelOrgJoinRequest",
+    "hasPendingOrgJoinRequest"
+  ],
+  "orgMemberService.ts": [
+    "addOrgMember",
+    "getOrgMembers",
+    "getOrgMembershipsByUserInMunicipality",
+    "getUserOrgIds",
+    "isOrgMember",
+    "removeOrgMember",
+    "watchOrgMembers",
+    "watchUserOrgMemberships"
+  ],
+  "organizationService.ts": [
+    "deleteOrganization",
+    "getOrganization",
+    "newOrganizationId",
+    "rejectOrganization",
+    "updateOrganization",
+    "watchOrganization",
+    "watchOrganizationsByIds"
+  ],
+  "personService.ts": [
+    "createPerson",
+    "deletePerson",
+    "getPerson",
+    "updatePerson"
+  ],
+  "recordsService.ts": [
+    "deleteActa",
+    "watchActas",
+    "watchLedgerEntriesForYear",
+    "watchSocioVisibleActas"
+  ],
+  "registrationService.ts": [
+    "getGroupRegistrations",
+    "getMySeatTokens",
+    "getRegistrationEvents",
+    "getRegistrationPrivate",
+    "getUserRegistrationTallies",
+    "getUserRegistrations",
+    "getUserRegistrationsAcrossEvents",
+    "setRegistrationCheckIn"
+  ],
+  "socioService.ts": [
+    "watchMySocios",
+    "watchOrgSocioPrivates",
+    "watchOrgSocios",
+    "watchSocioPrivate"
+  ],
+  "studioService.ts": [
+    "approveStudioPairing",
+    "claimStudioPairing",
+    "createStudioPairing",
+    "inspectStudioPairing"
+  ],
+  "villageMemberService.ts": [
+    "getVillageMember",
+    "getVillageMemberRole",
+    "getVillageMembers",
+    "isVillageMember",
+    "setVillageMemberRole"
+  ],
+  "villageWrappedService.ts": [
+    "getPublishedVillageWrapped",
+    "getVillageWrapped",
+    "getVillageWrappedForYear"
+  ],
+  "vocabularyService.ts": [
+    "addVocabularyDefinition",
+    "deleteVocabularyDefinition",
+    "deleteVocabularyTerm",
+    "getVillageVocabularyDefinitions",
+    "getVocabularyDefinitions",
+    "getVocabularyTerms",
+    "getVocabularyWord",
+    "updateVocabularyDefinition",
+    "watchVocabularyDefinitions",
+    "watchVocabularyTerm",
+    "watchVocabularyTerms"
+  ],
+  "watch.ts": [
+    "watchQueryWith"
+  ]
+}

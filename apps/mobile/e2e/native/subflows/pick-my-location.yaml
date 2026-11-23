@@ -1,0 +1,27 @@
+# Set the LocationField ${TARGET} to the device's location (the flow sets it
+# with setLocation first). `location-confirm` stays disabled until the fix
+# resolves, so it is tapped until the picker closes.
+appId: com.cultuvilla.app.dev
+---
+- runFlow:
+    file: scroll-to.yaml
+    env:
+      TARGET: ${TARGET}
+- tapOn:
+    id: ${TARGET}
+- runFlow: allow-location.yaml
+- tapOn:
+    id: 'location-use-mine'
+- runFlow: allow-location.yaml
+- repeat:
+    times: 10
+    while:
+      visible:
+        id: 'location-confirm'
+    commands:
+      - tapOn:
+          id: 'location-confirm'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertNotVisible:
+    id: 'location-confirm'

@@ -1,9 +1,11 @@
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { ScrollView } from 'react-native';
 import { VillageHomeBody } from '../VillageHomeBody';
 import type { VillageHomeState } from '../../../lib/useVillageHome';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import { buildPlaceData } from '@cultuvilla/shared/models/municipality';
+import { buildOrganizationData, type OrganizationType } from '@cultuvilla/shared/models/organization';
 
 const mockRefreshProfile = jest.fn(async () => undefined);
 let mockUser: { uid: string } | null = { uid: 'u1' };
@@ -60,7 +62,22 @@ jest.mock('../wrapped/WrappedPrompt', () => {
   const { Text } = jest.requireActual('react-native');
   return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
 });
+// The fiestas card watches its own data; FiestasHomeCard's own tests cover it.
+jest.mock('../fiestas/FiestasHomeCard', () => ({ FiestasHomeCard: () => null }));
 const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
+let mockRankedVillages: unknown[] = [];
+jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
+  watchRankedVillages: (next: (rows: unknown[]) => void) => {
+    next(mockRankedVillages);
+    return () => undefined;
+  },
+}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
+  watchVillageCosas: (_m: string, onNext: (rows: unknown[]) => void) => {
+    onNext([]);
+    return () => undefined;
+  },
+}));
 jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
   getPublishedVillageWrapped: (...a: unknown[]) => mockGetPublishedVillageWrapped(...a),
 }));
@@ -97,6 +114,7 @@ const base: VillageHomeState = {
   village,
   villageAdmin: false,
   isMember: true,
+  membershipKnown: true,
   barrios: [],
   places: [],
   organizations: [],
@@ -180,6 +198,26 @@ describe('VillageHomeBody', () => {
     expect(mockOfferPush).toHaveBeenCalledWith('village_join', { villageName: expect.any(String) });
   });
 
+  it('offers neither join nor add-content until the membership read lands', () => {
+    const { queryByTestId, getByTestId, getByText, rerender } = render(
+      <VillageHomeBody data={{ ...base, isMember: false, membershipKnown: false }} reload={jest.fn()} />,
+    );
+    expect(queryByTestId('village-join-action')).toBeNull();
+    expect(queryByTestId('village-add-content-action')).toBeNull();
+    expect(getByText('Compartir pueblo')).toBeTruthy();
+    rerender(<VillageHomeBody data={{ ...base, isMember: true, membershipKnown: true }} reload={jest.fn()} />);
+    expect(getByTestId('village-add-content-action')).toBeTruthy();
+    expect(queryByTestId('village-join-action')).toBeNull();
+  });
+
+  it('offers a guest «sign in to join» at once — a guest is never a member', () => {
+    mockUser = null;
+    const { getByTestId } = render(
+      <VillageHomeBody data={{ ...base, isMember: false, membershipKnown: false }} reload={jest.fn()} />,
+    );
+    expect(getByTestId('village-join-action')).toBeTruthy();
+  });
+
   it('logged-out "sign in to join" carries the village across auth', () => {
     // A guest sees "Inicia sesión para unirte"; tapping it must hand the village
     // id to the auth gate so onboarding can pre-select and join it afterwards —
@@ -208,6 +246,25 @@ describe('VillageHomeBody', () => {
       expect(mockOfferPush).toHaveBeenCalledWith('village_join', { villageName: 'Anaya' });
       expect(mockRefreshProfile).toHaveBeenCalled();
       expect(router.push).not.toHaveBeenCalled();
+    });
+
+    // The recommendations sit below the invitation, so the dormant view has to
+    // scroll to reach them on a short screen.
+    it('ends with other pueblos to discover, inside a scrollable view', () => {
+      mockRankedVillages = [
+        { id: 'm1', name: 'Anaya', slug: 'anaya', province: 'Segovia', escudoUrl: null, manualEscudo: false, score: 9 },
+        { id: 'm2', name: 'Matabuena', slug: 'matabuena', province: 'Segovia', escudoUrl: null, manualEscudo: false, score: 8 },
+      ];
+      try {
+        const { UNSAFE_getByType } = render(<VillageHomeBody data={dormant} reload={jest.fn()} />);
+        const scroll = within(UNSAFE_getByType(ScrollView));
+        expect(scroll.getByText('Descubre otros pueblos')).toBeTruthy();
+        expect(scroll.getByText('Matabuena')).toBeTruthy();
+        fireEvent.press(scroll.getByText('Matabuena'));
+        expect(router.push).toHaveBeenCalledWith('/matabuena');
+      } finally {
+        mockRankedVillages = [];
+      }
     });
 
     it('sends a guest through the register gate instead of joining', () => {
@@ -266,6 +323,35 @@ describe('VillageHomeBody', () => {
     expect(queryByTestId('entity-card-comment-count')).toBeNull();
   });
 
+  it('lists the comisión de festejos under Grupos, identified on its card', () => {
+    const org = (id: string, name: string, type: OrganizationType) => ({
+      ...buildOrganizationData({ name, type, status: 'approved', municipalityId: 'm1', villageSlug: 'villa', requestedBy: 'u2' }),
+      id,
+    });
+    const { toJSON } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          organizations: [
+            org('c1', 'Comisión 2026', 'comisión'),
+            org('p1', 'Peña El Frontón', 'peña'),
+            org('a1', 'La Anduela', 'asociación'),
+          ],
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    const texts: string[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof node === 'string') texts.push(node);
+      else if (Array.isArray(node)) node.forEach(walk);
+      else if (node && typeof node === 'object' && 'children' in node) walk((node as { children: unknown }).children);
+    };
+    walk(toJSON());
+    const order = ['Comisión 2026', 'Comisión de festejos', 'La Anduela', 'Peñas', 'Peña El Frontón'];
+    expect(texts.filter((x) => order.includes(x))).toEqual(order);
+  });
+
   it('shows event cards with a confirmed-attendee count badge', () => {
     const event: VillageHomeState['events'][number] = {
       id: 'event-1',
@@ -282,6 +368,11 @@ describe('VillageHomeBody', () => {
     attendeesVisibility: 'members' as const,
     visibility: 'public' as const,
     visibilityOrgId: null,
+    series: null,
+    repeatsYearly: false,
+    repeatsMonthly: false,
+    repeatDateVaries: false,
+    fiestaEditionId: null,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,
@@ -383,6 +474,31 @@ describe('VillageHomeBody', () => {
     expect(router.push).toHaveBeenCalledWith('/anaya/entidades?type=pena');
   });
 
+  // The team writes the description in the app; every visitor reads it here,
+  // members or not, as they do on the web village page.
+  it('shows the village description under its name, to a non-member too', () => {
+    const described = {
+      ...village,
+      community: {
+        ...(village as unknown as { community: Record<string, unknown> }).community,
+        description: 'Pueblo serrano junto al río.',
+      },
+    } as unknown as VillageHomeState['village'];
+    const { getByTestId } = render(
+      <VillageHomeBody data={{ ...base, village: described, isMember: false }} reload={jest.fn()} />,
+    );
+    expect(getByTestId('village-description')).toHaveTextContent('Pueblo serrano junto al río.');
+  });
+
+  it('shows no description block when the team has written none', () => {
+    const blank = {
+      ...village,
+      community: { ...(village as unknown as { community: Record<string, unknown> }).community, description: '  ' },
+    } as unknown as VillageHomeState['village'];
+    const { queryByTestId } = render(<VillageHomeBody data={{ ...base, village: blank }} reload={jest.fn()} />);
+    expect(queryByTestId('village-description')).toBeNull();
+  });
+
   it('shows the censo fill CTA to a villager of a village with a configured censo', () => {
     const censoVillage = {
       ...village,
@@ -417,6 +533,53 @@ describe('VillageHomeBody', () => {
     // Admins still configure the censo, but filling requires being a villager.
     expect(queryByText('Rellenar censo')).toBeNull();
     expect(queryByText('Configurar censo')).toBeTruthy();
+  });
+
+  it('orders the page: map, groups and history first, then articles and events, then the place itself', () => {
+    const { toJSON } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          village: {
+            ...village,
+            coordinates: { lat: 40.4, lng: -3.7 },
+            locationLabel: 'Mapa del pueblo',
+          } as VillageHomeState['village'],
+          sectionStatus: {
+            events: 'loading',
+            news: 'loading',
+            festivalPosters: 'loading',
+            barrios: 'loading',
+            places: 'loading',
+            organizations: 'loading',
+            history: 'loading',
+            vocabulary: 'loading',
+          },
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    const texts: string[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof node === 'string') texts.push(node);
+      else if (Array.isArray(node)) node.forEach(walk);
+      else if (node && typeof node === 'object' && 'children' in node) walk((node as { children: unknown }).children);
+    };
+    walk(toJSON());
+    const order = [
+      'Mapa del pueblo',
+      'Grupos',
+      'Peñas',
+      'Historia',
+      'Artículos',
+      'Eventos',
+      'Carteles de fiestas',
+      'Barrios',
+      'Lugares',
+    ];
+    // Past the stats row, which carries "Grupos" and "Lugares" too.
+    const page = texts.slice(texts.indexOf('Mapa del pueblo'));
+    expect(page.filter((x) => order.includes(x))).toEqual(order);
   });
 
   it('shows a skeleton row for a section whose fetch is still in flight', () => {
@@ -470,13 +633,13 @@ describe('VillageHomeBody', () => {
 });
 
 describe('subdivision sections', () => {
-  const row = (id: string, name: string, kind: string) =>
+  const row = (id: string, name: string, kind: string, isSeat = false) =>
     ({
       id,
       name,
       kind,
       source: 'osm',
-      isSeat: false,
+      isSeat,
       images: [],
       residentCount: 0,
       commentCount: 0,
@@ -501,6 +664,35 @@ describe('subdivision sections', () => {
     expect(getByText('Localidades')).toBeTruthy();
     expect(getByText('El Arrabal')).toBeTruthy();
     expect(getByText('Villarino de Manzanas')).toBeTruthy();
+  });
+
+  it('labels the municipal seat "El pueblo" so it reads apart from its pedanías', () => {
+    const { getByLabelText, getAllByText } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          barrios: [row('s1', 'Matabuena', 'pedania', true), row('p1', 'Matamala', 'pedania')],
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    // Only the seat carries the label; its pedanías keep the bare count.
+    expect(getAllByText(/^El pueblo · /)).toHaveLength(1);
+    expect(getByLabelText(/^Matabuena, El pueblo · /)).toBeTruthy();
+    expect(getByLabelText(/^Matamala, (?!El pueblo)/)).toBeTruthy();
+  });
+
+  it('mounts only a window of a Vilalba-sized kind, not every card', () => {
+    // Vilalba carries 745 aldeas; rendering every card eagerly would mount 745
+    // images on the home. The row is a horizontal FlatList that windows them.
+    const aldeas = Array.from({ length: 745 }, (_, i) => row(`a${i}`, `Aldea ${i}`, 'aldea'));
+    const { getByText, queryAllByText } = render(
+      <VillageHomeBody data={{ ...base, barrios: aldeas }} reload={jest.fn()} />,
+    );
+    expect(getByText('Aldea 0')).toBeTruthy();
+    const mounted = queryAllByText(/^Aldea \d+$/).length;
+    expect(mounted).toBeGreaterThan(0);
+    expect(mounted).toBeLessThan(745);
   });
 
   it('hides the sections a village has no rows for', () => {

@@ -34,6 +34,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { disableKeyboardRewriting } from './lib/android-keyboard.mjs';
 import { PICKER_IMAGES, ROOT, SUITE_DIR, arg, run, runMaestroSuite } from './lib/maestro-suite.mjs';
 
 const LABEL = 'android-e2e';
@@ -93,6 +94,12 @@ for (const [i, image] of PICKER_IMAGES.entries()) {
   if (run(LABEL, ADB, ['-s', device, 'push', image, `/sdcard/Pictures/e2e-picker-${i}.jpg`]) !== 0) process.exit(1);
 }
 run(LABEL, ADB, ['-s', device, 'shell', 'content', 'call', '--uri', 'content://media', '--method', 'scan_volume', '--arg', 'external_primary']);
+
+// 2c. Flows type exact text and assert it in Firestore; Gboard's corrections
+//     would make the app store something else (scripts/lib/android-keyboard.mjs).
+if (!disableKeyboardRewriting({ adbBin: ADB, device, log: (m) => console.log(`[${LABEL}] ${m}`) })) {
+  console.warn(`[${LABEL}] could not switch off Gboard's corrections; flows that type text may fail on what it rewrites.`);
+}
 
 // 3. Run the suite (scripts/lib/maestro-suite.mjs). Flows held OUT of the
 //    gate on Android, with the reason each one is out — see that module for why

@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Modal,
-  Pressable as RNPressable,
-  ScrollView,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable as RNPressable, ScrollView, View } from 'react-native';
+import { BottomSheet } from '../primitives/BottomSheet';
 import { Button } from '../primitives/Button';
-import { KeyboardAvoider } from '../primitives/KeyboardAvoider';
 import { Text } from '../primitives/Text';
 import { VStack } from '../primitives/VStack';
 import { HStack } from '../primitives/HStack';
@@ -74,8 +67,8 @@ export interface AttendeeSheetProps {
  * list (or one with custom sign-up fields expanded) gets the room it needs
  * instead of being squeezed into a fixed-height scroll box.
  *
- * Styles live on `style`/`className` per the existing modal pattern; the Modal
- * + window-confirm fallbacks keep it working on the RN-Web build.
+ * A `BottomSheet`, so it closes like every other sheet: drag the grab bar
+ * down (not while a sign-up is in flight).
  */
 export function AttendeeSheet({
   visible,
@@ -91,8 +84,6 @@ export function AttendeeSheet({
   onConfirm,
 }: AttendeeSheetProps) {
   const { t } = useT();
-  const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
   const listRef = useRef<ScrollView>(null);
   // Row offsets inside the scroll list, so a rejected confirm can bring the
   // offending persona's question into view instead of leaving the error
@@ -122,7 +113,6 @@ export function AttendeeSheet({
       setConfirmAttempted(false);
     }
     // attendees identity intentionally excluded — re-seed only on open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   // Merge in any auto-select ids (a freshly created dependent returning from
@@ -135,7 +125,6 @@ export function AttendeeSheet({
       autoSelectIds.forEach((id) => next.add(id));
       return next;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoKey]);
 
   function toggle(id: string) {
@@ -202,39 +191,17 @@ export function AttendeeSheet({
   }
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible && !hidden}
-      transparent
-      animationType="fade"
-      onRequestClose={() => {
+      onClose={() => {
         if (!busy) onClose();
       }}
+      title={t('event.register.attendeesTitle')}
+      closeLabel={t('common.close')}
+      maxHeightRatio={0.9}
+      testID="attendee-sheet"
     >
-      <KeyboardAvoider>
-        <RNPressable
-          accessible={false}
-          onPress={() => {
-            if (!busy) onClose();
-          }}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          className="justify-end"
-        >
-          {/* Inner catcher: taps inside the card must not dismiss. Pad the bottom
-              by the safe-area inset so the confirm button clears the home
-              indicator / nav bar. */}
-          <RNPressable
-            accessible={false}
-            // Its backdrop is not an accessibility element, so VoiceOver closes the
-            // sheet with the escape gesture instead.
-            onAccessibilityEscape={() => {
-              if (!busy) onClose();
-            }}
-            onPress={() => {}}
-            className="rounded-t-2xl bg-surface-elevated p-5 border-t border-subtle"
-            style={{ paddingBottom: insets.bottom + 20, maxHeight: windowHeight * 0.9 }}
-          >
-            <VStack gap={3} className="shrink">
-              <Text variant="h3">{t('event.register.attendeesTitle')}</Text>
+            <VStack gap={3} className="shrink px-5 pt-1">
 
               <ScrollView ref={listRef} style={{ flexShrink: 1 }} testID="attendee-list">
                 <VStack gap={2}>
@@ -337,9 +304,6 @@ export function AttendeeSheet({
                 {t('event.register.confirm')}
               </Button>
             </VStack>
-          </RNPressable>
-        </RNPressable>
-      </KeyboardAvoider>
-    </Modal>
+    </BottomSheet>
   );
 }

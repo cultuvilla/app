@@ -76,6 +76,9 @@ export const approveOrganization = onCall<
       // tx.update bypasses the converter — serverTimestamp() is fine.
       tx.update(orgRef, {
         status: 'approved',
+        // Every group starts out requiring acceptance, and installed binaries
+        // still create orgs as `open`.
+        joinPolicy: 'approval',
         reviewedBy: callerUid,
         reviewedAt: FieldValue.serverTimestamp(),
       });

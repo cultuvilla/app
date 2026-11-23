@@ -14,24 +14,26 @@ The one seam between the two is the snapshot: the business repo's deploy writes 
 
 ## Sibling repos
 
-The `cultuvilla` org is checked out side by side under one folder, each repo in a
-folder prefixed with the org so a terminal or editor title says which one you
-are in:
+The `cultuvilla` org is checked out side by side under one folder:
 
 ```bash
-git clone git@github.com:cultuvilla/app.git      ~/githubs/cultuvilla/cultuvilla-app
-git clone git@github.com:cultuvilla/business.git ~/githubs/cultuvilla/cultuvilla-business
+git clone git@github.com:cultuvilla/app.git      ~/githubs/cultuvilla/app
+git clone git@github.com:cultuvilla/business.git ~/githubs/cultuvilla/business
+git clone git@github.com:cultuvilla/motion.git   ~/githubs/cultuvilla/motion
 ```
 
-So the other repo sits next to this one —
+So the other repos sit next to this one —
 relative to the **main checkout**, not to a worktree. Start a session in the repo
 the work belongs to, never in the parent folder: a session loads only its own
 repo's rules, skills and memory.
 
-- `../cultuvilla-business` — **private**: the business record and the founders' panel. Read
-  it when a task needs it (`claude --add-dir ../cultuvilla-business`); never copy its facts
+- `../business` — **private**: the business record and the founders' panel. Read
+  it when a task needs it (`claude --add-dir ../business` gives access but doesn't load its
+  `AGENTS.md`, so open that yourself); never copy its facts
   into this public repo — not into code, docs, commit messages or PR bodies.
   Edit it only from a session started there, under its own `AGENTS.md`.
+- `../motion` — promotional video. Its `bin/marca` copies the brand from this repo's
+  `develop`.
 
 ## Repo health beats every rule below
 
@@ -44,10 +46,10 @@ If a rule here makes the repo worse for a specific change, break the rule and up
 Components, pages, and hooks **must not** import from `firebase/firestore`, `firebase/storage`, `firebase/functions`, or `firebase/auth` directly. All Firebase access goes through a service in [packages/shared/src/services/](packages/shared/src/services/). See [_services-map.md](packages/shared/src/services/_services-map.md) for the catalogue.
 
 - Need `GeoPoint`, `Timestamp`, or the `User` type? Import from `@cultuvilla/shared/firebase` (the shared package re-exports them).
-- The **only** exempt file is [apps/mobile/lib/auth/AuthContext.tsx](apps/mobile/lib/auth/AuthContext.tsx) — it owns the auth boundary (sign-in/out, listeners). Everything else routes through services.
+- The auth boundary, [apps/mobile/lib/auth/AuthContext.tsx](apps/mobile/lib/auth/AuthContext.tsx) (sign-in/out, listeners), is the one screen-side owner of Firebase. Only the bootstrap (`lib/firebaseInit.ts`, `lib/appCheck.ts`, `app.config.ts`) and native analytics (`lib/observability/analytics.ts`, which has no seam twin) share its exemption. Everything else routes through services.
 - **Services import Firebase from the SDK seam** ([packages/shared/src/firebase/sdk/](packages/shared/src/firebase/sdk/README.md)), never `firebase/*`. On device the seam resolves to `@react-native-firebase/*` — the persistent offline cache, and the native Auth session the other SDKs authenticate with; Node tests resolve it to the JS SDK against the emulators. A lint rule forbids direct imports, and `sdkParity.test.ts` fails when a name the code imports is missing from a `.native.ts` twin. Compare error codes with `firebaseErrorCode()` — the two SDKs prefix them differently.
 
-`packages/shared` and `functions/` are ESLint-gated ([packages/shared/eslint.config.mjs](packages/shared/eslint.config.mjs), [functions/eslint.config.mjs](functions/eslint.config.mjs)); `apps/mobile` has no ESLint config yet, so there the rule is convention — don't import `firebase/*` from a screen, add a service instead.
+All four workspaces are ESLint-gated by `pnpm lint` in CI: [packages/shared](packages/shared/eslint.config.mjs), [functions](functions/eslint.config.mjs), and, with invariant rules only, [apps/mobile](apps/mobile/eslint.config.mjs) and [apps/studio](apps/studio/eslint.config.mjs). In the apps a raw SDK import (type imports included) fails anywhere but the files above, and so does reaching the seam or `refs/*` instead of a service (`sdk/errors` aside); the few files that still do are an explicit allowlist in the config, pinned by [appLintRules.test.ts](packages/shared/test/eslint/appLintRules.test.ts). Don't widen it — add a service instead.
 
 > **See also:** the `touch-service` and `guardrail-enforcement` skills for the procedures.
 
@@ -78,14 +80,22 @@ Requests are created from in-context screens; outcomes arrive as notifications.
 |---|---|---|---|
 | Organizer (be the pueblo's **Embajador**) | `organizerRequests/` | any user | super admin (`respondToOrganizerRequest` callable) |
 | Organization (create peña/asociación/ayuntamiento) | `organizations/` (status `pending`) | village member | village admin (own village) or super admin (`approveOrganization` callable; `rejectOrganization` stays a client write) |
-| Join an `approval` org | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
+| Join a group | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
 
-**Joining a peña/asociación depends on its `joinPolicy`.** An `open` org (the
-default) is instant self-service: the org detail FAB does a direct client write of
-`organizations/{orgId}/members/{uid}` (role `member`, function-owned), and a user
-may add only themselves, mirroring village join. An `approval` org takes a join
-request instead (table above). **Private events require an `approval` org**:
-anyone can walk into an open one, so its membership vets nobody. Read
+Every Embajador request and every `/embajadores` web lead (`ambassadorLeads/`) is
+posted to the founders' *Cultuvilla Overview* Telegram group by
+`onOrganizerRequestCreated` / `onAmbassadorLeadCreated`: an envelope on the
+project's `notify` Pub/Sub topic ([publishNotify](functions/src/notify/publishNotify.ts)),
+which the homelab notify-gateway pulls from prod only. Topics and the prod
+subscription: `pnpm notify:setup <project>`.
+
+**A group has integrantes.** An *integrante* is a member,
+`organizations/{orgId}/members/{uid}`. **The group's admin picks how someone becomes
+one** (`joinPolicy`): by a join request an admin accepts (table above), the default and
+the only way into an ayuntamiento, or on the spot if the admin opened the group. In a
+group with a socio roster every integrante is a socio, and any group may hold private
+events, open or not. User-facing copy says
+*integrante*, never *miembro*; the code names stay. Read
 [docs/decisions/org-join-policy.md](docs/decisions/org-join-policy.md).
 
 **Membership roles & the audit log.** Villages and orgs are the same abstraction —
@@ -120,7 +130,7 @@ When a query would require N reads or live across collection boundaries, write a
 
 ### 5. Strict TypeScript
 
-`strict: true` everywhere. No `any`. No `@ts-nocheck`. If a type is genuinely unknown at the boundary, use `unknown` and narrow. `@typescript-eslint/no-explicit-any` is an error in `packages/shared` and `functions`; the same standard applies in `apps/mobile` even though it isn't lint-gated yet — fix at the source, never silence with `as any`.
+`strict: true` everywhere. No `any`. No `@ts-nocheck`. If a type is genuinely unknown at the boundary, use `unknown` and narrow. `@typescript-eslint/no-explicit-any` is an error in every workspace (`packages/shared`, `functions`, `apps/mobile`, `apps/studio`), and an `eslint-disable` that silences nothing fails the apps' lint — fix at the source, never silence with `as any`.
 
 ### 6. The app is the product; the web is a read site
 
@@ -141,6 +151,15 @@ and Hosting serves only its static files (`web/`). `apps/mobile/` builds for
 iOS and Android only — no Expo web export, no `.web.*` files, no
 `Platform.OS === 'web'` branches. A new entity needs a read page there as well
 as its app screen.
+
+The one signed-in web surface is the **web studio** (`apps/studio/`, served
+under `/estudio`): a separate React app where existing users write articles on a
+desktop. It signs in only by pairing with the app (no web accounts), writes
+through the shared services and the rules as the real user, and shares models
+and services with the app — never screens. Its auth boundary is
+[apps/studio/src/auth/StudioAuth.tsx](apps/studio/src/auth/StudioAuth.tsx), the
+counterpart of the app's `AuthContext.tsx`. It is for authoring only: never a
+second copy of the app.
 
 Read [docs/decisions/web-is-a-read-site.md](docs/decisions/web-is-a-read-site.md)
 before adding anything to the web, or proposing that web sign-up return.
@@ -308,9 +327,10 @@ Header ≤ 100 chars. Direct-to-`develop` is fine for small self-contained chang
   - **`production` is automatic on `main`** since 2026-10-06; merging the promotion PR is the release decision. Stop one with `[skip-ota]` in the merge commit or the repo variable `PROD_OTA_PAUSED=true`. A manual `workflow_dispatch` on mobile-ota.yml still publishes to any channel.
   - **A binary only receives updates if it was built after `expo-updates` landed** and its profile names a channel (all of `preview-dev` / `beta` / `production` do). Testers on an older build need one manual install before OTA reaches them at all.
 
-- **Deep links:** the per-env association files (`web/well-known/{env}/{apple-app-site-association,assetlinks.json}`) are copied into place at hosting-deploy time by `scripts/build-web-static.mjs`. Signing identities are **committed** there, not injected from CI — they ship in a world-readable file, so there is nothing to hide, and a value in git is reviewable and identical for a local deploy. `prod` carries the real Apple Team ID and the Play **app signing** SHA-256 (Play re-signs every AAB, so it is never the upload key); `dev` and `beta` still hold `REPLACE_SHA256_FINGERPRINT_*` and get theirs when those builds are distributed. An env with a placeholder simply opens the read site instead of the app — expected, not a bug. What must always work is that every deep link resolves on the **read site** too (each share URL, including invite `…/unirse` paths, needs a route in [functions/src/web/routes.ts](functions/src/web/routes.ts) and a screen under `apps/mobile/app/**`). URLs are Spanish and village-first (`/<pueblo>/evento/<titulo>_<id>`), built only by `packages/shared/src/utils/urls.ts` — read [docs/decisions/spanish-village-urls.md](docs/decisions/spanish-village-urls.md) before adding a route; a new top-level route must also be added to `RESERVED_ROOT_SEGMENTS` (Hosting sends every page to `readSite`, which answers reserved segments with the app hand-off). **Prod's AASA deliberately lags:** it claims only the legacy paths the live iOS 1.0.0 binary can route (it predates OTA), until an iOS build with the village-first routes is on sale — see that decision record before widening it.
+- **Deep links:** the per-env association files (`web/well-known/{env}/{apple-app-site-association,assetlinks.json}`) are copied into place at hosting-deploy time by `scripts/build-web-static.mjs`. Signing identities are **committed** there, not injected from CI — they ship in a world-readable file, so there is nothing to hide, and a value in git is reviewable and identical for a local deploy. `prod` carries the real Apple Team ID and the Play **app signing** SHA-256 (Play re-signs every AAB, so it is never the upload key); `dev` and `beta` still hold `REPLACE_SHA256_FINGERPRINT_*` and get theirs when those builds are distributed. An env with a placeholder simply opens the read site instead of the app — expected, not a bug. What must always work is that every deep link resolves on the **read site** too (each share URL, including invite `…/unirse` paths, needs a route in [functions/src/web/routes.ts](functions/src/web/routes.ts) and a screen under `apps/mobile/app/**`). URLs are Spanish and village-first (`/<pueblo>/evento/<titulo>_<id>`), built only by `packages/shared/src/utils/urls.ts` — read [docs/decisions/spanish-village-urls.md](docs/decisions/spanish-village-urls.md) before adding a route; a new top-level route must also be added to `RESERVED_ROOT_SEGMENTS` (Hosting sends every page to `readSite`, which answers reserved segments with the app hand-off). Every env's AASA claims the whole host except `/entrar`; it applies to every installed binary, so claiming a path an older binary cannot route waits for `minSupported` — see that decision record.
 - **Marketing version** (`app.config.ts` `version`, semver `MAJOR.MINOR.PATCH`) is the single source of truth; `apps/mobile/package.json` mirrors it. MAJOR = redesign/breaking migration, MINOR = new feature, PATCH = fixes.
 - **The bump follows the commits since beta:** any breaking change (`type!:` or a `BREAKING CHANGE:` footer) → MAJOR, any `feat` → MINOR, otherwise PATCH. `pnpm release:cut` proposes it; `--bump=` / `--version=` override when the release is a product call (a MAJOR always is).
+- **Never propose a cut.** Álvaro decides when (decided 2026-11-01). Work stays on `develop` until he asks; leave releases, store-notes drafts included, out of end-of-task reports, decision lists and next steps.
 - **Cut a release with `pnpm release:cut`** (the `prepare-release` skill drives it; beta = release candidate, and the version rides unchanged into `main`). One command: it commits the bump (`app.config.ts` + `package.json` + the CHANGELOG stamp, which folds in and deletes every `changelog.d/` fragment) on top of `origin/develop` and **pushes it to develop** — so develop's version is always the latest cut, with no second PR — then branches `release/X.Y.Z` from it, merges `origin/main` in (beta and main are `strict`, and beta → main merge commits never reach develop), and opens the PR into beta titled `X.Y.Z` with the CHANGELOG section and a `**Migration:**` checklist. `--dry-run` shows all of it without writing. Build numbers auto-increment (EAS `appVersionSource: remote`). **CI enforces the shape** in `.github/workflows/version-gate.yml`: a PR into `beta` must bump `version` above beta's, come from `release/<that version>` and be titled with the bare version; a PR into `main` must come from `beta`.
 - **`beta → main` opens itself.** Once a push to beta has a green *Deploy beta* and a green *beta-build-and-submit*, [promote-to-main.yml](.github/workflows/promote-to-main.yml) opens (or refreshes) the `beta → main` PR, titled `X.Y.Z`, with the same checklist and links to those runs. It uses a `RELEASE_PR_TOKEN` secret when set, else `GITHUB_TOKEN`, which can only open PRs while *Settings → Actions → Allow GitHub Actions to create and approve pull requests* is on; the run fails with the manual `gh pr create` command otherwise.
 - **`beta → main` can also merge itself — off until the user turns it on.** The same workflow's `auto-merge` job (hourly, and when `android-e2e` finishes on beta) merges that PR once it is the auto-opened `X.Y.Z` PR at beta's tip, *Deploy beta*, *beta-build-and-submit* and `android-e2e` are green on that commit, main's required checks are green on it, it has no `hold` label, and `AUTO_PROMOTE_SOAK_HOURS` (repo variable, default 2) have passed since *Deploy beta* finished. It never merges a breaking release, and it merges **only while the repo variable `AUTO_MERGE_TO_MAIN` is `true`** — setting it is the user's decision (approved in principle 2026-10-07, not yet switched on); unset, it only reports "would merge" or what it waits on in the run summary. It merges with `RELEASE_PR_TOKEN` and never with `GITHUB_TOKEN` (a `GITHUB_TOKEN` push triggers no workflow, so *Deploy prod* would never run); without the secret it warns and never merges. Add a `hold` label to stop a release, remove it to resume. The merge uses GitHub's default message, so no `[skip-…]` token lands by accident. Decision logic: [auto-promote-main.mjs](scripts/auto-promote-main.mjs); locked by [promoteToMain.test.ts](packages/shared/test/ci/promoteToMain.test.ts).
@@ -406,6 +426,14 @@ about an idempotent `pre-deploy` backfill with an empty `autoApply`. Opt out
 deliberately (destructive, non-idempotent, or needs a human reading the diff),
 not by default.
 
+**A `post-deploy` backfill can opt into `autoApply` too**, and the deploy runs
+it in a second pass *after* Cloud Functions deploy (`auto-apply
+--phase=post-deploy`). That is the place for work only the new code keeps
+right — a recount of a trigger-maintained read model, which a pre-deploy run
+would leave short by whatever changed before the trigger went live
+(`village-people-count-reconcile` is the worked example). Same marker rule;
+dev is never auto-applied, so run it there by hand after the deploy.
+
 **`dependsOn` declares run order.** Without it, auto-apply runs in `meta.id`
 alphabetical order, which is not a safe order for a **projection**. A backfill
 that writes a read model must declare the source-collection backfills it
@@ -493,7 +521,7 @@ Don't explain *what* the code does — name things well instead. Only comment to
 pnpm install          # workspace deps (functions has its own — npm ci in functions/)
 pnpm app:start        # Expo dev server (apps/mobile)
 pnpm check            # lint + typecheck + test + build (CI gate)
-pnpm lint             # eslint --max-warnings 0 in packages/shared + functions
+pnpm lint             # eslint --max-warnings 0 in packages/shared, functions, apps/mobile, apps/studio
 pnpm typecheck        # tsc --noEmit in shared, functions, i18n, mobile
 pnpm test             # vitest (shared) + jest (mobile) + functions, under emulators
 pnpm backfills:list   # registered data migrations (see Backfills)
@@ -501,6 +529,8 @@ pnpm test:e2e:android # Maestro on an Android AVD, under emulators (needs a devi
 pnpm test:e2e:ios     # the same flows on an iOS Simulator (macOS only; CI: ios-e2e)
 pnpm check:store-claims # verify the store-release runbook against live infra
 ```
+
+**Other sessions run emulators on this machine.** Before any `adb` command run `adb -s <serial> emu avd name` and pin `ANDROID_SERIAL` to your own AVD, and check who owns a Metro port before using it. `scripts/avd-dev.sh boot Cultuvilla_Big` returns without booting when another session's emulator is already up, so boot yours on an explicit port (`emulator -avd Cultuvilla_Big -port 5610 -no-window`). On 2026-11-01 a session skipped this, installed the app on another repo's emulator and removed its `tcp:8081` reverse, which broke its dev client. The local arm64-only `app-debug.apk` crashes on an x86_64 AVD; build with `-PreactNativeArchitectures=x86_64`.
 
 Pre-commit (Husky + lint-staged) currently only formats `*.{json,md,yml,yaml}`; commit-msg runs commitlint. The lint/typecheck/test gate runs via `pnpm check` and in CI, not on commit.
 
@@ -633,15 +663,34 @@ only on the seed and on earlier flows of its own group. See
 [apps/mobile/e2e/native/README.md](apps/mobile/e2e/native/README.md); under WSL2
 it also needs `EMULATOR_BIND_HOST=0.0.0.0`.
 
-Still off-limits — these run indefinitely (the user owns that iteration loop) or
-bypass CI:
+**Metro is yours to run** (decided 2026-10-31, user) when the task needs the app on a
+device — to verify a change, read its logs, reproduce a bug. `pnpm app:start` binds
+`:8081`, or the next free port of 8091, 8101 … 8171 ([scripts/metro-port.sh](scripts/metro-port.sh);
+`METRO_PORT` overrides it; other apps on the machine own 8082, 8083 and their series). Every
+script that starts Metro goes through that script, never a bare `expo start`. If the user's
+Metro is already up (`ss -ltn`), use theirs; `scripts/avd-dev.sh reverse|open` need
+`METRO_PORT` set when yours landed off 8081. Run it in the
+background (`scripts/avd-dev.sh metro`, or `pnpm app:start`), and stop it when you
+are done: it is an indefinite server, so a Metro you leave running holds the port
+the user's next session needs.
 
-- `pnpm app:start` / `expo start` (Expo/Metro dev server)
+**The main checkout follows develop by itself.** [scripts/dev-sync.sh](scripts/dev-sync.sh)
+runs every minute (a systemd user timer from homelab's workstation setup): it
+fast-forwards the checkout to `origin/develop`, installs dependencies when a lockfile
+moved, and sends a desktop notification when the native fingerprint changed, since only
+a dev-client rebuild brings native code to the phone. So the user's Metro always serves
+what merged; never stash, reset or switch that checkout to "help" it. It does nothing
+while the checkout is off develop, mid-merge, ahead of origin, or editing a file the
+update touches. Why: on 2026-11-20 the checkout sat 23 merges behind and the user tested
+a screen that had already been replaced.
+
+Still off-limits — these run indefinitely or bypass CI:
+
 - `firebase emulators:start` directly (standalone long-lived emulator session)
 - Any deploy script (`pnpm deploy:*`) — use the `firestore-deploy` skill instead
 
-If you need output from a long-lived server you can't start (Metro, a standalone
-emulator session), ask the user to run it and paste the relevant lines.
+If you need output from a long-lived server you can't start (a standalone emulator
+session), ask the user to run it and paste the relevant lines.
 
 ## Development workflow
 
@@ -673,6 +722,8 @@ Landing that PR on develop is enough to unblock beta and prod deploys: the
    - **Direct** — the diff touches *only* `docs/**`, `*.md`, `CHANGELOG.md`, `.agents/**`, `.claude/**`. Commit and push straight to `develop` in the base checkout. No branch, no PR.
    - **Autonomous (everything else)** — branch from the latest `develop` into a worktree under `.claude/worktrees/<short-name>/` and work there. Never edit the base checkout in this mode. Worktrees isolate dependencies, build outputs, and caches so parallel changes don't fight each other, and they make it easy to abandon work that doesn't pan out.
 
+   **When Álvaro is watching Metro, work live on `develop`** (decided 2026-11-01, Álvaro: "from now on work on develop so i can see the changes"). He runs Metro from the main checkout and sees each change on his phone as it's made; worktree edits are invisible to him until merged. So in a session with him, edit the main checkout in place, whatever the mode above says. Commit and push straight to `develop` when it accepts the push; if the merge-queue ruleset refuses, move the commits to a branch and land through `pnpm pr:land`, keeping the checkout on `develop`. Parallel and unattended workers stay in worktrees.
+
    **The VSCode checkout must always stay on `develop`** — never run `git checkout`/`git switch` to a feature branch in the open editor workspace. A feature branch always lives in its own worktree, created with `git worktree add` and committed to from there, so the VSCode view never leaves `develop`. (Never commit directly to `beta` or `main` — those advance only by promotion PRs.)
 2. **Read any in-flight plan** in [docs/plans/](docs/plans/) and the relevant record in [docs/decisions/](docs/decisions/) for the feature area.
 3. **Look at the relevant service** in [packages/shared/src/services/](packages/shared/src/services/) before writing UI code; extend the service if the API you need is missing.
@@ -680,6 +731,7 @@ Landing that PR on develop is enough to unblock beta and prod deploys: the
    - Pure logic, model builders, validation, and service helpers go in `packages/shared/test/` (vitest).
    - New ESLint rules, type-level contracts, or other "this must keep working" invariants get a test that fails if the invariant breaks (see [packages/shared/test/eslint/rules.test.ts](packages/shared/test/eslint/rules.test.ts) for the pattern).
    - If a change is genuinely untestable today (UI-only, no extractable logic), say so in the PR description and explain why.
+   - **What must be seen on a device to believe it works?** A change a user can see or do carries a QA entry, `docs/qa/pending/<slug>.md`, in the same change — or one line in the PR saying why none is needed (a test proves it, nothing user-visible). An agent witnesses every entry on an AVD in the QA pass: at a release cut, before the release PR merges into `beta` (a ❌ blocks it), or whenever the user asks. Format and pass: the `release-qa` skill. Why: a claim written after the agent who knew how to break the change is gone gets reconstructed from `git log`, badly.
 5. **Keep documentation in sync.** If you add a new collection or denormalized field, update [packages/shared/src/services/_services-map.md](packages/shared/src/services/_services-map.md) and [docs/architecture/denormalized-read-models.md](docs/architecture/denormalized-read-models.md) in the same change. Note user-facing changes as a fragment, `changelog.d/<topic>.md` — never under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), which holds only the store notes. One file per change keeps parallel PRs from conflicting; `release:cut` stamps them. See [changelog.d/README.md](changelog.d/README.md).
 6. **Verify according to the selected mode.** In a worktree, run the relevant targeted tests/typechecks, push promptly, and use the PR's GitHub CI result as the authoritative full `pnpm check` gate — do not duplicate the entire gate locally by default. Direct-to-`develop` has no PR gate, so run `pnpm check` locally before committing.
 7. **Open a pull request** targeting `develop` — through `pnpm pr:land` (step 8), which adds the `ai-review` label the reviewer needs; never a bare `gh pr create` without that label. A PR is a written record of what changed and why, and lets CI gate the change before it touches `develop` (and, via promotion, beta/prod). The PR description should cover:
@@ -698,7 +750,7 @@ Landing that PR on develop is enough to unblock beta and prod deploys: the
 
 **Priority orders the queue; it never gates it.** An approved `low` plan is worked when nothing ranked above it is waiting.
 
-Two shared skills run on this policy: **`advance-plans`** builds the approved pool in parallel — `ongoing/`, then `ready/`, then pre-approved ideas straight from `ideas/` — and **`review-ideas`** verifies ideas against the code and asks the user for the yeses (tagging the pre-approved ones `Pre-Approved: <slug>` so the builder finds them).
+Three shared skills run on this policy: **`enhance-repo`** measures the repo (churn × size × fix density, co-change, test gaps), files the best improvements as `ideas/` plans and has a second agent fact-check each one before it lands — plans only, never code, tuned by *Enhance* below; **`advance-plans`** builds the approved pool in parallel — `ongoing/`, then `ready/`, then pre-approved ideas straight from `ideas/`; and **`review-ideas`** verifies ideas against the code and asks the user for the yeses (tagging the pre-approved ones `Pre-Approved: <slug>` so the builder finds them). So "improve the repo" is `enhance-repo`, then `advance-plans`.
 
 **The line is subjectivity** (decided 2026-10-05, adopting ordago's policy). The user's consent is for what is a matter of judgement they hold — product, business, taste — and not for engineering the agents and the tests can verify. So the default for objective work is *do it and report it*, and a new gate needs a subjective reason.
 
@@ -727,9 +779,13 @@ Three rules settle the edges. **A yes written into a plan counts** ("Decided 202
 
 ## Autonomy contract
 
-**The user is a decider, not a merge gate.** A change should cost them two messages: their request, and one decision. The `ship-a-feature` skill owns the procedure — front-load every business and technical question into ONE message with a recommended pick on each, take `go` as "all your picks", then implement and land without check-ins.
+<!-- base:autonomy -->
+**The user is a decider, not a merge gate.** A change should cost them two messages: their request, and one decision. The `ship-a-feature` skill owns the full procedure — front-load every business and technical question into ONE message with your recommended pick on each, take `go` as "all your picks", then implement and land without further check-ins.
+<!-- /base:autonomy -->
 
-- **`ship-a-feature` and `managing-plans-lifecycle` are shared, not local.** `ship-a-feature` is a symlink into the `.agents/_shared` submodule; `managing-plans-lifecycle` is vendored from agent-plans (see `.agents/README.md`). The [agent-skills](https://github.com/alvaro-francisco-gil/agent-skills) submodule is consumed by several repos. **Do not edit them to fix something about this repo** — they carry procedure only. Every Cultuvilla-specific value lives here and in `.agents/land.config.json`. Run `git submodule update --init` after cloning, or the skills are empty.
+- **`ship-a-feature` and `managing-plans-lifecycle` are shared, not local.** `ship-a-feature` is a symlink into `.agents/_shared`, a committed copy of [agent-skills](https://github.com/ghostaff-ai/agent-skills) (pin: `.agents/_shared/VENDORED.md`); `managing-plans-lifecycle` is vendored from agent-plans (see `.agents/README.md`). Both are shared with other repos. **Do not edit them to fix something about this repo** — they carry procedure only. Every Cultuvilla-specific value lives here and in `.agents/land.config.json`.
+- **A worktree made before 2026-11-21 still holds the old submodule checkout in `.agents/_shared`.** Merging or rebasing it onto `develop` stops with *"untracked working tree files would be overwritten"*. That folder is a clean checkout of the same files the copy now commits: check `git -C .agents/_shared status --porcelain` prints nothing, `rm -r .agents/_shared`, and retry. Delete this bullet once no such worktree is left.
+- **Reviews are paused (2026-10-21, user: out of review credits, until the user says otherwise).** `land.config.json` has `reviewLabel: null` and `requireApprovingReview: false`, so `pr:land` opens PRs without the `ai-review` label and merges on CI green alone. Don't add the label by hand. The two bullets below describe the bar to restore.
 - **Merge bar: CI green + an approving `ai-review`. The agent merges to `develop` itself** — the user is not the gate (decided 2026-08-22). The reviewer has worked here since 2026-10-06 (powerreviewer reviewed #469), so `requireApprovingReview` is `true` in `land.config.json`; from 2026-08-22 until then the bar was CI alone. A `REQUEST_CHANGES` is a round: fix and re-run `pr:land` (exit `20`). After **2** rounds (`maxReviewRounds`, cut from 3 on 2026-10-07: fix the first review, and the second verdict ends it) the review conversation ends and the PR lands on CI green alone (`roundsExhausted: "merge"`) — don't stop to report that. The hard stops below still never self-merge, the vacuous-green guard still refuses to read "no run dispatched" as "tests passed", and `develop` is not a release branch — a bad merge is caught before it reaches `beta`.
 - **Always open a PR through `pnpm pr:land`, or add the `ai-review` label yourself.** The reviewer only picks up labelled PRs, and `pr:land` adds the label when it opens one. A PR opened with bare `gh pr create` is never reviewed: PRs #436–#468 went through that way while the merge bar was CI alone. Now that the bar requires a review, such a PR just waits until `reviewTimeoutMs` (40 min) and exits `30`.
 - **Reviews reach this repo by poll, and cannot reach it any other way.** ordago gets an immediate trigger from a `request-review` job that calls homelab's reusable workflow. That is impossible here: **this repo is public and homelab is private**, and a public repo cannot call a private repo's reusable workflow. GitHub resolves the callee when it *creates* the run, before evaluating any job-level `if` — so such a job is not inert-until-enabled, it fails the entire workflow to load and takes every other job down with it. Don't add one back; it was tried on 2026-08-22 and run `32594475090` completed with zero jobs. This repo is already registered in homelab's `personal/agent-review.yml`, so the 15-minute poll backstop is the path. The cost is latency, not capability: expect a review within a poll interval, not immediately, and leave `pr:land` waiting rather than re-running it in a tight loop.
@@ -758,7 +814,19 @@ it, two worktrees running emulator suites share 8080/9099 and one silently break
 other's tests. The leader frees the slot with `source scripts/agent-env.sh --clean`
 before removing the worktree.
 
-**This repo overrides two `superpowers` skills.** `superpowers:brainstorming`'s one-question-per-message rule and `superpowers:finishing-a-development-branch`'s stop-and-ask merge menu are **superseded by `ship-a-feature`**. Every other superpowers skill still applies.
+<!-- base:superpowers -->
+**This repo overrides two `superpowers` skills.** `superpowers:brainstorming`'s one-question-per-message rule and `superpowers:finishing-a-development-branch`'s stop-and-ask merge menu are **superseded by `ship-a-feature`** — do not run those flows for work in this repo. Every other superpowers skill (`systematic-debugging`, `test-driven-development`, …) still applies.
+<!-- /base:superpowers -->
+
+## Enhance
+
+Tunes the shared `enhance-repo` pass (format in its skill). Data, not procedure.
+
+- **Source / tests:** `apps/mobile` (jest, `pnpm app:test`) · `apps/studio` · `packages/shared` (vitest in `packages/shared/test/`, emulator suites) · `functions/src` (vitest under emulators, `pnpm test:functions`; the read site is `functions/src/web/`) · `firestore.rules` (`pnpm test:rules`) · `scripts/` (backfills: `pnpm backfills:test`). Measure with `node scripts/enhance-measure.js`.
+- **Invariants a design must keep:** *Architecture invariants* above (1–6); the skills `touch-service`, `guardrail-enforcement`, `denormalized-read-model`, `add-firestore-collection`, `i18n-add-string`, `observability-conventions`; [municipality-vs-village.md](docs/architecture/municipality-vs-village.md), [denormalized-read-models.md](docs/architecture/denormalized-read-models.md), [web-is-a-read-site.md](docs/decisions/web-is-a-read-site.md), [breaking-change-and-hard-wall.md](docs/decisions/breaking-change-and-hard-wall.md).
+- **Lenses:** + **conventions** — the list in *Things to flag in PRs* below, swept repo-wide: Firebase reached outside a service, `as any` / `@ts-nocheck` / `eslint-disable`, Spanish that escaped the i18n catalog, a service with no test, the same enum, status string, threshold or hex colour in two places, an entity detail screen not built on `EntityDetailScaffold`, raw palette classes on a screen otherwise migrated. Each is pre-approved under *consolidating duplicates* or *debt and refactors* only when nothing a user sees changes.
+- **Never propose:** splitting `packages/i18n/messages/es.json` or `firestore.rules` because they are hot — they are registries every feature touches (and Firestore deploys rules as one file); reading churn in `apps/mobile/app.config.ts` / `package.json` (release bumps) or `functions/src/index.ts` (the export barrel) as a smell; anything web-side beyond the read site and the studio (invariant 6); a global store or query cache (*State and data fetching*); a retrocompat shim (*No retrocompat shims*); a release cut or store notes.
+- **Gates:** a change to a callable's contract, a rule older binaries write against, or a stored schema follows expand → migrate → contract, and a `Breaking-Client:` contract step needs a yes (`decision:`). Production data operations stay the user's.
 
 ## Things to flag in PRs (or right here when you find them)
 
@@ -773,18 +841,30 @@ before removing the worktree.
 
 ## Be proactive
 
-Surface these as a one-line suggestion (or an inline diff if the change is under ~10 lines) at the end of your response, when you notice:
+<!-- base:proactive -->
+You're expected to **propose improvements, not just execute tasks**. End your response with a one-line suggestion (or inline diff if the change is under ~10 lines) when you notice:
 
-- **Repeated manual ops (2+ times)** → script in `scripts/`.
-- **Encodable workflow** (deploy recipe, migration ritual, audit playbook) → skill under `.agents/skills/<name>/SKILL.md`.
-- **Convention used in 3+ places but undocumented** → addition to this file, or a new sub-directory `AGENTS.md` (e.g. `functions/AGENTS.md`, `packages/shared/AGENTS.md`, `apps/mobile/AGENTS.md`) so agents working there don't load the whole root file.
-- **Single source of truth violated** (duplicated enum, status string, threshold, hex colour) → consolidate in the same commit if small, propose a follow-up if not.
+- **Repeated manual ops (2+ times)** → a script or task-runner target.
+- **Encodable workflow** (a release, a debug recipe, a verification loop) → skill under `.agents/skills/<name>/SKILL.md`.
+- **Convention used in 3+ places but undocumented** → addition to the `AGENTS.md` for that tree, or a new deeper one so agents working there don't load the whole root file.
+- **Single source of truth violated** (a duplicated constant, path, id or enum) → consolidate in the same PR if small, propose a follow-up if not.
 - **Docs contradicting code** → fix or delete the doc; don't work around it.
-- **Shipped plan still in `docs/plans/ongoing/`** → distil durable rationale into `docs/decisions/<slug>.md`, then delete the plan (code is the source of truth). See the `managing-plans-lifecycle` skill. Don't archive — there is no `docs/archive/`.
-- **Service touched without tests** → propose adding the missing coverage.
+- **Shipped plan still in `docs/plans/ongoing/`** → retire it as the `managing-plans-lifecycle` skill says: delete by default, keep only rationale nobody could re-derive.
+- **Code touched without tests** → propose adding the missing coverage.
+- **Friction with tooling** (slow command, repeated permission prompts, missing alias) → propose the fix.
+- **The same correction a second time** → propose the script, lint or check that makes the mistake impossible, before another written rule. Nothing fails when an agent skips a sentence.
+
+Soft proposals are the default — the user accepts or declines. Don't pre-implement large refactors uninvited; surface, then wait.
+<!-- /base:proactive -->
 
 ## Shared agent setup
 
+<!-- base:setup -->
 `AGENTS.md` is the shared instruction entry point. Project skills live in
 `.agents/skills/`; `.claude/skills` points to that directory. See
 [`.agents/README.md`](.agents/README.md) for discovery requirements and dependencies.
+
+Text between `<!-- base:… -->` markers in this file is a copy of a section of
+[agent-skills `base/`](https://github.com/ghostaff-ai/agent-skills/tree/main/base).
+Change it there, never here: the next sync overwrites a local edit.
+<!-- /base:setup -->

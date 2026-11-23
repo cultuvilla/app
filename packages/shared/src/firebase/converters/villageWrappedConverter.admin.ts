@@ -1,5 +1,4 @@
 import { WrappedDataSchema } from '../../models/wrapped/WrappedDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const villageWrappedConverterAdmin = makeConverter(WrappedDataSchema, adminSdkCtors);
+export const villageWrappedConverterAdmin = adminConverter(WrappedDataSchema);

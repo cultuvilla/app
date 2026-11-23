@@ -1,0 +1,283 @@
+# The create form's repetition controls, end to end. A weekly series on two
+# weekdays must become one events doc per day through its last day (exactly
+# six here), each carrying the same series block; a yearly event whose date
+# varies must stay ONE doc flagged repeatsYearly + repeatDateVaries, with no
+# series. Flow 60 fills every other field and leaves repetition off, so only
+# this flow proves the series writer and the "Distinta cada vez" mode. Flow 67
+# repeats a past yearly edition.
+#
+# Only the fields the form requires are set (title, date, location). Titles
+# are stamped, so the flow depends on nothing 60–65 left behind.
+appId: com.cultuvilla.app.dev
+env:
+  ADMIN_EMAIL: e2e-admin@cultuvilla.test
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  VILLAGE_SLUG: altozano-de-prueba
+---
+- evalScript: ${output.stamp = String(Date.now())}
+- evalScript: ${output.weeklyTitle = 'Ensayo semanal E2E ' + output.stamp}
+- evalScript: ${output.yearlyTitle = 'Romeria anual E2E ' + output.stamp}
+# Days are computed at noon UTC so the weekday is that of the calendar day
+# picked, whatever timezone the host or the device has.
+- evalScript: ${output.firstDay = new Date(Date.now() + 7 * 86400000).toISOString().substring(0, 10)}
+- evalScript: ${output.untilDay = new Date(Date.parse(output.firstDay + 'T12:00:00Z') + 20 * 86400000).toISOString().substring(0, 10)}
+- evalScript: ${output.weekday = String((new Date(output.firstDay + 'T12:00:00Z').getUTCDay() + 6) % 7 + 1)}
+- evalScript: ${output.nextWeekday = String(Number(output.weekday) % 7 + 1)}
+
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${ADMIN_EMAIL}
+      PASSWORD: ${PASSWORD}
+- setLocation:
+    latitude: 39.4699
+    longitude: -0.3763
+
+# ── Weekly, on two weekdays, for three weeks ──
+- openLink: 'cultuvilla://crear/evento'
+- extendedWaitUntil:
+    visible:
+      id: 'event-title'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'event-title'
+      TEXT: ${output.weeklyTitle}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'event-recurring'
+    timeout: 10000
+- tapOn:
+    id: 'event-recurring'
+# The date goes in before "Semanal" is picked: picking it seeds the first
+# day's weekday, which the assertion below relies on.
+- runFlow:
+    file: ../subflows/pick-datetime.yaml
+    env:
+      FIELD: 'startDate'
+      DAY: ${output.firstDay}
+      HOUR: '12'
+      MINUTE: '30'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'event-recurrence-trigger'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'event-recurrence-trigger'
+      EXPECT: 'event-recurrence-weekly'
+- tapOn:
+    id: 'event-recurrence-weekly'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'repeat-day-${output.weekday}'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: 'repeat-day-${output.weekday}'
+          checked: true
+- tapOn:
+    id: 'repeat-day-${output.nextWeekday}'
+- runFlow:
+    file: ../subflows/pick-date.yaml
+    env:
+      FIELD: 'repeat-until'
+      DAY: ${output.untilDay}
+- assertNotVisible:
+    id: 'repeat-until-error'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'event-location'
+- tapOn:
+    id: 'event-location'
+- runFlow: ../subflows/allow-location.yaml
+- tapOn:
+    id: 'location-use-mine'
+- runFlow: ../subflows/allow-location.yaml
+# `location-confirm` stays disabled until the fix resolves; see flow 60.
+- repeat:
+    times: 10
+    while:
+      visible:
+        id: 'location-confirm'
+    commands:
+      - tapOn:
+          id: 'location-confirm'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertNotVisible:
+    id: 'location-confirm'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'signup-enabled'
+    timeout: 10000
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+
+# Days 0, 7, 14 on the first weekday and 1, 8, 15 on the next; the last day
+# (20) is neither, so inclusive or not, six docs.
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.weeklyTitle}
+      FIELD2: status
+      VALUE2: published
+      MIN: '6'
+      MAX: '6'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.weeklyId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${output.weeklyId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@weeklyTitle',
+          'municipalityId': 'e2e-village-altozano',
+          'createdBy': 'e2e-admin',
+          'repeatsYearly': false,
+          'repeatDateVaries': false,
+          'series.id': 'present',
+          'series.frequency': 'weekly',
+          'series.weekdays': ['@weekday', '@nextWeekday'],
+          'series.until': 'present'
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'event-series-summary'
+
+# ── Yearly, on a date that changes every year ──
+- openLink: 'cultuvilla://crear/evento'
+- extendedWaitUntil:
+    visible:
+      id: 'event-title'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'event-title'
+      TEXT: ${output.yearlyTitle}
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'event-recurring'
+    timeout: 10000
+# Yearly is the default frequency once repetition is on.
+- tapOn:
+    id: 'event-recurring'
+- extendedWaitUntil:
+    visible:
+      id: 'event-recurrence-yearly-hint'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'event-date-mode-trigger'
+      EXPECT: 'event-date-mode-varying'
+- tapOn:
+    id: 'event-date-mode-varying'
+- extendedWaitUntil:
+    visible:
+      id: 'event-date-varies-hint'
+    timeout: 10000
+- runFlow:
+    file: ../subflows/pick-datetime.yaml
+    env:
+      FIELD: 'startDate'
+      DAY: ${output.firstDay}
+      HOUR: '12'
+      MINUTE: '30'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'event-location'
+- tapOn:
+    id: 'event-location'
+- runFlow: ../subflows/allow-location.yaml
+- tapOn:
+    id: 'location-use-mine'
+- runFlow: ../subflows/allow-location.yaml
+- repeat:
+    times: 10
+    while:
+      visible:
+        id: 'location-confirm'
+    commands:
+      - tapOn:
+          id: 'location-confirm'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertNotVisible:
+    id: 'location-confirm'
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+- extendedWaitUntil:
+    visible:
+      id: 'signup-enabled'
+    timeout: 10000
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'event-form-primary'
+
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: events
+      FIELD: title
+      VALUE: ${output.yearlyTitle}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.yearlyId = output.id}
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'events/${output.yearlyId}'
+      EXPECT_JSON: >-
+        {
+          'title': '@yearlyTitle',
+          'status': 'published',
+          'createdBy': 'e2e-admin',
+          'repeatsYearly': true,
+          'repeatDateVaries': true,
+          'repeatsMonthly': false,
+          'series': 'absent',
+          'startDate': { 'prefix': '@firstDay' }
+        }
+- extendedWaitUntil:
+    visible:
+      id: 'event-edit-action'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'event-series-summary'
+- assertVisible:
+    id: 'event-series-summary'
+    text: 'Cada a.o, con fecha distinta'

@@ -21,6 +21,7 @@ import { EntityDetailScaffold } from '../../../components/feature/EntityDetailSc
 import type { EntityDetailAction } from '../../../components/feature/EntityDetailHeader';
 import { DetailInfoCard } from '../../../components/feature/DetailInfoCard';
 import { birthYearRangeLabel } from '../../../lib/events/birthYearLabel';
+import { seriesSummary } from '../../../lib/events/seriesLabel';
 import { EntityComments } from '../../../components/feature/EntityComments';
 import { ENTITY_FALLBACK_ICON } from '../../../lib/entities/registry';
 import { useAuth } from '../../../lib/auth/useAuth';
@@ -38,7 +39,7 @@ import { buildNameWithNickname } from '@cultuvilla/shared/models/person/PersonDa
 import { formatDate, buildGoogleCalendarUrl } from '@cultuvilla/shared/utils';
 import { useT } from '../../../lib/i18n';
 import { useWatch } from '../../../lib/hooks/useWatch';
-import { isPrivateEvent } from '@cultuvilla/shared/models/event/EventDataModel';
+import { eventEndBoundary, isPrivateEvent } from '@cultuvilla/shared/models/event/EventDataModel';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import type { PersonData } from '@cultuvilla/shared/models/person/PersonDataModel';
 import type { MunicipalityData } from '@cultuvilla/shared/models/municipality';
@@ -67,10 +68,10 @@ export default function EventDetailScreen() {
     villageId ? (next, error) => watchMunicipality(villageId, next, error) : null,
   );
   const [person, setPerson] = useState<PersonDoc | null>(null);
-  const { canManage, canEdit, isMember } = useEntityCapabilities(event?.municipalityId);
+  const { canManage, can, isMember } = useEntityCapabilities(event?.municipalityId);
   // Organizing an event IS editing it: author, named organizer, or an admin of
   // the event's pueblo — the same three identities every entity kind accepts.
-  const canOrganize = canEdit(event?.createdBy, event?.organizerUserIds);
+  const canOrganize = can('edit', 'event', event ?? {});
 
   const loadPerson = useCallback(async () => {
     if (user) setPerson(await getPersonByUserId(user.uid, user.uid));
@@ -206,6 +207,32 @@ export default function EventDetailScreen() {
               />
             ) : null}
           </HStack>
+          {event.series || event.repeatsYearly || event.repeatsMonthly ? (
+            <VStack gap={2}>
+              <DetailSectionHeading>{t('event.seriesLabel')}</DetailSectionHeading>
+              <Text testID="event-series-summary">
+                {event.series
+                  ? seriesSummary(event.series, event.startDate, t)
+                  : event.repeatsMonthly
+                    ? t('event.monthlySummary')
+                    : event.repeatDateVaries
+                      ? t('event.yearlySummaryVaries')
+                      : t('event.yearlySummary')}
+              </Text>
+              {/* The next date is not known when the event is created, so only
+                  this edition exists; once it is over its organizers copy it
+                  forward, with a fixed date moved a year and a varying one blank. */}
+              {(event.repeatsYearly || event.repeatsMonthly) && canOrganize && eventEndBoundary(event) < new Date() ? (
+                <Button
+                  variant="secondary"
+                  onPress={() => router.push(createEventHref({ copyFrom: event.id, villageId: event.municipalityId }))}
+                  testID="event-repeat-next"
+                >
+                  {event.repeatsMonthly ? t('event.repeatNextMonth') : t('event.repeatNextYear')}
+                </Button>
+              ) : null}
+            </VStack>
+          ) : null}
           {/* Advertised birth-year window. Shown before the sign-up sheet so the
               restriction reaches people who read the event and never tap the
               FAB — the confirm modal only reaches those who do. */}

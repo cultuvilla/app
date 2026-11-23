@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { LocationDataSchema, LatLngSchema, type LatLng } from '../core/LocationDataModel';
 import { SignupFieldsSchema, type SignupFieldSpec } from './SignupFieldModel';
+import { EventSeriesSchema, type EventSeries } from './EventSeriesModel';
 
 /**
  * Upper bound on `signupGroupSize`. Groups are seated atomically, so a large
@@ -10,6 +11,11 @@ import { SignupFieldsSchema, type SignupFieldSpec } from './SignupFieldModel';
  * Re-checked in firestore.rules — keep the two in step.
  */
 export const MAX_SIGNUP_GROUP_SIZE = 4;
+
+/** Sanity bounds for an advertised birth-year window. Re-checked in
+ *  firestore.rules — keep the two in step. */
+export const MIN_EVENT_BIRTH_YEAR = 1900;
+export const MAX_EVENT_BIRTH_YEAR = 2200;
 
 // Events publish on create — there is no `draft` state.
 export const EventStatusSchema = z.enum(['published', 'cancelled', 'completed']);
@@ -107,6 +113,30 @@ export const EventDataSchema = z.object({
   // by firestore.rules on create/update, and by isPrivateEvent below, which
   // reads the id rather than the enum so a half-written doc fails closed.
   visibilityOrgId: z.string().nullable().default(null),
+  // Non-null when the event is one occurrence of a weekly series (see
+  // EventSeriesModel). `.default(null)` so events created before series parse
+  // through the strict converter (existing docs are backfilled to null by
+  // `event-series`). Immutable after create — firestore.rules refuses a change.
+  series: EventSeriesSchema.nullable().default(null),
+  // A yearly event (las fiestas): only this year's edition exists, since next
+  // year's date is not known yet; its organizers repeat it once it has passed.
+  // Never on a series. `.default(false)` for events that predate it
+  // (backfilled by `event-recurrence`) and for binaries that never send it.
+  repeatsYearly: z.boolean().default(false),
+  // A monthly event whose day changes every time, so only the next one exists
+  // and its organizers repeat it once it has passed. A monthly event on a fixed
+  // day is a series instead. `.default(false)` as above, backfilled by
+  // `event-repeat-date-varies`.
+  repeatsMonthly: z.boolean().default(false),
+  // On a repeating edition: the next one's date can't be derived, so repeating
+  // it asks for the date rather than prefilling it. Always true on `repeatsMonthly`.
+  repeatDateVaries: z.boolean().default(false),
+  // The fiesta edition (`fiestaEditions/{id}`) whose programme lists this
+  // event, or null. Tagging only arranges the programme: the Wrapped still
+  // counts by date range, tagged or not. Never on a series. `.default(null)`
+  // for events that predate it (backfilled by `event-fiesta-edition`) and for
+  // binaries that never send it.
+  fiestaEditionId: z.string().nullable().default(null),
   status: EventStatusSchema,
   organizerUserIds: z.array(z.string()),
   organizerOrgIds: z.array(z.string()),
@@ -164,6 +194,11 @@ export interface EventDataInput {
   maxBirthYear?: number | null;
   visibility?: EventVisibility;
   visibilityOrgId?: string | null;
+  series?: EventSeries | null;
+  repeatsYearly?: boolean;
+  repeatsMonthly?: boolean;
+  repeatDateVaries?: boolean;
+  fiestaEditionId?: string | null;
   status?: EventStatus;
   organizerUserIds: string[];
   organizerOrgIds: string[];
@@ -186,6 +221,8 @@ export function buildEventData(input: EventDataInput): EventData {
   // on a public event would make the feed's private query surface it twice.
   const visibilityOrgId = input.visibility === 'organization' ? (input.visibilityOrgId ?? null) : null;
   const visibility = visibilityOrgId === null ? 'public' : 'organization';
+  const repeatsYearly = (input.repeatsYearly ?? false) && !input.series;
+  const repeatsMonthly = (input.repeatsMonthly ?? false) && !input.series && !repeatsYearly;
   return {
     title: input.title,
     description: input.description,
@@ -205,6 +242,11 @@ export function buildEventData(input: EventDataInput): EventData {
     maxBirthYear: input.maxBirthYear ?? null,
     visibility,
     visibilityOrgId,
+    series: input.series ?? null,
+    repeatsYearly,
+    repeatsMonthly,
+    repeatDateVaries: repeatsMonthly || (repeatsYearly && (input.repeatDateVaries ?? false)),
+    fiestaEditionId: input.series ? null : (input.fiestaEditionId ?? null),
     status: input.status ?? 'published',
     organizerUserIds: input.organizerUserIds,
     organizerOrgIds: input.organizerOrgIds,
@@ -287,6 +329,27 @@ export function madridDayKey(d: Date): string {
   }).format(d);
 }
 
+/**
+ * The instant the Europe/Madrid day containing `now` began. Exactly the cut
+ * `isStartDayOver` makes, as a Date a query can range on: `d` is a past day
+ * iff `d < startOfMadridDay(now)`. Independent of the device's timezone.
+ */
+export function startOfMadridDay(now: Date): Date {
+  const key = madridDayKey(now);
+  // `key` is YYYY-MM-DD, and ISO date-only strings parse as UTC midnight.
+  const utcMidnight = Date.parse(key);
+  // Madrid is UTC+2 (CEST) or UTC+1 (CET), and its DST switches happen at
+  // 02:00/03:00, so midnight is always one of these two instants.
+  const HOUR = 3_600_000;
+  for (const offset of [2 * HOUR, HOUR]) {
+    const candidate = new Date(utcMidnight - offset);
+    if (madridDayKey(candidate) === key && madridDayKey(new Date(candidate.getTime() - 1)) !== key) {
+      return candidate;
+    }
+  }
+  throw new Error(`startOfMadridDay: no Madrid midnight found for ${key}`);
+}
+
 /** True once `now` is a later Europe/Madrid calendar day than `start`. */
 export function isStartDayOver(start: Date, now: Date): boolean {
   return madridDayKey(now) > madridDayKey(start);
@@ -314,6 +377,12 @@ export function upcomingThenPast<E extends Pick<EventData, 'startDate' | 'endDat
   const isPast = (e: E) => isStartDayOver(eventEndBoundary(e), now);
   return [...byStart.filter((e) => !isPast(e)), ...byStart.filter(isPast).reverse()];
 }
+
+/**
+ * The statuses an event list shows, in the app and on the read site. A
+ * cancelled event stays reachable by its link but is never listed.
+ */
+export const LISTED_EVENT_STATUSES: EventStatus[] = ['published', 'completed'];
 
 export function isEventOngoing(
   event: Pick<EventData, 'status' | 'startDate' | 'endDate'>,

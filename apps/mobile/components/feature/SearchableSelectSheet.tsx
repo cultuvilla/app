@@ -123,10 +123,10 @@ export function SearchableSelectSheet({
                   testID={`${rowTestIDPrefix}-search-clear`}
                   hitSlop={8}
                 >
-                  <Ionicons name="close-circle" size={iconSizes.md} color="#94a3b8" />
+                  <Ionicons name="close-circle" size={iconSizes.md} color={colors.light.fg.quiet} />
                 </Pressable>
               ) : (
-                <Ionicons name="search" size={iconSizes.md} color="#94a3b8" />
+                <Ionicons name="search" size={iconSizes.md} color={colors.light.fg.quiet} />
               )
             }
           />

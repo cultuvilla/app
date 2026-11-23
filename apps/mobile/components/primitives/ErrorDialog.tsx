@@ -26,8 +26,8 @@ export interface ErrorDialogProps {
  * unescapable without force-quitting.
  *
  * So: the body scrolls inside a height-capped `BottomSheet`, which already
- * carries four independent ways out (drag, grab handle, ✕, backdrop) and the
- * bottom safe-area inset. The explicit button is the fifth.
+ * carries its own ways out (drag or tap the grab bar, backdrop, back button) and
+ * the bottom safe-area inset. The explicit button is the acknowledgement.
  */
 export function ErrorDialog({ message, onDismiss, testID = 'error-dialog' }: ErrorDialogProps) {
   const { t } = useT();

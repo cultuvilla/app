@@ -1,5 +1,4 @@
 import { PushQueueDataSchema } from '../../models/notification/PushQueueDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const pushQueueConverterAdmin = makeConverter(PushQueueDataSchema, adminSdkCtors);
+export const pushQueueConverterAdmin = adminConverter(PushQueueDataSchema);

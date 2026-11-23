@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@cultuvilla/shared/design-system';
 import { VStack, HStack, Text, Pressable, FieldLabel, VillagePicker, BarrioPicker } from '../primitives';
 import { useT } from '../../lib/i18n';
 import type { MunicipalityLink } from '@cultuvilla/shared/models/person';
@@ -53,7 +54,7 @@ export function ResidenceLinksEditor({ value, onChange }: ResidenceLinksEditorPr
               hitSlop={8}
               className="flex-row items-center p-1"
             >
-              <Ionicons name="trash-outline" size={16} color="#dc2626" />
+              <Ionicons name="trash-outline" size={16} color={colors.light.fg.danger} />
               <Text variant="bodySm" tone="danger" className="ml-1">
                 {t('profile.personForm.removeVillage')}
               </Text>
@@ -81,7 +82,7 @@ export function ResidenceLinksEditor({ value, onChange }: ResidenceLinksEditorPr
         accessibilityLabel={t('profile.personForm.addVillage')}
         className="flex-row items-center justify-center rounded-md border border-dashed border-subtle p-3"
       >
-        <Ionicons name="add" size={18} color="#64748b" />
+        <Ionicons name="add" size={18} color={colors.light.fg.icon} />
         <Text className="ml-1">{t('profile.personForm.addVillage')}</Text>
       </Pressable>
     </VStack>

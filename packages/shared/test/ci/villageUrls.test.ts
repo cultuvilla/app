@@ -87,6 +87,16 @@ describe('village-first URLs', () => {
     }
   });
 
+  it('serves the web studio itself, ahead of the catch-all', () => {
+    const catchAll = rewrites.findIndex((r) => r.source === '**');
+    for (const source of ['/estudio', '/estudio/**']) {
+      const i = rewrites.findIndex((r) => r.source === source);
+      expect(i, source).toBeGreaterThan(-1);
+      expect(i, source).toBeLessThan(catchAll);
+      expect(rewrites[i]?.destination, source).toBe('/estudio/index.html');
+    }
+  });
+
   it('keeps the generated files ahead of the catch-all', () => {
     const catchAll = rewrites.findIndex((r) => r.source === '**');
     const sitemap = rewrites.findIndex((r) => r.source === '/sitemap.xml');

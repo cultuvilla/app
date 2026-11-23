@@ -1,5 +1,4 @@
 import { VillageMemberDataSchema } from '../../models/municipality/VillageMemberDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const villageMemberConverterAdmin = makeConverter(VillageMemberDataSchema, adminSdkCtors);
+export const villageMemberConverterAdmin = adminConverter(VillageMemberDataSchema);

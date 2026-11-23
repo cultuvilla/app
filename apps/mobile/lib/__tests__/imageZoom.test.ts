@@ -9,14 +9,16 @@ import {
   clampScale,
   dismissBackdropOpacity,
   fitSize,
+  inPlaceBackdropOpacity,
+  inPlaceTranslation,
   isDoubleTap,
   nextScaleOnDoubleTap,
+  offsetCenteringPoint,
   offsetForScaleAbout,
   panBounds,
-  pinchScale,
+  panResistance,
   shouldDismissOnRelease,
-  touchDistance,
-  touchMidpoint,
+  softClampScale,
 } from '../imageZoom';
 
 const VIEWPORT = { width: 400, height: 800 };
@@ -102,23 +104,67 @@ describe('isDoubleTap', () => {
   });
 });
 
-describe('pinch helpers', () => {
-  it('measures distance and midpoint between two touches', () => {
-    expect(touchDistance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5);
-    expect(touchMidpoint({ x: 0, y: 0 }, { x: 10, y: 20 })).toEqual({ x: 5, y: 10 });
+describe('softClampScale', () => {
+  it('lets a live pinch overshoot both limits, but only so far', () => {
+    expect(softClampScale(MAX_SCALE + 0.1)).toBe(MAX_SCALE + 0.1);
+    expect(softClampScale(100)).toBeLessThan(MAX_SCALE * 1.5);
+    expect(softClampScale(0.9)).toBe(0.9);
+    expect(softClampScale(0)).toBeGreaterThan(0.5);
   });
 
-  it('scales proportionally to how far the fingers spread', () => {
-    expect(pinchScale(1, 100, 200)).toBe(2);
-    expect(pinchScale(2, 100, 50)).toBe(1);
+  it('falls back to fit on a degenerate value', () => {
+    expect(softClampScale(Number.NaN)).toBe(MIN_SCALE);
+  });
+});
+
+describe('panResistance', () => {
+  it('moves freely inside the bound and resists past it, on either side', () => {
+    expect(panResistance(50, 100)).toBe(1);
+    expect(panResistance(120, 100)).toBeLessThan(1);
+    expect(panResistance(-120, 100)).toBeLessThan(1);
+  });
+});
+
+describe('offsetCenteringPoint', () => {
+  const displayed = { width: 400, height: 300 };
+
+  it('leaves the middle of the picture where it is', () => {
+    expect(offsetCenteringPoint({ x: 0.5, y: 0.5 }, displayed, 3)).toEqual({ x: 0, y: 0 });
   });
 
-  it('clamps a spread that would overshoot the maximum', () => {
-    expect(pinchScale(2, 100, 1000)).toBe(MAX_SCALE);
+  it('shifts the picture the opposite way from the point, scaled', () => {
+    expect(offsetCenteringPoint({ x: 1, y: 0 }, displayed, 3)).toEqual({ x: -600, y: 450 });
+  });
+});
+
+describe('inPlaceTranslation', () => {
+  const center = { x: 100, y: 50 };
+
+  it('does not move at rest', () => {
+    const start = { x: 30, y: 20 };
+    expect(inPlaceTranslation(start, start, center, 1)).toEqual({ x: 0, y: 0 });
   });
 
-  it('survives a zero start distance', () => {
-    expect(pinchScale(1.5, 0, 200)).toBe(1.5);
+  it('keeps the touched point under still fingers while it grows', () => {
+    const start = { x: 150, y: 50 };
+    // Touched 50px right of centre, at 2x it would sit 100px right, so the
+    // picture shifts 50px left to keep it under the fingers.
+    expect(inPlaceTranslation(start, start, center, 2)).toEqual({ x: -50, y: 0 });
+  });
+
+  it('follows the fingers when they move together', () => {
+    const start = { x: 100, y: 50 };
+    expect(inPlaceTranslation(start, { x: 130, y: 90 }, center, 2)).toEqual({ x: 30, y: 40 });
+  });
+});
+
+describe('inPlaceBackdropOpacity', () => {
+  it('is clear at rest, grows with the pinch and stops short of black', () => {
+    expect(inPlaceBackdropOpacity(1)).toBe(0);
+    expect(inPlaceBackdropOpacity(1.3)).toBeGreaterThan(0);
+    const full = inPlaceBackdropOpacity(4);
+    expect(full).toBeLessThan(1);
+    expect(inPlaceBackdropOpacity(1.3)).toBeLessThan(full);
   });
 });
 
@@ -140,15 +186,15 @@ describe('shouldDismissOnRelease', () => {
   });
 
   it('dismisses on a fast flick even when short', () => {
-    expect(shouldDismissOnRelease(20, DISMISS_VELOCITY + 0.1, 1)).toBe(true);
+    expect(shouldDismissOnRelease(20, DISMISS_VELOCITY + 1, 1)).toBe(true);
   });
 
   it('springs back on a short, slow drag', () => {
-    expect(shouldDismissOnRelease(20, 0.1, 1)).toBe(false);
+    expect(shouldDismissOnRelease(20, 100, 1)).toBe(false);
   });
 
   it('never dismisses while zoomed in — that drag is a pan', () => {
-    expect(shouldDismissOnRelease(500, 3, 2)).toBe(false);
+    expect(shouldDismissOnRelease(500, 3000, 2)).toBe(false);
   });
 });
 

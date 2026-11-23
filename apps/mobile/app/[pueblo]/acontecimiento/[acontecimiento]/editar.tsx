@@ -24,7 +24,7 @@ function EditHistoryEntryScreen() {
   const { acontecimiento: acontecimientoRef } = useLocalSearchParams<{ acontecimiento: string }>();
   const entryId = parseEntityRef(acontecimientoRef ?? '') ?? '';
   const { t } = useT();
-  const { canManage, canEdit, canDelete, loading: capLoading } = useEntityCapabilities(villageId);
+  const { canManage, can, loading: capLoading } = useEntityCapabilities(villageId);
   const [entry, setEntry] = useState<HistoryEntryWithId | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -56,7 +56,7 @@ function EditHistoryEntryScreen() {
       </Screen>
     );
   }
-  if (!canEdit(entry.createdBy)) {
+  if (!can('edit', 'historyEntry', entry)) {
     return <Redirect href={entityRefHref('historyEntry', villageSlug, acontecimientoRef ?? '')} />;
   }
 
@@ -74,7 +74,7 @@ function EditHistoryEntryScreen() {
       <ScreenHeader
         title={t('village.history.editTitle')}
         rightSlot={
-          canDelete(entry.createdBy, entry.status) ? (
+          can('delete', 'historyEntry', entry) ? (
             <DeleteHeaderButton
               testID="history-delete"
               onConfirm={remove}

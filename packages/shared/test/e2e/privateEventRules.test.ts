@@ -72,7 +72,6 @@ beforeEach(async () => {
         joinedAt: new Date(),
       });
     }
-    // Private events belong to orgs whose members are admitted by approval.
     await setDoc(doc(db, `organizations/${ORG}`), {
       name: 'La Peña',
       municipalityId: M,
@@ -185,10 +184,11 @@ describe('firestore.rules — private events in list queries', () => {
   });
 });
 
-// Anyone can self-join an open org, so membership there proves nothing.
-describe('firestore.rules — private events need an approval org', () => {
-  it('a member of an open org may not create a private event in it', async () => {
-    await assertFails(
+// Every org admits its members, so the stored policy decides nothing — not even
+// on an org an installed binary created as `open`.
+describe('firestore.rules — the stored join policy does not gate private events', () => {
+  it('a member of an org stored as open may create a private event in it', async () => {
+    await assertSucceeds(
       setDoc(
         doc(asUser(getEnv(), 'outsider'), 'events/n-open'),
         eventPayload('outsider', { visibility: 'organization', visibilityOrgId: OTHER_ORG }),
@@ -196,29 +196,11 @@ describe('firestore.rules — private events need an approval org', () => {
     );
   });
 
-  it('an organizer cannot move an event into an open org', async () => {
-    await seed(getEnv(), async (ctx) => {
-      await setDoc(doc(ctx.firestore(), `organizations/${OTHER_ORG}/members/organizer`), {
-        userId: 'organizer',
-        role: 'member',
-        joinedAt: new Date(),
-      });
-    });
-    await assertFails(
-      updateDoc(doc(asUser(getEnv(), 'organizer'), 'events/pub'), {
-        visibility: 'organization',
-        visibilityOrgId: OTHER_ORG,
-      }),
-    );
-  });
-
-  it('fails closed for members if the org is switched back to open', async () => {
+  it('a member keeps reading a private event of an org stored as open', async () => {
     await seed(getEnv(), async (ctx) => {
       await updateDoc(doc(ctx.firestore(), `organizations/${ORG}`), { joinPolicy: 'open' });
     });
-    await assertFails(getDoc(doc(asUser(getEnv(), 'socio'), 'events/priv')));
-    // The event's own organizers and app admins keep access.
-    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'organizer'), 'events/priv')));
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'socio'), 'events/priv')));
   });
 });
 

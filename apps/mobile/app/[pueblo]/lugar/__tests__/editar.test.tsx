@@ -25,6 +25,7 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
 jest.mock('@cultuvilla/shared/services/moderationService', () => ({
   hideContent: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('@cultuvilla/shared/services/imageService', () => ({
   uploadPlaceImage: jest.fn(),
 }));
@@ -59,6 +60,8 @@ jest.mock('../../../../components/feature/LocationField', () => {
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
 import { getPlace, deletePlace, updatePlace } from '@cultuvilla/shared/services/municipalityService';
 import { hideContent } from '@cultuvilla/shared/services/moderationService';
+import { uploadPlaceImage } from '@cultuvilla/shared/services/imageService';
+import { pickImageAsBlob } from '../../../../lib/images';
 
 const place = (over: Record<string, unknown> = {}) => ({
   id: 'p1',
@@ -84,8 +87,7 @@ function mockCaps(opts: { canManage: boolean; uid: string | null; canEdit: boole
     canApprove: opts.canManage,
     uid: opts.uid,
     loading: false,
-    canEdit: jest.fn(() => opts.canEdit),
-    canDelete: jest.fn(() => opts.canDelete ?? opts.canEdit),
+    can: jest.fn((action: string) => (action === 'edit' ? opts.canEdit : opts.canDelete ?? opts.canEdit)),
   };
   (useEntityCapabilities as jest.Mock).mockReturnValue(caps);
   return caps;
@@ -108,7 +110,7 @@ describe('PlaceEditScreen guard', () => {
     const { findByDisplayValue } = render(<PlaceEditScreen />);
     await findByDisplayValue('Plaza');
     expect(mockRedirect).not.toHaveBeenCalled();
-    expect(caps.canEdit).toHaveBeenCalledWith('creator');
+    expect(caps.can).toHaveBeenCalledWith('edit', 'place', expect.objectContaining({ proposedBy: 'creator' }));
   });
 
   it('offers the creator a delete action for their own active place', async () => {
@@ -218,5 +220,28 @@ describe('PlaceEditScreen layout', () => {
     await findByTestId('mock-organizer-picker');
     const tree = JSON.stringify(toJSON());
     expect(tree.indexOf('mock-organizer-picker')).toBeLessThan(tree.indexOf('place-edit-submit'));
+  });
+});
+
+// A failed upload used to vanish: the spinner stopped and the photo was gone.
+describe('PlaceEditScreen photo upload', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getPlace as jest.Mock).mockResolvedValue(place());
+  });
+
+  it('says so when the upload fails, and keeps the place without the photo', async () => {
+    mockCaps({ canManage: false, uid: 'creator', canEdit: true });
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (pickImageAsBlob as jest.Mock).mockResolvedValueOnce({ blob: {} as Blob, filename: 'a.jpg', contentType: 'image/jpeg', previewUri: 'file://a.jpg' });
+    (uploadPlaceImage as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('User does not have permission'), { code: 'storage/unauthorized' }),
+    );
+    const { findByTestId, queryByTestId } = render(<PlaceEditScreen />);
+    fireEvent.press(await findByTestId('place-edit-images-add'));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('No puedes hacer eso', expect.any(String), expect.any(Array), expect.anything()));
+    expect(updatePlace).not.toHaveBeenCalled();
+    expect(queryByTestId('place-edit-images-remove-0')).toBeNull();
+    alert.mockRestore();
   });
 });

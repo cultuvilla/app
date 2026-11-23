@@ -3,7 +3,6 @@ import { Alert } from 'react-native';
 import { MembershipVillageEditor } from '../MembershipVillageEditor';
 
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ t: (k: string) => k }) }));
-// eslint-disable-next-line prefer-const -- reassigned per-test to vary the active village.
 let mockActiveMunicipalityId = 'm1';
 jest.mock('../../../lib/auth/useAuth', () => ({
   useAuth: () => ({ profile: { activeMunicipalityId: mockActiveMunicipalityId } }),

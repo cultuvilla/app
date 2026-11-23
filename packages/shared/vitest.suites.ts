@@ -18,6 +18,7 @@ export const UNIT_INCLUDE = [
   'test/wrapped/**/*.test.ts',
   'test/validation/**/*.test.ts',
   'test/ci/**/*.test.ts',
+  'test/policy/**/*.test.ts',
 ];
 
 export const INTEGRATION_INCLUDE = ['test/integration/**/*.test.ts'];

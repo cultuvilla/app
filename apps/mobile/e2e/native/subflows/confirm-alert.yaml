@@ -7,29 +7,53 @@
 # a header icon labelled "Eliminar" in the top-right corner is right of
 # "Cancelar" too. Maestro tapped it instead of the button, so the alert never
 # went away (flows 61 and 90). `below` the message keeps the pick inside the
-# alert on both platforms.
+# alert on both platforms. The question is matched without a `/`: an image
+# URL on the screen beneath (`…webp?alt=media`) is a "?" too, and below it the
+# whole alert — labelled with its title — was the match, so the tap landed on
+# the message and nothing happened (flow 85 on iOS, every run).
 appId: com.cultuvilla.app.dev
+#
+# iOS lays a two-button alert out side by side only while both labels are
+# short; "Añadir al equipo" stacks the buttons, the confirming one ABOVE
+# "Cancelar". Both layouts are tried, twice over: under load the first tap can
+# land while the alert is still animating in.
 ---
+# The checks below are instant, so first wait for the alert to be up.
+- extendedWaitUntil:
+    visible:
+      text: ${BUTTON}
+      below: '[^/]*\?[^/]*'
+    timeout: 10000
 - waitForAnimationToEnd:
     timeout: 3000
-- tapOn:
-    text: ${BUTTON}
-    rightOf: 'Cancelar'
-    below: '.*\?.*'
-- waitForAnimationToEnd:
-    timeout: 3000
-# One more try if the alert is still up: under load the first tap can land
-# while the alert is still animating in.
-- runFlow:
-    when:
+- repeat:
+    times: 3
+    while:
       visible:
         text: ${BUTTON}
-        rightOf: 'Cancelar'
-        below: '.*\?.*'
+        below: '[^/]*\?[^/]*'
     commands:
-      - tapOn:
-          text: ${BUTTON}
-          rightOf: 'Cancelar'
-          below: '.*\?.*'
+      - runFlow:
+          when:
+            visible:
+              text: ${BUTTON}
+              rightOf: 'Cancelar'
+              below: '[^/]*\?[^/]*'
+          commands:
+            - tapOn:
+                text: ${BUTTON}
+                rightOf: 'Cancelar'
+                below: '[^/]*\?[^/]*'
+      - runFlow:
+          when:
+            visible:
+              text: ${BUTTON}
+              above: 'Cancelar'
+              below: '[^/]*\?[^/]*'
+          commands:
+            - tapOn:
+                text: ${BUTTON}
+                above: 'Cancelar'
+                below: '[^/]*\?[^/]*'
       - waitForAnimationToEnd:
           timeout: 3000

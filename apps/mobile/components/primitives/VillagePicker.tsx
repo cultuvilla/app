@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, FlatList, Modal, TextInput, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -104,7 +105,7 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
               )}
               <Text>{selected ? `${selected.name} (${selected.province})` : placeholder}</Text>
             </View>
-            <Ionicons name="chevron-down" size={16} color="#64748b" />
+            <Ionicons name="chevron-down" size={16} color={colors.light.fg.icon} />
           </Pressable>
         </>
       )}
@@ -172,16 +173,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.light.border.input,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerInner: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   modal: { flex: 1, padding: 16, gap: 12 },
-  search: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12 },
+  search: { borderWidth: 1, borderColor: colors.light.border.input, borderRadius: 8, padding: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { textAlign: 'center', paddingVertical: 24 },
   row: {
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.light.border.divider,
   },
   rowText: { flexShrink: 1 },
   actions: { flexDirection: 'row', gap: 8, justifyContent: 'flex-end' },

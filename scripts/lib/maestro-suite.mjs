@@ -12,6 +12,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { emulatorTargets, restoreSnapshot, takeSnapshot } from './emulator-snapshot.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const SUITE_DIR = path.join(ROOT, 'apps', 'mobile', 'e2e', 'native');
@@ -71,6 +72,17 @@ export function arg(name) {
 // fresh Maestro.
 export const MAESTRO_CALL_TIMEOUT_MS = Number(process.env.E2E_FLOW_TIMEOUT_MS || 15 * 60_000);
 
+// Flows that pass slower than the cap, each with its own. Granted per flow:
+// raised for the suite, a hang anywhere would hold every attempt on every shard
+// that much longer. Flow 13 passes on iOS in 14–15 minutes, so 15 killed it in
+// its own cleanup, and the retry then found the driver unreachable (ios-e2e
+// 43481140813, 43481145635).
+export const FLOW_TIMEOUT_OVERRIDES_MS = new Map([['13-group-cuota-socios.yaml', 20 * 60_000]]);
+
+export function flowTimeoutMs(name) {
+  return Math.max(MAESTRO_CALL_TIMEOUT_MS, FLOW_TIMEOUT_OVERRIDES_MS.get(name) ?? 0);
+}
+
 export function run(label, cmd, args, opts = {}) {
   const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: ROOT, killSignal: 'SIGKILL', ...opts });
   if (res.error?.code === 'ETIMEDOUT') {
@@ -105,8 +117,11 @@ export function run(label, cmd, args, opts = {}) {
  *
  * `flow` optionally narrows the run to some flows — see `selectFlows`.
  * `shard` (`i/N`) runs this machine's slice of them — see `shardFlows`.
- * `retries` re-runs a failed flow from a clean start that many times; one that
- * passes only on a retry is reported as FLAKY by name, never silently.
+ * `retries` re-runs a failed flow that many times; one that passes only on a
+ * retry is reported as FLAKY by name, never silently. Each retry starts from the
+ * emulator data the first attempt started from (scripts/lib/emulator-snapshot.mjs),
+ * never from what the failed attempt left; without the emulators to restore,
+ * there is no retry.
  * `beforeEachFlow` runs before every flow: platform-specific state that
  * Maestro's `clearState` does not reach. Leftover backend docs are reset for
  * every platform here.
@@ -133,13 +148,20 @@ export async function runMaestroSuite({
 
   const failed = [];
   const flaky = [];
+  const emulators = retries > 0 ? emulatorTargets() : null;
+  if (retries > 0 && !emulators) {
+    console.warn(`[${label}] !! no emulators to restore between attempts, so a failed flow is not retried`);
+  }
   for (const name of flows) {
     let status = 1;
-    for (let attempt = 1; attempt <= 1 + retries && status !== 0; attempt++) {
+    let start = null;
+    for (let attempt = 1; attempt <= 1 + (emulators ? retries : 0) && status !== 0; attempt++) {
       const retry = attempt > 1 ? ` (retry ${attempt - 1}/${retries})` : '';
       console.log(`\n[${label}] ─── ${name}${retry} ───`);
       await beforeEachFlow(name);
+      if (attempt > 1) await restoreAttemptStart(label, emulators, start);
       await deleteLeftoverDocs(label);
+      if (emulators && attempt === 1) start = await takeSnapshot(emulators);
       status = run(
         label,
         MAESTRO,
@@ -153,7 +175,7 @@ export async function runMaestroSuite({
           '--output',
           path.join(reportDir, `${name.replace(/\.yaml$/, '')}${attempt > 1 ? `.retry${attempt - 1}` : ''}.xml`),
         ],
-        { env, timeout: MAESTRO_CALL_TIMEOUT_MS },
+        { env, timeout: flowTimeoutMs(name) },
       );
       if (status === 0 && attempt > 1) flaky.push(name);
     }
@@ -177,6 +199,23 @@ export async function runMaestroSuite({
   }
   console.log(`\n[${label}] all ${flows.length} flow(s) passed${quarantineNote}${flakyNote}`);
   process.exit(0);
+}
+
+async function restoreAttemptStart(label, emulators, start) {
+  const began = Date.now();
+  const stats = { clears: 0, writes: 0, cancelled: 0 };
+  const attempts = () =>
+    `${stats.clears} clear(s), ${stats.writes} batchWrite(s), ${stats.cancelled} answered 499`;
+  try {
+    await restoreSnapshot(emulators, start, stats);
+  } catch (error) {
+    console.error(`[${label}] emulator restore failed after ${attempts()}`);
+    throw error;
+  }
+  console.log(
+    `[${label}] emulator data restored to this flow's start (${start.documents.length} docs, ` +
+      `${start.accounts.length} accounts) in ${Date.now() - began} ms: ${attempts()}`,
+  );
 }
 
 /**

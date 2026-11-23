@@ -30,6 +30,11 @@ export type RemoteImageProps = {
   onNaturalSize?: (width: number, height: number) => void;
   /** Cross-fade duration in ms. 0 disables it (avatars, escudos). */
   transitionMs?: number;
+  /**
+   * Off for a picture that gets zoomed by a transform: otherwise the bitmap is
+   * decoded at the view's size and scaling it up only magnifies that.
+   */
+  allowDownscaling?: boolean;
   accessibilityLabel?: string;
   testID?: string;
 };
@@ -41,6 +46,7 @@ export function RemoteImage({
   contentFit = 'cover',
   onNaturalSize,
   transitionMs = 160,
+  allowDownscaling = true,
   accessibilityLabel,
   testID,
 }: RemoteImageProps) {
@@ -81,6 +87,7 @@ export function RemoteImage({
       // the previous row's image while the new one decodes.
       recyclingKey={source}
       transition={transitionMs}
+      allowDownscaling={allowDownscaling}
       onError={handleError}
       onLoad={handleLoad}
       accessibilityLabel={accessibilityLabel}

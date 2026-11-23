@@ -1,5 +1,6 @@
 // apps/mobile/components/feature/LocationPicker.tsx
 import { useEffect, useReducer } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, Image, View } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +19,7 @@ import {
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { initialLocationState, locationReducer } from './locationPickerState';
 
-const ACCENT = '#bb5d3a';
+const ACCENT = colors.light.fg.accent;
 
 export function LocationPicker({
   value,
@@ -67,7 +68,6 @@ export function LocationPicker({
     if (!state.selected && state.coords) return;
     onChange(state.coords, state.selected ? state.query : '');
     // onChange identity is stable enough for this controlled-ish usage.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.coords, state.selected, state.query]);
 
   // Debounced geocoding whenever the user is typing a (non-committed) query.
@@ -164,7 +164,7 @@ export function LocationPicker({
                 <Ionicons
                   name="remove-circle-outline"
                   size={28}
-                  color={zoom <= MAP_ZOOM_MIN ? '#cbd5e1' : ACCENT}
+                  color={zoom <= MAP_ZOOM_MIN ? colors.light.fg.chevron : ACCENT}
                 />
               </Pressable>
               <Pressable
@@ -175,7 +175,7 @@ export function LocationPicker({
                 <Ionicons
                   name="add-circle-outline"
                   size={28}
-                  color={zoom >= MAP_ZOOM_MAX ? '#cbd5e1' : ACCENT}
+                  color={zoom >= MAP_ZOOM_MAX ? colors.light.fg.chevron : ACCENT}
                 />
               </Pressable>
             </HStack>

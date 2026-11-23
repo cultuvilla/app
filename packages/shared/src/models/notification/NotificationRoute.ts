@@ -1,12 +1,16 @@
 import type { NotificationData } from './NotificationDataModel';
 import {
   entityPath,
+  groupAvisoPath,
+  groupCosaRequestPath,
+  groupSectionPath,
   villagePath,
   villageSectionPath,
   wordPath,
   wrappedPath,
   type UrlEntityKind,
 } from '../../utils/urls';
+import { GENERAL_CHAT_THREAD_ID } from '../organization/GroupChatDataModel';
 import { termSlugFromId } from '../vocabulary/VocabularyTermDataModel';
 import { yearOfWrappedId } from '../wrapped/WrappedDataModel';
 
@@ -30,7 +34,8 @@ import { yearOfWrappedId } from '../wrapped/WrappedDataModel';
 export type NotificationRouteInput = Pick<
   NotificationData,
   'type' | 'eventId' | 'entityKind' | 'entityId' | 'municipalityId'
->;
+> &
+  Partial<Pick<NotificationData, 'chatThreadId' | 'cosaRequestId'>>;
 
 const ENTITY_KINDS: Partial<Record<NonNullable<NotificationData['entityKind']>, UrlEntityKind>> = {
   event: 'event',
@@ -46,6 +51,17 @@ export function notificationRoute(
   n: NotificationRouteInput,
   villageSlug: string | null,
 ): string | null {
+  // The group's private side, which is not village-scoped and needs no slug.
+  if (n.entityId) {
+    if (n.type === 'cuota_reminder') return groupSectionPath(n.entityId, 'cuota');
+    if (n.type === 'group_task') {
+      return n.cosaRequestId ? groupCosaRequestPath(n.entityId, n.cosaRequestId) : groupSectionPath(n.entityId, 'tareas');
+    }
+    if (n.type === 'group_message') {
+      if (n.chatThreadId === GENERAL_CHAT_THREAD_ID) return groupSectionPath(n.entityId, 'charla');
+      return n.chatThreadId ? groupAvisoPath(n.entityId, n.chatThreadId) : groupSectionPath(n.entityId, 'avisos');
+    }
+  }
   if (!villageSlug) return null;
   const at = (kind: UrlEntityKind, id: string) => entityPath(kind, { id, title: '', villageSlug });
 
@@ -59,9 +75,10 @@ export function notificationRoute(
     if (kind) return at(kind, n.entityId);
   }
 
-  if (n.type === 'org_approved' || n.type === 'org_rejected') {
-    return villageSectionPath(villageSlug, 'entidades');
-  }
+  // An approved group opened through the entity branch above. What reaches here
+  // is a rejection, or an approval stored before it carried the group's id —
+  // never `/<pueblo>/entidades`, which is the «Añadir grupo» form.
+  if (n.type === 'org_approved' || n.type === 'org_rejected') return villagePath(villageSlug);
   if (n.type === 'village_wrapped_reminder') {
     const year = yearOfWrappedId(n.entityId);
     const screen = villageSectionPath(villageSlug, 'resumen');

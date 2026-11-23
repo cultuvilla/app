@@ -41,16 +41,22 @@ describe('buildApnsJwt', () => {
 });
 
 describe('parseApnsSecret', () => {
-  it('accepts the documented JSON shape', () => {
-    expect(parseApnsSecret(JSON.stringify({ keyId: 'K', privateKey: pem }))).toEqual({ keyId: 'K', privateKey: pem });
+  it('accepts the documented JSON shape, team id included', () => {
+    expect(parseApnsSecret(JSON.stringify({ teamId: '8HWS4483VD', keyId: 'K', privateKey: pem }))).toEqual({
+      teamId: '8HWS4483VD',
+      keyId: 'K',
+      privateKey: pem,
+    });
   });
 
   it.each([
     ['empty', ''],
     ['not JSON', '-----BEGIN PRIVATE KEY-----'],
-    ['missing keyId', JSON.stringify({ privateKey: pem })],
-    ['empty keyId', JSON.stringify({ keyId: '', privateKey: pem })],
-    ['not a key', JSON.stringify({ keyId: 'K', privateKey: 'hunter2' })],
+    ['missing teamId', JSON.stringify({ keyId: 'K', privateKey: pem })],
+    ['malformed teamId', JSON.stringify({ teamId: 'team', keyId: 'K', privateKey: pem })],
+    ['missing keyId', JSON.stringify({ teamId: '8HWS4483VD', privateKey: pem })],
+    ['empty keyId', JSON.stringify({ teamId: '8HWS4483VD', keyId: '', privateKey: pem })],
+    ['not a key', JSON.stringify({ teamId: '8HWS4483VD', keyId: 'K', privateKey: 'hunter2' })],
   ])('rejects %s instead of throwing', (_label, raw) => {
     expect(parseApnsSecret(raw)).toBeNull();
   });

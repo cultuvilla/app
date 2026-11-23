@@ -67,3 +67,9 @@ The code is the source of truth for what exists. Design work follows a lifecycle
 - **[docs/decisions/](docs/decisions/)** — durable rationale for shipped work
   (open feed architecture, persons registry, village censo, dev/beta/prod
   environments, news feed, typed converters, deep links, mobile scaffold, …).
+
+## License
+
+Copyright © 2026 Álvaro Francisco Gil.
+
+Licensed under the [European Union Public Licence v1.2](LICENSE) (EUPL-1.2).

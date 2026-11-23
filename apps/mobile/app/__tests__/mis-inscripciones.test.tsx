@@ -12,7 +12,7 @@ jest.mock('../../lib/auth/useAuth', () => {
   const value = { user: { uid: 'u1' } };
   return { useAuth: () => value };
 });
-jest.mock('../../lib/firestoreErrorLog', () => ({ reportFirestoreError: jest.fn() }));
+jest.mock('../../lib/firestoreErrorLog', () => ({ reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn() }));
 jest.mock('../../components/feature/EventCard', () => {
   const { Text } = require('react-native');
   return { EventCard: ({ event }: { event: { title: string } }) => <Text>{event.title}</Text> };

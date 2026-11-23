@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo, Platform } from 'react-native';
+import { observability } from '@cultuvilla/shared';
 import { colors } from '@cultuvilla/shared/design-system';
 import { IntroOverlay, INTRO_MAX_MS } from '../IntroOverlay';
 
@@ -149,4 +150,47 @@ it('is skipped entirely on the restart that follows a sign-out', async () => {
   await mount(false);
   expect(screen.queryByTestId('intro-overlay')).toBeNull();
   expect(mockPlayer.play).not.toHaveBeenCalled();
+});
+
+// A launch that restarts the app at once (the runaway-queue purge) tears the
+// JS runtime down under the intro, and every expo-audio sync call then throws
+// AppContextLost. Escaping an effect, that aborted the app on iOS.
+describe('when the audio module is gone', () => {
+  const lost = () => {
+    throw new Error('AppContextLost: The app context has been lost');
+  };
+  afterEach(() => {
+    mockPlayer.pause.mockReset();
+    mockPlayer.remove.mockReset();
+  });
+
+  it('fades out without throwing when pause and remove throw', async () => {
+    mockPlayer.pause.mockImplementation(lost);
+    mockPlayer.remove.mockImplementation(lost);
+    await mount(false);
+    fireEvent.press(screen.getByTestId('intro-overlay'));
+    await finishFade();
+    expect(screen.queryByTestId('intro-overlay')).toBeNull();
+  });
+
+  it('unmounts without throwing when remove throws', async () => {
+    mockPlayer.remove.mockImplementation(lost);
+    const view = await mount(false);
+    expect(() => view.unmount()).not.toThrow();
+  });
+
+  it('reports no error for the expected teardown, but does for anything else', async () => {
+    jest.mocked(observability.captureError).mockClear();
+    mockPlayer.remove.mockImplementation(lost);
+    const lostView = await mount(false);
+    lostView.unmount();
+    expect(observability.captureError).not.toHaveBeenCalled();
+
+    mockPlayer.remove.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const view = await mount(false);
+    view.unmount();
+    expect(observability.captureError).toHaveBeenCalledWith(expect.any(Error), { operation: 'intro:sound:remove' });
+  });
 });

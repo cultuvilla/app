@@ -165,6 +165,10 @@ org's member list, `/usuario/{uid}`.
 - **Adding a field:** only if anyone, signed out included, may read it. Contact
   details never belong here.
 
+### `organizations/{orgId}/socioPrivate/{socioId}.phone|email` ← `users/{uid}.telephone|email`
+
+Admins can't read `users/{uid}`, so a socio's shared contact is a copy. `syncPublicProfile` updates a value the socio already shares, in every group where they're active; a value they don't share stays null. See [socio-contact-required.md](../decisions/socio-contact-required.md).
+
 ### `commentCount` ← `comments/`
 
 Every comment-capable kind (event, organization, festivalPoster, place, barrio,
@@ -279,6 +283,25 @@ reactions/likes feature — it was removed in favor of this invisible counter.
 - **Not surfaced in the UI today** — it's tracked for future use (e.g.
   ranking, moderation signal), not rendered on any card or detail screen.
 
+### `villageRankings/top` ← `municipalities/` + every public content collection
+
+One doc listing the active pueblos with the most to show, best first (top
+`VILLAGE_RANKING_SIZE`), so "Descubre otros pueblos" on a village page costs one
+read instead of a count query per pueblo per view.
+
+- **Source of truth:** active `municipalities/` (profile completeness: manual
+  escudo, description, map, fiestas, Embajador) and the counts of each pueblo's
+  public events, news, carteles, approved orgs, places, history entries, words
+  and `municipalityPeople` rows, filtered the way the read site lists them.
+- **Writer:** [functions/src/village/refreshVillageRanking.ts](../../functions/src/village/refreshVillageRanking.ts)
+  — a scheduled job (04:00 Madrid, nightly) that recomputes the whole doc with
+  `count()` aggregations. Not a trigger: discovery tolerates a day's lag, and
+  per-write counters would put a trigger on six collections for one row.
+  Scoring lives in `VillageRankingDataModel.ts` (`villageRichnessScore`).
+- **Rules:** public read, no client writes.
+- **Backfill:** none — the next run rewrites it from scratch. Until the first
+  run the doc is missing and every reader shows nothing.
+
 ### `_card` / `_thumb` image renditions ← any uploaded Storage object
 
 Feed cards and section rows render into boxes a few hundred dp wide; the
@@ -333,6 +356,37 @@ without issuing one `persons` query per place in the village home scroll.
 - **Backfill:** [scripts/backfill-place-burial-count.mjs](../../scripts/backfill-place-burial-count.mjs)
   recalculates existing place counts from `persons/`.
 
+### `peopleCount` ← `municipalityPeople/`
+
+The village home shows how many people a village has to every viewer, but the
+`municipalityPeople` projection it is counted from is readable only by village
+members and app admins. The count is copied onto the public municipality doc.
+
+- **Source of truth:** the `municipalityPeople` rows carrying that
+  `municipalityId` (itself a projection of `persons/`, by
+  `syncMunicipalityPeople`).
+- **Trigger:** [functions/src/village/syncVillagePeopleCount.ts](../../functions/src/village/syncVillagePeopleCount.ts)
+  (`syncVillagePeopleCount`), an `onDocumentWritten` on `municipalityPeople/`.
+  It acts only when a row is created, deleted or changes `municipalityId` —
+  `syncMunicipalityPeople` rewrites rows with a full `set()` on every person
+  edit, and those are no-ops — and then **recounts** with an aggregate
+  `count()` rather than incrementing, so any drift (including rows written
+  between the backfill and the trigger's first deploy) heals on the next
+  roster change. The count and the write share a transaction that reads the
+  municipality doc, so overlapping invocations conflict and the later one
+  recounts; an early count can never overwrite a newer one. A missing
+  municipality doc is skipped.
+- **Rules:** `peopleCount` is on the village-admin diff-lock list in
+  `firestore.rules`; only the trigger (and app admins) can write it.
+- **Backfill:** [scripts/backfill-village-people-count.mjs](../../scripts/backfill-village-people-count.mjs)
+  (`village-people-count`, `pre-deploy`, auto-applied) recounts every
+  municipality from `municipalityPeople/`. Its twin
+  [scripts/backfill-village-people-count-reconcile.mjs](../../scripts/backfill-village-people-count-reconcile.mjs)
+  (`post-deploy`, auto-applied on beta/prod) recounts again after the functions
+  deploy, so a roster change in the window before the trigger went live cannot
+  leave a quiet village's count wrong. It races the live trigger, so it writes in
+  the same kind of transaction.
+
 ### `memberCount` ← `organizations/{orgId}/members/` and `residentCount` ← `persons/`
 
 Membership-size counters that back **ordering** on the village hub: peñas /
@@ -363,6 +417,68 @@ with no extra reads and no visible reshuffle.
   and [scripts/backfill-barrio-resident-count.mjs](../../scripts/backfill-barrio-resident-count.mjs)
   recompute the true count from the source and write it; they double as repair
   tools if a trigger ever drifts.
+
+### socio roster `member` rows ← `organizations/{orgId}/members/`
+
+`organizations/{orgId}/socios/` is the group's libro de socios, so a member's
+row must exist exactly as long as their membership — and then outlive it, with a
+baja. `syncOrgSocioRoster`
+([functions/src/organizations/syncOrgSocioRoster.ts](../../functions/src/organizations/syncOrgSocioRoster.ts))
+watches the members subcollection and, on every event, reconciles the member's
+rows against the member doc **as it is now**, inside one transaction — trigger
+events arrive at least once and in no guaranteed order, so the event itself is
+never trusted. Not a member: their active row and their personas a cargo get the
+baja. A member: the row whose `memberJoinedAt` equals the member doc's
+`joinedAt` is this membership's; an active row of an earlier membership gets the
+baja at the rejoin date, and if no row matches, the member's own persona row is
+adopted (keeping its alta) or a new one opens. A member who is not an admin
+loses `adminTitle`. It is a no-op for the ayuntamiento and for an org already
+deleted.
+
+- **Not a full projection.** Rows are never rewritten wholesale; the trigger
+  only adds rows and patches fields, so persona and typed rows written by clients
+  are never clobbered.
+- **`displayName` is a point-in-time copy** of `users/{uid}.displayName`, like a
+  registration's name: a private persona's doc is unreadable to the admins who
+  list the roster, so the name has to live on the row.
+- **Backfill / repair:** [scripts/backfill-socio-roster.mjs](../../scripts/backfill-socio-roster.mjs)
+  reconciles: an alta for every member with no active row, a baja for an active
+  row whose member has left.
+
+### `chatThreads/{threadId}` ← `chat/` under the group or an aviso
+
+- **Source:** `organizations/{orgId}/chat/{id}` (general) and `organizations/{orgId}/messages/{messageId}/chat/{id}` (an aviso's).
+- **Read model:** `organizations/{orgId}/chatThreads/{threadId}` — `lastMessageAt`, `lastAuthorUid`. Lets the unread badge take one doc per thread instead of a listener on each thread's messages.
+- **Trigger:** `functions/src/organizations/onGroupChatMessageCreated.ts`, a transaction per message, creation only. A deleted message does not move it back: the badge may show a thread whose newest message is gone until it is opened.
+- **Backfill:** none. A thread's summary begins with its first message.
+
+### `cosas.audience` ← `organizations/{orgId}.cosateca`
+
+- **Source:** the group's cosateca setting, `organizations/{orgId}.cosateca` (`enabled`, `audience`).
+- **Read model:** `cosas/{cosaId}.audience` — `pueblo` only while the group's cosateca is on and open to the pueblo, else `integrantes` (`effectiveCosaAudience`). The rules read it to let any village member see the cosa, and the village's cosateca queries `municipalityId + audience`, so neither needs the org doc per cosa.
+- **Trigger:** `syncCosaAudience`, called from `onOrganizationUpdated` (`functions/src/organizations/notificationTriggers.ts`) when the effective audience moves; it rewrites that group's cosas. A cosa is created with the group's current audience, which the create rule checks.
+- **Backfill:** none — the collection starts empty. The org field itself is backfilled by `scripts/backfill-org-cosateca.mjs`.
+
+### `cosas.heldBy` ← `cosaRequests/{requestId}`
+
+- **Source:** the request that is lent (`status: 'lent'`).
+- **Read model:** `cosas/{cosaId}.heldBy` — `{ requestId, uid, name, untilOn, since }`, who has the cosa now and since when. Lets the catalogue say "la tiene Ana hasta el 3" without a query per cosa.
+- **Trigger:** none; the `respondToCosaRequest` callable writes it in the same transaction as the move (`lend` sets it, `return` clears it; for a shared cosa — the group's prestamo — handing it on moves it to the requester, and its holder leaving it in its place clears it). `deleteAccount` clears it when the holder's account goes.
+- **Backfill:** `scripts/backfill-cosa-owner-shares.mjs` adds `since` to any written before it.
+
+### `cosaRequests.holderUid` ← `cosas/{cosaId}.heldBy` (shared cosas)
+
+- **Source:** the holder of a shared cosa (`cosas.heldBy.uid` on a group's prestamo, `isSharedCosa`).
+- **Read model:** `cosaRequests/{requestId}.holderUid` — who answers the request. Lets the holder's Buzón and *Me piden* query `holderUid == uid`, and the rules let the holder read it, without reading the cosa.
+- **Trigger:** none; the requester copies it at creation (the create rule checks it against the cosa), and the `respondToCosaRequest` callable rewrites it on the cosa's other open requests in the handover's transaction, and clears it on them when the holder leaves the cosa in its place. `deleteAccount` clears it on the requests waiting on a departing holder.
+- **Backfill:** `scripts/backfill-cosa-owner-shares.mjs` (null where missing; the holder on a held shared cosa's waiting requests).
+
+### `cosas/{cosaId}/slots/{startISO}` ← `cosaRequests/{requestId}` (reservas)
+
+- **Source:** a reserva's live bookings (`cosaKind: 'reserva'`, `status` `pending` or `accepted`).
+- **Read model:** one doc per taken slot, keyed by the slot's start instant: `{ requestId, startAt, endAt, status }`. It is the slot's lock — `bookReservaSlot` claims it in the booking's transaction, so two people tapping the same slot leave one booking — and what lets every viewer of the cosa grey out taken slots, since bookings themselves are readable only by their parties. Names no one.
+- **Trigger:** none; the callables keep it in the same transaction as the booking: `bookReservaSlot` creates it, `respondToCosaRequest` marks it accepted or deletes it when the booking is declined or cancelled, `setReservaBlackouts` deletes the locks of the bookings a closed day cancels, `deleteAccount` deletes a departing booker's.
+- **Backfill:** none — the collection starts empty.
 
 ### `villageSlug` ← `municipalities/{id}.slug`
 

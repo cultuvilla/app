@@ -10,7 +10,7 @@ import {
 } from '../firebase/sdk/firestore';
 import { getDb } from '../firebase';
 import { eventsCollection } from '../firebase/refs/client';
-import type { EventData } from '../models/event/EventDataModel';
+import { startOfMadridDay, type EventData } from '../models/event/EventDataModel';
 import type { LatLng } from '../models/core/LocationDataModel';
 import { forbiddenAsEmpty, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 
@@ -19,20 +19,15 @@ export interface FeedPage {
   cursor: QueryDocumentSnapshot<EventData> | null;
 }
 
-function startOfToday(): Date {
-  const day = new Date();
-  day.setHours(0, 0, 0, 0);
-  return day;
-}
-
 function upcomingFeedQuery(pageSize: number, cursor: QueryDocumentSnapshot<EventData> | null) {
   const ref = eventsCollection(getDb());
   // Range on `endBoundary` (endDate ?? startDate), not `startDate`: an event
   // stays in the feed for the whole of its (last) day, so one that started
   // earlier today or a multi-day event mid-run still shows. The lower bound is
-  // the start of today, not `now` — completeExpiredEvents flips genuinely-past
-  // events to `completed`, so the status filter drops them. Firestore requires
-  // the first orderBy to match the inequality field, hence orderBy(endBoundary).
+  // the start of today in Madrid (EVENT_TZ, not the phone's clock), not `now` —
+  // completeExpiredEvents flips genuinely-past events to `completed`, so the
+  // status filter drops them. Firestore requires the first orderBy to match the
+  // inequality field, hence orderBy(endBoundary).
   const baseConstraints = [
     where('status', '==', 'published'),
     // Rules do not filter a list — an unpinned query either leaks the private
@@ -40,7 +35,7 @@ function upcomingFeedQuery(pageSize: number, cursor: QueryDocumentSnapshot<Event
     // Private ones reach the feed through getPrivateUpcomingFeed, one org at a
     // time.
     where('visibility', '==', 'public'),
-    where('endBoundary', '>=', Timestamp.fromDate(startOfToday())),
+    where('endBoundary', '>=', Timestamp.fromDate(startOfMadridDay(new Date()))),
     orderBy('endBoundary', 'asc'),
     firestoreLimit(pageSize),
   ];
@@ -87,7 +82,7 @@ function orgUpcomingQuery(orgId: string) {
     eventsCollection(getDb()),
     where('visibilityOrgId', '==', orgId),
     where('status', '==', 'published'),
-    where('endBoundary', '>=', Timestamp.fromDate(startOfToday())),
+    where('endBoundary', '>=', Timestamp.fromDate(startOfMadridDay(new Date()))),
     orderBy('endBoundary', 'asc'),
   );
 }

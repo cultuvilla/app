@@ -1,4 +1,5 @@
 import { Timestamp, GeoPoint } from '../sdk/firestore';
+import { converterCache } from './makeConverter';
 import type { SdkCtors } from './walkers';
 
 // Duck-type predicates instead of `instanceof` — see sdkAdapters.admin.ts
@@ -34,3 +35,6 @@ export const clientSdkCtors: SdkCtors = {
   isTimestamp: isTimestampLike,
   isGeoPoint: isGeoPointLike,
 };
+
+/** This SDK's one converter per schema — see converterCache. */
+export const clientConverter = converterCache(clientSdkCtors);

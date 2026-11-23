@@ -1,59 +1,32 @@
-# Organization event history
+# La Anduela's past activities: a one-off backfill
 
-**Priority:** medium — an organization's page shows only what it did since joining the app
-**Gate:** none
-**Next:** decide whether a backfilled past event is an `event` with `status: 'completed'` or a separate lightweight entity
+**Priority:** low — the org page already lists events created in the app; this only adds La Anduela's history
+**Gate:** blocked:Álvaro runs the backfill himself, as a one-off for La Anduela
+**Next:** write a one-off script that enters La Anduela's past activities (the ~15 invitation letters from 2022–2026, plus ~10 known by name and year) as that organization's events
 
-## The idea
+## Decided 2026-10-17 (Álvaro)
 
-An organization's detail screen (`[pueblo]/entidad/[entidad]`) lists **the events it
-has organized** — but only those created in the app. It should go back as far as the
-organization has records.
+**Not an app feature.** Organizations get no way to enter past events. Álvaro backfills
+La Anduela's archive once, by hand or by script, for this one case. If another
+organization ever asks, that's a new plan.
 
-For a peña or an asociación, that list is the organization's identity. A cultural
-association in a small village is "the one that does the matanza in December, the summer
-meal, and a trip every June". Its members join because of that record, and a newcomer
-understands it only through it.
+## Context
 
-## What already exists
+The org detail screen (`[pueblo]/entidad/[entidad]`) already lists the events whose
+`organizerOrgIds` include the org (`watchEventsByOrganization`): upcoming first, then
+past, with private ones shown to vetted members only. The read site's org page lists
+the public ones. What's missing is everything La Anduela did before it joined the app:
+about 25 years of activities.
 
-- **The list itself has shipped.** The org detail screen lists the events whose
-  `organizerOrgIds` include the org (`watchEventsByOrganization`), upcoming then
-  past, private ones for vetted members; the read site's org page lists the public
-  ones. What is left is entering the past.
-- `EventStatus` includes `completed`.
-- Carteles (`festivalPoster`) already model an image with a year-level date — the right
-  shape for the poster or letter of a past activity.
-- The village `historia` (`HistoryEntry`) has `HistoricalDate` with year/month/day
-  precision, which is how old events are actually known.
+## What the backfill must respect
 
-## The part that is new: backfilling the past
-
-The motivating case is Matabuena's cultural association (La Anduela). It has run
-activities for ~25 years, and its private archive holds the invitation letter for
-~15 of them from 2022–2026, plus names and years for ~10 more. None of it can be
-entered today in a way that shows up as *this organization's history*.
-
-Open questions:
-
-- **Past dates.** Can an organizer create an event whose `startDate` is in the past?
-  Rules only require a timestamp, but the create form, notifications and the "upcoming"
-  feeds all assume the future. A backfilled event must never notify anyone or appear
-  in *Próximos*.
-- **Precision.** Many old activities are known only by year ("excursión a Asturias,
-  2022"). `Timestamp` forces a day. Reuse `HistoricalDate`'s precision instead of
-  inventing a day nobody recorded.
-- **Registrations.** A past event has no sign-ups, and none should be imported: past
-  attendance is personal data held by the organization, and a person reaches the app by
-  signing up themselves.
-- **One entity or two.** A completed `event` keeps one list and one URL per activity.
-  A dedicated "past activity" entity avoids polluting event feeds and counters (e.g.
-  `village-fiestas-wrapped` counts events per window). Leaning towards `event` +
-  `completed` + a `backfilled: true` flag that every feed and counter excludes.
-
-## Why it is worth it beyond one association
-
-Every organization in every village has the same gap. The pueblo's own `historia`
-records *what happened*, but not *who made it happen*. A per-organization activity list
-gives peñas and asociaciones a reason to maintain their page that WhatsApp cannot match:
-a durable, public record of what they have done.
+- **Nobody is notified.** A past event must never send a notification or appear in
+  *Próximos*. Write it with a past `startDate` and `status: 'completed'`, straight from
+  the script, not through the create flow.
+- **Counters.** `village-fiestas-wrapped` counts events per window. Check whether
+  backfilled events would skew a published window before writing them.
+- **No registrations.** Past attendance is personal data the association holds. None
+  is imported.
+- **Dates known only by year** ("excursión a Asturias, 2022"): `Timestamp` forces a
+  day. Pick a convention, e.g. 1 January or mid-year, and say in the event that only
+  the year is known.

@@ -66,8 +66,9 @@ export function sourceTestIds(files = sourceFiles()) {
 }
 
 // Keys whose value names a testID: Maestro's own `id:`, and the env vars the
-// shared subflows forward into one (`TAP`, `TARGET`, `INPUT`, `EXPECT`, `FIELD`).
-const REF = /^\s*-?\s*(id|TAP|TARGET|INPUT|EXPECT|FIELD):\s*(.+?)\s*$/;
+// shared subflows forward into one (`TAP`, `TARGET`, `INPUT`, `EXPECT`, `FIELD`,
+// `PICKER` for pick-village.yaml, `ID` for set-stored-toggle.yaml).
+const REF = /^\s*-?\s*(id|TAP|TARGET|INPUT|EXPECT|FIELD|PICKER|ID):\s*(.+?)\s*$/;
 // These two double as Firestore values and field names in docField.js, so they
 // count towards coverage but are never required to name a control.
 const COVERAGE_ONLY = new Set(['EXPECT', 'FIELD']);
@@ -207,12 +208,23 @@ export function controlsWithoutTestId(files = sourceFiles(), root = mobileDir) {
   return misses;
 }
 
+// Whether a test file names a gap's id as a string literal in code: the whole
+// id between quotes, or for a prefix id (`group-row-*`) a literal that starts
+// with it. A comment, or a longer id that merely contains it, does not count.
+export function referencesTestId(source, key) {
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  const prefix = key.endsWith('*');
+  const head = (prefix ? key.slice(0, -1) : key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(prefix ? `['"\`]${head}` : `['"\`]${head}['"\`]`).test(code);
+}
+
 export function readUncovered() {
   return JSON.parse(readFileSync(uncoveredPath, 'utf8'));
 }
 
 // Rewrites the gap list from the current coverage, keeping each surviving
-// entry's reason and giving a new one `todo: <where it renders>`.
+// entry's reason and giving a new one `todo: <where it renders>` — which the
+// ratchet rejects until a flow covers it or it is marked unit-tested/device-only.
 function writeUncovered() {
   const previous = readUncovered();
   const ids = sourceTestIds();

@@ -6,13 +6,26 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams, Redirect } from 'expo-router';
-import { Screen, Text, Input, DateTimeField, FieldLabel, InfoTooltip, Toggle, HStack, VStack, Pressable, ErrorState } from '../../components/primitives';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
+import { Screen, Text, Input, DateField, DateTimeField, FieldLabel, InfoTooltip, Toggle, HStack, VStack, Pressable, ErrorState } from '../../components/primitives';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { EventCoverPicker } from '../../components/feature/EventCoverPicker';
 import { LocationField } from '../../components/feature/LocationField';
 import { MyVillagePicker, type VillageOption } from '../../components/feature/MyVillagePicker';
 import { OrganizerPicker } from '../../components/feature/OrganizerPicker';
 import { SignupQuestionsEditor } from '../../components/feature/signup/SignupQuestionsEditor';
+import { OptionsSheet } from '../../components/feature/groups/OptionsSheet';
+import { SelectField } from '../../components/feature/groups/SelectField';
+import {
+  EventTasksEditor,
+  blankEventTask,
+  eventTasksMissingMonth,
+  type EventTaskDraft,
+} from '../../components/feature/EventTasksEditor';
+import { useMyGroups } from '../../lib/orgs/useMyGroups';
+import { createGroupTasks } from '@cultuvilla/shared/services/groupTaskService';
+import { yearlyEventTask } from '@cultuvilla/shared/models/organization';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
 import { useCallable } from '../../lib/useCallable';
@@ -20,32 +33,53 @@ import { withFirestoreErrorLog } from '../../lib/firestoreErrorLog';
 import { showConfirm } from '../../lib/dialogs';
 import { pickImageAsBlob } from '../../lib/images';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import { escudoThumbDisplayUrl } from '@cultuvilla/shared/models/municipality';
 import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberService';
 import { haversineKm } from '@cultuvilla/shared/services/feedService';
-import { createEvent, updateEvent, getEvent, updateEventStatus } from '@cultuvilla/shared/services/eventService';
+import {
+  cancelSeriesFrom,
+  createEvent,
+  createEventSeries,
+  getEvent,
+  setEventsImage,
+  updateEvent,
+  updateEventStatus,
+} from '@cultuvilla/shared/services/eventService';
 import { useEntityCapabilities } from '../../lib/auth/useEntityCapabilities';
 import { uploadEventImage } from '@cultuvilla/shared/services/imageService';
 import type { UploadableImage } from '@cultuvilla/shared/services/imageService';
-import { buildLocationData } from '@cultuvilla/shared/models/core/LocationDataModel';
-import {
-  isUsableSignupField,
-  type SignupFieldSpec,
-} from '@cultuvilla/shared/models/event/SignupFieldModel';
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 import { Stepper, type StepConfig } from '../../components/feature/Stepper';
+import { useVillageFiestas } from '../../lib/fiestas/useVillageFiestas';
 import { DeleteHeaderButton } from '../../components/feature/DeleteHeaderButton';
 import { roundUpToMinuteStep } from '../../lib/date/clockGrid';
-import { MAX_SIGNUP_GROUP_SIZE } from '@cultuvilla/shared/models/event/EventDataModel';
 import {
   MAX_EVENT_BIRTH_YEAR,
+  MAX_SIGNUP_GROUP_SIZE,
   MIN_EVENT_BIRTH_YEAR,
-} from '@cultuvilla/shared/models/event/EventFormSchema';
+  madridDayKey,
+} from '@cultuvilla/shared/models/event/EventDataModel';
+import { isoWeekday } from '@cultuvilla/shared/models/event/EventSeriesModel';
+import {
+  blankEventDraft,
+  buildEventCreateInput,
+  buildEventUpdate,
+  deriveEventDraft,
+  draftFromEvent,
+  loadedFromEvent,
+  type EventDraft,
+  type LoadedEvent,
+  type Recurrence,
+} from '../../lib/events/eventDraft';
 
 /** Every real group size — parejas, tríos, grupos de cuatro. Size 1 isn't a
  *  choice here: it's what the "inscripción por grupos" toggle being off means. */
 const GROUP_SIZE_CHOICES = Array.from({ length: MAX_SIGNUP_GROUP_SIZE - 1 }, (_, i) => i + 2);
+
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
+
+const RECURRENCES: readonly Recurrence[] = ['weekly', 'monthly', 'yearly'];
+const DATE_MODES = ['fixed', 'varying'] as const;
 
 /** Nearest joined village to a coordinate (by great-circle distance), or null. */
 function nearestVillage(c: LatLng, villages: VillageOption[]): VillageOption | null {
@@ -84,6 +118,52 @@ function stepBody(children: React.ReactNode) {
  * control — the Detalles step is a list of decisions, and spelling each one out
  * inline pushed the controls themselves below the fold.
  */
+/** The label on the left, the current choice on the right; tapping it opens the options. */
+function ChoiceRow<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  testID,
+}: {
+  label: string;
+  value: T;
+  options: readonly { key: T; label: string; description: string }[];
+  onChange: (next: T) => void;
+  testID: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.key === value)?.label ?? '';
+  return (
+    <>
+      <HStack gap={2} className="items-center justify-between">
+        <FieldLabel>{label}</FieldLabel>
+        <Pressable
+          onPress={() => setOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: ${current}`}
+          testID={`${testID}-trigger`}
+          className="flex-row items-center py-1"
+        >
+          <Text className="mr-1 font-semibold">{current}</Text>
+          <Ionicons name="chevron-down" size={iconSizes.sm} color={colors.light.fg.accent} />
+        </Pressable>
+      </HStack>
+      <OptionsSheet
+        visible={open}
+        title={label}
+        options={options.map((o) => ({ ...o, selected: o.key === value }))}
+        onPick={(key) => {
+          onChange(key as T);
+          setOpen(false);
+        }}
+        onClose={() => setOpen(false)}
+        testID={testID}
+      />
+    </>
+  );
+}
+
 function ToggleField({
   label,
   help,
@@ -126,13 +206,19 @@ export default function NewEventScreen() {
   // prefills every field, and saves via updateEvent. Otherwise it creates a new
   // event. A `villageId` param (e.g. from a village's "Próximos eventos" add
   // card) targets that village; otherwise fall back to the user's active one.
-  const { villageId, eventId } = useLocalSearchParams<{ villageId?: string; eventId?: string }>();
+  // A `copyFrom` param (a repeating event's "Repetir el año que viene") creates a
+  // new event prefilled from that one, its dates moved a year.
+  // An `organizerOrgId` param (a group's "Crear evento") starts with that group organizing.
+  const { villageId, eventId, copyFrom, organizerOrgId } = useLocalSearchParams<{
+    villageId?: string;
+    eventId?: string;
+    copyFrom?: string;
+    organizerOrgId?: string;
+  }>();
   const editMode = !!eventId;
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // Existing cover URL (edit mode); replaced only if the user picks a new image.
-  const [existingImageURL, setExistingImageURL] = useState<string | null>(null);
 
   // Village selection. The event's `municipalityId` must be a village the user
   // has joined (enforced by the create rule), so the dropdown is limited to
@@ -155,106 +241,102 @@ export default function NewEventScreen() {
   const villageSlug = editMode ? editVillageSlug : (selectedVillage?.slug ?? '');
   const municipalityCoordinates = selectedVillage?.coordinates ?? null;
 
-  // form fields
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [startDate, setStartDate] = useState<Date | null>(() => roundUpToMinuteStep(new Date(), 5));
-  // Optional multi-day end; null = single-day event.
-  const [endDate, setEndDate] = useState<Date | null>(null);
-  const [coords, setCoords] = useState<LatLng | null>(null);
-  const [locationName, setLocationName] = useState('');
-  const [maxAttendees, setMaxAttendees] = useState('');
-  const [telephoneRequired, setTelephoneRequired] = useState(false);
-  const [requiresPayment, setRequiresPayment] = useState(false);
-  // 1 = ordinary individual sign-up. Frozen once anyone has signed up: seats
-  // already booked were seated against the old size (firestore.rules enforces
-  // the same, see isFrozenGroupSizeChange).
-  const [signupGroupSize, setSignupGroupSize] = useState(1);
-  // Advisory birth-year window ("nacidos entre X y Y"). Kept as strings so a
-  // half-typed year doesn't fight the numeric state; parsed on submit.
-  // The window is one decision — "¿limito la edad?" — and an optional
-  // refinement. Switching it off keeps whatever was typed so a mis-tap doesn't
-  // destroy it; submit reads the toggle, not the text.
-  const [birthYearLimited, setBirthYearLimited] = useState(false);
-  const [minBirthYear, setMinBirthYear] = useState('');
-  const [maxBirthYear, setMaxBirthYear] = useState('');
-  // Off = the event takes no sign-ups through the app (entrada libre, or a list
-  // kept elsewhere). `signupInfo` then replaces the sign-up button on the
-  // detail screen.
-  const [signupEnabled, setSignupEnabled] = useState(true);
-  const [signupInfo, setSignupInfo] = useState('');
-  // Default on: in a pueblo, seeing who is going is what drives sign-ups.
-  const [attendeesPublic, setAttendeesPublic] = useState(true);
-  // Restrict the event to the members of its single organizing org. Kept as a
-  // boolean rather than the org id itself so the switch survives the user
-  // swapping which org organizes; the id is derived at submit time.
-  const [privateToOrg, setPrivateToOrg] = useState(false);
-  // Off by default: most events need no questions beyond the sign-up itself,
-  // so the Preguntas step only exists once the creator asks for a form.
-  const [formEnabled, setFormEnabled] = useState(false);
-  const [signupFields, setSignupFields] = useState<SignupFieldSpec[]>([]);
-  const [lockedFieldCount, setLockedFieldCount] = useState(0);
-  const [groupSizeLocked, setGroupSizeLocked] = useState(false);
-  // What saving with sign-ups switched off would destroy: how many
-  // registrations the event carries, and whether it took sign-ups when the
-  // form opened (flipping the flag off is only destructive from that state).
-  const [existingSignupCount, setExistingSignupCount] = useState(0);
-  const [signupWasEnabled, setSignupWasEnabled] = useState(false);
+  // Every form field, prefilled in one go in edit and copy mode. Fields,
+  // prefill, derived rules and payloads live in lib/events/eventDraft.
+  const [draft, setDraft] = useState<EventDraft>(() =>
+    blankEventDraft(roundUpToMinuteStep(new Date(), 5), organizerOrgId),
+  );
+  const set = <K extends keyof EventDraft>(key: K) => (value: EventDraft[K]) =>
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  const {
+    title,
+    description,
+    startDate,
+    endDate,
+    recurring,
+    recurrence,
+    dateVaries,
+    repeatWeekdays,
+    repeatUntil,
+    coords,
+    locationName,
+    maxAttendees,
+    telephoneRequired,
+    requiresPayment,
+    signupGroupSize,
+    birthYearLimited,
+    minBirthYear,
+    maxBirthYear,
+    signupEnabled,
+    signupInfo,
+    attendeesPublic,
+    privateToOrg,
+    formEnabled,
+    signupFields,
+    organizerUserIds,
+    organizerOrgIds,
+    existingImageURL,
+    inFiesta,
+  } = draft;
+  // Edit mode: the event as loaded — its locks, the series notice, and
+  // cancelling "este y los siguientes" from the date it had before any edit.
+  const [loadedEvent, setLoadedEvent] = useState<LoadedEvent | null>(null);
+  const lockedFieldCount = loadedEvent?.lockedFieldCount ?? 0;
+  const groupSizeLocked = loadedEvent?.groupSizeLocked ?? false;
+  const existingSignupCount = loadedEvent?.existingSignupCount ?? 0;
+  const createdBy = loadedEvent?.createdBy ?? null;
   const [cover, setCover] = useState<UploadableImage | null>(null);
+  // The organizing group's checklist (create only, for a group the creator
+  // belongs to).
+  const [tasksEnabled, setTasksEnabled] = useState(false);
+  const [taskRows, setTaskRows] = useState<EventTaskDraft[]>(() => [blankEventTask()]);
+  const [taskOrgId, setTaskOrgId] = useState<string | null>(null);
+  const [copyLoading, setCopyLoading] = useState(!!copyFrom && !eventId);
 
   // Picking a location auto-selects the nearest joined village (create mode,
   // until the user manually overrides the dropdown).
   function handleLocationChange(c: LatLng, address: string) {
-    setCoords(c);
-    setLocationName(address);
+    setDraft((prev) => ({ ...prev, coords: c, locationName: address }));
     if (!editMode && !villageManuallyPicked) {
       const nearest = nearestVillage(c, joinedVillages);
       if (nearest) setSelectedVillageId(nearest.id);
     }
   }
 
-  // organizer state: creator always included.
-  // Use an effect (not a one-shot initializer) so that if auth resolves after
-  // the first render the creator's uid is still seeded.
-  const [organizerUserIds, setOrganizerUserIds] = useState<string[]>([]);
-  const [createdBy, setCreatedBy] = useState<string | null>(null);
-  const [organizerOrgIds, setOrganizerOrgIds] = useState<string[]>([]);
-  // A private event names exactly one org, and that org must be one of the
-  // organizers — the switch is only offered in that case, but a stale toggle
-  // left behind by adding a second org must not slip through. The same value is
-  // saved AND used to build the event's URL, so a private event is never opened
-  // at a URL that spells out its title.
-  const visibilityOrgId =
-    privateToOrg && organizerOrgIds.length === 1 ? (organizerOrgIds[0] ?? null) : null;
+  // The pueblo's fiesta editions: an event dated inside one is offered its programme.
+  const fiestas = useVillageFiestas(municipalityId);
+  const derived = deriveEventDraft(draft, loadedEvent, fiestas.status === 'ready' ? fiestas.editions : null);
+  const offeredEdition = fiestas.editions.find((e) => e.id === derived.fiestaEditionOffer) ?? null;
+  const {
+    visibilityOrgId,
+    varyingDate,
+    seriesFrequency,
+    isSeries,
+    weekly,
+    repeatsYearly,
+    seriesEndInvalid,
+    seriesUntilInvalid,
+    birthYearOutOfBounds,
+    birthYearRangeInvalid,
+    signupsWouldBeWiped,
+  } = derived;
 
-  // Only an org whose members are admitted by approval may hold a private
-  // event (the rules refuse the rest). Loaded for the single organizing org,
-  // the only case the switch is offered in.
-  const soleOrgId = organizerOrgIds.length === 1 ? (organizerOrgIds[0] ?? null) : null;
-  const [soleOrgRequiresApproval, setSoleOrgRequiresApproval] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (!soleOrgId) return;
-    let cancelled = false;
-    setSoleOrgRequiresApproval(null);
-    void getOrganization(soleOrgId)
-      .then((org) => {
-        if (!cancelled) setSoleOrgRequiresApproval(org?.joinPolicy === 'approval');
-      })
-      .catch(() => {
-        if (!cancelled) setSoleOrgRequiresApproval(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [soleOrgId]);
+  // The organizing groups the creator belongs to: any member writes its tasks.
+  const { groups: myGroups } = useMyGroups(editMode ? null : (user?.uid ?? null));
+  const taskOrgIds = organizerOrgIds.filter((id) => myGroups.some((g) => g.org.id === id));
+  const taskOrg = taskOrgIds.includes(taskOrgId ?? '') ? taskOrgId : (taskOrgIds[0] ?? null);
+  const tasksOffered = !editMode && taskOrg !== null;
 
   useEffect(() => {
     // Only auto-seed the creator when composing a new event. In edit mode the
     // organizer list is loaded from the event and must not gain the current
     // user (a village admin may be editing an event they don't organize).
+    // An effect, not the initializer, so a uid that resolves late is seeded too.
     if (!user || editMode) return;
-    setOrganizerUserIds((prev) =>
-      prev.includes(user.uid) ? prev : [user.uid, ...prev],
+    setDraft((prev) =>
+      prev.organizerUserIds.includes(user.uid)
+        ? prev
+        : { ...prev, organizerUserIds: [user.uid, ...prev.organizerUserIds] },
     );
   }, [user, editMode]);
 
@@ -270,6 +352,7 @@ export default function NewEventScreen() {
           setLoadError('not-found');
           return;
         }
+        setLoadedEvent(loadedFromEvent(ev));
         setEditMunicipalityId(ev.municipalityId);
         setEditVillageSlug(ev.villageSlug);
         setEditVillage({
@@ -280,36 +363,7 @@ export default function NewEventScreen() {
           coordinates: ev.villageCoordinates ?? null,
           escudoThumbUrl: null,
         });
-        setTitle(ev.title);
-        setDescription(ev.description);
-        setStartDate(ev.startDate);
-        setEndDate(ev.endDate ?? null);
-        setCoords(ev.location?.coordinates ?? null);
-        setLocationName(ev.location?.displayName ?? '');
-        setMaxAttendees(ev.maxAttendees != null ? String(ev.maxAttendees) : '');
-        setTelephoneRequired(!!ev.telephoneRequired);
-        setRequiresPayment(!!ev.requiresPayment);
-        setSignupGroupSize(ev.signupGroupSize);
-        setMinBirthYear(ev.minBirthYear == null ? '' : String(ev.minBirthYear));
-        setMaxBirthYear(ev.maxBirthYear == null ? '' : String(ev.maxBirthYear));
-        setBirthYearLimited(ev.minBirthYear != null || ev.maxBirthYear != null);
-        setSignupEnabled(ev.signupEnabled !== false);
-        setSignupInfo(ev.signupInfo ?? '');
-        setAttendeesPublic(ev.attendeesVisibility !== 'organizers');
-        setSignupFields(ev.signupFields ?? []);
-        setFormEnabled((ev.signupFields ?? []).length > 0);
-        // Answers already collected are keyed by these ids, so once the event
-        // has sign-ups the existing rows are frozen and only new ones can be
-        // added. firestore.rules enforces the size half of the same invariant.
-        setLockedFieldCount(ev.totalCount > 0 ? (ev.signupFields ?? []).length : 0);
-        setGroupSizeLocked(ev.totalCount > 0);
-        setExistingSignupCount(ev.totalCount);
-        setSignupWasEnabled(ev.signupEnabled !== false);
-        setOrganizerUserIds(ev.organizerUserIds ?? []);
-        setCreatedBy(ev.createdBy);
-        setOrganizerOrgIds(ev.organizerOrgIds ?? []);
-        setPrivateToOrg(ev.visibilityOrgId !== null);
-        setExistingImageURL(ev.imageURL ?? null);
+        setDraft((prev) => draftFromEvent(prev, ev, { mode: 'edit' }));
         setLoadError(null);
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e));
@@ -322,6 +376,27 @@ export default function NewEventScreen() {
       cancelled = true;
     };
   }, [editMode, eventId]);
+
+  // ── Copy mode: next year's edition of a yearly event ─────────────────────
+  // The village comes in as the `villageId` param, so the village list below
+  // selects it; sign-ups, roster and comments stay with last year's edition.
+  useEffect(() => {
+    if (editMode || !copyFrom || !user) return;
+    let cancelled = false;
+    void withFirestoreErrorLog('event:getEvent', () => getEvent(copyFrom))
+      .then((ev) => {
+        if (cancelled || !ev) return;
+        setDraft((prev) => draftFromEvent(prev, ev, { mode: 'copy', uid: user.uid }));
+        setVillageManuallyPicked(true);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCopyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editMode, copyFrom, user]);
 
   // ── Create mode: load the villages the user can post to ───────────────────
   useEffect(() => {
@@ -369,85 +444,46 @@ export default function NewEventScreen() {
     };
   }, [editMode, user, villageId, profile?.activeMunicipalityId]);
 
-  // Typed years, validated live so the step can refuse to advance. A blank
-  // end is an open-ended window, not an error.
-  const minBirthYearNum = minBirthYear.trim() ? Number(minBirthYear) : null;
-  const maxBirthYearNum = maxBirthYear.trim() ? Number(maxBirthYear) : null;
-  const outOfBounds = (y: number | null) =>
-    y !== null && (!Number.isInteger(y) || y < MIN_EVENT_BIRTH_YEAR || y > MAX_EVENT_BIRTH_YEAR);
-  const birthYearOutOfBounds =
-    birthYearLimited && (outOfBounds(minBirthYearNum) || outOfBounds(maxBirthYearNum));
-  const birthYearRangeInvalid =
-    birthYearLimited &&
-    minBirthYearNum !== null &&
-    maxBirthYearNum !== null &&
-    maxBirthYearNum < minBirthYearNum;
+  function seedWeekdays() {
+    // Seed the obvious answer: the first day's own weekday.
+    if (repeatWeekdays.length === 0 && startDate) set('repeatWeekdays')([isoWeekday(startDate)]);
+  }
 
-  // Survives a failed cover upload so the retry patches the event that was
-  // already created instead of creating another one. See the create branch.
-  const createdEventIdRef = useRef<string | null>(null);
+  function toggleRecurring(on: boolean) {
+    set('recurring')(on);
+    if (on && recurrence === 'weekly') seedWeekdays();
+  }
+
+  function pickRecurrence(next: Recurrence) {
+    set('recurrence')(next);
+    if (next === 'weekly') seedWeekdays();
+  }
+
+  function toggleWeekday(day: number) {
+    setDraft((prev) => ({
+      ...prev,
+      repeatWeekdays: prev.repeatWeekdays.includes(day)
+        ? prev.repeatWeekdays.filter((d) => d !== day)
+        : [...prev.repeatWeekdays, day],
+    }));
+  }
+
+  // Survives a failed cover upload so the retry patches the events that were
+  // already created instead of creating more. See the create branch.
+  const createdEventIdsRef = useRef<string[] | null>(null);
+  // Same for the checklist: a retry never writes it twice.
+  const tasksCreatedRef = useRef(false);
 
   const { fire: submit, isPending } = useCallable({
     operation: editMode ? 'event:update' : 'event:create',
     callable: async () => {
       if (!municipalityId || !user || !startDate) return;
-      const location = buildLocationData({
-        // coords is validated non-null before submit() is reachable
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        coordinates: coords!,
-        displayName: locationName.trim() || municipalityName,
-      });
-      const maxAttendeesValue = maxAttendees.trim() ? Number(maxAttendees) : null;
-      // A window is only read by the in-app sign-up sheet, so it is dropped
-      // outright when in-app sign-ups are off — same rule as signupInfo, and
-      // the one EventFormSchema and firestore.rules both encode.
-      const yearsApply = signupEnabled && birthYearLimited;
-      const minBirthYearValue = yearsApply && minBirthYear.trim() ? Number(minBirthYear) : null;
-      const maxBirthYearValue = yearsApply && maxBirthYear.trim() ? Number(maxBirthYear) : null;
-      // Half-finished rows (no label yet, or a select with no options to pick)
-      // would be unanswerable, so they never reach the event doc. Locked rows
-      // are kept verbatim — dropping one would break the additive-only rule.
-      // With the form switched off the questions are dropped, which is only
-      // reachable while none are locked (the toggle is disabled otherwise).
-      const usableSignupFields = (formEnabled ? signupFields : [])
-        .map((f) => ({
-          ...f,
-          label: f.label.trim(),
-          // The options editor appends an empty row as you type; a blank option
-          // is unanswerable and fails the model's `min(1)` on read.
-          options: f.options.map((o) => o.trim()).filter((o) => o.length > 0),
-        }))
-        .filter((f, i) => i < lockedFieldCount || (f.label.length > 0 && isUsableSignupField(f)));
-
-      // A note about signing up elsewhere is only meaningful with in-app
-      // sign-ups off; EventFormSchema rejects the other combination.
-      const signupInfoValue = signupInfo.trim() ? signupInfo.trim() : null;
-
-      const visibility = visibilityOrgId === null ? ('public' as const) : ('organization' as const);
+      // coords is validated non-null before submit() is reachable
+      const ready = { ...draft, startDate, coords: coords! };
 
       // ── Edit: patch the existing event; only touch the cover if replaced ──
       if (editMode && eventId) {
-        await updateEvent(eventId, {
-          title: title.trim(),
-          description: description.trim(),
-          startDate,
-          endDate,
-          location,
-          maxAttendees: maxAttendeesValue,
-          telephoneRequired,
-          requiresPayment,
-          signupEnabled,
-          signupInfo: signupEnabled ? null : signupInfoValue,
-          attendeesVisibility: attendeesPublic ? ('members' as const) : ('organizers' as const),
-          signupFields: usableSignupFields,
-          signupGroupSize,
-          minBirthYear: minBirthYearValue,
-          maxBirthYear: maxBirthYearValue,
-          organizerUserIds,
-          organizerOrgIds,
-          visibility,
-          visibilityOrgId,
-        });
+        await updateEvent(eventId, buildEventUpdate(ready, derived, { villageName: municipalityName }));
         if (cover) {
           const url = await uploadEventImage(municipalityId, eventId, {
             blob: cover.blob,
@@ -466,45 +502,48 @@ export default function NewEventScreen() {
       // has to finish *that* event — re-running createEvent would leave the
       // user with a duplicate for every failed attempt. The id survives in a
       // ref for exactly as long as the form does.
-      let newId = createdEventIdRef.current;
-      if (!newId) {
-        newId = await createEvent({
-          title: title.trim(),
-          description: description.trim(),
-          startDate,
-          endDate,
-          location,
-          maxAttendees: maxAttendeesValue,
-          telephoneRequired,
-          requiresPayment,
-          signupEnabled,
-          signupInfo: signupEnabled ? null : signupInfoValue,
-          attendeesVisibility: attendeesPublic ? ('members' as const) : ('organizers' as const),
-          signupFields: usableSignupFields,
-          signupGroupSize,
-          minBirthYear: minBirthYearValue,
-          maxBirthYear: maxBirthYearValue,
-          status: 'published',
-          organizerUserIds,
-          organizerOrgIds,
-          visibility,
-          visibilityOrgId,
-          createdBy: user.uid,
+      let newIds = createdEventIdsRef.current;
+      if (!newIds) {
+        const input = buildEventCreateInput(ready, derived, {
+          uid: user.uid,
           municipalityId,
           villageName: municipalityName,
           villageCoordinates: municipalityCoordinates,
+          hasNewCover: !!cover,
         });
-        createdEventIdRef.current = newId;
+        newIds = derived.seriesRule
+          ? await createEventSeries({ ...input, endDate: derived.slotEnd }, derived.seriesRule)
+          : [await createEvent(input)];
+        createdEventIdsRef.current = newIds;
+      }
+      const [firstId] = newIds;
+      if (!firstId) return;
+      // The checklist hangs off the first occurrence, the one the group plans.
+      const tasks = taskRows.filter((r) => r.title.trim() !== '');
+      if (tasksOffered && tasksEnabled && taskOrg && tasks.length > 0 && !tasksCreatedRef.current) {
+        const today = madridDayKey(new Date());
+        await createGroupTasks(
+          taskOrg,
+          tasks.map((r) =>
+            repeatsYearly && r.month !== null
+              ? yearlyEventTask({ title: r.title.trim(), month: r.month }, { today, eventId: firstId })
+              : { title: r.title.trim(), dueOn: r.dueOn ? madridDayKey(r.dueOn) : null, eventId: firstId },
+          ),
+          user.uid,
+        );
+        tasksCreatedRef.current = true;
       }
       if (cover) {
-        const url = await uploadEventImage(municipalityId, newId, {
+        // One upload, under the first occurrence; the rest point at it.
+        const url = await uploadEventImage(municipalityId, firstId, {
           blob: cover.blob,
           filename: 'cover.jpg',
           contentType: cover.contentType,
         });
-        await updateEvent(newId, { imageURL: url });
+        if (newIds.length === 1) await updateEvent(firstId, { imageURL: url });
+        else await setEventsImage(newIds, url);
       }
-      return newId;
+      return firstId;
     },
     onSuccess: (id) => {
       if (id) router.replace(eventHref({ id, title, villageSlug, visibilityOrgId }));
@@ -514,7 +553,7 @@ export default function NewEventScreen() {
 
   // Edit mode is organizer-gated (mirrors the event update rules); a
   // non-organizer who deep-links here is sent back to the public detail.
-  const { canEdit, loading: capLoading } = useEntityCapabilities(municipalityId ?? undefined);
+  const { can, loading: capLoading } = useEntityCapabilities(municipalityId ?? undefined);
 
   const headerTitle = editMode ? t('event.editEvent') : t('event.createEvent');
 
@@ -526,7 +565,6 @@ export default function NewEventScreen() {
   // Turning sign-ups off wipes the event's roster and notifies everyone on it
   // (the `onEventUpdated` trigger does the deleting). That is not something to
   // discover afterwards, so the count is named before the save goes through.
-  const signupsWouldBeWiped = editMode && signupWasEnabled && !signupEnabled && existingSignupCount > 0;
   const handleComplete = () => {
     if (!signupsWouldBeWiped) {
       void submit();
@@ -545,7 +583,12 @@ export default function NewEventScreen() {
     return updateEventStatus(eventId, 'cancelled').then(() => router.replace('/(tabs)'));
   };
 
-  if (loading) {
+  const deleteSeriesFromHere = () => {
+    if (!loadedEvent) return;
+    return cancelSeriesFrom(loadedEvent).then(() => router.replace('/(tabs)'));
+  };
+
+  if (loading || copyLoading) {
     return (
       <Screen padded={false} topInset={false}>
         <ScreenHeader accent title={headerTitle} />
@@ -571,7 +614,7 @@ export default function NewEventScreen() {
   }
 
   // ── Edit: non-organizer redirect ──────────────────────────────────────────
-  if (editMode && !capLoading && !canEdit(createdBy, organizerUserIds)) {
+  if (editMode && !capLoading && !can('edit', 'event', { createdBy, organizerUserIds })) {
     return <Redirect href={eventHref({ id: eventId, title, villageSlug, visibilityOrgId })} />;
   }
 
@@ -602,7 +645,7 @@ export default function NewEventScreen() {
       },
       render: () => stepBody(
         <>
-          <Input label={t('event.title')} value={title} onChangeText={setTitle} testID="event-title" />
+          <Input label={t('event.title')} value={title} onChangeText={set('title')} testID="event-title" />
           <VStack gap={1}>
             <FieldLabel>{t('event.imageLabel')}</FieldLabel>
             <EventCoverPicker
@@ -618,7 +661,7 @@ export default function NewEventScreen() {
           <Input
             label={t('event.description')}
             value={description}
-            onChangeText={setDescription}
+            onChangeText={set('description')}
             multiline
             numberOfLines={5}
             testID="event-description"
@@ -634,31 +677,23 @@ export default function NewEventScreen() {
               // silently become one, and organizerUserIds is its own clause in
               // the event's update/delete rules. Mirrors news/new.tsx.
               lockedUserId={editMode ? undefined : user.uid}
-              onChangeUsers={setOrganizerUserIds}
-              onChangeOrgs={setOrganizerOrgIds}
+              onChangeUsers={set('organizerUserIds')}
+              onChangeOrgs={set('organizerOrgIds')}
             />
           ) : null}
           {/* Only offered with exactly one organizing org: "private" has to
               name the single group whose membership is the guest list, and a
               two-org event has no such group. */}
-          {organizerOrgIds.length === 1 ? (
-            <VStack gap={1}>
-              <ToggleField
-                label={t('event.privateToOrg')}
-                help={t('event.privateToOrgHint')}
-                value={privateToOrg}
-                onValueChange={setPrivateToOrg}
-                // An already-private event can always be opened up; only
-                // making one private needs an approval org.
-                disabled={!privateToOrg && soleOrgRequiresApproval !== true}
-                testID="private-to-org"
-              />
-              {!privateToOrg && soleOrgRequiresApproval === false ? (
-                <Text tone="muted" variant="caption">
-                  {t('event.privateToOrgNeedsApproval')}
-                </Text>
-              ) : null}
-            </VStack>
+          {/* A series shares one visibility (firestore.rules refuses a change
+              on one occurrence), so its days offer no switch. */}
+          {organizerOrgIds.length === 1 && !loadedEvent?.series ? (
+            <ToggleField
+              label={t('event.privateToOrg')}
+              help={t('event.privateToOrgHint')}
+              value={privateToOrg}
+              onValueChange={set('privateToOrg')}
+              testID="private-to-org"
+            />
           ) : null}
         </>,
       ),
@@ -671,31 +706,150 @@ export default function NewEventScreen() {
         const e: string[] = [];
         if (!startDate) e.push('startDate');
         // endDate is optional, but if set it must not precede startDate.
-        if (endDate && startDate && endDate < startDate) e.push('endDate');
+        if (!isSeries && endDate && startDate && endDate < startDate) e.push('endDate');
+        if (weekly && repeatWeekdays.length === 0) e.push('repeatWeekdays');
+        if (seriesEndInvalid) e.push('endTime');
+        if (seriesUntilInvalid) e.push('repeatUntil');
         if (!coords) e.push('coords');
         if (!municipalityId) e.push('village');
         return e;
       },
       render: () => stepBody(
         <>
+          {loadedEvent?.series ? (
+            <Text tone="muted" variant="bodySm" testID="series-edit-notice">
+              {t('event.seriesEditNotice')}
+            </Text>
+          ) : null}
+          {editMode ? null : (
+            <ToggleField
+              label={t('event.recurring')}
+              help={t('event.recurringHint')}
+              value={recurring}
+              onValueChange={toggleRecurring}
+              testID="event-recurring"
+            />
+          )}
+          {!editMode && recurring ? (
+            <VStack gap={1}>
+              <ChoiceRow
+                label={t('event.frequency')}
+                value={recurrence}
+                options={RECURRENCES.map((r) => ({
+                  key: r,
+                  label: t(`event.frequencyOption.${r}`),
+                  description: t(`event.frequencyDescription.${r}`),
+                }))}
+                onChange={pickRecurrence}
+                testID="event-recurrence"
+              />
+              {recurrence !== 'weekly' ? (
+                <ChoiceRow
+                  label={t('event.dateMode')}
+                  value={dateVaries ? 'varying' : 'fixed'}
+                  options={DATE_MODES.map((m) => ({
+                    key: m,
+                    label: t(`event.dateModeOption.${m}`),
+                    description: t(`event.dateModeDescription.${m}`),
+                  }))}
+                  onChange={(mode) => set('dateVaries')(mode === 'varying')}
+                  testID="event-date-mode"
+                />
+              ) : null}
+              {varyingDate ? (
+                <Text tone="muted" variant="bodySm" testID="event-date-varies-hint">
+                  {t('event.dateVariesHint')}
+                </Text>
+              ) : recurrence === 'yearly' ? (
+                <Text tone="muted" variant="bodySm" testID="event-recurrence-yearly-hint">
+                  {t('event.yearlyHint')}
+                </Text>
+              ) : recurrence === 'monthly' && startDate ? (
+                <Text tone="muted" variant="bodySm" testID="event-recurrence-monthly-hint">
+                  {t('event.monthlyHint', { day: startDate.getDate() })}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
           <DateTimeField
-            label={t('event.startDateTime')}
+            label={isSeries ? t('event.firstDateTime') : varyingDate ? t('event.nextDateTime') : t('event.startDateTime')}
             value={startDate}
-            onChange={setStartDate}
+            onChange={set('startDate')}
             minimumDate={new Date()}
             datePlaceholder={t('event.selectDate')}
             timePlaceholder={t('event.selectTime')}
             testID="startDate"
           />
           <DateTimeField
-            label={t('event.endDateTime')}
+            label={isSeries ? t('event.endTime') : t('event.endDateTime')}
             value={endDate}
-            onChange={setEndDate}
+            onChange={set('endDate')}
             minimumDate={startDate ?? new Date()}
+            timeOnly={isSeries}
             datePlaceholder={t('event.selectDate')}
             timePlaceholder={t('event.selectTime')}
             testID="endDate"
           />
+          {seriesEndInvalid ? (
+            <Text tone="danger" variant="bodySm" testID="end-time-error">
+              {t('event.endTimeInvalid')}
+            </Text>
+          ) : null}
+          {offeredEdition ? (
+            <ToggleField
+              label={t('event.fiestaEdition', { name: offeredEdition.block.name, year: String(offeredEdition.year) })}
+              help={t('event.fiestaEditionHint')}
+              value={inFiesta}
+              onValueChange={set('inFiesta')}
+              testID="event-fiesta-edition"
+            />
+          ) : null}
+          {weekly ? (
+            <VStack gap={1}>
+              <FieldLabel>{t('event.repeatDays')}</FieldLabel>
+              <HStack gap={1} className="items-center">
+                {WEEKDAYS.map((day) => {
+                  const active = repeatWeekdays.includes(day);
+                  return (
+                    <Pressable
+                      key={day}
+                      testID={`repeat-day-${String(day)}`}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={t(`event.weekdayLong.${String(day)}`)}
+                      accessibilityState={{ checked: active }}
+                      onPress={() => toggleWeekday(day)}
+                      className={`flex-1 items-center rounded-lg border py-2 ${
+                        active ? 'border-accent bg-surface' : 'border-subtle'
+                      }`}
+                    >
+                      <Text tone={active ? undefined : 'muted'}>{t(`event.weekdayShort.${String(day)}`)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </HStack>
+              {repeatWeekdays.length === 0 ? (
+                <Text tone="danger" variant="bodySm" testID="repeat-days-error">
+                  {t('event.repeatDaysRequired')}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
+          {isSeries ? (
+            <VStack gap={1}>
+              <DateField
+                label={t('event.repeatUntil')}
+                value={repeatUntil}
+                onChange={set('repeatUntil')}
+                minimumDate={startDate ?? new Date()}
+                testID="repeat-until"
+              />
+              {repeatUntil && seriesUntilInvalid ? (
+                <Text tone="danger" variant="bodySm" testID="repeat-until-error">
+                  {t(seriesFrequency === 'monthly' ? 'event.repeatUntilInvalidMonthly' : 'event.repeatUntilInvalid')}
+                </Text>
+              ) : null}
+            </VStack>
+          ) : null}
           <LocationField
             value={coords}
             displayName={locationName}
@@ -734,14 +888,14 @@ export default function NewEventScreen() {
             label={t('event.signupEnabled')}
             help={t('event.signupEnabledHint')}
             value={signupEnabled}
-            onValueChange={setSignupEnabled}
+            onValueChange={set('signupEnabled')}
             testID="signup-enabled"
           />
           {!signupEnabled ? (
             <Input
               label={t('event.signupInfo')}
               value={signupInfo}
-              onChangeText={setSignupInfo}
+              onChangeText={set('signupInfo')}
               placeholder={t('event.signupInfoPlaceholder')}
               maxLength={200}
               testID="signup-info"
@@ -752,7 +906,7 @@ export default function NewEventScreen() {
           <Input
             label={t('event.maxAttendees')}
             value={maxAttendees}
-            onChangeText={setMaxAttendees}
+            onChangeText={set('maxAttendees')}
             keyboardType="numeric"
             testID="event-max-attendees"
           />
@@ -765,7 +919,7 @@ export default function NewEventScreen() {
               label={t('event.birthYearLimit')}
               help={t('event.birthYearLimitHelp')}
               value={birthYearLimited}
-              onValueChange={setBirthYearLimited}
+              onValueChange={set('birthYearLimited')}
               testID="birth-year-limit"
             />
             {birthYearLimited ? (
@@ -774,7 +928,7 @@ export default function NewEventScreen() {
                 <Input
                   label={t('event.birthYearFrom')}
                   value={minBirthYear}
-                  onChangeText={setMinBirthYear}
+                  onChangeText={set('minBirthYear')}
                   keyboardType="numeric"
                   maxLength={4}
                   placeholder={t('event.birthYearFromExample')}
@@ -785,7 +939,7 @@ export default function NewEventScreen() {
                 <Input
                   label={t('event.birthYearTo')}
                   value={maxBirthYear}
-                  onChangeText={setMaxBirthYear}
+                  onChangeText={set('maxBirthYear')}
                   keyboardType="numeric"
                   maxLength={4}
                   placeholder={t('event.birthYearToExample')}
@@ -811,13 +965,13 @@ export default function NewEventScreen() {
           <ToggleField
             label={t('event.telephoneRequired')}
             value={telephoneRequired}
-            onValueChange={setTelephoneRequired}
+            onValueChange={set('telephoneRequired')}
             testID="telephone-required"
           />
           <ToggleField
             label={t('event.requiresPayment')}
             value={requiresPayment}
-            onValueChange={setRequiresPayment}
+            onValueChange={set('requiresPayment')}
             testID="requires-payment"
           />
           {/* Group sign-up is a yes/no first and a size second. Folding "1" into
@@ -829,7 +983,7 @@ export default function NewEventScreen() {
             label={t('event.signupGroupSize')}
             help={t('event.signupGroupSizeHelp')}
             value={signupGroupSize > 1}
-            onValueChange={(on) => setSignupGroupSize(on ? GROUP_SIZE_CHOICES[0]! : 1)}
+            onValueChange={(on) => set('signupGroupSize')(on ? GROUP_SIZE_CHOICES[0]! : 1)}
             disabled={groupSizeLocked}
             testID="signup-group-size"
           />
@@ -847,7 +1001,7 @@ export default function NewEventScreen() {
                       accessibilityLabel={`${t('event.signupGroupSizeCount')}: ${String(size)}`}
                       accessibilityState={{ selected: active, disabled: groupSizeLocked }}
                       disabled={groupSizeLocked}
-                      onPress={() => setSignupGroupSize(size)}
+                      onPress={() => set('signupGroupSize')(size)}
                       className={`flex-1 items-center rounded-lg border py-2 ${
                         active ? 'border-accent bg-surface' : 'border-subtle'
                       } ${groupSizeLocked ? 'opacity-50' : ''}`}
@@ -872,7 +1026,7 @@ export default function NewEventScreen() {
             label={t('event.attendeesPublic')}
             help={t('event.attendeesPublicHint')}
             value={attendeesPublic}
-            onValueChange={setAttendeesPublic}
+            onValueChange={set('attendeesPublic')}
             testID="attendees-public"
           />
           {/* Questions already answered can't be removed (they key the
@@ -881,11 +1035,20 @@ export default function NewEventScreen() {
             label={t('event.formEnabled')}
             help={t('event.formEnabledHint')}
             value={formEnabled}
-            onValueChange={setFormEnabled}
+            onValueChange={set('formEnabled')}
             disabled={formEnabled && lockedFieldCount > 0}
             testID="form-enabled"
           />
           </>
+          ) : null}
+          {tasksOffered ? (
+            <ToggleField
+              label={t('event.tasksEnabled')}
+              help={t('event.tasksEnabledHint')}
+              value={tasksEnabled}
+              onValueChange={setTasksEnabled}
+              testID="tasks-enabled"
+            />
           ) : null}
         </>,
       ),
@@ -903,9 +1066,33 @@ export default function NewEventScreen() {
       render: () => stepBody(
         <SignupQuestionsEditor
           value={signupFields}
-          onChange={setSignupFields}
+          onChange={set('signupFields')}
           lockedCount={lockedFieldCount}
         />,
+      ),
+    }] as StepConfig[]) : []),
+    ...(tasksOffered && tasksEnabled ? ([{
+      key: 'tasks',
+      title: t('event.stepTasks'),
+      icon: 'checkbox-outline',
+      // Blank rows are dropped on submit, like half-finished questions; only a
+      // yearly task without its month blocks, since it could not be dated.
+      validate: () => (repeatsYearly && eventTasksMissingMonth(taskRows) ? ['taskMonth'] : []),
+      render: () => stepBody(
+        <>
+          {taskOrgIds.length > 1 ? (
+            <SelectField
+              label={t('event.tasks.group')}
+              value={taskOrg ?? ''}
+              options={myGroups
+                .filter((g) => taskOrgIds.includes(g.org.id))
+                .map((g) => ({ value: g.org.id, label: g.org.name }))}
+              onChange={setTaskOrgId}
+              testID="event-tasks-group"
+            />
+          ) : null}
+          <EventTasksEditor rows={taskRows} onChange={setTaskRows} yearly={repeatsYearly} />
+        </>,
       ),
     }] as StepConfig[]) : []),
   ];
@@ -924,10 +1111,15 @@ export default function NewEventScreen() {
               onConfirm={deleteEvent}
               accessibilityLabel={t('common.delete')}
               confirmTitle={t('event.cancelTitle')}
-              confirmMessage={t('event.cancelConfirm')}
-              confirmLabel={t('common.delete')}
+              confirmMessage={loadedEvent?.series ? t('event.cancelSeriesConfirm') : t('event.cancelConfirm')}
+              confirmLabel={loadedEvent?.series ? t('event.cancelSeriesOne') : t('common.delete')}
               cancelLabel={t('common.cancel')}
               deletingLabel={t('common.deleting.event')}
+              alternative={
+                loadedEvent?.series
+                  ? { label: t('event.cancelSeriesFollowing'), onConfirm: deleteSeriesFromHere }
+                  : undefined
+              }
             />
           ) : undefined
         }

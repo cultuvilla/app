@@ -1,8 +1,4 @@
 import { MembershipEventDataSchema } from '../../models/membership/MembershipEventDataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
+import { clientConverter } from './sdkAdapters.client';
 
-export const membershipEventConverterClient = makeConverter(
-  MembershipEventDataSchema,
-  clientSdkCtors,
-);
+export const membershipEventConverterClient = clientConverter(MembershipEventDataSchema);

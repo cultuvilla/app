@@ -1,5 +1,6 @@
 import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
+import { logger } from 'firebase-functions/v2';
 import { inRange, type CartelInput, type WrappedInputs } from '@cultuvilla/shared/wrapped';
 import { EventStatusSchema, RegistrationStatusSchema, isPrivateEvent, madridYear } from '@cultuvilla/shared/models';
 import {
@@ -105,15 +106,29 @@ async function photosByUserId(db: Firestore, userIds: string[]): Promise<Map<str
  * (set by every client upload) gives a URL on the image allowlist, so the
  * article covers go through the same bounded fetch as every other image —
  * and it needs no `signBlob` grant, which a v4 signed URL would.
+ *
+ * Unlike every other image, this one needs the runtime service account to READ
+ * Storage (`storage.objects.get`). When prod lost that grant, every article
+ * cover silently came back null and the Wrapped drew blank tiles with a clean
+ * log — so a failure here is surfaced, never swallowed.
  */
 async function downloadUrl(path: string): Promise<string | null> {
   try {
     const file = getStorage().bucket().file(path);
     const [meta] = await file.getMetadata();
     const token = str(String(meta.metadata?.firebaseStorageDownloadTokens ?? '').split(',')[0]);
-    if (!token) return null;
+    if (!token) {
+      logger.warn('wrapped news image dropped', { handler: 'gatherWrappedInputs', reason: 'no-token', path });
+      return null;
+    }
     return `https://firebasestorage.googleapis.com/v0/b/${file.bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
-  } catch {
+  } catch (error) {
+    logger.warn('wrapped news image dropped', {
+      handler: 'gatherWrappedInputs',
+      reason: 'metadata',
+      path,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }

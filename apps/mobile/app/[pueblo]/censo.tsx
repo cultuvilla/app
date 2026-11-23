@@ -1,4 +1,5 @@
 import { useVillageRoute, withVillageRoute } from '../../lib/navigation/VillageRouteGate';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
@@ -38,7 +39,7 @@ function CensoScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title={title} titleColor="#bb5d3a" />
+      <ScreenHeader title={title} titleColor={colors.light.fg.accent} />
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />

@@ -1,5 +1,4 @@
 import { PublicProfileDataSchema } from '../../models/user/PublicProfileDataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
+import { clientConverter } from './sdkAdapters.client';
 
-export const publicProfileConverterClient = makeConverter(PublicProfileDataSchema, clientSdkCtors);
+export const publicProfileConverterClient = clientConverter(PublicProfileDataSchema);

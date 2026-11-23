@@ -1,7 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { GROUP_SECTIONS } from '@cultuvilla/shared/utils';
 import { resolveAuthRoute } from '../../auth/authRoute';
 import {
+  groupHref,
+  groupSectionHref,
+  groupCosaHref,
+  groupCosaRequestHref,
   barrioHref,
   createEventHref,
   createNewsHref,
@@ -83,9 +88,13 @@ const built: [string, string][] = [
   ...Object.entries(routes),
   ['myVillageHref', myVillageHref('m1')],
   ['villageHref', villageHref('villa')],
-  ...(['barrios', 'carteles', 'censo', 'comunidad', 'editar', 'entidades', 'historia', 'lugares', 'miembros', 'vocabulario'] as const).map(
+  ['groupHref', groupHref('o1')],
+  ...GROUP_SECTIONS.map((s): [string, string] => [`groupSectionHref(${s})`, groupSectionHref('o1', s)]),
+  ...(['barrios', 'carteles', 'censo', 'comunidad', 'cosateca', 'denuncias', 'editar', 'entidades', 'historia', 'lugares', 'miembros', 'vocabulario'] as const).map(
     (s): [string, string] => [`villageSectionHref(${s})`, villageSectionHref('villa', s)],
   ),
+  ['groupCosaHref', groupCosaHref('o1', 'c1')],
+  ['groupCosaRequestHref', groupCosaRequestHref('o1', 'r1')],
   ['eventHref', eventHref(event)],
   ['seatClaimHref', seatClaimHref(event, 'tok')],
   ['newsHref', newsHref({ id: 'n1', title: 'Bando', villageSlug: 'villa' })],
@@ -109,7 +118,18 @@ const built: [string, string][] = [
   ['createNewsHref', createNewsHref({ newsId: 'n1' })],
   ['discoverOrganizeHref', discoverOrganizeHref('m1')],
   ['entityRefHref', entityRefHref('event', 'villa', '_e1')],
+  ['entityRefHref(query)', entityRefHref('organization', 'villa', 'pena_o1', 'intent=join')],
 ];
+
+describe('entityRefHref', () => {
+  it('appends a query to the entity path', () => {
+    expect(entityRefHref('organization', 'villa', 'pena_o1', 'intent=join')).toBe('/villa/entidad/pena_o1?intent=join');
+  });
+
+  it('builds the bare path without one', () => {
+    expect(entityRefHref('organization', 'villa', 'pena_o1')).toBe('/villa/entidad/pena_o1');
+  });
+});
 
 describe('every in-app path lands on a route file', () => {
   it.each(built)('%s → %s', (_name, path) => {

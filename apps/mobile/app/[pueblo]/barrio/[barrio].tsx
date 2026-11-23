@@ -5,13 +5,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { Text } from '../../../components/primitives/Text';
 import { VStack } from '../../../components/primitives/VStack';
 import { HStack } from '../../../components/primitives/HStack';
 import { Avatar } from '../../../components/primitives/Avatar';
 import { Pressable } from '../../../components/primitives/Pressable';
 import { NaturalImage } from '../../../components/primitives/NaturalImage';
+import { ZoomableImage } from '../../../components/primitives/ZoomableImage';
 import { EntityDetailScaffold } from '../../../components/feature/EntityDetailScaffold';
 import type { EntityDetailAction } from '../../../components/feature/EntityDetailHeader';
 import { ENTITY_FALLBACK_ICON } from '../../../lib/entities/registry';
@@ -39,7 +40,7 @@ function BarrioDetailScreen() {
   const { t } = useT();
   const { user } = useAuth();
   const share = useShareDeepLink();
-  const { canManage, canEdit } = useEntityCapabilities(villageId);
+  const { canManage, can } = useEntityCapabilities(villageId);
   const { data: barrio = null, status } = useWatch<Barrio | null>(
     'barrioDetail:watchBarrio',
     villageId && barrioId ? `${villageId}/${barrioId}` : null,
@@ -73,7 +74,7 @@ function BarrioDetailScreen() {
 
   const actions: EntityDetailAction[] = barrio
     ? [
-        ...(canEdit(barrio.proposedBy)
+        ...(can('edit', 'barrio', barrio)
           ? [
               {
                 icon: 'create-outline' as const,
@@ -107,7 +108,9 @@ function BarrioDetailScreen() {
           {barrio.images.length > 1 ? (
             <VStack gap={2} className="pt-2">
               {barrio.images.slice(1).map((uri) => (
-                <NaturalImage key={uri} uri={uri} />
+                <ZoomableImage key={uri} uri={uri} accessibilityLabel={barrio.name}>
+                  <NaturalImage uri={uri} />
+                </ZoomableImage>
               ))}
             </VStack>
           ) : null}
@@ -142,7 +145,7 @@ function BarrioDetailScreen() {
                       <Ionicons
                         name="lock-closed-outline"
                         size={iconSizes.sm}
-                        color="#9ca3af"
+                        color={colors.light.fg.quiet}
                         accessibilityLabel={t('profile.personPrivate')}
                       />
                     )}

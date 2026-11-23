@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -85,7 +86,7 @@ export function CensoSchemaEditor({ villageId }: { villageId: string }) {
     <ScrollView contentContainerClassName="p-4 pb-12">
       <VStack gap={3}>
         {/* Intro line above the first card */}
-        <Text variant="h2" style={{ color: '#566047' }} className="px-1">
+        <Text variant="h2" style={{ color: colors.light.fg.primary }} className="px-1">
           {t('censo.builder.headerDescription')}
         </Text>
 

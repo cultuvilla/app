@@ -94,4 +94,17 @@ describe('BuriedSheet', () => {
     fireEvent.press(getByTestId('buried-persona-p1'));
     expect(getAllByText('village.placeDetail.deathDatePrompt')).toHaveLength(1);
   });
+
+  // No ✕ (decided 2026-11-20): the grab bar is the way out, held while busy.
+  it('closes from its grab bar (buried-sheet-handle), but not while saving', () => {
+    const onClose = jest.fn();
+    const props = { personas, onClose, onCreateNew: () => {}, onConfirm: () => {} };
+    const { getByTestId, rerender } = render(<BuriedSheet visible busy={false} {...props} />);
+    expect(getByTestId('buried-sheet')).toBeTruthy();
+    fireEvent.press(getByTestId('buried-sheet-handle'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    rerender(<BuriedSheet visible busy {...props} />);
+    fireEvent.press(getByTestId('buried-sheet-handle'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

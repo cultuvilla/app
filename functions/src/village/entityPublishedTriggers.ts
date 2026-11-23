@@ -114,6 +114,13 @@ export const onEventPublished = onDocumentCreated('events/{eventId}', async (eve
   // Events use their own status enum: `published` is the visible state, and a
   // draft or an already-cancelled import must not announce itself.
   if (d['status'] !== 'published') return;
+  // A weekly series lands as one doc per occurrence in a single batch; the
+  // village hears about it once, from the first.
+  const series: unknown = d['series'];
+  if (typeof series === 'object' && series !== null && (series as Record<string, unknown>)['index'] !== 0) return;
+  // A private event is the group's business: rules hide it from the pueblo, so
+  // announcing its title to the pueblo would defeat them.
+  if (typeof d['visibilityOrgId'] === 'string') return;
   const municipalityId = str(d, 'municipalityId');
   if (!municipalityId) return;
   await broadcastToVillage({

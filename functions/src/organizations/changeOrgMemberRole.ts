@@ -68,7 +68,7 @@ export const changeOrgMemberRole = onCall<
         throw new HttpsError('not-found', 'Organización no encontrada.');
       }
       if (!targetSnap.exists) {
-        throw new HttpsError('not-found', 'El usuario no es miembro de esta organización.');
+        throw new HttpsError('not-found', 'El usuario no es integrante de esta organización.');
       }
 
       const currentRole = targetSnap.data()?.role ?? null;

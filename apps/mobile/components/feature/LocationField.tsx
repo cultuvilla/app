@@ -50,7 +50,7 @@ export function LocationField({
             {displayName || t('event.selectLocation')}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#64748b" />
+        <Ionicons name="chevron-forward" size={18} color={colors.light.fg.icon} />
       </Pressable>
       {onClear && value ? (
         <Pressable
@@ -86,12 +86,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.light.border.input,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerInner: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   clearRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, alignSelf: 'flex-start' },

@@ -1,7 +1,7 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { EventAttendees } from '../EventAttendees';
 import {
-  getEventRegistrations,
+  watchEventRegistrations,
   getRegistrationPrivate,
   cancelRegistration,
   setRegistrationPaid,
@@ -13,7 +13,7 @@ jest.mock('../../../lib/dialogs', () => ({
   showAlert: jest.fn(),
 }));
 jest.mock('@cultuvilla/shared/services/registrationService', () => ({
-  getEventRegistrations: jest.fn(),
+  watchEventRegistrations: jest.fn(),
   getRegistrationPrivate: jest.fn(),
   cancelRegistration: jest.fn().mockResolvedValue(undefined),
   setRegistrationPaid: jest.fn().mockResolvedValue(undefined),
@@ -22,7 +22,20 @@ jest.mock('@cultuvilla/shared/services/registrationService', () => ({
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockPush(...a) } }));
 
-const mockGet = getEventRegistrations as jest.Mock;
+const mockWatch = watchEventRegistrations as jest.Mock;
+const mockUnwatch = jest.fn();
+let emit: (rows: unknown[]) => void = () => {};
+
+/** Serves `rows` as the listener's first answer; `emit` pushes later ones. */
+const mockGet = {
+  mockResolvedValue(rows: unknown[]) {
+    mockWatch.mockImplementation((_eventId: string, onNext: (rows: unknown[]) => void) => {
+      emit = onNext;
+      onNext(rows);
+      return mockUnwatch;
+    });
+  },
+};
 const mockPrivate = getRegistrationPrivate as jest.Mock;
 const mockCancel = cancelRegistration as jest.Mock;
 
@@ -32,6 +45,14 @@ const enterEditMode = () => fireEvent.press(screen.getByTestId('attendees-edit-t
 describe('EventAttendees', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('explains that a group-booked event lists its attendees by group', async () => {
+    mockGet.mockResolvedValue([{ id: 'r1', personId: 'p1', name: 'Ana', status: 'confirmed' }]);
+    const { getByTestId } = render(
+      <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired={false} requiresPayment={false} groupSize={3} canManage={false} />,
+    );
+    await waitFor(() => getByTestId('attendees-group-note'));
   });
 
   it('hides the edit toggle until there is at least one attendee', async () => {
@@ -75,7 +96,7 @@ describe('EventAttendees', () => {
     expect(queryByTestId('call-attendee-r1')).toBeNull();
   });
 
-  it('removes an attendee then reloads', async () => {
+  it('removes an attendee through the service; the listener carries the change', async () => {
     mockGet.mockResolvedValue([{ id: 'r1', personId: 'p1', name: 'Ana', status: 'confirmed' }]);
     const { getByTestId } = render(
       <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired={false} requiresPayment={false} canManage />,
@@ -84,7 +105,51 @@ describe('EventAttendees', () => {
     enterEditMode();
     fireEvent.press(getByTestId('remove-attendee-r1'));
     await waitFor(() => expect(mockCancel).toHaveBeenCalledWith('e1', 'r1'));
-    expect(mockGet).toHaveBeenCalledTimes(2);
+    expect(mockWatch).toHaveBeenCalledTimes(1);
+  });
+
+  // QA pass 2026-11-18: signing up from the FAB on the same screen left the
+  // roster on "Aún no hay asistentes", and cancelling left the name listed —
+  // the roster was read once on mount and never again.
+  describe('stays live while the screen is open (sign-up / cancel on the same screen)', () => {
+    it('shows a sign-up that lands after the first paint, and drops it on cancel', async () => {
+      mockGet.mockResolvedValue([]);
+      const { getByText, queryByText } = render(
+        <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired={false} requiresPayment={false} canManage={false} />,
+      );
+      await waitFor(() => getByText('event.attendeesEmpty'));
+
+      act(() => emit([{ id: 'r1', personId: 'p1', name: 'Ana', status: 'confirmed', isPersonPublic: true }]));
+      getByText('event.attendees (1)');
+      getByText('Ana');
+      expect(queryByText('event.attendeesEmpty')).toBeNull();
+
+      act(() => emit([]));
+      getByText('event.attendeesEmpty');
+      expect(queryByText('Ana')).toBeNull();
+    });
+
+    it('reads the organizer-only details of a new attendee as they arrive', async () => {
+      mockGet.mockResolvedValue([]);
+      mockPrivate.mockResolvedValue({ phone: '600111222', answers: {} });
+      const { getByText, getByTestId } = render(
+        <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired requiresPayment={false} canManage />,
+      );
+      await waitFor(() => getByText('event.attendeesEmpty'));
+      act(() => emit([{ id: 'r1', personId: 'p1', name: 'Ana', status: 'confirmed' }]));
+      await waitFor(() => getByTestId('call-attendee-r1'));
+      expect(mockPrivate).toHaveBeenCalledWith('e1', 'r1');
+    });
+
+    it('stops listening when it unmounts', async () => {
+      mockGet.mockResolvedValue([]);
+      const { getByText, unmount } = render(
+        <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired={false} requiresPayment={false} canManage={false} />,
+      );
+      await waitFor(() => getByText('event.attendeesEmpty'));
+      unmount();
+      expect(mockUnwatch).toHaveBeenCalled();
+    });
   });
 
   it('splits confirmed attendees from a separate waiting-list section', async () => {

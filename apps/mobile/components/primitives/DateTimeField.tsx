@@ -22,6 +22,12 @@ export interface DateTimeFieldProps {
   maximumDate?: Date;
   /** Minute granularity for the clock. Defaults to 5. */
   minuteStep?: number;
+  /**
+   * Time only: the date button is hidden and picking a time keeps `value`'s
+   * day (or `minimumDate`'s, while empty). For a time slot on a day chosen
+   * elsewhere.
+   */
+  timeOnly?: boolean;
   /** Fallback placeholder for both buttons. */
   placeholder?: string;
   /** Placeholder shown on the date button when empty. Falls back to `placeholder`. */
@@ -52,6 +58,7 @@ export function DateTimeField({
   minimumDate,
   maximumDate,
   minuteStep = 5,
+  timeOnly = false,
   placeholder,
   datePlaceholder,
   timePlaceholder,
@@ -119,6 +126,7 @@ export function DateTimeField({
     <View testID={testID}>
       <FieldLabel>{label}</FieldLabel>
       <View className="flex-row gap-3" style={styles.row}>
+        {timeOnly ? null : (
         <Pressable
           onPress={() => setActiveModal('date')}
           accessibilityRole="button"
@@ -131,6 +139,7 @@ export function DateTimeField({
             {dateText}
           </Text>
         </Pressable>
+        )}
         <Pressable
           onPress={openTime}
           accessibilityRole="button"
@@ -189,11 +198,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.light.border.input,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerText: { flexShrink: 1 },
   backdrop: {

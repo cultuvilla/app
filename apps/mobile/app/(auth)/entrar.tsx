@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import { observability } from '@cultuvilla/shared';
 import { isValidEmail } from '@cultuvilla/shared/utils';
 import { Button, Input, Text, VStack } from '../../components/primitives';
 import {
@@ -13,9 +14,14 @@ import {
 import { useAuth } from '../../lib/auth/useAuth';
 import { authErrorMessage } from '../../lib/auth/authErrorMessage';
 import { reportAuthError } from '../../lib/auth/reportAuthError';
+import { clearPendingOtp, readPendingOtp, rememberPendingOtp } from '../../lib/auth/pendingOtp';
 import { useT } from '../../lib/i18n';
 
 type Step = 'email' | 'code';
+
+function reportPendingOtpError(err: unknown) {
+  observability.captureError(err, { operation: 'auth:pendingOtp' });
+}
 
 export default function LoginScreen() {
   const {
@@ -31,12 +37,26 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [resent, setResent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [sendLoading, setSendLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [devLoadingEmail, setDevLoadingEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    void readPendingOtp()
+      .then((pendingEmail) => {
+        if (!pendingEmail) return;
+        setEmail(pendingEmail);
+        setStep('code');
+      })
+      .catch(reportPendingOtpError);
+    return () => {
+      void clearPendingOtp().catch(reportPendingOtpError);
+    };
+  }, []);
 
   async function onSendCode() {
     setError(null);
@@ -48,6 +68,7 @@ export default function LoginScreen() {
     try {
       await sendOtpCode(email);
       setStep('code');
+      void rememberPendingOtp(email).catch(reportPendingOtpError);
     } catch (e) {
       reportAuthError('auth:sendOtpCode', e);
       setError(authErrorMessage(e, t('auth.error.unknown')));
@@ -56,8 +77,32 @@ export default function LoginScreen() {
     }
   }
 
+  // A resend that changes nothing on screen reads as a dead button, and the old
+  // code left in the box is now wrong — so confirm inline and empty it.
+  async function onResendCode() {
+    setError(null);
+    setResent(false);
+    setSendLoading(true);
+    try {
+      await sendOtpCode(email);
+      setCode('');
+      setResent(true);
+    } catch (e) {
+      reportAuthError('auth:sendOtpCode', e);
+      setError(authErrorMessage(e, t('auth.error.unknown')));
+    } finally {
+      setSendLoading(false);
+    }
+  }
+
+  function onChangeCodeText(next: string) {
+    setCode(next);
+    setResent(false);
+  }
+
   async function onVerifyCode() {
     setError(null);
+    setResent(false);
     setVerifyLoading(true);
     try {
       await verifyOtpCode(email, code);
@@ -86,8 +131,10 @@ export default function LoginScreen() {
   // wrong email is to verify it and get stuck behind the onboarding gate.
   function onChangeEmail() {
     setError(null);
+    setResent(false);
     setCode('');
     setStep('email');
+    void clearPendingOtp().catch(reportPendingOtpError);
   }
 
   async function onGoogle() {
@@ -141,17 +188,22 @@ export default function LoginScreen() {
           <Input
             label={t('auth.otp.codeLabel')}
             value={code}
-            onChangeText={setCode}
+            onChangeText={onChangeCodeText}
             keyboardType="number-pad"
             autoComplete="one-time-code"
             maxLength={6}
             testID="login-code-input"
           />
+          {resent && (
+            <Text tone="success" variant="bodySm" testID="login-code-resent">
+              {t('auth.otp.resent')}
+            </Text>
+          )}
           {error != null && <Text tone="danger">{error}</Text>}
           <Button onPress={onVerifyCode} loading={verifyLoading} fullWidth testID="login-verify-code">
             {t('auth.otp.verify')}
           </Button>
-          <Button variant="ghost" onPress={onSendCode} loading={sendLoading} fullWidth testID="login-resend-code">
+          <Button variant="ghost" onPress={onResendCode} loading={sendLoading} fullWidth testID="login-resend-code">
             {t('auth.otp.resend')}
           </Button>
           <Button variant="ghost" onPress={onChangeEmail} fullWidth testID="login-change-email">

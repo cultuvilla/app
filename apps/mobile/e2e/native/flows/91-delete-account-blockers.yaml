@@ -17,4 +17,4 @@ env:
     visible: 'Antes de eliminar tu cuenta, debes nombrar a otra persona en:'
     timeout: 45000
 - assertVisible: 'Pueblo de Altozano de Prueba.*'
-- assertVisible: 'Grupo de Ayuntamiento de Altozano.*'
+- assertVisible: 'Ayuntamiento de Altozano — eres el único administrador'

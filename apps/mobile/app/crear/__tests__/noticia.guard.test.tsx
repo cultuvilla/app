@@ -57,15 +57,14 @@ jest.mock('../../../components/feature/OrganizerPicker', () => ({ OrganizerPicke
 
 import { useEntityCapabilities } from '../../../lib/auth/useEntityCapabilities';
 
-function mockCaps(canEdit: boolean) {
-  const spy = jest.fn(() => canEdit);
+function mockCaps(canEdit: boolean, canDelete: boolean = canEdit) {
+  const spy = jest.fn((action: string) => (action === 'edit' ? canEdit : canDelete));
   (useEntityCapabilities as jest.Mock).mockReturnValue({
     canManage: false,
     canApprove: false,
     uid: 'intruder',
     loading: false,
-    canEdit: spy,
-    canDelete: jest.fn(() => canEdit),
+    can: spy,
   });
   return spy;
 }
@@ -77,7 +76,7 @@ describe('NewNewsScreen edit guard', () => {
     const canEdit = mockCaps(false);
     render(<NewNewsScreen />);
     await waitFor(() => expect(mockRedirect).toHaveBeenCalledWith({ href: '/villa/noticia/gran-noticia_n1' }));
-    expect(canEdit).toHaveBeenCalledWith('author', ['author']);
+    expect(canEdit).toHaveBeenCalledWith('edit', 'news', { createdBy: 'author', organizerUserIds: ['author'] });
   });
 
   it('lets an authorized editor through', async () => {
@@ -85,7 +84,25 @@ describe('NewNewsScreen edit guard', () => {
     render(<NewNewsScreen />);
     // Asserting on the hook call rather than a field: the compose form is a
     // Stepper, so which inputs are mounted depends on the current step.
-    await waitFor(() => expect(canEdit).toHaveBeenCalledWith('author', ['author']));
+    await waitFor(() => expect(canEdit).toHaveBeenCalledWith('edit', 'news', { createdBy: 'author', organizerUserIds: ['author'] }));
     expect(mockRedirect).not.toHaveBeenCalled();
+  });
+});
+
+// The delete button called deleteNewsPost, which only the author or an admin
+// may use, while any co-writer could reach the screen — so a co-writer's
+// delete failed silently and the article stayed up (E2E flow 80).
+describe('NewNewsScreen delete button', () => {
+  it('is hidden from a co-writer who may edit but not delete', async () => {
+    const canEdit = mockCaps(true, false);
+    const screen = render(<NewNewsScreen />);
+    await waitFor(() => expect(canEdit).toHaveBeenCalled());
+    expect(screen.queryByTestId('news-delete')).toBeNull();
+  });
+
+  it('is shown to whoever may delete it', async () => {
+    mockCaps(true, true);
+    const screen = render(<NewNewsScreen />);
+    await waitFor(() => expect(screen.getByTestId('news-delete')).toBeTruthy());
   });
 });

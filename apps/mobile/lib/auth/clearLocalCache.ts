@@ -4,10 +4,15 @@ import { getDb } from '@cultuvilla/shared/firebase';
 import { observability } from '@cultuvilla/shared';
 import { clearIndexedDbPersistence, terminate } from '@cultuvilla/shared/firebase/sdk/firestore';
 import { skipIntroOnNextLaunch } from '../intro/introSkip';
+import { quiesceFetches, resumeFetches, trackInflightFetches } from './inflightFetches';
 
 declare const __DEV__: boolean;
 
 const CLEAR_TIMEOUT_MS = 5000;
+
+// Every JS reload goes through this module, and AuthContext loads it at startup,
+// before any screen can start a request.
+trackInflightFetches();
 
 function within(work: Promise<void>, ms: number): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -27,6 +32,9 @@ function within(work: Promise<void>, ms: number): Promise<void> {
  * that is not running, hence `terminate` first — which also kills every
  * mounted listener and drops the native emulator wiring. Restarting re-runs
  * the bootstrap, so the next session starts from a clean, correctly wired SDK.
+ *
+ * Open requests are aborted and settled before the reload: on iOS one still in
+ * flight when the runtime goes away crashes the app (see `inflightFetches`).
  */
 export async function clearLocalCacheAndRestart(): Promise<void> {
   try {
@@ -44,9 +52,15 @@ export async function clearLocalCacheAndRestart(): Promise<void> {
   await skipIntroOnNextLaunch().catch((error: unknown) => {
     observability.captureError(error, { handler: 'clearLocalCacheAndRestart' });
   });
-  if (__DEV__) {
-    DevSettings.reload();
-    return;
+  await quiesceFetches();
+  try {
+    if (__DEV__) {
+      DevSettings.reload();
+      return;
+    }
+    await Updates.reloadAsync();
+  } catch (error) {
+    resumeFetches();
+    throw error;
   }
-  await Updates.reloadAsync();
 }

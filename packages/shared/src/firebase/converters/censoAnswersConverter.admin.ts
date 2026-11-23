@@ -1,5 +1,4 @@
 import { CensoAnswersDataSchema } from '../../models/municipality/CensoAnswersDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const censoAnswersConverterAdmin = makeConverter(CensoAnswersDataSchema, adminSdkCtors);
+export const censoAnswersConverterAdmin = adminConverter(CensoAnswersDataSchema);

@@ -1,0 +1,183 @@
+# The comisión de festejos group type (docs/decisions/comision-de-festejos-type.md):
+# a villager proposes one, pending like any group; a village admin approves it
+# from the Buzón and the village home labels its card "Comisión de festejos"
+# instead of a member count. Then a group already filed under "otros"
+# (`e2e-org-amigos`, seeded with e2e-user as its admin) is switched to a
+# comisión by that admin — the type change the organizations update rule
+# allows among the self-service kinds — and its group home says so.
+#
+# The stored type is matched by prefix: it carries an accented letter.
+appId: com.cultuvilla.app.dev
+env:
+  PASSWORD: e2e-cultuvilla-pw
+  VILLAGE_ID: e2e-village-altozano
+  VILLAGE_SLUG: altozano-de-prueba
+  SWITCH_ORG_ID: e2e-org-amigos
+---
+# A re-run against the same emulator must start from "otros", or the switch
+# below would prove nothing.
+- runScript:
+    file: ../scripts/setField.js
+    env:
+      DOC_PATH: 'organizations/${SWITCH_ORG_ID}'
+      FIELD: type
+      VALUE: otros
+# The home sorts groups by member count, then name: "AA" puts the new
+# one-member comisión ahead of every other one-member group, near the row's
+# start.
+- evalScript: ${output.comisionName = 'AA Comision E2E ' + Date.now()}
+
+# ── A villager proposes a comisión ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidades?type=comision'
+- extendedWaitUntil:
+    visible:
+      id: 'org-name-input'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/type-into.yaml
+    env:
+      INPUT: 'org-name-input'
+      TEXT: ${output.comisionName}
+# The link preselects the type; the tap keeps it whatever the link did.
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-type-comisi.n'
+- tapOn:
+    id: 'org-type-comisi.n'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-submit'
+# The centring swipe can focus the description again on iOS, and the
+# keyboard then sits over the submit.
+- runFlow: ../subflows/close-keyboard.yaml
+- tapOn:
+    id: 'org-submit'
+- runScript:
+    file: ../scripts/queryCollection.js
+    env:
+      COLLECTION_PATH: organizations
+      FIELD: name
+      VALUE: ${output.comisionName}
+      MIN: '1'
+      MAX: '1'
+      TIMEOUT_MS: '120000'
+- assertTrue: ${output.ok == 'true'}
+- evalScript: ${output.orgId = output.id}
+# A village admin's proposal is approved on the spot; a villager's waits.
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      EXPECT_JSON: >-
+        {
+          'name': '@comisionName',
+          'type': { 'prefix': 'comisi' },
+          'status': 'pending',
+          'municipalityId': 'e2e-village-altozano',
+          'requestedBy': 'e2e-user'
+        }
+
+# ── A village admin approves it ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-admin@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://buzon'
+- extendedWaitUntil:
+    visible:
+      id: 'approve-org-${output.orgId}'
+    timeout: 45000
+- tapOn:
+    id: 'approve-org-${output.orgId}'
+# approveOrganization is a callable; its first call boots the worker.
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}'
+      TIMEOUT_MS: '180000'
+      EXPECT_JSON: "{ 'status': 'approved', 'reviewedBy': 'e2e-admin', 'type': { 'prefix': 'comisi' } }"
+- runScript:
+    file: ../scripts/docField.js
+    env:
+      DOC_PATH: 'organizations/${output.orgId}/members/e2e-user'
+      FIELD: role
+      EXPECT: admin
+- assertTrue: ${output.ok == 'true'}
+
+# ── The village home labels it ──
+- openLink: 'cultuvilla://mi-pueblo?villageId=${VILLAGE_ID}'
+# The Grupos row is horizontal and sorted by member count, so the new
+# one-member comisión may sit past the right edge. Swipe the row itself.
+- scrollUntilVisible:
+    element:
+      id: village-orgs-row
+    timeout: 45000
+- repeat:
+    times: 6
+    while:
+      notVisible: '.*${output.comisionName}.*'
+    commands:
+      - swipe:
+          from:
+            id: village-orgs-row
+          direction: LEFT
+          duration: 600
+- assertVisible: '.*${output.comisionName}.*'
+- assertVisible: '.*Comisi.n de festejos.*'
+
+# ── An "otros" group becomes a comisión ──
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: e2e-user@cultuvilla.test
+      PASSWORD: ${PASSWORD}
+- openLink: 'cultuvilla://${VILLAGE_SLUG}/entidad/_${SWITCH_ORG_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'org-edit-action'
+    timeout: 45000
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'org-edit-action'
+      EXPECT: 'org-edit-name-input'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-edit-type-comisi.n'
+# A tap while the centring scroll still glides only stops the scroll.
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: 'org-edit-type-comisi.n'
+- runFlow:
+    file: ../subflows/scroll-to.yaml
+    env:
+      TARGET: 'org-edit-submit'
+- tapOn:
+    id: 'org-edit-submit'
+- runScript:
+    file: ../scripts/assertDoc.js
+    env:
+      DOC_PATH: 'organizations/${SWITCH_ORG_ID}'
+      TIMEOUT_MS: '120000'
+      EXPECT_JSON: >-
+        {
+          'name': 'Amigos del Pueblo E2E',
+          'type': { 'prefix': 'comisi' },
+          'status': 'approved'
+        }
+- openLink: 'cultuvilla://grupos?grupo=${SWITCH_ORG_ID}'
+- extendedWaitUntil:
+    visible:
+      id: 'group-home'
+    timeout: 45000
+- assertVisible: 'Comisi.n de festejos'

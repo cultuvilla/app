@@ -98,6 +98,12 @@ jest.mock('@cultuvilla/shared/services/festivalPosterService', () => {
   const getFestivalPosters = jest.fn().mockResolvedValue([]);
   return { getFestivalPosters, watchFestivalPosters: mockWatchFrom(getFestivalPosters) };
 });
+jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
+  watchRankedVillages: (next: (rows: unknown[]) => void) => {
+    next([]);
+    return () => undefined;
+  },
+}));
 jest.mock('@cultuvilla/shared/services/historyService', () => ({
   watchHistoryEntries: mockWatchFrom(() => []),
 }));
@@ -108,6 +114,8 @@ jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
 jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
   getMyOrganizerRequests: jest.fn().mockResolvedValue([]),
 }));
+// The fiestas card watches its own data; FiestasHomeCard's own tests cover it.
+jest.mock('../../../components/feature/fiestas/FiestasHomeCard', () => ({ FiestasHomeCard: () => null }));
 jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getVillageViewLink: jest.fn().mockReturnValue('https://example.test'),
 }));
@@ -332,13 +340,12 @@ describe('VillageTabScreen', () => {
       (getHomeFeed as jest.Mock).mockResolvedValue([post]);
     });
 
-    // Eventos leads the village home. Both sections render only when
-    // non-empty, hence the fixtures.
-    it('renders Eventos above Artículos', async () => {
+    // Both sections render only when non-empty, hence the fixtures.
+    it('renders Artículos above Eventos', async () => {
       const { findByText, getAllByText } = render(<VillageTabScreen />);
       await findByText('Artículos', undefined, { timeout: 5000 });
       const titles = getAllByText(/^(Artículos|Eventos del pueblo)$/).map((n) => n.props.children);
-      expect(titles).toEqual(['Eventos del pueblo', 'Artículos']);
+      expect(titles).toEqual(['Artículos', 'Eventos del pueblo']);
     });
   });
 

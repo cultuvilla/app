@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { FestivalPostersManager } from '../FestivalPostersManager';
 import { createFestivalPoster } from '@cultuvilla/shared/services/festivalPosterService';
@@ -79,5 +80,18 @@ describe('<FestivalPostersManager>', () => {
         'new-id',
       ),
     );
+  });
+
+  // A failed upload used to vanish: the spinner stopped and the photo was gone,
+  // with only an unhandled rejection that a release build shows nobody.
+  it('says so when the photo upload fails', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (uploadFestivalPosterImage as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error('User does not have permission'), { code: 'storage/unauthorized' }),
+    );
+    const { getByLabelText } = render(<FestivalPostersManager villageId="m1" />);
+    fireEvent.press(getByLabelText('village.festivalPosters.form.addImage'));
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('No puedes hacer eso', expect.any(String), expect.any(Array), expect.anything()));
+    alert.mockRestore();
   });
 });

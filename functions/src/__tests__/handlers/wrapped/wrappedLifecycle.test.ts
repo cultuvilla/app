@@ -32,6 +32,7 @@ async function seedVillage(fiestas: unknown[]): Promise<void> {
     coordinates: null, locationLabel: null, mapZoom: null, createdAt: new Date(),
     escudoUrl: null, escudoThumbUrl: null, escudoManualUrl: null,
     communityActive: true,
+    peopleCount: 0,
     community: { description: 'Un pueblo', organizerId: ADMIN, organizerSex: null, profileForm: null, activatedAt: new Date(), fiestas },
   });
   for (const [uid, role] of [[ADMIN, 'admin'], [MEMBER, 'user']] as const) {

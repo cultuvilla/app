@@ -26,7 +26,7 @@ binary's behaviour, and a mismatch gets the app pulled, not warned. So:
   [app-store-declarations.md](app-store-declarations.md) **in the same PR**, and
   re-submit both forms at the next release.
 - `blockedPermissions` in [apps/mobile/app.config.ts](../../apps/mobile/app.config.ts)
-  is what keeps camera, microphone, background location and legacy storage out
+  is what keeps the microphone, background location and legacy storage out
   of the manifest. Removing a block is a declaration change.
 - The privacy policy ([../legal/politica-de-privacidad.md](../legal/politica-de-privacidad.md),
   served at `/legal/privacidad`) must be a superset of both forms.

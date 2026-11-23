@@ -1,5 +1,5 @@
 // packages/shared/src/services/orgMemberService.ts
-import { collectionGroup, getDoc, getDocs, query, setDoc, deleteDoc, where } from '../firebase/sdk/firestore';
+import { collectionGroup, getDoc, getDocs, query, deleteDoc, setDoc, where } from '../firebase/sdk/firestore';
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getDb, getFirebaseFunctions } from '../firebase';
 import {
@@ -7,21 +7,26 @@ import {
   organizationMemberDoc,
 } from '../firebase/refs/client';
 import { orgMemberConverterClient } from '../firebase/converters/orgMemberConverter.client';
-import type { OrgMemberData } from '../models/organization/OrgMemberDataModel';
-import { buildOrgMemberData, type OrgMemberRole } from '../models/organization/OrgMemberDataModel';
-import { watchDoc, watchDocsByIds, type Unwatch, type WatchError } from './watch';
+import { buildOrgMemberData, type OrgMemberData } from '../models/organization/OrgMemberDataModel';
+import type { OrgMemberRole } from '../models/organization/OrgMemberDataModel';
+import { watchDoc, watchDocsByIds, watchQuery, watchQueryWith, type Unwatch, type WatchError } from './watch';
 
 export async function getOrgMembers(orgId: string): Promise<(OrgMemberData & { id: string })[]> {
   const snap = await getDocs(organizationMembersCollection(getDb(), orgId));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export async function addOrgMember(
+/** Live twin of `getOrgMembers`. */
+export function watchOrgMembers(
   orgId: string,
-  userId: string,
-  role: OrgMemberRole = 'member',
-): Promise<void> {
-  await setDoc(organizationMemberDoc(getDb(), orgId, userId), buildOrgMemberData({ userId, role }));
+  onNext: (members: (OrgMemberData & { id: string })[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQuery(organizationMembersCollection(getDb(), orgId), onNext, onError);
+}
+
+export async function addOrgMember(orgId: string, userId: string): Promise<void> {
+  await setDoc(organizationMemberDoc(getDb(), orgId, userId), buildOrgMemberData({ userId, role: 'member' }));
 }
 
 /**
@@ -132,11 +137,39 @@ export function watchOrgMembershipsByUser(
  * page, so the org set has to be known up front rather than discovered from
  * the results.
  */
-export async function getUserOrgIds(userId: string): Promise<string[]> {
+function userMembersGroupQuery(userId: string) {
   const cg = collectionGroup(getDb(), 'members').withConverter(orgMemberConverterClient);
-  const snap = await getDocs(query(cg, where('userId', '==', userId)));
+  return query(cg, where('userId', '==', userId));
+}
+
+export async function getUserOrgIds(userId: string): Promise<string[]> {
+  const snap = await getDocs(userMembersGroupQuery(userId));
   return snap.docs
     .filter((d) => d.ref.parent.parent?.parent.id === 'organizations')
     .map((d) => d.ref.parent.parent?.id)
     .filter((id): id is string => id !== undefined);
+}
+
+/**
+ * Live twin of `getUserOrgIds`, with the role: every organization `userId`
+ * belongs to, in any village. Drives the Grupos tab. Village member docs are
+ * filtered out by parent path before they are parsed, since they share the
+ * `members` collection id but not the schema.
+ */
+export function watchUserOrgMemberships(
+  userId: string,
+  onNext: (memberships: UserOrgMembership[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchQueryWith(
+    userMembersGroupQuery(userId),
+    (docs) =>
+      docs.flatMap((d) => {
+        const org = d.ref.parent.parent;
+        if (!org || org.parent.id !== 'organizations') return [];
+        return [{ orgId: org.id, role: d.data().role }];
+      }),
+    onNext,
+    onError,
+  );
 }

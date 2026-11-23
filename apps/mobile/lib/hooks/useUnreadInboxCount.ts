@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useApproverStatus } from '../auth/useApproverStatus';
 import { useWatch } from './useWatch';
 import { watchUnreadCount } from '@cultuvilla/shared/services/notificationService';
-import { getPendingOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
 import {
-  getPendingOrganizations,
-  getOrganizationsByMunicipality,
-} from '@cultuvilla/shared/services/organizationService';
+  actionableCount,
+  actionableScope,
+  getActionableRequests,
+} from '@cultuvilla/shared/services/inboxService';
 
 export type UseUnreadInboxCountResult = {
   count: number;
@@ -15,11 +15,12 @@ export type UseUnreadInboxCountResult = {
 };
 
 /**
- * Badge count for the header bell: unread notifications plus pending-actionable
- * rows (organizer requests, org-creation requests) for whatever role(s) this
- * user approves for — mirrors the role-branching in
- * apps/mobile/app/inbox/index.tsx so the badge and the Buzón screen never
- * disagree about what counts as "actionable".
+ * Badge count for the header bell: unread notifications plus every request
+ * the Buzón's *Necesita tu acción* lists for this user (Embajador, new
+ * groups, join requests, open reports). Which queues a role reads is
+ * `actionableScope`'s and how they count is `actionableCount`'s, the same
+ * rules the Buzón uses. Cosateca requests stay out: they are not an
+ * approver's queue (decided 2026-11-20, user).
  *
  * The unread part is a live listener, so it answers offline from the device
  * cache and moves the moment a notification lands or is read. The pending
@@ -29,8 +30,12 @@ export type UseUnreadInboxCountResult = {
 export function useUnreadInboxCount(): UseUnreadInboxCountResult {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const { loading: approverLoading, isSuperAdmin, adminVillageIds, canApprove } =
+  const { loading: approverLoading, isSuperAdmin, adminVillageIds, adminOrgIds, canApprove } =
     useApproverStatus();
+  const scope = useMemo(
+    () => actionableScope({ isSuperAdmin, adminVillageIds, adminOrgIds }),
+    [isSuperAdmin, adminVillageIds, adminOrgIds],
+  );
   const [pending, setPending] = useState(0);
   const [refreshToken, setRefreshToken] = useState(0);
 
@@ -53,18 +58,7 @@ export function useUnreadInboxCount(): UseUnreadInboxCountResult {
       try {
         let pendingActionable = 0;
         if (canApprove) {
-          if (isSuperAdmin) {
-            const [organizerRows, orgRows] = await Promise.all([
-              getPendingOrganizerRequests(),
-              getPendingOrganizations(),
-            ]);
-            pendingActionable = organizerRows.length + orgRows.length;
-          } else if (adminVillageIds.length > 0) {
-            const orgRowsPerVillage = await Promise.all(
-              adminVillageIds.map((vid) => getOrganizationsByMunicipality(vid, 'pending')),
-            );
-            pendingActionable = orgRowsPerVillage.flat().length;
-          }
+          pendingActionable = actionableCount(await getActionableRequests(scope));
         }
 
         if (!cancelled) setPending(pendingActionable);
@@ -76,7 +70,7 @@ export function useUnreadInboxCount(): UseUnreadInboxCountResult {
     return () => {
       cancelled = true;
     };
-  }, [uid, approverLoading, canApprove, isSuperAdmin, adminVillageIds, refreshToken]);
+  }, [uid, approverLoading, canApprove, scope, refreshToken]);
 
   const refresh = useCallback(() => setRefreshToken((t) => t + 1), []);
 

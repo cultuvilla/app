@@ -1,8 +1,10 @@
 import { openVillage } from '../../lib/navigation/openVillage';
-import { userHref } from '../../lib/navigation/routes';
-import { useCallback, useEffect, useState } from 'react';
+import { userHref, villageSectionHref } from '../../lib/navigation/routes';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { iconSizes, palette } from '@cultuvilla/shared/design-system';
 import {
   Screen,
   VStack,
@@ -18,28 +20,29 @@ import { NotificationRow } from '../../components/feature/NotificationRow';
 import { useT } from '../../lib/i18n';
 import { useApproverStatus } from '../../lib/auth/useApproverStatus';
 import { useAuth } from '../../lib/auth/useAuth';
-import {
-  getPendingOrganizerRequests,
-  respondToOrganizerRequest,
-} from '@cultuvilla/shared/services/organizerRequestService';
+import { respondToOrganizerRequest } from '@cultuvilla/shared/services/organizerRequestService';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
 import { buildDisplayName } from '@cultuvilla/shared/models/person';
-import {
-  getPendingOrganizations,
-  getOrganizationsByMunicipality,
-  approveOrganization,
-  rejectOrganization,
-} from '@cultuvilla/shared/services/organizationService';
+import { approveOrganization, rejectOrganization } from '@cultuvilla/shared/services/organizationService';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import { getNotifications, markAllAsRead } from '@cultuvilla/shared/services/notificationService';
 import { isOpenableNotification, openNotification } from '../../lib/notifications/openNotification';
-import { getMyPendingRequests, buildActivityFeed } from '@cultuvilla/shared/services/inboxService';
 import {
-  getPendingOrgJoinRequests,
+  actionableScope,
+  buildActivityFeed,
+  getActionableRequests,
+  getMyPendingRequests,
+} from '@cultuvilla/shared/services/inboxService';
+import { watchCosaRequestsToAnswer, type CosaRequest } from '@cultuvilla/shared/services/cosatecaService';
+import { CosaRequestRow } from '../../components/feature/groups/cosateca/CosaRows';
+import { useWatch } from '../../lib/hooks/useWatch';
+import { groupCosaRequestHref } from '../../lib/navigation/routes';
+import { useMyGroups } from '../../lib/orgs/useMyGroups';
+import { useInboxNames } from '../../lib/inbox/useInboxNames';
+import {
   respondToOrgJoinRequest,
   type OrgJoinDecision,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import type { OrgJoinRequestData } from '@cultuvilla/shared/models/organization/OrgJoinRequestDataModel';
 import {
   OrgJoinRequestRow,
@@ -51,18 +54,40 @@ import type { OrganizationData } from '@cultuvilla/shared/models/organization/Or
 
 type OrganizerRow = OrganizerRequestData & { id: string };
 type OrgRow = OrganizationData & { id: string };
+type ReportsRow = { municipalityId: string; name: string; slug: string; count: number };
 
 export default function InboxScreen() {
   const { t } = useT();
   const { user } = useAuth();
   const { loading, isSuperAdmin, adminVillageIds, adminOrgIds, canApprove } = useApproverStatus();
+  const scope = useMemo(
+    () => actionableScope({ isSuperAdmin, adminVillageIds, adminOrgIds }),
+    [isSuperAdmin, adminVillageIds, adminOrgIds],
+  );
 
   // ─── Actionable ("Necesita tu acción") state ────────────────────────────────
   const [organizerRows, setOrganizerRows] = useState<OrganizerRow[]>([]);
   const [orgRows, setOrgRows] = useState<OrgRow[]>([]);
   const [joinRows, setJoinRows] = useState<OrgJoinRequestData[]>([]);
-  const [orgNames, setOrgNames] = useState<Record<string, string>>({});
+  const [reportRows, setReportRows] = useState<ReportsRow[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+
+  // ─── Cosateca: requests waiting for this user's answer ───────────────────────
+  // Not an approver's queue: anyone who offered something answers here, so it
+  // renders whatever `canApprove` says.
+  const cosaUid = user?.uid ?? null;
+  const myGroups = useMyGroups(cosaUid);
+  const groupsIAdmin = useMemo(
+    () => myGroups.groups.filter((g) => g.role === 'admin').map((g) => g.org.id).sort(),
+    [myGroups.groups],
+  );
+  const cosaReady = cosaUid !== null && myGroups.status === 'ready';
+  const cosaToAnswer = useWatch<CosaRequest[]>(
+    'cosateca:watchCosaRequestsToAnswer',
+    cosaReady ? `${cosaUid}|${groupsIAdmin.join(',')}` : null,
+    cosaReady ? (next, error) => watchCosaRequestsToAnswer(cosaUid, groupsIAdmin, next, error) : null,
+  );
+  const cosaRows = cosaToAnswer.data ?? [];
 
   // ─── Activity feed state ────────────────────────────────────────────────────
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
@@ -70,26 +95,20 @@ export default function InboxScreen() {
 
   // Shared name maps (used by both the actionable cards and the activity feed's
   // pending-sent rows).
-  const [municipalityNames, setMunicipalityNames] = useState<Record<string, string>>({});
-  const [requesterByUid, setRequesterByUid] = useState<
-    Record<string, { name: string; photoURL: string | null }>
-  >({});
+  const {
+    municipalityNames,
+    requesterByUid,
+    orgNames,
+    resolveMunicipalityNames,
+    resolveRequesters,
+    resolveOrgNames,
+  } = useInboxNames();
 
   // Busy state keyed by `${type}-${id}`
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   // Error modal state
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const resolveOrgNames = useCallback(async (orgIds: string[]) => {
-    const resolved = await Promise.all(
-      [...new Set(orgIds)].map(async (oid) => {
-        const org = await getOrganization(oid).catch(() => null);
-        return [oid, org?.name ?? oid] as const;
-      }),
-    );
-    if (resolved.length > 0) setOrgNames((prev) => ({ ...prev, ...Object.fromEntries(resolved) }));
-  }, []);
 
   // ─── Actionable load ─────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -98,115 +117,79 @@ export default function InboxScreen() {
 
     setDataLoading(true);
     try {
-      const promises: Promise<void>[] = [];
-      const newMunicipalityIds = new Set<string>();
+      // Reports load on focus, below.
+      const { organizer, orgs, joins } = await getActionableRequests(scope, [
+        'organizer',
+        'orgs',
+        'joins',
+      ]);
 
-      let fetchedOrganizerRows: OrganizerRow[] = [];
-      let fetchedOrgRows: OrgRow[] = [];
+      setOrganizerRows(organizer);
+      setOrgRows(orgs);
+      setJoinRows(joins);
 
-      if (isSuperAdmin) {
-        promises.push(
-          getPendingOrganizerRequests().then((rows) => {
-            fetchedOrganizerRows = rows;
-            rows.forEach((r) => newMunicipalityIds.add(r.municipalityId));
-          }),
-        );
-        promises.push(
-          getPendingOrganizations().then((rows) => {
-            fetchedOrgRows = rows;
-            rows.forEach((r) => newMunicipalityIds.add(r.municipalityId));
-          }),
-        );
-      } else if (adminVillageIds.length > 0) {
-        promises.push(
-          Promise.all(
-            adminVillageIds.map((vid) => getOrganizationsByMunicipality(vid, 'pending')),
-          ).then((perVillage) => {
-            fetchedOrgRows = perVillage.flat();
-            fetchedOrgRows.forEach((r) => newMunicipalityIds.add(r.municipalityId));
-          }),
-        );
-      }
-
-      let fetchedJoinRows: OrgJoinRequestData[] = [];
-      if (adminOrgIds.length > 0) {
-        // Per org, and each one allowed to fail on its own: one org's denied
-        // read must not hide every other org's requests.
-        promises.push(
-          Promise.all(
-            adminOrgIds.map((oid) => getPendingOrgJoinRequests(oid).catch(() => [])),
-          ).then((perOrg) => {
-            fetchedJoinRows = perOrg.flat();
-          }),
-        );
-      }
-
-      await Promise.all(promises);
-
-      setOrganizerRows(fetchedOrganizerRows);
-      setOrgRows(fetchedOrgRows);
-      setJoinRows(fetchedJoinRows);
-
-      const joinRequesters = await Promise.all(
-        fetchedJoinRows
-          .filter((r) => !requesterByUid[r.userId])
-          .map(async (r) => [r.userId, await resolveRequester(r.userId, r.userId)] as const),
+      await resolveRequesters(
+        joins.map((r) => r.userId),
+        (uid) => resolveRequester(uid, uid),
       );
-      if (joinRequesters.length > 0) {
-        setRequesterByUid((prev) => ({ ...prev, ...Object.fromEntries(joinRequesters) }));
-      }
-      await resolveOrgNames(fetchedJoinRows.map((r) => r.orgId));
+      await resolveOrgNames(joins.map((r) => r.orgId));
 
-      // Resolve organizer-request requesters (name + photo)
-      const requesterFetches = fetchedOrganizerRows.map(async (r) => {
-        if (requesterByUid[r.userId]) return;
-        // Best-effort: a requester with a private persona falls back to the uid.
-        const p = await getPersonByUserId(r.userId).catch(() => null);
-        return [
-          r.userId,
-          {
-            name: p ? buildDisplayName(p) : r.userId,
-            photoURL: p?.photoURL ?? null,
-          },
-        ] as const;
-      });
-      const resolvedRequesters = await Promise.all(requesterFetches);
-      const newRequesters = resolvedRequesters.filter(
-        (pair): pair is readonly [string, { name: string; photoURL: string | null }] =>
-          pair !== undefined,
+      // Best-effort: a requester with a private persona falls back to the uid.
+      await resolveRequesters(
+        organizer.map((r) => r.userId),
+        async (uid) => {
+          const p = await getPersonByUserId(uid).catch(() => null);
+          return { name: p ? buildDisplayName(p) : uid, photoURL: p?.photoURL ?? null };
+        },
       );
-      if (newRequesters.length > 0) {
-        setRequesterByUid((prev) => {
-          const next = { ...prev };
-          for (const [id, v] of newRequesters) next[id] = v;
-          return next;
-        });
-      }
 
-      // Resolve municipality names
-      const municipalityFetches = [...newMunicipalityIds].map(async (mid) => {
-        if (municipalityNames[mid]) return;
-        const m = await getMunicipality(mid);
-        return [mid, m?.name ?? mid] as const;
-      });
-      const resolvedMunicipalities = await Promise.all(municipalityFetches);
-      const newNames: Record<string, string> = {};
-      for (const pair of resolvedMunicipalities) {
-        if (pair) newNames[pair[0]] = pair[1];
-      }
-      if (Object.keys(newNames).length > 0) {
-        setMunicipalityNames((prev) => ({ ...prev, ...newNames }));
-      }
+      await resolveMunicipalityNames([
+        ...organizer.map((r) => r.municipalityId),
+        ...orgs.map((r) => r.municipalityId),
+      ]);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : String(err));
     } finally {
       setDataLoading(false);
     }
-  }, [loading, canApprove, isSuperAdmin, adminVillageIds, adminOrgIds]);
+  }, [loading, canApprove, scope, resolveRequesters, resolveOrgNames, resolveMunicipalityNames]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  // ─── Open reports ────────────────────────────────────────────────────────────
+  // On focus, not on mount: they are resolved on the pushed Denuncias screen, so
+  // coming back here has to drop the ones just dealt with.
+  useFocusEffect(
+    useCallback(() => {
+      if (loading || (scope.reports !== 'all' && scope.reports.length === 0)) return;
+      let cancelled = false;
+
+      void (async () => {
+        try {
+          const { reports } = await getActionableRequests(scope, ['reports']);
+
+          const counts = new Map<string, number>();
+          for (const r of reports) counts.set(r.municipalityId, (counts.get(r.municipalityId) ?? 0) + 1);
+
+          const rows = await Promise.all(
+            [...counts].map(async ([municipalityId, count]) => {
+              const m = await getMunicipality(municipalityId).catch(() => null);
+              return m ? { municipalityId, name: m.name, slug: m.slug, count } : null;
+            }),
+          );
+          if (!cancelled) setReportRows(rows.filter((row) => row !== null));
+        } catch (err) {
+          if (!cancelled) setErrorMessage(err instanceof Error ? err.message : String(err));
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [loading, scope]),
+  );
 
   // ─── Activity load ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -237,22 +220,8 @@ export default function InboxScreen() {
           if (item.requestType === 'orgJoin') joinOrgIds.push(item.label);
         }
         await resolveOrgNames(joinOrgIds);
-
-        const resolvedMunicipalities = await Promise.all(
-          [...newMunicipalityIds].map(async (mid) => {
-            const m = await getMunicipality(mid);
-            return [mid, m?.name ?? mid] as const;
-          }),
-        );
+        await resolveMunicipalityNames(newMunicipalityIds);
         if (cancelled) return;
-
-        if (resolvedMunicipalities.length > 0) {
-          setMunicipalityNames((prev) => {
-            const next = { ...prev };
-            for (const [id, name] of resolvedMunicipalities) next[id] = name;
-            return next;
-          });
-        }
 
         // v1: mark everything read as soon as the Buzón is opened.
         await markAllAsRead(user.uid);
@@ -268,7 +237,7 @@ export default function InboxScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user, resolveOrgNames]);
+  }, [user, resolveOrgNames, resolveMunicipalityNames]);
 
   // ─── Actionable decision handlers ────────────────────────────────────────────
   async function handleOrganizerDecide(row: OrganizerRow, decision: 'approved' | 'rejected') {
@@ -317,7 +286,8 @@ export default function InboxScreen() {
   }
 
   // ─── Render: actionable section ──────────────────────────────────────────────
-  const hasActionable = organizerRows.length > 0 || orgRows.length > 0 || joinRows.length > 0;
+  const hasActionable =
+    organizerRows.length > 0 || orgRows.length > 0 || joinRows.length > 0 || reportRows.length > 0;
 
   function renderActionable() {
     if (dataLoading) {
@@ -333,6 +303,33 @@ export default function InboxScreen() {
     return (
       <VStack gap={4}>
         <Text variant="h2">{t('inbox.needsAction')}</Text>
+
+        {/* Open reports, one row per village: they are resolved on its Denuncias screen */}
+        {reportRows.length > 0 && (
+          <VStack gap={2}>
+            <Text variant="h3">{t('inbox.tab.reports')}</Text>
+            {reportRows.map((row) => (
+              <Pressable
+                key={row.municipalityId}
+                onPress={() => router.push(villageSectionHref(row.slug, 'denuncias'))}
+                accessibilityRole="button"
+                accessibilityLabel={`${row.name}: ${t('inbox.reportsCount', { count: row.count })}`}
+                testID={`inbox-reports-${row.municipalityId}`}
+                className="bg-surface border border-subtle rounded-xl p-3"
+              >
+                <HStack gap={2} className="items-center justify-between">
+                  <VStack gap={0} className="flex-1">
+                    <Text className="font-semibold">{row.name}</Text>
+                    <Text tone="muted" variant="caption">
+                      {t('inbox.reportsCount', { count: row.count })}
+                    </Text>
+                  </VStack>
+                  <Ionicons name="chevron-forward" size={iconSizes.sm} color={palette.terracotta} />
+                </HStack>
+              </Pressable>
+            ))}
+          </VStack>
+        )}
 
         {/* Organizer requests section */}
         {isSuperAdmin && organizerRows.length > 0 && (
@@ -414,6 +411,7 @@ export default function InboxScreen() {
                           variant="ghost"
                           onPress={() => handleOrganizerDecide(row, 'rejected')}
                           loading={busyKey === key}
+                          testID={`reject-organizer-${row.id}`}
                         >
                           {t('inbox.reject')}
                         </Button>
@@ -472,6 +470,7 @@ export default function InboxScreen() {
                       variant="ghost"
                       onPress={() => handleOrgDecide(row, 'rejected')}
                       loading={busyKey === key}
+                      testID={`reject-org-${row.id}`}
                     >
                       {t('inbox.reject')}
                     </Button>
@@ -495,7 +494,27 @@ export default function InboxScreen() {
     if (item.requestType === 'orgJoin') {
       return t('inbox.pendingSent.orgJoin', { name: orgNames[item.label] ?? item.label });
     }
+    if (item.requestType === 'cosa') return t('inbox.pendingSent.cosa', { name: item.label });
     return t('inbox.pendingSent.org', { name: item.label });
+  }
+
+  function renderCosaRequests() {
+    if (cosaRows.length === 0) return null;
+    return (
+      <VStack gap={2} testID="inbox-cosateca">
+        {/* Under the approver's heading when it shows; its own otherwise. */}
+        {canApprove && hasActionable && !dataLoading ? null : <Text variant="h2">{t('inbox.needsAction')}</Text>}
+        <Text variant="h3">{t('groups.cosateca.inbox.title')}</Text>
+        {cosaRows.map((row) => (
+          <CosaRequestRow
+            key={row.id}
+            request={row}
+            showRequester
+            onPress={() => router.push(groupCosaRequestHref(row.orgId, row.id))}
+          />
+        ))}
+      </VStack>
+    );
   }
 
   function renderActivity() {
@@ -556,6 +575,7 @@ export default function InboxScreen() {
     !dataLoading &&
     !activityLoading &&
     !(canApprove && hasActionable) &&
+    cosaRows.length === 0 &&
     activityItems.length === 0;
 
   return (
@@ -566,6 +586,7 @@ export default function InboxScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
         {canApprove && renderActionable()}
+        {renderCosaRequests()}
         {renderActivity()}
         {isEmpty && (
           <View className="p-4">

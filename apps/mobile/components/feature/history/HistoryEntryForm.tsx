@@ -26,6 +26,7 @@ import {
   validateHistoryDates,
   type HistoryDatesError,
 } from '../../../lib/history/historyForm';
+import { useCallableErrorHandler } from '../../../lib/callableError';
 
 export interface HistoryEntryFormValues {
   title: string;
@@ -57,6 +58,7 @@ export function HistoryEntryForm({
   onSubmit: (values: HistoryEntryFormValues) => Promise<void>;
 }) {
   const { t } = useT();
+  const showCallableError = useCallableErrorHandler();
   const { candidates } = useMentionSources(municipalityId);
 
   const [title, setTitle] = useState(initial?.title ?? '');
@@ -78,6 +80,8 @@ export function HistoryEntryForm({
     try {
       const url = await uploadHistoryEntryImage(municipalityId, entryId, picked);
       setImages((prev) => [...prev, { url, caption: null }]);
+    } catch (e) {
+      showCallableError(e, { operation: 'history:uploadImage' });
     } finally {
       setAddingImage(false);
     }

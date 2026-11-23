@@ -56,6 +56,14 @@ pueblos* was the only place it appeared.
    2026-10-06, user's call): the pueblo's page is about the pueblo, and the
    seal already marks the Embajador wherever their face appears.
 
+6. **The web shows them as a wall on `/embajadores`** (decided 2026-11-11,
+   user). Below the sign-up form, each active pueblo's Embajador appears as the
+   app's carnet: photo with the seal, name, gendered title, escudo and
+   province, linking to the pueblo. The read site otherwise keeps named vecinos
+   out of its marketing; this is the one exception, and it rides the person's
+   own `isPublic` (an account persona is public, so in practice every living
+   Embajador shows). Read by `loadAmbassadors` in `functions/src/web/data.ts`.
+
 ## Not done, on purpose
 
 - **No rename of `role: 'admin'`, `organizerId` or `organizerRequests`.** The

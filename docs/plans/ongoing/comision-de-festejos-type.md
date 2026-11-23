@@ -1,0 +1,53 @@
+# Comisión de festejos group type
+
+**Priority:** medium
+**Landed:** dev
+**Gate:** soak:both steps are on develop, so the next release is breaking and the user runs it (Play managed publishing, `pnpm release:publish`)
+**Next:** after that release is live in prod, retire this plan
+
+Decided 2026-11-01 (user): add a `comisión` organization type, labelled
+"Comisión de festejos". Closes OQ-4 in [business-rules.md](../../business-rules.md)
+for this one type.
+
+## Decisions
+
+- **Expand and enable ship in one release** (2026-11-01, user: finish it on develop
+  rather than wait for step 1 to reach prod first). Installed binaries parse
+  `organizations` with a strict `z.enum`, and one unknown `type` in a village makes the
+  whole org list throw.
+  1. **Expand:** clients read an unknown `type` as `otros`, and know `comisión`
+     (label, roster tier, rules).
+  2. **Enable:** the create/edit forms offer `comisión` and the rules accept it. This
+     commit carries a `Breaking-Client:` trailer, so the release holds its backend and
+     raises `minSupported` to its own version, walling the binaries that cannot read
+     the type. Every release cut from develop from now on is that release, until one ships.
+- **Unlimited per village**, like a peña: client-side create, village admin approves.
+  No callable, no cap. A cap later is a product rule and needs a yes.
+- **Feature tier v1 = the socio-roster tier** (avisos, cuota, actas, registros,
+  tareas, eventos, miembros): add `comisión` to `SOCIO_ROSTER_ORG_TYPES` and the
+  rules' `orgHasSocioRoster`. Comisión-specific features (yearly mandate and handover,
+  link to fiestas/cartel/programa, per-household derrama, patrocinadores, lotería)
+  are a later plan, to be picked with the user.
+- **Listed under Grupos, identified on its card** (2026-11-01, user: no section of its
+  own), on the app and the read site.
+- **Switchable** among the self-service kinds (peña, asociación, otros, comisión) on
+  the edit screen and in the rules' `type` update check.
+- **Stored id `comisión`**, label "Comisión de festejos".
+
+## Context
+
+Prod, Matabuena (`digSmD1NFyaOJCPQ99cC`), 2026-11-01: 8 peñas, 3 asociaciones,
+1 otros, all approved. One of the asociaciones is "Comisión de Festejos de
+Matabuena" — the first group to switch once step 2 ships (its admins can do it
+themselves).
+
+## Touch points
+
+- `OrganizationDataModel.ts` (enum + `PROPOSABLE_ORGANIZATION_TYPES`; unknown → `otros`
+  on read), `SocioDataModel.ts`, `OrgRequestFormSchema.ts`
+- `firestore.rules`: `isValidOrganizationCreate`, `orgHasSocioRoster`, org `update`
+  type check — plus rules tests
+- `scripts/backfill-socio-roster.mjs` `ROSTER_ORG_TYPES`
+- `packages/i18n/messages/es.json` type labels
+- `VillageHomeBody.tsx`, `ProfileView.tsx`, read site (`functions/src/web/`)
+- `docs/business-rules.md` OQ-4, `docs/decisions/` record once shipped

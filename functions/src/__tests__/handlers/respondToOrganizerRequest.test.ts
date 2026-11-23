@@ -40,6 +40,7 @@ async function seedMunicipality(opts: {
       escudoThumbUrl: null,
       escudoManualUrl: null,
       communityActive: opts.communityActive,
+      peopleCount: 0,
       // An active community always has a community object; organizerId may be
       // null (started, no organizer yet).
       community: opts.communityActive

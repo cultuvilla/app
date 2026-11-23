@@ -57,7 +57,7 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
     .requireActual<typeof import('../../../test/watchers')>('../../../test/watchers')
     .mockWatcher('municipalities'),
 }));
-jest.mock('../../firestoreErrorLog', () => ({ reportFirestoreError: jest.fn() }));
+jest.mock('../../firestoreErrorLog', () => ({ reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn() }));
 
 function permissionDenied() {
   return Object.assign(new Error('Missing or insufficient permissions.'), {

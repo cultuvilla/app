@@ -39,7 +39,7 @@ para un municipio cuyo `community.active == true`.
 
 ## 2. Tipos de usuario y roles
 
-Los roles **se componen**: un miembro de organización es también miembro del
+Los roles **se componen**: un integrante de organización es también miembro del
 pueblo y también un usuario autenticado.
 
 | Rol | Definido por | Capacidad principal |
@@ -48,7 +48,7 @@ pueblo y también un usuario autenticado.
 | **Usuario autenticado** | con sesión iniciada | Todo lo anterior + inscribirse a **cualquier** evento de **cualquier** pueblo, gestionar su cuenta y Personas, publicar/comentar/reaccionar en noticias. |
 | **Miembro del pueblo** | `municipalities/{id}/members/{uid}` (`role: user`) | Miembro de un pueblo concreto. Ve los **nombres** de asistentes en los eventos de ese pueblo. Sujeto al censo de ese pueblo. |
 | **Equipo del pueblo** (y su **Embajador**) | `municipalities/{id}/members/{uid}` (`role: admin`) | Gestiona el pueblo: expulsa miembros, modera noticias, gestiona barrios/cementerios, edita/cancela cualquier evento del pueblo, aprueba solicitudes de creación de organizaciones. *(El ingreso es autoservicio — el administrador ya no lo aprueba.)* |
-| **Miembro de organización** | `organizations/{orgId}/members/{uid}` | Crea/gestiona los eventos de esa organización. |
+| **Integrante de organización** | `organizations/{orgId}/members/{uid}` | Crea/gestiona los eventos de esa organización y ve los privados. Por defecto lo admite un administrador tras una solicitud; el administrador puede abrir el grupo para que cualquiera entre al momento. El ayuntamiento nunca se abre. |
 | **Superadministrador** | `admins/{uid}` | Global. Crea municipios, aprueba solicitudes de embajador, gestiona los datos de referencia y tiene plenos poderes de administrador de pueblo en todas partes. |
 
 **Un Embajador por pueblo, un equipo detrás.** En la app, el rol `admin` se
@@ -366,7 +366,7 @@ Un usuario puede eliminar su cuenta. El tratamiento es **híbrido**:
 | OQ-1 | ¿Debe un **miembro de organización ser también miembro del pueblo de esa organización**? | No se exige en ningún sentido. Inclinación: al añadir a alguien a una organización se **crea automáticamente** la membresía del pueblo si no la tiene. **Pendiente de debate con los cofundadores.** |
 | ~~OQ-2~~ | ~~Oficios (*occupations*) — lista predefinida y política de aprobación.~~ | **Resuelto:** los oficios se eligen de un catálogo hardcodeado (`OCCUPATION_CATALOG`) o se escriben libremente en la ficha de la Persona; sin cola de propuestas ni aprobación. `recordOccupation` hace upsert en `occupations/{slug}` para alimentar sugerencias. |
 | OQ-3 | **Categorías de noticias — ¿qué categorías deberían existir?** | Enum fijo hoy: `fiesta`, `tradicion`, `gastronomia`, `historia`, `otro` (`NEWS_POST_CATEGORIES` en `NewsPostDataModel.ts`, replicado en `firestore.rules`). Cada publicación debe elegir exactamente una. **Abierto:** ¿es el conjunto correcto (añadir/renombrar/eliminar)? |
-| OQ-4 | **Tipos de organización — ¿qué tipos pueden existir en un pueblo?** | Enum fijo hoy: `ayuntamiento` (único), `peña`, `asociación` (`OrganizationTypeSchema`). **Abierto:** ¿son los tipos correctos (p. ej. añadir `cofradía`, `club deportivo`, `comisión de fiestas`…)? Añadir un tipo afecta al enum, al validador de reglas y a cualquier cardinalidad específica del tipo. |
+| OQ-4 | **Tipos de organización — ¿qué tipos pueden existir en un pueblo?** | Enum fijo hoy: `ayuntamiento` (único), `peña`, `asociación`, `otros` y `comisión` (comisión de festejos, ver [comision-de-festejos-type](decisions/comision-de-festejos-type.md)) (`OrganizationTypeSchema`); un tipo desconocido se lee como `otros`. **Abierto:** ¿son los tipos correctos (p. ej. añadir `cofradía`, `club deportivo`, `comisión de fiestas`…)? Añadir un tipo afecta al enum, al validador de reglas y a cualquier cardinalidad específica del tipo. |
 
 ---
 
