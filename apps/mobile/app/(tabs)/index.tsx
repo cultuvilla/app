@@ -1,4 +1,5 @@
 import { createEventHref, createNewsHref, eventHref, newsHref } from '../../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -18,6 +19,7 @@ import { Screen } from '../../components/primitives/Screen';
 import { Text } from '../../components/primitives/Text';
 import { Pressable } from '../../components/primitives/Pressable';
 import { Fab } from '../../components/primitives/Fab';
+import { Button } from '../../components/primitives/Button';
 import { ErrorState } from '../../components/primitives/ErrorState';
 import { EventCard } from '../../components/feature/EventCard';
 import { NewsCard } from '../../components/feature/NewsCard';
@@ -31,6 +33,7 @@ import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
 import { useMyRegistrations } from '../../lib/registrations/MyRegistrationsContext';
 import { useT } from '../../lib/i18n';
 import { useWatch } from '../../lib/hooks/useWatch';
+import { hasActiveFeedFilter, type DatePreset, type FeedTab } from '../../lib/feed/feedFilters';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import {
   haversineKm,
@@ -39,7 +42,7 @@ import {
 } from '@cultuvilla/shared/services/feedService';
 import { watchAllVillagesFeed } from '@cultuvilla/shared/services/newsService';
 import { getActiveCommunities } from '@cultuvilla/shared/services/municipalityService';
-import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
+import { madridDayKey, type EventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import { firstOfEachSeries, grownFeedSize } from '@cultuvilla/shared/models/event/EventSeriesModel';
 import {
   NEWS_POST_CATEGORIES,
@@ -47,7 +50,7 @@ import {
 } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import type { LatLng } from '@cultuvilla/shared/models/core/LocationDataModel';
 
-const ACCENT = '#bb5d3a'; // colors.ts: light.bg.accent (terracotta)
+const ACCENT = colors.light.fg.accent;
 // Breathing room between the filter bar and the first card. Lives in the feed's
 // top padding (the content behind), not in the filter component itself.
 const FEED_TOP_GAP = 12;
@@ -58,8 +61,6 @@ const FEED_TARGET_CARDS = 20;
 
 type FeedEvent = EventData & { id: string };
 type FeedNews = NewsPostData & { id: string };
-type FeedTab = 'eventos' | 'noticias';
-type DatePreset = 'hoy' | 'semana' | 'mes';
 type ActiveSheet = 'village' | 'date' | 'category' | 'sort' | null;
 type Village = {
   id: string;
@@ -113,11 +114,11 @@ export default function FeedScreen() {
   // Both feeds are live listeners: they paint from the on-device cache at once
   // and update on their own, so focus no longer refetches them. Bumping a retry
   // counter re-opens a listener after an error. The day is part of the events
-  // key because the feed's lower bound is "start of today".
+  // key because the feed's lower bound is "start of today" in Madrid.
   const [eventsRetry, setEventsRetry] = useState(0);
   const [newsRetry, setNewsRetry] = useState(0);
   const [newsOpened, setNewsOpened] = useState(false);
-  const today = new Date().toDateString();
+  const today = madridDayKey(new Date());
 
   // Two listeners, not one: the public feed is a single query, while the
   // private half is one query per org the viewer belongs to — rules do not
@@ -271,6 +272,35 @@ export default function FeedScreen() {
     label: t(`news.compose.category.${c}`),
   }));
 
+  const filters = { search, villageId: villageFilter, date: dateFilter, category: categoryFilter };
+  const eventsFiltered = hasActiveFeedFilter('eventos', filters);
+  const newsFiltered = hasActiveFeedFilter('noticias', filters);
+
+  function clearFilters() {
+    setSearch('');
+    setSearchOpen(false);
+    setVillageFilter(null);
+    setDateFilter(null);
+    setCategoryFilter(null);
+    setSortByProximity(false);
+  }
+
+  function emptyState(icon: keyof typeof Ionicons.glyphMap, message: string, filtered: boolean) {
+    return (
+      <View className="items-center justify-center px-8">
+        <Ionicons name={filtered ? 'search-outline' : icon} size={48} color={colors.light.fg.icon} />
+        <Text tone="muted" className="mt-3 text-center">
+          {message}
+        </Text>
+        {filtered ? (
+          <Button variant="secondary" onPress={clearFilters} className="mt-4" testID="feed-clear-filters">
+            {t('feed.emptyFiltered.clear')}
+          </Button>
+        ) : null}
+      </View>
+    );
+  }
+
   const selectedVillageName = villages.find((v) => v.id === villageFilter)?.name ?? null;
   const dateLabel = dateFilter ? t(`feed.filter.date${dateFilter === 'hoy' ? 'Today' : dateFilter === 'semana' ? 'Week' : 'Month'}`) : null;
   const categoryLabel = categoryFilter ? t(`news.compose.category.${categoryFilter}`) : null;
@@ -351,7 +381,7 @@ export default function FeedScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: '#ffffff',
+            backgroundColor: colors.light.bg['surface-elevated'],
             borderRadius: 24,
             borderWidth: 1.5,
             borderColor: ACCENT,
@@ -368,7 +398,7 @@ export default function FeedScreen() {
             value={search}
             onChangeText={setSearch}
             placeholder={t('feed.filter.searchPlaceholder')}
-            placeholderTextColor="#a6a897"
+            placeholderTextColor={colors.light.fg.faint}
             // Fixed-height container + zero-padding input keeps the oval the same
             // height as the other pills; text scrolls inside the fixed width.
             style={{
@@ -380,7 +410,7 @@ export default function FeedScreen() {
               height: '100%',
               textAlignVertical: 'center',
               includeFontPadding: false,
-              color: '#566047',
+              color: colors.light.fg.primary,
             }}
           />
           <Pressable
@@ -459,14 +489,11 @@ export default function FeedScreen() {
         }
         data={visibleEvents}
         keyExtractor={(e) => e.id}
-        ListEmptyComponent={
-          <View className="items-center justify-center px-8">
-            <Ionicons name="calendar-outline" size={48} color="#64748b" />
-            <Text tone="muted" className="mt-3 text-center">
-              {t('feed.empty')}
-            </Text>
-          </View>
-        }
+        ListEmptyComponent={emptyState(
+          'calendar-outline',
+          eventsFiltered ? t('feed.emptyFiltered.events') : t('feed.empty'),
+          eventsFiltered,
+        )}
         renderItem={({ item }) => (
           <EventCard
             event={{
@@ -514,14 +541,11 @@ export default function FeedScreen() {
         }
         data={visibleNews}
         keyExtractor={(n) => n.id}
-        ListEmptyComponent={
-          <View className="items-center justify-center px-8">
-            <Ionicons name="newspaper-outline" size={48} color="#64748b" />
-            <Text tone="muted" className="mt-3 text-center">
-              {t('feed.news.empty')}
-            </Text>
-          </View>
-        }
+        ListEmptyComponent={emptyState(
+          'newspaper-outline',
+          newsFiltered ? t('feed.emptyFiltered.news') : t('feed.news.empty'),
+          newsFiltered,
+        )}
         renderItem={({ item }) => (
           <NewsCard
             post={item}

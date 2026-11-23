@@ -106,6 +106,11 @@ describe('the chat’s stored shapes', () => {
     expect(org.chatAdminsOnly).toBe(false);
     const { chatAdminsOnly: _omit, ...older } = org;
     expect(OrganizationDataSchema.parse(older).chatAdminsOnly).toBe(false);
+    // The same window for "Enviar avisos": an org an installed binary creates
+    // has no such field, and reads as off.
+    expect(org.sociosSendAvisos).toBe(false);
+    const { sociosSendAvisos: _omitted, ...olderStill } = org;
+    expect(OrganizationDataSchema.parse(olderStill).sociosSendAvisos).toBe(false);
   });
 });
 

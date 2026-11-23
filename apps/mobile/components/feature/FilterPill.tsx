@@ -1,17 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
 
-// Inlined from the design tokens (packages/shared/src/design-system/tokens/colors.ts):
-//   accent   = palette.terracotta (#bb5d3a)
-//   on-accent = palette.cream     (#f9f0e8)
 // Pills are an Animated-free, inline-styled primitive so the ordago-style
 // border/active-fill renders identically on the web build (NativeWind would
 // otherwise be fine here, but matching ordago's exact pill metrics is easier
 // in one place with raw style values).
-const ACCENT = '#bb5d3a';
-const ON_ACCENT = '#f9f0e8';
-const SURFACE_ELEVATED = '#ffffff';
+const ACCENT = colors.light.fg.accent;
+const ON_ACCENT = colors.light.fg['on-accent'];
+const SURFACE_ELEVATED = colors.light.bg['surface-elevated'];
 
 /**
  * Fixed pill height shared by every filter control (including the inline

@@ -132,6 +132,12 @@ describe('respondToTaskShift (callable)', () => {
     await expect(call('u-ana', { orgId: ORG_ID, taskId: 'plain', answer: 'claim' })).rejects.toMatchObject({ code: 'not-found' });
     await expect(call('u-ana', { orgId: ORG_ID, taskId: 'past', answer: 'claim' })).rejects.toMatchObject({ code: 'failed-precondition' });
   });
+
+  it('gives an encargado no volunteer slot: they are already on it', async () => {
+    await seedTask('barra', { assigneeUids: ['u-ana'], slots: 2, dueOn: '2099-08-14' });
+    await expect(call('u-ana', { orgId: ORG_ID, taskId: 'barra', answer: 'claim' })).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(await call('u-luis', { orgId: ORG_ID, taskId: 'barra', answer: 'claim' })).toEqual({ state: 'claimed' });
+  });
 });
 
 describe('sendGroupTaskReminders', () => {

@@ -178,7 +178,7 @@ export default function NewNewsScreen() {
   const [villageSlug, setVillageSlug] = useState('');
 
   const municipalityId = editMode ? editMunicipalityId : (villageId ?? profile?.activeMunicipalityId ?? null);
-  const { canEdit, canDelete, loading: capLoading } = useEntityCapabilities(municipalityId ?? undefined);
+  const { can, loading: capLoading } = useEntityCapabilities(municipalityId ?? undefined);
 
   // The article's URL is built from its pueblo's slug. In edit mode it comes off
   // the post; when writing a new one, resolve it from the pueblo being posted to.
@@ -379,7 +379,7 @@ export default function NewNewsScreen() {
 
   // Editing is gated exactly like every other entity's edit screen (and like
   // the news update rules); anyone else who deep-links here goes to the article.
-  if (editMode && !loading && !capLoading && !canEdit(createdBy, organizerUserIds)) {
+  if (editMode && !loading && !capLoading && !can('edit', 'news', { createdBy, organizerUserIds })) {
     return <Redirect href={newsHref({ id: newsId, title, villageSlug })} />;
   }
 
@@ -413,7 +413,7 @@ export default function NewNewsScreen() {
         <ScreenHeader title={headerTitle} />
         <View className="flex-1 items-center justify-center px-8">
           <VStack gap={4} className="items-center">
-            <Ionicons name="checkmark-circle-outline" size={48} color="#16a34a" />
+            <Ionicons name="checkmark-circle-outline" size={48} color={colors.light.fg.success} />
             <Text className="text-center">{t('news.compose.successPublished')}</Text>
             <Button onPress={() => router.back()}>{t('common.back')}</Button>
           </VStack>
@@ -498,7 +498,7 @@ export default function NewNewsScreen() {
         rightSlot={
           // deleteNewsPost lets only the author or an admin through, not every
           // co-writer who may edit — the same split as every other entity.
-          editMode && canDelete(createdBy, status) ? (
+          editMode && can('delete', 'news', { createdBy, status }) ? (
             <DeleteHeaderButton
               onConfirm={remove}
               accessibilityLabel={t('common.delete')}

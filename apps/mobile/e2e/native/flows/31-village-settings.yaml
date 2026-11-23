@@ -71,8 +71,25 @@ env:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'community-location-clear'
+# The first tap can land while the escudo upload is still re-rendering the
+# editor and be dropped on iOS (run 43378981108); tap until the button goes,
+# which it does once there is neither a place nor a query.
 - tapOn:
     id: 'community-location-clear'
+- repeat:
+    times: 2
+    while:
+      visible:
+        id: 'community-location-clear'
+    commands:
+      - extendedWaitUntil:
+          notVisible:
+            id: 'community-location-clear'
+          timeout: 5000
+          optional: true
+      - tapOn:
+          id: 'community-location-clear'
+          optional: true
 - runFlow:
     file: ../subflows/replace-text.yaml
     env:

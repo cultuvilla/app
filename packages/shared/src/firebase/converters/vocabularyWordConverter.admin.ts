@@ -1,5 +1,4 @@
 import { VocabularyWordDataSchema } from '../../models/vocabulary/VocabularyWordDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const vocabularyWordConverterAdmin = makeConverter(VocabularyWordDataSchema, adminSdkCtors);
+export const vocabularyWordConverterAdmin = adminConverter(VocabularyWordDataSchema);

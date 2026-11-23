@@ -36,39 +36,46 @@ export function build<Entity>Data(input: <Entity>DataInput): <Entity>Data { /* a
 
 Add a `packages/shared/src/models/<entity>/index.ts` re-exporting, and add `export * from './<entity>'` to `packages/shared/src/models/index.ts`.
 
-### 2. Converter (binds the schema to the SDKs)
+### 2. Declare the collection — one entry in `refs/collections.ts`
 
-Create `packages/shared/src/firebase/converters/<entity>Converter.ts`:
+Add ONE entry to `COLLECTIONS` in [`packages/shared/src/firebase/refs/collections.ts`](../../../packages/shared/src/firebase/refs/collections.ts):
 
 ```ts
-import { <Entity>DataSchema } from '../../models/<entity>/<Entity>DataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
-import { adminSdkCtors } from './sdkAdapters.admin';
-
-export const <entity>ConverterClient = makeConverter(<Entity>DataSchema, clientSdkCtors);
-export const <entity>ConverterAdmin = makeConverter(<Entity>DataSchema, adminSdkCtors);
+<entity>s: def('<entity>s', <Entity>DataSchema),
+// a subcollection: one `{name}` per parent id, in order
+<parent><Entity>s: def('<parents>/{<parent>Id}/<entity>s', <Entity>DataSchema),
+// rules deny every client read and write → refs/client.ts cannot bind it
+<entity>s: serverOnly('<entity>s', <Entity>DataSchema),
 ```
+
+That entry is the whole registration: the converter (one per schema per SDK,
+memoized by `clientConverter` / `adminConverter` in `converters/sdkAdapters.*.ts`)
+and the conformance gate's target both derive from it. No converter file is
+needed. Write a `<entity>Converter.{client,admin}.ts` one-liner
+(`export const <entity>ConverterClient = clientConverter(<Entity>DataSchema);`)
+only if a service needs the converter outside a ref. Never call `makeConverter`
+directly: a second converter object for one schema makes the JS SDK's
+`refEqual` see two refs to one doc as different.
 
 ### 3. Ref factories (the ONLY place raw `collection()` / `db.collection()` is allowed)
 
-Add factories in BOTH `packages/shared/src/firebase/refs/client.ts` and `packages/shared/src/firebase/refs/admin.ts`:
+Add named factories over the entry in `packages/shared/src/firebase/refs/client.ts`
+and/or `refs/admin.ts` — only the side(s) that read it. They are one-liners over
+each file's binder; the path and converter come from the entry, and the parent
+ids are type-checked against its template:
 
 ```ts
-// client.ts
-export const <entity>sCollection = (db: Firestore) =>
-  collection(db, '<entity>s').withConverter(<entity>ConverterClient);
-export const <entity>Doc = (db: Firestore, id: string) =>
-  doc(db, '<entity>s', id).withConverter(<entity>ConverterClient);
-
-// admin.ts — same shape, admin SDK
-export const <entity>sCollection = (db: Firestore) =>
-  db.collection('<entity>s').withConverter(<entity>ConverterAdmin);
-export const <entity>Doc = (db: Firestore, id: string) =>
-  db.collection('<entity>s').doc(id).withConverter(<entity>ConverterAdmin);
+// client.ts and admin.ts — the same text on both sides
+export const <entity>sCollection = (db: Firestore) => typedCollection(db, C.<entity>s);
+export const <entity>Doc = (db: Firestore, id: string) => typedDoc(db, C.<entity>s, id);
 ```
 
-The CI grep gate (`scripts/check-no-raw-firestore-refs.mjs`) fails the build if these strings appear anywhere else.
+`rawDoc` / `rawCollection` give an unconverted ref (client writes that stamp
+`serverTimestamp()`, or a collection with `schema: null`). `typedGroup` gives a
+collection-group query. `test/firebase/refsTable.test.ts` holds both sides to
+the table: same paths, only declared paths, one converter per schema.
+
+The CI grep gate (`scripts/check-no-raw-firestore-refs.mjs`) fails the build if raw ref strings appear anywhere else.
 
 ### 4. Service
 
@@ -183,11 +190,14 @@ Shape (in `shapeRules.test.ts`):
 
 Run: `pnpm test:rules` — should pass.
 
-### 11. Register the collection in the conformance gate
+### 11. The conformance gate — nothing to do
 
-Add it to `REGISTRY` in [`scripts/check-dev-conformance.mjs`](../../../scripts/check-dev-conformance.mjs) (import its factory from `refs/admin`). That gate walks every registered collection through its converter before each beta/prod deploy; an **unregistered** collection is never checked, so the first schema change to it can ship a converter crash while the gate reports green. The script's own drift guard only *warns*, and only once the collection holds data — a brand-new collection slips past it entirely.
-
-`packages/shared/test/ci/conformanceRegistry.test.ts` fails the build if a top-level factory in `refs/admin.ts` is missing from the registry. Don't satisfy it by adding to its `NOT_YET_GATED` exceptions — those are known gaps with a reason, not an escape hatch. (`vocabularyTerms`/`vocabularyDefinitions` shipped without this step; the test exists because of it.)
+[`scripts/check-dev-conformance.mjs`](../../../scripts/check-dev-conformance.mjs)
+walks `conformanceTargets` from `refs/admin`, derived from `COLLECTIONS`: every
+entry with a schema, at any depth. Step 2 registered it. Before landing a
+collection that already holds data in beta/prod under a schema change, run the
+gate against that env (`env -u GOOGLE_APPLICATION_CREDENTIALS node
+scripts/check-dev-conformance.mjs --env beta`): it gates the next promotion.
 
 ### 12. Deploy notes in the PR description
 
@@ -196,14 +206,13 @@ If the rules or indexes file changed, the PR description must note that a deploy
 ## Required outputs
 
 - [ ] Zod schema in `packages/shared/src/models/<entity>/<Entity>DataModel.ts` with `z.infer` type and `build<Entity>Data` factory.
-- [ ] Converter file in `packages/shared/src/firebase/converters/<entity>Converter.ts` (client + admin).
-- [ ] Ref factories in BOTH `packages/shared/src/firebase/refs/client.ts` and `admin.ts`.
+- [ ] One entry in `COLLECTIONS` (`packages/shared/src/firebase/refs/collections.ts`).
+- [ ] Named factories over it in `refs/client.ts` and/or `refs/admin.ts`.
 - [ ] Service in `packages/shared/src/services/<entity>Service.ts` using the typed refs (zero raw `doc()` / `collection()` outside the documented `updateDoc` pairing).
 - [ ] Service exported from `index.ts` + row added to `_services-map.md` in the same commit.
 - [ ] Rules block in `firestore.rules` with BOTH auth helpers AND a `isValid<Entity>Create` shape predicate wired into `allow create`.
 - [ ] Composite index entry in `firestore.indexes.json` for `(municipalityId, sortField)` (or the equivalent shape your queries use).
 - [ ] Service vitest + auth rules e2e test + shape rules e2e cases.
-- [ ] Collection registered in the conformance gate `REGISTRY` (`conformanceRegistry.test.ts` passes).
 - [ ] `pnpm check:no-raw-firestore-refs` passes.
 - [ ] PR description notes the deploy needed.
 

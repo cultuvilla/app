@@ -12,6 +12,11 @@ import { EventSeriesSchema, type EventSeries } from './EventSeriesModel';
  */
 export const MAX_SIGNUP_GROUP_SIZE = 4;
 
+/** Sanity bounds for an advertised birth-year window. Re-checked in
+ *  firestore.rules — keep the two in step. */
+export const MIN_EVENT_BIRTH_YEAR = 1900;
+export const MAX_EVENT_BIRTH_YEAR = 2200;
+
 // Events publish on create — there is no `draft` state.
 export const EventStatusSchema = z.enum(['published', 'cancelled', 'completed']);
 export type EventStatus = z.infer<typeof EventStatusSchema>;
@@ -126,6 +131,12 @@ export const EventDataSchema = z.object({
   // On a repeating edition: the next one's date can't be derived, so repeating
   // it asks for the date rather than prefilling it. Always true on `repeatsMonthly`.
   repeatDateVaries: z.boolean().default(false),
+  // The fiesta edition (`fiestaEditions/{id}`) whose programme lists this
+  // event, or null. Tagging only arranges the programme: the Wrapped still
+  // counts by date range, tagged or not. Never on a series. `.default(null)`
+  // for events that predate it (backfilled by `event-fiesta-edition`) and for
+  // binaries that never send it.
+  fiestaEditionId: z.string().nullable().default(null),
   status: EventStatusSchema,
   organizerUserIds: z.array(z.string()),
   organizerOrgIds: z.array(z.string()),
@@ -187,6 +198,7 @@ export interface EventDataInput {
   repeatsYearly?: boolean;
   repeatsMonthly?: boolean;
   repeatDateVaries?: boolean;
+  fiestaEditionId?: string | null;
   status?: EventStatus;
   organizerUserIds: string[];
   organizerOrgIds: string[];
@@ -234,6 +246,7 @@ export function buildEventData(input: EventDataInput): EventData {
     repeatsYearly,
     repeatsMonthly,
     repeatDateVaries: repeatsMonthly || (repeatsYearly && (input.repeatDateVaries ?? false)),
+    fiestaEditionId: input.series ? null : (input.fiestaEditionId ?? null),
     status: input.status ?? 'published',
     organizerUserIds: input.organizerUserIds,
     organizerOrgIds: input.organizerOrgIds,
@@ -316,6 +329,27 @@ export function madridDayKey(d: Date): string {
   }).format(d);
 }
 
+/**
+ * The instant the Europe/Madrid day containing `now` began. Exactly the cut
+ * `isStartDayOver` makes, as a Date a query can range on: `d` is a past day
+ * iff `d < startOfMadridDay(now)`. Independent of the device's timezone.
+ */
+export function startOfMadridDay(now: Date): Date {
+  const key = madridDayKey(now);
+  // `key` is YYYY-MM-DD, and ISO date-only strings parse as UTC midnight.
+  const utcMidnight = Date.parse(key);
+  // Madrid is UTC+2 (CEST) or UTC+1 (CET), and its DST switches happen at
+  // 02:00/03:00, so midnight is always one of these two instants.
+  const HOUR = 3_600_000;
+  for (const offset of [2 * HOUR, HOUR]) {
+    const candidate = new Date(utcMidnight - offset);
+    if (madridDayKey(candidate) === key && madridDayKey(new Date(candidate.getTime() - 1)) !== key) {
+      return candidate;
+    }
+  }
+  throw new Error(`startOfMadridDay: no Madrid midnight found for ${key}`);
+}
+
 /** True once `now` is a later Europe/Madrid calendar day than `start`. */
 export function isStartDayOver(start: Date, now: Date): boolean {
   return madridDayKey(now) > madridDayKey(start);
@@ -343,6 +377,12 @@ export function upcomingThenPast<E extends Pick<EventData, 'startDate' | 'endDat
   const isPast = (e: E) => isStartDayOver(eventEndBoundary(e), now);
   return [...byStart.filter((e) => !isPast(e)), ...byStart.filter(isPast).reverse()];
 }
+
+/**
+ * The statuses an event list shows, in the app and on the read site. A
+ * cancelled event stays reachable by its link but is never listed.
+ */
+export const LISTED_EVENT_STATUSES: EventStatus[] = ['published', 'completed'];
 
 export function isEventOngoing(
   event: Pick<EventData, 'status' | 'startDate' | 'endDate'>,

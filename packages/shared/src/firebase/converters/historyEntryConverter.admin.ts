@@ -1,5 +1,4 @@
 import { HistoryEntryDataSchema } from '../../models/history/HistoryEntryDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const historyEntryConverterAdmin = makeConverter(HistoryEntryDataSchema, adminSdkCtors);
+export const historyEntryConverterAdmin = adminConverter(HistoryEntryDataSchema);

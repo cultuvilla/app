@@ -198,11 +198,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: colors.light.border.input,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.light.bg['surface-elevated'],
   },
   triggerText: { flexShrink: 1 },
   backdrop: {

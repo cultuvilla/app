@@ -171,10 +171,14 @@ onFlowComplete:
 - runFlow: ../subflows/close-keyboard.yaml
 - tapOn:
     id: 'cuota-settings-save'
+# The form closes on the server's ack. On iOS the emulator now and then closes
+# the SDK's connection just after a write, the SDK notices only on the reset
+# 30 s later and reconnects up to a minute after that (runs 43378981108 and
+# 43398151310: up to 92 s), so wait out a full reconnect.
 - extendedWaitUntil:
     notVisible:
       id: 'cuota-settings-sheet'
-    timeout: 20000
+    timeout: 150000
 - runScript:
     file: ../scripts/assertDoc.js
     env:
@@ -201,10 +205,31 @@ onFlowComplete:
           'remindersEnabled': false,
           'configuredBy': 'e2e-admin'
         }
-# This year's price, not the base one, is what the period asks for.
+# This year's price, not the base one, is what the period asks for. The app
+# shows its own save at once, from the device cache. But when the iOS SDK's
+# watch stream drops on a ping timeout just before the save, the emulator
+# answers the resumed listen as current WITHOUT the new doc, the SDK takes that
+# as a delete, and the screen falls back to "Todavía no hay cuota" for good
+# (instrumented in runs 43466583420 and 43466577646). Production Firestore
+# does not do this, so it is not an app bug. A fresh session listens without a
+# resume token and gets the doc.
 - extendedWaitUntil:
     visible: '.*25,00.*vence el.*'
-    timeout: 20000
+    timeout: 30000
+    optional: true
+- runFlow:
+    when:
+      notVisible: '.*25,00.*vence el.*'
+    commands:
+      - runFlow:
+          file: ../subflows/login.yaml
+          env:
+            EMAIL: ${ADMIN_EMAIL}
+            PASSWORD: ${PASSWORD}
+      - openLink: 'cultuvilla://grupos/${ORG_ID}/cobros'
+- extendedWaitUntil:
+    visible: '.*25,00.*vence el.*'
+    timeout: 60000
 
 # ── A socio without the app, numbered by the trigger, then renumbered. ──
 - openLink: 'cultuvilla://grupos/${ORG_ID}/socios'
@@ -220,6 +245,11 @@ onFlowComplete:
     file: ../subflows/tap-until.yaml
     env:
       TAP: 'socios-add'
+      EXPECT: 'socios-add-sheet'
+- runFlow:
+    file: ../subflows/tap-until.yaml
+    env:
+      TAP: 'socios-add-sheet-typed'
       EXPECT: 'typed-socio-sheet'
 # Phone first: a phone pad has no Return key on iOS, and the name typed after
 # it is a text field close-sheet-keyboard can blur.
@@ -234,6 +264,15 @@ onFlowComplete:
       INPUT: 'typed-socio-name'
       TEXT: ${output.typedName}
 - runFlow: ../subflows/close-sheet-keyboard.yaml
+# The group keeps this person's data only with their permission: saving waits for the tick.
+# Not scroll-to.yaml: its iOS keyboard-closing tap would land on the sheet's backdrop.
+- scrollUntilVisible:
+    element:
+      id: 'typed-socio-consent-box'
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: 'typed-socio-consent-box'
 - runFlow:
     file: ../subflows/grupos-sheet-save.yaml
     env:
@@ -315,8 +354,10 @@ onFlowComplete:
       FIELD: socioNumber
       EXPECT: ${output.typedNumber}
 - assertTrue: ${output.ok == 'true'}
+# The number is its own text on Android; on iOS the row is one element, read
+# by its label "<number>, <name>".
 - extendedWaitUntil:
-    visible: '${output.typedNumber}'
+    visible: '${output.typedNumber}(, .*)?'
     timeout: 15000
 # A member's row is renumbered from its own number sheet.
 - runScript:
@@ -379,7 +420,7 @@ onFlowComplete:
     env:
       TAP: 'cuota-record-${output.userSocioId}'
       EXPECT: 'cuota-payment-sheet'
-# "✓ Pagó" asks only how they paid; a part payment goes through "Otro importe".
+# "Cobrar" asks only how they paid; a part payment goes through "Otro importe".
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
@@ -445,9 +486,11 @@ onFlowComplete:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'cuota-row-${output.userSocioId}'
+# A part payment reads as what was paid, with the rest on the row's button.
 - extendedWaitUntil:
-    visible: '.*12,00.*25,00.*'
+    visible: '.*Ha pagado 12,00.*'
     timeout: 15000
+- assertVisible: '.*Cobrar 13,00.*'
 
 # ── The member sees the payment under their own cuota. ──
 - runFlow:

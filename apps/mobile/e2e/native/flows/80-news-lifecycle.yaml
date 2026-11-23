@@ -201,10 +201,13 @@ env:
     file: ../subflows/see-text.yaml
     env:
       TEXT: 'Ayuntamiento de Altozano'
+# The co-writer's chip shows the account's name: the seeded 'E2E User', or
+# 'Usuario E2E' once an earlier flow has saved the profile. On iOS those flows
+# run on another shard, and a flow may depend only on the seed and its group.
 - runFlow:
     file: ../subflows/see-text.yaml
     env:
-      TEXT: 'Usuario E2E'
+      TEXT: '(Usuario E2E|E2E User)'
 - runFlow:
     file: ../subflows/see-text.yaml
     env:

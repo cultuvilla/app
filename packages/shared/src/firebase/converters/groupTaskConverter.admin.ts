@@ -3,9 +3,8 @@ import {
   TaskReminderDataSchema,
   TaskTemplateDataSchema,
 } from '../../models/organization/GroupTaskDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const groupTaskConverterAdmin = makeConverter(GroupTaskDataSchema, adminSdkCtors);
-export const taskTemplateConverterAdmin = makeConverter(TaskTemplateDataSchema, adminSdkCtors);
-export const taskReminderConverterAdmin = makeConverter(TaskReminderDataSchema, adminSdkCtors);
+export const groupTaskConverterAdmin = adminConverter(GroupTaskDataSchema);
+export const taskTemplateConverterAdmin = adminConverter(TaskTemplateDataSchema);
+export const taskReminderConverterAdmin = adminConverter(TaskReminderDataSchema);

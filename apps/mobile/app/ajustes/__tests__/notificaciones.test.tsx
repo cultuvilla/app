@@ -80,12 +80,15 @@ describe('NotificationSettingsScreen', () => {
 
   it('shows the group switches and how much each group notifies once the person is in one', () => {
     audience.current = { ...audience.current, groups: [group('org1', 'Peña El Trago')], handlesRequests: true };
-    const { getByTestId } = render(<NotificationSettingsScreen />);
+    const { getByTestId, queryByTestId } = render(<NotificationSettingsScreen />);
     expect(getByTestId('push-section-groups')).toBeTruthy();
     expect(getByTestId('push-topic-group_tasks')).toBeTruthy();
+    expect(getByTestId('push-topic-group_chats')).toBeTruthy();
+    // An aviso never pushes, so there is no switch for it.
+    expect(queryByTestId('push-topic-group_avisos')).toBeNull();
     expect(getByTestId('push-topic-requests_to_handle')).toBeTruthy();
     expect(getByTestId('push-per-group')).toBeTruthy();
-    // No prefs doc: avisos and what is theirs, the chats quiet.
+    // No prefs doc: what is theirs, the chats quiet.
     expect(getByTestId('push-group-level-org1')).toHaveTextContent('notifications.settings.perGroup.levels.avisos');
   });
 
@@ -93,19 +96,26 @@ describe('NotificationSettingsScreen', () => {
     audience.current = { ...audience.current, groups: [group('org1', 'Peña El Trago')] };
     const { getByTestId } = render(<NotificationSettingsScreen />);
     fireEvent.press(getByTestId('push-group-org1'));
-    fireEvent.press(getByTestId('push-group-sheet-org1-none'));
-    expect(mockSetLevel).toHaveBeenCalledWith('u1', 'org1', 'none');
+    fireEvent.press(getByTestId('push-group-sheet-org1-all'));
+    expect(mockSetLevel).toHaveBeenCalledWith('u1', 'org1', 'all');
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('offers a group without socios no avisos level', () => {
+  it('offers every group two levels: the avisos never push, so there is nothing to silence', () => {
     setWatched('groupPrefs', { messagesMuted: false, chatPush: true, orgId: 'org1', updatedAt: new Date() });
-    audience.current = { ...audience.current, groups: [group('org1', 'Ayuntamiento', 'ayuntamiento')] };
+    audience.current = { ...audience.current, groups: [group('org1', 'Peña El Trago')] };
     const { getByTestId, queryByTestId } = render(<NotificationSettingsScreen />);
-    expect(getByTestId('push-group-level-org1')).toHaveTextContent('notifications.settings.perGroup.levelsNoAvisos.all');
+    expect(getByTestId('push-group-level-org1')).toHaveTextContent('notifications.settings.perGroup.levels.all');
     fireEvent.press(getByTestId('push-group-org1'));
     expect(getByTestId('push-group-sheet-org1-avisos')).toBeTruthy();
     expect(queryByTestId('push-group-sheet-org1-none')).toBeNull();
+  });
+
+  it('reads a mute an older binary stored as the default it now equals', () => {
+    setWatched('groupPrefs', { messagesMuted: true, chatPush: false, orgId: 'org1', updatedAt: new Date() });
+    audience.current = { ...audience.current, groups: [group('org1', 'Peña El Trago')] };
+    const { getByTestId } = render(<NotificationSettingsScreen />);
+    expect(getByTestId('push-group-level-org1')).toHaveTextContent('notifications.settings.perGroup.levels.avisos');
   });
 
   it('mutes a topic straight away', () => {

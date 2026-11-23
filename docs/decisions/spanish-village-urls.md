@@ -97,18 +97,16 @@ the doc before navigating. Everything else passes the entity it already has.
 - Because a URL can start with any slug, the apps claim the **whole host**:
   Android intent filters take every path (Android cannot exclude), and the iOS
   AASA takes `*` except `/entrar`, so a sign-in link stays in the browser.
-- **Prod's AASA is the exception, until an iOS build with these routes is live.**
-  An association file applies to every installed version of the app, and the
-  App Store build (iOS 1.0.0) predates both these routes and `expo-updates`, so
-  no OTA can teach it them. Claiming `*` on prod would open `/<pueblo>/evento/…`
-  inside an app with no such screen — a dead end in place of a working web page.
-  So prod keeps the legacy claim (`/event/*`, `/news/*`, `/village/*`, `/o/*`):
-  links shared before the change still open 1.0.0, and every new URL opens on the
-  web. Widen prod to the dev/beta claim in the same change that confirms an iOS
-  build with the village-first routes is on sale — `storeRelease.test.ts` pins the
-  legacy list so that widening is a deliberate edit, not drift. Android has no
-  such split: the Play build never went public with the old paths, and its
-  path claim lives in the binary's manifest, not in `assetlinks.json`.
+- An association file applies to **every installed version** of the app, so a
+  claim is safe only when every binary that can still open the app routes it.
+  iOS 1.0.0 predated these routes and `expo-updates`, so prod's AASA kept the
+  legacy paths (`/event/*`, `/news/*`, `/village/*`, `/o/*`) until the wall
+  (`config/appVersion.minSupported`) had passed iOS 1.2.1, the first build with
+  them; it claims the same `*` as dev and beta since. A future route change that
+  older binaries cannot open must wait for the wall the same way.
+  `storeRelease.test.ts` and `appConfig.test.ts` pin the claim so a change to it
+  is a deliberate edit. Android's path claim lives in the binary's manifest, not
+  in `assetlinks.json`.
 
 ## Rejected alternatives
 

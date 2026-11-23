@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { NaturalImage } from '../primitives/NaturalImage';
 import { ZoomableImage } from '../primitives/ZoomableImage';
@@ -14,7 +15,7 @@ import { ZoomableImage } from '../primitives/ZoomableImage';
 
 // Width:height for the placeholder fallback (matches FeedCard's card image).
 const ASPECT_RATIO = 4 / 3;
-const PLACEHOLDER_BG = '#dcab93'; // palette.peach
+const PLACEHOLDER_BG = colors.light.bg.subtle;
 
 export type DetailHeroImageProps = {
   imageUri: string | null;
@@ -46,7 +47,7 @@ export function DetailHeroImage({
           className="items-center justify-center"
           style={{ width: '100%', aspectRatio: ASPECT_RATIO, backgroundColor: PLACEHOLDER_BG }}
         >
-          <Ionicons name={fallbackIcon} size={72} color="#ffffff" />
+          <Ionicons name={fallbackIcon} size={72} color={colors.light.fg['on-media']} />
         </View>
       )}
     </View>

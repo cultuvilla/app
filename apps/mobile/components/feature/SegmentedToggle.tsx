@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { View, Animated, Easing } from 'react-native';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
@@ -19,11 +20,9 @@ export type SegmentedToggleProps<T extends string> = {
 // NativeWind 4 strips `className` from Animated.View on the web target, so
 // any class set there silently no-ops (the indicator was rendering without
 // `position: absolute`, which pushed both pressables into the right half).
-// All Animated.View styling is therefore inlined. Colors mirror the design
-// tokens at packages/shared/src/design-system/tokens/colors.ts:
-//   surface         = palette.cream (#f9f0e8)
-//   subtle          = palette.peach (#dcab93)  (applied via the View track)
-const INDICATOR_BG = '#f9f0e8';
+// All Animated.View styling is therefore inlined; the track itself is a View
+// with `bg-subtle`.
+const INDICATOR_BG = colors.light.bg.surface;
 
 /**
  * Pill-style segmented toggle with an animated sliding indicator.

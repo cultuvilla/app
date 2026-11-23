@@ -5,7 +5,6 @@ import {
   getDocs,
   setDoc,
   updateDoc,
-  deleteDoc,
   writeBatch,
   query,
   orderBy,
@@ -212,6 +211,40 @@ export function watchEventsByOrganization(
   );
 }
 
+function fiestaEditionEventsQuery(editionId: string) {
+  return query(
+    eventsCollection(getDb()),
+    where('fiestaEditionId', '==', editionId),
+    publicOnly(),
+    orderBy('startDate', 'asc'),
+  );
+}
+
+/**
+ * The programa de fiestas: the public events tagged to any of these editions
+ * (a year's blocks), listed statuses only, in start order. One listener per
+ * edition — a year has one or two — merged as one list. Public only: the
+ * programme is what a village forwards, so a peña's private event is never on it.
+ */
+export function watchFiestaProgrammeEvents(
+  editionIds: string[],
+  onNext: (events: EventWithId[]) => void,
+  onError: WatchError,
+): Unwatch {
+  return watchMerged<EventWithId>(
+    editionIds.map((id) => (next: (rows: EventWithId[]) => void, error: WatchError) =>
+      watchQuery(fiestaEditionEventsQuery(id), next, error),
+    ),
+    // Status is filtered here so the query reuses one three-field index.
+    (rows) =>
+      rows
+        .filter((e) => LISTED_STATUSES.includes(e.status))
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime()),
+    onNext,
+    onError,
+  );
+}
+
 export async function createEvent(input: Omit<EventDataInput, 'villageSlug'>): Promise<string> {
   const newRef = doc(eventsCollection(getDb()));
   const villageSlug = await getVillageSlug(input.municipalityId);
@@ -309,12 +342,18 @@ export async function updateEvent(
   if (data.endDate instanceof Date) {
     updates['endDate'] = Timestamp.fromDate(data.endDate);
   }
-  // Keep the derived feed key in sync. The edit form always sends startDate and
-  // endDate together, so recompute the boundary whenever startDate is patched;
-  // a stale endBoundary would silently hide (or wrongly surface) the event.
-  if (data.startDate instanceof Date) {
-    const boundary = eventEndBoundary({ startDate: data.startDate, endDate: data.endDate ?? null });
-    updates['endBoundary'] = Timestamp.fromDate(boundary);
+  // Keep the derived feed key in sync: a stale endBoundary would silently hide
+  // (or wrongly surface) the event. It derives from both dates, so a patch that
+  // carries only one of them reads the other from the stored event.
+  const patchesStart = data.startDate instanceof Date;
+  const patchesEnd = 'endDate' in data;
+  if (patchesStart || patchesEnd) {
+    const stored = patchesStart && patchesEnd ? null : (await getDoc(eventDoc(getDb(), eventId))).data();
+    const startDate = data.startDate instanceof Date ? data.startDate : stored?.startDate;
+    const endDate = patchesEnd ? (data.endDate ?? null) : (stored?.endDate ?? null);
+    if (startDate) {
+      updates['endBoundary'] = Timestamp.fromDate(eventEndBoundary({ startDate, endDate }));
+    }
   }
   await updateDoc(doc(getDb(), 'events', eventId), updates);
 }
@@ -324,10 +363,6 @@ export async function updateEventStatus(eventId: string, status: EventStatus): P
     status,
     updatedAt: serverTimestamp(),
   });
-}
-
-export async function deleteEvent(eventId: string): Promise<void> {
-  await deleteDoc(eventDoc(getDb(), eventId));
 }
 
 function organizerEventsQuery(userId: string) {

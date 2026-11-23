@@ -34,6 +34,14 @@ describe('TaskRow', () => {
     fireEvent.press(getByTestId('task-tick-mine'));
     expect(onTick).toHaveBeenCalledWith(true);
   });
+
+  it('says who is in charge and how many volunteers it still looks for, together', () => {
+    const { getByTestId } = render(
+      <TaskRow task={task('barra', { assigneeUids: ['u1'], slots: 3, dueOn: FUTURE, claimedUids: ['u2'] })} canTick onTick={jest.fn()} nameOf={nameOf} />,
+    );
+    expect(getByTestId('task-row-barra')).toHaveTextContent(/groups\.tasks\.assignedTo:name-u1 · groups\.tasks\.shift\.slots:1\|3/);
+    expect(getByTestId('task-row-barra')).not.toHaveTextContent(/groups\.tasks\.unassigned/);
+  });
 });
 
 describe('TaskSignupBar', () => {
@@ -73,5 +81,16 @@ describe('TaskSignupBar', () => {
     expect(queryByTestId('shift-claim-leña')).toBeNull();
     fireEvent.press(getByTestId('shift-withdraw-leña'));
     await waitFor(() => expect(setGroupTaskAssigned).toHaveBeenCalledWith('org1', 'leña', 'u1', false));
+  });
+
+  it('an encargado of a task that looks for volunteers is told so, takes no slot, and can step off', async () => {
+    const { getByTestId, queryByTestId } = shift(task('barra', { assigneeUids: ['u1'], slots: 3, dueOn: FUTURE, claimedUids: ['u2'] }));
+    expect(getByTestId('shift-state-barra')).toHaveTextContent('groups.tasks.shift.state.encargado');
+    expect(getByTestId('shift-barra')).toHaveTextContent(/groups\.tasks\.shift\.slots:1\|3/);
+    expect(queryByTestId('shift-claim-barra')).toBeNull();
+    expect(queryByTestId('shift-decline-barra')).toBeNull();
+    fireEvent.press(getByTestId('shift-withdraw-barra'));
+    await waitFor(() => expect(setGroupTaskAssigned).toHaveBeenCalledWith('org1', 'barra', 'u1', false));
+    expect(respondToTaskShift).not.toHaveBeenCalled();
   });
 });

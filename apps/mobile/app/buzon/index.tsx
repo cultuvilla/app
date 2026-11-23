@@ -20,37 +20,29 @@ import { NotificationRow } from '../../components/feature/NotificationRow';
 import { useT } from '../../lib/i18n';
 import { useApproverStatus } from '../../lib/auth/useApproverStatus';
 import { useAuth } from '../../lib/auth/useAuth';
-import {
-  getPendingOrganizerRequests,
-  respondToOrganizerRequest,
-} from '@cultuvilla/shared/services/organizerRequestService';
+import { respondToOrganizerRequest } from '@cultuvilla/shared/services/organizerRequestService';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
 import { buildDisplayName } from '@cultuvilla/shared/models/person';
-import {
-  getPendingOrganizations,
-  getOrganizationsByMunicipality,
-  approveOrganization,
-  rejectOrganization,
-} from '@cultuvilla/shared/services/organizationService';
+import { approveOrganization, rejectOrganization } from '@cultuvilla/shared/services/organizationService';
 import { getMunicipality } from '@cultuvilla/shared/services/municipalityService';
 import { getNotifications, markAllAsRead } from '@cultuvilla/shared/services/notificationService';
 import { isOpenableNotification, openNotification } from '../../lib/notifications/openNotification';
 import {
-  getOpenReports,
-  getReportsByMunicipality,
-} from '@cultuvilla/shared/services/contentReportService';
-import { getMyPendingRequests, buildActivityFeed } from '@cultuvilla/shared/services/inboxService';
+  actionableScope,
+  buildActivityFeed,
+  getActionableRequests,
+  getMyPendingRequests,
+} from '@cultuvilla/shared/services/inboxService';
 import { watchCosaRequestsToAnswer, type CosaRequest } from '@cultuvilla/shared/services/cosatecaService';
 import { CosaRequestRow } from '../../components/feature/groups/cosateca/CosaRows';
 import { useWatch } from '../../lib/hooks/useWatch';
 import { groupCosaRequestHref } from '../../lib/navigation/routes';
 import { useMyGroups } from '../../lib/orgs/useMyGroups';
+import { useInboxNames } from '../../lib/inbox/useInboxNames';
 import {
-  getPendingOrgJoinRequests,
   respondToOrgJoinRequest,
   type OrgJoinDecision,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
-import { getOrganization } from '@cultuvilla/shared/services/organizationService';
 import type { OrgJoinRequestData } from '@cultuvilla/shared/models/organization/OrgJoinRequestDataModel';
 import {
   OrgJoinRequestRow,
@@ -68,13 +60,16 @@ export default function InboxScreen() {
   const { t } = useT();
   const { user } = useAuth();
   const { loading, isSuperAdmin, adminVillageIds, adminOrgIds, canApprove } = useApproverStatus();
+  const scope = useMemo(
+    () => actionableScope({ isSuperAdmin, adminVillageIds, adminOrgIds }),
+    [isSuperAdmin, adminVillageIds, adminOrgIds],
+  );
 
   // ─── Actionable ("Necesita tu acción") state ────────────────────────────────
   const [organizerRows, setOrganizerRows] = useState<OrganizerRow[]>([]);
   const [orgRows, setOrgRows] = useState<OrgRow[]>([]);
   const [joinRows, setJoinRows] = useState<OrgJoinRequestData[]>([]);
   const [reportRows, setReportRows] = useState<ReportsRow[]>([]);
-  const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [dataLoading, setDataLoading] = useState(false);
 
   // ─── Cosateca: requests waiting for this user's answer ───────────────────────
@@ -100,26 +95,20 @@ export default function InboxScreen() {
 
   // Shared name maps (used by both the actionable cards and the activity feed's
   // pending-sent rows).
-  const [municipalityNames, setMunicipalityNames] = useState<Record<string, string>>({});
-  const [requesterByUid, setRequesterByUid] = useState<
-    Record<string, { name: string; photoURL: string | null }>
-  >({});
+  const {
+    municipalityNames,
+    requesterByUid,
+    orgNames,
+    resolveMunicipalityNames,
+    resolveRequesters,
+    resolveOrgNames,
+  } = useInboxNames();
 
   // Busy state keyed by `${type}-${id}`
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   // Error modal state
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const resolveOrgNames = useCallback(async (orgIds: string[]) => {
-    const resolved = await Promise.all(
-      [...new Set(orgIds)].map(async (oid) => {
-        const org = await getOrganization(oid).catch(() => null);
-        return [oid, org?.name ?? oid] as const;
-      }),
-    );
-    if (resolved.length > 0) setOrgNames((prev) => ({ ...prev, ...Object.fromEntries(resolved) }));
-  }, []);
 
   // ─── Actionable load ─────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -128,111 +117,42 @@ export default function InboxScreen() {
 
     setDataLoading(true);
     try {
-      const promises: Promise<void>[] = [];
-      const newMunicipalityIds = new Set<string>();
+      // Reports load on focus, below.
+      const { organizer, orgs, joins } = await getActionableRequests(scope, [
+        'organizer',
+        'orgs',
+        'joins',
+      ]);
 
-      let fetchedOrganizerRows: OrganizerRow[] = [];
-      let fetchedOrgRows: OrgRow[] = [];
+      setOrganizerRows(organizer);
+      setOrgRows(orgs);
+      setJoinRows(joins);
 
-      if (isSuperAdmin) {
-        promises.push(
-          getPendingOrganizerRequests().then((rows) => {
-            fetchedOrganizerRows = rows;
-            rows.forEach((r) => newMunicipalityIds.add(r.municipalityId));
-          }),
-        );
-        promises.push(
-          getPendingOrganizations().then((rows) => {
-            fetchedOrgRows = rows;
-            rows.forEach((r) => newMunicipalityIds.add(r.municipalityId));
-          }),
-        );
-      } else if (adminVillageIds.length > 0) {
-        promises.push(
-          Promise.all(
-            adminVillageIds.map((vid) => getOrganizationsByMunicipality(vid, 'pending')),
-          ).then((perVillage) => {
-            fetchedOrgRows = perVillage.flat();
-            fetchedOrgRows.forEach((r) => newMunicipalityIds.add(r.municipalityId));
-          }),
-        );
-      }
-
-      let fetchedJoinRows: OrgJoinRequestData[] = [];
-      if (adminOrgIds.length > 0) {
-        // Per org, and each one allowed to fail on its own: one org's denied
-        // read must not hide every other org's requests.
-        promises.push(
-          Promise.all(
-            adminOrgIds.map((oid) => getPendingOrgJoinRequests(oid).catch(() => [])),
-          ).then((perOrg) => {
-            fetchedJoinRows = perOrg.flat();
-          }),
-        );
-      }
-
-      await Promise.all(promises);
-
-      setOrganizerRows(fetchedOrganizerRows);
-      setOrgRows(fetchedOrgRows);
-      setJoinRows(fetchedJoinRows);
-
-      const joinRequesters = await Promise.all(
-        fetchedJoinRows
-          .filter((r) => !requesterByUid[r.userId])
-          .map(async (r) => [r.userId, await resolveRequester(r.userId, r.userId)] as const),
+      await resolveRequesters(
+        joins.map((r) => r.userId),
+        (uid) => resolveRequester(uid, uid),
       );
-      if (joinRequesters.length > 0) {
-        setRequesterByUid((prev) => ({ ...prev, ...Object.fromEntries(joinRequesters) }));
-      }
-      await resolveOrgNames(fetchedJoinRows.map((r) => r.orgId));
+      await resolveOrgNames(joins.map((r) => r.orgId));
 
-      // Resolve organizer-request requesters (name + photo)
-      const requesterFetches = fetchedOrganizerRows.map(async (r) => {
-        if (requesterByUid[r.userId]) return;
-        // Best-effort: a requester with a private persona falls back to the uid.
-        const p = await getPersonByUserId(r.userId).catch(() => null);
-        return [
-          r.userId,
-          {
-            name: p ? buildDisplayName(p) : r.userId,
-            photoURL: p?.photoURL ?? null,
-          },
-        ] as const;
-      });
-      const resolvedRequesters = await Promise.all(requesterFetches);
-      const newRequesters = resolvedRequesters.filter(
-        (pair): pair is readonly [string, { name: string; photoURL: string | null }] =>
-          pair !== undefined,
+      // Best-effort: a requester with a private persona falls back to the uid.
+      await resolveRequesters(
+        organizer.map((r) => r.userId),
+        async (uid) => {
+          const p = await getPersonByUserId(uid).catch(() => null);
+          return { name: p ? buildDisplayName(p) : uid, photoURL: p?.photoURL ?? null };
+        },
       );
-      if (newRequesters.length > 0) {
-        setRequesterByUid((prev) => {
-          const next = { ...prev };
-          for (const [id, v] of newRequesters) next[id] = v;
-          return next;
-        });
-      }
 
-      // Resolve municipality names
-      const municipalityFetches = [...newMunicipalityIds].map(async (mid) => {
-        if (municipalityNames[mid]) return;
-        const m = await getMunicipality(mid);
-        return [mid, m?.name ?? mid] as const;
-      });
-      const resolvedMunicipalities = await Promise.all(municipalityFetches);
-      const newNames: Record<string, string> = {};
-      for (const pair of resolvedMunicipalities) {
-        if (pair) newNames[pair[0]] = pair[1];
-      }
-      if (Object.keys(newNames).length > 0) {
-        setMunicipalityNames((prev) => ({ ...prev, ...newNames }));
-      }
+      await resolveMunicipalityNames([
+        ...organizer.map((r) => r.municipalityId),
+        ...orgs.map((r) => r.municipalityId),
+      ]);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : String(err));
     } finally {
       setDataLoading(false);
     }
-  }, [loading, canApprove, isSuperAdmin, adminVillageIds, adminOrgIds]);
+  }, [loading, canApprove, scope, resolveRequesters, resolveOrgNames, resolveMunicipalityNames]);
 
   useEffect(() => {
     void loadData();
@@ -243,20 +163,12 @@ export default function InboxScreen() {
   // coming back here has to drop the ones just dealt with.
   useFocusEffect(
     useCallback(() => {
-      if (loading || (!isSuperAdmin && adminVillageIds.length === 0)) return;
+      if (loading || (scope.reports !== 'all' && scope.reports.length === 0)) return;
       let cancelled = false;
 
       void (async () => {
         try {
-          const reports = isSuperAdmin
-            ? await getOpenReports()
-            : (
-                await Promise.all(
-                  adminVillageIds.map((vid) =>
-                    getReportsByMunicipality(vid, { status: 'open' }).catch(() => []),
-                  ),
-                )
-              ).flat();
+          const { reports } = await getActionableRequests(scope, ['reports']);
 
           const counts = new Map<string, number>();
           for (const r of reports) counts.set(r.municipalityId, (counts.get(r.municipalityId) ?? 0) + 1);
@@ -276,7 +188,7 @@ export default function InboxScreen() {
       return () => {
         cancelled = true;
       };
-    }, [loading, isSuperAdmin, adminVillageIds]),
+    }, [loading, scope]),
   );
 
   // ─── Activity load ───────────────────────────────────────────────────────────
@@ -308,22 +220,8 @@ export default function InboxScreen() {
           if (item.requestType === 'orgJoin') joinOrgIds.push(item.label);
         }
         await resolveOrgNames(joinOrgIds);
-
-        const resolvedMunicipalities = await Promise.all(
-          [...newMunicipalityIds].map(async (mid) => {
-            const m = await getMunicipality(mid);
-            return [mid, m?.name ?? mid] as const;
-          }),
-        );
+        await resolveMunicipalityNames(newMunicipalityIds);
         if (cancelled) return;
-
-        if (resolvedMunicipalities.length > 0) {
-          setMunicipalityNames((prev) => {
-            const next = { ...prev };
-            for (const [id, name] of resolvedMunicipalities) next[id] = name;
-            return next;
-          });
-        }
 
         // v1: mark everything read as soon as the Buzón is opened.
         await markAllAsRead(user.uid);
@@ -339,7 +237,7 @@ export default function InboxScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user, resolveOrgNames]);
+  }, [user, resolveOrgNames, resolveMunicipalityNames]);
 
   // ─── Actionable decision handlers ────────────────────────────────────────────
   async function handleOrganizerDecide(row: OrganizerRow, decision: 'approved' | 'rejected') {

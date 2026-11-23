@@ -54,7 +54,7 @@ describe('<ErrorDialog>', () => {
   it('offers the sheet close affordance as a second way out', () => {
     const onDismiss = jest.fn();
     const { getByTestId } = render(<ErrorDialog message={ZOD_ERROR} onDismiss={onDismiss} />);
-    fireEvent.press(getByTestId('error-dialog-close'));
+    fireEvent.press(getByTestId('error-dialog-handle'));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

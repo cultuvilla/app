@@ -1,6 +1,7 @@
 // packages/shared/test/e2e/recordsRules.test.ts
 // The group's records: actas (admins write, socios read the shared ones) and
-// the income/expense ledger (admins only, append-only).
+// the income/expense ledger (admins only, append-only; every integrante reads
+// it once the junta turns on "Cuentas públicas").
 import { describe, it, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import {
@@ -137,5 +138,67 @@ describe('ledgerEntries', () => {
       getDocs(query(collection(asUser(getEnv(), uid), `organizations/${ORG}/ledgerEntries`), where('on', '>=', '2026-01-01'), where('on', '<=', '2026-12-31')));
     await assertSucceeds(range('admin1'));
     await assertFails(range('member1'));
+    await assertFails(range('outsider'));
+  });
+
+  async function setTransparency(transparency: Record<string, boolean>) {
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `organizations/${ORG}`), { transparency });
+    });
+  }
+
+  it('with Cuentas públicas on, every integrante reads the ledger — never writes it', async () => {
+    const range = (uid: string) =>
+      getDocs(query(collection(asUser(getEnv(), uid), `organizations/${ORG}/ledgerEntries`), where('on', '>=', '2026-01-01'), where('on', '<=', '2026-12-31')));
+    await setTransparency({ cuota: false, avisos: false, cuentas: true });
+    await assertSucceeds(range('member1'));
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/ledgerEntries/e1`)));
+    await assertFails(range('outsider'));
+    await assertFails(setDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/ledgerEntries/n9`), entry('member1')));
+  });
+
+  it('the other switches do not open the ledger', async () => {
+    await setTransparency({ cuota: true, avisos: true, cuentas: false });
+    await assertFails(getDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/ledgerEntries/e1`)));
+  });
+
+  it('Cuentas públicas opens nothing else: not the cuota payments, nor contact data', async () => {
+    await setTransparency({ cuota: true, avisos: true, cuentas: true });
+    await getEnv().withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `organizations/${ORG}/socios/s-admin`), { kind: 'member', uid: 'admin1', responsibleUid: null, displayName: 'Luis', bajaAt: null });
+      await setDoc(doc(db, `organizations/${ORG}/socioPrivate/s-admin`), { phone: '600111222', email: 'luis@x.es', consentAnsweredAt: new Date() });
+      await setDoc(doc(db, `organizations/${ORG}/cuotaPayments/p1`), { socioId: 's-admin', periodKey: '2026', kind: 'payment', amountCents: 3000 });
+      await setDoc(doc(db, `organizations/${ORG}/messages/m1`), { title: 'x', recipientUids: ['admin1'] });
+      await setDoc(doc(db, `organizations/${ORG}/messages/m1/reads/admin1`), { readAt: new Date() });
+      await setDoc(doc(db, `organizations/${ORG}/messages/m1/votes/admin1`), { option: 0, votedAt: new Date() });
+    });
+    const member = asUser(getEnv(), 'member1');
+    await assertFails(getDoc(doc(member, `organizations/${ORG}/socioPrivate/s-admin`)));
+    await assertFails(getDoc(doc(member, `organizations/${ORG}/cuotaPayments/p1`)));
+    await assertFails(getDoc(doc(member, `organizations/${ORG}/messages/m1`)));
+    await assertFails(getDoc(doc(member, `organizations/${ORG}/messages/m1/reads/admin1`)));
+    await assertFails(getDoc(doc(member, `organizations/${ORG}/messages/m1/votes/admin1`)));
+  });
+});
+
+describe('organizations.transparency', () => {
+  const ORG_DOC = `organizations/${ORG}`;
+  const on = { cuota: true, avisos: false, cuentas: true };
+
+  it('the junta flips the switches', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(getEnv(), 'admin1'), ORG_DOC), { transparency: on }));
+  });
+
+  it('an integrante cannot', async () => {
+    await assertFails(updateDoc(doc(asUser(getEnv(), 'member1'), ORG_DOC), { transparency: on }));
+  });
+
+  it('only three booleans, all of them', async () => {
+    const admin = doc(asUser(getEnv(), 'admin1'), ORG_DOC);
+    await assertFails(updateDoc(admin, { transparency: { cuota: true } }));
+    await assertFails(updateDoc(admin, { transparency: { ...on, contactos: true } }));
+    await assertFails(updateDoc(admin, { transparency: { ...on, cuota: 'yes' } }));
+    await assertFails(updateDoc(admin, { transparency: true }));
   });
 });

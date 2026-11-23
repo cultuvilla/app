@@ -10,10 +10,10 @@ import { cosaAvailabilityLabel, cosaOwnerLabel, cosaRequestDatesLabel } from '..
 
 const THUMB = 56;
 
-/** A small rounded label: the kind of a cosa, or the state of a request. */
+/** A small flat tag — the kind of a cosa, or the state of a request — squared so it never reads as a tappable chip. */
 export function Badge({ label, strong = false, testID }: { label: string; strong?: boolean; testID?: string }) {
   return (
-    <View className={`rounded-full px-2 py-0.5 ${strong ? 'bg-accent' : 'bg-accent-subtle/30'}`} testID={testID}>
+    <View className={`rounded-sm px-1.5 py-0.5 ${strong ? 'bg-accent' : 'bg-accent-subtle/30'}`} testID={testID}>
       <Text variant="caption" tone={strong ? 'onAccent' : 'primary'} className="font-medium">
         {label}
       </Text>

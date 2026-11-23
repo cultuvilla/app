@@ -17,7 +17,7 @@ import { useEventTaskBadges } from '../../../lib/orgs/useEventTaskBadges';
 import { createEventHref, groupEventHref } from '../../../lib/navigation/routes';
 
 type OrgEvent = EventData & { id: string };
-type EventFilter = 'upcoming' | 'past' | 'all';
+type EventFilter = 'upcoming' | 'past';
 
 /** The group's events in two columns, filtered by when, each with its tasks' progress, and the way to create one for the group. */
 export function GroupEvents({ org }: { org: OrganizationData & { id: string } }) {
@@ -30,7 +30,6 @@ export function GroupEvents({ org }: { org: OrganizationData & { id: string } })
   const events = useMemo(() => {
     const now = new Date();
     const all = firstOfEachSeries(upcomingThenPast(data ?? [], now));
-    if (filter === 'all') return all;
     return all.filter((e) => eventEndBoundary(e) >= now === (filter === 'upcoming'));
   }, [data, filter]);
   const eventIds = useMemo(() => events.map((e) => e.id), [events]);
@@ -46,7 +45,6 @@ export function GroupEvents({ org }: { org: OrganizationData & { id: string } })
           options={[
             { value: 'upcoming', label: t('groups.events.filter.upcoming') },
             { value: 'past', label: t('groups.events.filter.past') },
-            { value: 'all', label: t('groups.events.filter.all') },
           ]}
           onChange={setFilter}
         />

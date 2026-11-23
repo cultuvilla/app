@@ -79,7 +79,7 @@ describe('<PersonForm> stepper', () => {
   });
 
   /** Walk the stepper (identity → residence → about) so the biography field on
-   * the last step is rendered. requireFullName defaults false, so identity only
+   * the last step is rendered. requireFirstSurname defaults false, so identity only
    * needs a name + sex and residence has no required fields. */
   /** Fills the identity step but stays on it — the visibility switch lives here. */
   function startIdentityStep(props: Parameters<typeof PersonForm>[0]) {

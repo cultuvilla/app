@@ -212,10 +212,19 @@ describe('dueTaskReminders', () => {
     // A shift is never overdue.
     expect(dueTaskReminders(s, members, at('2026-08-15T08:00:00Z'))).toEqual([]);
   });
+
+  it('reminds encargados with the volunteers, and never asks an encargado to volunteer', () => {
+    const s = task({ dueOn: '2026-08-14', time: '10:00', assigneeUids: ['e'], slots: 2, claimedUids: ['a'] });
+    expect(dueTaskReminders(s, ['a', 'b', 'e'], at('2026-08-12T08:00:00Z'))).toEqual([
+      { uid: 'e', stage: 'before' },
+      { uid: 'a', stage: 'before' },
+      { uid: 'b', stage: 'shift' },
+    ]);
+  });
 });
 
 describe('fairShareCounts', () => {
-  it('counts done tasks this year: shift volunteers, else assignees, else who ticked it', () => {
+  it('counts done tasks this year: its encargados and volunteers, else who ticked it', () => {
     const done = new Date('2026-06-01T10:00:00Z');
     const counts = fairShareCounts(
       [
@@ -225,15 +234,16 @@ describe('fairShareCounts', () => {
         task({ assigneeUids: ['b'], doneAt: new Date('2025-12-31T23:30:00Z'), doneBy: 'b' }), // 1 Jan 2026 in Madrid
         task({ assigneeUids: ['b'], doneAt: new Date('2025-06-01'), doneBy: 'b' }),
         task({ assigneeUids: ['d'] }),
+        task({ dueOn: '2026-06-02', assigneeUids: ['d'], slots: 1, claimedUids: ['c'], doneAt: done, doneBy: 'admin' }),
       ],
       ['a', 'b', 'c', 'd'],
       '2026',
     );
     expect(counts).toEqual([
+      { uid: 'c', count: 3 },
       { uid: 'a', count: 2 },
       { uid: 'b', count: 2 },
-      { uid: 'c', count: 2 },
-      { uid: 'd', count: 0 },
+      { uid: 'd', count: 1 },
     ]);
   });
 });

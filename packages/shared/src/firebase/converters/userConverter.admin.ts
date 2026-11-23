@@ -1,5 +1,4 @@
 import { UserDataSchema } from '../../models/user/UserDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const userConverterAdmin = makeConverter(UserDataSchema, adminSdkCtors);
+export const userConverterAdmin = adminConverter(UserDataSchema);

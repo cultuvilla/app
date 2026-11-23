@@ -306,12 +306,12 @@ export interface DueTaskReminder {
  * Who should hear about an open task today, and why. The job records each one
  * it sends, so the same answer on the next run sends nothing again.
  *
- * - `before`, in the two days up to the due day: its assignees, or a shift's
- *   members with a slot.
+ * - `before`, in the two days up to the due day: its encargados and the
+ *   volunteers with a slot.
  * - `overdue`, once, in the week after the due day: its assignees (a shift is
  *   never overdue — it happened or it didn't).
  * - `shift`, within 48 h of a shift with free slots: every member who has not
- *   answered.
+ *   answered and is not already an encargado.
  */
 export function dueTaskReminders(
   task: GroupTaskData,
@@ -322,7 +322,7 @@ export function dueTaskReminders(
   const today = madridDayKey(now);
   const out: DueTaskReminder[] = [];
   const shift = task.slots !== null;
-  const holders = shift ? task.claimedUids : task.assigneeUids;
+  const holders = taskHolders(task);
   if (today <= task.dueOn && today >= addDays(task.dueOn, -TASK_REMINDER_LEAD_DAYS)) {
     holders.forEach((uid) => out.push({ uid, stage: 'before' }));
   }
@@ -334,7 +334,7 @@ export function dueTaskReminders(
     const ahead = startsAt.getTime() - now.getTime();
     if (ahead > 0 && ahead <= SHIFT_REMINDER_LEAD_MS) {
       memberUids
-        .filter((uid) => shiftStateOf(task, uid) === 'none')
+        .filter((uid) => shiftStateOf(task, uid) === 'none' && !task.assigneeUids.includes(uid))
         .forEach((uid) => out.push({ uid, stage: 'shift' }));
     }
   }
@@ -344,21 +344,29 @@ export function dueTaskReminders(
 // ── Fair share ───────────────────────────────────────────────────────────────
 
 /**
- * Who a done task counts for: a shift's volunteers, else its assignees, else
- * whoever ticked it.
+ * Who is on a task: its encargados, then the volunteers who took a slot. A task
+ * may have both — encargados while it still looks for more volunteers.
  */
-export function creditedUids(task: Pick<GroupTaskData, 'slots' | 'claimedUids' | 'assigneeUids' | 'doneBy'>): string[] {
-  if (task.slots !== null) return task.claimedUids;
-  if (task.assigneeUids.length > 0) return task.assigneeUids;
+export function taskHolders(task: Pick<GroupTaskData, 'assigneeUids' | 'claimedUids'>): string[] {
+  return [...new Set([...task.assigneeUids, ...task.claimedUids])];
+}
+
+/**
+ * Who a done task counts for: its encargados and volunteers, else whoever
+ * ticked it.
+ */
+export function creditedUids(task: Pick<GroupTaskData, 'claimedUids' | 'assigneeUids' | 'doneBy'>): string[] {
+  const holders = taskHolders(task);
+  if (holders.length > 0) return holders;
   return task.doneBy ? [task.doneBy] : [];
 }
 
 /**
- * Tasks done per member in a calendar year (Madrid) — the admin-only fair
- * share view. Members with nothing done are listed at 0, most done first.
+ * Tasks done per member in a calendar year (Madrid), most done first —
+ * what the group's leaderboard counts. Members with nothing done are listed at 0.
  */
 export function fairShareCounts(
-  tasks: Pick<GroupTaskData, 'slots' | 'claimedUids' | 'assigneeUids' | 'doneBy' | 'doneAt'>[],
+  tasks: Pick<GroupTaskData, 'claimedUids' | 'assigneeUids' | 'doneBy' | 'doneAt'>[],
   memberUids: readonly string[],
   year: string,
 ): { uid: string; count: number }[] {

@@ -308,8 +308,8 @@ service cloud.firestore {
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
-              'sociosListVisible', 'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired',
-              'cosateca',
+              'sociosListVisible', 'chatAdminsOnly', 'sociosSendAvisos', 'socioPhoneRequired', 'socioEmailRequired',
+              'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'chatEnabled', 'transparency',
             ])
           && d.keys().hasAll([
               'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
@@ -336,9 +336,15 @@ service cloud.firestore {
           && d.get('joinPolicy', 'open') in ['open', 'approval']
           && d.get('sociosListVisible', false) is bool
           && d.get('chatAdminsOnly', false) is bool
+          && d.get('sociosSendAvisos', false) is bool
           && d.get('socioPhoneRequired', false) is bool
           && d.get('socioEmailRequired', false) is bool
-          && isValidCosatecaSettings(d.get('cosateca', {'enabled': false, 'audience': 'integrantes'}));
+          && isValidCosatecaSettings(d.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
+          && d.get('cuotaEnabled', true) is bool
+          && d.get('actasEnabled', true) is bool
+          && d.get('cuentasEnabled', true) is bool
+          && d.get('chatEnabled', true) is bool
+          && isValidGroupTransparency(d.get('transparency', defaultGroupTransparency()));
     }
 
     // ── Socio roster (organizations/{orgId}/socios, socioPrivate) ─────────────
@@ -617,6 +623,22 @@ service cloud.firestore {
     // See CosaDataModel / CosaRequestDataModel. `cosas.audience` and
     // `cosas.heldBy` are function-owned (syncCosaAudience, respondToCosaRequest);
     // a request moves past `pending` only through respondToCosaRequest.
+    // What the junta opens to every integrante (see GroupTransparencyModel).
+    // Only the ledger is opened here: the cuota and the avisos carry fields no
+    // socio may read, so getGroupTransparency serves those.
+    function defaultGroupTransparency() {
+      return {'cuota': false, 'avisos': false, 'cuentas': false};
+    }
+    function isValidGroupTransparency(t) {
+      return t is map
+          && t.keys().hasOnly(['cuota', 'avisos', 'cuentas'])
+          && t.keys().hasAll(['cuota', 'avisos', 'cuentas'])
+          && t.cuota is bool && t.avisos is bool && t.cuentas is bool;
+    }
+    function orgCuentasPublic(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data
+        .get('transparency', defaultGroupTransparency()).get('cuentas', false) == true;
+    }
     function isValidCosatecaSettings(c) {
       return c is map
           && c.keys().hasOnly(['enabled', 'audience'])
@@ -853,6 +875,15 @@ service cloud.firestore {
           && d.recordedAt == request.time;
     }
 
+    // organizations/{orgId}/ledgerCategories — see LedgerCategoryDataModel.
+    // The id (kind + lowercased name) is the service's; entries store the name.
+    function isValidLedgerCategory(d) {
+      return d.keys().hasOnly(['name', 'kind', 'createdBy', 'createdAt'])
+          && d.keys().hasAll(['name', 'kind', 'createdBy', 'createdAt'])
+          && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+          && d.kind in ['income', 'expense'];
+    }
+
     function isValidSocioPrivate(d) {
       return d.keys().hasOnly(['phone', 'email', 'consentAnsweredAt'])
           && d.keys().hasAll(['phone', 'email', 'consentAnsweredAt'])
@@ -1059,6 +1090,38 @@ service cloud.firestore {
         && rs.weekdays == d.series.weekdays;
     }
 
+    // An event on a fiesta edition's programme must name an edition of its
+    // own pueblo — otherwise anyone could slot an event into another village's
+    // programa. Optional: binaries that predate editions never send it.
+    function isValidFiestaEditionRef(d) {
+      let id = d.get('fiestaEditionId', null);
+      return id == null
+        || (id is string
+            && topLevelEntityInVillage(/databases/$(database)/documents/fiestaEditions/$(id), d.municipalityId));
+    }
+
+    // One block's days for one year (FiestaEditionModel). The id is fixed per
+    // block and year, so a second proposal is an update, which only the
+    // proposer and the village's admins may make. The days are Madrid calendar
+    // days; the edition starts in its year and may run into the next one.
+    function isValidFiestaEdition(d, editionId) {
+      return d.keys().hasOnly(['municipalityId', 'villageSlug', 'blockId', 'year', 'startDay', 'endDay', 'proposedBy', 'createdAt', 'updatedAt'])
+          && d.keys().hasAll(['municipalityId', 'villageSlug', 'blockId', 'year', 'startDay', 'endDay', 'proposedBy', 'createdAt', 'updatedAt'])
+          && isString(d.municipalityId)
+          && isString(d.villageSlug)
+          && d.blockId is string && d.blockId.matches('^[a-z0-9-]+$')
+          && d.year is int && d.year >= 1900 && d.year <= 2200
+          && editionId == d.municipalityId + '_' + d.blockId + '_' + string(d.year)
+          && isDayKey(d.startDay)
+          && isDayKey(d.endDay)
+          && d.startDay.matches(string(d.year) + '-.*')
+          && (d.endDay.matches(string(d.year) + '-.*') || d.endDay.matches(string(d.year + 1) + '-.*'))
+          && d.endDay >= d.startDay
+          && isString(d.proposedBy)
+          && isTimestamp(d.createdAt)
+          && isTimestamp(d.updatedAt);
+    }
+
     function isValidEventCreate(d) {
       return d.keys().hasOnly([
               'title', 'description', 'startDate', 'endDate', 'endBoundary', 'location',
@@ -1066,6 +1129,7 @@ service cloud.firestore {
               'signupFields', 'signupEnabled', 'signupInfo', 'attendeesVisibility', 'signupGroupSize',
               'minBirthYear', 'maxBirthYear',
               'visibility', 'visibilityOrgId', 'series', 'repeatsYearly', 'repeatsMonthly', 'repeatDateVaries',
+              'fiestaEditionId',
               'status', 'organizerUserIds', 'organizerOrgIds', 'createdBy',
               'createdAt', 'updatedAt', 'municipalityId', 'villageName', 'villageSlug',
               'villageCoverImage', 'villageCoordinates',
@@ -1122,7 +1186,7 @@ service cloud.firestore {
           // Advertised birth-year window. Advisory only — the sign-up sheet
           // warns and lets the user proceed — so rules check the shape, not
           // the eligibility of anyone signing up. Bounds mirror
-          // MIN/MAX_EVENT_BIRTH_YEAR in EventFormSchema; keep the two in step.
+          // MIN/MAX_EVENT_BIRTH_YEAR in EventDataModel; keep the two in step.
           && isNumberOrNull(d.minBirthYear)
           && isNumberOrNull(d.maxBirthYear)
           && (d.minBirthYear == null || (d.minBirthYear is int && d.minBirthYear >= 1900 && d.minBirthYear <= 2200))
@@ -1139,6 +1203,7 @@ service cloud.firestore {
           // send it, and their creates must keep working.
           && isValidEventSeries(d, d.get('series', null))
           && isValidRepeat(d)
+          && isValidFiestaEditionRef(d)
           && d.status in ['published', 'cancelled', 'completed']
           && d.organizerUserIds is list
           && d.organizerOrgIds is list
@@ -1346,6 +1411,16 @@ service cloud.firestore {
           && d.village is bool
           && d.social is bool
           && d.quietHours is bool
+          && isTimestamp(d.updatedAt);
+    }
+
+    // PrivacySettingsData: the account's answer on usage analytics. A full doc
+    // every time — absence means "not asked yet", so a partial doc would be a
+    // third state the app cannot read.
+    function isValidPrivacySettingsWrite(d) {
+      return d.keys().hasOnly(['usageAnalytics', 'updatedAt'])
+          && d.keys().hasAll(['usageAnalytics', 'updatedAt'])
+          && d.usageAnalytics is bool
           && isTimestamp(d.updatedAt);
     }
 
@@ -1652,6 +1727,15 @@ service cloud.firestore {
           && isValidNotificationSettingsWrite(request.resource.data);
       }
 
+      // Usage-analytics consent (PrivacySettingsData). Optional, one doc per
+      // account; only its owner reads or answers it.
+      match /privacySettings/{settingsId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId)
+          && settingsId == 'account'
+          && isValidPrivacySettingsWrite(request.resource.data);
+      }
+
       // One group's message pushes muted or not (GroupNotificationPrefsData).
       // Optional like the account's prefs; the doc id is the org.
       match /groupPrefs/{orgId} {
@@ -1874,13 +1958,16 @@ service cloud.firestore {
     // report — but only against themselves as reporter, and always unreviewed:
     // `status` is the moderator's field, so the create rule pins it to 'open'.
     // Reads are moderator-only; a reporter cannot enumerate reports, which
-    // keeps the reported person from learning who filed.
+    // keeps the reported person from learning who filed. Nobody resolves a
+    // report about their own content — another moderator has to — whatever
+    // role they hold.
     match /contentReports/{reportId} {
       allow read: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
       allow create: if isAuthenticated()
                       && request.resource.data.reporterUserId == request.auth.uid
                       && isValidContentReportCreate(request.resource.data);
       allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin())
+                      && resource.data.get('targetAuthorUserId', null) != request.auth.uid
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
                       && request.resource.data.status in ['open', 'reviewed', 'dismissed'];
       allow delete: if false;
@@ -1914,9 +2001,15 @@ service cloud.firestore {
             || request.resource.data.type != 'ayuntamiento')
         && request.resource.data.get('sociosListVisible', false) is bool
         && request.resource.data.get('chatAdminsOnly', false) is bool
+        && request.resource.data.get('sociosSendAvisos', false) is bool
         && request.resource.data.get('socioPhoneRequired', false) is bool
         && request.resource.data.get('socioEmailRequired', false) is bool
         && isValidCosatecaSettings(request.resource.data.get('cosateca', {'enabled': false, 'audience': 'integrantes'}))
+        && request.resource.data.get('cuotaEnabled', true) is bool
+        && request.resource.data.get('actasEnabled', true) is bool
+        && request.resource.data.get('cuentasEnabled', true) is bool
+        && request.resource.data.get('chatEnabled', true) is bool
+        && isValidGroupTransparency(request.resource.data.get('transparency', defaultGroupTransparency()))
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']
                 && request.resource.data.type in ['peña', 'asociación', 'otros', 'comisión']))
@@ -2257,8 +2350,9 @@ service cloud.firestore {
       // Income and expenses beyond the cuota. Append-only like cuotaPayments: a
       // mistake is cancelled by a reversal at `rev_<entryId>` that copies the
       // entry, so an entry is reversed at most once and a reversal never.
+      // The junta may open them to every integrante ("Cuentas públicas").
       match /ledgerEntries/{entryId} {
-        allow read: if isOrgAdmin(orgId);
+        allow read: if isOrgAdmin(orgId) || (isOrgMember(orgId) && orgCuentasPublic(orgId));
         allow create: if isOrgAdmin(orgId)
           && orgHasSocioRoster(orgId)
           && isValidLedgerEntry(request.resource.data)
@@ -2271,6 +2365,22 @@ service cloud.firestore {
                  && get(/databases/$(database)/documents/organizations/$(orgId)/ledgerEntries/$(request.resource.data.reversesId)).data.on == request.resource.data.on)
              );
         allow update, delete: if false;
+      }
+
+      // The categories the admins pick from when noting an entry. Admins only,
+      // like the ledger itself; a rename changes only the name (the service
+      // moves a renamed category to its new id with a delete + create).
+      match /ledgerCategories/{categoryId} {
+        allow read: if isOrgAdmin(orgId);
+        allow create: if isOrgAdmin(orgId)
+          && orgHasSocioRoster(orgId)
+          && isValidLedgerCategory(request.resource.data)
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if isOrgAdmin(orgId)
+          && isValidLedgerCategory(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+        allow delete: if isOrgAdmin(orgId);
       }
 
       // A pending request to join an `approval` org, keyed by the requester's
@@ -2363,6 +2473,8 @@ service cloud.firestore {
         && isFrozenGroupSizeChange(resource.data, request.resource.data)
         && isValidVisibilityChange(resource.data, request.resource.data)
         && isValidRepeat(request.resource.data)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['fiestaEditionId'])
+            || isValidFiestaEditionRef(request.resource.data))
         // A series shares one visibility: "este y los siguientes" finds its
         // siblings within it, and a day made private on its own would split it.
         && (resource.data.get('series', null) == null
@@ -2576,6 +2688,22 @@ service cloud.firestore {
            ]);
       allow delete: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin()
         || (isOwner(resource.data.proposedBy) && resource.data.status == 'active');
+    }
+
+    match /fiestaEditions/{editionId} {
+      // Public: the programme is made to be forwarded, signed in or not.
+      allow read: if true;
+      allow create: if isValidFiestaEdition(request.resource.data, editionId)
+        && request.resource.data.proposedBy == request.auth.uid
+        && (isVillageMember(request.resource.data.municipalityId) || isAppAdmin());
+      // Members propose, the proposer and the admins correct (the carteles
+      // pattern). The identity of an edition never changes, only its days.
+      allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin() || isOwner(resource.data.proposedBy))
+        && isValidFiestaEdition(request.resource.data, editionId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+             'municipalityId', 'villageSlug', 'blockId', 'year', 'proposedBy', 'createdAt',
+           ]);
+      allow delete: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin() || isOwner(resource.data.proposedBy);
     }
 
     // Collection-group queries: these rules are evaluated for CG list

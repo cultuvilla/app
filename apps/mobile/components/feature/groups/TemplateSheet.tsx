@@ -1,37 +1,18 @@
 import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
-import {
-  MAX_SHIFT_SLOTS,
-  MAX_TEMPLATE_ITEMS,
-  MAX_TEMPLATE_OFFSET_DAYS,
-  type TaskTemplateItem,
-} from '@cultuvilla/shared/models/organization';
+import { Ionicons } from '@expo/vector-icons';
+import { MAX_TEMPLATE_ITEMS, type TaskTemplateItem } from '@cultuvilla/shared/models/organization';
 import { deleteTaskTemplate, saveTaskTemplate, type TaskTemplate } from '@cultuvilla/shared/services/groupTaskService';
-import { Button, Card, Input, Text, VStack } from '../../primitives';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
+import { Button, HStack, Input, Pressable, Text, VStack } from '../../primitives';
 import { FormModal } from '../../layout/FormModal';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
-import { parseIntIn } from '../../../lib/orgs/tasks';
+import { offsetLabel } from '../../../lib/orgs/tasks';
+import { TemplateItemSheet } from './TemplateItemSheet';
 
-interface Draft {
-  key: number;
-  title: string;
-  offset: string;
-  slots: string;
-  /** Kept from the saved item: the form edits title, offset and slots only. */
-  notes: string | null;
-  time: string | null;
-}
-
-let draftKey = 0;
-const draftOf = (item?: TaskTemplateItem): Draft => ({
-  key: ++draftKey,
-  title: item?.title ?? '',
-  offset: item ? String(item.offsetDays) : '0',
-  slots: item?.slots ? String(item.slots) : '',
-  notes: item?.notes ?? null,
-  time: item?.time ?? null,
-});
+/** Which task the item sheet is writing: an index into the list, or a new one. */
+type Editing = { index: number | null } | null;
 
 /**
  * Admin: write or edit a checklist template — a name and its tasks, each dated
@@ -42,7 +23,6 @@ export function TemplateSheet({
   orgId,
   uid,
   template,
-  initial = null,
   onClose,
 }: {
   visible: boolean;
@@ -50,38 +30,39 @@ export function TemplateSheet({
   uid: string;
   /** null = a new template. */
   template: TaskTemplate | null;
-  /** A new template's starting point — an event's checklist being saved. */
-  initial?: { name: string; items: TaskTemplateItem[] } | null;
   onClose: () => void;
 }) {
   const { t } = useT();
   const [name, setName] = useState('');
-  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [items, setItems] = useState<TaskTemplateItem[]>([]);
+  const [editing, setEditing] = useState<Editing>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
-    const start = template ?? initial;
-    setName(start?.name ?? '');
-    setDrafts(start && start.items.length > 0 ? start.items.map(draftOf) : [draftOf()]);
+    setName(template?.name ?? '');
+    setItems(template?.items ?? []);
+    setEditing(null);
     setError(null);
-  }, [visible, template, initial]);
+  }, [visible, template]);
 
-  const patch = (key: number, change: Partial<Draft>) => setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...change } : d)));
+  const editIndex = editing?.index ?? null;
+
+  const saveItem = (item: TaskTemplateItem) => {
+    setItems((prev) => (editIndex === null ? [...prev, item] : prev.map((x, i) => (i === editIndex ? item : x))));
+    setEditing(null);
+    setError(null);
+  };
+
+  const removeItem = (index: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+    setEditing(null);
+  };
 
   const save = () => {
     if (!name.trim()) return setError(t('groups.tasks.templates.nameRequired'));
-    const filled = drafts.filter((d) => d.title.trim());
-    if (filled.length === 0) return setError(t('groups.tasks.templates.itemsRequired'));
-    const items: TaskTemplateItem[] = [];
-    for (const d of filled) {
-      const offsetDays = parseIntIn(d.offset, -MAX_TEMPLATE_OFFSET_DAYS, MAX_TEMPLATE_OFFSET_DAYS);
-      if (offsetDays === null) return setError(t('groups.tasks.templates.offsetInvalid'));
-      const slots = d.slots.trim() ? parseIntIn(d.slots, 1, MAX_SHIFT_SLOTS) : null;
-      if (d.slots.trim() && slots === null) return setError(t('groups.tasks.form.slotsInvalid'));
-      items.push({ title: d.title, notes: d.notes, offsetDays, time: d.time, slots });
-    }
+    if (items.length === 0) return setError(t('groups.tasks.templates.itemsRequired'));
     setError(null);
     setSaving(true);
     saveTaskTemplate(orgId, template?.id ?? null, { name, items }, uid)
@@ -129,39 +110,56 @@ export function TemplateSheet({
       }
     >
       <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
-        <VStack gap={3} className="px-4 pt-4 pb-6">
+        <VStack gap={4} className="px-4 pt-4 pb-6">
           <Input label={t('groups.tasks.templates.name')} value={name} onChangeText={setName} testID="template-name" />
-          {drafts.map((d, i) => (
-            <Card key={d.key} testID={`template-item-${String(i)}`}>
-              <VStack gap={2}>
-                <Input label={t('groups.tasks.templates.item')} value={d.title} onChangeText={(v) => patch(d.key, { title: v })} testID={`template-item-title-${String(i)}`} />
-                <Input
-                  label={t('groups.tasks.templates.offset')}
-                  value={d.offset}
-                  onChangeText={(v) => patch(d.key, { offset: v })}
-                  keyboardType="numbers-and-punctuation"
-                  testID={`template-item-offset-${String(i)}`}
-                />
-                <Input
-                  label={t('groups.tasks.templates.slots')}
-                  value={d.slots}
-                  onChangeText={(v) => patch(d.key, { slots: v })}
-                  keyboardType="number-pad"
-                  testID={`template-item-slots-${String(i)}`}
-                />
-                <Button variant="ghost" onPress={() => setDrafts((prev) => prev.filter((x) => x.key !== d.key))} testID={`template-item-remove-${String(i)}`}>
-                  {t('groups.tasks.templates.removeItem')}
-                </Button>
-              </VStack>
-            </Card>
-          ))}
-          {drafts.length < MAX_TEMPLATE_ITEMS ? (
-            <Button variant="secondary" onPress={() => setDrafts((prev) => [...prev, draftOf()])} testID="template-add-item">
-              {t('groups.tasks.templates.addItem')}
-            </Button>
-          ) : null}
+          <VStack gap={2}>
+            <Text className="font-bold">{t('groups.tasks.templates.tasksHeading')}</Text>
+            {items.length === 0 ? (
+              <Text variant="bodySm" tone="muted" testID="template-items-empty">
+                {t('groups.tasks.templates.noItems')}
+              </Text>
+            ) : (
+              items.map((item, i) => (
+                <Pressable
+                  key={`${String(i)}-${item.title}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.title}
+                  onPress={() => setEditing({ index: i })}
+                  className="rounded-lg p-4 bg-surface-elevated shadow-sm"
+                  testID={`template-item-${String(i)}`}
+                >
+                  <HStack gap={3} align="center">
+                    <VStack className="flex-1" gap={1}>
+                      <Text className="font-bold" numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <Text variant="bodySm" tone="muted" testID={`template-item-when-${String(i)}`}>
+                        {[
+                          offsetLabel(t, item.offsetDays),
+                          ...(item.slots ? [t('groups.tasks.templates.slotsCount', { n: item.slots })] : []),
+                        ].join(' · ')}
+                      </Text>
+                    </VStack>
+                    <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.muted} />
+                  </HStack>
+                </Pressable>
+              ))
+            )}
+            {items.length < MAX_TEMPLATE_ITEMS ? (
+              <Button variant="secondary" onPress={() => setEditing({ index: null })} testID="template-add-item">
+                {t('groups.tasks.templates.addItem')}
+              </Button>
+            ) : null}
+          </VStack>
         </VStack>
       </ScrollView>
+      <TemplateItemSheet
+        visible={editing !== null}
+        item={editIndex === null ? null : (items[editIndex] ?? null)}
+        onSave={saveItem}
+        onRemove={editIndex === null ? null : () => removeItem(editIndex)}
+        onClose={() => setEditing(null)}
+      />
     </FormModal>
   );
 }

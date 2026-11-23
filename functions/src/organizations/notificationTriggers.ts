@@ -48,18 +48,22 @@ export const onOrganizationUpdated = onDocumentUpdated(
     let body: string;
     if (afterStatus === 'approved') {
       type = 'org_approved';
-      title = 'Organización aprobada';
-      body = `Tu organización "${orgName}" fue aprobada.`;
+      title = 'Grupo aprobado';
+      body = `Tu grupo "${orgName}" fue aprobado.`;
     } else if (afterStatus === 'rejected') {
       type = 'org_rejected';
-      title = 'Organización rechazada';
-      body = `Tu organización "${orgName}" fue rechazada.`;
+      title = 'Grupo rechazado';
+      body = `Tu grupo "${orgName}" fue rechazado.`;
     } else {
       return;
     }
 
     const ref = userNotificationsCollection(db, requestedBy).doc();
-    await ref.set(buildNotificationData({ type, title, body, municipalityId }));
+    // An approved group carries its id so the tap opens it. A rejected one has
+    // no page to open, so it carries none and the route lands on the village.
+    const entity =
+      type === 'org_approved' ? { entityKind: 'organization' as const, entityId: event.params.orgId } : {};
+    await ref.set(buildNotificationData({ type, title, body, municipalityId, ...entity }));
 
     // Approval is also the moment the org becomes visible to the village —
     // creation was only a request. Broadcast here rather than from a second

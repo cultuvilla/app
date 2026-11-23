@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Input, Pressable, Text, VStack, HStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
 
@@ -13,6 +14,8 @@ export function OptionsEditor({
   mode,
   onChange,
   testIDPrefix,
+  min = 0,
+  max,
 }: {
   options: string[];
   /** 'single' shows radio bullets, 'multi' shows checkbox squares. */
@@ -20,6 +23,10 @@ export function OptionsEditor({
   onChange: (next: string[]) => void;
   /** `<prefix>-option-<i>`, `<prefix>-option-remove-<i>`, `<prefix>-option-add`. */
   testIDPrefix?: string;
+  /** At this many options or fewer the ✕ is hidden. */
+  min?: number;
+  /** At this many options the add row is hidden. */
+  max?: number;
 }) {
   const { t } = useT();
   const glyph = mode === 'multi' ? 'square-outline' : 'radio-button-off';
@@ -28,7 +35,7 @@ export function OptionsEditor({
     <VStack gap={1}>
       {options.map((opt, i) => (
         <HStack key={i} gap={2} align="center">
-          <Ionicons name={glyph} size={20} color="#9ca3af" />
+          <Ionicons name={glyph} size={20} color={colors.light.fg.quiet} />
           <View className="flex-1">
             <Input
               value={opt}
@@ -37,27 +44,31 @@ export function OptionsEditor({
               testID={testIDPrefix ? `${testIDPrefix}-option-${i}` : undefined}
             />
           </View>
-          <Pressable
-            onPress={() => onChange(options.filter((_, j) => j !== i))}
-            accessibilityLabel={t('common.delete')}
-            testID={testIDPrefix ? `${testIDPrefix}-option-remove-${i}` : undefined}
-            className="p-1"
-          >
-            <Ionicons name="close" size={20} color="#9ca3af" />
-          </Pressable>
+          {options.length > min ? (
+            <Pressable
+              onPress={() => onChange(options.filter((_, j) => j !== i))}
+              accessibilityLabel={t('common.delete')}
+              testID={testIDPrefix ? `${testIDPrefix}-option-remove-${i}` : undefined}
+              className="p-1"
+            >
+              <Ionicons name="close" size={20} color={colors.light.fg.quiet} />
+            </Pressable>
+          ) : null}
         </HStack>
       ))}
 
-      <Pressable
-        onPress={() => onChange([...options, ''])}
-        testID={testIDPrefix ? `${testIDPrefix}-option-add` : undefined}
-        className="py-2"
-      >
-        <HStack gap={2} align="center">
-          <Ionicons name={glyph} size={20} color="#d1d5db" />
-          <Text tone="muted">{t('questions.addOption')}</Text>
-        </HStack>
-      </Pressable>
+      {max !== undefined && options.length >= max ? null : (
+        <Pressable
+          onPress={() => onChange([...options, ''])}
+          testID={testIDPrefix ? `${testIDPrefix}-option-add` : undefined}
+          className="py-2"
+        >
+          <HStack gap={2} align="center">
+            <Ionicons name={glyph} size={20} color={colors.light.fg.chevron} />
+            <Text tone="muted">{t('questions.addOption')}</Text>
+          </HStack>
+        </Pressable>
+      )}
     </VStack>
   );
 }

@@ -4,7 +4,7 @@ import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
 import { TopCropImage } from '../primitives/TopCropImage';
 import { CornerRibbon, type CornerRibbonProps } from './CornerRibbon';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 
 /**
  * Image-forward feed card shared by EventCard and NewsCard. The image fills
@@ -17,8 +17,8 @@ import { iconSizes } from '@cultuvilla/shared/design-system';
 
 // Width:height. Taller than 16:9 so the picture dominates the card.
 const ASPECT_RATIO = 4 / 3;
-const PLACEHOLDER_BG = '#dcab93'; // palette.peach
-const BADGE_BG = '#bb5d3a'; // palette.accent
+const PLACEHOLDER_BG = colors.light.bg.subtle;
+const BADGE_BG = colors.light.bg.accent;
 
 export type FeedCardProps = {
   imageUri: string | null;
@@ -79,7 +79,7 @@ export function FeedCard({
               className="items-center justify-center"
               style={{ width: '100%', height: '100%', backgroundColor: PLACEHOLDER_BG }}
             >
-              <Ionicons name={fallbackIcon} size={64} color="#ffffff" />
+              <Ionicons name={fallbackIcon} size={64} color={colors.light.fg['on-media']} />
             </View>
           )}
 
@@ -98,7 +98,7 @@ export function FeedCard({
               backgroundColor: 'rgba(0,0,0,0.6)',
             }}
           >
-            <Text variant="h1" numberOfLines={1} style={{ color: '#ffffff', fontSize: 22 }}>
+            <Text variant="h1" numberOfLines={1} style={{ color: colors.light.fg['on-media'], fontSize: 22 }}>
               {title}
             </Text>
             {/* Meta row: location takes the slack and ellipsises. The right side is
@@ -150,7 +150,7 @@ export function FeedCard({
                 backgroundColor: BADGE_BG,
               }}
             >
-              <Text variant="bodySm" style={{ color: '#ffffff' }} numberOfLines={1}>
+              <Text variant="bodySm" style={{ color: colors.light.fg['on-media'] }} numberOfLines={1}>
                 {badge}
               </Text>
             </View>

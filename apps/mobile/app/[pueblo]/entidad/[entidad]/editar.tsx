@@ -16,7 +16,6 @@ import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
 import { getOrganization, updateOrganization, deleteOrganization } from '@cultuvilla/shared/services/organizationService';
 import { uploadOrganizationImage } from '@cultuvilla/shared/services/imageService';
 import { pickImageAsBlob } from '../../../../lib/images';
-import { showConfirm } from '../../../../lib/dialogs';
 import {
   PROPOSABLE_ORGANIZATION_TYPES,
   type OrganizationType,
@@ -29,14 +28,13 @@ export default function OrgEditScreen() {
   const { t } = useT();
   const showCallableError = useCallableErrorHandler();
   const [municipalityId, setMunicipalityId] = useState<string | undefined>(undefined);
-  const { canManage, canDelete, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
+  const { canManage, can, loading: capLoading } = useOrgCapabilities(orgId, municipalityId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<OrganizationType>('peña');
   const [images, setImages] = useState<string[]>([]);
   const [addingImage, setAddingImage] = useState(false);
   const [membersPublic, setMembersPublic] = useState(true);
-  const [requiresApproval, setRequiresApproval] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,7 +53,6 @@ export default function OrgEditScreen() {
         setImages(o.images);
         setMunicipalityId(o.municipalityId);
         setMembersPublic(o.membersPublic);
-        setRequiresApproval(o.joinPolicy === 'approval');
       } else {
         setNotFound(true);
       }
@@ -117,7 +114,6 @@ export default function OrgEditScreen() {
         description: description.trim() || null,
         type,
         membersPublic,
-        joinPolicy: requiresApproval ? 'approval' : 'open',
       });
       router.back();
     } finally {
@@ -133,7 +129,7 @@ export default function OrgEditScreen() {
         rightSlot={
           // The organizations delete rule admits a village or app admin, not an
           // org admin, who may otherwise edit everything here.
-          canDelete ? (
+          can('delete') ? (
             <DeleteHeaderButton
               testID="org-delete"
               onAccent
@@ -194,29 +190,6 @@ export default function OrgEditScreen() {
                 }
                 testID="org-edit-members-public-toggle"
               />
-              {type !== 'ayuntamiento' ? (
-                <>
-                  <Toggle
-                    value={requiresApproval}
-                    onValueChange={(next) => {
-                      if (next) setRequiresApproval(true);
-                      else
-                        showConfirm(
-                          t('organization.joinPolicy.switchToOpenTitle'),
-                          t('organization.joinPolicy.switchToOpenBody'),
-                          () => setRequiresApproval(false),
-                        );
-                    }}
-                    label={t('organization.joinPolicy.label')}
-                    testID="org-edit-join-policy-toggle"
-                  />
-                  <Text tone="muted" variant="caption">
-                    {requiresApproval
-                      ? t('organization.joinPolicy.approvalHint')
-                      : t('organization.joinPolicy.openHint')}
-                  </Text>
-                </>
-              ) : null}
             </VStack>
           }
           submitLabel={t('common.save')}

@@ -1,5 +1,4 @@
 import { AdminDataSchema } from '../../models/admin/AdminDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const adminConverterAdmin = makeConverter(AdminDataSchema, adminSdkCtors);
+export const adminConverterAdmin = adminConverter(AdminDataSchema);

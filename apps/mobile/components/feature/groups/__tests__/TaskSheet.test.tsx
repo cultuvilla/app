@@ -1,7 +1,6 @@
-import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildGroupTaskData, type GroupTaskData } from '@cultuvilla/shared/models/organization';
-import { createGroupTask, deleteGroupTask, updateGroupTask } from '@cultuvilla/shared/services/groupTaskService';
+import { createGroupTask, updateGroupTask } from '@cultuvilla/shared/services/groupTaskService';
 import { TaskSheet } from '../TaskSheet';
 
 jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
@@ -18,7 +17,6 @@ jest.mock('../../../../lib/i18n', () => ({
 jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
   createGroupTask: jest.fn().mockResolvedValue('new'),
   updateGroupTask: jest.fn().mockResolvedValue(undefined),
-  deleteGroupTask: jest.fn().mockResolvedValue(undefined),
 }));
 
 const MEMBERS = [
@@ -33,32 +31,46 @@ function task(id: string, over: Partial<GroupTaskData> = {}) {
 const sheet = (props: Partial<Parameters<typeof TaskSheet>[0]> = {}) =>
   render(<TaskSheet visible orgId="org1" uid="admin" task={null} members={MEMBERS} onClose={jest.fn()} {...props} />);
 
-beforeEach(() => {
-  jest.clearAllMocks();
-  jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
-});
+beforeEach(() => jest.clearAllMocks());
 
 describe('TaskSheet', () => {
-  it('offers what, when, who and whether it repeats', () => {
-    const { getByTestId } = sheet();
-    for (const id of ['task-sheet', 'task-notes', 'task-due', 'task-assignees', 'task-repeat']) expect(getByTestId(id)).toBeTruthy();
+  it('asks in three steps: what, when, who', () => {
+    const { getByTestId, queryByTestId } = sheet();
+    expect(getByTestId('task-sheet')).toBeTruthy();
+    expect(getByTestId('task-notes')).toBeTruthy();
+    expect(queryByTestId('task-due')).toBeNull();
+    // Nothing to do yet: the step does not move on.
+    fireEvent.press(getByTestId('task-next'));
+    expect(queryByTestId('task-due')).toBeNull();
+
+    fireEvent.changeText(getByTestId('task-title'), 'Pedir las sillas');
+    fireEvent.press(getByTestId('task-next'));
+    expect(getByTestId('task-due')).toBeTruthy();
+    expect(getByTestId('task-repeat')).toBeTruthy();
     fireEvent.press(getByTestId('task-repeat-calendar'));
     expect(getByTestId('task-repeat-unit')).toBeTruthy();
+    fireEvent.press(getByTestId('task-repeat-none'));
+
+    fireEvent.press(getByTestId('task-next'));
+    expect(getByTestId('task-assignees')).toBeTruthy();
+    expect(getByTestId('task-save')).toBeTruthy();
   });
 
-  it('creates a yearly task on a fixed date', async () => {
+  it('creates a task repeating after it is done, with who does it', async () => {
     const { getByTestId } = sheet();
     fireEvent.changeText(getByTestId('task-title'), 'Renovar el seguro');
-    fireEvent.press(getByTestId('task-assignee-u-ana'));
+    fireEvent.press(getByTestId('task-next'));
+    // A fixed-date repeat needs a date, and the step says so.
     fireEvent.press(getByTestId('task-repeat-calendar'));
-    fireEvent.press(getByTestId('task-save'));
-    // A fixed-date repeat needs a date.
     expect(getByTestId('task-due-error')).toHaveTextContent('groups.tasks.form.calendarNeedsDate');
-    expect(createGroupTask).not.toHaveBeenCalled();
+    fireEvent.press(getByTestId('task-next'));
+    expect(getByTestId('task-due-error')).toBeTruthy();
 
     fireEvent.press(getByTestId('task-repeat-afterDone'));
     fireEvent.changeText(getByTestId('task-repeat-interval'), '12');
     fireEvent.press(getByTestId('task-repeat-unit-month'));
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.press(getByTestId('task-assignee-u-ana'));
     fireEvent.press(getByTestId('task-save'));
     await waitFor(() =>
       expect(createGroupTask).toHaveBeenCalledWith(
@@ -75,30 +87,61 @@ describe('TaskSheet', () => {
     );
   });
 
-  it('turns a task into a shift and validates the slots and time', async () => {
-    const { getByTestId } = sheet({ task: task('asamblea', { assigneeUids: ['u-ana'], dueOn: '2030-03-15' }) });
+  it('keeps encargados and still looks for more volunteers', async () => {
+    const { getByTestId } = sheet();
+    fireEvent.changeText(getByTestId('task-title'), 'Barra de las fiestas');
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.press(getByTestId('step-dot-0'));
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.press(getByTestId('task-assignee-u-ana'));
     fireEvent(getByTestId('task-is-shift'), 'onValueChange', true);
-    fireEvent.changeText(getByTestId('task-slots'), '0');
-    fireEvent.changeText(getByTestId('task-time'), '25:00');
-    fireEvent.press(getByTestId('task-save'));
-    expect(updateGroupTask).not.toHaveBeenCalled();
-    fireEvent.changeText(getByTestId('task-slots'), '4');
-    fireEvent.changeText(getByTestId('task-time'), '9:30');
+    // Encargados stay on screen with the call for volunteers.
+    expect(getByTestId('task-assignees')).toBeTruthy();
+    expect(getByTestId('task-shift-due-error')).toBeTruthy();
+    fireEvent.press(getByTestId('step-dot-1'));
+    fireEvent(getByTestId('task-due'), 'onChange', new Date(2030, 7, 14));
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.changeText(getByTestId('task-slots'), '3');
     fireEvent.press(getByTestId('task-save'));
     await waitFor(() =>
-      expect(updateGroupTask).toHaveBeenCalledWith('org1', 'asamblea', expect.objectContaining({ slots: 4, time: '09:30', assigneeUids: [] })),
+      expect(createGroupTask).toHaveBeenCalledWith('org1', expect.objectContaining({ assigneeUids: ['u-ana'], slots: 3, dueOn: '2030-08-14' }), 'admin'),
     );
   });
 
-  it('deletes after confirming, only when allowed', async () => {
-    const denied = sheet({ task: task('ajena'), canDelete: false });
-    expect(denied.queryByTestId('task-delete')).toBeNull();
-    denied.unmount();
+  it('needs a date for a shift', () => {
+    const { getByTestId } = sheet();
+    fireEvent.changeText(getByTestId('task-title'), 'Barra');
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent.press(getByTestId('task-next'));
+    fireEvent(getByTestId('task-is-shift'), 'onValueChange', true);
+    fireEvent.changeText(getByTestId('task-slots'), '3');
+    expect(getByTestId('task-shift-due-error')).toHaveTextContent('groups.tasks.form.shiftNeedsDate');
+    fireEvent.press(getByTestId('task-save'));
+    expect(createGroupTask).not.toHaveBeenCalled();
+  });
 
-    const { getByTestId } = sheet({ task: task('propia'), canDelete: true });
-    fireEvent.press(getByTestId('task-delete'));
-    const buttons = (jest.mocked(Alert.alert).mock.calls.at(-1)?.[2] ?? []) as { onPress?: () => void }[];
-    buttons.at(-1)?.onPress?.();
-    await waitFor(() => expect(deleteGroupTask).toHaveBeenCalledWith('org1', 'propia'));
+  it('edits with every step open, and saves only once every step is right', async () => {
+    const { getByTestId } = sheet({ task: task('asamblea', { assigneeUids: ['u-ana'], dueOn: '2030-03-15' }) });
+    expect(getByTestId('task-title').props.value).toBe('asamblea');
+    fireEvent.press(getByTestId('step-dot-1'));
+    fireEvent.changeText(getByTestId('task-time'), '25:00');
+    expect(getByTestId('task-time')).toBeTruthy();
+    fireEvent.press(getByTestId('step-dot-2'));
+    fireEvent(getByTestId('task-is-shift'), 'onValueChange', true);
+    fireEvent.changeText(getByTestId('task-slots'), '0');
+    fireEvent.press(getByTestId('task-save'));
+    fireEvent.changeText(getByTestId('task-slots'), '4');
+    // The time two steps back is still wrong.
+    fireEvent.press(getByTestId('task-save'));
+    expect(updateGroupTask).not.toHaveBeenCalled();
+
+    fireEvent.press(getByTestId('step-dot-1'));
+    fireEvent.changeText(getByTestId('task-time'), '9:30');
+    fireEvent.press(getByTestId('step-dot-2'));
+    fireEvent.press(getByTestId('task-save'));
+    await waitFor(() =>
+      expect(updateGroupTask).toHaveBeenCalledWith('org1', 'asamblea', expect.objectContaining({ slots: 4, time: '09:30', assigneeUids: ['u-ana'] })),
+    );
   });
 });

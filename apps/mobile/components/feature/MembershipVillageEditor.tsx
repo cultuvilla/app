@@ -81,7 +81,6 @@ export function MembershipVillageEditor({ userId }: MembershipVillageEditorProps
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   async function onChangeBarrio(municipalityId: string, barrioId: string | null) {
@@ -161,7 +160,7 @@ export function MembershipVillageEditor({ userId }: MembershipVillageEditorProps
                 hitSlop={8}
                 className="flex-row items-center p-1"
               >
-                <Ionicons name="exit-outline" size={16} color="#dc2626" />
+                <Ionicons name="exit-outline" size={16} color={colors.light.fg.danger} />
                 <Text variant="bodySm" tone="danger" className="ml-1">
                   {t('profile.personForm.removeVillage')}
                 </Text>

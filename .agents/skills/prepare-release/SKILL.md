@@ -86,6 +86,10 @@ It refuses a dirty tree, a branch other than develop, or a local develop that di
 
 The PR body carries the CHANGELOG section and a checklist of every `**Migration:**` note in it. Add anything a human must verify on beta (native-only changes, manual checks) to the PR description.
 
+## 4b. The QA pass
+
+Before the release PR merges into beta, run `release-qa` Part B on the entries the release commit carries (`git ls-tree --name-only origin/release/X.Y.Z docs/qa/pending/`): an agent drives the release head on an AVD against seeded emulators and reports one row per entry as a comment on the PR. A ❌ blocks the merge — fix on develop (`fix-bug`), move the release branch forward, re-run the failed entries. `verifier: human` entries go into the PR description as what testers should try. Once the PR has merged into beta, consume the passed entries with a direct `docs(qa)` commit on develop.
+
 ## 5. Data migrations
 
 A `**Migration:**` note names a backfill (AGENTS.md → _Backfills_). Registered `autoApply` backfills run inside the deploy before its conformance and backfill gates, so most need nothing. For each item on the checklist, check `pnpm backfills:list`: one **not** on `autoApply` must be run via **Actions → Run Backfill** (`ref: beta`, then `ref: main`) before that promotion's deploy, or its gate blocks. Note whether each is **crash-inducing** (a strict-converter / required-field change) or correctness-only.

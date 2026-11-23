@@ -61,3 +61,19 @@ env:
     visible:
       id: 'village-add-content-action'
     timeout: 45000
+# Sheets have no ✕: dragging the grab bar down closes them, on both platforms.
+- tapOn:
+    id: 'village-add-content-action'
+- extendedWaitUntil:
+    visible:
+      id: 'add-content-sheet-handle'
+    timeout: 15000
+- swipe:
+    from:
+      id: 'add-content-sheet-handle'
+    direction: DOWN
+    duration: 400
+- extendedWaitUntil:
+    notVisible:
+      id: 'add-content-sheet-handle'
+    timeout: 5000

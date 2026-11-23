@@ -114,6 +114,8 @@ jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
 jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
   getMyOrganizerRequests: jest.fn().mockResolvedValue([]),
 }));
+// The fiestas card watches its own data; FiestasHomeCard's own tests cover it.
+jest.mock('../../../components/feature/fiestas/FiestasHomeCard', () => ({ FiestasHomeCard: () => null }));
 jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
   getVillageViewLink: jest.fn().mockReturnValue('https://example.test'),
 }));

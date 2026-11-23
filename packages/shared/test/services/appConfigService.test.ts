@@ -54,6 +54,8 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 });
 
 import { watchAppVersionConfig } from '../../src/services/appConfigService';
+import { clientConverter } from '../../src/firebase/converters/sdkAdapters.client';
+import { AppVersionConfigSchema } from '../../src/models/config';
 
 const VALID = {
   ios: { minSupported: '1.0.0', latest: '1.2.2' },
@@ -92,6 +94,11 @@ describe('watchAppVersionConfig', () => {
     expect(state.path).toEqual(['config', 'appVersion']);
     unwatch();
     expect(state.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads through the strict AppVersionConfig converter, the one the force-update gate always used', () => {
+    watchAppVersionConfig(vi.fn(), vi.fn());
+    expect(state.ref?.converter).toBe(clientConverter(AppVersionConfigSchema));
   });
 
   it('delivers every snapshot, so a wall raised mid-session arrives', () => {

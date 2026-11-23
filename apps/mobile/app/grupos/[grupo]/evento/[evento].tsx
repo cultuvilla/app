@@ -5,9 +5,9 @@ import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
 import { compareTasksByDue } from '@cultuvilla/shared/models/organization';
 import { watchEvent } from '@cultuvilla/shared/services/eventService';
 import { setGroupTaskDone, watchEventGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
-import { formatDate } from '@cultuvilla/shared/utils';
-import { Button, RemoteImage, Screen, Text, VStack, ZoomableImage, useScrollEnabledWhileZooming } from '../../../../components/primitives';
+import { Button, Screen, Text, VStack } from '../../../../components/primitives';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
+import { EventCard } from '../../../../components/feature/EventCard';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
 import { TaskRow } from '../../../../components/feature/groups/TaskRows';
 import { TaskSheet } from '../../../../components/feature/groups/TaskSheet';
@@ -23,11 +23,10 @@ import { useOrgMembers } from '../../../../lib/orgs/useOrgMembers';
 /**
  * A group's event from the organizing side: its tasks, which any member
  * creates, edits and ticks. What the public sees stays on the event's own page,
- * one button away.
+ * one tap away on its card.
  */
 export default function GroupEventScreen() {
   const { t } = useT();
-  const scrollEnabled = useScrollEnabledWhileZooming();
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const { grupo, evento } = useLocalSearchParams<{ grupo: string; evento: string }>();
@@ -49,7 +48,6 @@ export default function GroupEventScreen() {
   if (uid && status !== 'loading' && !group) return <Redirect href={routes.groups} />;
 
   const data = event.data ?? null;
-  const image = data?.imageURL ?? data?.villageCoverImage ?? null;
   const doneCount = rows.filter((r) => r.doneAt !== null).length;
 
   return (
@@ -65,26 +63,21 @@ export default function GroupEventScreen() {
           {t('groups.tasks.checklists.eventUnavailable')}
         </Text>
       ) : (
-        <ScrollView contentContainerClassName="px-4 pt-3 pb-16" scrollEnabled={scrollEnabled} testID="group-event">
+        <ScrollView contentContainerClassName="px-4 pt-3 pb-16" testID="group-event">
           <VStack gap={4}>
-            {image ? (
-              <ZoomableImage uri={image} accessibilityLabel={data.title}>
-                <View className="overflow-hidden rounded-lg" style={{ aspectRatio: 2 }}>
-                  <RemoteImage uri={image} variant="card" style={{ width: '100%', height: '100%' }} />
-                </View>
-              </ZoomableImage>
-            ) : null}
-            <VStack gap={1}>
-              <Text>{formatDate(data.startDate, 'short')}</Text>
-              {data.location?.displayName ? (
-                <Text variant="bodySm" tone="muted">
-                  {data.location.displayName}
-                </Text>
-              ) : null}
-            </VStack>
-            <Button size="md" variant="secondary" testID="group-event-public-page" onPress={() => router.push(eventHref(data))}>
-              {t('groups.tasks.checklists.viewEventPage')}
-            </Button>
+            {/* The event as the village sees it, one tap from its public page. */}
+            <EventCard
+              event={{
+                id: data.id,
+                title: data.title,
+                startDate: data.startDate,
+                locationName: data.location?.displayName ?? null,
+                imageURL: data.imageURL ?? null,
+                villageCoverImage: data.villageCoverImage ?? null,
+              }}
+              onPress={() => router.push(eventHref(data))}
+              testID="group-event-public-page"
+            />
 
             <VStack gap={2}>
               <DetailSectionHeading>{t('groups.sections.tareas')}</DetailSectionHeading>

@@ -1,7 +1,6 @@
 import { Alert, Linking } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
-  nudgeGroupMessage,
   sendGroupMessage,
   setWhatsappSent,
 } from '@cultuvilla/shared/services/groupMessageService';
@@ -29,7 +28,6 @@ jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
     watchGroupPollVotes: mockWatcher('votes'),
     newGroupMessageId: () => 'Msg0000000001',
     sendGroupMessage: jest.fn().mockResolvedValue({ messageId: 'Msg0000000001', recipientCount: 3, pushCount: 2, emailCount: 2, whatsappCount: 1 }),
-    nudgeGroupMessage: jest.fn().mockResolvedValue({ nudged: 1 }),
     setWhatsappSent: jest.fn().mockResolvedValue(undefined),
   };
 });
@@ -104,7 +102,8 @@ describe('GroupMessagesAdmin', () => {
     fireEvent.press(getByTestId('group-msg-event-ev1'));
     fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
     fireEvent.press(getByTestId('group-msg-whatsapp-options-fallback'));
-    fireEvent.press(getByTestId('group-msg-poll-yes_no'));
+    fireEvent.press(getByTestId('group-msg-poll'));
+    fireEvent.press(getByTestId('type-sheet-row-yes_no'));
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Vienes?');
     fireEvent.press(getByTestId('group-msg-send'));
 
@@ -122,7 +121,7 @@ describe('GroupMessagesAdmin', () => {
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(expect.stringContaining('groups.messages.sent:3')));
   });
 
-  it('shows who has not read, nudges them, and the poll results with the voters', async () => {
+  it('shows who has not read, with no way to buzz them, and the poll results with the voters', () => {
     setWatched('messages', [MESSAGE]);
     setWatched('deliveries', [delivery('admin', { push: false }), delivery('u-paco', { names: ['Paco', 'Nene'] }), delivery('u-eva', { names: ['Eva'] })]);
     setWatched('reads', [{ id: 'u-eva', readAt: new Date() }]);
@@ -133,8 +132,7 @@ describe('GroupMessagesAdmin', () => {
 
     expect(getByTestId('group-msg-detail-reads')).toHaveTextContent(/groups\.messages\.readBy:1\|2/);
     expect(getByTestId('group-msg-detail-reads')).toHaveTextContent(/Paco, Nene/);
-    fireEvent.press(getByTestId('group-msg-detail-nudge'));
-    await waitFor(() => expect(nudgeGroupMessage).toHaveBeenCalledWith('org1', 'm1'));
+    expect(queryByTestId('group-msg-detail-nudge')).toBeNull();
 
     expect(getByTestId('group-msg-detail-option-1')).toHaveTextContent(/groups\.messages\.votes:1/);
     expect(getByTestId('group-msg-detail-option-1')).toHaveTextContent(/Eva/);
@@ -142,7 +140,7 @@ describe('GroupMessagesAdmin', () => {
     expect(queryByTestId('group-msg-detail-pin')).toBeNull();
   });
 
-  it('shows reads, the poll result and the nudge on the row, without opening it', async () => {
+  it('shows reads and the poll result on the row, without opening it, and no nudge', () => {
     setWatched('messages', [MESSAGE]);
     setWatched('reads', [{ id: 'u-eva', readAt: new Date() }]);
     setWatched('votes', [{ id: 'u-eva', option: 1, votedAt: new Date() }]);
@@ -152,40 +150,22 @@ describe('GroupMessagesAdmin', () => {
     expect(getByTestId('group-msg-row-poll-m1')).toHaveTextContent(
       'groups.messages.pollLabel: groups.messages.pollTally:0|12 · groups.messages.pollTally:1|19 · groups.messages.pollNoVote:1',
     );
-    fireEvent.press(getByTestId('group-msg-row-nudge-m1'));
-    expect(getByTestId('group-msg-row-nudge-m1')).toHaveTextContent('groups.messages.remind:1');
-    await waitFor(() => expect(nudgeGroupMessage).toHaveBeenCalledWith('org1', 'm1'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(expect.stringContaining('groups.messages.nudged:1')));
+    expect(queryByTestId('group-msg-row-nudge-m1')).toBeNull();
     expect(queryByTestId('group-msg-detail')).toBeNull();
   });
 
-  it('hides the row nudge when everyone read it or a nudge is too recent, and counts recipients outside the app', () => {
+  it('counts the reads of each row, and the recipients of one nobody has in the app', () => {
     setWatched('messages', [
       { ...MESSAGE, id: 'all-read' },
-      { ...MESSAGE, id: 'recent', lastNudgedAt: new Date(), nudgeCount: 1 },
       { ...MESSAGE, id: 'offline', poll: null, recipientUids: ['admin'], recipientCount: 5 },
     ]);
     setWatched('reads', [{ id: 'u-eva', readAt: new Date() }, { id: 'u-paco', readAt: new Date() }]);
     setWatched('votes', []);
     const { getByTestId, queryByTestId } = renderAdmin();
     expect(getByTestId('group-msg-row-reads-all-read')).toHaveTextContent('groups.messages.readBar:2|2');
-    expect(queryByTestId('group-msg-row-nudge-all-read')).toBeNull();
-    expect(queryByTestId('group-msg-row-nudge-recent')).toBeNull();
     expect(queryByTestId('group-msg-row-reads-offline')).toBeNull();
     expect(queryByTestId('group-msg-row-poll-offline')).toBeNull();
     expect(getByTestId('group-msg-row-offline')).toHaveTextContent(/groups\.messages\.recipientCount:5/);
-  });
-
-  it('waits before another nudge', () => {
-    setWatched('messages', [{ ...MESSAGE, lastNudgedAt: new Date(), nudgeCount: 1 }]);
-    setWatched('deliveries', [delivery('u-paco', {})]);
-    setWatched('reads', []);
-    setWatched('votes', []);
-    setWatched('privates', []);
-    const { getByTestId, queryByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('group-msg-row-m1'));
-    expect(queryByTestId('group-msg-detail-nudge')).toBeNull();
-    expect(getByTestId('group-msg-detail-nudge-wait')).toBeTruthy();
   });
 
   it('opens WhatsApp with the message written and ticks it sent', async () => {
@@ -289,13 +269,18 @@ describe('GroupMessagesAdmin', () => {
     fireEvent.press(getByTestId('group-msg-whatsapp-trigger'));
     fireEvent.press(getByTestId('group-msg-whatsapp-options-all'));
     expect(getByTestId('group-msg-poll')).toBeTruthy();
-    fireEvent.press(getByTestId('group-msg-poll-choice'));
+    // Like an event's form: add the poll, pick how it is answered, then write the options.
+    fireEvent.press(getByTestId('group-msg-poll'));
+    fireEvent.press(getByTestId('type-sheet-row-choice'));
+    expect(getByTestId('group-msg-poll-card')).toBeTruthy();
     fireEvent.changeText(getByTestId('group-msg-poll-question'), '¿Qué día?');
-    fireEvent.press(getByTestId('group-msg-poll-add'));
+    // Two options are the least a poll has: neither can be removed.
+    expect(queryByTestId('group-msg-poll-option-remove-0')).toBeNull();
+    fireEvent.press(getByTestId('group-msg-poll-option-add'));
     fireEvent.changeText(getByTestId('group-msg-poll-option-0'), '12');
     fireEvent.changeText(getByTestId('group-msg-poll-option-1'), '19');
     fireEvent.changeText(getByTestId('group-msg-poll-option-2'), 'nunca');
-    fireEvent.press(getByTestId('group-msg-poll-remove-2'));
+    fireEvent.press(getByTestId('group-msg-poll-option-remove-2'));
     fireEvent.press(getByTestId('group-msg-send'));
     await waitFor(() =>
       expect(sendGroupMessage).toHaveBeenCalledWith(
@@ -306,6 +291,23 @@ describe('GroupMessagesAdmin', () => {
         }),
       ),
     );
+  });
+
+  it('drops the poll from its card, and says on the card what is missing', () => {
+    const { getByTestId, queryByTestId } = renderAdmin();
+    fireEvent.press(getByTestId('group-msg-compose-open'));
+    fireEvent.changeText(getByTestId('group-msg-subject'), 'Cena');
+    fireEvent.changeText(getByTestId('group-msg-body'), 'Votad.');
+    fireEvent.press(getByTestId('group-msg-poll'));
+    fireEvent.press(getByTestId('type-sheet-row-yes_no'));
+    fireEvent.press(getByTestId('group-msg-send'));
+    expect(getByTestId('group-msg-poll-card')).toHaveTextContent(/groups.messages.pollInvalid/);
+    fireEvent.press(getByTestId('group-msg-poll-type'));
+    fireEvent.press(getByTestId('type-sheet-row-choice'));
+    expect(getByTestId('group-msg-poll-option-0')).toBeTruthy();
+    fireEvent.press(getByTestId('group-msg-poll-card-remove'));
+    expect(queryByTestId('group-msg-poll-card')).toBeNull();
+    expect(getByTestId('group-msg-poll')).toBeTruthy();
   });
 
   it('lists the recipients with their channels and unticks a WhatsApp not sent', () => {

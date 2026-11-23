@@ -181,7 +181,7 @@ const config: ExpoConfig = {
   // the shell would silently build one repo into the other's EAS project; owner
   // + projectId in the file make the routing per-repo by construction.
   owner: 'cultuvilla.app',
-  version: '1.12.0',
+  version: '1.13.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
 
@@ -327,8 +327,19 @@ const config: ExpoConfig = {
     // Package Manager by default, and SPM + the static linkage below aborts
     // `pod install` ("SPM + static linkage is not supported" — each pod would
     // embed its own Firebase copy). CocoaPods keeps a single copy.
+    // App Check's plugin only patches the iOS AppDelegate (it registers the
+    // provider factory before FirebaseApp.configure()), so it follows the
+    // app plugin's plist gate. Android needs no plugin. No App Attest
+    // entitlement on purpose: EAS syncs capabilities through the App Store
+    // Connect API, whose CapabilityType has no App Attest — the entitlement
+    // would fail every iOS archive, as time-sensitive did (see `ios` above).
+    // TestFlight and App Store builds use the production App Attest
+    // environment regardless of it (Apple's entitlement docs).
     ...(hasIosGoogleServicesFile
-      ? [['@react-native-firebase/app', { ios: { disableSPM: true } }] as [string, object]]
+      ? [
+          ['@react-native-firebase/app', { ios: { disableSPM: true } }] as [string, object],
+          '@react-native-firebase/app-check',
+        ]
       : []),
     // RNFirebase's pods are Swift and need static framework linkage. Always on,
     // not gated with the plist: the pods are autolinked either way.

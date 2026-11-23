@@ -52,6 +52,7 @@ export { sendCosaReminders } from './organizations/sendCosaReminders';
 export { sendGroupTaskReminders } from './organizations/sendGroupTaskReminders';
 export { sendGroupMessage } from './organizations/sendGroupMessage';
 export { nudgeGroupMessage } from './organizations/nudgeGroupMessage';
+export { getGroupTransparency } from './organizations/getGroupTransparency';
 export { onOrganizationUpdated } from './organizations/notificationTriggers';
 export {
   onGroupChatMessageCreated,

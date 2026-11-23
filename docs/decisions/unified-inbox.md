@@ -41,6 +41,12 @@ log at `users/{uid}/notifications`.
   a live listener on the unread notifications (`watchUnreadCount`) plus a
   role-branched pending-actionable count, the latter refreshed on header focus.
   Mark-all-read fires on open (v1).
+- **One scope rule for the screen and the badge.** Which approver queues a
+  role reads, and how widely, is `inboxService.actionableScope`;
+  `getActionableRequests` reads them. The badge counts a deliberate subset
+  (organizer and org-creation requests, `BADGE_KINDS` in
+  `useUnreadInboxCount`), so widening it is a one-line change, and a product
+  call.
 
 ## Rejected alternatives
 

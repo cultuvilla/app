@@ -30,27 +30,27 @@ export function TaskRow({
   const { t } = useT();
   const overdue = isTaskOverdue(task, todayKey());
   const done = task.doneAt !== null;
-  const who =
-    task.slots !== null
-      ? t('groups.tasks.shift.slots', { claimed: task.claimedUids.length, slots: task.slots })
-      : task.assigneeUids.length > 0
-        ? t('groups.tasks.assignedTo', { names: task.assigneeUids.map(nameOf).join(', ') })
-        : t('groups.tasks.unassigned');
-  const lines = [
+  // Encargados and a call for volunteers can go together.
+  const assigned = task.assigneeUids.length > 0 ? t('groups.tasks.assignedTo', { names: task.assigneeUids.map(nameOf).join(', ') }) : null;
+  const slots = task.slots !== null ? t('groups.tasks.shift.slots', { claimed: task.claimedUids.length, slots: task.slots }) : null;
+  const who = assigned || slots ? null : t('groups.tasks.unassigned');
+  const when =
     done && task.doneAt
       ? t('groups.tasks.doneBy', { name: task.doneBy ? nameOf(task.doneBy) : '—', date: formatDate(task.doneAt, 'short') })
-      : taskWhenLabel(t, task),
-    who,
-    task.recurrence ? recurrenceLabel(t, task.recurrence) : null,
-  ].filter(Boolean);
+      : taskWhenLabel(t, task);
+  const rest = [assigned, slots, who, task.recurrence ? recurrenceLabel(t, task.recurrence) : null].filter(Boolean);
 
   const body = (
     <VStack gap={0} className="flex-1">
       <Text className={done ? 'line-through' : 'font-bold'} tone={done ? 'muted' : 'primary'}>
         {task.title}
       </Text>
-      <Text variant="bodySm" tone={overdue ? 'danger' : 'muted'}>
-        {overdue ? `${t('groups.tasks.overdue')} · ${lines.join(' · ')}` : lines.join(' · ')}
+      {/* Late, the date alone turns red: no word for it. */}
+      <Text variant="bodySm" tone="muted">
+        <Text variant="bodySm" tone={overdue ? 'danger' : 'muted'} className={overdue ? 'font-bold' : undefined}>
+          {when}
+        </Text>
+        {rest.map((line) => ` · ${line}`).join('')}
       </Text>
       {task.notes ? (
         <Text variant="bodySm" tone="muted" numberOfLines={2}>
@@ -80,18 +80,23 @@ export function TaskRow({
  * Signing up for a task, pinned under it so it never takes a scroll: the
  * member's own answer and the buttons to change it. A volunteer shift also says
  * how many slots are taken, and its answer goes through the `respondToTaskShift`
- * callable, which holds the cap; a plain task just adds the member to its people.
+ * callable, which holds the cap; a plain task just adds the member to its
+ * encargados, and an encargado of a shift answers by leaving them.
  */
 export function TaskSignupBar({ task, orgId, uid }: { task: GroupTask; orgId: string; uid: string }) {
   const { t } = useT();
   const [busy, setBusy] = useState<ShiftAnswer | null>(null);
   const plain = task.slots === null;
-  const state = plain ? (task.assigneeUids.includes(uid) ? 'claimed' : 'none') : shiftStateOf(task, uid);
+  const encargado = task.assigneeUids.includes(uid);
+  // An encargado is on the task by being assigned, even when it also looks for
+  // volunteers: their answer is the assignment, not a slot.
+  const byAssignment = plain || encargado;
+  const state = byAssignment ? (encargado ? 'claimed' : 'none') : shiftStateOf(task, uid);
   const full = !plain && freeSlots(task) === 0;
 
   const answer = (a: ShiftAnswer) => {
     setBusy(a);
-    const write: Promise<unknown> = plain
+    const write: Promise<unknown> = byAssignment
       ? setGroupTaskAssigned(orgId, task.id, uid, a === 'claim')
       : respondToTaskShift(orgId, task.id, a);
     write
@@ -101,7 +106,7 @@ export function TaskSignupBar({ task, orgId, uid }: { task: GroupTask; orgId: st
 
   const stateLine =
     state === 'claimed'
-      ? t('groups.tasks.shift.state.claimed')
+      ? t(encargado && !plain ? 'groups.tasks.shift.state.encargado' : 'groups.tasks.shift.state.claimed')
       : state === 'waitlisted'
         ? t('groups.tasks.shift.state.waitlisted', { position: task.waitlistUids.indexOf(uid) + 1 })
         : state === 'declined'
@@ -131,7 +136,7 @@ export function TaskSignupBar({ task, orgId, uid }: { task: GroupTask; orgId: st
               {full ? t('groups.tasks.shift.joinWaitlist') : t('groups.tasks.shift.claim')}
             </Button>
           ) : null}
-          {state === 'none' && !plain ? (
+          {state === 'none' && !byAssignment ? (
             <Button size="lg" className="flex-1" variant="secondary" onPress={() => answer('decline')} loading={busy === 'decline'} testID={`shift-decline-${task.id}`}>
               {t('groups.tasks.shift.decline')}
             </Button>

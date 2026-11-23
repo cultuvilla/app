@@ -81,6 +81,39 @@ describe('<Stepper>', () => {
     fireEvent.press(getByTestId('step-dot-1'));
     expect(queryByText('content-b')).toBeNull();
   });
+
+  it('will not submit from the last step while an earlier one is invalid', () => {
+    const onComplete = jest.fn();
+    const steps = makeSteps([{ validate: () => ['err'] }]);
+    const { getByText, getByTestId } = render(
+      <Stepper steps={steps} submitLabel="Guardar" onComplete={onComplete} allStepsReachable />,
+    );
+    fireEvent.press(getByTestId('step-dot-1'));
+    fireEvent.press(getByText('Guardar'));
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('gives the last step its own testID', () => {
+    const { getByTestId } = render(
+      <Stepper steps={makeSteps()} submitLabel="Crear" onComplete={() => {}} primaryTestID="next" submitTestID="save" />,
+    );
+    expect(getByTestId('next')).toHaveTextContent('common.stepper.next');
+    fireEvent.press(getByTestId('next'));
+    expect(getByTestId('save')).toHaveTextContent('Crear');
+  });
+
+  it('follows a step the form sets, and reports the ones it moves to', () => {
+    const onStepChange = jest.fn();
+    const { getByText, rerender } = render(
+      <Stepper steps={makeSteps()} submitLabel="Crear" onComplete={() => {}} step={0} onStepChange={onStepChange} />,
+    );
+    fireEvent.press(getByText('common.stepper.next'));
+    expect(onStepChange).toHaveBeenCalledWith(1);
+    // Controlled: nothing moves until the form says so.
+    expect(getByText('content-a')).toBeTruthy();
+    rerender(<Stepper steps={makeSteps()} submitLabel="Crear" onComplete={() => {}} step={1} onStepChange={onStepChange} />);
+    expect(getByText('content-b')).toBeTruthy();
+  });
 });
 
 describe('<Stepper> gestures', () => {

@@ -62,7 +62,7 @@ Never write `Purpose / What it does / Used in / Returns` ceremony — it goes st
 
 ## Required outputs of the change
 
-14. **Vitest** in `packages/shared/test/services/<service>.test.ts`. New exports → new tests; changed behaviour → updated tests. Match the existing test style.
+14. **Vitest** in `packages/shared/test/services/<service>.test.ts`. New exports → new tests; changed behaviour → updated tests. Match the existing test style. This is enforced: `packages/shared/test/ci/serviceTestCoverage.test.ts` fails when an export no test names is missing from `packages/shared/test/services/untested-exports.json`, and when a listed one is now tested or gone. Test the new export; list it with `node scripts/lib/service-test-coverage.mjs --write` only if it is a thin wrapper with nothing worth asserting. Testing a listed export or deleting one → re-run `--write` and commit the shorter list.
 
 15. **Firestore indexes** — a new query likely needs `firestore.indexes.json` updated. Flag the deploy (use the `firestore-deploy` skill).
 

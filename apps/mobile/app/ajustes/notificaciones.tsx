@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import {
   groupNotifyLevel,
   NOTIFICATION_TOPIC_SECTIONS,
+  topicPushes,
   type GroupNotificationPrefsData,
   type GroupNotifyLevel,
   NOTIFICATION_TOPIC_SECTION_ORDER,
@@ -17,7 +18,7 @@ import {
   watchNotificationSettings,
 } from '@cultuvilla/shared/services/notificationService';
 import { setGroupNotifyLevel, watchGroupNotificationPrefs } from '@cultuvilla/shared/services/groupMessageService';
-import { hasSocioRoster, type OrganizationData } from '@cultuvilla/shared/models/organization';
+import type { OrganizationData } from '@cultuvilla/shared/models/organization';
 import { Screen } from '../../components/primitives/Screen';
 import { Card } from '../../components/primitives/Card';
 import { ErrorState } from '../../components/primitives/ErrorState';
@@ -60,11 +61,13 @@ function applyChange(settings: ResolvedNotificationSettings, change: Change): Re
 
 /**
  * The switches that can ever fire for this person; a section left empty is not
- * shown. Cuotas stay without a group: a persona's responsible member gets the
+ * shown. A topic that never pushes (a group's avisos) has no switch: these
+ * gate pushes, and there is none to gate. Cuotas stay without a group: a persona's responsible member gets the
  * reminder without being in the group.
  */
 function visibleTopics(section: NotificationTopicSection, audience: NotificationAudience): readonly NotificationTopic[] {
   return NOTIFICATION_TOPIC_SECTIONS[section].filter((topic) => {
+    if (!topicPushes(topic)) return false;
     if (topic === 'requests_to_handle') return audience.handlesRequests;
     if (section === 'groups' && topic !== 'group_cuotas') return audience.groups.length > 0;
     return true;
@@ -301,9 +304,10 @@ function SwitchRow({
 }
 
 /**
- * One group and how much it notifies: everything, only its avisos and what is
- * the person's own (the default: the chats stay quiet), or nothing. A group
- * without a socio roster sends no avisos, so it offers the first two only.
+ * One group and how much it notifies: everything, or only what is the person's
+ * own (the default: the chats stay quiet). The avisos never push, so there is
+ * no third level to silence them: a `none` an older binary stored reads as the
+ * default, which it now equals.
  */
 function GroupNotifyRow({
   uid,
@@ -322,11 +326,10 @@ function GroupNotifyRow({
   );
   const [picked, setPicked] = useState<GroupNotifyLevel | null>(null);
   const [open, setOpen] = useState(false);
-  const roster = hasSocioRoster(org.type);
   const stored = groupNotifyLevel(prefs.data ?? null);
-  const level = picked ?? (!roster && stored === 'none' ? 'avisos' : stored);
-  const levels: readonly GroupNotifyLevel[] = roster ? ['all', 'avisos', 'none'] : ['all', 'avisos'];
-  const labelOf = (l: GroupNotifyLevel) => t(`notifications.settings.perGroup.${roster ? 'levels' : 'levelsNoAvisos'}.${l}`);
+  const level = picked ?? (stored === 'none' ? 'avisos' : stored);
+  const levels: readonly GroupNotifyLevel[] = ['all', 'avisos'];
+  const labelOf = (l: GroupNotifyLevel) => t(`notifications.settings.perGroup.levels.${l}`);
 
   const pick = (key: string) => {
     setOpen(false);
@@ -356,7 +359,7 @@ function GroupNotifyRow({
           <Text tone="muted" variant="bodySm" testID={`push-group-level-${org.id}`}>
             {prefs.status === 'ready' ? labelOf(level) : ''}
           </Text>
-          <Ionicons name="chevron-forward" size={iconSizes.sm} color="#cbd5e1" />
+          <Ionicons name="chevron-forward" size={iconSizes.sm} color={colors.light.fg.chevron} />
         </HStack>
       </Pressable>
       <OptionsSheet

@@ -44,6 +44,7 @@ import { JoinVillageModal } from './JoinVillageModal';
 import { VillageWrappedStrip } from './wrapped/VillageWrappedStrip';
 import { OtherVillagesSection } from './OtherVillagesSection';
 import { WrappedPrompt } from './wrapped/WrappedPrompt';
+import { FiestasHomeCard } from './fiestas/FiestasHomeCard';
 import { StatsRow } from './StatsRow';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useRegisterGate } from '../../lib/auth/RegisterGateContext';
@@ -80,7 +81,8 @@ export interface VillageHomeBodyProps {
  * supplies the header chrome (AppHeader vs ScreenHeader). The action row's first
  * button is "Unirme" (join) for non-members and "Añadir contenido" (opens the
  * add sheet) for members; `!data.isMember` is the single source of truth for
- * "offer to join". Editar (admins) and Compartir (everyone) follow it.
+ * "offer to join", and neither shows until `data.membershipKnown`. Editar
+ * (admins) and Compartir (everyone) follow it.
  */
 export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
   const scrollEnabled = useScrollEnabledWhileZooming();
@@ -181,6 +183,10 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
     sectionStatus,
   } = data;
   const canManage = isAppAdmin || villageAdmin;
+  // A guest is never a member; a signed-in viewer's membership is a read that
+  // lands after the village paints, and offering «Unirme» to a member until
+  // then flashed the wrong action.
+  const membershipSettled = !user || data.membershipKnown;
   // Wiki phase: active but no organizer granted yet (community.organizerId null).
   const noOrganizer = village.community?.organizerId == null;
   const description = village.community?.description?.trim() || null;
@@ -291,26 +297,32 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
         {/* ── slot 1: Unirme (non-members) / Añadir contenido (members)
             + Editar (admins) + Compartir (everyone) ─────────────── */}
         <HStack gap={3} className="px-4 pt-2 pb-2">
-          {!isMember ? (
+          {!membershipSettled ? (
+            // Holds slot 1's width so Compartir does not jump when it resolves.
+            <View style={{ flex: 1 }} />
+          ) : isMember ? (
+            <ActionPill
+              label={t('village.addContent.button')}
+              onPress={() => setAddOpen(true)}
+              testID="village-add-content-action"
+            />
+          ) : (
             <ActionPill
               label={user ? t('village.join') : t('village.signInToJoin')}
               onPress={onJoin}
               disabled={joining}
               testID="village-join-action"
             />
-          ) : null}
-          {isMember ? (
-            <ActionPill
-              label={t('village.addContent.button')}
-              onPress={() => setAddOpen(true)}
-              testID="village-add-content-action"
-            />
-          ) : null}
+          )}
           <ActionPill
             label={t('village.share.title')}
             onPress={() => void share(getVillageViewLink(villageSlug), village.name)}
           />
         </HStack>
+
+        {/* ── The fiestas: their programme while they are on or coming up, or
+            an invitation to date them in the month they are due ────── */}
+        <FiestasHomeCard municipalityId={village.id} villageSlug={villageSlug} isMember={isMember} />
 
         {/* ── Admins: an invitation to sum up the fiestas, once the village
             has had movement worth summing up ─────────────────────── */}
@@ -488,26 +500,32 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
         {BARRIO_SECTIONS.map(({ kind, titleKey }) => {
           const rows = barrios.filter((b) => b.kind === kind);
           return (
+            // Virtualized: a Galician village can carry hundreds of aldeas
+            // (Vilalba has 745), so only a window of cards is mounted.
             <Section
               key={kind}
               title={t(titleKey)}
               isEmpty={rows.length === 0}
               status={sectionStatus.barrios}
-            >
-              {rows.map((b) => (
+              data={rows}
+              keyExtractor={(b) => b.id}
+              renderItem={({ item: b }) => (
                 <EntityCard
-                  key={b.id}
                   label={b.name}
-                  sub={t('village.admin.barrios.residentCount', {
-                    count: b.residentCount,
-                  })}
+                  sub={[
+                    b.isSeat ? t('village.admin.barrios.seat') : null,
+                    t('village.admin.barrios.residentCount', { count: b.residentCount }),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  accent={b.isSeat}
                   icon="map-outline"
                   imageUri={b.images[0] ?? null}
                   commentCount={b.commentCount}
                   onPress={() => router.push(barrioHref(villageSlug, b))}
                 />
-              ))}
-            </Section>
+              )}
+            />
           );
         })}
 

@@ -1,108 +1,286 @@
-import { useMemo, useState } from 'react';
-import { FlatList, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
-import { spacing } from '@cultuvilla/shared/design-system';
 import { madridDayKey } from '@cultuvilla/shared/models/event';
 import type { EventData } from '@cultuvilla/shared/models/event/EventDataModel';
-import { compareTasksByDue, hasSocioRoster } from '@cultuvilla/shared/models/organization';
+import { eventTaskProgress, hasSocioRoster, taskHolders } from '@cultuvilla/shared/models/organization';
 import { watchEventsByOrganization } from '@cultuvilla/shared/services/eventService';
-import { watchGroupTasksDoneSince, watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
-import { Text } from '../../primitives';
+import {
+  setGroupTaskDone,
+  watchGroupTasksDoneSince,
+  watchOpenGroupTasks,
+  watchTaskTemplates,
+  type GroupTask,
+  type TaskTemplate,
+} from '@cultuvilla/shared/services/groupTaskService';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
+import { Button, HStack, Pressable, Text, VStack } from '../../primitives';
 import { Fab } from '../../primitives/Fab';
-import { SegmentedToggle } from '../SegmentedToggle';
-import { TaskCard, taskPeople } from './GroupHomeCards';
+import { ApplyTemplateSheet } from './ApplyTemplateSheet';
 import { GroupTasks } from './GroupTasks';
+import { TaskGroupFold, TaskLine } from './TaskGroups';
+import { LeaderboardCard } from './TaskLeaderboard';
+import { TaskFilterSheet } from './TaskFilterSheet';
 import { TaskSheet } from './TaskSheet';
+import { TemplateSheet } from './TemplateSheet';
+import { showAlert } from '../../../lib/dialogs';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { groupTaskHref } from '../../../lib/navigation/routes';
+import {
+  QUICK_TASK_FILTERS,
+  filterTasks,
+  groupTasksByEvent,
+  startOfMadridYear,
+  taskLeaderboard,
+  type TaskFilter,
+} from '../../../lib/orgs/taskBoard';
+import { readTaskFilters, rememberTaskFilters } from '../../../lib/orgs/taskFilterStore';
 import { useMemberFaces, useOrgMembers } from '../../../lib/orgs/useOrgMembers';
 import type { MyGroup } from '../../../lib/orgs/useMyGroups';
 
-type TaskFilter = 'open' | 'mine' | 'done';
-
-/** Midnight on 1 January in Madrid, which is always on CET (+01:00). */
-function startOfYear(year: string): Date {
-  return new Date(`${year}-01-01T00:00:00+01:00`);
-}
+type Sheet =
+  | { kind: 'task'; eventId: string | null }
+  | { kind: 'template'; template: TaskTemplate | null }
+  | { kind: 'apply'; template: TaskTemplate }
+  | { kind: 'filters' }
+  | null;
 
 /**
- * Every task of the group in two columns, filtered, soonest first: what is
- * still to do, what is on the viewer, or what was done this year. Each opens its
- * own screen, and any member creates one.
+ * The group's Tareas: one line of the most used filters (the rest, which
+ * combine with them, behind a button at its end), every task on one line under
+ * its event, each event folding open or closed, then the admins' templates and,
+ * closing the screen, who has helped most (a strip that opens the
+ * leaderboard). Any member ticks a task done, opens it, or adds one.
  */
 export function GroupTaskBoard({ group, uid }: { group: MyGroup; uid: string }) {
   const { t } = useT();
   const { org, role } = group;
-  const { width } = useWindowDimensions();
-  const year = madridDayKey(new Date()).slice(0, 4);
-  const { members } = useOrgMembers(org.id);
+  const isAdmin = role === 'admin';
+  const today = madridDayKey(new Date());
+  const year = today.slice(0, 4);
+  const { members, nameOf } = useOrgMembers(org.id);
   const open = useWatch<GroupTask[]>('groups:watchOpenGroupTasks', org.id, (next, error) => watchOpenGroupTasks(org.id, next, error));
   const done = useWatch<GroupTask[]>('groups:watchGroupTasksDoneSince', `${org.id}|${year}`, (next, error) =>
-    watchGroupTasksDoneSince(org.id, startOfYear(year), next, error),
+    watchGroupTasksDoneSince(org.id, startOfMadridYear(year), next, error),
   );
   const events = useWatch<(EventData & { id: string })[]>('groups:watchEventsByOrganization', org.id, (next, error) =>
     watchEventsByOrganization(org.id, { includePrivate: true }, next, error),
   );
-  const [filter, setFilter] = useState<TaskFilter>('open');
-  const [creating, setCreating] = useState(false);
+  // Templates are admin-only in the rules: a member's read would be refused.
+  const templates = useWatch<TaskTemplate[]>(
+    'groups:watchTaskTemplates',
+    isAdmin ? org.id : null,
+    isAdmin ? (next, error) => watchTaskTemplates(org.id, next, error) : null,
+  );
 
-  const tasks = useMemo(() => {
-    if (filter === 'done') return [...(done.data ?? [])].sort((a, b) => (b.doneAt?.getTime() ?? 0) - (a.doneAt?.getTime() ?? 0));
-    const rows = [...(open.data ?? [])].sort(compareTasksByDue);
-    return filter === 'mine' ? rows.filter((task) => taskPeople(task).includes(uid)) : rows;
-  }, [filter, open.data, done.data, uid]);
-  const eventTitles = useMemo(() => new Map((events.data ?? []).map((e) => [e.id, e.title])), [events.data]);
-  const faces = useMemberFaces(tasks.flatMap(taskPeople));
-  const status = filter === 'done' ? done.status : open.status;
-  const cardWidth = (width - spacing[4] * 2 - spacing[3]) / 2;
+  const [filters, setFilters] = useState<ReadonlySet<TaskFilter>>(new Set());
+  const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const [sheet, setSheet] = useState<Sheet>(null);
+
+  useEffect(() => {
+    let live = true;
+    void readTaskFilters(org.id).then((saved) => {
+      if (live && saved.length > 0) setFilters(new Set(saved));
+    });
+    return () => {
+      live = false;
+    };
+  }, [org.id]);
+  // A fold closed by hand would otherwise hide the very matches a new filter asks for.
+  const changeFilters = (next: Set<TaskFilter>) => {
+    setFilters(next);
+    setFolds({});
+    void rememberTaskFilters(org.id, [...next]);
+  };
+  const toggleFilter = (f: TaskFilter) => {
+    const next = new Set(filters);
+    if (next.has(f)) next.delete(f);
+    else next.add(f);
+    changeFilters(next);
+  };
+
+  const openTasks = open.data ?? [];
+  const doneTasks = done.data ?? [];
+  const eventList = useMemo(
+    () => (events.data ?? []).map((e) => ({ id: e.id, title: e.title, startDate: e.startDate })),
+    [events.data],
+  );
+  const upcoming = useMemo(
+    () => eventList.filter((e) => madridDayKey(e.startDate) >= today).sort((a, b) => a.startDate.getTime() - b.startDate.getTime()),
+    [eventList, today],
+  );
+  const showingDone = filters.has('done');
+  const groups = useMemo(
+    () =>
+      groupTasksByEvent(filterTasks(openTasks, doneTasks, filters, uid, today), eventList, {
+        done: showingDone,
+        emptyEvents: filters.size === 0 ? upcoming : [],
+      }),
+    [openTasks, doneTasks, filters, uid, today, eventList, showingDone, upcoming],
+  );
+  const progress = useMemo(() => eventTaskProgress([...openTasks, ...doneTasks]), [openTasks, doneTasks]);
+  const memberUids = useMemo(() => members.map((m) => m.uid), [members]);
+  const board = useMemo(() => taskLeaderboard(doneTasks, memberUids, { kind: 'year' }), [doneTasks, memberUids]);
+  const unassignedCount = useMemo(() => openTasks.filter((task) => taskHolders(task).length === 0).length, [openTasks]);
+  const faces = useMemberFaces([...groups.flatMap((g) => g.tasks.flatMap(taskHolders)), ...board.map((r) => r.uid)]);
+  const templateList = useMemo(() => [...(templates.data ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'es')), [templates.data]);
+  const status = showingDone ? done.status : open.status;
+  // A filter turned on from the sheet stays on the line, so it can be seen and turned off.
+  const chipFilters = useMemo(() => [...QUICK_TASK_FILTERS, ...[...filters].filter((f) => !QUICK_TASK_FILTERS.includes(f))], [filters]);
+
+  // Unfiltered, only the first group starts open; a filter's few matches all show.
+  const isOpen = (key: string, index: number) => folds[key] ?? (index === 0 || filters.size > 0);
+  const tick = (task: GroupTask, next: boolean) => {
+    setGroupTaskDone(org.id, task.id, next, uid).catch(() => showAlert(t('groups.tasks.error')));
+  };
+  const close = () => setSheet(null);
 
   return (
     <View className="flex-1">
-      <View className="px-4 pt-3">
-        <SegmentedToggle
-          testID="group-tasks-filter"
-          value={filter}
-          options={[
-            { value: 'open', label: t('groups.tasks.filter.open') },
-            { value: 'mine', label: t('groups.tasks.filter.mine') },
-            { value: 'done', label: t('groups.tasks.filter.done') },
-          ]}
-          onChange={setFilter}
-        />
-      </View>
-      <FlatList
-        testID="group-task-board"
-        data={tasks}
-        numColumns={2}
-        keyExtractor={(task) => task.id}
-        columnWrapperStyle={{ gap: spacing[3] }}
-        contentContainerClassName="px-4 pt-3 pb-24 gap-3"
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={
-          status === 'loading' ? null : (
-            <Text tone="muted" className="py-6 text-center">
-              {t(filter === 'done' ? 'groups.tasks.noDone' : 'groups.tasks.noOpen')}
-            </Text>
-          )
-        }
-        renderItem={({ item: task }) => (
-          <TaskCard
-            task={task}
-            width={cardWidth}
-            eventTitle={task.eventId ? (eventTitles.get(task.eventId) ?? null) : null}
+      <ScrollView testID="group-task-board" contentContainerClassName="px-4 pt-3 pb-24 gap-3" keyboardShouldPersistTaps="handled">
+        <HStack gap={2} align="center" testID="group-tasks-filter">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1" contentContainerClassName="gap-2">
+            {chipFilters.map((f) => {
+              const on = filters.has(f);
+              return (
+                <Pressable
+                  key={f}
+                  testID={`group-tasks-filter-${f}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  onPress={() => toggleFilter(f)}
+                  className={`px-3 py-1.5 rounded-full border ${on ? 'bg-secondary border-secondary' : 'bg-surface-elevated border-subtle'}`}
+                >
+                  <Text variant="bodySm" tone={on ? 'onSecondary' : 'primary'} className="font-semibold">
+                    {t(`groups.tasks.filter.${f}`)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Pressable
+            testID="group-tasks-filter-all"
+            accessibilityRole="button"
+            accessibilityLabel={filters.size > 0 ? t('groups.tasks.filter.allWithCount', { count: filters.size }) : t('groups.tasks.filter.all')}
+            onPress={() => setSheet({ kind: 'filters' })}
+            className={`h-9 px-3 rounded-full border flex-row items-center gap-1 ${filters.size > 0 ? 'bg-secondary border-secondary' : 'bg-surface-elevated border-subtle'}`}
+          >
+            <Ionicons name="options-outline" size={iconSizes.sm} color={filters.size > 0 ? colors.light.fg['on-secondary'] : colors.light.fg.primary} />
+            {filters.size > 0 ? (
+              <Text variant="bodySm" tone="onSecondary" className="font-bold">
+                {filters.size}
+              </Text>
+            ) : null}
+          </Pressable>
+        </HStack>
+
+        {groups.length === 0 && status !== 'loading' ? (
+          <Text tone="muted" className="py-6 text-center" testID="group-tasks-empty">
+            {t(filters.size === 0 ? 'groups.tasks.noOpen' : showingDone && filters.size === 1 ? 'groups.tasks.noDone' : 'groups.tasks.noMatches')}
+          </Text>
+        ) : null}
+
+        {groups.map((g, index) => {
+          const event = g.event;
+          return (
+            <TaskGroupFold
+              key={g.key}
+              group={g}
+              progress={event ? (progress.get(event.id) ?? null) : null}
+              expanded={isOpen(g.key, index)}
+              onToggle={() => setFolds((prev) => ({ ...prev, [g.key]: !isOpen(g.key, index) }))}
+            >
+              {g.tasks.length === 0 ? (
+                <Text variant="bodySm" tone="muted" className="px-3 py-2 border-t border-subtle">
+                  {t('groups.tasks.checklists.noTasks')}
+                </Text>
+              ) : (
+                g.tasks.map((task) => (
+                  <TaskLine
+                    key={task.id}
+                    task={task}
+                    today={today}
+                    faces={faces}
+                    onTick={(next) => tick(task, next)}
+                    onOpen={() => router.push(groupTaskHref(org.id, task.id))}
+                  />
+                ))
+              )}
+              {event && !showingDone ? (
+                <HStack gap={2} className="flex-wrap px-3 py-2 border-t border-subtle">
+                  <Button size="md" variant="secondary" onPress={() => setSheet({ kind: 'task', eventId: event.id })} testID={`checklist-add-${event.id}`}>
+                    {t('groups.tasks.checklists.addTask')}
+                  </Button>
+                </HStack>
+              ) : null}
+            </TaskGroupFold>
+          );
+        })}
+
+        {isAdmin ? (
+          <VStack className="pt-4">
+            <GroupTasks
+              orgId={org.id}
+              uid={uid}
+              today={today}
+              tasks={[...openTasks, ...doneTasks]}
+              tasksReady={open.status === 'ready' && done.status === 'ready'}
+              templates={templateList}
+              suggestAsamblea={hasSocioRoster(org.type)}
+              onOpenTemplate={(template) => setSheet({ kind: 'template', template })}
+              onApplyTemplate={(template) => setSheet({ kind: 'apply', template })}
+            />
+          </VStack>
+        ) : null}
+
+        <VStack className="pt-4">
+          <LeaderboardCard
+            doneTasks={doneTasks}
+            memberUids={memberUids}
+            events={eventList}
+            uid={uid}
             faces={faces}
-            onPress={() => router.push(groupTaskHref(org.id, task.id))}
+            nameOf={nameOf}
+            unassignedCount={unassignedCount}
+            onShowUnassigned={() => changeFilters(new Set<TaskFilter>(['unassigned']))}
           />
-        )}
-        ListFooterComponent={
-          <View className="pt-6">
-            <GroupTasks orgId={org.id} uid={uid} isAdmin={role === 'admin'} includePrivateEvents suggestAsamblea={hasSocioRoster(org.type)} />
-          </View>
-        }
+        </VStack>
+      </ScrollView>
+
+      <Fab testID="group-tasks-create" label={t('groups.tasks.new')} onPress={() => setSheet({ kind: 'task', eventId: null })} />
+      <TaskSheet
+        visible={sheet?.kind === 'task'}
+        orgId={org.id}
+        uid={uid}
+        task={null}
+        eventId={sheet?.kind === 'task' ? sheet.eventId : null}
+        members={members}
+        onClose={close}
       />
-      <Fab testID="group-tasks-create" label={t('groups.tasks.new')} onPress={() => setCreating(true)} />
-      <TaskSheet visible={creating} orgId={org.id} uid={uid} task={null} members={members} onClose={() => setCreating(false)} />
+      <TemplateSheet
+        visible={sheet?.kind === 'template'}
+        orgId={org.id}
+        uid={uid}
+        template={sheet?.kind === 'template' ? sheet.template : null}
+        onClose={close}
+      />
+      <ApplyTemplateSheet
+        visible={sheet?.kind === 'apply'}
+        orgId={org.id}
+        uid={uid}
+        template={sheet?.kind === 'apply' ? sheet.template : null}
+        events={upcoming}
+        onClose={close}
+      />
+      <TaskFilterSheet
+        visible={sheet?.kind === 'filters'}
+        value={filters}
+        onToggle={toggleFilter}
+        onClear={() => changeFilters(new Set())}
+        onClose={close}
+      />
     </View>
   );
 }

@@ -1,4 +1,5 @@
 import { Animated, Pressable, Text } from 'react-native';
+import { colors, elevation } from '@cultuvilla/shared/design-system';
 
 export type FabProps = {
   onPress: () => void;
@@ -51,16 +52,16 @@ export function Fab({ onPress, label, testID, opacity = 1, interactive = true }:
           paddingHorizontal: 22,
           borderRadius: 999,
           // accent (terracotta) — matches the AppHeader bg-accent token
-          backgroundColor: '#bb5d3a',
+          backgroundColor: colors.light.bg.accent,
           elevation: 6,
-          shadowColor: '#000',
+          shadowColor: elevation.md.rn.shadowColor,
           shadowOpacity: 0.25,
           shadowRadius: 6,
           shadowOffset: { width: 0, height: 3 },
         }}
       >
-        <Text style={{ color: '#f9f0e8', fontSize: 22, lineHeight: 24, marginRight: 8 }}>+</Text>
-        <Text style={{ color: '#f9f0e8', fontSize: 16, fontWeight: '700' }}>{label}</Text>
+        <Text style={{ color: colors.light.fg['on-accent'], fontSize: 22, lineHeight: 24, marginRight: 8 }}>+</Text>
+        <Text style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>{label}</Text>
       </Pressable>
     </Animated.View>
   );

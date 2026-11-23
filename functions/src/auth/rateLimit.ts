@@ -1,10 +1,10 @@
 import { createHash } from 'crypto';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
+import { authEmailRateLimitDoc } from '@cultuvilla/shared/firebase/refs/admin';
 
-// Pre-auth/global rate limiting has no municipality to scope by, so this is
-// one of the few top-level collections that doesn't carry a `municipalityId`
-// (AGENTS.md §3 is about domain entities; this is infrastructure).
-const RATE_LIMIT_COLLECTION = 'authEmailRateLimits';
+// Pre-auth/global rate limiting has no municipality to scope by, so its
+// collection (`authEmailRateLimits`) is one of the few top-level ones without a
+// `municipalityId` (AGENTS.md §3 is about domain entities; this is infrastructure).
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX_SENDS = 5;
 // Per caller IP, across every address it asks for. Looser than the per-email
@@ -60,16 +60,16 @@ export async function checkRateLimit(
   maxSends: number = RATE_LIMIT_MAX_SENDS,
 ): Promise<boolean> {
   const db = getFirestore();
-  const ref = db.collection(RATE_LIMIT_COLLECTION).doc(bucketId);
+  const ref = authEmailRateLimitDoc(db, bucketId);
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    const now = Timestamp.now();
-    if (!snap.exists) {
+    const now = new Date();
+    const data = snap.data();
+    if (!data) {
       tx.set(ref, { count: 1, windowStart: now });
       return true;
     }
-    const data = snap.data() as { count: number; windowStart: Timestamp };
-    const windowAgeMs = now.toMillis() - data.windowStart.toMillis();
+    const windowAgeMs = now.getTime() - data.windowStart.getTime();
     if (windowAgeMs > RATE_LIMIT_WINDOW_MS) {
       tx.set(ref, { count: 1, windowStart: now });
       return true;

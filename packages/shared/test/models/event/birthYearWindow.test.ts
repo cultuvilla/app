@@ -6,7 +6,6 @@ import {
   hasBirthYearWindow,
   needsBirthYearConfirm,
 } from '../../../src/models/event/EventDataModel';
-import { EventFormSchema } from '../../../src/models/event/EventFormSchema';
 
 const baseInput = {
   title: 'Taller infantil',
@@ -84,63 +83,5 @@ describe('birthYearEligibility', () => {
     expect(needsBirthYearConfirm(kids, 2013)).toBe(true);
     expect(needsBirthYearConfirm(kids, 2015)).toBe(false);
     expect(needsBirthYearConfirm(open, 2013)).toBe(false);
-  });
-});
-
-describe('EventFormSchema — birth-year window', () => {
-  const validBase = {
-    title: 'Taller infantil',
-    description: '',
-    startDate: '2026-08-15T20:00',
-    locationName: 'Plaza Mayor',
-    maxAttendees: '',
-    telephoneRequired: false,
-  };
-
-  it('defaults both ends to null when the fields are left empty', () => {
-    const result = EventFormSchema.safeParse({ ...validBase, minBirthYear: '', maxBirthYear: '' });
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.minBirthYear).toBeNull();
-    expect(result.data.maxBirthYear).toBeNull();
-  });
-
-  it('coerces year strings to integers', () => {
-    const result = EventFormSchema.safeParse({ ...validBase, minBirthYear: '2014', maxBirthYear: '2020' });
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.minBirthYear).toBe(2014);
-    expect(result.data.maxBirthYear).toBe(2020);
-  });
-
-  it('accepts an open-ended window', () => {
-    const result = EventFormSchema.safeParse({ ...validBase, maxBirthYear: '1960' });
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.minBirthYear).toBeNull();
-    expect(result.data.maxBirthYear).toBe(1960);
-  });
-
-  it('rejects an inverted window', () => {
-    const result = EventFormSchema.safeParse({ ...validBase, minBirthYear: '2020', maxBirthYear: '2014' });
-    expect(result.success).toBe(false);
-    if (result.success) return;
-    expect(result.error.issues.some((i) => i.path.includes('maxBirthYear'))).toBe(true);
-  });
-
-  it('rejects a year outside the sanity bounds', () => {
-    expect(EventFormSchema.safeParse({ ...validBase, minBirthYear: '1899' }).success).toBe(false);
-    expect(EventFormSchema.safeParse({ ...validBase, maxBirthYear: '2201' }).success).toBe(false);
-  });
-
-  it('rejects a window on an event that takes no in-app sign-ups', () => {
-    const result = EventFormSchema.safeParse({
-      ...validBase,
-      signupEnabled: false,
-      minBirthYear: '2014',
-    });
-    expect(result.success).toBe(false);
-    if (result.success) return;
-    expect(result.error.issues.some((i) => i.path.includes('minBirthYear'))).toBe(true);
   });
 });

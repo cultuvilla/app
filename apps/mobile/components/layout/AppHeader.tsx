@@ -1,4 +1,5 @@
 import { routes } from '../../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -82,7 +83,7 @@ export function AppHeader({ centerLabel, extraRightSlot }: AppHeaderProps) {
               className="p-1"
             >
               <View>
-                <Ionicons name="notifications" size={28} color="#f9f0e8" />
+                <Ionicons name="notifications" size={28} color={colors.light.fg['on-accent']} />
                 {unreadCount > 0 && (
                   <View
                     className="absolute -top-1 -right-1 bg-danger rounded-full items-center justify-center px-1"
@@ -103,9 +104,10 @@ export function AppHeader({ centerLabel, extraRightSlot }: AppHeaderProps) {
                 else gate.requireAuth(routes.profile, t('guest.menu'));
               }}
               accessibilityLabel={t('header.openMenu')}
+              testID="app-header-menu"
               className="p-1 -mr-1"
             >
-              <Ionicons name="menu-sharp" size={30} color="#f9f0e8" />
+              <Ionicons name="menu-sharp" size={30} color={colors.light.fg['on-accent']} />
             </Pressable>
           </View>
         </View>

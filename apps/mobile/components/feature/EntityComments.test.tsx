@@ -15,6 +15,10 @@ import { blockUser, getBlockedUserIds } from '@cultuvilla/shared/services/blocke
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
 import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('@cultuvilla/shared/services/commentsService', () => ({
   addComment: jest.fn(),
   deleteComment: jest.fn().mockResolvedValue(undefined),

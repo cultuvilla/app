@@ -3,7 +3,7 @@
 # village, which the flow sets to Altozano first: it must not depend on flow 50,
 # which iOS holds out (run-ios-e2e.mjs).
 #
-# Seeded events in Altozano sit 7–10 days out and one in the join village 3
+# Seeded events in Altozano sit 9–12 days out and one in the join village 3
 # days out, so "Esta semana" (the next seven days from midnight) keeps only
 # that one, and "Por cercanía" from Altozano puts it behind the others.
 appId: com.cultuvilla.app.dev
@@ -75,7 +75,7 @@ env:
     visible: '.*Fiesta de Prueba E2E.*'
     timeout: 10000
 
-# ── Date ── the far event is 3 days out, the others 7 or more
+# ── Date ── the far event is 3 days out, the others 9 or more
 - tapOn:
     id: 'filter-date'
 - tapOn:

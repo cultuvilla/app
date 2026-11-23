@@ -16,7 +16,9 @@ name: beta-build-and-submit
 #
 # The Play side can be frozen on its own: set the repo variable
 # PLAY_SUBMIT_PAUSED=true. Disabling the whole workflow for that — as was done
-# on 2026-09-14 — silently froze iOS too.
+# on 2026-09-14 — silently froze iOS too. TestFlight has its own switch,
+# TESTFLIGHT_SUBMIT_PAUSED=true: an Apple app transfer needs TestFlight empty
+# for its whole processing window (docs/plans/ongoing/apple-team-transfer.md).
 #
 # Deliberately NOT scoped to a GitHub `environment`: the `Production`
 # environment's branch policy allows only `main`, so a beta-triggered job that
@@ -111,6 +113,7 @@ jobs:
 
   ios:
     name: iOS build + submit -> TestFlight (internal + external)
+    if: ${{ vars.TESTFLIGHT_SUBMIT_PAUSED != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:

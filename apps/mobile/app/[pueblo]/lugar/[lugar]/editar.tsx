@@ -28,7 +28,7 @@ function PlaceEditScreen() {
   const placeId = parseEntityRef(lugarRef ?? '') ?? '';
   const { t } = useT();
   const showCallableError = useCallableErrorHandler();
-  const { canManage, canEdit, canDelete, uid, loading: capLoading } = useEntityCapabilities(villageId);
+  const { canManage, can, uid, loading: capLoading } = useEntityCapabilities(villageId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [kind, setKind] = useState<PlaceKind>('cemetery');
@@ -78,7 +78,7 @@ function PlaceEditScreen() {
       </Screen>
     );
   }
-  if (!notFound && !canEdit(proposedBy)) {
+  if (!notFound && !can('edit', 'place', { proposedBy })) {
     return <Redirect href={entityRefHref('place', villageSlug, lugarRef ?? '')} />;
   }
 
@@ -143,7 +143,7 @@ function PlaceEditScreen() {
         accent
         title={t('village.admin.places.editTitle')}
         rightSlot={
-          canDelete(proposedBy, status) ? (
+          can('delete', 'place', { proposedBy, status }) ? (
             <DeleteHeaderButton
               onAccent
               onConfirm={removePlace}

@@ -279,6 +279,16 @@ describe('content reports — a chat message', () => {
   });
 });
 
+describe('organizations — sociosSendAvisos', () => {
+  it('an admin lets the socios send avisos, as a boolean; a member cannot', async () => {
+    const db = asUser(getEnv(), 'admin1');
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}`), { sociosSendAvisos: true }));
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}`), { sociosSendAvisos: false }));
+    await assertFails(updateDoc(doc(db, `organizations/${ORG}`), { sociosSendAvisos: 'sí' }));
+    await assertFails(updateDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}`), { sociosSendAvisos: true }));
+  });
+});
+
 describe('organizations — chatAdminsOnly', () => {
   it('an org admin turns it on and off; it must be a bool', async () => {
     const db = asUser(getEnv(), 'admin1');

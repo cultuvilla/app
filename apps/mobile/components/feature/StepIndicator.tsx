@@ -25,8 +25,8 @@ export interface StepIndicatorProps {
 // A step is "marked" by an accent circumference + icon once it has its info;
 // the circle is never filled. Not-yet-filled steps use neutral greys.
 const ACCENT = colors.light.fg.accent;
-const IDLE_BORDER = '#cbd5e1';
-const IDLE_ICON = '#94a3b8';
+const IDLE_BORDER = colors.light.border.input;
+const IDLE_ICON = colors.light.fg.quiet;
 
 export function StepIndicator({
   count,

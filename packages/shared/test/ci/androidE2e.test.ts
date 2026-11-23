@@ -233,6 +233,13 @@ describe('flows start from a clean device', () => {
 
   // 95 writes an update wall and removes it only on the way out, so any flow
   // sorted after it would run behind the wall.
+  // Android retries nothing, so it takes no snapshot; if it ever retries, the
+  // same loop restores each retry to its first attempt's data (iosE2e.test.ts).
+  it('snapshots the emulators only for a run that retries', () => {
+    expect(runner).not.toMatch(/retries:/);
+    expect(suiteLib).toMatch(/const emulators = retries > 0 \? emulatorTargets\(\) : null;/);
+  });
+
   it('runs the version-gate flow last', () => {
     const flows = readdirSync(flowsDir).filter((f) => f.endsWith('.yaml')).sort();
     expect(flows.at(-1)).toBe('95-app-version-gate.yaml');

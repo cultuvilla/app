@@ -48,8 +48,8 @@ teacher is ill, without touching the rest.
   `series.index === 0`.
 - **Lists show one card per series**: `firstOfEachSeries` runs after
   `upcomingThenPast` (pueblo and org lists) and after the Explora filters (so
-  a date filter still finds the matching day); the read site's `orderEvents`
-  does the same. The card is the next occurrence, or the latest if all passed.
+  a date filter still finds the matching day); the read site's `inListOrder`
+  runs the same two helpers. The card is the next occurrence, or the latest if all passed.
   Explora pages by occurrence docs but shows cards, so a daily series could
   fill its 50-row page alone: `grownFeedSize` doubles the page (up to 400)
   while it comes back full and shows fewer than 20 cards.
@@ -111,8 +111,8 @@ teacher is ill, without touching the rest.
 
 ## What this binds
 
-- Any list that shows events as cards must run `firstOfEachSeries` (app) or
-  `orderEvents` (read site) on an already-ordered list.
+- Any list that shows events as cards must run `firstOfEachSeries` on an
+  already-ordered list — in the app, and on the read site through `inListOrder`.
 - A query over a series must pin `visibility` / `visibilityOrgId` like every
   `events` list (see `publicOnly` in eventService).
 - `MAX_SERIES_DAYS` and the 184-day bound in `isValidEventSeries` move together.

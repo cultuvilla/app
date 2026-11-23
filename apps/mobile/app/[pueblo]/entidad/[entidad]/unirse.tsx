@@ -8,5 +8,5 @@ import { entityRefHref, routes } from '../../../../lib/navigation/routes';
 export default function OrgJoinRedirect() {
   const { pueblo, entidad } = useLocalSearchParams<{ pueblo: string; entidad: string }>();
   if (!pueblo || !entidad) return <Redirect href={routes.home} />;
-  return <Redirect href={`${entityRefHref('organization', pueblo, entidad)}?intent=join`} />;
+  return <Redirect href={entityRefHref('organization', pueblo, entidad, 'intent=join')} />;
 }

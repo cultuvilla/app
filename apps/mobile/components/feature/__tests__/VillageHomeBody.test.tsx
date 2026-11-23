@@ -62,6 +62,8 @@ jest.mock('../wrapped/WrappedPrompt', () => {
   const { Text } = jest.requireActual('react-native');
   return { WrappedPrompt: () => <Text testID="wrapped-prompt">prompt</Text> };
 });
+// The fiestas card watches its own data; FiestasHomeCard's own tests cover it.
+jest.mock('../fiestas/FiestasHomeCard', () => ({ FiestasHomeCard: () => null }));
 const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
 let mockRankedVillages: unknown[] = [];
 jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
@@ -112,6 +114,7 @@ const base: VillageHomeState = {
   village,
   villageAdmin: false,
   isMember: true,
+  membershipKnown: true,
   barrios: [],
   places: [],
   organizations: [],
@@ -193,6 +196,26 @@ describe('VillageHomeBody', () => {
     // activeMunicipalityId immediately, not only after an app restart.
     await waitFor(() => expect(mockRefreshProfile).toHaveBeenCalled());
     expect(mockOfferPush).toHaveBeenCalledWith('village_join', { villageName: expect.any(String) });
+  });
+
+  it('offers neither join nor add-content until the membership read lands', () => {
+    const { queryByTestId, getByTestId, getByText, rerender } = render(
+      <VillageHomeBody data={{ ...base, isMember: false, membershipKnown: false }} reload={jest.fn()} />,
+    );
+    expect(queryByTestId('village-join-action')).toBeNull();
+    expect(queryByTestId('village-add-content-action')).toBeNull();
+    expect(getByText('Compartir pueblo')).toBeTruthy();
+    rerender(<VillageHomeBody data={{ ...base, isMember: true, membershipKnown: true }} reload={jest.fn()} />);
+    expect(getByTestId('village-add-content-action')).toBeTruthy();
+    expect(queryByTestId('village-join-action')).toBeNull();
+  });
+
+  it('offers a guest «sign in to join» at once — a guest is never a member', () => {
+    mockUser = null;
+    const { getByTestId } = render(
+      <VillageHomeBody data={{ ...base, isMember: false, membershipKnown: false }} reload={jest.fn()} />,
+    );
+    expect(getByTestId('village-join-action')).toBeTruthy();
   });
 
   it('logged-out "sign in to join" carries the village across auth', () => {
@@ -349,6 +372,7 @@ describe('VillageHomeBody', () => {
     repeatsYearly: false,
     repeatsMonthly: false,
     repeatDateVaries: false,
+    fiestaEditionId: null,
     signupGroupSize: 1,
     minBirthYear: null,
     maxBirthYear: null,
@@ -609,13 +633,13 @@ describe('VillageHomeBody', () => {
 });
 
 describe('subdivision sections', () => {
-  const row = (id: string, name: string, kind: string) =>
+  const row = (id: string, name: string, kind: string, isSeat = false) =>
     ({
       id,
       name,
       kind,
       source: 'osm',
-      isSeat: false,
+      isSeat,
       images: [],
       residentCount: 0,
       commentCount: 0,
@@ -640,6 +664,35 @@ describe('subdivision sections', () => {
     expect(getByText('Localidades')).toBeTruthy();
     expect(getByText('El Arrabal')).toBeTruthy();
     expect(getByText('Villarino de Manzanas')).toBeTruthy();
+  });
+
+  it('labels the municipal seat "El pueblo" so it reads apart from its pedanías', () => {
+    const { getByLabelText, getAllByText } = render(
+      <VillageHomeBody
+        data={{
+          ...base,
+          barrios: [row('s1', 'Matabuena', 'pedania', true), row('p1', 'Matamala', 'pedania')],
+        }}
+        reload={jest.fn()}
+      />,
+    );
+    // Only the seat carries the label; its pedanías keep the bare count.
+    expect(getAllByText(/^El pueblo · /)).toHaveLength(1);
+    expect(getByLabelText(/^Matabuena, El pueblo · /)).toBeTruthy();
+    expect(getByLabelText(/^Matamala, (?!El pueblo)/)).toBeTruthy();
+  });
+
+  it('mounts only a window of a Vilalba-sized kind, not every card', () => {
+    // Vilalba carries 745 aldeas; rendering every card eagerly would mount 745
+    // images on the home. The row is a horizontal FlatList that windows them.
+    const aldeas = Array.from({ length: 745 }, (_, i) => row(`a${i}`, `Aldea ${i}`, 'aldea'));
+    const { getByText, queryAllByText } = render(
+      <VillageHomeBody data={{ ...base, barrios: aldeas }} reload={jest.fn()} />,
+    );
+    expect(getByText('Aldea 0')).toBeTruthy();
+    const mounted = queryAllByText(/^Aldea \d+$/).length;
+    expect(mounted).toBeGreaterThan(0);
+    expect(mounted).toBeLessThan(745);
   });
 
   it('hides the sections a village has no rows for', () => {

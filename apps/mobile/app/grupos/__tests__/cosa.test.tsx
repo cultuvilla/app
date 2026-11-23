@@ -1,9 +1,11 @@
+import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildCosaData, buildCosaRequestData, type CosaData } from '@cultuvilla/shared/models/organization';
-import { respondToCosaRequest, updateCosa } from '@cultuvilla/shared/services/cosatecaService';
+import { deleteCosa, respondToCosaRequest, updateCosa } from '@cultuvilla/shared/services/cosatecaService';
 import CosaScreen from '../[grupo]/cosa/[cosa]';
 
 const mockPush = jest.fn();
+const mockBack = jest.fn();
 let mockGroups: { org: { id: string }; role: string }[] = [];
 let mockCosa: unknown = null;
 let mockMine: unknown[] = [];
@@ -14,10 +16,11 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('expo-router', () => ({
-  router: { push: (href: unknown) => mockPush(href) },
+  router: { push: (href: unknown) => mockPush(href), back: () => mockBack() },
   useLocalSearchParams: () => ({ grupo: 'ayto', cosa: 'c1' }),
 }));
 jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
+  deleteCosa: jest.fn().mockResolvedValue(undefined),
   respondToCosaRequest: jest.fn().mockResolvedValue('returned'),
   updateCosa: jest.fn().mockResolvedValue(undefined),
   watchCosa: jest.fn(),
@@ -140,6 +143,17 @@ describe("a cosa's screen", () => {
     await waitFor(() => expect(updateCosa).toHaveBeenCalledWith('c1', expect.objectContaining({ status: 'paused' })));
   });
 
+  it('lets its manager take it out of the cosateca after confirming, and goes back', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    mockGroups = [{ org: { id: 'ayto' }, role: 'admin' }];
+    const { getByTestId } = render(<CosaScreen />);
+    fireEvent.press(getByTestId('cosa-delete'));
+    const buttons = (alert.mock.calls.at(-1)?.[2] ?? []) as { onPress?: () => void }[];
+    buttons.at(-1)?.onPress?.();
+    await waitFor(() => expect(deleteCosa).toHaveBeenCalledWith('c1'));
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+  });
+
   it('tells its owner it is theirs, and lets a plain integrante only ask', () => {
     mockGroups = [{ org: { id: 'ayto' }, role: 'member' }];
     mockCosa = cosa({ ownerUid: 'u1', ownerName: 'Ana' });
@@ -237,8 +251,9 @@ describe("a cosa's screen", () => {
       expect(getByTestId('cosa-you-hold-it')).toBeTruthy();
       expect(queryByTestId('cosa-ask')).toBeNull();
       expect(getByTestId('cosa-request-row-r1')).toBeTruthy();
-      // Holding it is not owning it: no editing.
+      // Holding it is not owning it: no editing, no taking it out.
       expect(queryByTestId('cosa-edit')).toBeNull();
+      expect(queryByTestId('cosa-delete')).toBeNull();
       // Nowhere to leave it: only passing it on.
       expect(queryByTestId('cosa-leave-in-place')).toBeNull();
     });

@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { buildSocioData, type SocioDataInput } from '@cultuvilla/shared/models/organization';
 import {
   addTypedSocio,
@@ -126,6 +126,12 @@ describe('SociosRoster — admin', () => {
     expect(r.queryByTestId('socio-row-Ana')).toBeNull();
   });
 
+  it('reads each row out with its socio number, as it shows it', () => {
+    const r = renderAdmin();
+    expect(r.getByTestId('socio-row-Paco').props.accessibilityLabel).toBe('12, Paco');
+    expect(r.getByTestId('socio-row-Ana').props.accessibilityLabel).toBe('Ana');
+  });
+
   it('searches the book by name or number', () => {
     const r = renderAdmin();
     fireEvent.changeText(r.getByTestId('socios-search'), 'pac');
@@ -166,7 +172,7 @@ describe('SociosRoster — admin', () => {
     ids.forEach((id) => expect(r.getByTestId(id)).toBeTruthy());
     expect(r.queryByTestId('socio-baja-Ana')).toBeNull();
     expect(r.queryByTestId('socio-title-Ana')).toBeNull();
-    fireEvent.press(r.getByTestId('socio-sheet-close'));
+    fireEvent.press(r.getByTestId('socio-sheet-handle'));
     fireEvent.press(r.getByTestId('socio-row-Paco'));
     ['socio-edit-Paco', 'socio-link-Paco', 'socio-baja-Paco'].forEach((id) => expect(r.getByTestId(id)).toBeTruthy());
     expect(r.queryByTestId('socio-number-Paco')).toBeNull();
@@ -178,7 +184,7 @@ describe('SociosRoster — admin', () => {
     expect(r.getByTestId('socio-title-Tesorera')).toBeTruthy();
     expect(r.queryByTestId('socio-role-Tesorera')).toBeNull();
     expect(r.queryByTestId('socio-remove-Tesorera')).toBeNull();
-    fireEvent.press(r.getByTestId('socio-sheet-close'));
+    fireEvent.press(r.getByTestId('socio-sheet-handle'));
     fireEvent.press(r.getByTestId('socios-filter-bajas'));
     fireEvent.press(r.getByTestId('socio-row-Viejo'));
     expect(r.queryByTestId('socio-number-Viejo')).toBeNull();
@@ -200,41 +206,6 @@ describe('SociosRoster — admin', () => {
     await take(r, 'Ana', 'role');
     await confirmed();
     await waitFor(() => expect(setOrgMemberRole).toHaveBeenCalledWith('org1', 'u-ana', 'member'));
-  });
-
-  it('types in a new socio', async () => {
-    const { getByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('socios-add'));
-    expect(getByTestId('typed-socio-sheet')).toBeTruthy();
-    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
-    fireEvent.changeText(getByTestId('typed-socio-phone'), '622');
-    fireEvent.changeText(getByTestId('typed-socio-email'), '');
-    fireEvent.press(getByTestId('typed-socio-save'));
-    await waitFor(() =>
-      expect(addTypedSocio).toHaveBeenCalledWith('org1', { displayName: 'Lola', socioNumber: null, phone: '622', email: '' }, 'u-admin'),
-    );
-  });
-
-  it('closes the sheet once the new socio is saved', async () => {
-    const { getByTestId, queryByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('socios-add'));
-    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
-    fireEvent.press(getByTestId('typed-socio-save'));
-    await waitFor(() => expect(addTypedSocio).toHaveBeenCalled());
-    await act(async () => {});
-    expect(queryByTestId('typed-socio-sheet')).toBeNull();
-  });
-
-  it('keeps the sheet open and says so when the write is refused', async () => {
-    jest.mocked(addTypedSocio).mockRejectedValueOnce(new Error('permission-denied'));
-    const { getByTestId, queryByTestId } = renderAdmin();
-    fireEvent.press(getByTestId('socios-add'));
-    fireEvent.changeText(getByTestId('typed-socio-name'), 'Lola');
-    fireEvent.press(getByTestId('typed-socio-save'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('groups.socios.error'));
-    expect(getByTestId('typed-socio-sheet')).toBeTruthy();
-    expect(queryByTestId('typed-socio-save-spinner')).toBeNull();
-    expect(getByTestId('typed-socio-name').props.value).toBe('Lola');
   });
 
   it('tells the admin when a link, a title or a baja is refused', async () => {
@@ -337,11 +308,23 @@ describe('GroupSettings', () => {
 
   const toggle = (r: ReturnType<typeof render>) => r.getByTestId('group-settings-socios-list-visible');
 
-  it('an admin leaves the Charla to the junta; a group with no roster has no socios switch', () => {
+  it('an admin stops integrantes writing in the Charla; a group with no roster has no socios switch', () => {
     const r = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} chatAdminsOnly={false} />);
     expect(r.queryByTestId('group-settings-socios-list-visible')).toBeNull();
+    expect(r.getByTestId('group-settings-chat-admins-only').props.accessibilityState).toMatchObject({ checked: true });
     fireEvent.press(r.getByTestId('group-settings-chat-admins-only'));
     expect(updateOrganization).toHaveBeenCalledWith('org1', { chatAdminsOnly: true });
+  });
+
+  it('an admin switches the Charla off, and with it who may write there', () => {
+    const on = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} />);
+    fireEvent.press(on.getByTestId('group-settings-chat-enabled'));
+    expect(updateOrganization).toHaveBeenCalledWith('org1', { chatEnabled: false });
+    on.unmount();
+    const off = render(<GroupSettings orgId="org1" uid="u1" sociosListVisible={false} hasRoster={false} chatEnabled={false} />);
+    expect(off.getByTestId('group-settings-chat-enabled').props.accessibilityState).toMatchObject({ checked: false });
+    expect(off.queryByTestId('group-settings-chat-admins-only')).toBeNull();
+    expect(off.queryByTestId('group-settings-charla')).toBeNull();
   });
 
   it('an admin switches the cosateca on, then opens it to the whole pueblo', () => {
@@ -353,6 +336,9 @@ describe('GroupSettings', () => {
     const on = render(
       <GroupSettings orgId="org1" uid="u1" sociosListVisible={false} cosateca={{ enabled: true, audience: 'integrantes' }} />,
     );
+    // Who sees it is set beside the cuota's reminders, not under «Qué usa el grupo».
+    expect(within(on.getByTestId('group-settings-cuota')).getByTestId('group-settings-cosateca-audience')).toBeTruthy();
+    expect(within(on.getByTestId('group-settings-features')).queryByTestId('group-settings-cosateca-audience')).toBeNull();
     fireEvent.press(on.getByTestId('group-settings-cosateca-audience-pueblo'));
     expect(updateOrganization).toHaveBeenLastCalledWith('org1', { cosateca: { enabled: true, audience: 'pueblo' } });
   });

@@ -5,6 +5,7 @@ import {
   type ReviewStatus,
 } from '../core/ReviewableDataModel';
 import { CosatecaSettingsSchema, DEFAULT_COSATECA_SETTINGS, type CosatecaSettings } from './CosaDataModel';
+import { DEFAULT_GROUP_TRANSPARENCY, GroupTransparencySchema, type GroupTransparency } from './GroupTransparencyModel';
 
 export const OrganizationTypeSchema = z.enum(['ayuntamiento', 'peña', 'asociación', 'otros', 'comisión']);
 export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
@@ -76,6 +77,12 @@ export const OrganizationDataSchema = z.object({
   // installed binaries create orgs without it; existing docs are backfilled by
   // scripts/backfill-org-chat-admins-only.mjs.
   chatAdminsOnly: z.boolean().default(false),
+  // "Enviar avisos": when true, any socio of a group with a roster may send an
+  // aviso to every socio — text only, in the app only (see
+  // isSocioGroupMessageInput). Off unless an admin turns it on. Defaults because
+  // installed binaries create orgs without it; existing docs are backfilled by
+  // scripts/backfill-org-socios-send-avisos.mjs.
+  sociosSendAvisos: z.boolean().default(false),
   // Whether being a socio means sharing the account's phone or email with the
   // group's admins (see socioContactMissing). Default because no installed
   // binary writes them.
@@ -86,6 +93,28 @@ export const OrganizationDataSchema = z.object({
   // installed binaries create orgs without it; existing docs are backfilled by
   // scripts/backfill-org-cosateca.mjs.
   cosateca: CosatecaSettingsSchema.default(DEFAULT_COSATECA_SETTINGS),
+  // Whether a group with socios runs a cuota: off hides its buttons and banner,
+  // never its payments. On unless an admin turns it off, as every group had it
+  // before the switch. Defaults because installed binaries create orgs without
+  // it; existing docs are backfilled by scripts/backfill-org-cuota-enabled.mjs.
+  cuotaEnabled: z.boolean().default(true),
+  // Whether a group with socios keeps its actas and its cuentas: off hides
+  // their buttons and doors, never what was written. On unless an admin turns
+  // them off, as every group had them before the switches. Defaults because
+  // installed binaries create orgs without them; existing docs are backfilled
+  // by scripts/backfill-org-records-enabled.mjs.
+  actasEnabled: z.boolean().default(true),
+  cuentasEnabled: z.boolean().default(true),
+  // Whether the group keeps its Charla: off hides it, never what was written.
+  // On unless an admin turns it off, as every group had it before the switch.
+  // Defaults because installed binaries create orgs without it; existing docs
+  // are backfilled by scripts/backfill-org-chat-enabled.mjs.
+  chatEnabled: z.boolean().default(true),
+  // What the junta opens to every integrante: the cuota's al día list, every
+  // aviso and its results, the accounts (see GroupTransparencyModel). Defaults
+  // because installed binaries create orgs without it; existing docs are
+  // backfilled by scripts/backfill-org-transparency.mjs.
+  transparency: GroupTransparencySchema.default(DEFAULT_GROUP_TRANSPARENCY),
   // status + reviewedBy + reviewedAt
   ...reviewDecisionFields,
 });
@@ -110,9 +139,15 @@ export interface OrganizationDataInput {
   joinPolicy?: OrgJoinPolicy;
   sociosListVisible?: boolean;
   chatAdminsOnly?: boolean;
+  sociosSendAvisos?: boolean;
   socioPhoneRequired?: boolean;
   socioEmailRequired?: boolean;
   cosateca?: CosatecaSettings;
+  cuotaEnabled?: boolean;
+  actasEnabled?: boolean;
+  cuentasEnabled?: boolean;
+  chatEnabled?: boolean;
+  transparency?: GroupTransparency;
 }
 
 export function buildOrganizationData(input: OrganizationDataInput): OrganizationData {
@@ -135,9 +170,15 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     joinPolicy: input.joinPolicy ?? 'approval',
     sociosListVisible: input.sociosListVisible ?? false,
     chatAdminsOnly: input.chatAdminsOnly ?? false,
+    sociosSendAvisos: input.sociosSendAvisos ?? false,
     socioPhoneRequired: input.socioPhoneRequired ?? false,
     socioEmailRequired: input.socioEmailRequired ?? false,
     cosateca: input.cosateca ?? { ...DEFAULT_COSATECA_SETTINGS },
+    cuotaEnabled: input.cuotaEnabled ?? true,
+    actasEnabled: input.actasEnabled ?? true,
+    cuentasEnabled: input.cuentasEnabled ?? true,
+    chatEnabled: input.chatEnabled ?? true,
+    transparency: input.transparency ?? { ...DEFAULT_GROUP_TRANSPARENCY },
   };
 }
 

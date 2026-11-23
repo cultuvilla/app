@@ -19,8 +19,7 @@ jest.mock('../../../lib/auth/useEntityCapabilities', () => ({
     canApprove: false,
     uid: 'uid-1',
     loading: false,
-    canEdit: () => true,
-    canDelete: () => true,
+    can: () => true,
   }),
 }));
 jest.mock('react-native-safe-area-context', () => ({

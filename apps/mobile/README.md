@@ -37,7 +37,7 @@ Install **Expo Go** (iOS App Store / Google Play). On Android, scan the QR with 
 
 If the QR scan never connects:
 - WSL2 / Linux desktop → use `pnpm app:start:tunnel`.
-- Native Linux/Mac on same Wi-Fi → check firewall isn't blocking port 8081, which `pnpm app:start` binds. If something else holds it, Expo stops rather than choosing another port: `METRO_PORT=8090 pnpm app:start`.
+- Native Linux/Mac on same Wi-Fi → check firewall isn't blocking Metro's port. `pnpm app:start` binds 8081, or the next free one of 8091, 8101 … 8171 when it is taken ([scripts/metro-port.sh](../../scripts/metro-port.sh)); `METRO_PORT=<port> pnpm app:start` picks one yourself.
 - Corporate / guest networks often block peer-to-peer LAN → tunnel mode.
 
 If the app launches but immediately shows a red error screen:

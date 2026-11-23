@@ -78,7 +78,7 @@ instead of the whole shard.
 | `40-entity-comments` | RN `TextInput` + soft keyboard + send round trip. |
 | `41-report-and-block` | Report a comment, block its author (their comment disappears), unblock from settings — the UGC controls App Review requires. |
 | `45-offline-cached-village` | Airplane mode + cold relaunch paints profile and village from the persistent cache; a rename made while offline shows only once back online. |
-| `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
+| `50-onboarding-complete-profile` | The three-step person form with every field — names, nickname, sex, birthday, birthplace, village and barrio, a cropped photo, biography, and a catalog and a custom occupation — each checked on the person, profile and membership, and on the profile tab. |
 | `51-own-profile` | A user's own profile edited — nickname, sex, birthday, biography, an occupation — and read back. |
 | `54-dependents` | A dependent created with every field, renamed and made private, closed to another villager (a public one is not), then deleted. Split from 51 to stay under the 15-minute limit. |
 | `52-feed-discovery` | Explora's event search and each filter (village, date, proximity sort) narrowing the list and clearing again; the proximity sort proven by order. |
@@ -105,7 +105,7 @@ instead of the whole shard.
 | `85-history-edit` | 84's entry edited to a BC year with no month or range, every text changed; then withdrawn. Depends on 84. Split from it to stay under Maestro's 15-minute limit. |
 | `90-content-soft-hide` | Deleting a place from its edit screen soft-hides it. Runs late: it hides the seeded place. |
 | `91-delete-account-blockers` | The sole-admin blockers shown before an account can be deleted. |
-| `92-settings-and-delete-account` | Push allowed, a category muted and quiet hours on; a bad email refused and a good one sent to verify; then a throwaway account deleted for real. |
+| `92-settings-and-delete-account` | Push allowed, a category muted and quiet hours on; the usage-analytics switch on and off; a bad email refused and a good one sent to verify; then a throwaway account deleted for real. |
 | `93-place-burials` | The cemetery's burials: a public and a private persona buried with partial dates, a date edited, the joiner's view (the private one hidden, the count on the card), both removed. |
 | `95-app-version-gate` | The force-update gate: a dismissible nudge, then a wall that BACK cannot escape. Runs last; deletes `config/appVersion` on the way out. |
 
@@ -299,7 +299,7 @@ comments; this is the index.
 |---|---|---|
 | `hideKeyboard` is a **BACK press** | A later step fails with "element not found" while the app sits on the launcher — `inputText` on an AVD with a hardware keyboard never raises a soft keyboard, so the BACK walks out of the screen. | Don't use it. |
 | `retry:` still fails the flow | Every command reads COMPLETED and the flow is reported FAILED anyway (Maestro 2.4 records the failed attempt inside the block). | Use `runFlow: when:` — a skipped conditional records nothing. |
-| `scrollUntilVisible` on an unscrollable screen | Burns its timeout and fails, naming a field that was visible all along. | Wrap it in `runFlow: when: notVisible:`, or drop it. |
+| `scrollUntilVisible` on an unscrollable screen | Burns its timeout and fails, naming a field that was visible all along. It looks before each swipe and never after the last one, and an iOS swipe settles on its own (up to 10 hierarchy dumps; `waitToSettleTimeoutMs` does not reach it — one took 18 s), so an element that renders during the last settle is on screen when the scroll gives up. | Wrap it in `runFlow: when: notVisible:`, or drop it. When the element may render late, make the scroll `optional: true` and follow it with a settle and a required `extendedWaitUntil` (flow 00). |
 | A centre-tap lands on the wrong child | Tapping a consent row opens the legal screen instead of ticking the box; tapping an icon-sized adornment reports COMPLETED while the handler never fires. | Target the inner element (`accept-terms-box`), or trigger the same handler another way (`pressKey: Enter` on an input with `onSubmitEditing`). |
 | The bare `cultuvilla://` | The app never starts. expo-dev-client is a plain dependency, so its launcher activity exists even in the release APK and claims the schemeless link. | Always name a route. |
 | An intent to a cold-starting app | Silently dropped — the JS listener has not mounted yet. | Launch first, wait for the tab bar, then send the link. |
@@ -308,6 +308,53 @@ comments; this is the index.
 | The OTP send cap | `sendAuthOtpCode` allows 5 sends per address per 15 minutes, and a capped send still answers `ok` without writing a new code — so a flow re-run against the same emulator reads a stale code and passes or fails on its 10-minute expiry, not on the login screen. | Re-run `11-otp-login` on a fresh `pnpm test:e2e:android`, not repeatedly against one emulator. |
 | A floating button over the bottom band | `RegisterFab` sits outside the scroll view over the screen's bottom band, so a field that `scrollUntilVisible` leaves near the bottom edge can have its centre under the FAB: the tap focuses nothing, and `inputText` arrives as raw key events into an unfocused window (on CI it tore the activity down). | Scroll to the end of the content (explicit `swipe`s) before tapping a field that is last on the page — the content's bottom padding lifts it clear. |
 | Text selectors match the WHOLE string | `Apuntado` misses "Apuntado (1)"; `Perfil` matches both the tab and the screen header. | Use a regex (`Apuntad.*`) or a `testID`. |
+
+## Wait budgets
+
+**A wait's timeout counts from the last command that acted on the app, not
+from the wait's own start.** Maestro 2.11.0 (the version CI pins,
+`MAESTRO_VERSION` in the e2e workflows), `maestro-orchestra/.../Orchestra.kt`:
+
+```kotlin
+// extendedWaitUntil / assertVisible / assertNotVisible / a `when:` condition
+findElement(selector, timeoutMs = adjustedToLatestInteraction(timeoutMs ?: …))
+
+private fun adjustedToLatestInteraction(timeMs: Long) =
+    max(0, timeMs - (System.currentTimeMillis() - timeMsOfLastInteraction))
+```
+
+`timeMsOfLastInteraction` moves only when a *mutating* command finishes: a tap,
+`inputText`, `openLink`, a swipe or scroll, `runScript`, `evalScript`,
+`waitForAnimationToEnd`, and the like. Assertions, `extendedWaitUntil`,
+`copyTextFrom`, a `runFlow` whose `when:` skipped it, and an optional command
+that warned never move it. Every wait in a run with no mutating command between
+them therefore shares one origin, and wait *k* gets
+`max(0, timeout_k − time since that origin)`. When an earlier wait in the run has
+a timeout at least as long as wait *k*'s and spends it (a cold screen), wait
+*k* gets **one lookup**. Being optional makes no difference.
+
+What it looks like: an `extendedWaitUntil: { timeout: 15000 }` gives up after
+about a second, or a required one fails on an element that appears a moment
+later (flow 00, ios-e2e run 44826311824: the title took 24 s, so the 15 s CTA
+wait made one 1.4 s lookup).
+
+What to do: put a mutating no-op between the waits, never a longer timeout.
+
+```yaml
+- extendedWaitUntil:          # may spend most of its 45 s on a cold screen
+    visible: { id: 'group-cosateca' }
+    timeout: 45000
+- waitForAnimationToEnd:      # restarts the clock
+    timeout: 3000
+- extendedWaitUntil:          # now really gets 20 s
+    visible: { id: 'cosateca-active-${output.requestId}' }
+    timeout: 20000
+```
+
+You need it only where the later wait's timeout is no longer than an earlier
+one's in the same run *and* its element can lag the earlier one (a second
+query, a sync after reconnect, a sheet opened after an earned moment). A short
+assertion right after a tap or a link is fine as it is.
 
 ## Adding a flow
 

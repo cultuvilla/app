@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { parseEuroCents, type CuotaPaymentMethod, type SocioCuotaStatus } from '@cultuvilla/shared/models/organization';
 import { BottomSheet, Button, HStack, Input, Pressable, Text, VStack } from '../../primitives';
 import { useT } from '../../../lib/i18n';
@@ -110,10 +112,22 @@ export function CuotaCashDesk({
               setQuery(next);
               setSelectedId(null);
             }}
+            label={t('groups.cuota.desk.searchLabel')}
             placeholder={t('groups.cuota.desk.search')}
             autoCorrect={false}
+            autoFocus
+            returnKeyType="search"
+            rightAdornment={<Ionicons name="search-outline" size={iconSizes.md} color={colors.light.fg.muted} />}
             testID="cuota-desk-search"
           />
+          {!query.trim() && !selected ? (
+            <HStack gap={2} align="center" className="rounded-lg bg-accent-subtle/25 px-3 py-3" testID="cuota-desk-hint">
+              <Ionicons name="information-circle-outline" size={iconSizes.md} color={colors.light.fg.accent} />
+              <Text variant="bodySm" className="flex-1">
+                {t('groups.cuota.desk.hint')}
+              </Text>
+            </HStack>
+          ) : null}
           {last && !selected ? (
             <Text variant="bodySm" tone="success" testID="cuota-desk-last">
               {last}

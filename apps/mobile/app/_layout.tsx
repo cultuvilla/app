@@ -9,6 +9,7 @@ import { bootstrapObservability } from '../lib/observability/configure';
 import { ObservabilityErrorBoundary } from '../lib/observability/ObservabilityErrorBoundary';
 import { AppVersionGate } from '../components/AppVersionGate';
 import { OfflineBanner } from '../components/feature/OfflineBanner';
+import { VillageSync } from '../lib/sync/VillageSync';
 import { CopiedToast } from '../components/feature/CopiedToast';
 import { IntroHost, useMarkAppReady } from '../components/intro/IntroHost';
 import { ImageZoomOverlayProvider } from '../components/primitives/ImageZoomOverlay';
@@ -21,6 +22,7 @@ import { RegisterGateProvider, useRegisterGate } from '../lib/auth/RegisterGateC
 import { GuestActiveVillageProvider } from '../lib/village/GuestActiveVillageContext';
 import { MyRegistrationsProvider } from '../lib/registrations/MyRegistrationsContext';
 import { PushProvider } from '../lib/push/PushProvider';
+import { AnalyticsConsentProvider } from '../lib/observability/AnalyticsConsentProvider';
 import { useDeepLinkRouter } from '../lib/deeplink/useDeepLinkRouter';
 import { useRouteTracking } from '../lib/observability/useRouteTracking';
 import { ActivityIndicator, View } from 'react-native';
@@ -63,15 +65,18 @@ function AppTree() {
               <AuthProvider>
                 <GuestActiveVillageProvider>
                   <MyRegistrationsProvider>
-                    <PushProvider>
-                      <RegisterGateProvider>
-                        <ImageZoomOverlayProvider>
-                          <AuthGate />
-                        </ImageZoomOverlayProvider>
-                        <OfflineBanner />
-                        <CopiedToast />
-                      </RegisterGateProvider>
-                    </PushProvider>
+                    <AnalyticsConsentProvider>
+                      <PushProvider>
+                        <RegisterGateProvider>
+                          <ImageZoomOverlayProvider>
+                            <AuthGate />
+                          </ImageZoomOverlayProvider>
+                          <OfflineBanner />
+                          <VillageSync />
+                          <CopiedToast />
+                        </RegisterGateProvider>
+                      </PushProvider>
+                    </AnalyticsConsentProvider>
                   </MyRegistrationsProvider>
                 </GuestActiveVillageProvider>
               </AuthProvider>

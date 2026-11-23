@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, Toggle, VStack, HStack } from '../../primitives';
@@ -35,8 +36,9 @@ export function QuestionCardShell({
   subline?: string;
   /** Already-translated error message; replaces the subline when set. */
   error?: string;
-  required: boolean;
-  onRequiredChange: (next: boolean) => void;
+  required?: boolean;
+  /** Omitted when the question has no "required" switch (an aviso's poll). */
+  onRequiredChange?: (next: boolean) => void;
   active: boolean;
   onActivate: () => void;
   /** Omitted when the question can't be reordered (e.g. answers already keyed by order). */
@@ -86,12 +88,16 @@ export function QuestionCardShell({
 
         <View className="border-t border-subtle pt-3">
           <HStack gap={3} align="center" justify="between">
-            <Toggle
-              label={t('questions.required')}
-              value={required}
-              onValueChange={onRequiredChange}
-              testID={testID ? `${testID}-required` : undefined}
-            />
+            {onRequiredChange ? (
+              <Toggle
+                label={t('questions.required')}
+                value={required ?? false}
+                onValueChange={onRequiredChange}
+                testID={testID ? `${testID}-required` : undefined}
+              />
+            ) : (
+              <View />
+            )}
             <HStack gap={3} align="center">
               {onMove ? (
                 <>
@@ -101,7 +107,7 @@ export function QuestionCardShell({
                     testID={testID ? `${testID}-up` : undefined}
                     className="p-1"
                   >
-                    <Ionicons name="arrow-up" size={20} color="#6b7280" />
+                    <Ionicons name="arrow-up" size={20} color={colors.light.fg.icon} />
                   </Pressable>
                   <Pressable
                     onPress={() => onMove(1)}
@@ -109,7 +115,7 @@ export function QuestionCardShell({
                     testID={testID ? `${testID}-down` : undefined}
                     className="p-1"
                   >
-                    <Ionicons name="arrow-down" size={20} color="#6b7280" />
+                    <Ionicons name="arrow-down" size={20} color={colors.light.fg.icon} />
                   </Pressable>
                 </>
               ) : null}
@@ -123,7 +129,7 @@ export function QuestionCardShell({
                   testID={testID ? `${testID}-remove` : undefined}
                   className="p-1"
                 >
-                  <Ionicons name="trash-outline" size={20} color="#dc2626" />
+                  <Ionicons name="trash-outline" size={20} color={colors.light.fg.danger} />
                 </Pressable>
               ) : null}
             </HStack>

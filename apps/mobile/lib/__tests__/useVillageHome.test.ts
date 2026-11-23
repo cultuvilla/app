@@ -131,6 +131,24 @@ describe('useVillageHome', () => {
     expect(result.current.peopleCount).toBe(3);
   });
 
+  it('reports the membership unknown until it has been read, then known', async () => {
+    const { result } = renderHook(() => useVillageHome('m1'));
+    expect(result.current.membershipKnown).toBe(false);
+    expect(result.current.isMember).toBe(false);
+    await waitFor(() => expect(result.current.membershipKnown).toBe(true));
+    expect(result.current.isMember).toBe(true);
+  });
+
+  it('puts the municipal seat first, ahead of more populated settlements', () => {
+    mockInitial.barrios = [
+      { id: 'p1', name: 'Cañicosa', status: 'active', residentCount: 9, isSeat: false },
+      { id: 's1', name: 'Matabuena', status: 'active', residentCount: 2, isSeat: true },
+      { id: 'p2', name: 'Matamala', status: 'active', residentCount: 4, isSeat: false },
+    ];
+    const { result } = renderHook(() => useVillageHome('m1'));
+    expect(result.current.barrios.map((b) => b.id)).toEqual(['s1', 'p1', 'p2']);
+  });
+
   it('shows an update the moment the listener delivers it, with no reload', () => {
     const { result } = renderHook(() => useVillageHome('m1'));
     emit('posters', [

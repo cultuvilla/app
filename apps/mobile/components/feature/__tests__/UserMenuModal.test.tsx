@@ -45,6 +45,12 @@ describe('UserMenuModal menu actions', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/ajustes'));
   });
 
+  it('opens the data attributions from the Legal section', async () => {
+    const { getByText } = render(<UserMenuModal visible onClose={jest.fn()} />);
+    fireEvent.press(getByText('menu.attributions'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/legal/atribuciones'));
+  });
+
   it('shares the Cultuvilla website', async () => {
     const shareSpy = jest
       .spyOn(Share, 'share')

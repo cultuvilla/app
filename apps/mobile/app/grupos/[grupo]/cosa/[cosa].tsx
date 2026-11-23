@@ -1,8 +1,11 @@
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { useMemo, useState, type ReactNode } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { router, useLocalSearchParams } from 'expo-router';
 import { cosaAvailability, cosaHasPlace, cosaHolderUid, isActiveReserva, isOpenCosaRequest, isSharedCosa } from '@cultuvilla/shared/models/organization';
 import {
+  deleteCosa,
   respondToCosaRequest,
   updateCosa,
   watchCosa,
@@ -13,16 +16,18 @@ import {
   type CosaRequest,
 } from '@cultuvilla/shared/services/cosatecaService';
 import { Button, HStack, Screen, Text, VStack } from '../../../../components/primitives';
-import { RemoteImage } from '../../../../components/primitives/RemoteImage';
+import { Fab } from '../../../../components/primitives/Fab';
 import { ScreenHeader } from '../../../../components/layout/ScreenHeader';
 import { DetailSectionHeading } from '../../../../components/feature/DetailSectionHeading';
+import { EntityDetailScaffold } from '../../../../components/feature/EntityDetailScaffold';
+import type { EntityDetailAction } from '../../../../components/feature/EntityDetailHeader';
 import { LocationMap } from '../../../../components/feature/LocationMap';
 import { AskCosaSheet } from '../../../../components/feature/groups/cosateca/AskCosaSheet';
-import { Badge, CosaRequestRow } from '../../../../components/feature/groups/cosateca/CosaRows';
+import { CosaRequestRow } from '../../../../components/feature/groups/cosateca/CosaRows';
 import { CosaSheet } from '../../../../components/feature/groups/cosateca/CosaSheet';
 import { MyReservas, ReservaBlackouts, ReservaBooking } from '../../../../components/feature/groups/cosateca/Reserva';
 import { useAuth } from '../../../../lib/auth/useAuth';
-import { showAlert } from '../../../../lib/dialogs';
+import { showAlert, showConfirm } from '../../../../lib/dialogs';
 import { useWatch } from '../../../../lib/hooks/useWatch';
 import { useT } from '../../../../lib/i18n';
 import { groupCosaRequestHref } from '../../../../lib/navigation/routes';
@@ -115,168 +120,215 @@ export default function CosaScreen() {
   const state = cosa ? cosaAvailability(cosa) : null;
   const canAsk = cosa !== null && uid !== null && !answersFirstHand && cosa.status === 'available' && myOpen === null;
 
+  if (watch.status === 'loading' || !uid || !cosa) {
+    return (
+      <Screen padded={false} topInset={false}>
+        <ScreenHeader accent title={t('groups.cosateca.detail.title')} />
+        {watch.status === 'loading' || !uid ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <Text tone="muted" className="p-6 text-center" testID="cosa-unavailable">
+            {t('groups.cosateca.detail.unavailable')}
+          </Text>
+        )}
+      </Screen>
+    );
+  }
+
+  // The form needs the group; an owner who has left it can still pause it.
+  const actions: EntityDetailAction[] = isManager
+    ? [
+        ...(group
+          ? [{ icon: 'create-outline' as const, onPress: () => setEditing(true), accessibilityLabel: t('groups.cosateca.detail.edit'), testID: 'cosa-edit' }]
+          : []),
+        ...(cosa.status !== 'given'
+          ? [
+              {
+                icon: cosa.status === 'available' ? ('pause-circle-outline' as const) : ('play-circle-outline' as const),
+                onPress: () => {
+                  if (!saving) setPaused(cosa.status === 'available');
+                },
+                accessibilityLabel: t(cosa.status === 'available' ? 'groups.cosateca.detail.pause' : 'groups.cosateca.detail.resume'),
+                testID: 'cosa-pause',
+              },
+            ]
+          : []),
+        {
+          icon: 'trash-outline' as const,
+          onPress: () =>
+            showConfirm(
+              t('groups.cosateca.form.delete'),
+              t('groups.cosateca.form.deleteConfirm'),
+              () => {
+                deleteCosa(cosa.id)
+                  .then(() => router.back())
+                  .catch(() => showAlert(t('groups.cosateca.errors.save')));
+              },
+              { confirmText: t('common.delete'), cancelText: t('common.cancel') },
+            ),
+          accessibilityLabel: t('groups.cosateca.form.delete'),
+          testID: 'cosa-delete',
+        },
+      ]
+    : [];
+
+  // The one thing a visitor came to do, pinned where the thumb is: ask, or see the request already made.
+  const fab =
+    cosa.kind === 'reserva' ? null : myOpen && !answersFirstHand && !isHolder ? (
+      <Fab label={t('groups.cosateca.detail.seeRequest')} onPress={() => router.push(groupCosaRequestHref(cosa.orgId, myOpen.id))} testID="cosa-see-request" />
+    ) : canAsk && profile?.displayName ? (
+      <Fab label={t('groups.cosateca.detail.ask')} onPress={() => setAsking(true)} testID="cosa-ask" />
+    ) : null;
+
   return (
-    <Screen padded={false} topInset={false}>
-      <ScreenHeader accent title={t('groups.cosateca.detail.title')} />
-      {watch.status === 'loading' || !uid ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator />
-        </View>
-      ) : !cosa ? (
-        <Text tone="muted" className="p-6 text-center" testID="cosa-unavailable">
-          {t('groups.cosateca.detail.unavailable')}
-        </Text>
-      ) : (
-        <ScrollView contentContainerClassName="px-4 pt-4 pb-10" testID="cosa-detail">
-          <VStack gap={4}>
-            {cosa.imageURL ? (
-              <View className="overflow-hidden rounded-xl bg-accent-subtle/30" style={{ width: '100%', aspectRatio: 4 / 3 }}>
-                <RemoteImage uri={cosa.imageURL} variant="card" style={{ width: '100%', height: '100%' }} contentFit="cover" />
-              </View>
-            ) : null}
-            <VStack gap={1}>
-              <Text variant="h2" className="font-bold">
-                {cosa.title}
-              </Text>
-              <HStack gap={2} className="items-center flex-wrap">
-                <Badge label={t(`groups.cosateca.kinds.${cosa.kind}`)} />
-                <Badge label={t(`groups.cosateca.categories.${cosa.category}`)} />
-              </HStack>
-              <Text variant="bodySm" tone="muted">
-                {cosa.ownerUid === null ? cosaOwnerLabel(t, cosa) : t('groups.cosateca.detail.offeredBy', { name: cosa.ownerName })}
-              </Text>
-              {cosa.ownerUid === null && cosa.createdByName ? (
-                <Text variant="bodySm" tone="muted" testID="cosa-given-by">
-                  {t('groups.cosateca.detail.givenBy', { name: cosa.createdByName })}
-                </Text>
-              ) : null}
-              <Text variant="bodySm" tone={state === 'available' ? 'success' : 'muted'} testID="cosa-state">
+    <>
+      <EntityDetailScaffold
+        loading={false}
+        imageUri={cosa.imageURL ?? null}
+        fallbackIcon="cube-outline"
+        actions={actions}
+        title={cosa.title}
+        scrollContentClassName="pb-28"
+        fab={fab}
+      >
+        <VStack gap={4} testID="cosa-detail">
+          <VStack gap={1}>
+            <Text variant="bodySm" tone="muted">
+              {[t(`groups.cosateca.kinds.${cosa.kind}`), t(`groups.cosateca.categories.${cosa.category}`)].join(' · ')}
+            </Text>
+            <HStack gap={2} align="center">
+              <Ionicons
+                name={state === 'available' ? 'checkmark-circle' : state === 'paused' ? 'pause-circle' : 'time-outline'}
+                size={iconSizes.md}
+                color={state === 'available' ? colors.light.fg.success : colors.light.fg.muted}
+              />
+              <Text className="font-semibold flex-1" tone={state === 'available' ? 'success' : 'primary'} testID="cosa-state">
                 {cosaAvailabilityLabel(t, cosa)}
               </Text>
-              {cosa.heldBy ? (
-                <Text variant="bodySm" tone="muted" testID="cosa-held-since">
-                  {cosaHeldSinceLabel(t, cosa.heldBy)}
-                </Text>
-              ) : null}
-              {isSharedCosa(cosa) ? (
-                <Text variant="bodySm" tone="muted" testID="cosa-shared-hint">
-                  {t('groups.cosateca.detail.sharedHint')}
-                </Text>
-              ) : null}
-            </VStack>
-
-            {cosa.description ? <Text selectable>{cosa.description}</Text> : null}
-            {cosa.location || cosa.locationNote ? (
-              <VStack gap={2} testID="cosa-where">
-                <DetailSectionHeading>{t('groups.cosateca.detail.where')}</DetailSectionHeading>
-                {cosa.locationNote ? <Text selectable testID="cosa-location-note">{cosa.locationNote}</Text> : null}
-                <LocationMap coordinates={cosa.location?.coordinates ?? null} label={cosa.location?.displayName} testID="cosa-location-map" />
-              </VStack>
-            ) : null}
-            {cosa.conditions ? (
-              <VStack gap={1}>
-                <DetailSectionHeading>{t('groups.cosateca.detail.conditions')}</DetailSectionHeading>
-                <Text selectable>{cosa.conditions}</Text>
-              </VStack>
-            ) : null}
-
-            {cosa.kind === 'reserva' ? (
-              <VStack gap={4}>
-                <MyReservas bookings={myBookings} onOpen={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))} />
-                <ReservaBooking
-                  cosa={cosa}
-                  canBook={!isOwner && cosa.status === 'available'}
-                  myBookings={myBookings}
-                  onBooked={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))}
-                />
-              </VStack>
-            ) : isHolder ? (
-              <VStack gap={2}>
-                <Text tone="muted" testID="cosa-you-hold-it">
-                  {t('groups.cosateca.detail.youHoldIt')}
-                </Text>
-                {cosaHasPlace(cosa) ? (
-                  <Button variant="secondary" loading={leaving} onPress={leaveInPlace} fullWidth testID="cosa-leave-in-place">
-                    {t('groups.cosateca.detail.leaveInPlace')}
-                  </Button>
-                ) : null}
-              </VStack>
-            ) : answersFirstHand ? (
-              <Text tone="muted" testID="cosa-yours">
-                {t('groups.cosateca.detail.yours')}
+            </HStack>
+            {cosa.heldBy ? (
+              <Text variant="bodySm" tone="muted" testID="cosa-held-since">
+                {cosaHeldSinceLabel(t, cosa.heldBy)}
               </Text>
-            ) : myOpen ? (
-              <VStack gap={2}>
-                <Text tone="muted">{t('groups.cosateca.detail.alreadyAsked')}</Text>
-                <Button variant="secondary" onPress={() => router.push(groupCosaRequestHref(cosa.orgId, myOpen.id))} testID="cosa-see-request">
-                  {t('groups.cosateca.detail.seeRequest')}
-                </Button>
-              </VStack>
-            ) : canAsk ? (
-              <Button onPress={() => setAsking(true)} disabled={!profile?.displayName} fullWidth testID="cosa-ask">
-                {t('groups.cosateca.detail.ask')}
-              </Button>
-            ) : (
-              <Text tone="muted" testID="cosa-not-available">
-                {t('groups.cosateca.detail.notAvailable')}
-              </Text>
-            )}
-
-            {seesRequests ? (
-              <VStack gap={2} testID="cosa-manage">
-                {isManager ? (
-                <HStack gap={2} className="flex-wrap">
-                  {/* The form needs the group; an owner who has left it can still pause it. */}
-                  {group ? (
-                    <Button variant="secondary" onPress={() => setEditing(true)} testID="cosa-edit">
-                      {t('groups.cosateca.detail.edit')}
-                    </Button>
-                  ) : null}
-                  {cosa.status !== 'given' ? (
-                    <Button variant="ghost" loading={saving} onPress={() => setPaused(cosa.status === 'available')} testID="cosa-pause">
-                      {t(cosa.status === 'available' ? 'groups.cosateca.detail.pause' : 'groups.cosateca.detail.resume')}
-                    </Button>
-                  ) : null}
-                </HStack>
-                ) : null}
-                {cosa.kind === 'reserva' && isManager ? <ReservaBlackouts cosa={cosa} /> : null}
-                {requests.length > 0 ? (
-                  <VStack gap={2}>
-                    <DetailSectionHeading>{t('groups.cosateca.detail.requests')}</DetailSectionHeading>
-                    {requests.map((r) => (
-                      <CosaRequestRow key={r.id} request={r} showRequester onPress={() => router.push(groupCosaRequestHref(cosa.orgId, r.id))} />
-                    ))}
-                  </VStack>
-                ) : null}
-              </VStack>
             ) : null}
           </VStack>
-        </ScrollView>
-      )}
-      {cosa && uid ? (
-        <>
-          <AskCosaSheet
-            visible={asking}
-            cosa={cosa}
-            uid={uid}
-            myName={profile?.displayName ?? ''}
-            onClose={() => setAsking(false)}
-            onSent={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))}
-          />
-          {group ? (
-            <CosaSheet
-              visible={editing}
-              org={group.org}
-              uid={uid}
-              myName={profile?.displayName ?? ''}
-              isAdmin={isAdmin}
-              cosa={cosa}
-              canDelete={isManager}
-              onClose={() => setEditing(false)}
-            />
+
+          <VStack gap={3} className="bg-surface-elevated rounded-xl p-3">
+            <InfoRow icon="person-outline">
+              {cosa.ownerUid === null ? cosaOwnerLabel(t, cosa) : t('groups.cosateca.detail.offeredBy', { name: cosa.ownerName })}
+            </InfoRow>
+            {cosa.ownerUid === null && cosa.createdByName ? (
+              <InfoRow icon="gift-outline" testID="cosa-given-by">
+                {t('groups.cosateca.detail.givenBy', { name: cosa.createdByName })}
+              </InfoRow>
+            ) : null}
+            {cosa.locationNote ? (
+              <InfoRow icon="location-outline" testID="cosa-location-note">
+                {cosa.locationNote}
+              </InfoRow>
+            ) : null}
+            {cosa.conditions ? <InfoRow icon="document-text-outline">{cosa.conditions}</InfoRow> : null}
+          </VStack>
+
+          {cosa.description ? <Text selectable>{cosa.description}</Text> : null}
+
+          {isSharedCosa(cosa) ? (
+            <HStack gap={2} align="start" testID="cosa-shared-hint">
+              <Ionicons name="information-circle-outline" size={iconSizes.sm} color={colors.light.fg.muted} />
+              <Text variant="bodySm" tone="muted" className="flex-1">
+                {t('groups.cosateca.detail.sharedHint')}
+              </Text>
+            </HStack>
           ) : null}
-        </>
+
+          {cosa.location ? (
+            <VStack gap={2} testID="cosa-where">
+              <DetailSectionHeading>{t('groups.cosateca.detail.where')}</DetailSectionHeading>
+              <LocationMap coordinates={cosa.location.coordinates} label={cosa.location.displayName} testID="cosa-location-map" />
+            </VStack>
+          ) : null}
+
+          {cosa.kind === 'reserva' ? (
+            <VStack gap={4}>
+              <MyReservas bookings={myBookings} onOpen={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))} />
+              <ReservaBooking
+                cosa={cosa}
+                canBook={!isOwner && cosa.status === 'available'}
+                myBookings={myBookings}
+                onBooked={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))}
+              />
+            </VStack>
+          ) : isHolder ? (
+            <VStack gap={2}>
+              <Text tone="muted" testID="cosa-you-hold-it">
+                {t('groups.cosateca.detail.youHoldIt')}
+              </Text>
+              {cosaHasPlace(cosa) ? (
+                <Button variant="secondary" loading={leaving} onPress={leaveInPlace} fullWidth testID="cosa-leave-in-place">
+                  {t('groups.cosateca.detail.leaveInPlace')}
+                </Button>
+              ) : null}
+            </VStack>
+          ) : answersFirstHand ? (
+            <Text tone="muted" testID="cosa-yours">
+              {t('groups.cosateca.detail.yours')}
+            </Text>
+          ) : myOpen ? (
+            <Text tone="muted">{t('groups.cosateca.detail.alreadyAsked')}</Text>
+          ) : canAsk ? null : (
+            <Text tone="muted" testID="cosa-not-available">
+              {t('groups.cosateca.detail.notAvailable')}
+            </Text>
+          )}
+
+          {seesRequests ? (
+            <VStack gap={2} testID="cosa-manage">
+              {cosa.kind === 'reserva' && isManager ? <ReservaBlackouts cosa={cosa} /> : null}
+              {requests.length > 0 ? (
+                <VStack gap={2}>
+                  <DetailSectionHeading>{t('groups.cosateca.detail.requests')}</DetailSectionHeading>
+                  {requests.map((r) => (
+                    <CosaRequestRow key={r.id} request={r} showRequester onPress={() => router.push(groupCosaRequestHref(cosa.orgId, r.id))} />
+                  ))}
+                </VStack>
+              ) : null}
+            </VStack>
+          ) : null}
+        </VStack>
+      </EntityDetailScaffold>
+      <AskCosaSheet
+        visible={asking}
+        cosa={cosa}
+        uid={uid}
+        myName={profile?.displayName ?? ''}
+        onClose={() => setAsking(false)}
+        onSent={(id) => router.push(groupCosaRequestHref(cosa.orgId, id))}
+      />
+      {group ? (
+        <CosaSheet
+          visible={editing}
+          org={group.org}
+          uid={uid}
+          myName={profile?.displayName ?? ''}
+          isAdmin={isAdmin}
+          cosa={cosa}
+          onClose={() => setEditing(false)}
+        />
       ) : null}
-    </Screen>
+    </>
+  );
+}
+
+/** One fact about the cosa — who offers it, where it is kept, its conditions — behind its icon. */
+function InfoRow({ icon, children, testID }: { icon: keyof typeof Ionicons.glyphMap; children: ReactNode; testID?: string }) {
+  return (
+    <HStack gap={3} align="start">
+      <Ionicons name={icon} size={iconSizes.md} color={colors.light.fg.accent} />
+      <Text selectable className="flex-1" testID={testID}>
+        {children}
+      </Text>
+    </HStack>
   );
 }

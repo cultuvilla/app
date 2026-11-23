@@ -57,8 +57,7 @@ function mockCaps(opts: { canEdit?: boolean; uid?: string | null } = {}) {
     canApprove: false,
     uid: opts.uid ?? 'u1',
     loading: false,
-    canEdit: jest.fn(() => opts.canEdit ?? false),
-    canDelete: jest.fn(() => opts.canEdit ?? false),
+    can: jest.fn(() => opts.canEdit ?? false),
   });
 }
 
@@ -163,6 +162,12 @@ describe('PlaceDetailScreen', () => {
     expect(queryByText('village.placeDetail.deathDateUnknown')).toBeNull();
     expect(queryByText('village.placeDetail.editBurialTitle')).toBeNull();
     expect(router.push).not.toHaveBeenCalledWith('/persona/p-old');
+
+    // No ✕ (decided 2026-11-20): the editor closes from its grab bar.
+    expect(getByTestId('buried-edit-sheet')).toBeTruthy();
+    fireEvent.press(getByTestId('buried-edit-sheet-handle'));
+    expect(queryByText('Antigua Sin Fecha', { exact: false })).toBeTruthy();
+    expect(() => getByTestId('buried-edit-person-name')).toThrow();
   });
 
   it('asks for the viewer\'s own burials and marks a private one with a lock', async () => {

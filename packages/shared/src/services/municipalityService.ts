@@ -30,7 +30,6 @@ import {
 } from '../firebase/refs/client';
 import type {
   MunicipalityData,
-  MunicipalityDataInput,
   VillageCommunity,
   BarrioData,
   BarrioDataInput,
@@ -40,7 +39,6 @@ import type {
 } from '../models/municipality';
 import {
   municipalitySearchKey,
-  buildMunicipalityData,
   buildBarrioData,
   buildPlaceData,
 } from '../models/municipality/MunicipalityDataModel';
@@ -206,9 +204,12 @@ export async function getVillagesWhereAmbassador(
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/** Opaque `listMunicipalitiesPage` cursor; callers only hand it back. */
+export type MunicipalityPageCursor = QueryDocumentSnapshot;
+
 export interface MunicipalitiesPage {
   items: (MunicipalityData & { id: string })[];
-  nextCursor: QueryDocumentSnapshot | null;
+  nextCursor: MunicipalityPageCursor | null;
 }
 
 /**
@@ -224,7 +225,7 @@ export interface MunicipalitiesPage {
  */
 export async function listMunicipalitiesPage(opts: {
   search?: string;
-  cursor?: QueryDocumentSnapshot | null;
+  cursor?: MunicipalityPageCursor | null;
   limit?: number;
 }): Promise<MunicipalitiesPage> {
   const pageSize = opts.limit ?? 20;
@@ -242,15 +243,9 @@ export async function listMunicipalitiesPage(opts: {
   // erase the converter's model generic to the public QueryDocumentSnapshot.
   const nextCursor =
     snap.docs.length === pageSize
-      ? (snap.docs[snap.docs.length - 1] as QueryDocumentSnapshot)
+      ? (snap.docs[snap.docs.length - 1] as MunicipalityPageCursor)
       : null;
   return { items, nextCursor };
-}
-
-export async function createMunicipality(input: MunicipalityDataInput): Promise<string> {
-  const newRef = doc(municipalitiesCollection(getDb()));
-  await setDoc(newRef, buildMunicipalityData(input));
-  return newRef.id;
 }
 
 export async function updateMunicipality(
@@ -273,10 +268,6 @@ export async function updateMunicipality(
   // so partial payloads (no required fields, plain values) typecheck.
   const updates: UpdateData<DocumentData> = { ...data };
   await updateDoc(doc(getDb(), 'municipalities', id), updates);
-}
-
-export async function deleteMunicipality(id: string): Promise<void> {
-  await deleteDoc(municipalityDoc(getDb(), id));
 }
 
 // ── Community lifecycle ──────────────────────────────────────────────────
@@ -347,13 +338,6 @@ export async function updateCommunity(
   if (data.description !== undefined) updates['community.description'] = data.description;
   if (data.fiestas !== undefined) updates['community.fiestas'] = assertValidFiestas(data.fiestas);
   await updateDoc(doc(getDb(), 'municipalities', municipalityId), updates);
-}
-
-export async function deactivateCommunity(municipalityId: string): Promise<void> {
-  await updateDoc(doc(getDb(), 'municipalities', municipalityId), {
-    community: null,
-    communityActive: false,
-  });
 }
 
 // ── Barrios ──────────────────────────────────────────────────────────────

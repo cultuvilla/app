@@ -28,6 +28,7 @@ import { buildCosaRequestData } from '../../src/models/organization/CosaRequestD
 import { buildGroupNotificationPrefsData } from '../../src/models/notification/NotificationPrefsDataModel';
 import { buildNotificationSettingsData } from '../../src/models/notification/NotificationSettingsDataModel';
 import { buildActaData, buildLedgerEntryData } from '../../src/models/organization/RecordsDataModel';
+import { buildLedgerCategoryData } from '../../src/models/organization/LedgerCategoryDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
 import { buildPlaceData, buildBarrioData } from '../../src/models/municipality/MunicipalityDataModel';
@@ -54,6 +55,11 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     label: 'organizations/{orgId}/ledgerEntries — isValidLedgerEntry',
     build: () => buildLedgerEntryData({ kind: 'expense', amountCents: 12000, on: '2026-08-14', concept: 'Orquesta', recordedBy: 'u1' }),
     ruleKeys: ['kind', 'amountCents', 'on', 'concept', 'category', 'reversesId', 'recordedBy', 'recordedAt'],
+  },
+  {
+    label: 'organizations/{orgId}/ledgerCategories — isValidLedgerCategory',
+    build: () => buildLedgerCategoryData({ name: 'Fiestas', kind: 'expense', createdBy: 'u1' }),
+    ruleKeys: ['name', 'kind', 'createdBy', 'createdAt'],
   },
   {
     label: 'organizations/{orgId}/tasks — isValidGroupTaskCreate (groupTaskKeys)',
@@ -112,7 +118,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
       'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
       'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
       'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy', 'sociosListVisible',
-      'chatAdminsOnly', 'socioPhoneRequired', 'socioEmailRequired', 'cosateca',
+      'chatAdminsOnly', 'sociosSendAvisos', 'socioPhoneRequired', 'socioEmailRequired', 'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'chatEnabled', 'transparency',
     ],
   },
   {

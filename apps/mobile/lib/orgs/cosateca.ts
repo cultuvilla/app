@@ -1,4 +1,4 @@
-import { cosaAvailability, type CosaData, type CosaRequestData } from '@cultuvilla/shared/models/organization';
+import { cosaAvailability, cosaRequestFlow, type CosaData, type CosaRequestData, type CosaRequestStatus } from '@cultuvilla/shared/models/organization';
 import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
 import { formatDate, formatDayKey } from '@cultuvilla/shared/utils';
 import type { I18n } from '../i18n';
@@ -60,4 +60,29 @@ export function cosatecaErrorMessage(t: T, error: unknown): string {
   }
   if (code === 'permission-denied') return t('groups.cosateca.errors.permission');
   return t('groups.cosateca.errors.generic');
+}
+
+/**
+ * The road a request walks, for the strip on its screen, and how far along it
+ * is: a loan is asked, accepted, lent and returned; a shared cosa is handed on
+ * (or left back in its place); a servicio is done, a regalo given, a reserva
+ * only accepted. A declined or cancelled request walked off the road: null.
+ */
+export function cosaRequestSteps(
+  req: Pick<CosaRequestData, 'cosaKind' | 'ownerUid' | 'status'>,
+): { steps: CosaRequestStatus[]; current: number } | null {
+  if (req.status === 'declined' || req.status === 'cancelled') return null;
+  const flow = cosaRequestFlow(req.cosaKind, req.ownerUid);
+  const steps: CosaRequestStatus[] =
+    flow === 'prestamo'
+      ? ['pending', 'accepted', 'lent', 'returned']
+      : flow === 'shared'
+        ? ['pending', 'accepted', 'lent', req.status === 'returned' ? 'returned' : 'passed']
+        : flow === 'servicio'
+          ? ['pending', 'accepted', 'done']
+          : flow === 'regalo'
+            ? ['pending', 'accepted', 'given']
+            : ['pending', 'accepted'];
+  const current = steps.indexOf(req.status);
+  return current < 0 ? null : { steps, current };
 }

@@ -2,7 +2,7 @@
 
 **Priority:** high
 **Landed:** dev
-**Gate:** none
+**Gate:** soak:the next release Álvaro cuts carries it to prod (agents never propose a cut)
 **Next:** promote it with the next release (checked on an Android emulator against dev on 2026-11-01: both chats, badge, opt-in, report, block, delete from Denuncias)
 
 Decided 2026-11-01 (user): "each alert should have a chat where people can talk, and

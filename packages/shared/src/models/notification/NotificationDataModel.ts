@@ -18,6 +18,8 @@ export const NotificationTypeSchema = z.enum([
   // recipient's seat. The email in sendCancellationEmail is best-effort; this
   // is the durable record that the seat is gone.
   'registration_removed',
+  // To the group's founder. `approved` carries entityKind 'organization' +
+  // entityId (the group) so it opens it; `rejected` carries none.
   'org_approved',
   'org_rejected',
   'organizer_request_created',

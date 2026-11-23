@@ -1,4 +1,5 @@
 import { ActivityIndicator, Modal, StyleSheet, View } from 'react-native';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Text } from './Text';
 import { VStack } from './VStack';
 
@@ -24,7 +25,7 @@ export function BlockingOverlay({ visible, label }: BlockingOverlayProps) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {}}>
       <View style={styles.backdrop}>
         <VStack gap={3} className="items-center">
-          <ActivityIndicator size="large" color="#f9f0e8" />
+          <ActivityIndicator size="large" color={colors.light.fg['on-accent']} />
           <Text tone="onAccent">{label}</Text>
         </VStack>
       </View>

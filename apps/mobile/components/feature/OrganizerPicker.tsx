@@ -256,7 +256,7 @@ export function OrganizerPicker({
                   testID={`remove-user-${uid}`}
                   hitSlop={8}
                 >
-                  <Ionicons name="close" size={iconSizes.md} color="#94a3b8" />
+                  <Ionicons name="close" size={iconSizes.md} color={colors.light.fg.quiet} />
                 </Pressable>
               )}
             </HStack>
@@ -281,7 +281,7 @@ export function OrganizerPicker({
               testID={`remove-org-${oid}`}
               hitSlop={8}
             >
-              <Ionicons name="close" size={iconSizes.md} color="#94a3b8" />
+              <Ionicons name="close" size={iconSizes.md} color={colors.light.fg.quiet} />
             </Pressable>
           </HStack>
         ))}

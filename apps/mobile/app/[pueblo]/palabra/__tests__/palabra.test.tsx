@@ -20,9 +20,27 @@ jest.mock('../../../../lib/auth/useAuth', () => {
   const value = { user: null };
   return { useAuth: () => value };
 });
-jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
-  useEntityCapabilities: () => ({ canManage: false, isMember: false }),
-}));
+// The real content policy, with the viewer set per test — so the screen is
+// checked against the same answer the rules give (contentPolicyParity.test.ts).
+const mockActor: { current: import('@cultuvilla/shared/policy').Actor } = {
+  current: { uid: null, isAppAdmin: false, isVillageAdmin: false },
+};
+jest.mock('../../../../lib/auth/useEntityCapabilities', () => {
+  const { can } = jest.requireActual<typeof import('@cultuvilla/shared/policy')>(
+    '@cultuvilla/shared/policy',
+  );
+  return {
+    useEntityCapabilities: () => ({
+      canManage: false,
+      isMember: false,
+      can: (
+        action: import('@cultuvilla/shared/policy').PolicyAction,
+        kind: import('@cultuvilla/shared/policy').PolicyKind,
+        doc: import('@cultuvilla/shared/policy').PolicyDoc,
+      ) => can(action, kind, mockActor.current, doc),
+    }),
+  };
+});
 jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
   watchVocabularyTerm: jest
     .requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers')
@@ -66,6 +84,7 @@ const definition = (id: string, text: string) => ({
 });
 
 beforeEach(() => {
+  mockActor.current = { uid: null, isAppAdmin: false, isVillageAdmin: false };
   resetWatchers();
   setWatched('term', TERM);
   setWatched('definitions', [definition('d1', 'Un poco.')]);
@@ -93,5 +112,34 @@ describe('VocabularyTermScreen', () => {
     await waitFor(() => getByText('miaja'));
     emitWatched('term', null);
     expect(await findByText('village.vocabulary.notFound')).toBeTruthy();
+  });
+
+  // The vocabularyTerms delete rule lets the author withdraw only an ACTIVE
+  // term with no meanings left; the trash button used to ignore the status, so
+  // the author of a hidden term got a button whose tap the server refused.
+  describe('delete-term button', () => {
+    beforeEach(() => {
+      mockActor.current = { uid: 'u9', isAppAdmin: false, isVillageAdmin: false };
+    });
+
+    it('is offered to the author of an active term with no meanings', async () => {
+      setWatched('term', { ...TERM, definitionCount: 0, status: 'active' });
+      const { findByTestId } = render(<VocabularyTermScreen />);
+      expect(await findByTestId('vocabulary-delete-term')).toBeTruthy();
+    });
+
+    it('is not offered to the author once moderation has hidden the term', async () => {
+      setWatched('term', { ...TERM, definitionCount: 0, status: 'hidden' });
+      const { findByText, queryByTestId } = render(<VocabularyTermScreen />);
+      await findByText('miaja');
+      expect(queryByTestId('vocabulary-delete-term')).toBeNull();
+    });
+
+    it('is offered to a village admin of a hidden term', async () => {
+      mockActor.current = { uid: 'boss', isAppAdmin: false, isVillageAdmin: true };
+      setWatched('term', { ...TERM, definitionCount: 2, status: 'hidden' });
+      const { findByTestId } = render(<VocabularyTermScreen />);
+      expect(await findByTestId('vocabulary-delete-term')).toBeTruthy();
+    });
   });
 });

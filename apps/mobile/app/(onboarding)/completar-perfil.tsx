@@ -2,7 +2,7 @@ import { routes } from '../../lib/navigation/routes';
 import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { iconSizes } from '@cultuvilla/shared/design-system';
+import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { Screen, VillagePicker, BarrioPicker, Checkbox, Text, Pressable } from '../../components/primitives';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { PersonForm } from '../../components/feature/PersonForm';
@@ -59,7 +59,6 @@ export default function CompleteProfileScreen() {
       if (id) setMunicipalityId((current) => current ?? id);
     });
     // Seed once, on mount, for a fresh profile-less user.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // AuthGate routes a user with no personId here and to nowhere else, so this
@@ -191,12 +190,12 @@ export default function CompleteProfileScreen() {
             className="p-1 -mr-1"
           >
             {/* Same ink as the header's back chevron (ScreenHeader accent). */}
-            <Ionicons name="log-out-outline" size={iconSizes.lg} color="#f9f0e8" />
+            <Ionicons name="log-out-outline" size={iconSizes.lg} color={colors.light.fg['on-accent']} />
           </Pressable>
         }
       />
       <PersonForm
-        requireFullName
+        requireFirstSurname
         selfProfile
         submitLabel={t('onboarding.completeProfile.submit')}
         loading={loading}

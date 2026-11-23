@@ -3,9 +3,8 @@ import {
   GroupChatReadDataSchema,
   GroupChatThreadDataSchema,
 } from '../../models/organization/GroupChatDataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
+import { clientConverter } from './sdkAdapters.client';
 
-export const groupChatMessageConverterClient = makeConverter(GroupChatMessageDataSchema, clientSdkCtors);
-export const groupChatThreadConverterClient = makeConverter(GroupChatThreadDataSchema, clientSdkCtors);
-export const groupChatReadConverterClient = makeConverter(GroupChatReadDataSchema, clientSdkCtors);
+export const groupChatMessageConverterClient = clientConverter(GroupChatMessageDataSchema);
+export const groupChatThreadConverterClient = clientConverter(GroupChatThreadDataSchema);
+export const groupChatReadConverterClient = clientConverter(GroupChatReadDataSchema);

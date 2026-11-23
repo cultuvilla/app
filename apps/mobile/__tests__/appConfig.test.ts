@@ -13,9 +13,11 @@ import config from '../app.config';
 const EAS_OWNER = 'cultuvilla.app';
 const EAS_PROJECT_ID = '53188e5f-c5a1-4b1c-a009-44108826d54d';
 
-// The Apple team the app ships under. Not a secret — it is served publicly in
-// every app's apple-app-site-association.
-const APPLE_TEAM_ID = '78RB67NT38';
+// The Apple teams the app ships under. Not a secret — they are served publicly
+// in every app's apple-app-site-association. Both are listed while the app moves
+// from Jaime's team to Álvaro's (docs/plans/ongoing/apple-team-transfer.md):
+// installed builds stay signed by the old team until each user updates.
+const APPLE_TEAM_IDS = ['78RB67NT38', '8HWS4483VD'];
 
 describe('app.config EAS identity', () => {
   it('pins the owning EAS account', () => {
@@ -40,6 +42,17 @@ describe('native Firebase on iOS', () => {
     expect(options('expo-build-properties')).toMatchObject({ ios: { useFrameworks: 'static' } });
     expect(options('@react-native-firebase/app')).toEqual({ ios: { disableSPM: true } });
   });
+
+  // The App Check plugin registers the native provider factory in the
+  // AppDelegate; without it iOS never attests. The App Attest entitlement stays
+  // out: EAS cannot sync that capability through the App Store Connect API, so
+  // declaring it fails the archive (the plugins comment in app.config.ts).
+  it('registers App Check without the App Attest entitlement', () => {
+    expect(config.plugins).toContain('@react-native-firebase/app-check');
+    expect(config.ios?.entitlements ?? {}).not.toHaveProperty(
+      'com.apple.developer.devicecheck.appattest-environment',
+    );
+  });
 });
 
 describe('apple-app-site-association', () => {
@@ -50,12 +63,12 @@ describe('apple-app-site-association', () => {
     prod: 'com.cultuvilla.app',
   } as const;
 
-  it.each(envs)('carries the real Apple Team ID for %s', (env) => {
+  it.each(envs)('carries both Apple Team IDs for %s', (env) => {
     const path = join(__dirname, '..', '..', '..', 'web', 'well-known', env, 'apple-app-site-association');
     const aasa = JSON.parse(readFileSync(path, 'utf8'));
 
     const appIDs = aasa.applinks.details.map((d: { appID: string }) => d.appID);
-    expect(appIDs).toContain(`${APPLE_TEAM_ID}.${bundleIdPerEnv[env]}`);
+    for (const teamId of APPLE_TEAM_IDS) expect(appIDs).toContain(`${teamId}.${bundleIdPerEnv[env]}`);
   });
 });
 
@@ -74,7 +87,6 @@ describe('E2E emulator flag guard', () => {
     else process.env['USE_FIREBASE_EMULATOR'] = flag;
     try {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require('../app.config');
       });
     } finally {
@@ -121,7 +133,6 @@ describe('E2E native Firebase config override', () => {
     let loaded: typeof config | undefined;
     try {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         loaded = require('../app.config').default;
       });
     } finally {
@@ -144,13 +155,13 @@ describe('E2E native Firebase config override', () => {
 });
 
 describe('universal link paths', () => {
-  // Prod is excluded on purpose: it keeps the legacy claim the live iOS 1.0.0
-  // binary can route, pinned in packages/shared/test/ci/storeRelease.test.ts.
   it('claims every path except sign-in, since URLs start with the pueblo slug', () => {
-    for (const env of ['dev', 'beta'] as const) {
+    for (const env of ['dev', 'beta', 'prod'] as const) {
       const path = join(__dirname, '..', '..', '..', 'web', 'well-known', env, 'apple-app-site-association');
       const aasa = JSON.parse(readFileSync(path, 'utf8'));
-      expect(aasa.applinks.details[0].paths).toEqual(['NOT /entrar', 'NOT /entrar/*', '*']);
+      for (const detail of aasa.applinks.details) {
+        expect(detail.paths).toEqual(['NOT /entrar', 'NOT /entrar/*', '*']);
+      }
     }
   });
 });
@@ -171,7 +182,6 @@ describe('dev login gate', () => {
     let devLogin: DevLogin = null;
     try {
       jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const loaded = require('../app.config').default as typeof config;
         devLogin = (loaded.extra?.['devLogin'] ?? null) as DevLogin;
       });

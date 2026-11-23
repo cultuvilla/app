@@ -59,7 +59,7 @@ export function ImagePickerField({
       )}
       {loading ? (
         <View className="absolute inset-0 items-center justify-center bg-black/30">
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.light.fg['on-media']} />
         </View>
       ) : null}
     </Pressable>

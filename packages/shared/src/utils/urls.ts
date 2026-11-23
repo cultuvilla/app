@@ -205,10 +205,10 @@ export const GROUP_SECTIONS = [
   'cosateca',
   'cuota',
   'actas',
+  'cuentas',
   'socios',
   'cobros',
   'mensajes',
-  'registros',
   'miembros',
   'ajustes',
 ] as const;
@@ -224,7 +224,7 @@ export function groupSectionPath(orgId: string, section: GroupSection): string {
   return `/grupos/${encodeURIComponent(orgId)}/${section}`;
 }
 
-/** The three doors of a group's Registros: its libro de socios, its actas and its accounts. */
+/** A group's books, each on an admin's screen of its own: its libro de socios, its actas and its accounts. */
 export const RECORDS_DOORS = ['libro', 'actas', 'cuentas'] as const;
 export type RecordsDoor = (typeof RECORDS_DOORS)[number];
 
@@ -232,9 +232,9 @@ export function isRecordsDoor(value: string): value is RecordsDoor {
   return (RECORDS_DOORS as readonly string[]).includes(value);
 }
 
-/** One door of a group's Registros — `/grupos/<orgId>/registros/<door>`. */
+/** One of a group's books — `/grupos/<orgId>/registros/<door>`. */
 export function groupRecordsPath(orgId: string, door: RecordsDoor): string {
-  return `${groupSectionPath(orgId, 'registros')}/${door}`;
+  return `/grupos/${encodeURIComponent(orgId)}/registros/${door}`;
 }
 
 /** One aviso and its chat, inside the app — `/grupos/<orgId>/aviso/<messageId>`. */
@@ -273,6 +273,9 @@ export function groupCosaRequestPath(orgId: string, requestId: string): string {
 export function groupAvisoLinkPath(orgId: string, messageId: string): string {
   return `${groupPath(orgId)}&aviso=${encodeURIComponent(messageId)}`;
 }
+
+/** The super admin's queue of Embajador requests (`apps/mobile/app/admin/solicitudes-organizador.tsx`). */
+export const ADMIN_ORGANIZER_REQUESTS_PATH = '/admin/solicitudes-organizador';
 
 export function userPath(uid: string): string {
   return `/usuario/${uid}`;

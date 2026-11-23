@@ -1,5 +1,4 @@
 import { OccupationDataSchema } from '../../models/occupation/OccupationDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const occupationConverterAdmin = makeConverter(OccupationDataSchema, adminSdkCtors);
+export const occupationConverterAdmin = adminConverter(OccupationDataSchema);

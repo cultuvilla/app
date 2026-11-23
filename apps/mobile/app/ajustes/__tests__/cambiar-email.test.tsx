@@ -26,7 +26,13 @@ describe('ChangeEmailScreen', () => {
     });
   });
 
-  function fillAndSubmit(getByLabelText: any, getByText: any, email: string) {
+  type Screen = ReturnType<typeof render>;
+
+  function fillAndSubmit(
+    getByLabelText: Screen['getByLabelText'],
+    getByText: Screen['getByText'],
+    email: string,
+  ) {
     fireEvent.changeText(getByLabelText('settings.changeEmail.newEmailPlaceholder'), email);
     fireEvent.press(getByText('settings.changeEmail.submit'));
   }

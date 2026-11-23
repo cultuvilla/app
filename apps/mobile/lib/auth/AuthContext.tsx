@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useEffect, useReducer, useRef, type ReactNode } from 'react';
 import { Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
@@ -31,7 +31,6 @@ import {
 } from '@cultuvilla/shared/services/authEmailService';
 import { getUserMemberships } from '@cultuvilla/shared/services/villageMemberService';
 import * as listenerManager from '@cultuvilla/shared/services/listenerManager';
-import type { UserData } from '@cultuvilla/shared/models/user';
 import { isE2EEmulatorHost, parseE2ELoginLink } from './e2eLoginLink';
 import { clearLocalCacheAndRestart } from './clearLocalCache';
 import {
@@ -52,9 +51,13 @@ import { fetchUserIdHash } from '../observability/errorBridge';
 import { unregisterPushForSignOut } from '../push/pushSession';
 import { discardLegacySession, restoreLegacySession } from './legacySession';
 import { clearSessionMarker, markSessionOpen, reportIfSessionLost } from './sessionMarker';
-
-/** Back-off between attempts at a profile read that failed at sign-in. */
-const PROFILE_RETRY_MS = [1000, 2000, 5000, 10000, 30000];
+import {
+  authSessionReducer,
+  initialSessionState,
+  isDisposableSignUp,
+  profileRetryDelay,
+  type Profile,
+} from './authSession';
 
 /** How long the launch waits for a pre-native session before showing the app signed out. */
 const LEGACY_RESTORE_TIMEOUT_MS = 8000;
@@ -160,8 +163,6 @@ function getEmailLinkContinueUrl(): string {
   return `https://${host}/finish`;
 }
 
-type Profile = (UserData & { id: string }) | null;
-
 /**
  * Upper bound on how long sign-out waits for its best-effort cleanup.
  *
@@ -192,6 +193,13 @@ export interface AuthContextValue {
   profileLoading: boolean;
   profileChecked: boolean;
   refreshProfile: () => Promise<void>;
+  /**
+   * Make a village the active one. The profile moves at once and the write is
+   * not awaited: on the native SDK an offline write resolves only on the
+   * server's ack, though the cache holds it immediately and it syncs on
+   * reconnect. A refused write is reported and the profile re-read.
+   */
+  switchActiveVillage: (municipalityId: string) => void;
   signInWithGoogle: () => Promise<void>;
   /** iOS only — throws on any other platform. See AppleButton, shown only on iOS. */
   signInWithApple: () => Promise<void>;
@@ -233,20 +241,17 @@ function isAppleCancellation(err: unknown): boolean {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<Profile>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileChecked, setProfileChecked] = useState(false);
+  const [session, dispatch] = useReducer(authSessionReducer<User>, undefined, initialSessionState<User>);
+  const { user, loading, profile, profileLoading, profileChecked } = session;
   const googleConfigured = useRef(false);
 
   useEffect(() => {
     const auth = getAuth();
     let launchResolved = false;
     return onAuthStateChanged(auth, (u) => {
-      setUser(u);
       const firstAnswer = !launchResolved;
       launchResolved = true;
+      dispatch({ type: 'authChanged', user: u, holdForRestore: !u && firstAnswer });
       void (u
         ? markSessionOpen((u.providerData ?? []).map((p) => p.providerId))
         : reportIfSessionLost()
@@ -254,25 +259,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         observability.captureError(err, { operation: 'auth:sessionMarker' });
       });
       if (u) {
-        setLoading(false);
         void discardLegacySession().catch((err: unknown) => {
           observability.captureError(err, { operation: 'auth:discardLegacySession' });
         });
         return;
       }
-      if (!firstAnswer) {
-        setLoading(false);
-        setProfileChecked(true);
-        return;
-      }
+      if (!firstAnswer) return;
       // Hold the signed-out state until a pre-native session has had its chance,
       // so someone being restored never sees the app as a guest first.
       const restore = restoreLegacySession().catch((err: unknown) => {
         observability.captureError(err, { operation: 'auth:restoreLegacySession' });
       });
       void settleWithin(restore, LEGACY_RESTORE_TIMEOUT_MS).then(() => {
-        if (!getAuth().currentUser) setProfileChecked(true);
-        setLoading(false);
+        dispatch({ type: 'launchSettled', currentUid: getAuth().currentUser?.uid ?? null });
       });
     });
   }, []);
@@ -360,16 +359,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // unchecked and is rethrown; the sign-in load below retries it.
   // A read whose account is no longer the signed-in one (a switch while it was
   // in flight) touches no state: its "no profile" would otherwise stand for
-  // the new account.
+  // the new account. The reducer drops an event for another account than the
+  // session's; `current()` also drops one for another account than Auth's live
+  // user, which can move before the listener has told the session.
   const loadProfile = useCallback(async (uid: string, currentEmail: string | null) => {
     const current = () => getAuth().currentUser?.uid === uid;
-    setProfileLoading(true);
+    dispatch({ type: 'profileRequested', uid });
     let answered = false;
     try {
       const p = await getUserProfile(uid);
       if (!current()) return;
       answered = true;
-      setProfile(p);
+      dispatch({ type: 'profileAnswered', uid, profile: p });
       if (p) {
         // Defer setUserContext until the hashed uid resolves — never forward
         // the raw Firebase uid to Analytics. Re-check against the live auth
@@ -393,29 +394,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     } finally {
-      if (current()) {
-        setProfileLoading(false);
-        if (answered) setProfileChecked(true);
-      }
+      if (current()) dispatch({ type: 'profileSettled', uid, answered });
     }
   }, []);
 
   useEffect(() => {
     if (!user) {
-      setProfile(null);
-      setProfileLoading(false);
       observability.setUserContext(null);
       return;
     }
-    setProfileChecked(false);
-    setProfileLoading(true);
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
     const attempt = (n: number) => {
       loadProfile(user.uid, user.email).catch((err: unknown) => {
         observability.captureError(err, { operation: 'auth:loadProfile', attempt: n });
         if (stopped) return;
-        timer = setTimeout(() => attempt(n + 1), PROFILE_RETRY_MS[Math.min(n, PROFILE_RETRY_MS.length - 1)]);
+        timer = setTimeout(() => attempt(n + 1), profileRetryDelay(n));
       });
     };
     attempt(0);
@@ -428,6 +422,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (user) await loadProfile(user.uid, user.email);
   }, [user, loadProfile]);
+
+  const switchActiveVillage = useCallback(
+    (municipalityId: string) => {
+      if (!user) return;
+      const { uid, email } = user;
+      dispatch({ type: 'activeVillageChosen', uid, municipalityId });
+      setActiveMunicipality(uid, municipalityId).catch((err: unknown) => {
+        observability.captureError(err, { operation: 'auth:switchActiveVillage' });
+        loadProfile(uid, email).catch((readErr: unknown) => {
+          observability.captureError(readErr, { operation: 'auth:loadProfile' });
+        });
+      });
+    },
+    [user, loadProfile],
+  );
 
   // Once the profile is loaded, if the user has no active village, pick their
   // first membership so the header reflects a real village instead of the
@@ -442,10 +451,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const memberships = await getUserMemberships(user.uid);
       const first = memberships[0];
       if (!first) return;
-      await setActiveMunicipality(user.uid, first.municipalityId);
-      await loadProfile(user.uid, user.email);
+      switchActiveVillage(first.municipalityId);
     })();
-  }, [user, profile, loadProfile]);
+  }, [user, profile, switchActiveVillage]);
 
   const signInWithGoogle = async (): Promise<void> => {
     const cfg = getGoogleSignInConfig();
@@ -661,9 +669,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // sign-out still gets the user unstuck, which is the point of the button.
   const abandonSignUp = async (): Promise<void> => {
     const currentUser = getAuth().currentUser;
-    // profileChecked guards against a mid-load `profile === null` reading as
-    // "brand new account" and deleting a real one.
-    const disposable = currentUser !== null && profileChecked && profile === null;
+    const disposable = isDisposableSignUp(session, currentUser?.uid ?? null);
     await teardownSession();
     if (disposable && currentUser) {
       try {
@@ -685,6 +691,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileLoading,
         profileChecked,
         refreshProfile,
+        switchActiveVillage,
         signInWithGoogle,
         signInWithApple,
         sendOtpCode,

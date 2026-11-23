@@ -14,7 +14,11 @@ import {
   type UrlEntityKind,
 } from '@cultuvilla/shared/utils';
 import {
+  fiestaProgrammeDays,
+  firstOfEachSeries,
+  LISTED_EVENT_STATUSES,
   OTHER_VILLAGES_SHOWN,
+  upcomingThenPast,
   VILLAGE_RANKING_DOC,
   WRAPPED_CARDS,
   wrappedId,
@@ -22,6 +26,7 @@ import {
 } from '@cultuvilla/shared/models';
 import { arr, bool, date, num, obj, str, strArr, type Raw } from './read';
 import type { RichTextInput } from './richText';
+import { msg } from './copy';
 
 /**
  * Everything the read site reads, and the single place that decides what an
@@ -196,8 +201,8 @@ export interface EventView {
   seriesId: string | null;
 }
 
-const LISTED_EVENT_STATUSES = ['published', 'completed'];
-const VISIBLE_EVENT_STATUSES = [...LISTED_EVENT_STATUSES, 'cancelled'];
+const VISIBLE_EVENT_STATUSES: readonly string[] = [...LISTED_EVENT_STATUSES, 'cancelled'];
+const isListedStatus = (status: string | null) => LISTED_EVENT_STATUSES.some((s) => s === status);
 
 function toEvent(id: string, d: Raw): EventView {
   return {
@@ -364,7 +369,7 @@ export function orgCard(o: OrgView, villageSlug: string): Card {
       o.type === 'comisión'
         ? COMISION_LABEL
         : o.memberCount
-          ? `${String(o.memberCount)} integrantes`
+          ? msg('organization.membersCount', { count: o.memberCount })
           : null,
     ...cardImages(o.images[0] ?? null),
   };
@@ -609,6 +614,70 @@ export async function loadWrapped(db: Firestore, municipalityId: string, year: n
   };
 }
 
+// ── Programa de fiestas ─────────────────────────────────────────────────────
+
+export interface ProgrammeEditionView {
+  /** The block's name as the profile has it today. */
+  name: string;
+  startDay: string;
+  endDay: string;
+  /** The edition's public events by the Madrid day they start on, in order. */
+  days: { day: string; events: EventView[] }[];
+}
+
+export interface ProgrammeView {
+  year: number;
+  editions: ProgrammeEditionView[];
+  /** The year's cartel, for the link preview. */
+  posterUrl: string | null;
+}
+
+/**
+ * The year's programa de fiestas: every dated edition whose block still
+ * exists, each with its public, listed events by day — the app's own reads
+ * (editions by village and start day, events by edition and visibility), so
+ * they ride the indexes the app declared. Null when the year has no edition
+ * with a block to name it.
+ */
+export async function loadFiestaProgramme(db: Firestore, municipalityId: string, year: number): Promise<ProgrammeView | null> {
+  const editionSnap = await byMunicipality(db, 'fiestaEditions', municipalityId).orderBy('startDay', 'asc').get();
+  const dated = editionSnap.docs.filter((d) => num(d.get('year')) === year);
+  if (dated.length === 0) return null;
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const village = await db.collection('municipalities').doc(municipalityId).get();
+  const blocks = arr(obj(village.get('community'))?.['fiestas']);
+  const blockName = (id: string | null) => {
+    const block = blocks.map((b) => obj(b)).find((b) => b !== null && str(b['id']) === id);
+    return block ? str(block['name']) : null;
+  };
+  const editions = await Promise.all(
+    dated.map(async (doc): Promise<ProgrammeEditionView | null> => {
+      const name = blockName(str(doc.get('blockId')));
+      const startDay = str(doc.get('startDay'));
+      const endDay = str(doc.get('endDay'));
+      if (!name || !startDay || !endDay) return null;
+      const events = await db
+        .collection('events')
+        .where('fiestaEditionId', '==', doc.id)
+        .where('visibility', '==', 'public')
+        .orderBy('startDate', 'asc')
+        .get();
+      const listed = events.docs.filter((d) => isListedStatus(str(d.get('status')))).map((d) => toEvent(d.id, d.data()));
+      return { name, startDay, endDay, days: programmeDays(listed) };
+    }),
+  );
+  const named = editions.filter((e): e is ProgrammeEditionView => e !== null);
+  if (named.length === 0) return null;
+  const posters = await byMunicipality(db, 'festivalPosters', municipalityId).where('status', '==', 'active').orderBy('year', 'desc').get();
+  const poster = posters.docs.map((d) => toPoster(d.id, d.data())).find((p) => p.year === year && p.images.length > 0);
+  return { year, editions: named, posterUrl: poster?.images[0] ?? null };
+}
+
+function programmeDays(events: EventView[]): ProgrammeEditionView['days'] {
+  const rows = events.flatMap((event) => (event.start ? [{ event, startDate: event.start }] : []));
+  return fiestaProgrammeDays(rows).map(({ day, events: list }) => ({ day, events: list.map((r) => r.event) }));
+}
+
 // ── Village-wide lists ──────────────────────────────────────────────────────
 
 const byMunicipality = (db: Firestore, collection: string, municipalityId: string) =>
@@ -638,9 +707,9 @@ export async function loadOrgEventCards(db: Firestore, orgId: string, villageSlu
     .orderBy('startDate', 'asc')
     .get();
   const events = snap.docs
-    .filter((d) => LISTED_EVENT_STATUSES.includes(str(d.get('status')) ?? ''))
+    .filter((d) => isListedStatus(str(d.get('status'))))
     .map((d) => toEvent(d.id, d.data()));
-  return orderEvents(events, now).slice(0, HOME_LIMIT).map((e) => eventCard(e, villageSlug));
+  return inListOrder(events, now).slice(0, HOME_LIMIT).map((e) => eventCard(e, villageSlug));
 }
 
 async function listNews(db: Firestore, bucket: string, m: string, limit: number): Promise<NewsView[]> {
@@ -684,20 +753,18 @@ async function listTerms(db: Firestore, m: string): Promise<TermView[]> {
 }
 
 /**
- * Upcoming first (soonest first), then past (most recent first) — the app's
- * order — with one card per weekly series: its next date, else its latest.
+ * The app's list order — `upcomingThenPast`, then `firstOfEachSeries` — so an
+ * event stays upcoming until its Madrid day ends, and a weekly series shows
+ * once, at its next date. A row with no start date is never listed: it does
+ * not parse under the app's converter either.
  */
-export function orderEvents(events: EventView[], now: Date): EventView[] {
-  const ends = (e: EventView) => (e.end ?? e.start)?.getTime() ?? 0;
-  const upcoming = events.filter((e) => ends(e) >= now.getTime());
-  const past = events.filter((e) => ends(e) < now.getTime()).reverse();
-  const seen = new Set<string>();
-  return [...upcoming, ...past].filter((e) => {
-    if (e.seriesId === null) return true;
-    if (seen.has(e.seriesId)) return false;
-    seen.add(e.seriesId);
-    return true;
-  });
+export function inListOrder(events: readonly EventView[], now: Date): EventView[] {
+  const rows = events.flatMap((event) =>
+    event.start
+      ? [{ event, startDate: event.start, endDate: event.end, series: event.seriesId ? { id: event.seriesId } : null }]
+      : [],
+  );
+  return firstOfEachSeries(upcomingThenPast(rows, now)).map((r) => r.event);
 }
 
 export interface VillageHome {
@@ -732,7 +799,7 @@ export async function loadVillageHome(db: Firestore, bucket: string, v: Village,
     : null;
   const slug = v.slug;
   return {
-    events: orderEvents(events, now).slice(0, HOME_LIMIT).map((e) => eventCard(e, slug)),
+    events: inListOrder(events, now).slice(0, HOME_LIMIT).map((e) => eventCard(e, slug)),
     news: news.map((n) => newsCard(n, slug)),
     posters: posters.slice(0, HOME_LIMIT).map((p) => posterCard(p, slug)),
     orgs: orgs.slice(0, HOME_LIMIT).map((o) => orgCard(o, slug)),
@@ -756,7 +823,7 @@ function barrioCard(b: BarrioView, villageSlug: string): Card {
   return {
     href: entityPath('barrio', { id: b.id, title: b.name, villageSlug }),
     title: b.name,
-    subtitle: b.residentCount ? `${String(b.residentCount)} vecinos` : null,
+    subtitle: b.residentCount ? msg('village.admin.barrios.residentCount', { count: b.residentCount }) : null,
     ...cardImages(b.images[0] ?? null),
   };
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { Input, Pressable, Text, VStack, HStack } from '../../primitives';
 import { OptionsEditor } from '../questions/OptionsEditor';
@@ -99,7 +100,7 @@ export function SignupQuestionsEditor({
   return (
     <VStack gap={3}>
       <VStack gap={1} className="px-1">
-        <Text variant="h2" style={{ color: '#566047' }}>
+        <Text variant="h2" style={{ color: colors.light.fg.primary }}>
           {t('event.signupFields.headerTitle')}
         </Text>
         <Text variant="bodySm" tone="muted">
@@ -153,7 +154,7 @@ export function SignupQuestionsEditor({
               >
                 <HStack gap={2} align="center" justify="between">
                   <Text>{t(`event.signupFields.type.${field.type}`)}</Text>
-                  <Ionicons name="chevron-down" size={18} color="#6b7280" />
+                  <Ionicons name="chevron-down" size={18} color={colors.light.fg.icon} />
                 </HStack>
               </Pressable>
             )}

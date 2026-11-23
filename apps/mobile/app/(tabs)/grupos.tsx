@@ -13,15 +13,19 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '../../components/primitives';
 import { StatsRow } from '../../components/feature/StatsRow';
 import { EntityCard, Section, SectionHeader } from '../../components/feature/VillageSections';
-import { NoticeCard, RowPlaceholder, TaskCard, taskPeople } from '../../components/feature/groups/GroupHomeCards';
+import { NoticeCard, RowPlaceholder, TaskCard } from '../../components/feature/groups/GroupHomeCards';
+import { taskHolders } from '@cultuvilla/shared/models/organization';
+import { startOfMadridYear } from '../../lib/orgs/taskBoard';
 import { useMemberFaces } from '../../lib/orgs/useOrgMembers';
-import { watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
+import { watchGroupTasksDoneSince, watchOpenGroupTasks, type GroupTask } from '@cultuvilla/shared/services/groupTaskService';
+import { madridDayKey } from '@cultuvilla/shared/models/event';
 import { AppHeader } from '../../components/layout/AppHeader';
 import { GroupSwitcherSheet } from '../../components/feature/groups/GroupSwitcher';
 import { CuotaBanner } from '../../components/feature/groups/CuotaBanner';
 import { GroupSectionGrid } from '../../components/feature/groups/GroupSectionGrid';
 import { GroupContactGate } from '../../components/feature/groups/GroupContactGate';
 import { SocioConsentCard } from '../../components/feature/groups/SocioConsentCard';
+import { useCosatecaRequests } from '../../components/feature/groups/cosateca/useCosatecaRequests';
 import { useAuth } from '../../lib/auth/useAuth';
 import { useT } from '../../lib/i18n';
 import { groupAvisoHref, groupEventHref, groupSectionHref, groupTaskHref } from '../../lib/navigation/routes';
@@ -123,7 +127,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   const noticeIds = useMemo(() => notices.notices.map((m) => m.id), [notices.notices]);
   const chat = useGroupChatUnread(org.id, uid, noticeIds);
   const myValues = useMyMessageValues(org.id, roster ? uid : null);
-  const cuota = useMyCuota(org.id, roster ? uid : null);
+  const cuota = useMyCuota(org.id, roster && org.cuotaEnabled ? uid : null);
   // Rules let members read the roster only while the estatutos allow it.
   const canReadRoster = roster && (isAdmin || org.sociosListVisible);
   const socios = useWatch<Socio[]>(
@@ -135,6 +139,11 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
     'orgDetail:watchEventsByOrganization',
     org.id,
     (next, error) => watchEventsByOrganization(org.id, { includePrivate: true }, next, error),
+  );
+  // Every task the group finished this year: the third stat, for any group.
+  const year = madridDayKey(new Date()).slice(0, 4);
+  const doneTasks = useWatch<GroupTask[]>('groups:watchGroupTasksDoneSince', `${org.id}|${year}`, (next, error) =>
+    watchGroupTasksDoneSince(org.id, startOfMadridYear(year), next, error),
   );
   // Only what is still ahead: the row is "Próximos eventos".
   const eventRows = useMemo(() => {
@@ -149,12 +158,15 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
   );
   const upcomingTasks = useMemo(() => [...(openTasks.data ?? [])].sort(compareTasksByDue), [openTasks.data]);
   const eventTitles = useMemo(() => new Map((events.data ?? []).map((e) => [e.id, e.title])), [events.data]);
-  const faces = useMemberFaces(upcomingTasks.flatMap(taskPeople));
+  const faces = useMemberFaces(upcomingTasks.flatMap(taskHolders));
   const ownStatus = cuota.statuses.find((s) => cuota.rows.find((r) => r.id === s.socioId)?.kind === 'member') ?? cuota.statuses[0];
-  const cuotaBanner = roster && ownStatus && cuota.periodKey ? { period: cuota.periodKey, status: ownStatus.status } : null;
+  const cuotaBanner = roster && org.cuotaEnabled && ownStatus && cuota.periodKey ? { period: cuota.periodKey, status: ownStatus.status } : null;
 
+  // Only what waits on the viewer counts: "En curso" never puts a number on the button.
+  const cosateca = useCosatecaRequests(org.id, uid, isAdmin, org.cosateca.enabled);
   const badges: Partial<Record<GroupSection, number>> = {
     charla: chat.generalUnread ? 1 : 0,
+    cosateca: cosateca.toca.length,
   };
   const newAvisos = notices.unreadCount + chat.unreadAvisoIds.size;
   const open = (section: GroupSection) => router.push(groupSectionHref(org.id, section));
@@ -207,6 +219,11 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
                   onPress: isAdmin ? () => open('miembros') : undefined,
                 },
             { label: t('groups.stats.events'), value: events.status === 'ready' ? eventRows.length : null, onPress: () => open('eventos') },
+            {
+              label: t('groups.stats.tasksDone'),
+              value: doneTasks.status === 'ready' ? (doneTasks.data ?? []).length : null,
+              onPress: () => open('tareas'),
+            },
           ]}
         />
       </View>
@@ -223,15 +240,23 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
           {notices.notices.length === 0 ? (
             <RowPlaceholder text={t(notices.status === 'error' ? 'groups.chat.loadError' : 'groups.sections.empty.avisos')} onPress={() => open('avisos')} />
           ) : (
+            // A card opens the avisos screen, not the aviso's chat: there the poll is answered and the chat is one tap away (decided 2026-11-21).
             notices.notices.slice(0, 5).map((m) => (
-              <NoticeCard key={m.id} message={personalizeGroupMessage(m, myValues)} onPress={() => router.push(groupAvisoHref(org.id, m.id))} />
+              <NoticeCard
+                key={m.id}
+                message={personalizeGroupMessage(m, myValues)}
+                unread={
+                  (notices.readsStatus === 'ready' && !notices.readIds.has(m.id) && m.sentBy !== uid) || chat.unreadAvisoIds.has(m.id)
+                }
+                onPress={() => open('avisos')}
+              />
             ))
           )}
         </Section>
       ) : null}
 
       <VStack gap={3} className="px-4 pt-4">
-        {roster ? <SocioConsentCard orgId={org.id} requirement={org} onlyWhenUnanswered /> : null}
+        {roster ? <SocioConsentCard orgId={org.id} requirement={org} /> : null}
       </VStack>
 
       <Section

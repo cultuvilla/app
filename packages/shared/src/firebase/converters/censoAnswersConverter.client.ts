@@ -1,5 +1,4 @@
 import { CensoAnswersDataSchema } from '../../models/municipality/CensoAnswersDataModel';
-import { makeConverter } from './makeConverter';
-import { clientSdkCtors } from './sdkAdapters.client';
+import { clientConverter } from './sdkAdapters.client';
 
-export const censoAnswersConverterClient = makeConverter(CensoAnswersDataSchema, clientSdkCtors);
+export const censoAnswersConverterClient = clientConverter(CensoAnswersDataSchema);

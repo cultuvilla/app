@@ -80,6 +80,7 @@
       "codeLabel": "Código de 6 dígitos",
       "verify": "Verificar código",
       "resend": "Reenviar código",
+      "resent": "Código enviado",
       "changeEmail": "Usar otro correo"
     },
     "error": {
@@ -127,7 +128,7 @@
         "vocabularyTerm": "Palabra",
         "historyEntry": "Acontecimiento"
       },
-      "noVillage": "Elige un pueblo activo para ver sus denuncias."
+      "ownContent": "Es sobre algo tuyo, así que tiene que revisarla otra persona del equipo."
     }
   },
   "occupations": {
@@ -176,6 +177,11 @@
   "feed": {
     "title": "Inicio",
     "empty": "No hay eventos próximos",
+    "emptyFiltered": {
+      "events": "Ningún evento coincide con tu búsqueda o tus filtros.",
+      "news": "Ningún artículo coincide con tu búsqueda o tus filtros.",
+      "clear": "Quitar filtros"
+    },
     "tab": {
       "events": "Eventos",
       "news": "Artículos"
@@ -251,6 +257,7 @@
     "suggestions": "Sugerencias",
     "terms": "Términos de uso",
     "privacy": "Política de privacidad",
+    "attributions": "Atribuciones",
     "rateApp": "Valorar app",
     "shareApp": "Compartir app",
     "comingSoon": "Próximamente",
@@ -261,6 +268,15 @@
       "support": "Soporte",
       "legal": "Legal",
       "app": "App"
+    }
+  },
+  "attributions": {
+    "title": "Atribuciones",
+    "osm": {
+      "heading": "OpenStreetMap",
+      "credit": "© OpenStreetMap contributors",
+      "body": "Los nombres de las pedanías, aldeas, parroquias y barrios de cada pueblo proceden de OpenStreetMap y se usan bajo la licencia Open Database License (ODbL).",
+      "link": "Ver la licencia en openstreetmap.org"
     }
   },
   "me": {
@@ -304,8 +320,8 @@
       "addDefinition": "Añadir otro significado",
       "addingMeaningTo": "Nuevo significado para",
       "alreadyRecorded": "Ya recogida en otros pueblos",
-      "inVillages": "en {count} pueblos",
-      "joiningWord": "Esta palabra ya está recogida en {count} pueblos. Añádela al tuyo con tu significado.",
+      "inVillages": "en {count, plural, one {# pueblo} other {# pueblos}}",
+      "joiningWord": "Esta palabra ya está recogida en {count, plural, one {# pueblo} other {# pueblos}}. Añádela al tuyo con tu significado.",
       "alsoSaidIn": "También se dice en",
       "stepWord": "La palabra",
       "stepMeaning": "El significado",
@@ -328,7 +344,7 @@
       "definition": "Qué significa",
       "definitionPlaceholder": "Explícalo con tus palabras",
       "definitions": "Significados",
-      "definitionCount": "{count} significados",
+      "definitionCount": "{count, plural, one {# significado} other {# significados}}",
       "example": "Ejemplo de uso",
       "examplePlaceholder": "Úsala en una frase, como se dice aquí",
       "castellano": "En castellano",
@@ -482,9 +498,17 @@
         "add": "Añadir barrio",
         "editTitle": "Editar barrio",
         "name": "Nombre del barrio",
-        "residentCount": "{count} vecinos",
+        "residentCount": "{count, plural, one {# vecino} other {# vecinos}}",
         "addImage": "Añadir imagen",
-        "removeImage": "Quitar imagen"
+        "removeImage": "Quitar imagen",
+        "seat": "El pueblo",
+        "kindLabel": "Tipo",
+        "kind": {
+          "barrio": "Barrio",
+          "pedania": "Localidad",
+          "aldea": "Aldea",
+          "parroquia": "Parroquia"
+        }
       },
       "places": {
         "title": "Lugares",
@@ -570,7 +594,7 @@
       "penas": "Peñas",
       "censo": "Censo",
       "news": "Anuncios",
-      "memberCount": "{count} personas"
+      "memberCount": "{count, plural, one {# persona} other {# personas}}"
     },
     "barrioDetail": {
       "residents": "Vecinos",
@@ -621,7 +645,39 @@
       "namePlaceholder": "Nombre (p. ej. Fiestas de agosto)",
       "add": "Añadir",
       "remove": "Quitar estas fiestas",
-      "monthLabel": "Mes"
+      "monthLabel": "Mes",
+      "programme": {
+        "title": "Programa de fiestas {year}",
+        "homeTitle": "Fiestas de {name} {year}",
+        "homeUpcoming": "{days, plural, one {Falta # día} other {Faltan # días}} · {dates}",
+        "homeRunning": "¡Hoy hay fiestas! · {dates}",
+        "homeOpen": "Ver el programa",
+        "proposeTitle": "¿Cuándo son las fiestas de {name} {year}?",
+        "proposeBody": "Añade sus días: los eventos de esas fechas formarán el programa de fiestas, listo para compartir.",
+        "proposeAction": "Añadir las fechas",
+        "today": "Hoy",
+        "phaseUpcoming": "{days, plural, one {Falta # día} other {Faltan # días}}",
+        "phaseRunning": "En fiestas",
+        "phaseOver": "Terminadas",
+        "empty": "Todavía no hay eventos en el programa. Quien organice un evento en estas fechas puede añadirlo al crearlo o editarlo.",
+        "addDates": "Añadir las fechas de {name}",
+        "editDates": "Cambiar las fechas",
+        "datesLabel": "Días de las fiestas de {name} {year}",
+        "datesPlaceholder": "Elige el primer y el último día",
+        "remove": "Quitar estas fechas",
+        "removeTitle": "¿Quitar las fechas?",
+        "removeMessage": "El programa de estas fiestas dejará de verse. Los eventos no se borran.",
+        "problem": {
+          "order": "El último día no puede ser anterior al primero.",
+          "year": "Las fiestas tienen que empezar en {year}.",
+          "too-long": "Unas fiestas no duran más de un mes."
+        },
+        "share": "Compartir el programa",
+        "shareName": "el programa de fiestas {year} de {name}",
+        "seeSummary": "Ver el resumen de las fiestas",
+        "openProgramme": "Ver el programa",
+        "missing": "Todavía no hay programa ni resumen de las fiestas de {year}."
+      }
     },
     "wrapped": {
       "entry": "Resumen de fiestas",
@@ -698,7 +754,7 @@
       },
       "prompt": {
         "title": "¿Hacemos el resumen de Fiestas {year}?",
-        "body": "Ha habido movimiento en el pueblo: {events} eventos con gente apuntada y comentando. Conviértelo en un resumen con fotos y números para compartir.",
+        "body": "Ha habido movimiento en el pueblo: {events, plural, one {# evento} other {# eventos}} con gente apuntada y comentando. Conviértelo en un resumen con fotos y números para compartir.",
         "create": "Generar resumen",
         "draftTitle": "El resumen de Fiestas {year} está listo",
         "draftBody": "Revísalo, descarga la portada o compártela, y publícalo para que aparezca en el pueblo.",
@@ -784,6 +840,8 @@
     "attendeesPublicHint": "Quien sea del pueblo podrá ver quién se ha apuntado. Los datos de contacto y las respuestas del formulario siguen siendo solo para ti.",
     "privateToOrg": "Solo para integrantes",
     "privateToOrgHint": "El evento solo será visible para los integrantes de la organización, y solo ellos podrán apuntarse.",
+    "fiestaEdition": "Forma parte de las fiestas de {name} {year}",
+    "fiestaEditionHint": "Aparecerá en el programa de fiestas del pueblo, el que se comparte con un enlace.",
     "privateBadge": "Privado",
     "privateNotice": "Este evento es privado: solo lo ven los integrantes de la organización.",
     "signupEnabled": "Inscripciones por la app",
@@ -827,7 +885,6 @@
     "paid": "Pagado",
     "signUp": "Inscribirse",
     "cancelSignUp": "Cancelar inscripción",
-    "spotsLeft": "{count} plazas disponibles",
     "full": "Completo",
     "waitlist": "Lista de espera",
     "confirmed": "Confirmado",
@@ -836,7 +893,7 @@
     "export": {
       "action": "Exportar asistentes",
       "title": "Exportar asistentes",
-      "body": "Se generará la lista completa ({count} personas), incluida la lista de espera.",
+      "body": "Se generará la lista completa ({count, plural, one {# persona} other {# personas}}), incluida la lista de espera.",
       "excel": "Exportar a Excel (.xlsx)",
       "csv": "Exportar a CSV",
       "error": "No se pudo generar el archivo. Inténtalo de nuevo."
@@ -1124,8 +1181,6 @@
     "requestPending": "Solicitud enviada",
     "joinPolicy": {
       "label": "Unirse requiere aprobación",
-      "approvalHint": "Quien quiera unirse lo solicita y un administrador del grupo lo acepta.",
-      "openHint": "Cualquiera puede unirse al momento.",
       "switchToOpenTitle": "Abrir el grupo",
       "switchToOpenBody": "Cualquiera podrá unirse sin aprobación. Entrará al momento en el libro de socios, y podrá leer el chat y las tareas del grupo y ver sus eventos privados."
     },
@@ -1194,6 +1249,7 @@
       "member": "Integrante"
     },
     "villagesEntry": "Mis pueblos",
+    "villagesEntryOther": "Pueblos",
     "villagesSection": {
       "join": "Unirse a otro pueblo"
     },
@@ -1338,10 +1394,6 @@
           "label": "Resumen de las fiestas",
           "hint": "Cuando sale el resumen del año, y al equipo del pueblo, el recordatorio para prepararlo."
         },
-        "group_avisos": {
-          "label": "Avisos de la junta",
-          "hint": "Lo que la junta envía a los integrantes. Puedes silenciar cada grupo por separado."
-        },
         "group_chats": {
           "label": "Charlas",
           "hint": "Mensajes en las charlas de los grupos donde los has activado."
@@ -1400,11 +1452,6 @@
         "hint": "Elige cuánto te avisa cada grupo.",
         "levels": {
           "all": "De todo",
-          "avisos": "Solo avisos y lo que me toca",
-          "none": "Nada"
-        },
-        "levelsNoAvisos": {
-          "all": "De todo",
           "avisos": "Solo lo que me toca"
         },
         "sheetTitle": "Avisarme de {name}"
@@ -1445,7 +1492,7 @@
       "village": "Tu pueblo (opcional)",
       "givenName": "Nombre",
       "firstSurname": "Primer apellido",
-      "secondSurname": "Segundo apellido",
+      "secondSurname": "Segundo apellido (opcional)",
       "photo": "Foto de perfil (opcional)",
       "nickname": "Apodo (opcional)",
       "sex": "Sexo",
@@ -1457,7 +1504,7 @@
       "biography": "Biografía",
       "biographySelf": "Cuenta algo al pueblo sobre ti",
       "submit": "Crear perfil",
-      "requiredFields": "Nombre, ambos apellidos y fecha de nacimiento son obligatorios.",
+      "requiredFields": "El nombre y el primer apellido son obligatorios.",
       "error": "No se pudo guardar el perfil",
       "abandonTitle": "¿Salir del registro?",
       "abandonBody": "Has iniciado sesión como {email}. Si no es tu correo, sal y vuelve a empezar con el correcto.",
@@ -1714,7 +1761,8 @@
     "section": {
       "account": "Cuenta",
       "safety": "Seguridad",
-      "notifications": "Notificaciones"
+      "notifications": "Notificaciones",
+      "privacy": "Privacidad"
     },
     "blocked": {
       "label": "Personas bloqueadas",
@@ -1746,14 +1794,19 @@
       "confirmWord": "ELIMINAR",
       "blockerIntro": "Antes de eliminar tu cuenta, debes nombrar a otra persona en:",
       "blockerVillage": "Pueblo de {name} — eres la única persona en su equipo",
-      "blockerOrg": "Grupo de {name} — eres el único administrador",
+      "blockerOrg": "{name} — eres el único administrador",
       "submit": "Eliminar mi cuenta",
       "success": "Tu cuenta ha sido eliminada",
       "error": {
         "generic": "No pudimos eliminar tu cuenta. Inténtalo de nuevo."
       }
     },
-    "deletedUser": "Usuario eliminado"
+    "deletedUser": "Usuario eliminado",
+    "analytics": {
+      "label": "Estadísticas de uso",
+      "hint": "Nos dicen qué partes de la app se usan, para mejorarla. Sin ellas la app funciona igual.",
+      "saveError": "No se ha podido guardar. Inténtalo de nuevo."
+    }
   },
   "comments": {
     "sectionTitle": "Comentarios",
@@ -1817,7 +1870,8 @@
     "stats": {
       "socios": "Socios",
       "members": "Integrantes",
-      "events": "Eventos"
+      "events": "Eventos",
+      "tasksDone": "Tareas"
     },
     "home": {
       "avisosWithNew": "Avisos ({count} sin leer)",
@@ -1831,12 +1885,11 @@
       "cuota": "Mi cuota",
       "actas": "Actas",
       "socios": "Socios",
-      "cobros": "Cuota",
+      "cobros": "Cuotas",
       "mensajes": "Avisos",
-      "registros": "Registros",
       "miembros": "Integrantes",
       "ajustes": "Ajustes",
-      "withCount": "{label}, {count} pendientes",
+      "withCount": "{label}, {count, plural, one {# pendiente} other {# pendientes}}",
       "adminHint": "Solo para quien gestiona el grupo",
       "empty": {
         "avisos": "La junta no ha enviado avisos.",
@@ -1844,7 +1897,51 @@
         "cuota": "El grupo aún no ha configurado la cuota.",
         "actas": "La junta aún no ha compartido actas."
       },
-      "cosateca": "Cosateca"
+      "cosateca": "Cosateca",
+      "cuentas": "Cuentas"
+    },
+    "transparency": {
+      "settings": {
+        "title": "Qué ven todos los socios",
+        "cuota": "Quién está al día con la cuota",
+        "avisos": "Todos los avisos y votaciones",
+        "cuentas": "Ingresos y gastos del año"
+      },
+      "cuota": {
+        "title": "Los socios este periodo ({period})",
+        "status": {
+          "al_dia": "Al día",
+          "pendiente": "Pendiente"
+        },
+        "summary": "{alDia} al día · {pendiente, plural, one {# pendiente} other {# pendientes}}",
+        "empty": "Aún no hay socios en la cuota."
+      },
+      "avisos": {
+        "title": "Todos los avisos de la junta",
+        "audience": {
+          "all": "A todos los socios",
+          "junta": "A la junta",
+          "cuota": "A quien tenía la cuota pendiente",
+          "event": "A los apuntados a {event}"
+        },
+        "results": "Resultados",
+        "votes": "{count, plural, one {# voto} other {# votos}}",
+        "noVotes": "Aún no ha votado nadie."
+      },
+      "cuentas": {
+        "cuotas": "Cuotas",
+        "cuotaPeriod": "{period}: {amount}",
+        "otherIncome": "Otros ingresos",
+        "income": "Ingresos",
+        "expenses": "Gastos",
+        "balance": "Saldo",
+        "entries": "Movimientos",
+        "noEntries": "No hay movimientos este año.",
+        "reversed": "anulado",
+        "prev": "Año anterior",
+        "next": "Año siguiente"
+      },
+      "error": "No se ha podido cargar. Inténtalo de nuevo."
     },
     "empty": "Ya no perteneces a ningún grupo.",
     "loadError": "No se han podido cargar tus grupos.",
@@ -1857,9 +1954,6 @@
       "email": "Email",
       "save": "Guardar",
       "saved": "Tus datos de contacto se han guardado.",
-      "edit": "Cambiar qué datos ve la junta",
-      "sharingSummary": "La junta ve: {items}",
-      "sharingNothing": "La junta no ve ningún dato de contacto tuyo.",
       "error": "No se han podido guardar tus datos. Inténtalo de nuevo."
     },
     "contactGate": {
@@ -1884,7 +1978,7 @@
       "confirmRemoveBody": "{name} dejará de ser socio/a. Quedará en el libro de socios con la fecha de baja.",
       "error": "No se ha podido completar. Inténtalo de nuevo.",
       "chipSocio": "{name} · nº {number}",
-      "chipAdd": "{name} · ＋ Hacer socio"
+      "pickTitle": "¿A quién haces socio?"
     },
     "socios": {
       "listHidden": "La junta no muestra la lista de socios.",
@@ -1916,13 +2010,14 @@
       "unnamed": "Sin nombre",
       "socioNumber": "Nº de socio (opcional)",
       "socioNumberHint": "Si lo dejas vacío, se le da el siguiente.",
+      "consent": "Confirmo que esta persona ha dado su permiso para que el grupo guarde sus datos.",
       "socioNumberInvalid": "Escribe un número entre 1 y 99999.",
       "socioNumberTaken": "Ese número ya lo tiene otro socio.",
       "numberShort": "Nº {number}",
       "numberTitle": "Nº de socio de {name}",
       "numberLabel": "Nº de socio",
       "numberClearHint": "Déjalo vacío para quitarle el número.",
-      "book": "Libro de socios",
+      "list": "Socios",
       "search": "Nombre o número",
       "empty": "Nadie con ese nombre",
       "filters": {
@@ -1949,6 +2044,21 @@
       },
       "junta": "Junta directiva",
       "juntaMember": "Junta",
+      "juntaEdit": {
+        "add": "Añadir a la junta",
+        "pickTitle": "¿A quién añades a la junta?",
+        "pickHint": "Solo socios con la app. Podrán gestionar el grupo.",
+        "pickEmpty": "No hay más socios con la app.",
+        "title": "Cambiar cargo",
+        "remove": "Quitar de la junta"
+      },
+      "addMenu": {
+        "title": "¿A quién añades?",
+        "typed": "Alguien sin la app",
+        "typedHint": "Escribes su nombre y, si quieres, su contacto.",
+        "persona": "Una persona a tu cargo",
+        "personaHint": "Un hijo, un mayor… que no tiene la app."
+      },
       "myRecord": "Tu ficha",
       "myNumber": "Socio nº {number}",
       "mySocio": "Socio",
@@ -1966,12 +2076,27 @@
       "sociosListVisible": "Lista de socios visible",
       "socioPhoneRequired": "Pedir el teléfono a los socios",
       "socioEmailRequired": "Pedir el email a los socios",
-      "chatAdminsOnly": "Solo la junta escribe en la Charla",
+      "chatMembersWrite": "Escribir en la Charla",
+      "sociosSendAvisos": "Enviar avisos",
       "error": "No se ha podido guardar el ajuste.",
       "cosateca": "Cosateca",
+      "cuotaEnabled": "Cuota",
+      "actasEnabled": "Actas",
+      "cuentasEnabled": "Cuentas",
+      "chatEnabled": "Charla",
       "cosatecaAudience": {
+        "label": "Quién puede ver la Cosateca",
         "integrantes": "Solo integrantes",
         "pueblo": "Todo el pueblo"
+      },
+      "sections": {
+        "features": "Qué usa el grupo",
+        "entry": "Entrar al grupo",
+        "membersCan": {
+          "socios": "Qué pueden hacer los socios",
+          "integrantes": "Qué pueden hacer los integrantes"
+        },
+        "tools": "Cómo funcionan"
       }
     },
     "cuota": {
@@ -2024,10 +2149,17 @@
         "empty": "Nadie en esta lista.",
         "more": "Más opciones",
         "ofTotal": "de {total}",
-        "ofPaid": "de {count} pagadas",
+        "ofPaid": "de {count, plural, one {# pagada} other {# pagadas}}",
         "search": "Buscar socio",
-        "paid": "Pagó",
-        "payRest": "Anotar el resto",
+        "charge": "Cobrar",
+        "chargeRest": "Cobrar {amount}",
+        "row": {
+          "paid": "Pagada · {amount}",
+          "owes": "Debe {amount}",
+          "paidPart": "Ha pagado {amount}",
+          "exempt": "No paga · exento/a",
+          "household": "Va en la cuota de {name}"
+        },
         "filters": {
           "pending": "Por pagar {count}",
           "vencida": "Vencidas {count}",
@@ -2088,7 +2220,9 @@
       },
       "desk": {
         "title": "Cobrar en la mesa",
-        "search": "Nombre o número",
+        "searchLabel": "¿Quién paga?",
+        "search": "Busca por nombre o nº de socio",
+        "hint": "Escribe el nombre o el número de socio de quien paga. Luego toca cómo ha pagado.",
         "number": "Nº {number}",
         "owes": "Debe {amount}",
         "none": "Nadie con ese nombre",
@@ -2117,15 +2251,37 @@
     "events": {
       "filter": {
         "upcoming": "Próximos",
-        "past": "Pasados",
-        "all": "Todos"
+        "past": "Pasados"
       }
     },
     "tasks": {
       "filter": {
-        "open": "Pendientes",
         "mine": "Mías",
-        "done": "Hechas"
+        "unassigned": "Sin asignar",
+        "overdue": "Atrasadas",
+        "week": "Esta semana",
+        "shiftOpen": "Turnos con hueco",
+        "done": "Hechas",
+        "all": "Filtros",
+        "allWithCount": "Filtros ({count} activos)",
+        "sheetTitle": "Filtrar tareas",
+        "clear": "Quitar filtros"
+      },
+      "noMatches": "Ninguna tarea con esos filtros.",
+      "doneOn": "Hecha el {date}",
+      "groupCount": "{count, plural, one {1 tarea} other {# tareas}}",
+      "otherTasks": "Otras tareas",
+      "leaderboard": {
+        "title": "Quién más ayuda",
+        "year": "Este año",
+        "month": "Este mes",
+        "you": "Tú",
+        "empty": "Aún nadie ha hecho tareas en este periodo.",
+        "nudgeFirst": "Vas en cabeza. ¡Gracias por tirar del grupo!",
+        "nudgeBehind": "Te {count, plural, one {falta 1 tarea} other {faltan # tareas}} para pasar a {name}.",
+        "nudgeTied": "Estás empatado en cabeza.",
+        "nudgeNone": "Aún no tienes tareas hechas en este periodo.",
+        "unassigned": "{count, plural, one {Hay 1 tarea sin asignar} other {Hay # tareas sin asignar}} · Ver"
       },
       "detail": {
         "title": "Tarea",
@@ -2133,7 +2289,8 @@
         "event": "Evento: {title}",
         "markDone": "Marcar como hecha",
         "reopen": "Reabrir",
-        "unavailable": "Esta tarea ya no existe."
+        "unavailable": "Esta tarea ya no existe.",
+        "encargado": "Se encarga"
       },
       "comments": {
         "title": "Comentarios",
@@ -2155,7 +2312,6 @@
       "noDone": "Aún no se ha hecho ninguna este año.",
       "due": "Para el {date}",
       "dueAt": "{date} a las {time}",
-      "overdue": "Vencida",
       "noDate": "Sin fecha",
       "unassigned": "Sin asignar",
       "assignedTo": "Para {names}",
@@ -2174,7 +2330,7 @@
       "error": "No se ha podido guardar. Inténtalo de nuevo.",
       "deleteConfirm": "¿Eliminar esta tarea?",
       "shift": {
-        "slots": "{claimed} de {slots} plazas",
+        "slots": "{claimed} de {slots, plural, one {# plaza} other {# plazas}}",
         "full": "Completo",
         "claim": "Me apunto",
         "decline": "No puedo",
@@ -2184,7 +2340,8 @@
         "state": {
           "claimed": "Estás apuntado",
           "waitlisted": "En lista de espera ({position}º)",
-          "declined": "Has dicho que no puedes"
+          "declined": "Has dicho que no puedes",
+          "encargado": "Te encargas tú"
         },
         "waiting": "En espera: {names}",
         "noVolunteers": "Nadie apuntado todavía."
@@ -2192,18 +2349,20 @@
       "form": {
         "titleNew": "Nueva tarea",
         "titleEdit": "Editar tarea",
+        "stepWhat": "Qué",
+        "stepWhen": "Cuándo",
+        "stepWho": "Quién",
         "name": "Qué hay que hacer",
-        "nameRequired": "Escribe qué hay que hacer.",
         "notes": "Notas",
         "due": "Fecha",
         "time": "Hora (por ejemplo 10:00)",
         "timeInvalid": "Escribe la hora como 10:00.",
         "assignees": "Quién se encarga",
-        "isShift": "Es un turno de voluntarios",
-        "slots": "Personas que hacen falta",
-        "slotsInvalid": "Escribe cuántas personas hacen falta, de 1 a 100.",
+        "isShift": "Se buscan voluntarios",
+        "slots": "Cuántos voluntarios más hacen falta",
+        "slotsInvalid": "Escribe cuántos voluntarios hacen falta, de 1 a 100.",
         "shiftNeedsDate": "Un turno necesita fecha.",
-        "slotsBelowClaimed": "Ya hay {count} apuntados: no puede haber menos plazas.",
+        "slotsBelowClaimed": "Ya hay {count, plural, one {# apuntado} other {# apuntados}}: no puede haber menos plazas.",
         "repeat": "Se repite",
         "repeatNone": "No",
         "repeatCalendar": "En fecha fija",
@@ -2229,12 +2388,25 @@
         "titleEdit": "Editar plantilla",
         "name": "Nombre (por ejemplo, Fiestas de agosto)",
         "nameRequired": "Ponle un nombre.",
-        "item": "Tarea",
-        "offset": "Días respecto a la fecha (-60 = 60 días antes)",
-        "offsetInvalid": "Escribe un número de días entre -730 y 730.",
-        "slots": "Plazas, si es un turno",
+        "tasksHeading": "Tareas",
+        "noItems": "Aún no hay tareas. Añade la primera.",
+        "itemTitleNew": "Nueva tarea",
+        "itemTitleEdit": "Editar tarea",
+        "itemWhat": "¿Qué hay que hacer?",
+        "itemTitleRequired": "Escribe qué hay que hacer.",
+        "when": "¿Cuándo, respecto a la fecha?",
+        "whenBefore": "Antes",
+        "whenSame": "El mismo día",
+        "whenAfter": "Después",
+        "daysBefore": "¿Cuántos días antes?",
+        "daysAfter": "¿Cuántos días después?",
+        "daysInvalid": "Escribe un número de días del 1 al 730.",
+        "slots": "Plazas, si es un turno (si no, déjalo vacío)",
+        "slotsCount": "{n, plural, one {1 plaza} other {# plazas}}",
+        "itemAdd": "Añadir a la plantilla",
+        "itemSave": "Guardar cambios",
         "addItem": "Añadir tarea",
-        "removeItem": "Quitar",
+        "removeItem": "Quitar tarea",
         "itemsRequired": "Añade al menos una tarea.",
         "save": "Guardar plantilla",
         "delete": "Eliminar plantilla",
@@ -2249,24 +2421,11 @@
         "offsetSame": "El mismo día"
       },
       "checklists": {
-        "title": "Tareas por evento",
-        "none": "No hay eventos próximos.",
-        "progress": "{done} de {total} hechas",
+        "progress": "{done} de {total, plural, one {# hecha} other {# hechas}}",
         "empty": "Sin tareas",
-        "sheetTitle": "Tareas de «{event}»",
         "noTasks": "Este evento aún no tiene tareas.",
-        "applyTemplate": "Aplicar una plantilla",
-        "saveAsTemplate": "Guardar como plantilla",
-        "templateName": "Nombre de la plantilla",
-        "saved": "Plantilla guardada.",
         "addTask": "Añadir tarea",
-        "viewEventPage": "Ver la página del evento",
         "eventUnavailable": "Este evento ya no está disponible."
-      },
-      "fairShare": {
-        "title": "Reparto del trabajo {year}",
-        "hint": "Tareas hechas por cada integrante este año. Solo lo ven los administradores.",
-        "count": "{count, plural, one {1 tarea} other {# tareas}}"
       },
       "asamblea": {
         "suggestionTitle": "Asamblea anual",
@@ -2337,6 +2496,8 @@
         "form": {
           "titleNew": "Nueva acta",
           "titleEdit": "Editar acta",
+          "stepMeeting": "Reunión",
+          "stepAgreements": "Acuerdos",
           "body": "Órgano",
           "heading": "Título (opcional)",
           "date": "Fecha",
@@ -2363,7 +2524,7 @@
         "cuotaPeriod": "Cuotas {period}: {amount}",
         "entries": "Anotaciones",
         "noEntries": "No hay otros ingresos ni gastos este año.",
-        "add": "Anotar ingreso o gasto",
+        "add": "Añadir movimiento",
         "reverse": "Anular",
         "reversed": "Anulado",
         "confirmReverseTitle": "Anular la anotación",
@@ -2373,6 +2534,8 @@
         "noCategory": "Sin categoría",
         "form": {
           "title": "Anotar ingreso o gasto",
+          "stepAmount": "Importe",
+          "stepDetail": "Detalle",
           "kind": {
             "income": "Ingreso",
             "expense": "Gasto"
@@ -2381,10 +2544,25 @@
           "amountInvalid": "Escribe un importe mayor que cero.",
           "date": "Fecha",
           "concept": "Concepto",
-          "conceptRequired": "Escribe el concepto.",
           "category": "Categoría (opcional)",
-          "save": "Anotar"
+          "save": "Anotar",
+          "newCategory": "+ Nueva",
+          "newCategoryName": "Nombre de la categoría",
+          "newCategoryAdd": "Añadir"
         }
+      },
+      "categories": {
+        "open": "Categorías",
+        "title": "Categorías",
+        "intro": "Las que elegís al anotar un ingreso o un gasto. Cambiarlas no toca lo ya anotado.",
+        "empty": "Ninguna todavía. Se crean al anotar.",
+        "rename": "Renombrar",
+        "delete": "Borrar",
+        "save": "Guardar",
+        "nameRequired": "Escribe un nombre.",
+        "nameTaken": "Ya hay una categoría con ese nombre.",
+        "confirmDeleteTitle": "Borrar la categoría",
+        "confirmDeleteBody": "«{name}» deja de ofrecerse al anotar. Lo ya anotado la conserva."
       }
     },
     "chat": {
@@ -2440,32 +2618,30 @@
         "all": "A todos los que tengan teléfono"
       },
       "pollLabel": "Encuesta",
+      "pollAdd": "Añadir encuesta",
+      "pollTypeTitle": "¿Cómo se responde?",
       "poll": {
-        "none": "Sin encuesta",
         "yes_no": "Sí o no",
-        "choice": "Varias opciones"
+        "choice": "Elegir una opción"
       },
-      "pollQuestion": "Pregunta",
-      "pollOption": "Opción {n}",
-      "pollAddOption": "Añadir opción",
-      "pollRemoveOption": "Quitar la opción {n}",
+      "pollQuestionPlaceholder": "Escribe la pregunta",
       "pollInvalid": "Escribe la pregunta y al menos dos opciones.",
       "yes": "Sí",
       "no": "No",
       "send": "Enviar",
       "sent": "Enviado a {count, plural, one {1 persona} other {# personas}}.",
+      "socioCompose": "Enviar un aviso",
+      "socioComposeHint": "Llega a todos los socios en la app, con tu nombre.",
+      "socioNotAllowed": "La junta ya no permite a los socios enviar avisos.",
       "sentWhatsapp": "Ahora envía los WhatsApp desde el mensaje, en el historial.",
       "error": "No se ha podido enviar. Inténtalo de nuevo.",
       "summary": "{date} · {audience}",
-      "whatsappCount": "WhatsApp: {sent} de {total} enviados",
+      "whatsappCount": "WhatsApp: {sent} de {total, plural, one {# enviado} other {# enviados}}",
       "newBadge": "Nuevo",
       "sentBy": "Enviado por {name} el {date}",
       "readBy": "Leído por {read} de {total}",
       "unread": "Sin leer",
       "allRead": "Todos lo han leído.",
-      "nudge": "Recordárselo a quien no lo ha leído",
-      "nudged": "Recordado a {count, plural, one {1 persona} other {# personas}}.",
-      "nudgeWait": "Podrás volver a recordarlo a partir de {date}.",
       "pollResults": "Resultados",
       "votes": "{count, plural, one {1 voto} other {# votos}}",
       "noVotes": "Todavía no ha votado nadie.",
@@ -2492,7 +2668,6 @@
       "placeholderHint": "Toca para añadirlo. A cada socio le llega con sus datos; lo que no tenga, o lo que no sea para todos, se quita.",
       "whatsappShare": "Compartir en WhatsApp",
       "readBar": "{read} de {total} lo han leído",
-      "remind": "Recordar a {count}",
       "pollTally": "{count} {option}",
       "pollNoVote": "{count} sin votar",
       "recipientCount": "{count, plural, one {1 destinatario} other {# destinatarios}}"
@@ -2537,19 +2712,44 @@
       "search": "Buscar: escalera, paellera…",
       "noMatches": "Nada con ese nombre.",
       "active": {
-        "title": "En marcha",
         "all": "Todo ({count})",
-        "asked": "Te piden «{title}»",
-        "holding": "Tienes «{title}»",
+        "tocaTitle": "Te toca",
+        "cursoTitle": "En curso",
+        "calm": "Nada pendiente por tu parte",
+        "toca": {
+          "answer": "{name} te pide «{title}»",
+          "handOver": "Entrega «{title}» a {name}",
+          "give": "Entrega «{title}» a {name}",
+          "finish": "«{title}» para {name}",
+          "overdueLent": "{name} tiene tu «{title}»",
+          "overdueHeld": "Tienes «{title}»",
+          "talkHint": "Escribe a quien te la prestó"
+        },
+        "lateSince": "Tenía que volver el {date}",
+        "curso": {
+          "holding": "Tienes «{title}»",
+          "lentOut": "{name} tiene «{title}»",
+          "waiting": "Pediste «{title}»",
+          "accepted": "Pediste «{title}»",
+          "booked": "{name} reservó «{title}»",
+          "bookedMine": "Reservaste «{title}»"
+        },
         "backOn": "Vuelve el {date}",
         "passOn": "Pásala a quien la pida",
-        "answer": "Responder"
+        "untilOn": "Hasta el {date}",
+        "noReturnDate": "Sin fecha de vuelta",
+        "waitingAnswer": "Esperando respuesta",
+        "acceptedMeet": "Aceptada: quedad para la entrega",
+        "declineTitle": "¿Rechazar «{title}»?",
+        "declineBody": "{name} verá que la has rechazado."
       },
       "empty": "Aún no hay nada en la cosateca. ¡Ofrece lo primero!",
       "emptyCategory": "Nada en esta categoría.",
       "form": {
         "titleNew": "Ofrecer algo",
         "titleEdit": "Editar",
+        "stepWhat": "Qué es",
+        "stepHow": "Cómo se comparte",
         "kind": "Qué es",
         "kindSentences": {
           "prestamo": "La presto",
@@ -2558,7 +2758,6 @@
           "reserva": "Se reserva por horas"
         },
         "name": "Nombre",
-        "nameRequired": "Ponle un nombre.",
         "description": "Descripción",
         "conditions": "Condiciones",
         "conditionsPlaceholder": "Devolver limpia",
@@ -2571,8 +2770,7 @@
         "ownerGroup": "Del grupo",
         "save": "Guardar",
         "publish": "Publicar",
-        "next": "Siguiente",
-        "noPhoto": "Sin foto",
+        "photo": "Foto (opcional)",
         "takePhoto": "Hacer foto",
         "pickPhoto": "Elegir foto",
         "cameraDenied": "Para hacer la foto, permite la cámara en los ajustes del móvil.",
@@ -2747,6 +2945,7 @@
       "error": {
         "expired": "Este código ha caducado. Recarga el Estudio en el ordenador y escanea el nuevo.",
         "used": "Este código ya se ha usado. Recarga el Estudio en el ordenador y escanea el nuevo.",
+        "invalid": "Este enlace no es válido. Escanea el código que muestra el Estudio en el ordenador.",
         "generic": "No se ha podido abrir el Estudio. Inténtalo de nuevo."
       }
     },
@@ -2818,6 +3017,15 @@
           "image": "Esa imagen no vale: debe ser una imagen de menos de 5 MB."
         }
       }
+    }
+  },
+  "privacy": {
+    "analyticsConsent": {
+      "title": "¿Nos ayudas a mejorar Cultuvilla?",
+      "lead": "Si dices que sí, la app nos cuenta qué pantallas se usan y dónde la gente se atasca. Así sabemos qué arreglar primero.",
+      "smallPrint": "Nunca incluye lo que escribes, tus fotos ni tus datos de contacto. Puedes cambiarlo cuando quieras en Ajustes → Privacidad.",
+      "yes": "Sí, claro",
+      "no": "No, gracias"
     }
   }
 }

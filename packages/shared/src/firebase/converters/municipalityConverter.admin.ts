@@ -1,5 +1,4 @@
 import { MunicipalityDataSchema } from '../../models/municipality/MunicipalityDataModel';
-import { makeConverter } from './makeConverter';
-import { adminSdkCtors } from './sdkAdapters.admin';
+import { adminConverter } from './sdkAdapters.admin';
 
-export const municipalityConverterAdmin = makeConverter(MunicipalityDataSchema, adminSdkCtors);
+export const municipalityConverterAdmin = adminConverter(MunicipalityDataSchema);

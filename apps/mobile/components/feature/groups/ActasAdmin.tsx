@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { compareActas } from '@cultuvilla/shared/models/organization';
 import { createActa, deleteActa, updateActa, watchActas, type Acta } from '@cultuvilla/shared/services/recordsService';
 import { watchOrgSocios, type Socio } from '@cultuvilla/shared/services/socioService';
 import { formatDayKey } from '@cultuvilla/shared/utils';
-import { Button, HStack, Text, VStack } from '../../primitives';
+import { Text, VStack } from '../../primitives';
+import { Fab } from '../../primitives/Fab';
+import { ScrollWithFab } from '../../layout/ScrollWithFab';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
@@ -12,15 +14,38 @@ import { ActaSheet } from './ActaSheet';
 
 type Sheet = { kind: 'form'; acta: Acta | null } | { kind: 'detail'; actaId: string } | null;
 
-/** The Registros' Actas door: every acta, newest meeting first; write, correct, share or delete one. */
-export function ActasAdmin({ orgId, orgName, uid }: { orgId: string; orgName: string; uid: string }) {
+/**
+ * The Registros' Actas door: every acta, newest meeting first; write one from
+ * the floating button, correct, share or delete one. It scrolls itself, so the
+ * button stays on screen; `header` goes above the list.
+ */
+export function ActasAdmin({
+  orgId,
+  orgName,
+  uid,
+  header,
+  testID,
+}: {
+  orgId: string;
+  orgName: string;
+  uid: string;
+  header?: ReactNode;
+  /** The scrolling page's testID. */
+  testID?: string;
+}) {
   const { t } = useT();
   const actas = useWatch<Acta[]>('groups:watchActas', orgId, (next, error) => watchActas(orgId, next, error));
   const socios = useWatch<Socio[]>('groups:watchOrgSocios', orgId, (next, error) => watchOrgSocios(orgId, next, error));
   const [sheet, setSheet] = useState<Sheet>(null);
   const rows = useMemo(() => [...(actas.data ?? [])].sort(compareActas), [actas.data]);
 
-  if (actas.status !== 'ready') return null;
+  if (actas.status !== 'ready') {
+    return (
+      <ScrollWithFab fab={null} testID={testID}>
+        {header}
+      </ScrollWithFab>
+    );
+  }
   // Looked up live, so the detail shows an edit as soon as it is saved.
   const detail = sheet?.kind === 'detail' ? (rows.find((a) => a.id === sheet.actaId) ?? null) : null;
 
@@ -36,19 +61,22 @@ export function ActasAdmin({ orgId, orgName, uid }: { orgId: string; orgName: st
     );
 
   return (
-    <VStack gap={2} testID="actas-admin">
-      <HStack justify="end" align="center">
-        <Button size="md" variant="secondary" onPress={() => setSheet({ kind: 'form', acta: null })} testID="acta-new">
-          {t('groups.records.actas.new')}
-        </Button>
-      </HStack>
-      {rows.length === 0 ? (
-        <Text variant="bodySm" tone="muted">
-          {t('groups.records.actas.empty')}
-        </Text>
-      ) : (
-        rows.map((acta) => <ActaRow key={acta.id} acta={acta} showVisibility onOpen={() => setSheet({ kind: 'detail', actaId: acta.id })} />)
-      )}
+    <ScrollWithFab
+      testID={testID}
+      fab={<Fab testID="acta-new" label={t('groups.records.actas.new')} onPress={() => setSheet({ kind: 'form', acta: null })} />}
+    >
+      <VStack gap={4}>
+        {header}
+        <VStack gap={2} testID="actas-admin">
+          {rows.length === 0 ? (
+            <Text variant="bodySm" tone="muted">
+              {t('groups.records.actas.empty')}
+            </Text>
+          ) : (
+            rows.map((acta) => <ActaRow key={acta.id} acta={acta} showVisibility onOpen={() => setSheet({ kind: 'detail', actaId: acta.id })} />)
+          )}
+        </VStack>
+      </VStack>
 
       <ActaDetailSheet
         acta={detail}
@@ -68,6 +96,6 @@ export function ActasAdmin({ orgId, orgName, uid }: { orgId: string; orgName: st
         }}
         onClose={() => setSheet(null)}
       />
-    </VStack>
+    </ScrollWithFab>
   );
 }

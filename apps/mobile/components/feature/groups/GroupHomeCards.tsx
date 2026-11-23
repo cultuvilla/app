@@ -6,29 +6,39 @@ import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { View } from 'react-native';
 import { Avatar, Card, HStack, Pressable, Text, VStack } from '../../primitives';
 import type { MemberFace } from '../../../lib/orgs/useOrgMembers';
+import { taskHolders } from '@cultuvilla/shared/models/organization';
 import { useT } from '../../../lib/i18n';
 
 // Set here so these cards never depend on how their `flex-1` children measure
-// inside a horizontal ScrollView. Room for the four lines and the date.
-const NOTICE_CARD_HEIGHT = 150;
+// inside a horizontal ScrollView. Room for a three-line title and the date.
+const NOTICE_CARD_HEIGHT = 110;
 const PLACEHOLDER_MIN_HEIGHT = 96;
 
-/** A notice in the group home's Avisos row: its title and text, cut to one
- * box so every card is the same size, and the day it was sent.
+/** A notice in the group home's Avisos row: its title and the day it was
+ * sent, never the text (decided 2026-11-19, user), cut to one box so every
+ * card is the same size. A dot marks it until the user opens it or its new
+ * comments (2026-11-20, user).
  * The cards fill their row with `flex-1`, never `h-full`: on native Yoga
  * resolves height:100% against the ScrollView viewport, so a card grew
  * without end (same bug as DetailInfoCard). */
-export function NoticeCard({ message, onPress }: { message: GroupMessage; onPress: () => void }) {
+export function NoticeCard({ message, unread = false, onPress }: { message: GroupMessage; unread?: boolean; onPress: () => void }) {
+  const { t } = useT();
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-notice-${message.id}`} style={{ width: 260, height: NOTICE_CARD_HEIGHT }}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={unread ? `${message.title}. ${t('groups.messages.newBadge')}` : undefined}
+      testID={`group-home-notice-${message.id}`}
+      style={{ width: 260, height: NOTICE_CARD_HEIGHT }}
+    >
       <Card className="flex-1">
         <VStack gap={1} className="flex-1">
-          <Text variant="bodySm" numberOfLines={4} className="flex-1" testID={`group-home-notice-${message.id}-text`}>
-            <Text variant="bodySm" className="font-bold">
+          <HStack gap={2} className="flex-1 items-start">
+            <Text variant="bodySm" numberOfLines={3} className="flex-1 font-bold" testID={`group-home-notice-${message.id}-text`}>
               {message.title}
             </Text>
-            {`\n${message.body}`}
-          </Text>
+            {unread ? <View className="mt-1 h-2.5 w-2.5 rounded-full bg-accent" testID={`group-home-notice-${message.id}-unread`} /> : null}
+          </HStack>
           <Text variant="caption" tone="muted" numberOfLines={1}>
             {formatDate(message.sentAt, 'dayMonthShort')}
           </Text>
@@ -49,11 +59,6 @@ export function RowPlaceholder({ text, onPress }: { text: string; onPress: () =>
       </Card>
     </Pressable>
   );
-}
-
-/** Who a card shows as on the task: its assignees, or a shift's volunteers. */
-export function taskPeople(task: Pick<GroupTask, 'slots' | 'assigneeUids' | 'claimedUids'>): string[] {
-  return task.slots !== null ? task.claimedUids : task.assigneeUids;
 }
 
 const MAX_FACES = 4;
@@ -80,7 +85,7 @@ export function TaskCard({
   onPress: () => void;
 }) {
   const { t } = useT();
-  const people = taskPeople(task);
+  const people = taskHolders(task);
   const shown = people.slice(0, MAX_FACES);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" testID={`group-home-task-${task.id}`} style={{ width, minHeight: TASK_CARD_MIN_HEIGHT }}>

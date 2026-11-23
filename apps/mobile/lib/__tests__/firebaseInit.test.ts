@@ -5,18 +5,19 @@ const connectAuthEmulator = jest.fn();
 const connectFirestoreEmulator = jest.fn();
 const connectFunctionsEmulator = jest.fn();
 const connectStorageEmulator = jest.fn();
+const initMobileAppCheck = jest.fn();
 const handles = { auth: { auth: true }, db: { db: true }, functions: { fn: true }, storage: { st: true } };
 
 function load(extra: Record<string, unknown>): () => void {
   jest.resetModules();
-  for (const fn of [initFirebase, connectAuthEmulator, connectFirestoreEmulator, connectFunctionsEmulator, connectStorageEmulator]) {
+  for (const fn of [initFirebase, initMobileAppCheck, connectAuthEmulator, connectFirestoreEmulator, connectFunctionsEmulator, connectStorageEmulator]) {
     fn.mockClear();
   }
   jest.doMock('@cultuvilla/shared/firebase/sdk/auth', () => ({ connectAuthEmulator }));
   jest.doMock('@cultuvilla/shared/firebase/sdk/firestore', () => ({ connectFirestoreEmulator }));
   jest.doMock('@cultuvilla/shared/firebase/sdk/functions', () => ({ connectFunctionsEmulator }));
   jest.doMock('@cultuvilla/shared/firebase/sdk/storage', () => ({ connectStorageEmulator }));
-  jest.doMock('../appCheck', () => ({ initMobileAppCheck: jest.fn() }));
+  jest.doMock('../appCheck', () => ({ initMobileAppCheck }));
   jest.doMock('@cultuvilla/shared/firebase', () => ({
     initFirebase,
     getAuth: () => handles.auth,
@@ -37,6 +38,7 @@ describe('bootstrapFirebase', () => {
     expect(initFirebase).toHaveBeenCalledWith({ projectId: 'test-project' });
     expect(connectAuthEmulator).not.toHaveBeenCalled();
     expect(connectFirestoreEmulator).not.toHaveBeenCalled();
+    expect(initMobileAppCheck).toHaveBeenCalledWith({ emulators: false });
   });
 
   it('points every SDK at the local emulators only in an E2E build', () => {
@@ -47,5 +49,13 @@ describe('bootstrapFirebase', () => {
     expect(connectFirestoreEmulator).toHaveBeenCalledWith(handles.db, '127.0.0.1', 8080);
     expect(connectFunctionsEmulator).toHaveBeenCalledWith(handles.functions, '127.0.0.1', 5001);
     expect(connectStorageEmulator).toHaveBeenCalledWith(handles.storage, '127.0.0.1', 9199);
+  });
+
+  it('tells App Check the SDKs talk to the emulators exactly when they do', () => {
+    load({ useEmulator: true })();
+    expect(initMobileAppCheck).toHaveBeenCalledWith({ emulators: true });
+    load({ useEmulator: 'true' })();
+    expect(connectFirestoreEmulator).not.toHaveBeenCalled();
+    expect(initMobileAppCheck).toHaveBeenCalledWith({ emulators: false });
   });
 });

@@ -34,8 +34,7 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
     canApprove: false,
     uid: null,
     loading: false,
-    canEdit: () => mockCanEdit.current,
-    canDelete: () => false,
+    can: (action: string) => (action === 'edit' ? mockCanEdit.current : false),
   }),
 }));
 jest.mock('@cultuvilla/shared/services/eventService', () => ({

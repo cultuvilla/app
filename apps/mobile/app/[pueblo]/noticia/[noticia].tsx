@@ -37,7 +37,7 @@ export default function NewsDetailScreen() {
   );
   const loading = status === 'loading';
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const { canManage, canEdit } = useEntityCapabilities(post?.municipalityId);
+  const { canManage, can } = useEntityCapabilities(post?.municipalityId);
 
   // Resolve the cover to a download URL. Prefer the dedicated coverImage; fall
   // back to legacy images[0] for posts authored before covers existed.
@@ -71,7 +71,7 @@ export default function NewsDetailScreen() {
   }, [post?.id]);
 
   const date = post ? (post.publishedAt ?? post.createdAt) : null;
-  const editable = !!post && canEdit(post.createdBy, post.organizerUserIds);
+  const editable = !!post && can('edit', 'news', post);
 
   const actions: EntityDetailAction[] = post
     ? [

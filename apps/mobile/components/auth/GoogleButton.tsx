@@ -1,4 +1,5 @@
 import { Image, View } from 'react-native';
+import { elevation } from '@cultuvilla/shared/design-system';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
 import { useT } from '../../lib/i18n';
@@ -23,7 +24,7 @@ export function GoogleButton({ onPress, loading = false, testID }: GoogleButtonP
       testID={testID}
       className="bg-surface-elevated border-2 border-accent rounded-md h-14 px-4 justify-center"
       style={{
-        shadowColor: '#000',
+        shadowColor: elevation.md.rn.shadowColor,
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.18,
         shadowRadius: 6,

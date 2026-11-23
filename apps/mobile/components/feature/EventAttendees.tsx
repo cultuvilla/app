@@ -1,5 +1,5 @@
 import { personHref, userHref } from '../../lib/navigation/routes';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -12,8 +12,9 @@ import { Avatar } from '../primitives/Avatar';
 import { DetailSectionHeading } from './DetailSectionHeading';
 import { SectionEditToggle } from './SectionEditToggle';
 import { RosterExportButton } from './RosterExportButton';
+import { useWatch } from '../../lib/hooks/useWatch';
 import {
-  getEventRegistrations,
+  watchEventRegistrations,
   getRegistrationPrivate,
   cancelRegistration,
   setRegistrationPaid,
@@ -95,7 +96,10 @@ export function EventAttendees({
   canManage: boolean;
 }) {
   const { t } = useT();
-  const [rows, setRows] = useState<Row[] | null>(null);
+  // Live: the FAB's sign-up or cancel on this same screen must show here.
+  const rows = useWatch<Row[]>('eventAttendees', eventId, (onNext, onError) =>
+    watchEventRegistrations(eventId, onNext, onError),
+  ).data ?? null;
   const [phones, setPhones] = useState<Record<string, string | null>>({});
   const [answers, setAnswers] = useState<Record<string, SignupAnswers>>({});
   // Export-only: the roster itself never shows a birth date, but the organizer
@@ -104,43 +108,37 @@ export function EventAttendees({
   const [callTarget, setCallTarget] = useState<{ name: string; phone: string } | null>(null);
   const [editing, setEditing] = useState(false);
 
-  const load = useCallback(async () => {
-    const regs = await getEventRegistrations(eventId);
-    setRows(regs);
-    // Photo, linked account and privacy are denormalized onto the registration
-    // at sign-up. They used to be a `getPerson` per row, which one organizer
-    // paid for; this list is now read by the whole pueblo, so that fan-out
-    // would be paid by every viewer on every open.
-    // One gated doc per registration carries the phone, the custom answers and
-    // the attendee's birth date, so a single fan-out covers all three. Gated on
-    // `canManage` alone: every sign-up denormalizes a birth date there, so
-    // "does this event collect anything?" stopped being the right question —
-    // and a non-organizer is denied the docs by rules, so asking would only log
-    // noise. The fan-out is paid by the handful of people who run the event,
-    // never by the pueblo reading the roster.
-    if (canManage) {
-      const entries = await Promise.all(
-        regs.map(async (r) => [r.id, await getRegistrationPrivate(eventId, r.id)] as const),
-      );
+  // Photo, linked account and privacy are denormalized onto the registration
+  // at sign-up. They used to be a `getPerson` per row, which one organizer
+  // paid for; this list is now read by the whole pueblo, so that fan-out
+  // would be paid by every viewer on every open.
+  // One gated doc per registration carries the phone, the custom answers and
+  // the attendee's birth date, so a single fan-out covers all three. Gated on
+  // `canManage` alone: every sign-up denormalizes a birth date there, so
+  // "does this event collect anything?" stopped being the right question —
+  // and a non-organizer is denied the docs by rules, so asking would only log
+  // noise. The fan-out is paid by the handful of people who run the event,
+  // never by the pueblo reading the roster. It re-runs on each roster change
+  // (a new sign-up needs its phone); a stale run is dropped.
+  useEffect(() => {
+    if (!canManage || !rows) return;
+    let current = true;
+    void Promise.all(
+      rows.map(async (r) => [r.id, await getRegistrationPrivate(eventId, r.id)] as const),
+    ).then((entries) => {
+      if (!current) return;
       setPhones(Object.fromEntries(entries.map(([id, p]) => [id, p?.phone ?? null])));
       setAnswers(Object.fromEntries(entries.map(([id, p]) => [id, p?.answers ?? {}])));
       setBirthdays(Object.fromEntries(entries.map(([id, p]) => [id, p?.birthday ?? null])));
-    }
-  }, [eventId, canManage]);
+    });
+    return () => {
+      current = false;
+    };
+  }, [eventId, canManage, rows]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const togglePaid = (regId: string, next: boolean) => setRegistrationPaid(eventId, regId, next);
 
-  const togglePaid = useCallback(
-    async (regId: string, next: boolean) => {
-      await setRegistrationPaid(eventId, regId, next);
-      await load();
-    },
-    [eventId, load],
-  );
-
-  // getEventRegistrations already orders by `registeredAt`, so the split keeps
+  // The watch orders by `registeredAt`, so the split keeps
   // each section in sign-up order. Waitlist promotion is automatic (a Cloud
   // Function fires when a confirmed reg is removed) — no manual promote action.
   const confirmed = (rows ?? []).filter((r) => r.status === 'confirmed');
@@ -255,7 +253,7 @@ export function EventAttendees({
             showConfirm(
               t('event.removeAttendeeTitle'),
               t('event.removeAttendeeBody', { name: displayName }),
-              () => void cancelRegistration(eventId, r.id).then(load),
+              () => void cancelRegistration(eventId, r.id),
               { confirmText: t('event.removeAttendeeConfirm'), cancelText: t('common.cancel') },
             )
           }

@@ -18,4 +18,21 @@ describe('Avatar', () => {
     const width = style.find((s: { width?: number } | undefined) => s?.width != null)?.width;
     expect(width).toBe(16);
   });
+
+  // QA pass 2026-11-18: «AP» at the fixed h2 size overflowed the 32dp circles
+  // of the village Personas list.
+  it('sizes two initials to fit a small circle', () => {
+    const { getByText } = render(<Avatar initials="AP" size={32} />);
+    const style = [getByText('AP').props.style].flat();
+    const fontSize = style.find((s: { fontSize?: number } | undefined) => s?.fontSize != null)?.fontSize;
+    expect(fontSize).toBeLessThanOrEqual(32 * 0.4);
+    expect(getByText('AP').props.maxFontSizeMultiplier).toBe(1);
+  });
+
+  it('keeps the h2 size on a large avatar', () => {
+    const { getByText } = render(<Avatar initials="AP" size={96} />);
+    const style = [getByText('AP').props.style].flat();
+    const fontSize = style.find((s: { fontSize?: number } | undefined) => s?.fontSize != null)?.fontSize;
+    expect(fontSize).toBe(24);
+  });
 });

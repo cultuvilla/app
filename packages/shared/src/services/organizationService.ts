@@ -27,6 +27,7 @@ import type {
 } from '../models/organization/OrganizationDataModel';
 import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
 import { DEFAULT_COSATECA_SETTINGS } from '../models/organization/CosaDataModel';
+import { DEFAULT_GROUP_TRANSPARENCY } from '../models/organization/GroupTransparencyModel';
 
 export async function getPendingOrganizations(): Promise<(OrganizationData & { id: string })[]> {
   const q = query(
@@ -151,9 +152,15 @@ export async function requestOrganization(
     joinPolicy: 'approval',
     sociosListVisible: input.sociosListVisible ?? false,
     chatAdminsOnly: input.chatAdminsOnly ?? false,
+    sociosSendAvisos: false,
     socioPhoneRequired: false,
     socioEmailRequired: false,
     cosateca: { ...DEFAULT_COSATECA_SETTINGS },
+    cuotaEnabled: true,
+    actasEnabled: true,
+    cuentasEnabled: true,
+    chatEnabled: true,
+    transparency: { ...DEFAULT_GROUP_TRANSPARENCY },
   };
   await setDoc(newRef, data);
   return newRef.id;

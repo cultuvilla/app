@@ -78,7 +78,13 @@ describe('onOrganizationUpdated', () => {
     expect(notifs.size).toBe(1);
     const data = notifs.docs[0].data();
     expect(data['type']).toBe('org_approved');
+    // User-facing copy says «grupo», never «organización».
+    expect(data['title']).toBe('Grupo aprobado');
+    expect(data['body']).toContain('Tu grupo');
     expect(data['municipalityId']).toBe(MUNICIPALITY_ID);
+    // So tapping it opens the group (QA 2026-11-18: it opened the create form).
+    expect(data['entityKind']).toBe('organization');
+    expect(data['entityId']).toBe(ORG_ID);
   });
 
   it('writes an org_rejected notification on pending -> rejected', async () => {
@@ -87,6 +93,9 @@ describe('onOrganizationUpdated', () => {
     const notifs = await notificationsFor(REQUESTED_BY);
     expect(notifs.size).toBe(1);
     expect(notifs.docs[0].data()['type']).toBe('org_rejected');
+    expect(notifs.docs[0].data()['title']).toBe('Grupo rechazado');
+    // A rejected group has no page to open; the route sends it to the village.
+    expect(notifs.docs[0].data()['entityId']).toBeNull();
   });
 
   it('writes nothing for a non-pending-origin transition (approved -> approved)', async () => {

@@ -28,8 +28,8 @@
  * start made Maestro's XCTest driver time out; overlapping it with the build
  * halved the build's speed. Run alone, it costs only its own few minutes.
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   MAESTRO,
@@ -44,6 +44,7 @@ import {
   PICKER_IMAGES,
 } from './lib/maestro-suite.mjs';
 import { pickSimulator } from './lib/ios-simulator.mjs';
+import { cancelledWriteFailures } from './lib/emulator-grpc.mjs';
 
 const LABEL = 'ios-e2e';
 
@@ -63,6 +64,59 @@ const IOS_MAESTRO_ENV = {
   MAESTRO_DRIVER_STARTUP_TIMEOUT: process.env.MAESTRO_DRIVER_STARTUP_TIMEOUT || '600000',
 };
 const flow = arg('flow') ?? process.env.E2E_NATIVE_FLOW;
+
+// Maestro's per-flow Simulator log, narrowed to what a failure report reads:
+// the app's own lines (JS console, the Firebase SDKs) and any fault. Unfiltered
+// it ran ~550 MB per flow on CI, which the 3-core runner paid for while the
+// app's Firestore streams timed out. The shim fails open, so an unknown app
+// executable (an already-installed app, no --app) leaves Maestro's log whole.
+const SHIM_DIR = path.join(ROOT, 'scripts', 'lib', 'ios-xcrun-shim');
+function simLogPredicate(executable) {
+  return `process == "${executable}" OR messageType == fault`;
+}
+function appExecutable(appPath) {
+  const plist = path.join(appPath, 'Info.plist');
+  const res = spawnSync('plutil', ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', plist], { encoding: 'utf8' });
+  return res.status === 0 ? res.stdout.trim() : undefined;
+}
+function armSimLogFilter(appPath) {
+  const executable = appPath && appExecutable(appPath);
+  if (!executable) {
+    console.warn(`[${LABEL}] app executable unknown; Maestro's Simulator log stays unfiltered`);
+    return;
+  }
+  IOS_MAESTRO_ENV.PATH = `${SHIM_DIR}${path.delimiter}${IOS_MAESTRO_ENV.PATH ?? ''}`;
+  IOS_MAESTRO_ENV.IOS_E2E_SIM_LOG_PREDICATE = simLogPredicate(executable);
+  console.log(`[${LABEL}] Maestro's Simulator log filtered to: ${IOS_MAESTRO_ENV.IOS_E2E_SIM_LOG_PREDICATE}`);
+}
+
+// Simulator daemons nothing in the app or the suite uses, stopped for the run
+// so the 3-core, 7 GB runner has their CPU and memory for the app and the
+// emulators. Matched against `launchctl list` (the label can move between iOS
+// releases) and booted out, so launchd cannot start them again on demand.
+// Never apsd: once flow 92 grants notifications the app asks it for a push
+// token, so stopping it would change what the app does.
+//   mediaanalysisd      — Photos' on-device analysis of the picker images
+//                         (addmedia); the picker returns a photo without it.
+//   spotlightknowledged — Spotlight's knowledge store; the app has no Spotlight
+//                         integration.
+const STOPPED_SIM_DAEMONS = /^com\.apple\.[\w.]*(mediaanalysisd|spotlightknowledged)$/;
+function stopUnusedSimDaemons(udid) {
+  const list = spawnSync('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list'], { encoding: 'utf8' });
+  const labels = (list.stdout ?? '')
+    .split('\n')
+    .map((line) => line.trim().split(/\s+/)[2])
+    .filter((label) => label && STOPPED_SIM_DAEMONS.test(label));
+  if (labels.length === 0) console.log(`[${LABEL}] no unused Simulator daemon to stop`);
+  const bootout = (target) =>
+    spawnSync('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'bootout', target], { encoding: 'utf8' });
+  // Best effort: a daemon that will not stop costs speed, never correctness.
+  for (const label of labels) {
+    let res = bootout(`system/${label}`);
+    if (res.status !== 0) res = bootout(`user/foreground/${label}`);
+    console.log(`[${LABEL}] stopping ${label}: exit ${res.status} ${(res.stderr ?? '').trim()}`);
+  }
+}
 
 function simctlDevices(...filter) {
   const res = spawnSync('xcrun', ['simctl', 'list', 'devices', ...filter, '--json'], { encoding: 'utf8' });
@@ -151,6 +205,8 @@ if (app) {
 
 // Stock the photo picker; see PICKER_IMAGES.
 if (run(LABEL, 'xcrun', ['simctl', 'addmedia', device, ...PICKER_IMAGES]) !== 0) process.exit(1);
+stopUnusedSimDaemons(device);
+armSimLogFilter(app && path.resolve(ROOT, app));
 
 // 3. See the flow's header. Fatal: if the prompt cannot be answered, every
 //    flow would fail on its first link, naming the wrong cause each time.
@@ -185,12 +241,78 @@ function resetKeychain() {
   }
 }
 
+// The Firestore SDK's stream errors, kept for the whole run, and the guard on
+// the ones the emulator used to cause. The stock emulator dropped the SDK's
+// connections for pinging every 30 s (GOAWAY too_many_pings), and the
+// Simulator often saw that only as a "ping timeout" ~90 s after a write, with
+// the write stalled meanwhile. run-tests-with-emulators.mjs now gives the
+// emulator production's keepalive policy (EMULATOR_KEEPALIVE), so either error
+// means that fix has regressed: the run fails even when every flow passed.
+// docs/decisions/ios-e2e-emulator-keepalive.md. The lines themselves are in
+// firestore-sdk.log, uploaded with the Maestro report.
+const reportDir = path.join(SUITE_DIR, 'report');
+const firestoreLog = path.join(reportDir, 'firestore-sdk.log');
+function keepaliveErrors(log) {
+  const errors = log.split('\n').filter((l) => l.includes('Stream error'));
+  return {
+    errors: errors.length,
+    pingTimeouts: errors.filter((l) => l.includes('ping timeout')).length,
+    tooManyPings: errors.filter((l) => l.includes('too_many_pings')).length,
+  };
+}
+function captureFirestoreLog() {
+  mkdirSync(reportDir, { recursive: true });
+  const out = openSync(firestoreLog, 'a');
+  const stream = spawn(
+    'xcrun',
+    ['simctl', 'spawn', device, 'log', 'stream', '--style', 'compact', '--predicate', 'eventMessage CONTAINS "I-FST"'],
+    { stdio: ['ignore', out, out] },
+  );
+  process.on('exit', () => {
+    stream.kill();
+    const { errors, pingTimeouts, tooManyPings } = keepaliveErrors(readFileSync(firestoreLog, 'utf8'));
+    console.log(
+      `\n[${LABEL}] Firestore SDK stream errors: ${errors} (ping timeout: ${pingTimeouts}, too_many_pings: ${tooManyPings})`,
+    );
+    if (pingTimeouts + tooManyPings === 0) return;
+    const message =
+      `Firestore SDK keepalive errors against the emulator: ${pingTimeouts} ping timeout, ${tooManyPings} too_many_pings ` +
+      '(want 0; see docs/decisions/ios-e2e-emulator-keepalive.md and report/firestore-sdk.log)';
+    console.error(`::error::${message}`);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### :x: ${message}\n`);
+    process.exitCode = 1;
+  });
+}
+captureFirestoreLog();
+
+// Writes the emulator failed with HTTP 499 because a listener the app had
+// dropped could no longer read the document. run-tests-with-emulators.mjs runs
+// the emulator with that fixed (EMULATOR_CANCELLED_LISTEN), so any such failure
+// means the fix has regressed. The count splits the app's own saves from the
+// retry restore's writes. docs/decisions/ios-e2e-emulator-keepalive.md.
+process.on('exit', () => {
+  const debugLog = path.join(ROOT, 'firestore-debug.log');
+  if (!existsSync(debugLog)) return;
+  const { total, byOperation } = cancelledWriteFailures(readFileSync(debugLog, 'utf8'));
+  const split = Object.entries(byOperation)
+    .map(([op, n]) => `${op}: ${n}`)
+    .join(', ');
+  console.log(`[${LABEL}] Firestore writes failed on a cancelled listener: ${total}${split ? ` (${split})` : ''}`);
+  if (total === 0 || process.env.EMULATOR_CANCELLED_LISTEN !== 'production') return;
+  const message =
+    `the Firestore emulator failed ${total} write(s) on a cancelled listener (${split}); want 0 ` +
+    '(see docs/decisions/ios-e2e-emulator-keepalive.md and firestore-debug.log)';
+  console.error(`::error::${message}`);
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### :x: ${message}\n`);
+  process.exitCode = 1;
+});
+
 await runMaestroSuite({
   label: LABEL,
   device,
   quarantined: QUARANTINED,
   flow,
-  reportDir: path.join(SUITE_DIR, 'report'),
+  reportDir,
   env: IOS_MAESTRO_ENV,
   beforeEachFlow: resetKeychain,
   // One retry, iOS only. The free macOS runner (3 cores) hosts the Simulator,

@@ -87,8 +87,7 @@ function mockCaps(opts: { canManage: boolean; uid: string | null; canEdit: boole
     canApprove: opts.canManage,
     uid: opts.uid,
     loading: false,
-    canEdit: jest.fn(() => opts.canEdit),
-    canDelete: jest.fn(() => opts.canDelete ?? opts.canEdit),
+    can: jest.fn((action: string) => (action === 'edit' ? opts.canEdit : opts.canDelete ?? opts.canEdit)),
   };
   (useEntityCapabilities as jest.Mock).mockReturnValue(caps);
   return caps;
@@ -111,7 +110,7 @@ describe('PlaceEditScreen guard', () => {
     const { findByDisplayValue } = render(<PlaceEditScreen />);
     await findByDisplayValue('Plaza');
     expect(mockRedirect).not.toHaveBeenCalled();
-    expect(caps.canEdit).toHaveBeenCalledWith('creator');
+    expect(caps.can).toHaveBeenCalledWith('edit', 'place', expect.objectContaining({ proposedBy: 'creator' }));
   });
 
   it('offers the creator a delete action for their own active place', async () => {

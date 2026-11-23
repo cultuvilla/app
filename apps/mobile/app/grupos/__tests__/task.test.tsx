@@ -1,7 +1,7 @@
-import { Keyboard } from 'react-native';
+import { Alert, Keyboard } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { buildGroupTaskData, type GroupTaskData } from '@cultuvilla/shared/models/organization';
-import { setGroupTaskDone } from '@cultuvilla/shared/services/groupTaskService';
+import { deleteGroupTask, setGroupTaskDone } from '@cultuvilla/shared/services/groupTaskService';
 import GroupTaskScreen from '../[grupo]/tarea/[tarea]';
 
 const mockPush = jest.fn();
@@ -20,6 +20,7 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
   setGroupTaskDone: jest.fn().mockResolvedValue(undefined),
+  deleteGroupTask: jest.fn().mockResolvedValue(undefined),
   watchGroupTask: jest.fn(),
 }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
@@ -54,9 +55,9 @@ jest.mock('../../../components/feature/groups/TaskRows', () => ({
   },
 }));
 jest.mock('../../../components/feature/groups/TaskSheet', () => ({
-  TaskSheet: ({ visible, canDelete }: { visible: boolean; canDelete: boolean }) => {
+  TaskSheet: ({ visible }: { visible: boolean }) => {
     const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
-    return visible ? <Text testID="stub-sheet">{String(canDelete)}</Text> : null;
+    return visible ? <Text testID="stub-sheet">sheet</Text> : null;
   },
 }));
 
@@ -135,6 +136,15 @@ describe("a group's task screen", () => {
     expect(render(<GroupTaskScreen />).queryByTestId('stub-signup')).toBeNull();
   });
 
+  it('lists the encargados and the volunteers together, saying who is in charge', () => {
+    mockTask = task({ assigneeUids: ['a1'], slots: 2, dueOn: '2030-01-01', claimedUids: ['a3'] });
+    const { getByTestId, queryByTestId } = render(<GroupTaskScreen />);
+    expect(getByTestId('group-task-person-a1')).toBeTruthy();
+    expect(getByTestId('group-task-person-a3')).toBeTruthy();
+    expect(getByTestId('group-task-encargado-a1')).toHaveTextContent('groups.tasks.detail.encargado');
+    expect(queryByTestId('group-task-encargado-a3')).toBeNull();
+  });
+
   it('shows who waits on a shift to admins only', () => {
     mockTask = task({ slots: 1, dueOn: '2030-01-01', claimedUids: ['a3'], waitlistUids: ['a4'] });
     const member = render(<GroupTaskScreen />);
@@ -144,10 +154,29 @@ describe("a group's task screen", () => {
     expect(render(<GroupTaskScreen />).getByTestId('group-task-waiting')).toBeTruthy();
   });
 
-  it('lets a member delete only what they created, from the edit form', () => {
+  it('opens the edit form', () => {
     const { getByTestId } = render(<GroupTaskScreen />);
     fireEvent.press(getByTestId('group-task-edit'));
-    expect(getByTestId('stub-sheet')).toHaveTextContent('false');
+    expect(getByTestId('stub-sheet')).toBeTruthy();
+  });
+
+  it('lets a member delete only what they created, after confirming', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    const theirs = render(<GroupTaskScreen />);
+    expect(theirs.queryByTestId('task-delete')).toBeNull();
+    theirs.unmount();
+
+    mockTask = task({ createdBy: 'u1' });
+    const { getByTestId } = render(<GroupTaskScreen />);
+    fireEvent.press(getByTestId('task-delete'));
+    const buttons = (alert.mock.calls.at(-1)?.[2] ?? []) as { onPress?: () => void }[];
+    buttons.at(-1)?.onPress?.();
+    await waitFor(() => expect(deleteGroupTask).toHaveBeenCalledWith('Anduela', 't1'));
+  });
+
+  it('lets an admin delete any task', () => {
+    mockGroups = [{ org: { id: 'Anduela' }, role: 'admin' }];
+    expect(render(<GroupTaskScreen />).getByTestId('task-delete')).toBeTruthy();
   });
 
   it('says so when the task is gone, and sends outsiders to the tab', () => {

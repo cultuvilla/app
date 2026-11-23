@@ -2,7 +2,8 @@ import { createHash, randomInt } from 'crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { isValidEmail } from '@cultuvilla/shared/utils';
 import { logger } from 'firebase-functions/v2';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
+import { authOtpCodeDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { Resend } from 'resend';
 import { RESEND_API_KEY } from './secret';
 import { bucketIdFor, callerIpOf, checkSendRateLimits } from './rateLimit';
@@ -12,10 +13,9 @@ import { isFunctionsEmulator } from '../shared/runtime';
 
 const handler = 'sendAuthOtpCode';
 
-// Server-only infra collection, same category as `authEmailRateLimits` — no
-// municipalityId, never touched by client Firestore rules (Admin SDK bypasses
+// `authOtpCodes` is server-only infra, same category as `authEmailRateLimits` —
+// no municipalityId, never touched by client Firestore rules (Admin SDK bypasses
 // rules entirely). Doc id = bucketIdFor(email), same hashing as rate limits.
-const OTP_COLLECTION = 'authOtpCodes';
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
 interface SendAuthOtpCodeData {
@@ -69,16 +69,14 @@ export async function runSendAuthOtpCode(
   // `authOtpCodes` is Admin-SDK-only and unreadable by clients, the field is
   // never written outside the emulator, and verification ignores it entirely.
   const emulator = isFunctionsEmulator();
-  await db
-    .collection(OTP_COLLECTION)
-    .doc(bucketId)
-    .set({
-      codeHash: hashCode(code),
-      expiresAt: Timestamp.fromMillis(Date.now() + OTP_EXPIRY_MS),
-      attempts: 0,
-      createdAt: Timestamp.now(),
-      ...(emulator ? { emulatorCode: code } : {}),
-    });
+  const now = Date.now();
+  await authOtpCodeDoc(db, bucketId).set({
+    codeHash: hashCode(code),
+    expiresAt: new Date(now + OTP_EXPIRY_MS),
+    attempts: 0,
+    createdAt: new Date(now),
+    ...(emulator ? { emulatorCode: code } : {}),
+  });
 
   if (emulator) {
     logger.info('auth otp code issued (emulator, not emailed)', { handler, bucketId, code });

@@ -34,7 +34,7 @@ describe('GroupEvents', () => {
     expect(mockPush).toHaveBeenCalledWith('/grupos/Anduela/evento/e1');
   });
 
-  it('shows the tasks done of each event, and filters by when', () => {
+  it('shows the tasks done of each event, and filters by when: only próximos or pasados', () => {
     mockEvents = [
       ...mockEvents,
       { id: 'old', title: 'Cena pasada', startDate: new Date(Date.now() - 86_400_000 * 30), endDate: null, confirmedCount: 0, imageURL: null, villageCoverImage: null },
@@ -45,9 +45,7 @@ describe('GroupEvents', () => {
     fireEvent.press(getByTestId('group-events-filter-past'));
     expect(getByText('Cena pasada')).toBeTruthy();
     expect(queryByText('Matanza')).toBeNull();
-    fireEvent.press(getByTestId('group-events-filter-all'));
-    expect(getByText('Cena pasada')).toBeTruthy();
-    expect(getByText('Matanza')).toBeTruthy();
+    expect(() => getByTestId('group-events-filter-all')).toThrow();
   });
 
   it('creates an event organized by the group, in its village', () => {

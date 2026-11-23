@@ -2,20 +2,29 @@ import { useMemo } from 'react';
 import { hasSocioRoster, type OrgMemberData } from '@cultuvilla/shared/models/organization';
 import { watchOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
 import type { GroupSection } from '@cultuvilla/shared/utils';
-import { Text, VStack } from '../../primitives';
+import { View } from 'react-native';
+import { HStack, Text, VStack } from '../../primitives';
 import { OrgJoinRequests } from '../OrgJoinRequests';
 import { OrgMembersList } from '../OrgMembersList';
 import { CuotaAdmin } from './CuotaAdmin';
+import { GroupAccounts } from './GroupAccounts';
 import { GroupMessagesAdmin } from './GroupMessagesAdmin';
 import { GroupNotices } from './GroupNotices';
 import { GroupSettings } from './GroupSettings';
 import { MyActas } from './MyActas';
 import { MyCuota } from './MyCuota';
-import { JuntaDirectiva } from './JuntaDirectiva';
+import { AddSocioButton } from './AddSocioButton';
+import { AddToJuntaButton, JuntaDirectiva } from './JuntaDirectiva';
 import { MySocioRecord } from './MySocioRecord';
-import { RecordsAdmin } from './RecordsAdmin';
+import { ActasAdmin } from './ActasAdmin';
+import { AsambleaChecklist } from './AsambleaChecklist';
+import { LibroDoor } from './LibroDoor';
+import { YearSummaryAdmin } from './YearSummaryAdmin';
+import { SocioAvisoComposer } from './SocioAvisoComposer';
 import { SocioConsentCard } from './SocioConsentCard';
 import { SociosRoster } from './SociosRoster';
+import { TransparentAvisos } from './TransparentAvisos';
+import { TransparentCuota } from './TransparentCuota';
 import { useWatch } from '../../../lib/hooks/useWatch';
 import { useT } from '../../../lib/i18n';
 import type { MyGroup } from '../../../lib/orgs/useMyGroups';
@@ -38,6 +47,11 @@ function useAdminUids(orgId: string, enabled: boolean): string[] {
   return useMemo(() => (members.data ?? []).filter((m) => m.role === 'admin').map((m) => m.userId), [members.data]);
 }
 
+/** An admin's Actas and Cuentas scroll themselves, so their floating button stays on screen. */
+export function sectionScrollsItself(section: GroupSection, isAdmin: boolean): boolean {
+  return isAdmin && (section === 'actas' || section === 'cuentas');
+}
+
 /** One screen of a group: the section's existing component, full height. */
 export function GroupSectionBody({ group, section, uid }: { group: MyGroup; section: GroupSection; uid: string }) {
   const { t } = useT();
@@ -47,12 +61,54 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
   const adminUids = useAdminUids(org.id, section === 'socios' || (isAdmin && section === 'cobros'));
 
   switch (section) {
-    case 'avisos':
-      return <GroupNotices orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.avisos')} />} />;
-    case 'cuota':
-      return <MyCuota orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.cuota')} />} />;
+    case 'avisos': {
+      const empty = <Empty text={t('groups.sections.empty.avisos')} />;
+      const notices = org.transparency.avisos ? (
+        <TransparentAvisos orgId={org.id} uid={uid} empty={empty} />
+      ) : (
+        <GroupNotices orgId={org.id} uid={uid} empty={empty} />
+      );
+      // The junta writes from Gestionar, with everything; a socio from here,
+      // where the group lets them. The server decides either way.
+      return org.sociosSendAvisos && !isAdmin && hasSocioRoster(org.type) ? (
+        <VStack gap={4}>
+          <SocioAvisoComposer orgId={org.id} />
+          {notices}
+        </VStack>
+      ) : (
+        notices
+      );
+    }
+    case 'cuota': {
+      const mine = <MyCuota orgId={org.id} uid={uid} empty={<Empty text={t('groups.sections.empty.cuota')} />} />;
+      return org.transparency.cuota ? (
+        <VStack gap={6}>
+          {mine}
+          <TransparentCuota orgId={org.id} />
+        </VStack>
+      ) : (
+        mine
+      );
+    }
+    // An admin keeps the books, a socio reads what the junta shares: same button, more inside.
+    case 'cuentas':
+      return isAdmin ? (
+        <YearSummaryAdmin orgId={org.id} orgName={org.name} uid={uid} testID="group-section-screen-cuentas" />
+      ) : (
+        <GroupAccounts orgId={org.id} />
+      );
     case 'actas':
-      return <MyActas orgId={org.id} orgName={org.name} empty={<Empty text={t('groups.sections.empty.actas')} />} />;
+      return isAdmin ? (
+        <ActasAdmin
+          orgId={org.id}
+          orgName={org.name}
+          uid={uid}
+          header={<AsambleaChecklist orgId={org.id} orgName={org.name} cuentasEnabled={org.cuentasEnabled} />}
+          testID="group-section-screen-actas"
+        />
+      ) : (
+        <MyActas orgId={org.id} orgName={org.name} empty={<Empty text={t('groups.sections.empty.actas')} />} />
+      );
     case 'socios': {
       const canReadRoster = isAdmin || org.sociosListVisible;
       return (
@@ -60,7 +116,18 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           <MySocioRecord orgId={org.id} uid={uid} />
           <SocioConsentCard orgId={org.id} requirement={org} />
           {isAdmin ? <OrgJoinRequests orgId={org.id} banner /> : null}
-          <JuntaDirectiva orgId={org.id} adminUids={adminUids} canReadRoster={canReadRoster} />
+          {isAdmin ? <LibroDoor orgId={org.id} /> : null}
+          <HStack gap={2}>
+            <View className="flex-1">
+              <AddSocioButton orgId={org.id} uid={uid} isAdmin={isAdmin} />
+            </View>
+            {isAdmin ? (
+              <View className="flex-1">
+                <AddToJuntaButton orgId={org.id} adminUids={adminUids} />
+              </View>
+            ) : null}
+          </HStack>
+          <JuntaDirectiva orgId={org.id} adminUids={adminUids} canReadRoster={canReadRoster} canManage={isAdmin} currentUid={uid} />
           {canReadRoster ? (
             <SociosRoster orgId={org.id} canManage={isAdmin} adminUids={isAdmin ? adminUids : []} currentUid={uid} />
           ) : (
@@ -75,8 +142,6 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
       return <CuotaAdmin orgId={org.id} orgName={org.name} uid={uid} adminUids={adminUids} />;
     case 'mensajes':
       return <GroupMessagesAdmin orgId={org.id} orgName={org.name} uid={uid} includePrivateEvents />;
-    case 'registros':
-      return <RecordsAdmin orgId={org.id} orgName={org.name} />;
     case 'miembros':
       return (
         <VStack gap={4}>
@@ -94,7 +159,15 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           socioEmailRequired={org.socioEmailRequired}
           hasRoster={hasSocioRoster(org.type)}
           chatAdminsOnly={org.chatAdminsOnly}
+          sociosSendAvisos={org.sociosSendAvisos}
           cosateca={org.cosateca}
+          cuotaEnabled={org.cuotaEnabled}
+          actasEnabled={org.actasEnabled}
+          cuentasEnabled={org.cuentasEnabled}
+          chatEnabled={org.chatEnabled}
+          transparency={org.transparency}
+          joinPolicy={org.joinPolicy}
+          isAyuntamiento={org.type === 'ayuntamiento'}
         />
       );
     // Their own full-height screens, not this scrolling body: see [seccion].tsx.

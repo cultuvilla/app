@@ -168,6 +168,12 @@ jobs:
       - name: Build functions
         run: pnpm functions:build
 
+      # Spotlight indexes whatever the job writes (node_modules, Maestro's
+      # artifacts) and burst to 80% CPU and ~500 MB beside Firestore SDK ping
+      # timeouts on this 3-core, 7 GB runner. Nothing in the job searches.
+      - name: Turn off Spotlight indexing
+        run: sudo mdutil -a -i off || true
+
       # Boot to completion before the emulators and Maestro start, never
       # overlapping them: a cold boot pins the 3-core runner for minutes, and
       # overlapping the suite's start timed Maestro's driver out. See
@@ -202,16 +208,66 @@ jobs:
           fi
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      # Samples load, swap, the busiest processes and the largest every 10 s
+      # for the rest of the job (a background process outlives its step), so a
+      # Firestore SDK "ping timeout" (scripts/run-ios-e2e.mjs counts them) can
+      # be read against what the runner was doing at that moment.
+      - name: Sample runner load
+        run: |
+          mkdir -p apps/mobile/e2e/native/report
+          (while sleep 10; do
+            echo "== $(date -u +%H:%M:%S) load $(sysctl -n vm.loadavg) swap $(sysctl -n vm.swapusage)"
+            vm_stat | grep -E 'Pageouts|Swapins|Swapouts' | tr -s ' ' | paste -sd ' ' -
+            ps -Ao pid,pcpu,rss,nice,ucomm -r | head -n 10
+            echo "-- largest"
+            ps -Ao pid,pcpu,rss,nice,ucomm -m | sed 1d | head -n 5
+          done) > apps/mobile/e2e/native/report/runner-cpu.log 2>&1 &
+
       # The exact command a developer runs locally on a Mac: boots the Firebase
       # emulators, seeds the deterministic E2E fixtures, then the runner installs
       # E2E_IOS_APP and runs this shard's flows.
       - name: Seed + run the Maestro suite on a Simulator
         env:
           E2E_FIREBASE_PROJECT: cultuvilla-test
+          # Production's gRPC keepalive policy for the Firestore emulator. The
+          # stock jar dropped the SDK's connections for pinging every 30 s
+          # (GOAWAY too_many_pings), stalling writes ~90 s on the Simulator.
+          # The runner checks the policy took before seeding, and fails the
+          # shard if the SDK logs a ping timeout or too_many_pings anyway.
+          # docs/decisions/ios-e2e-emulator-keepalive.md
+          EMULATOR_KEEPALIVE: production
+          # A write must not fail because a listener the app already dropped
+          # can no longer read the document. The stock emulator answers it with
+          # HTTP 499, which late in a shard failed every retry restore. The
+          # runner proves the fix took before seeding. Same decision record.
+          EMULATOR_CANCELLED_LISTEN: production
+          # The emulators' JVMs only (scripts/run-tests-with-emulators.mjs): the
+          # Firestore emulator and the Storage rules runtime, one GC log each
+          # (%p), so a pause long enough to miss a keepalive ping shows. The
+          # rules runtime reports the JVM's "Picked up JAVA_TOOL_OPTIONS" line
+          # as an "Unexpected rules runtime error" warning; it is harmless.
+          EMULATOR_JAVA_TOOL_OPTIONS: >-
+            -Xlog:gc:file=${{ github.workspace }}/apps/mobile/e2e/native/report/emulator-gc-%p.log:uptime,time
         run: pnpm test:e2e:ios
 
+      # Why the Simulator ended an app process: runningboardd and SpringBoard
+      # log the reason (a crash, a memory limit, a launch watchdog). Maestro's
+      # Simulator log keeps only the app's own lines and faults, so it misses it.
+      - name: Collect the Simulator's termination reasons
+        if: ${{ always() }}
+        run: |
+          udid="$(xcrun simctl list devices booted -j | jq -r '[.devices[][] | select(.state == "Booted")][0].udid // empty')"
+          [ -n "$udid" ] || exit 0
+          mkdir -p apps/mobile/e2e/native/report
+          xcrun simctl spawn "$udid" log show --last 3h --style compact \
+            --predicate 'process == "runningboardd" OR process == "SpringBoard"' 2>/dev/null \
+            | grep -iE 'cultuvilla|jetsam|terminat|watchdog|8badf00d|memory' \
+            > apps/mobile/e2e/native/report/sim-terminations.log || true
+
       # always(), not !cancelled(): a timeout cancels the job, and the
-      # screenshots of a run that timed out are exactly the ones needed.
+      # screenshots of a run that timed out are exactly the ones needed. The
+      # app's crash reports (Dev-*.ips) carry the stack Maestro's "App crashed"
+      # points at; without them a crash leaves only its last log line.
       - name: Upload Maestro artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -220,5 +276,8 @@ jobs:
           path: |
             apps/mobile/e2e/native/report/
             ~/.maestro/tests/
+            firestore-debug.log
+            ~/Library/Logs/DiagnosticReports/Dev*
+            ~/Library/Logs/DiagnosticReports/JetsamEvent*
           if-no-files-found: ignore
           retention-days: 7

@@ -158,9 +158,7 @@ onFlowComplete:
     env:
       TAP: 'cosateca-offer'
       EXPECT: 'cosa-sheet'
-# Offering goes photo → what it is → how it is shared.
-- tapOn:
-    id: 'cosa-next'
+# Offering goes what it is (with its photo, here none) → how it is shared.
 - runFlow:
     file: ../subflows/type-into.yaml
     env:
@@ -332,15 +330,22 @@ onFlowComplete:
     visible:
       id: 'group-cosateca'
     timeout: 45000
-# What is asked of them shows in "En marcha", above the catalogue.
+# Restarts Maestro's wait clock, so the next wait gets its own timeout
+# (README, "Wait budgets").
+- waitForAnimationToEnd:
+    timeout: 3000
+# What is asked of them shows under "Te toca", above the catalogue. Its title
+# opens the request: the card's centre may be its Aceptar button.
 - extendedWaitUntil:
     visible:
       id: 'cosateca-active-${output.requestId}'
     timeout: 20000
+- assertVisible:
+    id: 'cosateca-toca'
 - runFlow:
     file: ../subflows/tap-until.yaml
     env:
-      TAP: 'cosateca-active-${output.requestId}'
+      TAP: 'cosateca-active-title-${output.requestId}'
       EXPECT: 'cosa-request'
 - assertVisible: '.*${output.askMessage}.*'
 - assertVisible:

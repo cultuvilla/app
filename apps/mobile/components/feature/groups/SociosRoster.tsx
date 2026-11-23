@@ -2,9 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { ORG_ADMIN_TITLES, socioNumberTaken, isActiveSocio } from '@cultuvilla/shared/models/organization';
 import {
-  addTypedSocio,
   linkSocioToMember,
-  setSocioAdminTitle,
   setSocioBaja,
   setSocioNumber,
   updateTypedSocio,
@@ -13,8 +11,8 @@ import {
   type Socio,
   type SocioPrivate,
 } from '@cultuvilla/shared/services/socioService';
-import { removeOrgMember, setOrgMemberRole } from '@cultuvilla/shared/services/orgMemberService';
-import { Avatar, Button, HStack, Input, Pressable, Text, VStack } from '../../primitives';
+import { removeOrgMember } from '@cultuvilla/shared/services/orgMemberService';
+import { Avatar, HStack, Input, Pressable, Text, VStack } from '../../primitives';
 import { DetailSectionHeading } from '../DetailSectionHeading';
 import { FilterPill } from '../FilterPill';
 import { OptionsSheet } from './OptionsSheet';
@@ -23,6 +21,7 @@ import { SocioPill } from './SocioPill';
 import { CUOTA_PILL_TONE, SocioSheet, type SocioAction } from './SocioSheet';
 import { TypedSocioSheet, type TypedSocioSaved } from './TypedSocioSheet';
 import { useWatch } from '../../../lib/hooks/useWatch';
+import { useJuntaActions } from '../../../lib/orgs/useJuntaActions';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { useOrgCuotaStatuses } from '../../../lib/orgs/useOrgCuotaStatuses';
@@ -38,7 +37,7 @@ import {
 
 type Sheet =
   | { kind: 'socio'; socio: Socio }
-  | { kind: 'typed'; socio: Socio | null }
+  | { kind: 'typed'; socio: Socio }
   | { kind: 'link'; socio: Socio }
   | { kind: 'title'; socio: Socio }
   | { kind: 'number'; socio: Socio }
@@ -51,7 +50,7 @@ type Sheet =
 const SHEET_SWAP_MS = 350;
 
 /**
- * The libro de socios. Everyone who may see it searches it by name or number.
+ * The list of socios. Everyone who may see it searches it by name or number.
  * The junta (`canManage`) also filters it — active, cuota pendiente, sin app,
  * bajas — sees each socio's cuota, and taps a row for that socio's sheet, which
  * holds their record, their contact and every action on them.
@@ -78,6 +77,7 @@ export function SociosRoster({
   const [filter, setFilter] = useState<BookFilter>('activos');
   const [query, setQuery] = useState('');
   const [sheet, setSheet] = useState<Sheet>(null);
+  const { changeRole, setTitle } = useJuntaActions(orgId);
   const swap = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
     if (swap.current) clearTimeout(swap.current);
@@ -131,16 +131,6 @@ export function SociosRoster({
       { confirmText: t('groups.socios.giveBaja'), cancelText: t('common.cancel') },
     );
 
-  const changeRole = (uid: string, name: string, promoting: boolean) =>
-    showConfirm(
-      t(promoting ? 'organization.membersList.confirmPromoteTitle' : 'organization.membersList.confirmDemoteTitle'),
-      t(promoting ? 'organization.membersList.confirmPromoteBody' : 'organization.membersList.confirmDemoteBody', { name }),
-      () => {
-        setOrgMemberRole(orgId, uid, promoting ? 'admin' : 'member').catch(() => showAlert(t('organization.membersList.roleChangeError')));
-      },
-      { confirmText: t(promoting ? 'organization.membersList.promote' : 'organization.membersList.demote'), cancelText: t('common.cancel') },
-    );
-
   const removeMember = (uid: string, name: string) =>
     showConfirm(
       t('organization.membersList.confirmRemoveTitle'),
@@ -174,9 +164,13 @@ export function SociosRoster({
   const isNumberTaken = (exceptId: string | null) => (socioNumber: number) => socioNumberTaken(rows, socioNumber, exceptId);
 
   const saveTyped = async (values: TypedSocioSaved) => {
-    const input = { displayName: values.displayName, socioNumber: values.socioNumber, phone: values.phone, email: values.email };
-    if (sheet?.kind === 'typed' && sheet.socio) await updateTypedSocio(orgId, sheet.socio.id, input);
-    else await addTypedSocio(orgId, input, currentUid);
+    if (sheet?.kind !== 'typed') return;
+    await updateTypedSocio(orgId, sheet.socio.id, {
+      displayName: values.displayName,
+      socioNumber: values.socioNumber,
+      phone: values.phone,
+      email: values.email,
+    });
   };
 
   const chips: { key: BookFilter; label: string }[] = canManage
@@ -203,14 +197,7 @@ export function SociosRoster({
 
   return (
     <VStack gap={3} testID="socios-roster">
-      <HStack gap={2} align="center" justify="between">
-        <DetailSectionHeading>{t('groups.socios.book')}</DetailSectionHeading>
-        {canManage ? (
-          <Button variant="secondary" testID="socios-add" onPress={() => setSheet({ kind: 'typed', socio: null })}>
-            {t('groups.socios.add')}
-          </Button>
-        ) : null}
-      </HStack>
+      <DetailSectionHeading>{t('groups.socios.list')}</DetailSectionHeading>
 
       <Input
         pill
@@ -270,7 +257,8 @@ export function SociosRoster({
                 key={s.id}
                 testID={`socio-row-${s.id}`}
                 accessibilityRole="button"
-                accessibilityLabel={name}
+                // A label replaces what its children read out, so it carries the number too.
+                accessibilityLabel={s.socioNumber !== null ? `${s.socioNumber}, ${name}` : name}
                 onPress={() => setSheet({ kind: 'socio', socio: s })}
               >
                 {body}
@@ -297,7 +285,7 @@ export function SociosRoster({
           <TypedSocioSheet
             visible={sheet?.kind === 'typed'}
             initial={
-              sheet?.kind === 'typed' && sheet.socio
+              sheet?.kind === 'typed'
                 ? {
                     displayName: sheet.socio.displayName,
                     socioNumber: sheet.socio.socioNumber === null ? '' : String(sheet.socio.socioNumber),
@@ -306,7 +294,7 @@ export function SociosRoster({
                   }
                 : null
             }
-            isNumberTaken={isNumberTaken(sheet?.kind === 'typed' ? (sheet.socio?.id ?? null) : null)}
+            isNumberTaken={isNumberTaken(sheet?.kind === 'typed' ? sheet.socio.id : null)}
             onSave={saveTyped}
             onClose={() => setSheet(null)}
           />
@@ -350,7 +338,7 @@ export function SociosRoster({
               if (sheet?.kind !== 'title') return;
               const socioId = sheet.socio.id;
               setSheet(null);
-              setSocioAdminTitle(orgId, socioId, ORG_ADMIN_TITLES.find((title) => title === key) ?? null).catch(fail);
+              setTitle(socioId, ORG_ADMIN_TITLES.find((title) => title === key) ?? null);
             }}
             onClose={() => setSheet(null)}
           />

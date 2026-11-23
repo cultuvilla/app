@@ -1,4 +1,5 @@
 import { routes } from '../../lib/navigation/routes';
+import { colors } from '@cultuvilla/shared/design-system';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../lib/auth/useAuth';
@@ -28,8 +29,8 @@ export default function TabsLayout() {
         // Crossfade between tabs so the shared header/stats/buttons appear to
         // stay put while only the content swaps (village ↔ profile share a layout).
         animation: 'fade',
-        tabBarActiveTintColor: '#bb5d3a',
-        tabBarInactiveTintColor: '#a6a897',
+        tabBarActiveTintColor: colors.light.fg.accent,
+        tabBarInactiveTintColor: colors.light.fg.faint,
       }}
     >
       <Tabs.Screen

@@ -27,6 +27,7 @@ import {
   loadOtherVillages,
   loadVillageHome,
   loadWrapped,
+  loadFiestaProgramme,
   type Village,
 } from './data';
 import type { Page } from './document';
@@ -51,6 +52,7 @@ import {
   villagePage,
   wordPage,
   wrappedPage,
+  programmePage,
 } from './pages';
 import { matchRoute, type WebRoute } from './routes';
 import { searchPueblos, submitAmbassadorLead } from './ambassadorLead';
@@ -244,9 +246,14 @@ export async function handle(req: WebRequest, deps: WebDeps): Promise<WebRespons
       return canonical(path, wanted, () => wordPage(v, found.term, found.definitions, wanted));
     }
     case 'wrapped': {
+      // One link all year: the programme until a Wrapped is published, then
+      // the Wrapped. A draft still answers as if it did not exist.
       const v = await loadVillageBySlug(db, route.villageSlug);
-      const w = v ? await loadWrapped(db, v.id, route.year) : null;
-      return v && w ? page(wrappedPage(v, w, path), path) : notFound(path);
+      if (!v) return notFound(path);
+      const w = await loadWrapped(db, v.id, route.year);
+      if (w) return page(wrappedPage(v, w, path), path);
+      const programme = await loadFiestaProgramme(db, v.id, route.year);
+      return programme ? page(programmePage(v, programme, path), path) : notFound(path);
     }
     case 'entity':
       return entity(deps, route, route.kind, path);

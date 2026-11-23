@@ -4,6 +4,7 @@ import {
   GROUP_MESSAGE_NUDGE_INTERVAL_MS,
   groupMessageSignatureLines,
   groupMessageWhatsappText,
+  isSocioGroupMessageInput,
   SendGroupMessageInputSchema,
   tallyGroupPoll,
   unreadRecipientUids,
@@ -49,6 +50,26 @@ describe('SendGroupMessageInputSchema', () => {
 
   it('refuses an id a client could not have minted', () => {
     expect(SendGroupMessageInputSchema.safeParse(input({ messageId: '../x' })).success).toBe(false);
+  });
+});
+
+describe('isSocioGroupMessageInput', () => {
+  const plain = (over: Record<string, unknown> = {}) =>
+    SendGroupMessageInputSchema.parse(input({ channels: { push: true, email: false, whatsapp: 'none' }, ...over }));
+
+  it('is the text, to every socio, in the app', () => {
+    expect(isSocioGroupMessageInput(plain())).toBe(true);
+  });
+
+  it('is never a poll, a narrower audience, a pin, or anything that leaves the app', () => {
+    expect(isSocioGroupMessageInput(plain({ poll: { question: '¿Vienes?', kind: 'yes_no', options: ['Sí', 'No'] } }))).toBe(false);
+    expect(isSocioGroupMessageInput(plain({ audience: { kind: 'junta', eventId: null } }))).toBe(false);
+    expect(isSocioGroupMessageInput(plain({ audience: { kind: 'cuota', eventId: null } }))).toBe(false);
+    expect(isSocioGroupMessageInput(plain({ audience: { kind: 'event', eventId: 'ev1' } }))).toBe(false);
+    expect(isSocioGroupMessageInput(plain({ pinned: true }))).toBe(false);
+    expect(isSocioGroupMessageInput(plain({ channels: { push: true, email: true, whatsapp: 'none' } }))).toBe(false);
+    expect(isSocioGroupMessageInput(plain({ channels: { push: true, email: false, whatsapp: 'fallback' } }))).toBe(false);
+    expect(isSocioGroupMessageInput(plain({ channels: { push: false, email: false, whatsapp: 'none' } }))).toBe(false);
   });
 });
 

@@ -2,11 +2,15 @@ import type { ComponentProps } from 'react';
 import type { Ionicons } from '@expo/vector-icons';
 import {
   cosaAvailability,
+  cosaRequestFlow,
+  isCosaRequestAnsweredBy,
+  isCosaRequestOverdue,
   isOpenCosaRequest,
   isSharedCosa,
   type CosaCategory,
   type CosaData,
   type CosaKind,
+  type CosaRequestAction,
   type CosaRequestData,
 } from '@cultuvilla/shared/models/organization';
 import { formatDayKey } from '@cultuvilla/shared/utils';
@@ -72,23 +76,90 @@ export function cosaCardSubtitle(t: T, cosa: Pick<CosaData, 'ownerUid' | 'ownerN
 
 type Req = CosaRequestData & { id: string };
 
-/** One card of the "En marcha" strip: something asked of you, or something you hold. */
-export type EnMarchaItem = { type: 'asked'; request: Req } | { type: 'holding'; request: Req };
+/**
+ * Something in the cosateca waiting on the viewer, and why: a request to
+ * answer, something to hand over or finish, or a loan whose date has passed.
+ * `primary` is the one-tap move its card offers (none for something you hold
+ * past its date: that one is talked over in its chat).
+ */
+export type TocaItem = {
+  request: Req;
+  reason: 'answer' | 'handOver' | 'give' | 'finish' | 'overdueLent' | 'overdueHeld';
+  late: boolean;
+  primary: CosaRequestAction | null;
+};
+
+/** Something under way that waits on someone else, or on a date. */
+export type CursoItem = {
+  request: Req;
+  reason: 'holding' | 'lentOut' | 'waiting' | 'accepted' | 'booked';
+};
+
+export type EnMarcha = { toca: TocaItem[]; curso: CursoItem[] };
+
+function asManager(r: Req, today: string): TocaItem | CursoItem | null {
+  const flow = cosaRequestFlow(r.cosaKind, r.ownerUid);
+  if (r.status === 'pending') return { request: r, reason: 'answer', late: false, primary: 'accept' };
+  if (r.status === 'accepted') {
+    if (flow === 'reserva') return { request: r, reason: 'booked' };
+    if (flow === 'servicio') return { request: r, reason: 'finish', late: false, primary: 'done' };
+    if (flow === 'regalo') return { request: r, reason: 'give', late: false, primary: 'give' };
+    return { request: r, reason: 'handOver', late: false, primary: 'lend' };
+  }
+  // A shared cosa handed on is its new holder's to pass along, not the giver's.
+  if (r.status === 'lent' && flow === 'prestamo') {
+    return isCosaRequestOverdue(r, today)
+      ? { request: r, reason: 'overdueLent', late: true, primary: 'return' }
+      : { request: r, reason: 'lentOut' };
+  }
+  return null;
+}
+
+function asRequester(r: Req, today: string): TocaItem | CursoItem | null {
+  if (r.status === 'pending') return { request: r, reason: 'waiting' };
+  if (r.status === 'accepted') return { request: r, reason: r.cosaKind === 'reserva' ? 'booked' : 'accepted' };
+  if (r.status === 'lent') {
+    return isCosaRequestOverdue(r, today)
+      ? { request: r, reason: 'overdueHeld', late: true, primary: null }
+      : { request: r, reason: 'holding' };
+  }
+  return null;
+}
+
+/** The day a curso row is about: when it goes back, or when it starts. */
+function cursoDay(r: Req): string {
+  return r.untilOn ?? r.fromOn ?? '9999-12-31';
+}
 
 /**
- * What is going on for the viewer right now: requests to answer (pending
- * first), then what they hold, the soonest back first.
+ * What is going on for the viewer right now, split by who moves next. "Te
+ * toca" is everything waiting on them, overdue first, then the oldest; "En
+ * curso" waits on someone else or on a date, the soonest first. A request the
+ * viewer made is always theirs as requester, and a shared cosa someone else
+ * holds is that holder's to answer, not every admin's.
  */
-export function enMarcha(incoming: readonly Req[], mine: readonly Req[]): EnMarchaItem[] {
-  const asked = incoming
-    .filter((r) => r.status === 'pending' || r.status === 'accepted')
-    .sort((a, b) => Number(b.status === 'pending') - Number(a.status === 'pending') || b.createdAt.getTime() - a.createdAt.getTime())
-    .map((request): EnMarchaItem => ({ type: 'asked', request }));
-  const holding = mine
-    .filter((r) => r.status === 'lent')
-    .sort((a, b) => (a.untilOn ?? '9999').localeCompare(b.untilOn ?? '9999'))
-    .map((request): EnMarchaItem => ({ type: 'holding', request }));
-  return [...asked, ...holding];
+export function enMarcha(incoming: readonly Req[], mine: readonly Req[], uid: string, today: string): EnMarcha {
+  const toca: TocaItem[] = [];
+  const curso: CursoItem[] = [];
+  const place = (item: TocaItem | CursoItem | null) => {
+    if (!item) return;
+    if ('primary' in item) toca.push(item);
+    else curso.push(item);
+  };
+  const seen = new Set<string>();
+  for (const r of mine) {
+    if (r.requesterUid !== uid || seen.has(r.id)) continue;
+    seen.add(r.id);
+    place(asRequester(r, today));
+  }
+  for (const r of incoming) {
+    if (r.requesterUid === uid || seen.has(r.id) || !isCosaRequestAnsweredBy(r, uid)) continue;
+    seen.add(r.id);
+    place(asManager(r, today));
+  }
+  toca.sort((a, b) => Number(b.late) - Number(a.late) || a.request.createdAt.getTime() - b.request.createdAt.getTime());
+  curso.sort((a, b) => cursoDay(a.request).localeCompare(cursoDay(b.request)) || b.request.createdAt.getTime() - a.request.createdAt.getTime());
+  return { toca, curso };
 }
 
 /** When what you hold goes back: its date, unless it is a group's cosa that travels on. */
