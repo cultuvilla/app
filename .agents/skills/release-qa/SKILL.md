@@ -104,6 +104,19 @@ PATH=$PWD/node_modules/.bin:$PATH node scripts/run-tests-with-emulators.mjs --la
 While it runs, another session's default-port emulator suite cannot start;
 keep the pass short or tell the other session.
 
+**On powerserver, reserve the RAM first** (wherever `command -v ci-hold` finds
+it). The emulators, the AVD and the build do not fit beside a full set of CI lanes
+on its 16 GB: on 2026-11-22 the box ran out of memory and the kernel's kill took a
+release session with it. Before starting the backend:
+
+```bash
+ci-hold reserve --name cultuvilla-qa-<name> --gb 6 --ttl 4h --wait 15m
+```
+
+Exit 0, or 75 (CI lanes still draining; the hold is in place): go on. Run it again
+with the same name if the pass outlasts the TTL; release it at teardown. The homelab
+runbook's "Heavy release steps on powerserver" has the details.
+
 An entry marked `data: mirror:<village>` needs real shapes and counts: with the
 emulators up, `FIRESTORE_EMULATOR_HOST=127.0.0.1:<firestore port> pnpm
 mirror:village --municipality=<village>` copies it in (read-only on the source;
@@ -118,9 +131,13 @@ users cannot be signed into.
   (run_in_background), and pin every command with `QA_SERIAL=emulator-5610`.
   Android 16 needs `swangle_indirect` (the map crashes the default renderer).
 - **The emulator-armed release APK**, bundle baked in, so the device runs exactly
-  the commit under test — no Metro:
+  the commit under test — no Metro (`--mem none` below: the script already caps
+  Gradle in its own scope):
   ```bash
   JAVA_HOME=/usr/lib/jvm/java-17-openjdk node scripts/build-android-e2e-apk.mjs   # ~4 min warm, ~15 cold
+  # on powerserver instead: waits for any other repo's heavy build, holds 5 GB more of CI RAM
+  heavy-step --name cultuvilla-qa-apk --mem none --hold-gb 5 -- \
+    env JAVA_HOME=/usr/lib/jvm/java-17-openjdk node scripts/build-android-e2e-apk.mjs
   adb -s $QA_SERIAL install -r -d apps/mobile/android/app/build/outputs/apk/release/app-release.apk
   ```
 - Switch off Gboard's corrections once (it rewrites what Maestro types):
@@ -190,7 +207,8 @@ $S/fs.mjs query events municipalityId EQUAL '"<id>"' 20
   candidate for a flow (one deep flow per feature —
   `docs/decisions/e2e-feature-coverage.md`). List candidates; don't write them
   during the pass.
-- Tear down: `touch .qa-stop`, `adb -s $QA_SERIAL emu kill`, then
+- Tear down: `touch .qa-stop`, `adb -s $QA_SERIAL emu kill`, on powerserver
+  `ci-hold release --name cultuvilla-qa-<name>`, then
   `source scripts/agent-env.sh --clean` and remove the worktree.
 
 ## Part C — a full pass
