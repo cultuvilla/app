@@ -486,9 +486,11 @@ onFlowComplete:
     file: ../subflows/scroll-to.yaml
     env:
       TARGET: 'cuota-row-${output.userSocioId}'
+# A part payment reads as what was paid, with the rest on the row's button.
 - extendedWaitUntil:
-    visible: '.*12,00.*25,00.*'
+    visible: '.*Ha pagado 12,00.*'
     timeout: 15000
+- assertVisible: '.*Cobrar 13,00.*'
 
 # ── The member sees the payment under their own cuota. ──
 - runFlow:
