@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -7,6 +7,7 @@ import {
   municipalityMemberDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -33,11 +34,12 @@ interface ChangeVillageMemberRoleResult {
  * pointer would then dangle on a non-admin. Move the title first with
  * transferVillageAmbassador.
  */
-export const changeVillageMemberRole = onCall<
+export const changeVillageMemberRole = defineCallable<
   ChangeVillageMemberRoleData,
   Promise<ChangeVillageMemberRoleResult>
 >(
-  { region: 'us-central1', cors: true },
+  'changeVillageMemberRole',
+  { cors: true },
   async (request) => {
     const handler = 'changeVillageMemberRole';
     const auth = request.auth;

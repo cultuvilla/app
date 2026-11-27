@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
   adminDoc,
@@ -14,6 +14,7 @@ import {
   type ProfileFormField,
   type UsedValuesByKey,
 } from '../helpers/profileFormValidation';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -58,8 +59,9 @@ async function scanMembers(municipalityId: string): Promise<MemberScan> {
   return { used, memberIdsByKey };
 }
 
-export const updateCenso = onCall<UpdateCensoData, Promise<UpdateCensoResult>>(
-  { region: 'us-central1', cors: true },
+export const updateCenso = defineCallable<UpdateCensoData, Promise<UpdateCensoResult>>(
+  'updateCenso',
+  { cors: true },
   async (request) => {
     const auth = request.auth;
     if (!auth) {

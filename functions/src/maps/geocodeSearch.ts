@@ -1,7 +1,8 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { GOOGLE_MAPS_API_KEY } from './secret';
 import { buildGeocodeUrl, mapGeocodeResponse, type GeocodePlace } from './geocode';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const handler = 'geocodeSearch';
 
@@ -24,8 +25,9 @@ interface GeocodeSearchData {
   query?: string;
 }
 
-export const geocodeSearch = onCall<GeocodeSearchData, Promise<{ results: GeocodePlace[] }>>(
-  { region: 'us-central1', cors: true, secrets: [GOOGLE_MAPS_API_KEY] },
+export const geocodeSearch = defineCallable<GeocodeSearchData, Promise<{ results: GeocodePlace[] }>>(
+  'geocodeSearch',
+  { cors: true, secrets: [GOOGLE_MAPS_API_KEY] },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
     const results = await runGeocodeSearch((request.data as GeocodeSearchData | undefined)?.query);

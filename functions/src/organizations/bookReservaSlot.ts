@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -20,6 +20,7 @@ import {
   rangesOverlap,
   type CosaRequestStatus,
 } from '@cultuvilla/shared/models';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -121,8 +122,9 @@ export async function applyBookReservaSlot(
   });
 }
 
-export const bookReservaSlot = onCall<BookReservaSlotData, Promise<{ requestId: string; status: CosaRequestStatus }>>(
-  { region: 'us-central1', cors: true },
+export const bookReservaSlot = defineCallable<BookReservaSlotData, Promise<{ requestId: string; status: CosaRequestStatus }>>(
+  'bookReservaSlot',
+  { cors: true },
   async (request) => {
     const handler = 'bookReservaSlot';
     const uid = request.auth?.uid;

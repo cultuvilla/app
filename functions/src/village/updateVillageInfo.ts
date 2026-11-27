@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -6,6 +6,7 @@ import {
   municipalityDoc,
   municipalityMemberDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -26,8 +27,9 @@ interface UpdateVillageInfoResult {
  * The predicate ("is the caller a member AND is there no organizer yet") can't
  * be expressed in Firestore rules without a collection scan, so it lives here.
  */
-export const updateVillageInfo = onCall<UpdateVillageInfoData, Promise<UpdateVillageInfoResult>>(
-  { region: 'us-central1', cors: true },
+export const updateVillageInfo = defineCallable<UpdateVillageInfoData, Promise<UpdateVillageInfoResult>>(
+  'updateVillageInfo',
+  { cors: true },
   async (request) => {
     const handler = 'updateVillageInfo';
     const auth = request.auth;

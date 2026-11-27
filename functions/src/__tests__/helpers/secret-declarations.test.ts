@@ -20,8 +20,9 @@ const FUNCTIONS_SRC = resolve(__dirname, '../..');
 /** Secrets mounted per-function (defined in `auth/secret.ts`, `push/secret.ts`). */
 const SECRETS = ['RESEND_API_KEY', 'APNS_AUTH_KEY'] as const;
 
-/** `export const foo = onCall(…)` / `onDocumentWritten(…)` / `onSchedule(…)` / … */
-const ENTRY_POINT = /=\s*on(Call|Request|Schedule|Document[A-Za-z]+|MessagePublished|ObjectFinalized)\b/;
+/** `export const foo = defineCallable(…)` / `defineDocumentTrigger(…)` / `defineSchedule(…)` / … */
+const ENTRY_POINT =
+  /=\s*(on(Call|Request|Schedule|Document[A-Za-z]+|MessagePublished|ObjectFinalized)|define(Callable|DocumentTrigger|Schedule|HttpFunction|ObjectFinalized))\b/;
 
 function listSourceFiles(dir: string): string[] {
   const out: string[] = [];

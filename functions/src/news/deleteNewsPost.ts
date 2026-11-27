@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import {
@@ -7,6 +7,7 @@ import {
   newsDoc,
   commentsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = admin.firestore();
 
@@ -39,8 +40,9 @@ async function batchDeleteQuery(
   }
 }
 
-export const deleteNewsPost = onCall<DeleteNewsPostData, Promise<DeleteNewsPostResult>>(
-  { region: 'us-central1', cors: true },
+export const deleteNewsPost = defineCallable<DeleteNewsPostData, Promise<DeleteNewsPostResult>>(
+  'deleteNewsPost',
+  { cors: true },
   async (request) => {
     const handler = 'deleteNewsPost';
     const auth = request.auth;

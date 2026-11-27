@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -16,6 +16,7 @@ import {
   unreadRecipientUids,
   type NudgeGroupMessageResult,
 } from '@cultuvilla/shared/models';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 const handler = 'nudgeGroupMessage';
@@ -95,8 +96,9 @@ export async function runNudgeGroupMessage(
  * and the message's `nudgeCount` / `lastNudgedAt`, once `minSupported` has
  * passed the release that removed the button.
  */
-export const nudgeGroupMessage = onCall<NudgeGroupMessageData, Promise<NudgeGroupMessageResult>>(
-  { region: 'us-central1', cors: true },
+export const nudgeGroupMessage = defineCallable<NudgeGroupMessageData, Promise<NudgeGroupMessageResult>>(
+  'nudgeGroupMessage',
+  { cors: true },
   async (request) => {
     const callerUid = request.auth?.uid;
     if (!callerUid) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');

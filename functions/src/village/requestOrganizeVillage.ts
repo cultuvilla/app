@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -6,6 +6,7 @@ import {
   organizerRequestsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import type { OrganizerRequestData } from '@cultuvilla/shared';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -20,11 +21,12 @@ interface RequestOrganizeVillageResult {
   requestId: string;
 }
 
-export const requestOrganizeVillage = onCall<
+export const requestOrganizeVillage = defineCallable<
   RequestOrganizeVillageData,
   Promise<RequestOrganizeVillageResult>
 >(
-  { region: 'us-central1', cors: true },
+  'requestOrganizeVillage',
+  { cors: true },
   async (request) => {
     const handler = 'requestOrganizeVillage';
     const auth = request.auth;

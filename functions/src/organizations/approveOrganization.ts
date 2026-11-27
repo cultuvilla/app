@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
@@ -9,6 +9,7 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildOrgMemberData } from '@cultuvilla/shared/models';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -31,11 +32,12 @@ interface ApproveOrganizationResult {
  * (mirrors the old client rule). Rejection stays a client write (no membership
  * change to audit).
  */
-export const approveOrganization = onCall<
+export const approveOrganization = defineCallable<
   ApproveOrganizationData,
   Promise<ApproveOrganizationResult>
 >(
-  { region: 'us-central1', cors: true },
+  'approveOrganization',
+  { cors: true },
   async (request) => {
     const handler = 'approveOrganization';
     const auth = request.auth;

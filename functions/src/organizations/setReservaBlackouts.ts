@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { cosaDoc, cosaRequestsCollection, cosaSlotDoc, organizationMemberDoc } from '@cultuvilla/shared/firebase/refs/admin';
@@ -8,6 +8,7 @@ import {
   MAX_RESERVA_BLACKOUTS,
   reservaSlotKey,
 } from '@cultuvilla/shared/models';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -58,8 +59,9 @@ export async function applyReservaBlackouts(
   });
 }
 
-export const setReservaBlackouts = onCall<SetReservaBlackoutsData, Promise<{ cancelled: number }>>(
-  { region: 'us-central1', cors: true },
+export const setReservaBlackouts = defineCallable<SetReservaBlackoutsData, Promise<{ cancelled: number }>>(
+  'setReservaBlackouts',
+  { cors: true },
   async (request) => {
     const handler = 'setReservaBlackouts';
     const uid = request.auth?.uid;

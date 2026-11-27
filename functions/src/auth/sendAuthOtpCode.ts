@@ -1,5 +1,5 @@
 import { createHash, randomInt } from 'crypto';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { isValidEmail } from '@cultuvilla/shared/utils';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -10,6 +10,7 @@ import { bucketIdFor, callerIpOf, checkSendRateLimits } from './rateLimit';
 import { reviewOtpCodeFor } from './reviewAccess';
 import { renderAuthOtpEmailHtml, renderAuthOtpEmailText, AUTH_OTP_EMAIL_SUBJECT_PREFIX } from './authEmailTemplate';
 import { isFunctionsEmulator } from '../shared/runtime';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const handler = 'sendAuthOtpCode';
 
@@ -129,8 +130,9 @@ export async function runSendAuthOtpCode(
   return { ok: true };
 }
 
-export const sendAuthOtpCode = onCall<SendAuthOtpCodeData, Promise<SendAuthOtpCodeResult>>(
-  { region: 'us-central1', cors: true, secrets: [RESEND_API_KEY] },
+export const sendAuthOtpCode = defineCallable<SendAuthOtpCodeData, Promise<SendAuthOtpCodeResult>>(
+  'sendAuthOtpCode',
+  { cors: true, secrets: [RESEND_API_KEY] },
   async (request) => {
     // Unauthenticated by design: this is the entry point that lets a signed-out
     // user request a sign-in code in the first place.

@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import {
   getFirestore,
@@ -10,6 +10,7 @@ import { municipalityDoc, municipalityMemberDoc } from '@cultuvilla/shared/fireb
 import type { VillageMemberData } from '@cultuvilla/shared';
 import { readResidenceTarget, upsertResidenceLink } from './residenceProjection';
 import { seedVillageSettlements } from './seedVillageSettlements';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -36,8 +37,9 @@ interface StartVillageResult {
  * organizer is granted), and the caller is added as a plain member. Becoming the
  * organizer is a separate, superadmin-approved step (requestOrganizeVillage).
  */
-export const startVillage = onCall<StartVillageData, Promise<StartVillageResult>>(
-  { region: 'us-central1', cors: true },
+export const startVillage = defineCallable<StartVillageData, Promise<StartVillageResult>>(
+  'startVillage',
+  { cors: true },
   async (request) => {
     const handler = 'startVillage';
     const auth = request.auth;

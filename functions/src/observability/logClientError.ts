@@ -1,6 +1,6 @@
-import { onCall } from 'firebase-functions/v2/https';
 import { log, redactPII } from '../shared/observability';
 import { OBSERVABILITY_USER_ID_SALT } from './secret';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const handler = 'logClientError';
 
@@ -42,8 +42,9 @@ export function runLogClientError(uid: string | null, data: unknown): void {
   log.error('client error', pickClientErrorAttrs(uid, data));
 }
 
-export const logClientError = onCall(
-  { region: 'us-central1', cors: true, secrets: [OBSERVABILITY_USER_ID_SALT] },
+export const logClientError = defineCallable(
+  'logClientError',
+  { cors: true, secrets: [OBSERVABILITY_USER_ID_SALT] },
   (request) => {
     // Deliberately accepts unauthenticated calls. Requiring auth made every
     // failure in the sign-in flow invisible: there is no `request.auth` when

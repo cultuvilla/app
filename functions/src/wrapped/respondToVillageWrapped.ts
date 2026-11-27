@@ -1,8 +1,9 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { adminDoc, municipalityMemberDoc, villageWrappedDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { announceWrappedPublished } from './wrappedNotifications';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -23,10 +24,10 @@ export interface RespondToVillageWrappedResult {
  * still exists, so the scheduler never reminds that pueblo about the year
  * again. Only an admin asking for it again (`buildVillageWrapped`) brings it back.
  */
-export const respondToVillageWrapped = onCall<
+export const respondToVillageWrapped = defineCallable<
   RespondToVillageWrappedData,
   Promise<RespondToVillageWrappedResult>
->({ region: 'us-central1', cors: true }, async (request) => {
+>('respondToVillageWrapped', { cors: true }, async (request) => {
   const handler = 'respondToVillageWrapped';
   const auth = request.auth;
   if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');

@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -9,6 +9,7 @@ import {
   organizationSocioPrivateDoc,
   organizationSociosCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -35,8 +36,9 @@ interface LinkSocioToMemberData {
  * Authority: an admin of the org. Callable because it rewrites a function-owned
  * member row and deletes one, which no client may do.
  */
-export const linkSocioToMember = onCall<LinkSocioToMemberData, Promise<{ ok: true }>>(
-  { region: 'us-central1', cors: true },
+export const linkSocioToMember = defineCallable<LinkSocioToMemberData, Promise<{ ok: true }>>(
+  'linkSocioToMember',
+  { cors: true },
   async (request) => {
     const handler = 'linkSocioToMember';
     const callerUid = request.auth?.uid;

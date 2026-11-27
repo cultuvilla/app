@@ -1,6 +1,7 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { adminDoc } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineCallable } from '../shared/define/defineCallable';
 
 /**
  * Serve the business registry to the founders' panel.
@@ -34,7 +35,7 @@ export async function runGetBusinessSnapshot(uid: string | null): Promise<unknow
   return JSON.parse(json);
 }
 
-export const getBusinessSnapshot = onCall({ region: 'europe-west1' }, async (request) => {
+export const getBusinessSnapshot = defineCallable('getBusinessSnapshot', { region: 'europe-west1' }, async (request) => {
   const uid = request.auth?.uid ?? null;
   return { handler, snapshot: await runGetBusinessSnapshot(uid) };
 });

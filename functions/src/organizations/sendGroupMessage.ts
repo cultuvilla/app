@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore, type WriteBatch } from 'firebase-admin/firestore';
 import {
@@ -52,6 +52,7 @@ import {
 import { groupAvisoLinkPath, webOriginForProject } from '@cultuvilla/shared/utils';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendEmailBatch } from '../shared/email';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 const handler = 'sendGroupMessage';
@@ -389,8 +390,9 @@ export async function runSendGroupMessage(
  * Callable because it fans out to other users' notifications and reads the
  * socios' contact data, which no client may do for the whole roster at once.
  */
-export const sendGroupMessage = onCall<unknown, Promise<SendGroupMessageResult>>(
-  { region: 'us-central1', cors: true, secrets: [RESEND_API_KEY], timeoutSeconds: 300 },
+export const sendGroupMessage = defineCallable<unknown, Promise<SendGroupMessageResult>>(
+  'sendGroupMessage',
+  { cors: true, secrets: [RESEND_API_KEY], timeoutSeconds: 300 },
   async (request) => {
     const callerUid = request.auth?.uid;
     if (!callerUid) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');

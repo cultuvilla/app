@@ -1,5 +1,5 @@
 import { logger } from 'firebase-functions/v2';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
   adminDoc,
@@ -25,6 +25,7 @@ import { resolveCancellation } from '../helpers/cancellationPlan';
 import { generateSeatToken } from '../helpers/seatToken';
 import { writeRegistrationEvent } from '../helpers/registrationAudit';
 import { RESEND_API_KEY } from '../auth/secret';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -60,10 +61,10 @@ interface CancelRegistrationResult {
  *
  * See `resolveCancellation` for which of the three outcomes applies.
  */
-export const cancelRegistration = onCall<
+export const cancelRegistration = defineCallable<
   CancelRegistrationData,
   Promise<CancelRegistrationResult>
->({ region: 'us-central1', cors: true, secrets: [RESEND_API_KEY] }, async (request) => {
+>('cancelRegistration', { cors: true, secrets: [RESEND_API_KEY] }, async (request) => {
   const auth = request.auth;
   if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
   const uid = auth.uid;

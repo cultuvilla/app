@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'crypto';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
@@ -13,6 +13,7 @@ import {
   type InspectStudioPairingResult,
 } from '@cultuvilla/shared/models';
 import { callerIpOf, checkRateLimit, ipBucketIdFor } from '../auth/rateLimit';
+import { defineCallable } from '../shared/define/defineCallable';
 
 // Sign-in to the web studio by pairing with the signed-in app
 // (docs/plans/ongoing/web-studio.md). The studio asks for a pairing and shows
@@ -178,22 +179,26 @@ export async function runClaimStudioPairing(
 }
 
 // Unauthenticated by design: the studio has no session until the pairing completes.
-export const createStudioPairing = onCall<unknown, Promise<CreateStudioPairingResult>>(
-  { region: 'us-central1', cors: true },
+export const createStudioPairing = defineCallable<unknown, Promise<CreateStudioPairingResult>>(
+  'createStudioPairing',
+  { cors: true },
   async (request) => runCreateStudioPairing(callerIpOf(request.rawRequest)),
 );
 
-export const claimStudioPairing = onCall<ClaimStudioPairingInput, Promise<ClaimStudioPairingResult>>(
-  { region: 'us-central1', cors: true },
+export const claimStudioPairing = defineCallable<ClaimStudioPairingInput, Promise<ClaimStudioPairingResult>>(
+  'claimStudioPairing',
+  { cors: true },
   async (request) => runClaimStudioPairing(request.data),
 );
 
-export const inspectStudioPairing = onCall<ApproveStudioPairingInput, Promise<InspectStudioPairingResult>>(
-  { region: 'us-central1' },
+export const inspectStudioPairing = defineCallable<ApproveStudioPairingInput, Promise<InspectStudioPairingResult>>(
+  'inspectStudioPairing',
+  {},
   async (request) => runInspectStudioPairing(request.auth?.uid, request.data),
 );
 
-export const approveStudioPairing = onCall<ApproveStudioPairingInput, Promise<{ ok: true }>>(
-  { region: 'us-central1' },
+export const approveStudioPairing = defineCallable<ApproveStudioPairingInput, Promise<{ ok: true }>>(
+  'approveStudioPairing',
+  {},
   async (request) => runApproveStudioPairing(request.auth?.uid, request.data),
 );

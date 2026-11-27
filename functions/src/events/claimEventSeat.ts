@@ -1,5 +1,5 @@
 import { logger } from 'firebase-functions/v2';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
   eventDoc,
@@ -17,6 +17,7 @@ import { writeRegistrationEvent } from '../helpers/registrationAudit';
 import { assertMayJoinEvent } from '../helpers/privateEventAccess';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendRegistrationEmail } from './sendRegistrationEmail';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -55,8 +56,9 @@ interface ClaimEventSeatResult {
  * required it, so claiming a seat at one must not either — `isMember` is simply
  * recomputed for the roster badge.
  */
-export const claimEventSeat = onCall<ClaimEventSeatData, Promise<ClaimEventSeatResult>>(
-  { region: 'us-central1', cors: true, secrets: [RESEND_API_KEY] },
+export const claimEventSeat = defineCallable<ClaimEventSeatData, Promise<ClaimEventSeatResult>>(
+  'claimEventSeat',
+  { cors: true, secrets: [RESEND_API_KEY] },
   async (request) => {
     const auth = request.auth;
     if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');

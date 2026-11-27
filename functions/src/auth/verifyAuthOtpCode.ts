@@ -1,11 +1,12 @@
 import { createHash } from 'crypto';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { isValidEmail } from '@cultuvilla/shared/utils';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { authOtpCodeDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { getAuth } from 'firebase-admin/auth';
 import { bucketIdFor } from './rateLimit';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const handler = 'verifyAuthOtpCode';
 
@@ -85,8 +86,9 @@ export async function runVerifyAuthOtpCode(
   return { token };
 }
 
-export const verifyAuthOtpCode = onCall<VerifyAuthOtpCodeData, Promise<VerifyAuthOtpCodeResult>>(
-  { region: 'us-central1', cors: true },
+export const verifyAuthOtpCode = defineCallable<VerifyAuthOtpCodeData, Promise<VerifyAuthOtpCodeResult>>(
+  'verifyAuthOtpCode',
+  { cors: true },
   async (request) => {
     // Unauthenticated by design — this IS the sign-in step.
     return runVerifyAuthOtpCode(request.data);

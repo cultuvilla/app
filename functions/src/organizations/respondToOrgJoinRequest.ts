@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -11,6 +11,7 @@ import {
 import { buildOrgMemberData } from '@cultuvilla/shared/models';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
 import { notifyOrgJoinRequestResolved } from '../helpers/notifyRequests';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -33,10 +34,10 @@ interface RespondToOrgJoinRequestResult {
  * `membershipEvents` record in the same transaction that deletes the request;
  * the requester is notified either way once it commits.
  */
-export const respondToOrgJoinRequest = onCall<
+export const respondToOrgJoinRequest = defineCallable<
   RespondToOrgJoinRequestData,
   Promise<RespondToOrgJoinRequestResult>
->({ region: 'us-central1', cors: true }, async (request) => {
+>('respondToOrgJoinRequest', { cors: true }, async (request) => {
   const handler = 'respondToOrgJoinRequest';
   const auth = request.auth;
   if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');

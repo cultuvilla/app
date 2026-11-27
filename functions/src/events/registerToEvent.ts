@@ -1,5 +1,5 @@
 import { logger } from 'firebase-functions/v2';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
   eventDoc,
@@ -22,6 +22,7 @@ import { assertMayJoinEvent } from '../helpers/privateEventAccess';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendRegistrationEmail } from './sendRegistrationEmail';
 import type { RegistrationEmailAttendee } from '@cultuvilla/shared/email';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -58,8 +59,9 @@ interface RegisterToEventResult {
   openSeats: OpenSeatSummary[];
 }
 
-export const registerToEvent = onCall<RegisterToEventData, Promise<RegisterToEventResult>>(
-  { region: 'us-central1', cors: true, secrets: [RESEND_API_KEY] },
+export const registerToEvent = defineCallable<RegisterToEventData, Promise<RegisterToEventResult>>(
+  'registerToEvent',
+  { cors: true, secrets: [RESEND_API_KEY] },
   async (request) => {
     const auth = request.auth;
     if (!auth) {

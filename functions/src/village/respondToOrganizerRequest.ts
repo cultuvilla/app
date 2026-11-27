@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
@@ -13,6 +13,7 @@ import { writeMembershipEvent } from '../helpers/membershipAudit';
 import { readResidenceTarget, upsertResidenceLink, type ResidenceTarget } from './residenceProjection';
 import { readOwnSex } from './ambassador';
 import type { Sex } from '@cultuvilla/shared';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -25,11 +26,12 @@ interface RespondToOrganizerRequestResult {
   ok: true;
 }
 
-export const respondToOrganizerRequest = onCall<
+export const respondToOrganizerRequest = defineCallable<
   RespondToOrganizerRequestData,
   Promise<RespondToOrganizerRequestResult>
 >(
-  { region: 'us-central1', cors: true },
+  'respondToOrganizerRequest',
+  { cors: true },
   async (request) => {
     const handler = 'respondToOrganizerRequest';
     const auth = request.auth;
