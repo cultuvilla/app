@@ -9,7 +9,8 @@
  *
  *   config     The project's own setup: Firestore database and Storage bucket
  *              settings, enabled APIs, IAM grants to service accounts, Secret
- *              Manager names and Auth configuration. It must equal the
+ *              Manager names, Auth configuration and Artifact Registry
+ *              cleanup policies. It must equal the
  *              committed baseline (infra/env-parity.json) plus that env's
  *              declared exceptions, each of which carries its reason. Every
  *              env is checked against the same baseline, so passing here
@@ -39,12 +40,13 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import admin from 'firebase-admin';
 import { ADC_PATH, ENVS, resolveEnv } from './lib/env-credentials.mjs';
+import { cleanupLines, listRepositories } from './setup-artifact-cleanup.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const BASELINE_PATH = resolve(repoRoot, 'infra/env-parity.json');
 
 /** Dimensions compared as sets; the rest are flat key → value maps. */
-export const LIST_DIMENSIONS = ['apis', 'iam', 'secrets', 'authProviders', 'authDomains'];
+export const LIST_DIMENSIONS = ['apis', 'iam', 'secrets', 'authProviders', 'authDomains', 'artifactCleanup'];
 export const MAP_DIMENSIONS = ['firestore', 'bucket', 'auth'];
 export const DIMENSIONS = [...MAP_DIMENSIONS, ...LIST_DIMENSIONS];
 
@@ -198,7 +200,7 @@ export function sha(text) {
 
 // ------------------------------------------------------------------ API reads
 
-async function accessToken() {
+export async function accessToken() {
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.CI && existsSync(ADC_PATH)) {
     process.env.GOOGLE_APPLICATION_CREDENTIALS = ADC_PATH;
   }
@@ -206,7 +208,7 @@ async function accessToken() {
   return token;
 }
 
-function client(token, project) {
+export function client(token, project) {
   return async function api(url, init = {}) {
     const res = await fetch(url, {
       ...init,
@@ -258,6 +260,7 @@ export async function configSnapshot(api, project, number) {
   const secrets = await paged(api, `https://secretmanager.googleapis.com/v1/projects/${project}/secrets?pageSize=100`, 'secrets');
   const auth = await api(`https://identitytoolkit.googleapis.com/admin/v2/projects/${project}/config`);
   const idps = await api(`https://identitytoolkit.googleapis.com/admin/v2/projects/${project}/defaultSupportedIdpConfigs`);
+  const repositories = await listRepositories(api, project);
 
   const iam = [];
   for (const b of policy.bindings ?? []) {
@@ -300,6 +303,10 @@ export async function configSnapshot(api, project, number) {
         .map((c) => c.name.split('/').pop())
         .sort(),
       authDomains: [...(auth.authorizedDomains ?? [])].sort(),
+      // Every Artifact Registry repository and its cleanup policy, `none` when
+      // it has none: images otherwise pile up with every deploy
+      // (scripts/setup-artifact-cleanup.mjs).
+      artifactCleanup: repositories.flatMap(cleanupLines).sort(),
     },
     { project, number },
   );

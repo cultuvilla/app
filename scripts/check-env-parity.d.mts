@@ -24,6 +24,8 @@ export function indexKey(index: {
 }): string;
 export function sha(text: string): string;
 export type Api = (url: string, init?: { method?: string; body?: string }) => Promise<Record<string, unknown>>;
+export function accessToken(): Promise<string>;
+export function client(token: string, project: string): Api;
 export function paged(api: Api, url: string, key: string): Promise<unknown[]>;
 export function configSnapshot(api: Api, project: string, number: number | string): Promise<Snapshot>;
 export function backendHeld(api: Api, project: string, env: string): Promise<boolean>;

@@ -35,6 +35,7 @@ const snap = () => ({
   secrets: ['KEY'],
   authProviders: ['google.com'],
   authDomains: ['<project>.web.app'],
+  artifactCleanup: ['us-east1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s'],
 });
 
 describe('the committed baseline', () => {
