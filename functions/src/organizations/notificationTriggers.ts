@@ -4,10 +4,15 @@ import { userNotificationsCollection } from '@cultuvilla/shared/firebase/refs/ad
 import { buildNotificationData } from '@cultuvilla/shared/models';
 import { broadcastToVillage } from '../village/entityPublishedTriggers';
 import { syncCosaAudience } from './syncCosaAudience';
+import { cascadeDeletedOrganization } from './cascadeDeletedOrganization';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
+// Fires on every write to a group, so its delete runs the cascade
+// (cascadeDeletedOrganization) here rather than in a second trigger on the same
+// document. Creates are ignored.
+//
 // Also keeps the group's cosas on its cosateca audience (syncCosaAudience) —
 // folded in here rather than a second trigger on the same document.
 //
@@ -16,10 +21,21 @@ const db = getFirestore();
 // path flipped the status. Snapshots are raw DocumentData (not converter-wrapped).
 export const onOrganizationUpdated = defineDocumentTrigger(
   'onOrganizationUpdated',
-  { kind: 'updated', document: 'organizations/{orgId}' },
+  { kind: 'writtenWithAuth', document: 'organizations/{orgId}' },
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();
+    if (before && !after) {
+      const { orgId } = event.params;
+      const municipalityId = typeof before['municipalityId'] === 'string' ? before['municipalityId'] : '';
+      // Eventarc sends 'app_user' (authId = the Firebase uid) for a signed-in
+      // client; firebase-functions' AuthType union leaves that value out.
+      const authType: string = event.authType;
+      const actorUserId = authType === 'app_user' ? (event.authId ?? '') : '';
+      const counts = await cascadeDeletedOrganization(db, orgId, municipalityId, actorUserId);
+      logger.info('Deleted group cascaded', { handler: 'onOrganizationUpdated', orgId, cascaded: counts !== null, ...counts });
+      return;
+    }
     if (!before || !after) return;
 
     // Isolated: a failed sync must not cost the founder their approval notice.
