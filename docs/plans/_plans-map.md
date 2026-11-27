@@ -14,13 +14,13 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [cloud-run-gateways](ready/cloud-run-gateways.md) `ready` | high | — | this cycle | — |
-| [cloud-run-revision-cleanup](ready/cloud-run-revision-cleanup.md) `ready` | high | — | this cycle | — |
-| [delete-account-reauth-gate](ready/delete-account-reauth-gate.md) `ready` | high | — | this cycle | — |
-| [harvest-shared-ci-checks](ready/harvest-shared-ci-checks.md) `ready` | high | — | this cycle | — |
-| [non-prod-delivery-guard](ready/non-prod-delivery-guard.md) `ready` | high | — | this cycle | — |
+| [cloud-run-gateways](ongoing/cloud-run-gateways.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
+| [cloud-run-revision-cleanup](ongoing/cloud-run-revision-cleanup.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
+| [delete-account-reauth-gate](ongoing/delete-account-reauth-gate.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
+| [harvest-shared-ci-checks](ongoing/harvest-shared-ci-checks.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
+| [non-prod-delivery-guard](ongoing/non-prod-delivery-guard.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [referential-integrity-audit](ready/referential-integrity-audit.md) `ready` | high | — | this cycle | — |
-| [typecheck-shared-tests](ready/typecheck-shared-tests.md) `ready` | high | — | this cycle | — |
+| [typecheck-shared-tests](ongoing/typecheck-shared-tests.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [blocking-overlay-in-tree](ready/blocking-overlay-in-tree.md) `ready` | medium | — | this cycle | — |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
 | [patch-coverage-report](ready/patch-coverage-report.md) `ready` | medium | — | this cycle | — |
