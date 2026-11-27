@@ -114,6 +114,9 @@ async function seedPerson(personId: string, uid: string) {
 }
 
 async function seedUser(uid: string) {
+  // Tests run as a non-production project, where mail reaches only an
+  // account in this project's Auth (docs/decisions/non-production-never-reaches-real-people.md).
+  await admin.auth().createUser({ uid, email: `${uid}@example.test` });
   await db()
     .doc(`users/${uid}`)
     .set({

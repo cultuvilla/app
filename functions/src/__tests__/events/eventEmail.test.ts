@@ -12,6 +12,11 @@ vi.mock('@cultuvilla/shared/firebase/refs/admin', () => ({
     get: () => Promise.resolve({ data: () => ({ email: 'ana@example.test' }) }),
   }),
 }));
+// The recipient has an account in this project's Auth, so the non-production
+// delivery audience lets the mail through.
+vi.mock('firebase-admin/auth', () => ({
+  getAuth: () => ({ getUsers: () => Promise.resolve({ users: [{ email: 'ana@example.test' }], notFound: [] }) }),
+}));
 vi.mock('../../auth/secret', () => ({ RESEND_API_KEY: { value: () => 'TEST_RESEND_KEY' } }));
 vi.mock('resend', () => ({
   Resend: vi.fn(function ResendMock(this: { emails: { send: typeof sendMock } }) {

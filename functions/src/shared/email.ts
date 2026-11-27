@@ -9,6 +9,7 @@
 import { logger } from 'firebase-functions/v2';
 import { Resend } from 'resend';
 import { RESEND_API_KEY } from '../auth/secret';
+import { allowedEmailAddresses } from './deliveryAudience';
 import { isFunctionsEmulator } from './runtime';
 
 const FROM_ADDRESS = 'hola@acceso.cultuvilla.es';
@@ -52,6 +53,9 @@ export async function sendEmail(email: OutgoingEmail, log: EmailLogContext): Pro
     return 'skipped';
   }
 
+  const allowed = await allowedEmailAddresses([email.to], { handler: log.handler, channel: 'email', fields: log.fields });
+  if (!allowed.has(email.to)) return 'skipped';
+
   try {
     const resend = new Resend(RESEND_API_KEY.value());
     // The Resend SDK resolves with { data: null, error } on API-level failures
@@ -94,10 +98,16 @@ export async function sendEmailBatch(emails: OutgoingEmail[], log: EmailLogConte
     return emails.map(() => 'skipped');
   }
 
+  const allowed = await allowedEmailAddresses(
+    emails.map((email) => email.to),
+    { handler: log.handler, channel: 'email', fields: log.fields },
+  );
+  const sendable = emails.filter((email) => allowed.has(email.to));
+  const outcomeByEmail = new Map<OutgoingEmail, EmailOutcome>(emails.map((email) => [email, 'skipped']));
+
   const resend = new Resend(RESEND_API_KEY.value());
-  const outcomes: EmailOutcome[] = [];
-  for (let start = 0; start < emails.length; start += BATCH_LIMIT) {
-    const chunk = emails.slice(start, start + BATCH_LIMIT);
+  for (let start = 0; start < sendable.length; start += BATCH_LIMIT) {
+    const chunk = sendable.slice(start, start + BATCH_LIMIT);
     let outcome: EmailOutcome = 'sent';
     try {
       const { error } = await resend.batch.send(
@@ -118,8 +128,9 @@ export async function sendEmailBatch(emails: OutgoingEmail[], log: EmailLogConte
       logger.error('resend batch send failed', { ...fields, count: chunk.length, error: err instanceof Error ? err.message : String(err) });
       outcome = 'failed';
     }
-    outcomes.push(...chunk.map(() => outcome));
+    for (const email of chunk) outcomeByEmail.set(email, outcome);
   }
+  const outcomes = emails.map((email) => outcomeByEmail.get(email) ?? 'skipped');
   logger.info(`${log.label} batch done`, { ...fields, count: emails.length, sent: outcomes.filter((o) => o === 'sent').length });
   return outcomes;
 }

@@ -11,6 +11,7 @@ import {
   toFcmAndroidMessage,
   type NotificationData,
 } from '@cultuvilla/shared/models';
+import { mayPushToUser } from '../shared/deliveryAudience';
 import { sendApns } from './apnsTransport';
 import { sendFcmAndroid } from './fcmTransport';
 import type { TransportTarget } from './transport';
@@ -37,6 +38,15 @@ export async function deliverPush(
 ): Promise<DeliverResult> {
   const devices = await userDevicesCollection(db, userId).get();
   if (devices.empty) return { delivered: 0, failed: 0 };
+
+  // Outside production only people with an account in this project's Auth get
+  // a push: a token copied or seeded from elsewhere belongs to a real phone.
+  const allowed = await mayPushToUser(userId, {
+    handler: 'deliverPush',
+    channel: 'push',
+    fields: { notificationId, type: notification.type, deviceCount: devices.size },
+  });
+  if (!allowed) return { delivered: 0, failed: 0 };
 
   const android: string[] = [];
   const ios: TransportTarget[] = [];
