@@ -43,6 +43,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
+| [cloud-run-revision-cleanup](ongoing/cloud-run-revision-cleanup.md) | high | dev | this cycle | after the first prod deploy that carries #775, confirm its "Clean up old Cloud Run revisions" step ran on prod (log shows deletes or 0 deletable), then retire. Prod drained by hand 2026-11-27 (970 deleted, 0 failed, 136 left, 68/68 services Ready); dev's ~14.8k backlog drains 150 per deploy |
 | [play-release-notes](ongoing/play-release-notes.md) | medium | dev | this cycle | once that release reaches beta and main, check "Set the Play release notes" is green in beta-build-and-submit and production-release, then `pnpm play:notes:show --profile beta` and `--profile production` show the es-ES notes (ADC with the androidpublisher scope: the verify-play-release-notes skill) |
 | [verify-deployed-functions](ongoing/verify-deployed-functions.md) | medium | dev | this cycle | on the next beta deploy, confirm the "Parity check — live rules, indexes and functions are this commit's" step is green with no function-health findings, then retire this plan (#772 shipped it; dev green in run 46006747833) |
 
@@ -76,7 +77,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [cloud-run-revision-cleanup](ongoing/cloud-run-revision-cleanup.md) | high | dev | this cycle | prod revision drain (970 of 1,106 deletable, dry run 2026-11-27) and the deploy cleanup step on prod — Álvaro's go | run `node scripts/cleanup-cloudrun-revisions.mjs --env=prod --apply --confirm --max-deletes=1000 --max-minutes=60` (ADC `~/.config/cultuvilla/adc.json`), then a PR turning the deploy-firebase.yml cleanup step on for prod and updating revisionCleanup.test.ts. Dev drain unfinished (15,009 left): resume with `--env=dev --apply --max-deletes=15000 --max-minutes=600` |
 | [referential-integrity-audit](ongoing/referential-integrity-audit.md) | high | dev | this cycle | apply the two prod repairs below (Álvaro), and the audit workflow reaches beta/prod only once a release carries it to beta/main | on Álvaro's yes, write the prod repairs per `.agents/skills/prod-data-repair` (snapshot, dry run, apply, re-audit); after the next release, dispatch "Audit Referential Integrity" with ref beta and main |
 
 ## Blocked
