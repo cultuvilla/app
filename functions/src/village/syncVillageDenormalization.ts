@@ -2,6 +2,7 @@ import { getFirestore, type UpdateData } from 'firebase-admin/firestore';
 import type { EventData } from '@cultuvilla/shared';
 import { eventsCollection } from '@cultuvilla/shared/firebase/refs/admin';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { updateIfStillExists } from '../shared/notFound';
 
 const db = getFirestore();
 
@@ -60,12 +61,17 @@ export const syncVillageDenormalization = defineDocumentTrigger(
     if (coordsChanged) update['villageCoordinates'] = after['coordinates'];
     const updatePayload = update as UpdateData<EventData>;
 
-    const docs = eventsSnap.docs;
-    for (let i = 0; i < docs.length; i += 500) {
-      const batch = db.batch();
-      docs.slice(i, i + 500).forEach((d) => batch.update(d.ref, updatePayload));
-      await batch.commit();
-    }
+    // Per-document writes, not batches: an event deleted between the query and
+    // the write would fail its whole batch of 500.
+    const writer = db.bulkWriter();
+    const writes = eventsSnap.docs.map((d) =>
+      updateIfStillExists(() => writer.update(d.ref, updatePayload), {
+        handler: 'syncVillageDenormalization',
+        path: d.ref.path,
+      }),
+    );
+    await writer.close();
+    await Promise.all(writes);
   },
 );
 

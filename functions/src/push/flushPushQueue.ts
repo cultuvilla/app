@@ -8,6 +8,7 @@ import { NotificationDataSchema } from '@cultuvilla/shared/models';
 import { deliverPush } from './deliverPush';
 import { APNS_AUTH_KEY } from './secret';
 import { defineSchedule } from '../shared/define/defineSchedule';
+import { updateIfStillExists } from '../shared/notFound';
 
 const db = getFirestore();
 
@@ -35,6 +36,10 @@ export const flushPushQueue = defineSchedule(
 
   let sent = 0;
   let missing = 0;
+  // An account deletion removes its queue entries, possibly mid-sweep; one
+  // gone entry must not stop the rest from flushing.
+  const stamp = (entry: (typeof due.docs)[number], data: { sentAt: Date; deliveredCount: number; failedCount: number }) =>
+    updateIfStillExists(() => entry.ref.update(data), { handler: 'flushPushQueue', path: entry.ref.path });
 
   for (const entry of due.docs) {
     const { userId, notificationId } = entry.data();
@@ -45,23 +50,19 @@ export const flushPushQueue = defineSchedule(
       // Retiring the entry rather than retrying forever is the point of the
       // sentAt stamp — this queue has no dead-letter to inspect.
       missing += 1;
-      await entry.ref.update({ sentAt: now, deliveredCount: 0, failedCount: 0 });
+      await stamp(entry, { sentAt: now, deliveredCount: 0, failedCount: 0 });
       continue;
     }
 
     const parsed = NotificationDataSchema.safeParse(notifSnap.data());
     if (!parsed.success) {
       missing += 1;
-      await entry.ref.update({ sentAt: now, deliveredCount: 0, failedCount: 0 });
+      await stamp(entry, { sentAt: now, deliveredCount: 0, failedCount: 0 });
       continue;
     }
 
     const result = await deliverPush(userId, notificationId, parsed.data);
-    await entry.ref.update({
-      sentAt: new Date(),
-      deliveredCount: result.delivered,
-      failedCount: result.failed,
-    });
+    await stamp(entry, { sentAt: new Date(), deliveredCount: result.delivered, failedCount: result.failed });
     sent += 1;
   }
 

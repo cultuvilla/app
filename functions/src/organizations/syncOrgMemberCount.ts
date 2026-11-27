@@ -1,7 +1,7 @@
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { organizationDoc } from '@cultuvilla/shared/firebase/refs/admin';
-import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { updateIfStillExists } from '../shared/notFound';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
@@ -30,12 +30,13 @@ export const syncOrgMemberCount = defineDocumentTrigger(
     if (delta === 0) return;
 
     const { orgId } = event.params;
-    try {
-      await organizationDoc(db, orgId).update('memberCount', FieldValue.increment(delta));
-    } catch (err) {
-      if (isNotFound(err)) return; // org deleted before the cascade trigger ran → no-op
-      throw err;
-    }
+    const orgRef = organizationDoc(db, orgId);
+    // Deleting a whole org cascades its member docs, so the org may be gone already.
+    const applied = await updateIfStillExists(() => orgRef.update('memberCount', FieldValue.increment(delta)), {
+      handler,
+      path: orgRef.path,
+    });
+    if (!applied) return;
 
     logger.info('org member count updated', { handler, orgId, delta });
   },

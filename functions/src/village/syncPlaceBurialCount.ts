@@ -1,7 +1,7 @@
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { municipalityPlaceDoc } from '@cultuvilla/shared/firebase/refs/admin';
-import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { updateIfStillExists } from '../shared/notFound';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
@@ -39,15 +39,12 @@ export const syncPlaceBurialCount = defineDocumentTrigger(
 
     const { personId } = event.params;
     for (const { place, delta } of deltas) {
-      try {
-        await municipalityPlaceDoc(db, place.municipalityId, place.placeId).update(
-          'burialCount',
-          FieldValue.increment(delta),
-        );
-      } catch (err) {
-        if (isNotFound(err)) continue;
-        throw err;
-      }
+      const placeRef = municipalityPlaceDoc(db, place.municipalityId, place.placeId);
+      const applied = await updateIfStillExists(
+        () => placeRef.update('burialCount', FieldValue.increment(delta)),
+        { handler, path: placeRef.path, personId },
+      );
+      if (!applied) continue;
       logger.info('place burial count updated', {
         handler,
         personId,

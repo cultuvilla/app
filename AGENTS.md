@@ -241,6 +241,12 @@ Every Cloud Function is defined through [functions/src/shared/define/](functions
 [definedFunctions.test.ts](functions/src/__tests__/define/definedFunctions.test.ts) holds
 the two equal. The seam also owns the default region.
 
+A trigger's subject can be deleted before its own write lands, so a trigger's
+`update()` on a document it does not own goes through `updateIfStillExists`
+([functions/src/shared/notFound.ts](functions/src/shared/notFound.ts)), or reads
+it first inside a transaction. A test scans every trigger for it; read
+[docs/decisions/triggers-tolerate-a-deleted-subject.md](docs/decisions/triggers-tolerate-a-deleted-subject.md).
+
 ### Storage triggers
 
 A Cloud Storage trigger (`onObjectFinalized`, …) has two prerequisites that a

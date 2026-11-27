@@ -8,6 +8,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
+import { deleteBeforeUpdate } from '../helpers/deletedSubject';
 import { syncMemberBarrioToResidence } from '../../village/syncMemberBarrioToResidence';
 
 const ft = functionsTestFactory({ projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test' });
@@ -67,6 +68,17 @@ afterAll(() => {
 });
 
 describe('syncMemberBarrioToResidence (delete-only cleanup)', () => {
+  it('ends quietly when the account deletion removed the person meanwhile', async () => {
+    await seedPerson([{ municipalityId: MUNI, barrioId: 'b1' }]);
+    const race = deleteBeforeUpdate(`persons/${PERSON}`);
+    try {
+      await expect(fireDelete(member())).resolves.not.toThrow();
+    } finally {
+      race.restore();
+    }
+    expect((await admin.firestore().doc(`persons/${PERSON}`).get()).exists).toBe(false);
+  });
+
   it('removes the residence link when the member is deleted', async () => {
     await seedPerson([
       { municipalityId: MUNI, barrioId: 'centro' },

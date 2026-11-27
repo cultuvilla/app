@@ -11,6 +11,7 @@ import { appendRegistrationEvent } from '../helpers/registrationAudit';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendRegistrationEmail } from './sendRegistrationEmail';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { updateIfStillExists } from '../shared/notFound';
 
 const db = getFirestore();
 
@@ -79,8 +80,13 @@ export const onRegistrationDeleted = defineDocumentTrigger(
           if (!doc) continue;
           // Converter-wrapped: typed RegistrationData.
           const nextData = doc.data();
-          // update() bypasses the converter, partial shape is accepted.
-          await doc.ref.update({ status: 'confirmed' });
+          // update() bypasses the converter, partial shape is accepted. A seat
+          // withdrawn meanwhile is skipped: there is no one left to promote.
+          const applied = await updateIfStillExists(() => doc.ref.update({ status: 'confirmed' }), {
+            handler: 'onRegistrationDeleted',
+            path: doc.ref.path,
+          });
+          if (!applied) continue;
           promoted = true;
 
           // Deterministic id: a promotion is terminal (a confirmed seat is
@@ -136,10 +142,15 @@ export const onRegistrationDeleted = defineDocumentTrigger(
       regsCol.where('status', '==', 'confirmed').count().get(),
       regsCol.count().get(),
     ]);
-    await eventRef.update({
-      confirmedCount: confirmedSnap.data().count,
-      totalCount: totalSnap.data().count,
-    });
+    // Deleting the event cascades its registrations, each firing this trigger.
+    await updateIfStillExists(
+      () =>
+        eventRef.update({
+          confirmedCount: confirmedSnap.data().count,
+          totalCount: totalSnap.data().count,
+        }),
+      { handler: 'onRegistrationDeleted', path: eventRef.path },
+    );
 
     for (const attendee of promotedAttendees) {
       await sendRegistrationEmail({

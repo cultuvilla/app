@@ -3,7 +3,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { municipalityBarrioDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { isDeceased } from '@cultuvilla/shared/models';
 import type { BurialPlace, PartialDate } from '@cultuvilla/shared/models';
-import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { updateIfStillExists } from '../shared/notFound';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
@@ -76,15 +76,12 @@ export const syncBarrioResidentCount = defineDocumentTrigger(
     const { personId } = event.params;
     for (const { link, delta } of deltas.values()) {
       const barrioId = link.barrioId as string;
-      try {
-        await municipalityBarrioDoc(db, link.municipalityId, barrioId).update(
-          'residentCount',
-          FieldValue.increment(delta),
-        );
-      } catch (err) {
-        if (isNotFound(err)) continue; // barrio deleted before this ran → skip
-        throw err;
-      }
+      const barrioRef = municipalityBarrioDoc(db, link.municipalityId, barrioId);
+      const applied = await updateIfStillExists(
+        () => barrioRef.update('residentCount', FieldValue.increment(delta)),
+        { handler, path: barrioRef.path, personId },
+      );
+      if (!applied) continue;
       logger.info('barrio resident count updated', {
         handler,
         personId,

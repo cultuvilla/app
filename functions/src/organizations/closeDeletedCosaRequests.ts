@@ -1,11 +1,7 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import { cosaRequestsCollection, cosaSlotsCollection } from '@cultuvilla/shared/firebase/refs/admin';
 import { OPEN_COSA_REQUEST_STATUSES, type CosaRequestStatus } from '@cultuvilla/shared/models';
-
-/** gRPC NOT_FOUND: the request went with its requester's account meanwhile. */
-function isNotFound(reason: unknown): boolean {
-  return typeof reason === 'object' && reason !== null && (reason as { code?: unknown }).code === 5;
-}
+import { isNotFound } from '../shared/notFound';
 
 /**
  * A deleted cosa's open requests have nothing left to move them: a pending or

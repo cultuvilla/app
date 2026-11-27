@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as admin from 'firebase-admin';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
+import { deleteAfterQuery } from '../../helpers/deletedSubject';
 import { flushPushQueue } from '../../../push/flushPushQueue';
 
 vi.mock('../../../push/secret', () => ({ APNS_AUTH_KEY: { value: () => '' } }));
@@ -67,5 +68,20 @@ describe('flushPushQueue', () => {
 
     // The account (or notification) went away while it waited: retired, never retried.
     expect((await db().doc('pushQueue/u2__orphan').get()).data()?.['sentAt']).not.toBeNull();
+  });
+
+  it('keeps flushing when an account deletion removed an entry after the sweep read it', async () => {
+    await seedEntry('u3__gone', '2020-01-01T00:00:00Z', false);
+    await seedEntry('u1__due', '2020-01-01T00:00:00Z', true);
+
+    const race = deleteAfterQuery('pushQueue/u3__gone');
+    try {
+      await expect(flushPushQueue.run({ scheduleTime: new Date().toISOString() })).resolves.not.toThrow();
+    } finally {
+      race.restore();
+    }
+
+    expect((await db().doc('pushQueue/u3__gone').get()).exists).toBe(false);
+    expect((await db().doc('pushQueue/u1__due').get()).data()?.['sentAt']).not.toBeNull();
   });
 });

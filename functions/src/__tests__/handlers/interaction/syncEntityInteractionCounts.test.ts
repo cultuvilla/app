@@ -198,6 +198,16 @@ describe('syncEntityCommentCount — replies', () => {
     expect(parentDoc.get('replyCount')).toBe(0);
   });
 
+  it('skips the replyCount when the parent comment is already gone (its delete cascades replies)', async () => {
+    await seedEvent('e1', { commentCount: 1 });
+    await expect(
+      fireCommentTrigger(comment({ parentCommentId: 'gone-parent' }), null, 'reply-1'),
+    ).resolves.not.toThrow();
+
+    expect((await admin.firestore().doc('comments/gone-parent').get()).exists).toBe(false);
+    expect((await admin.firestore().doc('events/e1').get()).get('commentCount')).toBe(0);
+  });
+
   it('notifies the parent comment author on reply create', async () => {
     await seedEvent('e1', { title: 'Fiesta' });
     await admin.firestore().doc('comments/parent-1').set({

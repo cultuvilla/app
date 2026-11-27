@@ -22,6 +22,7 @@ import {
 import { deliverPush } from './deliverPush';
 import { APNS_AUTH_KEY } from './secret';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { updateIfStillExists } from '../shared/notFound';
 
 const db = getFirestore();
 
@@ -166,10 +167,15 @@ export const onNotificationCreated = defineDocumentTrigger(
     }
 
     const result = await deliverPush(userId, notifId, notification);
-    await queueRef.update({
-      sentAt: new Date(),
-      deliveredCount: result.delivered,
-      failedCount: result.failed,
-    });
+    // Deleting the account removes its queue entries, possibly mid-delivery.
+    await updateIfStillExists(
+      () =>
+        queueRef.update({
+          sentAt: new Date(),
+          deliveredCount: result.delivered,
+          failedCount: result.failed,
+        }),
+      { handler: 'onNotificationCreated', path: queueRef.path },
+    );
   },
 );

@@ -7,6 +7,7 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 import type { PublicProfileData } from '@cultuvilla/shared/models';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { updateIfStillExists } from '../shared/notFound';
 
 const db = admin.firestore();
 
@@ -88,8 +89,9 @@ async function syncSharedSocioContact(
         ...(emailChanged && shared.email ? { email } : {}),
       };
       if (Object.keys(patch).length === 0) continue;
-      await ref.update(patch);
-      updated += 1;
+      // The row goes with the socio's baja or the account's deletion.
+      const applied = await updateIfStillExists(() => ref.update(patch), { handler: 'syncPublicProfile', path: ref.path });
+      if (applied) updated += 1;
     }
   }
   if (updated > 0) logger.info('shared socio contact updated', { handler: 'syncPublicProfile', uid, updated });
