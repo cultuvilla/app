@@ -24,7 +24,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [trigger-retry-window](ongoing/trigger-retry-window.md) | medium | none | this cycle | being built by worker h16 in batch 2026-11-27-harvest |
 | [dev-client-rollout](ongoing/dev-client-rollout.md) | low | none | this cycle | build the manual script (no timer wiring) |
 | [functions-test-casts](ongoing/functions-test-casts.md) | low | none | this cycle | add a cast ratchet for functions tests (as packages/shared has), then replace casts with typed fixtures slice by slice |
-| [session-start-hook](ready/session-start-hook.md) `ready` | low | — | this cycle | add a SessionStart hook that installs dependencies only when node_modules is missing |
+| [session-start-hook](ongoing/session-start-hook.md) | low | none | this cycle | add a SessionStart hook that installs dependencies only when node_modules is missing |
 
 ## Waiting on release 1.11.0
 
