@@ -1,6 +1,8 @@
 # One command builds and installs the dev client on the phone and AVDs
 
 **Priority:** low
+**Landed:** none
+**Gate:** none
 **Next:** build the manual script (no timer wiring)
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
