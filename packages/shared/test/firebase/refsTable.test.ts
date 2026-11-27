@@ -67,10 +67,12 @@ describe('refs table', () => {
     const admin = new Map(adminBuilt.map((b) => [b.name, b]));
     const shared = clientBuilt.filter((b) => admin.has(b.name) && b.path !== undefined);
     expect(shared.length).toBeGreaterThan(80);
+    const clientFactories = new Map(factories(clientRefs));
+    const adminFactories = new Map(factories(adminRefs));
     for (const c of shared) {
-      expect([c.name, (clientRefs as Record<string, Factory>)[c.name].length]).toEqual([
+      expect([c.name, clientFactories.get(c.name)?.length]).toEqual([
         c.name,
-        (adminRefs as Record<string, Factory>)[c.name].length,
+        adminFactories.get(c.name)?.length,
       ]);
       expect([c.name, c.path]).toEqual([c.name, admin.get(c.name)?.path]);
     }

@@ -62,6 +62,7 @@ describe('buildEventData', () => {
       createdBy: 'u1',
       municipalityId: 'm1',
       villageName: 'Villa',
+      villageSlug: 'villa',
       villageCoordinates: null,
     });
     expect(event.signupFields).toEqual([]);

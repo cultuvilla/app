@@ -46,8 +46,8 @@ describe('orgJoinRequestService', () => {
 
     await requestToJoinOrganization('org-1', 'm-1', 'u-1');
 
-    const [ref, payload] = vi.mocked(setDoc).mock.calls[0] as [{ _path: unknown[] }, object];
-    expect(ref._path.slice(1)).toEqual(['organizations', 'org-1', 'joinRequests', 'u-1']);
+    const [ref, payload] = vi.mocked(setDoc).mock.calls[0];
+    expect(ref).toHaveProperty('_path', [undefined, 'organizations', 'org-1', 'joinRequests', 'u-1']);
     expect(Object.keys(payload).sort()).toEqual(['createdAt', 'municipalityId', 'orgId', 'userId']);
     expect(payload).toMatchObject({ userId: 'u-1', orgId: 'org-1', municipalityId: 'm-1' });
   });

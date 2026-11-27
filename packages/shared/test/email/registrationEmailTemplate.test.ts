@@ -7,7 +7,9 @@ import {
   type RegistrationEmailContent,
 } from '../../src/email/registrationEmailTemplate';
 
-function content(overrides: Partial<RegistrationEmailContent> = {}): RegistrationEmailContent {
+function content(
+  overrides: Partial<Extract<RegistrationEmailContent, { kind: 'registration' | 'waitlist_promotion' }>> = {},
+): RegistrationEmailContent {
   return {
     kind: 'registration',
     eventTitle: 'Fiesta de San Juan',

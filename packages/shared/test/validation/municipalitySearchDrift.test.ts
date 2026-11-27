@@ -5,8 +5,6 @@ import {
   municipalitySearchKey,
   municipalitySearchPrefixes,
 } from '../../src/models/municipality/MunicipalityDataModel';
-// @ts-expect-error — plain .mjs helper shared by the seed + backfill scripts,
-// which run outside the TS build and so cannot import the model.
 import { searchKey, searchPrefixes } from '../../../../scripts/lib/municipality-search.mjs';
 
 // The app QUERIES `searchPrefixes` with `municipalitySearchPrefixes`' notion of
