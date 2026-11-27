@@ -70,6 +70,6 @@ if [ -n "$now" ]; then
   if [ -n "$previous" ] && [ "$previous" != "$now" ]; then
     log "native fingerprint changed ${previous:0:8} -> ${now:0:8}"
     notify "Cultuvilla: rebuild the dev app" \
-      "A merged change adds native code. Until the dev app on the phone is rebuilt, the new code may not load."
+      "A merged change adds native code. Until the dev app on the phone is rebuilt, the new code may not load. Rebuild and install it with: pnpm app:dev-client:rollout --if-stale"
   fi
 fi
