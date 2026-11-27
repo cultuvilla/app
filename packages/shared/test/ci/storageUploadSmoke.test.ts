@@ -25,7 +25,7 @@ const imageService = readFileSync(
 );
 
 describe('storage upload smoke check', () => {
-  const run = 'node scripts/smoke-storage-upload.mjs --env=${{ inputs.firebase_alias }}';
+  const run = 'node scripts/smoke-storage-upload.mjs --env="$FIREBASE_ALIAS"';
 
   it('runs on every dev and beta deploy, after the rules have had the slow deploys to propagate', () => {
     const smoke = deploy.indexOf(run);

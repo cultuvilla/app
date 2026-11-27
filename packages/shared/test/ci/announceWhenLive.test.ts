@@ -79,7 +79,7 @@ describe('the prod deploy holds a breaking backend', () => {
 
   it('records the release after hosting — prod with the hold the plan decided, beta never held', () => {
     const record = step(deploy, 'release-announce.mjs record');
-    expect(record).toContain("--env=${{ inputs.firebase_alias }} --hold=${{ steps.release.outputs.hold_backend || 'false' }}");
+    expect(record).toContain('--env="$FIREBASE_ALIAS" --hold=' + "${{ steps.release.outputs.hold_backend || 'false' }}");
     expect(record).toContain("if: ${{ (inputs.firebase_alias == 'prod' || inputs.firebase_alias == 'beta') && !inputs.held_backend }}");
     expect(deploy.indexOf('release-announce.mjs record')).toBeGreaterThan(deploy.indexOf('firebase deploy --only hosting'));
   });

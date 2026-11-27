@@ -111,7 +111,7 @@ describe('configDifferences — an infra change declared on develop does not blo
 
   it("is wired into the deploy's parity gate with develop's baseline", () => {
     expect(deploy).toContain('git show FETCH_HEAD:infra/env-parity.json');
-    expect(deploy).toMatch(/check-env-parity\.mjs --env=\$\{\{ inputs\.firebase_alias \}\} --scope=config \$also/);
+    expect(deploy).toMatch(/check-env-parity\.mjs --env="\$FIREBASE_ALIAS" --scope=config \$also/);
   });
 
   it("is wired into the nightly run with develop's baseline", () => {
@@ -198,7 +198,7 @@ describe('workflow wiring', () => {
   };
 
   it('gates every deploy on config parity before anything deploys', () => {
-    const gate = at('node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=config');
+    const gate = at('node scripts/check-env-parity.mjs --env="$FIREBASE_ALIAS" --scope=config');
     expect(gate).toBeGreaterThan(at('google-github-actions/auth@v2'));
     expect(gate).toBeLessThan(at('Release plan — hold a breaking release'));
     expect(gate).toBeLessThan(at('Auto-apply opted-in backfills'));
@@ -208,7 +208,7 @@ describe('workflow wiring', () => {
   });
 
   it('checks what went live after deploying, except while a release holds its backend', () => {
-    const check = at('node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=artifacts');
+    const check = at('node scripts/check-env-parity.mjs --env="$FIREBASE_ALIAS" --scope=artifacts');
     expect(check).toBeGreaterThan(at('firebase deploy --only functions'));
     expect(check).toBeGreaterThan(at('firebase deploy --only hosting:app'));
     const step = deploy.slice(deploy.lastIndexOf('- name:', check), check);
@@ -216,7 +216,7 @@ describe('workflow wiring', () => {
   });
 
   it('deploys indexes with --force, so firestore.indexes.json is the whole truth', () => {
-    expect(deploy).toContain('firebase deploy --only firestore:indexes --project ${{ inputs.firebase_alias }} --non-interactive --force');
+    expect(deploy).toContain('firebase deploy --only firestore:indexes --project "$FIREBASE_ALIAS" --non-interactive --force');
   });
 
   it('checks every env nightly, each from its own branch', () => {

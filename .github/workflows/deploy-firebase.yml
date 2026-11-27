@@ -44,6 +44,11 @@ jobs:
     permissions:
       contents: read
       id-token: write # required for Workload Identity Federation
+    # Every run: block reads the alias as "$FIREBASE_ALIAS", never as an
+    # interpolation: a `${{ }}` is pasted in before the shell parses the line
+    # (scripts/check-workflow-input-injection.js).
+    env:
+      FIREBASE_ALIAS: ${{ inputs.firebase_alias }}
 
     steps:
       # Prod and beta need history: the release record rolls up
@@ -121,7 +126,7 @@ jobs:
             && git show FETCH_HEAD:infra/env-parity.json > "$RUNNER_TEMP/develop-env-parity.json"; then
             also="--also-baseline=$RUNNER_TEMP/develop-env-parity.json"
           fi
-          node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=config $also
+          node scripts/check-env-parity.mjs --env="$FIREBASE_ALIAS" --scope=config $also
 
       # Release plan — prod only, and not on the run that deploys a held
       # backend. A breaking release (a `Breaking-Client:` trailer since the
@@ -157,7 +162,7 @@ jobs:
       # before anything inspects the data. Order is locked by backfillGate.test.ts.
       - name: Auto-apply opted-in backfills
         if: ${{ inputs.firebase_alias != 'dev' && steps.release.outputs.hold_backend != 'true' }}
-        run: node scripts/backfills-cli.mjs auto-apply --env ${{ inputs.firebase_alias }} --confirm --apply
+        run: node scripts/backfills-cli.mjs auto-apply --env "$FIREBASE_ALIAS" --confirm --apply
 
       # Data-conformance gate — beta/prod only. Before shipping any schema
       # change, walk the TARGET env's live Firestore docs through the Zod
@@ -173,7 +178,7 @@ jobs:
       # read (roles/datastore.viewer or broader).
       - name: Conformance gate — live data matches shipped schema
         if: ${{ inputs.firebase_alias != 'dev' && steps.release.outputs.hold_backend != 'true' }}
-        run: node scripts/check-dev-conformance.mjs --env ${{ inputs.firebase_alias }}
+        run: node scripts/check-dev-conformance.mjs --env "$FIREBASE_ALIAS"
 
       # Backfill gate — beta/prod only. A code change deploys automatically
       # when it reaches an env; the data migration it depends on does NOT. This
@@ -191,7 +196,7 @@ jobs:
       # gate above.
       - name: Backfill gate — required migrations have run on the target env
         if: ${{ inputs.firebase_alias != 'dev' && steps.release.outputs.hold_backend != 'true' }}
-        run: node scripts/backfills-cli.mjs verify --env ${{ inputs.firebase_alias }}
+        run: node scripts/backfills-cli.mjs verify --env "$FIREBASE_ALIAS"
 
       # Custom-token signing gate — all envs. createCustomToken() signs via the
       # IAM Credentials API as the functions runtime SA, which therefore needs
@@ -204,7 +209,7 @@ jobs:
       # broken auth path. Read-only; needs roles/iam.serviceAccountViewer on the
       # WIF SA (granted by scripts/setup-ci-deploy-wif.sh).
       - name: Signing gate — runtime SA can mint custom tokens
-        run: node scripts/check-custom-token-signing.mjs --env ${{ inputs.firebase_alias }}
+        run: node scripts/check-custom-token-signing.mjs --env "$FIREBASE_ALIAS"
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools@14
@@ -239,7 +244,7 @@ jobs:
       # them and before hosting rewrites resolve the readSite function.
       - name: Deploy Firestore & Storage rules
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
-        run: firebase deploy --only firestore:rules,storage --project ${{ inputs.firebase_alias }} --non-interactive
+        run: firebase deploy --only firestore:rules,storage --project "$FIREBASE_ALIAS" --non-interactive
 
       # `--force` makes firestore.indexes.json the only source of truth: an
       # index missing from the file (an orphan, or one made by hand in the
@@ -248,16 +253,16 @@ jobs:
       # forever and every write kept paying for them (8 per env on beta/prod,
       # cleaned 2026-10-08).
       - name: Report index drift (what --force will delete)
-        run: node scripts/check-index-drift.mjs --project=${{ inputs.firebase_alias }} --warn
+        run: node scripts/check-index-drift.mjs --project="$FIREBASE_ALIAS" --warn
 
       - name: Deploy Firestore indexes
-        run: firebase deploy --only firestore:indexes --project ${{ inputs.firebase_alias }} --non-interactive --force
+        run: firebase deploy --only firestore:indexes --project "$FIREBASE_ALIAS" --non-interactive --force
 
       # production-release.yml reads this step's conclusion: `skipped` means the
       # backend is held, and it then holds the production OTA too. Rename both.
       - name: Deploy Cloud Functions
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
-        run: firebase deploy --only functions --project ${{ inputs.firebase_alias }} --non-interactive --force
+        run: firebase deploy --only functions --project "$FIREBASE_ALIAS" --non-interactive --force
 
       # The pass after the deploy: `post-deploy` backfills that opted into
       # autoApply, which correct data only the new code keeps right — e.g. a
@@ -267,7 +272,7 @@ jobs:
       # by backfillGate.test.ts.
       - name: Auto-apply opted-in post-deploy backfills
         if: ${{ inputs.firebase_alias != 'dev' && steps.release.outputs.hold_backend != 'true' }}
-        run: node scripts/backfills-cli.mjs auto-apply --phase=post-deploy --env ${{ inputs.firebase_alias }} --confirm --apply
+        run: node scripts/backfills-cli.mjs auto-apply --phase=post-deploy --env "$FIREBASE_ALIAS" --confirm --apply
 
       # Belt-and-suspenders (fixture-login security model, Option 1C): a deployed
       # bundle must NEVER be built with the E2E emulator bypass enabled. The flag
@@ -294,7 +299,7 @@ jobs:
       # (docs/decisions/web-is-a-read-site.md).
       - name: Assemble static web files
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
-        run: node scripts/build-web-static.mjs ${{ inputs.firebase_alias }}
+        run: node scripts/build-web-static.mjs "$FIREBASE_ALIAS"
 
       # `hosting:app` and not `hosting` — the internal founders' panel is a second
       # hosting target that exists on dev only. A bare `--only hosting` would try
@@ -302,14 +307,14 @@ jobs:
       # app's promotion. See hostingTargets.test.ts.
       - name: Deploy Hosting
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
-        run: firebase deploy --only hosting:app --project ${{ inputs.firebase_alias }} --non-interactive
+        run: firebase deploy --only hosting:app --project "$FIREBASE_ALIAS" --non-interactive
 
       # The read site must answer after every deploy, held or not. Before the
       # release is recorded, so a broken site never reaches store review.
       # 2026-10-07: a held release took cultuvilla.es down for five hours with
       # every deploy step green, and Google Play rejected the release over it.
       - name: Smoke-check the live read site
-        run: node scripts/smoke-read-site.mjs --env=${{ inputs.firebase_alias }}
+        run: node scripts/smoke-read-site.mjs --env="$FIREBASE_ALIAS"
 
       # A signed-in, non-admin user must be able to upload to every image path
       # the app uses, against the live Storage rules. The emulator cannot see a
@@ -323,7 +328,7 @@ jobs:
         if: ${{ inputs.firebase_alias != 'prod' }}
         env:
           FIREBASE_WEB_API_KEY: ${{ vars.FIREBASE_API_KEY }}
-        run: node scripts/smoke-storage-upload.mjs --env=${{ inputs.firebase_alias }}
+        run: node scripts/smoke-storage-upload.mjs --env="$FIREBASE_ALIAS"
 
       # What this deploy put live is exactly this commit: Firestore and Storage
       # rules, composite indexes and the set of functions. Skipped only when
@@ -331,7 +336,7 @@ jobs:
       # at the previous release.
       - name: Parity check — live rules, indexes and functions are this commit's
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
-        run: node scripts/check-env-parity.mjs --env=${{ inputs.firebase_alias }} --scope=artifacts
+        run: node scripts/check-env-parity.mjs --env="$FIREBASE_ALIAS" --scope=artifacts
 
       # Hand the release to the announce poller (prod and beta). After hosting,
       # so a release whose deploy failed is never recorded. Prod records the
@@ -341,7 +346,7 @@ jobs:
         if: ${{ (inputs.firebase_alias == 'prod' || inputs.firebase_alias == 'beta') && !inputs.held_backend }}
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: node scripts/release-announce.mjs record --env=${{ inputs.firebase_alias }} --hold=${{ steps.release.outputs.hold_backend || 'false' }}
+        run: node scripts/release-announce.mjs record --env="$FIREBASE_ALIAS" --hold=${{ steps.release.outputs.hold_backend || 'false' }}
 
       # A held backend just shipped — tell the poller only now, on success. If
       # any step above failed, the pending doc stays: re-run release-publish,
@@ -358,7 +363,7 @@ jobs:
       # Version" dispatch. A deploy announcing its own version is what told
       # every iOS user on 1.2.2 to update to a 1.3.0 no store had.
       - name: Refresh config/appVersion, preserving latest and the wall
-        run: node scripts/seed-app-version-config.mjs --env=${{ inputs.firebase_alias }} --confirm
+        run: node scripts/seed-app-version-config.mjs --env="$FIREBASE_ALIAS" --confirm
 
       # Every functions deploy leaves one more Cloud Run revision per function,
       # and each counts against the regional CPU quota until deleted: Órdago hit
@@ -371,4 +376,4 @@ jobs:
       - name: Clean up old Cloud Run revisions
         if: ${{ !cancelled() && inputs.firebase_alias != 'prod' }}
         continue-on-error: true
-        run: node scripts/cleanup-cloudrun-revisions.mjs --env=${{ inputs.firebase_alias }} --apply --max-deletes=150 --max-minutes=5
+        run: node scripts/cleanup-cloudrun-revisions.mjs --env="$FIREBASE_ALIAS" --apply --max-deletes=150 --max-minutes=5
