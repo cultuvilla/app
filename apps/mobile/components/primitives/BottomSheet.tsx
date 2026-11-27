@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@cultuvilla/shared/design-system';
+import { BlockingOverlayHost, useBlockingOverlayActive } from './BlockingOverlay';
 import { HStack } from './HStack';
 import { KeyboardAvoider } from './KeyboardAvoider';
 import { Text } from './Text';
@@ -156,11 +157,12 @@ export function BottomSheet({
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const { translateY, panHandlers, onLayout } = useDragToDismiss(onClose, visible);
+  const blocking = useBlockingOverlayActive();
 
   if (!visible) return null;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" onRequestClose={blocking ? () => {} : onClose}>
       {/* flex-1, not absoluteFill: an absolute backdrop would ignore the padding
           KeyboardAvoider adds, and the keyboard would cover the sheet's fields. */}
       <KeyboardAvoider>
@@ -205,6 +207,7 @@ export function BottomSheet({
           </Animated.View>
         </RNPressable>
       </KeyboardAvoider>
+      <BlockingOverlayHost />
     </Modal>
   );
 }

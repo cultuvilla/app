@@ -30,7 +30,7 @@ export interface AppUpdateModalProps {
  *
  * Web-compat: the backdrop is absolutely positioned rather than `flex-1`
  * (RN-Web's <Modal> doesn't flex-fill its child) and there is no Animated —
- * same constraints as BlockingOverlay, see the mobile-web-compat skill.
+ * see the mobile-web-compat skill.
  */
 export function AppUpdateModal({
   visible,

@@ -57,6 +57,7 @@
   "birth-year-bounds-error": "unit-tested: app/crear/__tests__/evento.test.tsx",
   "birth-year-range-error": "unit-tested: app/crear/__tests__/evento.test.tsx",
   "birthday-min-age-error": "unit-tested: components/feature/__tests__/PersonForm.test.tsx",
+  "blocking-overlay": "unit-tested: components/primitives/__tests__/BlockingOverlay.test.tsx",
   "buried-edit-sheet": "unit-tested: app/[pueblo]/lugar/__tests__/lugar.test.tsx",
   "buried-sheet": "unit-tested: components/feature/__tests__/BuriedSheet.test.tsx",
   "caret-line-measurer": "unit-tested: components/feature/__tests__/MentionTextInput.test.tsx",
