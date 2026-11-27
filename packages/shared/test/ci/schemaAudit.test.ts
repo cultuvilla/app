@@ -14,7 +14,7 @@ import {
   validateAllowlist,
   validateBaseline,
 } from '../../../../scripts/audit-firestore-schemas-policy.mjs';
-import { censusRows, tallyDoc } from '../../../../scripts/census-fields.mjs';
+import { censusRows, type FieldStats, tallyDoc } from '../../../../scripts/census-fields.mjs';
 
 // The deploy's conformance gate checks stored data only when a promotion
 // deploys. The weekly audit checks beta and prod in between, and ratchets the
@@ -152,7 +152,7 @@ describe('the weekly workflow', () => {
 
 describe('census:fields', () => {
   it('tallies paths, types and presence across docs', () => {
-    const stats = new Map();
+    const stats = new Map<string, FieldStats>();
     tallyDoc({ a: 1, m: { x: 'y' }, l: [{ k: true }] }, stats);
     tallyDoc({ a: null }, stats);
     expect(censusRows(stats, 2)).toEqual([
