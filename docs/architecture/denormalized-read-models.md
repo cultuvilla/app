@@ -73,6 +73,7 @@ If any of these is false, don't denormalize — query the source instead.
 5. **Batch in chunks of 500.** Firestore commits cap at 500 ops. The existing trigger paginates; copy that idiom.
 6. **Trigger only on actual changes.** Compare `before` and `after`; bail out early when none of the watched fields changed. This is what keeps the function from re-running itself in a loop, and keeps cost predictable.
 7. **Record every denormalized field in the [services map](../../packages/shared/src/services/_services-map.md).** New denormalized fields without a documented trigger are a bug.
+8. **Project from the source as it is now, not from the event.** Firestore delivers trigger events at least once and in no guaranteed order, so an update can arrive after the delete that followed it. A trigger that `set()`s its row from `event.data.after` then puts a deleted person or account back — for `publicProfiles` that is PII made public again — or lets a stale event overwrite a newer row. The event decides *whether* to project (rule 6); the source re-read when writing decides *what*. A projection that fits in one transaction goes through `projectRowsFromCurrentSource` ([functions/src/shared/convergeOnSource.ts](../../functions/src/shared/convergeOnSource.ts)), which reads the source and writes every row in one transaction. `syncMunicipalityPeople`, `syncPublicProfile` and `syncPersonDenormalization` use it; `syncOrgSocioRoster` reconciles against the member doc the same way. `peopleCount` recounts inside a transaction, so it converges too. Each such trigger's test delivers a late update after a delete and checks the row stays gone.
 
 ## The canonical example
 
@@ -112,8 +113,9 @@ denied to everyone but its creator.
 - **Source of truth:** `persons/{personId}.municipalityLinks` and its person
   display fields.
 - **Trigger:** [functions/src/village/syncMunicipalityPeople.ts](../../functions/src/village/syncMunicipalityPeople.ts)
-  fires on every person write, diffs the linked municipality set, and writes or
-  deletes deterministic directory rows.
+  fires on every person write, diffs the linked municipality set, re-reads the
+  person in a transaction (rule 8) and writes or deletes deterministic
+  directory rows from it.
 - **Rules:** village members and app admins may read their municipality’s rows;
   all writes are function-owned.
 - **Backfill:** [scripts/backfill-municipality-people.mjs](../../scripts/backfill-municipality-people.mjs)
@@ -133,8 +135,9 @@ without joining the persons collection.
 - **Source of truth:** `persons/{personId}` with the link
   `person.userId == users/{uid}`.
 - **Trigger:** [functions/src/users/syncPersonDenormalization.ts](../../functions/src/users/syncPersonDenormalization.ts).
-  Fires `onDocumentWritten`, projects the name, short-circuits when unchanged,
-  uses `set(merge:true)` so it can populate `users/{uid}.displayName` even
+  Fires `onDocumentWritten`, short-circuits when the projected name is
+  unchanged, re-reads the person in a transaction (rule 8, so a late update
+  cannot recreate a deleted account's user doc), and uses `set(merge:true)` so it can populate `users/{uid}.displayName` even
   before the client's onboarding flow has finished creating the user doc.
 - **Rules:** `firestore.rules` blocks clients from writing `displayName` on
   `users/{uid}` for both create and update.
@@ -156,8 +159,10 @@ org's member list, `/usuario/{uid}`.
 - **Source of truth:** `users/{uid}.displayName` (itself projected from the
   linked person, see below) and `users/{uid}.activeMunicipalityId`.
 - **Trigger:** [functions/src/users/syncPublicProfile.ts](../../functions/src/users/syncPublicProfile.ts).
-  Fires `onDocumentWritten` on `users/{uid}`, writes exactly those two fields,
-  short-circuits when they are unchanged, and deletes the row with the account.
+  Fires `onDocumentWritten` on `users/{uid}`, short-circuits when those two
+  fields are unchanged, and otherwise re-reads the account in a transaction
+  (rule 8): it writes exactly those two fields, or deletes the row when the
+  account is gone — whatever the event carried.
 - **Rules:** single-doc `get` is public; `list` and every client write are
   denied. A listable projection would be an account directory.
 - **Backfill:** [scripts/backfill-public-profiles.mjs](../../scripts/backfill-public-profiles.mjs)
@@ -547,6 +552,7 @@ If the field you want to copy is a **count** (attendees, comments, likes), don't
 ## Failure modes
 
 - **Drift.** The trigger silently fails on one event in a 500-doc batch, and that one event renders with a stale village name forever. Mitigation: every trigger should log structured info (`functions.logger.info({ event, count })`); set up alerting; reseed via a script if drift is detected.
+- **Out-of-order delivery.** A late event resurrects a deleted row or overwrites a newer one. Mitigation: rule (8) — write from the re-read source, never from `event.data.after`.
 - **Infinite loops.** A trigger writes to a doc that triggers itself. Mitigation: rule (6) — bail on no-op updates; also, never let the trigger touch the source document.
 - **Cascading writes.** A new field added without thought turns one write into hundreds. Mitigation: rule (3) — copy only what the read needs.
 - **Forgotten triggers.** A new service writes denormalized fields on create, but no trigger updates them. Mitigation: services-map row + trigger live in the same PR.

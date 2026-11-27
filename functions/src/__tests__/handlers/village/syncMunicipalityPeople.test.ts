@@ -16,7 +16,12 @@ function person(overrides: Partial<Person> = {}): Person {
   return { givenName: 'Álvaro', middleNames: [], firstSurname: 'García', secondSurname: null, nickname: null, municipalityLinks: [], photoURL: null, userId: null, isPublic: true, deathDate: null, burialPlace: null, ...overrides };
 }
 
-async function fire(before: Person | null, after: Person | null, personId = 'p1'): Promise<void> {
+/** Delivers a write event; `stale` skips mirroring `after` into the store (a late delivery). */
+async function fire(before: Person | null, after: Person | null, personId = 'p1', stale = false): Promise<void> {
+  if (!stale) {
+    const ref = admin.firestore().doc(`persons/${personId}`);
+    await (after ? ref.set(after) : ref.delete());
+  }
   const beforeSnap = ft.firestore.makeDocumentSnapshot(before ?? {}, `persons/${personId}`);
   const afterSnap = ft.firestore.makeDocumentSnapshot(after ?? {}, `persons/${personId}`);
   await wrapped({ data: ft.makeChange(beforeSnap, afterSnap), params: { personId } } as unknown as Parameters<typeof wrapped>[0]);
@@ -117,5 +122,27 @@ describe('syncMunicipalityPeople', () => {
       }),
     );
     expect((await admin.firestore().doc('municipalityPeople/m1_p1').get()).exists).toBe(false);
+  });
+
+  it('keeps a deleted person gone when a late update arrives after the delete', async () => {
+    const linked = person({ municipalityLinks: [{ municipalityId: 'm1', barrioId: null }] });
+    await fire(null, linked);
+    await fire(linked, null);
+
+    await fire(linked, person({ ...linked, nickname: 'Varo' }), 'p1', true);
+
+    expect((await admin.firestore().doc('municipalityPeople/m1_p1').get()).exists).toBe(false);
+  });
+
+  it('projects the current person when a late event carries an older version', async () => {
+    const m1 = person({ municipalityLinks: [{ municipalityId: 'm1', barrioId: null }] });
+    const m2 = person({ municipalityLinks: [{ municipalityId: 'm2', barrioId: null }] });
+    await fire(m1, m2);
+
+    // The m2 → m1 move was superseded; the store still says m2.
+    await fire(m2, m1, 'p1', true);
+
+    expect((await admin.firestore().doc('municipalityPeople/m1_p1').get()).exists).toBe(false);
+    expect((await admin.firestore().doc('municipalityPeople/m2_p1').get()).exists).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { mergeRow, projectRowsFromCurrentSource, type RowWrite } from '../shared/convergeOnSource';
 
 const db = admin.firestore();
 
@@ -15,8 +16,12 @@ const db = admin.firestore();
  *   buildDisplayName projection the UI uses.
  *
  * The trigger fires on every write to a person doc (create, update, delete).
- * It short-circuits when the projected displayName is unchanged so unrelated
- * person mutations don't fan out a no-op user write.
+ * The event decides which half to sync — the displayName when the projected
+ * name changed, the title when the sex did — so unrelated person mutations
+ * don't fan out a no-op write. What it writes
+ * comes from the person as it stands now, read in the same transaction: a late
+ * update delivered after the person (or the whole account) was deleted would
+ * otherwise recreate users/{uid} through the merge write below.
  */
 export const syncPersonDenormalization = defineDocumentTrigger(
   'syncPersonDenormalization',
@@ -30,61 +35,55 @@ export const syncPersonDenormalization = defineDocumentTrigger(
     // stays valid even if the source persona is removed. Reads downstream can
     // decide whether to clear it via a separate flow.
     if (!after) return;
+    const nameChanged = !before || projectName(before) !== projectName(after);
+    const sexChanged = !before || normalizeSex(before['sex']) !== normalizeSex(after['sex']);
+    if (!nameChanged && !sexChanged) return;
 
-    const userId = (after['userId'] as string | undefined) ?? null;
-    if (!userId) return;
+    const { personId } = event.params;
+    let createdUserDoc = false;
+    let userId: string | null = null;
+    const outcome = await projectRowsFromCurrentSource({
+      db,
+      sourceRef: db.doc(`persons/${personId}`),
+      project: async (current, tx) => {
+        createdUserDoc = false;
+        userId = typeof current?.['userId'] === 'string' && current['userId'] ? current['userId'] : null;
+        if (!current || !userId) return [];
 
-    await syncOrganizerSex(handler, userId, before, after);
+        const name = projectName(current);
+        const sex = normalizeSex(current['sex']);
+        // typed-refs: allowed — set({merge:true}) with a partial payload, which
+        // the strict users converter would reject.
+        const userRef = db.doc(`users/${userId}`);
+        const [userSnap, organized] = await Promise.all([
+          nameChanged ? tx.get(userRef) : null,
+          sexChanged ? tx.get(db.collection('municipalities').where('community.organizerId', '==', userId)) : null,
+        ]);
 
-    const beforeName = before ? projectName(before) : null;
-    const afterName = projectName(after);
-    if (beforeName === afterName) return;
-
-    // typed-refs: allowed — set({merge:true}) with partial payload; user has
-    // pending edits in this file (see git status), avoid conflicting refactor.
-    const userRef = db.doc(`users/${userId}`);
-    const userSnap = await userRef.get();
-    if (userSnap.exists && userSnap.get('displayName') === afterName) return;
-
-    // set(merge:true) — handles both "user doc exists" (update displayName) and
-    // "user doc not yet created" (onboarding writes person first; the client's
-    // subsequent createUserProfile call merges email/telephone/etc. on top
-    // without touching displayName). Admin SDK bypasses firestore.rules.
-    await userRef.set({ displayName: afterName }, { merge: true });
-    logger.info('users.displayName propagated', {
+        const rows: RowWrite[] = (organized?.docs ?? [])
+          .filter((doc) => doc.get('community.organizerSex') !== sex)
+          .map((doc) => mergeRow(doc.ref, { community: { organizerSex: sex } }));
+        if (userSnap && (!userSnap.exists || userSnap.get('displayName') !== name)) {
+          // set(merge:true) — handles both "user doc exists" (update
+          // displayName) and "user doc not yet created" (onboarding writes
+          // person first; the client's subsequent createUserProfile call
+          // merges email/telephone/etc. on top without touching displayName).
+          createdUserDoc = !userSnap.exists;
+          rows.push(mergeRow(userRef, { displayName: name }));
+        }
+        return rows;
+      },
+    });
+    if (outcome.set === 0) return;
+    logger.info('person denormalization propagated', {
       handler,
-      personId: event.params.personId,
+      personId,
       userId,
-      createdUserDoc: !userSnap.exists,
+      writes: outcome.set,
+      createdUserDoc,
     });
   },
 );
-
-async function syncOrganizerSex(
-  handler: string,
-  userId: string,
-  before: FirebaseFirestore.DocumentData | undefined,
-  after: FirebaseFirestore.DocumentData,
-): Promise<void> {
-  const afterSex = normalizeSex(after['sex']);
-  if (before && normalizeSex(before['sex']) === afterSex) return;
-
-  const snap = await db
-    .collection('municipalities')
-    .where('community.organizerId', '==', userId)
-    .get();
-  const stale = snap.docs.filter((d) => d.get('community.organizerSex') !== afterSex);
-  if (stale.length === 0) return;
-
-  const batch = db.batch();
-  for (const doc of stale) batch.update(doc.ref, { 'community.organizerSex': afterSex });
-  await batch.commit();
-  logger.info('community.organizerSex propagated', {
-    handler,
-    userId,
-    municipalities: stale.length,
-  });
-}
 
 function normalizeSex(value: unknown): 'male' | 'female' | 'other' | null {
   return value === 'male' || value === 'female' || value === 'other' ? value : null;
