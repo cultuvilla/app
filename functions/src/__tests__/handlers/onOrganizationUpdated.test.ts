@@ -22,7 +22,7 @@ interface OrgShape {
   requestedBy?: string;
 }
 
-function org(overrides: Partial<OrgShape> = {}): OrgShape {
+function org(overrides: Partial<OrgShape> = {}): Record<string, unknown> {
   const merged: OrgShape = {
     name: 'Peña El Recreo',
     municipalityId: MUNICIPALITY_ID,
@@ -33,25 +33,23 @@ function org(overrides: Partial<OrgShape> = {}): OrgShape {
   // The emulator cannot encode an explicit `undefined` field value
   // (makeDocumentSnapshot rejects it), so a `requestedBy: undefined` override
   // must drop the key entirely to model a doc that never had the field.
-  return Object.fromEntries(
-    Object.entries(merged).filter(([, v]) => v !== undefined),
-  ) as unknown as OrgShape;
+  return Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== undefined));
 }
 
-async function fireTrigger(before: OrgShape, after: OrgShape): Promise<void> {
+async function fireTrigger(before: Record<string, unknown>, after: Record<string, unknown>): Promise<void> {
   const beforeSnap = ft.firestore.makeDocumentSnapshot(
-    before as unknown as Record<string, unknown>,
+    before,
     `organizations/${ORG_ID}`,
   );
   const afterSnap = ft.firestore.makeDocumentSnapshot(
-    after as unknown as Record<string, unknown>,
+    after,
     `organizations/${ORG_ID}`,
   );
   const change = ft.makeChange(beforeSnap, afterSnap);
   await wrapped({
     data: change,
     params: { orgId: ORG_ID },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 async function notificationsFor(uid: string): Promise<admin.firestore.QuerySnapshot> {

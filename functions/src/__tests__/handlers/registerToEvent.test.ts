@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../helpers/functionsTest';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 
 vi.mock('../../auth/secret', () => ({ RESEND_API_KEY: { value: () => 'TEST_RESEND_KEY' } }));
@@ -129,11 +130,11 @@ async function callRegister(opts: {
   uid: string | null;
   data: unknown;
 }): Promise<CallableResult> {
-  const wrapped = ft.wrap(registerToEvent as unknown as Parameters<typeof ft.wrap>[0]);
-  return (await wrapped({
+  const wrapped = wrapCallable(ft, registerToEvent);
+  return await wrapped({
     data: opts.data,
     auth: opts.uid ? { uid: opts.uid, token: {} } : undefined,
-  } as unknown as Parameters<typeof wrapped>[0])) as unknown as CallableResult;
+  });
 }
 
 describe('registerToEvent (callable)', () => {

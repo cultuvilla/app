@@ -47,9 +47,7 @@ async function fireCommentTrigger(
   const beforeSnap = ft.firestore.makeDocumentSnapshot(asRecord(before), `comments/${commentId}`);
   const afterSnap = ft.firestore.makeDocumentSnapshot(asRecord(after), `comments/${commentId}`);
   const change = ft.makeChange(beforeSnap, afterSnap);
-  await wrappedComment({ data: change, params: { commentId } } as unknown as Parameters<
-    typeof wrappedComment
-  >[0]);
+  await wrappedComment({ data: change, params: { commentId } });
 }
 
 async function seedEvent(id: string, extra: Record<string, unknown> = {}): Promise<void> {

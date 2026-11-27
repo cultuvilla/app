@@ -26,9 +26,7 @@ async function fireDelete(userId: string): Promise<void> {
     { userId, role: 'user' },
     `municipalities/${MID}/members/${userId}`,
   );
-  await wrapped({ data: snap, params: { municipalityId: MID, userId } } as unknown as Parameters<
-    typeof wrapped
-  >[0]);
+  await wrapped({ data: snap, params: { municipalityId: MID, userId } });
 }
 
 beforeEach(async () => {

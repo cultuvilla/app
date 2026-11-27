@@ -65,18 +65,18 @@ async function fireTrigger(
   after: MunicipalityShape,
 ): Promise<void> {
   const beforeSnap = ft.firestore.makeDocumentSnapshot(
-    before as unknown as Record<string, unknown>,
+    before,
     `municipalities/${MUNICIPALITY_ID}`,
   );
   const afterSnap = ft.firestore.makeDocumentSnapshot(
-    after as unknown as Record<string, unknown>,
+    after,
     `municipalities/${MUNICIPALITY_ID}`,
   );
   const change = ft.makeChange(beforeSnap, afterSnap);
   await wrapped({
     data: change,
     params: { municipalityId: MUNICIPALITY_ID },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 beforeAll(async () => {

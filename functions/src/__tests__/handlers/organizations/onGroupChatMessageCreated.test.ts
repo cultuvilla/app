@@ -43,7 +43,7 @@ async function writeAviso(chatId: string, uid: string, min: number, body?: strin
   await wrapped({
     data: chatSnap(`organizations/${ORG_ID}/messages/${AVISO_ID}/chat/${chatId}`, uid, min, body),
     params: { orgId: ORG_ID, messageId: AVISO_ID, chatId },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 async function writeGeneral(chatId: string, uid: string, min: number) {
@@ -51,7 +51,7 @@ async function writeGeneral(chatId: string, uid: string, min: number) {
   await wrapped({
     data: chatSnap(`organizations/${ORG_ID}/chat/${chatId}`, uid, min),
     params: { orgId: ORG_ID, chatId },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 const notificationsOf = async (uid: string) =>
@@ -134,7 +134,7 @@ describe('deleting a message', () => {
     await wrapped({
       data: chatSnap(`organizations/${ORG_ID}/chat/${chatId}`, 'ana', 1),
       params: { orgId: ORG_ID, chatId },
-    } as unknown as Parameters<typeof wrapped>[0]);
+    });
   }
 
   it('takes its text out of the Buzón, and leaves the other messages', async () => {
@@ -161,7 +161,7 @@ describe('deleting a message', () => {
     await wrapped({
       data: chatSnap(`organizations/${ORG_ID}/messages/${AVISO_ID}/chat/c1`, 'ana', 1),
       params: { orgId: ORG_ID, messageId: AVISO_ID, chatId: 'c1' },
-    } as unknown as Parameters<typeof wrapped>[0]);
+    });
     expect((await notificationsOf('paco')).map((n) => n.id)).toEqual(['group_chat_general_c1']);
   });
 
@@ -193,7 +193,7 @@ describe('the thread summary', () => {
   it('skips a message that does not match the schema', async () => {
     const wrapped = ft.wrap(onGroupChatMessageCreated);
     const snap = ft.firestore.makeDocumentSnapshot({ authorUid: 'ana' }, `organizations/${ORG_ID}/chat/bad`);
-    await wrapped({ data: snap, params: { orgId: ORG_ID, chatId: 'bad' } } as unknown as Parameters<typeof wrapped>[0]);
+    await wrapped({ data: snap, params: { orgId: ORG_ID, chatId: 'bad' } });
     expect(await thread('general')).toBeUndefined();
   });
 });

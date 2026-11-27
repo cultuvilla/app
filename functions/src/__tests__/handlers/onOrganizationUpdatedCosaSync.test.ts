@@ -29,7 +29,7 @@ describe('onOrganizationUpdated when the cosa audience sync fails', () => {
       { ...base, status: 'approved', cosateca: { enabled: true, audience: 'pueblo' } },
       'organizations/org-x',
     );
-    await wrapped({ data: ft.makeChange(before, after), params: { orgId: 'org-x' } } as unknown as Parameters<typeof wrapped>[0]);
+    await wrapped({ data: ft.makeChange(before, after), params: { orgId: 'org-x' } });
     const notes = await admin.firestore().collection('users/founder/notifications').get();
     expect(notes.docs.map((d) => d.data()['type'])).toContain('org_approved');
   });

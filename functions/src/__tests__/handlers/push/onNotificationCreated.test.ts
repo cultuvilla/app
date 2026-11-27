@@ -42,7 +42,7 @@ async function fire(notifId: string, data: Record<string, unknown>): Promise<voi
   await wrapped({
     data: ft.firestore.makeDocumentSnapshot(data, `users/${UID}/notifications/${notifId}`),
     params: { userId: UID, notifId },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 const queueDoc = (notifId: string) => admin.firestore().doc(`pushQueue/${UID}__${notifId}`).get();

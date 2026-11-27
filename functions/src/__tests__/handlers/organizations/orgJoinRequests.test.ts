@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../../helpers/functionsTest';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { respondToOrgJoinRequest } from '../../../organizations/respondToOrgJoinRequest';
 import { onOrgJoinRequestCreated } from '../../../organizations/onOrgJoinRequestCreated';
@@ -54,9 +55,9 @@ async function seed(): Promise<void> {
 }
 
 function respond(uid: string, data: unknown): Promise<unknown> {
-  const wrapped = ft.wrap(respondToOrgJoinRequest as unknown as Parameters<typeof ft.wrap>[0]);
+  const wrapped = wrapCallable(ft, respondToOrgJoinRequest);
   return Promise.resolve(
-    wrapped({ data, auth: { uid, token: {} } } as unknown as Parameters<typeof wrapped>[0]),
+    wrapped({ data, auth: { uid, token: {} } }),
   );
 }
 
@@ -137,9 +138,7 @@ describe('onOrgJoinRequestCreated', () => {
       { userId: REQUESTER, orgId: ORG_ID, municipalityId: MID, createdAt: new Date() },
       `organizations/${ORG_ID}/joinRequests/${REQUESTER}`,
     );
-    await wrapped({ data: snap, params: { orgId: ORG_ID, userId: REQUESTER } } as unknown as Parameters<
-      typeof wrapped
-    >[0]);
+    await wrapped({ data: snap, params: { orgId: ORG_ID, userId: REQUESTER } });
 
     const toAdmin = await notificationsOf(ORG_ADMIN);
     expect(toAdmin).toEqual([

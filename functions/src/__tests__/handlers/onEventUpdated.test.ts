@@ -41,18 +41,18 @@ function event(overrides: Partial<EventShape> = {}): EventShape {
 async function fireTrigger(before: EventShape, after: EventShape): Promise<void> {
   const change = ft.makeChange(
     ft.firestore.makeDocumentSnapshot(
-      before as unknown as Record<string, unknown>,
+      before,
       `events/${EVENT_ID}`,
     ),
     ft.firestore.makeDocumentSnapshot(
-      after as unknown as Record<string, unknown>,
+      after,
       `events/${EVENT_ID}`,
     ),
   );
   await wrapped({
     data: change,
     params: { eventId: EVENT_ID },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 /** Schema-conformant write so the handler's typed converter can read it back. */

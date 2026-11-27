@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
+import { wrapCallable } from '../helpers/functionsTest';
 import { approveOrganization } from '../../organizations/approveOrganization';
 
 const ft = functionsTestFactory({ projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test' });
@@ -56,11 +57,10 @@ interface CallableResult {
 }
 
 async function callApprove(opts: { uid: string | null; data: unknown }): Promise<CallableResult> {
-  const wrapped = ft.wrap(approveOrganization as unknown as Parameters<typeof ft.wrap>[0]);
-  return (await wrapped({
+  return wrapCallable(ft, approveOrganization)({
     data: opts.data,
     auth: opts.uid ? { uid: opts.uid, token: {} } : undefined,
-  } as unknown as Parameters<typeof wrapped>[0])) as unknown as CallableResult;
+  });
 }
 
 describe('approveOrganization (callable)', () => {

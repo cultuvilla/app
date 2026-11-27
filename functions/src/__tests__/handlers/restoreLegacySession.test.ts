@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../helpers/functionsTest';
 import { getAuth } from 'firebase-admin/auth';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import {
@@ -79,12 +80,10 @@ describe('restoreLegacySession (callable)', () => {
   });
 
   it('rejects a malformed request', async () => {
-    const wrapped = ft.wrap(restoreLegacySession as unknown as Parameters<typeof ft.wrap>[0]);
+    const wrapped = wrapCallable(ft, restoreLegacySession);
 
     await expect(
-      wrapped({ data: { apiKey: API_KEY }, auth: undefined } as unknown as Parameters<
-        typeof wrapped
-      >[0]),
+      wrapped({ data: { apiKey: API_KEY }, auth: undefined }),
     ).rejects.toMatchObject({ code: 'invalid-argument' });
   });
 });

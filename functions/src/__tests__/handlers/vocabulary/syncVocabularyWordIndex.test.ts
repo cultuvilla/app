@@ -67,9 +67,7 @@ async function fire(
     ft.firestore.makeDocumentSnapshot(before ? termDoc(before) : {}, path),
     ft.firestore.makeDocumentSnapshot(after ? termDoc(after) : {}, path),
   );
-  await wrapped({ data: change, params: { termId: termId(seed) } } as unknown as Parameters<
-    typeof wrapped
-  >[0]);
+  await wrapped({ data: change, params: { termId: termId(seed) } });
 }
 
 async function word(slug = 'esbardo') {

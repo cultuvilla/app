@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../../helpers/functionsTest';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { deleteAfterQuery } from '../../helpers/deletedSubject';
 import { respondToCosaRequest } from '../../../organizations/respondToCosaRequest';
@@ -43,8 +44,8 @@ async function seedRequest(id: string, overrides: Partial<CosaRequestData> = {})
 const getDoc = async (path: string) => (await db().doc(path).get()).data() as Record<string, unknown>;
 
 function call(uid: string | null, data: unknown) {
-  const wrapped = ft.wrap(respondToCosaRequest as unknown as Parameters<typeof ft.wrap>[0]);
-  return wrapped({ data, auth: uid ? { uid, token: {} } : undefined } as unknown as Parameters<typeof wrapped>[0]) as Promise<{ status: string }>;
+  const wrapped = wrapCallable(ft, respondToCosaRequest);
+  return wrapped({ data, auth: uid ? { uid, token: {} } : undefined }) as Promise<{ status: string }>;
 }
 
 beforeEach(async () => {
@@ -344,14 +345,14 @@ describe('closeDeletedCosaRequests', () => {
 
   it('runs when a cosa is deleted, and not when one is edited', async () => {
     await seedRequest('rp');
-    const wrapped = ft.wrap(cleanupRemovedCosaImages as unknown as Parameters<typeof ft.wrap>[0]);
+    const wrapped = ft.wrap(cleanupRemovedCosaImages);
     const before = ft.firestore.makeDocumentSnapshot(cosa(), 'cosas/carpa');
-    await wrapped({ data: ft.makeChange(before, ft.firestore.makeDocumentSnapshot(cosa({ title: 'Carpa grande' }), 'cosas/carpa')), params: { entityId: 'carpa' } } as unknown as Parameters<typeof wrapped>[0]);
+    await wrapped({ data: ft.makeChange(before, ft.firestore.makeDocumentSnapshot(cosa({ title: 'Carpa grande' }), 'cosas/carpa')), params: { entityId: 'carpa' } });
     expect(await getDoc('cosaRequests/rp')).toMatchObject({ status: 'pending' });
 
     await db().doc('cosas/carpa').delete();
     const gone = ft.firestore.makeDocumentSnapshot({}, 'cosas/carpa');
-    await wrapped({ data: ft.makeChange(before, gone), params: { entityId: 'carpa' } } as unknown as Parameters<typeof wrapped>[0]);
+    await wrapped({ data: ft.makeChange(before, gone), params: { entityId: 'carpa' } });
     expect(await getDoc('cosaRequests/rp')).toMatchObject({ status: 'declined' });
   });
 });

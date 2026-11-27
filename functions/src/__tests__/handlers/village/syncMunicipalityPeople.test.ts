@@ -24,7 +24,7 @@ async function fire(before: Person | null, after: Person | null, personId = 'p1'
   }
   const beforeSnap = ft.firestore.makeDocumentSnapshot(before ?? {}, `persons/${personId}`);
   const afterSnap = ft.firestore.makeDocumentSnapshot(after ?? {}, `persons/${personId}`);
-  await wrapped({ data: ft.makeChange(beforeSnap, afterSnap), params: { personId } } as unknown as Parameters<typeof wrapped>[0]);
+  await wrapped({ data: ft.makeChange(beforeSnap, afterSnap), params: { personId } });
 }
 
 beforeAll(async () => { await resetEmulators(); });
