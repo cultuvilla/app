@@ -18,12 +18,13 @@ export interface AppUpdateModalProps {
 }
 
 /**
- * Update prompt shown over the app. Two shapes, one component:
+ * Update prompt. Two shapes, one component:
  *
  * - **hard block** (no `onDismiss`): no secondary action, `onRequestClose` is a
  *   no-op and Android's hardware back is swallowed, so the only way forward is
- *   the store. The running binary is below `minSupported` and must not be used.
- * - **soft prompt** (`onDismiss` given): "later" + "update".
+ *   the store. The running binary is below `minSupported` and must not be used,
+ *   so `AppVersionGate` renders it *instead of* the app tree, never over it.
+ * - **soft prompt** (`onDismiss` given): "later" + "update", over the running app.
  *
  * Never rendered on web — `resolveVersionGate` returns 'ok' there, since the
  * web build updates itself on reload and has no store to send anyone to.

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Linking } from 'react-native';
+import { Linking, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   observability,
@@ -12,6 +12,7 @@ import {
 import { AppUpdateModal } from './AppUpdateModal';
 import { getRunningVersion, getGatePlatform } from '../lib/appVersion';
 import { useT } from '../lib/i18n';
+import { useMarkAppReady } from './intro/IntroHost';
 
 const PROMPT_RECORD_KEY = 'cultuvilla:appUpdate:lastPrompt';
 
@@ -34,6 +35,7 @@ async function writePromptRecord(record: UpdatePromptRecord): Promise<void> {
 
 export function AppVersionGate({ children }: { children: ReactNode }) {
   const { t } = useT();
+  const markAppReady = useMarkAppReady();
   const platform = getGatePlatform();
   // undefined until the first answer: no modal yet, and none flashes in.
   const [config, setConfig] = useState<AppVersionConfig | null | undefined>(undefined);
@@ -92,19 +94,39 @@ export function AppVersionGate({ children }: { children: ReactNode }) {
     if (storeUrl) void Linking.openURL(storeUrl);
   }, [storeUrl]);
 
-  // Fail open: children always render. The hard blocker is a modal ON TOP of
-  // them so a stale binary can't be used, but nothing is unmounted — a bad read
-  // (null config, unparseable version) resolves to 'ok' and is invisible.
+  const walled = decision === 'block';
+
+  // The intro otherwise waits for the first route, which a walled app never
+  // mounts — hand over to the blocker at once.
+  useEffect(() => {
+    if (walled) markAppReady();
+  }, [walled, markAppReady]);
+
+  // A hard wall replaces the app tree instead of covering it: with no router,
+  // no providers and no listeners mounted, a deep link or a notification tap
+  // has nothing to reach, so none of the walled version's code runs. A wall
+  // raised mid-session unmounts the tree, whose cleanup detaches them.
+  // docs/decisions/hard-wall-replaces-app-tree.md
+  if (walled) {
+    return (
+      <View className="flex-1 bg-surface">
+        <AppUpdateModal
+          visible
+          title={t('appUpdate.blockTitle')}
+          body={t('appUpdate.blockBody')}
+          ctaLabel={t('appUpdate.cta')}
+          onUpdate={openStore}
+        />
+      </View>
+    );
+  }
+
+  // Fail open: while the config loads, and on a bad read (null config,
+  // unparseable version resolves to 'ok'), the app runs as usual. The soft
+  // nudge sits on top of a working app.
   return (
     <>
       {children}
-      <AppUpdateModal
-        visible={decision === 'block'}
-        title={t('appUpdate.blockTitle')}
-        body={t('appUpdate.blockBody')}
-        ctaLabel={t('appUpdate.cta')}
-        onUpdate={openStore}
-      />
       <AppUpdateModal
         visible={decision === 'nudge' && nudgeVisible}
         title={t('appUpdate.nudgeTitle')}
