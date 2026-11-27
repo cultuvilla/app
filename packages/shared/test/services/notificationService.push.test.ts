@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument,
-                  @typescript-eslint/no-explicit-any,
                   @typescript-eslint/require-await */
 // vi.mock factories legitimately fake the firebase/firestore SDK shape.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -38,6 +37,7 @@ import {
   saveNotificationSettings,
   unregisterDevice,
 } from '../../src/services/notificationService';
+import { fakeWriteBatch } from '../helpers/sdkFakes';
 
 const pathOf = (ref: unknown) => (ref as { _path: unknown[] })._path.slice(1);
 
@@ -62,7 +62,7 @@ describe('push switches', () => {
 
   it('saves the topics and writes the old coarse doc back all-on, in one batch', async () => {
     const batch = { set: vi.fn(), commit: vi.fn(() => Promise.resolve()) };
-    vi.mocked(writeBatch).mockReturnValue(batch as any);
+    vi.mocked(writeBatch).mockReturnValue(fakeWriteBatch(batch));
     await saveNotificationSettings('u1', { mutedTopics: ['village_news'], mutedVillages: ['m1'], quietHours: false });
 
     expect(batch.set).toHaveBeenCalledTimes(2);

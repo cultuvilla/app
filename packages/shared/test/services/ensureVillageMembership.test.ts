@@ -11,12 +11,15 @@
 // the profile's village list reads.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({
-  setActiveMunicipality: vi.fn(async () => undefined),
-  startVillage: vi.fn(async () => undefined),
-  ops: [] as { op: 'set' | 'update'; id: string; data: any }[],
-  state: { person: null as any, municipality: null as any },
-}));
+const h = vi.hoisted(() => {
+  const state: { person: unknown; municipality: unknown } = { person: null, municipality: null };
+  return {
+    setActiveMunicipality: vi.fn(async () => undefined),
+    startVillage: vi.fn(async () => undefined),
+    ops: [] as { op: 'set' | 'update'; id: string; data: any }[],
+    state,
+  };
+});
 
 vi.mock('../../src/firebase', () => ({
   getDb: () => ({}),

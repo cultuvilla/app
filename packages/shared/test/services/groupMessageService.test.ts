@@ -38,10 +38,11 @@ import {
   setGroupNotifyLevel,
   setWhatsappSent,
 } from '../../src/services/groupMessageService';
+import { refPath, written } from '../helpers/sdkFakes';
 
 const call = (fn: typeof setDoc | typeof updateDoc, i = 0) => {
-  const [ref, data] = vi.mocked(fn).mock.calls[i] as unknown as [{ _path: string }, Record<string, unknown>];
-  return { path: ref._path, data };
+  const [ref, data] = vi.mocked(fn).mock.calls[i];
+  return { path: refPath(ref), data: written(data) };
 };
 
 beforeEach(() => {

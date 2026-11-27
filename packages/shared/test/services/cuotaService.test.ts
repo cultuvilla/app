@@ -27,10 +27,11 @@ import {
   setCuotaAssignment,
   type CuotaPayment,
 } from '../../src/services/cuotaService';
+import { refPath } from '../helpers/sdkFakes';
 
 const written = (i = 0) => {
   const [ref, data] = vi.mocked(setDoc).mock.calls[i];
-  return { path: (ref as unknown as { _path: string })._path, data: data as Record<string, unknown> };
+  return { path: refPath(ref), data: data as Record<string, unknown> };
 };
 
 beforeEach(() => {

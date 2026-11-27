@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument,
                   @typescript-eslint/no-unsafe-assignment,
-                  @typescript-eslint/no-explicit-any,
                   @typescript-eslint/no-extraneous-class,
                   @typescript-eslint/require-await */
 // vi.mock factories legitimately fake the firebase/firestore SDK shape;
@@ -37,6 +36,7 @@ import {
   getEventsByOrganizer,
   watchEventsByOrganizer,
 } from '../../src/services/eventService';
+import { emitOnce, fakeQuerySnapshot } from '../helpers/sdkFakes';
 
 describe('getEventsByOrganizer', () => {
   beforeEach(() => {
@@ -44,7 +44,7 @@ describe('getEventsByOrganizer', () => {
   });
 
   it('queries organizerUserIds array-contains ordered by createdAt desc', async () => {
-    vi.mocked(getDocs).mockResolvedValue({ docs: [] } as any);
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([]));
 
     await getEventsByOrganizer('uid-1');
 
@@ -55,13 +55,11 @@ describe('getEventsByOrganizer', () => {
   // Regression: "deleting" an event soft-cancels it (status -> 'cancelled'), but the
   // profile's managed-events list kept showing it. Cancelled events must not appear.
   it('omits cancelled (soft-deleted) events from the organizer list', async () => {
-    vi.mocked(getDocs).mockResolvedValue({
-      docs: [
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([
         { id: 'e-published', data: () => ({ status: 'published' }) },
         { id: 'e-cancelled', data: () => ({ status: 'cancelled' }) },
         { id: 'e-completed', data: () => ({ status: 'completed' }) },
-      ],
-    } as any);
+      ]));
 
     const events = await getEventsByOrganizer('uid-1');
 
@@ -77,15 +75,14 @@ describe('watchEventsByOrganizer', () => {
   });
 
   it('watches the organizer query and drops cancelled events', () => {
-    vi.mocked(onSnapshot).mockImplementation(((_q: unknown, next: (snap: unknown) => void) => {
-      next({
-        docs: [
+    vi.mocked(onSnapshot).mockImplementation(
+      emitOnce(
+        fakeQuerySnapshot([
           { id: 'e-published', data: () => ({ status: 'published' }) },
           { id: 'e-cancelled', data: () => ({ status: 'cancelled' }) },
-        ],
-      });
-      return () => undefined;
-    }) as any);
+        ]),
+      ),
+    );
     let ids: string[] = [];
 
     watchEventsByOrganizer('uid-1', (events) => (ids = events.map((e) => e.id)), vi.fn());

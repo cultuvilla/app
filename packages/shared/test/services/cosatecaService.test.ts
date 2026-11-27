@@ -47,6 +47,7 @@ import {
   watchCosaRequestsToAnswer,
   watchVillageCosas,
 } from '../../src/services/cosatecaService';
+import { written } from '../helpers/sdkFakes';
 
 const pathOf = (ref: unknown) => (ref as { _path: string })._path;
 
@@ -61,7 +62,8 @@ describe('cosatecaService', () => {
       municipalityId: 'm1', orgId: 'o1', audience: 'pueblo', ownerUid: null, ownerName: 'Ayuntamiento',
       kind: 'prestamo', title: ' Llave del gimnasio ', category: 'deporte', description: ' ', createdBy: 'admin1', createdByName: 'Alcalde',
     });
-    const [ref, data] = vi.mocked(setDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    const [ref, raw] = vi.mocked(setDoc).mock.calls[0];
+    const data = written(raw);
     expect(pathOf(ref)).toBe(`cosas/${id}`);
     expect(data).toMatchObject({
       title: 'Llave del gimnasio', description: null, status: 'available', heldBy: null, ownerUid: null,
@@ -82,7 +84,8 @@ describe('cosatecaService', () => {
       kind: 'regalo', title: 'Sofá ', description: null, category: 'otros', imageURL: null, conditions: ' ',
       location, locationNote: ' en el portal ', status: 'paused', reserva: null,
     });
-    const [ref, data] = vi.mocked(updateDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    const [ref, raw] = vi.mocked(updateDoc).mock.calls[0];
+    const data = written(raw);
     expect(pathOf(ref)).toBe('cosas/c1');
     expect(data).toEqual({
       kind: 'regalo', title: 'Sofá', description: null, category: 'otros', imageURL: null, conditions: null,
@@ -95,7 +98,8 @@ describe('cosatecaService', () => {
       municipalityId: 'm1', orgId: 'o1', cosaId: 'c1', cosaTitle: 'Taladro', cosaKind: 'prestamo', ownerUid: 'u1',
       requesterUid: 'u2', requesterName: 'Luis', fromOn: '2026-07-01', untilOn: '2026-07-03', message: 'Para el sábado',
     });
-    const [ref, data] = vi.mocked(setDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    const [ref, raw] = vi.mocked(setDoc).mock.calls[0];
+    const data = written(raw);
     expect(pathOf(ref)).toBe(`cosaRequests/${id}`);
     expect(data).toMatchObject({ status: 'pending', respondedAt: null, closedAt: null, createdAt: 'SERVER_TS', message: 'Para el sábado' });
   });

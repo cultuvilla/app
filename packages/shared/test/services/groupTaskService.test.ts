@@ -46,6 +46,7 @@ import {
   setGroupTaskDone,
   updateGroupTask,
 } from '../../src/services/groupTaskService';
+import { written } from '../helpers/sdkFakes';
 
 const pathOf = (ref: unknown) => (ref as { _path: string })._path;
 
@@ -74,7 +75,8 @@ describe('groupTaskService', () => {
     await updateGroupTask('org1', 't1', {
       title: 'Otro', notes: '', assigneeUids: ['a', 'a'], dueOn: null, time: null, slots: null, recurrence: null, eventId: null,
     });
-    const [ref, data] = vi.mocked(updateDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    const [ref, raw] = vi.mocked(updateDoc).mock.calls[0];
+    const data = written(raw);
     expect(pathOf(ref)).toBe('organizations/org1/tasks/t1');
     expect(Object.keys(data).sort()).toEqual(['assigneeUids', 'dueOn', 'eventId', 'notes', 'recurrence', 'slots', 'time', 'title']);
     expect(data).toMatchObject({ notes: null, assigneeUids: ['a'] });
@@ -110,7 +112,8 @@ describe('groupTaskService', () => {
 
   it('saveTasksAsTemplate keeps the checklist as offsets from the anchor', async () => {
     await saveTasksAsTemplate('org1', 'Fiestas', [{ title: 'Orquesta', notes: null, dueOn: '2026-06-15', time: null, slots: null }], '2026-08-14', 'admin1');
-    const [ref, data] = vi.mocked(setDoc).mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    const [ref, raw] = vi.mocked(setDoc).mock.calls[0];
+    const data = written(raw);
     expect(pathOf(ref)).toMatch(/^organizations\/org1\/taskTemplates\//);
     expect(data).toMatchObject({ name: 'Fiestas', items: [{ title: 'Orquesta', offsetDays: -60 }], updatedBy: 'admin1', updatedAt: 'SERVER_TS' });
   });
