@@ -1,0 +1,114 @@
+name: Audit Referential Integrity
+
+# READ-ONLY. Runs scripts/audit-referential-integrity.mjs against one
+# environment and attaches the report: which documents point at something that
+# no longer exists, and which function-owned counts disagree with their source.
+# The script has no write path at all; repairs go through a registered backfill
+# or a reviewed one-off (.agents/skills/prod-data-repair).
+#
+# Keyless, like run-backfill.yml: WIF through the same per-environment GitHub
+# Environment the deploy uses, so the credential is chosen by `environment:`.
+# Those environments are branch-restricted — dispatch a beta run with
+# `ref: beta` and a prod run with `ref: main`, or it is rejected before any step
+# runs (and the script only exists there once a release carries it).
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - beta
+          - prod
+      invariant:
+        description: 'Comma-separated invariant ids (blank = all; see `pnpm audit:refs -- --list`)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  audit:
+    name: referential integrity → ${{ inputs.env }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.env == 'prod' && 'production' || inputs.env }}
+    concurrency:
+      group: ref-integrity-${{ inputs.env }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      id-token: write # required for Workload Identity Federation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The invariants are imported from the shared package's build.
+      - name: Build shared
+        run: pnpm shared:build
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      # Inputs reach the shell through env:, never `${{ }}` in the script:
+      # `invariant` is free text (scripts/check-workflow-input-injection.js).
+      - name: Audit (read-only)
+        env:
+          ENV: ${{ inputs.env }}
+          INVARIANT: ${{ inputs.invariant }}
+        run: |
+          args=(--env="$ENV" --examples=20 --json=ref-integrity-report.json)
+          if [ -n "$INVARIANT" ]; then args+=(--invariant="$INVARIANT"); fi
+          node scripts/audit-referential-integrity.mjs "${args[@]}" | tee ref-integrity-report.txt
+
+      - name: Summary
+        if: always()
+        env:
+          ENV: ${{ inputs.env }}
+        run: |
+          {
+            echo "### Referential integrity — \`$ENV\` (read-only)"
+            echo ""
+            if [ -f ref-integrity-report.json ]; then
+              echo "| invariant | violations | scanned |"
+              echo "|---|---:|---:|"
+              jq -r '.invariants[] | select(.violations > 0) | "| `\(.id)` | \(.violations) | \(.scanned) |"' ref-integrity-report.json
+              echo ""
+              jq -r '"**Total:** \(.total) violations"' ref-integrity-report.json
+            else
+              echo "The audit did not produce a report — see the log."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref-integrity-${{ inputs.env }}
+          path: |
+            ref-integrity-report.json
+            ref-integrity-report.txt
+          if-no-files-found: ignore
+          retention-days: 30
