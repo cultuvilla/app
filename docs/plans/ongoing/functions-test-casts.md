@@ -1,6 +1,8 @@
 # Burn down the casts in the functions tests
 
 **Priority:** low
+**Landed:** none
+**Gate:** none
 **Next:** add a cast ratchet for functions tests (as packages/shared has), then replace casts with typed fixtures slice by slice
 
 **Pre-approved** under AGENTS.md § Approval (test health, nothing observable changes). Follow-up of the retired typecheck-shared-tests plan (#755, #761, #779 took the shared tests from 105 casts to 7 behind a ratchet).
