@@ -13,7 +13,8 @@ export default defineConfig({
     retry: Number.isFinite(RETRY) && RETRY > 0 ? RETRY : 0,
     // Report-only (D4 in docs/plans/ongoing/testing-enhancement.md): coverage is
     // collected only when --coverage is passed; there is no threshold gate yet.
-    // `all: true` reports untested src files as 0% instead of omitting them.
+    // Vitest 4 reports every file matched by `include`, so untested src files
+    // show as 0% instead of being omitted (the old `all: true`).
     coverage: {
       enabled: false,
       provider: 'v8',
@@ -21,7 +22,6 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts'],
-      all: true,
     },
   },
 });

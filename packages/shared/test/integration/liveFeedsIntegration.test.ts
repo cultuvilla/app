@@ -104,7 +104,7 @@ describe('watchEventsByMunicipality (the pueblo tab, anonymous)', () => {
     const M = uniq('m');
     await asSeeder(async (db) => {
       await setDoc(doc(db, 'events', `${M}-public`), eventData(M, 'Verbena', 3));
-      await setDoc(doc(db, 'events', `${M}-draft`), eventData(M, 'Borrador', 1, { status: 'draft' }));
+      await setDoc(doc(db, 'events', `${M}-cancelled`), eventData(M, 'Aplazada', 1, { status: 'cancelled' }));
       await setDoc(
         doc(db, 'events', `${M}-private`),
         eventData(M, 'Cena de socios', 2, { visibility: 'organization', visibilityOrgId: 'org-x' }),
@@ -117,9 +117,9 @@ describe('watchEventsByMunicipality (the pueblo tab, anonymous)', () => {
     const unwatch = watchEventsByMunicipality(M, ['published', 'completed'], (e) => emissions.push(e), failOnError);
     try {
       expect(titles(await latestMatching(emissions, () => true))).toEqual(['Verbena']);
-      await asSeeder((db) => updateDoc(doc(db, 'events', `${M}-draft`), { status: 'published' }));
+      await asSeeder((db) => updateDoc(doc(db, 'events', `${M}-cancelled`), { status: 'published' }));
       // Ordered by start date: the newly published one starts sooner.
-      expect(titles(await latestMatching(emissions, (e) => e.length === 2))).toEqual(['Borrador', 'Verbena']);
+      expect(titles(await latestMatching(emissions, (e) => e.length === 2))).toEqual(['Aplazada', 'Verbena']);
     } finally {
       unwatch();
     }

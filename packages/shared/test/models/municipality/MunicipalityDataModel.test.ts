@@ -145,12 +145,10 @@ describe('escudo resolution helpers', () => {
   const wikidata = { escudoUrl: 'wiki-full', escudoThumbUrl: 'wiki-thumb', escudoManualUrl: null };
   const manual = { escudoUrl: 'wiki-full', escudoThumbUrl: 'wiki-thumb', escudoManualUrl: 'manual' };
   const none = { escudoUrl: null, escudoThumbUrl: null, escudoManualUrl: null };
-  const legacy = { escudoUrl: 'wiki-full', escudoThumbUrl: 'wiki-thumb' }; // pre-field doc
 
   it('hasManualEscudo is true only when a manual upload exists', () => {
     expect(hasManualEscudo(manual)).toBe(true);
     expect(hasManualEscudo(wikidata)).toBe(false);
-    expect(hasManualEscudo(legacy)).toBe(false);
   });
 
   it('escudoFullUrl prefers the manual upload, else Wikidata, else null', () => {

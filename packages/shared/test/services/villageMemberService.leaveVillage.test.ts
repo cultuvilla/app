@@ -26,7 +26,7 @@ vi.mock('../../src/services/userService', () => ({ setActiveMunicipality: vi.fn(
 vi.mock('../../src/services/municipalityService', () => ({ getMunicipality: vi.fn(), startVillage: vi.fn() }));
 
 const getPersonByUserId = vi.fn<(userId: string) => Promise<unknown>>();
-vi.mock('../../src/services/personService', () => ({ getPersonByUserId: (...a: unknown[]) => getPersonByUserId(...a) }));
+vi.mock('../../src/services/personService', () => ({ getPersonByUserId: (userId: string) => getPersonByUserId(userId) }));
 
 import { leaveVillage } from '../../src/services/villageMemberService';
 

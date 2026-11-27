@@ -2,7 +2,6 @@
 // community). Pure factory: returns a MunicipalityData object; persisting it
 // to the emulator is the test's responsibility.
 
-import { GeoPoint } from 'firebase/firestore';
 import {
   buildMunicipalityData,
   buildVillageCommunity,
@@ -22,7 +21,7 @@ export function makeMunicipality(
     comunidadAutonoma: 'Castilla y León',
     codigoINE: `99${String(n).padStart(3, '0')}`,
     slug: `test-municipality-${String(n)}`,
-    coordinates: new GeoPoint(40.9, -5.7),
+    coordinates: { lat: 40.9, lng: -5.7 },
   });
   return { ...base, ...overrides };
 }

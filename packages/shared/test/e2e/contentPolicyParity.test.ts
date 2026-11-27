@@ -8,7 +8,15 @@
 // policy, not the rules (unless the rule change is the point of the PR).
 import { describe, expect, it } from 'vitest';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
+import {
+  deleteDoc,
+  doc,
+  setDoc,
+  updateDoc,
+  type DocumentData,
+  type Firestore,
+  type UpdateData,
+} from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
 import { asAnon, asUser, seed } from '../helpers/roles';
 import {
@@ -103,7 +111,7 @@ interface Case {
   path: string;
   data: Record<string, unknown>;
   /** A minimal edit the app could make. */
-  patch: Record<string, unknown>;
+  patch: UpdateData<DocumentData>;
 }
 
 const STATUSES = ['active', 'hidden'] as const;

@@ -88,7 +88,6 @@ function testPlaceData(municipalityId: string) {
     name: 'Ermita del Cristo',
     kind: 'hermitage',
     municipalityId,
-    status: 'approved',
     proposedBy: 'admin',
   });
 }

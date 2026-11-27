@@ -92,7 +92,7 @@ describe('createEventSeries', () => {
 });
 
 describe('cancelSeriesFrom', () => {
-  const series = { id: 's', index: 1, weekdays: [2], until: at(2026, 12, 1) };
+  const series = { id: 's', index: 1, frequency: 'weekly' as const, weekdays: [2], until: at(2026, 12, 1) };
   const row = (id: string, startDate: Date, status = 'published') => ({ id, data: () => ({ startDate, status }) });
 
   it('cancels this occurrence and every later published one, nothing earlier', async () => {
@@ -148,7 +148,7 @@ describe('cancelSeriesFrom — edges', () => {
       { id: 'past', data: () => ({ startDate: at(2026, 10, 13), status: 'published' }) },
       { id: 'gone', data: () => ({ startDate: at(2026, 10, 27), status: 'cancelled' }) },
     ];
-    const series = { id: 's', index: 1, weekdays: [2], until: at(2026, 12, 1) };
+    const series = { id: 's', index: 1, frequency: 'weekly' as const, weekdays: [2], until: at(2026, 12, 1) };
     const n = await cancelSeriesFrom({ id: 'x', series, startDate: at(2026, 10, 20), visibilityOrgId: null });
     expect(n).toBe(0);
     expect(batch.update).not.toHaveBeenCalled();

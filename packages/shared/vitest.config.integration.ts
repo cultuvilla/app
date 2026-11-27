@@ -25,7 +25,6 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts'],
-      all: true,
     },
   },
 });

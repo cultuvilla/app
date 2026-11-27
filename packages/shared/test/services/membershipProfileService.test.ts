@@ -13,7 +13,7 @@ import {
 
 describe('answeredCountByKey', () => {
   it('counts members with a non-empty answer per key, ignoring empties', () => {
-    const members = [
+    const members: Parameters<typeof answeredCountByKey>[0] = [
       { profileAnswers: { color: 'rojo', edad: 30 } },
       { profileAnswers: { color: 'azul', tags: [] as string[] } },
       { profileAnswers: { color: '', tags: ['a'] } },

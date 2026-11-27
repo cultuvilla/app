@@ -147,7 +147,7 @@ describe('per-env application identity', () => {
 
 describe('production build profile', () => {
   it('emits an app bundle — Play rejects APKs for new applications', () => {
-    expect(easJson.build.production.android.buildType).toBe('app-bundle');
+    expect(easJson.build.production.android?.buildType).toBe('app-bundle');
   });
 
   it('sources its Firebase config from the EAS production environment', () => {
@@ -155,7 +155,7 @@ describe('production build profile', () => {
     // GitHub Environment vars exist. Without this the prod bundle would ship
     // empty Firebase credentials and fail at runtime, not at build time.
     expect(easJson.build.production.environment).toBe('production');
-    expect(easJson.build.production.env.APP_ENV).toBe('prod');
+    expect(easJson.build.production.env?.APP_ENV).toBe('prod');
   });
 
   it('auto-increments the remote version counter', () => {

@@ -19,6 +19,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  type FieldValue,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
 import { asUser } from '../helpers/roles';
@@ -175,7 +176,7 @@ describe('replies', () => {
 });
 
 describe('reactions', () => {
-  const react = (uid: string, path: string, emoji: unknown) =>
+  const react = (uid: string, path: string, emoji: string | number | FieldValue) =>
     updateDoc(doc(asUser(getEnv(), uid), path), { [`reactions.${uid}`]: emoji });
 
   it('every reader of the thread sets, changes and clears their own reaction', async () => {
