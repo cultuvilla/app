@@ -1,9 +1,11 @@
 # Recent sign-in before deleting an account
 
 **Priority:** high
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
+**Landed:** dev
+**Gate:** blocked:minSupported must pass the first release carrying #757 before the contract step
+**Next:** in `functions/src/account/deleteAccount.ts` drop the `request.data?.reauth === true &&` condition so the recent-sign-in gate applies to every caller, and update the "keeps the old path" handler test to expect a refusal (contract commit; carries `Breaking-Client:`)
+
+State 2026-11-27: #757 merged — expand step: the server gates clients that send `reauth: true`, and the app reauthenticates (Google, Apple, email code) and retries. QA entry `docs/qa/pending/delete-account-reauth.md` needs a person: a sign-in older than 5 minutes on real accounts.
 
 **Decided 2026-11-27 (Álvaro):** yes — from the Órdago harvest. A user may be asked to
 sign in again before deleting their account.
