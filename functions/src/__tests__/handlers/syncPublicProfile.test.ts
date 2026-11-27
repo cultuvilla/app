@@ -37,7 +37,7 @@ async function fireTrigger(before: UserShape | null, after: UserShape | null, st
     ft.firestore.makeDocumentSnapshot(before ?? {}, path),
     ft.firestore.makeDocumentSnapshot(after ?? {}, path),
   );
-  await wrapped({ data: change, params: { userId: USER_ID } } as unknown as Parameters<typeof wrapped>[0]);
+  await wrapped({ data: change, params: { userId: USER_ID } });
 }
 
 const projection = () => admin.firestore().doc(`publicProfiles/${USER_ID}`).get();

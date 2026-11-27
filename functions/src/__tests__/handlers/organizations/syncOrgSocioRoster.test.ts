@@ -30,7 +30,7 @@ async function fire(before: MemberShape | null, after: MemberShape | null, userI
     ft.firestore.makeDocumentSnapshot(before ? { ...before } : {}, path),
     ft.firestore.makeDocumentSnapshot(after ? { ...after } : {}, path),
   );
-  await wrapped({ data: change, params: { orgId, userId } } as unknown as Parameters<typeof wrapped>[0]);
+  await wrapped({ data: change, params: { orgId, userId } });
 }
 
 async function seedOrg(type = 'asociación', id = ORG_ID) {

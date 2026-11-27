@@ -43,9 +43,7 @@ async function firePersonTrigger(
   const beforeSnap = ft.firestore.makeDocumentSnapshot(asRecord(before), path);
   const afterSnap = ft.firestore.makeDocumentSnapshot(asRecord(after), path);
   const change = ft.makeChange(beforeSnap, afterSnap);
-  await wrapped({ data: change, params: { personId } } as unknown as Parameters<
-    typeof wrapped
-  >[0]);
+  await wrapped({ data: change, params: { personId } });
 }
 
 async function seedBarrio(id: string, extra: Record<string, unknown> = {}): Promise<void> {

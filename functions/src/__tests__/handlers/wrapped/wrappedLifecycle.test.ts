@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../../helpers/functionsTest';
 import { madridDayKey, madridMonth, madridYear } from '@cultuvilla/shared/models';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { runVillageWrappedLifecycle } from '../../../wrapped/wrappedScheduler';
@@ -70,8 +71,8 @@ function todayRequest(overrides: Record<string, unknown> = {}) {
 }
 
 async function build(uid: string | null, data: unknown = todayRequest()): Promise<unknown> {
-  const wrapped = ft.wrap(buildVillageWrapped);
-  return wrapped({ data, auth: uid ? { uid, token: {} } : undefined } as unknown as Parameters<typeof wrapped>[0]);
+  const wrapped = wrapCallable(ft, buildVillageWrapped);
+  return wrapped({ data, auth: uid ? { uid, token: {} } : undefined });
 }
 
 /**
@@ -86,11 +87,11 @@ async function runScheduler(): Promise<void> {
 }
 
 async function respond(uid: string | null, decision: string): Promise<unknown> {
-  const wrapped = ft.wrap(respondToVillageWrapped);
+  const wrapped = wrapCallable(ft, respondToVillageWrapped);
   return wrapped({
     data: { wrappedId: WRAPPED_ID, decision },
     auth: uid ? { uid, token: {} } : undefined,
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 const wrappedData = async () => (await db().doc(`villageWrapped/${WRAPPED_ID}`).get()).data();

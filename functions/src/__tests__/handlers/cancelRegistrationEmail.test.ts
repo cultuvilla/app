@@ -136,7 +136,7 @@ function call<T>(fn: unknown, uid: string | null, data: unknown): Promise<T> {
   return wrapped({
     data,
     auth: uid ? { uid, token: {} } : undefined,
-  } as unknown as Parameters<typeof wrapped>[0]) as unknown as Promise<T>;
+  });
 }
 
 interface RegisterResult {

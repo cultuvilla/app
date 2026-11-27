@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../../helpers/functionsTest';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { linkSocioToMember } from '../../../organizations/linkSocioToMember';
 
@@ -29,8 +30,8 @@ async function seed() {
 }
 
 function call(uid: string | null, data: unknown) {
-  const wrapped = ft.wrap(linkSocioToMember as unknown as Parameters<typeof ft.wrap>[0]);
-  return wrapped({ data, auth: uid ? { uid, token: {} } : undefined } as unknown as Parameters<typeof wrapped>[0]);
+  const wrapped = wrapCallable(ft, linkSocioToMember);
+  return wrapped({ data, auth: uid ? { uid, token: {} } : undefined });
 }
 
 beforeEach(async () => {

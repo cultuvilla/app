@@ -46,7 +46,7 @@ async function write(before: Row | null, after: Row | null): Promise<void> {
   await wrapped({
     data: ft.makeChange(beforeSnap, afterSnap),
     params: { rowId: path.split('/')[1] },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 async function seedMunicipality(id: string, peopleCount: number): Promise<void> {

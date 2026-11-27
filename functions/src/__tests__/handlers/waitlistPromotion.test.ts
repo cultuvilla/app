@@ -88,11 +88,11 @@ async function invokeDelete(reg: SeedReg): Promise<void> {
     regPath(reg.id),
   );
   // v2 firestore trigger: pass a synthesized CloudEvent.
-  const wrapped = ft.wrap(onRegistrationDeleted as unknown as Parameters<typeof ft.wrap>[0]);
+  const wrapped = ft.wrap(onRegistrationDeleted);
   await wrapped({
     data: snap,
     params: { eventId: EVENT_ID, regId: reg.id },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 describe('onRegistrationDeleted (waitlist promotion)', () => {

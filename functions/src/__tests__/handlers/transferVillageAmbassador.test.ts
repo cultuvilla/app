@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../helpers/functionsTest';
 import { buildPersonData, type Sex } from '@cultuvilla/shared/models';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { transferVillageAmbassador } from '../../village/transferVillageAmbassador';
@@ -69,11 +70,11 @@ async function seedPerson(uid: string, sex: Sex | null): Promise<void> {
 }
 
 async function call(uid: string | null, data: unknown): Promise<{ ok: true }> {
-  const wrapped = ft.wrap(transferVillageAmbassador as unknown as Parameters<typeof ft.wrap>[0]);
-  return (await wrapped({
+  const wrapped = wrapCallable(ft, transferVillageAmbassador);
+  return await wrapped({
     data,
     auth: uid ? { uid, token: {} } : undefined,
-  } as unknown as Parameters<typeof wrapped>[0])) as unknown as { ok: true };
+  });
 }
 
 async function community(): Promise<admin.firestore.DocumentData | undefined> {

@@ -73,7 +73,7 @@ describe('onGroupTaskDeleted', () => {
     await wrapped({
       data: ft.firestore.makeDocumentSnapshot({ title: 'x' }, path),
       params: { orgId: ORG_ID, taskId: TASK_ID },
-    } as unknown as Parameters<typeof wrapped>[0]);
+    });
     expect((await db().doc(`${path}/chat/c1`).get()).exists).toBe(false);
   });
 });

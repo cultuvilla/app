@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../helpers/functionsTest';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { deleteAccount, isFreshAuth } from '../../account/deleteAccount';
 import { buildCosaData, buildCosaRequestData, buildSocioData, buildSocioPrivateData } from '@cultuvilla/shared/models';
@@ -184,12 +185,12 @@ async function callDelete(
   uid: string | null,
   opts: { data?: { reauth?: boolean }; authTime?: number } = {},
 ): Promise<DeleteResult> {
-  const wrapped = ft.wrap(deleteAccount as unknown as Parameters<typeof ft.wrap>[0]);
+  const wrapped = wrapCallable(ft, deleteAccount);
   const token = opts.authTime === undefined ? {} : { auth_time: opts.authTime };
-  return (await wrapped({
+  return await wrapped({
     data: opts.data,
     auth: uid ? { uid, token } : undefined,
-  } as unknown as Parameters<typeof wrapped>[0])) as unknown as DeleteResult;
+  });
 }
 
 describe('deleteAccount (callable)', () => {

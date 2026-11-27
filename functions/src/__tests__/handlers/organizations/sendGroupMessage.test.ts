@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../../helpers/functionsTest';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 
 const { sendEmailBatchMock } = vi.hoisted(() => ({
@@ -370,9 +371,9 @@ describe('sendGroupMessage', () => {
   });
 
   it('the callable refuses the unauthenticated and a malformed message', async () => {
-    const wrapped = ft.wrap(sendGroupMessage as unknown as Parameters<typeof ft.wrap>[0]);
+    const wrapped = wrapCallable(ft, sendGroupMessage);
     const call = (uid: string | null, data: unknown) =>
-      wrapped({ data, auth: uid ? { uid, token: {} } : undefined } as unknown as Parameters<typeof wrapped>[0]);
+      wrapped({ data, auth: uid ? { uid, token: {} } : undefined });
     await expect(call(null, input())).rejects.toMatchObject({ code: 'unauthenticated' });
     await expect(call('u-luis', { ...input(), title: '' })).rejects.toMatchObject({ code: 'invalid-argument' });
   });
