@@ -1,9 +1,11 @@
 # Non-production never reaches real people
 
 **Priority:** high
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
+**Landed:** beta
+**Gate:** soak:first `Delivery withheld outside production` log line on dev and on beta (no probe write; decided by the leader 2026-11-27 pending Álvaro)
+**Next:** read Cloud Logging on villa-events and cultuvilla-beta for `Delivery withheld outside production`; one line from each env retires this plan
+
+State 2026-11-27: #754 merged (guard in `functions/src/shared/deliveryAudience.ts`, asked by sendEmail/sendEmailBatch and deliverPush; decision record `docs/decisions/non-production-never-reaches-real-people.md`). Dev deployed by CI. Beta deployed by hand from origin/beta 82439de4 plus the two guard commits, so beta's functions run ahead of the beta branch until the next promotion.
 
 **Decided 2026-11-27 (Álvaro):** yes — from the Órdago harvest.
 
