@@ -10,6 +10,14 @@ vi.hoisted(() => {
   });
 });
 
+// The handler suites' setup file has already initialised the default app with
+// its own options, and initApp's bare initializeApp() would then throw.
+vi.mock('../../initApp', async () => {
+  const admin = await import('firebase-admin');
+  if (admin.apps.length === 0) admin.initializeApp();
+  return {};
+});
+
 import * as deployed from '../../index';
 
 import { defineCallable } from '../../shared/define/defineCallable';
