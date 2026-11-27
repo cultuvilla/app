@@ -331,8 +331,9 @@ jobs:
         run: node scripts/smoke-storage-upload.mjs --env="$FIREBASE_ALIAS"
 
       # What this deploy put live is exactly this commit: Firestore and Storage
-      # rules, composite indexes and the set of functions. Skipped only when
-      # the backend is held, since then rules and functions deliberately stay
+      # rules, composite indexes and the set of functions — each one ACTIVE,
+      # its Eventarc trigger present, its traffic on a Ready revision running
+      # the image its build made. Skipped only when the backend is held, since then rules and functions deliberately stay
       # at the previous release.
       - name: Parity check — live rules, indexes and functions are this commit's
         if: ${{ steps.release.outputs.hold_backend != 'true' }}

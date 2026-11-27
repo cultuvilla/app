@@ -28,6 +28,43 @@ dropped (the index deploy never deleted anything).
   `firestore.indexes.json`, deployed functions equal what
   `functions/src/index.ts` exports. Since every env matches the same baseline,
   they match each other.
+- **A deployed function must also be alive and serving its build.** Listed is
+  not running: Órdago found a function whose Eventarc trigger had vanished in
+  an interrupted deploy (present, `ACTIVE`, never fired), and one whose
+  serving Cloud Run revision ran an older image than the build its metadata
+  named, with every metadata check green
+  (ordago-apps `docs/decisions/verify-running-cf-container-image.md`). So
+  `artifacts` judges each exported function on what actually serves it, and
+  fails on any of:
+  - its state is not `ACTIVE`, or it carries an `ERROR` state message. A
+    function still `DEPLOYING` is re-listed for about 90 s first — `firebase
+    deploy` returns once each operation is accepted;
+  - it has an event trigger and the Eventarc trigger is missing, delivers
+    somewhere else, or reports a condition other than `OK`;
+  - its Cloud Run service is missing or not Ready, its traffic is not all on
+    the function's own revision, or that revision is not Ready;
+  - the serving revision's image is not the one the function's Cloud Build
+    pushed: a different package (a cross-wired bundle), or a digest that is
+    neither what the build's tag points at nor a version pushed into that
+    package while the build ran. Firebase builds one image per batch and names
+    its package after the batch's first function, so a later build can move
+    that tag for other functions — the push-time window is what tells that
+    apart from a stale image.
+
+  The image is compared only when the build finished within 12 hours: the
+  Artifact Registry cleanup policy deletes images a day old, tagged or not,
+  while Cloud Run keeps serving its imported copy. A deploy's own build is
+  always that young, so the post-deploy step always compares it; the nightly
+  run compares only what deployed recently. 1st-gen functions have no Cloud
+  Run service and are judged on state and trigger alone.
+- **Gateways are functions, and need nothing special.** The callable gateway
+  (`cloud-run-gateways.md`) is an exported `defineHttpFunction` whose service
+  lives in `europe-southwest1`; every location is read from the function's own
+  `serviceConfig`, never assumed. A Cloud Run service no exported function owns
+  (a future event gateway's Eventarc triggers point at one) is not judged here.
+  Órdago's `reconcile-deployed-functions.js`, which redeploys the missing set
+  to dev before its E2E lane, was not ported: here every develop merge deploys
+  dev from CI, and this check fails that deploy instead.
 - **The check runs per env, never across envs.** Each GitHub environment's
   keyless identity is bound to its own branch (dev ← `develop`, beta ← `beta`,
   production ← `main`), so no single job can read all three. A nightly
@@ -59,6 +96,8 @@ dropped (the index deploy never deleted anything).
 
 - Changing a project's configuration means changing `infra/env-parity.json` in
   the same PR, and running the change in every env (or declaring why not).
+- The deploy identity reads Cloud Run, Eventarc, Cloud Build and Artifact
+  Registry for the function check; its deploy roles already cover them.
 - The deploy identity needs two read-only roles, `roles/iam.securityReviewer`
   and `roles/serviceusage.serviceUsageViewer` (in `setup-ci-deploy-wif.sh`).
 - Parity is necessary, not sufficient: something must also exercise beta.
