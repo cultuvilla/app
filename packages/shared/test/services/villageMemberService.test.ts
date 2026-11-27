@@ -12,11 +12,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // vi.hoisted: mock factories are hoisted above top-level declarations, so shared
 // mock state must be created here to be referenceable inside the factories.
-const h = vi.hoisted(() => ({
-  setActiveMunicipality: vi.fn(async () => undefined),
-  ops: [] as { op: 'set' | 'update'; id: string; data: any }[],
-  state: { person: null },
-}));
+const h = vi.hoisted(() => {
+  const state: { person: unknown } = { person: null };
+  return {
+    setActiveMunicipality: vi.fn(async () => undefined),
+    ops: [] as { op: 'set' | 'update'; id: string; data: any }[],
+    state,
+  };
+});
 
 vi.mock('../../src/firebase', () => ({ getDb: () => ({}) }));
 vi.mock('../../src/services/userService', () => ({

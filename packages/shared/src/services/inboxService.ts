@@ -224,6 +224,7 @@ export async function getActionableRequests(
  * report. The bell's badge and the Buzón's list both count this way, so the
  * number on the bell is what *Necesita tu acción* holds. Pure — no I/O.
  */
-export function actionableCount(requests: ActionableRequests): number {
+/** Only the queue lengths are read, so any list of each queue counts. */
+export function actionableCount(requests: { readonly [K in keyof ActionableRequests]: readonly unknown[] }): number {
   return requests.organizer.length + requests.orgs.length + requests.joins.length + requests.reports.length;
 }
