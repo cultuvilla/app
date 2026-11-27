@@ -1,6 +1,8 @@
 # Block back-merges of beta or main into develop
 
 **Priority:** medium
+**Landed:** none
+**Gate:** none
 **Next:** add the check as a step of the existing ci.yml job (not a new job)
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
