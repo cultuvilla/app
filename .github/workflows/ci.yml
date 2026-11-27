@@ -83,6 +83,10 @@ jobs:
       - name: Check no E2E test-login bypass leak
         run: pnpm check:no-test-login-leak
 
+      # Listing text a store would reject fails here, not at a submission.
+      - name: Check the store listing against Play and App Store limits
+        run: pnpm check:store-listing
+
       # Shared checks, vendored from agent-skills into .agents/_shared; their
       # values are in .agents/checks.config.json.
       # A `${{ }}` an outsider or a dispatcher can set, pasted into a run:
