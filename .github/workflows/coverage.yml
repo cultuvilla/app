@@ -1,0 +1,160 @@
+name: Coverage
+
+# Patch coverage on every PR, report-only: how many of the lines this PR changed
+# are covered by the unit suites. One PR comment, updated in place on each push.
+# It never fails the PR, and it is not part of ci.yml, so the merge queue never
+# waits on it — the queue's required checks are ci.yml's jobs alone.
+#
+# A future gate is one flag: `--fail-under=80` on the diff-cover step (and drop
+# its continue-on-error). It gates on the diff, never on the absolute total.
+# See docs/decisions/patch-coverage-not-absolute-total.md.
+#
+# Scope: the unit suites only (`test:coverage` per workspace, no emulators), so
+# code reached only by the emulator-backed suites reads as uncovered here.
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: coverage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  NEXT_PUBLIC_APP_ENV: dev
+  NEXT_PUBLIC_FIREBASE_API_KEY_DEV: ci-placeholder
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_DEV: ci.example.com
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID_DEV: ci-placeholder
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_DEV: ci.example.com
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_DEV: "0"
+  NEXT_PUBLIC_FIREBASE_APP_ID_DEV: ci-placeholder
+
+jobs:
+  coverage:
+    name: Patch coverage (report-only)
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # diff-cover needs the merge-base with the base branch.
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Build shared package
+        run: pnpm shared:build
+
+      # One step per workspace, each allowed to fail: a red suite still leaves
+      # the others' LCOV, and ci.yml is what reports the failure.
+      - name: Shared coverage
+        continue-on-error: true
+        run: pnpm test:coverage
+        working-directory: packages/shared
+
+      - name: i18n coverage
+        continue-on-error: true
+        run: pnpm test:coverage
+        working-directory: packages/i18n
+
+      - name: Mobile coverage
+        continue-on-error: true
+        run: pnpm test:coverage
+        working-directory: apps/mobile
+
+      - name: Functions coverage
+        continue-on-error: true
+        run: npm run test:coverage
+        working-directory: functions
+
+      - name: Merge LCOV
+        id: merge
+        continue-on-error: true
+        run: node scripts/merge-coverage.mjs
+
+      # pipx and Python come with ubuntu-latest; diff-cover is pinned exactly.
+      - name: Diff coverage (diff-cover)
+        id: diff
+        if: steps.merge.outcome == 'success'
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          mkdir -p coverage/html
+          pipx run --spec 'diff-cover==10.3.0' diff-cover coverage/merged.lcov \
+            --compare-branch="origin/$BASE_REF" \
+            --format markdown:coverage/diff-coverage.md,html:coverage/html/diff-coverage.html \
+            --fail-under=0
+
+      - name: Build PR comment
+        if: always()
+        run: |
+          mkdir -p coverage
+          {
+            echo "## Coverage (report-only)"
+            echo
+            echo "_**Patch coverage** is how many of the lines this PR changed run under the unit suites. Nothing gates on it._"
+            echo
+            if [ -f coverage/diff-coverage.md ]; then
+              cat coverage/diff-coverage.md
+            else
+              echo "_No patch coverage this run — see the job log._"
+            fi
+            echo
+            if [ -f coverage/summary.md ]; then
+              echo "<details><summary>Whole codebase (unit suites)</summary>"
+              echo
+              cat coverage/summary.md
+              echo
+              echo "</details>"
+            fi
+            echo
+            echo "<sub>Unit suites only (shared, i18n, mobile, functions); code reached only by the emulator suites reads as uncovered. Full HTML report: this run's \`coverage-html\` artifact.</sub>"
+          } > coverage/comment.md
+          node scripts/truncate-pr-comment.mjs coverage/comment.md
+
+      # A fork's PR gets a read-only token and cannot comment; that is fine.
+      - name: Post the PR comment (sticky)
+        if: always()
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage
+          path: coverage/comment.md
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: |
+            coverage/html
+            packages/shared/coverage/lcov-report
+            packages/i18n/coverage/lcov-report
+            apps/mobile/coverage/lcov-report
+            functions/coverage/lcov-report
+          if-no-files-found: ignore
