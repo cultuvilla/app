@@ -1,9 +1,0 @@
-{
-  "$comment": "Sites scripts/check-workflow-input-injection.js accepted when it was adopted (2026-11-27). This list may only SHRINK: the check blocks anything new and fails on an entry that matches nothing. A key is file|job|expression, so one entry covers every step of that job reading the same expression.",
-  "accepted": [
-    {
-      "key": "deploy-firebase.yml|deploy|${{ inputs.firebase_alias }}",
-      "reason": "A workflow_call input set only by this repo's own deploy workflows (dev, beta, prod aliases), never by a dispatcher. Drained into env: once the parallel revision-cleanup change to deploy-firebase.yml has landed."
-    }
-  ]
-}

@@ -26,7 +26,7 @@ describe('deploy-firebase.yml revision cleanup', () => {
   });
 
   it('applies a bounded batch, and not on prod', () => {
-    expect(step).toMatch(/cleanup-cloudrun-revisions\.mjs --env=\$\{\{ inputs\.firebase_alias \}\} --apply --max-deletes=\d+ --max-minutes=\d+/);
+    expect(step).toMatch(/cleanup-cloudrun-revisions\.mjs --env="\$FIREBASE_ALIAS" --apply --max-deletes=\d+ --max-minutes=\d+/);
     expect(step).toContain("inputs.firebase_alias != 'prod'");
     expect(step).not.toContain('--confirm');
   });

@@ -34,7 +34,7 @@ const SCRIPT = 'check-custom-token-signing.mjs';
 describe('deploy custom-token signing gate invariant', () => {
   it('runs the signing check as a step in the deploy pipeline, against the target env', () => {
     const gate = stepBlockContaining(SCRIPT);
-    expect(gate).toContain('--env ${{ inputs.firebase_alias }}');
+    expect(gate).toContain('--env "$FIREBASE_ALIAS"');
   });
 
   it('runs for every env, including dev', () => {

@@ -36,7 +36,7 @@ function stepBlockContaining(workflow: string, needle: string): string {
 describe('deploy backfill gate invariant', () => {
   it('verifies backfills as a step in the deploy pipeline, against the target env', () => {
     const gate = stepBlockContaining(deployWorkflow, 'backfills-cli.mjs verify');
-    expect(gate).toContain('--env ${{ inputs.firebase_alias }}');
+    expect(gate).toContain('--env "$FIREBASE_ALIAS"');
   });
 
   it('is guarded to beta/prod (skips dev)', () => {
@@ -237,7 +237,7 @@ describe('config/appVersion refresh on deploy', () => {
 
   it('refreshes the doc as part of every deploy', () => {
     expect(deployWorkflow).toContain('node scripts/seed-app-version-config.mjs');
-    expect(step()).toContain('--env=${{ inputs.firebase_alias }}');
+    expect(step()).toContain('--env="$FIREBASE_ALIAS"');
   });
 
   // THE load-bearing one. `minSupported` is the force-update wall: raising it

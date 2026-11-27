@@ -13,7 +13,7 @@ const deploy = readFileSync(resolve(repoRoot, '.github/workflows/deploy-firebase
 
 describe('read-site smoke check', () => {
   it('runs on every deploy, after hosting and before the release is recorded', () => {
-    const smoke = deploy.indexOf('node scripts/smoke-read-site.mjs --env=${{ inputs.firebase_alias }}');
+    const smoke = deploy.indexOf('node scripts/smoke-read-site.mjs --env="$FIREBASE_ALIAS"');
     expect(smoke).toBeGreaterThan(deploy.indexOf('firebase deploy --only hosting:app'));
     expect(smoke).toBeLessThan(deploy.indexOf('release-announce.mjs record'));
     const step = deploy.slice(deploy.lastIndexOf('- name:', smoke), smoke);

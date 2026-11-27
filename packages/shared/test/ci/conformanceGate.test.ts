@@ -34,7 +34,7 @@ describe('deploy conformance gate invariant', () => {
     const gate = stepBlockContaining('check-dev-conformance.mjs');
     // Passes the alias through so it validates the TARGET project's live data,
     // not a hardcoded env.
-    expect(gate).toContain('--env ${{ inputs.firebase_alias }}');
+    expect(gate).toContain('--env "$FIREBASE_ALIAS"');
   });
 
   it('is guarded to beta/prod (skips dev)', () => {

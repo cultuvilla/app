@@ -86,8 +86,8 @@ jobs:
       # Shared checks, vendored from agent-skills into .agents/_shared; their
       # values are in .agents/checks.config.json.
       # A `${{ }}` an outsider or a dispatcher can set, pasted into a run:
-      # block, executes as script. Bind it in env: instead. The baseline
-      # (.github/workflow-injection-baseline.json) only shrinks.
+      # block, executes as script. Bind it in env: instead. This repo has no
+      # baseline: every site was drained, so any new one fails.
       - name: Check workflow input injection
         run: node scripts/check-workflow-input-injection.js
 
