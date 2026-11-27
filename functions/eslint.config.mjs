@@ -28,6 +28,27 @@ export default tseslint.config(
     },
   },
   {
+    // A function is defined through src/shared/define/, which records the name
+    // it is exported under — the name a gateway routes by (plan
+    // cloud-run-gateways). deleteAccount.ts moves once its rework lands.
+    files: ['src/**/*.ts'],
+    ignores: ['src/**/__tests__/**', 'src/shared/define/**', 'src/account/deleteAccount.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'firebase-functions/v2/https',
+              importNames: ['onCall'],
+              message: 'Define a callable with defineCallable from src/shared/define/defineCallable.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // firebase-functions-test returns untyped helper objects (wrap, makeChange,
     // firestore, cleanup) plus snapshot.data() — its TS types are effectively
     // `any` at the SDK boundary. These test files legitimately fake SDK shapes,

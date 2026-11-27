@@ -1,7 +1,8 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { FieldValue } from 'firebase-admin/firestore';
 import { applyToParent } from './syncEntityInteractionCounts';
+import { defineCallable } from '../shared/define/defineCallable';
 
 interface RecordEntityViewData {
   entityKind?: string;
@@ -13,8 +14,9 @@ interface RecordEntityViewResult {
   ok: boolean;
 }
 
-export const recordEntityView = onCall<RecordEntityViewData, Promise<RecordEntityViewResult>>(
-  { region: 'us-central1', cors: true },
+export const recordEntityView = defineCallable<RecordEntityViewData, Promise<RecordEntityViewResult>>(
+  'recordEntityView',
+  { cors: true },
   async (request) => {
     const { entityKind, entityId, municipalityId } = request.data;
     if (!entityKind || !entityId || !municipalityId) {

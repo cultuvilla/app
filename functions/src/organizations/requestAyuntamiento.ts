@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -8,6 +8,7 @@ import {
   adminDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildOrganizationData } from '@cultuvilla/shared/models';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -27,11 +28,12 @@ interface RequestAyuntamientoResult {
 // at create time — so ayuntamiento creation is denied to clients in
 // firestore.rules and owned here, where a transaction enforces the cap. Other
 // org types (peña, asociación) are unlimited and stay client-side creates.
-export const requestAyuntamiento = onCall<
+export const requestAyuntamiento = defineCallable<
   RequestAyuntamientoData,
   Promise<RequestAyuntamientoResult>
 >(
-  { region: 'us-central1', cors: true },
+  'requestAyuntamiento',
+  { cors: true },
   async (request) => {
     const handler = 'requestAyuntamiento';
     const auth = request.auth;

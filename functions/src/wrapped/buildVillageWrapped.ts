@@ -1,10 +1,11 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { madridDayKey, type WrappedStatus } from '@cultuvilla/shared/models';
 import { resolveWrappedRequest, type WrappedRequestProblem } from '@cultuvilla/shared/wrapped';
 import { adminDoc, municipalityDoc, municipalityMemberDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildAndStoreWrapped } from './storeWrapped';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -32,8 +33,9 @@ const PROBLEM_MESSAGES: Record<WrappedRequestProblem, string> = {
  * there is nothing for a timer to build from. Admin-gated because rendering
  * costs up to a minute and a couple of hundred image fetches.
  */
-export const buildVillageWrapped = onCall<unknown, Promise<BuildVillageWrappedResult>>(
-  { region: 'us-central1', cors: true, memory: '1GiB', timeoutSeconds: 300 },
+export const buildVillageWrapped = defineCallable<unknown, Promise<BuildVillageWrappedResult>>(
+  'buildVillageWrapped',
+  { cors: true, memory: '1GiB', timeoutSeconds: 300 },
   async (request) => {
     const handler = 'buildVillageWrapped';
     const auth = request.auth;

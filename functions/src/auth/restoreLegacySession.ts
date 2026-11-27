@@ -1,6 +1,7 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getAuth } from 'firebase-admin/auth';
+import { defineCallable } from '../shared/define/defineCallable';
 
 interface RestoreLegacySessionData {
   refreshToken: string;
@@ -101,11 +102,12 @@ export async function runRestoreLegacySession(
   return { status: 'restored', token };
 }
 
-export const restoreLegacySession = onCall<
+export const restoreLegacySession = defineCallable<
   RestoreLegacySessionData,
   Promise<RestoreLegacySessionResult>
 >(
-  { region: 'us-central1', cors: true },
+  'restoreLegacySession',
+  { cors: true },
   // Unauthenticated by design: the caller has no native session yet.
   async (request) => runRestoreLegacySession(request.data),
 );

@@ -1,7 +1,8 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { GOOGLE_MAPS_API_KEY } from './secret';
 import { buildReverseGeocodeUrl, mapGeocodeResponse } from './geocode';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const handler = 'reverseGeocode';
 
@@ -28,8 +29,9 @@ interface ReverseGeocodeData {
   lng?: number;
 }
 
-export const reverseGeocode = onCall<ReverseGeocodeData, Promise<{ label: string | null }>>(
-  { region: 'us-central1', cors: true, secrets: [GOOGLE_MAPS_API_KEY] },
+export const reverseGeocode = defineCallable<ReverseGeocodeData, Promise<{ label: string | null }>>(
+  'reverseGeocode',
+  { cors: true, secrets: [GOOGLE_MAPS_API_KEY] },
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
     const data = request.data as ReverseGeocodeData | undefined;

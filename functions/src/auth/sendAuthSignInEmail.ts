@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { isValidEmail } from '@cultuvilla/shared/utils';
 import { logger } from 'firebase-functions/v2';
 import { getAuth } from 'firebase-admin/auth';
@@ -11,6 +11,7 @@ import {
   renderAuthEmailText,
   AUTH_EMAIL_SUBJECT_PREFIX,
 } from './authEmailTemplate';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const handler = 'sendAuthSignInEmail';
 
@@ -108,11 +109,12 @@ export async function runSendAuthSignInEmail(
   return { ok: true };
 }
 
-export const sendAuthSignInEmail = onCall<
+export const sendAuthSignInEmail = defineCallable<
   SendAuthSignInEmailData,
   Promise<SendAuthSignInEmailResult>
 >(
-  { region: 'us-central1', cors: true, secrets: [RESEND_API_KEY] },
+  'sendAuthSignInEmail',
+  { cors: true, secrets: [RESEND_API_KEY] },
   async (request) => {
     // Unauthenticated by design: this is the entry point that lets a signed-out
     // user request a sign-in link in the first place.

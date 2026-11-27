@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -8,6 +8,7 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
 import { readOwnSex } from './ambassador';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -30,11 +31,12 @@ interface TransferVillageAmbassadorResult {
  * where the pointer is null). Team admins cannot move the title: it is one per
  * pueblo precisely so it cannot be claimed laterally.
  */
-export const transferVillageAmbassador = onCall<
+export const transferVillageAmbassador = defineCallable<
   TransferVillageAmbassadorData,
   Promise<TransferVillageAmbassadorResult>
 >(
-  { region: 'us-central1', cors: true },
+  'transferVillageAmbassador',
+  { cors: true },
   async (request) => {
     const handler = 'transferVillageAmbassador';
     const auth = request.auth;

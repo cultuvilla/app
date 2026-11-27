@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -21,6 +21,7 @@ import {
   type CosaRequestAction,
   type CosaRequestStatus,
 } from '@cultuvilla/shared/models';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -204,8 +205,9 @@ export async function applyCosaRequestAction(
   });
 }
 
-export const respondToCosaRequest = onCall<RespondToCosaRequestData, Promise<{ status: CosaRequestStatus }>>(
-  { region: 'us-central1', cors: true },
+export const respondToCosaRequest = defineCallable<RespondToCosaRequestData, Promise<{ status: CosaRequestStatus }>>(
+  'respondToCosaRequest',
+  { cors: true },
   async (request) => {
     const handler = 'respondToCosaRequest';
     const uid = request.auth?.uid;

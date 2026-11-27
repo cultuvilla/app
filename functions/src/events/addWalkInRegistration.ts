@@ -1,5 +1,5 @@
 import { logger } from 'firebase-functions/v2';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
   eventDoc,
@@ -13,6 +13,7 @@ import { validateSignupAnswers } from '@cultuvilla/shared/models';
 import { computeStatuses } from '../helpers/registerToEventValidation';
 import { isWalkInAuthorized } from '../helpers/walkInAuthorization';
 import { writeRegistrationEvent } from '../helpers/registrationAudit';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -32,8 +33,9 @@ interface AddWalkInResult {
 // adds a walk-in attendee with no user account. The registration carries an
 // empty userId/personId; the same capacity/waitlist logic and counter updates
 // as registerToEvent apply.
-export const addWalkInRegistration = onCall<AddWalkInData, Promise<AddWalkInResult>>(
-  { region: 'us-central1', cors: true },
+export const addWalkInRegistration = defineCallable<AddWalkInData, Promise<AddWalkInResult>>(
+  'addWalkInRegistration',
+  { cors: true },
   async (request) => {
     const auth = request.auth;
     if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');

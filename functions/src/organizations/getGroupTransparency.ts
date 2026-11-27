@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -31,6 +31,7 @@ import {
   type TransparentCuentasResult,
   type TransparentCuotaResult,
 } from '@cultuvilla/shared/models';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 const handler = 'getGroupTransparency';
@@ -140,8 +141,9 @@ export async function runGetGroupTransparency(
  * socios may see — the rules cannot hide a field, so these reads go through
  * the Admin SDK. Members of the org only, and only while that switch is on.
  */
-export const getGroupTransparency = onCall<unknown, Promise<GetGroupTransparencyResult>>(
-  { region: 'us-central1', cors: true },
+export const getGroupTransparency = defineCallable<unknown, Promise<GetGroupTransparencyResult>>(
+  'getGroupTransparency',
+  { cors: true },
   async (request) => {
     const callerUid = request.auth?.uid;
     if (!callerUid) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');

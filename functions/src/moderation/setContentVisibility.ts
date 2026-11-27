@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -8,6 +8,7 @@ import {
   buildModerationEventData,
 } from '@cultuvilla/shared/models';
 import { adminDoc, municipalityMemberDoc, moderationEventsCollection } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = admin.firestore();
 
@@ -50,10 +51,10 @@ interface SetContentVisibilityResult {
   status: 'active' | 'hidden';
 }
 
-export const setContentVisibility = onCall<
+export const setContentVisibility = defineCallable<
   SetContentVisibilityData,
   Promise<SetContentVisibilityResult>
->({ region: 'us-central1', cors: true }, async (request) => {
+>('setContentVisibility', { cors: true }, async (request) => {
   const handler = 'setContentVisibility';
   const auth = request.auth;
   if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');

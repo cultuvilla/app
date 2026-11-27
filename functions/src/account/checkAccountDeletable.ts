@@ -1,7 +1,8 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { computeDeletionBlockers, type DeletionBlocker } from './blockers';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -16,8 +17,9 @@ interface CheckAccountDeletableResult {
  * `deleteAccount` (Task 7) will proceed — which re-runs this exact check
  * server-side rather than trusting the client's read.
  */
-export const checkAccountDeletable = onCall<undefined, Promise<CheckAccountDeletableResult>>(
-  { region: 'us-central1', cors: true },
+export const checkAccountDeletable = defineCallable<undefined, Promise<CheckAccountDeletableResult>>(
+  'checkAccountDeletable',
+  { cors: true },
   async (request) => {
     const handler = 'checkAccountDeletable';
     const auth = request.auth;

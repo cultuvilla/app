@@ -1,9 +1,10 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { organizationDoc, organizationMemberDoc, organizationTaskDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { answerShift, madridDayKey, type ShiftAnswer, type ShiftState } from '@cultuvilla/shared/models';
 import { notifyGroupTask } from './groupTaskNotify';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 const ANSWERS: readonly ShiftAnswer[] = ['claim', 'decline', 'withdraw'];
@@ -23,8 +24,9 @@ interface RespondToTaskShiftData {
  * transaction here, two members can never both take the last slot, and no
  * client may write another member onto the list.
  */
-export const respondToTaskShift = onCall<RespondToTaskShiftData, Promise<{ state: ShiftState }>>(
-  { region: 'us-central1', cors: true },
+export const respondToTaskShift = defineCallable<RespondToTaskShiftData, Promise<{ state: ShiftState }>>(
+  'respondToTaskShift',
+  { cors: true },
   async (request) => {
     const handler = 'respondToTaskShift';
     const uid = request.auth?.uid;
