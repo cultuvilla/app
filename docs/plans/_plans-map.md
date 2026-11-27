@@ -16,7 +16,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 |---|---|---|---|---|
 | [cloud-run-gateways](ongoing/cloud-run-gateways.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [delete-account-reauth-gate](ongoing/delete-account-reauth-gate.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
-| [harvest-shared-ci-checks](ongoing/harvest-shared-ci-checks.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [referential-integrity-audit](ongoing/referential-integrity-audit.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [typecheck-shared-tests](ongoing/typecheck-shared-tests.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [blocking-overlay-in-tree](ongoing/blocking-overlay-in-tree.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
