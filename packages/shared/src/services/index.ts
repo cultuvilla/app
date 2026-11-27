@@ -49,3 +49,4 @@ export * from './ledgerCategoryService';
 export * from './studioService'
 export * from './mentionCandidateService'
 export * from './cosatecaService'
+export * from './callableTransport'

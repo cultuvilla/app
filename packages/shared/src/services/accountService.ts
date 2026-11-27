@@ -1,5 +1,5 @@
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+
 import { firebaseErrorCode } from '../firebase/sdk/errors';
 import { REAUTH_REQUIRED_REASON, type DeleteAccountRequest } from '../models/user/accountDeletion';
 
@@ -27,10 +27,7 @@ interface DeleteAccountResult {
  * reports the villages/orgs where the caller is the sole admin.
  */
 export async function checkAccountDeletable(): Promise<CheckAccountDeletableResult> {
-  const fn = httpsCallable<undefined, CheckAccountDeletableResult>(
-    getFirebaseFunctions(),
-    'checkAccountDeletable',
-  );
+  const fn = getCallable<undefined, CheckAccountDeletableResult>('checkAccountDeletable');
   const result = await fn();
   return result.data;
 }
@@ -46,7 +43,7 @@ export async function checkAccountDeletable(): Promise<CheckAccountDeletableResu
  * `isReauthRequiredError` recognises, and the caller reauthenticates and retries.
  */
 export async function deleteAccount(): Promise<DeleteAccountResult> {
-  const fn = httpsCallable<DeleteAccountRequest, DeleteAccountResult>(getFirebaseFunctions(), 'deleteAccount');
+  const fn = getCallable<DeleteAccountRequest, DeleteAccountResult>('deleteAccount');
   const result = await fn({ reauth: true });
   return result.data;
 }

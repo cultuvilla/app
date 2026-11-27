@@ -8,6 +8,7 @@ export {
   initFirebase,
 } from './firebaseApp';
 export type { InitFirebaseOptions } from './firebaseApp';
+export { connectCallableGatewayEmulator } from './callableGatewayEmulator';
 
 // Re-export selected Firebase SDK symbols so apps never need to import from
 // `firebase/*` directly (see AGENTS.md: service-layer ownership rule). These

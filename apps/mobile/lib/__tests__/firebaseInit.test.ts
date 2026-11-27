@@ -4,13 +4,14 @@ const initFirebase = jest.fn();
 const connectAuthEmulator = jest.fn();
 const connectFirestoreEmulator = jest.fn();
 const connectFunctionsEmulator = jest.fn();
+const connectCallableGatewayEmulator = jest.fn();
 const connectStorageEmulator = jest.fn();
 const initMobileAppCheck = jest.fn();
 const handles = { auth: { auth: true }, db: { db: true }, functions: { fn: true }, storage: { st: true } };
 
 function load(extra: Record<string, unknown>): () => void {
   jest.resetModules();
-  for (const fn of [initFirebase, initMobileAppCheck, connectAuthEmulator, connectFirestoreEmulator, connectFunctionsEmulator, connectStorageEmulator]) {
+  for (const fn of [initFirebase, initMobileAppCheck, connectAuthEmulator, connectFirestoreEmulator, connectFunctionsEmulator, connectCallableGatewayEmulator, connectStorageEmulator]) {
     fn.mockClear();
   }
   jest.doMock('@cultuvilla/shared/firebase/sdk/auth', () => ({ connectAuthEmulator }));
@@ -20,6 +21,7 @@ function load(extra: Record<string, unknown>): () => void {
   jest.doMock('../appCheck', () => ({ initMobileAppCheck }));
   jest.doMock('@cultuvilla/shared/firebase', () => ({
     initFirebase,
+    connectCallableGatewayEmulator,
     getAuth: () => handles.auth,
     getDb: () => handles.db,
     getFirebaseFunctions: () => handles.functions,
@@ -48,6 +50,7 @@ describe('bootstrapFirebase', () => {
     });
     expect(connectFirestoreEmulator).toHaveBeenCalledWith(handles.db, '127.0.0.1', 8080);
     expect(connectFunctionsEmulator).toHaveBeenCalledWith(handles.functions, '127.0.0.1', 5001);
+    expect(connectCallableGatewayEmulator).toHaveBeenCalledWith('127.0.0.1', 5001);
     expect(connectStorageEmulator).toHaveBeenCalledWith(handles.storage, '127.0.0.1', 9199);
   });
 

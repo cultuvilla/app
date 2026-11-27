@@ -74,6 +74,12 @@ const sourceFiles = listSourceFiles(FUNCTIONS_SRC);
 const sourceOf = new Map(sourceFiles.map((f) => [f, readFileSync(f, 'utf-8')]));
 const relative = (file: string) => file.slice(FUNCTIONS_SRC.length + 1);
 
+/**
+ * Binds the union of its routes' secrets, computed rather than written out;
+ * `callableGatewayRoutes.test.ts` checks that union against the real endpoints.
+ */
+const COMPUTED_SECRETS = new Set(['gateway/callableGateway.ts']);
+
 describe('Cloud Functions secret declaration invariant', () => {
   it.each(SECRETS)('every entry point that can use %s declares it', (secret) => {
     const usesSecret = new RegExp(`\\b${secret}\\s*\\.\\s*value\\s*\\(`);
@@ -82,7 +88,7 @@ describe('Cloud Functions secret declaration invariant', () => {
     const offenders: string[] = [];
     for (const file of sourceFiles) {
       const source = sourceOf.get(file) ?? '';
-      if (!ENTRY_POINT.test(source)) continue;
+      if (!ENTRY_POINT.test(source) || COMPUTED_SECRETS.has(relative(file))) continue;
       const consumers = [...reachableFrom(file)].filter((f) => usesSecret.test(sourceOf.get(f) ?? ''));
       if (consumers.length === 0) continue;
       if (declaresSecret.test(source)) continue;

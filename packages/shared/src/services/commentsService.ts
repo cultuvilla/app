@@ -9,8 +9,8 @@ import {
   where,
   limit as fsLimit,
 } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import { commentsCollection, commentDoc } from '../firebase/refs/client';
 import { buildCommentData, type CommentData } from '../models/interaction/CommentDataModel';
 import type { EntityKind } from '../models/interaction/EntityKind';
@@ -99,6 +99,6 @@ export interface RecordEntityViewInput {
 }
 
 export async function recordEntityView(input: RecordEntityViewInput): Promise<void> {
-  const fn = httpsCallable<RecordEntityViewInput>(getFirebaseFunctions(), 'recordEntityView');
+  const fn = getCallable<RecordEntityViewInput>('recordEntityView');
   await fn(input);
 }

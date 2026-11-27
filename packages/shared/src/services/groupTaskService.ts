@@ -1,7 +1,7 @@
 // packages/shared/src/services/groupTaskService.ts
 import { arrayRemove, arrayUnion, deleteDoc, doc, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   organizationTaskCommentsCollection,
   organizationTaskCommentsWriteCollection,
@@ -165,10 +165,7 @@ export async function deleteGroupTask(orgId: string, taskId: string): Promise<vo
  * callable: it enforces the cap atomically and promotes the waiting list.
  */
 export async function respondToTaskShift(orgId: string, taskId: string, answer: ShiftAnswer): Promise<ShiftState> {
-  const fn = httpsCallable<{ orgId: string; taskId: string; answer: ShiftAnswer }, { state: ShiftState }>(
-    getFirebaseFunctions(),
-    'respondToTaskShift',
-  );
+  const fn = getCallable<{ orgId: string; taskId: string; answer: ShiftAnswer }, { state: ShiftState }>('respondToTaskShift');
   return (await fn({ orgId, taskId, answer })).data.state;
 }
 

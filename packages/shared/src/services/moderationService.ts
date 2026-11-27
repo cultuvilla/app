@@ -1,6 +1,6 @@
 // packages/shared/src/services/moderationService.ts
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+
 import type { ModeratedCollection } from '../models/moderation/ModerationEventDataModel';
 
 export interface SetVisibilityInput {
@@ -27,10 +27,7 @@ interface SetContentVisibilityResult {
 }
 
 function setContentVisibilityCallable() {
-  return httpsCallable<SetContentVisibilityPayload, SetContentVisibilityResult>(
-    getFirebaseFunctions(),
-    'setContentVisibility',
-  );
+  return getCallable<SetContentVisibilityPayload, SetContentVisibilityResult>('setContentVisibility');
 }
 
 /** Hide a piece of moderated content (village/app admin only — enforced server-side). */

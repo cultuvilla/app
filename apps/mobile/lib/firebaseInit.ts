@@ -6,6 +6,7 @@ import { connectFunctionsEmulator } from '@cultuvilla/shared/firebase/sdk/functi
 import { connectStorageEmulator } from '@cultuvilla/shared/firebase/sdk/storage';
 import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
 import {
+  connectCallableGatewayEmulator,
   initFirebase,
   getAuth,
   getDb,
@@ -75,6 +76,7 @@ function connectEmulatorsIfEnabled(): boolean {
   connectAuthEmulator(getAuth(), `http://${host}:9099`, { disableWarnings: true });
   connectFirestoreEmulator(getDb(), host, 8080);
   connectFunctionsEmulator(getFirebaseFunctions(), host, 5001);
+  connectCallableGatewayEmulator(host, 5001);
   connectStorageEmulator(getFirebaseStorage(), host, 9199);
   return true;
 }

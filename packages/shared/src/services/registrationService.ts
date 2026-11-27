@@ -11,8 +11,8 @@ import {
   serverTimestamp,
   type QueryDocumentSnapshot,
 } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   eventRegistrationsCollection,
   eventRegistrationPrivateDoc,
@@ -165,10 +165,7 @@ export async function registerToEvent(
   registrants: RegisterInput[],
   openSeats = 0,
 ): Promise<RegisterToEventResult> {
-  const callable = httpsCallable<RegisterToEventCallableData, RegisterToEventResult>(
-    getFirebaseFunctions(),
-    'registerToEvent',
-  );
+  const callable = getCallable<RegisterToEventCallableData, RegisterToEventResult>('registerToEvent');
   const res = await callable({ eventId, registrants, openSeats });
   return res.data;
 }
@@ -192,10 +189,10 @@ export async function cancelRegistration(
   eventId: string,
   regId: string,
 ): Promise<CancelRegistrationResult> {
-  const callable = httpsCallable<
+  const callable = getCallable<
     { eventId: string; registrationId: string },
     CancelRegistrationResult
-  >(getFirebaseFunctions(), 'cancelRegistration');
+  >('cancelRegistration');
   const res = await callable({ eventId, registrationId: regId });
   return res.data;
 }
@@ -219,10 +216,10 @@ export async function claimEventSeat(
   token: string,
   input: ClaimSeatInput,
 ): Promise<ClaimSeatResult> {
-  const callable = httpsCallable<
+  const callable = getCallable<
     { eventId: string; token: string } & ClaimSeatInput,
     ClaimSeatResult
-  >(getFirebaseFunctions(), 'claimEventSeat');
+  >('claimEventSeat');
   const res = await callable({ eventId, token, ...input });
   return res.data;
 }
@@ -293,10 +290,7 @@ export async function addWalkInRegistration(
   phone?: string,
   answers?: SignupAnswers,
 ): Promise<RegistrationSummary> {
-  const callable = httpsCallable<AddWalkInCallableData, AddWalkInCallableResult>(
-    getFirebaseFunctions(),
-    'addWalkInRegistration',
-  );
+  const callable = getCallable<AddWalkInCallableData, AddWalkInCallableResult>('addWalkInRegistration');
   const res = await callable({ eventId, name, phone, answers });
   return res.data.registration;
 }

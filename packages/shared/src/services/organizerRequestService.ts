@@ -1,6 +1,6 @@
 import { getDoc, getDocs, query, where, orderBy } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   organizerRequestsCollection,
   organizerRequestDoc,
@@ -44,10 +44,7 @@ interface RequestOrgPayload {
 }
 
 export async function requestOrganizeVillage(payload: RequestOrgPayload): Promise<void> {
-  const fn = httpsCallable<RequestOrgPayload, { ok: true; requestId: string }>(
-    getFirebaseFunctions(),
-    'requestOrganizeVillage',
-  );
+  const fn = getCallable<RequestOrgPayload, { ok: true; requestId: string }>('requestOrganizeVillage');
   await fn(payload);
 }
 
@@ -57,9 +54,6 @@ interface RespondOrgPayload {
 }
 
 export async function respondToOrganizerRequest(payload: RespondOrgPayload): Promise<void> {
-  const fn = httpsCallable<RespondOrgPayload, { ok: true }>(
-    getFirebaseFunctions(),
-    'respondToOrganizerRequest',
-  );
+  const fn = getCallable<RespondOrgPayload, { ok: true }>('respondToOrganizerRequest');
   await fn(payload);
 }

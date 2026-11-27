@@ -9,8 +9,8 @@ import {
   where,
   writeBatch,
 } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   organizationSociosCollection,
   organizationSocioDoc,
@@ -221,9 +221,6 @@ export async function saveSocioContactSharing(
  * keeps the earlier alta.
  */
 export async function linkSocioToMember(orgId: string, socioId: string, memberUid: string): Promise<void> {
-  const fn = httpsCallable<{ orgId: string; socioId: string; memberUid: string }, { ok: true }>(
-    getFirebaseFunctions(),
-    'linkSocioToMember',
-  );
+  const fn = getCallable<{ orgId: string; socioId: string; memberUid: string }, { ok: true }>('linkSocioToMember');
   await fn({ orgId, socioId, memberUid });
 }

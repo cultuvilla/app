@@ -8,8 +8,8 @@ import {
   writeBatch,
   type QueryDocumentSnapshot,
 } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   municipalityMembersCollection,
   municipalityMemberDoc,
@@ -179,10 +179,10 @@ export async function setVillageMemberRole(
   userId: string,
   role: VillageMemberRole,
 ): Promise<void> {
-  const fn = httpsCallable<
+  const fn = getCallable<
     { municipalityId: string; targetUserId: string; role: VillageMemberRole },
     { ok: true }
-  >(getFirebaseFunctions(), 'changeVillageMemberRole');
+  >('changeVillageMemberRole');
   await fn({ municipalityId, targetUserId: userId, role });
 }
 
@@ -195,10 +195,10 @@ export async function transferVillageAmbassador(
   municipalityId: string,
   targetUserId: string,
 ): Promise<void> {
-  const fn = httpsCallable<
+  const fn = getCallable<
     { municipalityId: string; targetUserId: string },
     { ok: true }
-  >(getFirebaseFunctions(), 'transferVillageAmbassador');
+  >('transferVillageAmbassador');
   await fn({ municipalityId, targetUserId });
 }
 

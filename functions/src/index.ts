@@ -2,6 +2,10 @@
 // (which call getFirestore() at top-level) evaluates. See initApp.ts.
 import './initApp';
 
+// Callable gateway: one service in Firestore's region that serves every light
+// callable (docs/ops/callable-gateway.md). The callables below stay deployed too.
+export { callableGateway } from './gateway/callableGateway';
+
 // Events
 export { registerToEvent } from './events/registerToEvent';
 export { addWalkInRegistration } from './events/addWalkInRegistration';

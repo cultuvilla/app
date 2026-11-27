@@ -13,8 +13,8 @@ import {
   serverTimestamp,
   Timestamp,
 } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import { newsCollection, newsDoc } from '../firebase/refs/client';
 import {
   buildNewsPostData,
@@ -205,10 +205,7 @@ export async function updateNewsPost(id: string, patch: UpdateNewsPostInput): Pr
  * comments with the admin SDK. Authorization (author, village-admin,
  * or app-admin) is verified server-side. */
 export async function deleteNewsPost(postId: string): Promise<void> {
-  const fn = httpsCallable<{ postId: string }, { ok: true }>(
-    getFirebaseFunctions(),
-    'deleteNewsPost',
-  );
+  const fn = getCallable<{ postId: string }, { ok: true }>('deleteNewsPost');
   await fn({ postId });
 }
 
