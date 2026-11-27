@@ -25,9 +25,14 @@ describe('deploy-firebase.yml revision cleanup', () => {
     expect(step).toMatch(/continue-on-error: true/);
   });
 
-  it('applies a bounded batch, and not on prod', () => {
+  it('applies a bounded batch on every env, prod included', () => {
     expect(step).toMatch(/cleanup-cloudrun-revisions\.mjs --env="\$FIREBASE_ALIAS" --apply --max-deletes=\d+ --max-minutes=\d+/);
-    expect(step).toContain("inputs.firebase_alias != 'prod'");
-    expect(step).not.toContain('--confirm');
+    expect(step).not.toContain("firebase_alias != 'prod'");
+  });
+
+  it('passes --confirm, which the script requires for prod, only on prod', () => {
+    expect(step).toContain("${{ inputs.firebase_alias == 'prod' && '--confirm' || '' }}");
+    const script = readFileSync(resolve(repoRoot, 'scripts/cleanup-cloudrun-revisions.mjs'), 'utf-8');
+    expect(script).toMatch(/env === 'prod' && !process\.argv\.includes\('--confirm'\)/);
   });
 });
