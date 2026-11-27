@@ -3,7 +3,7 @@ verifier: agent
 accounts: admin
 platform: any
 data: seed
-source: fix/blocking-overlay-in-tree
+source: "#765"
 ---
 # La pantalla «Eliminando…» se ve igual y bloquea la pantalla, sin congelar la app
 
