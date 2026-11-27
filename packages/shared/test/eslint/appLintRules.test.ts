@@ -5,7 +5,7 @@
 // only through firebaseErrorCode().
 import { resolve } from 'node:path';
 import { ESLint } from 'eslint';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as mobileConfig from '../../../../apps/mobile/eslint.config.mjs';
 import * as studioConfig from '../../../../apps/studio/eslint.config.mjs';
 
@@ -34,7 +34,7 @@ async function lint(app: Workspace, filePath: string, code: string): Promise<str
   const cwd = workspaceDir[app];
   const eslint = new ESLint({ cwd, overrideConfigFile: resolve(cwd, 'eslint.config.mjs') });
   const results = await eslint.lintText(code, { filePath: resolve(cwd, filePath) });
-  return results.flatMap((r) => r.messages).map((m) => m.ruleId ?? m.message);
+  return results.flatMap((r) => r.messages).map((m) => m.ruleId ?? `fatal: ${m.message}`);
 }
 
 const RESTRICTED = '@typescript-eslint/no-restricted-imports';
@@ -131,7 +131,15 @@ describe.each([
   const probe = (body: string) =>
     `import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';\n` +
     `export const probe = (error: { code?: string }, result: { status: string }): unknown => {\n${body}\n};\n`;
-  const bans = async (body: string) => (await lint(app, file, probe(body))).filter((r) => r === BAN).length;
+  // The ban, and anything that kept the rules from running at all.
+  const bans = async (body: string) =>
+    (await lint(app, file, probe(body))).filter((r) => r === BAN || r.startsWith('fatal: '));
+
+  // A type-checked config builds its program on the first lint; doing that here
+  // keeps the first case from paying for it.
+  beforeAll(async () => {
+    await lint(app, file, probe('return null;'));
+  }, 120_000);
 
   it.each([
     "return error.code === 'permission-denied';",
@@ -145,7 +153,7 @@ describe.each([
     "switch (firebaseErrorCode(error)) { case 'firestore/aborted': return 1; default: return 0; }",
     "return ['unavailable', 'deadline-exceeded'].includes(error.code);",
   ])('rejects %s', async (body) => {
-    expect(await bans(body)).toBe(1);
+    expect(await bans(body)).toEqual([BAN]);
   }, 60_000);
 
   it.each([
@@ -156,6 +164,6 @@ describe.each([
     "return error.code === 'storage/unauthorized';",
     "return error.code === 'ERR_REQUEST_CANCELED';",
   ])('allows %s', async (body) => {
-    expect(await bans(body)).toBe(0);
+    expect(await bans(body)).toEqual([]);
   }, 60_000);
 });
