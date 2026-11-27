@@ -1,5 +1,7 @@
 import { httpsCallable } from '../firebase/sdk/functions';
 import { getFirebaseFunctions } from '../firebase';
+import { firebaseErrorCode } from '../firebase/sdk/errors';
+import { REAUTH_REQUIRED_REASON, type DeleteAccountRequest } from '../models/user/accountDeletion';
 
 /**
  * A village/org where the caller is the sole admin — must be resolved
@@ -38,9 +40,24 @@ export async function checkAccountDeletable(): Promise<CheckAccountDeletableResu
  * re-runs the sole-admin blocker check and aborts before deleting anything
  * if the caller still has one — the client's `checkAccountDeletable` preview
  * is never trusted for the actual deletion decision.
+ *
+ * `reauth: true` tells the server this client can sign in again, so it holds
+ * the call to a recent sign-in: a stale one rejects with an error
+ * `isReauthRequiredError` recognises, and the caller reauthenticates and retries.
  */
 export async function deleteAccount(): Promise<DeleteAccountResult> {
-  const fn = httpsCallable<undefined, DeleteAccountResult>(getFirebaseFunctions(), 'deleteAccount');
-  const result = await fn();
+  const fn = httpsCallable<DeleteAccountRequest, DeleteAccountResult>(getFirebaseFunctions(), 'deleteAccount');
+  const result = await fn({ reauth: true });
   return result.data;
+}
+
+/** True when `deleteAccount` refused because the sign-in is too old. */
+export function isReauthRequiredError(error: unknown): boolean {
+  if (firebaseErrorCode(error) !== 'failed-precondition') return false;
+  const details = (error as { details?: unknown }).details;
+  return (
+    typeof details === 'object' &&
+    details !== null &&
+    (details as { reason?: unknown }).reason === REAUTH_REQUIRED_REASON
+  );
 }

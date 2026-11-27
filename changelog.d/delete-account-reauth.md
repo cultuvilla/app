@@ -1,0 +1,1 @@
+- Seguridad: eliminar la cuenta pide confirmar que eres tú (con Google, Apple o un código por correo) si iniciaste sesión hace más de 5 minutos. **Migration:** none.
