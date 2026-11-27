@@ -573,6 +573,7 @@ pnpm check            # lint + typecheck + test + build (CI gate)
 pnpm lint             # eslint --max-warnings 0 in packages/shared, functions, apps/mobile, apps/studio
 pnpm typecheck        # tsc --noEmit in shared, functions, i18n, mobile
 pnpm test             # vitest (shared) + jest (mobile) + functions, under emulators
+pnpm test:file <name|path> # one test file, its own config; emulators only if that config needs them
 pnpm backfills:list   # registered data migrations (see Backfills)
 pnpm audit:refs       # read-only referential-integrity audit (dev; --env=beta|prod) — repairs: prod-data-repair skill
 pnpm test:e2e:android # Maestro on an Android AVD, under emulators (needs a device)

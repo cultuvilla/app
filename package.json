@@ -65,6 +65,7 @@
     "test:integration": "node scripts/run-tests-with-emulators.mjs pnpm --filter @cultuvilla/shared test:integration",
     "test:rules": "ONLY=firestore,storage node scripts/run-tests-with-emulators.mjs pnpm --filter @cultuvilla/shared test:rules",
     "test:functions": "ONLY=auth,firestore,storage node scripts/run-tests-with-emulators.mjs npm --prefix functions run test:integration",
+    "test:file": "node scripts/run-test-file.mjs",
     "test:emulators": "pnpm test:integration && pnpm test:rules && pnpm test:functions",
     "test:e2e:android": "node scripts/run-tests-with-emulators.mjs --label seed pnpm seed:e2e --label android node scripts/run-android-e2e.mjs",
     "e2e:ci:android": "gh workflow run android-e2e.yml",
