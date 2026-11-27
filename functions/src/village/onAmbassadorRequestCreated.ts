@@ -3,7 +3,7 @@ import * as admin from 'firebase-admin';
 import { municipalityDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { ambassadorLeadAlert, organizerRequestAlert } from '../notify/ambassadorAlerts';
 import { publishNotify } from '../notify/publishNotify';
-import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { defineDocumentTrigger, TRIGGER_RETRY_WINDOW_MS } from '../shared/define/defineDocumentTrigger';
 
 const db = admin.firestore();
 
@@ -14,25 +14,26 @@ const db = admin.firestore();
  * ../notify/ambassadorAlerts.ts).
  *
  * Both triggers retry a failed publish (the gateway dedupes on the doc id), but
- * only for an hour: past that the alert is stale and the Buzón has it anyway.
+ * only within the perishable window: past it the alert is stale and the Buzón
+ * has it anyway.
  */
-const RETRY_WINDOW_MS = 60 * 60 * 1000;
-
-const tooOld = (eventTime: string): boolean => Date.now() - Date.parse(eventTime) > RETRY_WINDOW_MS;
 
 const text = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() ? value.trim() : null;
 
 export const onOrganizerRequestCreated = defineDocumentTrigger(
   'onOrganizerRequestCreated',
-  { kind: 'created', document: 'organizerRequests/{requestId}', retry: true },
+  {
+    kind: 'created',
+    document: 'organizerRequests/{requestId}',
+    retry: {
+      maxEventAgeMs: TRIGGER_RETRY_WINDOW_MS.perishable,
+      abandonedMessage: 'organizer request alert dropped after retry window',
+    },
+  },
   async (event) => {
     const handler = 'onOrganizerRequestCreated';
     const { requestId } = event.params;
-    if (tooOld(event.time)) {
-      logger.warn('organizer request alert dropped after retry window', { handler, requestId });
-      return;
-    }
     const request = event.data?.data();
     if (!request) return;
     const municipalityId = text(request['municipalityId']);
@@ -53,14 +54,17 @@ export const onOrganizerRequestCreated = defineDocumentTrigger(
 
 export const onAmbassadorLeadCreated = defineDocumentTrigger(
   'onAmbassadorLeadCreated',
-  { kind: 'created', document: 'ambassadorLeads/{leadId}', retry: true },
+  {
+    kind: 'created',
+    document: 'ambassadorLeads/{leadId}',
+    retry: {
+      maxEventAgeMs: TRIGGER_RETRY_WINDOW_MS.perishable,
+      abandonedMessage: 'ambassador lead alert dropped after retry window',
+    },
+  },
   async (event) => {
     const handler = 'onAmbassadorLeadCreated';
     const { leadId } = event.params;
-    if (tooOld(event.time)) {
-      logger.warn('ambassador lead alert dropped after retry window', { handler, leadId });
-      return;
-    }
     const lead = event.data?.data();
     if (!lead) return;
 
