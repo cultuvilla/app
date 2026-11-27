@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const functions = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
+const functions = vi.hoisted((): { current: Record<string, unknown> } => ({ current: {} }));
 vi.mock('../../src/firebase', () => ({ getFirebaseFunctions: vi.fn(() => functions.current) }));
 
 const byName = vi.fn();
