@@ -99,7 +99,14 @@ fi
 # ── devices ─────────────────────────────────────────────────────────────────
 attached() { "$ADB" devices | tr -d '\r' | awk 'NR > 1 && $2 == "device" { print $1 }'; }
 is_ours() { [[ "$1" == Cultuvilla_* && "$1" != *[Ee]2[Ee]* ]]; }
-avd_of() { "$ADB" -s "$1" emu avd name 2>/dev/null | tr -d '\r' | head -1; }
+# Every early-exit reader (`grep -q`, `head`) reads a captured string, never a
+# pipe: it would exit on its first line, the writer die of SIGPIPE and, under
+# pipefail, the test read 141 — a flake on exactly the output that matched.
+avd_of() {
+  local out
+  out="$("$ADB" -s "$1" emu avd name 2>/dev/null | tr -d '\r')" || return
+  printf '%s\n' "${out%%$'\n'*}"
+}
 
 declare -a phones=() avd_serials=() avd_names=() report=()
 running_avds=" "
@@ -214,13 +221,14 @@ done
 echo
 echo "rollout: dev client $(git -C "$REPO_ROOT" rev-parse --short HEAD), fingerprint ${current_fp:0:12}"
 (( ${#report[@]} == 0 )) || printf '  %s\n' "${report[@]}"
-if printf '%s\n' "${report[@]}" | grep -q '^✗'; then
+report_text="$(printf '%s\n' "${report[@]}")"
+if grep -q '^✗' <<< "$report_text"; then
   exit 1
 fi
 # Only a rollout that reached every device it set out to counts: --only, a
 # stopped Cultuvilla AVD, or a --skip-build of an APK of another fingerprint
 # leaves the record alone.
 if [[ "$only" == all && "$(read_file "$APK_FINGERPRINT_FILE")" == "$current_fp" ]] \
-  && ! printf '%s\n' "${report[@]}" | grep -q 'is not running'; then
+  && ! grep -q 'is not running' <<< "$report_text"; then
   echo "$current_fp" > "$ROLLED_OUT_FINGERPRINT_FILE"
 fi
