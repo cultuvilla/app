@@ -1,9 +1,15 @@
 # Referential-integrity audit and a safe repair procedure
 
 **Priority:** high
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
+**Landed:** dev
+**Gate:** decision:apply the two prod repairs below (Álvaro), and the audit workflow reaches beta/prod only once a release carries it to beta/main
+**Next:** on Álvaro's yes, write the prod repairs per `.agents/skills/prod-data-repair` (snapshot, dry run, apply, re-audit); after the next release, dispatch "Audit Referential Integrity" with ref beta and main
+
+State 2026-11-27: #766 merged — 50 invariants in `packages/shared/src/validation`, `pnpm audit:refs`, a read-only WIF workflow, the `prod-data-repair` skill. Read-only runs: dev 19 (all seed data), beta 0, prod 6:
+
+- (a) `organizations/fUXt8iSQNfgfVKjgjtOd/members/F6kd…`: an admin membership left under a deleted group (joined 2026-08-19). Repair: delete it and write a `removed` membershipEvent.
+- (b) 5 confirmed registrations whose persona was deleted (owners still exist), on two upcoming events: `events/moD7zz28…` (5 Dec, 4 of them) and `events/YJFTs2N3…` (6 Dec, 1). Repair: cancel through cancelRegistration's logic so counts and waitlist promotion stay right. Root cause filed as `ideas/persona-delete-cancels-registrations.md`.
+- Every prod municipality lacks `peopleCount`; the pending village-people-count backfill covers it.
 
 **Decided 2026-11-27 (Álvaro):** build it — first batch of the Órdago harvest (`_workspace/docs/plans/ideas/harvest-across-repos.md`).
 
