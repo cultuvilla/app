@@ -9,7 +9,7 @@
 handler to a few shared Cloud Run services. Dev and beta go ahead; each prod step needs
 his go with the numbers in front of him (`## Approval`).
 
-**Decided 2026-11-27 (Álvaro):** the gateways run in `europe-southwest1` (Madrid), next to Firestore, in every env.
+**Decided 2026-11-27 (Álvaro):** the gateways run in `europe-southwest1` (Madrid), next to Firestore, in every env. Prod stays cold (min 0) for now to save cost; warming it (~€11/month, Órdago's measured figure) is a later call, one config value.
 
 **Goal:** pay for work, not for the number of handlers. Today every handler is its own
 Cloud Run service: 43 callables, 40 document triggers, 8 schedules, 3 HTTP and 1
@@ -57,8 +57,8 @@ Read these before designing anything; they carry the traps already paid for:
    cold-start share, Functions CPU on the bill, idle containers. This is the baseline and
    the case for each prod step.
 1. **Define seam** for every handler kind, no behaviour change (pre-approved refactor).
-2. **Callable gateway + `getCallable`** transport; gateway on dev → beta; prod warm
-   (min 1) only on Álvaro's go with phase 0's numbers.
+2. **Callable gateway + `getCallable`** transport; gateway on dev → beta; prod cold
+   (min 0); its prod deploy still needs Álvaro's go.
 3. **Event gateway** with the connected → served → drain flow, light and heavy profiles.
 4. **Job gateway** for the frequent schedules.
 5. **Contract**: drop standalone callables once `minSupported` allows; retire this plan.
