@@ -80,8 +80,8 @@ describe('EventDetailScreen', () => {
 
   it('renders the event title and the guest CTA', async () => {
     const { getByText } = render(<EventDetailScreen />);
-    await waitFor(() => getByText('Verbena'));
-    getByText('guest.eventCta');
+    await waitFor(() => expect(getByText('Verbena')).toBeTruthy());
+    expect(getByText('guest.eventCta')).toBeTruthy();
   });
 
   it('renders the Pueblo section and navigates to the village on press', async () => {

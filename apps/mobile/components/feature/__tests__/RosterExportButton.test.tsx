@@ -117,7 +117,7 @@ describe('RosterExportButton', () => {
     fireEvent.press(screen.getByTestId('export-roster'));
     fireEvent.press(screen.getByTestId('export-roster-csv'));
 
-    await waitFor(() => screen.getByText('event.export.error'));
+    await waitFor(() => expect(screen.getByText('event.export.error')).toBeTruthy());
   });
 
   it('is offered on native too — the control no longer depends on the web build', () => {

@@ -52,7 +52,7 @@ describe('EventAttendees', () => {
     const { getByTestId } = render(
       <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired={false} requiresPayment={false} groupSize={3} canManage={false} />,
     );
-    await waitFor(() => getByTestId('attendees-group-note'));
+    await waitFor(() => expect(getByTestId('attendees-group-note')).toBeTruthy());
   });
 
   it('hides the edit toggle until there is at least one attendee', async () => {
@@ -69,7 +69,7 @@ describe('EventAttendees', () => {
     const { getByTestId } = render(
       <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired={false} requiresPayment={false} canManage />,
     );
-    await waitFor(() => getByTestId('attendees-edit-toggle'));
+    await waitFor(() => expect(getByTestId('attendees-edit-toggle')).toBeTruthy());
   });
 
   it('shows a call action that reveals the number in a dialog when telephone was required', async () => {
@@ -161,14 +161,14 @@ describe('EventAttendees', () => {
       <EventAttendees eventId="e1" eventTitle="Fiesta" eventDate={new Date("2026-06-24T20:00:00Z")} telephoneRequired={false} requiresPayment={false} canManage />,
     );
     // The waitlist heading only appears when someone is waitlisted.
-    await waitFor(() => getByText('event.waitlist (1)'));
-    getByText('event.attendees (1)');
-    getByText('Ana');
-    getByText('Luis');
+    await waitFor(() => expect(getByText('event.waitlist (1)')).toBeTruthy());
+    expect(getByText('event.attendees (1)')).toBeTruthy();
+    expect(getByText('Ana')).toBeTruthy();
+    expect(getByText('Luis')).toBeTruthy();
     // One toggle governs both sections' remove actions.
     enterEditMode();
-    getByTestId('remove-attendee-r1');
-    getByTestId('remove-attendee-r2');
+    expect(getByTestId('remove-attendee-r1')).toBeTruthy();
+    expect(getByTestId('remove-attendee-r2')).toBeTruthy();
   });
 
   it('shows when each attendee signed up, in the order the service returned', async () => {
@@ -399,7 +399,7 @@ describe('EventAttendees — read-only (fellow villager)', () => {
         canManage
       />,
     );
-    await waitFor(() => getByText('Peque'));
+    await waitFor(() => expect(getByText('Peque')).toBeTruthy());
   });
 
   it('hides custom sign-up answers', async () => {

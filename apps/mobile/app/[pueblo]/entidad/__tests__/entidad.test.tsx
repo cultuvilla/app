@@ -92,9 +92,9 @@ beforeEach(() => {
 describe('OrgDetailScreen', () => {
   it('offers to ask to join, never to join on the spot', async () => {
     const { getByText, getByTestId } = render(<OrgDetailScreen />);
-    await waitFor(() => getByText('Peña La Unión'));
-    getByTestId('join-org-fab');
-    getByText('organization.requestToJoin');
+    await waitFor(() => expect(getByText('Peña La Unión')).toBeTruthy());
+    expect(getByTestId('join-org-fab')).toBeTruthy();
+    expect(getByText('organization.requestToJoin')).toBeTruthy();
   });
 
   it('shows an update the moment the listener delivers it, without refetching membership', async () => {
@@ -166,7 +166,7 @@ describe('OrgDetailScreen — join policy', () => {
     setWatched('org', approvalOrg);
     (hasPendingOrgJoinRequest as jest.Mock).mockResolvedValue(true);
     const { getByText } = render(<OrgDetailScreen />);
-    await waitFor(() => getByText('organization.requestPending'));
+    await waitFor(() => expect(getByText('organization.requestPending')).toBeTruthy());
   });
 
   it('joins an open org on the spot', async () => {
