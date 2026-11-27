@@ -9,7 +9,6 @@
 // is exactly what its standalone service runs. The standalone services stay
 // deployed until `minSupported` passes the first release that calls the
 // gateway (expand → migrate → contract).
-import { defineInt } from 'firebase-functions/params';
 import type { HttpsFunction, HttpsOptions, Request } from 'firebase-functions/v2/https';
 import type { Response } from 'express';
 
@@ -25,11 +24,12 @@ export const CALLABLE_GATEWAY_MEMORY_MIB = 1024;
 export const CALLABLE_GATEWAY_TIMEOUT_SECONDS = 60;
 
 /**
- * Instances kept warm. 0 (scale to zero) unless a project's
- * `functions/.env.<project>` says otherwise — production's warm instance is
- * Álvaro's call (plan cloud-run-gateways), and this is the one value it sets.
+ * Instances kept warm, in every env. Production stays cold by Álvaro's
+ * decision (2026-11-27); warming it is this one value (~€11/month for 1).
+ * A constant, not a functions param: a param with no stored value makes the
+ * emulator and a non-interactive deploy stop and ask for one.
  */
-export const CALLABLE_GATEWAY_MIN_INSTANCES = defineInt('CALLABLE_GATEWAY_MIN_INSTANCES', { default: 0 });
+export const CALLABLE_GATEWAY_MIN_INSTANCES = 0;
 
 /**
  * `cpu: 1` is not a size choice: below 1 vCPU firebase-functions forces

@@ -15,11 +15,12 @@ comes from Órdago's gateway.
   `CALLABLE_GATEWAY_PROJECTS`, which today means dev and beta. Production
   clients call each callable's own service until Álvaro says otherwise. That
   change is one line plus its test, and it reaches installed apps by OTA.
-- **Warm instances:** `CALLABLE_GATEWAY_MIN_INSTANCES` (a functions param,
-  default 0) sets them. Every env scales to zero today; prod stays cold by
-  Álvaro's decision (2026-11-27). Warming it means adding
-  `CALLABLE_GATEWAY_MIN_INSTANCES=1` to `functions/.env.cultuvilla-prod`, at
-  about €11/month.
+- **Warm instances:** `CALLABLE_GATEWAY_MIN_INSTANCES` in
+  `functions/src/gateway/callableGateway.ts` sets them. Every env scales to
+  zero today; prod stays cold by Álvaro's decision (2026-11-27). Warming prod
+  alone means making that value depend on the project, at about €11/month
+  per instance. It is a constant because a functions param with no stored
+  value makes the emulator and a non-interactive deploy stop and ask for one.
 - **The standalone callables stay deployed** (expand → migrate → contract).
   They go only once `minSupported` has passed the first release whose
   production clients call the gateway, in a commit that carries

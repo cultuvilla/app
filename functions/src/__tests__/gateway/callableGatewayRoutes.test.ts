@@ -103,8 +103,8 @@ describe('the deployed callable gateway', () => {
     expect(gateway?.concurrency).toBe(80);
   });
 
-  it('keeps no instance warm unless a project sets CALLABLE_GATEWAY_MIN_INSTANCES', () => {
-    expect(String(gateway?.minInstances)).toContain('CALLABLE_GATEWAY_MIN_INSTANCES');
+  it('keeps no instance warm: production stays cold until Álvaro says otherwise', () => {
+    expect(gateway?.minInstances).toBe(0);
   });
 });
 
