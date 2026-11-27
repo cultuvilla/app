@@ -23,7 +23,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [scheduled-schema-audit](ongoing/scheduled-schema-audit.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [trigger-retry-window](ongoing/trigger-retry-window.md) | medium | none | this cycle | being built by worker h16 in batch 2026-11-27-harvest |
 | [user-data-export-script](ready/user-data-export-script.md) `ready` | medium | — | this cycle | after account-deletion-coverage lands: a read-only export script on its registry, plus the runbook |
-| [verify-deployed-functions](ongoing/verify-deployed-functions.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [data-stores-in-env-parity](ready/data-stores-in-env-parity.md) `ready` | low | — | this cycle | extend check-env-parity.mjs and infra/env-parity.json (the existing nightly run, no new workflow) |
 | [dev-client-rollout](ready/dev-client-rollout.md) `ready` | low | — | this cycle | build the manual script (no timer wiring) |
 | [test-file-runner](ready/test-file-runner.md) `ready` | low | — | this cycle | build `pnpm test:file <name>` |
@@ -45,6 +44,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [play-release-notes](ongoing/play-release-notes.md) | medium | dev | this cycle | once that release reaches beta and main, check "Set the Play release notes" is green in beta-build-and-submit and production-release, then `pnpm play:notes:show --profile beta` and `--profile production` show the es-ES notes (ADC with the androidpublisher scope: the verify-play-release-notes skill) |
+| [verify-deployed-functions](ongoing/verify-deployed-functions.md) | medium | dev | this cycle | on the next beta deploy, confirm the "Parity check — live rules, indexes and functions are this commit's" step is green with no function-health findings, then retire this plan (#772 shipped it; dev green in run 46006747833) |
 
 ## Soaking
 
