@@ -115,11 +115,23 @@ jobs:
           APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
           APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
           APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
+          # Inputs reach the shell as data, never pasted into the script:
+          # build_number, version and groups are free text.
+          COMMAND: ${{ inputs.command }}
+          APPLY: ${{ inputs.apply }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          VERSION: ${{ inputs.version }}
+          PHASED_STATE: ${{ inputs.phased_state }}
+          GROUPS: ${{ inputs.groups }}
+          BETA_REVIEW: ${{ inputs.beta_review }}
         run: |
-          node scripts/appstore-release.mjs "${{ inputs.command }}" \
-            ${{ inputs.apply && '--apply' || '' }} \
-            ${{ inputs.build_number != '' && format('--build-number={0}', inputs.build_number) || '' }} \
-            ${{ inputs.version != '' && format('--version={0}', inputs.version) || '' }} \
-            ${{ inputs.command == 'phased' && format('--state={0}', inputs.phased_state) || '' }} \
-            ${{ inputs.command == 'testflight' && format('--groups={0}', inputs.groups) || '' }} \
-            ${{ inputs.command == 'testflight' && inputs.beta_review && '--beta-review' || '' }}
+          args=("$COMMAND")
+          [ "$APPLY" = "true" ] && args+=(--apply)
+          [ -n "$BUILD_NUMBER" ] && args+=("--build-number=$BUILD_NUMBER")
+          [ -n "$VERSION" ] && args+=("--version=$VERSION")
+          [ "$COMMAND" = "phased" ] && args+=("--state=$PHASED_STATE")
+          if [ "$COMMAND" = "testflight" ]; then
+            args+=("--groups=$GROUPS")
+            [ "$BETA_REVIEW" = "true" ] && args+=(--beta-review)
+          fi
+          node scripts/appstore-release.mjs "${args[@]}"

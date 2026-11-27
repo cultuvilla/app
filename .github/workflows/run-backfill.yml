@@ -109,16 +109,24 @@ jobs:
           ID: ${{ inputs.id }}
           ENV: ${{ inputs.env }}
 
+      # Every input reaches the shell through env:, never `${{ }}` in the script:
+      # `id` is free text, and an interpolation is pasted in before the shell
+      # parses the line (scripts/check-workflow-input-injection.js).
       - name: Summary
         if: always()
+        env:
+          ID: ${{ inputs.id }}
+          ENV: ${{ inputs.env }}
+          MODE: ${{ inputs.mode }}
+          STATUS: ${{ job.status }}
         run: |
           {
-            echo "### Backfill \`${{ inputs.id }}\` → \`${{ inputs.env }}\`"
+            echo "### Backfill \`$ID\` → \`$ENV\`"
             echo ""
-            echo "- Mode: **${{ inputs.mode }}**"
-            echo "- Result: **${{ job.status }}**"
-            if [ "${{ inputs.mode }}" = "apply" ] && [ "${{ job.status }}" = "success" ]; then
-              echo "- Marker: \`_admin/backfills/markers/${{ inputs.id }}.${{ inputs.env }}\` recorded."
+            echo "- Mode: **$MODE**"
+            echo "- Result: **$STATUS**"
+            if [ "$MODE" = "apply" ] && [ "$STATUS" = "success" ]; then
+              echo "- Marker: \`_admin/backfills/markers/$ID.$ENV\` recorded."
             else
               echo "- No marker written (dry run or failed run)."
             fi

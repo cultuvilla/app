@@ -1,0 +1,12 @@
+{
+  "$comment": "Values the shared CI checks in .agents/_shared/scripts need for this repo (agent-skills README, Shared CI checks). Run from ci.yml.",
+  "functionsLoadedMemory": {
+    "entry": "functions/dist/index.js",
+    "_budgetMib": "RSS after gc() of the esbuild bundle, +10 MiB so a growth like Órdago's 17 MiB pubsub import fails. 176 MiB measured on a workstation on 2026-11-27; most functions here run at the 256 MiB default. Raise it only in a PR that says what the extra megabytes buy.",
+    "budgetMib": 186,
+    "build": "pnpm functions:build"
+  },
+  "maestro": {
+    "flowsDir": ["apps/mobile/e2e/native/flows", "apps/mobile/e2e/native/subflows"]
+  }
+}

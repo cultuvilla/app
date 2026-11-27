@@ -94,6 +94,8 @@ env:
       id: 'attendee-answer-${DEPENDENT}-menu-Pescado'
     direction: DOWN
     timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'attendee-answer-${DEPENDENT}-menu-Pescado'
 
@@ -103,6 +105,8 @@ env:
       id: 'attendee-answer-${SELF}-invitados'
     direction: UP
     timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'attendee-answer-${SELF}-invitados'
 - inputText: '2'
@@ -223,6 +227,8 @@ env:
       id: 'attendee-create'
     direction: DOWN
     timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'attendee-create'
 - extendedWaitUntil:
@@ -269,6 +275,8 @@ env:
     direction: DOWN
     centerElement: true
     timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'birthday-year-option-2015'
 # Month options are indexed from 0: option 5 is June, stored as month 6.
@@ -280,6 +288,8 @@ env:
     direction: DOWN
     centerElement: true
     timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'birthday-month-option-5'
 - tapOn:
@@ -290,6 +300,8 @@ env:
     direction: DOWN
     centerElement: true
     timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'birthday-day-option-1'
 # Residence, then About (nothing required on either), then save.
@@ -366,6 +378,8 @@ env:
       id: 'attendee-answer-${output.newPerson}-menu-Carne'
     direction: DOWN
     timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'attendee-answer-${output.newPerson}-menu-Carne'
 - tapOn:

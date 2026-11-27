@@ -1,0 +1,1 @@
+../.agents/_shared/scripts/check-workflow-input-injection.js

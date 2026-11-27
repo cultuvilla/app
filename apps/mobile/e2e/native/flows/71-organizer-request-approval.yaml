@@ -121,6 +121,8 @@ env:
     direction: UP
     centerElement: true
     timeout: 20000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'reject-organizer-${output.rejectedId}'
 # respondToOrganizerRequest is a callable; its first call boots the worker.
@@ -145,6 +147,8 @@ env:
     direction: DOWN
     centerElement: true
     timeout: 20000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'approve-organizer-${output.requestId}'
 - runScript:

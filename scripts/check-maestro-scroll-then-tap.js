@@ -1,0 +1,1 @@
+../.agents/_shared/scripts/check-maestro-scroll-then-tap.js

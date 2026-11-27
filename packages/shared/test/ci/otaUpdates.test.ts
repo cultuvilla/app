@@ -58,9 +58,11 @@ describe('OTA update wiring', () => {
   // Without --environment no EAS variable is loaded and the update ships an
   // empty Firebase config — every update up to 1.4.1 did exactly that.
   it('loads the EAS environment matching the channel it publishes to', () => {
+    // Bound through env: — an input pasted into run: executes as script.
     expect(otaWorkflow).toContain(
-      "--environment \"${{ inputs.channel == 'production' && 'production' || 'preview' }}\"",
+      "EAS_ENVIRONMENT: ${{ inputs.channel == 'production' && 'production' || 'preview' }}",
     );
+    expect(otaWorkflow).toContain('--environment "$EAS_ENVIRONMENT"');
   });
 
   // app.config.ts falls back to `dev` for any APP_ENV outside dev|beta|prod, so

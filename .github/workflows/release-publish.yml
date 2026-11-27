@@ -73,7 +73,8 @@ jobs:
           APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
           APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
           APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
-        run: node scripts/release-announce.mjs ready --env=prod ${{ inputs.force && '--force' || '' }}
+          FORCE: ${{ inputs.force }}
+        run: node scripts/release-announce.mjs ready --env=prod $([ "$FORCE" = "true" ] && echo --force)
 
   deploy:
     name: Deploy the held backend

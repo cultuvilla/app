@@ -174,8 +174,9 @@ describe('mobile-release workflow', () => {
   });
 
   it('routes the chosen track into the submit profile', () => {
-    expect(workflow).toContain('--auto-submit-with-profile {0}');
-    expect(workflow).toContain('inputs.track');
+    // Bound through env: — an input pasted into run: executes as script.
+    expect(workflow).toContain('TRACK: ${{ inputs.track }}');
+    expect(workflow).toContain('--auto-submit-with-profile "$TRACK"');
   });
 
   it('can resubmit a finished build to the chosen track without rebuilding', () => {

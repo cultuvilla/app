@@ -137,6 +137,8 @@ env:
     direction: UP
     centerElement: true
     timeout: 20000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'attendees-edit-toggle'
 - runFlow:

@@ -56,6 +56,8 @@ When the human says they're done, or on your next turn:
 - `list answers`. Each answered card has `{choice, label, followed_pick, ms, opened_context,
   mode, via, note, taken_back, deferred, stakes, blind_choice, agreed_blind}`. `active: false` means taken back or deferred, not answered.
 - `choice: "other"` carries their own words in `note`. Treat it as an instruction to clarify, not a pick.
+- `choice: "question"` («I need to know something first») is not an answer: find what `note` asks,
+  write it into the card's `context`, and put the card in the next round.
 - Write each answer where its decision lives (the plan's gate and body, in the repo that owns it), the same turn.
 - Report the round in one line: cards answered, median seconds, picks taken, contexts opened,
   take-backs. Where the owner keeps a log of rounds, append it there.

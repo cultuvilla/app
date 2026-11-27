@@ -75,6 +75,8 @@ env:
       id: 'approve-join-${ORG_ID}-${JOINER_UID}'
     direction: DOWN
     timeout: 45000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'approve-join-${ORG_ID}-${JOINER_UID}'
 - runScript:
@@ -95,6 +97,8 @@ env:
       id: 'reject-join-${ORG_ID}-${REJECTED_UID}'
     direction: DOWN
     timeout: 20000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: 'reject-join-${ORG_ID}-${REJECTED_UID}'
 - runScript:
