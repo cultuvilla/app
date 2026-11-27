@@ -1,7 +1,9 @@
 # Operator script for emailed data access and portability requests
 
 **Priority:** medium
-**Next:** after account-deletion-coverage lands: a read-only export script on its registry, plus the runbook
+**Landed:** none
+**Gate:** none
+**Next:** being built by worker h22 in batch 2026-11-27-harvest
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
 
