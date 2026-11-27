@@ -88,6 +88,9 @@ which today is also a manual dispatch. This reverses AGENTS.md's "production is
 never automatic", so that text changes in the same PR.
 
 ### 6. Release notes from the CHANGELOG, both stores
+
+Split out and approved 2026-11-27: `ready/play-release-notes.md`.
+
 `scripts/lib/changelog-notes.mjs` already derives App Store *What's New* from the
 stamped CHANGELOG block. Reuse it for Play (ordago's `push-play-release-notes.js`
 is the model).
