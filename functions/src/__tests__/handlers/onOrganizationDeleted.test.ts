@@ -25,8 +25,9 @@ async function fireDelete(authId: string | undefined): Promise<void> {
   await wrapped({
     data: ft.makeChange(before, after),
     params: { orgId: ORG_ID },
+    // 'app_user' is what Eventarc sends for a signed-in client; the SDK's AuthType union omits it.
     ...(authId ? { authType: 'app_user', authId } : { authType: 'unknown' }),
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 async function seedSubtree(orgId: string): Promise<void> {
