@@ -14,8 +14,8 @@ import {
   type UpdateData,
   type DocumentData,
 } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   organizationsCollection,
   organizationDoc,
@@ -115,10 +115,10 @@ export async function requestOrganization(
   // server-side (rules can't query for an existing one), so it goes through the
   // requestAyuntamiento callable. peña / asociación are unlimited, written directly.
   if (input.type === 'ayuntamiento') {
-    const fn = httpsCallable<
+    const fn = getCallable<
       { name: string; description: string | null; municipalityId: string },
       { ok: true; orgId: string }
-    >(getFirebaseFunctions(), 'requestAyuntamiento');
+    >('requestAyuntamiento');
     const res = await fn({
       name: input.name,
       description: input.description ?? null,
@@ -174,10 +174,7 @@ export async function requestOrganization(
  * firestore.rules forbids a client from setting `status: 'approved'`.
  */
 export async function approveOrganization(orgId: string): Promise<void> {
-  const fn = httpsCallable<{ orgId: string }, { ok: true }>(
-    getFirebaseFunctions(),
-    'approveOrganization',
-  );
+  const fn = getCallable<{ orgId: string }, { ok: true }>('approveOrganization');
   await fn({ orgId });
 }
 

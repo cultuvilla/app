@@ -154,6 +154,7 @@
       "localhost"
     ],
     "artifactCleanup": [
+      "europe-southwest1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s",
       "europe-west1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s",
       "us-central1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s",
       "us-east1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s"
@@ -237,6 +238,15 @@
           "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_DISABLED"
         },
         "reason": "Point-in-time recovery is a paid backup feature kept for production data only."
+      }
+    ],
+    "prod": [
+      {
+        "dimension": "artifactCleanup",
+        "remove": [
+          "europe-southwest1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s"
+        ],
+        "reason": "callableGateway is the first function in europe-southwest1 and reaches prod only with the next promotion (docs/ops/callable-gateway.md); drop at the first prod deploy carrying callableGateway."
       }
     ]
   }

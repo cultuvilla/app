@@ -1,6 +1,6 @@
 import { getDoc, getDocs, orderBy, query, where } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import { villageWrappedCollection, villageWrappedDoc } from '../firebase/refs/client';
 import { wrappedId, type WrappedData, type WrappedStatus } from '../models/wrapped/WrappedDataModel';
 import type { WrappedRequest } from '../wrapped/wrappedRequest';
@@ -62,19 +62,12 @@ export async function getReadableWrapped(municipalityId: string, year: number): 
  * callable client's 70s default — so the timeout matches the function's own.
  */
 export async function buildVillageWrapped(request: WrappedRequest): Promise<{ wrappedId: string; status: WrappedStatus }> {
-  const fn = httpsCallable<WrappedRequest, { wrappedId: string; status: WrappedStatus }>(
-    getFirebaseFunctions(),
-    'buildVillageWrapped',
-    { timeout: 300_000 },
-  );
+  const fn = getCallable<WrappedRequest, { wrappedId: string; status: WrappedStatus }>('buildVillageWrapped', { timeout: 300_000 });
   return (await fn(request)).data;
 }
 
 /** Publish or discard a draft. */
 export async function respondToVillageWrapped(id: string, decision: 'publish' | 'discard'): Promise<void> {
-  const fn = httpsCallable<{ wrappedId: string; decision: 'publish' | 'discard' }>(
-    getFirebaseFunctions(),
-    'respondToVillageWrapped',
-  );
+  const fn = getCallable<{ wrappedId: string; decision: 'publish' | 'discard' }>('respondToVillageWrapped');
   await fn({ wrappedId: id, decision });
 }

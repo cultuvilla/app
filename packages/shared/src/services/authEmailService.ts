@@ -1,6 +1,5 @@
 // packages/shared/src/services/authEmailService.ts
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
 
 /**
  * Sends the branded Cultuvilla re-authentication email-link for `email`, via
@@ -13,10 +12,7 @@ import { getFirebaseFunctions } from '../firebase';
  * getEmailLinkContinueUrl()); the Admin SDK can't derive it server-side.
  */
 export async function sendAuthSignInEmail(email: string, continueUrl: string): Promise<void> {
-  const fn = httpsCallable<{ email: string; continueUrl: string }, { ok: true }>(
-    getFirebaseFunctions(),
-    'sendAuthSignInEmail',
-  );
+  const fn = getCallable<{ email: string; continueUrl: string }, { ok: true }>('sendAuthSignInEmail');
   await fn({ email, continueUrl });
 }
 
@@ -26,10 +22,7 @@ export async function sendAuthSignInEmail(email: string, continueUrl: string): P
  * with verifyAuthOtpCode to complete sign-in.
  */
 export async function sendAuthOtpCode(email: string): Promise<void> {
-  const fn = httpsCallable<{ email: string }, { ok: true }>(
-    getFirebaseFunctions(),
-    'sendAuthOtpCode',
-  );
+  const fn = getCallable<{ email: string }, { ok: true }>('sendAuthOtpCode');
   await fn({ email });
 }
 
@@ -38,10 +31,7 @@ export async function sendAuthOtpCode(email: string): Promise<void> {
  * for signInWithCustomToken — see functions/src/auth/verifyAuthOtpCode.ts.
  */
 export async function verifyAuthOtpCode(email: string, code: string): Promise<string> {
-  const fn = httpsCallable<{ email: string; code: string }, { token: string }>(
-    getFirebaseFunctions(),
-    'verifyAuthOtpCode',
-  );
+  const fn = getCallable<{ email: string; code: string }, { token: string }>('verifyAuthOtpCode');
   const result = await fn({ email, code });
   return result.data.token;
 }

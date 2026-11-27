@@ -1,6 +1,18 @@
 // packages/shared/eslint.config.mjs
 import tseslint from 'typescript-eslint';
 
+const SDK_SEAM_PATTERN = {
+  group: ['firebase/*', '@firebase/*', '@react-native-firebase/*'],
+  allowTypeImports: true,
+  message: 'Import Firebase from src/firebase/sdk/* instead.',
+};
+
+const CALLABLE_TRANSPORT_PATTERN = {
+  group: ['**/sdk/functions'],
+  importNames: ['httpsCallable', 'httpsCallableFromURL'],
+  message: 'Reach a callable with getCallable from services/callableTransport.',
+};
+
 export default tseslint.config(
   {
     files: ['src/**/*.ts', 'test/**/*.ts'],
@@ -38,15 +50,17 @@ export default tseslint.config(
       '@typescript-eslint/no-restricted-imports': [
         'error',
         {
-          patterns: [
-            {
-              group: ['firebase/*', '@firebase/*', '@react-native-firebase/*'],
-              allowTypeImports: true,
-              message: 'Import Firebase from src/firebase/sdk/* instead.',
-            },
-          ],
+          patterns: [SDK_SEAM_PATTERN, CALLABLE_TRANSPORT_PATTERN],
         },
       ],
+    },
+  },
+  {
+    // The one module that builds a callable: it picks the gateway or the
+    // callable's own service (services/callableTransport.ts).
+    files: ['src/services/callableTransport.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', { patterns: [SDK_SEAM_PATTERN] }],
     },
   },
   {

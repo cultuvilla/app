@@ -1,5 +1,5 @@
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+
 import type { ProfileFormField, ProfileAnswers } from '../models/municipality/CensoTypes';
 import { isPredefinedFieldKey } from '../models/municipality/profileFieldRegistry';
 
@@ -147,9 +147,6 @@ export async function updateCensoSchema(
   municipalityId: string,
   fields: ProfileFormField[],
 ): Promise<void> {
-  const fn = httpsCallable<{ municipalityId: string; fields: ProfileFormField[] }, { ok: true }>(
-    getFirebaseFunctions(),
-    'updateCenso',
-  );
+  const fn = getCallable<{ municipalityId: string; fields: ProfileFormField[] }, { ok: true }>('updateCenso');
   await fn({ municipalityId, fields });
 }

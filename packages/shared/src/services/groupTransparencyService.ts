@@ -1,6 +1,6 @@
 // packages/shared/src/services/groupTransparencyService.ts
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+
 import type {
   GetGroupTransparencyInput,
   GetGroupTransparencyResult,
@@ -17,7 +17,7 @@ import type {
  * is read with `recordsService.watchLedgerEntriesForYear` once `cuentas` is on.
  */
 async function call<R extends GetGroupTransparencyResult>(input: GetGroupTransparencyInput): Promise<R> {
-  const fn = httpsCallable<GetGroupTransparencyInput, GetGroupTransparencyResult>(getFirebaseFunctions(), 'getGroupTransparency');
+  const fn = getCallable<GetGroupTransparencyInput, GetGroupTransparencyResult>('getGroupTransparency');
   return (await fn(input)).data as R;
 }
 

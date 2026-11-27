@@ -1,7 +1,7 @@
 // packages/shared/src/services/cosatecaService.ts
 import { deleteDoc, doc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   cosaDoc,
   cosaRequestChatCollection,
@@ -219,10 +219,7 @@ export async function getMyPendingCosaRequests(uid: string): Promise<CosaRequest
  * `heldBy`.
  */
 export async function respondToCosaRequest(requestId: string, action: CosaRequestAction): Promise<CosaRequestStatus> {
-  const fn = httpsCallable<{ requestId: string; action: CosaRequestAction }, { status: CosaRequestStatus }>(
-    getFirebaseFunctions(),
-    'respondToCosaRequest',
-  );
+  const fn = getCallable<{ requestId: string; action: CosaRequestAction }, { status: CosaRequestStatus }>('respondToCosaRequest');
   return (await fn({ requestId, action })).data.status;
 }
 
@@ -259,10 +256,10 @@ export async function bookReservaSlot(
   startAt: Date,
   message: string | null = null,
 ): Promise<{ requestId: string; status: CosaRequestStatus }> {
-  const fn = httpsCallable<
+  const fn = getCallable<
     { cosaId: string; startAt: string; message: string | null },
     { requestId: string; status: CosaRequestStatus }
-  >(getFirebaseFunctions(), 'bookReservaSlot');
+  >('bookReservaSlot');
   return (await fn({ cosaId, startAt: startAt.toISOString(), message: message?.trim() ? message.trim() : null })).data;
 }
 
@@ -272,10 +269,7 @@ export async function bookReservaSlot(
  * bookers. Returns how many it cancelled.
  */
 export async function setReservaBlackouts(cosaId: string, blackouts: string[]): Promise<{ cancelled: number }> {
-  const fn = httpsCallable<{ cosaId: string; blackouts: string[] }, { cancelled: number }>(
-    getFirebaseFunctions(),
-    'setReservaBlackouts',
-  );
+  const fn = getCallable<{ cosaId: string; blackouts: string[] }, { cancelled: number }>('setReservaBlackouts');
   return (await fn({ cosaId, blackouts })).data;
 }
 
