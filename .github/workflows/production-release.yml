@@ -350,6 +350,18 @@ jobs:
           fi
           echo "version_code=${code}" >> "$GITHUB_OUTPUT"
 
+      # Play's "What's new": the same es-ES CHANGELOG text the App Store gets,
+      # set on the release EAS just submitted. continue-on-error: the binary
+      # has shipped by now, and a failed note must not skip recording the
+      # versionCode — the step's red mark is the signal. Read it back with
+      # `pnpm play:notes:show --profile production`.
+      - name: Set the Play release notes
+        continue-on-error: true
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          VERSION_CODE: ${{ steps.built.outputs.version_code }}
+        run: node scripts/push-play-release-notes.mjs --profile production --version-code="${VERSION_CODE}" --apply
+
       - name: Remove the key
         if: always()
         run: rm -f apps/mobile/google-play-service-account.json

@@ -102,6 +102,14 @@ describe('stampChangelog', () => {
     assert.throws(() => stampChangelog(noNotes, '1.6.0', '2026-10-06'), /store-notes/);
   });
 
+  it('refuses store notes longer than Play takes, counted as store text', () => {
+    const long = CHANGELOG.replace(/(<!-- store-notes -->\n)/, `$1- ${'a'.repeat(500)}\n`);
+    assert.throws(() => stampChangelog(long, '1.6.0', '2026-10-06'), /500/);
+    // Markdown markup is not counted: Play gets the flattened text.
+    const marked = CHANGELOG.replace(/(<!-- store-notes -->\n)/, `$1- **${'a'.repeat(400)}**\n`);
+    assert.doesNotThrow(() => stampChangelog(marked, '1.6.0', '2026-10-06'));
+  });
+
   it('refuses a version that is already stamped', () => {
     assert.throws(() => stampChangelog(CHANGELOG, '1.5.0', '2026-10-06'), /already has/);
   });

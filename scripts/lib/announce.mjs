@@ -26,6 +26,7 @@
 
 import { compareVersions } from './breaking-rollup.mjs';
 import { SERVED_PLATFORMS } from './app-version-config.mjs';
+import { findTrackRelease, hasVersionCode, versionNameRe } from './play.mjs';
 
 export const PLATFORMS = ['ios', 'android'];
 
@@ -309,10 +310,7 @@ export function ageInDays(pending, now = Date.now()) {
 
 // ── store answers ─────────────────────────────────────────────────────────
 
-const hasCode = (versionCode) => versionCode != null && versionCode !== '';
-
-/** Matches `version` inside a release name, but not inside a longer one (1.5.0 vs 1.5.01). */
-const versionNameRe = (version) => new RegExp(`(^|[^\\d.])${String(version).replace(/\./g, '\\.')}([^\\d.]|$)`);
+const hasCode = hasVersionCode;
 
 /**
  * Where is `version`'s release in Play's lifecycle? `list` is the
@@ -369,11 +367,8 @@ export const shortPlayState = (state) => String(state ?? 'UNKNOWN').replace(/^RE
  * running. The lifecycle's PUBLISHED proves that; this adds "to everyone".
  */
 export function interpretPlayTrack(track, { versionCode, version }) {
-  const releases = track?.releases ?? [];
   const via = hasCode(versionCode) ? 'versionCode' : 'name';
-  const rel = via === 'versionCode'
-    ? releases.find((r) => (r.versionCodes ?? []).map(String).includes(String(versionCode)))
-    : releases.find((r) => versionNameRe(version).test(String(r.name ?? '')));
+  const rel = findTrackRelease(track, { versionCode, version });
   if (!rel) return { found: false, fullRollout: false, status: null, via };
   const fraction = rel.userFraction ?? 1;
   return {

@@ -8,6 +8,7 @@
 
 import path from 'node:path';
 import { extractVersion } from './app-version.mjs';
+import { MAX_PLAY_NOTES, storeNotesText } from './changelog-notes.mjs';
 
 export const RELEASE_BRANCH = /^release\/(\d+\.\d+\.\d+)$/;
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -138,8 +139,9 @@ export function isFragmentPath(file) {
  * Move `[Unreleased]` plus every `changelog.d/` fragment under `## vX.Y.Z — date`
  * and reopen an empty `[Unreleased]`. Fragments follow the hand-written body
  * (the store notes) in filename order, so the stamp is reproducible.
- * Refuses an empty release, a missing store-notes block (the App Store "What's
- * New" is written by a person, so the cut will not invent one) and a version
+ * Refuses an empty release, a missing store-notes block (the stores' "What's
+ * New" is written by a person, so the cut will not invent one), store notes
+ * longer than Play's 500 characters, and a version
  * that is already stamped.
  *
  * @param {{ path: string, content: string }[]} [fragments]
@@ -163,6 +165,15 @@ export function stampChangelog(changelog, version, date, fragments = []) {
     throw new Error(
       'CHANGELOG.md [Unreleased] has no <!-- store-notes --> … <!-- /store-notes --> block. ' +
         'Write the es-ES App Store "What\'s New" there first (see the prepare-release skill).',
+    );
+  }
+  // Both stores get this text, and Play's limit is the smaller: cut here, not
+  // mid-sentence by the Play push after the binary has shipped.
+  const notesLength = [...storeNotesText(body)].length;
+  if (notesLength > MAX_PLAY_NOTES) {
+    throw new Error(
+      `CHANGELOG.md [Unreleased] store notes are ${notesLength} characters as store text; ` +
+        `Google Play's limit is ${MAX_PLAY_NOTES}. Shorten the <!-- store-notes --> block.`,
     );
   }
   const m = UNRELEASED.exec(changelog);
