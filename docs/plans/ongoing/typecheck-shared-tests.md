@@ -1,6 +1,9 @@
 # Type-check packages/shared's tests
 
 **Priority:** high
+**Landed:** none
+**Gate:** none
+**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
 
 **Decided 2026-11-27 (Álvaro):** build it — first batch of the Órdago harvest (`_workspace/docs/plans/ideas/harvest-across-repos.md`).
 

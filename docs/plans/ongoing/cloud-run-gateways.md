@@ -1,6 +1,9 @@
 # A few Cloud Run services instead of one per function
 
 **Priority:** high — Álvaro called it the priority of the Órdago harvest (2026-11-27)
+**Landed:** none
+**Gate:** none
+**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
 
 **Decided 2026-11-27 (Álvaro):** port Órdago's move from one Cloud Functions service per
 handler to a few shared Cloud Run services. Dev and beta go ahead; each prod step needs

@@ -1,6 +1,9 @@
 # Recent sign-in before deleting an account
 
 **Priority:** high
+**Landed:** none
+**Gate:** none
+**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
 
 **Decided 2026-11-27 (Álvaro):** yes — from the Órdago harvest. A user may be asked to
 sign in again before deleting their account.
