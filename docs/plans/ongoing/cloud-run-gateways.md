@@ -9,6 +9,8 @@
 handler to a few shared Cloud Run services. Dev and beta go ahead; each prod step needs
 his go with the numbers in front of him (`## Approval`).
 
+**Decided 2026-11-27 (Álvaro):** the gateways run in `europe-southwest1` (Madrid), next to Firestore, in every env.
+
 **Goal:** pay for work, not for the number of handlers. Today every handler is its own
 Cloud Run service: 43 callables, 40 document triggers, 8 schedules, 3 HTTP and 1
 Storage trigger (~95 functions, counted by h1 on 2026-11-27). Each has its own cold starts and its own idle containers, and every
