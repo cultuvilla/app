@@ -1,7 +1,7 @@
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { vocabularyTermDoc } from '@cultuvilla/shared/firebase/refs/admin';
-import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { updateIfStillExists } from '../shared/notFound';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
@@ -32,15 +32,14 @@ export const syncVocabularyDefinitionCount = defineDocumentTrigger(
     const termId = ((after ?? before) as Record<string, unknown>)['termId'] as string;
     if (!termId) return;
 
-    try {
-      await vocabularyTermDoc(db, termId).update('definitionCount', FieldValue.increment(delta));
-    } catch (err) {
-      // Term deleted before the trigger ran (an admin removing a whole headword
-      // cascades its definitions) — nothing to keep in step, and retrying would
-      // loop forever.
-      if (!isNotFound(err)) throw err;
-      return;
-    }
+    // An admin removing a whole headword cascades its definitions, so the term
+    // may be gone already.
+    const termRef = vocabularyTermDoc(db, termId);
+    const applied = await updateIfStillExists(
+      () => termRef.update('definitionCount', FieldValue.increment(delta)),
+      { handler: 'syncVocabularyDefinitionCount', path: termRef.path },
+    );
+    if (!applied) return;
 
     logger.info('vocabulary definition count updated', {
       handler: 'syncVocabularyDefinitionCount',

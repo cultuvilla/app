@@ -1,6 +1,7 @@
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { updateIfStillExists } from '../shared/notFound';
 
 const db = admin.firestore();
 
@@ -58,7 +59,12 @@ export const syncMemberBarrioToResidence = defineDocumentTrigger(
     // already removed it) → skip the write.
     if (current.length === next.length) return;
 
-    await personRef.update({ municipalityLinks: next });
+    // An account deletion removes the person alongside its memberships.
+    const applied = await updateIfStillExists(() => personRef.update({ municipalityLinks: next }), {
+      handler,
+      path: personRef.path,
+    });
+    if (!applied) return;
     logger.info('Residence link removed on membership delete', {
       handler,
       municipalityId,

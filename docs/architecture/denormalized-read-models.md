@@ -247,7 +247,7 @@ withdraw it, so an incorrect value is a security fact, not a display glitch.
 - **Backfill:** none — the collection is new, so there is no pre-existing data
   to reconcile.
 - **Delete behavior:** a term deleted out from under an in-flight trigger is a
-  no-op (`isNotFound` guard), not a retry loop.
+  no-op (`updateIfStillExists`, see [triggers-tolerate-a-deleted-subject.md](../decisions/triggers-tolerate-a-deleted-subject.md)), not a retry loop.
 
 ### `replyCount` ← `comments/`
 

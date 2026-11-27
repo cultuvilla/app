@@ -3,6 +3,7 @@ import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { eventsCollection } from '@cultuvilla/shared/firebase/refs/admin';
 import { startOfMadridDay } from '@cultuvilla/shared/models';
 import { defineSchedule } from '../shared/define/defineSchedule';
+import { isNotFound } from '../shared/notFound';
 
 const db = getFirestore();
 
@@ -20,7 +21,13 @@ export const completeExpiredEvents = defineSchedule('completeExpiredEvents', { s
 
   const writer = db.bulkWriter();
   let failed = 0;
+  let deleted = 0;
   writer.onWriteError((err) => {
+    // Deleted since the query: nothing left to complete, and not a failure.
+    if (isNotFound(err)) {
+      deleted += 1;
+      return false;
+    }
     if (err.failedAttempts < 3) return true;
     failed += 1;
     logger.warn('Could not complete an expired event', {
@@ -42,7 +49,8 @@ export const completeExpiredEvents = defineSchedule('completeExpiredEvents', { s
   logger.info('Completed expired events', {
     handler: 'completeExpiredEvents',
     cutoff: cutoff.toISOString(),
-    completedCount: expired.size - failed,
+    completedCount: expired.size - failed - deleted,
     failedCount: failed,
+    deletedCount: deleted,
   });
 });

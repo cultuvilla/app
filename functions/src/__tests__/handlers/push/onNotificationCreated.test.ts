@@ -71,6 +71,16 @@ describe('onNotificationCreated', () => {
     expect(q.data()?.['sentAt']).not.toBeNull();
   });
 
+  it('ends quietly when the account deletion removes the queue entry mid-delivery', async () => {
+    deliverPush.mockImplementationOnce(async () => {
+      await admin.firestore().doc(`pushQueue/${UID}__n-gone`).delete();
+      return { delivered: 1, failed: 0 };
+    });
+    await expect(fire('n-gone', notification('waitlist_promoted', { eventId: 'ev1' }))).resolves.not.toThrow();
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+    expect((await queueDoc('n-gone')).exists).toBe(false);
+  });
+
   it('never sends the same notification twice when the trigger is redelivered', async () => {
     const data = notification('event_cancelled', { eventId: 'ev1' });
     await fire('n2', data);

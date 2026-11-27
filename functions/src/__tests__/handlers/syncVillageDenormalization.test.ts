@@ -6,6 +6,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
+import { deleteAfterQuery } from '../helpers/deletedSubject';
 import { syncVillageDenormalization } from '../../village/syncVillageDenormalization';
 
 const ft = functionsTestFactory({ projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test' });
@@ -91,6 +92,21 @@ afterAll(() => {
 });
 
 describe('syncVillageDenormalization', () => {
+  it('updates the other events when one is deleted between the query and the write', async () => {
+    await seedEvent(null);
+    await admin.firestore().doc('events/event-gone').set({ municipalityId: MUNICIPALITY_ID, villageName: 'Villarriba' });
+
+    const race = deleteAfterQuery('events/event-gone');
+    try {
+      await expect(fireTrigger(municipality(), municipality({ name: 'Villabajo' }))).resolves.not.toThrow();
+    } finally {
+      race.restore();
+    }
+
+    expect((await admin.firestore().doc('events/event-gone').get()).exists).toBe(false);
+    expect((await admin.firestore().doc(`events/${EVENT_ID}`).get()).get('villageName')).toBe('Villabajo');
+  });
+
   it('propagates escudoManualUrl to villageCoverImage on events', async () => {
     await seedEvent(null);
 

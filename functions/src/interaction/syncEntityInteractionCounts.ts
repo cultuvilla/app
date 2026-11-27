@@ -14,15 +14,11 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildNotificationData, type EntityKind } from '@cultuvilla/shared/models';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { isNotFound, updateIfStillExists } from '../shared/notFound';
 
 const db = getFirestore();
 
 export type ApplyResult = 'applied' | 'unknown-kind' | 'not-found';
-
-export function isNotFound(err: unknown): boolean {
-  const code = (err as { code?: number | string } | null)?.code;
-  return code === 5 || code === 'NOT_FOUND' || code === 'not-found';
-}
 
 // Routes a field-path update to the parent entity's doc via the typed ref
 // factories. The `.update(field, value, …)` field-path overload is used (not the
@@ -95,12 +91,12 @@ export const syncEntityCommentCount = defineDocumentTrigger(
     }
 
     if (parentCommentId) {
-      try {
-        await commentDoc(db, parentCommentId).update('replyCount', FieldValue.increment(delta));
-      } catch (err) {
-        if (!isNotFound(err)) throw err;
-        // parent comment already deleted (cascade in flight) — no-op
-      }
+      // The parent comment may be gone already: deleting it cascades its replies.
+      const parentRef = commentDoc(db, parentCommentId);
+      await updateIfStillExists(() => parentRef.update('replyCount', FieldValue.increment(delta)), {
+        handler: 'syncEntityCommentCount',
+        path: parentRef.path,
+      });
     }
 
     if (parentCommentId && delta === 1) {
