@@ -39,11 +39,6 @@ const ALLOWED: { file: string; line: RegExp; why: string }[] = [
     line: /^\.update\(event\.ref, /,
     why: "a BulkWriter write: onWriteError counts NOT_FOUND as deleted, and the write's own promise is caught",
   },
-  {
-    file: 'users/syncPersonDenormalization.ts',
-    line: /^for \(const doc of stale\) batch\.update\(doc\.ref, \{ 'community\.organizerSex'/,
-    why: 'municipalities are INE records and are never deleted',
-  },
 ];
 
 function isComment(line: string): boolean {

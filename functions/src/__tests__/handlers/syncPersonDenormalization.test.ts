@@ -56,8 +56,18 @@ async function fireTrigger(
   const beforeSnap = ft.firestore.makeDocumentSnapshot(asRecord(before), `persons/${personId}`);
   const afterSnap = ft.firestore.makeDocumentSnapshot(asRecord(after), `persons/${personId}`);
   const change = ft.makeChange(beforeSnap, afterSnap);
+  // The trigger reads the person as it stands now, so the store holds `after`.
+  const ref = admin.firestore().doc(`persons/${personId}`);
+  await (after ? ref.set(asRecord(after)) : ref.delete());
   // v2 wrapper takes a single CloudEvent-style object with data + params.
   await wrapped({ data: change, params: { personId } } as unknown as Parameters<typeof wrapped>[0]);
+}
+
+/** Fires the trigger without touching the store — a delivery that arrives late. */
+async function fireStale(before: PersonShape | null, after: PersonShape | null): Promise<void> {
+  const beforeSnap = ft.firestore.makeDocumentSnapshot(asRecord(before), `persons/${PERSON_ID}`);
+  const afterSnap = ft.firestore.makeDocumentSnapshot(asRecord(after), `persons/${PERSON_ID}`);
+  await wrapped({ data: ft.makeChange(beforeSnap, afterSnap), params: { personId: PERSON_ID } } as unknown as Parameters<typeof wrapped>[0]);
 }
 
 beforeAll(async () => {
@@ -171,6 +181,29 @@ describe('syncPersonDenormalization', () => {
 
       // Stale value left alone: no sex change means no fan-out.
       expect(await organizerSex('m1')).toBe('male');
+    });
+  });
+
+  describe('a late event (delivered after a newer write)', () => {
+    it('does not recreate the user doc when the person was deleted meanwhile', async () => {
+      await fireTrigger(null, person());
+      await admin.firestore().doc(`users/${USER_ID}`).delete();
+      await admin.firestore().doc(`persons/${PERSON_ID}`).delete();
+
+      // The update raced the account deletion: its snapshots still carry a
+      // person, but the store no longer does.
+      await fireStale(person(), person({ secondSurname: 'Pérez' }));
+
+      expect((await admin.firestore().doc(`users/${USER_ID}`).get()).exists).toBe(false);
+    });
+
+    it('writes the current name, not the stale one the event carries', async () => {
+      await seedUser('Ana García López');
+      await admin.firestore().doc(`persons/${PERSON_ID}`).set(asRecord(person({ secondSurname: 'Ruiz' })));
+
+      await fireStale(person(), person({ secondSurname: 'Pérez' }));
+
+      expect((await admin.firestore().doc(`users/${USER_ID}`).get()).get('displayName')).toBe('Ana García Ruiz');
     });
   });
 });

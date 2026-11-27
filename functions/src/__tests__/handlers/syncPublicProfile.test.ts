@@ -26,8 +26,13 @@ function user(overrides: UserShape = {}): UserShape {
   };
 }
 
-async function fireTrigger(before: UserShape | null, after: UserShape | null): Promise<void> {
+/** Delivers a write event; `stale` skips mirroring `after` into the store (a late delivery). */
+async function fireTrigger(before: UserShape | null, after: UserShape | null, stale = false): Promise<void> {
   const path = `users/${USER_ID}`;
+  if (!stale) {
+    const ref = admin.firestore().doc(path);
+    await (after ? ref.set(after) : ref.delete());
+  }
   const change = ft.makeChange(
     ft.firestore.makeDocumentSnapshot(before ?? {}, path),
     ft.firestore.makeDocumentSnapshot(after ?? {}, path),
@@ -107,5 +112,22 @@ describe('syncPublicProfile', () => {
     await fireTrigger(user(), null);
 
     expect((await projection()).exists).toBe(false);
+  });
+
+  it('keeps the profile gone when an update arrives after the account was deleted', async () => {
+    await fireTrigger(null, user());
+    await fireTrigger(user(), null);
+
+    await fireTrigger(user(), user({ displayName: 'Ana G.' }), true);
+
+    expect((await projection()).exists).toBe(false);
+  });
+
+  it('projects the current account, not the older version a late event carries', async () => {
+    await fireTrigger(null, user({ displayName: 'Ana Pérez' }));
+
+    await fireTrigger(user({ displayName: 'Ana Pérez' }), user({ displayName: 'Ana García' }), true);
+
+    expect((await projection()).get('displayName')).toBe('Ana Pérez');
   });
 });
