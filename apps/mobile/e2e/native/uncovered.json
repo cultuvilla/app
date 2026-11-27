@@ -165,6 +165,8 @@
   "cuota-tier-covers-*": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
   "cuota-tier-remove-*": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
   "cuota-tier-years-*": "unit-tested: components/feature/groups/__tests__/CuotaAdmin.test.tsx",
+  "delete-account-reauth-code": "unit-tested: app/ajustes/__tests__/eliminar-cuenta.test.tsx",
+  "delete-account-reauth-submit": "unit-tested: app/ajustes/__tests__/eliminar-cuenta.test.tsx",
   "end-time-error": "unit-tested: app/crear/__tests__/evento.test.tsx",
   "entity-card-comment-count": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
   "entity-card-event-attendee-count": "unit-tested: components/feature/__tests__/VillageHomeBody.test.tsx",
