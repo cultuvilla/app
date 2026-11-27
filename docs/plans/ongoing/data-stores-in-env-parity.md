@@ -1,9 +1,9 @@
 # Declare every data store and its retention in env-parity
 
 **Priority:** low
-**Landed:** none
-**Gate:** none
-**Next:** extend check-env-parity.mjs and infra/env-parity.json (the existing nightly run, no new workflow)
+**Landed:** dev
+**Gate:** decision:grant roles/bigquery.metadataViewer to gha-deployer in all three envs so the check can see BigQuery (prod holds the GA4 export dataset analytics_546204987)
+**Next:** on a yes, grant the role in dev, beta and prod, record it in infra/env-parity.json, and add BigQuery datasets to the dataStores check; #782 shipped the rest (dev deploy 46044439593 green)
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
 
