@@ -21,9 +21,8 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [scheduled-schema-audit](ongoing/scheduled-schema-audit.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [trigger-retry-window](ongoing/trigger-retry-window.md) | medium | none | this cycle | being built by worker h16 in batch 2026-11-27-harvest |
 | [user-data-export-script](ongoing/user-data-export-script.md) | medium | none | this cycle | being built by worker h22 in batch 2026-11-27-harvest |
-| [data-stores-in-env-parity](ongoing/data-stores-in-env-parity.md) | low | none | this cycle | extend check-env-parity.mjs and infra/env-parity.json (the existing nightly run, no new workflow) |
 | [dev-client-rollout](ongoing/dev-client-rollout.md) | low | none | this cycle | build the manual script (no timer wiring) |
-| [functions-test-casts](ready/functions-test-casts.md) `ready` | low | — | this cycle | add a cast ratchet for functions tests (as packages/shared has), then replace casts with typed fixtures slice by slice |
+| [functions-test-casts](ongoing/functions-test-casts.md) | low | none | this cycle | add a cast ratchet for functions tests (as packages/shared has), then replace casts with typed fixtures slice by slice |
 
 ## Waiting on release 1.11.0
 
@@ -76,6 +75,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
 | [referential-integrity-audit](ongoing/referential-integrity-audit.md) | high | dev | this cycle | apply the two prod repairs below (Álvaro), and the audit workflow reaches beta/prod only once a release carries it to beta/main | on Álvaro's yes, write the prod repairs per `.agents/skills/prod-data-repair` (snapshot, dry run, apply, re-audit); after the next release, dispatch "Audit Referential Integrity" with ref beta and main |
+| [data-stores-in-env-parity](ongoing/data-stores-in-env-parity.md) | low | dev | this cycle | grant roles/bigquery.metadataViewer to gha-deployer in all three envs so the check can see BigQuery (prod holds the GA4 export dataset analytics_546204987) | on a yes, grant the role in dev, beta and prod, record it in infra/env-parity.json, and add BigQuery datasets to the dataStores check; #782 shipped the rest (dev deploy 46044439593 green) |
 
 ## Blocked
 
