@@ -72,6 +72,12 @@ export const conformanceTargets = Object.values(C)
   .filter((def): def is Extract<(typeof C)[keyof typeof C], TypedCollectionDef> => def.schema !== null)
   .map((def) => ({ path: def.path, converter: adminConverter(def.schema) }));
 
+/**
+ * The collection table itself, for checks that must see every entry — the
+ * account-deletion coverage test reads each schema for the fields that hold a uid.
+ */
+export { COLLECTIONS, type CollectionKey } from './collections';
+
 /** Every collection path declared in ./collections.ts, schema or not. */
 export const collectionPaths: readonly string[] = Object.values(C).map((def) => def.path);
 
