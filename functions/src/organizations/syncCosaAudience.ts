@@ -6,6 +6,7 @@ import {
   effectiveCosaAudience,
   type CosatecaAudience,
 } from '@cultuvilla/shared/models';
+import { updateIfStillExists } from '../shared/notFound';
 
 /** A group's effective cosa audience from its raw org doc; a doc without the field is integrantes-only. */
 export function orgCosaAudience(org: Record<string, unknown> | undefined): CosatecaAudience {
@@ -30,10 +31,15 @@ export async function syncCosaAudience(
   if (before && orgCosaAudience(before) === audience) return 0;
   const all = await cosasCollection(firestore).where('orgId', '==', orgId).get();
   const stale = all.docs.filter((d) => d.data().audience !== audience);
-  for (let i = 0; i < stale.length; i += 400) {
-    const batch = firestore.batch();
-    for (const d of stale.slice(i, i + 400)) batch.update(d.ref.withConverter(null), { audience });
-    await batch.commit();
-  }
-  return stale.length;
+  // Per-cosa writes, not batches: a cosa deleted between the query and the
+  // write would fail its whole batch and leave the rest on the old audience.
+  const writer = firestore.bulkWriter();
+  const writes = stale.map((d) =>
+    updateIfStillExists(() => writer.update(d.ref.withConverter(null), { audience }), {
+      handler: 'onOrganizationUpdated',
+      path: d.ref.path,
+    }),
+  );
+  await writer.close();
+  return (await Promise.all(writes)).filter(Boolean).length;
 }

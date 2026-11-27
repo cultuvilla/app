@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
+import { deleteAfterQuery } from '../../helpers/deletedSubject';
 import { respondToCosaRequest } from '../../../organizations/respondToCosaRequest';
 import { cosaNoticeFor, cosaNoticeTopic, notifyCosaRequest } from '../../../organizations/onCosaRequestWritten';
 import { syncCosaAudience } from '../../../organizations/syncCosaAudience';
@@ -366,5 +367,17 @@ describe('syncCosaAudience', () => {
     expect(await syncCosaAudience(db(), ORG, { cosateca: { enabled: true, audience: 'integrantes' } }, { cosateca: { enabled: false, audience: 'pueblo' } })).toBe(0);
     expect(await syncCosaAudience(db(), ORG, { cosateca: { enabled: false, audience: 'pueblo' } }, open)).toBe(2);
     expect((await getDoc('cosas/carpa'))['audience']).toBe('pueblo');
+  });
+
+  it('rewrites the rest when a cosa is deleted between the query and the write', async () => {
+    await db().doc('cosas/otra').set(cosa({ title: 'Mesas' }));
+    const race = deleteAfterQuery('cosas/otra');
+    try {
+      expect(await syncCosaAudience(db(), ORG, { cosateca: { enabled: true, audience: 'pueblo' } }, { cosateca: { enabled: true, audience: 'integrantes' } })).toBe(1);
+    } finally {
+      race.restore();
+    }
+    expect((await db().doc('cosas/otra').get()).exists).toBe(false);
+    expect((await getDoc('cosas/carpa'))['audience']).toBe('integrantes');
   });
 });
