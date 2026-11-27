@@ -15,6 +15,8 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [account-deletion-coverage](ongoing/account-deletion-coverage.md) | high | none | this cycle | being built by worker h17 in batch 2026-11-27-harvest |
+| [firebase-error-code-lint](ongoing/firebase-error-code-lint.md) | high | none | this cycle | being built by worker h25 in batch 2026-11-27-harvest |
+| [hard-wall-replaces-app-tree](ongoing/hard-wall-replaces-app-tree.md) | high | none | this cycle | being built by worker h26 in batch 2026-11-27-harvest |
 | [projections-converge-on-source](ongoing/projections-converge-on-source.md) | high | none | this cycle | being built by worker h15 in batch 2026-11-27-harvest |
 | [blocking-overlay-in-tree](ongoing/blocking-overlay-in-tree.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
@@ -23,6 +25,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [user-data-export-script](ongoing/user-data-export-script.md) | medium | none | this cycle | being built by worker h22 in batch 2026-11-27-harvest |
 | [dev-client-rollout](ongoing/dev-client-rollout.md) | low | none | this cycle | build the manual script (no timer wiring) |
 | [functions-test-casts](ongoing/functions-test-casts.md) | low | none | this cycle | add a cast ratchet for functions tests (as packages/shared has), then replace casts with typed fixtures slice by slice |
+| [session-start-hook](ready/session-start-hook.md) `ready` | low | — | this cycle | add a SessionStart hook that installs dependencies only when node_modules is missing |
 
 ## Waiting on release 1.11.0
 
