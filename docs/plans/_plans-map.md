@@ -14,12 +14,20 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
+| [account-deletion-coverage](ongoing/account-deletion-coverage.md) | high | none | this cycle | being built by worker h17 in batch 2026-11-27-harvest |
+| [projections-converge-on-source](ongoing/projections-converge-on-source.md) | high | none | this cycle | being built by worker h15 in batch 2026-11-27-harvest |
 | [typecheck-shared-tests](ongoing/typecheck-shared-tests.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [blocking-overlay-in-tree](ongoing/blocking-overlay-in-tree.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
+| [develop-back-merge-guard](ready/develop-back-merge-guard.md) `ready` | medium | — | this cycle | add the check as a step of the existing ci.yml job (not a new job) |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
 | [patch-coverage-report](ongoing/patch-coverage-report.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [scheduled-schema-audit](ongoing/scheduled-schema-audit.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
+| [trigger-retry-window](ongoing/trigger-retry-window.md) | medium | none | this cycle | being built by worker h16 in batch 2026-11-27-harvest |
+| [user-data-export-script](ready/user-data-export-script.md) `ready` | medium | — | this cycle | after account-deletion-coverage lands: a read-only export script on its registry, plus the runbook |
 | [verify-deployed-functions](ongoing/verify-deployed-functions.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
+| [data-stores-in-env-parity](ready/data-stores-in-env-parity.md) `ready` | low | — | this cycle | extend check-env-parity.mjs and infra/env-parity.json (the existing nightly run, no new workflow) |
+| [dev-client-rollout](ready/dev-client-rollout.md) `ready` | low | — | this cycle | build the manual script (no timer wiring) |
+| [test-file-runner](ready/test-file-runner.md) `ready` | low | — | this cycle | build `pnpm test:file <name>` |
 
 ## Waiting on release 1.11.0
 
