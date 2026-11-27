@@ -211,3 +211,10 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: node scripts/check-schema-change.mjs --base="origin/${BASE_REF}" --head=HEAD
+
+      # The weekly schema audit's unmodeled-field baseline may only shrink, and
+      # every allowlist entry needs a reason (firestore-schema-audit.yml).
+      - name: Schema-audit baseline may only shrink
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/audit-firestore-schemas-ratchet.mjs --base="origin/${BASE_REF}"

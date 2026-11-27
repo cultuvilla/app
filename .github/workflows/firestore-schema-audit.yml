@@ -1,0 +1,120 @@
+name: Firestore schema audit
+
+# Weekly: beta's and prod's stored data must still parse under the converters
+# their branch shipped, and must carry no field the schemas drop beyond the
+# committed baseline. The deploy's conformance gate checks this only when a
+# promotion deploys; this catches what drifts in between (an old binary writing
+# a dropped field, a console edit, a function writing past its converter).
+#
+# Policy (scripts/audit-firestore-schemas-policy.mjs): schema drift, a path no
+# collection declares and an undeclared root collection FAIL CLOSED unless
+# scripts/audit-firestore-schemas.allowlist.json accepts them with a reason;
+# an unmodeled field fails unless scripts/audit-firestore-schemas.baseline.json
+# records it, and that baseline may only shrink (ci.yml's breaking-changes job).
+#
+# HOW IT GETS BETA/PROD CREDENTIALS — same two legs as env-parity.yml. A
+# schedule runs on the default branch (develop), and each GitHub environment
+# admits only its own branch (beta ← beta, production ← main). So the scheduled
+# run only dispatches this workflow on `beta` and `main`; each dispatched run
+# enters its own environment and authenticates keylessly (WIF) as that env's
+# service account. It also audits with the converters of the branch that
+# deployed that env, which is the only fair comparison. Dev is not audited:
+# its data churns and the deploy gate skips it for the same reason.
+#
+# The scan is read-only. Locked by packages/shared/test/ci/schemaAudit.test.ts.
+
+on:
+  schedule:
+    # Mondays 05:47 UTC — weekly, off the hour, clear of env-parity (05:17).
+    - cron: "47 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kick:
+    name: Dispatch the audit on beta and main
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # A branch this workflow has not reached yet has nothing to run.
+          for ref in beta main; do
+            if ! gh api "repos/${REPO}/contents/.github/workflows/firestore-schema-audit.yml?ref=${ref}" --silent 2>/dev/null; then
+              echo "firestore-schema-audit.yml is not on ${ref} yet — nothing to audit there."
+              continue
+            fi
+            gh workflow run firestore-schema-audit.yml --repo "${REPO}" --ref "${ref}"
+          done
+
+  audit:
+    name: Audit ${{ github.ref_name == 'main' && 'prod' || 'beta' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && contains(fromJSON('["refs/heads/beta","refs/heads/main"]'), github.ref) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ${{ github.ref_name == 'main' && 'production' || 'beta' }}
+    concurrency:
+      group: firestore-schema-audit-${{ github.ref_name }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation
+    env:
+      AUDIT_ENV: ${{ github.ref_name == 'main' && 'prod' || 'beta' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The walker imports the converters from the shared package's build.
+      - run: pnpm shared:build
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          # Exports GOOGLE_APPLICATION_CREDENTIALS, resolution step 1 in
+          # scripts/lib/env-credentials.mjs.
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Audit stored data against the shipped schemas
+        run: |
+          node scripts/audit-firestore-schemas.mjs --env="${AUDIT_ENV}" \
+            --out="$RUNNER_TEMP/schema-audit.json" \
+            --report="$RUNNER_TEMP/schema-audit.md"
+
+      - name: Publish the report to the run summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/schema-audit.md" ]; then cat "$RUNNER_TEMP/schema-audit.md" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Upload the findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-audit-${{ env.AUDIT_ENV }}
+          path: |
+            ${{ runner.temp }}/schema-audit.json
+            ${{ runner.temp }}/schema-audit.md
+          if-no-files-found: warn
+          retention-days: 30

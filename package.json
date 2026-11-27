@@ -46,6 +46,8 @@
     "check:no-raw-firestore-refs": "node scripts/check-no-raw-firestore-refs.mjs",
     "check:no-test-login-leak": "node scripts/check-no-test-login-leak.mjs",
     "check:dev-conformance": "pnpm shared:build && node scripts/check-dev-conformance.mjs",
+    "audit:schemas": "pnpm shared:build && node scripts/audit-firestore-schemas.mjs",
+    "census:fields": "node scripts/census-fields.mjs",
     "check:custom-token-signing": "node scripts/check-custom-token-signing.mjs",
     "backfills:list": "node scripts/backfills-cli.mjs list",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
