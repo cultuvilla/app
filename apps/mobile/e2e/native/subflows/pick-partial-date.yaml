@@ -27,6 +27,8 @@ appId: com.cultuvilla.app.dev
     direction: DOWN
     centerElement: true
     timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: '${FIELD}-year-option-${YEAR}'
 - tapOn:
@@ -44,6 +46,8 @@ appId: com.cultuvilla.app.dev
     direction: DOWN
     centerElement: true
     timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: '${FIELD}-month-option-${MONTH_OPTION}'
 - tapOn:
@@ -61,5 +65,7 @@ appId: com.cultuvilla.app.dev
     direction: DOWN
     centerElement: true
     timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     id: '${FIELD}-day-option-${DAY}'

@@ -1,0 +1,1 @@
+../.agents/_shared/scripts/check-skill-symlinks.js

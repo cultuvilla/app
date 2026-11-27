@@ -151,7 +151,8 @@ jobs:
           APPLE_ASC_KEY_ID: ${{ vars.APPLE_ASC_KEY_ID }}
           APPLE_ASC_ISSUER_ID: ${{ vars.APPLE_ASC_ISSUER_ID }}
           APPLE_ASC_API_KEY_P8: ${{ secrets.APPLE_ASC_API_KEY_P8 }}
-        run: node scripts/release-announce.mjs poll --env=${ANNOUNCE_ENV} ${{ inputs.dry_run && '--dry-run' || '' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: node scripts/release-announce.mjs poll --env=${ANNOUNCE_ENV} $([ "$DRY_RUN" = "true" ] && echo --dry-run)
 
       # The wall was written in the step above, before this: a wall without its
       # backend is safe (old clients are told to update), the reverse is not.

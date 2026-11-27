@@ -73,6 +73,21 @@ multiple projects as a git submodule so a single copy is the source of truth.
   `## Enhance`, hard stops, open PRs and the size signals that decide fan-out. Read-only.
 - **scripts/agent-auto-mode.js** — installs the repo's `.agents/auto-mode.json` policy into
   the user's Claude Code settings (see *Auto-mode policy*).
+- **scripts/prune-merged-worktrees.sh** — sweeps every worktree under `<worktreesDir>` that is
+  clean and whose branch is on `origin/<base>`; dry run unless `--apply`. A tool, not a gate:
+  `agent-reap.sh` reaps one worker, this cleans up what earlier batches left.
+
+**CI checks** (see *Shared CI checks*)
+
+- **scripts/check-workflow-input-injection.js** — an attacker-controllable `${{ }}` inside a
+  `run:` block or a github-script `script:`, with a shrink-only baseline.
+- **scripts/check-skill-symlinks.js** — a skill, script or hook symlink that no longer resolves.
+- **scripts/check-functions-loaded-memory.js** — the RSS a Cloud Functions bundle takes just to
+  load, against a budget.
+- **scripts/check-maestro-scroll-then-tap.js** — a `tapOn` straight after `scrollUntilVisible`
+  of the same element, with no settle between them.
+- **scripts/lib/mini-yaml.js** — the YAML subset reader the two YAML checks use, so they need no
+  dependency. It throws on anchors, aliases, tags and merge keys instead of guessing.
 
 **Hooks**
 
@@ -314,6 +329,28 @@ node --test .agents/_shared/scripts/__tests__/*.test.mjs
 node scripts/plans-map.js --validate
 (cd .claude/worktrees/<any> && source scripts/agent-env.sh)   # prints the slot's ports
 ```
+
+### Shared CI checks
+
+Four checks a consumer runs in its CI, each `node scripts/<check>.js` from the repo root
+through a symlink like the other scripts (`scripts/check-x.js -> ../.agents/_shared/scripts/check-x.js`).
+They read the repo from the working directory. Every value that differs between repos is in
+`.agents/checks.config.json`; each section is optional except where noted:
+
+```json
+{
+  "workflowInjection": { "workflowsDir": ".github/workflows", "baseline": ".github/workflow-injection-baseline.json" },
+  "skillSymlinks": { "skillDirs": [".agents/skills", ".claude/skills"], "linkDirs": ["scripts", ".claude/hooks"], "sharedDir": ".agents/_shared" },
+  "functionsLoadedMemory": { "entry": "functions/lib/index.js", "budgetMib": 188, "build": "pnpm --filter functions build" },
+  "maestro": { "flowsDir": [".maestro/flows"] }
+}
+```
+
+`functionsLoadedMemory.budgetMib` is required: set it to the RSS the check prints on the CI
+runner plus headroom, never a share of the memory limit. The injection baseline lists the
+sites accepted at adoption, each a key string or `{ "key", "reason" }`; it may only shrink.
+The YAML checks fail on a file they cannot read rather than skip it — the injection check
+is a security gate.
 
 ### Auto-mode policy
 

@@ -208,8 +208,7 @@ textarea{font:inherit;width:100%;box-sizing:border-box;min-height:70px;border-ra
       (c.options||[]).forEach(o => { const b = el("button",null,o.action || o.label); b.type = "button";
         b.onclick = () => { if (o.id === c.pick){ choose(c, o, "button", "", {blind_choice:o.id, agreed_blind:true}); } else { blindFirst[c.id] = o; render(); } };
         answer.append(b); });
-      const other = el("button","quiet","Something else…"); other.type = "button"; other.onclick = () => showNote(answer, c, "button");
-      answer.append(other);
+      addEscapes(answer, c, "button");
     } else if (blindFirst[c.id]){
       const mine = blindFirst[c.id];
       answer.append(el("p",null,"You chose «" + (mine.action || mine.label) + "». My pick is marked above."));
@@ -233,8 +232,7 @@ textarea{font:inherit;width:100%;box-sizing:border-box;min-height:70px;border-ra
       const row = el("div","row");
       others.forEach(o => { const b = el("button",null,o.action || o.label); b.type = "button"; b.onclick = () => choose(c, o, "button"); row.append(b); });
       if (others.length) answer.append(row);
-      const other = el("button","quiet","Something else…"); other.type = "button"; other.onclick = () => showNote(answer, c, "button");
-      answer.append(other);
+      addEscapes(answer, c, "button");
     }
     if (canAnswer && pending().length > 1){ const later = el("button","quiet","Decide later"); later.type = "button"; later.onclick = () => defer(c); answer.append(later); }
     card.append(answer);
@@ -246,16 +244,26 @@ textarea{font:inherit;width:100%;box-sizing:border-box;min-height:70px;border-ra
     answer.append(el("p","muted","Which one, then?"));
     others.forEach(o => { const b = el("button",null,o.action || o.label); b.type = "button"; b.onclick = () => choose(c, o, via); answer.append(b); });
     const back = el("button","quiet","Back to my pick"); back.type = "button"; back.onclick = () => render();
-    const other = el("button","quiet","Something else…"); other.type = "button"; other.onclick = () => showNote(answer, c, via);
-    answer.append(other, back);
+    addEscapes(answer, c, via);
+    answer.append(back);
     const first = answer.querySelector("button"); if (first) first.focus();
   }
 
-  function showNote(answer, c, via){
+  // Two ways out of the options: a different answer, or «not yet, I need to know X».
+  // The second is not an answer; the agent finds X and asks again.
+  function addEscapes(answer, c, via){
+    const other = el("button","quiet","Something else…"); other.type = "button"; other.onclick = () => showNote(answer, c, via, "other");
+    const ask = el("button","quiet","I need to know something first"); ask.type = "button"; ask.onclick = () => showNote(answer, c, via, "question");
+    answer.append(other, ask);
+  }
+
+  function showNote(answer, c, via, kind){
     answer.replaceChildren();
-    const t = el("textarea"); t.id = "note-" + c.id; t.placeholder = "What do you want instead? A few words is enough.";
-    const send = el("button","primary","Send this answer"); send.type = "button";
-    send.onclick = () => { const v = t.value.trim(); if (!v){ t.focus(); return; } choose(c, {id:"other", label:v}, via, v); };
+    const q = kind === "question";
+    const t = el("textarea"); t.id = "note-" + c.id;
+    t.placeholder = q ? "What do you need to know before deciding?" : "What do you want instead? A few words is enough.";
+    const send = el("button","primary", q ? "Ask this" : "Send this answer"); send.type = "button";
+    send.onclick = () => { const v = t.value.trim(); if (!v){ t.focus(); return; } choose(c, {id: q ? "question" : "other", label:v}, via, v); };
     const back = el("button","quiet","Back"); back.type = "button"; back.onclick = () => render();
     answer.append(t, send, back); t.focus();
   }
@@ -334,7 +342,7 @@ textarea{font:inherit;width:100%;box-sizing:border-box;min-height:70px;border-ra
     p.append(el("p","muted","Claude reads these answers from the terminal and writes each one into its plan. You can take one back until then."));
     const ul = el("ul","done-list");
     cards.forEach(c => { const a = answers[c.id]; if (!a) return;
-      const li = el("li"); const q = el("div","q"); q.append(el("span",null,c.question), el("span","a",(a.followed_pick ? "My pick: " : "You chose: ") + a.label));
+      const li = el("li"); const q = el("div","q"); q.append(el("span",null,c.question), el("span","a",(a.followed_pick ? "My pick: " : a.choice === "question" ? "You asked: " : "You chose: ") + a.label));
       const b = el("button",null,"Take back"); b.type = "button"; b.onclick = () => takeBack(c.id);
       li.append(q, b); ul.append(li); });
     p.append(ul);

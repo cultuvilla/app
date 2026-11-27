@@ -83,6 +83,24 @@ jobs:
       - name: Check no E2E test-login bypass leak
         run: pnpm check:no-test-login-leak
 
+      # Shared checks, vendored from agent-skills into .agents/_shared; their
+      # values are in .agents/checks.config.json.
+      # A `${{ }}` an outsider or a dispatcher can set, pasted into a run:
+      # block, executes as script. Bind it in env: instead. The baseline
+      # (.github/workflow-injection-baseline.json) only shrinks.
+      - name: Check workflow input injection
+        run: node scripts/check-workflow-input-injection.js
+
+      # A skill, script or hook symlink into .agents/_shared that does not
+      # resolve loads as nothing, silently.
+      - name: Check skill, script and hook symlinks
+        run: node scripts/check-skill-symlinks.js
+
+      # A tapOn straight after scrollUntilVisible of the same element lands on
+      # a list that is still moving; settle with waitForAnimationToEnd first.
+      - name: Check Maestro scroll-then-tap
+        run: node scripts/check-maestro-scroll-then-tap.js
+
       # Warn-only: annotates backfill/migration/cleanup scripts that are not on
       # the registry, so they are invisible to `backfills:list` and the deploy
       # gate. Never fails — ~25 legacy scripts predate the registry and failing
@@ -95,6 +113,12 @@ jobs:
 
       - name: Build (shared, functions)
         run: pnpm build
+
+      # Every function loads all of functions/dist/index.js before it handles
+      # anything, most of them in 256 MiB; a top-level import that grows it
+      # fails here instead of OOM-killing functions in prod.
+      - name: Check functions loaded memory
+        run: node scripts/check-functions-loaded-memory.js
 
   emulator-tests:
     name: Emulator tests (integration + rules + functions)

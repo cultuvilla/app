@@ -114,13 +114,18 @@ jobs:
       - name: Build Android app bundle${{ inputs.submit && ' and submit' || '' }}
         if: ${{ inputs.androidBuildId == '' }}
         working-directory: apps/mobile
+        env:
+          SUBMIT: ${{ inputs.submit }}
+          TRACK: ${{ inputs.track }}
         run: |
+          submit=()
+          [ "$SUBMIT" = "true" ] && submit=(--auto-submit-with-profile "$TRACK")
           eas build \
             --profile production \
             --platform android \
             --non-interactive \
             --wait \
-            ${{ inputs.submit && format('--auto-submit-with-profile {0}', inputs.track) || '' }}
+            "${submit[@]}"
 
       # Resubmitting a finished build skips the queue and keeps the versionCode:
       # a submit that fails on Play's side (permissions, a pending review) should
@@ -241,13 +246,17 @@ jobs:
       - name: Submit to App Store Connect
         if: ${{ inputs.submit }}
         working-directory: apps/mobile
+        env:
+          TESTFLIGHT_GROUP: ${{ inputs.testflightGroup }}
         run: |
+          groups=()
+          [ -n "$TESTFLIGHT_GROUP" ] && groups=(--groups "$TESTFLIGHT_GROUP")
           eas submit \
             --profile production \
             --platform ios \
             --id "${{ steps.ios_build.outputs.id }}" \
             --non-interactive \
-            ${{ inputs.testflightGroup != '' && format('--groups "{0}"', inputs.testflightGroup) || '' }}
+            "${groups[@]}"
 
       # eas submit stops at the upload: the binary lands in App Store Connect and
       # sits there. Everything after — attaching it to an App Store version,

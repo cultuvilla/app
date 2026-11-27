@@ -1,0 +1,1 @@
+../.agents/_shared/scripts/prune-merged-worktrees.sh

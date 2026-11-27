@@ -104,6 +104,8 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APP_ENV: ${{ inputs.channel == 'production' && 'prod' || (inputs.channel || 'beta') }}
+          CHANNEL: ${{ inputs.channel || 'beta' }}
+          EAS_ENVIRONMENT: ${{ inputs.channel == 'production' && 'production' || 'preview' }}
         # An update carries its own app config, `extra.firebaseConfig` included,
         # and replaces the one the binary was built with. Without --environment
         # the EAS variables are never loaded and every update ships EMPTY
@@ -112,7 +114,7 @@ jobs:
         # dispatch). Same mapping as eas.json: production -> production, else preview.
         run: |
           eas update \
-            --branch "${{ inputs.channel || 'beta' }}" \
-            --environment "${{ inputs.channel == 'production' && 'production' || 'preview' }}" \
+            --branch "$CHANNEL" \
+            --environment "$EAS_ENVIRONMENT" \
             --message "${GITHUB_SHA::7}" \
             --non-interactive
