@@ -146,8 +146,7 @@ describe('sendGroupTaskReminders', () => {
   const BEFORE = new Date('2026-05-08T08:00:00Z');
 
   it('runs daily at 10:00 Madrid, out of quiet hours', () => {
-    const schedule = (sendGroupTaskReminders as unknown as { __endpoint: { scheduleTrigger: { schedule: string; timeZone: string } } })
-      .__endpoint.scheduleTrigger;
+    const schedule = sendGroupTaskReminders.__endpoint.scheduleTrigger;
     expect(schedule).toMatchObject({ schedule: 'every day 10:00', timeZone: 'Europe/Madrid' });
   });
 

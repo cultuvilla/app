@@ -30,3 +30,15 @@ export function wrapCallable<Data, Return>(
   const wrapped = ft.wrap(callable);
   return (request) => wrapped(request as CallableRequest) as Return;
 }
+
+/**
+ * Runs a callable's handler directly, for a unit test with no
+ * firebase-functions-test instance (and so no emulator). v2 `run` always
+ * returns a promise, even for a synchronous handler.
+ */
+export function runCallable<Data, Return>(
+  callable: CallableFunction<Data, Return>,
+  request: TestCallableRequest,
+): Return {
+  return callable.run(request as CallableRequest<Data>);
+}

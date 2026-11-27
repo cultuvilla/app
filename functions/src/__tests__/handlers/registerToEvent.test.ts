@@ -17,8 +17,13 @@ interface SendCallArgs {
   text: string;
 }
 
-const sendMock = vi.fn((_args: SendCallArgs) =>
-  Promise.resolve({ data: { id: 'test-email-id' }, error: null }),
+interface SendResult {
+  data: { id: string } | null;
+  error: { message: string } | null;
+}
+
+const sendMock = vi.fn(
+  (_args: SendCallArgs): Promise<SendResult> => Promise.resolve({ data: { id: 'test-email-id' }, error: null }),
 );
 
 vi.mock('resend', () => ({
@@ -391,7 +396,7 @@ describe('registerToEvent (callable)', () => {
       sendMock.mockResolvedValueOnce({
         data: null,
         error: { message: 'provider down' },
-      } as unknown as Awaited<ReturnType<typeof sendMock>>);
+      });
 
       const result = await callRegister({
         uid: USER_ID,

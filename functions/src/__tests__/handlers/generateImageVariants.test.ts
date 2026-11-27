@@ -132,9 +132,6 @@ describe('trigger region', () => {
     // us-east1" — taking every other function's deploy down with it.
     expect(STORAGE_BUCKET_REGION).toBe('us-east1');
 
-    const { __endpoint } = generateImageVariants as unknown as {
-      __endpoint: { region?: string[] };
-    };
-    expect(__endpoint.region).toEqual(['us-east1']);
+    expect(generateImageVariants.__endpoint.region).toEqual(['us-east1']);
   });
 });
