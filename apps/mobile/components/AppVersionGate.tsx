@@ -109,7 +109,7 @@ export function AppVersionGate({ children }: { children: ReactNode }) {
   // docs/decisions/hard-wall-replaces-app-tree.md
   if (walled) {
     return (
-      <View className="flex-1 bg-surface" testID="app-update-wall">
+      <View className="flex-1 bg-surface">
         <AppUpdateModal
           visible
           title={t('appUpdate.blockTitle')}

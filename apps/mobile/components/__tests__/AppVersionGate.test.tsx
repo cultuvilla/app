@@ -218,7 +218,7 @@ describe('a hard wall replaces the app tree', () => {
     emit(WALL);
     await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
     expect(queryByText('child')).toBeNull();
-    expect(getByTestId('app-update-wall')).toBeTruthy();
+    expect(getByTestId('app-update-modal')).toBeTruthy();
     // Mounted only for the load window, then torn down with its listener.
     expect(detach).toHaveBeenCalledTimes(attach.mock.calls.length);
   });
