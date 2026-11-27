@@ -5,7 +5,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
-import { deleteAccount } from '../../account/deleteAccount';
+import { deleteAccount, isFreshAuth } from '../../account/deleteAccount';
 import { buildCosaData, buildCosaRequestData, buildSocioData, buildSocioPrivateData } from '@cultuvilla/shared/models';
 
 const DELETED_USER_UID = 'deleted-user';
@@ -178,11 +178,17 @@ interface DeleteResult {
   ok: true;
 }
 
-async function callDelete(uid: string | null): Promise<DeleteResult> {
+const nowSec = () => Math.floor(Date.now() / 1000);
+
+async function callDelete(
+  uid: string | null,
+  opts: { data?: { reauth?: boolean }; authTime?: number } = {},
+): Promise<DeleteResult> {
   const wrapped = ft.wrap(deleteAccount as unknown as Parameters<typeof ft.wrap>[0]);
+  const token = opts.authTime === undefined ? {} : { auth_time: opts.authTime };
   return (await wrapped({
-    data: undefined,
-    auth: uid ? { uid, token: {} } : undefined,
+    data: opts.data,
+    auth: uid ? { uid, token } : undefined,
   } as unknown as Parameters<typeof wrapped>[0])) as unknown as DeleteResult;
 }
 
@@ -381,5 +387,70 @@ describe('deleteAccount (callable)', () => {
       true,
     );
     await expect(admin.auth().getUser(USER_ID)).resolves.toBeTruthy();
+  });
+
+  describe('fresh-auth gate', () => {
+    async function seedDeletableUser(): Promise<void> {
+      await seedMunicipality(null);
+      await seedVillageMember(USER_ID, 'user');
+      await seedSelfPerson(USER_ID);
+      await seedUserDoc(USER_ID);
+      await seedAuthUser(USER_ID);
+    }
+
+    it('refuses a reauth-capable caller whose sign-in is older than 5 minutes, deleting nothing', async () => {
+      await seedDeletableUser();
+
+      const err = await callDelete(USER_ID, { data: { reauth: true }, authTime: nowSec() - 301 }).then(
+        () => null,
+        (e: unknown) => e as { code?: string; details?: unknown },
+      );
+
+      expect(err?.code).toBe('failed-precondition');
+      expect(err?.details).toEqual({ reason: 'requires-recent-login' });
+      expect((await db().doc(`persons/person-${USER_ID}`).get()).exists).toBe(true);
+      expect((await db().doc(`users/${USER_ID}`).get()).exists).toBe(true);
+      await expect(admin.auth().getUser(USER_ID)).resolves.toBeTruthy();
+    });
+
+    it('refuses a reauth-capable caller whose token carries no auth_time', async () => {
+      await seedDeletableUser();
+      await expect(callDelete(USER_ID, { data: { reauth: true } })).rejects.toMatchObject({
+        code: 'failed-precondition',
+        details: { reason: 'requires-recent-login' },
+      });
+    });
+
+    it('deletes for a reauth-capable caller who signed in within the window', async () => {
+      await seedDeletableUser();
+      await expect(callDelete(USER_ID, { data: { reauth: true }, authTime: nowSec() - 30 })).resolves.toEqual({
+        ok: true,
+      });
+      expect((await db().doc(`users/${USER_ID}`).get()).exists).toBe(false);
+    });
+
+    it('keeps the old path for a binary that sends no flag, however old its sign-in', async () => {
+      await seedDeletableUser();
+      await expect(callDelete(USER_ID, { authTime: nowSec() - 86_400 })).resolves.toEqual({ ok: true });
+      expect((await db().doc(`users/${USER_ID}`).get()).exists).toBe(false);
+    });
+  });
+});
+
+describe('isFreshAuth', () => {
+  const now = 1_800_000_000_000;
+  const sec = now / 1000;
+  it('accepts a sign-in up to 5 minutes old', () => {
+    expect(isFreshAuth(sec - 300, now)).toBe(true);
+    expect(isFreshAuth(sec - 301, now)).toBe(false);
+  });
+  it('tolerates a minute of clock skew into the future, no more', () => {
+    expect(isFreshAuth(sec + 60, now)).toBe(true);
+    expect(isFreshAuth(sec + 61, now)).toBe(false);
+  });
+  it('rejects a missing or malformed auth_time', () => {
+    expect(isFreshAuth(undefined, now)).toBe(false);
+    expect(isFreshAuth('123', now)).toBe(false);
+    expect(isFreshAuth(Number.NaN, now)).toBe(false);
   });
 });

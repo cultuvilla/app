@@ -3,7 +3,7 @@ import { Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import type { FirebaseOptions } from 'firebase/app';
-import type { User } from 'firebase/auth';
+import type { AuthCredential, User } from 'firebase/auth';
 import { getAuth } from '@cultuvilla/shared/firebase';
 import { observability } from '@cultuvilla/shared';
 import {
@@ -58,6 +58,7 @@ import {
   profileRetryDelay,
   type Profile,
 } from './authSession';
+import { customTokenUid, reauthMethodFor, type ReauthMethod } from './reauth';
 
 /** How long the launch waits for a pre-native session before showing the app signed out. */
 const LEGACY_RESTORE_TIMEOUT_MS = 8000;
@@ -216,6 +217,18 @@ export interface AuthContextValue {
    * is its Google identity, so change-email is disabled for it.
    */
   canChangeEmail: boolean;
+  /**
+   * How this account signs in again before a sensitive action (account
+   * deletion): its federated provider when this device offers it, else a code
+   * by email. `null` when the account has neither.
+   */
+  reauthMethod: ReauthMethod | null;
+  /** Reauthenticate with Google or Apple, per `reauthMethod`. */
+  reauthWithProvider: () => Promise<void>;
+  /** Email a sign-in code to the account's own address. */
+  sendReauthCode: () => Promise<void>;
+  /** Sign in again with the emailed code; refuses a code for another account. */
+  reauthWithCode: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
   /**
    * Escape hatch out of the onboarding gate. Signs out, and when the account
@@ -455,7 +468,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [user, profile, switchActiveVillage]);
 
-  const signInWithGoogle = async (): Promise<void> => {
+  const getGoogleCredential = async (): Promise<AuthCredential> => {
     const cfg = getGoogleSignInConfig();
     if (!cfg) {
       throw new Error(
@@ -474,8 +487,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!idToken) {
         throw new Error('Google sign-in did not return an idToken');
       }
-      const credential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(getAuth(), credential);
+      return GoogleAuthProvider.credential(idToken);
     } catch (err) {
       const code = (err as { code?: string } | null)?.code;
       if (code === statusCodes.SIGN_IN_CANCELLED || code === statusCodes.IN_PROGRESS) {
@@ -488,7 +500,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithApple = async (): Promise<void> => {
+  const signInWithGoogle = async (): Promise<void> => {
+    await signInWithCredential(getAuth(), await getGoogleCredential());
+  };
+
+  const getAppleCredential = async (): Promise<AuthCredential> => {
     if (Platform.OS !== 'ios') {
       throw new Error('Sign in with Apple is only available on iOS');
     }
@@ -520,11 +536,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Apple sign-in did not return an identityToken');
     }
     const provider = new OAuthProvider('apple.com');
-    const oauthCredential = provider.credential({
+    return provider.credential({
       idToken: credential.identityToken,
       rawNonce,
     });
-    await signInWithCredential(getAuth(), oauthCredential);
+  };
+
+  const signInWithApple = async (): Promise<void> => {
+    await signInWithCredential(getAuth(), await getAppleCredential());
+  };
+
+  const reauthMethod = reauthMethodFor(user, Platform.OS);
+
+  // A fresh ID token carries the new auth_time, which is what the server checks.
+  const refreshIdToken = async (): Promise<void> => {
+    await getAuth().currentUser?.getIdToken(true);
+  };
+
+  const reauthWithProvider = async (): Promise<void> => {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) throw new Error('not-signed-in');
+    const method = reauthMethodFor(currentUser, Platform.OS);
+    if (method !== 'google' && method !== 'apple') throw new Error('no-federated-reauth');
+    const credential = method === 'google' ? await getGoogleCredential() : await getAppleCredential();
+    await reauthenticateWithCredential(currentUser, credential);
+    await refreshIdToken();
+  };
+
+  const sendReauthCode = async (): Promise<void> => {
+    const email = getAuth().currentUser?.email;
+    if (!email) throw new Error('email-required');
+    await sendAuthOtpCode(email);
+  };
+
+  // Email-code accounts sign in with a custom token, which reauthenticate
+  // cannot take; signing in again as the same uid mints the same fresh
+  // auth_time. The uid check keeps a code for another address from swapping
+  // the session out from under the delete screen.
+  const reauthWithCode = async (code: string): Promise<void> => {
+    const currentUser = getAuth().currentUser;
+    const email = currentUser?.email;
+    if (!currentUser || !email) throw new Error('not-signed-in');
+    const token = await verifyAuthOtpCode(email, code);
+    if (customTokenUid(token) !== currentUser.uid) throw new Error('reauth-wrong-account');
+    await signInWithCustomToken(getAuth(), token);
+    await refreshIdToken();
   };
 
   const sendOtpCode = async (email: string): Promise<void> => {
@@ -702,6 +758,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         readPendingReauth,
         clearPendingReauth,
         canChangeEmail,
+        reauthMethod,
+        reauthWithProvider,
+        sendReauthCode,
+        reauthWithCode,
         signOut,
         abandonSignUp,
         devAccounts,

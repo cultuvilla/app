@@ -26,7 +26,14 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 // Subpath import (not the '@cultuvilla/shared' barrel): the barrel pulls
 // react-native into the functions esbuild bundle. See helpers/membershipAudit.ts.
-import { DELETED_USER_UID, reservaSlotKey } from '@cultuvilla/shared/models';
+import {
+  DELETED_USER_UID,
+  FRESH_AUTH_CLOCK_SKEW_SEC,
+  FRESH_AUTH_WINDOW_SEC,
+  REAUTH_REQUIRED_REASON,
+  reservaSlotKey,
+  type DeleteAccountRequest,
+} from '@cultuvilla/shared/models';
 import { computeDeletionBlockers } from './blockers';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
 
@@ -44,7 +51,13 @@ interface DeleteAccountResult {
  * user has re-authenticated on the client.
  *
  * Order (see .superpowers/sdd/task-7-brief.md):
- *  1. Auth guard.
+ *  1. Auth guard, then the fresh-auth gate: a caller that says it can
+ *     reauthenticate (`reauth: true`) must have signed in within
+ *     FRESH_AUTH_WINDOW_SEC, or it gets `failed-precondition` with
+ *     `details.reason = REAUTH_REQUIRED_REASON` and nothing is touched.
+ *     Older binaries send no data and are not gated, so they are not
+ *     stranded; the gate becomes unconditional once `minSupported` passes the
+ *     first version that sends the flag.
  *  2. Re-run the sole-admin blocker check server-side — the client's preview is
  *     never trusted. Any blocker aborts BEFORE anything is deleted.
  *  3. Anonymize authored content that is KEPT (news + events): swap `createdBy`
@@ -64,13 +77,26 @@ interface DeleteAccountResult {
  *     record has nothing left to protect, and doing it last means a mid-way
  *     failure leaves the account still sign-in-able for a retry.
  */
-export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
+export const deleteAccount = onCall<DeleteAccountRequest | undefined, Promise<DeleteAccountResult>>(
   { region: 'us-central1', cors: true },
   async (request) => {
     const handler = 'deleteAccount';
     const auth = request.auth;
     if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
     const uid = auth.uid;
+
+    if (request.data?.reauth === true && !isFreshAuth(auth.token.auth_time, Date.now())) {
+      logger.info('account deletion needs a recent sign-in', {
+        handler,
+        uid,
+        authTime: auth.token.auth_time,
+      });
+      throw new HttpsError(
+        'failed-precondition',
+        'Vuelve a iniciar sesión para eliminar tu cuenta.',
+        { reason: REAUTH_REQUIRED_REASON },
+      );
+    }
 
     const blockers = await computeDeletionBlockers(db, uid);
     if (blockers.length > 0) {
@@ -121,6 +147,13 @@ export const deleteAccount = onCall<undefined, Promise<DeleteAccountResult>>(
     return { ok: true };
   },
 );
+
+/** `authTime` is the ID token's `auth_time` claim, in seconds since the epoch. */
+export function isFreshAuth(authTime: unknown, nowMs: number): boolean {
+  if (typeof authTime !== 'number' || !Number.isFinite(authTime)) return false;
+  const ageSec = nowMs / 1000 - authTime;
+  return ageSec <= FRESH_AUTH_WINDOW_SEC && ageSec >= -FRESH_AUTH_CLOCK_SKEW_SEC;
+}
 
 /**
  * Query a converted collection ref by ref only (no schema parse): the strict

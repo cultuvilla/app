@@ -1799,6 +1799,17 @@
       "success": "Tu cuenta ha sido eliminada",
       "error": {
         "generic": "No pudimos eliminar tu cuenta. Inténtalo de nuevo."
+      },
+      "reauth": {
+        "intro": "Por seguridad, confirma que eres tú antes de eliminar tu cuenta.",
+        "google": "Continuar con Google",
+        "apple": "Continuar con Apple",
+        "codeSent": "Te hemos enviado un código a {email}. Revisa tu correo, incluida la carpeta de spam.",
+        "codeLabel": "Código de 6 dígitos",
+        "resend": "Reenviar código",
+        "resent": "Código enviado",
+        "signInAgain": "Cierra sesión y vuelve a entrar para poder eliminar tu cuenta.",
+        "error": "No pudimos confirmar que eres tú. Inténtalo de nuevo."
       }
     },
     "deletedUser": "Usuario eliminado",

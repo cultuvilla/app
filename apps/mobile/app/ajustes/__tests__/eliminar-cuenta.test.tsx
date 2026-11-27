@@ -25,12 +25,33 @@ const mockDeleteAccount = jest.fn();
 jest.mock('@cultuvilla/shared/services/accountService', () => ({
   checkAccountDeletable: (...args: unknown[]) => mockCheckAccountDeletable(...args),
   deleteAccount: (...args: unknown[]) => mockDeleteAccount(...args),
+  isReauthRequiredError: (e: unknown) => (e as { reauth?: boolean } | null)?.reauth === true,
 }));
+jest.mock('../../../lib/auth/reportAuthError', () => ({
+  reportAuthError: jest.fn(),
+  isCancelledAuthError: (e: unknown) => (e as { code?: string } | null)?.code === 'auth/cancelled',
+}));
+
+const REAUTH_REQUIRED = { reauth: true };
+const mockReauthWithProvider = jest.fn();
+const mockSendReauthCode = jest.fn();
+const mockReauthWithCode = jest.fn();
+
+function authWith(reauthMethod: 'google' | 'apple' | 'email' | null) {
+  return {
+    signOut: mockSignOut,
+    user: { email: 'ana@example.com' },
+    reauthMethod,
+    reauthWithProvider: mockReauthWithProvider,
+    sendReauthCode: mockSendReauthCode,
+    reauthWithCode: mockReauthWithCode,
+  };
+}
 
 describe('DeleteAccountScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseAuth.mockReturnValue({ signOut: mockSignOut });
+    mockUseAuth.mockReturnValue(authWith('email'));
   });
 
   it('disables the delete button and lists blockers when the account has sole-admin blockers', async () => {
@@ -74,5 +95,75 @@ describe('DeleteAccountScreen', () => {
 
     await waitFor(() => expect(mockDeleteAccount).toHaveBeenCalled());
     await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+  });
+
+  async function confirmDeletion(rendered: ReturnType<typeof render>) {
+    await rendered.findByText('settings.deleteAccount.warning');
+    fireEvent.changeText(rendered.getByLabelText('settings.deleteAccount.confirmPrompt'), 'ELIMINAR');
+    fireEvent.press(rendered.getByTestId('delete-account-submit'));
+  }
+
+  it('signs in again with Google when the sign-in is too old, then deletes', async () => {
+    mockUseAuth.mockReturnValue(authWith('google'));
+    mockCheckAccountDeletable.mockResolvedValue({ blockers: [] });
+    mockDeleteAccount.mockRejectedValueOnce(REAUTH_REQUIRED).mockResolvedValueOnce({ ok: true });
+    mockReauthWithProvider.mockResolvedValue(undefined);
+
+    const rendered = render(<DeleteAccountScreen />);
+    await confirmDeletion(rendered);
+
+    expect(await rendered.findByText('settings.deleteAccount.reauth.google')).toBeTruthy();
+    expect(mockSignOut).not.toHaveBeenCalled();
+    fireEvent.press(rendered.getByTestId('delete-account-reauth-submit'));
+
+    await waitFor(() => expect(mockReauthWithProvider).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockDeleteAccount).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+  });
+
+  it('emails a code to an email account and deletes once it is entered', async () => {
+    mockCheckAccountDeletable.mockResolvedValue({ blockers: [] });
+    mockDeleteAccount.mockRejectedValueOnce(REAUTH_REQUIRED).mockResolvedValueOnce({ ok: true });
+    mockSendReauthCode.mockResolvedValue(undefined);
+    mockReauthWithCode.mockResolvedValue(undefined);
+
+    const rendered = render(<DeleteAccountScreen />);
+    await confirmDeletion(rendered);
+
+    expect(await rendered.findByText('settings.deleteAccount.reauth.codeSent:ana@example.com')).toBeTruthy();
+    expect(mockSendReauthCode).toHaveBeenCalledTimes(1);
+    fireEvent.changeText(rendered.getByTestId('delete-account-reauth-code'), '123456');
+    fireEvent.press(rendered.getByTestId('delete-account-reauth-submit'));
+
+    await waitFor(() => expect(mockReauthWithCode).toHaveBeenCalledWith('123456'));
+    await waitFor(() => expect(mockDeleteAccount).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
+  });
+
+  it('stays put without an error when the person backs out of the provider sheet', async () => {
+    mockUseAuth.mockReturnValue(authWith('apple'));
+    mockCheckAccountDeletable.mockResolvedValue({ blockers: [] });
+    mockDeleteAccount.mockRejectedValueOnce(REAUTH_REQUIRED);
+    mockReauthWithProvider.mockRejectedValue({ code: 'auth/cancelled' });
+
+    const rendered = render(<DeleteAccountScreen />);
+    await confirmDeletion(rendered);
+    fireEvent.press(await rendered.findByTestId('delete-account-reauth-submit'));
+
+    await waitFor(() => expect(mockReauthWithProvider).toHaveBeenCalled());
+    expect(rendered.queryByText('settings.deleteAccount.reauth.error')).toBeNull();
+    expect(mockDeleteAccount).toHaveBeenCalledTimes(1);
+    expect(mockSignOut).not.toHaveBeenCalled();
+  });
+
+  it('tells an account with no way to sign in again here to sign out and back in', async () => {
+    mockUseAuth.mockReturnValue(authWith(null));
+    mockCheckAccountDeletable.mockResolvedValue({ blockers: [] });
+    mockDeleteAccount.mockRejectedValueOnce(REAUTH_REQUIRED);
+
+    const rendered = render(<DeleteAccountScreen />);
+    await confirmDeletion(rendered);
+
+    expect(await rendered.findByText('settings.deleteAccount.reauth.signInAgain')).toBeTruthy();
   });
 });
