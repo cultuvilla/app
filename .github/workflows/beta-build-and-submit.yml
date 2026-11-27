@@ -107,6 +107,28 @@ jobs:
             --wait \
             --auto-submit-with-profile beta
 
+      # Matches the Play release by versionCode, so a rebuild of the same
+      # version gets its own notes. Empty on failure: then by version name.
+      - name: Read the built versionCode
+        id: built
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          code=$(eas build:version:get --platform android --profile beta --json --non-interactive 2>/dev/null \
+            | jq -r '.versionCode // .android.versionCode // empty' 2>/dev/null) || code=""
+          echo "version_code=${code}" >> "$GITHUB_OUTPUT"
+
+      # The Cultuvilla Beta upload carries the version's es-ES CHANGELOG notes,
+      # the same text TestFlight and the App Store get. Best effort: the build
+      # is on the internal track already.
+      - name: Set the Play release notes
+        continue-on-error: true
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          VERSION_CODE: ${{ steps.built.outputs.version_code }}
+        run: node scripts/push-play-release-notes.mjs --profile beta --version-code="${VERSION_CODE}" --apply
+
       - name: Remove the key
         if: always()
         run: rm -f apps/mobile/google-play-service-account.json

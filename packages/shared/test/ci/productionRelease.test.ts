@@ -180,6 +180,22 @@ describe('production-release workflow', () => {
     expect(android).toMatch(/if: always\(\)[\s\S]*rm -f apps\/mobile\/google-play-service-account\.json/);
   });
 
+  // Play's "What's new" is the same CHANGELOG text the App Store gets, set on
+  // the release EAS just submitted (matched by its versionCode). It runs after
+  // the binary shipped, so it may not fail the job: that would skip
+  // record-android-build, which the announce poller needs.
+  it('sets the Play release notes after the submit, without failing the job', () => {
+    const android = job('android');
+    const notes = android.slice(android.indexOf('- name: Set the Play release notes'));
+    expect(notes).toContain(
+      'node scripts/push-play-release-notes.mjs --profile production --version-code="${VERSION_CODE}" --apply',
+    );
+    expect(notes).toMatch(/continue-on-error: true/);
+    expect(notes).toContain('VERSION_CODE: ${{ steps.built.outputs.version_code }}');
+    expect(notes).toContain('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}');
+    expect(android.indexOf('Read the built versionCode')).toBeLessThan(android.indexOf('Set the Play release notes'));
+  });
+
   // iOS production ships the binary testers ran: no rebuild, the newest
   // TestFlight build of the app.config version goes to App Review.
   it('submits the tested TestFlight build for App Store review without rebuilding', () => {

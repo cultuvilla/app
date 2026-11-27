@@ -266,6 +266,21 @@ describe('beta auto-submit workflow', () => {
     expect(android).not.toMatch(/--profile production/);
   });
 
+  // The Cultuvilla Beta upload carries the version's CHANGELOG notes, matched
+  // by the versionCode just built, to the beta profile's app. Best effort: the
+  // build is on the track already, so a failed note must not fail the job.
+  it('sets the Play release notes on the beta app after the upload', () => {
+    const android = wf.slice(wf.indexOf('  android:'), wf.indexOf('  ios:'));
+    const notes = android.slice(android.indexOf('- name: Set the Play release notes'));
+    expect(notes).toContain(
+      'node scripts/push-play-release-notes.mjs --profile beta --version-code="${VERSION_CODE}" --apply',
+    );
+    expect(notes).toMatch(/continue-on-error: true/);
+    expect(notes).toContain('VERSION_CODE: ${{ steps.built.outputs.version_code }}');
+    expect(android.indexOf('--auto-submit-with-profile beta')).toBeLessThan(android.indexOf('Set the Play release notes'));
+    expect(android).toMatch(/eas build:version:get --platform android --profile beta/);
+  });
+
   // A GitHub `environment` here would be rejected outright: the Production
   // environment's branch policy allows only `main`.
   it('does not scope itself to a GitHub environment', () => {

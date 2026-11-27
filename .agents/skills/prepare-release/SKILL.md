@@ -55,7 +55,7 @@ The reason must be one line, at most 83 characters (the trailer line stays withi
 
 ## 3. Write the store notes
 
-`release:cut` refuses an `[Unreleased]` without them — the App Store "What's New" is user-facing copy, not something a script invents. Add a short es-ES block (≤500 chars, no internals) at the top of `[Unreleased]`, and land it on develop like any CHANGELOG edit (Direct mode):
+`release:cut` refuses an `[Unreleased]` without them — the stores' "What's New" (App Store and Google Play, the same text) is user-facing copy, not something a script invents. Add a short es-ES block (≤500 chars as plain text — Play's limit, and the cut refuses more; no internals) at the top of `[Unreleased]`, and land it on develop like any CHANGELOG edit (Direct mode):
 
 ```markdown
 ## [Unreleased]

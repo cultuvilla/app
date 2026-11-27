@@ -1,5 +1,12 @@
 # Store listing — es-ES
 
+`pnpm check:store-listing` (en CI) comprueba esta ficha contra los límites de
+Play y de App Store Connect, así que conserva su forma: la fila `Nombre` de la
+tabla compartida, las dos citas de Play tras **Descripción corta** y
+**Descripción completa**, y las filas `Subtitle`, `Promotional text` y
+`Keywords` con su valor entre comillas invertidas. La ficha de Play se sube a
+mano con `pnpm play:listing:push` (simulación sin `--apply`).
+
 Primary (and currently only) locale: **español (España)**. Both stores fall back
 to it for every other locale.
 
@@ -49,9 +56,11 @@ to it for every other locale.
 
 **Etiquetas / tags**: eventos, comunidad, pueblo
 
-**Notas de la versión** (Play, ≤ 500 caracteres) — se escriben a mano en la
-consola por release; usar el bloque `## vX.Y.Z` de [CHANGELOG.md](../../CHANGELOG.md)
-como fuente.
+**Notas de la versión** (Play, ≤ 500 caracteres) — no se escriben a mano: CI
+copia el bloque `<!-- store-notes -->` de la sección `## vX.Y.Z` de
+[CHANGELOG.md](../../CHANGELOG.md) a la release de Play (producción y Cultuvilla
+Beta), el mismo texto que el "What's New" de la App Store. `release:cut` rechaza
+un bloque de más de 500. Ver lo que Play tiene: `pnpm play:notes:show`.
 
 ## App Store
 
