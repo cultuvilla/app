@@ -140,7 +140,7 @@ const artifactRoutes = (over: { storage?: string; indexes?: object[][]; function
     [deployedIndex('events', [{ fieldPath: 'status', order: 'ASCENDING' }])],
     [deployedIndex('news', [{ fieldPath: 'tags', arrayConfig: 'CONTAINS' }])],
   ]) as [object[], object[]])],
-  [/cloudfunctions/, () => ({ functions: (over.functions ?? ['a', 'b']).map((n) => ({ name: `projects/${PROJECT}/locations/europe-west1/functions/${n}` })) })],
+  [/cloudfunctions/, () => ({ functions: (over.functions ?? ['a', 'b']).map((n) => ({ name: `projects/${PROJECT}/locations/europe-west1/functions/${n}`, state: 'ACTIVE' })) })],
   [/_admin\/announce\/pending/, over.pending ?? (() => { throw new HttpError(404); })],
 ];
 
