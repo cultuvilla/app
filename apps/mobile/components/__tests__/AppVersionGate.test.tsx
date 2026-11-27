@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { act, render, waitFor, fireEvent } from '@testing-library/react-native';
 import { Linking, Text as RNText } from 'react-native';
 import { AppVersionGate } from '../AppVersionGate';
@@ -34,6 +35,8 @@ jest.mock('../../lib/appVersion', () => ({
   getGatePlatform: () => 'ios',
 }));
 jest.mock('../../lib/i18n', () => ({ useT: () => ({ t: (k: string) => k }) }));
+const mockMarkAppReady = jest.fn();
+jest.mock('../intro/IntroHost', () => ({ useMarkAppReady: () => mockMarkAppReady }));
 
 const mockStore: Record<string, string> = {};
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -185,5 +188,77 @@ describe('a gate that cannot read its config says so', () => {
         operation: 'appVersionGate:missing',
       }),
     );
+  });
+});
+
+// Órdago 2026-10-02: walled clients kept crashing because the navigator stayed
+// mounted under the blocker, so a notification tap still reached a screen. A
+// hard wall must leave no route, provider or listener of the app running.
+describe('a hard wall replaces the app tree', () => {
+  const attach = jest.fn();
+  const detach = jest.fn();
+  function Listener() {
+    useEffect(() => {
+      attach();
+      return detach;
+    }, []);
+    return <RNText>child</RNText>;
+  }
+  const renderWithListener = () =>
+    render(
+      <AppVersionGate>
+        <Listener />
+      </AppVersionGate>,
+    );
+
+  it('mounts nothing of the app when the first answer is a wall', async () => {
+    attach.mockClear();
+    detach.mockClear();
+    const { getByText, queryByText, getByTestId } = renderWithListener();
+    emit(WALL);
+    await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
+    expect(queryByText('child')).toBeNull();
+    expect(getByTestId('app-update-wall')).toBeTruthy();
+    // Mounted only for the load window, then torn down with its listener.
+    expect(detach).toHaveBeenCalledTimes(attach.mock.calls.length);
+  });
+
+  it('unmounts the running app, listeners included, when a wall is raised mid-session', async () => {
+    attach.mockClear();
+    detach.mockClear();
+    const { getByText, queryByText } = renderWithListener();
+    emit(UP_TO_DATE);
+    await waitFor(() => expect(getByText('child')).toBeTruthy());
+    expect(attach).toHaveBeenCalledTimes(1);
+    expect(detach).not.toHaveBeenCalled();
+
+    emit(WALL);
+    await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
+    expect(queryByText('child')).toBeNull();
+    expect(detach).toHaveBeenCalledTimes(1);
+  });
+
+  it('remounts the app when the wall is lowered', async () => {
+    const { getByText, queryByText } = renderWithListener();
+    emit(WALL);
+    await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
+    emit(UP_TO_DATE);
+    await waitFor(() => expect(getByText('child')).toBeTruthy());
+    expect(queryByText('appUpdate.blockTitle')).toBeNull();
+  });
+
+  it('hands the intro over to the blocker, since no route will mark the app ready', async () => {
+    const { getByText } = renderGate();
+    emit(WALL);
+    await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
+    expect(mockMarkAppReady).toHaveBeenCalled();
+  });
+
+  it('keeps the app mounted under the soft nudge', async () => {
+    const { getByText } = renderGate();
+    emit(NEWER);
+    await waitFor(() => expect(getByText('appUpdate.nudgeTitle')).toBeTruthy());
+    expect(getByText('child')).toBeTruthy();
+    expect(mockMarkAppReady).not.toHaveBeenCalled();
   });
 });
