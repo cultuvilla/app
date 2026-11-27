@@ -14,9 +14,9 @@
 // counter settles. This is the only place that proves the trigger round-trip
 // end-to-end.
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
-import { doc, setDoc, getDoc, type Firestore } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, seed } from '../helpers/roles';
+import { asUser, seed, firestoreOf } from '../helpers/roles';
 import {
   addComment,
   deleteComment,
@@ -95,7 +95,7 @@ function testPlaceData(municipalityId: string) {
 async function seedEvent(municipalityId: string): Promise<string> {
   let eventId = '';
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     const ref = doc(eventsCollection(db));
     await setDoc(ref, testEventData(municipalityId));
     eventId = ref.id;
@@ -106,7 +106,7 @@ async function seedEvent(municipalityId: string): Promise<string> {
 async function readEventCounters(municipalityId: string, eventId: string) {
   let data: { commentCount: number } | undefined;
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     const snap = await getDoc(eventDoc(db, eventId));
     if (!snap.exists()) throw new Error(`event ${eventId} not found (municipality ${municipalityId})`);
     data = { commentCount: snap.data().commentCount };
@@ -118,7 +118,7 @@ async function readEventCounters(municipalityId: string, eventId: string) {
 async function seedPlace(municipalityId: string): Promise<string> {
   let placeId = '';
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     const ref = doc(municipalityPlacesCollection(db, municipalityId));
     await setDoc(ref, testPlaceData(municipalityId));
     placeId = ref.id;
@@ -129,7 +129,7 @@ async function seedPlace(municipalityId: string): Promise<string> {
 async function readPlaceCommentCount(municipalityId: string, placeId: string): Promise<number> {
   let commentCount: number | undefined;
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     const snap = await getDoc(municipalityPlaceDoc(db, municipalityId, placeId));
     if (!snap.exists()) throw new Error(`place ${placeId} not found (municipality ${municipalityId})`);
     commentCount = snap.data().commentCount;
@@ -147,7 +147,7 @@ describe('commentsService — real Firestore (comments)', () => {
   const M1_EVENT_TARGETS = ['e-solo', 'e-order', 'e-scope', 'e-other', 'e-delete'];
   beforeEach(async () => {
     await seed(getEnv(), async (ctx) => {
-      const db = ctx.firestore() as unknown as Firestore;
+      const db = firestoreOf(ctx);
       for (const id of M1_EVENT_TARGETS) {
         await setDoc(eventDoc(db, id), testEventData('m1'));
       }

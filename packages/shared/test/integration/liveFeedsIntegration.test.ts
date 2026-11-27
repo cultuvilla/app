@@ -15,7 +15,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asAnon, asUser, seed } from '../helpers/roles';
+import { asAnon, asUser, seed, firestoreOf } from '../helpers/roles';
 import { buildEventData, type EventDataInput } from '../../src/models/event/EventDataModel';
 import { buildNewsPostData } from '../../src/models/news/NewsPostDataModel';
 import {
@@ -41,7 +41,7 @@ function uniq(prefix: string): string {
 
 async function asSeeder(write: (db: Firestore) => Promise<void>): Promise<void> {
   await seed(getEnv(), async (ctx) => {
-    await write(ctx.firestore() as unknown as Firestore);
+    await write(firestoreOf(ctx));
   });
 }
 

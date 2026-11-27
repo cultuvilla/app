@@ -15,10 +15,9 @@ import {
   setDoc,
   updateDoc,
   where,
-  type Firestore,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asAnon, asAdmin, seed } from '../helpers/roles';
+import { asUser, asAnon, asAdmin, seed, firestoreOf } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -47,7 +46,7 @@ function moderationEvent(municipalityId: string) {
 
 async function seedFixtures() {
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     await setDoc(doc(db, `municipalities/${MUNI}/members/${VILLAGE_ADMIN}`), { role: 'admin' });
     await setDoc(doc(db, `municipalities/${MUNI}/members/${PLAIN_MEMBER}`), { role: 'user' });
     await setDoc(doc(db, `municipalities/${OTHER_MUNI}/members/${OTHER_VILLAGE_ADMIN}`), { role: 'admin' });

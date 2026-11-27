@@ -3,9 +3,9 @@
 // not the security rules — those are covered in test/e2e/villageRules.test.ts.
 // Writes bypass rules via withSecurityRulesDisabled.
 import { describe, it, expect } from 'vitest';
-import { collection, addDoc, doc, getDoc, type Firestore } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { seed } from '../helpers/roles';
+import { seed, firestoreOf } from '../helpers/roles';
 import { makeMunicipality, makeActiveCommunity } from '../factories/villageFactory';
 
 const getEnv = useRulesTestEnv();
@@ -15,7 +15,7 @@ describe('municipality roundtrip (emulator)', () => {
     const municipality = makeMunicipality({ name: 'Roundtrip Municipality' });
     let docId = '';
     await seed(getEnv(), async (ctx) => {
-      const db = ctx.firestore() as unknown as Firestore;
+      const db = firestoreOf(ctx);
       const ref = await addDoc(collection(db, 'municipalities'), municipality);
       docId = ref.id;
 
@@ -32,7 +32,7 @@ describe('municipality roundtrip (emulator)', () => {
   it('persists a municipality with an active community', async () => {
     const municipality = makeActiveCommunity({ name: 'Active Community' });
     await seed(getEnv(), async (ctx) => {
-      const db = ctx.firestore() as unknown as Firestore;
+      const db = firestoreOf(ctx);
       const ref = await addDoc(collection(db, 'municipalities'), municipality);
 
       const snap = await getDoc(doc(db, 'municipalities', ref.id));

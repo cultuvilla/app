@@ -9,9 +9,9 @@
 // against the firestore emulator under different auth contexts.
 import { describe, it } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, type Firestore } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asAnon, asAdmin, seed } from '../helpers/roles';
+import { asUser, asAnon, asAdmin, seed, firestoreOf } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -56,7 +56,7 @@ function orgEvent() {
 
 async function seedFixtures() {
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     await setDoc(doc(db, `municipalities/${MUNI}/members/${VILLAGE_ADMIN}`), { role: 'admin' });
     await setDoc(doc(db, `municipalities/${MUNI}/members/${PLAIN_MEMBER}`), { role: 'user' });
     await setDoc(doc(db, `organizations/${ORG}/members/${ORG_ADMIN}`), { role: 'admin' });

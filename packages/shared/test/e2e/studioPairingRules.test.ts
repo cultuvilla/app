@@ -4,9 +4,9 @@
 // approving user included — may read or write one.
 import { describe, it } from 'vitest';
 import { assertFails } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asAdmin, asAnon, asUser, seed } from '../helpers/roles';
+import { asAdmin, asAnon, asUser, seed, firestoreOf } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -15,7 +15,7 @@ const PATH = 'studioPairings/pairing-1';
 
 function seedPairing(data: Record<string, unknown>): Promise<void> {
   return seed(getEnv(), async (ctx) => {
-    await setDoc(doc(ctx.firestore() as unknown as Firestore, PATH), data);
+    await setDoc(doc(firestoreOf(ctx), PATH), data);
   });
 }
 

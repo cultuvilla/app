@@ -8,9 +8,19 @@ import type {
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 
+/**
+ * The modular Firestore client of a rules-test context. rules-unit-testing
+ * types its contexts with the compat SDK, while the services and tests call the
+ * modular functions, which accept that same instance at runtime — the one place
+ * the two type worlds meet, so the bridging cast lives here and nowhere else.
+ */
+export function firestoreOf(ctx: RulesTestContext): Firestore {
+  return ctx.firestore() as unknown as Firestore;
+}
+
 /** Firestore client scoped to an authenticated user `uid`. */
 export function asUser(env: RulesTestEnvironment, uid: string): Firestore {
-  return env.authenticatedContext(uid).firestore() as unknown as Firestore;
+  return firestoreOf(env.authenticatedContext(uid));
 }
 
 /**
@@ -24,12 +34,12 @@ export function asUserWithEmail(
   uid: string,
   email: string,
 ): Firestore {
-  return env.authenticatedContext(uid, { email }).firestore() as unknown as Firestore;
+  return firestoreOf(env.authenticatedContext(uid, { email }));
 }
 
 /** Firestore client with no auth (signed-out / anonymous request). */
 export function asAnon(env: RulesTestEnvironment): Firestore {
-  return env.unauthenticatedContext().firestore() as unknown as Firestore;
+  return firestoreOf(env.unauthenticatedContext());
 }
 
 /**
@@ -47,7 +57,7 @@ export function seed(
 /** Seed the app-admin marker doc (`admins/{uid}`) that the rules check. */
 export function seedAdmin(env: RulesTestEnvironment, uid: string): Promise<void> {
   return seed(env, async (ctx) => {
-    await setDoc(doc(ctx.firestore() as unknown as Firestore, `admins/${uid}`), {
+    await setDoc(doc(firestoreOf(ctx), `admins/${uid}`), {
       createdAt: new Date(),
     });
   });

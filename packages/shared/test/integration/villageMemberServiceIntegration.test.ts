@@ -13,9 +13,9 @@
 // @firebase/rules-unit-testing so the collectionGroup rule (requires auth)
 // is satisfied without initialising the full Firebase JS SDK.
 import { describe, it, expect, afterAll, vi } from 'vitest';
-import { doc, setDoc, type Firestore } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, seed } from '../helpers/roles';
+import { asUser, seed, firestoreOf } from '../helpers/roles';
 import { getUserMemberships } from '../../src/services/villageMemberService';
 import * as firebaseModule from '../../src/firebase';
 
@@ -28,7 +28,7 @@ afterAll(() => {
 describe('villageMemberService — getUserMemberships', () => {
   it('returns memberships for the caller across municipalities', async () => {
     await seed(getEnv(), async (ctx) => {
-      const db = ctx.firestore() as unknown as Firestore;
+      const db = firestoreOf(ctx);
       const now = new Date();
       await setDoc(doc(db, 'municipalities/m1/members/alice'), {
         userId: 'alice', role: 'user', joinedAt: now, profileAnswers: {},

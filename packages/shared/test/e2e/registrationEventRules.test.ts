@@ -14,7 +14,7 @@ import { describe, it, beforeEach } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs, setDoc, type Firestore } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asAnon, asAdmin, seed } from '../helpers/roles';
+import { asUser, asAnon, asAdmin, seed, firestoreOf } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -29,7 +29,7 @@ const NOW = new Date();
 
 async function seedEventWithLog() {
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     await setDoc(doc(db, `events/${EVENT}`), {
       title: 'Feria',
       municipalityId: VILLAGE,
