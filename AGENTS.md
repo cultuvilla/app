@@ -558,6 +558,7 @@ pnpm lint             # eslint --max-warnings 0 in packages/shared, functions, a
 pnpm typecheck        # tsc --noEmit in shared, functions, i18n, mobile
 pnpm test             # vitest (shared) + jest (mobile) + functions, under emulators
 pnpm backfills:list   # registered data migrations (see Backfills)
+pnpm audit:refs       # read-only referential-integrity audit (dev; --env=beta|prod) — repairs: prod-data-repair skill
 pnpm test:e2e:android # Maestro on an Android AVD, under emulators (needs a device)
 pnpm test:e2e:ios     # the same flows on an iOS Simulator (macOS only; CI: ios-e2e)
 pnpm check:store-claims # verify the store-release runbook against live infra
