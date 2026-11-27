@@ -10,7 +10,7 @@ afterEach(() => vi.restoreAllMocks());
 function stubFetch(response: unknown, ok = true) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(() => Promise.resolve({ ok, status: ok ? 200 : 500, json: () => Promise.resolve(response) })) as unknown as typeof fetch,
+    vi.fn<typeof fetch>(() => Promise.resolve(Response.json(response, { status: ok ? 200 : 500 }))),
   );
 }
 

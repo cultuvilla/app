@@ -8,7 +8,10 @@ import { join, resolve } from 'node:path';
 // handler no longer accepts. Each one is replaced by a typed fixture or a typed
 // test bridge over time. The count may only go down: lower BASELINE when it does.
 // packages/shared/test/ci/sharedTestTypecheck.test.ts is the same ratchet there.
-const BASELINE = 21;
+// What is left is the boundary: hand-built Express req/res fakes for HTTP
+// handlers, hand-built trigger events, and one deliberately malformed payload.
+// A callable goes through helpers/functionsTest.ts, never a cast.
+const BASELINE = 9;
 const CAST = /\bas any\b|\bas unknown as\b/g;
 const TESTS_ROOT = resolve(__dirname, '..');
 const SELF = resolve(__filename);
