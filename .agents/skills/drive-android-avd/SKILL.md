@@ -13,9 +13,19 @@ creates `Cultuvilla_Big` the first time from an installed image
 (`CULTUVILLA_AVD_IMAGE`, default android-36 google_apis x86_64; `CULTUVILLA_AVD_DEVICE`,
 default `pixel_7_pro`), and it pins `ANDROID_AVD_HOME` to `~/.android/avd` — a desktop
 session sets `XDG_CONFIG_HOME`, and the new `avdmanager` then writes AVDs under
-`~/.config/.android/avd`, where the emulator never looks. Build and install the dev
-client with `pnpm --filter cultuvilla-mobile exec expo run:android --no-bundler`
-(Java 17: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk`).
+`~/.config/.android/avd`, where the emulator never looks.
+
+**Build and install the dev client** with `pnpm app:dev-client:rollout`
+([scripts/dev-client-rollout.sh](../../../scripts/dev-client-rollout.sh)): one clean
+prebuild + gradle debug build (arm64-v8a for phones, x86_64 for AVDs; Java 17), installed
+on every attached phone and every *running* `Cultuvilla_*` AVD except the E2E one. It
+reads each emulator's AVD name and never touches another repo's emulator, its `adb
+reverse` or Metro; a stopped Cultuvilla AVD is reported, not booted. `--if-stale` builds
+only when the native fingerprint (the one `dev-sync.sh` notifies about) moved since the
+last full rollout; `--only phones|avds`, `--skip-build`, `--dry-run`, and
+`--wipe-on-mismatch` for a device holding an EAS-signed build (clears the app's data).
+It is manual — nothing runs it on a timer. For a single AVD,
+`pnpm --filter cultuvilla-mobile exec expo run:android --no-bundler` still works.
 
 **Under WSL2:**
 
