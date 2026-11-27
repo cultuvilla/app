@@ -3,12 +3,19 @@
 // policy are owned here once: a retried trigger is always bounded by event age,
 // never left to the platform's seven days of redelivery.
 import { logger } from 'firebase-functions/v2';
-import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated, onDocumentWritten } from 'firebase-functions/v2/firestore';
+import {
+  onDocumentCreated,
+  onDocumentDeleted,
+  onDocumentUpdated,
+  onDocumentWritten,
+  onDocumentWrittenWithAuthContext,
+} from 'firebase-functions/v2/firestore';
 import type { CloudFunction, ParamsOf } from 'firebase-functions/v2';
 import type {
   Change,
   DocumentOptions,
   DocumentSnapshot,
+  FirestoreAuthEvent,
   FirestoreEvent,
   QueryDocumentSnapshot,
 } from 'firebase-functions/v2/firestore';
@@ -16,18 +23,22 @@ import type {
 import { DEFAULT_FUNCTIONS_REGION } from './region';
 import { register } from './registry';
 
-export type DocumentTriggerKind = 'created' | 'updated' | 'deleted' | 'written';
+/**
+ * `writtenWithAuth` is `written` plus who made the write (`authType`, `authId`)
+ * — for a trigger that records the actor, such as an audit entry.
+ */
+export type DocumentTriggerKind = 'created' | 'updated' | 'deleted' | 'written' | 'writtenWithAuth';
 
-type EventDataOf<Kind extends DocumentTriggerKind> = Kind extends 'written'
+type EventDataOf<Kind extends DocumentTriggerKind> = Kind extends 'written' | 'writtenWithAuth'
   ? Change<DocumentSnapshot> | undefined
   : Kind extends 'updated'
     ? Change<QueryDocumentSnapshot> | undefined
     : QueryDocumentSnapshot | undefined;
 
-export type DocumentTriggerEvent<Kind extends DocumentTriggerKind, Document extends string> = FirestoreEvent<
-  EventDataOf<Kind>,
-  ParamsOf<Document>
->;
+export type DocumentTriggerEvent<Kind extends DocumentTriggerKind, Document extends string> =
+  Kind extends 'writtenWithAuth'
+    ? FirestoreAuthEvent<EventDataOf<Kind>, ParamsOf<Document>>
+    : FirestoreEvent<EventDataOf<Kind>, ParamsOf<Document>>;
 
 /**
  * The event-age bounds a retried trigger picks from, by what its side effect is
@@ -65,6 +76,7 @@ const DEFINERS = {
   updated: onDocumentUpdated,
   deleted: onDocumentDeleted,
   written: onDocumentWritten,
+  writtenWithAuth: onDocumentWrittenWithAuthContext,
 } as const;
 
 /** How long ago the event happened, or `null` when it carries no parseable time. */
@@ -79,7 +91,7 @@ export function defineDocumentTrigger<Kind extends DocumentTriggerKind, Document
   { kind, retry, ...options }: DefineDocumentTriggerOptions<Kind, Document>,
   handler: (event: DocumentTriggerEvent<Kind, Document>) => unknown,
 ): CloudFunction<DocumentTriggerEvent<Kind, Document>> {
-  // One cast for four builders whose only difference is the event they hand over.
+  // One cast for five builders whose only difference is the event they hand over.
   const define = DEFINERS[kind] as unknown as (
     opts: DocumentOptions<Document>,
     fn: (event: DocumentTriggerEvent<Kind, Document>) => unknown,
