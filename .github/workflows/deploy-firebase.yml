@@ -359,3 +359,16 @@ jobs:
       # every iOS user on 1.2.2 to update to a 1.3.0 no store had.
       - name: Refresh config/appVersion, preserving latest and the wall
         run: node scripts/seed-app-version-config.mjs --env=${{ inputs.firebase_alias }} --confirm
+
+      # Every functions deploy leaves one more Cloud Run revision per function,
+      # and each counts against the regional CPU quota until deleted: Órdago hit
+      # the ceiling and every deploy then failed. This deletes a bounded batch
+      # of old revisions, never one that serves, is latest, or is among each
+      # service's newest two (scripts/cleanup-cloudrun-revisions.mjs). It runs
+      # after a failed deploy too — a failed deploy also leaves revisions — and
+      # never fails the deploy: housekeeping, not a gate. Not on prod yet: its
+      # backlog is drained by hand first (the plan's prod step).
+      - name: Clean up old Cloud Run revisions
+        if: ${{ !cancelled() && inputs.firebase_alias != 'prod' }}
+        continue-on-error: true
+        run: node scripts/cleanup-cloudrun-revisions.mjs --env=${{ inputs.firebase_alias }} --apply --max-deletes=150 --max-minutes=5

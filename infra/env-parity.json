@@ -152,6 +152,11 @@
       "<project>.web.app",
       "cultuvilla.es",
       "localhost"
+    ],
+    "artifactCleanup": [
+      "europe-west1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s",
+      "us-central1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s",
+      "us-east1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s"
     ]
   },
   "exceptions": {

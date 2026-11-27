@@ -64,6 +64,21 @@ const configRoutes = (over: Partial<Record<string, unknown>> = {}): Route[] => [
     signIn: { email: { enabled: true } }, mfa: { state: 'DISABLED' },
     authorizedDomains: ['cultuvilla-beta.web.app', 'localhost'],
   })],
+  [/artifactregistry.*\/locations\?/, () => ({ locations: [{ locationId: 'us-east1' }, { locationId: 'asia' }] })],
+  [/artifactregistry.*\/asia\/repositories\?/, () => ({})],
+  [/artifactregistry.*\/us-east1\/repositories\?/, () => ({
+    repositories: [
+      { name: `projects/${PROJECT}/locations/us-east1/repositories/gcf-artifacts` },
+      { name: `projects/${PROJECT}/locations/us-east1/repositories/web` },
+    ],
+  })],
+  [/repositories\/gcf-artifacts$/, () => ({
+    name: `projects/${PROJECT}/locations/us-east1/repositories/gcf-artifacts`,
+    cleanupPolicies: {
+      'firebase-functions-cleanup': { id: 'firebase-functions-cleanup', action: 'DELETE', condition: { tagState: 'ANY', olderThan: '86400s' } },
+    },
+  })],
+  [/repositories\/web$/, () => ({ name: `projects/${PROJECT}/locations/us-east1/repositories/web` })],
   [/defaultSupportedIdpConfigs$/, () => ({
     defaultSupportedIdpConfigs: [
       { name: 'projects/cultuvilla-beta/defaultSupportedIdpConfigs/google.com', enabled: true },
@@ -91,6 +106,10 @@ const EXPECTED = {
   secrets: ['KEY'],
   authProviders: ['google.com'],
   authDomains: ['<project>.web.app', 'localhost'],
+  artifactCleanup: [
+    'us-east1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s',
+    'us-east1/web none',
+  ],
 };
 
 const FILES: Record<string, string> = {
@@ -126,7 +145,7 @@ const artifactRoutes = (over: { storage?: string; indexes?: object[][]; function
 ];
 
 describe('configSnapshot', () => {
-  it('reads every dimension, follows pagination, keeps only service accounts and enabled providers, and normalises ids', async () => {
+  it('reads every dimension, follows pagination, keeps only service accounts and enabled providers, lists every repository\'s cleanup policy, and normalises ids', async () => {
     expect(await configSnapshot(fakeApi(configRoutes()), PROJECT, NUMBER)).toEqual(EXPECTED);
   });
 });
