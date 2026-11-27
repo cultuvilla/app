@@ -1,9 +1,9 @@
 # After a deploy, prove every function is healthy, not just present
 
 **Priority:** medium
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** on the next beta deploy, confirm the "Parity check — live rules, indexes and functions are this commit's" step is green with no function-health findings, then retire this plan (#772 shipped it; dev green in run 46006747833)
 
 **Decided 2026-11-27 (Álvaro):** build it — first batch of the Órdago harvest (`_workspace/docs/plans/ideas/harvest-across-repos.md`).
 
