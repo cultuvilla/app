@@ -14,7 +14,20 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
+| [cloud-run-gateways](ready/cloud-run-gateways.md) `ready` | high | — | this cycle | — |
+| [cloud-run-revision-cleanup](ready/cloud-run-revision-cleanup.md) `ready` | high | — | this cycle | — |
+| [delete-account-reauth-gate](ready/delete-account-reauth-gate.md) `ready` | high | — | this cycle | — |
+| [harvest-shared-ci-checks](ready/harvest-shared-ci-checks.md) `ready` | high | — | this cycle | — |
+| [non-prod-delivery-guard](ready/non-prod-delivery-guard.md) `ready` | high | — | this cycle | — |
+| [referential-integrity-audit](ready/referential-integrity-audit.md) `ready` | high | — | this cycle | — |
+| [typecheck-shared-tests](ready/typecheck-shared-tests.md) `ready` | high | — | this cycle | — |
+| [blocking-overlay-in-tree](ready/blocking-overlay-in-tree.md) `ready` | medium | — | this cycle | — |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
+| [patch-coverage-report](ready/patch-coverage-report.md) `ready` | medium | — | this cycle | — |
+| [play-release-notes](ready/play-release-notes.md) `ready` | medium | — | this cycle | — |
+| [scheduled-schema-audit](ready/scheduled-schema-audit.md) `ready` | medium | — | this cycle | — |
+| [trigger-not-found-helper](ready/trigger-not-found-helper.md) `ready` | medium | — | this cycle | — |
+| [verify-deployed-functions](ready/verify-deployed-functions.md) `ready` | medium | — | this cycle | — |
 
 ## Waiting on release 1.11.0
 
@@ -76,6 +89,7 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
+| `4d20fd2e` | 2026-11-27 | 14 | docs(plans): approve the first Órdago harvest batch and the Cloud Run gateways |
 | `e7e588fa` | 2026-11-21 | 5 | docs(plans): start madrid-day cutoff, raw-hex tokens and mobile lint gate; gate e2e ideas on #722 |
 | `e960dc6a` | 2026-11-20 | 14 | docs(plans): night triage — start 5 plans, gate release/console-bound rows, reopen read-site after #679 |
 | `f9438880` | 2026-11-07 | 7 | docs(plans): retire finished plans, refresh gates |
