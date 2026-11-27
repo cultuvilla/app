@@ -31,7 +31,8 @@ describe('deploy-firebase.yml revision cleanup', () => {
   });
 
   it('passes --confirm, which the script requires for prod, only on prod', () => {
-    expect(step).toContain("${{ inputs.firebase_alias == 'prod' && '--confirm' || '' }}");
+    expect(step).toContain('if [ "$FIREBASE_ALIAS" = prod ]; then confirm=(--confirm); fi');
+    expect(step).toContain('"${confirm[@]}"');
     const script = readFileSync(resolve(repoRoot, 'scripts/cleanup-cloudrun-revisions.mjs'), 'utf-8');
     expect(script).toMatch(/env === 'prod' && !process\.argv\.includes\('--confirm'\)/);
   });

@@ -379,4 +379,7 @@ jobs:
       - name: Clean up old Cloud Run revisions
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: node scripts/cleanup-cloudrun-revisions.mjs --env="$FIREBASE_ALIAS" --apply --max-deletes=150 --max-minutes=5 ${{ inputs.firebase_alias == 'prod' && '--confirm' || '' }}
+        run: |
+          confirm=()
+          if [ "$FIREBASE_ALIAS" = prod ]; then confirm=(--confirm); fi
+          node scripts/cleanup-cloudrun-revisions.mjs --env="$FIREBASE_ALIAS" --apply --max-deletes=150 --max-minutes=5 "${confirm[@]}"
