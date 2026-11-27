@@ -1,6 +1,8 @@
 // Pins the invariant lint gate of the two client apps (AGENTS.md invariants 1
 // and 5): no Firebase outside a service and the boundary files, no `any`, no
 // dead `eslint-disable`. Widening an exemption must be a visible diff here.
+// Also pins the rules every workspace shares: Firebase error codes compared
+// only through firebaseErrorCode().
 import { resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
@@ -19,8 +21,17 @@ const studio = studioConfig as AppConfig;
 
 const appsDir = resolve(import.meta.dirname, '../../../../apps');
 
-async function lint(app: 'mobile' | 'studio', filePath: string, code: string): Promise<string[]> {
-  const cwd = resolve(appsDir, app);
+const repoDir = resolve(appsDir, '..');
+type Workspace = 'mobile' | 'studio' | 'shared' | 'functions';
+const workspaceDir: Record<Workspace, string> = {
+  mobile: resolve(appsDir, 'mobile'),
+  studio: resolve(appsDir, 'studio'),
+  shared: resolve(repoDir, 'packages/shared'),
+  functions: resolve(repoDir, 'functions'),
+};
+
+async function lint(app: Workspace, filePath: string, code: string): Promise<string[]> {
+  const cwd = workspaceDir[app];
   const eslint = new ESLint({ cwd, overrideConfigFile: resolve(cwd, 'eslint.config.mjs') });
   const results = await eslint.lintText(code, { filePath: resolve(cwd, filePath) });
   return results.flatMap((r) => r.messages).map((m) => m.ruleId ?? m.message);
@@ -104,4 +115,47 @@ describe('app lint gate: mobile exemptions', () => {
   it('lets the auth boundary use both', async () => {
     expect(await lint('mobile', 'lib/auth/AuthContext.tsx', RAW + SEAM)).toEqual([]);
   });
+});
+
+// The device SDK reports `firestore/permission-denied`, the JS SDK the tests
+// run on `permission-denied` (and the reverse for callables): a raw `.code`
+// compare is green in every suite and dead in one of the two.
+describe.each([
+  ['mobile', 'components/Probe.tsx'],
+  ['studio', 'src/screens/Probe.tsx'],
+  // Type-checked configs: the probe must be a file their tsconfig contains.
+  ['shared', 'src/services/villageWrappedService.ts'],
+  ['functions', 'src/shared/notFound.ts'],
+] as const)('bare Firebase error code ban: %s', (app, file) => {
+  const BAN = 'no-restricted-syntax';
+  const probe = (body: string) =>
+    `import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';\n` +
+    `export const probe = (error: { code?: string }, result: { status: string }): unknown => {\n${body}\n};\n`;
+  const bans = async (body: string) => (await lint(app, file, probe(body))).filter((r) => r === BAN).length;
+
+  it.each([
+    "return error.code === 'permission-denied';",
+    "return error?.code !== 'not-found';",
+    "return 'unauthenticated' === error.code;",
+    "return error['code'] === 'unavailable';",
+    "return error.code === 'firestore/permission-denied';",
+    "return error.code === 'functions/not-found';",
+    "return firebaseErrorCode(error) === 'functions/not-found';",
+    "switch (error.code) { case 'already-exists': return 1; default: return 0; }",
+    "switch (firebaseErrorCode(error)) { case 'firestore/aborted': return 1; default: return 0; }",
+    "return ['unavailable', 'deadline-exceeded'].includes(error.code);",
+  ])('rejects %s', async (body) => {
+    expect(await bans(body)).toBe(1);
+  }, 60_000);
+
+  it.each([
+    "return firebaseErrorCode(error) === 'permission-denied';",
+    "switch (firebaseErrorCode(error)) { case 'not-found': return 1; default: return 0; }",
+    "return result.status === 'permission-denied';",
+    "return error.code === 'auth/cancelled';",
+    "return error.code === 'storage/unauthorized';",
+    "return error.code === 'ERR_REQUEST_CANCELED';",
+  ])('allows %s', async (body) => {
+    expect(await bans(body)).toBe(0);
+  }, 60_000);
 });
