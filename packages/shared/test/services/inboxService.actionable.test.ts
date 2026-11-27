@@ -185,7 +185,7 @@ describe('actionableCount', () => {
         orgs: [{ id: 'b' }, { id: 'c' }],
         joins: [{ orgId: 'o1', userId: 'u1' }],
         reports: [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }],
-      } as unknown as Parameters<typeof actionableCount>[0]),
+      }),
     ).toBe(7);
   });
 

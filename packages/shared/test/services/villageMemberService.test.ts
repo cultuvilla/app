@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   setActiveMunicipality: vi.fn(async () => undefined),
   ops: [] as { op: 'set' | 'update'; id: string; data: any }[],
-  state: { person: null as any },
+  state: { person: null },
 }));
 
 vi.mock('../../src/firebase', () => ({ getDb: () => ({}) }));

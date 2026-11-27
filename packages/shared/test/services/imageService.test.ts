@@ -17,10 +17,8 @@ import { validateUploadableImage } from '../../src/services/imageService';
 // which is what RN's `fetch(uri).then(r => r.blob())` returns.
 describe('validateUploadableImage', () => {
   function makeBlob(opts: { size: number; type: string }): Blob {
-    return {
-      size: opts.size,
-      type: opts.type,
-    } as unknown as Blob;
+    // Only the reported size matters, so the blob holds no bytes.
+    return Object.defineProperty(new Blob([], { type: opts.type }), 'size', { value: opts.size });
   }
 
   it('accepts a small image/jpeg blob', () => {
@@ -86,7 +84,7 @@ describe('upload cache headers', () => {
     expect(IMAGE_UPLOAD_CACHE_CONTROL).toBe('public, max-age=31536000, immutable');
 
     const image = {
-      blob: { size: 1024, type: 'image/jpeg' } as unknown as Blob,
+      blob: new Blob([new Uint8Array(1024)], { type: 'image/jpeg' }),
       filename: 'a.jpg',
     };
     vi.mocked(storage.getDownloadURL).mockResolvedValue('https://example.test/a');

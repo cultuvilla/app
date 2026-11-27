@@ -37,6 +37,7 @@ import {
   setSocioNumber,
   updateTypedSocio,
 } from '../../src/services/socioService';
+import { fakeCallable, refPath } from '../helpers/sdkFakes';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -94,14 +95,14 @@ describe('socioService', () => {
   it('saveSocioContactSharing records the answer with what the member chose to share', async () => {
     await saveSocioContactSharing('org1', 's1', { phone: null, email: 'a@b.es' });
     const [ref, data] = vi.mocked(setDoc).mock.calls[0];
-    expect((ref as unknown as { _path: string })._path).toBe('organizations/org1/socioPrivate/s1');
+    expect(refPath(ref)).toBe('organizations/org1/socioPrivate/s1');
     expect(data).toMatchObject({ phone: null, email: 'a@b.es' });
     expect((data as { consentAnsweredAt: unknown }).consentAnsweredAt).toBeInstanceOf(Date);
   });
 
   it('linkSocioToMember calls the callable', async () => {
     const call = vi.fn().mockResolvedValue({ data: { ok: true } });
-    vi.mocked(httpsCallable).mockReturnValue(call as unknown as ReturnType<typeof httpsCallable>);
+    vi.mocked(httpsCallable).mockReturnValue(fakeCallable(call));
     await linkSocioToMember('org1', 's1', 'u2');
     expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'linkSocioToMember');
     expect(call).toHaveBeenCalledWith({ orgId: 'org1', socioId: 's1', memberUid: 'u2' });

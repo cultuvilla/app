@@ -109,7 +109,8 @@ describe('refs table', () => {
 
   it('keeps the converter files on the same object the refs carry', () => {
     expect(clientRefs.eventDoc(clientDb, 'e').converter).toBe(eventConverterClient);
-    expect((adminRefs.eventDoc(adminDb, 'e') as unknown as { _converter: unknown })._converter).toBe(eventConverterAdmin);
+    const adminRef = adminRefs.eventDoc(adminDb, 'e');
+    expect('_converter' in adminRef && adminRef._converter).toBe(eventConverterAdmin);
   });
 
   it('fills a path template in order and refuses the wrong arity', () => {

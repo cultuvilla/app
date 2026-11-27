@@ -15,7 +15,7 @@ const h = vi.hoisted(() => ({
   setActiveMunicipality: vi.fn(async () => undefined),
   startVillage: vi.fn(async () => undefined),
   ops: [] as { op: 'set' | 'update'; id: string; data: any }[],
-  state: { person: null as any, municipality: null as any },
+  state: { person: null, municipality: null },
 }));
 
 vi.mock('../../src/firebase', () => ({

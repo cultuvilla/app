@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,
-                  @typescript-eslint/no-unsafe-assignment,
                   @typescript-eslint/require-await */
 // vi.mock-driven Firestore fake that records the query parts it was handed so
 // we can assert cursor + prefix behaviour without a real backend.
@@ -30,6 +29,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import { listMunicipalitiesPage } from '../../src/services/municipalityService';
+import { fakeQueryDoc } from '../helpers/sdkFakes';
 
 function fakeDoc(id: string, name: string) {
   return { id, data: () => ({ name, nameLower: name.toLowerCase() }) };
@@ -60,7 +60,7 @@ describe('listMunicipalitiesPage', () => {
   });
 
   it('passes the cursor to startAfter on follow-on pages', async () => {
-    const cursor = fakeDoc('a', 'Avila') as any;
+    const cursor = fakeQueryDoc(fakeDoc('a', 'Avila'));
     nextDocs = [fakeDoc('b', 'Burgos')];
     await listMunicipalitiesPage({ cursor, limit: 1 });
     expect(calls.startAfter).toEqual([cursor]);

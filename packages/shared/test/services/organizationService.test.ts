@@ -26,6 +26,7 @@ import {
   requestOrganization,
 } from '../../src/services/organizationService';
 import { rememberVillageSlug } from '../../src/services/municipalityService';
+import { fakeCallable, fakeQuerySnapshot } from '../helpers/sdkFakes';
 
 // Approval moved server-side (approveOrganization callable): the client service
 // is now a thin wrapper. The status flip + founding-admin seed + audit are
@@ -38,7 +39,7 @@ describe('approveOrganization', () => {
 
   it('invokes the approveOrganization callable with the orgId', async () => {
     const call = vi.fn().mockResolvedValue({ data: { ok: true } });
-    vi.mocked(httpsCallable).mockReturnValue(call as unknown as ReturnType<typeof httpsCallable>);
+    vi.mocked(httpsCallable).mockReturnValue(fakeCallable(call));
     await approveOrganization('org1');
     expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'approveOrganization');
     expect(call).toHaveBeenCalledWith({ orgId: 'org1' });
@@ -50,9 +51,7 @@ describe('getMyOrganizations', () => {
     rememberVillageSlug('m1', 'villa');
     vi.clearAllMocks();
     vi.mocked(query).mockReturnValue({} as ReturnType<typeof query>);
-    vi.mocked(getDocs).mockResolvedValue({
-      docs: [{ id: 'o1', data: () => ({ name: 'A' }) }],
-    } as unknown as Awaited<ReturnType<typeof getDocs>>);
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([{ id: 'o1', data: () => ({ name: 'A' }) }]));
   });
 
   it('calls where with requestedBy and orderBy with createdAt desc', async () => {

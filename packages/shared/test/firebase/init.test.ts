@@ -56,7 +56,7 @@ describe('initFirebase', () => {
     const db = getDb();
     expect(db).toBeDefined();
     // A Firestore instance exposes a `type` field equal to 'firestore' on the SDK.
-    expect((db as unknown as { type: string }).type).toBe('firestore');
+    expect(db).toHaveProperty('type', 'firestore');
   });
 
   it('returns the same app on repeated initFirebase calls (idempotent)', () => {
@@ -69,13 +69,13 @@ describe('initFirebase', () => {
   it('uses the region passed via options for Functions', () => {
     initFirebase(VALID_CONFIG, { region: 'europe-west1' });
     const functions = getFirebaseFunctions();
-    expect((functions as unknown as { region: string }).region).toBe('europe-west1');
+    expect(functions).toHaveProperty('region', 'europe-west1');
   });
 
   it('defaults Functions region to us-central1', () => {
     initFirebase(VALID_CONFIG);
     const functions = getFirebaseFunctions();
-    expect((functions as unknown as { region: string }).region).toBe('us-central1');
+    expect(functions).toHaveProperty('region', 'us-central1');
   });
 
   it('_resetFirebaseForTests clears state so subsequent getDb() throws', async () => {
