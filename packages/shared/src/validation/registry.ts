@@ -5,6 +5,7 @@ import * as organization from './invariants/organization';
 import * as person from './invariants/person';
 import * as event from './invariants/event';
 import * as denormalized from './invariants/denormalized';
+import { accountLeftoverInvariants } from './invariants/account';
 
 /** Every invariant the audit runs. A new check is a function in `invariants/` and one line here. */
 export const registry: readonly Invariant[] = [
@@ -50,6 +51,8 @@ export const registry: readonly Invariant[] = [
   ...denormalized.commentCountInvariants,
   denormalized.replyCountMatches,
   ...denormalized.copiedVillageFieldInvariants,
+  // What an erased account must not leave behind
+  ...accountLeftoverInvariants,
 ];
 
 /** Apply each invariant in order. Pure: loading the snapshot is the caller's job. */
