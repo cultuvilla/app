@@ -16,6 +16,14 @@ export function diffSnapshot(actual: Snapshot, expected: Snapshot): string[];
 export function configDifferences(actual: Snapshot, env: string, baselines: Baseline[]): string[];
 export function validateBaseline(baseline: Baseline): string[];
 export function draftBaseline(snapshots: Record<string, Snapshot>): Baseline;
+type Fields = Record<string, unknown>;
+export function durationText(seconds: string | undefined | null): string;
+export function backupScheduleLine(database: string, schedule: Fields): string;
+export function lifecycleText(bucket: Fields): string;
+export function bucketLine(bucket: Fields): string;
+export function logBucketLine(bucket: Fields): string;
+export function logSinkLine(sink: Fields): string;
+export function dataStoreLines(api: Api, project: string): Promise<string[]>;
 export function exportedFunctionNames(indexSource: string): string[];
 export function indexKey(index: {
   collectionGroup: string;

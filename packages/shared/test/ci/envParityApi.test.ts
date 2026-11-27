@@ -5,6 +5,7 @@ import {
   checkEnv,
   configSnapshot,
   paged,
+  sha,
   type Api,
   type Baseline,
 } from '../../../../scripts/check-env-parity.mjs';
@@ -79,6 +80,26 @@ const configRoutes = (over: Partial<Record<string, unknown>> = {}): Route[] => [
     },
   })],
   [/repositories\/web$/, () => ({ name: `projects/${PROJECT}/locations/us-east1/repositories/web` })],
+  [/firestore.*\/databases$/, () => ({ databases: [{ name: `projects/${PROJECT}/databases/(default)`, locationId: 'europe-southwest1' }] })],
+  [/backupSchedules$/, () => ({
+    backupSchedules: [
+      { name: 'x/backupSchedules/a', dailyRecurrence: {}, retention: '604800s' },
+      { name: 'x/backupSchedules/b', weeklyRecurrence: { day: 'SUNDAY' }, retention: '8467200s' },
+    ],
+  })],
+  [/storage\/v1\/b\?project=/, pages('items', [{ name: `${PROJECT}.firebasestorage.app`, location: 'US-EAST1' }], [
+    { name: `gcf-v2-uploads-${NUMBER}.us-central1.cloudfunctions.appspot.com`, location: 'US-CENTRAL1', lifecycle: { rule: [{ action: { type: 'Delete' }, condition: { age: 1 } }] } },
+  ])],
+  [/logging.*\/locations\/-\/buckets/, () => ({
+    buckets: [
+      { name: `projects/${PROJECT}/locations/global/buckets/_Default`, retentionDays: 30 },
+      { name: `projects/${PROJECT}/locations/global/buckets/_Required`, retentionDays: 400, locked: true },
+      { name: `projects/${PROJECT}/locations/global/buckets/gone`, retentionDays: 1, lifecycleState: 'DELETE_REQUESTED' },
+    ],
+  })],
+  [/logging.*\/sinks/, () => ({
+    sinks: [{ name: '_Default', destination: `logging.googleapis.com/projects/${PROJECT}/locations/global/buckets/_Default`, filter: 'NOT LOG_ID("x")' }],
+  })],
   [/defaultSupportedIdpConfigs$/, () => ({
     defaultSupportedIdpConfigs: [
       { name: 'projects/cultuvilla-beta/defaultSupportedIdpConfigs/google.com', enabled: true },
@@ -109,6 +130,16 @@ const EXPECTED = {
   artifactCleanup: [
     'us-east1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s',
     'us-east1/web none',
+  ],
+  dataStores: [
+    'firestore-backup (default) daily retention=7d',
+    'firestore-backup (default) weekly:SUNDAY retention=98d',
+    'firestore-database (default) europe-southwest1',
+    'log-bucket global/_Default retention=30d',
+    'log-bucket global/_Required retention=400d locked',
+    `log-sink _Default -> logging.googleapis.com/projects/<project>/locations/global/buckets/_Default filter=${sha('NOT LOG_ID("x")')}`,
+    'storage <project>.firebasestorage.app US-EAST1 lifecycle=none',
+    'storage gcf-v2-uploads-<number>.us-central1.cloudfunctions.appspot.com US-CENTRAL1 lifecycle=delete(age=1)',
   ],
 };
 
@@ -147,6 +178,28 @@ const artifactRoutes = (over: { storage?: string; indexes?: object[][]; function
 describe('configSnapshot', () => {
   it('reads every dimension, follows pagination, keeps only service accounts and enabled providers, lists every repository\'s cleanup policy, and normalises ids', async () => {
     expect(await configSnapshot(fakeApi(configRoutes()), PROJECT, NUMBER)).toEqual(EXPECTED);
+  });
+});
+
+describe('checkEnv — data stores', () => {
+  const baseline: Baseline = { expected: EXPECTED, exceptions: {} };
+
+  it('reports a backup schedule that disappeared and a bucket nobody declared', async () => {
+    const routes = configRoutes();
+    routes.unshift(
+      [/backupSchedules$/, () => ({ backupSchedules: [{ name: 'x/a', dailyRecurrence: {}, retention: '604800s' }] })],
+      [/storage\/v1\/b\?project=/, () => ({
+        items: [
+          { name: `${PROJECT}.firebasestorage.app`, location: 'US-EAST1' },
+          { name: `gcf-v2-uploads-${NUMBER}.us-central1.cloudfunctions.appspot.com`, location: 'US-CENTRAL1', lifecycle: { rule: [{ action: { type: 'Delete' }, condition: { age: 1 } }] } },
+          { name: 'incident-export', location: 'EU' },
+        ],
+      })],
+    );
+    expect(await checkEnv('beta', 'config', baseline, fakeApi(routes))).toEqual([
+      'config dataStores: missing firestore-backup (default) weekly:SUNDAY retention=98d',
+      'config dataStores: unexpected storage incident-export EU lifecycle=none',
+    ]);
   });
 });
 
