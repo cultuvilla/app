@@ -6,6 +6,7 @@ import * as organization from '../../../src/validation/invariants/organization';
 import * as person from '../../../src/validation/invariants/person';
 import * as event from '../../../src/validation/invariants/event';
 import * as denormalized from '../../../src/validation/invariants/denormalized';
+import * as account from '../../../src/validation/invariants/account';
 import { ENTITY_KINDS } from '../../../src/models/interaction/EntityKind';
 import { healthyVillage, hits, snapshotOf } from './helpers';
 
@@ -189,5 +190,45 @@ describe('denormalized counts', () => {
     const docs = patch(healthyVillage(), 'municipalities/m1', { slug: 'aranjuez-2', name: 'Aranjuez de Tajo' });
     const found = runInvariants(snapshotOf(docs), denormalized.copiedVillageFieldInvariants).map((v) => v.invariant);
     expect(found.sort()).toEqual(['events.villageName.matches', 'events.villageSlug.matches', 'news.villageSlug.matches', 'organizations.villageSlug.matches']);
+  });
+});
+
+describe('account leftovers', () => {
+  const byId = (id: string) => {
+    const found = account.accountLeftoverInvariants.find((i) => i.id === id);
+    if (!found) throw new Error(`no invariant ${id}`);
+    return found;
+  };
+
+  it('finds a registration private half whose registration is gone', () => {
+    const docs = {
+      ...healthyVillage(),
+      'events/e1/registrationPrivate/r1': { phone: '600' },
+      'events/e1/registrationPrivate/gone': { phone: '600' },
+    };
+    expect(hits(account.registrationPrivateHasRegistration, docs)).toEqual(['events/e1/registrationPrivate/gone']);
+  });
+
+  it('finds an admin grant and a block list of an erased account', () => {
+    const docs = { ...healthyVillage(), 'admins/u1': {}, 'admins/gone': {}, 'users/gone/blockedUsers/u1': { blockedUserId: 'u1' } };
+    expect(hits(account.adminGrantHasAccount, docs)).toEqual(['admins/gone id']);
+    expect(hits(account.blockedUsersParentExists, docs)).toEqual(['users/gone/blockedUsers/u1']);
+  });
+
+  it('finds an erased author or contributor and accepts the erasure sentinel', () => {
+    const docs = {
+      ...healthyVillage(),
+      'municipalities/m1/places/p1': { municipalityId: 'm1', proposedBy: 'gone', contributorUserIds: ['u1', 'gone2'] },
+      'municipalities/m1/places/p2': { municipalityId: 'm1', proposedBy: 'deleted-user', contributorUserIds: [] },
+    };
+    expect(hits(byId('municipalityPlaces.proposedBy+contributorUserIds.account.exists'), docs)).toEqual([
+      'municipalities/m1/places/p1 proposedBy',
+      'municipalities/m1/places/p1 contributorUserIds',
+    ]);
+  });
+
+  it('reads a nested uid: a quote of an erased author', () => {
+    const docs = { ...healthyVillage(), 'organizations/o1/chat/c1': { authorUid: 'u1', replyTo: { authorUid: 'gone' } } };
+    expect(hits(byId('organizationGeneralChat.replyTo.authorUid.account.exists'), docs)).toEqual(['organizations/o1/chat/c1 replyTo.authorUid']);
   });
 });

@@ -307,7 +307,7 @@ describe('deleteAccount (callable)', () => {
     expect((await db().doc('cosaRequests/askedOfMe').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/unrelated').get()).exists).toBe(true);
     expect((await db().doc('cosaRequests/askedOfHolder').get()).data()).toMatchObject({ holderUid: null, status: 'pending' });
-    expect((await db().doc('cosas/given').get()).data()).toMatchObject({ ownerUid: null, createdByName: '', heldBy: { uid: CO_ADMIN_ID } });
+    expect((await db().doc('cosas/given').get()).data()).toMatchObject({ ownerUid: null, createdBy: DELETED_USER_UID, createdByName: '', heldBy: { uid: CO_ADMIN_ID } });
     expect((await db().doc('cosaRequests/askedOfGiven').get()).data()).toMatchObject({ holderUid: CO_ADMIN_ID, status: 'pending' });
     expect((await db().doc('cosaRequests/askedOfMe/chat/c1').get()).exists).toBe(false);
     expect((await db().doc('cosaRequests/unrelated/chat/c1').get()).exists).toBe(true);
@@ -369,6 +369,70 @@ describe('deleteAccount (callable)', () => {
 
     const other = (await db().doc('organizations/o1/socioPrivate/other').get()).data();
     expect(other).toMatchObject({ phone: '600999888', email: 'luis@example.com' });
+  });
+
+  it('closes what the cascade registry found: private halves, requests, grants, credits and quotes', async () => {
+    await seedUserDoc(USER_ID);
+    await seedAuthUser(USER_ID);
+    // A registration they booked and one of their persona booked by someone else, each with its private half.
+    await seedRegistration(USER_ID, 'p-mine');
+    await db().doc(`events/${EVENT_ID}/registrationPrivate/reg-p-mine`).set({ phone: '600111222', answers: { talla: 'M' } });
+    await db().doc(`events/${EVENT_ID}/registrations/reg-p-self`).set({ userId: CO_ADMIN_ID, personId: 'p-self', personUserId: USER_ID, name: 'Ana', status: 'confirmed' });
+    await db().doc(`events/${EVENT_ID}/registrationPrivate/reg-p-self`).set({ phone: '600111222' });
+    await seedRegistration(CO_ADMIN_ID, 'p-other');
+    await db().doc(`events/${EVENT_ID}/registrationPrivate/reg-p-other`).set({ phone: '600999888' });
+    await db().doc(`events/${EVENT_ID}/seatTokens/tok-mine`).set({ registrationId: 'reg-p-mine', groupId: 'g1', createdBy: USER_ID, consumedAt: null, consumedBy: null });
+    await db().doc(`organizations/o1/joinRequests/${USER_ID}`).set({ userId: USER_ID, orgId: 'o1', municipalityId: MUNICIPALITY_ID, createdAt: new Date() });
+    await db().doc(`users/${USER_ID}/blockedUsers/${CO_ADMIN_ID}`).set({ blockedUserId: CO_ADMIN_ID, createdAt: new Date() });
+    await db().doc(`admins/${USER_ID}`).set({ createdAt: new Date() });
+    await db().doc(`censoAnswers/${MUNICIPALITY_ID}_${USER_ID}`).set({ municipalityId: MUNICIPALITY_ID, userId: USER_ID, profileAnswers: {} });
+    // Authored public content stays, without the author.
+    await db().doc(`municipalities/${MUNICIPALITY_ID}/places/pl1`).set({ name: 'Fuente', proposedBy: USER_ID, contributorUserIds: [USER_ID, CO_ADMIN_ID] });
+    await db().doc(`municipalities/${MUNICIPALITY_ID}/barrios/b1`).set({ name: 'Arriba', proposedBy: USER_ID });
+    await db().doc('festivalPosters/fp1').set({ title: 'Cartel', proposedBy: USER_ID, contributorUserIds: [USER_ID] });
+    await db().doc('fiestaEditions/fe1').set({ blockId: 'b', proposedBy: USER_ID });
+    await db().doc('vocabularyTerms/vt1').set({ term: 'zagal', createdBy: USER_ID, contributorUserIds: [USER_ID] });
+    await db().doc('vocabularyDefinitions/vd1').set({ definition: 'chico', createdBy: CO_ADMIN_ID, contributorUserIds: [CO_ADMIN_ID, USER_ID] });
+    await db().doc('historyEntries/h1').set({ title: 'La riada', createdBy: USER_ID });
+    // A persona they created that another account has since claimed is that account's.
+    await db().doc('persons/claimed').set({ userId: CO_ADMIN_ID, createdBy: USER_ID, firstName: 'Luis' });
+    // A reply that quotes their message keeps the reply, not the quote.
+    await db().doc('organizations/o1/chat/reply').set({
+      authorUid: CO_ADMIN_ID,
+      authorName: 'Otra',
+      body: 'Sí',
+      createdAt: new Date(),
+      replyTo: { chatId: 'gone', authorUid: USER_ID, authorName: 'Ana', body: 'Mi número es 600111222' },
+    });
+
+    await callDelete(USER_ID);
+
+    const exists = async (path: string) => (await db().doc(path).get()).exists;
+    const data = async (path: string) => (await db().doc(path).get()).data();
+    expect(await exists(`events/${EVENT_ID}/registrations/reg-p-mine`)).toBe(false);
+    expect(await exists(`events/${EVENT_ID}/registrationPrivate/reg-p-mine`)).toBe(false);
+    expect(await exists(`events/${EVENT_ID}/registrations/reg-p-self`)).toBe(false);
+    expect(await exists(`events/${EVENT_ID}/registrationPrivate/reg-p-self`)).toBe(false);
+    expect(await exists(`events/${EVENT_ID}/registrations/reg-p-other`)).toBe(true);
+    expect(await exists(`events/${EVENT_ID}/registrationPrivate/reg-p-other`)).toBe(true);
+    expect(await exists(`events/${EVENT_ID}/seatTokens/tok-mine`)).toBe(false);
+    expect(await exists(`organizations/o1/joinRequests/${USER_ID}`)).toBe(false);
+    expect(await exists(`users/${USER_ID}/blockedUsers/${CO_ADMIN_ID}`)).toBe(false);
+    expect(await exists(`admins/${USER_ID}`)).toBe(false);
+    expect(await exists(`censoAnswers/${MUNICIPALITY_ID}_${USER_ID}`)).toBe(false);
+
+    expect(await data(`municipalities/${MUNICIPALITY_ID}/places/pl1`)).toMatchObject({ name: 'Fuente', proposedBy: DELETED_USER_UID, contributorUserIds: [CO_ADMIN_ID] });
+    expect(await data(`municipalities/${MUNICIPALITY_ID}/barrios/b1`)).toMatchObject({ proposedBy: DELETED_USER_UID });
+    expect(await data('festivalPosters/fp1')).toMatchObject({ proposedBy: DELETED_USER_UID, contributorUserIds: [] });
+    expect(await data('fiestaEditions/fe1')).toMatchObject({ proposedBy: DELETED_USER_UID });
+    expect(await data('vocabularyTerms/vt1')).toMatchObject({ createdBy: DELETED_USER_UID, contributorUserIds: [] });
+    expect(await data('vocabularyDefinitions/vd1')).toMatchObject({ createdBy: CO_ADMIN_ID, contributorUserIds: [CO_ADMIN_ID] });
+    expect(await data('historyEntries/h1')).toMatchObject({ title: 'La riada', createdBy: DELETED_USER_UID });
+    expect(await data('persons/claimed')).toMatchObject({ userId: CO_ADMIN_ID, createdBy: DELETED_USER_UID });
+
+    const reply = await data('organizations/o1/chat/reply');
+    expect(reply).toMatchObject({ body: 'Sí', authorUid: CO_ADMIN_ID });
+    expect(reply?.replyTo).toBeUndefined();
   });
 
   it('refuses (failed-precondition) when the caller is the sole admin, deleting nothing', async () => {
