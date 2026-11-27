@@ -1,9 +1,9 @@
 # The hard update wall replaces the app tree
 
 **Priority:** high
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker h26 in batch 2026-11-27-harvest
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** after the next release, confirm on a beta build with a raised wall that only the blocker renders, then retire (#787 shipped it)
 
 **Pre-approved** under AGENTS.md § Approval — third Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro: "go to everything, keep going". Verify the gap before building. Only the unmount half is pre-approved; remembering the last wall before the network is a separate needs-yes idea.
 

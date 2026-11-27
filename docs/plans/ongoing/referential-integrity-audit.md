@@ -2,13 +2,14 @@
 
 **Priority:** high
 **Landed:** dev
-**Gate:** decision:apply the two prod repairs below (Álvaro), and the audit workflow reaches beta/prod only once a release carries it to beta/main
-**Next:** on Álvaro's yes, write the prod repairs per `.agents/skills/prod-data-repair` (snapshot, dry run, apply, re-audit); after the next release, dispatch "Audit Referential Integrity" with ref beta and main
+**Gate:** release:1.14.0
+**Next:** after the next release, dispatch "Audit Referential Integrity" with ref beta and with ref main and confirm both run green (read-only), then retire
 
 State 2026-11-27: #766 merged — 50 invariants in `packages/shared/src/validation`, `pnpm audit:refs`, a read-only WIF workflow, the `prod-data-repair` skill. Read-only runs: dev 19 (all seed data), beta 0, prod 6:
 
 - (a) `organizations/fUXt8iSQNfgfVKjgjtOd/members/F6kd…`: an admin membership left under a deleted group (joined 2026-08-19). Repair: delete it and write a `removed` membershipEvent.
 - (b) 5 confirmed registrations whose persona was deleted (owners still exist), on two upcoming events: `events/moD7zz28…` (5 Dec, 4 of them) and `events/YJFTs2N3…` (6 Dec, 1). Repair: cancel through cancelRegistration's logic so counts and waitlist promotion stay right. Root cause filed as `ideas/persona-delete-cancels-registrations.md`.
+- Repaired 2026-11-27 (Álvaro's go): #786 cancelled the 5 registrations, removed the orphan membership and deleted 15 orphan `registrationPrivate` docs; full prod audit afterwards 0 of 70. Snapshots: `~/backups/cultuvilla/2026-11-27-orphan-refs-prod/`. Flow fixes: #780 (account deletion), #789 (org deletion); persona deletion waits on its idea.
 - Every prod municipality lacks `peopleCount`; the pending village-people-count backfill covers it.
 
 **Decided 2026-11-27 (Álvaro):** build it — first batch of the Órdago harvest (`_workspace/docs/plans/ideas/harvest-across-repos.md`).
