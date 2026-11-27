@@ -10,9 +10,9 @@ handler to a few shared Cloud Run services. Dev and beta go ahead; each prod ste
 his go with the numbers in front of him (`## Approval`).
 
 **Goal:** pay for work, not for the number of handlers. Today every handler is its own
-Cloud Run service: about 89 callables, 72 document triggers, 16 schedules, 7 HTTP and 2
-Storage triggers. Each has its own cold starts and its own idle containers, and every
-deploy pushes ~186 revisions through the project's CPU quota (what deadlocked Órdago's
+Cloud Run service: 43 callables, 40 document triggers, 8 schedules, 3 HTTP and 1
+Storage trigger (~95 functions, counted by h1 on 2026-11-27). Each has its own cold starts and its own idle containers, and every
+deploy pushes ~95 revisions through the project's CPU quota (what deadlocked Órdago's
 prod deploys, `docs/incidents/2026-11-01-prod-cpu-allocation-limit-dropped.md` there).
 
 ## The source (`~/githubs/ordago-app/ordago-apps`)
