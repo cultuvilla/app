@@ -1,5 +1,6 @@
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
+import { municipalitiesCollection, personDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 import { mergeRow, projectRowsFromCurrentSource, type RowWrite } from '../shared/convergeOnSource';
 
@@ -44,7 +45,7 @@ export const syncPersonDenormalization = defineDocumentTrigger(
     let userId: string | null = null;
     const outcome = await projectRowsFromCurrentSource({
       db,
-      sourceRef: db.doc(`persons/${personId}`),
+      sourceRef: personDoc(db, personId),
       project: async (current, tx) => {
         createdUserDoc = false;
         userId = typeof current?.['userId'] === 'string' && current['userId'] ? current['userId'] : null;
@@ -57,7 +58,9 @@ export const syncPersonDenormalization = defineDocumentTrigger(
         const userRef = db.doc(`users/${userId}`);
         const [userSnap, organized] = await Promise.all([
           nameChanged ? tx.get(userRef) : null,
-          sexChanged ? tx.get(db.collection('municipalities').where('community.organizerId', '==', userId)) : null,
+          sexChanged
+            ? tx.get(municipalitiesCollection(db).withConverter(null).where('community.organizerId', '==', userId))
+            : null,
         ]);
 
         const rows: RowWrite[] = (organized?.docs ?? [])
