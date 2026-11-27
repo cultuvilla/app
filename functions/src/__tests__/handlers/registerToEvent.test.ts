@@ -85,6 +85,9 @@ async function seedMembership(userId: string): Promise<void> {
 }
 
 async function seedUser(userId: string, email: string): Promise<void> {
+  // Outside production mail reaches only an account in this project's Auth
+  // (docs/decisions/non-production-never-reaches-real-people.md).
+  await admin.auth().createUser({ uid: userId, email });
   await admin.firestore().doc(`users/${userId}`).set({
     displayName: userId,
     email,
