@@ -1,7 +1,7 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { municipalityDoc, municipalityPeopleCollection } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -41,8 +41,9 @@ async function recount(municipalityId: string): Promise<number | null> {
  * recount heals any drift — including rows written between the backfill and
  * this trigger's first deploy — where an increment would carry it forever.
  */
-export const syncVillagePeopleCount = onDocumentWritten(
-  { document: 'municipalityPeople/{rowId}', region: 'us-central1' },
+export const syncVillagePeopleCount = defineDocumentTrigger(
+  'syncVillagePeopleCount',
+  { kind: 'written', document: 'municipalityPeople/{rowId}' },
   async (event) => {
     const handler = 'syncVillagePeopleCount';
     const before = rowMunicipality(event.data?.before.data()?.['municipalityId']);

@@ -1,4 +1,3 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import {
@@ -7,6 +6,7 @@ import {
   userDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { notifyOrgJoinRequestCreated } from '../helpers/notifyRequests';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = admin.firestore();
 
@@ -14,8 +14,9 @@ const db = admin.firestore();
  * Tells an org's admins that someone asked to join, so the request doesn't sit
  * unseen until one of them happens to open the Buzón.
  */
-export const onOrgJoinRequestCreated = onDocumentCreated(
-  { document: 'organizations/{orgId}/joinRequests/{userId}', region: 'us-central1' },
+export const onOrgJoinRequestCreated = defineDocumentTrigger(
+  'onOrgJoinRequestCreated',
+  { kind: 'created', document: 'organizations/{orgId}/joinRequests/{userId}' },
   async (event) => {
     const handler = 'onOrgJoinRequestCreated';
     const { orgId, userId } = event.params;

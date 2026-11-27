@@ -1,6 +1,6 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = admin.firestore();
 
@@ -18,8 +18,9 @@ const db = admin.firestore();
  * It short-circuits when the projected displayName is unchanged so unrelated
  * person mutations don't fan out a no-op user write.
  */
-export const syncPersonDenormalization = onDocumentWritten(
-  { document: 'persons/{personId}', region: 'us-central1' },
+export const syncPersonDenormalization = defineDocumentTrigger(
+  'syncPersonDenormalization',
+  { kind: 'written', document: 'persons/{personId}' },
   async (event) => {
     const handler = 'syncPersonDenormalization';
     const before = event.data?.before.data();

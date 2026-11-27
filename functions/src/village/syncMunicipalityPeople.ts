@@ -1,9 +1,9 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { municipalityPersonDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildDisplayName, buildNameWithNickname, isDeceased } from '@cultuvilla/shared/models';
 import type { BurialPlace, PartialDate } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -76,8 +76,9 @@ function asDirectoryPerson(data: Record<string, unknown>): DirectoryPerson {
  * person record. The directory is an alphabetical list projection; clients
  * cannot write it directly.
  */
-export const syncMunicipalityPeople = onDocumentWritten(
-  { document: 'persons/{personId}', region: 'us-central1' },
+export const syncMunicipalityPeople = defineDocumentTrigger(
+  'syncMunicipalityPeople',
+  { kind: 'written', document: 'persons/{personId}' },
   async (event) => {
     const handler = 'syncMunicipalityPeople';
     const before = event.data?.before.data();

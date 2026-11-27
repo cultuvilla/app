@@ -1,4 +1,3 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -8,6 +7,7 @@ import {
 import { NotificationDataSchema } from '@cultuvilla/shared/models';
 import { deliverPush } from './deliverPush';
 import { APNS_AUTH_KEY } from './secret';
+import { defineSchedule } from '../shared/define/defineSchedule';
 
 const db = getFirestore();
 
@@ -20,7 +20,8 @@ const db = getFirestore();
  */
 const BATCH_LIMIT = 200;
 
-export const flushPushQueue = onSchedule(
+export const flushPushQueue = defineSchedule(
+  'flushPushQueue',
   { schedule: 'every 15 minutes', secrets: [APNS_AUTH_KEY] },
   async () => {
   const now = new Date();

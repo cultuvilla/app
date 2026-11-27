@@ -1,8 +1,8 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { vocabularyTermDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -16,8 +16,9 @@ const db = getFirestore();
  * count as leaving and rejoining: a hidden meaning is not visible to the pueblo,
  * so it must not hold an otherwise-empty headword hostage.
  */
-export const syncVocabularyDefinitionCount = onDocumentWritten(
-  { document: 'vocabularyDefinitions/{definitionId}', region: 'us-central1' },
+export const syncVocabularyDefinitionCount = defineDocumentTrigger(
+  'syncVocabularyDefinitionCount',
+  { kind: 'written', document: 'vocabularyDefinitions/{definitionId}' },
   async (event) => {
     const before = event.data?.before.data() ?? null;
     const after = event.data?.after.data() ?? null;

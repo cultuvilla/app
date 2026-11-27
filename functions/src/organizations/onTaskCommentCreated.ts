@@ -1,4 +1,3 @@
-import { onDocumentCreated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -13,6 +12,7 @@ import {
   groupChatPushBody,
   taskCommentPushUids,
 } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const HANDLER = 'onTaskCommentCreated';
 
@@ -79,8 +79,9 @@ export async function handleTaskComment(
   logger.info('Task comment pushed', { handler: HANDLER, orgId, taskId, commentId, pushed: pushUids.length });
 }
 
-export const onTaskCommentCreated = onDocumentCreated(
-  { document: 'organizations/{orgId}/tasks/{taskId}/chat/{chatId}', region: 'us-central1' },
+export const onTaskCommentCreated = defineDocumentTrigger(
+  'onTaskCommentCreated',
+  { kind: 'created', document: 'organizations/{orgId}/tasks/{taskId}/chat/{chatId}' },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -93,8 +94,9 @@ export const onTaskCommentCreated = onDocumentCreated(
 );
 
 /** A deleted task takes its comments with it: nothing else could ever reach them again. */
-export const onGroupTaskDeleted = onDocumentDeleted(
-  { document: 'organizations/{orgId}/tasks/{taskId}', region: 'us-central1' },
+export const onGroupTaskDeleted = defineDocumentTrigger(
+  'onGroupTaskDeleted',
+  { kind: 'deleted', document: 'organizations/{orgId}/tasks/{taskId}' },
   async (event) => {
     if (!event.data) return;
     await getFirestore().recursiveDelete(event.data.ref.collection('chat'));

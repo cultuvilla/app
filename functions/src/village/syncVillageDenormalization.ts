@@ -1,7 +1,7 @@
-import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { getFirestore, type UpdateData } from 'firebase-admin/firestore';
 import type { EventData } from '@cultuvilla/shared';
 import { eventsCollection } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -14,8 +14,9 @@ const db = getFirestore();
  * collection has not migrated to schema-first models yet (Task 16). Once it
  * does, those reads will move through `municipalityDoc(db, id)`.
  */
-export const syncVillageDenormalization = onDocumentUpdated(
-  { document: 'municipalities/{municipalityId}', region: 'us-central1' },
+export const syncVillageDenormalization = defineDocumentTrigger(
+  'syncVillageDenormalization',
+  { kind: 'updated', document: 'municipalities/{municipalityId}' },
   async (event) => {
     const before = event.data?.before.data() ?? {};
     const after = event.data?.after.data() ?? {};

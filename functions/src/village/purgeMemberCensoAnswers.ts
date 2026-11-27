@@ -1,7 +1,7 @@
-import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { censoAnswersDoc } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = admin.firestore();
 
@@ -11,8 +11,9 @@ const db = admin.firestore();
  * censoAnswers doc goes with it. One trigger covers every path that deletes a
  * member doc, client batch or Admin SDK alike.
  */
-export const purgeMemberCensoAnswers = onDocumentDeleted(
-  { document: 'municipalities/{municipalityId}/members/{userId}', region: 'us-central1' },
+export const purgeMemberCensoAnswers = defineDocumentTrigger(
+  'purgeMemberCensoAnswers',
+  { kind: 'deleted', document: 'municipalities/{municipalityId}/members/{userId}' },
   async (event) => {
     const { municipalityId, userId } = event.params;
     const ref = censoAnswersDoc(db, municipalityId, userId);

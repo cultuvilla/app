@@ -1,4 +1,3 @@
-import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -9,6 +8,7 @@ import {
   userNotificationsCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildNotificationData, buildRegistrationEventData } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -23,8 +23,9 @@ const db = getFirestore();
  * narrow casts here; `EventDataSchema.safeParse` would fail because the
  * schema expects Date and {lat,lng}.
  */
-export const onEventUpdated = onDocumentUpdated(
-  'events/{eventId}',
+export const onEventUpdated = defineDocumentTrigger(
+  'onEventUpdated',
+  { kind: 'updated', document: 'events/{eventId}' },
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();

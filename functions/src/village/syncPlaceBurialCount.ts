@@ -1,8 +1,8 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { municipalityPlaceDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -23,8 +23,9 @@ function burialKey(place: BurialPlace | null): string | null {
   return place ? `${place.municipalityId}/${place.placeId}` : null;
 }
 
-export const syncPlaceBurialCount = onDocumentWritten(
-  { document: 'persons/{personId}', region: 'us-central1' },
+export const syncPlaceBurialCount = defineDocumentTrigger(
+  'syncPlaceBurialCount',
+  { kind: 'written', document: 'persons/{personId}' },
   async (event) => {
     const handler = 'syncPlaceBurialCount';
     const before = burialPlace(event.data?.before.data()?.['burialPlace']);

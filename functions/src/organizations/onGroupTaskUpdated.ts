@@ -1,9 +1,9 @@
-import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { organizationDoc, organizationTaskDoc, organizationTasksCollection } from '@cultuvilla/shared/firebase/refs/admin';
 import { freeSlots, madridDayKey, nextOccurrence, promoteWaitlist } from '@cultuvilla/shared/models';
 import { notifyGroupTask } from './groupTaskNotify';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 const handler = 'onGroupTaskUpdated';
@@ -75,7 +75,7 @@ export async function followUpGroupTask(firestore: Firestore, orgId: string, tas
  * fills a shift's new slots from its waiting list. Its own write (nextTaskId,
  * the lists) fires it again, and that run finds nothing left to do.
  */
-export const onGroupTaskUpdated = onDocumentUpdated('organizations/{orgId}/tasks/{taskId}', async (event) => {
+export const onGroupTaskUpdated = defineDocumentTrigger('onGroupTaskUpdated', { kind: 'updated', document: 'organizations/{orgId}/tasks/{taskId}' }, async (event) => {
   const after = event.data?.after.data();
   if (!after) return;
   const closedRecurring = after['doneAt'] != null && after['recurrence'] != null && after['nextTaskId'] == null;

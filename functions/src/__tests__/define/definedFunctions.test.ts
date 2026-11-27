@@ -45,9 +45,6 @@ function kindOf(endpoint: Endpoint): DefinedKind {
   return 'documentTrigger';
 }
 
-/** Not yet through the seam: their files belong to another change in flight. */
-const PENDING = new Set(['deleteAccount']);
-
 describe('every deployed function goes through src/shared/define', () => {
   it('finds the deployed functions', () => {
     expect(exported.length).toBeGreaterThan(90);
@@ -55,18 +52,10 @@ describe('every deployed function goes through src/shared/define', () => {
 
   // A gateway routes by the name a definition records; a definition named
   // differently from its export would route a client to nothing.
-  it.each(exported.filter(([name, fn]) => !PENDING.has(name) && kindOf(endpointOf(fn) ?? {}) === 'callable'))(
-    '%s is defined under its export name',
-    (name, fn) => {
-      const defined = definedFunctions().get(name);
-      expect(defined?.fn).toBe(fn);
-      expect(defined?.kind).toBe(kindOf(endpointOf(fn) ?? {}));
-    },
-  );
-
-  it('keeps PENDING to functions that still exist', () => {
-    const names = new Set(exported.map(([name]) => name));
-    expect([...PENDING].filter((name) => !names.has(name))).toEqual([]);
+  it.each(exported)('%s is defined under its export name', (name, fn) => {
+    const defined = definedFunctions().get(name);
+    expect(defined?.fn).toBe(fn);
+    expect(defined?.kind).toBe(kindOf(endpointOf(fn) ?? {}));
   });
 });
 

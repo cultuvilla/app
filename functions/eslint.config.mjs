@@ -30,9 +30,9 @@ export default tseslint.config(
   {
     // A function is defined through src/shared/define/, which records the name
     // it is exported under — the name a gateway routes by (plan
-    // cloud-run-gateways). deleteAccount.ts moves once its rework lands.
+    // cloud-run-gateways).
     files: ['src/**/*.ts'],
-    ignores: ['src/**/__tests__/**', 'src/shared/define/**', 'src/account/deleteAccount.ts'],
+    ignores: ['src/**/__tests__/**', 'src/shared/define/**'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -42,6 +42,26 @@ export default tseslint.config(
               name: 'firebase-functions/v2/https',
               importNames: ['onCall'],
               message: 'Define a callable with defineCallable from src/shared/define/defineCallable.',
+            },
+            {
+              name: 'firebase-functions/v2/https',
+              importNames: ['onRequest'],
+              message: 'Define an HTTP function with defineHttpFunction from src/shared/define/defineHttpFunction.',
+            },
+            {
+              name: 'firebase-functions/v2/firestore',
+              importNames: ['onDocumentCreated', 'onDocumentUpdated', 'onDocumentDeleted', 'onDocumentWritten'],
+              message: 'Define a Firestore trigger with defineDocumentTrigger from src/shared/define/defineDocumentTrigger.',
+            },
+            {
+              name: 'firebase-functions/v2/scheduler',
+              importNames: ['onSchedule'],
+              message: 'Define a scheduled function with defineSchedule from src/shared/define/defineSchedule.',
+            },
+            {
+              name: 'firebase-functions/v2/storage',
+              importNames: ['onObjectFinalized', 'onObjectDeleted', 'onObjectArchived', 'onObjectMetadataUpdated'],
+              message: 'Define a Storage trigger from src/shared/define/defineStorageTrigger.',
             },
           ],
         },

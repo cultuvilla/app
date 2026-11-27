@@ -1,9 +1,9 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { municipalityDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { ambassadorLeadAlert, organizerRequestAlert } from '../notify/ambassadorAlerts';
 import { publishNotify } from '../notify/publishNotify';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = admin.firestore();
 
@@ -23,8 +23,9 @@ const tooOld = (eventTime: string): boolean => Date.now() - Date.parse(eventTime
 const text = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() ? value.trim() : null;
 
-export const onOrganizerRequestCreated = onDocumentCreated(
-  { document: 'organizerRequests/{requestId}', region: 'us-central1', retry: true },
+export const onOrganizerRequestCreated = defineDocumentTrigger(
+  'onOrganizerRequestCreated',
+  { kind: 'created', document: 'organizerRequests/{requestId}', retry: true },
   async (event) => {
     const handler = 'onOrganizerRequestCreated';
     const { requestId } = event.params;
@@ -50,8 +51,9 @@ export const onOrganizerRequestCreated = onDocumentCreated(
   },
 );
 
-export const onAmbassadorLeadCreated = onDocumentCreated(
-  { document: 'ambassadorLeads/{leadId}', region: 'us-central1', retry: true },
+export const onAmbassadorLeadCreated = defineDocumentTrigger(
+  'onAmbassadorLeadCreated',
+  { kind: 'created', document: 'ambassadorLeads/{leadId}', retry: true },
   async (event) => {
     const handler = 'onAmbassadorLeadCreated';
     const { leadId } = event.params;

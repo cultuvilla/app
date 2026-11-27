@@ -1,10 +1,11 @@
-import { onDocumentWritten, type Change, type DocumentSnapshot, type FirestoreEvent } from 'firebase-functions/v2/firestore';
+import { type Change, type DocumentSnapshot, type FirestoreEvent } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getStorage } from 'firebase-admin/storage';
 import { getFirestore } from 'firebase-admin/firestore';
 import { closeDeletedCosaRequests } from '../organizations/closeDeletedCosaRequests';
 import { IMAGE_VARIANT_SUFFIX, variantStoragePath, type ImageVariant } from '@cultuvilla/shared/utils';
 import { storageObjectPathFromDownloadUrl } from '../helpers/storageDownloadUrl';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 type DocData = Record<string, unknown>;
 type Params = Record<string, string>;
@@ -181,7 +182,7 @@ export async function handleEntityImagesWritten(
 }
 
 function cleanupTrigger(source: EntityImageSource) {
-  return onDocumentWritten({ document: source.document, region: 'us-central1' }, (event) =>
+  return defineDocumentTrigger(source.handler, { kind: 'written', document: source.document }, (event) =>
     handleEntityImagesWritten(source, event),
   );
 }
@@ -203,8 +204,9 @@ export const cleanupRemovedHistoryEntryImages = cleanupTrigger(ENTITY_IMAGE_SOUR
  * rather than deployed as a function of its own. Each step is isolated: a
  * storage failure must not leave the requests open, nor the reverse.
  */
-export const cleanupRemovedCosaImages = onDocumentWritten(
-  { document: ENTITY_IMAGE_SOURCES.cosas.document, region: 'us-central1' },
+export const cleanupRemovedCosaImages = defineDocumentTrigger(
+  'cleanupRemovedCosaImages',
+  { kind: 'written', document: ENTITY_IMAGE_SOURCES.cosas.document },
   async (event) => {
     const handler = ENTITY_IMAGE_SOURCES.cosas.handler;
     const cosaId = event.params.entityId;

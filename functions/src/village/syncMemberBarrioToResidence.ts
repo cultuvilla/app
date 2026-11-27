@@ -1,6 +1,6 @@
-import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = admin.firestore();
 
@@ -25,8 +25,9 @@ interface ResidenceLink {
  * batch already removed the link, so the filter is a no-op and the idempotency
  * guard skips the write.
  */
-export const syncMemberBarrioToResidence = onDocumentDeleted(
-  { document: 'municipalities/{municipalityId}/members/{userId}', region: 'us-central1' },
+export const syncMemberBarrioToResidence = defineDocumentTrigger(
+  'syncMemberBarrioToResidence',
+  { kind: 'deleted', document: 'municipalities/{municipalityId}/members/{userId}' },
   async (event) => {
     const handler = 'syncMemberBarrioToResidence';
     const { municipalityId, userId } = event.params;

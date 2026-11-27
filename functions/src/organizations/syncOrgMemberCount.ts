@@ -1,8 +1,8 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { organizationDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -16,8 +16,9 @@ const db = getFirestore();
  * for this partial write, and swallows NOT_FOUND so deleting a whole org (which
  * cascades its member docs) doesn't retry forever against the gone parent.
  */
-export const syncOrgMemberCount = onDocumentWritten(
-  { document: 'organizations/{orgId}/members/{userId}', region: 'us-central1' },
+export const syncOrgMemberCount = defineDocumentTrigger(
+  'syncOrgMemberCount',
+  { kind: 'written', document: 'organizations/{orgId}/members/{userId}' },
   async (event) => {
     const handler = 'syncOrgMemberCount';
     const existedBefore = event.data?.before.exists ?? false;

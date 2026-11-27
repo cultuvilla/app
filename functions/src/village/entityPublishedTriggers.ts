@@ -1,4 +1,3 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -11,6 +10,7 @@ import {
   villageEntityPublishedCopy,
   type BroadcastEntityKind,
 } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -108,7 +108,7 @@ function isVisible(d: FirebaseFirestore.DocumentData): boolean {
   return d['status'] === undefined || d['status'] === 'active';
 }
 
-export const onEventPublished = onDocumentCreated('events/{eventId}', async (event) => {
+export const onEventPublished = defineDocumentTrigger('onEventPublished', { kind: 'created', document: 'events/{eventId}' }, async (event) => {
   const d = event.data?.data();
   if (!d) return;
   // Events use their own status enum: `published` is the visible state, and a
@@ -133,7 +133,7 @@ export const onEventPublished = onDocumentCreated('events/{eventId}', async (eve
   });
 });
 
-export const onNewsPublished = onDocumentCreated('news/{newsId}', async (event) => {
+export const onNewsPublished = defineDocumentTrigger('onNewsPublished', { kind: 'created', document: 'news/{newsId}' }, async (event) => {
   const d = event.data?.data();
   if (!d || !isVisible(d)) return;
   const municipalityId = str(d, 'municipalityId');
@@ -150,8 +150,9 @@ export const onNewsPublished = onDocumentCreated('news/{newsId}', async (event) 
 
 // The timeline is a village-scoped entity like any other: published instantly
 // by any member, moderated after the fact.
-export const onHistoryEntryPublished = onDocumentCreated(
-  'historyEntries/{entryId}',
+export const onHistoryEntryPublished = defineDocumentTrigger(
+  'onHistoryEntryPublished',
+  { kind: 'created', document: 'historyEntries/{entryId}' },
   async (event) => {
     const d = event.data?.data();
     if (!d || !isVisible(d)) return;
@@ -168,8 +169,9 @@ export const onHistoryEntryPublished = onDocumentCreated(
   },
 );
 
-export const onFestivalPosterPublished = onDocumentCreated(
-  'festivalPosters/{posterId}',
+export const onFestivalPosterPublished = defineDocumentTrigger(
+  'onFestivalPosterPublished',
+  { kind: 'created', document: 'festivalPosters/{posterId}' },
   async (event) => {
     const d = event.data?.data();
     if (!d || !isVisible(d)) return;
@@ -188,8 +190,9 @@ export const onFestivalPosterPublished = onDocumentCreated(
   },
 );
 
-export const onPlacePublished = onDocumentCreated(
-  'municipalities/{municipalityId}/places/{placeId}',
+export const onPlacePublished = defineDocumentTrigger(
+  'onPlacePublished',
+  { kind: 'created', document: 'municipalities/{municipalityId}/places/{placeId}' },
   async (event) => {
     const d = event.data?.data();
     if (!d || !isVisible(d)) return;
@@ -204,8 +207,9 @@ export const onPlacePublished = onDocumentCreated(
   },
 );
 
-export const onBarrioPublished = onDocumentCreated(
-  'municipalities/{municipalityId}/barrios/{barrioId}',
+export const onBarrioPublished = defineDocumentTrigger(
+  'onBarrioPublished',
+  { kind: 'created', document: 'municipalities/{municipalityId}/barrios/{barrioId}' },
   async (event) => {
     const d = event.data?.data();
     if (!d || !isVisible(d)) return;

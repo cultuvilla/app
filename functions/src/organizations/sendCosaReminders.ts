@@ -1,4 +1,3 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { cosaRequestDoc, cosaRequestsCollection, organizationDoc, userNotificationsCollection } from '@cultuvilla/shared/firebase/refs/admin';
@@ -12,6 +11,7 @@ import {
 } from '@cultuvilla/shared/models';
 import { formatDayKey } from '@cultuvilla/shared/utils';
 import { cosaManagerUids } from './onCosaRequestWritten';
+import { defineSchedule } from '../shared/define/defineSchedule';
 
 const db = getFirestore();
 const handler = 'sendCosaReminders';
@@ -105,7 +105,7 @@ export async function runCosaReminders(firestore: Firestore, now: Date): Promise
  * once, to whoever holds it and to its managers. Daily at 10:00 Madrid, like
  * the task reminders, so it never lands in quiet hours.
  */
-export const sendCosaReminders = onSchedule({ schedule: 'every day 10:00', timeZone: EVENT_TZ }, async () => {
+export const sendCosaReminders = defineSchedule('sendCosaReminders', { schedule: 'every day 10:00', timeZone: EVENT_TZ }, async () => {
   const result = await runCosaReminders(db, new Date());
   logger.info('Cosa reminders run', { handler, ...result });
 });

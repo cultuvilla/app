@@ -1,4 +1,3 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -7,6 +6,7 @@ import {
   organizationSociosCollection,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { nextSocioNumber } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -44,8 +44,9 @@ export async function assignNextSocioNumber(firestore: Firestore, orgId: string,
  * numbering existed keep null until an admin numbers them (see the
  * `socio-number` backfill).
  */
-export const assignSocioNumber = onDocumentCreated(
-  { document: 'organizations/{orgId}/socios/{socioId}', region: 'us-central1' },
+export const assignSocioNumber = defineDocumentTrigger(
+  'assignSocioNumber',
+  { kind: 'created', document: 'organizations/{orgId}/socios/{socioId}' },
   async (event) => {
     const handler = 'assignSocioNumber';
     const { orgId, socioId } = event.params;

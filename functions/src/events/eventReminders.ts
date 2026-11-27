@@ -1,4 +1,3 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import {
@@ -9,6 +8,7 @@ import {
 import { buildNotificationData, EVENT_TZ } from '@cultuvilla/shared/models';
 import { formatDate } from '@cultuvilla/shared/utils';
 import { expireReservaBookings, sendReservaReminders } from '../organizations/sendReservaReminders';
+import { defineSchedule } from '../shared/define/defineSchedule';
 
 const db = getFirestore();
 
@@ -33,7 +33,7 @@ export const REMINDER_LEAD_HOURS = 24;
  * bookings nobody approved before they started, rather than a second
  * scheduler; a failure there is logged and never stops these.
  */
-export const sendEventReminders = onSchedule('every 1 hours', async () => {
+export const sendEventReminders = defineSchedule('sendEventReminders', { schedule: 'every 1 hours' }, async () => {
   const now = new Date();
   try {
     const reservas = await sendReservaReminders(db, now);

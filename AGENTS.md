@@ -231,6 +231,16 @@ lives in `@cultuvilla/shared/utils/format.ts`, preset to `es-ES`. Never
 call `Intl.DateTimeFormat` or `Intl.NumberFormat` directly in screens —
 the formatter is the single point of locale truth.
 
+### Defining a function
+
+Every Cloud Function is defined through [functions/src/shared/define/](functions/src/shared/define/):
+`defineCallable`, `defineDocumentTrigger`, `defineSchedule`, `defineHttpFunction`,
+`defineObjectFinalized`. A raw `onCall` / `onDocument*` / `onSchedule` / `onRequest` /
+`onObject*` fails lint. The first argument is the function's export name in
+`functions/src/index.ts`, which the seam records: a gateway routes clients by it, and
+[definedFunctions.test.ts](functions/src/__tests__/define/definedFunctions.test.ts) holds
+the two equal. The seam also owns the default region.
+
 ### Storage triggers
 
 A Cloud Storage trigger (`onObjectFinalized`, …) has two prerequisites that a

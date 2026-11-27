@@ -1,9 +1,9 @@
-import { onDocumentCreated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { cosaRequestDoc, userBlockedUserDoc, userNotificationsCollection } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildNotificationData, cosaChatPushUids, GroupChatMessageDataSchema, groupChatPushBody } from '@cultuvilla/shared/models';
 import { cosaManagerUids } from './onCosaRequestWritten';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const HANDLER = 'onCosaRequestChatCreated';
 
@@ -78,8 +78,9 @@ export async function handleCosaRequestChatMessageDeleted(
   return refs.length;
 }
 
-export const onCosaRequestChatCreated = onDocumentCreated(
-  { document: 'cosaRequests/{requestId}/chat/{chatId}', region: 'us-central1' },
+export const onCosaRequestChatCreated = defineDocumentTrigger(
+  'onCosaRequestChatCreated',
+  { kind: 'created', document: 'cosaRequests/{requestId}/chat/{chatId}' },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -87,8 +88,9 @@ export const onCosaRequestChatCreated = onDocumentCreated(
   },
 );
 
-export const onCosaRequestChatDeleted = onDocumentDeleted(
-  { document: 'cosaRequests/{requestId}/chat/{chatId}', region: 'us-central1' },
+export const onCosaRequestChatDeleted = defineDocumentTrigger(
+  'onCosaRequestChatDeleted',
+  { kind: 'deleted', document: 'cosaRequests/{requestId}/chat/{chatId}' },
   async (event) => {
     await handleCosaRequestChatMessageDeleted(getFirestore(), { requestId: event.params.requestId, chatId: event.params.chatId });
   },

@@ -1,4 +1,3 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
@@ -14,6 +13,7 @@ import {
   commentDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildNotificationData, type EntityKind } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -57,8 +57,9 @@ export async function applyToParent(
   }
 }
 
-export const syncEntityCommentCount = onDocumentWritten(
-  { document: 'comments/{commentId}', region: 'us-central1' },
+export const syncEntityCommentCount = defineDocumentTrigger(
+  'syncEntityCommentCount',
+  { kind: 'written', document: 'comments/{commentId}' },
   async (event) => {
     const before = event.data?.before.data() ?? null;
     const after = event.data?.after.data() ?? null;
