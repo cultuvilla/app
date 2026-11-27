@@ -2,7 +2,7 @@ export type ReauthMethod = 'google' | 'apple' | 'email';
 
 interface ProviderUser {
   email: string | null;
-  providerData: readonly { providerId: string }[];
+  providerData?: readonly { providerId: string }[];
 }
 
 /**
@@ -13,7 +13,7 @@ interface ProviderUser {
  */
 export function reauthMethodFor(user: ProviderUser | null, platform: string): ReauthMethod | null {
   if (!user) return null;
-  const providers = user.providerData.map((p) => p.providerId);
+  const providers = (user.providerData ?? []).map((p) => p.providerId);
   if (providers.includes('google.com')) return 'google';
   if (providers.includes('apple.com') && platform === 'ios') return 'apple';
   return user.email ? 'email' : null;
