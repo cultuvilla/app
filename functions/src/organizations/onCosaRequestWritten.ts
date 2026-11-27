@@ -1,4 +1,3 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -16,6 +15,7 @@ import {
   type GroupTaskTopic,
 } from '@cultuvilla/shared/models';
 import { formatDate, formatDayKey } from '@cultuvilla/shared/utils';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -189,7 +189,7 @@ function parse(snap: { exists: boolean; data(): Record<string, unknown> | undefi
   return parsed.success ? parsed.data : null;
 }
 
-export const onCosaRequestWritten = onDocumentWritten('cosaRequests/{requestId}', async (event) => {
+export const onCosaRequestWritten = defineDocumentTrigger('onCosaRequestWritten', { kind: 'written', document: 'cosaRequests/{requestId}' }, async (event) => {
   const handler = 'onCosaRequestWritten';
   const requestId = event.params.requestId;
   const before = parse(event.data?.before);

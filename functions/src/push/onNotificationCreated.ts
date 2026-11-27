@@ -1,4 +1,3 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
 import {
@@ -22,6 +21,7 @@ import {
 } from '@cultuvilla/shared/models';
 import { deliverPush } from './deliverPush';
 import { APNS_AUTH_KEY } from './secret';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -65,8 +65,9 @@ function parseSettings(userId: string, snap: DocumentSnapshot): NotificationSett
  * overwrite fires *update*, so that dedup keeps working and a re-run of, say,
  * `signups_disabled_${eventId}` cannot buzz the same pocket twice.
  */
-export const onNotificationCreated = onDocumentCreated(
-  { document: 'users/{userId}/notifications/{notifId}', secrets: [APNS_AUTH_KEY] },
+export const onNotificationCreated = defineDocumentTrigger(
+  'onNotificationCreated',
+  { kind: 'created', document: 'users/{userId}/notifications/{notifId}', secrets: [APNS_AUTH_KEY] },
   async (event) => {
     const snap = event.data;
     if (!snap) return;

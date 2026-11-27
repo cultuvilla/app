@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
@@ -36,6 +36,7 @@ import {
 } from '@cultuvilla/shared/models';
 import { computeDeletionBlockers } from './blockers';
 import { writeMembershipEvent } from '../helpers/membershipAudit';
+import { defineCallable } from '../shared/define/defineCallable';
 
 const db = getFirestore();
 
@@ -77,8 +78,9 @@ interface DeleteAccountResult {
  *     record has nothing left to protect, and doing it last means a mid-way
  *     failure leaves the account still sign-in-able for a retry.
  */
-export const deleteAccount = onCall<DeleteAccountRequest | undefined, Promise<DeleteAccountResult>>(
-  { region: 'us-central1', cors: true },
+export const deleteAccount = defineCallable<DeleteAccountRequest | undefined, Promise<DeleteAccountResult>>(
+  'deleteAccount',
+  { cors: true },
   async (request) => {
     const handler = 'deleteAccount';
     const auth = request.auth;

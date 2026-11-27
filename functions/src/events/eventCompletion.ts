@@ -1,8 +1,8 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { eventsCollection } from '@cultuvilla/shared/firebase/refs/admin';
 import { startOfMadridDay } from '@cultuvilla/shared/models';
+import { defineSchedule } from '../shared/define/defineSchedule';
 
 const db = getFirestore();
 
@@ -10,7 +10,7 @@ const db = getFirestore();
 // i.e. exactly when endBoundary < start of today in Madrid — so the query reads
 // only the expired events, never the catalogue of upcoming ones. Served by the
 // `events (status, endBoundary)` index.
-export const completeExpiredEvents = onSchedule('every 1 hours', async () => {
+export const completeExpiredEvents = defineSchedule('completeExpiredEvents', { schedule: 'every 1 hours' }, async () => {
   const cutoff = startOfMadridDay(new Date());
   const expired = await eventsCollection(db)
     .where('status', '==', 'published')

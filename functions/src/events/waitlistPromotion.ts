@@ -1,4 +1,3 @@
-import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -11,6 +10,7 @@ import { selectPromotionGroup } from '../helpers/registerToEventValidation';
 import { appendRegistrationEvent } from '../helpers/registrationAudit';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendRegistrationEmail } from './sendRegistrationEmail';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -19,8 +19,9 @@ const db = getFirestore();
  * and keeps `events/{eventId}.confirmedCount` / `.totalCount` in sync.
  * Watches top-level /events/{eventId}/registrations/{regId}.
  */
-export const onRegistrationDeleted = onDocumentDeleted(
-  { document: 'events/{eventId}/registrations/{regId}', secrets: [RESEND_API_KEY] },
+export const onRegistrationDeleted = defineDocumentTrigger(
+  'onRegistrationDeleted',
+  { kind: 'deleted', document: 'events/{eventId}/registrations/{regId}', secrets: [RESEND_API_KEY] },
   async (event) => {
     const { eventId } = event.params;
     // The trigger framework hands us a raw DocumentSnapshot (no converter),

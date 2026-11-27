@@ -1,4 +1,3 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -19,6 +18,7 @@ import {
   type GroupTaskData,
 } from '@cultuvilla/shared/models';
 import { notifyGroupTask } from './groupTaskNotify';
+import { defineSchedule } from '../shared/define/defineSchedule';
 
 const db = getFirestore();
 const handler = 'sendGroupTaskReminders';
@@ -131,7 +131,7 @@ export async function runGroupTaskReminders(firestore: Firestore, now: Date): Pr
  * Each send is recorded per task, stage and member (`taskReminders`), so a
  * re-run reminds nobody twice.
  */
-export const sendGroupTaskReminders = onSchedule({ schedule: 'every day 10:00', timeZone: EVENT_TZ }, async () => {
+export const sendGroupTaskReminders = defineSchedule('sendGroupTaskReminders', { schedule: 'every day 10:00', timeZone: EVENT_TZ }, async () => {
   const result = await runGroupTaskReminders(db, new Date());
   logger.info('Group task reminders run', { handler, ...result });
 });

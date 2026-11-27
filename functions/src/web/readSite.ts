@@ -1,4 +1,3 @@
-import { onRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
@@ -6,6 +5,7 @@ import { webOriginForProject } from '@cultuvilla/shared/utils';
 import { renderDocument } from './document';
 import { handle } from './handler';
 import { READ_SITE_VISIT_MESSAGE, visitFields } from './visit';
+import { defineHttpFunction } from '../shared/define/defineHttpFunction';
 
 /**
  * The public web: a server-rendered, read-only Cultuvilla for the anonymous
@@ -20,7 +20,8 @@ export function cacheControlFor(status: number, deviceDependent: boolean): strin
   return status === 200 ? 'public, max-age=600, s-maxage=3600' : 'public, max-age=60, s-maxage=300';
 }
 
-export const readSite = onRequest(
+export const readSite = defineHttpFunction(
+  'readSite',
   { region: 'europe-west1', cors: false, maxInstances: 20, memory: '256MiB', timeoutSeconds: 30 },
   async (req, res) => {
     const url = new URL(req.originalUrl, 'https://localhost');

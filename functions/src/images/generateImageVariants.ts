@@ -1,4 +1,4 @@
-import { onObjectFinalized, type StorageEvent } from 'firebase-functions/v2/storage';
+import { type StorageEvent } from 'firebase-functions/v2/storage';
 import { logger } from 'firebase-functions/v2';
 import { getStorage } from 'firebase-admin/storage';
 import sharp from 'sharp';
@@ -9,6 +9,7 @@ import {
   variantStoragePath,
   type ImageVariant,
 } from '@cultuvilla/shared/utils';
+import { defineObjectFinalized } from '../shared/define/defineStorageTrigger';
 
 /**
  * Long-edge pixel budget per variant. `card` covers every surface that renders
@@ -182,7 +183,8 @@ export async function handleObjectFinalized(event: StorageEvent): Promise<void> 
  * `packages/shared/src/utils/imageVariants.ts` for how the client addresses
  * what this writes.
  */
-export const generateImageVariants = onObjectFinalized(
+export const generateImageVariants = defineObjectFinalized(
+  'generateImageVariants',
   {
     region: STORAGE_BUCKET_REGION,
     memory: '1GiB',

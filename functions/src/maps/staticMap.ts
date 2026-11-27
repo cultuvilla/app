@@ -1,14 +1,15 @@
-import { onRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { GOOGLE_MAPS_API_KEY } from './secret';
 import { buildStaticMapUrl, parseStaticMapQuery } from './staticMapUrl';
+import { defineHttpFunction } from '../shared/define/defineHttpFunction';
 
 /**
  * Proxies Google Static Maps so the API key never reaches the client.
  * Loaded directly as an <Image> source. Long Cache-Control: a pueblo's
  * coordinates rarely change and the tile for a coord is immutable.
  */
-export const staticMap = onRequest(
+export const staticMap = defineHttpFunction(
+  'staticMap',
   { region: 'europe-west1', cors: true, secrets: [GOOGLE_MAPS_API_KEY], memory: '256MiB', maxInstances: 10 },
   async (req, res) => {
     const handler = 'staticMap';

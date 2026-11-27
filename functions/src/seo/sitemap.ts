@@ -1,8 +1,8 @@
-import { onRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { entityPath, villagePath, webOriginForProject } from '@cultuvilla/shared/utils';
 import { buildSitemapXml, toLastmod, toDate, type SitemapUrl } from './urls';
+import { defineHttpFunction } from '../shared/define/defineHttpFunction';
 
 /**
  * Why a sitemap at all, and why a function rather than a build artifact.
@@ -134,7 +134,8 @@ async function collectUrls(origin: string): Promise<Fetched> {
   return { urls, counts };
 }
 
-export const sitemap = onRequest(
+export const sitemap = defineHttpFunction(
+  'sitemap',
   { region: 'europe-west1', cors: false, maxInstances: 3, memory: '256MiB', timeoutSeconds: 60 },
   async (_req, res) => {
     try {

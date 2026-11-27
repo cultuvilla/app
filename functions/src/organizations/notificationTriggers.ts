@@ -1,10 +1,10 @@
-import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { userNotificationsCollection } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildNotificationData } from '@cultuvilla/shared/models';
 import { broadcastToVillage } from '../village/entityPublishedTriggers';
 import { syncCosaAudience } from './syncCosaAudience';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -14,8 +14,9 @@ const db = getFirestore();
 // Fires for BOTH approval (callable) and rejection (client write) so the
 // org_approved/org_rejected notifications land uniformly regardless of which
 // path flipped the status. Snapshots are raw DocumentData (not converter-wrapped).
-export const onOrganizationUpdated = onDocumentUpdated(
-  'organizations/{orgId}',
+export const onOrganizationUpdated = defineDocumentTrigger(
+  'onOrganizationUpdated',
+  { kind: 'updated', document: 'organizations/{orgId}' },
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();

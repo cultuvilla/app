@@ -1,4 +1,3 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import {
@@ -7,6 +6,7 @@ import {
   publicProfileDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import type { PublicProfileData } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = admin.firestore();
 
@@ -25,8 +25,9 @@ const db = admin.firestore();
  * A new phone or email also reaches every group the member shares it with: see
  * syncSharedSocioContact.
  */
-export const syncPublicProfile = onDocumentWritten(
-  { document: 'users/{userId}', region: 'us-central1' },
+export const syncPublicProfile = defineDocumentTrigger(
+  'syncPublicProfile',
+  { kind: 'written', document: 'users/{userId}' },
   async (event) => {
     const handler = 'syncPublicProfile';
     const { userId } = event.params;

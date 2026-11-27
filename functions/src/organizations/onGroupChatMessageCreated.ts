@@ -1,4 +1,3 @@
-import { onDocumentCreated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -16,6 +15,7 @@ import {
   type GroupChatMessageData,
   type GroupChatThreadData,
 } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const HANDLER = 'onGroupChatMessageCreated';
 const BATCH_SIZE = 400;
@@ -166,8 +166,9 @@ export async function handleGroupChatMessageDeleted(
 }
 
 /** The group's general chat ("Charla"). */
-export const onGroupChatMessageCreated = onDocumentCreated(
-  { document: 'organizations/{orgId}/chat/{chatId}', region: 'us-central1' },
+export const onGroupChatMessageCreated = defineDocumentTrigger(
+  'onGroupChatMessageCreated',
+  { kind: 'created', document: 'organizations/{orgId}/chat/{chatId}' },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -179,8 +180,9 @@ export const onGroupChatMessageCreated = onDocumentCreated(
   },
 );
 
-export const onGroupChatMessageDeleted = onDocumentDeleted(
-  { document: 'organizations/{orgId}/chat/{chatId}', region: 'us-central1' },
+export const onGroupChatMessageDeleted = defineDocumentTrigger(
+  'onGroupChatMessageDeleted',
+  { kind: 'deleted', document: 'organizations/{orgId}/chat/{chatId}' },
   async (event) => {
     await handleGroupChatMessageDeleted(getFirestore(), {
       orgId: event.params.orgId,
@@ -191,8 +193,9 @@ export const onGroupChatMessageDeleted = onDocumentDeleted(
 );
 
 /** An aviso's chat. */
-export const onAvisoChatMessageCreated = onDocumentCreated(
-  { document: 'organizations/{orgId}/messages/{messageId}/chat/{chatId}', region: 'us-central1' },
+export const onAvisoChatMessageCreated = defineDocumentTrigger(
+  'onAvisoChatMessageCreated',
+  { kind: 'created', document: 'organizations/{orgId}/messages/{messageId}/chat/{chatId}' },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -204,8 +207,9 @@ export const onAvisoChatMessageCreated = onDocumentCreated(
   },
 );
 
-export const onAvisoChatMessageDeleted = onDocumentDeleted(
-  { document: 'organizations/{orgId}/messages/{messageId}/chat/{chatId}', region: 'us-central1' },
+export const onAvisoChatMessageDeleted = defineDocumentTrigger(
+  'onAvisoChatMessageDeleted',
+  { kind: 'deleted', document: 'organizations/{orgId}/messages/{messageId}/chat/{chatId}' },
   async (event) => {
     await handleGroupChatMessageDeleted(getFirestore(), {
       orgId: event.params.orgId,

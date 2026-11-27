@@ -1,4 +1,3 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -42,6 +41,7 @@ import {
 import { formatDayKey, formatPrice, groupPath, webOriginForProject } from '@cultuvilla/shared/utils';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendEmail } from '../shared/email';
+import { defineSchedule } from '../shared/define/defineSchedule';
 
 const db = getFirestore();
 const handler = 'sendCuotaReminders';
@@ -317,7 +317,8 @@ export async function runCuotaReminders(firestore: Firestore, now: Date): Promis
  * What was sent is recorded per socio per period (`cuotaReminders`), so a
  * re-run never reminds anyone twice.
  */
-export const sendCuotaReminders = onSchedule(
+export const sendCuotaReminders = defineSchedule(
+  'sendCuotaReminders',
   { schedule: 'every day 10:00', timeZone: EVENT_TZ, secrets: [RESEND_API_KEY] },
   async () => {
     const result = await runCuotaReminders(db, new Date());
