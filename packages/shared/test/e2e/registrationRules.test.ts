@@ -20,7 +20,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asAnon, seed } from '../helpers/roles';
+import { asUser, asAnon, seed, firestoreOf } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -176,7 +176,7 @@ describe('firestore.rules — per-event attendee roster', () => {
     await seedRoster('members');
     await seed(getEnv(), async (ctx) => {
       await setDoc(
-        doc(ctx.firestore() as unknown as Firestore, 'events/roster-e/registrationPrivate/r1'),
+        doc(firestoreOf(ctx), 'events/roster-e/registrationPrivate/r1'),
         { name: 'Alice', phone: '600000000', answers: {} },
       );
     });

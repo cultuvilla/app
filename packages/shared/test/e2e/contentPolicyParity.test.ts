@@ -18,7 +18,7 @@ import {
   type UpdateData,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asAnon, asUser, seed } from '../helpers/roles';
+import { asAnon, asUser, seed, firestoreOf } from '../helpers/roles';
 import {
   can,
   CONTENT_POLICY,
@@ -47,7 +47,7 @@ type ActorName = keyof typeof ACTORS;
 
 async function seedRoles() {
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     const member = (role: 'user' | 'admin') => ({
       role,
       joinedAt: new Date(),
@@ -249,7 +249,7 @@ function client(name: ActorName): Firestore {
 async function seedCase(c: Case) {
   await seedRoles();
   await seed(getEnv(), async (ctx) => {
-    await setDoc(doc(ctx.firestore() as unknown as Firestore, c.path), c.data);
+    await setDoc(doc(firestoreOf(ctx), c.path), c.data);
   });
 }
 

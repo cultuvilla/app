@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { deleteDoc, doc, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asAnon, seed } from '../helpers/roles';
+import { asAnon, seed, firestoreOf } from '../helpers/roles';
 import { festivalPosterDoc, festivalPostersCollection } from '../../src/firebase/refs/client';
 import { buildFestivalPosterData } from '../../src/models/festivalPoster/FestivalPosterDataModel';
 import { watchFestivalPoster, watchFestivalPosters } from '../../src/services/festivalPosterService';
@@ -18,7 +18,7 @@ afterEach(() => {
 
 async function seedPoster(municipalityId: string, year: number, id?: string): Promise<void> {
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     await setDoc(
       id ? festivalPosterDoc(db, id) : doc(festivalPostersCollection(db)),
       buildFestivalPosterData({ municipalityId, villageSlug: 'pueblo', year, createdAt: new Date() }),
@@ -28,7 +28,7 @@ async function seedPoster(municipalityId: string, year: number, id?: string): Pr
 
 async function asSeeder(write: (db: Firestore) => Promise<void>): Promise<void> {
   await seed(getEnv(), async (ctx) => {
-    await write(ctx.firestore() as unknown as Firestore);
+    await write(firestoreOf(ctx));
   });
 }
 

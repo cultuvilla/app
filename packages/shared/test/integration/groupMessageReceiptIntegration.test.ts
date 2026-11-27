@@ -5,9 +5,9 @@
 // (this test), so the listener half of that loop is iOS-side; the service
 // guard stops the rewrites whatever the listener shows.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { doc, setDoc, type Firestore } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, seed } from '../helpers/roles';
+import { asUser, seed, firestoreOf } from '../helpers/roles';
 import { markGroupMessageRead, watchMyGroupMessageReads } from '../../src/services/groupMessageService';
 import * as firebaseModule from '../../src/firebase';
 
@@ -19,7 +19,7 @@ afterEach(() => {
 
 async function seedNotice(orgId: string): Promise<void> {
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     await setDoc(doc(db, `organizations/${orgId}`), { name: 'Peña', type: 'asociación', status: 'approved', municipalityId: 'mun1' });
     await setDoc(doc(db, `organizations/${orgId}/members/u1`), { userId: 'u1', joinedAt: new Date(), role: 'member' });
     await setDoc(doc(db, `organizations/${orgId}/messages/m1`), { recipientUids: ['u1'], sentBy: 'admin1', sentAt: new Date() });
@@ -63,7 +63,7 @@ describe('markGroupMessageRead', () => {
     const orgId = `org-old-${String(Date.now())}`;
     await seedNotice(orgId);
     await seed(getEnv(), async (ctx) => {
-      await setDoc(doc(ctx.firestore() as unknown as Firestore, `organizations/${orgId}/messages/m1/reads/u1`), { readAt: new Date() });
+      await setDoc(doc(firestoreOf(ctx), `organizations/${orgId}/messages/m1/reads/u1`), { readAt: new Date() });
     });
     vi.spyOn(firebaseModule, 'getDb').mockReturnValue(asUser(getEnv(), 'u1'));
     await expect(markGroupMessageRead(orgId, 'm1', 'u1')).resolves.toBeUndefined();

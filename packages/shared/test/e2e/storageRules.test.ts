@@ -16,7 +16,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { ref, uploadBytes, deleteObject, getBytes, type FirebaseStorage } from 'firebase/storage';
+import { ref, uploadBytes, deleteObject, getBytes } from 'firebase/storage';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -44,7 +44,7 @@ afterAll(async () => {
 
 describe('storage.rules — /municipalities/{municipalityId}/images/{imageId}', () => {
   it('an authenticated user can upload a community image', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    const alice = env.authenticatedContext('alice').storage();
     await assertSucceeds(
       uploadBytes(ref(alice, 'municipalities/m1/images/cover.png'), PNG, {
         contentType: 'image/png',
@@ -53,7 +53,7 @@ describe('storage.rules — /municipalities/{municipalityId}/images/{imageId}', 
   });
 
   it('an unauthenticated user cannot upload a community image', async () => {
-    const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
+    const anon = env.unauthenticatedContext().storage();
     await assertFails(
       uploadBytes(ref(anon, 'municipalities/m1/images/cover.png'), PNG, {
         contentType: 'image/png',
@@ -62,7 +62,7 @@ describe('storage.rules — /municipalities/{municipalityId}/images/{imageId}', 
   });
 
   it('a non-image upload is rejected', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    const alice = env.authenticatedContext('alice').storage();
     await assertFails(
       uploadBytes(ref(alice, 'municipalities/m1/images/notes.txt'), PNG, {
         contentType: 'text/plain',
@@ -80,17 +80,17 @@ describe('storage.rules — org / place / barrio images', () => {
 
   for (const [label, path] of Object.entries(paths)) {
     it(`an authenticated user can upload a ${label} image`, async () => {
-      const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+      const alice = env.authenticatedContext('alice').storage();
       await assertSucceeds(uploadBytes(ref(alice, path), PNG, { contentType: 'image/png' }));
     });
 
     it(`an unauthenticated user cannot upload a ${label} image`, async () => {
-      const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
+      const anon = env.unauthenticatedContext().storage();
       await assertFails(uploadBytes(ref(anon, path), PNG, { contentType: 'image/png' }));
     });
 
     it(`a non-image ${label} upload is rejected`, async () => {
-      const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+      const alice = env.authenticatedContext('alice').storage();
       await assertFails(
         uploadBytes(ref(alice, path.replace('cover.png', 'notes.txt')), PNG, {
           contentType: 'text/plain',
@@ -106,35 +106,35 @@ describe('storage.rules — /cosas/{cosaId}/image/{uploaderUid}/{imageId}', () =
   const own = 'cosas/c1/image/alice/cover.png';
 
   it('a user can upload a photo under their own uid', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    const alice = env.authenticatedContext('alice').storage();
     await assertSucceeds(uploadBytes(ref(alice, own), PNG, { contentType: 'image/png' }));
   });
 
   it("another user cannot write to the uploader's path", async () => {
-    const bob = env.authenticatedContext('bob').storage() as unknown as FirebaseStorage;
+    const bob = env.authenticatedContext('bob').storage();
     await assertFails(uploadBytes(ref(bob, own), PNG, { contentType: 'image/png' }));
   });
 
   it('the old flat path, without an uploader, is closed', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    const alice = env.authenticatedContext('alice').storage();
     await assertFails(uploadBytes(ref(alice, 'cosas/c1/image/cover.png'), PNG, { contentType: 'image/png' }));
   });
 
   it('an unauthenticated user cannot upload', async () => {
-    const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
+    const anon = env.unauthenticatedContext().storage();
     await assertFails(uploadBytes(ref(anon, own), PNG, { contentType: 'image/png' }));
   });
 
   it('a non-image upload is rejected', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    const alice = env.authenticatedContext('alice').storage();
     await assertFails(uploadBytes(ref(alice, 'cosas/c1/image/alice/notes.txt'), PNG, { contentType: 'text/plain' }));
   });
 
   it('anyone can read a cosa photo', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
-      await uploadBytes(ref(ctx.storage() as unknown as FirebaseStorage, own), PNG, { contentType: 'image/png' });
+      await uploadBytes(ref(ctx.storage(), own), PNG, { contentType: 'image/png' });
     });
-    const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
+    const anon = env.unauthenticatedContext().storage();
     await assertSucceeds(getBytes(ref(anon, own)));
   });
 });
@@ -146,28 +146,28 @@ describe('storage.rules — /news/{postId}/images/{imageId}', () => {
   // on auth + size + content-type only (path keyed by post id); the authoring
   // guard lives on the news doc write in firestore.rules. No doc seed needed.
   it('an authenticated user can upload a news image', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    const alice = env.authenticatedContext('alice').storage();
     await assertSucceeds(
       uploadBytes(ref(alice, 'news/n1/images/pic.png'), PNG, { contentType: 'image/png' }),
     );
   });
 
   it('an unauthenticated user cannot upload a news image', async () => {
-    const anon = env.unauthenticatedContext().storage() as unknown as FirebaseStorage;
+    const anon = env.unauthenticatedContext().storage();
     await assertFails(
       uploadBytes(ref(anon, 'news/n1/images/pic.png'), PNG, { contentType: 'image/png' }),
     );
   });
 
   it('a non-image news upload is rejected', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    const alice = env.authenticatedContext('alice').storage();
     await assertFails(
       uploadBytes(ref(alice, 'news/n1/images/notes.txt'), PNG, { contentType: 'text/plain' }),
     );
   });
 
   it('an authenticated user can delete a news image', async () => {
-    const alice = env.authenticatedContext('alice').storage() as unknown as FirebaseStorage;
+    const alice = env.authenticatedContext('alice').storage();
     await uploadBytes(ref(alice, 'news/n1/images/pic.png'), PNG, { contentType: 'image/png' });
     await assertSucceeds(deleteObject(ref(alice, 'news/n1/images/pic.png')));
   });

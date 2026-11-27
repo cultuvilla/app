@@ -18,10 +18,9 @@ import {
   orderBy,
   query,
   where,
-  type Firestore,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asAnon, asAdmin, seed } from '../helpers/roles';
+import { asUser, asAnon, asAdmin, seed, firestoreOf } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -52,7 +51,7 @@ function report(overrides: Record<string, unknown> = {}) {
 
 async function seedFixtures() {
   await seed(getEnv(), async (ctx) => {
-    const db = ctx.firestore() as unknown as Firestore;
+    const db = firestoreOf(ctx);
     await setDoc(doc(db, `municipalities/${MUNI}/members/${VILLAGE_ADMIN}`), { role: 'admin' });
     await setDoc(doc(db, `municipalities/${MUNI}/members/${REPORTER}`), { role: 'user' });
     await setDoc(doc(db, `contentReports/${REPORT}`), report());
@@ -149,7 +148,7 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
 
     it("an admin of another village cannot list this municipality's reports", async () => {
       await seed(getEnv(), async (ctx) => {
-        const db = ctx.firestore() as unknown as Firestore;
+        const db = firestoreOf(ctx);
         await setDoc(doc(db, `municipalities/${OTHER_MUNI}/members/${OUTSIDER}`), { role: 'admin' });
       });
       await seedFixtures();
@@ -205,7 +204,7 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
 
     it('an admin of another village cannot resolve it', async () => {
       await seed(getEnv(), async (ctx) => {
-        const db = ctx.firestore() as unknown as Firestore;
+        const db = firestoreOf(ctx);
         await setDoc(doc(db, `municipalities/${OTHER_MUNI}/members/${OUTSIDER}`), { role: 'admin' });
       });
       await seedFixtures();
@@ -215,7 +214,7 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
 
     it('a village admin cannot resolve a report about their own content', async () => {
       await seed(getEnv(), async (ctx) => {
-        const db = ctx.firestore() as unknown as Firestore;
+        const db = firestoreOf(ctx);
         await setDoc(doc(db, `contentReports/own`), report({ targetAuthorUserId: VILLAGE_ADMIN }));
       });
       await seedFixtures();
@@ -226,7 +225,7 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
 
     it('an app admin cannot resolve a report about their own content either', async () => {
       await seed(getEnv(), async (ctx) => {
-        const db = ctx.firestore() as unknown as Firestore;
+        const db = firestoreOf(ctx);
         await setDoc(doc(db, `contentReports/own`), report({ targetAuthorUserId: APP_ADMIN }));
       });
       const db = await asAdmin(getEnv(), APP_ADMIN);
@@ -241,7 +240,7 @@ describe('firestore.rules — /contentReports/{reportId}', () => {
 
     it('a report with no known author stays resolvable', async () => {
       await seed(getEnv(), async (ctx) => {
-        const db = ctx.firestore() as unknown as Firestore;
+        const db = firestoreOf(ctx);
         await setDoc(doc(db, `contentReports/anon`), report({ targetAuthorUserId: null }));
       });
       await seedFixtures();
@@ -300,7 +299,7 @@ describe('firestore.rules — /users/{uid}/blockedUsers/{blockedUid}', () => {
 
   it('nobody else can read your block list — not even an app admin', async () => {
     await seed(getEnv(), async (ctx) => {
-      const db = ctx.firestore() as unknown as Firestore;
+      const db = firestoreOf(ctx);
       await setDoc(doc(db, `users/${REPORTER}/blockedUsers/${AUTHOR}`), {
         blockedUserId: AUTHOR,
         createdAt: new Date(),
@@ -314,7 +313,7 @@ describe('firestore.rules — /users/{uid}/blockedUsers/{blockedUid}', () => {
 
   it('you can read and unblock from your own list', async () => {
     await seed(getEnv(), async (ctx) => {
-      const db = ctx.firestore() as unknown as Firestore;
+      const db = firestoreOf(ctx);
       await setDoc(doc(db, `users/${REPORTER}/blockedUsers/${AUTHOR}`), {
         blockedUserId: AUTHOR,
         createdAt: new Date(),

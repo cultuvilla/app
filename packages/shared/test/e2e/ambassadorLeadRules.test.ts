@@ -4,9 +4,9 @@
 // because the readSite function writes through the admin SDK.
 import { describe, it } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asAnon, asAdmin, seed } from '../helpers/roles';
+import { asUser, asAnon, asAdmin, seed, firestoreOf } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 const LEAD = 'lead-1';
@@ -22,7 +22,7 @@ const lead = () => ({
 
 async function seedLead() {
   await seed(getEnv(), async (ctx) => {
-    await setDoc(doc(ctx.firestore() as unknown as Firestore, `ambassadorLeads/${LEAD}`), lead());
+    await setDoc(doc(firestoreOf(ctx), `ambassadorLeads/${LEAD}`), lead());
   });
 }
 
