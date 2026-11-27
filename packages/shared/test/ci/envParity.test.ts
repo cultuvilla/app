@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  backupScheduleLine,
   BASELINE_PATH,
+  bucketLine,
+  durationText,
+  lifecycleText,
+  logBucketLine,
+  logSinkLine,
   type Baseline,
   configDifferences,
   DIMENSIONS,
@@ -36,11 +42,20 @@ const snap = () => ({
   authProviders: ['google.com'],
   authDomains: ['<project>.web.app'],
   artifactCleanup: ['us-east1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s'],
+  dataStores: ['firestore-database (default) eu'],
 });
 
 describe('the committed baseline', () => {
   it('is valid: every dimension, and every exception has a reason and does something', () => {
     expect(validateBaseline(baseline)).toEqual([]);
+  });
+
+  it('declares where every env keeps data — the backups, buckets and logs whose loss or growth must not go unnoticed', () => {
+    const stores = baseline.expected.dataStores as string[];
+    expect(stores).toContain('firestore-database (default) europe-southwest1');
+    expect(stores.filter((l) => l.startsWith('firestore-backup '))).not.toEqual([]);
+    expect(stores).toContain('storage <project>.firebasestorage.app US-EAST1 lifecycle=none');
+    expect(stores.some((l) => l.startsWith('log-bucket global/_Default retention='))).toBe(true);
   });
 
   it('declares no project-specific value — envs compare through placeholders', () => {
@@ -159,6 +174,43 @@ describe('draftBaseline', () => {
     expect(draft.expected).toEqual(prod);
     expect(draft.exceptions).toEqual({ dev: [{ dimension: 'secrets', add: ['DEV_ONLY'], reason: 'TODO' }] });
     expect(validateBaseline(draft)).toEqual(['exceptions.dev[0]: needs a real reason']);
+  });
+});
+
+describe('data-store lines', () => {
+  it('states durations in whole days where they are, seconds otherwise, none when absent', () => {
+    expect(durationText('604800s')).toBe('7d');
+    expect(durationText('90s')).toBe('90s');
+    expect(durationText(undefined)).toBe('none');
+  });
+
+  it('names a backup schedule by recurrence and retention, not by its generated id', () => {
+    expect(backupScheduleLine('(default)', { weeklyRecurrence: { day: 'SUNDAY' }, retention: '8467200s' })).toBe(
+      'firestore-backup (default) weekly:SUNDAY retention=98d',
+    );
+  });
+
+  it('reads lifecycle rules independent of their order and their conditions order', () => {
+    const a = { lifecycle: { rule: [
+      { action: { type: 'Delete' }, condition: { numNewerVersions: 3, isLive: false } },
+      { action: { type: 'SetStorageClass', storageClass: 'COLDLINE' }, condition: { age: 30 } },
+    ] } };
+    const b = { lifecycle: { rule: [...a.lifecycle.rule].reverse() } };
+    expect(lifecycleText(a)).toBe('delete(isLive=false,numNewerVersions=3);setstorageclass:COLDLINE(age=30)');
+    expect(lifecycleText(b)).toBe(lifecycleText(a));
+    expect(lifecycleText({})).toBe('none');
+  });
+
+  it('carries a bucket retention lock, a locked log bucket and a disabled sink', () => {
+    expect(bucketLine({ name: 'b', location: 'EU', retentionPolicy: { retentionPeriod: '86400' } })).toBe(
+      'storage b EU lifecycle=none retentionPolicy=1d',
+    );
+    expect(logBucketLine({ name: 'projects/p/locations/eu/buckets/audit', retentionDays: 3650, locked: true })).toBe(
+      'log-bucket eu/audit retention=3650d locked',
+    );
+    expect(logSinkLine({ name: 's', destination: 'bigquery.googleapis.com/x', disabled: true })).toBe(
+      'log-sink s -> bigquery.googleapis.com/x filter=none disabled',
+    );
   });
 });
 

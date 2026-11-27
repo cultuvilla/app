@@ -143,10 +143,7 @@
       "OBSERVABILITY_USER_ID_SALT",
       "RESEND_API_KEY"
     ],
-    "authProviders": [
-      "apple.com",
-      "google.com"
-    ],
+    "authProviders": ["apple.com", "google.com"],
     "authDomains": [
       "<project>.firebaseapp.com",
       "<project>.web.app",
@@ -158,15 +155,28 @@
       "europe-west1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s",
       "us-central1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s",
       "us-east1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s"
+    ],
+    "dataStores": [
+      "firestore-backup (default) daily retention=7d",
+      "firestore-backup (default) weekly:SUNDAY retention=98d",
+      "firestore-database (default) europe-southwest1",
+      "log-bucket global/_Default retention=30d",
+      "log-bucket global/_Required retention=400d locked",
+      "log-sink _Default -> logging.googleapis.com/projects/<project>/locations/global/buckets/_Default filter=e437fff31208",
+      "log-sink _Required -> logging.googleapis.com/projects/<project>/locations/global/buckets/_Required filter=6303841cebb8",
+      "storage <project>.firebasestorage.app US-EAST1 lifecycle=none",
+      "storage gcf-v2-sources-<number>-europe-southwest1 EUROPE-SOUTHWEST1 lifecycle=delete(isLive=false,numNewerVersions=3)",
+      "storage gcf-v2-sources-<number>-europe-west1 EUROPE-WEST1 lifecycle=delete(isLive=false,numNewerVersions=3)",
+      "storage gcf-v2-sources-<number>-us-central1 US-CENTRAL1 lifecycle=delete(isLive=false,numNewerVersions=3)",
+      "storage gcf-v2-sources-<number>-us-east1 US-EAST1 lifecycle=delete(isLive=false,numNewerVersions=3)",
+      "storage gcf-v2-uploads-<number>.us-central1.cloudfunctions.appspot.com US-CENTRAL1 lifecycle=delete(age=1)"
     ]
   },
   "exceptions": {
     "dev": [
       {
         "dimension": "apis",
-        "remove": [
-          "androidpublisher.googleapis.com"
-        ],
+        "remove": ["androidpublisher.googleapis.com"],
         "reason": "The Play Developer API is called only by the release tooling's service account, which lives in the prod project (scripts/lib/play.mjs); dev and beta never call it."
       },
       {
@@ -189,16 +199,12 @@
       },
       {
         "dimension": "authDomains",
-        "add": [
-          "cultuvilla-panel.web.app"
-        ],
+        "add": ["cultuvilla-panel.web.app"],
         "reason": "The founders' panel is a second hosting site that exists on dev only (hostingTargets.test.ts)."
       },
       {
         "dimension": "authDomains",
-        "remove": [
-          "cultuvilla.es"
-        ],
+        "remove": ["cultuvilla.es"],
         "reason": "cultuvilla.es is prod's custom domain; dev and beta are served from their own web.app hosts."
       },
       {
@@ -207,14 +213,20 @@
           "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_DISABLED"
         },
         "reason": "Point-in-time recovery is a paid backup feature kept for production data only."
+      },
+      {
+        "dimension": "dataStores",
+        "remove": [
+          "firestore-backup (default) daily retention=7d",
+          "firestore-backup (default) weekly:SUNDAY retention=98d"
+        ],
+        "reason": "Scheduled Firestore backups (daily kept 7 days, weekly kept 14 weeks) are a paid recovery feature kept for production data only, like point-in-time recovery; dev and beta data can be reseeded."
       }
     ],
     "beta": [
       {
         "dimension": "apis",
-        "remove": [
-          "androidpublisher.googleapis.com"
-        ],
+        "remove": ["androidpublisher.googleapis.com"],
         "reason": "The Play Developer API is called only by the release tooling's service account, which lives in the prod project (scripts/lib/play.mjs); dev and beta never call it."
       },
       {
@@ -227,9 +239,7 @@
       },
       {
         "dimension": "authDomains",
-        "remove": [
-          "cultuvilla.es"
-        ],
+        "remove": ["cultuvilla.es"],
         "reason": "cultuvilla.es is prod's custom domain; dev and beta are served from their own web.app hosts."
       },
       {
@@ -238,6 +248,21 @@
           "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_DISABLED"
         },
         "reason": "Point-in-time recovery is a paid backup feature kept for production data only."
+      },
+      {
+        "dimension": "dataStores",
+        "remove": [
+          "firestore-backup (default) daily retention=7d",
+          "firestore-backup (default) weekly:SUNDAY retention=98d"
+        ],
+        "reason": "Scheduled Firestore backups (daily kept 7 days, weekly kept 14 weeks) are a paid recovery feature kept for production data only, like point-in-time recovery; dev and beta data can be reseeded."
+      },
+      {
+        "dimension": "dataStores",
+        "remove": [
+          "storage gcf-v2-sources-<number>-europe-southwest1 EUROPE-SOUTHWEST1 lifecycle=delete(isLive=false,numNewerVersions=3)"
+        ],
+        "reason": "Cloud Functions creates a region's gcf-v2-sources bucket with the first function deployed there; callableGateway is the first in europe-southwest1 and reaches this env only with the next promotion (docs/ops/callable-gateway.md). Drop at the first deploy here carrying callableGateway."
       }
     ],
     "prod": [
@@ -247,6 +272,13 @@
           "europe-southwest1/gcf-artifacts firebase-functions-cleanup DELETE tagState=ANY,olderThan=86400s"
         ],
         "reason": "callableGateway is the first function in europe-southwest1 and reaches prod only with the next promotion (docs/ops/callable-gateway.md); drop at the first prod deploy carrying callableGateway."
+      },
+      {
+        "dimension": "dataStores",
+        "remove": [
+          "storage gcf-v2-sources-<number>-europe-southwest1 EUROPE-SOUTHWEST1 lifecycle=delete(isLive=false,numNewerVersions=3)"
+        ],
+        "reason": "Cloud Functions creates a region's gcf-v2-sources bucket with the first function deployed there; callableGateway is the first in europe-southwest1 and reaches this env only with the next promotion (docs/ops/callable-gateway.md). Drop at the first deploy here carrying callableGateway."
       }
     ]
   }

@@ -9,8 +9,10 @@
  *
  *   config     The project's own setup: Firestore database and Storage bucket
  *              settings, enabled APIs, IAM grants to service accounts, Secret
- *              Manager names, Auth configuration and Artifact Registry
- *              cleanup policies. It must equal the
+ *              Manager names, Auth configuration, Artifact Registry
+ *              cleanup policies, and every data store with its retention
+ *              (Firestore databases and backup schedules, Storage buckets,
+ *              Cloud Logging buckets and sinks). It must equal the
  *              committed baseline (infra/env-parity.json) plus that env's
  *              declared exceptions, each of which carries its reason. Every
  *              env is checked against the same baseline, so passing here
@@ -48,7 +50,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const BASELINE_PATH = resolve(repoRoot, 'infra/env-parity.json');
 
 /** Dimensions compared as sets; the rest are flat key → value maps. */
-export const LIST_DIMENSIONS = ['apis', 'iam', 'secrets', 'authProviders', 'authDomains', 'artifactCleanup'];
+export const LIST_DIMENSIONS = ['apis', 'iam', 'secrets', 'authProviders', 'authDomains', 'artifactCleanup', 'dataStores'];
 export const MAP_DIMENSIONS = ['firestore', 'bucket', 'auth'];
 export const DIMENSIONS = [...MAP_DIMENSIONS, ...LIST_DIMENSIONS];
 
@@ -399,6 +401,86 @@ export async function settledFunctions(api, project, { attempts = 6, delayMs = 1
   }
 }
 
+// ------------------------------------------------------------ data stores
+//
+// Every place a project keeps data, one line each with where it lives and how
+// long it keeps it: an undeclared store — a bucket made by hand, a backup
+// schedule deleted, a log bucket's retention raised — fails parity like any
+// other drift. Ported from Órdago's data-store census (ordago-apps
+// scripts/check-data-stores.js), folded into this check so the existing
+// deploy gate and nightly run carry it.
+
+/** `604800s` → `7d`; a duration that is not whole days stays in seconds. */
+export function durationText(seconds) {
+  const s = Number(/^(\d+)s$/.exec(String(seconds ?? ''))?.[1]);
+  if (!Number.isFinite(s)) return 'none';
+  return s % 86400 === 0 ? `${s / 86400}d` : `${s}s`;
+}
+
+/** A Firestore backup schedule: its recurrence and how long each backup is kept. */
+export function backupScheduleLine(database, schedule) {
+  const recurrence = schedule.dailyRecurrence
+    ? 'daily'
+    : schedule.weeklyRecurrence
+      ? `weekly:${schedule.weeklyRecurrence.day ?? 'unspecified'}`
+      : 'unknown';
+  return `firestore-backup ${database} ${recurrence} retention=${durationText(schedule.retention)}`;
+}
+
+/** A bucket's lifecycle rules, condition keys sorted, so a reordering is not drift. */
+export function lifecycleText(bucket) {
+  const rules = bucket.lifecycle?.rule ?? [];
+  if (rules.length === 0) return 'none';
+  return rules
+    .map((r) => {
+      const cond = Object.entries(r.condition ?? {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join('|') : v}`)
+        .join(',');
+      return `${String(r.action?.type ?? '').toLowerCase()}${r.action?.storageClass ? `:${r.action.storageClass}` : ''}(${cond})`;
+    })
+    .sort()
+    .join(';');
+}
+
+export function bucketLine(bucket) {
+  const lock = bucket.retentionPolicy?.retentionPeriod
+    ? ` retentionPolicy=${durationText(`${bucket.retentionPolicy.retentionPeriod}s`)}`
+    : '';
+  return `storage ${bucket.name} ${bucket.location} lifecycle=${lifecycleText(bucket)}${lock}`;
+}
+
+export function logBucketLine(bucket) {
+  const [, location, id] = /\/locations\/([^/]+)\/buckets\/([^/]+)$/.exec(bucket.name ?? '') ?? [];
+  return `log-bucket ${location}/${id} retention=${bucket.retentionDays ?? 'default'}d${bucket.locked ? ' locked' : ''}`;
+}
+
+/** A sink by name and destination; its filter by hash, since filters run to hundreds of characters. */
+export function logSinkLine(sink) {
+  const state = sink.disabled ? ' disabled' : '';
+  return `log-sink ${sink.name} -> ${sink.destination} filter=${sink.filter ? sha(sink.filter) : 'none'}${state}`;
+}
+
+export async function dataStoreLines(api, project) {
+  const databases = await paged(api, `https://firestore.googleapis.com/v1/projects/${project}/databases`, 'databases');
+  const lines = [];
+  for (const db of databases) {
+    const id = lastSegment(db.name);
+    lines.push(`firestore-database ${id} ${db.locationId}`);
+    const { backupSchedules = [] } = await api(
+      `https://firestore.googleapis.com/v1/projects/${project}/databases/${encodeURIComponent(id)}/backupSchedules`,
+    );
+    for (const s of backupSchedules) lines.push(backupScheduleLine(id, s));
+  }
+  const buckets = await paged(api, `https://storage.googleapis.com/storage/v1/b?project=${project}&maxResults=200`, 'items');
+  lines.push(...buckets.map(bucketLine));
+  const logBuckets = await paged(api, `https://logging.googleapis.com/v2/projects/${project}/locations/-/buckets?pageSize=100`, 'buckets');
+  lines.push(...logBuckets.filter((b) => b.lifecycleState !== 'DELETE_REQUESTED').map(logBucketLine));
+  const sinks = await paged(api, `https://logging.googleapis.com/v2/projects/${project}/sinks?pageSize=100`, 'sinks');
+  lines.push(...sinks.map(logSinkLine));
+  return lines.sort();
+}
+
 // ------------------------------------------------------------------ API reads
 
 export async function accessToken() {
@@ -462,6 +544,7 @@ export async function configSnapshot(api, project, number) {
   const auth = await api(`https://identitytoolkit.googleapis.com/admin/v2/projects/${project}/config`);
   const idps = await api(`https://identitytoolkit.googleapis.com/admin/v2/projects/${project}/defaultSupportedIdpConfigs`);
   const repositories = await listRepositories(api, project);
+  const dataStores = await dataStoreLines(api, project);
 
   const iam = [];
   for (const b of policy.bindings ?? []) {
@@ -508,6 +591,7 @@ export async function configSnapshot(api, project, number) {
       // it has none: images otherwise pile up with every deploy
       // (scripts/setup-artifact-cleanup.mjs).
       artifactCleanup: repositories.flatMap(cleanupLines).sort(),
+      dataStores,
     },
     { project, number },
   );
