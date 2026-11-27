@@ -19,7 +19,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [blocking-overlay-in-tree](ongoing/blocking-overlay-in-tree.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
 | [patch-coverage-report](ongoing/patch-coverage-report.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
-| [play-release-notes](ongoing/play-release-notes.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [scheduled-schema-audit](ongoing/scheduled-schema-audit.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [trigger-not-found-helper](ongoing/trigger-not-found-helper.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [verify-deployed-functions](ongoing/verify-deployed-functions.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
@@ -35,6 +34,12 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [group-screens-redesign](ongoing/group-screens-redesign.md) | high | dev | 1 cycle ago | once 1.12.0 is live on both stores, check the group screens in prod and retire this plan. |
+
+## Waiting on release 1.14.0
+
+| Plan | Pri | Landed | Advanced | Next |
+|---|---|---|---|---|
+| [play-release-notes](ongoing/play-release-notes.md) | medium | dev | this cycle | once that release reaches beta and main, check "Set the Play release notes" is green in beta-build-and-submit and production-release, then `pnpm play:notes:show --profile beta` and `--profile production` show the es-ES notes (ADC with the androidpublisher scope: the verify-play-release-notes skill) |
 
 ## Soaking
 
