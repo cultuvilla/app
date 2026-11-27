@@ -1,6 +1,8 @@
 # Declare every data store and its retention in env-parity
 
 **Priority:** low
+**Landed:** none
+**Gate:** none
 **Next:** extend check-env-parity.mjs and infra/env-parity.json (the existing nightly run, no new workflow)
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
