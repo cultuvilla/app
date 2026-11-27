@@ -15,6 +15,7 @@ interface AppConfig {
   BOUNDARY: string[];
   RAW_SDK_EXEMPT?: string[];
   SEAM_ALLOWLIST?: string[];
+  TEST_FILES?: string[];
 }
 const mobile = mobileConfig as AppConfig;
 const studio = studioConfig as AppConfig;
@@ -166,4 +167,33 @@ describe.each([
   ])('allows %s', async (body) => {
     expect(await bans(body)).toEqual([]);
   }, 60_000);
+});
+
+// A committed `.only` skips every other test in its file without failing, and a
+// test with no assertion passes whatever the code under it does.
+describe('app lint gate: mobile tests', () => {
+  const TEST = 'components/__tests__/Probe.test.tsx';
+
+  it('applies to every test file', () => {
+    expect(mobile.TEST_FILES).toEqual(['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}']);
+  });
+
+  it.each([
+    ['a focused test', "it.only('x', () => { expect(1).toBe(1); });\n", 'jest/no-focused-tests'],
+    ['a focused suite', "describe.only('x', () => { it('y', () => { expect(1).toBe(1); }); });\n", 'jest/no-focused-tests'],
+    ['a test that asserts nothing', "it('x', () => { const n = 1; void n; });\n", 'jest/expect-expect'],
+  ])('rejects %s', async (_label, code, rule) => {
+    expect(await lint('mobile', TEST, code)).toEqual([rule]);
+  });
+
+  it.each([
+    ['an expect', "it('x', () => { expect(1).toBe(1); });\n"],
+    ['a findBy query', "it('x', async () => { await findByText('y'); });\ndeclare const findByText: (s: string) => Promise<unknown>;\n"],
+  ])('accepts a test with %s', async (_label, code) => {
+    expect(await lint('mobile', TEST, code)).toEqual([]);
+  });
+
+  it('leaves app code alone', async () => {
+    expect(await lint('mobile', 'components/Probe.tsx', "it.only('x', () => {});\n")).toEqual([]);
+  });
 });

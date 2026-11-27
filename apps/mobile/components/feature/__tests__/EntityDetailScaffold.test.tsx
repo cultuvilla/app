@@ -29,7 +29,7 @@ describe('EntityDetailScaffold', () => {
     const { getByText } = render(
       <EntityDetailScaffold loading={false} notFound imageUri={null} fallbackIcon="image-outline" />,
     );
-    getByText('common.notFound');
+    expect(getByText('common.notFound')).toBeTruthy();
   });
 
   it('attaches no RefreshControl when onRefresh is omitted', () => {
