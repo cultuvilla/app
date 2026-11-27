@@ -15,10 +15,8 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
 | [cloud-run-gateways](ongoing/cloud-run-gateways.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
-| [cloud-run-revision-cleanup](ongoing/cloud-run-revision-cleanup.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [delete-account-reauth-gate](ongoing/delete-account-reauth-gate.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [harvest-shared-ci-checks](ongoing/harvest-shared-ci-checks.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
-| [non-prod-delivery-guard](ongoing/non-prod-delivery-guard.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [referential-integrity-audit](ready/referential-integrity-audit.md) `ready` | high | — | this cycle | — |
 | [typecheck-shared-tests](ongoing/typecheck-shared-tests.md) | high | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
 | [blocking-overlay-in-tree](ready/blocking-overlay-in-tree.md) `ready` | medium | — | this cycle | — |
@@ -65,10 +63,13 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [event-madrid-day-cutoff](ongoing/event-madrid-day-cutoff.md) | low | dev | 1 cycle ago | the first release carrying #726 is live in prod | in prod Cloud Logging, check `completeExpiredEvents` logs `Completed expired events` hourly with no warn lines and past-day published events move to `completed`, then retire |
 | [mobile-neutral-grey-tokens](ongoing/mobile-neutral-grey-tokens.md) | low | none | 1 cycle ago | the first release carrying #729 is live in prod | confirm Deploy dev of e0878359 went green (then Landed: dev); the QA pass witnesses docs/qa/pending/neutral-grey-tokens.md; retire once a release carrying #729 is live in prod |
 | [mobile-raw-hex-to-tokens](ongoing/mobile-raw-hex-to-tokens.md) | low | dev | 1 cycle ago | the first release carrying #725 is live in prod | byte-identical refactor guarded by noTokenHexLiterals.test.ts; retire once a release carrying #725 is live in prod |
+| [non-prod-delivery-guard](ongoing/non-prod-delivery-guard.md) | high | beta | this cycle | first `Delivery withheld outside production` log line on dev and on beta (no probe write; decided by the leader 2026-11-27 pending Álvaro) | read Cloud Logging on villa-events and cultuvilla-beta for `Delivery withheld outside production`; one line from each env retires this plan |
 
 ## Waiting on you
 
-_None._
+| Plan | Pri | Landed | Advanced | Waiting on | Next |
+|---|---|---|---|---|---|
+| [cloud-run-revision-cleanup](ongoing/cloud-run-revision-cleanup.md) | high | dev | this cycle | prod revision drain (970 of 1,106 deletable, dry run 2026-11-27) and the deploy cleanup step on prod — Álvaro's go | run `node scripts/cleanup-cloudrun-revisions.mjs --env=prod --apply --confirm --max-deletes=1000 --max-minutes=60` (ADC `~/.config/cultuvilla/adc.json`), then a PR turning the deploy-firebase.yml cleanup step on for prod and updating revisionCleanup.test.ts. Dev drain unfinished (15,009 left): resume with `--env=dev --apply --max-deletes=15000 --max-minutes=600` |
 
 ## Blocked
 
