@@ -1,4 +1,5 @@
 import { getDoc, getDocs, orderBy, query, where } from '../firebase/sdk/firestore';
+import { firebaseErrorCode } from '../firebase/sdk/errors';
 import { getCallable } from './callableTransport';
 import { getDb } from '../firebase';
 import { villageWrappedCollection, villageWrappedDoc } from '../firebase/refs/client';
@@ -50,7 +51,7 @@ export async function getReadableWrapped(municipalityId: string, year: number): 
     const w = await getVillageWrappedForYear(municipalityId, year);
     return w?.status === 'published' ? w : null;
   } catch (error) {
-    if ((error as { code?: unknown } | null)?.code === 'permission-denied') return null;
+    if (firebaseErrorCode(error) === 'permission-denied') return null;
     throw error;
   }
 }

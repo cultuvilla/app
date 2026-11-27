@@ -7,6 +7,7 @@
 // Pinned by packages/shared/test/eslint/appLintRules.test.ts.
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import { BARE_FIREBASE_ERROR_CODE_COMPARE } from '../../packages/shared/eslint/bareFirebaseErrorCode.mjs';
 
 // Regexes, not gitignore globs: a bare `firebase` glob matches at any depth,
 // so it would also catch `@cultuvilla/shared/firebase` and `./firebase`.
@@ -66,6 +67,8 @@ export default tseslint.config(
       // Off: switched on, it reports 28 findings beyond the 14 call sites that
       // were silencing it, and fixing them changes when effects run.
       'react-hooks/exhaustive-deps': 'off',
+      // Through firebaseErrorCode() only (packages/shared/eslint/bareFirebaseErrorCode.mjs).
+      'no-restricted-syntax': ['error', BARE_FIREBASE_ERROR_CODE_COMPARE],
       ...restrictImports(rawSdkPattern, seamPattern),
     },
   },

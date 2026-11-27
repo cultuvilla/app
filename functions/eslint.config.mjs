@@ -1,5 +1,6 @@
 // functions/eslint.config.mjs
 import tseslint from 'typescript-eslint';
+import { BARE_FIREBASE_ERROR_CODE_COMPARE } from '../packages/shared/eslint/bareFirebaseErrorCode.mjs';
 
 export default tseslint.config(
   {
@@ -83,6 +84,12 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
     },
+  },
+  {
+    // A Firebase error code is compared only through firebaseErrorCode()
+    // (packages/shared/eslint/bareFirebaseErrorCode.mjs).
+    files: ['src/**/*.ts'],
+    rules: { 'no-restricted-syntax': ['error', BARE_FIREBASE_ERROR_CODE_COMPARE] },
   },
   {
     ignores: ['lib/**', 'dist/**', 'node_modules/**', 'coverage/**'],
