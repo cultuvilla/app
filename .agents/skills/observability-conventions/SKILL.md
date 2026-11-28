@@ -99,6 +99,12 @@ that's the signal you're bypassing the chokepoint — don't.
   they flow regardless of the analytics toggle. Don't add a consent check to
   these — that would silence exactly the signal you need when a user hasn't
   opted into analytics but is hitting a bug.
+- **On native, both also reach Firebase Crashlytics** (`lib/observability/crashlytics.ts`):
+  `captureError` as a non-fatal report, `logger.*` as breadcrumbs. Crashlytics
+  does not scrub PII the way the server-side `log.*` chokepoint does, so never
+  put personal data in an error *message* — pass ids through the context, which
+  `filterContext` allowlists. Native crashes, ANRs and OOMs need no call: open
+  them in the Firebase console → Crashlytics for that env's project.
 
 ## Debugging: gcloud / Error Reporting recipes
 

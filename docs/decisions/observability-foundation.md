@@ -30,13 +30,29 @@ why.
 - **Firebase Analytics for product events** (denied-by-default Consent Mode v2),
   chosen because its event API is identical on web and native — the cleanest
   transition — and BigQuery export reaches BI later for free. **No Sentry**; the
-  native crash tool will be Crashlytics behind the same seam.
+  native crash tool is Crashlytics behind the same seam (below).
 
 - **Web crash capture bridges to Cloud Logging.** Crashlytics is native-only, so
   on web a global handler + error boundary route through the `logClientError`
   callable into structured Cloud Logging → Cloud Error Reporting, *and* emit an
   `app_exception` analytics event ("both sinks"). Native later swaps
   `captureError` to Crashlytics; the analytics half is unchanged.
+
+- **On native, Crashlytics is a third sink, added beside Cloud Logging rather
+  than swapped in** (2026-11-28). The SDK records native crashes, ANRs and OOMs
+  on its own, which no JS handler can see; `captureError` also files each
+  handled error there as a non-fatal with its context as the log line before
+  it, `observability.logger.*` become breadcrumbs, and the user id is the same
+  hash Analytics gets. Cloud Logging stays because only it joins a client error
+  to the server's logs, and only it scrubs PII from messages and stacks — so a
+  `captureError` call site must not put personal data in an error *message*.
+  Crashlytics is diagnosis, legitimate interest like Cloud Logging, so it does
+  not wait for the analytics consent; debug builds collect nothing.
+  `apps/mobile/firebase.json` turns off the SDK's own report of an uncaught JS
+  error, which would duplicate `captureError`'s and log an `app_exception`
+  analytics event outside the consent gate. Known limit: Hermes JS stacks
+  arrive minified (no source-map upload); native stacks symbolicate on Android
+  through the Gradle plugin's mapping upload. iOS dSYMs are not uploaded yet.
 
 - **Compliance is structural, not per-call.** The server-side `log.*` chokepoint
   (`functions/src/shared/observability.ts`) auto-hashes `user.id` (HMAC-SHA256 +
@@ -88,5 +104,5 @@ why.
   `gcloud-cultuvilla` skill).
 - **Alerting is manual for now:** enable Cloud Error Reporting + an email
   notification per env; alerts-as-code is deferred until real traffic.
-- **Native transition** adds a Crashlytics `captureError` adapter and switches
-  Analytics to the native SDK — no port or screen changes.
+- **Native transition** added a Crashlytics backend to the `captureError`
+  adapter and switched Analytics to the native SDK — no port or screen changes.
