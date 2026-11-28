@@ -242,6 +242,7 @@
   "group-events": "unit-tested: components/feature/groups/__tests__/GroupEvents.test.tsx",
   "group-events-create": "unit-tested: components/feature/groups/__tests__/GroupEvents.test.tsx",
   "group-events-filter": "unit-tested: components/feature/groups/__tests__/GroupEvents.test.tsx",
+  "group-home-avisos": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
   "group-home-cuota": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
   "group-home-events": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
   "group-home-task-*": "unit-tested: app/(tabs)/__tests__/grupos.test.tsx",
