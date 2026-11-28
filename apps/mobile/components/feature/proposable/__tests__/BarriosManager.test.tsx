@@ -6,14 +6,22 @@ import { uploadBarrioImage } from '@cultuvilla/shared/services/imageService';
 import { pickImageAsBlob } from '../../../../lib/images';
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
 
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  newBarrioId: jest.fn().mockReturnValue('new-id'),
-  createBarrio: jest.fn().mockResolvedValue('new-id'),
-  updateBarrio: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadBarrioImage: jest.fn().mockResolvedValue('https://example.com/barrio.jpg'),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>('@cultuvilla/shared/services/municipalityService', () => ({
+      newBarrioId: () => 'new-id',
+      createBarrio: async () => 'new-id',
+      updateBarrio: async () => undefined,
+    })),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>('@cultuvilla/shared/services/imageService', () => ({
+      uploadBarrioImage: async () => 'https://example.com/barrio.jpg',
+    })),
+);
 jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({ useEntityCapabilities: jest.fn() }));

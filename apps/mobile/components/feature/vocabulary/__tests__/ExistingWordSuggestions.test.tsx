@@ -2,9 +2,11 @@ import { render, waitFor, act, fireEvent } from '@testing-library/react-native';
 import { ExistingWordSuggestions } from '../ExistingWordSuggestions';
 import { searchVocabularyWords } from '@cultuvilla/shared/services/vocabularyService';
 
-jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
-  searchVocabularyWords: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/vocabularyService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/vocabularyService')>('@cultuvilla/shared/services/vocabularyService'),
+);
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 
 const mockSearch = searchVocabularyWords as jest.Mock;

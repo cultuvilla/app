@@ -19,28 +19,48 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchGroupMessages: mockWatcher('messages'),
-    watchGroupMessageDeliveries: mockWatcher('deliveries'),
-    watchGroupMessageReads: mockWatcher('reads'),
-    watchGroupPollVotes: mockWatcher('votes'),
-    newGroupMessageId: () => 'Msg0000000001',
-    sendGroupMessage: jest.fn().mockResolvedValue({ messageId: 'Msg0000000001', recipientCount: 3, pushCount: 2, emailCount: 2, whatsappCount: 1 }),
-    setWhatsappSent: jest.fn().mockResolvedValue(undefined),
-  };
-});
-jest.mock('@cultuvilla/shared/services/cuotaService', () => ({
-  watchCuotaSettings: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('cuota'),
-}));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  watchEventsByOrganization: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('events'),
-}));
-jest.mock('@cultuvilla/shared/services/socioService', () => ({
-  watchOrgSocioPrivates: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('privates'),
-}));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({ getDeepLinkHost: () => 'cultuvilla.es' }));
+jest.mock('@cultuvilla/shared/services/groupMessageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupMessageService')>('@cultuvilla/shared/services/groupMessageService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchGroupMessages: mockWatcher('messages'),
+        watchGroupMessageDeliveries: mockWatcher('deliveries'),
+        watchGroupMessageReads: mockWatcher('reads'),
+        watchGroupPollVotes: mockWatcher('votes'),
+        newGroupMessageId: () => 'Msg0000000001',
+        sendGroupMessage: async () => ({ messageId: 'Msg0000000001', recipientCount: 3, pushCount: 2, emailCount: 2, whatsappCount: 1 }),
+        setWhatsappSent: async () => undefined,
+      };
+    }),
+);
+jest.mock('@cultuvilla/shared/services/cuotaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cuotaService')>('@cultuvilla/shared/services/cuotaService', () => ({
+      watchCuotaSettings: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('cuota'),
+    })),
+);
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>('@cultuvilla/shared/services/eventService', () => ({
+      watchEventsByOrganization: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('events'),
+    })),
+);
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>('@cultuvilla/shared/services/socioService', () => ({
+      watchOrgSocioPrivates: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('privates'),
+    })),
+);
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>('@cultuvilla/shared/services/deepLinkService', () => ({ getDeepLinkHost: () => 'cultuvilla.es' })),
+);
 
 const MESSAGE = {
   id: 'm1',

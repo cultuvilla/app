@@ -6,9 +6,13 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockGetOrganization = jest.fn();
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganization: (id: string) => mockGetOrganization(id),
-}));
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>('@cultuvilla/shared/services/organizationService', () => ({
+      getOrganization: (id: string) => mockGetOrganization(id),
+    })),
+);
 
 jest.mock('../LiveOwnerChip', () => ({
   LiveOwnerChip: ({

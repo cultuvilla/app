@@ -4,7 +4,7 @@ import { GroupCosateca } from '../cosateca/GroupCosateca';
 import { requestsToMe } from '../cosateca/useCosatecaRequests';
 
 const mockPush = jest.fn();
-const mockRespond = jest.fn((..._args: unknown[]) => Promise.resolve('accepted'));
+const mockRespond = jest.fn((..._args: unknown[]) => Promise.resolve('accepted' as const));
 const mockConfirm = jest.fn((_title: string, _body: string, onConfirm: () => void) => onConfirm());
 let mockCosas: unknown[] = [];
 let mockMine: unknown[] = [];
@@ -16,13 +16,13 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('expo-router', () => ({ router: { push: (href: unknown) => mockPush(href) } }));
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
-  watchCosaRequestsToMe: jest.fn(),
-  watchGroupCosaRequests: jest.fn(),
-  watchGroupCosas: jest.fn(),
-  watchMyCosaRequests: jest.fn(),
-  respondToCosaRequest: (...args: unknown[]) => mockRespond(...args),
-}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>('@cultuvilla/shared/services/cosatecaService', () => ({
+      respondToCosaRequest: (...args: unknown[]) => mockRespond(...args),
+    })),
+);
 jest.mock('../../../../lib/dialogs', () => ({
   showAlert: jest.fn(),
   showConfirm: (title: string, body: string, onConfirm: () => void) => mockConfirm(title, body, onConfirm),

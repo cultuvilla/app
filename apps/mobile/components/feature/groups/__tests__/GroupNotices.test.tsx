@@ -17,16 +17,20 @@ const mockValues = { nombre: null as string | null, numero: null as number | nul
 jest.mock('../../../../lib/orgs/useMyMessageValues', () => ({ useMyMessageValues: () => mockValues }));
 const mockMarkRead = jest.fn(() => Promise.resolve());
 const mockVote = jest.fn(() => Promise.resolve());
-jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchMyGroupMessages: mockWatcher('messages'),
-    watchMyGroupMessageReads: mockWatcher('reads'),
-    watchMyGroupPollVotes: mockWatcher('votes'),
-    markGroupMessageRead: (...a: unknown[]) => mockMarkRead(...(a as [])),
-    castGroupPollVote: (...a: unknown[]) => mockVote(...(a as [])),
-  };
-});
+jest.mock('@cultuvilla/shared/services/groupMessageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupMessageService')>('@cultuvilla/shared/services/groupMessageService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchMyGroupMessages: mockWatcher('messages'),
+        watchMyGroupMessageReads: mockWatcher('reads'),
+        watchMyGroupPollVotes: mockWatcher('votes'),
+        markGroupMessageRead: (...a: unknown[]) => mockMarkRead(...(a as [])),
+        castGroupPollVote: (...a: unknown[]) => mockVote(...(a as [])),
+      };
+    }),
+);
 
 const message = (id: string, over: Record<string, unknown> = {}) => ({
   id,

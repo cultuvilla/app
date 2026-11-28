@@ -9,9 +9,11 @@ jest.mock('../../../../lib/useMentionSources', () => ({
   useMentionSources: () => ({ candidates: [], loading: false }),
 }));
 jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadHistoryEntryImage: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>('@cultuvilla/shared/services/imageService'),
+);
 jest.mock('../../MentionTextInput', () => ({
   MentionTextInput: ({ value, onChange, testID }: {
     value: string;

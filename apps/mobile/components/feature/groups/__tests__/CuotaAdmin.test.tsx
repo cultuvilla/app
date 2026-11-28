@@ -29,22 +29,30 @@ jest.mock('../../../../lib/export/rosterWorkbook', () => ({
   XLSX_MIME: 'application/xlsx-test',
   buildRosterWorkbook: jest.fn().mockResolvedValue(new ArrayBuffer(1)),
 }));
-jest.mock('@cultuvilla/shared/services/cuotaService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchCuotaSettings: mockWatcher('settings'),
-    watchCuotaAssignments: mockWatcher('assignments'),
-    watchCuotaPeriodPayments: mockWatcher('payments'),
-    watchCuotaPeriodReminders: mockWatcher('reminders'),
-    saveCuotaSettings: jest.fn().mockResolvedValue(undefined),
-    setCuotaAssignment: jest.fn().mockResolvedValue(undefined),
-    recordCuotaPayment: jest.fn().mockResolvedValue('new'),
-    reverseCuotaPayment: jest.fn().mockResolvedValue(undefined),
-  };
-});
-jest.mock('@cultuvilla/shared/services/socioService', () => ({
-  watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
-}));
+jest.mock('@cultuvilla/shared/services/cuotaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cuotaService')>('@cultuvilla/shared/services/cuotaService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchCuotaSettings: mockWatcher('settings'),
+        watchCuotaAssignments: mockWatcher('assignments'),
+        watchCuotaPeriodPayments: mockWatcher('payments'),
+        watchCuotaPeriodReminders: mockWatcher('reminders'),
+        saveCuotaSettings: async () => undefined,
+        setCuotaAssignment: async () => undefined,
+        recordCuotaPayment: async () => 'new',
+        reverseCuotaPayment: async () => undefined,
+      };
+    }),
+);
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>('@cultuvilla/shared/services/socioService', () => ({
+      watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
+    })),
+);
 
 const TODAY = madridDayKey(new Date());
 const YEAR = TODAY.slice(0, 4);

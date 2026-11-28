@@ -15,16 +15,28 @@ jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: s
 jest.mock('../../../../lib/auth/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'u1', email: mockProfile.email }, profile: mockProfile, refreshProfile: jest.fn().mockResolvedValue(undefined) }),
 }));
-jest.mock('@cultuvilla/shared/services/socioService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchMySocios: mockWatcher('mySocios'),
-    watchSocioPrivate: mockWatcher('socioPrivate'),
-    saveSocioContactSharing: jest.fn().mockResolvedValue(undefined),
-  };
-});
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({ removeOrgMember: jest.fn().mockResolvedValue(undefined) }));
-jest.mock('@cultuvilla/shared/services/userService', () => ({ patchUserProfile: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>('@cultuvilla/shared/services/socioService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchMySocios: mockWatcher('mySocios'),
+        watchSocioPrivate: mockWatcher('socioPrivate'),
+        saveSocioContactSharing: async () => undefined,
+      };
+    }),
+);
+jest.mock('@cultuvilla/shared/services/orgMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>('@cultuvilla/shared/services/orgMemberService', () => ({ removeOrgMember: async () => undefined })),
+);
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>('@cultuvilla/shared/services/userService', () => ({ patchUserProfile: async () => undefined })),
+);
 
 function group(role: 'admin' | 'member', over: Record<string, unknown> = {}): MyGroup {
   return {

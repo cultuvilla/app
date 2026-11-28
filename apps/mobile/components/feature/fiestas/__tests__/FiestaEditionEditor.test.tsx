@@ -5,10 +5,14 @@ import { showConfirm } from '../../../../lib/dialogs';
 
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../../lib/dialogs', () => ({ showConfirm: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/fiestaEditionService', () => ({
-  saveFiestaEdition: jest.fn(() => Promise.resolve('m1_santiago_2026')),
-  deleteFiestaEdition: jest.fn(() => Promise.resolve()),
-}));
+jest.mock('@cultuvilla/shared/services/fiestaEditionService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/fiestaEditionService')>('@cultuvilla/shared/services/fiestaEditionService', () => ({
+      saveFiestaEdition: () => Promise.resolve('m1_santiago_2026'),
+      deleteFiestaEdition: () => Promise.resolve(),
+    })),
+);
 
 const santiago = { id: 'santiago', name: 'Santiago', month: 7 };
 function edition(startDay: string, endDay: string) {

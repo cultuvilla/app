@@ -19,26 +19,39 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({
-  addComment: jest.fn(),
-  deleteComment: jest.fn().mockResolvedValue(undefined),
-  getComments: jest.fn(),
-  getReplies: jest.fn(),
-  newCommentId: jest.fn(() => 'c-new'),
-}));
-jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
-  createContentReport: jest.fn().mockResolvedValue('rep-1'),
-}));
-jest.mock('@cultuvilla/shared/services/blockedUserService', () => ({
-  blockUser: jest.fn().mockResolvedValue(undefined),
-  getBlockedUserIds: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getPublicProfile: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>('@cultuvilla/shared/services/commentsService', () => ({
+      deleteComment: async () => undefined,
+      newCommentId: () => 'c-new',
+    })),
+);
+jest.mock('@cultuvilla/shared/services/contentReportService', () =>
+  jest
+    .requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/contentReportService')>('@cultuvilla/shared/services/contentReportService', () => ({
+      createContentReport: async () => 'rep-1',
+    })),
+);
+jest.mock('@cultuvilla/shared/services/blockedUserService', () =>
+  jest
+    .requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/blockedUserService')>('@cultuvilla/shared/services/blockedUserService', () => ({
+      blockUser: async () => undefined,
+      getBlockedUserIds: async () => [],
+    })),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>('@cultuvilla/shared/services/personService'),
+);
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>('@cultuvilla/shared/services/userService'),
+);
 let mockUser: { uid: string; email: string; displayName: string | null } | null = {
   uid: 'uid-1',
   email: 'a@b.test',

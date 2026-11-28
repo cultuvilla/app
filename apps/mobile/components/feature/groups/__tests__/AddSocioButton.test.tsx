@@ -10,19 +10,27 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  watchPersonsByCreator: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('persons'),
-}));
-jest.mock('@cultuvilla/shared/services/socioService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchOrgSocios: mockWatcher('socios'),
-    watchMySocios: mockWatcher('mySocios'),
-    addTypedSocio: jest.fn().mockResolvedValue('new'),
-    addPersonaSocio: jest.fn().mockResolvedValue('new'),
-    setSocioBaja: jest.fn().mockResolvedValue(undefined),
-  };
-});
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>('@cultuvilla/shared/services/personService', () => ({
+      watchPersonsByCreator: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('persons'),
+    })),
+);
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>('@cultuvilla/shared/services/socioService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchOrgSocios: mockWatcher('socios'),
+        watchMySocios: mockWatcher('mySocios'),
+        addTypedSocio: async () => 'new',
+        addPersonaSocio: async () => 'new',
+        setSocioBaja: async () => undefined,
+      };
+    }),
+);
 
 const kid = {
   id: 'kid', givenName: 'Lucía', middleNames: [], firstSurname: 'García', secondSurname: null, nickname: null,

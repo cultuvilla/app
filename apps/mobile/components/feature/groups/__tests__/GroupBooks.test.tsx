@@ -32,35 +32,55 @@ jest.mock('../../../../lib/export/rosterWorkbook', () => ({
   buildRosterWorkbook: jest.fn().mockResolvedValue(new ArrayBuffer(1)),
   buildWorkbook: jest.fn().mockResolvedValue(new ArrayBuffer(2)),
 }));
-jest.mock('@cultuvilla/shared/services/recordsService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchActas: mockWatcher('actas'),
-    watchSocioVisibleActas: mockWatcher('visibleActas'),
-    watchLedgerEntriesForYear: mockWatcher('ledger'),
-    watchAllLedgerEntries: mockWatcher('allLedger'),
-    createActa: jest.fn().mockResolvedValue('new'),
-    updateActa: jest.fn().mockResolvedValue(undefined),
-    deleteActa: jest.fn().mockResolvedValue(undefined),
-    recordLedgerEntry: jest.fn().mockResolvedValue('new'),
-    reverseLedgerEntry: jest.fn().mockResolvedValue(undefined),
-  };
-});
-jest.mock('@cultuvilla/shared/services/ledgerCategoryService', () => ({
-  watchLedgerCategories: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('ledgerCategories'),
-  createLedgerCategory: jest.fn().mockResolvedValue('new'),
-  renameLedgerCategory: jest.fn().mockResolvedValue(undefined),
-  deleteLedgerCategory: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/cuotaService', () => ({
-  watchCuotaPaymentsForYear: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('cuotaYear'),
-}));
-jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
-  watchOpenGroupTasks: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('tasks'),
-}));
-jest.mock('@cultuvilla/shared/services/socioService', () => ({
-  watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
-}));
+jest.mock('@cultuvilla/shared/services/recordsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/recordsService')>('@cultuvilla/shared/services/recordsService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchActas: mockWatcher('actas'),
+        watchSocioVisibleActas: mockWatcher('visibleActas'),
+        watchLedgerEntriesForYear: mockWatcher('ledger'),
+        watchAllLedgerEntries: mockWatcher('allLedger'),
+        createActa: async () => 'new',
+        updateActa: async () => undefined,
+        deleteActa: async () => undefined,
+        recordLedgerEntry: async () => 'new',
+        reverseLedgerEntry: async () => undefined,
+      };
+    }),
+);
+jest.mock('@cultuvilla/shared/services/ledgerCategoryService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/ledgerCategoryService')>('@cultuvilla/shared/services/ledgerCategoryService', () => ({
+      watchLedgerCategories: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('ledgerCategories'),
+      createLedgerCategory: async () => 'new',
+      renameLedgerCategory: async () => undefined,
+      deleteLedgerCategory: async () => undefined,
+    })),
+);
+jest.mock('@cultuvilla/shared/services/cuotaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cuotaService')>('@cultuvilla/shared/services/cuotaService', () => ({
+      watchCuotaPaymentsForYear: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('cuotaYear'),
+    })),
+);
+jest.mock('@cultuvilla/shared/services/groupTaskService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupTaskService')>('@cultuvilla/shared/services/groupTaskService', () => ({
+      watchOpenGroupTasks: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('tasks'),
+    })),
+);
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>('@cultuvilla/shared/services/socioService', () => ({
+      watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
+    })),
+);
 
 const YEAR = madridDayKey(new Date()).slice(0, 4);
 

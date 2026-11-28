@@ -9,26 +9,46 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 const mockSend = jest.fn((_input: unknown) => Promise.resolve('new1'));
 const mockDelete = jest.fn((..._a: unknown[]) => Promise.resolve());
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchCosaRequestChat: mockWatcher('chat'),
-    sendCosaRequestChatMessage: (input: unknown) => mockSend(input),
-    deleteCosaRequestChatMessage: (...a: unknown[]) => mockDelete(...a),
-  };
-});
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getPublicProfile: () => Promise.resolve({ displayName: 'Ana' }),
-}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>('@cultuvilla/shared/services/cosatecaService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchCosaRequestChat: mockWatcher('chat'),
+        sendCosaRequestChatMessage: (input: unknown) => mockSend(input),
+        deleteCosaRequestChatMessage: (...a: unknown[]) => mockDelete(...a),
+      };
+    }),
+);
+type MockUsers = typeof import('@cultuvilla/shared/services/userService');
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>('@cultuvilla/shared/services/userService', () => ({
+      getPublicProfile: () =>
+        Promise.resolve(
+          jest.requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule').partialOf<NonNullable<Awaited<ReturnType<MockUsers['getPublicProfile']>>>>({ displayName: 'Ana' }),
+        ),
+    })),
+);
 let mockBlocked: string[] = [];
-jest.mock('@cultuvilla/shared/services/blockedUserService', () => ({
-  getBlockedUserIds: () => Promise.resolve(mockBlocked),
-  blockUser: jest.fn(() => Promise.resolve()),
-}));
+jest.mock('@cultuvilla/shared/services/blockedUserService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/blockedUserService')>('@cultuvilla/shared/services/blockedUserService', () => ({
+      getBlockedUserIds: () => Promise.resolve(mockBlocked),
+      blockUser: () => Promise.resolve(),
+    })),
+);
 const mockReport = jest.fn((_input: unknown) => Promise.resolve('r1'));
-jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
-  createContentReport: (input: unknown) => mockReport(input),
-}));
+jest.mock('@cultuvilla/shared/services/contentReportService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/contentReportService')>('@cultuvilla/shared/services/contentReportService', () => ({
+      createContentReport: (input: unknown) => mockReport(input),
+    })),
+);
 jest.mock('../../../../lib/dialogs', () => ({
   showAlert: jest.fn(),
   showConfirm: (_title: string, _body: string, onConfirm: () => void) => onConfirm(),

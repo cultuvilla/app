@@ -12,12 +12,16 @@ jest.mock('../../../lib/dialogs', () => ({
   showConfirm: (_t: string, _m: string, onConfirm: () => void) => onConfirm(),
   showAlert: jest.fn(),
 }));
-jest.mock('@cultuvilla/shared/services/registrationService', () => ({
-  watchEventRegistrations: jest.fn(),
-  getRegistrationPrivate: jest.fn(),
-  cancelRegistration: jest.fn().mockResolvedValue(undefined),
-  setRegistrationPaid: jest.fn().mockResolvedValue(undefined),
-}));
+type MockRegistrations = typeof import('@cultuvilla/shared/services/registrationService');
+jest.mock('@cultuvilla/shared/services/registrationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/registrationService')>('@cultuvilla/shared/services/registrationService', () => ({
+      cancelRegistration: async () =>
+        jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule').partialOf<Awaited<ReturnType<MockRegistrations['cancelRegistration']>>>({}),
+      setRegistrationPaid: async () => undefined,
+    })),
+);
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockPush(...a) } }));

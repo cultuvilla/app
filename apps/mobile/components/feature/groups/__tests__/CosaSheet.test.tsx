@@ -12,12 +12,20 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
-  createCosa: jest.fn().mockResolvedValue('new'),
-  updateCosa: jest.fn().mockResolvedValue(undefined),
-  deleteCosa: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({ uploadCosaImage: jest.fn().mockResolvedValue('https://img/new.webp') }));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>('@cultuvilla/shared/services/cosatecaService', () => ({
+      createCosa: async () => 'new',
+      updateCosa: async () => undefined,
+      deleteCosa: async () => undefined,
+    })),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>('@cultuvilla/shared/services/imageService', () => ({ uploadCosaImage: async () => 'https://img/new.webp' })),
+);
 jest.mock('../../../../lib/images', () => {
   class CameraPermissionDeniedError extends Error {}
   return { pickImageAsBlob: jest.fn(), takePhotoAsBlob: jest.fn(), CameraPermissionDeniedError };
