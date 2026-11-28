@@ -6,9 +6,16 @@ jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockPush(
 
 type Emit = (rows: unknown[]) => void;
 const mockWatch = jest.fn();
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  watchEventsByOrganization: (...a: unknown[]) => mockWatch(...a),
-}));
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => ({
+        watchEventsByOrganization: (...a: unknown[]) => mockWatch(...a),
+      }),
+    ),
+);
 
 jest.mock('../../../lib/i18n', () => ({
   useT: () => ({ t: (key: string) => ({ 'organization.events': 'Eventos' })[key] ?? key }),

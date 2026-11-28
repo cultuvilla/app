@@ -29,12 +29,26 @@ jest.mock('../../../lib/auth/useAuth', () => ({
 jest.mock('../../../lib/auth/useIsAppAdmin', () => ({
   useIsAppAdmin: () => ({ isAppAdmin: false }),
 }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn().mockResolvedValue(null),
-}));
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        getPersonByUserId: jest.fn().mockResolvedValue(null),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        getUserMemberships: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
 
 describe('UserMenuModal menu actions', () => {
   beforeEach(() => jest.clearAllMocks());

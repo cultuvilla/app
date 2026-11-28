@@ -6,6 +6,9 @@ import type { VillageHomeState } from '../../../lib/useVillageHome';
 import { buildNewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 import { buildPlaceData } from '@cultuvilla/shared/models/municipality';
 import { buildOrganizationData, type OrganizationType } from '@cultuvilla/shared/models/organization';
+import type { RankedVillage } from '@cultuvilla/shared/models/municipality/VillageRankingDataModel';
+import type { VillageWrapped } from '@cultuvilla/shared/services/villageWrappedService';
+import { partialOf } from '../../../test/fakeModule';
 
 const mockRefreshProfile = jest.fn(async () => undefined);
 let mockUser: { uid: string } | null = { uid: 'u1' };
@@ -40,23 +43,49 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() } }));
-jest.mock('@cultuvilla/shared/services/mapsService', () => ({ staticMapUrl: jest.fn().mockReturnValue('https://maps.example.test/static') }));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getVillageViewLink: jest.fn().mockReturnValue('https://example.test'),
-}));
+jest.mock('@cultuvilla/shared/services/mapsService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/mapsService')>(
+      '@cultuvilla/shared/services/mapsService',
+      () => ({ staticMapUrl: jest.fn().mockReturnValue('https://maps.example.test/static') }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getVillageViewLink: jest.fn().mockReturnValue('https://example.test'),
+      }),
+    ),
+);
 const mockJoinVillage = jest.fn(async (..._a: unknown[]) => undefined);
 const mockEnsureVillageMembership = jest.fn(async (..._a: unknown[]) => undefined);
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  joinVillage: (...a: unknown[]) => mockJoinVillage(...a),
-  ensureVillageMembership: (...a: unknown[]) => mockEnsureVillageMembership(...a),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        joinVillage: (...a: unknown[]) => mockJoinVillage(...a),
+        ensureVillageMembership: (...a: unknown[]) => mockEnsureVillageMembership(...a),
+      }),
+    ),
+);
 // JoinVillageModal's barrio picker fetches approved barrios; none here, so the
 // picker hides itself and the modal shows only escudo + name + confirm.
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getBarrios: jest.fn().mockResolvedValue([]),
-  deletePlace: jest.fn(),
-  deleteBarrio: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getBarrios: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
 // The prompt's own behaviour is covered in WrappedPrompt.test; here only who gets it.
 jest.mock('../wrapped/WrappedPrompt', () => {
   const { Text } = jest.requireActual('react-native');
@@ -64,23 +93,44 @@ jest.mock('../wrapped/WrappedPrompt', () => {
 });
 // The fiestas card watches its own data; FiestasHomeCard's own tests cover it.
 jest.mock('../fiestas/FiestasHomeCard', () => ({ FiestasHomeCard: () => null }));
-const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as unknown[]);
-let mockRankedVillages: unknown[] = [];
-jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
-  watchRankedVillages: (next: (rows: unknown[]) => void) => {
-    next(mockRankedVillages);
-    return () => undefined;
-  },
-}));
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
-  watchVillageCosas: (_m: string, onNext: (rows: unknown[]) => void) => {
-    onNext([]);
-    return () => undefined;
-  },
-}));
-jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
-  getPublishedVillageWrapped: (...a: unknown[]) => mockGetPublishedVillageWrapped(...a),
-}));
+const mockGetPublishedVillageWrapped = jest.fn(async (..._a: unknown[]) => [] as VillageWrapped[]);
+let mockRankedVillages: RankedVillage[] = [];
+jest.mock('@cultuvilla/shared/services/villageRankingService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageRankingService')>(
+      '@cultuvilla/shared/services/villageRankingService',
+      () => ({
+        watchRankedVillages: (next) => {
+          next(mockRankedVillages);
+          return () => undefined;
+        },
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>(
+      '@cultuvilla/shared/services/cosatecaService',
+      () => ({
+        watchVillageCosas: (_m, onNext) => {
+          onNext([]);
+          return () => undefined;
+        },
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/villageWrappedService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageWrappedService')>(
+      '@cultuvilla/shared/services/villageWrappedService',
+      () => ({
+        getPublishedVillageWrapped: (...a) => mockGetPublishedVillageWrapped(...a),
+      }),
+    ),
+);
 // Real Spanish catalog so we can assert on the visible strings.
 jest.mock('../../../lib/i18n', () => {
   const { getMessages, translate } = jest.requireActual('@cultuvilla/i18n');
@@ -748,7 +798,9 @@ describe('VillageHomeBody — resumen de fiestas', () => {
   });
 
   it('shows the published resumen to everyone', async () => {
-    mockGetPublishedVillageWrapped.mockResolvedValueOnce([{ id: 'm1_2026', year: 2026, images: { cover: 'https://x/c.png' } }]);
+    mockGetPublishedVillageWrapped.mockResolvedValueOnce([
+      partialOf<VillageWrapped>({ id: 'm1_2026', year: 2026, images: { cover: 'https://x/c.png' } }),
+    ]);
     const { findByTestId } = render(<VillageHomeBody data={{ ...base, isMember: false }} reload={jest.fn()} />);
     fireEvent.press(await findByTestId('village-wrapped-strip'));
     expect(router.push).toHaveBeenCalledWith('/anaya/fiestas/2026');

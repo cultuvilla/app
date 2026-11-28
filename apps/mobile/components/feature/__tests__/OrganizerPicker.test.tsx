@@ -2,18 +2,34 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { OrganizerPicker } from '../OrganizerPicker';
 
 // --- service mocks -----------------------------------------------------------
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getVillageMembers: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getPublicProfile: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
-  getMunicipalityPeople: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganizationsByMunicipality: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+    ),
+);
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityPersonService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityPersonService')>(
+      '@cultuvilla/shared/services/municipalityPersonService',
+    ),
+);
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+    ),
+);
 
 import { getVillageMembers } from '@cultuvilla/shared/services/villageMemberService';
 import { getPublicProfile } from '@cultuvilla/shared/services/userService';

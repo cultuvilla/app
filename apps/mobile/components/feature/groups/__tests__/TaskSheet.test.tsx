@@ -14,10 +14,17 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
-  createGroupTask: jest.fn().mockResolvedValue('new'),
-  updateGroupTask: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupTaskService')>(
+      '@cultuvilla/shared/services/groupTaskService',
+      () => ({
+        createGroupTask: jest.fn().mockResolvedValue('new'),
+        updateGroupTask: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 
 const MEMBERS = [
   { uid: 'u-ana', name: 'Ana', role: 'member' as const, photoURL: null },

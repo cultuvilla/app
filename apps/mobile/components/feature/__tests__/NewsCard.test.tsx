@@ -7,9 +7,16 @@ jest.mock('../../../lib/i18n', () => ({
 }));
 
 // The card resolves its cover image through imageService; keep it deterministic.
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  newsImageDownloadURL: jest.fn(() => Promise.resolve('https://example.test/cover.jpg')),
-}));
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        newsImageDownloadURL: jest.fn(() => Promise.resolve('https://example.test/cover.jpg')),
+      }),
+    ),
+);
 
 const fixture: NewsLike = {
   id: 'n1',

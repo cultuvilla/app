@@ -3,9 +3,16 @@ import type { NewsBlock } from '@cultuvilla/shared/models/news/NewsPostDataModel
 import { NewsContentRenderer } from '../NewsContentRenderer';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  newsImageDownloadURL: jest.fn().mockResolvedValue(null),
-}));
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        newsImageDownloadURL: jest.fn().mockResolvedValue(null),
+      }),
+    ),
+);
 
 const text = (value: string, style: 'paragraph' | 'section' | 'subsection'): NewsBlock => ({
   type: 'text', text: value, mentions: [], links: [], marks: [], style,

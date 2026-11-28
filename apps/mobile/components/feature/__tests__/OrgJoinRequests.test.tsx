@@ -10,15 +10,29 @@ jest.mock('react-native-safe-area-context', () => ({
 
 const mockGetPending = jest.fn();
 const mockRespond = jest.fn();
-jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
-  getPendingOrgJoinRequests: (...a: unknown[]) => mockGetPending(...a),
-  respondToOrgJoinRequest: (...a: unknown[]) => mockRespond(...a),
-}));
+jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgJoinRequestService')>(
+      '@cultuvilla/shared/services/orgJoinRequestService',
+      () => ({
+        getPendingOrgJoinRequests: (...a: unknown[]) => mockGetPending(...a),
+        respondToOrgJoinRequest: (...a: unknown[]) => mockRespond(...a),
+      }),
+    ),
+);
 
 const mockGetPerson = jest.fn();
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: (...a: unknown[]) => mockGetPerson(...a),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        getPersonByUserId: (...a: unknown[]) => mockGetPerson(...a),
+      }),
+    ),
+);
 
 const mockShowAlert = jest.fn();
 jest.mock('../../../lib/dialogs', () => ({

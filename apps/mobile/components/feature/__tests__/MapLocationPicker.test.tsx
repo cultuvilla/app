@@ -33,10 +33,13 @@ jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
 }));
-jest.mock('@cultuvilla/shared/services/mapsService', () => ({
-  geocodeSearch: jest.fn(),
-  reverseGeocode: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/mapsService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/mapsService')>(
+      '@cultuvilla/shared/services/mapsService',
+    ),
+);
 jest.mock('../../../lib/i18n', () => ({
   useT: () => ({
     locale: 'es',

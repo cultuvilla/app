@@ -12,21 +12,42 @@ jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockPush(
 const mockGetVillageMembers = jest.fn();
 const mockSetVillageMemberRole = jest.fn();
 const mockTransferVillageAmbassador = jest.fn();
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getVillageMembers: (...a: unknown[]) => mockGetVillageMembers(...a),
-  setVillageMemberRole: (...a: unknown[]) => mockSetVillageMemberRole(...a),
-  transferVillageAmbassador: (...a: unknown[]) => mockTransferVillageAmbassador(...a),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        getVillageMembers: (...a: unknown[]) => mockGetVillageMembers(...a),
+        setVillageMemberRole: (...a: unknown[]) => mockSetVillageMemberRole(...a),
+        transferVillageAmbassador: (...a: unknown[]) => mockTransferVillageAmbassador(...a),
+      }),
+    ),
+);
 
 const mockGetMunicipalityPeople = jest.fn();
-jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
-  getMunicipalityPeople: (...a: unknown[]) => mockGetMunicipalityPeople(...a),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityPersonService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityPersonService')>(
+      '@cultuvilla/shared/services/municipalityPersonService',
+      () => ({
+        getMunicipalityPeople: (...a: unknown[]) => mockGetMunicipalityPeople(...a),
+      }),
+    ),
+);
 
 const mockGetMunicipality = jest.fn();
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: (...a: unknown[]) => mockGetMunicipality(...a),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getMunicipality: (...a: unknown[]) => mockGetMunicipality(...a),
+      }),
+    ),
+);
 
 const mockShowConfirm = jest.fn();
 jest.mock('../../../lib/dialogs', () => ({

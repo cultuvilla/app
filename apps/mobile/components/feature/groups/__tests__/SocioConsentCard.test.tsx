@@ -8,11 +8,18 @@ jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: s
 jest.mock('../../../../lib/auth/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'u1', email: 'ana@x.es' }, profile: { telephone: '600111222', email: 'ana@x.es' } }),
 }));
-jest.mock('@cultuvilla/shared/services/socioService', () => ({
-  watchMySocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('mySocios'),
-  watchSocioPrivate: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socioPrivate'),
-  saveSocioContactSharing: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>(
+      '@cultuvilla/shared/services/socioService',
+      () => ({
+        watchMySocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('mySocios'),
+        watchSocioPrivate: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socioPrivate'),
+        saveSocioContactSharing: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 
 const ownRow = { id: 's1', ...buildSocioData({ kind: 'member', displayName: 'Ana', uid: 'u1', createdBy: 'u1' }) };
 
