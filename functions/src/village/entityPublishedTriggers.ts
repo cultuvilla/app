@@ -10,6 +10,7 @@ import {
   villageEntityPublishedCopy,
   type BroadcastEntityKind,
 } from '@cultuvilla/shared/models';
+import { isOrgPrivateEvent } from '@cultuvilla/shared/policy';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
@@ -120,7 +121,7 @@ export const onEventPublished = defineDocumentTrigger('onEventPublished', { kind
   if (typeof series === 'object' && series !== null && (series as Record<string, unknown>)['index'] !== 0) return;
   // A private event is the group's business: rules hide it from the pueblo, so
   // announcing its title to the pueblo would defeat them.
-  if (typeof d['visibilityOrgId'] === 'string') return;
+  if (isOrgPrivateEvent(d)) return;
   const municipalityId = str(d, 'municipalityId');
   if (!municipalityId) return;
   await broadcastToVillage({

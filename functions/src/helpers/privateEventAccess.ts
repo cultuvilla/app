@@ -4,7 +4,7 @@ import { organizationMemberDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { isPrivateEvent } from '@cultuvilla/shared/models';
 import type { EventData } from '@cultuvilla/shared/models';
 
-type PrivacyFields = Pick<EventData, 'visibility' | 'visibilityOrgId' | 'organizerUserIds'>;
+type PrivacyFields = Pick<EventData, 'visibilityOrgId' | 'organizerUserIds'>;
 
 /**
  * Sign-up gate for an event restricted to one organization.

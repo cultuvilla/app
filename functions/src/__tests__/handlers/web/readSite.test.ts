@@ -48,7 +48,7 @@ async function seed(): Promise<void> {
     visibilityOrgId: null,
   };
   await d.doc('events/e1').set({ ...event, title: 'Verbena', description: 'Música y baile', status: 'published' });
-  await d.doc('events/e2').set({ ...event, title: 'Cena de la peña', status: 'published', visibility: 'private', visibilityOrgId: 'o1' });
+  await d.doc('events/e2').set({ ...event, title: 'Cena de la peña', status: 'published', visibility: 'organization', visibilityOrgId: 'o1' });
   await d.doc('events/e3').set({ ...event, title: 'Borrador secreto', status: 'draft' });
   const byPena = { ...event, organizerOrgIds: ['o1'] };
   await d.doc('events/e4').set({ ...byPena, title: 'Comida de la peña', status: 'completed', startDate: ts('2026-06-20T14:00:00Z'), endDate: null });

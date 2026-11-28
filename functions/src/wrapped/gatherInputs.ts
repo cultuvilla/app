@@ -2,7 +2,8 @@ import type { DocumentReference, Firestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions/v2';
 import { inRange, type CartelInput, type WrappedInputs } from '@cultuvilla/shared/wrapped';
-import { EventStatusSchema, RegistrationStatusSchema, isPrivateEvent, madridYear } from '@cultuvilla/shared/models';
+import { EventStatusSchema, RegistrationStatusSchema, madridYear } from '@cultuvilla/shared/models';
+import { isOrgPrivateEvent } from '@cultuvilla/shared/policy';
 import {
   eventRegistrationsCollection,
   eventsCollection,
@@ -163,8 +164,7 @@ export async function gatherWrappedInputs(
     // An org-private event is visible only to that org's members, and every
     // Wrapped card is a forwardable image. Dropped here, before registrations
     // are read, so it reaches neither a card nor a stat nor the people wall.
-    const visibility = e.visibility === 'organization' ? 'organization' : 'public';
-    if (isPrivateEvent({ visibility, visibilityOrgId: str(e.visibilityOrgId) })) return [];
+    if (isOrgPrivateEvent(e)) return [];
     return [
       {
         id: d.id,
