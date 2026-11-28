@@ -58,8 +58,11 @@ env:
             visible:
               id: 'login-submit'
           commands:
+            # The check and the tap are two steps: a button gone in between
+            # means the send went through, which the wait below confirms.
             - tapOn:
                 id: 'login-submit'
+                optional: true
       - extendedWaitUntil:
           visible:
             id: 'login-code-sent'
@@ -81,7 +84,10 @@ env:
 - tapOn:
     id: 'login-code-input'
 - inputText: ${output.otpCode}
-# Same keyboard caveat as the send button.
+# Same keyboard caveat as the send button. The loop's check and its tap are
+# two steps, and a slow verifyAuthOtpCode moved the screen to Explora between
+# them (ios-e2e 44826311824): a tap on a button already gone is the sign-in
+# succeeding, not the flow failing, so the destination below is what decides.
 - repeat:
     times: 3
     while:
@@ -90,6 +96,7 @@ env:
     commands:
       - tapOn:
           id: 'login-verify-code'
+          optional: true
       - waitForAnimationToEnd:
           timeout: 5000
 

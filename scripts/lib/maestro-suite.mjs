@@ -13,6 +13,7 @@ import { mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { emulatorTargets, restoreSnapshot, takeSnapshot } from './emulator-snapshot.mjs';
+import { callablesToWarm, readFlowCallables, warmCallables } from './warm-callables.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const SUITE_DIR = path.join(ROOT, 'apps', 'mobile', 'e2e', 'native');
@@ -122,6 +123,8 @@ export function run(label, cmd, args, opts = {}) {
  * emulator data the first attempt started from (scripts/lib/emulator-snapshot.mjs),
  * never from what the failed attempt left; without the emulators to restore,
  * there is no retry.
+ * Before the first flow, the callables the planned flows wait on are warmed
+ * (scripts/lib/warm-callables.mjs), so a worker boot never lands in a UI wait.
  * `beforeEachFlow` runs before every flow: platform-specific state that
  * Maestro's `clearState` does not reach. Leftover backend docs are reset for
  * every platform here.
@@ -145,6 +148,13 @@ export async function runMaestroSuite({
     console.warn(`\n[${label}] !! QUARANTINED, NOT RUN: ${name}`);
     console.warn(`[${label}]    ${quarantined.get(name)}`);
   }
+
+  await warmCallables({
+    label,
+    names: callablesToWarm(flows, readFlowCallables(SUITE_DIR)),
+    host: process.env.FIREBASE_FUNCTIONS_EMULATOR_HOST,
+    project: process.env.E2E_FIREBASE_PROJECT || process.env.GCLOUD_PROJECT || 'cultuvilla-test',
+  });
 
   const failed = [];
   const flaky = [];
