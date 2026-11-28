@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { Text as RNText, Linking } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { router } from 'expo-router';
 import { Text } from '../primitives';
 import type { TextProps } from '../primitives/Text';
@@ -45,7 +46,7 @@ export function RichText({ text, mentions, links = [], marks = [], villageSlug, 
       const navigable = mentionIsNavigable(mention);
       const pres = markPresentation(run.marks, true);
       return (
-        <RNText
+        <RNText {...TEXT_SCALING.body}
           key={i}
           className={`${LINK_CLASS} ${pres.className}`}
           style={pres.style}
@@ -59,7 +60,7 @@ export function RichText({ text, mentions, links = [], marks = [], villageSlug, 
     if (url && isSafeHttpUrl(url)) {
       const pres = markPresentation(run.marks, true);
       return (
-        <RNText
+        <RNText {...TEXT_SCALING.body}
           key={i}
           className={`${LINK_CLASS} ${pres.className}`}
           style={pres.style}
@@ -72,7 +73,7 @@ export function RichText({ text, mentions, links = [], marks = [], villageSlug, 
     if (run.marks?.length) {
       const pres = markPresentation(run.marks, false);
       return (
-        <RNText key={i} className={pres.className} style={pres.style}>
+        <RNText {...TEXT_SCALING.body} key={i} className={pres.className} style={pres.style}>
           {run.text}
         </RNText>
       );

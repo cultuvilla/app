@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, TextInput, View } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, elevation } from '@cultuvilla/shared/design-system';
 import { geocodeSearch, type GeocodePlace } from '@cultuvilla/shared/services/mapsService';
@@ -131,7 +132,7 @@ export function AddressSearchBar({
   return (
     <View style={styles.container} testID="address-search-bar">
       <View style={styles.inputContainer}>
-        <TextInput
+        <TextInput {...TEXT_SCALING.body}
           ref={inputRef}
           style={styles.input}
           placeholder={placeholder}

@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { Pressable as RNPressable, Text as RNText, View } from 'react-native';
 import { a11y, colors, typography } from '@cultuvilla/shared/design-system';
-import {
-  fitLabel,
-  MAX_LABEL_FONT_MULTIPLIER,
-  MIN_LABEL_SCALE,
-} from '../../lib/text/fitFontSize';
+import { fitLabel, MIN_LABEL_SCALE } from '../../lib/text/fitFontSize';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 
 const ACCENT = colors.light.fg.accent;
 const HORIZONTAL_PADDING = 12;
@@ -105,7 +102,7 @@ export function ActionPill({
           wide, it wraps instead of ellipsizing («Inicia sesión para uni…»). */}
       <RNText
         numberOfLines={fitsOneLine && fontSize === base ? 1 : undefined}
-        maxFontSizeMultiplier={MAX_LABEL_FONT_MULTIPLIER}
+        {...TEXT_SCALING.label}
         className="font-semibold text-center"
         style={{ color: ACCENT, fontSize, lineHeight: typography.body.lineHeight, opacity: measured ? 1 : 0 }}
       >
@@ -128,7 +125,7 @@ export function ActionPill({
       >
         <RNText
           numberOfLines={1}
-          maxFontSizeMultiplier={MAX_LABEL_FONT_MULTIPLIER}
+          {...TEXT_SCALING.label}
           className="font-semibold"
           style={{ alignSelf: 'flex-start', fontSize: base }}
           onLayout={(e) => setNaturalWidth(e.nativeEvent.layout.width)}

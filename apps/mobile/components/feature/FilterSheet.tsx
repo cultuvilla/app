@@ -9,6 +9,7 @@ import {
   Dimensions,
   StyleSheet,
 } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from '../primitives/Pressable';
@@ -129,7 +130,7 @@ export function FilterSheet({
           {searchable ? (
             <View className="flex-row items-center mx-4 mt-3 px-3 rounded-md border border-subtle bg-surface">
               <Ionicons name="search-outline" size={18} color={colors.light.fg.faint} />
-              <TextInput
+              <TextInput {...TEXT_SCALING.body}
                 testID={testID ? `${testID}-search` : undefined}
                 value={search}
                 onChangeText={setSearch}

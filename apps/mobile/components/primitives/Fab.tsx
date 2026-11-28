@@ -1,4 +1,5 @@
 import { Animated, Pressable, Text } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { colors, elevation } from '@cultuvilla/shared/design-system';
 
 export type FabProps = {
@@ -60,8 +61,8 @@ export function Fab({ onPress, label, testID, opacity = 1, interactive = true }:
           shadowOffset: { width: 0, height: 3 },
         }}
       >
-        <Text style={{ color: colors.light.fg['on-accent'], fontSize: 22, lineHeight: 24, marginRight: 8 }}>+</Text>
-        <Text style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>{label}</Text>
+        <Text {...TEXT_SCALING.label} style={{ color: colors.light.fg['on-accent'], fontSize: 22, lineHeight: 24, marginRight: 8 }}>+</Text>
+        <Text {...TEXT_SCALING.label} style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>{label}</Text>
       </Pressable>
     </Animated.View>
   );

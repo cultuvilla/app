@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { Pressable } from '../primitives/Pressable';
 import { Text } from '../primitives/Text';
 import { VStack } from '../primitives/VStack';
@@ -92,7 +93,7 @@ export function PhoneField({
           </HStack>
         </Pressable>
         <View className={`flex-1 flex-row items-center border rounded-md px-3 py-2 bg-surface ${borderClass}`}>
-          <TextInput
+          <TextInput {...TEXT_SCALING.body}
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
@@ -108,7 +109,7 @@ export function PhoneField({
       {pickerOpen && (
         <VStack gap={1} className="border border-subtle rounded-md bg-surface p-1">
           <View className="flex-row items-center border border-subtle rounded-md px-3 py-2 bg-surface">
-            <TextInput
+            <TextInput {...TEXT_SCALING.body}
               value={query}
               onChangeText={setQuery}
               placeholder={searchPlaceholder}

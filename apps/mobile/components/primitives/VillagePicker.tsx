@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { colors } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, FlatList, Modal, TextInput, View, StyleSheet } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -111,7 +112,7 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
       )}
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <SafeAreaView style={styles.modal} edges={['top', 'bottom']}>
-          <TextInput
+          <TextInput {...TEXT_SCALING.body}
             placeholder="Buscar pueblo"
             value={filter}
             onChangeText={setFilter}

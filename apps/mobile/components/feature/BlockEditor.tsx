@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Image, Text as RNText, TextInput, View } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { HStack, Pressable, Text, VStack } from '../primitives';
@@ -372,7 +373,7 @@ function HeadingBlock({
               testID={testID ? `${testID}-${level}` : undefined}
               className={`rounded-full border px-3 py-1 ${selected ? 'border-accent bg-surface-elevated' : 'border-subtle'}`}
             >
-              <RNText className={`text-caption ${selected ? 'text-accent' : 'text-muted'}`}>
+              <RNText {...TEXT_SCALING.body} className={`text-caption ${selected ? 'text-accent' : 'text-muted'}`}>
                 {t(`news.compose.block.${level}`)}
               </RNText>
             </Pressable>
@@ -385,7 +386,7 @@ function HeadingBlock({
           testID={testID ? `${testID}-to-text` : undefined}
           className="rounded-full border border-subtle px-3 py-1"
         >
-          <RNText className="text-caption text-muted">{t('news.compose.block.paragraph')}</RNText>
+          <RNText {...TEXT_SCALING.body} className="text-caption text-muted">{t('news.compose.block.paragraph')}</RNText>
         </Pressable>
         <View className="flex-1" />
         <Pressable
@@ -399,7 +400,7 @@ function HeadingBlock({
           <Ionicons name="close" size={iconSizes.md} color={MUTED} />
         </Pressable>
       </HStack>
-      <TextInput
+      <TextInput {...TEXT_SCALING.body}
         value={block.text}
         onChangeText={onText}
         placeholder={placeholder}

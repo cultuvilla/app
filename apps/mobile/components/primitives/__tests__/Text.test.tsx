@@ -1,5 +1,6 @@
 import { render } from '@testing-library/react-native';
 import { Text } from '../Text';
+import { MAX_FONT_SIZE_MULTIPLIER } from '../../../lib/text/textScaling';
 
 describe('<Text>', () => {
   it('renders with default body variant', () => {
@@ -26,5 +27,21 @@ describe('<Text>', () => {
   it('applies danger tone class', () => {
     const { getByText } = render(<Text tone="danger">error</Text>);
     expect(getByText('error').props.className).toMatch(/text-danger/);
+  });
+
+  it('caps the OS font scale at 1.5× by default', () => {
+    const { getByText } = render(<Text>Fiestas</Text>);
+    expect(getByText('Fiestas').props.maxFontSizeMultiplier).toBe(MAX_FONT_SIZE_MULTIPLIER);
+  });
+
+  it('applies the scaling preset it is given', () => {
+    const { getByText } = render(
+      <>
+        <Text scaling="label">Unirme</Text>
+        <Text scaling="fixed">AP</Text>
+      </>,
+    );
+    expect(getByText('Unirme').props.maxFontSizeMultiplier).toBe(1.3);
+    expect(getByText('AP').props.maxFontSizeMultiplier).toBe(1);
   });
 });

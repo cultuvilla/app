@@ -13,6 +13,7 @@ import {
   type NativeSyntheticEvent,
   type NativeScrollEvent,
 } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '../../components/primitives/Screen';
@@ -392,7 +393,7 @@ export default function FeedScreen() {
           }}
         >
           <Ionicons name="search" size={15} color={ACCENT} />
-          <TextInput
+          <TextInput {...TEXT_SCALING.body}
             autoFocus
             testID="filter-search-input"
             value={search}
