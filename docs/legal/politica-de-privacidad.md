@@ -150,8 +150,9 @@ art. 28 RGPD:
   (incluido el inicio de sesión con Google), base de datos (Firestore), almacenamiento de
   archivos (Storage), funciones de servidor (Cloud Functions), alojamiento web (Hosting),
   notificaciones push en Android (Firebase Cloud Messaging) y registro de errores (Cloud
-  Logging). La base de datos se ubica en la Unión Europea (Madrid); el almacenamiento de
-  archivos y parte de las funciones de servidor, en Estados Unidos (ver el apartado 6).
+  Logging y Firebase Crashlytics). La base de datos se ubica en la Unión Europea (Madrid);
+  el almacenamiento de archivos y parte de las funciones de servidor, en Estados Unidos
+  (ver el apartado 6).
 - **Google Analytics for Firebase** (mismo proveedor): estadísticas de uso de la
   Aplicación.
 - **Apple** (Apple Distribution International Ltd., Irlanda): inicio de sesión con Apple y

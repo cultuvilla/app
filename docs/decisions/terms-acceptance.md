@@ -25,9 +25,11 @@ lawful basis, and — in practice — a captured acceptance. Auth is passwordles
   `termsAcceptedAt` to a server timestamp, so the onboarding screen passes only
   `termsVersion` — the service-layer boundary stays intact (no `serverTimestamp`
   re-export needed).
-- **Future processors are disclosed up front.** The Privacy Policy names Google
-  Analytics for Firebase + Crashlytics as processors even though they aren't wired
-  yet, so adding them later doesn't force a version bump + re-prompt.
+- **Processors are named in the Privacy Policy.** Google Analytics for Firebase was
+  disclosed up front, before it was wired, so adding it didn't force a version bump +
+  re-prompt; it now ships. Firebase Crashlytics is named under §5's error logging
+  since 2026-11-28, when native crash reporting shipped — a clarification of the
+  error logging already disclosed, so Álvaro decided no version bump or re-acceptance.
 - **The legal text lives in the repo as one content module** (`packages/shared/src/legal/`),
   transcribed verbatim from `docs/legal/*.md`, rendered by one `LegalDocScreen`
   consumed by `/legal/terms`, `/legal/privacy`, and the user-menu Legal entries.
@@ -57,6 +59,6 @@ lawful basis, and — in practice — a captured acceptance. Auth is passwordles
 
 - The terms change substantively → bump `CURRENT_TERMS_VERSION` and build the
   re-acceptance gate (out of scope for v1.0: whole-app re-prompt vs next-login).
-- The data controller formalizes into a company, or analytics/Crashlytics actually
-  ship → update the Privacy Policy text (and the postal address placeholder, if the
-  home address is replaced).
+- The data controller formalizes into a company, or a new processor ships → update
+  the Privacy Policy text (and the postal address placeholder, if the home address is
+  replaced).
