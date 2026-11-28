@@ -24,6 +24,7 @@ import {
   wrappedId,
   type WrappedCard,
 } from '@cultuvilla/shared/models';
+import { isOrgPrivateEvent, isPublicDoc, isPubliclyListed, PUBLIC_STATUS } from '@cultuvilla/shared/policy';
 import { arr, bool, date, num, obj, str, strArr, type Raw } from './read';
 import type { RichTextInput } from './richText';
 import { msg } from './copy';
@@ -32,7 +33,10 @@ import { msg } from './copy';
  * Everything the read site reads, and the single place that decides what an
  * anonymous visitor may see. Each loader re-applies the visibility the app's
  * rules and screens apply — `status`, private events, approved orgs — because
- * the Admin SDK bypasses firestore.rules entirely.
+ * the Admin SDK bypasses firestore.rules entirely. The answers come from
+ * `@cultuvilla/shared/policy` (`isPublicDoc`, `isPubliclyListed`,
+ * `isOrgPrivateEvent`, `PUBLIC_STATUS`), never a status or pointer check
+ * written here.
  *
  * Queries copy the app's own shapes exactly, so they ride indexes that already
  * exist; a new shape would put `firestore.indexes.json` into this change.
@@ -196,13 +200,13 @@ export interface EventView {
   cancelled: boolean;
   /** Org-only event: the page withholds everything but the fact it exists. */
   private: boolean;
+  /** The org it is private to, as stored; null when public. */
+  visibilityOrgId: string | null;
   municipalityId: string | null;
   /** The weekly series this occurrence belongs to, or null when standalone. */
   seriesId: string | null;
 }
 
-const VISIBLE_EVENT_STATUSES: readonly string[] = [...LISTED_EVENT_STATUSES, 'cancelled'];
-const isListedStatus = (status: string | null) => LISTED_EVENT_STATUSES.some((s) => s === status);
 
 function toEvent(id: string, d: Raw): EventView {
   return {
@@ -214,7 +218,8 @@ function toEvent(id: string, d: Raw): EventView {
     locationName: str(obj(d['location'])?.['displayName']),
     imageUrl: str(d['imageURL']) ?? str(d['villageCoverImage']),
     cancelled: d['status'] === 'cancelled',
-    private: d['visibility'] === 'private' || str(d['visibilityOrgId']) !== null,
+    private: isOrgPrivateEvent(d),
+    visibilityOrgId: isOrgPrivateEvent(d) ? String(d['visibilityOrgId']) : null,
     municipalityId: str(d['municipalityId']),
     seriesId: str(obj(d['series'])?.['id']),
   };
@@ -225,7 +230,7 @@ export async function loadEvent(db: Firestore, id: string): Promise<EventView | 
   const snap = await db.collection('events').doc(id).get();
   if (!snap.exists) return null;
   const d = snap.data() ?? {};
-  if (!VISIBLE_EVENT_STATUSES.includes(String(d['status']))) return null;
+  if (!isPublicDoc('event', d)) return null;
   return toEvent(snap.id, d);
 }
 
@@ -314,7 +319,7 @@ function toNews(id: string, d: Raw, bucket: string): NewsView {
 export async function loadNews(db: Firestore, bucket: string, id: string): Promise<NewsView | null> {
   // typed-refs: allowed — converter-less read; see the header of data.ts.
   const snap = await db.collection('news').doc(id).get();
-  if (!snap.exists || snap.get('status') !== 'active') return null;
+  if (!snap.exists || !isPublicDoc('news', snap.data() ?? {})) return null;
   return toNews(snap.id, snap.data() ?? {}, bucket);
 }
 
@@ -355,7 +360,7 @@ export async function loadOrg(db: Firestore, id: string): Promise<OrgView | null
   // typed-refs: allowed — converter-less read; see the header of data.ts.
   const snap = await db.collection('organizations').doc(id).get();
   // Pending and rejected orgs are readable by id in the app; the web shows only approved ones.
-  if (!snap.exists || snap.get('status') !== 'approved') return null;
+  if (!snap.exists || !isPublicDoc('organization', snap.data() ?? {})) return null;
   return toOrg(snap.id, snap.data() ?? {});
 }
 
@@ -415,6 +420,8 @@ function toBarrio(id: string, d: Raw): BarrioView {
   };
 }
 
+const SUB_KIND = { places: 'place', barrios: 'barrio' } as const;
+
 async function loadActiveSubdoc<T>(
   db: Firestore,
   municipalityId: string,
@@ -425,7 +432,7 @@ async function loadActiveSubdoc<T>(
   // typed-refs: allowed — converter-less read; see the header of data.ts.
   const snap = await db.collection('municipalities').doc(municipalityId).collection(collection).doc(id).get();
   // Readable by anyone in the rules, so the status gate is ours to apply.
-  if (!snap.exists || snap.get('status') !== 'active') return null;
+  if (!snap.exists || !isPublicDoc(SUB_KIND[collection], snap.data() ?? {})) return null;
   return map(snap.id, snap.data() ?? {});
 }
 
@@ -467,7 +474,7 @@ function toPoster(id: string, d: Raw): PosterView {
 export async function loadPoster(db: Firestore, id: string): Promise<PosterView | null> {
   // typed-refs: allowed — converter-less read; see the header of data.ts.
   const snap = await db.collection('festivalPosters').doc(id).get();
-  if (!snap.exists || snap.get('status') !== 'active') return null;
+  if (!snap.exists || !isPublicDoc('festivalPoster', snap.data() ?? {})) return null;
   return toPoster(snap.id, snap.data() ?? {});
 }
 
@@ -533,7 +540,7 @@ function toHistory(id: string, d: Raw): HistoryView {
 export async function loadHistoryEntry(db: Firestore, id: string): Promise<HistoryView | null> {
   // typed-refs: allowed — converter-less read; see the header of data.ts.
   const snap = await db.collection('historyEntries').doc(id).get();
-  if (!snap.exists || snap.get('status') !== 'active') return null;
+  if (!snap.exists || !isPublicDoc('historyEntry', snap.data() ?? {})) return null;
   return toHistory(snap.id, snap.data() ?? {});
 }
 
@@ -563,7 +570,7 @@ export async function loadTerm(
 ): Promise<{ term: TermView; definitions: DefinitionView[] } | null> {
   // typed-refs: allowed — converter-less read; see the header of data.ts.
   const snap = await db.collection('vocabularyTerms').doc(`${municipalityId}__${slug}`).get();
-  if (!snap.exists || snap.get('status') !== 'active') return null;
+  if (!snap.exists || !isPublicDoc('vocabularyTerm', snap.data() ?? {})) return null;
   return { term: toTerm(snap.id, snap.data() ?? {}), definitions: await loadDefinitions(db, snap.id) };
 }
 
@@ -571,7 +578,7 @@ async function loadDefinitions(db: Firestore, termId: string): Promise<Definitio
   const snap = await db
     .collection('vocabularyDefinitions')
     .where('termId', '==', termId)
-    .where('status', '==', 'active')
+    .where('status', '==', PUBLIC_STATUS.vocabularyDefinition)
     .orderBy('createdAt', 'asc')
     .get();
   return snap.docs.flatMap((doc) => {
@@ -598,7 +605,7 @@ export interface WrappedView {
 export async function loadWrapped(db: Firestore, municipalityId: string, year: number): Promise<WrappedView | null> {
   // typed-refs: allowed — converter-less read; see the header of data.ts.
   const snap = await db.collection('villageWrapped').doc(wrappedId(municipalityId, year)).get();
-  if (!snap.exists || snap.get('status') !== 'published') return null;
+  if (!snap.exists || !isPublicDoc('wrapped', snap.data() ?? {})) return null;
   const images = obj(snap.get('images')) ?? {};
   const stats = obj(snap.get('stats')) ?? {};
   const cards = WRAPPED_CARDS.flatMap((card) => {
@@ -662,13 +669,13 @@ export async function loadFiestaProgramme(db: Firestore, municipalityId: string,
         .where('visibility', '==', 'public')
         .orderBy('startDate', 'asc')
         .get();
-      const listed = events.docs.filter((d) => isListedStatus(str(d.get('status')))).map((d) => toEvent(d.id, d.data()));
+      const listed = events.docs.filter((d) => isPubliclyListed('event', d.data())).map((d) => toEvent(d.id, d.data()));
       return { name, startDay, endDay, days: programmeDays(listed) };
     }),
   );
   const named = editions.filter((e): e is ProgrammeEditionView => e !== null);
   if (named.length === 0) return null;
-  const posters = await byMunicipality(db, 'festivalPosters', municipalityId).where('status', '==', 'active').orderBy('year', 'desc').get();
+  const posters = await byMunicipality(db, 'festivalPosters', municipalityId).where('status', '==', PUBLIC_STATUS.festivalPoster).orderBy('year', 'desc').get();
   const poster = posters.docs.map((d) => toPoster(d.id, d.data())).find((p) => p.year === year && p.images.length > 0);
   return { year, editions: named, posterUrl: poster?.images[0] ?? null };
 }
@@ -707,14 +714,14 @@ export async function loadOrgEventCards(db: Firestore, orgId: string, villageSlu
     .orderBy('startDate', 'asc')
     .get();
   const events = snap.docs
-    .filter((d) => isListedStatus(str(d.get('status'))))
+    .filter((d) => isPubliclyListed('event', d.data()))
     .map((d) => toEvent(d.id, d.data()));
   return inListOrder(events, now).slice(0, HOME_LIMIT).map((e) => eventCard(e, villageSlug));
 }
 
 async function listNews(db: Firestore, bucket: string, m: string, limit: number): Promise<NewsView[]> {
   const snap = await byMunicipality(db, 'news', m)
-    .where('status', '==', 'active')
+    .where('status', '==', PUBLIC_STATUS.news)
     .orderBy('publishedAt', 'desc')
     .limit(limit)
     .get();
@@ -722,12 +729,12 @@ async function listNews(db: Firestore, bucket: string, m: string, limit: number)
 }
 
 async function listPosters(db: Firestore, m: string): Promise<PosterView[]> {
-  const snap = await byMunicipality(db, 'festivalPosters', m).where('status', '==', 'active').orderBy('year', 'desc').get();
+  const snap = await byMunicipality(db, 'festivalPosters', m).where('status', '==', PUBLIC_STATUS.festivalPoster).orderBy('year', 'desc').get();
   return snap.docs.map((d) => toPoster(d.id, d.data()));
 }
 
 async function listOrgs(db: Firestore, m: string): Promise<OrgView[]> {
-  const snap = await byMunicipality(db, 'organizations', m).where('status', '==', 'approved').orderBy('name', 'asc').get();
+  const snap = await byMunicipality(db, 'organizations', m).where('status', '==', PUBLIC_STATUS.organization).orderBy('name', 'asc').get();
   return snap.docs.map((d) => toOrg(d.id, d.data())).sort((a, b) => (b.memberCount ?? 0) - (a.memberCount ?? 0));
 }
 
@@ -736,19 +743,19 @@ async function listSub<T>(db: Firestore, m: string, collection: 'places' | 'barr
     .collection('municipalities')
     .doc(m)
     .collection(collection)
-    .where('status', '==', 'active')
+    .where('status', '==', PUBLIC_STATUS[SUB_KIND[collection]])
     .orderBy('name', 'asc')
     .get();
   return snap.docs.map((d) => map(d.id, d.data()));
 }
 
 async function listHistory(db: Firestore, m: string): Promise<HistoryView[]> {
-  const snap = await byMunicipality(db, 'historyEntries', m).where('status', '==', 'active').orderBy('sortKey', 'desc').get();
+  const snap = await byMunicipality(db, 'historyEntries', m).where('status', '==', PUBLIC_STATUS.historyEntry).orderBy('sortKey', 'desc').get();
   return snap.docs.map((d) => toHistory(d.id, d.data()));
 }
 
 async function listTerms(db: Firestore, m: string): Promise<TermView[]> {
-  const snap = await byMunicipality(db, 'vocabularyTerms', m).where('status', '==', 'active').orderBy('normalized', 'asc').get();
+  const snap = await byMunicipality(db, 'vocabularyTerms', m).where('status', '==', PUBLIC_STATUS.vocabularyTerm).orderBy('normalized', 'asc').get();
   return snap.docs.map((d) => toTerm(d.id, d.data()));
 }
 

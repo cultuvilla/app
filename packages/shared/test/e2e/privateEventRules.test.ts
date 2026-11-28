@@ -17,6 +17,8 @@ import {
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
 import { asAdmin, asAnon, asUser, seed } from '../helpers/roles';
+import { EVENT_VISIBILITY_SHAPES } from '../helpers/eventVisibilityShapes';
+import { isOrgPrivateEvent } from '../../src/policy';
 
 const getEnv = useRulesTestEnv();
 const M = 'm1';
@@ -137,6 +139,25 @@ describe('firestore.rules — private event reads', () => {
 
   it('a missing event reads as absent rather than denied', async () => {
     await assertSucceeds(getDoc(doc(asAnon(getEnv()), 'events/nope')));
+  });
+});
+
+// The Admin-SDK readers (read site, sitemap, Wrapped, broadcasts) answer with
+// `isOrgPrivateEvent` instead of the rules. Every raw shape, including those
+// the rules refuse on write, must get the same answer from both.
+describe('firestore.rules — isOrgPrivateEvent parity', () => {
+  EVENT_VISIBILITY_SHAPES.forEach((shape, i) => {
+    it(`${shape.name}: anon and a non-member read it iff the predicate calls it public`, async () => {
+      const base = eventPayload('organizer') as Record<string, unknown>;
+      delete base['visibility'];
+      delete base['visibilityOrgId'];
+      await seed(getEnv(), async (ctx) => {
+        await setDoc(doc(ctx.firestore(), `events/shape${String(i)}`), { ...base, ...shape.raw });
+      });
+      const expectRead = isOrgPrivateEvent(shape.raw) ? assertFails : assertSucceeds;
+      await expectRead(getDoc(doc(asAnon(getEnv()), `events/shape${String(i)}`)));
+      await expectRead(getDoc(doc(asUser(getEnv(), 'outsider'), `events/shape${String(i)}`)));
+    });
   });
 });
 

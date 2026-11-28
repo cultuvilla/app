@@ -1,3 +1,5 @@
+import { isOrgPrivateEvent } from '../policy/eventPrivacy';
+
 /**
  * The shape of every public Cultuvilla URL. Pure — no Expo, no Firebase — so the
  * mobile app, the Cloud Functions (share previews, sitemap, emails) and vitest
@@ -373,7 +375,7 @@ export function eventLinkTarget(event: {
 }): EntityLinkTarget {
   return {
     id: event.id,
-    title: event.visibilityOrgId ? 'evento privado' : event.title,
+    title: isOrgPrivateEvent(event) ? 'evento privado' : event.title,
     villageSlug: event.villageSlug,
   };
 }

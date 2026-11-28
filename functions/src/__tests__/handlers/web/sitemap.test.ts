@@ -34,6 +34,34 @@ describe('sitemap', () => {
     expect(xml).not.toContain('_n2');
   });
 
+  it('lists a public published event, and leaves out private, past-tail and non-published ones', async () => {
+    const db = admin.firestore();
+    const at = (daysAgo: number) => admin.firestore.Timestamp.fromDate(new Date(Date.now() - daysAgo * 86_400_000));
+    const base = { villageSlug: 'matabuena', visibility: 'public', visibilityOrgId: null, endBoundary: at(1) };
+    await db.doc('events/e1').set({ ...base, title: 'Verbena', status: 'published' });
+    await db.doc('events/e2').set({ ...base, title: 'Cena secreta', status: 'published', visibility: 'organization', visibilityOrgId: 'o1' });
+    // A shape the rules refuse: the pointer still makes it private.
+    await db.doc('events/e3').set({ ...base, title: 'Cena oculta', status: 'published', visibilityOrgId: 'o1' });
+    await db.doc('events/e4').set({ ...base, title: 'Fiestas de antaño', status: 'published', endBoundary: at(400) });
+    await db.doc('events/e5').set({ ...base, title: 'Borrador', status: 'draft' });
+    await db.doc('events/e6').set({ ...base, title: 'Merienda', status: 'cancelled' });
+    // Narrower than the read site on purpose, until listing completed events is decided.
+    await db.doc('events/e7').set({ ...base, title: 'Romería', status: 'completed' });
+    const xml = await fetchSitemap();
+    expect(xml).toContain('/matabuena/evento/verbena_e1');
+    for (const id of ['e2', 'e3', 'e4', 'e5', 'e6', 'e7']) expect(xml).not.toContain(`_${id}<`);
+    expect(xml).not.toMatch(/secreta|oculta/i);
+  });
+
+  it('lists approved organizations only', async () => {
+    const createdAt = admin.firestore.Timestamp.now();
+    await admin.firestore().doc('organizations/o1').set({ name: 'La Peña', villageSlug: 'matabuena', status: 'approved', createdAt });
+    await admin.firestore().doc('organizations/o2').set({ name: 'Pendiente', villageSlug: 'matabuena', status: 'pending', createdAt });
+    const xml = await fetchSitemap();
+    expect(xml).toContain('_o1<');
+    expect(xml).not.toContain('_o2<');
+  });
+
   it('lists the home, the /pueblos directory and the /embajadores page', async () => {
     const xml = await fetchSitemap();
     expect(xml).toMatch(/<loc>https?:\/\/[^<]+\/<\/loc>/);

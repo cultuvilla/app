@@ -125,7 +125,7 @@ async function entity(
       const e = await loadEvent(db, route.id);
       const v = await villageOf(deps, e?.municipalityId ?? null);
       if (!e || !v) return notFound(path);
-      const wanted = entityPath('event', eventLinkTarget({ id: e.id, title: e.title, villageSlug: v.slug, visibilityOrgId: e.private ? 'private' : null }));
+      const wanted = entityPath('event', eventLinkTarget({ id: e.id, title: e.title, villageSlug: v.slug, visibilityOrgId: e.visibilityOrgId }));
       return canonical(path, wanted, () => eventPage(v, e, wanted));
     }
     case 'news': {

@@ -15,6 +15,7 @@ function ev(id: string, start: string, seriesId: string | null = null, end: stri
     imageUrl: null,
     cancelled: false,
     private: false,
+    visibilityOrgId: null,
     municipalityId: 'm',
     seriesId,
   };

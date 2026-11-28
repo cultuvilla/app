@@ -1,5 +1,6 @@
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
+import { isOrgPrivateEvent, isPubliclyListed } from '@cultuvilla/shared/policy';
 import { entityPath, villagePath, webOriginForProject } from '@cultuvilla/shared/utils';
 import { buildSitemapXml, toLastmod, toDate, type SitemapUrl } from './urls';
 import { defineHttpFunction } from '../shared/define/defineHttpFunction';
@@ -74,7 +75,11 @@ async function collectUrls(origin: string): Promise<Fetched> {
   for (const doc of events.docs) {
     // Private events are noindex'd by the renderer; listing them would only
     // spend crawl budget to reach a page that refuses to say anything.
-    if (doc.get('visibilityOrgId')) continue;
+    if (isOrgPrivateEvent(doc.data())) continue;
+    // Narrower than `isPubliclyListed('event', …)`: `completeExpiredEvents`
+    // flips an event to `completed` within the hour after it ends, so this
+    // gate drops it then and EVENT_TAIL_DAYS never applies. Listing completed
+    // events hands search engines more URLs, which is a product call.
     if (doc.get('status') !== 'published') continue;
     const boundary = toDate(doc.get('endBoundary'));
     if (boundary && boundary < cutoff) continue;
@@ -98,7 +103,7 @@ async function collectUrls(origin: string): Promise<Fetched> {
   let newsCount = 0;
   for (const doc of news.docs) {
     // Hidden posts stay readable to members, and the read site 404s them.
-    if (doc.get('status') !== 'active') continue;
+    if (!isPubliclyListed('news', doc.data())) continue;
     const villageSlug = stringField(doc.get('villageSlug'));
     if (!villageSlug) continue;
     newsCount += 1;
@@ -118,7 +123,7 @@ async function collectUrls(origin: string): Promise<Fetched> {
     .get();
   let orgCount = 0;
   for (const doc of orgs.docs) {
-    if (doc.get('status') !== 'approved') continue;
+    if (!isPubliclyListed('organization', doc.data())) continue;
     const villageSlug = stringField(doc.get('villageSlug'));
     if (!villageSlug) continue;
     const path = entityPath('organization', {
