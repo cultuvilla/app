@@ -2,6 +2,10 @@
 
 **Priority:** medium — production-release.yml took 5 fixes within two hours of landing (2026-10-06), four of them to the shell in `plan`/`backend`, and its tests can only check the order of strings in that shell
 
+**Landed:** none
+**Gate:** none
+**Next:** move production-release.yml's store/Android/OTA decision shell into a table-tested scripts/production-release-plan.mjs
+
 **Goal:** move the "what ships" decision and the "is the prod backend green, and held?" reading out of `production-release.yml` into a pure, unit-tested `scripts/production-release-plan.mjs`, the shape `auto-promote-main.mjs` and `decideBackendHold` already use, so a wrong store/OTA/Android decision fails a test instead of a release.
 
 ## Context

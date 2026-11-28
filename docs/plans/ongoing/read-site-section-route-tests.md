@@ -2,6 +2,10 @@
 
 **Priority:** low — `functions/src/web/data.ts` is hot (17 commits, 5 fixes in a year), but no fix landed on the routes this covers; it closes the last routes nothing renders against Firestore
 
+**Landed:** none
+**Gate:** none
+**Next:** add functions/src/__tests__/handlers/web/readSiteSections.test.ts covering the six section routes, detail pages and pueblo scoping
+
 **Goal:** every public read-site route renders at least once against the emulator in `readSite.test.ts`'s style: one public doc it must show, plus one hidden doc and one doc from another pueblo it must not show. A wrong field name, status gate or `municipalityId` scope in a loader then fails CI instead of quietly rendering an empty or leaky page.
 
 ## Context

@@ -2,6 +2,10 @@
 
 **Priority:** medium — `firestore.rules` is the repo's top hotspot (67 commits and 13 fixes in a year). The suite is thorough, but nothing stops a new `allow` from shipping untested, and 13 do today.
 
+**Landed:** none
+**Gate:** none
+**Next:** collect the emulator rule-coverage report per test file, add the ratchet check, and write the 13 missing tests
+
 **Goal:** `pnpm test:rules` (and CI's `pnpm test`) reads the Firestore emulator's own rule coverage report and fails when an `allow` condition has never been checked both ways (granting and refusing) and is not on a shrink-only list. A new match block then ships with both an allow test and a deny test, or with a reason it can't have them.
 
 ## Context
