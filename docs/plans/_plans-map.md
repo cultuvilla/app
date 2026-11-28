@@ -17,9 +17,17 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [emulator-job-hangs](ongoing/emulator-job-hangs.md) | high | none | this cycle | read the cancelled runs' logs to find which suite was still running at the cutoff, reproduce it locally under `pnpm test`, and make the hung step fail fast with its name instead of hanging |
 | [firebase-error-code-lint](ongoing/firebase-error-code-lint.md) | high | dev | this cycle \* | step 3: a fakeModule helper in apps/mobile/test/ and a lint rule against new hand-written service jest.mock factories, existing ones allowlisted behind a ratchet (#788 shipped the fix and the error-code rule, #793 the jest guards) |
 | [single-react-version](ongoing/single-react-version.md) | high | none | this cycle | find what resolves react@19.1.0 next to the declared 19.2.3, pin one version (pnpm override or peer fix), and prove the native fingerprint is unchanged |
+| [crashlytics-native-crashes](ongoing/crashlytics-native-crashes.md) | medium | none | this cycle | add the Crashlytics native module behind captureError, update Play data-safety and App Store privacy docs in the repo; native, so it ships with the next store build |
+| [github-security-alerts](ongoing/github-security-alerts.md) | medium | none | this cycle | triage Dependabot alerts runtime-first, critical first, landing each update on a green full gate; fold in Dependabot PRs #774 and #762 |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
+| [orphaned-session-guard](ongoing/orphaned-session-guard.md) | medium | none | this cycle | detect a deleted or disabled account on launch and sign the device out with a short notice; draft the copy and send it to the leader for Álvaro before landing |
+| [persona-delete-cancels-registrations](ongoing/persona-delete-cancels-registrations.md) | medium | none | this cycle | make persona deletion cancel each upcoming registration through the normal cancel path (seats and waitlists move), with tests |
 | [production-release-decisions-script](ongoing/production-release-decisions-script.md) | medium | none | this cycle | move production-release.yml's store/Android/OTA decision shell into a table-tested scripts/production-release-plan.mjs |
+| [public-visibility-predicate](ongoing/public-visibility-predicate.md) | medium | dev | this cycle \* | switch the sitemap event gate to the shared predicate's completed-event rule (Álvaro said go 2026-11-28) |
+| [remember-the-update-wall](ongoing/remember-the-update-wall.md) | medium | none | this cycle | cache the last minSupported on device and block from it at cold start before the network answers |
 | [rules-coverage-ratchet](ongoing/rules-coverage-ratchet.md) | medium | none | this cycle | collect the emulator rule-coverage report per test file, add the ratchet check, and write the 13 missing tests |
+| [bounded-text-scaling](ongoing/bounded-text-scaling.md) | low | none | this cycle | cap the font multiplier at 1.5 through a preset on the Text primitive, with tests |
+| [data-stores-in-env-parity](ongoing/data-stores-in-env-parity.md) | low | dev | this cycle \* | grant roles/bigquery.metadataViewer to gha-deployer in dev, beta and prod (Álvaro said go 2026-11-28), record it in infra/env-parity.json, and add BigQuery datasets to the dataStores check |
 | [mobile-copy-literal-guard](ongoing/mobile-copy-literal-guard.md) | low | none | this cycle | add the jest AST scan for hard-coded visible copy and move the 14 strays into es.json with the same wording |
 | [organization-type-single-source](ongoing/organization-type-single-source.md) | low | none | this cycle | add the parity test for the rules and backfill type lists, then the display helpers in OrganizationDataModel.ts |
 | [read-site-section-route-tests](ongoing/read-site-section-route-tests.md) | low | none | this cycle | add functions/src/__tests__/handlers/web/readSiteSections.test.ts covering the six section routes, detail pages and pueblo scoping |
@@ -81,10 +89,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 ## Waiting on you
 
-| Plan | Pri | Landed | Advanced | Waiting on | Next |
-|---|---|---|---|---|---|
-| [public-visibility-predicate](ongoing/public-visibility-predicate.md) | medium | dev | this cycle | widen the sitemap from published to completed events too, handing search engines past-event URLs (Álvaro) | on a yes, switch the sitemap event gate to the shared predicate's completed-event rule (#799 kept 'published') |
-| [data-stores-in-env-parity](ongoing/data-stores-in-env-parity.md) | low | dev | this cycle | grant roles/bigquery.metadataViewer to gha-deployer in all three envs so the check can see BigQuery (prod holds the GA4 export dataset analytics_546204987) | on a yes, grant the role in dev, beta and prod, record it in infra/env-parity.json, and add BigQuery datasets to the dataStores check; #782 shipped the rest (dev deploy 46044439593 green) |
+_None._
 
 ## Blocked
 
@@ -108,6 +113,7 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
+| `0893f091` | 2026-11-28 | 8 | docs(plans): record Álvaro's go on eight Cultuvilla decisions |
 | `1232469f` | 2026-11-28 | 7 | docs(plans): record the overnight landings, retire functions-test-casts |
 | `4d20fd2e` | 2026-11-27 | 14 | docs(plans): approve the first Órdago harvest batch and the Cloud Run gateways |
 | `e7e588fa` | 2026-11-21 | 5 | docs(plans): start madrid-day cutoff, raw-hex tokens and mobile lint gate; gate e2e ideas on #722 |
