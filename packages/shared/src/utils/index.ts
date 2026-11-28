@@ -23,10 +23,13 @@ export {
 export { buildGoogleCalendarUrl, type CalendarEventInput } from './calendar';
 export { compareVersions } from './semver';
 export {
+  isBehindRememberedWall,
   resolveVersionGate,
   shouldPromptUpdate,
   UPDATE_PROMPT_COOLDOWN_DAYS,
+  wallToRemember,
   type GateDecision,
+  type RememberedWall,
   type UpdatePromptRecord,
 } from './versionGate';
 export { maxBirthdayForAge, isAtLeastYearsOld } from './age';
