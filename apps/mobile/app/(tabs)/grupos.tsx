@@ -13,7 +13,7 @@ import { formatDate } from '@cultuvilla/shared/utils';
 import { Escudo, HStack, Pressable, Screen, ScreenTitle, Text, VStack } from '../../components/primitives';
 import { StatsRow } from '../../components/feature/StatsRow';
 import { EntityCard, Section, SectionHeader } from '../../components/feature/VillageSections';
-import { NoticeCard, RowPlaceholder, TaskCard } from '../../components/feature/groups/GroupHomeCards';
+import { NoticeCard, TaskCard } from '../../components/feature/groups/GroupHomeCards';
 import { taskHolders } from '@cultuvilla/shared/models/organization';
 import { startOfMadridYear } from '../../lib/orgs/taskBoard';
 import { useMemberFaces } from '../../lib/orgs/useOrgMembers';
@@ -169,6 +169,10 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
     cosateca: cosateca.toca.length,
   };
   const newAvisos = notices.unreadCount + chat.unreadAvisoIds.size;
+  // A row shows only with something in it; the buttons below are the way in otherwise (2026-11-28, Álvaro).
+  const showAvisos = roster && notices.notices.length > 0;
+  // Held back while the avisos load, so their button does not flash before the row arrives.
+  const avisosRowShown: GroupSection[] = showAvisos || (roster && notices.status === 'loading') ? ['avisos'] : [];
   const open = (section: GroupSection) => router.push(groupSectionHref(org.id, section));
 
   return (
@@ -228,30 +232,25 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
         />
       </View>
 
-      {/* Avisos are what the junta needs everyone to read: the first row. These rows stay with nothing to show: each is the way into its screen. */}
-      {roster ? (
+      {/* Avisos are what the junta needs everyone to read: the first row. */}
+      {showAvisos ? (
         <Section
           title={newAvisos > 0 ? t('groups.home.avisosWithNew', { count: newAvisos }) : t('groups.sections.avisos')}
+          testID="group-home-avisos"
           isEmpty={false}
-          status={notices.status === 'loading' ? 'loading' : 'ready'}
+          status="ready"
           actionLabel={t('village.home.seeAll')}
           onManage={() => open('avisos')}
         >
-          {notices.notices.length === 0 ? (
-            <RowPlaceholder text={t(notices.status === 'error' ? 'groups.chat.loadError' : 'groups.sections.empty.avisos')} onPress={() => open('avisos')} />
-          ) : (
-            // A card opens the avisos screen, not the aviso's chat: there the poll is answered and the chat is one tap away (decided 2026-11-21).
-            notices.notices.slice(0, 5).map((m) => (
-              <NoticeCard
-                key={m.id}
-                message={personalizeGroupMessage(m, myValues)}
-                unread={
-                  (notices.readsStatus === 'ready' && !notices.readIds.has(m.id) && m.sentBy !== uid) || chat.unreadAvisoIds.has(m.id)
-                }
-                onPress={() => open('avisos')}
-              />
-            ))
-          )}
+          {/* A card opens the avisos screen, not the aviso's chat: there the poll is answered and the chat is one tap away (decided 2026-11-21). */}
+          {notices.notices.slice(0, 5).map((m) => (
+            <NoticeCard
+              key={m.id}
+              message={personalizeGroupMessage(m, myValues)}
+              unread={(notices.readsStatus === 'ready' && !notices.readIds.has(m.id) && m.sentBy !== uid) || chat.unreadAvisoIds.has(m.id)}
+              onPress={() => open('avisos')}
+            />
+          ))}
         </Section>
       ) : null}
 
@@ -259,42 +258,40 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
         {roster ? <SocioConsentCard orgId={org.id} requirement={org} /> : null}
       </VStack>
 
-      <Section
-        title={t('groups.sections.eventos')}
-        testID="group-home-events"
-        isEmpty={false}
-        status={events.status}
-        actionLabel={t('village.home.seeAll')}
-        onManage={() => open('eventos')}
-        data={eventRows.length > 0 ? eventRows : undefined}
-        keyExtractor={(e) => e.id}
-        renderItem={({ item: e }) => (
-          <EntityCard
-            label={e.title}
-            sub={formatDate(e.startDate, 'short')}
-            icon="calendar-outline"
-            imageUri={e.imageURL ?? e.villageCoverImage}
-            statBadge={{ icon: 'person-outline', count: e.confirmedCount, spoken: 'attendees' }}
-            progressBadge={taskBadge(e.id)}
-            onPress={() => router.push(groupEventHref(org.id, e.id))}
-          />
-        )}
-      >
-        <RowPlaceholder text={t('groups.sections.empty.eventos')} onPress={() => open('eventos')} />
-      </Section>
+      {eventRows.length > 0 ? (
+        <Section
+          title={t('groups.sections.eventos')}
+          testID="group-home-events"
+          isEmpty={false}
+          status="ready"
+          actionLabel={t('village.home.seeAll')}
+          onManage={() => open('eventos')}
+          data={eventRows}
+          keyExtractor={(e) => e.id}
+          renderItem={({ item: e }) => (
+            <EntityCard
+              label={e.title}
+              sub={formatDate(e.startDate, 'short')}
+              icon="calendar-outline"
+              imageUri={e.imageURL ?? e.villageCoverImage}
+              statBadge={{ icon: 'person-outline', count: e.confirmedCount, spoken: 'attendees' }}
+              progressBadge={taskBadge(e.id)}
+              onPress={() => router.push(groupEventHref(org.id, e.id))}
+            />
+          )}
+        />
+      ) : null}
 
-      <Section
-        title={t('groups.sections.tareas')}
-        testID="group-home-tasks"
-        isEmpty={false}
-        status={openTasks.status}
-        actionLabel={t('village.home.seeAll')}
-        onManage={() => open('tareas')}
-      >
-        {upcomingTasks.length === 0 ? (
-          <RowPlaceholder text={t('groups.tasks.noOpen')} onPress={() => open('tareas')} />
-        ) : (
-          upcomingTasks.map((task) => (
+      {upcomingTasks.length > 0 ? (
+        <Section
+          title={t('groups.sections.tareas')}
+          testID="group-home-tasks"
+          isEmpty={false}
+          status="ready"
+          actionLabel={t('village.home.seeAll')}
+          onManage={() => open('tareas')}
+        >
+          {upcomingTasks.map((task) => (
             <TaskCard
               key={task.id}
               task={task}
@@ -302,9 +299,9 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
               faces={faces}
               onPress={() => router.push(groupTaskHref(org.id, task.id))}
             />
-          ))
-        )}
-      </Section>
+          ))}
+        </Section>
+      ) : null}
 
       {/* One list for everyone; an admin's extra buttons follow, in their own colour. */}
       <VStack gap={3} className="pt-4" testID="group-actions">
@@ -312,7 +309,7 @@ function GroupHome({ group, uid, onSwitch }: { group: MyGroup; uid: string; onSw
         <View className="px-4">
           {/* The banner below is the way into the cuota, so it needs no button of its own. */}
           <GroupSectionGrid
-            sections={homeButtons(cuotaBanner ? member.filter((s) => s !== 'cuota') : member)}
+            sections={homeButtons(cuotaBanner ? member.filter((s) => s !== 'cuota') : member, avisosRowShown)}
             adminSections={admin}
             badges={badges}
             onOpen={open}

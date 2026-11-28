@@ -70,14 +70,15 @@ export function groupSections({ org, role }: MyGroup): GroupSectionLists {
 }
 
 /**
- * Opened from its row's "Ver todos" on the group's home, so it needs no button there.
- * Eventos and tareas have rows too, but also a button: Álvaro wanted every
- * section in the button grid (2026-11-20).
+ * Opened from its row's "Ver todos" on the group's home, so it needs no button
+ * there while that row shows. Eventos and tareas have rows too, but also a
+ * button: Álvaro wanted every section in the button grid (2026-11-20).
  */
 const SECTIONS_WITH_A_ROW: readonly GroupSection[] = ['avisos'];
 
-export function homeButtons(sections: GroupSection[]): GroupSection[] {
-  return sections.filter((s) => !SECTIONS_WITH_A_ROW.includes(s));
+/** `rowsShown`: the home's rows on screen now; an empty row is hidden (2026-11-28, Álvaro), and its button comes back. */
+export function homeButtons(sections: GroupSection[], rowsShown: readonly GroupSection[]): GroupSection[] {
+  return sections.filter((s) => !(SECTIONS_WITH_A_ROW.includes(s) && rowsShown.includes(s)));
 }
 
 export function canOpenGroupSection(group: MyGroup, section: GroupSection): boolean {

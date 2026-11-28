@@ -57,10 +57,15 @@ describe('groupSections', () => {
     });
   });
 
-  it('leaves the home without a button for the avisos its row opens, though they still open', () => {
+  it('leaves the home without a button for the avisos while their row shows, though they still open', () => {
     const { member } = groupSections(group());
-    expect(homeButtons(member)).toEqual(['charla', 'eventos', 'tareas', 'cuota', 'actas', 'socios']);
+    expect(homeButtons(member, ['avisos'])).toEqual(['charla', 'eventos', 'tareas', 'cuota', 'actas', 'socios']);
     expect(canOpenGroupSection(group(), 'avisos')).toBe(true);
+  });
+
+  it('gives the avisos their button back when their row is hidden', () => {
+    const { member } = groupSections(group());
+    expect(homeButtons(member, [])).toContain('avisos');
   });
 
   it('gives a socio Cuentas only while the junta makes the accounts public', () => {
@@ -93,7 +98,7 @@ describe('groupSections', () => {
     expect(canOpenGroupSection(group(), 'cosateca')).toBe(false);
     const on = group({ type: 'ayuntamiento', cosateca: { enabled: true, audience: 'pueblo' } });
     expect(groupSections(on).member).toEqual(['charla', 'eventos', 'tareas', 'cosateca']);
-    expect(homeButtons(groupSections(on).member)).toContain('cosateca');
+    expect(homeButtons(groupSections(on).member, ['avisos'])).toContain('cosateca');
     expect(GROUP_SECTION_ICONS.cosateca).toBe('cube-outline');
   });
 });

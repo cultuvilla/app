@@ -12,7 +12,6 @@ import { useT } from '../../../lib/i18n';
 // Set here so these cards never depend on how their `flex-1` children measure
 // inside a horizontal ScrollView. Room for a three-line title and the date.
 const NOTICE_CARD_HEIGHT = 110;
-const PLACEHOLDER_MIN_HEIGHT = 96;
 
 /** A notice in the group home's Avisos row: its title and the day it was
  * sent, never the text (decided 2026-11-19, user), cut to one box so every
@@ -43,19 +42,6 @@ export function NoticeCard({ message, unread = false, onPress }: { message: Grou
             {formatDate(message.sentAt, 'dayMonthShort')}
           </Text>
         </VStack>
-      </Card>
-    </Pressable>
-  );
-}
-
-/** Keeps a row of the group's home in place when it has nothing to show. */
-export function RowPlaceholder({ text, onPress }: { text: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={{ width: 260, minHeight: PLACEHOLDER_MIN_HEIGHT }}>
-      <Card className="flex-1">
-        <Text variant="bodySm" tone="muted">
-          {text}
-        </Text>
       </Card>
     </Pressable>
   );

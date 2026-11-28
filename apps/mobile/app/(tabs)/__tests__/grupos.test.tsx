@@ -175,6 +175,7 @@ describe('Grupos tab', () => {
 
   it('has no button for the avisos its row opens, and counts the new avisos in their row', async () => {
     mockGroups = [group('Anduela')];
+    mockNotices = [{ id: 'a1', title: 'Cena', body: '', pinned: false, signerName: 'La junta', sentAt: new Date(), sentBy: 'x' }];
     mockUnread = 2;
     const { findByTestId, queryByTestId, getByText } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
@@ -183,13 +184,15 @@ describe('Grupos tab', () => {
     expect(getByText(/groups\.home\.avisosWithNew/)).toBeTruthy();
   });
 
-  it('keeps the event and task rows with nothing to show, each opening its screen', async () => {
+  it('hides the event and task rows with nothing to show; their buttons still open them', async () => {
     mockGroups = [group('Anduela')];
-    const { findByTestId, getByText } = render(<GroupsTabScreen />);
+    const { findByTestId, queryByTestId, getByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-home');
-    fireEvent.press(getByText('groups.sections.empty.eventos'));
+    expect(queryByTestId('group-home-events')).toBeNull();
+    expect(queryByTestId('group-home-tasks')).toBeNull();
+    fireEvent.press(getByTestId('group-section-eventos'));
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/eventos');
-    fireEvent.press(getByText('groups.tasks.noOpen'));
+    fireEvent.press(getByTestId('group-section-tareas'));
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/tareas');
   });
 
@@ -221,22 +224,19 @@ describe('Grupos tab', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/tarea/soon');
   });
 
-  it('keeps the Avisos row with nothing to show, and when the read fails', async () => {
+  it('hides the Avisos row with nothing to show, or when the read fails, and gives Avisos its button back', async () => {
     mockGroups = [group('Anduela')];
-    const { findByText, unmount } = render(<GroupsTabScreen />);
-    expect(await findByText('groups.sections.empty.avisos')).toBeTruthy();
+    const { findByTestId, queryByTestId, getByTestId, unmount } = render(<GroupsTabScreen />);
+    await findByTestId('group-home');
+    expect(queryByTestId('group-home-avisos')).toBeNull();
+    fireEvent.press(getByTestId('group-section-avisos'));
+    expect(mockPush).toHaveBeenLastCalledWith('/grupos/Anduela/avisos');
     unmount();
     mockNoticesStatus = 'error';
-    expect(await render(<GroupsTabScreen />).findByText('groups.chat.loadError')).toBeTruthy();
-  });
-
-  it('keeps the Avisos row with nothing to show, and when the read fails', async () => {
-    mockGroups = [group('Anduela')];
-    const { findByText, unmount } = render(<GroupsTabScreen />);
-    expect(await findByText('groups.sections.empty.avisos')).toBeTruthy();
-    unmount();
-    mockNoticesStatus = 'error';
-    expect(await render(<GroupsTabScreen />).findByText('groups.chat.loadError')).toBeTruthy();
+    const failed = render(<GroupsTabScreen />);
+    await failed.findByTestId('group-home');
+    expect(failed.queryByTestId('group-home-avisos')).toBeNull();
+    expect(failed.getByTestId('group-section-avisos')).toBeTruthy();
   });
 
   it('shows only upcoming events under Próximos eventos', async () => {
@@ -319,7 +319,7 @@ describe('Grupos tab', () => {
     const { findByTestId, getByTestId, getAllByTestId } = render(<GroupsTabScreen />);
     await findByTestId('group-actions');
     const order = getAllByTestId(/^group-section-[a-z-]+$/).map((el) => String(el.props.testID).replace('group-section-', ''));
-    expect(order).toEqual(['charla', 'eventos', 'tareas', 'cuota', 'actas', 'cuentas', 'socios', 'cobros', 'mensajes', 'ajustes']);
+    expect(order).toEqual(['avisos', 'charla', 'eventos', 'tareas', 'cuota', 'actas', 'cuentas', 'socios', 'cobros', 'mensajes', 'ajustes']);
     expect(getByTestId('group-section-cobros').props.accessibilityHint).toBe('groups.sections.adminHint');
     expect(getByTestId('group-section-charla').props.accessibilityHint).toBeUndefined();
     fireEvent.press(getByTestId('group-section-actas'));
@@ -349,6 +349,7 @@ describe('Grupos tab', () => {
 
   it('badges what is new in the chats: the Charla, and the avisos on top of unread notices', async () => {
     mockGroups = [group('o1')];
+    mockNotices = [{ id: 'a1', title: 'Cena', body: '', pinned: false, signerName: 'La junta', sentAt: new Date(), sentBy: 'x' }];
     mockUnread = 1;
     mockChatUnread = { generalUnread: true, unreadAvisoIds: new Set(['a1', 'a2']) };
     const r = render(<GroupsTabScreen />);
