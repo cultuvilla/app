@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../helpers/functionsTest';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { updateCenso } from '../../census/updateCenso';
 
@@ -41,9 +42,9 @@ async function seedMember(uid: string, role: 'user' | 'admin', profileAnswers: R
 }
 
 function call(uid: string, fields: unknown[]): Promise<unknown> {
-  const wrapped = ft.wrap(updateCenso as unknown as Parameters<typeof ft.wrap>[0]);
+  const wrapped = wrapCallable(ft, updateCenso);
   return Promise.resolve(
-    wrapped({ data: { municipalityId: MID, fields }, auth: { uid } } as unknown as Parameters<typeof wrapped>[0]),
+    wrapped({ data: { municipalityId: MID, fields }, auth: { uid } }),
   );
 }
 

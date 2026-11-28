@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument,
                   @typescript-eslint/no-unsafe-assignment,
-                  @typescript-eslint/no-explicit-any,
                   @typescript-eslint/no-extraneous-class,
                   @typescript-eslint/require-await */
 // vi.mock factories legitimately fake the firebase/firestore SDK shape;
@@ -34,11 +33,12 @@ vi.mock('firebase/firestore', async () => {
 
 import { getDocs, where, orderBy } from 'firebase/firestore';
 import { getEventsByMunicipality } from '../../src/services/eventService';
+import { fakeQuerySnapshot } from '../helpers/sdkFakes';
 
 describe('getEventsByMunicipality', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getDocs).mockResolvedValue({ docs: [] } as any);
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([]));
   });
 
   it('scopes to the municipality and orders by startDate asc with no status filter', async () => {
@@ -70,12 +70,10 @@ describe('getEventsByMunicipality', () => {
   });
 
   it('maps returned docs to include their id', async () => {
-    vi.mocked(getDocs).mockResolvedValue({
-      docs: [
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([
         { id: 'e-1', data: () => ({ status: 'published', title: 'A' }) },
         { id: 'e-2', data: () => ({ status: 'completed', title: 'B' }) },
-      ],
-    } as any);
+      ]));
 
     const events = await getEventsByMunicipality('mun-1', ['published', 'completed']);
 

@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
+import { deleteBeforeUpdate } from '../helpers/deletedSubject';
 import { syncPublicProfile } from '../../users/syncPublicProfile';
 
 const ft = functionsTestFactory({ projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test' });
@@ -25,13 +26,18 @@ function user(overrides: UserShape = {}): UserShape {
   };
 }
 
-async function fireTrigger(before: UserShape | null, after: UserShape | null): Promise<void> {
+/** Delivers a write event; `stale` skips mirroring `after` into the store (a late delivery). */
+async function fireTrigger(before: UserShape | null, after: UserShape | null, stale = false): Promise<void> {
   const path = `users/${USER_ID}`;
+  if (!stale) {
+    const ref = admin.firestore().doc(path);
+    await (after ? ref.set(after) : ref.delete());
+  }
   const change = ft.makeChange(
     ft.firestore.makeDocumentSnapshot(before ?? {}, path),
     ft.firestore.makeDocumentSnapshot(after ?? {}, path),
   );
-  await wrapped({ data: change, params: { userId: USER_ID } } as unknown as Parameters<typeof wrapped>[0]);
+  await wrapped({ data: change, params: { userId: USER_ID } });
 }
 
 const projection = () => admin.firestore().doc(`publicProfiles/${USER_ID}`).get();
@@ -69,6 +75,25 @@ describe('syncPublicProfile', () => {
     expect((await db.doc('organizations/org1/socioPrivate/s1').get()).data()).toMatchObject({ phone: '+34611000000' });
   });
 
+  it('skips a shared contact row deleted meanwhile and still projects the profile', async () => {
+    const db = admin.firestore();
+    await db.doc(`organizations/org1/members/${USER_ID}`).set({ userId: USER_ID, joinedAt: new Date(), role: 'member' });
+    await db.doc('organizations/org1/socios/s1').set({
+      kind: 'member', socioNumber: null, displayName: 'Ana', uid: USER_ID, personId: null, responsibleUid: null,
+      adminTitle: null, altaAt: new Date(), bajaAt: null, memberJoinedAt: new Date(), createdBy: USER_ID,
+    });
+    await db.doc('organizations/org1/socioPrivate/s1').set({ phone: '600123456', email: null, consentAnsweredAt: new Date() });
+
+    const race = deleteBeforeUpdate('organizations/org1/socioPrivate/s1');
+    try {
+      await expect(fireTrigger(user(), user({ telephone: '+34611000000', displayName: 'Ana G.' }))).resolves.not.toThrow();
+    } finally {
+      race.restore();
+    }
+    expect((await db.doc('organizations/org1/socioPrivate/s1').get()).exists).toBe(false);
+    expect((await projection()).get('displayName')).toBe('Ana G.');
+  });
+
   it('defaults a missing displayName and village so the strict converter parses', async () => {
     await fireTrigger(null, { email: 'ana@test', telephone: null });
 
@@ -87,5 +112,22 @@ describe('syncPublicProfile', () => {
     await fireTrigger(user(), null);
 
     expect((await projection()).exists).toBe(false);
+  });
+
+  it('keeps the profile gone when an update arrives after the account was deleted', async () => {
+    await fireTrigger(null, user());
+    await fireTrigger(user(), null);
+
+    await fireTrigger(user(), user({ displayName: 'Ana G.' }), true);
+
+    expect((await projection()).exists).toBe(false);
+  });
+
+  it('projects the current account, not the older version a late event carries', async () => {
+    await fireTrigger(null, user({ displayName: 'Ana Pérez' }));
+
+    await fireTrigger(user({ displayName: 'Ana Pérez' }), user({ displayName: 'Ana García' }), true);
+
+    expect((await projection()).get('displayName')).toBe('Ana Pérez');
   });
 });

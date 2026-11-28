@@ -16,6 +16,10 @@
       "types": "./dist/firebase/refs/admin.d.ts",
       "default": "./dist/firebase/refs/admin.js"
     },
+    "./firebase/callableGateway": {
+      "types": "./dist/firebase/callableGateway.d.ts",
+      "default": "./dist/firebase/callableGateway.js"
+    },
     "./firebase/sdk/firestore": {
       "types": "./dist/firebase/sdk/firestore.d.ts",
       "react-native": "./dist/firebase/sdk/firestore.native.js",
@@ -71,6 +75,10 @@
     "./policy": {
       "types": "./dist/policy/index.d.ts",
       "default": "./dist/policy/index.js"
+    },
+    "./validation": {
+      "types": "./dist/validation/index.d.ts",
+      "default": "./dist/validation/index.js"
     }
   },
   "main": "dist/index.js",

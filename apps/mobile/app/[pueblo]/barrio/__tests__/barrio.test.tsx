@@ -86,7 +86,7 @@ describe('BarrioDetailScreen', () => {
 
   it('renders the barrio name once loaded', async () => {
     const { getByText } = render(<BarrioDetailScreen />);
-    await waitFor(() => getByText('Centro'));
+    await waitFor(() => expect(getByText('Centro')).toBeTruthy());
   });
 
   it('shows the edit action to the barrio’s creator, not to an unrelated viewer', async () => {

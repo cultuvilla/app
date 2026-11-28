@@ -1,8 +1,8 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { vocabularyTermDoc } from '@cultuvilla/shared/firebase/refs/admin';
-import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { updateIfStillExists } from '../shared/notFound';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -16,8 +16,9 @@ const db = getFirestore();
  * count as leaving and rejoining: a hidden meaning is not visible to the pueblo,
  * so it must not hold an otherwise-empty headword hostage.
  */
-export const syncVocabularyDefinitionCount = onDocumentWritten(
-  { document: 'vocabularyDefinitions/{definitionId}', region: 'us-central1' },
+export const syncVocabularyDefinitionCount = defineDocumentTrigger(
+  'syncVocabularyDefinitionCount',
+  { kind: 'written', document: 'vocabularyDefinitions/{definitionId}' },
   async (event) => {
     const before = event.data?.before.data() ?? null;
     const after = event.data?.after.data() ?? null;
@@ -31,15 +32,14 @@ export const syncVocabularyDefinitionCount = onDocumentWritten(
     const termId = ((after ?? before) as Record<string, unknown>)['termId'] as string;
     if (!termId) return;
 
-    try {
-      await vocabularyTermDoc(db, termId).update('definitionCount', FieldValue.increment(delta));
-    } catch (err) {
-      // Term deleted before the trigger ran (an admin removing a whole headword
-      // cascades its definitions) — nothing to keep in step, and retrying would
-      // loop forever.
-      if (!isNotFound(err)) throw err;
-      return;
-    }
+    // An admin removing a whole headword cascades its definitions, so the term
+    // may be gone already.
+    const termRef = vocabularyTermDoc(db, termId);
+    const applied = await updateIfStillExists(
+      () => termRef.update('definitionCount', FieldValue.increment(delta)),
+      { handler: 'syncVocabularyDefinitionCount', path: termRef.path },
+    );
+    if (!applied) return;
 
     logger.info('vocabulary definition count updated', {
       handler: 'syncVocabularyDefinitionCount',

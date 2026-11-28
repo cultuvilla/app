@@ -1,7 +1,7 @@
 // packages/shared/src/services/orgMemberService.ts
 import { collectionGroup, getDoc, getDocs, query, deleteDoc, setDoc, where } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   organizationMembersCollection,
   organizationMemberDoc,
@@ -40,10 +40,7 @@ export async function setOrgMemberRole(
   userId: string,
   role: OrgMemberRole,
 ): Promise<void> {
-  const fn = httpsCallable<{ orgId: string; targetUserId: string; role: OrgMemberRole }, { ok: true }>(
-    getFirebaseFunctions(),
-    'changeOrgMemberRole',
-  );
+  const fn = getCallable<{ orgId: string; targetUserId: string; role: OrgMemberRole }, { ok: true }>('changeOrgMemberRole');
   await fn({ orgId, targetUserId: userId, role });
 }
 

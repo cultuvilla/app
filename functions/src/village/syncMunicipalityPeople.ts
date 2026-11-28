@@ -1,9 +1,10 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
-import { municipalityPersonDoc } from '@cultuvilla/shared/firebase/refs/admin';
+import { municipalityPersonDoc, personDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { buildDisplayName, buildNameWithNickname, isDeceased } from '@cultuvilla/shared/models';
 import type { BurialPlace, PartialDate } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { deleteRow, projectRowsFromCurrentSource, setRow } from '../shared/convergeOnSource';
 
 const db = getFirestore();
 
@@ -75,44 +76,53 @@ function asDirectoryPerson(data: Record<string, unknown>): DirectoryPerson {
  * Keeps the municipality-scoped people directory in sync with the canonical
  * person record. The directory is an alphabetical list projection; clients
  * cannot write it directly.
+ *
+ * The event names the municipalities to look at; the rows are written from
+ * the person as it stands now, read in the same transaction, so a late update
+ * delivered after the delete cannot bring a deleted person back.
  */
-export const syncMunicipalityPeople = onDocumentWritten(
-  { document: 'persons/{personId}', region: 'us-central1' },
+export const syncMunicipalityPeople = defineDocumentTrigger(
+  'syncMunicipalityPeople',
+  { kind: 'written', document: 'persons/{personId}' },
   async (event) => {
     const handler = 'syncMunicipalityPeople';
     const before = event.data?.before.data();
     const after = event.data?.after.data();
-    const beforePerson = before ? asDirectoryPerson(before) : null;
-    const afterPerson = after ? asDirectoryPerson(after) : null;
-    const beforeMunicipalities = beforePerson?.barrioByMunicipality ?? new Map<string, string | null>();
-    const afterMunicipalities = afterPerson?.barrioByMunicipality ?? new Map<string, string | null>();
-    const affectedMunicipalities = new Set([...beforeMunicipalities.keys(), ...afterMunicipalities.keys()]);
-    if (affectedMunicipalities.size === 0) return;
+    const eventMunicipalities = new Set([
+      ...(before ? asDirectoryPerson(before).barrioByMunicipality.keys() : []),
+      ...(after ? asDirectoryPerson(after).barrioByMunicipality.keys() : []),
+    ]);
+    if (eventMunicipalities.size === 0) return;
 
     const { personId } = event.params;
-    const batch = db.batch();
-    for (const municipalityId of affectedMunicipalities) {
-      const ref = municipalityPersonDoc(db, municipalityId, personId);
-      if (!afterPerson || !afterMunicipalities.has(municipalityId)) {
-        batch.delete(ref);
-        continue;
-      }
-      batch.set(ref, {
-        municipalityId,
-        personId,
-        displayName: afterPerson.displayName,
-        sortName: afterPerson.sortName,
-        photoURL: afterPerson.photoURL,
-        userId: afterPerson.userId,
-        isPublic: afterPerson.isPublic,
-        barrioId: afterMunicipalities.get(municipalityId) ?? null,
-      });
-    }
-    await batch.commit();
+    const outcome = await projectRowsFromCurrentSource({
+      db,
+      sourceRef: personDoc(db, personId),
+      project: (current) => {
+        const person = current ? asDirectoryPerson(current) : null;
+        const municipalities = person?.barrioByMunicipality ?? new Map<string, string | null>();
+        const affected = new Set([...eventMunicipalities, ...municipalities.keys()]);
+        return [...affected].map((municipalityId) => {
+          const ref = municipalityPersonDoc(db, municipalityId, personId);
+          if (!person || !municipalities.has(municipalityId)) return deleteRow(ref);
+          return setRow(ref, {
+            municipalityId,
+            personId,
+            displayName: person.displayName,
+            sortName: person.sortName,
+            photoURL: person.photoURL,
+            userId: person.userId,
+            isPublic: person.isPublic,
+            barrioId: municipalities.get(municipalityId) ?? null,
+          });
+        });
+      },
+    });
     logger.info('Municipality people directory synchronized', {
       handler,
       personId,
-      municipalityCount: affectedMunicipalities.size,
+      rowsSet: outcome.set,
+      rowsDeleted: outcome.deleted,
     });
   },
 );

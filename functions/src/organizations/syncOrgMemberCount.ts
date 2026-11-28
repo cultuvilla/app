@@ -1,8 +1,8 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { organizationDoc } from '@cultuvilla/shared/firebase/refs/admin';
-import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { updateIfStillExists } from '../shared/notFound';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -16,8 +16,9 @@ const db = getFirestore();
  * for this partial write, and swallows NOT_FOUND so deleting a whole org (which
  * cascades its member docs) doesn't retry forever against the gone parent.
  */
-export const syncOrgMemberCount = onDocumentWritten(
-  { document: 'organizations/{orgId}/members/{userId}', region: 'us-central1' },
+export const syncOrgMemberCount = defineDocumentTrigger(
+  'syncOrgMemberCount',
+  { kind: 'written', document: 'organizations/{orgId}/members/{userId}' },
   async (event) => {
     const handler = 'syncOrgMemberCount';
     const existedBefore = event.data?.before.exists ?? false;
@@ -29,12 +30,13 @@ export const syncOrgMemberCount = onDocumentWritten(
     if (delta === 0) return;
 
     const { orgId } = event.params;
-    try {
-      await organizationDoc(db, orgId).update('memberCount', FieldValue.increment(delta));
-    } catch (err) {
-      if (isNotFound(err)) return; // org deleted before the cascade trigger ran → no-op
-      throw err;
-    }
+    const orgRef = organizationDoc(db, orgId);
+    // Deleting a whole org cascades its member docs, so the org may be gone already.
+    const applied = await updateIfStillExists(() => orgRef.update('memberCount', FieldValue.increment(delta)), {
+      handler,
+      path: orgRef.path,
+    });
+    if (!applied) return;
 
     logger.info('org member count updated', { handler, orgId, delta });
   },

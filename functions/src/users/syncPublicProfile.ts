@@ -1,12 +1,15 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import {
   organizationSocioPrivateDoc,
   organizationSociosCollection,
   publicProfileDoc,
+  userDoc,
 } from '@cultuvilla/shared/firebase/refs/admin';
 import type { PublicProfileData } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { updateIfStillExists } from '../shared/notFound';
+import { deleteRow, projectRowsFromCurrentSource, setRow } from '../shared/convergeOnSource';
 
 const db = admin.firestore();
 
@@ -18,34 +21,39 @@ const db = admin.firestore();
  * Source of truth: users/{uid}.displayName + activeMunicipalityId.
  * Read target:    publicProfiles/{uid}, the same two fields and nothing else.
  *
- * Deleting the account doc deletes the projection. The write is skipped when
- * the projected fields are unchanged, so email/telephone/terms edits don't fan
- * out a no-op write.
+ * Deleting the account doc deletes the projection, and the row is always
+ * written from the account as read now (see convergeOnSource). The write is
+ * skipped when the projected fields are unchanged, so email/telephone/terms
+ * edits don't fan out a no-op write.
  *
  * A new phone or email also reaches every group the member shares it with: see
  * syncSharedSocioContact.
  */
-export const syncPublicProfile = onDocumentWritten(
-  { document: 'users/{userId}', region: 'us-central1' },
+export const syncPublicProfile = defineDocumentTrigger(
+  'syncPublicProfile',
+  { kind: 'written', document: 'users/{userId}' },
   async (event) => {
     const handler = 'syncPublicProfile';
     const { userId } = event.params;
-    const ref = publicProfileDoc(db, userId);
+    const before = event.data?.before.data();
     const after = event.data?.after.data();
 
-    if (!after) {
-      await ref.delete();
-      logger.info('publicProfile deleted with its account', { handler, userId });
-      return;
-    }
+    if (after) await syncSharedSocioContact(userId, before, after);
+    if (before && after && samePublicProfile(projectPublicProfile(before), projectPublicProfile(after))) return;
 
-    const next = projectPublicProfile(after);
-    const before = event.data?.before.data();
-    await syncSharedSocioContact(userId, before, after);
-    if (before && samePublicProfile(projectPublicProfile(before), next)) return;
-
-    await ref.set(next);
-    logger.info('publicProfile propagated', { handler, userId });
+    // The account as it stands now decides the row, not this event's `after`:
+    // an update delivered after the account's deletion must not put the
+    // profile back.
+    const ref = publicProfileDoc(db, userId);
+    const outcome = await projectRowsFromCurrentSource({
+      db,
+      sourceRef: userDoc(db, userId),
+      project: (current) => [current ? setRow(ref, projectPublicProfile(current)) : deleteRow(ref)],
+    });
+    logger.info(outcome.deleted > 0 ? 'publicProfile deleted with its account' : 'publicProfile propagated', {
+      handler,
+      userId,
+    });
   },
 );
 
@@ -87,8 +95,9 @@ async function syncSharedSocioContact(
         ...(emailChanged && shared.email ? { email } : {}),
       };
       if (Object.keys(patch).length === 0) continue;
-      await ref.update(patch);
-      updated += 1;
+      // The row goes with the socio's baja or the account's deletion.
+      const applied = await updateIfStillExists(() => ref.update(patch), { handler: 'syncPublicProfile', path: ref.path });
+      if (applied) updated += 1;
     }
   }
   if (updated > 0) logger.info('shared socio contact updated', { handler: 'syncPublicProfile', uid, updated });

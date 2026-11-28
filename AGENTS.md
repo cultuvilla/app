@@ -231,6 +231,22 @@ lives in `@cultuvilla/shared/utils/format.ts`, preset to `es-ES`. Never
 call `Intl.DateTimeFormat` or `Intl.NumberFormat` directly in screens —
 the formatter is the single point of locale truth.
 
+### Defining a function
+
+Every Cloud Function is defined through [functions/src/shared/define/](functions/src/shared/define/):
+`defineCallable`, `defineDocumentTrigger`, `defineSchedule`, `defineHttpFunction`,
+`defineObjectFinalized`. A raw `onCall` / `onDocument*` / `onSchedule` / `onRequest` /
+`onObject*` fails lint. The first argument is the function's export name in
+`functions/src/index.ts`, which the seam records: a gateway routes clients by it, and
+[definedFunctions.test.ts](functions/src/__tests__/define/definedFunctions.test.ts) holds
+the two equal. The seam also owns the default region.
+
+A trigger's subject can be deleted before its own write lands, so a trigger's
+`update()` on a document it does not own goes through `updateIfStillExists`
+([functions/src/shared/notFound.ts](functions/src/shared/notFound.ts)), or reads
+it first inside a transaction. A test scans every trigger for it; read
+[docs/decisions/triggers-tolerate-a-deleted-subject.md](docs/decisions/triggers-tolerate-a-deleted-subject.md).
+
 ### Storage triggers
 
 A Cloud Storage trigger (`onObjectFinalized`, …) has two prerequisites that a
@@ -558,7 +574,9 @@ pnpm check            # lint + typecheck + test + build (CI gate)
 pnpm lint             # eslint --max-warnings 0 in packages/shared, functions, apps/mobile, apps/studio
 pnpm typecheck        # tsc --noEmit in shared, functions, i18n, mobile
 pnpm test             # vitest (shared) + jest (mobile) + functions, under emulators
+pnpm test:file <name|path> # one test file, its own config; emulators only if that config needs them
 pnpm backfills:list   # registered data migrations (see Backfills)
+pnpm audit:refs       # read-only referential-integrity audit (dev; --env=beta|prod) — repairs: prod-data-repair skill
 pnpm test:e2e:android # Maestro on an Android AVD, under emulators (needs a device)
 pnpm test:e2e:ios     # the same flows on an iOS Simulator (macOS only; CI: ios-e2e)
 pnpm check:store-claims # verify the store-release runbook against live infra

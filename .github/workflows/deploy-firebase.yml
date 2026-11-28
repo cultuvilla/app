@@ -331,8 +331,9 @@ jobs:
         run: node scripts/smoke-storage-upload.mjs --env="$FIREBASE_ALIAS"
 
       # What this deploy put live is exactly this commit: Firestore and Storage
-      # rules, composite indexes and the set of functions. Skipped only when
-      # the backend is held, since then rules and functions deliberately stay
+      # rules, composite indexes and the set of functions — each one ACTIVE,
+      # its Eventarc trigger present, its traffic on a Ready revision running
+      # the image its build made. Skipped only when the backend is held, since then rules and functions deliberately stay
       # at the previous release.
       - name: Parity check — live rules, indexes and functions are this commit's
         if: ${{ steps.release.outputs.hold_backend != 'true' }}
@@ -371,9 +372,14 @@ jobs:
       # of old revisions, never one that serves, is latest, or is among each
       # service's newest two (scripts/cleanup-cloudrun-revisions.mjs). It runs
       # after a failed deploy too — a failed deploy also leaves revisions — and
-      # never fails the deploy: housekeeping, not a gate. Not on prod yet: its
-      # backlog is drained by hand first (the plan's prod step).
+      # never fails the deploy: housekeeping, not a gate. On every env, prod
+      # included (Álvaro, 2026-11-27): the script refuses prod without
+      # --confirm, so prod alone passes it. The bounded batch keeps up with what
+      # a deploy adds; a large backlog is drained by hand, not here.
       - name: Clean up old Cloud Run revisions
-        if: ${{ !cancelled() && inputs.firebase_alias != 'prod' }}
+        if: ${{ !cancelled() }}
         continue-on-error: true
-        run: node scripts/cleanup-cloudrun-revisions.mjs --env="$FIREBASE_ALIAS" --apply --max-deletes=150 --max-minutes=5
+        run: |
+          confirm=()
+          if [ "$FIREBASE_ALIAS" = prod ]; then confirm=(--confirm); fi
+          node scripts/cleanup-cloudrun-revisions.mjs --env="$FIREBASE_ALIAS" --apply --max-deletes=150 --max-minutes=5 "${confirm[@]}"

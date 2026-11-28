@@ -28,10 +28,11 @@ import {
   watchAllLedgerEntries,
   type LedgerEntry,
 } from '../../src/services/recordsService';
+import { refPath } from '../helpers/sdkFakes';
 
 const written = (i = 0) => {
   const [ref, data] = vi.mocked(setDoc).mock.calls[i];
-  return { path: (ref as unknown as { _path: string })._path, data: data as Record<string, unknown> };
+  return { path: refPath(ref), data: data as Record<string, unknown> };
 };
 
 beforeEach(() => {
@@ -57,7 +58,7 @@ describe('recordsService — actas', () => {
   it('updateActa rewrites the fields and the editor, never the author', async () => {
     await updateActa('org1', 'a1', { body: 'junta_directiva', heldOn: '2026-04-01', visibleToSocios: true }, 'admin2');
     const [ref, data] = vi.mocked(updateDoc).mock.calls[0];
-    expect((ref as unknown as { _path: string })._path).toBe('organizations/org1/actas/a1');
+    expect(refPath(ref)).toBe('organizations/org1/actas/a1');
     expect(data).toMatchObject({ body: 'junta_directiva', visibleToSocios: true, updatedBy: 'admin2', updatedAt: 'SERVER_TS' });
     expect(data).not.toHaveProperty('createdBy');
     expect(data).not.toHaveProperty('createdAt');

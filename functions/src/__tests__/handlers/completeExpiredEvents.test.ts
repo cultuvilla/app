@@ -4,7 +4,9 @@
 // emulator's gRPC traffic is unaffected).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as admin from 'firebase-admin';
+import { logger } from 'firebase-functions/v2';
 import { resetEmulators } from '../helpers/firestoreEmulator';
+import { deleteAfterQuery } from '../helpers/deletedSubject';
 import { completeExpiredEvents } from '../../events/eventCompletion';
 
 const run = () => completeExpiredEvents.run({ scheduleTime: new Date().toISOString() });
@@ -67,6 +69,28 @@ afterEach(() => {
 });
 
 describe('completeExpiredEvents', () => {
+  it('counts an event deleted after the sweep read it as deleted, not failed', async () => {
+    await seedEvent('gone', new Date('2026-06-14T18:00:00Z'));
+    await seedEvent('yesterday', new Date('2026-06-14T18:00:00Z'));
+    const warn = vi.spyOn(logger, 'warn');
+    const info = vi.spyOn(logger, 'info');
+    const race = deleteAfterQuery('events/gone');
+    try {
+      await run();
+    } finally {
+      race.restore();
+    }
+
+    expect(await statusOf('yesterday')).toBe('completed');
+    expect(warn).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith(
+      'Completed expired events',
+      expect.objectContaining({ completedCount: 1, failedCount: 0, deletedCount: 1 }),
+    );
+    warn.mockRestore();
+    info.mockRestore();
+  });
+
   it('completes a published single-day event whose Madrid day is over', async () => {
     await seedEvent('yesterday', new Date('2026-06-14T18:00:00Z'));
     await run();

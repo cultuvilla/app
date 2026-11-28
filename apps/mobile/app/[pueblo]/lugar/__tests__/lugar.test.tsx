@@ -81,8 +81,8 @@ describe('PlaceDetailScreen', () => {
 
   it('renders the place name and a share action', async () => {
     const { getByText, getByLabelText } = render(<PlaceDetailScreen />);
-    await waitFor(() => getByText('La Plaza'));
-    getByLabelText('deeplink.shareViewLabel');
+    await waitFor(() => expect(getByText('La Plaza')).toBeTruthy());
+    expect(getByLabelText('deeplink.shareViewLabel')).toBeTruthy();
   });
 
   it('shows the edit action to the place’s creator, not to an unrelated viewer', async () => {

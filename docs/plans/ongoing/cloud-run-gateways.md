@@ -1,9 +1,14 @@
 # A few Cloud Run services instead of one per function
 
 **Priority:** high — Álvaro called it the priority of the Órdago harvest (2026-11-27)
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
+**Landed:** dev
+**Gate:** blocked:beta gets callableGateway, and beta clients getCallable, only with the next develop → beta release
+**Next:** after that release, confirm 200s on routed paths in cultuvilla-beta's `callablegateway` request logs (europe-southwest1), witness `docs/qa/pending/callable-gateway.md`, then build phase 3 (the event gateway)
+
+State 2026-11-27: phases 0–2 merged — #756 (baseline, `docs/ops/cloud-run-baseline.md`), #760 and #764 (all 101 functions through `functions/src/shared/define`, manifest deploy-equivalent), #770 (`callableGateway` in europe-southwest1, 38 routed callables, min 0; `getCallable` routes only villa-events and cultuvilla-beta; standalone callables kept). Live on dev (deploy 46004855577): unknown route → 404, unauthenticated call → 401; a signed-in call is proven in the emulator suite only. Notes for later phases:
+
+- `CALLABLE_GATEWAY_MIN_INSTANCES` is a constant (0), not a functions param (a param with no stored value made the emulator load nothing). Warming prod means making it depend on the project.
+- The next promotion to prod creates `callableGateway` there (min 0, no prod client routed). Drop the prod env-parity exception for `europe-southwest1/gcf-artifacts` at that first prod deploy.
 
 **Decided 2026-11-27 (Álvaro):** port Órdago's move from one Cloud Functions service per
 handler to a few shared Cloud Run services. Dev and beta go ahead; each prod step needs

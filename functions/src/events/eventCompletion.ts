@@ -1,8 +1,9 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { eventsCollection } from '@cultuvilla/shared/firebase/refs/admin';
 import { startOfMadridDay } from '@cultuvilla/shared/models';
+import { defineSchedule } from '../shared/define/defineSchedule';
+import { isNotFound } from '../shared/notFound';
 
 const db = getFirestore();
 
@@ -10,7 +11,7 @@ const db = getFirestore();
 // i.e. exactly when endBoundary < start of today in Madrid — so the query reads
 // only the expired events, never the catalogue of upcoming ones. Served by the
 // `events (status, endBoundary)` index.
-export const completeExpiredEvents = onSchedule('every 1 hours', async () => {
+export const completeExpiredEvents = defineSchedule('completeExpiredEvents', { schedule: 'every 1 hours' }, async () => {
   const cutoff = startOfMadridDay(new Date());
   const expired = await eventsCollection(db)
     .where('status', '==', 'published')
@@ -20,7 +21,13 @@ export const completeExpiredEvents = onSchedule('every 1 hours', async () => {
 
   const writer = db.bulkWriter();
   let failed = 0;
+  let deleted = 0;
   writer.onWriteError((err) => {
+    // Deleted since the query: nothing left to complete, and not a failure.
+    if (isNotFound(err)) {
+      deleted += 1;
+      return false;
+    }
     if (err.failedAttempts < 3) return true;
     failed += 1;
     logger.warn('Could not complete an expired event', {
@@ -42,7 +49,8 @@ export const completeExpiredEvents = onSchedule('every 1 hours', async () => {
   logger.info('Completed expired events', {
     handler: 'completeExpiredEvents',
     cutoff: cutoff.toISOString(),
-    completedCount: expired.size - failed,
+    completedCount: expired.size - failed - deleted,
     failedCount: failed,
+    deletedCount: deleted,
   });
 });

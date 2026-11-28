@@ -9,8 +9,10 @@
  *
  *   config     The project's own setup: Firestore database and Storage bucket
  *              settings, enabled APIs, IAM grants to service accounts, Secret
- *              Manager names, Auth configuration and Artifact Registry
- *              cleanup policies. It must equal the
+ *              Manager names, Auth configuration, Artifact Registry
+ *              cleanup policies, and every data store with its retention
+ *              (Firestore databases and backup schedules, Storage buckets,
+ *              Cloud Logging buckets and sinks). It must equal the
  *              committed baseline (infra/env-parity.json) plus that env's
  *              declared exceptions, each of which carries its reason. Every
  *              env is checked against the same baseline, so passing here
@@ -19,7 +21,9 @@
  *   artifacts  What a deploy puts there: the live Firestore and Storage rules
  *              equal this commit's files, the deployed composite indexes equal
  *              firestore.indexes.json, and the deployed functions are exactly
- *              the ones functions/src/index.ts exports. Runs after deploying.
+ *              the ones functions/src/index.ts exports — each ACTIVE, its
+ *              Eventarc trigger present, its traffic on a Ready revision that
+ *              runs the image its build made. Runs after deploying.
  *
  * Each CI identity can reach only its own project (the WIF pools are bound to
  * develop / beta / main), so the deploy checks its own env. Locally, with the
@@ -46,7 +50,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const BASELINE_PATH = resolve(repoRoot, 'infra/env-parity.json');
 
 /** Dimensions compared as sets; the rest are flat key → value maps. */
-export const LIST_DIMENSIONS = ['apis', 'iam', 'secrets', 'authProviders', 'authDomains', 'artifactCleanup'];
+export const LIST_DIMENSIONS = ['apis', 'iam', 'secrets', 'authProviders', 'authDomains', 'artifactCleanup', 'dataStores'];
 export const MAP_DIMENSIONS = ['firestore', 'bucket', 'auth'];
 export const DIMENSIONS = [...MAP_DIMENSIONS, ...LIST_DIMENSIONS];
 
@@ -198,6 +202,285 @@ export function sha(text) {
   return createHash('sha256').update(text).digest('hex').slice(0, 12);
 }
 
+// ------------------------------------------------------- function health
+//
+// A function can be listed and still be dead. Órdago found both shapes in
+// 2026: a function whose Eventarc trigger vanished in an interrupted deploy
+// (present, ACTIVE, never fired), and one whose serving Cloud Run revision ran
+// an older image than the build the function's metadata names — every
+// metadata check green, the pre-fix code serving
+// (ordago-apps docs/decisions/verify-running-cf-container-image.md). So each
+// deployed function is judged on what serves it: state, trigger, the revision
+// that takes the traffic, and the image that revision runs.
+
+/** Cloud Functions v2 states that mean "still being worked on", not a verdict. */
+export const TRANSIENT_FUNCTION_STATES = new Set(['DEPLOYING', 'STATE_UNSPECIFIED']);
+
+/**
+ * Artifact Registry's cleanup deletes images older than a day, tagged or not
+ * (infra/env-parity.json `artifactCleanup`), while Cloud Run keeps serving its
+ * imported copy. The image is compared only when the function's build is
+ * younger than this, so it still exists — which a deploy's own build always is.
+ */
+export const IMAGE_CHECK_MAX_BUILD_AGE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * An Artifact Registry image reference, as a revision or a build names it:
+ * `<location>-docker.pkg.dev/<project>/<repository>/<package>(:tag|@sha256:…)`.
+ * Null for anything else (an image outside Artifact Registry).
+ */
+export function parseImage(ref) {
+  const m = /^([a-z0-9-]+)-docker\.pkg\.dev\/([^/]+)\/([^/]+)\/([^@:]+)(?::([^@]+))?(?:@(sha256:[0-9a-f]{64}))?$/.exec(ref ?? '');
+  if (!m) return null;
+  const [, location, project, repository, pkg, tag, digest] = m;
+  return { location, project, repository, package: pkg, tag: tag ?? null, digest: digest ?? null };
+}
+
+/** The image a Cloud Functions build pushes — its buildpack's `--app_image_unique`. */
+export function builtImage(build) {
+  for (const step of build?.steps ?? []) {
+    for (const a of step.args ?? []) {
+      if (a.startsWith('--app_image_unique=')) return parseImage(a.slice('--app_image_unique='.length));
+    }
+  }
+  return null;
+}
+
+/** The revisions a Cloud Run v2 service sends traffic to. */
+export function servingRevisions(service) {
+  return (service?.trafficStatuses ?? [])
+    .filter((t) => (t.percent ?? 0) > 0)
+    .map((t) => t.revision)
+    .filter(Boolean)
+    .sort();
+}
+
+const lastSegment = (name) => String(name ?? '').split('/').pop();
+const succeeded = (condition) => condition?.state === 'CONDITION_SUCCEEDED';
+const conditionText = (c) => `${c?.state ?? 'no condition'}${c?.message ? `: ${c.message.split('\n')[0]}` : ''}`;
+
+function arPackageUrl(image) {
+  return (
+    `https://artifactregistry.googleapis.com/v1/projects/${image.project}/locations/${image.location}` +
+    `/repositories/${image.repository}/packages/${encodeURIComponent(image.package)}`
+  );
+}
+
+async function orNullOn404(promise) {
+  try {
+    return await promise;
+  } catch (err) {
+    if (err.status === 404) return null;
+    throw err;
+  }
+}
+
+/** Run `fn` over `items`, at most `limit` at a time, keeping order. */
+export async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/**
+ * Whether `servingImage` is what the function's build made. It is when the
+ * build's tag still points at it, or — when a later build reused that package
+ * name for other functions and moved the tag — when that digest was pushed
+ * into the build's package while the build ran.
+ */
+async function imageProblem(api, build, servingImage, cache) {
+  const built = builtImage(build);
+  if (!built) return `its build ${lastSegment(build.name)} names no image`;
+  if (!servingImage?.digest) return `its serving revision runs an unpinned image`;
+  const runs = `${servingImage.package}@${servingImage.digest.slice(0, 19)}…`;
+  if (
+    servingImage.location !== built.location ||
+    servingImage.repository !== built.repository ||
+    servingImage.package !== built.package
+  ) {
+    return `runs ${runs}, not the ${built.package} image its build ${lastSegment(build.name).slice(0, 8)} made`;
+  }
+  const tagUrl = `${arPackageUrl(built)}/tags/${encodeURIComponent(built.tag ?? 'latest')}`;
+  cache.tags[tagUrl] ??= orNullOn404(api(tagUrl));
+  const tag = await cache.tags[tagUrl];
+  if (tag && lastSegment(tag.version) === servingImage.digest) return null;
+  const versionUrl = `${arPackageUrl(built)}/versions/${servingImage.digest}`;
+  cache.versions[versionUrl] ??= orNullOn404(api(versionUrl));
+  const version = await cache.versions[versionUrl];
+  const pushedAt = Date.parse(version?.createTime ?? '');
+  const start = Date.parse(build.createTime ?? '');
+  const end = Date.parse(build.finishTime ?? build.createTime ?? '');
+  if (pushedAt >= start && pushedAt <= end) return null;
+  return `runs ${runs}, not the image its build ${lastSegment(build.name).slice(0, 8)} made`;
+}
+
+/** Why one deployed function is not healthy and serving its build — none if it is. */
+export async function functionHealthProblems(api, fn, { now = Date.now(), cache = { builds: {}, tags: {}, versions: {} } } = {}) {
+  const problems = [];
+  if (fn.state !== 'ACTIVE') {
+    const stuck = TRANSIENT_FUNCTION_STATES.has(fn.state) ? ' (still settling after the wait)' : '';
+    problems.push(`state is ${fn.state ?? 'unknown'}${stuck}`);
+  }
+  for (const m of fn.stateMessages ?? []) {
+    if (m.severity === 'ERROR') problems.push(`${m.type ?? 'error'}: ${String(m.message ?? '').split('\n')[0]}`);
+  }
+  if (problems.length) return problems;
+
+  const serviceName = fn.serviceConfig?.service;
+
+  if (fn.eventTrigger) {
+    const triggerName = fn.eventTrigger.trigger;
+    const trigger = triggerName ? await orNullOn404(api(`https://eventarc.googleapis.com/v1/${triggerName}`)) : null;
+    if (!trigger) {
+      problems.push(triggerName ? `its Eventarc trigger ${lastSegment(triggerName)} is missing` : 'has no Eventarc trigger');
+    } else {
+      const dest = trigger.destination ?? {};
+      const delivers = dest.cloudFunction === fn.name || (serviceName && lastSegment(dest.cloudRun?.service) === lastSegment(serviceName));
+      if (!delivers) problems.push(`its Eventarc trigger ${lastSegment(triggerName)} delivers to something else`);
+      for (const [key, c] of Object.entries(trigger.conditions ?? {})) {
+        if (c?.code && c.code !== 'OK') problems.push(`its Eventarc trigger ${key}: ${c.code}${c.message ? ` ${c.message}` : ''}`);
+      }
+    }
+  }
+
+  // A 1st-gen function has no Cloud Run service; state and trigger are all there is.
+  if (!serviceName) return problems;
+
+  const service = await orNullOn404(api(`https://run.googleapis.com/v2/${serviceName}`));
+  if (!service) return [...problems, `its Cloud Run service ${lastSegment(serviceName)} is missing`];
+  if (!succeeded(service.terminalCondition)) {
+    problems.push(`its Cloud Run service is not Ready (${conditionText(service.terminalCondition)})`);
+  }
+  const expected = fn.serviceConfig.revision;
+  const serving = servingRevisions(service);
+  if (serving.length === 0) return [...problems, 'no revision receives traffic'];
+  if (expected && (serving.length !== 1 || serving[0] !== expected)) {
+    problems.push(`traffic goes to ${serving.join(', ')}, not its revision ${expected}`);
+  }
+  const revisionName = expected && serving.includes(expected) ? expected : serving[0];
+  const revision = await orNullOn404(api(`https://run.googleapis.com/v2/${serviceName}/revisions/${revisionName}`));
+  if (!revision) return [...problems, `its serving revision ${revisionName} is missing`];
+  const ready = (revision.conditions ?? []).find((c) => c.type === 'Ready');
+  if (!succeeded(ready)) problems.push(`its serving revision ${revisionName} is not Ready (${conditionText(ready)})`);
+
+  const buildName = fn.buildConfig?.build;
+  if (buildName) {
+    cache.builds[buildName] ??= orNullOn404(api(`https://cloudbuild.googleapis.com/v1/${buildName}`));
+    const build = await cache.builds[buildName];
+    const age = now - Date.parse(build?.finishTime ?? build?.createTime ?? '');
+    if (build && age <= IMAGE_CHECK_MAX_BUILD_AGE_MS) {
+      const problem = await imageProblem(api, build, parseImage(revision.containers?.[0]?.image), cache);
+      if (problem) problems.push(problem);
+    }
+  }
+  return problems;
+}
+
+const listFunctions = (api, project) =>
+  paged(api, `https://cloudfunctions.googleapis.com/v2/projects/${project}/locations/-/functions?pageSize=200`, 'functions');
+
+/**
+ * The deployed functions, re-listed while any is still settling — `firebase
+ * deploy` returns once each operation is accepted, so a function updated in an
+ * early batch may still be DEPLOYING when this runs.
+ */
+export async function settledFunctions(api, project, { attempts = 6, delayMs = 15000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    const fns = await listFunctions(api, project);
+    const settling = fns.filter((f) => TRANSIENT_FUNCTION_STATES.has(f.state));
+    if (settling.length === 0 || attempt >= attempts) return fns;
+    console.log(`   ${settling.length} function(s) still settling, waiting…`);
+    await sleep(delayMs);
+  }
+}
+
+// ------------------------------------------------------------ data stores
+//
+// Every place a project keeps data, one line each with where it lives and how
+// long it keeps it: an undeclared store — a bucket made by hand, a backup
+// schedule deleted, a log bucket's retention raised — fails parity like any
+// other drift. Ported from Órdago's data-store census (ordago-apps
+// scripts/check-data-stores.js), folded into this check so the existing
+// deploy gate and nightly run carry it.
+
+/** `604800s` → `7d`; a duration that is not whole days stays in seconds. */
+export function durationText(seconds) {
+  const s = Number(/^(\d+)s$/.exec(String(seconds ?? ''))?.[1]);
+  if (!Number.isFinite(s)) return 'none';
+  return s % 86400 === 0 ? `${s / 86400}d` : `${s}s`;
+}
+
+/** A Firestore backup schedule: its recurrence and how long each backup is kept. */
+export function backupScheduleLine(database, schedule) {
+  const recurrence = schedule.dailyRecurrence
+    ? 'daily'
+    : schedule.weeklyRecurrence
+      ? `weekly:${schedule.weeklyRecurrence.day ?? 'unspecified'}`
+      : 'unknown';
+  return `firestore-backup ${database} ${recurrence} retention=${durationText(schedule.retention)}`;
+}
+
+/** A bucket's lifecycle rules, condition keys sorted, so a reordering is not drift. */
+export function lifecycleText(bucket) {
+  const rules = bucket.lifecycle?.rule ?? [];
+  if (rules.length === 0) return 'none';
+  return rules
+    .map((r) => {
+      const cond = Object.entries(r.condition ?? {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join('|') : v}`)
+        .join(',');
+      return `${String(r.action?.type ?? '').toLowerCase()}${r.action?.storageClass ? `:${r.action.storageClass}` : ''}(${cond})`;
+    })
+    .sort()
+    .join(';');
+}
+
+export function bucketLine(bucket) {
+  const lock = bucket.retentionPolicy?.retentionPeriod
+    ? ` retentionPolicy=${durationText(`${bucket.retentionPolicy.retentionPeriod}s`)}`
+    : '';
+  return `storage ${bucket.name} ${bucket.location} lifecycle=${lifecycleText(bucket)}${lock}`;
+}
+
+export function logBucketLine(bucket) {
+  const [, location, id] = /\/locations\/([^/]+)\/buckets\/([^/]+)$/.exec(bucket.name ?? '') ?? [];
+  return `log-bucket ${location}/${id} retention=${bucket.retentionDays ?? 'default'}d${bucket.locked ? ' locked' : ''}`;
+}
+
+/** A sink by name and destination; its filter by hash, since filters run to hundreds of characters. */
+export function logSinkLine(sink) {
+  const state = sink.disabled ? ' disabled' : '';
+  return `log-sink ${sink.name} -> ${sink.destination} filter=${sink.filter ? sha(sink.filter) : 'none'}${state}`;
+}
+
+export async function dataStoreLines(api, project) {
+  const databases = await paged(api, `https://firestore.googleapis.com/v1/projects/${project}/databases`, 'databases');
+  const lines = [];
+  for (const db of databases) {
+    const id = lastSegment(db.name);
+    lines.push(`firestore-database ${id} ${db.locationId}`);
+    const { backupSchedules = [] } = await api(
+      `https://firestore.googleapis.com/v1/projects/${project}/databases/${encodeURIComponent(id)}/backupSchedules`,
+    );
+    for (const s of backupSchedules) lines.push(backupScheduleLine(id, s));
+  }
+  const buckets = await paged(api, `https://storage.googleapis.com/storage/v1/b?project=${project}&maxResults=200`, 'items');
+  lines.push(...buckets.map(bucketLine));
+  const logBuckets = await paged(api, `https://logging.googleapis.com/v2/projects/${project}/locations/-/buckets?pageSize=100`, 'buckets');
+  lines.push(...logBuckets.filter((b) => b.lifecycleState !== 'DELETE_REQUESTED').map(logBucketLine));
+  const sinks = await paged(api, `https://logging.googleapis.com/v2/projects/${project}/sinks?pageSize=100`, 'sinks');
+  lines.push(...sinks.map(logSinkLine));
+  return lines.sort();
+}
+
 // ------------------------------------------------------------------ API reads
 
 export async function accessToken() {
@@ -261,6 +544,7 @@ export async function configSnapshot(api, project, number) {
   const auth = await api(`https://identitytoolkit.googleapis.com/admin/v2/projects/${project}/config`);
   const idps = await api(`https://identitytoolkit.googleapis.com/admin/v2/projects/${project}/defaultSupportedIdpConfigs`);
   const repositories = await listRepositories(api, project);
+  const dataStores = await dataStoreLines(api, project);
 
   const iam = [];
   for (const b of policy.bindings ?? []) {
@@ -307,6 +591,7 @@ export async function configSnapshot(api, project, number) {
       // it has none: images otherwise pile up with every deploy
       // (scripts/setup-artifact-cleanup.mjs).
       artifactCleanup: repositories.flatMap(cleanupLines).sort(),
+      dataStores,
     },
     { project, number },
   );
@@ -339,7 +624,12 @@ export async function backendHeld(api, project, env) {
 export async function artifactProblems(
   api,
   project,
-  { held = false, readFile = (path) => readFileSync(resolve(repoRoot, path), 'utf8') } = {},
+  {
+    held = false,
+    readFile = (path) => readFileSync(resolve(repoRoot, path), 'utf8'),
+    now = Date.now(),
+    settle = {},
+  } = {},
 ) {
   const problems = [];
 
@@ -363,13 +653,19 @@ export async function artifactProblems(
   for (const k of declared) if (!deployedIndexes.includes(k)) problems.push(`indexes: missing ${k}`);
   for (const k of deployedIndexes) if (!declared.includes(k)) problems.push(`indexes: not in firestore.indexes.json ${k}`);
 
-  const deployedFns = (
-    await paged(api, `https://cloudfunctions.googleapis.com/v2/projects/${project}/locations/-/functions?pageSize=200`, 'functions')
-  ).map((f) => f.name.split('/').pop());
-  const exported = exportedFunctionNames(readFile('functions/src/index.ts'));
   if (!held) {
+    const fns = await settledFunctions(api, project, settle);
+    const deployedFns = fns.map((f) => lastSegment(f.name));
+    const exported = exportedFunctionNames(readFile('functions/src/index.ts'));
     for (const n of exported) if (!deployedFns.includes(n)) problems.push(`functions: ${n} is exported but not deployed`);
     for (const n of deployedFns) if (!exported.includes(n)) problems.push(`functions: ${n} is deployed but not exported`);
+    const cache = { builds: {}, tags: {}, versions: {} };
+    const health = await mapLimit(
+      fns.filter((f) => exported.includes(lastSegment(f.name))),
+      8,
+      async (f) => (await functionHealthProblems(api, f, { now, cache })).map((p) => `functions: ${lastSegment(f.name)} ${p}`),
+    );
+    problems.push(...health.flat());
   }
 
   return problems.sort();
@@ -382,7 +678,7 @@ function arg(name) {
 }
 
 /** Every difference between `env` and its declared state, as report lines. */
-export async function checkEnv(env, scope, baseline, api, { readFile, alsoBaselines = [] } = {}) {
+export async function checkEnv(env, scope, baseline, api, { readFile, alsoBaselines = [], now, settle } = {}) {
   const project = ENVS[env].project;
   const lines = [];
   if (scope !== 'artifacts') {
@@ -394,7 +690,7 @@ export async function checkEnv(env, scope, baseline, api, { readFile, alsoBaseli
   if (scope !== 'config') {
     const held = await backendHeld(api, project, env);
     if (held) console.log(`   ${env}: a release is holding its backend — rules and functions not compared`);
-    lines.push(...(await artifactProblems(api, project, { held, readFile })).map((l) => `artifacts ${l}`));
+    lines.push(...(await artifactProblems(api, project, { held, readFile, now, settle })).map((l) => `artifacts ${l}`));
   }
   return lines;
 }

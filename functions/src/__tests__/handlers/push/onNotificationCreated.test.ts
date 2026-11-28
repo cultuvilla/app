@@ -42,7 +42,7 @@ async function fire(notifId: string, data: Record<string, unknown>): Promise<voi
   await wrapped({
     data: ft.firestore.makeDocumentSnapshot(data, `users/${UID}/notifications/${notifId}`),
     params: { userId: UID, notifId },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 const queueDoc = (notifId: string) => admin.firestore().doc(`pushQueue/${UID}__${notifId}`).get();
@@ -69,6 +69,16 @@ describe('onNotificationCreated', () => {
     const q = await queueDoc('n1');
     expect(q.data()).toMatchObject({ category: 'mine', deliveredCount: 1, failedCount: 0 });
     expect(q.data()?.['sentAt']).not.toBeNull();
+  });
+
+  it('ends quietly when the account deletion removes the queue entry mid-delivery', async () => {
+    deliverPush.mockImplementationOnce(async () => {
+      await admin.firestore().doc(`pushQueue/${UID}__n-gone`).delete();
+      return { delivered: 1, failed: 0 };
+    });
+    await expect(fire('n-gone', notification('waitlist_promoted', { eventId: 'ev1' }))).resolves.not.toThrow();
+    expect(deliverPush).toHaveBeenCalledTimes(1);
+    expect((await queueDoc('n-gone')).exists).toBe(false);
   });
 
   it('never sends the same notification twice when the trigger is redelivered', async () => {

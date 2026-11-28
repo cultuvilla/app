@@ -1,6 +1,9 @@
 # Weekly schema audit with an unmodeled-field ratchet
 
 **Priority:** medium
+**Landed:** none
+**Gate:** none
+**Next:** finish #767 (lint fixed with .d.mts types; relaunch its lander), then confirm the first scheduled run on beta and main
 
 **Decided 2026-11-27 (Álvaro):** build it — first batch of the Órdago harvest (`_workspace/docs/plans/ideas/harvest-across-repos.md`).
 

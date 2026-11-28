@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Modal, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Screen } from '../primitives';
+import { BlockingOverlayHost, Screen, useBlockingOverlayActive } from '../primitives';
 import { ScreenHeader } from './ScreenHeader';
 
 /**
@@ -27,9 +27,10 @@ export function FormModal({
   testID?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const blocking = useBlockingOverlayActive();
   if (!visible) return null;
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+    <Modal visible animationType="slide" onRequestClose={blocking ? () => {} : onClose} statusBarTranslucent navigationBarTranslucent>
       <Screen padded={false} topInset={false} bottomInset={false}>
         <View style={{ flex: 1 }} testID={testID}>
           <ScreenHeader accent title={title} onBack={onClose} />
@@ -41,6 +42,7 @@ export function FormModal({
           ) : null}
         </View>
       </Screen>
+      <BlockingOverlayHost />
     </Modal>
   );
 }

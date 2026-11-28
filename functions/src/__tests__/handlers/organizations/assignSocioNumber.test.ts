@@ -23,7 +23,7 @@ const numberOf = async (id: string) => (await db().doc(`organizations/${ORG_ID}/
 async function fire(socioId: string) {
   const snap = await db().doc(`organizations/${ORG_ID}/socios/${socioId}`).get();
   const event = ft.firestore.makeDocumentSnapshot(snap.data() ?? {}, snap.ref.path);
-  await wrapped({ data: event, params: { orgId: ORG_ID, socioId } } as unknown as Parameters<typeof wrapped>[0]);
+  await wrapped({ data: event, params: { orgId: ORG_ID, socioId } });
 }
 
 beforeEach(async () => {

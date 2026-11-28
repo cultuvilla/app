@@ -9,6 +9,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
 import { resetEmulators } from '../helpers/firestoreEmulator';
+import { deleteAfterQuery, deleteBeforeUpdate } from '../helpers/deletedSubject';
 import { onRegistrationDeleted } from '../../events/waitlistPromotion';
 
 const ft = functionsTestFactory({ projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test' });
@@ -87,11 +88,11 @@ async function invokeDelete(reg: SeedReg): Promise<void> {
     regPath(reg.id),
   );
   // v2 firestore trigger: pass a synthesized CloudEvent.
-  const wrapped = ft.wrap(onRegistrationDeleted as unknown as Parameters<typeof ft.wrap>[0]);
+  const wrapped = ft.wrap(onRegistrationDeleted);
   await wrapped({
     data: snap,
     params: { eventId: EVENT_ID, regId: reg.id },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 describe('onRegistrationDeleted (waitlist promotion)', () => {
@@ -227,5 +228,38 @@ describe('onRegistrationDeleted (waitlist promotion)', () => {
     expect(notif.read).toBe(false);
     expect(notif.body).toContain('Fiesta del pueblo');
     expect(notif.body).toContain('Bob');
+  });
+
+  it('ends quietly when the event itself is deleted under it (its delete cascades the registrations)', async () => {
+    await seedEvent({ title: 'Fiesta', maxAttendees: null });
+    const race = deleteBeforeUpdate(`events/${EVENT_ID}`);
+    try {
+      await expect(
+        invokeDelete({ id: 'r1', status: 'confirmed', userId: 'wl-alice', name: 'Alice' }),
+      ).resolves.not.toThrow();
+    } finally {
+      race.restore();
+    }
+    expect((await admin.firestore().doc(`events/${EVENT_ID}`).get()).exists).toBe(false);
+  });
+
+  it('promotes no one into a seat whose waitlisted registration was withdrawn meanwhile', async () => {
+    await seedEvent({ title: 'Fiesta', maxAttendees: 1 });
+    await seedRegistration({ id: 'r2', status: 'waitlisted', userId: 'wl-bob', name: 'Bob', position: 1 });
+
+    const race = deleteAfterQuery(regPath('r2'));
+    try {
+      await expect(
+        invokeDelete({ id: 'r1', status: 'confirmed', userId: 'wl-alice', name: 'Alice' }),
+      ).resolves.not.toThrow();
+    } finally {
+      race.restore();
+    }
+
+    expect((await admin.firestore().doc(regPath('r2')).get()).exists).toBe(false);
+    const notifs = await admin.firestore().collection('users/wl-bob/notifications').get();
+    expect(notifs.size).toBe(0);
+    const audit = await admin.firestore().collection(`events/${EVENT_ID}/registrationEvents`).get();
+    expect(audit.size).toBe(0);
   });
 });

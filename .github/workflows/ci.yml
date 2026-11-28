@@ -47,6 +47,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # beta → main merge commits never reach develop: a PR, queue commit or
+      # push into develop that reaches beta/main history develop lacked fails.
+      # Reads the event itself (merge_group uses its base_sha) and is a no-op
+      # for every other target. Fetches the commit graph only (~2 s).
+      - name: Refuse a back-merge of beta or main into develop
+        run: node scripts/check-develop-back-merge.mjs --ci
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
@@ -82,6 +89,10 @@ jobs:
 
       - name: Check no E2E test-login bypass leak
         run: pnpm check:no-test-login-leak
+
+      # Listing text a store would reject fails here, not at a submission.
+      - name: Check the store listing against Play and App Store limits
+        run: pnpm check:store-listing
 
       # Shared checks, vendored from agent-skills into .agents/_shared; their
       # values are in .agents/checks.config.json.

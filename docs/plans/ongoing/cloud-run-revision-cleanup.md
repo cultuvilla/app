@@ -2,8 +2,8 @@
 
 **Priority:** high
 **Landed:** dev
-**Gate:** decision:prod revision drain (970 of 1,106 deletable, dry run 2026-11-27) and the deploy cleanup step on prod — Álvaro's go
-**Next:** run `node scripts/cleanup-cloudrun-revisions.mjs --env=prod --apply --confirm --max-deletes=1000 --max-minutes=60` (ADC `~/.config/cultuvilla/adc.json`), then a PR turning the deploy-firebase.yml cleanup step on for prod and updating revisionCleanup.test.ts. Dev drain unfinished (15,009 left): resume with `--env=dev --apply --max-deletes=15000 --max-minutes=600`
+**Gate:** release:1.14.0
+**Next:** after the first prod deploy that carries #775, confirm its "Clean up old Cloud Run revisions" step ran on prod (log shows deletes or 0 deletable), then retire. Prod drained by hand 2026-11-27 (970 deleted, 0 failed, 136 left, 68/68 services Ready); dev's ~14.8k backlog drains 150 per deploy
 
 State 2026-11-27: #758 merged. Beta drained 1,719 → 201. Artifact Registry needs nothing in any env (only gcf-artifacts, already on Firebase's 1-day policy).
 

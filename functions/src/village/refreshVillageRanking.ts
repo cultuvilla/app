@@ -1,4 +1,3 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, type Firestore, type Query } from 'firebase-admin/firestore';
 import {
@@ -19,6 +18,7 @@ import {
   type RankedVillage,
   type VillageContentCounts,
 } from '@cultuvilla/shared/models';
+import { defineSchedule } from '../shared/define/defineSchedule';
 
 async function count<T>(query: Query<T>): Promise<number> {
   return (await query.count().get()).data().count;
@@ -67,7 +67,8 @@ export async function computeVillageRanking(db: Firestore): Promise<RankedVillag
  * and costs a handful of count queries per active pueblo instead of one per
  * village-page view.
  */
-export const refreshVillageRanking = onSchedule(
+export const refreshVillageRanking = defineSchedule(
+  'refreshVillageRanking',
   { schedule: 'every day 04:00', timeZone: 'Europe/Madrid', timeoutSeconds: 540 },
   async () => {
     const db = getFirestore();

@@ -1,7 +1,8 @@
-import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { getFirestore, type UpdateData } from 'firebase-admin/firestore';
 import type { EventData } from '@cultuvilla/shared';
 import { eventsCollection } from '@cultuvilla/shared/firebase/refs/admin';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { updateIfStillExists } from '../shared/notFound';
 
 const db = getFirestore();
 
@@ -14,8 +15,9 @@ const db = getFirestore();
  * collection has not migrated to schema-first models yet (Task 16). Once it
  * does, those reads will move through `municipalityDoc(db, id)`.
  */
-export const syncVillageDenormalization = onDocumentUpdated(
-  { document: 'municipalities/{municipalityId}', region: 'us-central1' },
+export const syncVillageDenormalization = defineDocumentTrigger(
+  'syncVillageDenormalization',
+  { kind: 'updated', document: 'municipalities/{municipalityId}' },
   async (event) => {
     const before = event.data?.before.data() ?? {};
     const after = event.data?.after.data() ?? {};
@@ -59,12 +61,17 @@ export const syncVillageDenormalization = onDocumentUpdated(
     if (coordsChanged) update['villageCoordinates'] = after['coordinates'];
     const updatePayload = update as UpdateData<EventData>;
 
-    const docs = eventsSnap.docs;
-    for (let i = 0; i < docs.length; i += 500) {
-      const batch = db.batch();
-      docs.slice(i, i + 500).forEach((d) => batch.update(d.ref, updatePayload));
-      await batch.commit();
-    }
+    // Per-document writes, not batches: an event deleted between the query and
+    // the write would fail its whole batch of 500.
+    const writer = db.bulkWriter();
+    const writes = eventsSnap.docs.map((d) =>
+      updateIfStillExists(() => writer.update(d.ref, updatePayload), {
+        handler: 'syncVillageDenormalization',
+        path: d.ref.path,
+      }),
+    );
+    await writer.close();
+    await Promise.all(writes);
   },
 );
 

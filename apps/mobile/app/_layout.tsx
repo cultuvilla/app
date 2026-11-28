@@ -13,6 +13,7 @@ import { VillageSync } from '../lib/sync/VillageSync';
 import { CopiedToast } from '../components/feature/CopiedToast';
 import { IntroHost, useMarkAppReady } from '../components/intro/IntroHost';
 import { ImageZoomOverlayProvider } from '../components/primitives/ImageZoomOverlay';
+import { BlockingOverlayHost } from '../components/primitives/BlockingOverlay';
 import { AuthProvider } from '../lib/auth/AuthContext';
 import { CallableErrorProvider } from '../lib/callableError';
 import { I18nProvider } from '../lib/i18n';
@@ -83,6 +84,7 @@ function AppTree() {
             </CallableErrorProvider>
           </AppVersionGate>
         </ObservabilityErrorBoundary>
+        <BlockingOverlayHost />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

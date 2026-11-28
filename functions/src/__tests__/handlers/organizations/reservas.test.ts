@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../../helpers/functionsTest';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { applyBookReservaSlot, bookReservaSlot } from '../../../organizations/bookReservaSlot';
 import { applyCosaRequestAction } from '../../../organizations/respondToCosaRequest';
@@ -119,9 +120,9 @@ describe('bookReservaSlot', () => {
   });
 
   it('rejects the unauthenticated and bad arguments', async () => {
-    const wrapped = ft.wrap(bookReservaSlot as unknown as Parameters<typeof ft.wrap>[0]);
+    const wrapped = wrapCallable(ft, bookReservaSlot);
     const call = (uid: string | null, data: unknown) =>
-      wrapped({ data, auth: uid ? { uid, token: {} } : undefined } as unknown as Parameters<typeof wrapped>[0]) as Promise<unknown>;
+      wrapped({ data, auth: uid ? { uid, token: {} } : undefined }) as Promise<unknown>;
     await expect(call(null, { cosaId: 'pista', startAt: SLOT_18.toISOString() })).rejects.toMatchObject({ code: 'unauthenticated' });
     await expect(call('u-ana', { cosaId: 'pista', startAt: 'mañana' })).rejects.toMatchObject({ code: 'invalid-argument' });
   });

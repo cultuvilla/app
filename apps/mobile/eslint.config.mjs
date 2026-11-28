@@ -4,9 +4,12 @@
 // no Firebase outside the SDK seam and the boundary files, no `any`, the
 // rules of hooks, and no `eslint-disable` that outlives its rule. Not
 // type-checked — none of these rules needs type information.
+// In tests: no focused test, and no test that asserts nothing.
 // Pinned by packages/shared/test/eslint/appLintRules.test.ts.
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import jestPlugin from 'eslint-plugin-jest';
+import { BARE_FIREBASE_ERROR_CODE_COMPARE } from '../../packages/shared/eslint/bareFirebaseErrorCode.mjs';
 
 // Regexes, not gitignore globs: a bare `firebase` glob matches at any depth,
 // so it would also catch `@cultuvilla/shared/firebase` and `./firebase`.
@@ -45,6 +48,8 @@ export const SEAM_ALLOWLIST = [
   'components/feature/__tests__/LiveAvatar.test.tsx',
 ];
 
+export const TEST_FILES = ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'];
+
 const restrictImports = (...patterns) => ({
   '@typescript-eslint/no-restricted-imports': ['error', { patterns }],
 });
@@ -66,7 +71,20 @@ export default tseslint.config(
       // Off: switched on, it reports 28 findings beyond the 14 call sites that
       // were silencing it, and fixing them changes when effects run.
       'react-hooks/exhaustive-deps': 'off',
+      // Through firebaseErrorCode() only (packages/shared/eslint/bareFirebaseErrorCode.mjs).
+      'no-restricted-syntax': ['error', BARE_FIREBASE_ERROR_CODE_COMPARE],
       ...restrictImports(rawSdkPattern, seamPattern),
+    },
+  },
+  {
+    // A committed `.only` silently skips every other test in its file, and a
+    // test with no assertion passes whatever the code does.
+    files: TEST_FILES,
+    plugins: { jest: jestPlugin },
+    rules: {
+      'jest/no-focused-tests': 'error',
+      // findBy* throws when nothing matches, so it is an assertion too.
+      'jest/expect-expect': ['error', { assertFunctionNames: ['expect', 'findBy*', 'findAllBy*'] }],
     },
   },
   { files: SEAM_ALLOWLIST, rules: restrictImports(rawSdkPattern) },

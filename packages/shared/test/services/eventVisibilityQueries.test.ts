@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument,
                   @typescript-eslint/no-unsafe-assignment,
-                  @typescript-eslint/no-explicit-any,
                   @typescript-eslint/no-extraneous-class,
                   @typescript-eslint/require-await */
 // The contract under test is narrow but load-bearing: rules do not filter a
@@ -41,8 +40,9 @@ import {
   getPrivateEventsByMunicipality,
 } from '../../src/services/eventService';
 import { getPrivateUpcomingFeed, getUpcomingFeed } from '../../src/services/feedService';
+import { fakeQuerySnapshot } from '../helpers/sdkFakes';
 
-const EMPTY = { docs: [] } as any;
+const EMPTY = fakeQuerySnapshot();
 
 beforeEach(() => {
   vi.clearAllMocks();

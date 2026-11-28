@@ -47,9 +47,7 @@ async function fireCommentTrigger(
   const beforeSnap = ft.firestore.makeDocumentSnapshot(asRecord(before), `comments/${commentId}`);
   const afterSnap = ft.firestore.makeDocumentSnapshot(asRecord(after), `comments/${commentId}`);
   const change = ft.makeChange(beforeSnap, afterSnap);
-  await wrappedComment({ data: change, params: { commentId } } as unknown as Parameters<
-    typeof wrappedComment
-  >[0]);
+  await wrappedComment({ data: change, params: { commentId } });
 }
 
 async function seedEvent(id: string, extra: Record<string, unknown> = {}): Promise<void> {
@@ -196,6 +194,16 @@ describe('syncEntityCommentCount — replies', () => {
 
     const parentDoc = await admin.firestore().doc('comments/parent-1').get();
     expect(parentDoc.get('replyCount')).toBe(0);
+  });
+
+  it('skips the replyCount when the parent comment is already gone (its delete cascades replies)', async () => {
+    await seedEvent('e1', { commentCount: 1 });
+    await expect(
+      fireCommentTrigger(comment({ parentCommentId: 'gone-parent' }), null, 'reply-1'),
+    ).resolves.not.toThrow();
+
+    expect((await admin.firestore().doc('comments/gone-parent').get()).exists).toBe(false);
+    expect((await admin.firestore().doc('events/e1').get()).get('commentCount')).toBe(0);
   });
 
   it('notifies the parent comment author on reply create', async () => {

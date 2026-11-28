@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../helpers/functionsTest';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { checkAccountDeletable } from '../../account/checkAccountDeletable';
 
@@ -86,11 +87,11 @@ interface CallableResult {
 }
 
 async function callCheck(uid: string | null): Promise<CallableResult> {
-  const wrapped = ft.wrap(checkAccountDeletable as unknown as Parameters<typeof ft.wrap>[0]);
-  return (await wrapped({
+  const wrapped = wrapCallable(ft, checkAccountDeletable);
+  return await wrapped({
     data: undefined,
     auth: uid ? { uid, token: {} } : undefined,
-  } as unknown as Parameters<typeof wrapped>[0])) as unknown as CallableResult;
+  });
 }
 
 describe('checkAccountDeletable (callable)', () => {

@@ -1,4 +1,3 @@
-import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
@@ -11,6 +10,8 @@ import { selectPromotionGroup } from '../helpers/registerToEventValidation';
 import { appendRegistrationEvent } from '../helpers/registrationAudit';
 import { RESEND_API_KEY } from '../auth/secret';
 import { sendRegistrationEmail } from './sendRegistrationEmail';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { updateIfStillExists } from '../shared/notFound';
 
 const db = getFirestore();
 
@@ -19,8 +20,9 @@ const db = getFirestore();
  * and keeps `events/{eventId}.confirmedCount` / `.totalCount` in sync.
  * Watches top-level /events/{eventId}/registrations/{regId}.
  */
-export const onRegistrationDeleted = onDocumentDeleted(
-  { document: 'events/{eventId}/registrations/{regId}', secrets: [RESEND_API_KEY] },
+export const onRegistrationDeleted = defineDocumentTrigger(
+  'onRegistrationDeleted',
+  { kind: 'deleted', document: 'events/{eventId}/registrations/{regId}', secrets: [RESEND_API_KEY] },
   async (event) => {
     const { eventId } = event.params;
     // The trigger framework hands us a raw DocumentSnapshot (no converter),
@@ -78,8 +80,13 @@ export const onRegistrationDeleted = onDocumentDeleted(
           if (!doc) continue;
           // Converter-wrapped: typed RegistrationData.
           const nextData = doc.data();
-          // update() bypasses the converter, partial shape is accepted.
-          await doc.ref.update({ status: 'confirmed' });
+          // update() bypasses the converter, partial shape is accepted. A seat
+          // withdrawn meanwhile is skipped: there is no one left to promote.
+          const applied = await updateIfStillExists(() => doc.ref.update({ status: 'confirmed' }), {
+            handler: 'onRegistrationDeleted',
+            path: doc.ref.path,
+          });
+          if (!applied) continue;
           promoted = true;
 
           // Deterministic id: a promotion is terminal (a confirmed seat is
@@ -135,10 +142,15 @@ export const onRegistrationDeleted = onDocumentDeleted(
       regsCol.where('status', '==', 'confirmed').count().get(),
       regsCol.count().get(),
     ]);
-    await eventRef.update({
-      confirmedCount: confirmedSnap.data().count,
-      totalCount: totalSnap.data().count,
-    });
+    // Deleting the event cascades its registrations, each firing this trigger.
+    await updateIfStillExists(
+      () =>
+        eventRef.update({
+          confirmedCount: confirmedSnap.data().count,
+          totalCount: totalSnap.data().count,
+        }),
+      { handler: 'onRegistrationDeleted', path: eventRef.path },
+    );
 
     for (const attendee of promotedAttendees) {
       await sendRegistrationEmail({

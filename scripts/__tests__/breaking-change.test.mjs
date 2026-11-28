@@ -64,6 +64,18 @@ export {
     assert.equal(definitionKind('export const a: X = onRequest((q, r) => {})', 'a'), 'onRequest');
     assert.equal(definitionKind('export const a = onDocumentWritten("x", h)', 'a'), 'onDocumentWritten');
     assert.equal(definitionKind('export const ab = onCall(h)', 'a'), null);
+    assert.equal(definitionKind("export const a = defineCallable<In, Out>('a', opts, h)", 'a'), 'defineCallable');
+  });
+
+  it('reads the functions/src/shared/define builders like the v2 ones', () => {
+    const idx = "export { a } from './x/a';\nexport { t } from './x/t';\nexport { s } from './x/s';\nexport { h } from './x/h';";
+    const modules = {
+      './x/a': "export const a = defineCallable('a', {}, h);",
+      './x/t': "export const t = defineDocumentTrigger('t', { kind: 'created', document: 'x/{id}' }, h);",
+      './x/s': "export const s = defineSchedule('s', { schedule: 'every 1 hours' }, h);",
+      './x/h': "export const h = defineHttpFunction('h', {}, h);",
+    };
+    assert.deepEqual(clientReachableNames(idx, (from) => modules[from] ?? null), ['a', 'h']);
   });
 
   it('keeps callables and HTTPS endpoints, drops triggers, and counts the unreadable', () => {
@@ -81,6 +93,9 @@ export {
     const callableFactory = "import { onCall } from 'firebase-functions/v2/https';\nexport const c1 = guarded(h);";
     assert.deepEqual(clientReachableNames(idx, () => triggerFactory), []);
     assert.deepEqual(clientReachableNames(idx, () => callableFactory), ['c1']);
+    const definedTriggerFactory =
+      "import { type Change } from 'firebase-functions/v2/firestore';\nimport { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';\nexport const c1 = cleanupTrigger(src);";
+    assert.deepEqual(clientReachableNames(idx, () => definedTriggerFactory), []);
   });
 });
 

@@ -14,7 +14,7 @@ const wrapped = ft.wrap(syncPersonDenormalization);
 const USER_ID = 'user-1';
 const PERSON_ID = 'person-1';
 
-interface PersonShape {
+type PersonShape = {
   userId: string | null;
   givenName: string;
   middleNames: string[];
@@ -45,7 +45,7 @@ async function seedUser(displayName: string | null): Promise<void> {
 }
 
 function asRecord(person: PersonShape | null): Record<string, unknown> {
-  return person ? (person as unknown as Record<string, unknown>) : {};
+  return person ? person : {};
 }
 
 async function fireTrigger(
@@ -56,8 +56,18 @@ async function fireTrigger(
   const beforeSnap = ft.firestore.makeDocumentSnapshot(asRecord(before), `persons/${personId}`);
   const afterSnap = ft.firestore.makeDocumentSnapshot(asRecord(after), `persons/${personId}`);
   const change = ft.makeChange(beforeSnap, afterSnap);
+  // The trigger reads the person as it stands now, so the store holds `after`.
+  const ref = admin.firestore().doc(`persons/${personId}`);
+  await (after ? ref.set(asRecord(after)) : ref.delete());
   // v2 wrapper takes a single CloudEvent-style object with data + params.
-  await wrapped({ data: change, params: { personId } } as unknown as Parameters<typeof wrapped>[0]);
+  await wrapped({ data: change, params: { personId } });
+}
+
+/** Fires the trigger without touching the store — a delivery that arrives late. */
+async function fireStale(before: PersonShape | null, after: PersonShape | null): Promise<void> {
+  const beforeSnap = ft.firestore.makeDocumentSnapshot(asRecord(before), `persons/${PERSON_ID}`);
+  const afterSnap = ft.firestore.makeDocumentSnapshot(asRecord(after), `persons/${PERSON_ID}`);
+  await wrapped({ data: ft.makeChange(beforeSnap, afterSnap), params: { personId: PERSON_ID } });
 }
 
 beforeAll(async () => {
@@ -171,6 +181,29 @@ describe('syncPersonDenormalization', () => {
 
       // Stale value left alone: no sex change means no fan-out.
       expect(await organizerSex('m1')).toBe('male');
+    });
+  });
+
+  describe('a late event (delivered after a newer write)', () => {
+    it('does not recreate the user doc when the person was deleted meanwhile', async () => {
+      await fireTrigger(null, person());
+      await admin.firestore().doc(`users/${USER_ID}`).delete();
+      await admin.firestore().doc(`persons/${PERSON_ID}`).delete();
+
+      // The update raced the account deletion: its snapshots still carry a
+      // person, but the store no longer does.
+      await fireStale(person(), person({ secondSurname: 'Pérez' }));
+
+      expect((await admin.firestore().doc(`users/${USER_ID}`).get()).exists).toBe(false);
+    });
+
+    it('writes the current name, not the stale one the event carries', async () => {
+      await seedUser('Ana García López');
+      await admin.firestore().doc(`persons/${PERSON_ID}`).set(asRecord(person({ secondSurname: 'Ruiz' })));
+
+      await fireStale(person(), person({ secondSurname: 'Pérez' }));
+
+      expect((await admin.firestore().doc(`users/${USER_ID}`).get()).get('displayName')).toBe('Ana García Ruiz');
     });
   });
 });

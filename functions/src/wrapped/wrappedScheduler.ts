@@ -1,4 +1,3 @@
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { wrappedId } from '@cultuvilla/shared/models';
@@ -9,6 +8,7 @@ import {
 } from '@cultuvilla/shared/firebase/refs/admin';
 import { wrappedReminderYear } from './wrappedWindows';
 import { announceWrappedPublished, remindVillageAdmins } from './wrappedNotifications';
+import { defineSchedule } from '../shared/define/defineSchedule';
 
 const db = getFirestore();
 
@@ -25,7 +25,8 @@ const db = getFirestore();
  * `autoPublishAt` is a stored timestamp rather than elapsed-time arithmetic, so
  * a missed run delays publication instead of skipping it.
  */
-export const runVillageWrappedLifecycle = onSchedule(
+export const runVillageWrappedLifecycle = defineSchedule(
+  'runVillageWrappedLifecycle',
   { schedule: 'every 1 hours', timeZone: 'Europe/Madrid', timeoutSeconds: 540 },
   async () => {
     const handler = 'runVillageWrappedLifecycle';

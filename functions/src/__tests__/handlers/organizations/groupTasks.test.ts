@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../../helpers/functionsTest';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { followUpGroupTask } from '../../../organizations/onGroupTaskUpdated';
 import { respondToTaskShift } from '../../../organizations/respondToTaskShift';
@@ -38,8 +39,8 @@ async function notificationsOf(uid: string) {
 }
 
 function call(uid: string | null, data: unknown) {
-  const wrapped = ft.wrap(respondToTaskShift as unknown as Parameters<typeof ft.wrap>[0]);
-  return wrapped({ data, auth: uid ? { uid, token: {} } : undefined } as unknown as Parameters<typeof wrapped>[0]) as Promise<{ state: string }>;
+  const wrapped = wrapCallable(ft, respondToTaskShift);
+  return wrapped({ data, auth: uid ? { uid, token: {} } : undefined }) as Promise<{ state: string }>;
 }
 
 beforeEach(async () => {
@@ -145,8 +146,7 @@ describe('sendGroupTaskReminders', () => {
   const BEFORE = new Date('2026-05-08T08:00:00Z');
 
   it('runs daily at 10:00 Madrid, out of quiet hours', () => {
-    const schedule = (sendGroupTaskReminders as unknown as { __endpoint: { scheduleTrigger: { schedule: string; timeZone: string } } })
-      .__endpoint.scheduleTrigger;
+    const schedule = sendGroupTaskReminders.__endpoint.scheduleTrigger;
     expect(schedule).toMatchObject({ schedule: 'every day 10:00', timeZone: 'Europe/Madrid' });
   });
 

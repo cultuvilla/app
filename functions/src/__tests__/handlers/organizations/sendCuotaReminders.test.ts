@@ -2,8 +2,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as admin from 'firebase-admin';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
+import type { sendEmail } from '../../../shared/email';
 
-const { sendEmailMock } = vi.hoisted(() => ({ sendEmailMock: vi.fn(() => Promise.resolve('sent' as const)) }));
+const { sendEmailMock } = vi.hoisted(() => ({ sendEmailMock: vi.fn<typeof sendEmail>(() => Promise.resolve('sent')) }));
 vi.mock('../../../shared/email', () => ({ sendEmail: sendEmailMock }));
 
 import { runCuotaReminders, sendCuotaReminders } from '../../../organizations/sendCuotaReminders';
@@ -77,8 +78,7 @@ beforeEach(async () => {
 
 describe('sendCuotaReminders', () => {
   it('runs daily at 10:00 Madrid, out of quiet hours', () => {
-    const schedule = (sendCuotaReminders as unknown as { __endpoint: { scheduleTrigger: { schedule: string; timeZone: string } } })
-      .__endpoint.scheduleTrigger;
+    const schedule = sendCuotaReminders.__endpoint.scheduleTrigger;
     expect(schedule).toMatchObject({ schedule: 'every day 10:00', timeZone: 'Europe/Madrid' });
   });
 
@@ -96,7 +96,7 @@ describe('sendCuotaReminders', () => {
     expect(String(n['body'])).toMatch(/^Luis: tu cuota \(30,00\s€\) vence el domingo, 1 de marzo de 2026\.$/);
 
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
-    const [email] = sendEmailMock.mock.calls[0] as unknown as [{ to: string; text: string; fromName: string; replyTo?: string }];
+    const [email] = sendEmailMock.mock.calls[0];
     expect(email.to).toBe('u-ana@x.es');
     expect(email.fromName).toBe('La Anduela');
     // Replies go to the admin who signs it.
@@ -118,7 +118,7 @@ describe('sendCuotaReminders', () => {
     await seedMember('u-ana', 'Ana');
     await db().doc(`organizations/${ORG_ID}/socioPrivate/Ana`).set({ phone: null, email: 'ana@junta.es', consentAnsweredAt: new Date() });
     await runCuotaReminders(db(), BEFORE);
-    expect((sendEmailMock.mock.calls[0] as unknown as [{ to: string }])[0].to).toBe('ana@junta.es');
+    expect(sendEmailMock.mock.calls[0][0].to).toBe('ana@junta.es');
   });
 
   it('sends the "after" reminder once vencida', async () => {
@@ -164,7 +164,7 @@ describe('sendCuotaReminders', () => {
     await runCuotaReminders(db(), BEFORE);
 
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
-    expect((sendEmailMock.mock.calls[0] as unknown as [{ to: string }])[0].to).toBe('benito@x.es');
+    expect(sendEmailMock.mock.calls[0][0].to).toBe('benito@x.es');
     expect(await reminders()).toEqual([expect.objectContaining({ id: '2026_before_Benito', push: false, email: true, recipientUid: null })]);
   });
 

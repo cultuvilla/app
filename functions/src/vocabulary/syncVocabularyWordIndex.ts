@@ -1,4 +1,3 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
 import { vocabularyTermsCollection, vocabularyWordDoc } from '@cultuvilla/shared/firebase/refs/admin';
@@ -7,6 +6,7 @@ import {
   isSharedVocabularyKind,
   type VocabularyTermKind,
 } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -22,8 +22,9 @@ const db = getFirestore();
  * Only `palabra` and `dicho` are indexed — see SHARED_VOCABULARY_KINDS for why
  * motes and topónimos must never merge across villages.
  */
-export const syncVocabularyWordIndex = onDocumentWritten(
-  { document: 'vocabularyTerms/{termId}', region: 'us-central1' },
+export const syncVocabularyWordIndex = defineDocumentTrigger(
+  'syncVocabularyWordIndex',
+  { kind: 'written', document: 'vocabularyTerms/{termId}' },
   async (event) => {
     const before = event.data?.before.data() ?? null;
     const after = event.data?.after.data() ?? null;

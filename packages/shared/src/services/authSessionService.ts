@@ -1,6 +1,5 @@
 // packages/shared/src/services/authSessionService.ts
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
 
 export type LegacySessionResult = { status: 'restored'; token: string } | { status: 'refused' };
 
@@ -12,10 +11,7 @@ export async function restoreLegacySession(
   refreshToken: string,
   apiKey: string,
 ): Promise<LegacySessionResult> {
-  const fn = httpsCallable<{ refreshToken: string; apiKey: string }, LegacySessionResult>(
-    getFirebaseFunctions(),
-    'restoreLegacySession',
-  );
+  const fn = getCallable<{ refreshToken: string; apiKey: string }, LegacySessionResult>('restoreLegacySession');
   const result = await fn({ refreshToken, apiKey });
   return result.data;
 }

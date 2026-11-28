@@ -1,7 +1,7 @@
 // packages/shared/src/services/orgJoinRequestService.ts
 import { deleteDoc, getDoc, getDocs, query, setDoc, where } from '../firebase/sdk/firestore';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   joinRequestsGroup,
   organizationJoinRequestDoc,
@@ -65,9 +65,9 @@ export async function respondToOrgJoinRequest(
   userId: string,
   decision: OrgJoinDecision,
 ): Promise<void> {
-  const fn = httpsCallable<
+  const fn = getCallable<
     { orgId: string; userId: string; decision: OrgJoinDecision },
     { ok: true }
-  >(getFirebaseFunctions(), 'respondToOrgJoinRequest');
+  >('respondToOrgJoinRequest');
   await fn({ orgId, userId, decision });
 }

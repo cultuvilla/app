@@ -88,7 +88,7 @@ beforeEach(() => {
 describe('NewsDetailScreen', () => {
   it('renders the post title once loaded', async () => {
     const { getByText } = render(<NewsDetailScreen />);
-    await waitFor(() => getByText('Gran noticia'));
+    await waitFor(() => expect(getByText('Gran noticia')).toBeTruthy());
   });
 
   // The screen no longer decides authority itself — it asks the shared hook,

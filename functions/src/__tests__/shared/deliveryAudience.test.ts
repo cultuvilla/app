@@ -5,7 +5,7 @@ const { getUsers, projectId, info, send, batchSend } = vi.hoisted(() => ({
   projectId: { value: 'villa-events' as string | undefined },
   info: vi.fn(),
   send: vi.fn(() => Promise.resolve({ data: { id: 'x' }, error: null })),
-  batchSend: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+  batchSend: vi.fn((_emails: { to: string }[]) => Promise.resolve({ data: {}, error: null })),
 }));
 
 vi.mock('firebase-admin/auth', () => ({ getAuth: () => ({ getUsers }) }));
@@ -115,7 +115,7 @@ describe('email transport', () => {
       label: 'Group',
     });
     expect(outcomes).toEqual(['skipped', 'sent', 'skipped']);
-    const sent = (batchSend.mock.calls[0] as unknown as [{ to: string }[]])[0];
+    const sent = batchSend.mock.calls[0][0];
     expect(sent.map((e) => e.to)).toEqual(['b@example.com']);
   });
 

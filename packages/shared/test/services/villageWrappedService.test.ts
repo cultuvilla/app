@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any,
-                  @typescript-eslint/no-unsafe-argument,
-                  @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/require-await */
 // vi.mock factories legitimately fake the firebase/firestore SDK shape —
 // matching notificationService.unreadable.test.ts.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -25,14 +23,15 @@ vi.mock('firebase/firestore', async () => {
 
 import { getDoc } from 'firebase/firestore';
 import { getReadableWrapped } from '../../src/services/villageWrappedService';
+import { fakeDocSnapshot } from '../helpers/sdkFakes';
 
 /** Shaped like the SDK's FirebaseError — the service reads only its `code`. */
 const firestoreError = (code: string, message: string) => Object.assign(new Error(message), { code });
 
 const snap = (status: string | null) =>
   status === null
-    ? { exists: () => false }
-    : { exists: () => true, id: 'm1_2026', data: () => ({ status, year: 2026 }) };
+    ? fakeDocSnapshot({ id: 'm1_2026' })
+    : fakeDocSnapshot({ id: 'm1_2026', data: () => ({ status, year: 2026 }) });
 
 describe('getReadableWrapped', () => {
   beforeEach(() => {
@@ -40,12 +39,12 @@ describe('getReadableWrapped', () => {
   });
 
   it('returns a published Wrapped', async () => {
-    vi.mocked(getDoc).mockResolvedValue(snap('published') as any);
+    vi.mocked(getDoc).mockResolvedValue(snap('published'));
     await expect(getReadableWrapped('m1', 2026)).resolves.toMatchObject({ id: 'm1_2026', status: 'published' });
   });
 
   it('has nothing for a year with no Wrapped', async () => {
-    vi.mocked(getDoc).mockResolvedValue(snap(null) as any);
+    vi.mocked(getDoc).mockResolvedValue(snap(null));
     await expect(getReadableWrapped('m1', 2026)).resolves.toBeNull();
   });
 
@@ -56,8 +55,14 @@ describe('getReadableWrapped', () => {
     await expect(getReadableWrapped('m1', 2026)).resolves.toBeNull();
   });
 
+  // The native SDK prefixes its codes: a bare compare matched only these tests.
+  it('reads a draft withheld on device, where the code is prefixed, as no Wrapped', async () => {
+    vi.mocked(getDoc).mockImplementation(() => Promise.reject(firestoreError('firestore/permission-denied', 'denied')));
+    await expect(getReadableWrapped('m1', 2026)).resolves.toBeNull();
+  });
+
   it('does not show an admin their own draft as if it were public', async () => {
-    vi.mocked(getDoc).mockResolvedValue(snap('draft') as any);
+    vi.mocked(getDoc).mockResolvedValue(snap('draft'));
     await expect(getReadableWrapped('m1', 2026)).resolves.toBeNull();
   });
 

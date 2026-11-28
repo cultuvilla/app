@@ -17,8 +17,8 @@ import {
   type QueryDocumentSnapshot,
 } from '../firebase/sdk/firestore';
 import { z } from 'zod';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import { FiestaBlockSchema, type FiestaBlock } from '../models/municipality/FiestaBlockModel';
 import {
   municipalitiesCollection,
@@ -289,10 +289,7 @@ interface StartVillagePayload {
 
 /** Activate a dormant municipality's community and join it as the first member. */
 export async function startVillage(payload: StartVillagePayload): Promise<void> {
-  const fn = httpsCallable<StartVillagePayload, { ok: true }>(
-    getFirebaseFunctions(),
-    'startVillage',
-  );
+  const fn = getCallable<StartVillagePayload, { ok: true }>('startVillage');
   await fn(payload);
 }
 
@@ -304,10 +301,7 @@ interface UpdateVillageInfoPayload {
 /** Edit a village's basic info. Allowed for any member during the wiki phase
  *  (no organizer yet), and for admins afterwards — enforced server-side. */
 export async function updateVillageInfo(payload: UpdateVillageInfoPayload): Promise<void> {
-  const fn = httpsCallable<UpdateVillageInfoPayload, { ok: true }>(
-    getFirebaseFunctions(),
-    'updateVillageInfo',
-  );
+  const fn = getCallable<UpdateVillageInfoPayload, { ok: true }>('updateVillageInfo');
   await fn(payload);
 }
 

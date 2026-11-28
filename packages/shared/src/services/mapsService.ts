@@ -1,5 +1,5 @@
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getFirebaseApp, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getFirebaseApp } from '../firebase';
 
 export interface GeocodePlace {
   label: string;
@@ -57,7 +57,7 @@ export function staticMapUrl(
 }
 
 const geocodeFn = () =>
-  httpsCallable<{ query: string }, { results: GeocodePlace[] }>(getFirebaseFunctions(), 'geocodeSearch');
+  getCallable<{ query: string }, { results: GeocodePlace[] }>('geocodeSearch');
 
 /** Geocodes a free-text address/town via the server-side proxy. Returns [] on no match. */
 export async function geocodeSearch(query: string): Promise<GeocodePlace[]> {
@@ -66,10 +66,7 @@ export async function geocodeSearch(query: string): Promise<GeocodePlace[]> {
 }
 
 const reverseGeocodeFn = () =>
-  httpsCallable<{ lat: number; lng: number }, { label: string | null }>(
-    getFirebaseFunctions(),
-    'reverseGeocode',
-  );
+  getCallable<{ lat: number; lng: number }, { label: string | null }>('reverseGeocode');
 
 /**
  * Human-readable address for a coordinate, via the same server-side proxy.

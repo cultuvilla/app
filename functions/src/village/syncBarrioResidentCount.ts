@@ -1,10 +1,10 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { municipalityBarrioDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { isDeceased } from '@cultuvilla/shared/models';
 import type { BurialPlace, PartialDate } from '@cultuvilla/shared/models';
-import { isNotFound } from '../interaction/syncEntityInteractionCounts';
+import { updateIfStillExists } from '../shared/notFound';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -56,8 +56,9 @@ function barrioKeys(links: unknown): Map<string, ResidenceLink> {
  * `.update()` overload (no converter) and swallows NOT_FOUND so a person whose
  * barrio was deleted concurrently doesn't retry forever.
  */
-export const syncBarrioResidentCount = onDocumentWritten(
-  { document: 'persons/{personId}', region: 'us-central1' },
+export const syncBarrioResidentCount = defineDocumentTrigger(
+  'syncBarrioResidentCount',
+  { kind: 'written', document: 'persons/{personId}' },
   async (event) => {
     const handler = 'syncBarrioResidentCount';
     const before = residentBarrioKeys(event.data?.before.data());
@@ -75,15 +76,12 @@ export const syncBarrioResidentCount = onDocumentWritten(
     const { personId } = event.params;
     for (const { link, delta } of deltas.values()) {
       const barrioId = link.barrioId as string;
-      try {
-        await municipalityBarrioDoc(db, link.municipalityId, barrioId).update(
-          'residentCount',
-          FieldValue.increment(delta),
-        );
-      } catch (err) {
-        if (isNotFound(err)) continue; // barrio deleted before this ran → skip
-        throw err;
-      }
+      const barrioRef = municipalityBarrioDoc(db, link.municipalityId, barrioId);
+      const applied = await updateIfStillExists(
+        () => barrioRef.update('residentCount', FieldValue.increment(delta)),
+        { handler, path: barrioRef.path, personId },
+      );
+      if (!applied) continue;
       logger.info('barrio resident count updated', {
         handler,
         personId,

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument,
-                  @typescript-eslint/no-explicit-any,
                   @typescript-eslint/require-await */
 // vi.mock factories legitimately fake the firebase SDK shape.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -37,6 +36,7 @@ import {
   requestToJoinOrganization,
   respondToOrgJoinRequest,
 } from '../../src/services/orgJoinRequestService';
+import { fakeQuerySnapshot } from '../helpers/sdkFakes';
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -53,7 +53,7 @@ describe('orgJoinRequestService', () => {
   });
 
   it("lists the requester's own requests with a userId-filtered collection-group query", async () => {
-    vi.mocked(getDocs).mockResolvedValue({ docs: [] } as any);
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([]));
 
     await getMyPendingOrgJoinRequests('u-1');
 

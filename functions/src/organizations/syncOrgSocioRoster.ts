@@ -1,4 +1,3 @@
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import {
@@ -17,6 +16,7 @@ import {
   socioContactMissing,
   type SocioContactRequirement,
 } from '@cultuvilla/shared/models';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 
 const db = getFirestore();
 
@@ -136,8 +136,9 @@ export async function reconcileSocioMembership(
  * org that is already gone (the delete cascade) is a no-op, so it does not
  * recreate the org's subcollection.
  */
-export const syncOrgSocioRoster = onDocumentWritten(
-  { document: 'organizations/{orgId}/members/{userId}', region: 'us-central1' },
+export const syncOrgSocioRoster = defineDocumentTrigger(
+  'syncOrgSocioRoster',
+  { kind: 'written', document: 'organizations/{orgId}/members/{userId}' },
   async (event) => {
     const handler = 'syncOrgSocioRoster';
     const { orgId, userId } = event.params;

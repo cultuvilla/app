@@ -44,10 +44,11 @@ import {
   watchGroupChatThreads,
 } from '../../src/services/groupChatService';
 import { GROUP_CHAT_BODY_MAX } from '../../src/models/organization/GroupChatDataModel';
+import { refPath, written } from '../helpers/sdkFakes';
 
 const call = (fn: typeof setDoc | typeof deleteDoc, i = 0) => {
-  const [ref, data, options] = vi.mocked(fn).mock.calls[i] as unknown as [{ _path: string }, Record<string, unknown>, unknown];
-  return { path: ref._path, data, options };
+  const [ref, data, options] = vi.mocked(fn).mock.calls[i];
+  return { path: refPath(ref), data: data === undefined ? undefined : written(data), options };
 };
 
 beforeEach(() => {

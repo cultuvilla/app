@@ -48,7 +48,7 @@ describe('shared tests are type-checked', () => {
 // Ratchet on escape-hatch casts in the shared tests. A cast hides exactly the
 // drift the type check exists to catch, so each one is replaced by a typed
 // fixture over time. The count may only go down: lower BASELINE when it does.
-const BASELINE = 56;
+const BASELINE = 7;
 const CAST = /\bas any\b|\bas unknown as\b/g;
 const SELF = resolve(__filename);
 

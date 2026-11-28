@@ -157,6 +157,8 @@ one when that build is first distributed.
 - `apps/mobile/eas.json` — `submit.internal` / `submit.closed` / `submit.production`
   map 1:1 to the Play tracks `internal` / `alpha` / `production`.
 - `.github/workflows/production-release.yml` — the automatic production release on a version-bumping merge to `main` (Android build → Play production, iOS TestFlight build → App Review, OTA → `production`). See `docs/decisions/production-auto-release.md`.
+- Play's "What's new" — `scripts/push-play-release-notes.mjs`, run by production-release.yml and beta-build-and-submit.yml right after the Play submit. It sets the version's `<!-- store-notes -->` text (the same the App Store gets) on the release matching the built versionCode. Best effort: a red *Set the Play release notes* step means the binary shipped without notes — fix and run `pnpm play:notes:push --profile <production|beta> --version-code <n> --apply` with the service account, then read back with `pnpm play:notes:show` (the `verify-play-release-notes` skill).
+- `docs/store/listing-es-ES.md` — the listing; CI holds it to both stores' limits (`pnpm check:store-listing`). `pnpm play:listing:push --apply` sends the Play part by hand; it needs Play's *Manage store presence* permission and refuses to run while anything is in review.
 - `.github/workflows/mobile-release.yml` — the manual build+submit escape hatch.
 - `.github/workflows/appstore-release.yml` — App Store Connect status / release / submit.
 - `packages/shared/src/config/appStores.ts` — the store URLs every download offer derives from.

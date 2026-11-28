@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any,
-                  @typescript-eslint/no-unsafe-return,
-                  @typescript-eslint/no-unsafe-argument,
+/* eslint-disable @typescript-eslint/no-unsafe-return,
                   @typescript-eslint/require-await */
 // vi.mock factories legitimately fake the firebase/firestore SDK shape —
 // matching notificationService.push.test.ts, the sibling suite.
@@ -39,6 +37,7 @@ vi.mock('firebase/firestore', async () => {
 import { getDocs } from 'firebase/firestore';
 import { getNotifications } from '../../src/services/notificationService';
 import { buildNotificationData } from '../../src/models/notification';
+import { fakeQuerySnapshot } from '../helpers/sdkFakes';
 
 /**
  * A doc whose `data()` throws is exactly what an older store binary sees: the
@@ -64,9 +63,7 @@ describe('getNotifications survives a doc the converter cannot read (Buzón trap
   });
 
   it('drops the unreadable row instead of throwing the whole feed away', async () => {
-    vi.mocked(getDocs).mockResolvedValue({
-      docs: [readableDoc('ok-1'), unreadableDoc('bad'), readableDoc('ok-2')],
-    } as any);
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([readableDoc('ok-1'), unreadableDoc('bad'), readableDoc('ok-2')]));
 
     const rows = await getNotifications('u1');
 
@@ -74,7 +71,7 @@ describe('getNotifications survives a doc the converter cannot read (Buzón trap
   });
 
   it('reports the dropped row so a schema drift is loud to us, not silent', async () => {
-    vi.mocked(getDocs).mockResolvedValue({ docs: [unreadableDoc('bad')] } as any);
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([unreadableDoc('bad')]));
 
     await getNotifications('u1');
 
@@ -84,7 +81,7 @@ describe('getNotifications survives a doc the converter cannot read (Buzón trap
   });
 
   it('still returns every row when nothing is unreadable', async () => {
-    vi.mocked(getDocs).mockResolvedValue({ docs: [readableDoc('a'), readableDoc('b')] } as any);
+    vi.mocked(getDocs).mockResolvedValue(fakeQuerySnapshot([readableDoc('a'), readableDoc('b')]));
 
     expect(await getNotifications('u1')).toHaveLength(2);
     expect(captureError).not.toHaveBeenCalled();

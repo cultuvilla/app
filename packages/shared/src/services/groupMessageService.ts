@@ -1,8 +1,8 @@
 // packages/shared/src/services/groupMessageService.ts
 import { doc, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from '../firebase/sdk/firestore';
 import { firebaseErrorCode } from '../firebase/sdk/errors';
-import { httpsCallable } from '../firebase/sdk/functions';
-import { getDb, getFirebaseFunctions } from '../firebase';
+import { getCallable } from './callableTransport';
+import { getDb } from '../firebase';
 import {
   organizationMessageDeliveriesCollection,
   organizationMessageReadDoc,
@@ -50,7 +50,7 @@ export function newGroupMessageId(orgId: string): string {
  * out the Buzón notification, email and the WhatsApp list.
  */
 export async function sendGroupMessage(input: SendGroupMessageInput): Promise<SendGroupMessageResult> {
-  const fn = httpsCallable<SendGroupMessageInput, SendGroupMessageResult>(getFirebaseFunctions(), 'sendGroupMessage');
+  const fn = getCallable<SendGroupMessageInput, SendGroupMessageResult>('sendGroupMessage');
   return (await fn(input)).data;
 }
 

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument,
-                  @typescript-eslint/no-explicit-any,
                   @typescript-eslint/require-await */
 // vi.mock factories legitimately fake the firebase/firestore SDK shape;
 // the rule family doesn't add value for these inline mocks.
@@ -39,6 +38,7 @@ import {
   saveUsageAnalyticsConsent,
   watchPrivacySettings,
 } from '../../src/services/userService';
+import { emitOnce, fakeDocSnapshot } from '../helpers/sdkFakes';
 
 describe('createUserProfile', () => {
   beforeEach(() => {
@@ -95,16 +95,17 @@ describe('createUserProfile', () => {
   it('persists the caller-provided terms acceptance', async () => {
     vi.mocked(setDoc).mockResolvedValue(undefined);
 
+    const acceptedAt = new Date('2026-05-01T10:00:00Z');
     await createUserProfile('uid-1', {
       email: 'a@b.test',
       personId: 'p1',
-      termsAcceptedAt: '__SERVER_TIMESTAMP__' as unknown as Date,
+      termsAcceptedAt: acceptedAt,
       termsVersion: '1.0',
     });
 
     const [, payload] = vi.mocked(setDoc).mock.calls[0];
     expect(payload).toHaveProperty('termsVersion', '1.0');
-    expect(payload).toHaveProperty('termsAcceptedAt', '__SERVER_TIMESTAMP__');
+    expect(payload).toHaveProperty('termsAcceptedAt', acceptedAt);
   });
 });
 
@@ -158,7 +159,7 @@ describe('getUserProfile', () => {
   });
 
   it('returns null when the snapshot does not exist', async () => {
-    vi.mocked(getDoc).mockResolvedValue({ exists: () => false } as any);
+    vi.mocked(getDoc).mockResolvedValue(fakeDocSnapshot({ exists: () => false }));
 
     const result = await getUserProfile('uid-1');
 
@@ -167,7 +168,7 @@ describe('getUserProfile', () => {
 
   it('returns the mapped user shape including denormalized displayName', async () => {
     const fakeDate = new Date('2024-01-01T00:00:00Z');
-    vi.mocked(getDoc).mockResolvedValue({
+    vi.mocked(getDoc).mockResolvedValue(fakeDocSnapshot({
       exists: () => true,
       id: 'uid-1',
       data: () => ({
@@ -178,7 +179,7 @@ describe('getUserProfile', () => {
         personId: 'person-1',
         createdAt: fakeDate,
       }),
-    } as any);
+    }));
 
     const result = await getUserProfile('uid-1');
 
@@ -201,11 +202,11 @@ describe('getPublicProfile', () => {
   });
 
   it('reads publicProfiles/{uid}, never the private account doc', async () => {
-    vi.mocked(getDoc).mockResolvedValue({
+    vi.mocked(getDoc).mockResolvedValue(fakeDocSnapshot({
       exists: () => true,
       id: 'uid-2',
       data: () => ({ displayName: 'Bea', activeMunicipalityId: 'muni-1' }),
-    } as any);
+    }));
 
     const result = await getPublicProfile('uid-2');
 
@@ -214,7 +215,7 @@ describe('getPublicProfile', () => {
   });
 
   it('returns null when the projection does not exist', async () => {
-    vi.mocked(getDoc).mockResolvedValue({ exists: () => false } as any);
+    vi.mocked(getDoc).mockResolvedValue(fakeDocSnapshot({ exists: () => false }));
 
     expect(await getPublicProfile('uid-2')).toBeNull();
   });
@@ -229,8 +230,8 @@ describe('saveUsageAnalyticsConsent', () => {
     vi.mocked(setDoc).mockResolvedValue(undefined);
     await saveUsageAnalyticsConsent('uid-1', answer);
     expect(setDoc).toHaveBeenCalledTimes(1);
-    const [ref, payload, options] = vi.mocked(setDoc).mock.calls[0] as unknown as [{ _path: unknown[] }, unknown, unknown];
-    expect(ref._path.slice(1)).toEqual(['users', 'uid-1', 'privacySettings', 'account']);
+    const [ref, payload, options] = vi.mocked(setDoc).mock.calls[0];
+    expect(ref).toHaveProperty('_path', [undefined, 'users', 'uid-1', 'privacySettings', 'account']);
     expect(payload).toEqual({ usageAnalytics: answer, updatedAt: expect.any(Date) as unknown });
     // A full write, never a merge: rules require both fields every time.
     expect(options).toBeUndefined();
@@ -243,10 +244,7 @@ describe('watchPrivacySettings', () => {
   });
 
   it('emits null for an account that was never asked', () => {
-    vi.mocked(onSnapshot).mockImplementation(((_ref: unknown, next: (s: unknown) => void) => {
-      next({ exists: () => false, data: () => undefined, id: 'account' });
-      return () => {};
-    }) as any);
+    vi.mocked(onSnapshot).mockImplementation(emitOnce(fakeDocSnapshot({ id: 'account' })));
     const onNext = vi.fn();
     watchPrivacySettings('uid-1', onNext, vi.fn());
     expect(onNext).toHaveBeenCalledWith(null);
@@ -254,10 +252,7 @@ describe('watchPrivacySettings', () => {
 
   it('emits the stored answer', () => {
     const stored = { usageAnalytics: true, updatedAt: new Date(0) };
-    vi.mocked(onSnapshot).mockImplementation(((_ref: unknown, next: (s: unknown) => void) => {
-      next({ exists: () => true, data: () => stored, id: 'account' });
-      return () => {};
-    }) as any);
+    vi.mocked(onSnapshot).mockImplementation(emitOnce(fakeDocSnapshot({ id: 'account', data: () => stored })));
     const onNext = vi.fn();
     watchPrivacySettings('uid-1', onNext, vi.fn());
     expect(onNext).toHaveBeenCalledWith({ id: 'account', ...stored });

@@ -5,6 +5,7 @@ vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
 
 import { httpsCallable } from 'firebase/functions';
 import { checkAccountDeletable, deleteAccount, isReauthRequiredError } from '../../src/services/accountService';
+import { fakeCallable } from '../helpers/sdkFakes';
 
 describe('checkAccountDeletable', () => {
   beforeEach(() => {
@@ -14,7 +15,7 @@ describe('checkAccountDeletable', () => {
   it('invokes the checkAccountDeletable callable and returns its blockers', async () => {
     const blockers = [{ scopeType: 'village' as const, scopeId: 'v1', name: 'Villa' }];
     const call = vi.fn().mockResolvedValue({ data: { blockers } });
-    vi.mocked(httpsCallable).mockReturnValue(call as unknown as ReturnType<typeof httpsCallable>);
+    vi.mocked(httpsCallable).mockReturnValue(fakeCallable(call));
 
     const result = await checkAccountDeletable();
 
@@ -31,7 +32,7 @@ describe('deleteAccount', () => {
 
   it('invokes the deleteAccount callable as a reauth-capable client and returns its result', async () => {
     const call = vi.fn().mockResolvedValue({ data: { ok: true } });
-    vi.mocked(httpsCallable).mockReturnValue(call as unknown as ReturnType<typeof httpsCallable>);
+    vi.mocked(httpsCallable).mockReturnValue(fakeCallable(call));
 
     const result = await deleteAccount();
 

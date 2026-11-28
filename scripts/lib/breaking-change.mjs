@@ -66,9 +66,9 @@ export function parseIndexExports(source) {
 }
 
 // Builders whose functions no client can call: Firestore/Storage/Pub/Sub/Auth
-// event triggers and schedulers. Everything else — onCall, onRequest, and any
+// event triggers and schedulers, raw or through functions/src/shared/define/. Everything else — onCall, onRequest, and any
 // shape not recognised here — is treated as client-reachable.
-const TRIGGER_BUILDER = /^(onDocument|onObject|onSchedule|onMessagePublished|onTaskDispatched|onCustomEventPublished|onValue|onAlert|onConfigUpdated|onTestMatrixCompleted|before[A-Z])/;
+const TRIGGER_BUILDER = /^(defineDocumentTrigger|defineSchedule|defineObject|onDocument|onObject|onSchedule|onMessagePublished|onTaskDispatched|onCustomEventPublished|onValue|onAlert|onConfigUpdated|onTestMatrixCompleted|before[A-Z])/;
 
 /**
  * How a module defines `name`: the v2 builder it is assigned from
@@ -91,15 +91,18 @@ export function definitionKind(moduleSource, name) {
  */
 /**
  * A function assigned from a local factory (`cleanupTrigger(source)`) is read
- * through the module: it is a trigger only when every v2 builder the module
- * imports from firebase-functions is a trigger builder.
+ * through the module: it is a trigger only when every builder the module
+ * imports — from firebase-functions or from functions/src/shared/define/ — is
+ * a trigger builder.
  */
 function isTriggerOnly(kind, moduleSource) {
-  if (/^(on|before)[A-Z]/.test(kind)) return TRIGGER_BUILDER.test(kind);
-  const imported = [...String(moduleSource).matchAll(/import\s*\{([^}]*)\}\s*from\s*['"]firebase-functions[^'"]*['"]/g)]
+  if (/^(on|before|define)[A-Z]/.test(kind)) return TRIGGER_BUILDER.test(kind);
+  const imported = [
+    ...String(moduleSource).matchAll(/import\s*\{([^}]*)\}\s*from\s*['"](?:firebase-functions[^'"]*|[^'"]*\/shared\/define\/[^'"]*)['"]/g),
+  ]
     .flatMap((m) => m[1].split(','))
     .map((spec) => spec.trim().split(/\s+as\s+/)[0])
-    .filter((name) => /^(on|before)[A-Z]/.test(name));
+    .filter((name) => /^(on|before|define)[A-Z]/.test(name));
   return imported.length > 0 && imported.every((name) => TRIGGER_BUILDER.test(name));
 }
 
