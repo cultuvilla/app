@@ -1,9 +1,9 @@
 # The trigger seam owns the retry window
 
 **Priority:** medium
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker h16 in batch 2026-11-27-harvest
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** once a release carrying #776 is live in prod, confirm no trigger logs a redelivery older than the window, then retire (dev deploy green)
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
 

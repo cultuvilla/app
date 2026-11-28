@@ -1,9 +1,9 @@
 # Firebase error codes are compared only through firebaseErrorCode()
 
 **Priority:** high
-**Landed:** none
+**Landed:** dev
 **Gate:** none
-**Next:** being built by worker h25 in batch 2026-11-27-harvest
+**Next:** step 3: a fakeModule helper in apps/mobile/test/ and a lint rule against new hand-written service jest.mock factories, existing ones allowlisted behind a ratchet (#788 shipped the fix and the error-code rule, #793 the jest guards)
 
 **Pre-approved** under AGENTS.md § Approval — third Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro: "go to everything, keep going". Verify the gap before building.
 

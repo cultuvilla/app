@@ -3,7 +3,7 @@
 **Priority:** medium
 **Landed:** none
 **Gate:** none
-**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
+**Next:** finish #767 (lint fixed with .d.mts types; relaunch its lander), then confirm the first scheduled run on beta and main
 
 **Decided 2026-11-27 (Álvaro):** build it — first batch of the Órdago harvest (`_workspace/docs/plans/ideas/harvest-across-repos.md`).
 

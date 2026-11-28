@@ -1,9 +1,9 @@
 # Projections rebuild from the current source, not from the event
 
 **Priority:** high
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker h15 in batch 2026-11-27-harvest
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** once a release carrying #777 is live in prod, check the full prod audit is 0 and retire (dev deploy green)
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
 
