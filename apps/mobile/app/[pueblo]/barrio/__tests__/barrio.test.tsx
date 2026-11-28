@@ -41,7 +41,14 @@ jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
     .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
     .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
       '@cultuvilla/shared/services/deepLinkService',
-      () => ({ getBarrioViewLink: () => 'https://x' as never }),
+      () => ({
+        getBarrioViewLink: (target) =>
+          jest
+            .requireActual<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+              '@cultuvilla/shared/services/deepLinkService',
+            )
+            .getBarrioViewLink(target),
+      }),
     ),
 );
 jest.mock('@cultuvilla/shared/services/municipalityPersonService', () =>
