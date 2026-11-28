@@ -149,6 +149,6 @@
     "react": "^19.1.0",
     "react-native": "0.85.3",
     "typescript": "~5.8.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.12"
   }
 }
