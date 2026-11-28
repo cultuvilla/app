@@ -1,0 +1,72 @@
+import { logger } from 'firebase-functions/v2';
+import { HttpsError } from 'firebase-functions/v2/https';
+import { getFirestore } from 'firebase-admin/firestore';
+import { eventDoc } from '@cultuvilla/shared/firebase/refs/admin';
+import { firebaseErrorCode } from '@cultuvilla/shared/firebase/sdk/errors';
+import { RESEND_API_KEY } from '../auth/secret';
+import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
+import { cancelRegistrationAs } from './cancelRegistration';
+
+const db = getFirestore();
+const handler = 'onPersonDeleted';
+
+/**
+ * A deleted persona gives up its seats on events still to come, the way its
+ * holder cancelling them would: through `cancelRegistrationAs`, so the seat
+ * frees, the waitlist moves and a group seat follows the group rules. Left
+ * alone, the roster kept a seat for someone who no longer exists and the
+ * waitlist never moved.
+ *
+ * Past events keep theirs: a roster records who came, and the registration is
+ * a point-in-time copy that does not need the person doc to render.
+ *
+ * The cancellation runs as the seat's holder (`registration.userId`), not as
+ * whoever deleted the persona — the holder is the one who may cancel it, and a
+ * seat claimed by someone else's persona must hand back only that seat.
+ */
+export const onPersonDeleted = defineDocumentTrigger(
+  'onPersonDeleted',
+  { kind: 'deleted', document: 'persons/{personId}', secrets: [RESEND_API_KEY] },
+  async (event) => {
+    const { personId } = event.params;
+    if (!personId) return;
+
+    // Raw refs: only the path, holder and event are needed, and a seat whose
+    // stored shape no longer parses must still be cancelled.
+    const seats = await db.collectionGroup('registrations').where('personId', '==', personId).get();
+    const now = Date.now();
+    let cancelled = 0;
+    let past = 0;
+
+    for (const seat of seats.docs) {
+      const eventId = seat.ref.parent.parent?.id;
+      const holder: unknown = seat.get('userId');
+      if (!eventId || typeof holder !== 'string' || !holder) continue;
+
+      const eventData = (await eventDoc(db, eventId).get()).data();
+      if (!eventData) continue;
+      if (eventData.endBoundary.getTime() <= now) {
+        past += 1;
+        continue;
+      }
+
+      try {
+        await cancelRegistrationAs({ eventId, registrationId: seat.id, uid: holder });
+        cancelled += 1;
+      } catch (err) {
+        // Gone already: an earlier seat's group cancellation took it, the
+        // account cascade deleted it, or this is a redelivery.
+        if (err instanceof HttpsError && firebaseErrorCode(err) === 'not-found') continue;
+        throw err;
+      }
+    }
+
+    logger.info('Deleted persona released its upcoming seats', {
+      handler,
+      personId,
+      found: seats.size,
+      cancelled,
+      past,
+    });
+  },
+);

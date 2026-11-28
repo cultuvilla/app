@@ -13,6 +13,7 @@ export { claimEventSeat } from './events/claimEventSeat';
 export { cancelRegistration } from './events/cancelRegistration';
 export { completeExpiredEvents } from './events/eventCompletion';
 export { onRegistrationDeleted } from './events/waitlistPromotion';
+export { onPersonDeleted } from './events/onPersonDeleted';
 export { onEventUpdated } from './events/notificationTriggers';
 export { sendEventReminders } from './events/eventReminders';
 

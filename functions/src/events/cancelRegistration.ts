@@ -41,40 +41,29 @@ interface CancellationRecipient {
   selfInflicted: boolean;
 }
 
-interface CancelRegistrationResult {
+export interface CancelRegistrationResult {
   /** What happened, so the client can word the confirmation honestly. */
   action: 'delete-solo' | 'delete-group' | 'release-seat';
   removedRegistrationIds: string[];
 }
 
+export interface CancelRegistrationAsArgs {
+  eventId: string;
+  registrationId: string;
+  /** Whose cancellation this is: the caller, or the seat's holder on their behalf. */
+  uid: string;
+}
+
 /**
- * Removes a registration — the only path that may, since `firestore.rules`
- * denies client deletes on `registrations`.
- *
- * Rules cannot express this. A group is atomic, so cancelling one of its seats
- * must either take every seat with it or leave the group whole; neither is a
- * single-document decision, and Firestore rules can neither read the other
- * seats nor require that a companion delete accompany this one. So the whole
- * operation moved server-side, individual registrations included, rather than
- * leaving a client-writable path that could shrink a group behind the rule's
- * back.
- *
- * See `resolveCancellation` for which of the three outcomes applies.
+ * The one cancellation: what the callable does for its caller, and what
+ * deleting a persona does on the seat holder's behalf. Counters and waitlist
+ * promotion follow from the delete, in onRegistrationDeleted.
  */
-export const cancelRegistration = defineCallable<
-  CancelRegistrationData,
-  Promise<CancelRegistrationResult>
->('cancelRegistration', { cors: true, secrets: [RESEND_API_KEY] }, async (request) => {
-  const auth = request.auth;
-  if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
-  const uid = auth.uid;
-
-  const eventId = typeof request.data.eventId === 'string' ? request.data.eventId.trim() : '';
-  const registrationId =
-    typeof request.data.registrationId === 'string' ? request.data.registrationId.trim() : '';
-  if (!eventId) throw new HttpsError('invalid-argument', 'eventId requerido.');
-  if (!registrationId) throw new HttpsError('invalid-argument', 'registrationId requerido.');
-
+export async function cancelRegistrationAs({
+  eventId,
+  registrationId,
+  uid,
+}: CancelRegistrationAsArgs): Promise<CancelRegistrationResult> {
   const outcome = await db.runTransaction<
     CancelRegistrationResult & { recipients: CancellationRecipient[]; event: EventData | null }
   >(async (tx) => {
@@ -304,4 +293,35 @@ export const cancelRegistration = defineCallable<
     action: outcome.action,
     removedRegistrationIds: outcome.removedRegistrationIds,
   };
+}
+
+/**
+ * Removes a registration — the only path that may, since `firestore.rules`
+ * denies client deletes on `registrations`.
+ *
+ * Rules cannot express this. A group is atomic, so cancelling one of its seats
+ * must either take every seat with it or leave the group whole; neither is a
+ * single-document decision, and Firestore rules can neither read the other
+ * seats nor require that a companion delete accompany this one. So the whole
+ * operation moved server-side, individual registrations included, rather than
+ * leaving a client-writable path that could shrink a group behind the rule's
+ * back.
+ *
+ * See `resolveCancellation` for which of the three outcomes applies.
+ */
+export const cancelRegistration = defineCallable<
+  CancelRegistrationData,
+  Promise<CancelRegistrationResult>
+>('cancelRegistration', { cors: true, secrets: [RESEND_API_KEY] }, async (request) => {
+  const auth = request.auth;
+  if (!auth) throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  const uid = auth.uid;
+
+  const eventId = typeof request.data.eventId === 'string' ? request.data.eventId.trim() : '';
+  const registrationId =
+    typeof request.data.registrationId === 'string' ? request.data.registrationId.trim() : '';
+  if (!eventId) throw new HttpsError('invalid-argument', 'eventId requerido.');
+  if (!registrationId) throw new HttpsError('invalid-argument', 'registrationId requerido.');
+
+  return cancelRegistrationAs({ eventId, registrationId, uid });
 });

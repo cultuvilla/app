@@ -1102,6 +1102,20 @@
     },
     {
       "collectionGroup": "registrations",
+      "fieldPath": "personId",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        },
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registrations",
       "fieldPath": "userId",
       "indexes": [
         {
