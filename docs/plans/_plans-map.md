@@ -14,6 +14,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
+| [emulator-job-hangs](ongoing/emulator-job-hangs.md) | high | none | this cycle | read the cancelled runs' logs to find which suite was still running at the cutoff, reproduce it locally under `pnpm test`, and make the hung step fail fast with its name instead of hanging |
 | [firebase-error-code-lint](ongoing/firebase-error-code-lint.md) | high | dev | this cycle \* | step 3: a fakeModule helper in apps/mobile/test/ and a lint rule against new hand-written service jest.mock factories, existing ones allowlisted behind a ratchet (#788 shipped the fix and the error-code rule, #793 the jest guards) |
 | [single-react-version](ongoing/single-react-version.md) | high | none | this cycle | find what resolves react@19.1.0 next to the declared 19.2.3, pin one version (pnpm override or peer fix), and prove the native fingerprint is unchanged |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
