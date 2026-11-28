@@ -1,6 +1,10 @@
 # e2e: a callable's first call waits on a cold Functions-emulator worker
 
 **Priority:** medium — it failed two first attempts in one ios-e2e shard on 2026-11-20 (flows 11 and 12), and each one costs a retry with a full restore
+
+**Landed:** none
+**Gate:** none
+**Next:** warm the callables a flow uses before its first UI wait, per the plan, and prove it on an ios-e2e run
 **Gate:** blocked:PR #722 (open e2e work edits packages/shared/test/ci/iosE2e.test.ts and the Maestro suite seeding this plan changes)
 
 **Goal:** Stop a flow's first callable invocation from outlasting the flow's UI wait, so a first attempt fails only when the app does.
