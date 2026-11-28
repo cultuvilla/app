@@ -1,9 +1,9 @@
 # Weekly schema audit with an unmodeled-field ratchet
 
 **Priority:** medium
-**Landed:** none
-**Gate:** none
-**Next:** finish #767 (lint fixed with .d.mts types; relaunch its lander), then confirm the first scheduled run on beta and main
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** after the release brings firestore-schema-audit.yml to beta and main, dispatch "Firestore schema audit" on beta and on main once and confirm both legs authenticate via WIF and pass
 
 **Decided 2026-11-27 (Álvaro):** build it — first batch of the Órdago harvest (`_workspace/docs/plans/ideas/harvest-across-repos.md`).
 
