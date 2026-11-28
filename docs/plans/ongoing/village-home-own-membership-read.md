@@ -2,9 +2,9 @@
 
 **Priority:** medium — the hottest screen reads every member doc of the village on each focus, for every viewer, guests included, to learn one bit
 
-**Landed:** none
-**Gate:** none
-**Next:** replace useChrome's roster read with one getVillageMemberRole read, with a test
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** once 1.14.0 is live, confirm a member with a stale roster doc in their village still sees the member home, then retire
 
 **Goal:** answer "is the viewer a member, and an admin?" on the village home with one read of the viewer's own member doc, so a focus stops costing a read per villager and one stale member doc can no longer drop a member to the guest view.
 
