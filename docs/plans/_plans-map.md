@@ -18,8 +18,12 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [i18n-count-plural-guard](ongoing/i18n-count-plural-guard.md) | high | none | this cycle | add the packages/i18n catalog test for counts outside an ICU plural, then fix the stragglers it finds |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
 | [municipality-service-emulator-tests](ongoing/municipality-service-emulator-tests.md) | medium | none | this cycle | add the emulator suite for municipalityService village search, barrios and places |
+| [production-release-decisions-script](ongoing/production-release-decisions-script.md) | medium | none | this cycle | move production-release.yml's store/Android/OTA decision shell into a table-tested scripts/production-release-plan.mjs |
 | [public-visibility-predicate](ongoing/public-visibility-predicate.md) | medium | none | this cycle | add the public-read predicate in packages/shared/src/policy/ with an emulator check against the events read rule, then move the Admin-SDK readers onto it |
+| [rules-coverage-ratchet](ongoing/rules-coverage-ratchet.md) | medium | none | this cycle | collect the emulator rule-coverage report per test file, add the ratchet check, and write the 13 missing tests |
 | [scheduled-schema-audit](ongoing/scheduled-schema-audit.md) | medium | none | this cycle \* | finish #767 (lint fixed with .d.mts types; relaunch its lander), then confirm the first scheduled run on beta and main |
+| [village-home-own-membership-read](ongoing/village-home-own-membership-read.md) | medium | none | this cycle | replace useChrome's roster read with one getVillageMemberRole read, with a test |
+| [read-site-section-route-tests](ongoing/read-site-section-route-tests.md) | low | none | this cycle | add functions/src/__tests__/handlers/web/readSiteSections.test.ts covering the six section routes, detail pages and pueblo scoping |
 
 ## Waiting on release 1.11.0
 
