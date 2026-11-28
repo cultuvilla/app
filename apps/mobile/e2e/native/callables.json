@@ -1,0 +1,25 @@
+{
+  "//": "Callables each flow waits on, which the runner warms before the first flow (scripts/lib/warm-callables.mjs). Only what a UI wait depends on: the firehoses (logClientError, recordEntityView, getUserIdHash) are left out.",
+  "flows": {
+    "11-otp-login.yaml": ["sendAuthOtpCode", "verifyAuthOtpCode"],
+    "12-group-avisos-chat.yaml": ["sendGroupMessage"],
+    "15-group-cosateca.yaml": ["respondToCosaRequest"],
+    "20-registration-signup.yaml": ["registerToEvent"],
+    "21-registration-organize.yaml": ["cancelRegistration"],
+    "23-seat-claim.yaml": ["registerToEvent", "claimEventSeat"],
+    "31-village-settings.yaml": ["updateVillageInfo"],
+    "32-village-roles.yaml": ["changeVillageMemberRole", "transferVillageAmbassador"],
+    "60-event-create.yaml": ["reverseGeocode"],
+    "66-event-recurring.yaml": ["reverseGeocode"],
+    "70-org-create-approve-join.yaml": ["approveOrganization", "respondToOrgJoinRequest"],
+    "71-organizer-request-approval.yaml": ["requestOrganizeVillage", "respondToOrganizerRequest"],
+    "72-org-join-request.yaml": ["respondToOrgJoinRequest"],
+    "74-org-edit-and-members.yaml": ["changeOrgMemberRole"],
+    "75-comision-de-festejos.yaml": ["approveOrganization"],
+    "80-news-lifecycle.yaml": ["deleteNewsPost"],
+    "81-place-lifecycle.yaml": ["reverseGeocode"],
+    "90-content-soft-hide.yaml": ["setContentVisibility"],
+    "91-delete-account-blockers.yaml": ["checkAccountDeletable"],
+    "92-settings-and-delete-account.yaml": ["checkAccountDeletable", "deleteAccount"]
+  }
+}
