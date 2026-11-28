@@ -146,7 +146,7 @@
     "@react-native-firebase/storage": "^26.4.0",
     "@types/react": "^19.0.0",
     "firebase": "^11.0.0",
-    "react": "^19.1.0",
+    "react": "19.2.3",
     "react-native": "0.85.3",
     "typescript": "~5.8.3",
     "vitest": "^4.0.15"
