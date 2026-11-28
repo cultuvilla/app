@@ -2,6 +2,7 @@ import { personHref } from '../../lib/navigation/routes';
 import { colors, elevation } from '@cultuvilla/shared/design-system';
 import { useCallback, useRef, useState } from 'react';
 import { Animated, Pressable as RNPressable, Text } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { router, useFocusEffect } from 'expo-router';
 import type { PartialDate } from '@cultuvilla/shared/models/person';
 import { buildNameWithNickname, type PersonData } from '@cultuvilla/shared/models/person';
@@ -114,8 +115,8 @@ export function BuryFab({ municipalityId, placeId, userId, buriedHereIds, onChan
             shadowOffset: { width: 0, height: 3 },
           }}
         >
-          <Text style={{ color: colors.light.fg['on-accent'], fontSize: 18, lineHeight: 22, marginRight: 8 }}>＋</Text>
-          <Text style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>{t('village.placeDetail.addDifunto')}</Text>
+          <Text {...TEXT_SCALING.label} style={{ color: colors.light.fg['on-accent'], fontSize: 18, lineHeight: 22, marginRight: 8 }}>＋</Text>
+          <Text {...TEXT_SCALING.label} style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>{t('village.placeDetail.addDifunto')}</Text>
         </RNPressable>
       </Animated.View>
 

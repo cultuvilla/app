@@ -7,6 +7,7 @@ import {
   TextInputKeyPressEventData,
   View,
 } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, zIndex } from '@cultuvilla/shared/design-system';
 import { Text, VStack } from '../primitives';
@@ -70,7 +71,7 @@ function StyledRuns({ runs }: { runs: LinkRun[] }) {
         const pres = markPresentation(run.marks, linked);
         const color = linked ? 'text-accent' : 'text-primary';
         return (
-          <RNText key={i} className={`${color} ${pres.className}`} style={pres.style}>
+          <RNText {...TEXT_SCALING.body} key={i} className={`${color} ${pres.className}`} style={pres.style}>
             {run.text}
           </RNText>
         );
@@ -235,7 +236,7 @@ export function MentionTextInput({
             <StyledRuns runs={sliceRuns(runs, selection.start)} />
             {TRAILING_ANCHOR}
           </Text>
-          <TextInput
+          <TextInput {...TEXT_SCALING.body}
             ref={inputRef}
             // The input gets its text from the children below; passing
             // `value` as well is unsupported.
@@ -283,7 +284,7 @@ export function MentionTextInput({
                     {/* The label previews its own effect (struck S, italic I, …).
                         Raw RNText so `text-accent` wins and the decoration style
                         (underline/strikethrough) actually renders. */}
-                    <RNText className={`text-accent ${pres.className}`} style={pres.style}>
+                    <RNText {...TEXT_SCALING.body} className={`text-accent ${pres.className}`} style={pres.style}>
                       {MARK_BUTTON_LABEL[type]}
                     </RNText>
                   </Pressable>
@@ -299,7 +300,7 @@ export function MentionTextInput({
                       hitSlop={4}
                       className="h-8 items-center justify-center rounded px-2"
                     >
-                      <RNText className={`text-accent ${level === 'section' ? 'font-bold' : 'text-bodySm font-semibold'}`}>
+                      <RNText {...TEXT_SCALING.body} className={`text-accent ${level === 'section' ? 'font-bold' : 'text-bodySm font-semibold'}`}>
                         {t(`news.compose.format.${level}`)}
                       </RNText>
                     </Pressable>

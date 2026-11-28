@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { colors, elevation } from '@cultuvilla/shared/design-system';
 import { ActivityIndicator, Pressable, Text as RNText, View } from 'react-native';
+import { TEXT_SCALING } from '../../../../lib/text/textScaling';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Text } from '../../../../components/primitives/Text';
@@ -266,9 +267,9 @@ export default function OrgDetailScreen() {
               {joining ? (
                 <ActivityIndicator color={colors.light.fg['on-accent']} style={{ marginRight: 8 }} />
               ) : requested ? null : (
-                <RNText style={{ color: colors.light.fg['on-accent'], fontSize: 18, lineHeight: 22, marginRight: 8 }}>+</RNText>
+                <RNText {...TEXT_SCALING.label} style={{ color: colors.light.fg['on-accent'], fontSize: 18, lineHeight: 22, marginRight: 8 }}>+</RNText>
               )}
-              <RNText style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>
+              <RNText {...TEXT_SCALING.label} style={{ color: colors.light.fg['on-accent'], fontSize: 16, fontWeight: '700' }}>
                 {joinLabel}
               </RNText>
             </Pressable>

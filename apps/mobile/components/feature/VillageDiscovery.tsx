@@ -1,6 +1,7 @@
 import { routes, villageHref } from '../../lib/navigation/routes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ActivityIndicator, View, TextInput } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { VStack, HStack, Text, Escudo, Pressable } from '../primitives';
@@ -205,7 +206,7 @@ export function VillageDiscovery() {
   return (
     <View className="flex-1">
       <View className="px-4 py-2">
-        <TextInput
+        <TextInput {...TEXT_SCALING.body}
           placeholder={t('discover.search')}
           accessibilityLabel={t('discover.search')}
           value={search}

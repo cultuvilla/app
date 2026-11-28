@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { Image, Pressable as RNPressable, Text as RNText, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { TEXT_SCALING } from '../../../lib/text/textScaling';
 import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
@@ -128,8 +129,8 @@ export function WrappedStoryViewer({
         <VStack gap={3} className="flex-1 justify-center px-6" testID="wrapped-story-closing">
           {/* RN Text, not the primitive: its tone classes follow the theme,
               and this screen is dark in both. */}
-          <RNText style={styles.title}>{title}</RNText>
-          <RNText style={styles.dim}>{t('village.wrapped.viewer.closingBody')}</RNText>
+          <RNText {...TEXT_SCALING.body} style={styles.title}>{title}</RNText>
+          <RNText {...TEXT_SCALING.body} style={styles.dim}>{t('village.wrapped.viewer.closingBody')}</RNText>
           {onShareLink ? (
             <Button onPress={onShareLink} fullWidth testID="wrapped-share-link">
               {t('village.wrapped.viewer.shareLink')}

@@ -42,7 +42,7 @@ export function Avatar({ uri, size = 96, initials, onPress, ambassador = false }
         numberOfLines={1}
         // The circle has a fixed size, so its letters must not grow with the
         // OS font scale either.
-        maxFontSizeMultiplier={1}
+        scaling="fixed"
         style={{ fontSize: initialsFontSize(size), lineHeight: Math.round(initialsFontSize(size) * 1.25) }}
       >
         {initials ?? '+'}

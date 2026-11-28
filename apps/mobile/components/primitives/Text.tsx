@@ -1,5 +1,6 @@
 import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 import type { TypographyVariant } from '@cultuvilla/shared/design-system';
+import { TEXT_SCALING, type TextScalingPreset } from '../../lib/text/textScaling';
 
 // Tone mirrors apps/web/components/primitives/Text.tsx exactly.
 type Tone = 'primary' | 'muted' | 'onSubtle' | 'onAccent' | 'onSecondary' | 'danger' | 'success' | 'accent';
@@ -8,6 +9,8 @@ export interface TextProps extends Omit<RNTextProps, 'children'> {
   children: React.ReactNode;
   variant?: TypographyVariant;
   tone?: Tone;
+  /** How far the text follows the OS font size; see lib/text/textScaling.ts. */
+  scaling?: TextScalingPreset;
 }
 
 const TONE_CLASS: Record<Tone, string> = {
@@ -30,11 +33,12 @@ export function Text({
   variant = 'body',
   tone = 'primary',
   className = '',
+  scaling = 'body',
   ...rest
 }: TextProps) {
   const classes = [`text-${variant}`, TONE_CLASS[tone], className].filter(Boolean).join(' ');
   return (
-    <RNText className={classes} {...rest}>
+    <RNText className={classes} {...TEXT_SCALING[scaling]} {...rest}>
       {children}
     </RNText>
   );

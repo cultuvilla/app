@@ -8,6 +8,7 @@ import {
   type TextInputProps,
   type TextInputScrollEvent,
 } from 'react-native';
+import { TEXT_SCALING } from '../../lib/text/textScaling';
 import { colors, spacing, typography } from '@cultuvilla/shared/design-system';
 import { Text } from './Text';
 import { FieldLabel } from './FieldLabel';
@@ -164,7 +165,7 @@ export function Input({
         } ${error ? 'border-danger' : pill ? 'border-accent' : 'border-subtle'}`}
         style={pill ? { borderRadius: PILL_RADIUS } : undefined}
       >
-        <TextInput
+        <TextInput {...TEXT_SCALING.body}
           ref={inputRef}
           value={value}
           onChangeText={onChangeText}

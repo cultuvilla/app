@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Text as RNText, View } from 'react-native';
+import { TEXT_SCALING } from '../../../lib/text/textScaling';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, iconSizes } from '@cultuvilla/shared/design-system';
 import { watchSocioVisibleActas, type Acta } from '@cultuvilla/shared/services/recordsService';
@@ -69,7 +70,7 @@ export function MyActas({ orgId, orgName, empty }: { orgId: string; orgName: str
       ) : (
         years.map(({ year, items }) => (
           <VStack key={year} gap={2} testID={`my-actas-year-${year}`}>
-            <RNText className="text-caption font-bold text-accent tracking-widest">{year}</RNText>
+            <RNText {...TEXT_SCALING.body} className="text-caption font-bold text-accent tracking-widest">{year}</RNText>
             <VStack gap={0}>
               {items.map((item, i) => (
                 <AgreementRow key={item.key} item={item} last={i === items.length - 1} onOpen={() => setOpenId(item.actaId)} />

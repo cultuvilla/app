@@ -11,12 +11,6 @@
 /** Never shrink a label below 75% of its base size — past that it stops reading as a button. */
 export const MIN_LABEL_SCALE = 0.75;
 
-/**
- * Cap OS font scaling on pill labels. A 3-up action row at a 200% system font
- * has no width left to shrink into; 1.3 still honours a meaningful bump.
- */
-export const MAX_LABEL_FONT_MULTIPLIER = 1.3;
-
 export interface FittedLabel {
   /** Font size to render at. */
   fontSize: number;
