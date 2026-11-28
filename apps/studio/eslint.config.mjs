@@ -6,6 +6,7 @@
 // Pinned by packages/shared/test/eslint/appLintRules.test.ts.
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import { BARE_FIREBASE_ERROR_CODE_COMPARE } from '../../packages/shared/eslint/bareFirebaseErrorCode.mjs';
 
 export const RAW_SDK = '^(firebase|@firebase|@react-native-firebase)(/.*)?$';
 export const SEAM_INTERNALS = '^@cultuvilla/shared/firebase/(sdk/(?!errors$)|refs/)';
@@ -28,6 +29,8 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'off',
+      // Through firebaseErrorCode() only (packages/shared/eslint/bareFirebaseErrorCode.mjs).
+      'no-restricted-syntax': ['error', BARE_FIREBASE_ERROR_CODE_COMPARE],
       '@typescript-eslint/no-restricted-imports': [
         'error',
         {

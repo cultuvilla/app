@@ -8,11 +8,9 @@ vi.hoisted(() => {
 
 import { createHmac } from 'node:crypto';
 import { getUserIdHash } from '../observability/getUserIdHash';
+import { runCallable } from './helpers/functionsTest';
 
-// v2 onCall's `.run` always resolves/rejects, even for a synchronous handler.
-type Run = (req: { auth?: { uid: string } }) => Promise<{ hash: string }>;
-const run = (req: { auth?: { uid: string } }) =>
-  (getUserIdHash as unknown as { run: Run }).run(req);
+const run = (req: { auth?: { uid: string } }) => runCallable(getUserIdHash, { data: undefined, ...req });
 
 afterAll(() => {
   delete process.env.OBSERVABILITY_USER_ID_SALT;

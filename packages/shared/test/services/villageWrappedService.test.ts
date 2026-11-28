@@ -55,6 +55,12 @@ describe('getReadableWrapped', () => {
     await expect(getReadableWrapped('m1', 2026)).resolves.toBeNull();
   });
 
+  // The native SDK prefixes its codes: a bare compare matched only these tests.
+  it('reads a draft withheld on device, where the code is prefixed, as no Wrapped', async () => {
+    vi.mocked(getDoc).mockImplementation(() => Promise.reject(firestoreError('firestore/permission-denied', 'denied')));
+    await expect(getReadableWrapped('m1', 2026)).resolves.toBeNull();
+  });
+
   it('does not show an admin their own draft as if it were public', async () => {
     vi.mocked(getDoc).mockResolvedValue(snap('draft'));
     await expect(getReadableWrapped('m1', 2026)).resolves.toBeNull();

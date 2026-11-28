@@ -42,7 +42,7 @@ async function fireCreate(
   await wrapped({
     data: ft.firestore.makeDocumentSnapshot(data, path),
     params,
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 beforeEach(async () => {
@@ -223,7 +223,7 @@ describe('village entity broadcast', () => {
         ft.firestore.makeDocumentSnapshot({ ...base, status: 'approved' }, 'organizations/o1'),
       ),
       params: { orgId: 'o1' },
-    } as unknown as Parameters<typeof wrapped>[0]);
+    });
 
     // The founder gets exactly their own outcome, not the broadcast.
     const founder = await notificationsOf(ACTOR);
@@ -243,7 +243,7 @@ describe('village entity broadcast', () => {
         ft.firestore.makeDocumentSnapshot({ ...base, status: 'rejected' }, 'organizations/o2'),
       ),
       params: { orgId: 'o2' },
-    } as unknown as Parameters<typeof wrapped>[0]);
+    });
     expect(await notificationsOf('member-1')).toHaveLength(0);
   });
 });

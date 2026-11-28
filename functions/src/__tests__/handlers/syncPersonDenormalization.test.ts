@@ -14,7 +14,7 @@ const wrapped = ft.wrap(syncPersonDenormalization);
 const USER_ID = 'user-1';
 const PERSON_ID = 'person-1';
 
-interface PersonShape {
+type PersonShape = {
   userId: string | null;
   givenName: string;
   middleNames: string[];
@@ -45,7 +45,7 @@ async function seedUser(displayName: string | null): Promise<void> {
 }
 
 function asRecord(person: PersonShape | null): Record<string, unknown> {
-  return person ? (person as unknown as Record<string, unknown>) : {};
+  return person ? person : {};
 }
 
 async function fireTrigger(
@@ -60,14 +60,14 @@ async function fireTrigger(
   const ref = admin.firestore().doc(`persons/${personId}`);
   await (after ? ref.set(asRecord(after)) : ref.delete());
   // v2 wrapper takes a single CloudEvent-style object with data + params.
-  await wrapped({ data: change, params: { personId } } as unknown as Parameters<typeof wrapped>[0]);
+  await wrapped({ data: change, params: { personId } });
 }
 
 /** Fires the trigger without touching the store — a delivery that arrives late. */
 async function fireStale(before: PersonShape | null, after: PersonShape | null): Promise<void> {
   const beforeSnap = ft.firestore.makeDocumentSnapshot(asRecord(before), `persons/${PERSON_ID}`);
   const afterSnap = ft.firestore.makeDocumentSnapshot(asRecord(after), `persons/${PERSON_ID}`);
-  await wrapped({ data: ft.makeChange(beforeSnap, afterSnap), params: { personId: PERSON_ID } } as unknown as Parameters<typeof wrapped>[0]);
+  await wrapped({ data: ft.makeChange(beforeSnap, afterSnap), params: { personId: PERSON_ID } });
 }
 
 beforeAll(async () => {

@@ -14,16 +14,9 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
-| [account-deletion-coverage](ongoing/account-deletion-coverage.md) | high | none | this cycle | being built by worker h17 in batch 2026-11-27-harvest |
-| [firebase-error-code-lint](ongoing/firebase-error-code-lint.md) | high | none | this cycle | being built by worker h25 in batch 2026-11-27-harvest |
-| [hard-wall-replaces-app-tree](ongoing/hard-wall-replaces-app-tree.md) | high | none | this cycle | being built by worker h26 in batch 2026-11-27-harvest |
-| [projections-converge-on-source](ongoing/projections-converge-on-source.md) | high | none | this cycle | being built by worker h15 in batch 2026-11-27-harvest |
-| [blocking-overlay-in-tree](ongoing/blocking-overlay-in-tree.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
+| [firebase-error-code-lint](ongoing/firebase-error-code-lint.md) | high | dev | this cycle \* | step 3: a fakeModule helper in apps/mobile/test/ and a lint rule against new hand-written service jest.mock factories, existing ones allowlisted behind a ratchet (#788 shipped the fix and the error-code rule, #793 the jest guards) |
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
-| [scheduled-schema-audit](ongoing/scheduled-schema-audit.md) | medium | none | this cycle | being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu) |
-| [trigger-retry-window](ongoing/trigger-retry-window.md) | medium | none | this cycle | being built by worker h16 in batch 2026-11-27-harvest |
-| [functions-test-casts](ongoing/functions-test-casts.md) | low | none | this cycle | add a cast ratchet for functions tests (as packages/shared has), then replace casts with typed fixtures slice by slice |
-| [session-start-hook](ongoing/session-start-hook.md) | low | none | this cycle | add a SessionStart hook that installs dependencies only when node_modules is missing |
+| [scheduled-schema-audit](ongoing/scheduled-schema-audit.md) | medium | none | this cycle \* | finish #767 (lint fixed with .d.mts types; relaunch its lander), then confirm the first scheduled run on beta and main |
 
 ## Waiting on release 1.11.0
 
@@ -41,8 +34,14 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Next |
 |---|---|---|---|---|
+| [account-deletion-coverage](ongoing/account-deletion-coverage.md) | high | dev | this cycle \* | once a release carrying #780 is live in prod, run `pnpm audit:refs -- --env=prod` (its 20 deletion invariants must read 0) and retire. Shipped: #780; beta orphan and the 15 prod orphans repaired 2026-11-27 (#786) |
 | [cloud-run-revision-cleanup](ongoing/cloud-run-revision-cleanup.md) | high | dev | this cycle | after the first prod deploy that carries #775, confirm its "Clean up old Cloud Run revisions" step ran on prod (log shows deletes or 0 deletable), then retire. Prod drained by hand 2026-11-27 (970 deleted, 0 failed, 136 left, 68/68 services Ready); dev's ~14.8k backlog drains 150 per deploy |
+| [hard-wall-replaces-app-tree](ongoing/hard-wall-replaces-app-tree.md) | high | dev | this cycle | after the next release, confirm on a beta build with a raised wall that only the blocker renders, then retire (#787 shipped it) |
+| [projections-converge-on-source](ongoing/projections-converge-on-source.md) | high | dev | this cycle \* | once a release carrying #777 is live in prod, check the full prod audit is 0 and retire (dev deploy green) |
+| [referential-integrity-audit](ongoing/referential-integrity-audit.md) | high | dev | this cycle | after the next release, dispatch "Audit Referential Integrity" with ref beta and with ref main and confirm both run green (read-only), then retire |
+| [blocking-overlay-in-tree](ongoing/blocking-overlay-in-tree.md) | medium | dev | this cycle \* | once a release carrying #765 is on beta, open a form with the overlay over a sheet on an iOS TestFlight build and confirm nothing freezes, then retire |
 | [play-release-notes](ongoing/play-release-notes.md) | medium | dev | this cycle | once that release reaches beta and main, check "Set the Play release notes" is green in beta-build-and-submit and production-release, then `pnpm play:notes:show --profile beta` and `--profile production` show the es-ES notes (ADC with the androidpublisher scope: the verify-play-release-notes skill) |
+| [trigger-retry-window](ongoing/trigger-retry-window.md) | medium | dev | this cycle \* | once a release carrying #776 is live in prod, confirm no trigger logs a redelivery older than the window, then retire (dev deploy green) |
 | [verify-deployed-functions](ongoing/verify-deployed-functions.md) | medium | dev | this cycle | on the next beta deploy, confirm the "Parity check — live rules, indexes and functions are this commit's" step is green with no function-health findings, then retire this plan (#772 shipped it; dev green in run 46006747833) |
 
 ## Soaking
@@ -75,7 +74,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 
 | Plan | Pri | Landed | Advanced | Waiting on | Next |
 |---|---|---|---|---|---|
-| [referential-integrity-audit](ongoing/referential-integrity-audit.md) | high | dev | this cycle | apply the two prod repairs below (Álvaro), and the audit workflow reaches beta/prod only once a release carries it to beta/main | on Álvaro's yes, write the prod repairs per `.agents/skills/prod-data-repair` (snapshot, dry run, apply, re-audit); after the next release, dispatch "Audit Referential Integrity" with ref beta and main |
 | [data-stores-in-env-parity](ongoing/data-stores-in-env-parity.md) | low | dev | this cycle | grant roles/bigquery.metadataViewer to gha-deployer in all three envs so the check can see BigQuery (prod holds the GA4 export dataset analytics_546204987) | on a yes, grant the role in dev, beta and prod, record it in infra/env-parity.json, and add BigQuery datasets to the dataStores check; #782 shipped the rest (dev deploy 46044439593 green) |
 
 ## Blocked
@@ -99,6 +97,7 @@ Sweeps walked past, newest first:
 
 | Commit | Date | Plan files | Subject |
 |---|---|---|---|
+| `1232469f` | 2026-11-28 | 7 | docs(plans): record the overnight landings, retire functions-test-casts |
 | `4d20fd2e` | 2026-11-27 | 14 | docs(plans): approve the first Órdago harvest batch and the Cloud Run gateways |
 | `e7e588fa` | 2026-11-21 | 5 | docs(plans): start madrid-day cutoff, raw-hex tokens and mobile lint gate; gate e2e ideas on #722 |
 | `e960dc6a` | 2026-11-20 | 14 | docs(plans): night triage — start 5 plans, gate release/console-bound rows, reopen read-site after #679 |

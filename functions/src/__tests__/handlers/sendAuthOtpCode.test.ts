@@ -5,6 +5,7 @@
 import { createHash } from 'crypto';
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../helpers/functionsTest';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { resetEmulators } from '../helpers/firestoreEmulator';
 import { bucketIdFor, IP_RATE_LIMIT_MAX_SENDS } from '../../auth/rateLimit';
@@ -37,12 +38,12 @@ interface CallableResult {
 }
 
 async function callSend(data: unknown, ip = '198.51.100.1'): Promise<CallableResult> {
-  const wrapped = ft.wrap(sendAuthOtpCode as unknown as Parameters<typeof ft.wrap>[0]);
-  return (await wrapped({
+  const wrapped = wrapCallable(ft, sendAuthOtpCode);
+  return await wrapped({
     data,
     auth: undefined,
     rawRequest: { headers: { 'x-forwarded-for': `${ip}, 10.0.0.1` }, ip: '10.0.0.1' },
-  } as unknown as Parameters<typeof wrapped>[0])) as unknown as CallableResult;
+  });
 }
 
 describe('sendAuthOtpCode (callable)', () => {

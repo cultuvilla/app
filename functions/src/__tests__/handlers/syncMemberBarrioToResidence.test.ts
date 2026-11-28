@@ -46,13 +46,13 @@ async function personLinks(): Promise<unknown[]> {
 async function fireDelete(before: MemberShape): Promise<void> {
   const path = `municipalities/${MUNI}/members/${USER}`;
   const beforeSnap = ft.firestore.makeDocumentSnapshot(
-    before as unknown as Record<string, unknown>,
+    before,
     path,
   );
   await wrapped({
     data: beforeSnap,
     params: { municipalityId: MUNI, userId: USER },
-  } as unknown as Parameters<typeof wrapped>[0]);
+  });
 }
 
 beforeAll(async () => {

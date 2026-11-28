@@ -41,9 +41,7 @@ async function fire(
     ft.firestore.makeDocumentSnapshot(asRecord(before), path),
     ft.firestore.makeDocumentSnapshot(asRecord(after), path),
   );
-  await wrapped({ data: change, params: { definitionId } } as unknown as Parameters<
-    typeof wrapped
-  >[0]);
+  await wrapped({ data: change, params: { definitionId } });
 }
 
 async function seedTerm(count = 0): Promise<void> {

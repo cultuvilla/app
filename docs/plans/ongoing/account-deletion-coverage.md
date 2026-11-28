@@ -1,9 +1,9 @@
 # Account deletion covers every collection that holds a uid
 
 **Priority:** high
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker h17 in batch 2026-11-27-harvest
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** once a release carrying #780 is live in prod, run `pnpm audit:refs -- --env=prod` (its 20 deletion invariants must read 0) and retire. Shipped: #780; beta orphan and the 15 prod orphans repaired 2026-11-27 (#786)
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
 

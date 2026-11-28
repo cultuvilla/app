@@ -1,9 +1,9 @@
 # BlockingOverlay as an in-tree view, not a native Modal
 
 **Priority:** medium
-**Landed:** none
-**Gate:** none
-**Next:** being built by worker in batch 2026-11-27-harvest (leader session orda-to-cultu)
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** once a release carrying #765 is on beta, open a form with the overlay over a sheet on an iOS TestFlight build and confirm nothing freezes, then retire
 
 **Decided 2026-11-27 (Álvaro):** build it — first batch of the Órdago harvest (`_workspace/docs/plans/ideas/harvest-across-repos.md`).
 

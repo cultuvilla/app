@@ -266,3 +266,15 @@ test('no phone attached is reported, not counted as a failure', () => {
     m.cleanup();
   }
 });
+
+test('no early-exit reader sits at the end of a pipe (SIGPIPE under pipefail exits 141)', () => {
+  // `printf … | grep -q` lets grep exit on its first match; the writer then dies
+  // of SIGPIPE and pipefail turns a match into 141 — at random, by scheduling.
+  // Read a captured string instead (`grep -q … <<< "$text"`).
+  const offenders = readFileSync(SCRIPT, 'utf8')
+    .split('\n')
+    .map((line, i) => ({ line, n: i + 1 }))
+    .filter(({ line }) => !line.trimStart().startsWith('#'))
+    .filter(({ line }) => /\|\s*(grep\s+(-\w*[qmlL]\w*)|head\b|sed\s+-n\s+'?\d+q|awk\s+[^|]*\bexit\b)/.test(line));
+  assert.deepEqual(offenders, [], offenders.map(({ n, line }) => `${n}: ${line}`).join('\n'));
+});

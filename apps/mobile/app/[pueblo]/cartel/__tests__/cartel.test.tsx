@@ -54,7 +54,7 @@ describe('FestivalPosterDetailScreen', () => {
   it('renders the poster title once loaded', async () => {
     mockCaps(false, null);
     const { getByText } = render(<FestivalPosterDetailScreen />);
-    await waitFor(() => getByText('Fiestas 2026'));
+    await waitFor(() => expect(getByText('Fiestas 2026')).toBeTruthy());
   });
 
   it('shows the edit action to the poster’s creator', async () => {

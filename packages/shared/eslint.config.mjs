@@ -1,5 +1,6 @@
 // packages/shared/eslint.config.mjs
 import tseslint from 'typescript-eslint';
+import { BARE_FIREBASE_ERROR_CODE_COMPARE } from './eslint/bareFirebaseErrorCode.mjs';
 
 const SDK_SEAM_PATTERN = {
   group: ['firebase/*', '@firebase/*', '@react-native-firebase/*'],
@@ -62,6 +63,12 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-restricted-imports': ['error', { patterns: [SDK_SEAM_PATTERN] }],
     },
+  },
+  {
+    // A Firebase error code is compared only through firebaseErrorCode()
+    // (packages/shared/eslint/bareFirebaseErrorCode.mjs).
+    files: ['src/**/*.ts', 'test/**/*.ts'],
+    rules: { 'no-restricted-syntax': ['error', BARE_FIREBASE_ERROR_CODE_COMPARE] },
   },
   {
     ignores: ['dist/**', 'node_modules/**', 'coverage/**'],

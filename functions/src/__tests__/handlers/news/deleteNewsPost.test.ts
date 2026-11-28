@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import * as admin from 'firebase-admin';
 import functionsTestFactory from 'firebase-functions-test';
+import { wrapCallable } from '../../helpers/functionsTest';
 import { resetEmulators } from '../../helpers/firestoreEmulator';
 import { deleteNewsPost } from '../../../news/deleteNewsPost';
 
@@ -65,11 +66,11 @@ interface CallableResult {
 }
 
 async function callDelete(opts: { uid: string | null; data: unknown }): Promise<CallableResult> {
-  const wrapped = ft.wrap(deleteNewsPost as unknown as Parameters<typeof ft.wrap>[0]);
-  return (await wrapped({
+  const wrapped = wrapCallable(ft, deleteNewsPost);
+  return await wrapped({
     data: opts.data,
     auth: opts.uid ? { uid: opts.uid, token: {} } : undefined,
-  } as unknown as Parameters<typeof wrapped>[0])) as unknown as CallableResult;
+  });
 }
 
 describe('deleteNewsPost (callable)', () => {
