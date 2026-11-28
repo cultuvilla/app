@@ -2,13 +2,25 @@ import { act, renderHook } from '@testing-library/react-native';
 import { useInboxNames } from '../useInboxNames';
 
 const mockGetMunicipality = jest.fn();
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: (id: string) => mockGetMunicipality(id),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+    '@cultuvilla/shared/services/municipalityService',
+    () => ({
+      getMunicipality: (id: string) => mockGetMunicipality(id),
+    }),
+  );
+});
 const mockGetOrganization = jest.fn();
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganization: (id: string) => mockGetOrganization(id),
-}));
+jest.mock('@cultuvilla/shared/services/organizationService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+    '@cultuvilla/shared/services/organizationService',
+    () => ({
+      getOrganization: (id: string) => mockGetOrganization(id),
+    }),
+  );
+});
 
 beforeEach(() => {
   jest.clearAllMocks();

@@ -35,11 +35,17 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('@cultuvilla/shared/services/notificationService', () => ({
-  registerDevice: jest.fn().mockResolvedValue(undefined),
-  markAsRead: jest.fn().mockResolvedValue(undefined),
-  unregisterDevice: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/notificationService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/notificationService')>(
+    '@cultuvilla/shared/services/notificationService',
+    () => ({
+      registerDevice: jest.fn().mockResolvedValue(undefined),
+      markAsRead: jest.fn().mockResolvedValue(undefined),
+      unregisterDevice: jest.fn().mockResolvedValue(undefined),
+    }),
+  );
+});
 jest.mock('../../auth/clearLocalCache', () => ({
   clearLocalCacheAndRestart: jest.fn().mockResolvedValue(undefined),
 }));

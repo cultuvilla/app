@@ -210,7 +210,7 @@ describe('app lint gate: hand-written service factories', () => {
   const ratchet = mobile.HAND_WRITTEN_FACTORY_RATCHET ?? {};
 
   // Lower this with every file you convert; it may never go up.
-  const CEILING = 341;
+  const CEILING = 279;
 
   it.each([
     ['an object factory', `jest.mock('${SERVICE}', () => ({ getOrganization: jest.fn() }));\n`],

@@ -5,12 +5,18 @@ import { useOrgCapabilities } from '../useOrgCapabilities';
 import { useAuth } from '../useAuth';
 import { useIsAppAdmin } from '../useIsAppAdmin';
 
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  isVillageAdmin: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  isOrgAdmin: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+    '@cultuvilla/shared/services/villageMemberService',
+  );
+});
+jest.mock('@cultuvilla/shared/services/orgMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>(
+    '@cultuvilla/shared/services/orgMemberService',
+  );
+});
 jest.mock('../useAuth', () => ({ useAuth: jest.fn() }));
 jest.mock('../useIsAppAdmin', () => ({ useIsAppAdmin: jest.fn() }));
 

@@ -13,9 +13,12 @@ jest.mock('@cultuvilla/shared/firebase', () => ({
   }),
 }));
 jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({ signInWithCustomToken: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/authSessionService', () => ({
-  restoreLegacySession: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/authSessionService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/authSessionService')>(
+    '@cultuvilla/shared/services/authSessionService',
+  );
+});
 
 const KEY = 'firebase:authUser:the-api-key:[DEFAULT]';
 const ENTRY = JSON.stringify({ uid: 'u1', stsTokenManager: { refreshToken: 'the-refresh-token' } });

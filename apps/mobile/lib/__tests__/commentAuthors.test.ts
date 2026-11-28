@@ -2,12 +2,18 @@ import { resolveCommentAuthor } from '../comments/commentAuthors';
 import { getPersonByUserId } from '@cultuvilla/shared/services/personService';
 import { getPublicProfile } from '@cultuvilla/shared/services/userService';
 
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getPublicProfile: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+    '@cultuvilla/shared/services/personService',
+  );
+});
+jest.mock('@cultuvilla/shared/services/userService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+    '@cultuvilla/shared/services/userService',
+  );
+});
 jest.mock('../firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, op: () => Promise<unknown>) => op(),
 }));

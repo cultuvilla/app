@@ -12,39 +12,74 @@ jest.mock('../../auth/useApproverStatus', () => ({
   useApproverStatus: () => mockUseApproverStatus(),
 }));
 
-jest.mock('@cultuvilla/shared/services/notificationService', () => ({
-  watchUnreadCount: jest
-    .requireActual<typeof import('../../../test/watchers')>('../../../test/watchers')
-    .mockWatcher('unread'),
-}));
+jest.mock('@cultuvilla/shared/services/notificationService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/notificationService')>(
+    '@cultuvilla/shared/services/notificationService',
+    () => ({
+      watchUnreadCount: jest
+        .requireActual<typeof import('../../../test/watchers')>('../../../test/watchers')
+        .mockWatcher('unread'),
+    }),
+  );
+});
 jest.mock('../../firestoreErrorLog', () => ({ reportFirestoreError: jest.fn(), reportWatchError: jest.fn(), reportWatchStall: jest.fn() }));
 
 const mockGetPendingOrganizerRequests = jest.fn();
-jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
-  getPendingOrganizerRequests: () => mockGetPendingOrganizerRequests(),
-}));
+jest.mock('@cultuvilla/shared/services/organizerRequestService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/organizerRequestService')>(
+    '@cultuvilla/shared/services/organizerRequestService',
+    () => ({
+      getPendingOrganizerRequests: () => mockGetPendingOrganizerRequests(),
+    }),
+  );
+});
 
 const mockGetPendingOrganizations = jest.fn();
 const mockGetOrganizationsByMunicipality = jest.fn();
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getPendingOrganizations: () => mockGetPendingOrganizations(),
-  getOrganizationsByMunicipality: (municipalityId: string, status?: string) =>
-    mockGetOrganizationsByMunicipality(municipalityId, status),
-}));
+jest.mock('@cultuvilla/shared/services/organizationService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+    '@cultuvilla/shared/services/organizationService',
+    () => ({
+      getPendingOrganizations: () => mockGetPendingOrganizations(),
+      getOrganizationsByMunicipality: (municipalityId: string, status?: string) =>
+        mockGetOrganizationsByMunicipality(municipalityId, status),
+    }),
+  );
+});
 
 // inboxService runs for real: the badge's reads are its `getActionableRequests`.
 const mockGetPendingOrgJoinRequests = jest.fn();
-jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
-  getPendingOrgJoinRequests: (orgId: string) => mockGetPendingOrgJoinRequests(orgId),
-}));
+jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/orgJoinRequestService')>(
+    '@cultuvilla/shared/services/orgJoinRequestService',
+    () => ({
+      getPendingOrgJoinRequests: (orgId: string) => mockGetPendingOrgJoinRequests(orgId),
+    }),
+  );
+});
 const mockGetOpenReports = jest.fn();
 const mockGetReportsByMunicipality = jest.fn();
-jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
-  getOpenReports: () => mockGetOpenReports(),
-  getReportsByMunicipality: (municipalityId: string, options?: { status?: string }) =>
-    mockGetReportsByMunicipality(municipalityId, options),
-}));
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({}));
+jest.mock('@cultuvilla/shared/services/contentReportService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/contentReportService')>(
+    '@cultuvilla/shared/services/contentReportService',
+    () => ({
+      getOpenReports: () => mockGetOpenReports(),
+      getReportsByMunicipality: (municipalityId: string, options?: { status?: string }) =>
+        mockGetReportsByMunicipality(municipalityId, options),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/cosatecaService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>(
+    '@cultuvilla/shared/services/cosatecaService',
+  );
+});
 
 const NOT_APPROVER = {
   loading: false,

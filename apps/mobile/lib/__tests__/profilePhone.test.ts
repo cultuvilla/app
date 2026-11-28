@@ -3,7 +3,12 @@ import { observability } from '@cultuvilla/shared';
 import { DEFAULT_PHONE_COUNTRY } from '@cultuvilla/shared/utils';
 import { initialPhone, rememberProfilePhone } from '../profilePhone';
 
-jest.mock('@cultuvilla/shared/services/userService', () => ({ patchUserProfile: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/userService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+    '@cultuvilla/shared/services/userService',
+  );
+});
 jest.mock('@cultuvilla/shared', () => ({
   ...jest.requireActual('@cultuvilla/shared'),
   observability: { captureError: jest.fn() },

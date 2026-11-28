@@ -25,13 +25,20 @@ jest.mock('../../village/useActiveVillageId', () => ({ useActiveVillageId: () =>
 const mockOrgs = { orgIds: ['o1'], loading: false, refresh: jest.fn() };
 jest.mock('../../orgs/useMyOrgIds', () => ({ useMyOrgIds: () => mockOrgs }));
 jest.mock('../../firestoreErrorLog', () => ({ reportWatchError: jest.fn(), reportWatchStall: jest.fn() }));
+type MockMembership = import('@cultuvilla/shared/services/villageMemberService').UserMembership;
 let mockMemberships: { municipalityId: string }[] | 'pending' = [{ municipalityId: 'member' }, { municipalityId: 'active' }];
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  watchUserMemberships: (_uid: string, onNext: (v: unknown) => void) => {
-    if (mockMemberships !== 'pending') onNext(mockMemberships);
-    return () => undefined;
-  },
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () => {
+  const { fakeService, partialOf } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+    '@cultuvilla/shared/services/villageMemberService',
+    () => ({
+      watchUserMemberships: (_uid, onNext) => {
+        if (mockMemberships !== 'pending') onNext(mockMemberships.map((m) => partialOf<MockMembership>(m)));
+        return () => undefined;
+      },
+    }),
+  );
+});
 
 let appStateHandler: ((s: AppStateStatus) => void) | null = null;
 

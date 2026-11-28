@@ -42,20 +42,36 @@ jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
 }));
 
 jest.mock('../clearLocalCache', () => ({ clearLocalCacheAndRestart: jest.fn(async () => undefined) }));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: jest.fn().mockResolvedValue(null),
-  setActiveMunicipality: jest.fn(),
-  patchUserProfile: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/authEmailService', () => ({
-  sendAuthSignInEmail: jest.fn(),
-  sendAuthOtpCode: jest.fn(),
-  verifyAuthOtpCode: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/listenerManager', () => ({ clearAll: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/userService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+    '@cultuvilla/shared/services/userService',
+    () => ({
+      getUserProfile: jest.fn().mockResolvedValue(null),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/villageMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+    '@cultuvilla/shared/services/villageMemberService',
+    () => ({
+      getUserMemberships: jest.fn().mockResolvedValue([]),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/authEmailService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/authEmailService')>(
+    '@cultuvilla/shared/services/authEmailService',
+  );
+});
+jest.mock('@cultuvilla/shared/services/listenerManager', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/listenerManager')>(
+    '@cultuvilla/shared/services/listenerManager',
+  );
+});
 jest.mock('../../observability/errorBridge', () => ({ fetchUserIdHash: jest.fn() }));
 jest.mock('../../push/pushSession', () => ({
   unregisterPushForSignOut: jest.fn().mockResolvedValue(undefined),

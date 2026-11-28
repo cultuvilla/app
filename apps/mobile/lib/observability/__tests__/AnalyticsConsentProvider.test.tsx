@@ -11,13 +11,18 @@ jest.mock('@cultuvilla/shared', () => ({
 type Row = { usageAnalytics: boolean; updatedAt: Date } | null;
 let emit: ((row: Row) => void) | null = null;
 const mockUnwatch = jest.fn();
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  watchPrivacySettings: jest.fn((_uid: string, onNext: (row: Row) => void) => {
-    emit = onNext;
-    return mockUnwatch;
-  }),
-  saveUsageAnalyticsConsent: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/userService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+    '@cultuvilla/shared/services/userService',
+    () => ({
+      watchPrivacySettings: jest.fn((_uid: string, onNext: (row: Row) => void) => {
+        emit = onNext;
+        return mockUnwatch;
+      }),
+    }),
+  );
+});
 
 let mockAuth: { user: { uid: string } | null; profile: { personId: string | null } | null };
 jest.mock('../../auth/useAuth', () => ({ useAuth: () => mockAuth }));
