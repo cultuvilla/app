@@ -54,6 +54,15 @@ describe('root pnpm test covers CI', () => {
     expect(rootPkg.scripts['agents:test']).toContain('.agents/_shared/scripts/__tests__/');
   });
 
+  // A node --test file that never exits (a server left listening, a pending
+  // timer) gives no output at all and holds the emulator job to its 25-minute
+  // limit, as metro-port.test.mjs did three times on 2026-11-28. A per-test
+  // timeout names a hung test; force-exit ends a file whose tests all finished.
+  it.each(['scripts:test', 'agents:test'])('%s cannot hang the job', (name) => {
+    expect(rootPkg.scripts[name]).toMatch(/--test-timeout=\d+/);
+    expect(rootPkg.scripts[name]).toContain('--test-force-exit');
+  });
+
   // agents:test reads .agents/_shared, a committed copy of agent-skills. As a
   // submodule it was empty wherever nobody initialised it, and node --test then
   // matched no files and failed the job.

@@ -11,28 +11,53 @@ const run = (base, env = {}) =>
     env: { PATH: '/usr/bin:/bin', ...env },
   });
 
-// Hold the given ports open on 127.0.0.1 while `fn` runs.
+function listen(port) {
+  return new Promise((resolve, reject) => {
+    const s = createServer();
+    s.once('error', reject);
+    s.listen(port, '127.0.0.1', () => resolve(s));
+  });
+}
+
+const close = (servers) => Promise.all(servers.map((s) => new Promise((r) => s.close(r))));
+
+// Hold the given ports open on 127.0.0.1 while `fn` runs. A port that fails to
+// bind closes the ones already bound before rethrowing: a server left listening
+// keeps this file's process alive, and `node --test` then waits on it forever
+// (CI's emulator job hung to its 25-minute limit three times on 2026-11-28).
 async function holding(ports, fn) {
-  const servers = await Promise.all(
-    ports.map(
-      (port) =>
-        new Promise((resolve, reject) => {
-          const s = createServer();
-          s.once('error', reject);
-          s.listen(port, '127.0.0.1', () => resolve(s));
-        }),
-    ),
-  );
+  const results = await Promise.allSettled(ports.map(listen));
+  const servers = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+  const failed = results.find((r) => r.status === 'rejected');
+  if (failed) {
+    await close(servers);
+    throw failed.reason;
+  }
   try {
     return fn();
   } finally {
-    await Promise.all(servers.map((s) => new Promise((r) => s.close(r))));
+    await close(servers);
   }
 }
 
-// A base well away from any real Metro, so a dev server on this machine never
-// changes the outcome.
-const BASE = 41000 + Math.floor(Math.random() * 900);
+// A series nothing on the machine holds right now, below Linux's ephemeral
+// range (32768+) so no outgoing connection's source port lands in it — and a
+// probe of a free port can never connect to itself.
+async function freeBase() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const base = 30000 + Math.floor(Math.random() * 1900);
+    const ports = Array.from({ length: 10 }, (_, i) => base + i * 10);
+    try {
+      await holding(ports, () => {});
+      return base;
+    } catch {
+      // taken — try another
+    }
+  }
+  throw new Error('no free port series in 30000-31999');
+}
+
+const BASE = await freeBase();
 const series = Array.from({ length: 10 }, (_, i) => BASE + i * 10);
 
 test('takes the base port when it is free', () => {
@@ -66,4 +91,14 @@ test('all ten taken fails loudly and prints no port', async () => {
     assert.equal(r.stdout, '');
     assert.match(r.stderr, new RegExp(`${BASE}, ${BASE + 10} \\.\\.\\. ${BASE + 90}`));
   });
+});
+
+test('a port that cannot be held releases the ones already bound', async () => {
+  const taken = await listen(BASE + 5);
+  try {
+    await assert.rejects(holding([BASE + 15, BASE + 5], () => {}), { code: 'EADDRINUSE' });
+  } finally {
+    await close([taken]);
+  }
+  await close([await listen(BASE + 15)]);
 });
