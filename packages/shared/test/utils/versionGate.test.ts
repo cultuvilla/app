@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { resolveVersionGate, shouldPromptUpdate } from '../../src/utils/versionGate';
+import {
+  isBehindRememberedWall,
+  resolveVersionGate,
+  shouldPromptUpdate,
+  wallToRemember,
+} from '../../src/utils/versionGate';
 import type { AppVersionConfig } from '../../src/models/config';
 
 const config: AppVersionConfig = {
@@ -58,5 +63,25 @@ describe('shouldPromptUpdate', () => {
     const record = { version: '1.5.0', promptedAt: now - 2 * DAY };
     expect(shouldPromptUpdate(record, '1.5.0', now, 7)).toBe(false);
     expect(shouldPromptUpdate(record, '1.5.0', now, 1)).toBe(true);
+  });
+});
+
+describe('remembered wall', () => {
+  it('remembers the platform wall and its store url', () => {
+    expect(wallToRemember(config, 'ios')).toEqual({ minSupported: '1.2.0', storeUrl: 'x' });
+    expect(wallToRemember(config, 'android')).toEqual({ minSupported: '1.1.0', storeUrl: 'y' });
+    expect(wallToRemember(config, 'web')).toBeNull();
+  });
+
+  it('blocks only a version below the remembered wall', () => {
+    const wall = { minSupported: '1.2.0', storeUrl: 'x' };
+    expect(isBehindRememberedWall('1.1.9', wall)).toBe(true);
+    expect(isBehindRememberedWall('1.2.0', wall)).toBe(false);
+    expect(isBehindRememberedWall('2.0.0', wall)).toBe(false);
+  });
+
+  it('fails open on no record or an unparseable one', () => {
+    expect(isBehindRememberedWall('1.0.0', null)).toBe(false);
+    expect(isBehindRememberedWall('1.0.0', { minSupported: 'garbage', storeUrl: 'x' })).toBe(false);
   });
 });

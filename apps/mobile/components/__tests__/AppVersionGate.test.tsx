@@ -28,6 +28,8 @@ jest.mock('@cultuvilla/shared', () => {
     // something if they run the same functions the app runs.
     resolveVersionGate: versionGate.resolveVersionGate,
     shouldPromptUpdate: versionGate.shouldPromptUpdate,
+    wallToRemember: versionGate.wallToRemember,
+    isBehindRememberedWall: versionGate.isBehindRememberedWall,
   };
 });
 jest.mock('../../lib/appVersion', () => ({
@@ -260,5 +262,76 @@ describe('a hard wall replaces the app tree', () => {
     await waitFor(() => expect(getByText('appUpdate.nudgeTitle')).toBeTruthy());
     expect(getByText('child')).toBeTruthy();
     expect(mockMarkAppReady).not.toHaveBeenCalled();
+  });
+});
+
+// Órdago e29141a99: the wall was decided from the network alone, so a walled
+// binary ran until the config read landed — and forever offline, or once
+// sign-out had wiped Firestore's cache. The last wall is remembered on device.
+describe('remembers the last wall across launches', () => {
+  const WALL_KEY = 'cultuvilla:appUpdate:wall';
+  const remember = (minSupported: string) => {
+    mockStore[WALL_KEY] = JSON.stringify({ minSupported, storeUrl: STORE.ios });
+  };
+
+  it('blocks at cold start from the remembered wall before the config answers', async () => {
+    remember('2.0.0');
+    const { getByText, queryByText } = renderGate();
+    await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
+    expect(queryByText('child')).toBeNull();
+    fireEvent.press(getByText('appUpdate.cta'));
+    expect(Linking.openURL).toHaveBeenCalledWith(STORE.ios);
+  });
+
+  it('never mounts the app before the remembered wall is read', () => {
+    remember('2.0.0');
+    const { queryByText } = renderGate();
+    expect(queryByText('child')).toBeNull();
+  });
+
+  it('keeps blocking when the config doc is missing or the listener fails', async () => {
+    remember('2.0.0');
+    const missing = renderGate();
+    emit(null);
+    await waitFor(() => expect(missing.getByText('appUpdate.blockTitle')).toBeTruthy());
+    missing.unmount();
+
+    const failed = renderGate();
+    act(() => latestListener().onError(new Error('unavailable')));
+    await waitFor(() => expect(failed.getByText('appUpdate.blockTitle')).toBeTruthy());
+  });
+
+  it('lets a fresh answer lower the wall, and forgets it', async () => {
+    remember('2.0.0');
+    const { getByText } = renderGate();
+    await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
+    emit(UP_TO_DATE);
+    await waitFor(() => expect(getByText('child')).toBeTruthy());
+    expect(JSON.parse(mockStore[WALL_KEY] ?? 'null')).toEqual({
+      minSupported: '0.0.0',
+      storeUrl: STORE.ios,
+    });
+  });
+
+  it('remembers a wall the config raises', async () => {
+    const { getByText } = renderGate();
+    emit(WALL);
+    await waitFor(() => expect(getByText('appUpdate.blockTitle')).toBeTruthy());
+    expect(JSON.parse(mockStore[WALL_KEY] ?? 'null')).toEqual({
+      minSupported: '2.0.0',
+      storeUrl: STORE.ios,
+    });
+  });
+
+  it('runs the app when the remembered wall is below the running version', async () => {
+    remember('0.5.0');
+    const { getByText } = renderGate();
+    await waitFor(() => expect(getByText('child')).toBeTruthy());
+  });
+
+  it('ignores a corrupt record', async () => {
+    mockStore[WALL_KEY] = '{not json';
+    const { getByText } = renderGate();
+    await waitFor(() => expect(getByText('child')).toBeTruthy());
   });
 });
