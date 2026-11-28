@@ -290,6 +290,9 @@ export const organizationJoinRequestsCollection = (db: Firestore, organizationId
 export const organizationJoinRequestDoc = (db: Firestore, organizationId: string, userId: string) =>
   typedDoc(db, C.organizationJoinRequests, organizationId, userId);
 
+export const organizationPresenceRequestDoc = (db: Firestore, organizationId: string, municipalityId: string) =>
+  typedDoc(db, C.organizationPresenceRequests, organizationId, municipalityId);
+
 // ── Organizer requests ───────────────────────────────────────────────────
 
 export const organizerRequestsCollection = (db: Firestore) => typedCollection(db, C.organizerRequests);

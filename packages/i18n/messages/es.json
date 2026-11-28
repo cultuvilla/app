@@ -1203,6 +1203,22 @@
       "confirm": "Salir",
       "soleAdminBody": "Eres el único administrador del grupo. Haz administrador a otro integrante antes de salir.",
       "error": "No se pudo salir del grupo. Inténtalo de nuevo."
+    },
+    "villages": {
+      "title": "Pueblos",
+      "from": "De {village}",
+      "homeLabel": "De",
+      "alsoInLabel": "· También en",
+      "settingsHint": "El grupo es de {village}. Puede aparecer también entre los grupos de otros pueblos si su equipo lo acepta.",
+      "add": "Añadir pueblo",
+      "pending": "Esperando a que lo acepte su equipo",
+      "cancel": "Retirar",
+      "leave": "Quitar",
+      "leaveTitle": "¿Quitar el grupo de {village}?",
+      "leaveBody": "{org} dejará de aparecer entre los grupos de {village}. Para volver, tendrá que aceptarlo otra vez su equipo.",
+      "alreadyThere": "El grupo ya está en ese pueblo, o ya se lo ha pedido.",
+      "notActive": "{village} aún no está en marcha en Cultuvilla, así que no hay equipo que pueda aceptar el grupo.",
+      "error": "No se ha podido guardar. Inténtalo de nuevo."
     }
   },
   "partialDate": {
@@ -1545,7 +1561,8 @@
       "organizer": "Embajadores",
       "org": "Grupos",
       "orgJoin": "Solicitudes para unirse",
-      "reports": "Denuncias"
+      "reports": "Denuncias",
+      "orgPresence": "Grupos de otros pueblos"
     },
     "reportsCount": "{count, plural, one {# denuncia pendiente} other {# denuncias pendientes}}",
     "approve": "Aprobar",
@@ -1558,8 +1575,10 @@
       "org": "Quieres crear {name}",
       "waiting": "Esperando aprobación",
       "orgJoin": "Quieres unirte a {name}",
-      "cosa": "Pediste «{name}»"
-    }
+      "cosa": "Pediste «{name}»",
+      "orgPresence": "Quieres que {name} aparezca en {village}"
+    },
+    "presenceRow": "{org}, de {home}, quiere aparecer en {village}"
   },
   "requests": {
     "organizer": {

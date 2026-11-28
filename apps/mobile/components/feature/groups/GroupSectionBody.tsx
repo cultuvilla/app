@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { hasSocioRoster, type OrgMemberData } from '@cultuvilla/shared/models/organization';
+import { canBeInSeveralVillages, hasSocioRoster, type OrgMemberData } from '@cultuvilla/shared/models/organization';
 import { watchOrgMembers } from '@cultuvilla/shared/services/orgMemberService';
 import type { GroupSection } from '@cultuvilla/shared/utils';
 import { View } from 'react-native';
@@ -168,6 +168,7 @@ export function GroupSectionBody({ group, section, uid }: { group: MyGroup; sect
           transparency={org.transparency}
           joinPolicy={org.joinPolicy}
           isAyuntamiento={org.type === 'ayuntamiento'}
+          villages={canBeInSeveralVillages(org.type) ? org : null}
         />
       );
     // Their own full-height screens, not this scrolling body: see [seccion].tsx.

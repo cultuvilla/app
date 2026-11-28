@@ -69,6 +69,7 @@ import {
 } from '@cultuvilla/shared/models/municipality/MunicipalityDataModel';
 import type { VillageHomeState } from '../../lib/useVillageHome';
 import { VillageCosatecaEntry } from './groups/cosateca/VillageCosatecaEntry';
+import { VillageOrgCard } from './VillageOrgCard';
 
 export interface VillageHomeBodyProps {
   data: VillageHomeState;
@@ -379,18 +380,13 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           status={sectionStatus.organizations}
         >
           {agrupaciones.map((o) => (
-            <EntityCard
+            <VillageOrgCard
               key={o.id}
-              label={o.name}
-              sub={
-                o.type === 'comisión'
-                  ? t('organization.comisión')
-                  : t('village.hub.memberCount', { count: o.memberCount })
-              }
+              org={o}
+              villageId={village.id}
+              villageSlug={villageSlug}
+              sub={o.type === 'comisión' ? t('organization.comisión') : t('village.hub.memberCount', { count: o.memberCount })}
               icon={o.type === 'comisión' ? 'sparkles-outline' : 'business-outline'}
-              imageUri={o.images[0] ?? null}
-              commentCount={o.commentCount}
-              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
             />
           ))}
         </Section>
@@ -402,14 +398,13 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
           status={sectionStatus.organizations}
         >
           {penas.map((o) => (
-            <EntityCard
+            <VillageOrgCard
               key={o.id}
-              label={o.name}
+              org={o}
+              villageId={village.id}
+              villageSlug={villageSlug}
               sub={t('village.hub.memberCount', { count: o.memberCount })}
               icon="people-circle-outline"
-              imageUri={o.images[0] ?? null}
-              commentCount={o.commentCount}
-              onPress={() => router.push(orgHref({ ...o, villageSlug }))}
             />
           ))}
         </Section>

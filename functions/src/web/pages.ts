@@ -97,6 +97,12 @@ function backTo(v: Village): SafeHtml {
   return html`<p class="meta"><a href="${villagePath(v.slug)}">← ${v.name}</a></p>`;
 }
 
+/** A group present in several pueblos says where else it is; its page stays under its home. */
+function alsoInVillages(villages: Village[]): Child {
+  if (villages.length === 0) return null;
+  return html`<p class="meta">También en ${villages.map((x, i) => html`${i > 0 ? ', ' : ''}<a href="${villagePath(x.slug)}">${x.name}</a>`)}</p>`;
+}
+
 function paragraphs(text: string | null): Child {
   if (!text) return null;
   return html`<div class="body">${text.split(/\n{2,}/).map((p) => html`<p>${p}</p>`)}</div>`;
@@ -251,7 +257,7 @@ export function newsPage(v: Village, n: NewsView, appPath: string): Page {
   };
 }
 
-export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean, events: Card[]): Page {
+export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean, events: Card[], alsoIn: Village[] = []): Page {
   const kind = label(ORG_TYPE, o.type) ?? 'Entidad';
   const facts = [kind, o.memberCount ? msg('organization.membersCount', { count: o.memberCount }) : null].filter(Boolean).join(' · ');
   return {
@@ -263,7 +269,7 @@ export function orgPage(v: Village, o: OrgView, appPath: string, invite: boolean
       noindex: invite,
       jsonLd: invite ? null : { '@type': 'Organization', name: o.name, ...(o.description ? { description: excerpt(o.description, 300) } : {}) },
     },
-    body: html`${backTo(v)}${invite ? html`<div class="notice"><strong>Te han invitado a unirte a ${o.name}.</strong></div>` : null}${img(o.images[0] ?? null, o.name, 'hero')}<h1>${o.name}</h1><p class="meta">${facts}</p>${paragraphs(o.description)}${o.images.slice(1).map((u) => html`<p>${img(u, o.name)}</p>`)}${section('Eventos', events)}${appCta(appPath, invite ? 'Únete desde la app' : `Sigue a ${o.name} en la app`)}`,
+    body: html`${backTo(v)}${invite ? html`<div class="notice"><strong>Te han invitado a unirte a ${o.name}.</strong></div>` : null}${img(o.images[0] ?? null, o.name, 'hero')}<h1>${o.name}</h1><p class="meta">${facts}</p>${alsoInVillages(alsoIn)}${paragraphs(o.description)}${o.images.slice(1).map((u) => html`<p>${img(u, o.name)}</p>`)}${section('Eventos', events)}${appCta(appPath, invite ? 'Únete desde la app' : `Sigue a ${o.name} en la app`)}`,
   };
 }
 

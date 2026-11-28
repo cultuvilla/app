@@ -6,6 +6,7 @@ import {
   getPendingOrganizations,
 } from './organizationService';
 import { getMyPendingOrgJoinRequests, getPendingOrgJoinRequests } from './orgJoinRequestService';
+import { getMyPendingOrgPresenceRequests, getPendingOrgPresenceRequests } from './orgPresenceService';
 import { getOpenReports, getReportsByMunicipality, type ContentReport } from './contentReportService';
 import { getMyPendingCosaRequests } from './cosatecaService';
 import { observability } from './observability/observabilityService';
@@ -13,12 +14,21 @@ import type { NotificationData } from '../models/notification/NotificationDataMo
 import type { OrganizerRequestData } from '../models/municipality/OrganizerRequestDataModel';
 import type { OrganizationData } from '../models/organization/OrganizationDataModel';
 import type { OrgJoinRequestData } from '../models/organization/OrgJoinRequestDataModel';
+import type { OrgPresenceRequestData } from '../models/organization/OrgPresenceRequestDataModel';
 
-export type PendingRequestType = 'organizer' | 'org' | 'orgJoin' | 'cosa';
+export type PendingRequestType = 'organizer' | 'org' | 'orgJoin' | 'cosa' | 'orgPresence';
 
 export type ActivityItem =
   | { kind: 'notification'; id: string; notification: NotificationData & { id: string } }
-  | { kind: 'pending-sent'; id: string; requestType: PendingRequestType; label: string; createdAt: Date };
+  | {
+      kind: 'pending-sent';
+      id: string;
+      requestType: PendingRequestType;
+      label: string;
+      createdAt: Date;
+      /** `orgPresence` only: the pueblo asked, while `label` is the group's name. */
+      municipalityId?: string;
+    };
 
 export interface InboxFeed {
   activity: ActivityItem[];
@@ -29,6 +39,8 @@ export interface PendingSentRequest {
   id: string;
   label: string;
   createdAt: Date;
+  /** `orgPresence` only: the pueblo asked, while `label` is the group's name. */
+  municipalityId?: string;
 }
 
 function activityTimestamp(item: ActivityItem): number {
@@ -54,6 +66,7 @@ export function buildActivityFeed(
     requestType: request.requestType,
     label: request.label,
     createdAt: request.createdAt,
+    ...(request.municipalityId === undefined ? {} : { municipalityId: request.municipalityId }),
   }));
 
   return [...notificationItems, ...pendingSentItems].sort(
@@ -66,16 +79,20 @@ export function buildActivityFeed(
  * Labels use only fields already present on the request doc — no extra
  * name-resolution reads (the screen resolves ids to names): a municipalityId
  * for `organizer`, the org name for `org`, the orgId for `orgJoin`, the cosa's
- * title for `cosa`.
+ * title for `cosa`, the group's name (and the pueblo's id) for `orgPresence`.
  */
 export async function getMyPendingRequests(uid: string): Promise<PendingSentRequest[]> {
-  const [organizerRequests, organizations, joinRequests, cosaRequests] = await Promise.all([
+  const [organizerRequests, organizations, joinRequests, cosaRequests, presenceRequests] = await Promise.all([
     getMyOrganizerRequests(uid),
     getMyOrganizations(uid),
     getMyPendingOrgJoinRequests(uid),
     // One unreadable list must not blank the rest of the Buzón — but it is reported.
     getMyPendingCosaRequests(uid).catch((err: unknown) => {
       observability.captureError(err, { operation: 'inbox:getMyPendingCosaRequests' });
+      return [];
+    }),
+    getMyPendingOrgPresenceRequests(uid).catch((err: unknown) => {
+      observability.captureError(err, { operation: 'inbox:getMyPendingOrgPresenceRequests' });
       return [];
     }),
   ]);
@@ -113,7 +130,16 @@ export async function getMyPendingRequests(uid: string): Promise<PendingSentRequ
     createdAt: r.createdAt,
   }));
 
-  return [...pendingOrganizer, ...pendingOrg, ...pendingJoin, ...pendingCosa];
+  // Like a join request, it exists only while pending.
+  const pendingPresence: PendingSentRequest[] = presenceRequests.map((r) => ({
+    requestType: 'orgPresence' as const,
+    id: `${r.orgId}_${r.municipalityId}`,
+    label: r.orgName,
+    createdAt: r.createdAt,
+    municipalityId: r.municipalityId,
+  }));
+
+  return [...pendingOrganizer, ...pendingOrg, ...pendingJoin, ...pendingCosa, ...pendingPresence];
 }
 
 // ─── Actionable queues ("Necesita tu acción") ─────────────────────────────────
@@ -124,9 +150,9 @@ export async function getMyPendingRequests(uid: string): Promise<PendingSentRequ
 // is not an approver's queue (anyone who offered something answers it) and it
 // is read live by `watchCosaRequestsToAnswer`.
 
-export type ActionableKind = 'organizer' | 'orgs' | 'joins' | 'reports';
+export type ActionableKind = 'organizer' | 'orgs' | 'joins' | 'presence' | 'reports';
 
-const ACTIONABLE_KINDS: readonly ActionableKind[] = ['organizer', 'orgs', 'joins', 'reports'];
+const ACTIONABLE_KINDS: readonly ActionableKind[] = ['organizer', 'orgs', 'joins', 'presence', 'reports'];
 
 /** Every village (`'all'`), or only the listed ones. */
 export type VillageReach = 'all' | string[];
@@ -138,6 +164,8 @@ export interface ActionableScope {
   orgs: VillageReach;
   /** Join requests, per org the user administers. */
   joins: string[];
+  /** Groups from other pueblos asking to be listed in these. */
+  presence: VillageReach;
   /** Open content reports. */
   reports: VillageReach;
 }
@@ -152,6 +180,7 @@ export interface ActionableRequests {
   organizer: (OrganizerRequestData & { id: string })[];
   orgs: (OrganizationData & { id: string })[];
   joins: OrgJoinRequestData[];
+  presence: OrgPresenceRequestData[];
   reports: ContentReport[];
 }
 
@@ -162,6 +191,7 @@ export function actionableScope(roles: ApproverRoles): ActionableScope {
     organizer: roles.isSuperAdmin,
     orgs: villages,
     joins: [...roles.adminOrgIds],
+    presence: villages,
     reports: villages,
   };
 }
@@ -188,6 +218,11 @@ async function readJoins(scope: ActionableScope): Promise<OrgJoinRequestData[]> 
   return perOrg.flat();
 }
 
+async function readPresence(scope: ActionableScope): Promise<OrgPresenceRequestData[]> {
+  if (scope.presence !== 'all' && scope.presence.length === 0) return [];
+  return getPendingOrgPresenceRequests(scope.presence);
+}
+
 async function readReports(scope: ActionableScope): Promise<ContentReport[]> {
   if (scope.reports === 'all') return getOpenReports();
   const perVillage = await Promise.all(
@@ -210,13 +245,14 @@ export async function getActionableRequests(
   kinds: readonly ActionableKind[] = ACTIONABLE_KINDS,
 ): Promise<ActionableRequests> {
   const wants = (kind: ActionableKind) => kinds.includes(kind);
-  const [organizer, orgs, joins, reports] = await Promise.all([
+  const [organizer, orgs, joins, presence, reports] = await Promise.all([
     wants('organizer') ? readOrganizer(scope) : [],
     wants('orgs') ? readOrgs(scope) : [],
     wants('joins') ? readJoins(scope) : [],
+    wants('presence') ? readPresence(scope) : [],
     wants('reports') ? readReports(scope) : [],
   ]);
-  return { organizer, orgs, joins, reports };
+  return { organizer, orgs, joins, presence, reports };
 }
 
 /**
@@ -226,5 +262,11 @@ export async function getActionableRequests(
  */
 /** Only the queue lengths are read, so any list of each queue counts. */
 export function actionableCount(requests: { readonly [K in keyof ActionableRequests]: readonly unknown[] }): number {
-  return requests.organizer.length + requests.orgs.length + requests.joins.length + requests.reports.length;
+  return (
+    requests.organizer.length
+    + requests.orgs.length
+    + requests.joins.length
+    + requests.presence.length
+    + requests.reports.length
+  );
 }

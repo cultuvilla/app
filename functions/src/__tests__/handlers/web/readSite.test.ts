@@ -72,7 +72,7 @@ async function seed(): Promise<void> {
     ],
   });
   await d.doc('news/n2').set({ municipalityId: 'm1', title: 'Oculta', status: 'hidden', publishedAt: ts('2026-07-21T10:00:00Z'), content: [] });
-  await d.doc('organizations/o1').set({ municipalityId: 'm1', name: 'Peña El Toro', status: 'approved', type: 'peña', images: [], memberCount: 12 });
+  await d.doc('organizations/o1').set({ municipalityId: 'm1', municipalityIds: ['m1'], name: 'Peña El Toro', status: 'approved', type: 'peña', images: [], memberCount: 12 });
   await d.doc('organizations/o2').set({ municipalityId: 'm1', name: 'Peña Pendiente', status: 'pending', type: 'peña', images: [] });
   await d.doc('municipalities/m1/places/p1').set({ name: 'Ermita', kind: 'hermitage', status: 'active', images: [] });
   await d.doc('municipalities/m1/places/p2').set({ name: 'Lugar oculto', kind: 'otros', status: 'hidden', images: [] });

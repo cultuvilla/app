@@ -44,6 +44,11 @@ import {
   type OrgJoinDecision,
 } from '@cultuvilla/shared/services/orgJoinRequestService';
 import type { OrgJoinRequestData } from '@cultuvilla/shared/models/organization/OrgJoinRequestDataModel';
+import type { OrgPresenceRequestData } from '@cultuvilla/shared/models/organization/OrgPresenceRequestDataModel';
+import {
+  respondToOrgPresenceRequest,
+  type OrgPresenceDecision,
+} from '@cultuvilla/shared/services/orgPresenceService';
 import {
   OrgJoinRequestRow,
   resolveRequester,
@@ -69,6 +74,7 @@ export default function InboxScreen() {
   const [organizerRows, setOrganizerRows] = useState<OrganizerRow[]>([]);
   const [orgRows, setOrgRows] = useState<OrgRow[]>([]);
   const [joinRows, setJoinRows] = useState<OrgJoinRequestData[]>([]);
+  const [presenceRows, setPresenceRows] = useState<OrgPresenceRequestData[]>([]);
   const [reportRows, setReportRows] = useState<ReportsRow[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
@@ -118,15 +124,17 @@ export default function InboxScreen() {
     setDataLoading(true);
     try {
       // Reports load on focus, below.
-      const { organizer, orgs, joins } = await getActionableRequests(scope, [
+      const { organizer, orgs, joins, presence } = await getActionableRequests(scope, [
         'organizer',
         'orgs',
         'joins',
+        'presence',
       ]);
 
       setOrganizerRows(organizer);
       setOrgRows(orgs);
       setJoinRows(joins);
+      setPresenceRows(presence);
 
       await resolveRequesters(
         joins.map((r) => r.userId),
@@ -146,6 +154,7 @@ export default function InboxScreen() {
       await resolveMunicipalityNames([
         ...organizer.map((r) => r.municipalityId),
         ...orgs.map((r) => r.municipalityId),
+        ...presence.flatMap((r) => [r.municipalityId, r.homeMunicipalityId]),
       ]);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : String(err));
@@ -218,6 +227,7 @@ export default function InboxScreen() {
           if (item.kind !== 'pending-sent') continue;
           if (item.requestType === 'organizer') newMunicipalityIds.add(item.label);
           if (item.requestType === 'orgJoin') joinOrgIds.push(item.label);
+          if (item.requestType === 'orgPresence' && item.municipalityId) newMunicipalityIds.add(item.municipalityId);
         }
         await resolveOrgNames(joinOrgIds);
         await resolveMunicipalityNames(newMunicipalityIds);
@@ -285,9 +295,28 @@ export default function InboxScreen() {
     }
   }
 
+  async function handlePresenceDecide(row: OrgPresenceRequestData, decision: OrgPresenceDecision) {
+    const key = `presence-${row.orgId}-${row.municipalityId}`;
+    setBusyKey(key);
+    try {
+      await respondToOrgPresenceRequest(row.orgId, row.municipalityId, decision);
+      setPresenceRows((prev) =>
+        prev.filter((r) => !(r.orgId === row.orgId && r.municipalityId === row.municipalityId)),
+      );
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   // ─── Render: actionable section ──────────────────────────────────────────────
   const hasActionable =
-    organizerRows.length > 0 || orgRows.length > 0 || joinRows.length > 0 || reportRows.length > 0;
+    organizerRows.length > 0
+    || orgRows.length > 0
+    || joinRows.length > 0
+    || presenceRows.length > 0
+    || reportRows.length > 0;
 
   function renderActionable() {
     if (dataLoading) {
@@ -441,6 +470,49 @@ export default function InboxScreen() {
           </VStack>
         )}
 
+        {/* Groups from other pueblos asking to be listed in one this user runs */}
+        {presenceRows.length > 0 && (
+          <VStack gap={2}>
+            <Text variant="h3">{t('inbox.tab.orgPresence')}</Text>
+            {presenceRows.map((row) => {
+              const key = `presence-${row.orgId}-${row.municipalityId}`;
+              return (
+                <VStack
+                  key={key}
+                  gap={2}
+                  className="bg-surface border border-subtle rounded-xl p-3"
+                  testID={`inbox-presence-${row.orgId}-${row.municipalityId}`}
+                >
+                  <Text>
+                    {t('inbox.presenceRow', {
+                      org: row.orgName,
+                      home: municipalityNames[row.homeMunicipalityId] ?? row.homeMunicipalityId,
+                      village: municipalityNames[row.municipalityId] ?? row.municipalityId,
+                    })}
+                  </Text>
+                  <HStack gap={2}>
+                    <Button
+                      onPress={() => void handlePresenceDecide(row, 'approved')}
+                      loading={busyKey === key}
+                      testID={`approve-presence-${row.orgId}-${row.municipalityId}`}
+                    >
+                      {t('inbox.approve')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onPress={() => void handlePresenceDecide(row, 'rejected')}
+                      loading={busyKey === key}
+                      testID={`reject-presence-${row.orgId}-${row.municipalityId}`}
+                    >
+                      {t('inbox.reject')}
+                    </Button>
+                  </HStack>
+                </VStack>
+              );
+            })}
+          </VStack>
+        )}
+
         {/* Org-creation section */}
         {orgRows.length > 0 && (
           <VStack gap={2}>
@@ -495,6 +567,10 @@ export default function InboxScreen() {
       return t('inbox.pendingSent.orgJoin', { name: orgNames[item.label] ?? item.label });
     }
     if (item.requestType === 'cosa') return t('inbox.pendingSent.cosa', { name: item.label });
+    if (item.requestType === 'orgPresence') {
+      const village = item.municipalityId ?? '';
+      return t('inbox.pendingSent.orgPresence', { name: item.label, village: municipalityNames[village] ?? village });
+    }
     return t('inbox.pendingSent.org', { name: item.label });
   }
 

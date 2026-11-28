@@ -71,7 +71,7 @@ This is the result of the migration recorded in [docs/decisions/open-feed-archit
 
 ### Request types (solicitudes)
 
-Three user-initiated requests exist. They surface in the **Buzón** (mobile):
+Four user-initiated requests exist. They surface in the **Buzón** (mobile):
 *Necesita tu acción* lists what you can resolve, scoped to what you administer,
 and the activity feed shows the requests you've sent while they're pending.
 Requests are created from in-context screens; outcomes arrive as notifications.
@@ -81,6 +81,7 @@ Requests are created from in-context screens; outcomes arrive as notifications.
 | Organizer (be the pueblo's **Embajador**) | `organizerRequests/` | any user | super admin (`respondToOrganizerRequest` callable) |
 | Organization (create peña/asociación/ayuntamiento) | `organizations/` (status `pending`) | village member | village admin (own village) or super admin (`approveOrganization` callable; `rejectOrganization` stays a client write) |
 | Join a group | `organizations/{orgId}/joinRequests/{uid}` | any user | org admin, admin of its village, or super admin (`respondToOrgJoinRequest` callable) |
+| List a group in another pueblo | `organizations/{orgId}/presenceRequests/{municipalityId}` | group admin | admin of the pueblo asked, or super admin (`respondToOrgPresenceRequest` callable) |
 
 Every Embajador request and every `/embajadores` web lead (`ambassadorLeads/`) is
 posted to the founders' *Cultuvilla Overview* Telegram group by

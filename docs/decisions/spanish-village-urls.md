@@ -137,5 +137,6 @@ the doc before navigating. Everything else passes the entity it already has.
 
 - A municipality genuinely changes name and the old slug reads wrong — decide
   then whether to add a slug-alias redirect; do not move the slug.
-- Multi-village organizations arrive — `/<pueblo>/entidad/…` then means "home
-  pueblo", and the page must say so.
+- Multi-village organizations arrived (2026-11-28): `/<pueblo>/entidad/…` means the
+  home pueblo, and the page names the others — see
+  [multi-village-groups.md](multi-village-groups.md).

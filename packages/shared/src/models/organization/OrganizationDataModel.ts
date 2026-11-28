@@ -28,6 +28,17 @@ export const PROPOSABLE_ORGANIZATION_TYPES: readonly OrganizationType[] = [
  * on `open` and treat a missing value as `open`: it goes once `minSupported`
  * passes the release that stopped reading it. See docs/decisions/org-join-policy.md.
  */
+/**
+ * The kinds of group that may be present in pueblos other than their own. An
+ * ayuntamiento and a comisión de festejos belong to one pueblo by nature.
+ * See docs/decisions/multi-village-groups.md.
+ */
+export const MULTI_VILLAGE_ORGANIZATION_TYPES: readonly OrganizationType[] = ['peña', 'asociación', 'otros'] as const;
+
+export function canBeInSeveralVillages(type: OrganizationType): boolean {
+  return MULTI_VILLAGE_ORGANIZATION_TYPES.includes(type);
+}
+
 export const OrgJoinPolicySchema = z.enum(['open', 'approval']);
 export type OrgJoinPolicy = z.infer<typeof OrgJoinPolicySchema>;
 
@@ -44,8 +55,18 @@ export const OrganizationDataSchema = z.object({
   // village would otherwise make the strict converter throw and blank that
   // village's whole group list on every installed binary older than the type.
   type: OrganizationTypeSchema.catch('otros'),
+  /** The group's home pueblo (its sede): its link, its audit log, and whose
+   *  Equipo del pueblo backs up its admins. Never changes. */
   municipalityId: z.string(),
-  /** The village's permanent URL slug, denormalized so a card can link without a read. */
+  /** Every pueblo the group is listed in, its home included — what a village's
+   *  group list queries (`array-contains`). Function-owned: the home is written
+   *  at creation and on approval, the others only by
+   *  respondToOrgPresenceRequest / removeOrgPresence. Defaults because installed
+   *  binaries create orgs without it; approveOrganization writes the home, and
+   *  existing docs are backfilled by scripts/backfill-org-municipality-ids.mjs.
+   *  So an approved group always lists its home. */
+  municipalityIds: z.array(z.string()).default([]),
+  /** The home pueblo's permanent URL slug, denormalized so a card can link without a read. */
   villageSlug: z.string(),
   requestedBy: z.string(),
   createdAt: z.date(),
@@ -130,6 +151,8 @@ export interface OrganizationDataInput {
   type: OrganizationType;
   status?: OrganizationStatus;
   municipalityId: string;
+  /** Defaults to the home pueblo alone. */
+  municipalityIds?: string[];
   villageSlug: string;
   requestedBy: string;
   reviewedBy?: string | null;
@@ -158,6 +181,7 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     type: input.type,
     status: input.status ?? 'pending',
     municipalityId: input.municipalityId,
+    municipalityIds: input.municipalityIds ?? [input.municipalityId],
     villageSlug: input.villageSlug,
     requestedBy: input.requestedBy,
     reviewedBy: input.reviewedBy ?? null,
@@ -180,6 +204,11 @@ export function buildOrganizationData(input: OrganizationDataInput): Organizatio
     chatEnabled: input.chatEnabled ?? true,
     transparency: input.transparency ?? { ...DEFAULT_GROUP_TRANSPARENCY },
   };
+}
+
+/** The pueblos a group is present in besides its home, in stored order. */
+export function otherVillageIds(org: Pick<OrganizationData, 'municipalityId' | 'municipalityIds'>): string[] {
+  return org.municipalityIds.filter((id) => id !== org.municipalityId);
 }
 
 /**

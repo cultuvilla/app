@@ -91,6 +91,8 @@ describe('approveOrganization (callable)', () => {
     expect(orgDoc.data()?.status).toBe('approved');
     // Installed binaries still create orgs as `open`.
     expect(orgDoc.data()?.joinPolicy).toBe('approval');
+    // Installed binaries create orgs without it; approval lists the group in its pueblo.
+    expect(orgDoc.data()?.municipalityIds).toEqual([MUNICIPALITY_ID]);
     expect(orgDoc.data()?.reviewedBy).toBe(VILLAGE_ADMIN_ID);
 
     const memberDoc = await admin

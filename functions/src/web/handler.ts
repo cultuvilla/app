@@ -142,8 +142,15 @@ async function entity(
       const target = { id: o.id, title: o.name, villageSlug: v.slug };
       const wanted = invite ? orgJoinPath(target) : entityPath('organization', target);
       // A stale slug only redirects, so it never pays for the events query.
-      const events = path === wanted ? await loadOrgEventCards(db, o.id, v.slug, deps.now) : [];
-      return canonical(path, wanted, () => orgPage(v, o, wanted, invite, events));
+      const fresh = path === wanted;
+      const [events, alsoIn] = fresh
+        ? await Promise.all([
+            loadOrgEventCards(db, o.id, v.slug, deps.now),
+            Promise.all(o.otherMunicipalityIds.map((id) => villageOf(deps, id))),
+          ])
+        : [[], []];
+      const others = alsoIn.filter((x): x is Village => x !== null);
+      return canonical(path, wanted, () => orgPage(v, o, wanted, invite, events, others));
     }
     case 'festivalPoster': {
       const p = await loadPoster(db, route.id);

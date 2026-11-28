@@ -162,14 +162,27 @@ describe('by-id watchers', () => {
 describe('village list watchers', () => {
   it('watchOrganizationsByMunicipality narrows to a status when given one', () => {
     const store = fakeStore();
-    store['organizations/o1'] = { municipalityId: 'm1', status: 'approved', name: 'A' };
-    store['organizations/o2'] = { municipalityId: 'm1', status: 'pending', name: 'B' };
-    store['organizations/o3'] = { municipalityId: 'm2', status: 'approved', name: 'C' };
+    store['organizations/o1'] = { municipalityId: 'm1', municipalityIds: ['m1'], status: 'approved', name: 'A' };
+    store['organizations/o2'] = { municipalityId: 'm1', municipalityIds: ['m1'], status: 'pending', name: 'B' };
+    store['organizations/o3'] = { municipalityId: 'm2', municipalityIds: ['m2'], status: 'approved', name: 'C' };
 
     const approved = firstEmission(watchOrganizationsByMunicipality, 'm1', 'approved');
     const all = firstEmission(watchOrganizationsByMunicipality, 'm1', undefined);
     expect(approved.map((o) => o.id)).toEqual(['o1']);
     expect(all.map((o) => o.id).sort()).toEqual(['o1', 'o2']);
+  });
+
+  it('watchOrganizationsByMunicipality lists the approved groups a pueblo accepted from elsewhere', () => {
+    const store = fakeStore();
+    store['organizations/home'] = { municipalityId: 'm1', municipalityIds: ['m1'], status: 'approved', name: 'Peña de casa' };
+    store['organizations/visitor'] = { municipalityId: 'm2', municipalityIds: ['m2', 'm1'], status: 'approved', name: 'Asociación comarcal' };
+    store['organizations/elsewhere'] = { municipalityId: 'm2', municipalityIds: ['m2'], status: 'approved', name: 'Otra' };
+
+    const approved = firstEmission(watchOrganizationsByMunicipality, 'm1', 'approved');
+    const all = firstEmission(watchOrganizationsByMunicipality, 'm1', undefined);
+    expect(approved.map((o) => o.id).sort()).toEqual(['home', 'visitor']);
+    // Once each, by name: the home query and the presence query both return «home».
+    expect(all.map((o) => o.id)).toEqual(['visitor', 'home']);
   });
 
   it("watchVillageVocabularyDefinitions emits the village's active meanings only", () => {

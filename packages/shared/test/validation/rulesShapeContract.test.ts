@@ -30,6 +30,7 @@ import { buildNotificationSettingsData } from '../../src/models/notification/Not
 import { buildActaData, buildLedgerEntryData } from '../../src/models/organization/RecordsDataModel';
 import { buildLedgerCategoryData } from '../../src/models/organization/LedgerCategoryDataModel';
 import { buildOrgJoinRequestData } from '../../src/models/organization/OrgJoinRequestDataModel';
+import { buildOrgPresenceRequestData } from '../../src/models/organization/OrgPresenceRequestDataModel';
 import { buildOrganizerRequestData } from '../../src/models/municipality/OrganizerRequestDataModel';
 import { buildPlaceData, buildBarrioData } from '../../src/models/municipality/MunicipalityDataModel';
 
@@ -115,7 +116,7 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     build: () =>
       buildOrganizationData({ name: 'Peña', type: 'peña', municipalityId: 'm1', villageSlug: 'matabuena', requestedBy: 'u1' }),
     ruleKeys: [
-      'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
+      'name', 'description', 'images', 'type', 'status', 'municipalityId', 'municipalityIds', 'villageSlug',
       'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
       'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy', 'sociosListVisible',
       'chatAdminsOnly', 'sociosSendAvisos', 'socioPhoneRequired', 'socioEmailRequired', 'cosateca', 'cuotaEnabled', 'actasEnabled', 'cuentasEnabled', 'chatEnabled', 'transparency',
@@ -156,6 +157,12 @@ const SHAPE_CONTRACTS: ShapeContract[] = [
     label: 'organizations/{orgId}/joinRequests — isValidOrgJoinRequestCreate',
     build: () => buildOrgJoinRequestData({ userId: 'u1', orgId: 'o1', municipalityId: 'm1' }),
     ruleKeys: ['userId', 'orgId', 'municipalityId', 'createdAt'],
+  },
+  {
+    label: 'organizations/{orgId}/presenceRequests — isValidOrgPresenceRequestCreate',
+    build: () =>
+      buildOrgPresenceRequestData({ orgId: 'o1', municipalityId: 'm2', homeMunicipalityId: 'm1', orgName: 'Peña', requestedBy: 'u1' }),
+    ruleKeys: ['orgId', 'municipalityId', 'homeMunicipalityId', 'orgName', 'requestedBy', 'createdAt'],
   },
   {
     label: 'places (create) — isValidPlaceCreate',

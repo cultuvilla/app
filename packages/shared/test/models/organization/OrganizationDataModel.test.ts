@@ -3,7 +3,9 @@ import {
   OrganizationDataSchema,
   PROPOSABLE_ORGANIZATION_TYPES,
   buildOrganizationData,
+  canBeInSeveralVillages,
   canViewOrgRoster,
+  otherVillageIds,
 } from '../../../src/models/organization/OrganizationDataModel';
 
 const validOrg = {
@@ -119,5 +121,29 @@ describe('canViewOrgRoster', () => {
   it('private group: only members see the roster', () => {
     expect(canViewOrgRoster({ membersPublic: false, isMember: true })).toBe(true);
     expect(canViewOrgRoster({ membersPublic: false, isMember: false })).toBe(false);
+  });
+});
+
+describe('the pueblos a group is in', () => {
+  it('reads a doc written before municipalityIds as listed nowhere (approval and the backfill list its home)', () => {
+    expect(OrganizationDataSchema.parse(validOrg).municipalityIds).toEqual([]);
+  });
+
+  it('builds a new group listed in its home alone', () => {
+    const o = buildOrganizationData({ name: 'Peña X', type: 'peña', requestedBy: 'u1', municipalityId: 'v1', villageSlug: 'villa' });
+    expect(o.municipalityIds).toEqual(['v1']);
+  });
+
+  it('names the other pueblos, never the home', () => {
+    expect(otherVillageIds({ municipalityId: 'v1', municipalityIds: ['v1', 'v2', 'v3'] })).toEqual(['v2', 'v3']);
+    expect(otherVillageIds({ municipalityId: 'v1', municipalityIds: ['v1'] })).toEqual([]);
+  });
+
+  it('lets peñas, asociaciones and otros be in several pueblos, never an ayuntamiento or a comisión', () => {
+    expect(canBeInSeveralVillages('peña')).toBe(true);
+    expect(canBeInSeveralVillages('asociación')).toBe(true);
+    expect(canBeInSeveralVillages('otros')).toBe(true);
+    expect(canBeInSeveralVillages('ayuntamiento')).toBe(false);
+    expect(canBeInSeveralVillages('comisión')).toBe(false);
   });
 });

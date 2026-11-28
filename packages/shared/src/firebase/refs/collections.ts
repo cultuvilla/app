@@ -23,6 +23,7 @@ import { VillageRankingDataSchema } from '../../models/municipality/VillageRanki
 import { OrganizationDataSchema } from '../../models/organization/OrganizationDataModel';
 import { OrgMemberDataSchema } from '../../models/organization/OrgMemberDataModel';
 import { OrgJoinRequestDataSchema } from '../../models/organization/OrgJoinRequestDataModel';
+import { OrgPresenceRequestDataSchema } from '../../models/organization/OrgPresenceRequestDataModel';
 import {
   SocioDataSchema,
   SocioNumberingDataSchema,
@@ -136,6 +137,7 @@ export const COLLECTIONS = {
   organizations: def('organizations', OrganizationDataSchema),
   organizationMembers: def('organizations/{organizationId}/members', OrgMemberDataSchema),
   organizationJoinRequests: def('organizations/{organizationId}/joinRequests', OrgJoinRequestDataSchema),
+  organizationPresenceRequests: def('organizations/{organizationId}/presenceRequests', OrgPresenceRequestDataSchema),
   organizationSocios: def('organizations/{organizationId}/socios', SocioDataSchema),
   organizationSocioPrivate: def('organizations/{organizationId}/socioPrivate', SocioPrivateDataSchema),
   organizationSocioPersonaLocks: def('organizations/{organizationId}/socioPersonaLocks', SocioPersonaLockDataSchema),

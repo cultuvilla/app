@@ -25,7 +25,7 @@ import type {
   OrganizationDataInput,
   OrganizationStatus,
 } from '../models/organization/OrganizationDataModel';
-import { watchDoc, watchDocsByIds, watchQuery, type Unwatch, type WatchError } from './watch';
+import { watchDoc, watchDocsByIds, watchMerged, watchQuery, type Unwatch, type WatchError } from './watch';
 import { DEFAULT_COSATECA_SETTINGS } from '../models/organization/CosaDataModel';
 import { DEFAULT_GROUP_TRANSPARENCY } from '../models/organization/GroupTransparencyModel';
 
@@ -73,8 +73,24 @@ export function watchOrganizationsByIds(
   return watchDocsByIds(orgIds, (id, next, error) => watchOrganization(id, next, error), onNext, onError);
 }
 
+type OrgRow = OrganizationData & { id: string };
+
+/**
+ * A pueblo's groups. Approved ones are every group *present* in the pueblo —
+ * its own and those from other pueblos it accepted (`municipalityIds`). Any
+ * other status only exists at home: a pending or rejected group is never
+ * present elsewhere.
+ */
 function municipalityOrganizationsQuery(municipalityId: string, status?: OrganizationStatus) {
   const ref = organizationsCollection(getDb());
+  if (status === 'approved') {
+    return query(
+      ref,
+      where('municipalityIds', 'array-contains', municipalityId),
+      where('status', '==', 'approved'),
+      orderBy('name', 'asc'),
+    );
+  }
   return status
     ? query(
         ref,
@@ -85,21 +101,45 @@ function municipalityOrganizationsQuery(municipalityId: string, status?: Organiz
     : query(ref, where('municipalityId', '==', municipalityId), orderBy('name', 'asc'));
 }
 
+/** The home groups of every status plus the approved groups visiting from elsewhere, once each, by name. */
+function mergeVillageOrganizations(rows: OrgRow[]): OrgRow[] {
+  const byId = new Map<string, OrgRow>();
+  for (const row of rows) byId.set(row.id, row);
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
+/**
+ * A pueblo's groups, as its home lists them: approved only when `status` is
+ * `'approved'`; with no status, every group based there whatever its status,
+ * plus the approved ones present from other pueblos.
+ */
 export async function getOrganizationsByMunicipality(
   municipalityId: string,
   status?: OrganizationStatus,
-): Promise<(OrganizationData & { id: string })[]> {
-  const snap = await getDocs(municipalityOrganizationsQuery(municipalityId, status));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+): Promise<OrgRow[]> {
+  const read = async (s?: OrganizationStatus) =>
+    (await getDocs(municipalityOrganizationsQuery(municipalityId, s))).docs.map((d) => ({ id: d.id, ...d.data() }));
+  if (status) return read(status);
+  const [home, present] = await Promise.all([read(), read('approved')]);
+  return mergeVillageOrganizations([...home, ...present]);
 }
 
 export function watchOrganizationsByMunicipality(
   municipalityId: string,
   status: OrganizationStatus | undefined,
-  onNext: (orgs: (OrganizationData & { id: string })[]) => void,
+  onNext: (orgs: OrgRow[]) => void,
   onError: WatchError,
 ): Unwatch {
-  return watchQuery(municipalityOrganizationsQuery(municipalityId, status), onNext, onError);
+  if (status) return watchQuery(municipalityOrganizationsQuery(municipalityId, status), onNext, onError);
+  return watchMerged<OrgRow>(
+    [
+      (next, error) => watchQuery(municipalityOrganizationsQuery(municipalityId), next, error),
+      (next, error) => watchQuery(municipalityOrganizationsQuery(municipalityId, 'approved'), next, error),
+    ],
+    mergeVillageOrganizations,
+    onNext,
+    onError,
+  );
 }
 
 /** Mint an organization doc id up front, so images can be uploaded to its
@@ -140,6 +180,7 @@ export async function requestOrganization(
     type: input.type,
     status: 'pending',
     municipalityId: input.municipalityId,
+    municipalityIds: [input.municipalityId],
     villageSlug: await getVillageSlug(input.municipalityId),
     requestedBy: input.requestedBy,
     reviewedBy: null,
@@ -188,7 +229,7 @@ export async function rejectOrganization(orgId: string): Promise<void> {
 
 export async function updateOrganization(
   orgId: string,
-  data: Partial<Omit<OrganizationData, 'createdAt' | 'requestedBy' | 'municipalityId' | 'villageSlug'>>,
+  data: Partial<Omit<OrganizationData, 'createdAt' | 'requestedBy' | 'municipalityId' | 'municipalityIds' | 'villageSlug'>>,
 ): Promise<void> {
   const updates: UpdateData<DocumentData> = { ...data };
   await updateDoc(doc(getDb(), 'organizations', orgId), updates);

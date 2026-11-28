@@ -328,7 +328,7 @@ describe('homePage', () => {
 
 describe('villagePage', () => {
   it('identifies a comisión on its card, in the groups section', () => {
-    const comision: OrgView = { id: 'c1', name: 'Comisión 2026', description: null, images: [], type: 'comisión', memberCount: 4, municipalityId: 'm1' };
+    const comision: OrgView = { id: 'c1', name: 'Comisión 2026', description: null, images: [], type: 'comisión', memberCount: 4, municipalityId: 'm1', villageSlug: 'matabuena', otherMunicipalityIds: [] };
     const out = render(
       villagePage(matabuena, {
         ...emptyHome,

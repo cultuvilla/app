@@ -28,7 +28,7 @@ export function healthyVillage(): Record<string, Record<string, unknown>> {
     'persons/dead': { userId: null, municipalityLinks: [{ municipalityId: 'm1', barrioId: 'b1' }], deathDate: { year: 1950, month: null, day: null }, burialPlace: { municipalityId: 'm1', placeId: 'cem' } },
     'municipalityPeople/m1_p1': { municipalityId: 'm1', personId: 'p1', barrioId: 'b1' },
     'municipalityPeople/m1_p2': { municipalityId: 'm1', personId: 'p2', barrioId: null },
-    'organizations/o1': { municipalityId: 'm1', villageSlug: 'aranjuez', status: 'approved', memberCount: 2, commentCount: 1 },
+    'organizations/o1': { municipalityId: 'm1', municipalityIds: ['m1'], villageSlug: 'aranjuez', status: 'approved', memberCount: 2, commentCount: 1 },
     'organizations/o1/members/u1': { userId: 'u1', role: 'admin' },
     'organizations/o1/members/u2': { userId: 'u2', role: 'member' },
     'events/e1': {

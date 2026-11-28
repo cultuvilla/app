@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { useUnreadInboxCount } from '../useUnreadInboxCount';
 import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../test/watchers';
+import { getPendingOrgPresenceRequests } from '@cultuvilla/shared/services/orgPresenceService';
 
 const mockUseAuth = jest.fn();
 jest.mock('../../auth/useAuth', () => ({
@@ -45,6 +46,13 @@ jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
     mockGetReportsByMunicipality(municipalityId, options),
 }));
 jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({}));
+jest.mock('@cultuvilla/shared/services/orgPresenceService', () =>
+  jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgPresenceService')>(
+      '@cultuvilla/shared/services/orgPresenceService',
+      () => ({ getPendingOrgPresenceRequests: async () => [] }),
+    ),
+);
 
 const NOT_APPROVER = {
   loading: false,
@@ -55,6 +63,7 @@ const NOT_APPROVER = {
 };
 
 beforeEach(() => {
+  jest.mocked(getPendingOrgPresenceRequests).mockResolvedValue([]);
   jest.clearAllMocks();
   resetWatchers();
   mockUseAuth.mockReturnValue({ user: { uid: 'u1' } });
@@ -103,7 +112,7 @@ describe('useUnreadInboxCount', () => {
     expect(mockGetReportsByMunicipality).not.toHaveBeenCalled();
   });
 
-  it('village admin: sums unread + pending orgs and open reports across admin villages', async () => {
+  it('village admin: sums unread + pending orgs, groups asking in, and open reports across admin villages', async () => {
     setWatched('unread', 1);
     mockUseApproverStatus.mockReturnValue({
       loading: false,
@@ -118,9 +127,13 @@ describe('useUnreadInboxCount', () => {
     mockGetReportsByMunicipality.mockImplementation((vid: string) =>
       Promise.resolve(vid === 'v2' ? [{ id: 'r1' }, { id: 'r2' }] : []),
     );
+    jest.mocked(getPendingOrgPresenceRequests).mockResolvedValue([
+      { orgId: 'o9', municipalityId: 'v1', homeMunicipalityId: 'v3', orgName: 'Banda', requestedBy: 'u9', createdAt: new Date() },
+    ]);
 
     const { result } = renderHook(() => useUnreadInboxCount());
-    await waitFor(() => expect(result.current.count).toBe(1 + 1 + 2));
+    await waitFor(() => expect(result.current.count).toBe(1 + 1 + 1 + 2));
+    expect(getPendingOrgPresenceRequests).toHaveBeenCalledWith(['v1', 'v2']);
     expect(mockGetOrganizationsByMunicipality).toHaveBeenCalledWith('v1', 'pending');
     expect(mockGetOrganizationsByMunicipality).toHaveBeenCalledWith('v2', 'pending');
     expect(mockGetReportsByMunicipality).toHaveBeenCalledWith('v1', { status: 'open' });

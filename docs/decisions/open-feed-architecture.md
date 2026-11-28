@@ -52,8 +52,7 @@ meaningful but no longer gates participation.
 
 ## Revisit when
 
-- Multi-village organizations become a real need → add `parentOrgId` /
-  `villageIds[]` (the top-level placement leaves this door open with no
-  migration).
+- Multi-village organizations: done as `municipalityIds[]` on the group, with
+  no `parentOrgId` — see [multi-village-groups.md](multi-village-groups.md).
 - The chronological + geo feed gets too noisy → reconsider follows/following or
   feed ranking (explicit non-goals today).

@@ -55,9 +55,13 @@ async function seed(): Promise<void> {
 
   // Organizations
   const org = { type: 'peña', images: [] };
-  await d.doc('organizations/o1').set({ ...org, municipalityId: 'm1', name: 'Peña El Toro', status: 'approved' });
-  await d.doc('organizations/o2').set({ ...org, municipalityId: 'm1', name: 'Peña Pendiente', status: 'pending' });
-  await d.doc('organizations/o3').set({ ...org, municipalityId: 'm3', name: 'Peña de Arcones', status: 'approved' });
+  await d.doc('organizations/o1').set({ ...org, municipalityId: 'm1', municipalityIds: ['m1'], name: 'Peña El Toro', status: 'approved' });
+  await d.doc('organizations/o2').set({ ...org, municipalityId: 'm1', municipalityIds: ['m1'], name: 'Peña Pendiente', status: 'pending' });
+  await d.doc('organizations/o3').set({ ...org, municipalityId: 'm3', municipalityIds: ['m3'], name: 'Peña de Arcones', status: 'approved' });
+  // From Arcones, and accepted by Matabuena (docs/decisions/multi-village-groups.md).
+  await d.doc('organizations/o4').set({
+    ...org, type: 'asociación', municipalityId: 'm3', municipalityIds: ['m3', 'm1'], villageSlug: 'arcones', name: 'Banda Comarcal', status: 'approved',
+  });
 
   // History: two centuries, one hidden entry, one of another pueblo.
   const entry = (municipalityId: string, title: string, year: number, status: string) => ({
@@ -92,7 +96,7 @@ async function seed(): Promise<void> {
 const SECTION_CASES: { section: (typeof PUBLIC_SECTIONS)[number]; shown: string[]; hidden: string[]; empty: string }[] = [
   { section: 'carteles', shown: ['Fiestas de San Roque', 'Cartel de fiestas 2019'], hidden: ['Cartel retirado', 'Fiestas de Arcones'], empty: 'Todavía no hay nada aquí.' },
   { section: 'lugares', shown: ['Ermita de la Virgen'], hidden: ['Lugar oculto', 'Fuente de Arcones'], empty: 'Todavía no hay nada aquí.' },
-  { section: 'entidades', shown: ['Peña El Toro'], hidden: ['Peña Pendiente', 'Peña de Arcones'], empty: 'Todavía no hay nada aquí.' },
+  { section: 'entidades', shown: ['Peña El Toro', 'Banda Comarcal'], hidden: ['Peña Pendiente', 'Peña de Arcones'], empty: 'Todavía no hay nada aquí.' },
   { section: 'barrios', shown: ['Barrio de Arriba'], hidden: ['Barrio fantasma', 'Barrio de Arcones'], empty: 'Todavía no hay nada aquí.' },
   { section: 'historia', shown: ['Llega el ferrocarril', 'Se funda la ermita'], hidden: ['Entrada retirada', 'Historia de Arcones'], empty: 'Todavía no hay entradas.' },
   { section: 'vocabulario', shown: ['zagal'], hidden: ['retirada', 'arconero'], empty: 'Todavía no hay palabras.' },
@@ -122,6 +126,18 @@ describe('readSite sections and details', () => {
       expect(status).toBe(200);
       expect(body).toContain(empty);
     });
+  });
+
+  it('lists a group from another pueblo under its own pueblo, and its page names the others', async () => {
+    const list = await html(villageSectionPath('matabuena', 'entidades'));
+    const home = entityPath('organization', { id: 'o4', title: 'Banda Comarcal', villageSlug: 'arcones' });
+    expect(list.body).toContain(`href="${home}"`);
+
+    const page = await html(home);
+    expect(page.status).toBe(200);
+    expect(page.body).toContain('También en <a href="/matabuena">Matabuena</a>');
+    // Arcones lists it as its own, too.
+    expect((await html(villageSectionPath('arcones', 'entidades'))).body).toContain('Banda Comarcal');
   });
 
   it('answers a section of an unknown pueblo with a 404', async () => {

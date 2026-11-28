@@ -295,6 +295,26 @@ service cloud.firestore {
           && isTimestamp(d.createdAt);
     }
 
+    // A group asking to be listed in another pueblo (OrgPresenceRequestDataModel).
+    // Only peñas, asociaciones and "otros" may be in several pueblos; the pueblo
+    // asked must have a community (an Equipo to answer) and not list the group yet.
+    function isValidOrgPresenceRequestCreate(d, orgId, municipalityId) {
+      let org = get(/databases/$(database)/documents/organizations/$(orgId)).data;
+      return d.keys().hasOnly(['orgId', 'municipalityId', 'homeMunicipalityId', 'orgName', 'requestedBy', 'createdAt'])
+          && d.keys().hasAll(['orgId', 'municipalityId', 'homeMunicipalityId', 'orgName', 'requestedBy', 'createdAt'])
+          && d.orgId == orgId
+          && d.municipalityId == municipalityId
+          && d.requestedBy == request.auth.uid
+          && isTimestamp(d.createdAt)
+          && org.status == 'approved'
+          && org.type in ['peña', 'asociación', 'otros']
+          && d.homeMunicipalityId == org.municipalityId
+          && d.orgName == org.name
+          && municipalityId != org.municipalityId
+          && !(municipalityId in org.get('municipalityIds', []))
+          && isCommunityActive(municipalityId);
+    }
+
     function isValidOrgMemberCreate(d) {
       return d.keys().hasOnly(['userId', 'joinedAt', 'role'])
           && d.keys().hasAll(['userId', 'joinedAt', 'role'])
@@ -305,7 +325,7 @@ service cloud.firestore {
 
     function isValidOrganizationCreate(d) {
       return d.keys().hasOnly([
-              'name', 'description', 'images', 'type', 'status', 'municipalityId', 'villageSlug',
+              'name', 'description', 'images', 'type', 'status', 'municipalityId', 'municipalityIds', 'villageSlug',
               'requestedBy', 'reviewedBy', 'createdAt', 'reviewedAt',
               'commentCount', 'readCount', 'memberCount', 'membersPublic', 'joinPolicy',
               'sociosListVisible', 'chatAdminsOnly', 'sociosSendAvisos', 'socioPhoneRequired', 'socioEmailRequired',
@@ -322,6 +342,9 @@ service cloud.firestore {
           && d.type in ['ayuntamiento', 'peña', 'asociación', 'otros', 'comisión']
           && d.status in ['pending', 'approved', 'rejected']
           && isString(d.municipalityId)
+          // A new group is listed in its home alone; other pueblos come only
+          // through respondToOrgPresenceRequest. Installed binaries omit it.
+          && d.get('municipalityIds', [d.municipalityId]) == [d.municipalityId]
           && isString(d.villageSlug)
           && isString(d.requestedBy)
           && isStringOrNull(d.reviewedBy)
@@ -1991,7 +2014,8 @@ service cloud.firestore {
       // group may become one and it may become nothing else.
       // `municipalityId` is locked because this rule derives village-admin
       // authority from it: rewriting it moves the org into another pueblo and
-      // out of its own admins' reach.
+      // out of its own admins' reach. `municipalityIds` is function-owned: a
+      // pueblo lists a group only once its Equipo accepted it.
       allow update: if (isVillageAdmin(resource.data.municipalityId) || isAppAdmin() || isOrgAdmin(orgId))
         && (request.resource.data.status == resource.data.status
             || request.resource.data.status == 'rejected')
@@ -2015,7 +2039,7 @@ service cloud.firestore {
                 && request.resource.data.type in ['peña', 'asociación', 'otros', 'comisión']))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'commentCount', 'readCount', 'memberCount',
-             'municipalityId', 'villageSlug', 'requestedBy', 'createdAt',
+             'municipalityId', 'municipalityIds', 'villageSlug', 'requestedBy', 'createdAt',
            ]);
       allow delete: if isVillageAdmin(resource.data.municipalityId) || isAppAdmin();
 
@@ -2387,6 +2411,22 @@ service cloud.firestore {
       // uid. Filed and withdrawn by the requester; resolved only by the
       // respondToOrgJoinRequest callable (Admin SDK), which adds the member,
       // audits it and notifies the requester — so no client edits it.
+      // A request to be listed in another pueblo, keyed by that pueblo's id.
+      // Filed by a group admin; withdrawn by them, or turned away by that
+      // pueblo's Equipo; accepted only by the respondToOrgPresenceRequest
+      // callable (Admin SDK), which adds the pueblo — so no client edits it.
+      match /presenceRequests/{municipalityId} {
+        allow read: if isOrgAdmin(orgId)
+          || isVillageAdmin(municipalityId)
+          || isAppAdmin();
+        allow create: if isOrgAdmin(orgId)
+          && isValidOrgPresenceRequestCreate(request.resource.data, orgId, municipalityId);
+        allow update: if false;
+        allow delete: if isOrgAdmin(orgId)
+          || isVillageAdmin(municipalityId)
+          || isAppAdmin();
+      }
+
       match /joinRequests/{userId} {
         allow read: if isOwner(userId)
           || isOrgAdmin(orgId)
@@ -2730,6 +2770,18 @@ service cloud.firestore {
     // A requester's own pending join requests, across every org.
     match /{path=**}/joinRequests/{requestId} {
       allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Groups asking to be listed in a pueblo: that pueblo's Equipo answers them
+    // (one query per pueblo), the admin who asked follows their own, and an
+    // app admin sees all of them.
+    match /{path=**}/presenceRequests/{requestId} {
+      // Order matters: isVillageAdmin builds a path from the queried pueblo, a
+      // type error on a query that does not filter by it.
+      allow list: if isAuthenticated()
+        && (isAppAdmin()
+            || resource.data.requestedBy == request.auth.uid
+            || isVillageAdmin(resource.data.municipalityId));
     }
 
     match /{path=**}/registrations/{regId} {

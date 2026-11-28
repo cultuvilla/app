@@ -78,6 +78,19 @@ describe('organization', () => {
     expect(hits(organization.approvedOrgHasAdmin, adminless)).toEqual(['organizations/o1']);
     expect(hits(organization.approvedOrgHasAdmin, patch(adminless, 'organizations/o1', { status: 'pending' }))).toEqual([]);
   });
+
+  it('flags an approved group missing from its own pueblo, and ignores a pending one', () => {
+    const unlisted = patch(healthyVillage(), 'organizations/o1', { municipalityIds: ['m2'] });
+    expect(hits(organization.approvedOrgListsItsHome, unlisted)).toEqual(['organizations/o1 municipalityIds']);
+    expect(hits(organization.approvedOrgListsItsHome, patch(unlisted, 'organizations/o1', { status: 'pending' }))).toEqual([]);
+  });
+
+  it('flags a group listed in a pueblo that does not exist, and its orphaned requests', () => {
+    const visiting = patch(healthyVillage(), 'organizations/o1', { municipalityIds: ['m1', 'gone'] });
+    expect(hits(organization.organizationPresenceMunicipalitiesExist, visiting)).toEqual(['organizations/o1 municipalityIds']);
+    const orphan = { ...without(healthyVillage(), 'organizations/o1'), 'organizations/o1/presenceRequests/m2': { orgId: 'o1' } };
+    expect(hits(organization.orgPresenceRequestParentExists, orphan)).toHaveLength(1);
+  });
 });
 
 describe('person', () => {
