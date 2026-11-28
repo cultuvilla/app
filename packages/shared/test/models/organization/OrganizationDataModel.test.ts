@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ORG_TYPE_QUERY,
   OrganizationDataSchema,
+  OrganizationTypeSchema,
   PROPOSABLE_ORGANIZATION_TYPES,
+  orgHubRow,
+  orgTypeFromQuery,
+  showsTypeInsteadOfCount,
   buildOrganizationData,
   canViewOrgRoster,
 } from '../../../src/models/organization/OrganizationDataModel';
@@ -119,5 +124,47 @@ describe('canViewOrgRoster', () => {
   it('private group: only members see the roster', () => {
     expect(canViewOrgRoster({ membersPublic: false, isMember: true })).toBe(true);
     expect(canViewOrgRoster({ membersPublic: false, isMember: false })).toBe(false);
+  });
+});
+
+describe('orgHubRow', () => {
+  it('gives peñas their own row and puts every other type under Grupos', () => {
+    expect(orgHubRow('peña')).toBe('peñas');
+    for (const t of ['ayuntamiento', 'asociación', 'otros', 'comisión'] as const) {
+      expect(orgHubRow(t)).toBe('grupos');
+    }
+  });
+});
+
+describe('ORG_TYPE_QUERY / orgTypeFromQuery', () => {
+  it('round-trips every type through its ASCII query value', () => {
+    for (const t of OrganizationTypeSchema.options) {
+      expect(ORG_TYPE_QUERY[t]).toMatch(/^[a-z]+$/);
+      expect(orgTypeFromQuery(ORG_TYPE_QUERY[t])).toBe(t);
+    }
+  });
+
+  it('pins the values links already carry', () => {
+    // AddContentSheet and Maestro flow 75 (`entidades?type=comision`) build these.
+    expect(ORG_TYPE_QUERY['peña']).toBe('pena');
+    expect(ORG_TYPE_QUERY['asociación']).toBe('asociacion');
+    expect(ORG_TYPE_QUERY['comisión']).toBe('comision');
+  });
+
+  it('reads an unknown, accented or empty value as no type', () => {
+    expect(orgTypeFromQuery('peña')).toBeUndefined();
+    expect(orgTypeFromQuery('nope')).toBeUndefined();
+    expect(orgTypeFromQuery('')).toBeUndefined();
+    expect(orgTypeFromQuery(undefined)).toBeUndefined();
+  });
+});
+
+describe('showsTypeInsteadOfCount', () => {
+  it('is true only for the comisión', () => {
+    expect(showsTypeInsteadOfCount('comisión')).toBe(true);
+    for (const t of ['ayuntamiento', 'peña', 'asociación', 'otros'] as const) {
+      expect(showsTypeInsteadOfCount(t)).toBe(false);
+    }
+    expect(showsTypeInsteadOfCount(null)).toBe(false);
   });
 });

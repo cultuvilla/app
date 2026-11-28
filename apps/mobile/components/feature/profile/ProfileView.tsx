@@ -17,6 +17,7 @@ import { updatePerson } from '@cultuvilla/shared/services/personService';
 import { uploadUserPhoto } from '@cultuvilla/shared/services/imageService';
 import { getUserViewLink } from '@cultuvilla/shared/services/deepLinkService';
 import { buildDisplayName } from '@cultuvilla/shared/models/person';
+import { orgHubRow } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { ManagedEventsScroll } from './ManagedEventsScroll';
 import { VillagesScroll } from './VillagesScroll';
 import { CreatedNewsScroll } from './CreatedNewsScroll';
@@ -81,10 +82,9 @@ export function ProfileView({
   }
 
   const otherPersonas = allPersonas.filter((p) => p.userId !== uid);
-  // Everything that isn't a peña falls under "Grupos" (asociación + ayuntamiento
-  // + comisión + otros), so no membership is lost.
-  const grupos = orgs.filter((o) => o.type !== 'peña');
-  const penas = orgs.filter((o) => o.type === 'peña');
+  // Every type has a row (orgHubRow), so no membership is lost.
+  const grupos = orgs.filter((o) => orgHubRow(o.type) === 'grupos');
+  const penas = orgs.filter((o) => orgHubRow(o.type) === 'peñas');
   const activeVillageName =
     villages.find((v) => v.municipalityId === activeMunicipalityId)?.name ?? null;
 

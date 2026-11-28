@@ -18,6 +18,7 @@ import {
   firstOfEachSeries,
   LISTED_EVENT_STATUSES,
   OTHER_VILLAGES_SHOWN,
+  showsTypeInsteadOfCount,
   upcomingThenPast,
   VILLAGE_RANKING_DOC,
   WRAPPED_CARDS,
@@ -364,15 +365,13 @@ export async function loadOrg(db: Firestore, id: string): Promise<OrgView | null
   return toOrg(snap.id, snap.data() ?? {});
 }
 
-export const COMISION_LABEL = 'Comisión de festejos';
-
 export function orgCard(o: OrgView, villageSlug: string): Card {
   return {
     href: entityPath('organization', { id: o.id, title: o.name, villageSlug }),
     title: o.name,
     subtitle:
-      o.type === 'comisión'
-        ? COMISION_LABEL
+      showsTypeInsteadOfCount(o.type)
+        ? msg(`organization.${o.type}`)
         : o.memberCount
           ? msg('organization.membersCount', { count: o.memberCount })
           : null,
