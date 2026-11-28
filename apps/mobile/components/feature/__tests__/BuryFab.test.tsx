@@ -7,10 +7,13 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
   useFocusEffect: (cb: () => void) => cb(),
 }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonsByCreator: jest.fn(),
-  updatePerson: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>('@cultuvilla/shared/services/personService', () => ({
+      updatePerson: async () => undefined,
+    })),
+);
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),

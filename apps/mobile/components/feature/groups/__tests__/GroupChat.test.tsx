@@ -14,25 +14,37 @@ const mockSend = jest.fn((_input: unknown) => Promise.resolve('new1'));
 const mockDelete = jest.fn((..._a: unknown[]) => Promise.resolve());
 const mockMarkRead = jest.fn((..._a: unknown[]) => Promise.resolve());
 const mockReact = jest.fn((..._a: unknown[]) => Promise.resolve());
-jest.mock('@cultuvilla/shared/services/groupChatService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchGroupChat: mockWatcher('chat'),
-    sendGroupChatMessage: (input: unknown) => mockSend(input),
-    deleteGroupChatMessage: (...a: unknown[]) => mockDelete(...a),
-    markGroupChatRead: (...a: unknown[]) => mockMarkRead(...a),
-    setGroupChatReaction: (...a: unknown[]) => mockReact(...a),
-  };
-});
+jest.mock('@cultuvilla/shared/services/groupChatService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupChatService')>('@cultuvilla/shared/services/groupChatService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchGroupChat: mockWatcher('chat'),
+        sendGroupChatMessage: (input: unknown) => mockSend(input),
+        deleteGroupChatMessage: (...a: unknown[]) => mockDelete(...a),
+        markGroupChatRead: (...a: unknown[]) => mockMarkRead(...a),
+        setGroupChatReaction: (...a: unknown[]) => mockReact(...a),
+      };
+    }),
+);
 let mockBlocked: string[] = [];
-jest.mock('@cultuvilla/shared/services/blockedUserService', () => ({
-  getBlockedUserIds: () => Promise.resolve(mockBlocked),
-  blockUser: jest.fn(() => Promise.resolve()),
-}));
+jest.mock('@cultuvilla/shared/services/blockedUserService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/blockedUserService')>('@cultuvilla/shared/services/blockedUserService', () => ({
+      getBlockedUserIds: () => Promise.resolve(mockBlocked),
+      blockUser: () => Promise.resolve(),
+    })),
+);
 const mockReport = jest.fn((_input: unknown) => Promise.resolve('r1'));
-jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
-  createContentReport: (input: unknown) => mockReport(input),
-}));
+jest.mock('@cultuvilla/shared/services/contentReportService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/contentReportService')>('@cultuvilla/shared/services/contentReportService', () => ({
+      createContentReport: (input: unknown) => mockReport(input),
+    })),
+);
 const mockConfirm = jest.fn((_title: string, _body: string, onConfirm: () => void) => onConfirm());
 const mockAlert = jest.fn();
 jest.mock('../../../../lib/dialogs', () => ({

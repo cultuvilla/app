@@ -24,25 +24,40 @@ jest.mock('../../../../lib/orgs/cuota', () => ({
   ...jest.requireActual('../../../../lib/orgs/cuota'),
   todayKey: () => '2026-04-01',
 }));
-jest.mock('@cultuvilla/shared/services/groupTransparencyService', () => ({
-  fetchTransparentCuota: jest.fn(),
-  fetchTransparentAvisos: jest.fn(),
-  fetchTransparentCuotaIncome: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  updateOrganization: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/cuotaService', () => ({
-  saveCuotaSettings: jest.fn(),
-  watchCuotaSettings: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('cuota'),
-}));
-jest.mock('@cultuvilla/shared/services/recordsService', () => ({
-  watchLedgerEntriesForYear: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('ledger'),
-}));
-jest.mock('@cultuvilla/shared/services/groupMessageService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return { watchMyGroupMessages: mockWatcher('messages'), watchMyGroupMessageReads: mockWatcher('reads') };
-});
+jest.mock('@cultuvilla/shared/services/groupTransparencyService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupTransparencyService')>('@cultuvilla/shared/services/groupTransparencyService'),
+);
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>('@cultuvilla/shared/services/organizationService', () => ({
+      updateOrganization: async () => undefined,
+    })),
+);
+jest.mock('@cultuvilla/shared/services/cuotaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cuotaService')>('@cultuvilla/shared/services/cuotaService', () => ({
+      watchCuotaSettings: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('cuota'),
+    })),
+);
+jest.mock('@cultuvilla/shared/services/recordsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/recordsService')>('@cultuvilla/shared/services/recordsService', () => ({
+      watchLedgerEntriesForYear: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('ledger'),
+    })),
+);
+jest.mock('@cultuvilla/shared/services/groupMessageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupMessageService')>('@cultuvilla/shared/services/groupMessageService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return { watchMyGroupMessages: mockWatcher('messages'), watchMyGroupMessageReads: mockWatcher('reads') };
+    }),
+);
 const mockNotices = jest.fn();
 jest.mock('../GroupNotices', () => ({
   GroupNotices: (props: { tallies?: ReadonlyMap<string, readonly number[]>; empty?: ReactNode }) => {

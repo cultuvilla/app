@@ -15,9 +15,13 @@ jest.mock('@cultuvilla/shared/firebase/refs/client', () => ({
   personDoc: jest.fn((_db, id) => ({ __ref: 'person', id })),
   organizationDoc: jest.fn((_db, id) => ({ __ref: 'organization', id })),
 }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn().mockResolvedValue(null),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>('@cultuvilla/shared/services/personService', () => ({
+      getPersonByUserId: async () => null,
+    })),
+);
 jest.mock('../../../lib/i18n', () => ({
   useT: () => ({ locale: 'es', t: (key: string) => key }),
 }));

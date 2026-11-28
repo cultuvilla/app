@@ -6,13 +6,21 @@ import { uploadFestivalPosterImage } from '@cultuvilla/shared/services/imageServ
 import { pickImageAsBlob } from '../../../../lib/images';
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
 
-jest.mock('@cultuvilla/shared/services/festivalPosterService', () => ({
-  newFestivalPosterId: jest.fn().mockReturnValue('new-id'),
-  createFestivalPoster: jest.fn().mockResolvedValue('new-id'),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadFestivalPosterImage: jest.fn().mockResolvedValue('https://example.com/poster.jpg'),
-}));
+jest.mock('@cultuvilla/shared/services/festivalPosterService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/festivalPosterService')>('@cultuvilla/shared/services/festivalPosterService', () => ({
+      newFestivalPosterId: () => 'new-id',
+      createFestivalPoster: async () => 'new-id',
+    })),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>('@cultuvilla/shared/services/imageService', () => ({
+      uploadFestivalPosterImage: async () => 'https://example.com/poster.jpg',
+    })),
+);
 jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({ useEntityCapabilities: jest.fn() }));

@@ -5,7 +5,11 @@ import type { MyGroup } from '../../../../lib/orgs/useMyGroups';
 
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../../lib/hooks/useWatch', () => ({ useWatch: () => ({ data: [], status: 'ready' }) }));
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({ watchOrgMembers: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/orgMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>('@cultuvilla/shared/services/orgMemberService'),
+);
 
 function mockStub(testID: string) {
   const { Text: RNText } = jest.requireActual<typeof import('react-native')>('react-native');

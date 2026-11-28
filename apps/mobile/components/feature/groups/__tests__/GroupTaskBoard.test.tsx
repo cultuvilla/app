@@ -26,25 +26,33 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/groupTaskService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchOpenGroupTasks: mockWatcher('open'),
-    watchGroupTasksDoneSince: mockWatcher('done'),
-    watchTaskTemplates: mockWatcher('templates'),
-    watchTaskComments: mockWatcher('comments'),
-    setGroupTaskDone: jest.fn().mockResolvedValue(undefined),
-    createGroupTask: jest.fn().mockResolvedValue('new'),
-    updateGroupTask: jest.fn().mockResolvedValue(undefined),
-    deleteGroupTask: jest.fn().mockResolvedValue(undefined),
-    saveTaskTemplate: jest.fn().mockResolvedValue('tpl'),
-    deleteTaskTemplate: jest.fn().mockResolvedValue(undefined),
-    applyTaskTemplate: jest.fn().mockResolvedValue(['a', 'b']),
-  };
-});
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  watchEventsByOrganization: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('events'),
-}));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupTaskService')>('@cultuvilla/shared/services/groupTaskService', () => {
+      const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+      return {
+        watchOpenGroupTasks: mockWatcher('open'),
+        watchGroupTasksDoneSince: mockWatcher('done'),
+        watchTaskTemplates: mockWatcher('templates'),
+        watchTaskComments: mockWatcher('comments'),
+        setGroupTaskDone: async () => undefined,
+        createGroupTask: async () => 'new',
+        updateGroupTask: async () => undefined,
+        deleteGroupTask: async () => undefined,
+        saveTaskTemplate: async () => 'tpl',
+        deleteTaskTemplate: async () => undefined,
+        applyTaskTemplate: async () => ['a', 'b'],
+      };
+    }),
+);
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>('@cultuvilla/shared/services/eventService', () => ({
+      watchEventsByOrganization: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('events'),
+    })),
+);
 jest.mock('../../../../lib/orgs/useOrgMembers', () => ({
   useMemberFaces: () => ({}),
   useOrgMembers: () => ({

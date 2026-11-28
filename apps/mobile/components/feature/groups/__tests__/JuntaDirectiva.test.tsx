@@ -10,9 +10,13 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  setOrgMemberRole: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/orgMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>('@cultuvilla/shared/services/orgMemberService', () => ({
+      setOrgMemberRole: async () => undefined,
+    })),
+);
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../../lib/orgs/useOrgMembers', () => ({
   useMemberFaces: () => ({
@@ -21,10 +25,14 @@ jest.mock('../../../../lib/orgs/useOrgMembers', () => ({
     'u-vocal': { name: 'Ana Sanz', photoURL: null },
   }),
 }));
-jest.mock('@cultuvilla/shared/services/socioService', () => ({
-  watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
-  setSocioAdminTitle: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>('@cultuvilla/shared/services/socioService', () => ({
+      watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
+      setSocioAdminTitle: async () => undefined,
+    })),
+);
 
 const row = (uid: string, adminTitle: 'presidente' | 'tesorero' | null) => ({
   id: `s-${uid}`,

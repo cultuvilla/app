@@ -30,12 +30,16 @@ const mockVillage = {
   community: { description: 'hola', organizerId: 'u1', organizerSex: null, profileForm: null, fiestas: [], activatedAt: new Date() },
 };
 
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: jest.fn(),
-  updateMunicipality: jest.fn(),
-  updateCommunity: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({ uploadMunicipalityImage: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>('@cultuvilla/shared/services/municipalityService'),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>('@cultuvilla/shared/services/imageService'),
+);
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../lib/dialogs', () => ({ showAlert: jest.fn() }));
 jest.mock('../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
+import type { ContentReport } from '@cultuvilla/shared/services/contentReportService';
 import AdminReportsScreen from '../../../app/admin/denuncias';
 import VillageReportsScreen from '../../../app/[pueblo]/denuncias';
 
@@ -9,9 +10,17 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../lib/auth/useAuth', () => ({ useAuth: () => ({ user: { uid: 'moderator' } }) }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: (id: string) => Promise.resolve({ id, name: id === 'mun2' ? 'Otro Pueblo' : 'Villa' }),
-}));
+type MockMunicipalities = typeof import('@cultuvilla/shared/services/municipalityService');
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>('@cultuvilla/shared/services/municipalityService', () => ({
+      getMunicipality: (id: string) =>
+        Promise.resolve(
+          jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule').partialOf<NonNullable<Awaited<ReturnType<MockMunicipalities['getMunicipality']>>>>({ id, name: id === 'mun2' ? 'Otro Pueblo' : 'Villa' }),
+        ),
+    })),
+);
 jest.mock('../../../lib/navigation/VillageRouteGate', () => ({
   useVillageRoute: () => ({ municipalityId: 'mun1', slug: 'villa', name: 'Villa' }),
   withVillageRoute: (Screen: unknown) => Screen,
@@ -24,33 +33,49 @@ const mockRedirect = jest.fn((_props: { href: string }) => null);
 jest.mock('expo-router', () => ({ Redirect: (props: { href: string }) => mockRedirect(props) }));
 jest.mock('../../layout/ScreenHeader', () => ({ ScreenHeader: () => null }));
 jest.mock('../LiveOwnerChip', () => ({ LiveOwnerChip: () => null }));
-const report = (id: string, targetText: string | null, targetId = `organizations/o1/chat/${id}`, targetKind = 'comment', targetAuthorUserId: string | null = null) => ({
+const report = (id: string, targetText: string | null, targetId = `organizations/o1/chat/${id}`, targetKind: ContentReport['targetKind'] = 'comment', targetAuthorUserId: string | null = null): ContentReport => ({
   id, municipalityId: 'mun1', targetKind, targetId, targetAuthorUserId,
   reporterUserId: 'u1', reason: 'harassment', note: null, targetText, status: 'open', createdAt: new Date(),
 });
 // r6 is a comment the signed-in moderator wrote; r7 sits in another pueblo.
 const mockReports = () => [report('r1', 'Eres un idiota'), report('r2', null), report('r3', 'Copia del denunciante', 'comment1'), report('r4', null, 'term1', 'vocabularyTerm'), report('r5', 'Te espero a las 3', 'cosaRequests/q1/chat/m1'), report('r6', 'Lo mío', 'comment6', 'comment', 'moderator')];
 const mockGetReportsByMunicipality = jest.fn((..._args: unknown[]) => Promise.resolve(mockReports()));
-jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
-  getReportsByMunicipality: (...args: unknown[]) => mockGetReportsByMunicipality(...args),
-  getOpenReports: () => Promise.resolve([...mockReports(), { ...report('r7', 'De otro pueblo', 'news7', 'news'), municipalityId: 'mun2' }]),
-  setReportStatus: (...args: unknown[]) => mockSetReportStatus(...args),
-}));
+jest.mock('@cultuvilla/shared/services/contentReportService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/contentReportService')>('@cultuvilla/shared/services/contentReportService', () => ({
+      getReportsByMunicipality: (...args: unknown[]) => mockGetReportsByMunicipality(...args),
+      getOpenReports: () => Promise.resolve([...mockReports(), { ...report('r7', 'De otro pueblo', 'news7', 'news'), municipalityId: 'mun2' }]),
+      setReportStatus: (...args: unknown[]) => mockSetReportStatus(...args),
+    })),
+);
 const mockSetReportStatus = jest.fn((..._args: unknown[]) => Promise.resolve());
 const mockGetComment = jest.fn();
 const mockDeleteComment = jest.fn((..._args: unknown[]) => Promise.resolve());
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({
-  getComment: (...args: unknown[]) => mockGetComment(...args),
-  deleteComment: (...args: unknown[]) => mockDeleteComment(...args),
-}));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>('@cultuvilla/shared/services/commentsService', () => ({
+      getComment: (...args: unknown[]) => mockGetComment(...args),
+      deleteComment: (...args: unknown[]) => mockDeleteComment(...args),
+    })),
+);
 const mockDeleteMessage = jest.fn((..._args: unknown[]) => Promise.resolve());
-jest.mock('@cultuvilla/shared/services/groupChatService', () => ({
-  deleteGroupChatMessage: (...args: unknown[]) => mockDeleteMessage(...args),
-}));
+jest.mock('@cultuvilla/shared/services/groupChatService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupChatService')>('@cultuvilla/shared/services/groupChatService', () => ({
+      deleteGroupChatMessage: (...args: unknown[]) => mockDeleteMessage(...args),
+    })),
+);
 const mockDeleteCosaMessage = jest.fn((..._args: unknown[]) => Promise.resolve());
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
-  deleteCosaRequestChatMessage: (...args: unknown[]) => mockDeleteCosaMessage(...args),
-}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>('@cultuvilla/shared/services/cosatecaService', () => ({
+      deleteCosaRequestChatMessage: (...args: unknown[]) => mockDeleteCosaMessage(...args),
+    })),
+);
 
 describe('AdminReportsScreen', () => {
   it('shows the words of a report that carries them, since a chat is closed to its moderators', async () => {
