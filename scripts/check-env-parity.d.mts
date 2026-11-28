@@ -23,6 +23,7 @@ export function lifecycleText(bucket: Fields): string;
 export function bucketLine(bucket: Fields): string;
 export function logBucketLine(bucket: Fields): string;
 export function logSinkLine(sink: Fields): string;
+export function bigQueryDatasetLine(dataset: Fields): string;
 export function dataStoreLines(api: Api, project: string): Promise<string[]>;
 export function exportedFunctionNames(indexSource: string): string[];
 export function indexKey(index: {

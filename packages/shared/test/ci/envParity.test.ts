@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import {
   backupScheduleLine,
   BASELINE_PATH,
+  bigQueryDatasetLine,
   bucketLine,
   durationText,
   lifecycleText,
@@ -56,6 +57,20 @@ describe('the committed baseline', () => {
     expect(stores.filter((l) => l.startsWith('firestore-backup '))).not.toEqual([]);
     expect(stores).toContain('storage <project>.firebasestorage.app US-EAST1 lifecycle=none');
     expect(stores.some((l) => l.startsWith('log-bucket global/_Default retention='))).toBe(true);
+    expect(stores.some((l) => l.startsWith('bigquery-dataset analytics_'))).toBe(true);
+  });
+
+  it('keeps the GA4 export dataset on prod only, with its reason', () => {
+    type Exception = { dimension: string; remove?: string[]; reason: string };
+    const datasetRemovals = (env: string) =>
+      ((baseline.exceptions?.[env] ?? []) as Exception[]).filter(
+        (e) => e.dimension === 'dataStores' && (e.remove ?? []).some((l) => l.startsWith('bigquery-dataset ')),
+      );
+    for (const env of ['dev', 'beta']) {
+      expect(datasetRemovals(env)).toHaveLength(1);
+      expect(datasetRemovals(env)[0]?.reason).toMatch(/BigQuery export/);
+    }
+    expect(datasetRemovals('prod')).toEqual([]);
   });
 
   it('declares no project-specific value — envs compare through placeholders', () => {
@@ -212,6 +227,12 @@ describe('data-store lines', () => {
       'log-sink s -> bigquery.googleapis.com/x filter=none disabled',
     );
   });
+
+  it('reads a BigQuery dataset\'s expirations as days, and absent ones as none', () => {
+    expect(bigQueryDatasetLine({ datasetReference: { datasetId: 'a' }, location: 'EU', defaultTableExpirationMs: '5184000000' })).toBe(
+      'bigquery-dataset a EU tableExpiration=60d partitionExpiration=none timeTravel=default',
+    );
+  });
 });
 
 describe('normalize', () => {
@@ -280,7 +301,7 @@ describe('workflow wiring', () => {
 
   it('grants the deploy identity the read-only roles the check needs', () => {
     const setup = read('scripts/setup-ci-deploy-wif.sh');
-    for (const role of ['roles/iam.securityReviewer', 'roles/serviceusage.serviceUsageViewer']) {
+    for (const role of ['roles/iam.securityReviewer', 'roles/serviceusage.serviceUsageViewer', 'roles/bigquery.metadataViewer']) {
       expect(setup).toContain(`  ${role}`);
       expect(baseline.expected.iam).toContain(`serviceAccount:gha-deployer@<project>.iam.gserviceaccount.com ${role}`);
     }

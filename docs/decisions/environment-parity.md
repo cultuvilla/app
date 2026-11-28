@@ -60,19 +60,19 @@ dropped (the index deploy never deleted anything).
 - **Every data store is declared, with where it lives and how long it keeps
   data** (`dataStores`): each Firestore database and its backup schedules
   (recurrence and retention), each Cloud Storage bucket (location, lifecycle
-  rules, retention lock), each Cloud Logging bucket (retention, lock) and each
-  log sink (destination, filter by hash). An undeclared store — a bucket made
+  rules, retention lock), each Cloud Logging bucket (retention, lock), each
+  log sink (destination, filter by hash) and each BigQuery dataset (location,
+  default table and partition expiration, time travel; the hidden `_…`
+  query-result datasets are left out). An undeclared store — a bucket made
   by hand during an incident, a sink exporting somewhere new — or a retention
   that moved fails `config` like any other drift, and so does a backup
   schedule that disappeared. Ported from Órdago's data-store census
   (ordago-apps `scripts/check-data-stores.js`), folded into this check rather
   than a workflow of its own, so the deploy gate and the nightly run carry it.
-  Backups, like point-in-time recovery, are prod only (declared exceptions).
-  **BigQuery datasets are not read yet**: prod's GA4 export
-  (`analytics_<property>`, `europe-west1`) is the only one, and the deploy
-  identity holds no BigQuery role; reading it needs
-  `roles/bigquery.metadataViewer` granted in every env and declared under
-  `iam` in the same change.
+  Backups, like point-in-time recovery, are prod only (declared exceptions),
+  and so is the one dataset, prod's GA4 export (`analytics_<property>`,
+  `europe-west1`). Reading datasets is why the deploy identity holds
+  `roles/bigquery.metadataViewer` in every env (granted 2026-11-28).
 - **Gateways are functions, and need nothing special.** The callable gateway
   (`cloud-run-gateways.md`) is an exported `defineHttpFunction` whose service
   lives in `europe-southwest1`; every location is read from the function's own

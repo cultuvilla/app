@@ -68,6 +68,9 @@ SA_ROLES=(
   # project IAM policy and the list of enabled APIs.
   roles/iam.securityReviewer
   roles/serviceusage.serviceUsageViewer
+  # read-only, for the parity gate's data-store census: each BigQuery
+  # dataset's location and retention (datasets.get).
+  roles/bigquery.metadataViewer
 )
 
 g() { gcloud "$@" --account="$ACC" --quiet; }
