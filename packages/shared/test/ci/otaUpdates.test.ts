@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { OTA_IGNORED_PATHS } from '../../../../scripts/production-release-plan.mjs';
 
 // OTA updates exist so a JS-only fix reaches apps that are ALREADY INSTALLED.
 // The motivating incident: `DetailInfoCard`'s `h-full` broke every entity detail
@@ -97,13 +98,15 @@ describe('OTA update wiring', () => {
     expect(ota).toMatch(/with:\s*\n\s*channel: production/);
   });
 
-  // One filter, two spellings: beta's `paths-ignore` and main's grep. If either
-  // changes alone, the channels start disagreeing about what is "bundle code".
+  // One filter, two spellings: beta's `paths-ignore` and main's
+  // OTA_IGNORED_PATHS (production-release-plan.mjs, whose matcher is
+  // table-tested against each glob). If either changes alone, the channels start
+  // disagreeing about what is "bundle code".
   it('skips the production OTA on exactly the paths beta ignores', () => {
     const pathsIgnore = /paths-ignore:\s*\n((?:\s*- '[^']+'\s*\n)+)/.exec(otaWorkflow)?.[1] ?? '';
     const ignored = [...pathsIgnore.matchAll(/- '([^']+)'/g)].map((m) => m[1]).sort();
-    expect(ignored).toEqual(['**/*.md', '.github/**', 'docs/**']);
-    expect(prodReleaseWorkflow).toContain("grep -Ev '^(docs/|\\.github/)|\\.md$'");
+    expect(ignored).toEqual([...OTA_IGNORED_PATHS].sort());
+    expect(prodReleaseWorkflow).toContain('node scripts/production-release-plan.mjs plan');
   });
 });
 
