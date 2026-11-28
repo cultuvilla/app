@@ -7,10 +7,16 @@
 import { useCallback, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
+import { getMessages, lookup } from '@cultuvilla/i18n';
 import {
   useCallableErrorHandler,
   type ShowCallableErrorOptions,
 } from './callableError';
+
+// The last-resort alert must work where useT() would throw: outside the
+// I18nProvider during early boot, as the error handler itself allows.
+const catalog = getMessages('es');
+const lastResort = { t: (key: string): string => lookup(catalog, key) ?? key };
 
 export interface UseCallableOptions<TArgs extends unknown[], TResult> {
   /** The callable / service function to invoke. */
@@ -79,8 +85,8 @@ export function useCallable<TArgs extends unknown[], TResult>(
         } catch (modalError) {
           // Last-resort: the global handler itself blew up. Don't lose the
           // original error — fall back to a bare alert and re-throw.
-          const message = error instanceof Error ? error.message : 'No se pudo completar la acción.';
-          Alert.alert('Error', message);
+          const message = error instanceof Error ? error.message : lastResort.t('common.actionFailed');
+          Alert.alert(lastResort.t('common.errorTitle'), message);
           console.error('[useCallable] showCallableError threw', modalError);
         }
         if (!optionsRef.current.swallow) {

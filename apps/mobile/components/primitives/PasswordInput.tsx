@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Input, type InputProps } from './Input';
 import { Pressable } from './Pressable';
+import { useT } from '../../lib/i18n';
 
 export type PasswordInputProps = Omit<InputProps, 'secureTextEntry' | 'rightAdornment'> & {
   testID?: string;
 };
 
 export function PasswordInput({ testID, value, onFocus, onBlur, ...rest }: PasswordInputProps) {
+  const { t } = useT();
   const [visible, setVisible] = useState(false);
   const [focused, setFocused] = useState(false);
 
@@ -31,7 +33,7 @@ export function PasswordInput({ testID, value, onFocus, onBlur, ...rest }: Passw
     <Pressable
       onPress={() => setVisible((v) => !v)}
       accessibilityRole="button"
-      accessibilityLabel={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+      accessibilityLabel={visible ? t('common.password.hide') : t('common.password.show')}
       testID={testID ? `${testID}-toggle` : undefined}
       hitSlop={8}
     >

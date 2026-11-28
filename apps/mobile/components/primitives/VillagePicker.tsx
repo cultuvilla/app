@@ -13,6 +13,7 @@ import { Text } from './Text';
 import { FieldLabel } from './FieldLabel';
 import { Button } from './Button';
 import { Escudo } from './Escudo';
+import { useT } from '../../lib/i18n';
 
 interface Option {
   id: string;
@@ -40,6 +41,7 @@ const PAGE_SIZE = 50;
 const DEBOUNCE_MS = 200;
 
 export function VillagePicker({ label, value, onChange, placeholder = 'Sin pueblo', trigger, testID }: VillagePickerProps) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [results, setResults] = useState<Option[]>([]);
@@ -112,7 +114,7 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <SafeAreaView style={styles.modal} edges={['top', 'bottom']}>
           <TextInput
-            placeholder="Buscar pueblo"
+            placeholder={t('common.villagePicker.search')}
             value={filter}
             onChangeText={setFilter}
             style={styles.search}
@@ -130,7 +132,7 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
               initialNumToRender={20}
               windowSize={10}
               ListEmptyComponent={
-                <Text tone="muted" style={styles.empty}>Sin resultados</Text>
+                <Text tone="muted" style={styles.empty}>{t('common.noResults')}</Text>
               }
               renderItem={({ item }) => (
                 <Pressable
@@ -154,11 +156,11 @@ export function VillagePicker({ label, value, onChange, placeholder = 'Sin puebl
           <View style={styles.actions}>
             {value && (
               <Button variant="secondary" onPress={() => { onChange(null); setOpen(false); }} testID={testID ? `${testID}-clear` : undefined}>
-                Quitar
+                {t('common.remove')}
               </Button>
             )}
             <Button variant="secondary" onPress={() => setOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
           </View>
         </SafeAreaView>

@@ -49,7 +49,21 @@
       "retryLater": "Inténtalo de nuevo más tarde.",
       "retry": "Reintentar"
     },
-    "offline": "Sin conexión — mostrando datos guardados"
+    "offline": "Sin conexión — mostrando datos guardados",
+    "remove": "Quitar",
+    "errorTitle": "Error",
+    "actionFailed": "No se pudo completar la acción.",
+    "password": {
+      "show": "Mostrar contraseña",
+      "hide": "Ocultar contraseña"
+    },
+    "dateRange": {
+      "pickFirstDay": "Toca el primer día",
+      "pickLastDay": "Ahora toca el último día"
+    },
+    "villagePicker": {
+      "search": "Buscar pueblo"
+    }
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -1477,7 +1491,8 @@
         "unsupported": "Las notificaciones al móvil solo están disponibles en la app."
       },
       "saveError": "No se han podido guardar los cambios."
-    }
+    },
+    "unread": "No leído"
   },
   "tabs": {
     "explora": "Explora",
@@ -3039,6 +3054,7 @@
       "smallPrint": "Nunca incluye lo que escribes, tus fotos ni tus datos de contacto. Puedes cambiarlo cuando quieras en Ajustes → Privacidad.",
       "yes": "Sí, claro",
       "no": "No, gracias"
-    }
+    },
+    "legalDocMeta": "Versión {version} · Última actualización: {updated}"
   }
 }

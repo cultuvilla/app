@@ -9,6 +9,7 @@ import { Text } from './Text';
 import { FieldLabel } from './FieldLabel';
 import { Button } from './Button';
 import { RemoteImage } from './RemoteImage';
+import { useT } from '../../lib/i18n';
 
 interface Option {
   id: string;
@@ -45,6 +46,7 @@ export function BarrioPicker({
   hideWhenEmpty = true,
   testID,
 }: BarrioPickerProps) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
@@ -154,7 +156,7 @@ export function BarrioPicker({
           )}
           <View style={styles.actions}>
             <Button variant="secondary" onPress={() => setOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
           </View>
         </SafeAreaView>

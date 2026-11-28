@@ -1,6 +1,14 @@
 import { render, fireEvent } from '@testing-library/react-native';
 import { DateTimeField } from '../DateTimeField';
 
+// The primitive reads its copy through useT(); serve the real catalog.
+jest.mock('../../../lib/i18n', () => {
+  const actual = jest.requireActual('../../../lib/i18n');
+  const { getMessages } = jest.requireActual('@cultuvilla/i18n');
+  const i18n = actual.createI18n({ es: getMessages('es') }, 'es');
+  return { ...actual, useT: () => i18n };
+});
+
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),

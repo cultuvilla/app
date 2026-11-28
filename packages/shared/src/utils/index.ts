@@ -7,6 +7,7 @@ export {
   formatRelativeTime,
   monthLongLabels,
   monthShortLabels,
+  weekdayShortLabels,
   type DateStyle,
 } from './format';
 export * from './festivalPosterDates';

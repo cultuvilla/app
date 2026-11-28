@@ -11,6 +11,7 @@ import { FieldLabel } from './FieldLabel';
 import { Button } from './Button';
 import { CalendarDatePicker } from './CalendarDatePicker';
 import { ClockTimePicker } from './ClockTimePicker';
+import { useT } from '../../lib/i18n';
 
 const ACCENT = colors.light.fg.accent;
 
@@ -64,6 +65,7 @@ export function DateTimeField({
   timePlaceholder,
   testID,
 }: DateTimeFieldProps) {
+  const { t } = useT();
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const insets = useSafeAreaInsets();
   const current = value ?? defaultDraft(minimumDate);
@@ -102,7 +104,7 @@ export function DateTimeField({
         <Pressable
           style={StyleSheet.absoluteFill}
           accessibilityRole="button"
-          accessibilityLabel="Cerrar"
+          accessibilityLabel={t('common.close')}
           onPress={() => setActiveModal(null)}
         >
           <View />
@@ -113,7 +115,7 @@ export function DateTimeField({
             {children}
             <View style={styles.dialogActions}>
               <Button variant="secondary" onPress={() => setActiveModal(null)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
             </View>
           </View>

@@ -111,6 +111,16 @@ export function monthShortLabels(): string[] {
   });
 }
 
+/** Monday-first weekday abbreviations: «Lun» … «Dom». */
+export function weekdayShortLabels(): string[] {
+  // 2000-01-03 was a Monday.
+  return Array.from({ length: 7 }, (_, i) => {
+    const raw = new Intl.DateTimeFormat(LOCALE, { weekday: 'short' }).format(new Date(2000, 0, 3 + i));
+    const trimmed = raw.replace(/\.$/, '');
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  });
+}
+
 export function monthLongLabels(): string[] {
   return Array.from({ length: 12 }, (_, i) => {
     const raw = new Intl.DateTimeFormat(LOCALE, { month: 'long' }).format(new Date(2000, i, 1));

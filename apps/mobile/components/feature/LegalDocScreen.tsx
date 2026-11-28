@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, Text, VStack } from '../primitives';
 import { ScreenHeader } from '../layout/ScreenHeader';
 import type { LegalDoc } from '@cultuvilla/shared/legal';
+import { useT } from '../../lib/i18n';
 
 function Paragraph({ text }: { text: string }) {
   const isBullet = text.startsWith('•');
@@ -14,6 +15,7 @@ function Paragraph({ text }: { text: string }) {
 }
 
 export function LegalDocScreen({ doc }: { doc: LegalDoc }) {
+  const { t } = useT();
   const insets = useSafeAreaInsets();
   return (
     <Screen padded={false} bottomInset={false} topInset={false}>
@@ -23,7 +25,7 @@ export function LegalDocScreen({ doc }: { doc: LegalDoc }) {
         contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: insets.bottom + 24 }}
       >
         <Text variant="bodySm" tone="muted">
-          {`Versión ${doc.version} · Última actualización: ${doc.updated}`}
+          {t('privacy.legalDocMeta', { version: doc.version, updated: doc.updated })}
         </Text>
         <VStack gap={2}>
           {doc.intro.map((p, i) => (

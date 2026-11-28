@@ -4,6 +4,7 @@ import { formatRelativeTime } from '@cultuvilla/shared/utils/format';
 import { HStack } from '../primitives/HStack';
 import { VStack } from '../primitives/VStack';
 import { Text } from '../primitives/Text';
+import { useT } from '../../lib/i18n';
 
 export interface NotificationRowProps {
   title: string;
@@ -22,6 +23,7 @@ export interface NotificationRowProps {
  * on the notification doc, so this component does not route them through i18n.
  */
 export function NotificationRow({ title, body, read, createdAt, onPress, testID }: NotificationRowProps) {
+  const { t } = useT();
   const row = (
     <HStack
       gap={3}
@@ -33,7 +35,7 @@ export function NotificationRow({ title, body, read, createdAt, onPress, testID 
         <View
           testID="notification-unread-dot"
           className="mt-2 h-2 w-2 rounded-full bg-accent"
-          accessibilityLabel="No leído"
+          accessibilityLabel={t('notifications.unread')}
         />
       )}
       <VStack gap={1} className="flex-1">
