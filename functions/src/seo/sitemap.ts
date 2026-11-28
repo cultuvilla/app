@@ -1,6 +1,6 @@
 import { logger } from 'firebase-functions/v2';
 import { getFirestore } from 'firebase-admin/firestore';
-import { isOrgPrivateEvent, isPubliclyListed } from '@cultuvilla/shared/policy';
+import { isPubliclyListed } from '@cultuvilla/shared/policy';
 import { entityPath, villagePath, webOriginForProject } from '@cultuvilla/shared/utils';
 import { buildSitemapXml, toLastmod, toDate, type SitemapUrl } from './urls';
 import { defineHttpFunction } from '../shared/define/defineHttpFunction';
@@ -75,12 +75,10 @@ async function collectUrls(origin: string): Promise<Fetched> {
   for (const doc of events.docs) {
     // Private events are noindex'd by the renderer; listing them would only
     // spend crawl budget to reach a page that refuses to say anything.
-    if (isOrgPrivateEvent(doc.data())) continue;
-    // Narrower than `isPubliclyListed('event', …)`: `completeExpiredEvents`
-    // flips an event to `completed` within the hour after it ends, so this
-    // gate drops it then and EVENT_TAIL_DAYS never applies. Listing completed
-    // events hands search engines more URLs, which is a product call.
-    if (doc.get('status') !== 'published') continue;
+    // Completed events stay listed: `completeExpiredEvents` flips an event to
+    // `completed` within the hour after it ends, and EVENT_TAIL_DAYS is what
+    // retires it from here.
+    if (!isPubliclyListed('event', doc.data())) continue;
     const boundary = toDate(doc.get('endBoundary'));
     if (boundary && boundary < cutoff) continue;
     const villageSlug = stringField(doc.get('villageSlug'));
