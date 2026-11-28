@@ -12,11 +12,17 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
-  bookReservaSlot: jest.fn().mockResolvedValue({ requestId: 'b9', status: 'accepted' }),
-  setReservaBlackouts: jest.fn().mockResolvedValue({ cancelled: 2 }),
-  watchCosaSlots: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>(
+      '@cultuvilla/shared/services/cosatecaService',
+      () => ({
+        bookReservaSlot: jest.fn().mockResolvedValue({ requestId: 'b9', status: 'accepted' }),
+        setReservaBlackouts: jest.fn().mockResolvedValue({ cancelled: 2 }),
+      }),
+    ),
+);
 jest.mock('../../../../lib/hooks/useWatch', () => ({ useWatch: () => ({ data: mockTaken, status: 'ready' }) }));
 
 // Tuesday 10 November 2026, 11:00 in Madrid: Thursday the 12th is two days out.

@@ -5,14 +5,28 @@ import { resetWatchers, setWatched } from '../../../../test/watchers';
 import { TaskComments } from '../TaskComments';
 
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
-  watchTaskComments: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('comments'),
-  addTaskComment: jest.fn().mockResolvedValue('new'),
-  deleteTaskComment: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getPublicProfile: jest.fn().mockResolvedValue({ id: 'u1', displayName: 'Ana' }),
-}));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupTaskService')>(
+      '@cultuvilla/shared/services/groupTaskService',
+      () => ({
+        watchTaskComments: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('comments'),
+        addTaskComment: jest.fn().mockResolvedValue('new'),
+        deleteTaskComment: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({
+        getPublicProfile: jest.fn().mockResolvedValue({ id: 'u1', displayName: 'Ana' }),
+      }),
+    ),
+);
 jest.mock('../../../../lib/orgs/useOrgMembers', () => ({ useMemberFaces: () => ({}) }));
 
 const comment = (id: string, authorUid: string, minutesAgo: number) => ({

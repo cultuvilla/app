@@ -23,32 +23,60 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../../../lib/i18n', () => ({
   useT: () => ({ locale: 'es', t: (k: string, v?: Record<string, unknown>) => (v?.name ? `${k}:${String(v.name)}` : k) }),
 }));
-jest.mock('@cultuvilla/shared/services/socioService', () => ({
-  watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
-  watchOrgSocioPrivates: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('privates'),
-  addTypedSocio: jest.fn().mockResolvedValue('new'),
-  updateTypedSocio: jest.fn().mockResolvedValue(undefined),
-  linkSocioToMember: jest.fn().mockResolvedValue(undefined),
-  setSocioAdminTitle: jest.fn().mockResolvedValue(undefined),
-  setSocioBaja: jest.fn().mockResolvedValue(undefined),
-  setSocioNumber: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/cuotaService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    saveCuotaSettings: jest.fn().mockResolvedValue(undefined),
-    watchCuotaSettings: mockWatcher('cuota'),
-    watchCuotaAssignments: mockWatcher('assignments'),
-    watchCuotaPeriodPayments: mockWatcher('payments'),
-  };
-});
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  setOrgMemberRole: jest.fn().mockResolvedValue(undefined),
-  removeOrgMember: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  updateOrganization: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>(
+      '@cultuvilla/shared/services/socioService',
+      () => ({
+        watchOrgSocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('socios'),
+        watchOrgSocioPrivates: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('privates'),
+        addTypedSocio: jest.fn().mockResolvedValue('new'),
+        updateTypedSocio: jest.fn().mockResolvedValue(undefined),
+        linkSocioToMember: jest.fn().mockResolvedValue(undefined),
+        setSocioAdminTitle: jest.fn().mockResolvedValue(undefined),
+        setSocioBaja: jest.fn().mockResolvedValue(undefined),
+        setSocioNumber: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/cuotaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cuotaService')>(
+      '@cultuvilla/shared/services/cuotaService',
+      () => {
+        const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+        return {
+          saveCuotaSettings: jest.fn().mockResolvedValue(undefined),
+          watchCuotaSettings: mockWatcher('cuota'),
+          watchCuotaAssignments: mockWatcher('assignments'),
+          watchCuotaPeriodPayments: mockWatcher('payments'),
+        };
+      },
+    ),
+);
+jest.mock('@cultuvilla/shared/services/orgMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>(
+      '@cultuvilla/shared/services/orgMemberService',
+      () => ({
+        setOrgMemberRole: jest.fn().mockResolvedValue(undefined),
+        removeOrgMember: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+      () => ({
+        updateOrganization: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 
 function socio(id: string, input: Partial<SocioDataInput> & { bajaAt?: Date | null }) {
   const { bajaAt = null, ...rest } = input;

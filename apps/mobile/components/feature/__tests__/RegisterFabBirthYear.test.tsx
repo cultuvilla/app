@@ -9,6 +9,8 @@ import {
 } from '@cultuvilla/shared/services/registrationService';
 import { getPersonsByCreator } from '@cultuvilla/shared/services/personService';
 import { showConfirm } from '../../../lib/dialogs';
+import type { DeepLink } from '@cultuvilla/shared/services/deepLinkService';
+import { partialOf } from '../../../test/fakeModule';
 
 const mockOfferPush = jest.fn();
 jest.mock('../../../lib/push/PushProvider', () => ({
@@ -41,22 +43,34 @@ jest.mock('expo-router', () => {
     useFocusEffect: (cb: () => void) => React.useEffect(cb, []),
   };
 });
-jest.mock('@cultuvilla/shared/services/registrationService', () => ({
-  getUserRegistrations: jest.fn(),
-  registerToEvent: jest.fn(),
-  cancelRegistration: jest.fn(),
-  getMySeatTokens: jest.fn(),
-  getGroupRegistrations: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getSeatClaimLink: () => ({ url: 'https://x.test', kind: 'invite', resource: 'event', id: 'e1' }),
-}));
+jest.mock('@cultuvilla/shared/services/registrationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/registrationService')>(
+      '@cultuvilla/shared/services/registrationService',
+    ),
+);
+const mockSeatLink = partialOf<DeepLink>({ url: 'https://x.test', kind: 'invite', resource: 'event' });
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getSeatClaimLink: () => mockSeatLink,
+      }),
+    ),
+);
 jest.mock('../../../lib/deeplink/useShareDeepLink', () => ({
   useShareDeepLink: () => jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonsByCreator: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+    ),
+);
 
 const mockShowConfirm = showConfirm as jest.Mock;
 const mockRegisterToEvent = registerToEvent as jest.Mock;

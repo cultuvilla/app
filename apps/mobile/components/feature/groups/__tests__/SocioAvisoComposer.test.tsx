@@ -14,10 +14,16 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/groupMessageService', () => ({
-  newGroupMessageId: () => 'Msg0000000001',
-  sendGroupMessage: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/groupMessageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupMessageService')>(
+      '@cultuvilla/shared/services/groupMessageService',
+      () => ({
+        newGroupMessageId: () => 'Msg0000000001',
+      }),
+    ),
+);
 
 const send = sendGroupMessage as jest.MockedFunction<typeof sendGroupMessage>;
 

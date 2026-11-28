@@ -8,9 +8,27 @@ jest.mock('../../../../lib/callableError', () => ({ useCallableErrorHandler: () 
 jest.mock('../../../../lib/hooks/useAmbassadorVillages', () => ({ useAmbassadorVillages: () => [] }));
 jest.mock('../../../../lib/navigation/openVillage', () => ({ openVillage: jest.fn() }));
 jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({ updatePerson: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({ uploadUserPhoto: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({ getUserViewLink: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+    ),
+);
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+    ),
+);
 jest.mock('../ProfileHeader', () => ({ ProfileHeader: () => null }));
 jest.mock('../VillagesScroll', () => ({ VillagesScroll: () => null }));
 jest.mock('../../../../lib/profile/useProfileData', () => ({

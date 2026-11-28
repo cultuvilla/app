@@ -3,10 +3,17 @@ import { PersonProfileView } from '../PersonProfileView';
 
 const mockGetMunicipality = jest.fn();
 const mockGetBarrio = jest.fn();
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: (...a: unknown[]) => mockGetMunicipality(...a),
-  getBarrio: (...a: unknown[]) => mockGetBarrio(...a),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getMunicipality: (...a: unknown[]) => mockGetMunicipality(...a),
+        getBarrio: (...a: unknown[]) => mockGetBarrio(...a),
+      }),
+    ),
+);
 
 // Real Spanish catalog so the infobox labels are asserted as the user sees them.
 jest.mock('../../../../lib/i18n', () => {

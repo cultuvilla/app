@@ -14,26 +14,54 @@ jest.mock('../../../lib/auth/useAuth', () => ({
 const mockGetUserMemberships = jest.fn();
 const mockLeaveVillage = jest.fn().mockResolvedValue(undefined);
 const mockEnsureVillageMembership = jest.fn().mockResolvedValue(undefined);
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: (...a: unknown[]) => mockGetUserMemberships(...a),
-  leaveVillage: (...a: unknown[]) => mockLeaveVillage(...a),
-  ensureVillageMembership: (...a: unknown[]) => mockEnsureVillageMembership(...a),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        getUserMemberships: (...a: unknown[]) => mockGetUserMemberships(...a),
+        leaveVillage: (...a: unknown[]) => mockLeaveVillage(...a),
+        ensureVillageMembership: (...a: unknown[]) => mockEnsureVillageMembership(...a),
+      }),
+    ),
+);
 const mockGetPersonByUserId = jest.fn();
 const mockUpdateResidenceBarrio = jest.fn().mockResolvedValue(undefined);
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: (...a: unknown[]) => mockGetPersonByUserId(...a),
-  updateResidenceBarrio: (...a: unknown[]) => mockUpdateResidenceBarrio(...a),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: jest.fn().mockResolvedValue({ name: 'Villa Uno' }),
-  getBarrios: jest.fn().mockResolvedValue([]),
-  searchMunicipalities: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        getPersonByUserId: (...a: unknown[]) => mockGetPersonByUserId(...a),
+        updateResidenceBarrio: (...a: unknown[]) => mockUpdateResidenceBarrio(...a),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getMunicipality: jest.fn().mockResolvedValue({ name: 'Villa Uno' }),
+        getBarrios: jest.fn().mockResolvedValue([]),
+        searchMunicipalities: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
 const mockSetActiveMunicipality = jest.fn().mockResolvedValue(undefined);
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  setActiveMunicipality: (...a: unknown[]) => mockSetActiveMunicipality(...a),
-}));
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({
+        setActiveMunicipality: (...a: unknown[]) => mockSetActiveMunicipality(...a),
+      }),
+    ),
+);
 jest.mock('@cultuvilla/shared/models/municipality', () => ({ escudoThumbDisplayUrl: () => null }));
 
 beforeEach(() => {

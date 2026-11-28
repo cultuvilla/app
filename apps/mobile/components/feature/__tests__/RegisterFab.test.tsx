@@ -67,28 +67,45 @@ const setScreenFocused = (focused: boolean) =>
   act(() => {
     (jest.requireMock('expo-router') as { __setFocused: (f: boolean) => void }).__setFocused(focused);
   });
-jest.mock('@cultuvilla/shared/services/registrationService', () => ({
-  getUserRegistrations: jest.fn(),
-  registerToEvent: jest.fn(),
-  cancelRegistration: jest.fn(),
-  getMySeatTokens: jest.fn(),
-  getGroupRegistrations: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getSeatClaimLink: (target: { id: string; title: string; villageSlug: string }, token: string) => {
-    const { seatClaimPath } = jest.requireActual('@cultuvilla/shared/utils');
-    const path = seatClaimPath(target, token);
-    return { url: `https://x.test${path}`, path, kind: 'invite', resource: 'event' };
-  },
-}));
+jest.mock('@cultuvilla/shared/services/registrationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/registrationService')>(
+      '@cultuvilla/shared/services/registrationService',
+    ),
+);
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getSeatClaimLink: (target: { id: string; title: string; villageSlug: string }, token: string) => {
+          const { seatClaimPath } = jest.requireActual('@cultuvilla/shared/utils');
+          const path = seatClaimPath(target, token);
+          return { url: `https://x.test${path}`, path, kind: 'invite', resource: 'event' };
+        },
+      }),
+    ),
+);
 jest.mock('../../../lib/deeplink/useShareDeepLink', () => ({
   useShareDeepLink: () => mockShareDeepLink,
 }));
 const mockShareDeepLink = jest.fn().mockResolvedValue(undefined);
-jest.mock('@cultuvilla/shared/services/userService', () => ({ patchUserProfile: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonsByCreator: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+    ),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+    ),
+);
 
 const mockGetUserRegistrations = getUserRegistrations as jest.Mock;
 const mockRegisterToEvent = registerToEvent as jest.Mock;

@@ -6,7 +6,13 @@ let mockCosas: unknown[] = [];
 const mockUseWatch = jest.fn();
 
 jest.mock('expo-router', () => ({ router: { push: (href: unknown) => mockPush(href) } }));
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({ watchVillageCosas: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>(
+      '@cultuvilla/shared/services/cosatecaService',
+    ),
+);
 jest.mock('../../../../lib/i18n', () => ({
   useT: () => ({ locale: 'es', t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${String(v.count)}` : k) }),
 }));

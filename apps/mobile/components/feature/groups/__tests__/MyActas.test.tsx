@@ -14,9 +14,16 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/recordsService', () => ({
-  watchSocioVisibleActas: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('visibleActas'),
-}));
+jest.mock('@cultuvilla/shared/services/recordsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/recordsService')>(
+      '@cultuvilla/shared/services/recordsService',
+      () => ({
+        watchSocioVisibleActas: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('visibleActas'),
+      }),
+    ),
+);
 
 function acta(id: string, input: Partial<ActaInput>) {
   return {

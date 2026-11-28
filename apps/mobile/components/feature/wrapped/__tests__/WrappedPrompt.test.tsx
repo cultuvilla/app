@@ -6,7 +6,13 @@ import { getVillageWrappedForYear } from '@cultuvilla/shared/services/villageWra
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({ getVillageWrappedForYear: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/villageWrappedService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageWrappedService')>(
+      '@cultuvilla/shared/services/villageWrappedService',
+    ),
+);
 
 const mockForYear = getVillageWrappedForYear as jest.Mock;
 const DAY = 24 * 60 * 60 * 1000;

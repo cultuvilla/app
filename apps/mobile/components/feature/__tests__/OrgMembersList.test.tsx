@@ -10,21 +10,42 @@ const enterEditMode = () => fireEvent.press(screen.getByTestId('org-members-edit
 const mockGetOrgMembers = jest.fn();
 const mockSetOrgMemberRole = jest.fn();
 const mockRemoveOrgMember = jest.fn();
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  getOrgMembers: (...a: unknown[]) => mockGetOrgMembers(...a),
-  setOrgMemberRole: (...a: unknown[]) => mockSetOrgMemberRole(...a),
-  removeOrgMember: (...a: unknown[]) => mockRemoveOrgMember(...a),
-}));
+jest.mock('@cultuvilla/shared/services/orgMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>(
+      '@cultuvilla/shared/services/orgMemberService',
+      () => ({
+        getOrgMembers: (...a: unknown[]) => mockGetOrgMembers(...a),
+        setOrgMemberRole: (...a: unknown[]) => mockSetOrgMemberRole(...a),
+        removeOrgMember: (...a: unknown[]) => mockRemoveOrgMember(...a),
+      }),
+    ),
+);
 
 const mockGetPublicProfile = jest.fn();
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getPublicProfile: (...a: unknown[]) => mockGetPublicProfile(...a),
-}));
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({
+        getPublicProfile: (...a: unknown[]) => mockGetPublicProfile(...a),
+      }),
+    ),
+);
 
 const mockGetPersonByUserId = jest.fn();
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: (...a: unknown[]) => mockGetPersonByUserId(...a),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        getPersonByUserId: (...a: unknown[]) => mockGetPersonByUserId(...a),
+      }),
+    ),
+);
 
 // showConfirm auto-accepts so we can assert the action fires on confirm.
 const mockShowConfirm = jest.fn();

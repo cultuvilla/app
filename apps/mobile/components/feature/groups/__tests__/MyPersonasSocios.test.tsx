@@ -12,14 +12,28 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('expo-router', () => ({ router: { push: (href: unknown) => mockPush(href) } }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  watchPersonsByCreator: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('persons'),
-}));
-jest.mock('@cultuvilla/shared/services/socioService', () => ({
-  watchMySocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('mySocios'),
-  addPersonaSocio: jest.fn().mockResolvedValue('new'),
-  setSocioBaja: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        watchPersonsByCreator: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('persons'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>(
+      '@cultuvilla/shared/services/socioService',
+      () => ({
+        watchMySocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('mySocios'),
+        addPersonaSocio: jest.fn().mockResolvedValue('new'),
+        setSocioBaja: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 
 function person(id: string, givenName: string, userId: string | null = null) {
   return {

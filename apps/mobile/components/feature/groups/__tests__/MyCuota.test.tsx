@@ -11,17 +11,31 @@ jest.mock('../../../../lib/i18n', () => ({
     t: (k: string, v?: Record<string, unknown>) => (v ? `${k}:${Object.values(v).map(String).join('|')}` : k),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/cuotaService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
-  return {
-    watchCuotaSettings: mockWatcher('settings'),
-    watchCuotaAssignmentsOf: mockWatcher('assignments'),
-    watchSocioCuotaPayments: mockWatcher('payments'),
-  };
-});
-jest.mock('@cultuvilla/shared/services/socioService', () => ({
-  watchMySocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('mine'),
-}));
+jest.mock('@cultuvilla/shared/services/cuotaService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cuotaService')>(
+      '@cultuvilla/shared/services/cuotaService',
+      () => {
+        const { mockWatcher } = jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers');
+        return {
+          watchCuotaSettings: mockWatcher('settings'),
+          watchCuotaAssignmentsOf: mockWatcher('assignments'),
+          watchSocioCuotaPayments: mockWatcher('payments'),
+        };
+      },
+    ),
+);
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>(
+      '@cultuvilla/shared/services/socioService',
+      () => ({
+        watchMySocios: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('mine'),
+      }),
+    ),
+);
 
 const YEAR = madridDayKey(new Date()).slice(0, 4);
 

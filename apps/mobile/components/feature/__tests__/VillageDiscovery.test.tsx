@@ -1,6 +1,8 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { observability } from '@cultuvilla/shared';
 import { joinVillage } from '@cultuvilla/shared/services/villageMemberService';
+import type { MunicipalityData } from '@cultuvilla/shared/models/municipality';
+import { partialOf } from '../../../test/fakeModule';
 
 const mockPush = jest.fn();
 const mockRefreshProfile = jest.fn().mockResolvedValue(undefined);
@@ -36,7 +38,8 @@ const mockMuni = (
   name: string,
   communityActive: boolean,
   localityNames: string[] = [],
-) => ({
+): MunicipalityData & { id: string } =>
+  partialOf<MunicipalityData & { id: string }>({
   id,
   name,
   slug: name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '-'),
@@ -44,7 +47,7 @@ const mockMuni = (
   communityActive,
   localityNames,
   searchPrefixes: [...new Set([name, ...localityNames].flatMap(mockPrefixes))].sort(),
-});
+  });
 const mockActive = [mockMuni('m1', 'Anaya', true)];
 const mockAll = [
   mockMuni('m1', 'Anaya', true),
@@ -54,21 +57,35 @@ const mockAll = [
   mockMuni('m3', 'Figueruela de Arriba', false, ['Villarino de Manzanas']),
 ];
 
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getActiveCommunities: jest.fn(async () => mockActive),
-  listMunicipalitiesPage: jest.fn(async ({ search }: { search?: string }) => {
-    const key = (search ?? '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    return {
-      items: key ? mockAll.filter((m) => m.searchPrefixes.includes(key)) : mockAll,
-      nextCursor: null,
-    };
-  }),
-  getBarrios: jest.fn(async () => []),
-}));
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: jest.fn(async () => []),
-  joinVillage: jest.fn(async () => undefined),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getActiveCommunities: jest.fn(async () => mockActive),
+        listMunicipalitiesPage: jest.fn(async ({ search }: { search?: string }) => {
+          const key = (search ?? '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          return {
+            items: key ? mockAll.filter((m) => m.searchPrefixes.includes(key)) : mockAll,
+            nextCursor: null,
+          };
+        }),
+        getBarrios: jest.fn(async () => []),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        getUserMemberships: jest.fn(async () => []),
+        joinVillage: jest.fn(async () => undefined),
+      }),
+    ),
+);
 jest.mock('../../../lib/i18n', () => ({
   useT: () => ({ locale: 'es', t: (k: string) => k }),
 }));
