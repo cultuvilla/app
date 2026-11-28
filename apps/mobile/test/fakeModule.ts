@@ -9,10 +9,10 @@ export type FakeDefaults<M> = { [K in keyof M]?: M[K] };
 /**
  * A fake of the module `loadActual` returns, with exactly its keys: every
  * function export becomes a `jest.fn` running its default (or returning
- * `undefined`); every other export — constants, schemas, enums — is the real
- * value unless a default replaces it. A default for a key the module does not
- * export throws, which catches the phantoms `tsc` cannot see through a
- * `require`.
+ * `undefined`), or is the default itself when that is already a `jest.fn`;
+ * every other export — constants, schemas, enums — is the real value unless a
+ * default replaces it. A default for a key the module does not export throws,
+ * which catches the phantoms `tsc` cannot see through a `require`.
  *
  * Built from the real module rather than listed by hand: a hand-written
  * `jest.mock` factory hides every export it does not name, so a renamed or
@@ -74,7 +74,9 @@ function buildFake<M extends object>(actual: M, defaults: FakeDefaults<M>): Reco
     const real = (actual as Record<string, unknown>)[key];
     const preset = (defaults as Record<string, unknown>)[key];
     if (typeof real === 'function') {
-      fake[key] = jest.fn(preset as ((...args: unknown[]) => unknown) | undefined);
+      // A default that is already a mock is the export itself, so a test that
+      // programs the export programs what the factory's other defaults call.
+      fake[key] = jest.isMockFunction(preset) ? preset : jest.fn(preset as ((...args: unknown[]) => unknown) | undefined);
     } else {
       fake[key] = key in defaults ? preset : real;
     }
