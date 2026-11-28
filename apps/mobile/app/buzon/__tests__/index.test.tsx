@@ -1,5 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { respondToOrgPresenceRequest } from '@cultuvilla/shared/services/orgPresenceService';
 import InboxScreen from '../index';
 
 jest.mock('../../../lib/i18n', () => {
@@ -84,6 +85,19 @@ jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
   getPendingOrgJoinRequests: async () => [],
   respondToOrgJoinRequest: jest.fn(),
 }));
+let mockPendingPresence: (Record<string, unknown> & { municipalityId: string })[] = [];
+jest.mock('@cultuvilla/shared/services/orgPresenceService', () =>
+  jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgPresenceService')>(
+      '@cultuvilla/shared/services/orgPresenceService',
+      () => ({
+        getPendingOrgPresenceRequests: async (villages) =>
+          (villages === 'all' ? mockPendingPresence : mockPendingPresence.filter((r) => villages.includes(r.municipalityId))) as never,
+        getMyPendingOrgPresenceRequests: async () => [],
+        respondToOrgPresenceRequest: async () => undefined,
+      }),
+    ),
+);
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -215,5 +229,47 @@ describe('Buzón — requests an app admin approves', () => {
     expect(await findByTestId('approve-org-org1')).toBeTruthy();
     await waitFor(() => expect(getByText('Pedraza')).toBeTruthy());
     expect(getByText('Anaya')).toBeTruthy();
+  });
+});
+
+describe('Buzón — a group from another pueblo', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApprover = { loading: false, isSuperAdmin: false, adminVillageIds: ['m1'], adminOrgIds: [], canApprove: true };
+    mockGetReportsByMunicipality.mockResolvedValue([]);
+    mockActivity = [];
+    mockCosaRows = [];
+    mockPendingPresence = [
+      { orgId: 'o9', municipalityId: 'm1', homeMunicipalityId: 'm2', orgName: 'Banda Comarcal', requestedBy: 'u7', createdAt: new Date() },
+    ];
+  });
+
+  afterEach(() => {
+    mockPendingPresence = [];
+  });
+
+  it("asks the pueblo's Equipo, names both pueblos, and accepts it", async () => {
+    const { findByTestId, getByText, queryByTestId } = render(<InboxScreen />);
+
+    expect(await findByTestId('inbox-presence-o9-m1')).toBeTruthy();
+    await waitFor(() => expect(getByText('Banda Comarcal, de Pedraza, quiere aparecer en Anaya')).toBeTruthy());
+    fireEvent.press(await findByTestId('approve-presence-o9-m1'));
+    await waitFor(() => expect(jest.mocked(respondToOrgPresenceRequest)).toHaveBeenCalledWith('o9', 'm1', 'approved'));
+    await waitFor(() => expect(queryByTestId('inbox-presence-o9-m1')).toBeNull());
+  });
+
+  it('turns it away', async () => {
+    const { findByTestId } = render(<InboxScreen />);
+    fireEvent.press(await findByTestId('reject-presence-o9-m1'));
+    await waitFor(() => expect(jest.mocked(respondToOrgPresenceRequest)).toHaveBeenCalledWith('o9', 'm1', 'rejected'));
+  });
+
+  it('lists the request I sent while it waits', async () => {
+    mockPendingPresence = [];
+    mockActivity = [
+      { kind: 'pending-sent', id: 'o9_m1', requestType: 'orgPresence', label: 'Banda Comarcal', municipalityId: 'm1', createdAt: new Date() },
+    ];
+    const { findByText } = render(<InboxScreen />);
+    expect(await findByText('Quieres que Banda Comarcal aparezca en Anaya')).toBeTruthy();
   });
 });

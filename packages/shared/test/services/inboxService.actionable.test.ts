@@ -23,6 +23,11 @@ vi.mock('../../src/services/contentReportService', () => ({
   getOpenReports: () => getOpenReports() as unknown,
   getReportsByMunicipality: (...a: unknown[]) => getReportsByMunicipality(...a) as unknown,
 }));
+const getPendingOrgPresenceRequests = vi.fn();
+vi.mock('../../src/services/orgPresenceService', () => ({
+  getMyPendingOrgPresenceRequests: vi.fn(),
+  getPendingOrgPresenceRequests: (...a: unknown[]) => getPendingOrgPresenceRequests(...a) as unknown,
+}));
 vi.mock('../../src/services/cosatecaService', () => ({ getMyPendingCosaRequests: vi.fn() }));
 vi.mock('../../src/services/observability/observabilityService', () => ({
   observability: { captureError: vi.fn() },
@@ -38,6 +43,7 @@ describe('actionableScope', () => {
       organizer: true,
       orgs: 'all',
       joins: [],
+      presence: 'all',
       reports: 'all',
     });
   });
@@ -47,6 +53,7 @@ describe('actionableScope', () => {
       organizer: false,
       orgs: ['m1', 'm2'],
       joins: [],
+      presence: ['m1', 'm2'],
       reports: ['m1', 'm2'],
     });
   });
@@ -56,6 +63,7 @@ describe('actionableScope', () => {
       organizer: false,
       orgs: [],
       joins: ['o1'],
+      presence: [],
       reports: [],
     });
   });
@@ -63,11 +71,11 @@ describe('actionableScope', () => {
   it('lets super admin reach win over listed villages, and keeps the orgs', () => {
     expect(
       actionableScope({ isSuperAdmin: true, adminVillageIds: ['m1'], adminOrgIds: ['o1'] }),
-    ).toEqual({ organizer: true, orgs: 'all', joins: ['o1'], reports: 'all' });
+    ).toEqual({ organizer: true, orgs: 'all', joins: ['o1'], presence: 'all', reports: 'all' });
   });
 
   it('gives someone who administers nothing an empty scope', () => {
-    expect(actionableScope(NONE)).toEqual({ organizer: false, orgs: [], joins: [], reports: [] });
+    expect(actionableScope(NONE)).toEqual({ organizer: false, orgs: [], joins: [], presence: [], reports: [] });
   });
 });
 
@@ -79,6 +87,9 @@ describe('getActionableRequests', () => {
     getOrganizationsByMunicipality.mockImplementation((vid: string) => Promise.resolve([{ id: `org-${vid}` }]));
     getPendingOrgJoinRequests.mockImplementation((oid: string) => Promise.resolve([{ orgId: oid, userId: 'u9' }]));
     getOpenReports.mockResolvedValue([{ id: 'rAll' }]);
+    getPendingOrgPresenceRequests.mockImplementation((villages: 'all' | string[]) =>
+      Promise.resolve(villages === 'all' ? [{ orgId: 'oAll' }] : villages.map((vid) => ({ orgId: 'o', municipalityId: vid }))),
+    );
     getReportsByMunicipality.mockImplementation((vid: string) => Promise.resolve([{ id: `r-${vid}` }]));
   });
 
@@ -90,6 +101,7 @@ describe('getActionableRequests', () => {
       organizer: [{ id: 'req1' }],
       orgs: [{ id: 'orgAll' }],
       joins: [{ orgId: 'o1', userId: 'u9' }],
+      presence: [{ orgId: 'oAll' }],
       reports: [{ id: 'rAll' }],
     });
     expect(getOrganizationsByMunicipality).not.toHaveBeenCalled();
@@ -101,6 +113,11 @@ describe('getActionableRequests', () => {
     expect(result.organizer).toEqual([]);
     expect(result.orgs).toEqual([{ id: 'org-m1' }, { id: 'org-m2' }]);
     expect(result.reports).toEqual([{ id: 'r-m1' }, { id: 'r-m2' }]);
+    expect(result.presence).toEqual([
+      { orgId: 'o', municipalityId: 'm1' },
+      { orgId: 'o', municipalityId: 'm2' },
+    ]);
+    expect(getPendingOrgPresenceRequests).toHaveBeenCalledWith(['m1', 'm2']);
     expect(getOrganizationsByMunicipality).toHaveBeenCalledWith('m1', 'pending');
     expect(getReportsByMunicipality).toHaveBeenCalledWith('m2', { status: 'open' });
     expect(getPendingOrganizerRequests).not.toHaveBeenCalled();
@@ -110,8 +127,9 @@ describe('getActionableRequests', () => {
 
   it('reads nothing for an empty scope', async () => {
     const result = await getActionableRequests(actionableScope(NONE));
-    expect(result).toEqual({ organizer: [], orgs: [], joins: [], reports: [] });
+    expect(result).toEqual({ organizer: [], orgs: [], joins: [], presence: [], reports: [] });
     for (const fn of [
+      getPendingOrgPresenceRequests,
       getPendingOrganizerRequests,
       getPendingOrganizations,
       getOrganizationsByMunicipality,
@@ -184,12 +202,13 @@ describe('actionableCount', () => {
         organizer: [{ id: 'a' }],
         orgs: [{ id: 'b' }, { id: 'c' }],
         joins: [{ orgId: 'o1', userId: 'u1' }],
+        presence: [{ orgId: 'o2' }],
         reports: [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }],
       }),
-    ).toBe(7);
+    ).toBe(8);
   });
 
   it('is 0 for empty queues', () => {
-    expect(actionableCount({ organizer: [], orgs: [], joins: [], reports: [] })).toBe(0);
+    expect(actionableCount({ organizer: [], orgs: [], joins: [], presence: [], reports: [] })).toBe(0);
   });
 });

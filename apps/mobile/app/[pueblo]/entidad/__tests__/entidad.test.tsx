@@ -79,6 +79,7 @@ const OPEN_ORG = {
   images: [],
   description: 'd',
   municipalityId: 'm1',
+  municipalityIds: ['m1'],
   villageSlug: 'villa',
 };
 
@@ -130,6 +131,7 @@ describe('OrgDetailScreen — join policy', () => {
     images: [],
     description: 'd',
     municipalityId: 'm1',
+    municipalityIds: ['m1'],
     villageSlug: 'villa',
     joinPolicy: 'approval',
   };

@@ -33,6 +33,8 @@ import { nudgeGroupMessage } from '../organizations/nudgeGroupMessage';
 import { requestAyuntamiento } from '../organizations/requestAyuntamiento';
 import { respondToCosaRequest } from '../organizations/respondToCosaRequest';
 import { respondToOrgJoinRequest } from '../organizations/respondToOrgJoinRequest';
+import { respondToOrgPresenceRequest } from '../organizations/respondToOrgPresenceRequest';
+import { removeOrgPresence } from '../organizations/removeOrgPresence';
 import { respondToTaskShift } from '../organizations/respondToTaskShift';
 import { setReservaBlackouts } from '../organizations/setReservaBlackouts';
 import { approveStudioPairing, claimStudioPairing, createStudioPairing, inspectStudioPairing } from '../studio/studioPairing';
@@ -69,6 +71,8 @@ const ROUTED_CALLABLES: Record<string, HttpsFunction> = {
   requestOrganizeVillage,
   respondToCosaRequest,
   respondToOrgJoinRequest,
+  respondToOrgPresenceRequest,
+  removeOrgPresence,
   respondToOrganizerRequest,
   respondToTaskShift,
   respondToVillageWrapped,

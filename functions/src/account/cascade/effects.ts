@@ -320,6 +320,14 @@ export async function deleteJoinRequests({ db, uid }: CascadeContext): Promise<C
 }
 
 /**
+ * A group's pending requests to be listed in another pueblo that the user filed:
+ * withdrawn with the account, as their join requests are. Another admin may ask again.
+ */
+export async function deletePresenceRequests({ db, uid }: CascadeContext): Promise<CascadeCounts> {
+  return { deleted: await deleteRefsInChunks(db, await refsOf(db.collectionGroup('presenceRequests').where('requestedBy', '==', uid).get())) };
+}
+
+/**
  * Delete the user's own person doc(s) (`userId == uid`) plus the dependent
  * personas they created that never got their own account
  * (`createdBy == uid && userId == null`). A persona they created that now

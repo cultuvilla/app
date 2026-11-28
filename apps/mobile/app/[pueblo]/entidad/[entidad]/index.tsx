@@ -18,6 +18,7 @@ import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
 import { EntityComments } from '../../../../components/feature/EntityComments';
 import { OrgMembersList } from '../../../../components/feature/OrgMembersList';
 import { OrgEventsSection } from '../../../../components/feature/OrgEventsSection';
+import { OrgVillagesRow } from '../../../../components/feature/OrgVillagesRow';
 import { useShareDeepLink } from '../../../../lib/deeplink/useShareDeepLink';
 import { observability, OBSERVABILITY_EVENTS } from '@cultuvilla/shared';
 import { watchOrganization } from '@cultuvilla/shared/services/organizationService';
@@ -286,6 +287,7 @@ export default function OrgDetailScreen() {
           ) : null}
           {/* Asked once, right after joining: what the junta may see. */}
           {isMember && hasSocioRoster(org.type) ? <SocioConsentCard orgId={org.id} requirement={org} /> : null}
+          <OrgVillagesRow org={org} />
           {org.description ? <Text>{org.description}</Text> : null}
           {org.images.length > 1 ? (
             <VStack gap={2} className="pt-2">

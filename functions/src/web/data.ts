@@ -341,7 +341,11 @@ export interface OrgView {
   images: string[];
   type: string | null;
   memberCount: number | null;
+  /** The home pueblo; the group's page lives under it. */
   municipalityId: string | null;
+  villageSlug: string | null;
+  /** The other pueblos the group is listed in. */
+  otherMunicipalityIds: string[];
 }
 
 function toOrg(id: string, d: Raw): OrgView {
@@ -353,6 +357,8 @@ function toOrg(id: string, d: Raw): OrgView {
     type: str(d['type']),
     memberCount: num(d['memberCount']),
     municipalityId: str(d['municipalityId']),
+    villageSlug: str(d['villageSlug']),
+    otherMunicipalityIds: strArr(d['municipalityIds']).filter((m) => m !== d['municipalityId']),
   };
 }
 
@@ -366,9 +372,10 @@ export async function loadOrg(db: Firestore, id: string): Promise<OrgView | null
 
 export const COMISION_LABEL = 'Comisión de festejos';
 
+/** A group listed in a pueblo; one from another pueblo links to its home page. */
 export function orgCard(o: OrgView, villageSlug: string): Card {
   return {
-    href: entityPath('organization', { id: o.id, title: o.name, villageSlug }),
+    href: entityPath('organization', { id: o.id, title: o.name, villageSlug: o.villageSlug ?? villageSlug }),
     title: o.name,
     subtitle:
       o.type === 'comisión'
@@ -733,8 +740,15 @@ async function listPosters(db: Firestore, m: string): Promise<PosterView[]> {
   return snap.docs.map((d) => toPoster(d.id, d.data()));
 }
 
+// Every group present in the pueblo, its own and those from other pueblos it accepted.
 async function listOrgs(db: Firestore, m: string): Promise<OrgView[]> {
-  const snap = await byMunicipality(db, 'organizations', m).where('status', '==', PUBLIC_STATUS.organization).orderBy('name', 'asc').get();
+  // typed-refs: allowed — converter-less read; see the header of data.ts.
+  const snap = await db
+    .collection('organizations')
+    .where('municipalityIds', 'array-contains', m)
+    .where('status', '==', PUBLIC_STATUS.organization)
+    .orderBy('name', 'asc')
+    .get();
   return snap.docs.map((d) => toOrg(d.id, d.data())).sort((a, b) => (b.memberCount ?? 0) - (a.memberCount ?? 0));
 }
 

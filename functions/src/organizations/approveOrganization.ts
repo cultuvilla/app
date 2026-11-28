@@ -81,6 +81,9 @@ export const approveOrganization = defineCallable<
         // Every group starts out requiring acceptance, and installed binaries
         // still create orgs as `open`.
         joinPolicy: 'approval',
+        // Listed in its home pueblo from now on. A pending group is never
+        // present elsewhere, and installed binaries create it without the field.
+        municipalityIds: [municipalityId],
         reviewedBy: callerUid,
         reviewedAt: FieldValue.serverTimestamp(),
       });

@@ -419,6 +419,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "municipalityIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "organizations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "status",
           "order": "ASCENDING"
         },
@@ -1103,6 +1121,34 @@
     {
       "collectionGroup": "registrations",
       "fieldPath": "userId",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        },
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "presenceRequests",
+      "fieldPath": "municipalityId",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        },
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "presenceRequests",
+      "fieldPath": "requestedBy",
       "indexes": [
         {
           "queryScope": "COLLECTION",

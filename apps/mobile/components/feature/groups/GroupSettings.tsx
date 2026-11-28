@@ -16,6 +16,7 @@ import { SegmentedToggle } from '../SegmentedToggle';
 import { useT } from '../../../lib/i18n';
 import { showAlert, showConfirm } from '../../../lib/dialogs';
 import { useWatch } from '../../../lib/hooks/useWatch';
+import { GroupVillagesSettings, type GroupVillagesOrg } from './GroupVillagesSettings';
 
 const TRANSPARENCY_VIEWS: readonly GroupTransparencyView[] = ['cuota', 'avisos', 'cuentas'];
 
@@ -63,6 +64,7 @@ export function GroupSettings({
   transparency = DEFAULT_GROUP_TRANSPARENCY,
   joinPolicy = 'approval',
   isAyuntamiento = false,
+  villages = null,
 }: {
   orgId: string;
   uid: string;
@@ -80,6 +82,8 @@ export function GroupSettings({
   transparency?: GroupTransparency;
   joinPolicy?: OrgJoinPolicy;
   isAyuntamiento?: boolean;
+  /** A group that may be in several pueblos; null for an ayuntamiento or a comisión. */
+  villages?: GroupVillagesOrg | null;
 }) {
   const { t } = useT();
   const runsCuota = hasRoster && cuotaEnabled;
@@ -200,6 +204,11 @@ export function GroupSettings({
               />
             </>
           ) : null}
+        </SettingsSection>
+      ) : null}
+      {villages ? (
+        <SettingsSection title={t('organization.villages.title')} testID="group-settings-villages">
+          <GroupVillagesSettings org={villages} uid={uid} />
         </SettingsSection>
       ) : null}
       {hasRoster ? (

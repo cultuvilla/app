@@ -41,6 +41,8 @@ const org = (memberCount: number): OrgView => ({
   type: 'peña',
   memberCount,
   municipalityId: 'v1',
+  villageSlug: 'villa',
+  otherMunicipalityIds: [],
 });
 
 // «1 integrantes» on the group card and page; the count now comes from the app's catalog.
