@@ -76,6 +76,16 @@ describe('org members — roles', () => {
     await assertSucceeds(deleteDoc(doc(db, `organizations/${ORG}/members/member1`)));
   });
 
+  it('a plain member cannot remove anyone else', async () => {
+    const db = asUser(getEnv(), 'member1');
+    await assertFails(deleteDoc(doc(db, `organizations/${ORG}/members/creator`)));
+  });
+
+  it('an admin of the org’s village can remove a member', async () => {
+    const db = asUser(getEnv(), 'vadmin');
+    await assertSucceeds(deleteDoc(doc(db, `organizations/${ORG}/members/member1`)));
+  });
+
   it('a doc with an unknown field is rejected on create', async () => {
     const db = asUser(getEnv(), 'joiner');
     await assertFails(setDoc(doc(db, `organizations/${ORG}/members/joiner`), { userId: 'joiner', joinedAt: new Date(), role: 'member', evil: true }));

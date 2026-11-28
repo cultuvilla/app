@@ -146,6 +146,11 @@ describe('join requests', () => {
       query(collectionGroup(asUser(getEnv(), uid), 'joinRequests'), where('userId', '==', uid));
     await assertSucceeds(getDocs(mine('pending')));
     await assertFails(getDocs(collectionGroup(asUser(getEnv(), 'pending'), 'joinRequests')));
+    const theirs = query(
+      collectionGroup(asUser(getEnv(), 'pending'), 'joinRequests'),
+      where('userId', '==', 'socio'),
+    );
+    await assertFails(getDocs(theirs));
   });
 
   it('the requester may withdraw; nobody may edit a request', async () => {
@@ -153,6 +158,10 @@ describe('join requests', () => {
       updateDoc(doc(asUser(getEnv(), 'founder'), path('pending')), { createdAt: new Date() }),
     );
     await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'pending'), path('pending'))));
+  });
+
+  it('a plain member cannot withdraw somebody else’s request', async () => {
+    await assertFails(deleteDoc(doc(asUser(getEnv(), 'socio'), path('pending'))));
   });
 
   it('an app admin can read any request', async () => {

@@ -9,6 +9,7 @@ import { describe, it } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -19,7 +20,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asAnon, seed } from '../helpers/roles';
+import { asAdmin, asUser, asAnon, seed } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -305,5 +306,30 @@ describe('firestore.rules — /persons/{personId}', () => {
         getDocs(query(collection(db, 'persons'), where('createdBy', '==', OTHER))),
       );
     });
+  });
+});
+
+// A creator removes a familiar they made; a persona someone signed in as is
+// theirs, so only an app admin removes it.
+describe('firestore.rules — /persons/{personId} delete', () => {
+  it('lets the creator delete an unlinked persona', async () => {
+    await seedPerson();
+    await assertSucceeds(deleteDoc(doc(asUser(getEnv(), OWNER), `persons/${PERSON_ID}`)));
+  });
+
+  it('refuses the creator once the persona is linked to an account', async () => {
+    await seedPerson({ userId: OTHER });
+    await assertFails(deleteDoc(doc(asUser(getEnv(), OWNER), `persons/${PERSON_ID}`)));
+  });
+
+  it('refuses anyone but the creator', async () => {
+    await seedPerson();
+    await assertFails(deleteDoc(doc(asUser(getEnv(), OTHER), `persons/${PERSON_ID}`)));
+  });
+
+  it('lets an app admin delete a linked persona', async () => {
+    await seedPerson({ userId: OTHER });
+    const admin = await asAdmin(getEnv(), 'sadmin');
+    await assertSucceeds(deleteDoc(doc(admin, `persons/${PERSON_ID}`)));
   });
 });

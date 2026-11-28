@@ -13,12 +13,13 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   collectionGroup,
   where,
 } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
-import { asUser, asAnon, seed } from '../helpers/roles';
+import { asAdmin, asUser, asAnon, seed } from '../helpers/roles';
 
 const getEnv = useRulesTestEnv();
 
@@ -254,5 +255,39 @@ describe('firestore.rules — member role is function-owned (admins go through t
     await assertSucceeds(
       updateDoc(doc(db, 'municipalities/mActive/members/alice'), { profileCompletedAt: NOW }),
     );
+  });
+});
+
+// Leaving a village, or being removed from one by its admins.
+describe('firestore.rules — municipalities/{id}/members/{userId} delete', () => {
+  async function seedMembers() {
+    await seed(getEnv(), async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'municipalities/m1'), { name: 'Salamanca', communityActive: true });
+      await setDoc(doc(db, 'municipalities/m1/members/alice'), memberDocData());
+      await setDoc(doc(db, 'municipalities/m1/members/vadmin'), { ...memberDocData(), userId: 'vadmin', role: 'admin' });
+      await setDoc(doc(db, 'municipalities/m1/members/bob'), { ...memberDocData(), userId: BOB });
+    });
+  }
+
+  it('lets a member leave', async () => {
+    await seedMembers();
+    await assertSucceeds(deleteDoc(doc(asUser(getEnv(), ALICE), 'municipalities/m1/members/alice')));
+  });
+
+  it('lets a village admin remove a member', async () => {
+    await seedMembers();
+    await assertSucceeds(deleteDoc(doc(asUser(getEnv(), 'vadmin'), 'municipalities/m1/members/alice')));
+  });
+
+  it('lets an app admin remove a member', async () => {
+    await seedMembers();
+    const admin = await asAdmin(getEnv(), 'sadmin');
+    await assertSucceeds(deleteDoc(doc(admin, 'municipalities/m1/members/alice')));
+  });
+
+  it('refuses a plain member removing someone else', async () => {
+    await seedMembers();
+    await assertFails(deleteDoc(doc(asUser(getEnv(), BOB), 'municipalities/m1/members/alice')));
   });
 });

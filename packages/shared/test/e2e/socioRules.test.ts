@@ -352,3 +352,23 @@ describe('socios — writes', () => {
     await assertFails(updateDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${ORG}/socios/a2`), { adminTitle: 'rey' }));
   });
 });
+
+// A lock is written only beside the row it names, in the same batch.
+describe('socioPersonaLocks', () => {
+  beforeEach(async () => { await seed(); });
+
+  it('an org admin reads a lock; a member does not', async () => {
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'admin1'), `organizations/${ORG}/socioPersonaLocks/kid1`)));
+    await assertFails(getDoc(doc(asUser(getEnv(), 'member1'), `organizations/${ORG}/socioPersonaLocks/kid1`)));
+  });
+
+  it('a lock alone, naming a row that already exists, is refused', async () => {
+    const db = asUser(getEnv(), 'member1');
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/socioPersonaLocks/kid2`), { socioId: 't1' }));
+  });
+
+  it('a lock carrying anything but the socioId is refused', async () => {
+    const db = asUser(getEnv(), 'member1');
+    await assertFails(setDoc(doc(db, `organizations/${ORG}/socioPersonaLocks/kid2`), { socioId: 'new1', note: 'x' }));
+  });
+});
