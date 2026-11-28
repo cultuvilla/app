@@ -114,7 +114,7 @@ export function buildYearSummaryExport(input: YearSummaryExportInput): RosterExp
   const cuotaRows: RosterCell[][] = summary.cuotaByPeriod.map((p) => [
     null,
     'Ingreso',
-    `Cuotas de socios ${periodLabel(p.periodKey)} (${String(p.payments)} pagos)`,
+    `Cuotas de socios ${periodLabel(p.periodKey)} (${String(p.payments)} ${p.payments === 1 ? 'pago' : 'pagos'})`,
     'Cuotas',
     p.cents / 100,
     null,

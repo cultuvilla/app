@@ -329,8 +329,8 @@ export function wordPage(v: Village, term: TermView, definitions: DefinitionView
 export function wrappedPage(v: Village, w: WrappedView, appPath: string): Page {
   const title = `Fiestas ${String(w.year)}`;
   const figures = [
-    w.eventCount ? `${String(w.eventCount)} eventos` : null,
-    w.personCount ? `${String(w.personCount)} personas apuntadas` : null,
+    w.eventCount ? msg('village.wrapped.eventCount', { count: w.eventCount }) : null,
+    w.personCount ? msg('village.wrapped.personCount', { count: w.personCount }) : null,
   ].filter((f): f is string => f !== null);
   const lead = figures.length ? `${figures.join(', ')}. ` : '';
   return {

@@ -124,7 +124,9 @@ export function capacityLabel(confirmedCount: number, maxAttendees: number | nul
       ? '1 persona apuntada'
       : `${String(confirmedCount)} personas apuntadas`;
   }
-  return `${String(confirmedCount)} de ${String(maxAttendees)} plazas ocupadas`;
+  return maxAttendees === 1
+    ? `${String(confirmedCount)} de 1 plaza ocupada`
+    : `${String(confirmedCount)} de ${String(maxAttendees)} plazas ocupadas`;
 }
 
 const SEAT_HEADING = 'Tu inscripción';
