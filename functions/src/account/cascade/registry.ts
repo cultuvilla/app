@@ -17,6 +17,7 @@ import {
   deleteComments,
   deleteCosateca,
   deleteJoinRequests,
+  deletePresenceRequests,
   deleteNotifications,
   deleteOrganizerRequests,
   deletePersons,
@@ -128,6 +129,12 @@ export const UID_CASCADE: readonly CascadeEntry[] = [
     run: removeMemberships,
   },
   { id: 'join-requests', action: 'delete', targets: [{ collection: 'organizationJoinRequests', fields: ['userId', 'id'] }], run: deleteJoinRequests },
+  {
+    id: 'presence-requests',
+    action: 'delete',
+    targets: [{ collection: 'organizationPresenceRequests', fields: ['requestedBy'] }],
+    run: deletePresenceRequests,
+  },
   { id: 'persons', action: 'delete', targets: [{ collection: 'persons', fields: ['userId', 'createdBy'] }], run: deletePersons },
   {
     id: 'registrations',

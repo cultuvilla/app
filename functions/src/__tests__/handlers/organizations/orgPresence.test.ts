@@ -130,6 +130,14 @@ describe('respondToOrgPresenceRequest', () => {
     expect(await requestExists()).toBe(false);
   });
 
+  it('will not list a group in a pueblo that is no longer active', async () => {
+    await db().doc(`municipalities/${OTHER}`).update({ communityActive: false });
+    await expect(respond(OTHER_ADMIN, { orgId: ORG_ID, municipalityId: OTHER, decision: 'approved' })).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    expect(await villagesOf()).toEqual([HOME]);
+  });
+
   it('rejects a malformed decision', async () => {
     await expect(respond(OTHER_ADMIN, { orgId: ORG_ID, municipalityId: OTHER, decision: 'maybe' })).rejects.toMatchObject({
       code: 'invalid-argument',

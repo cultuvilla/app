@@ -85,7 +85,7 @@ jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
   getPendingOrgJoinRequests: async () => [],
   respondToOrgJoinRequest: jest.fn(),
 }));
-let mockPendingPresence: { municipalityId: string }[] = [];
+let mockPendingPresence: (Record<string, unknown> & { municipalityId: string })[] = [];
 jest.mock('@cultuvilla/shared/services/orgPresenceService', () =>
   jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
     .fakeService<typeof import('@cultuvilla/shared/services/orgPresenceService')>(

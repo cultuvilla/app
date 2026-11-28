@@ -2037,6 +2037,9 @@ service cloud.firestore {
         && (request.resource.data.type == resource.data.type
             || (resource.data.type in ['peña', 'asociación', 'otros', 'comisión']
                 && request.resource.data.type in ['peña', 'asociación', 'otros', 'comisión']))
+        // A comisión belongs to one pueblo: a group listed in others leaves them first.
+        && (request.resource.data.type != 'comisión'
+            || resource.data.get('municipalityIds', []).size() <= 1)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
              'commentCount', 'readCount', 'memberCount',
              'municipalityId', 'municipalityIds', 'villageSlug', 'requestedBy', 'createdAt',

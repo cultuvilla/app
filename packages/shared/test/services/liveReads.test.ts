@@ -18,7 +18,7 @@ import { watchUserMemberships } from '../../src/services/villageMemberService';
 import { watchOrgMembershipsByUser } from '../../src/services/orgMemberService';
 import { watchEventsByIds } from '../../src/services/eventService';
 import { watchMunicipalitiesByIds } from '../../src/services/municipalityService';
-import { watchOrganizationsByMunicipality } from '../../src/services/organizationService';
+import { getOrganizationsByMunicipality, watchOrganizationsByMunicipality } from '../../src/services/organizationService';
 import { watchVillageVocabularyDefinitions } from '../../src/services/vocabularyService';
 import type { Unwatch, WatchError } from '../../src/services/watch';
 
@@ -183,6 +183,17 @@ describe('village list watchers', () => {
     expect(approved.map((o) => o.id).sort()).toEqual(['home', 'visitor']);
     // Once each, by name: the home query and the presence query both return «home».
     expect(all.map((o) => o.id)).toEqual(['visitor', 'home']);
+  });
+
+  it('getOrganizationsByMunicipality without a status reads the same as the watch', async () => {
+    const store = fakeStore();
+    store['organizations/home'] = { municipalityId: 'm1', municipalityIds: ['m1'], status: 'approved', name: 'Peña de casa' };
+    store['organizations/pending'] = { municipalityId: 'm1', municipalityIds: ['m1'], status: 'pending', name: 'Peña nueva' };
+    store['organizations/visitor'] = { municipalityId: 'm2', municipalityIds: ['m2', 'm1'], status: 'approved', name: 'Asociación comarcal' };
+    store['organizations/visitorPending'] = { municipalityId: 'm2', municipalityIds: ['m2'], status: 'pending', name: 'Otra' };
+
+    const rows = await getOrganizationsByMunicipality('m1');
+    expect(rows.map((o) => o.id)).toEqual(['visitor', 'home', 'pending']);
   });
 
   it("watchVillageVocabularyDefinitions emits the village's active meanings only", () => {

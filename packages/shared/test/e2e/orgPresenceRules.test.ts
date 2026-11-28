@@ -154,6 +154,16 @@ describe('the pueblos a group is in are function-owned', () => {
     await assertFails(updateDoc(doc(asUser(getEnv(), HOME_ADMIN), `organizations/${ORG}`), { municipalityIds: [HOME, OTHER] }));
   });
 
+  it('a group listed elsewhere may not become a comisión, one at home may', async () => {
+    const db = asUser(getEnv(), ORG_ADMIN);
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}`), { type: 'comisión' }));
+    await seed(getEnv(), (ctx) =>
+      updateDoc(doc(ctx.firestore(), `organizations/${ORG}`), { type: 'asociación', municipalityIds: [HOME, OTHER] }),
+    );
+    await assertFails(updateDoc(doc(db, `organizations/${ORG}`), { type: 'comisión' }));
+    await assertSucceeds(updateDoc(doc(db, `organizations/${ORG}`), { type: 'peña' }));
+  });
+
   it('a new group is created listed in its home alone', async () => {
     const db = asUser(getEnv(), ORG_ADMIN);
     const group = (municipalityIds?: string[]) => ({

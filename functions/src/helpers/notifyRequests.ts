@@ -128,7 +128,7 @@ export async function notifyOrgPresenceRequestCreated(
       buildNotificationData({
         type: 'org_join_request_created',
         title: `${input.orgName} quiere estar en ${input.municipalityName}`,
-        body: `${input.orgName} pide aparecer entre los grupos de ${input.municipalityName}. Respóndele en el Buzón.`,
+        body: `${input.orgName} pide aparecer entre los grupos de ${input.municipalityName}. Respóndele en el Buzón (si no lo ves, actualiza la app).`,
         municipalityId: input.municipalityId,
         requesterUid: input.requesterUid,
         entityKind: 'organization',

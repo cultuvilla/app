@@ -30,7 +30,16 @@ local branches under a parent group.
 - **The other pueblo's Equipo gains one power: taking the group out again**
   (`removeOrgPresence`, which the group's admins and app admins may call too). It does
   not back up the group's admins, see its join requests or edit it.
-- **An ayuntamiento and a comisión de festejos belong to one pueblo** and cannot ask.
+- **An ayuntamiento and a comisión de festejos belong to one pueblo** and cannot ask;
+  a group listed elsewhere cannot become a comisión until it leaves those pueblos.
+- **Leaving is quiet.** `removeOrgPresence` notifies nobody and writes no audit
+  event: it changes where a group is listed, not who belongs to it.
+- **Installed binaries older than this** list a pueblo's groups by `municipalityId`
+  (they never see visiting groups) and have no Buzón row to answer a request, so the
+  notice tells an Equipo to update the app.
+- **The backfill runs twice**, before the deploy (`org-municipality-ids`, which the new
+  list query needs) and after it (`org-municipality-ids-after-deploy`), for a group the
+  old `approveOrganization` approved in between.
 - **A group from elsewhere is labelled "De <home>"** on its card, opens under its home
   link, and its page says "De X · También en Y, Z" (app and read site).
 

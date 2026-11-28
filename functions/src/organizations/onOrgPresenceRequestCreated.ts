@@ -25,7 +25,7 @@ export const onOrgPresenceRequestCreated = defineDocumentTrigger(
 
     const [villageSnap, adminsSnap] = await Promise.all([
       // Raw: only the name is needed, and it must not fail on a doc the converter would refuse.
-    db.doc(municipalityDoc(db, municipalityId).path).get(),
+      db.doc(municipalityDoc(db, municipalityId).path).get(),
       municipalityMembersCollection(db, municipalityId).where('role', '==', 'admin').get(),
     ]);
 

@@ -53,11 +53,13 @@ export const respondToOrgPresenceRequest = defineCallable<
   const orgName = await db.runTransaction(async (tx) => {
     const orgRef = organizationDoc(db, orgId);
     const requestRef = organizationPresenceRequestDoc(db, orgId, municipalityId);
-    const [orgSnap, requestSnap, callerVillageSnap, appAdminSnap] = await Promise.all([
+    const [orgSnap, requestSnap, callerVillageSnap, appAdminSnap, villageSnap] = await Promise.all([
       tx.get(orgRef),
       tx.get(requestRef),
       tx.get(municipalityMemberDoc(db, municipalityId, callerUid)),
       tx.get(adminDoc(db, callerUid)),
+      // Raw: only `communityActive` is read.
+      tx.get(db.doc(municipalityDoc(db, municipalityId).path)),
     ]);
 
     if (!appAdminSnap.exists && callerVillageSnap.data()?.role !== 'admin') {
@@ -74,6 +76,9 @@ export const respondToOrgPresenceRequest = defineCallable<
       if (municipalityId === org.municipalityId) {
         throw new HttpsError('failed-precondition', 'Es el pueblo del propio grupo.');
       }
+      if (villageSnap.get('communityActive') !== true) {
+        throw new HttpsError('failed-precondition', 'Ese pueblo ya no está en marcha en Cultuvilla.');
+      }
       // arrayUnion keeps the home, which approval or the backfill put there.
       tx.update(orgRef, { municipalityIds: FieldValue.arrayUnion(municipalityId) });
     }
@@ -81,7 +86,7 @@ export const respondToOrgPresenceRequest = defineCallable<
     return org.name;
   });
 
-  const [villageSnap, adminsSnap] = await Promise.all([
+  const [namedVillage, adminsSnap] = await Promise.all([
     // Raw: only the name is needed, and it must not fail on a doc the converter would refuse.
     db.doc(municipalityDoc(db, municipalityId).path).get(),
     organizationMembersCollection(db, orgId).where('role', '==', 'admin').get(),
@@ -90,7 +95,7 @@ export const respondToOrgPresenceRequest = defineCallable<
     orgId,
     orgName,
     municipalityId,
-    municipalityName: storedName(villageSnap.get('name'), 'el pueblo'),
+    municipalityName: storedName(namedVillage.get('name'), 'el pueblo'),
     adminUids: adminsSnap.docs.map((d) => d.id),
     decision,
   });
