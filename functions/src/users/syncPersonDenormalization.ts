@@ -3,6 +3,8 @@ import * as admin from 'firebase-admin';
 import { municipalitiesCollection, personDoc } from '@cultuvilla/shared/firebase/refs/admin';
 import { defineDocumentTrigger } from '../shared/define/defineDocumentTrigger';
 import { mergeRow, projectRowsFromCurrentSource, type RowWrite } from '../shared/convergeOnSource';
+import { RESEND_API_KEY } from '../auth/secret';
+import { releaseDeletedPersonSeats } from '../events/releaseDeletedPersonSeats';
 
 const db = admin.firestore();
 
@@ -16,6 +18,9 @@ const db = admin.firestore();
  * Read target:   users/{persons.userId}.displayName, computed via the same
  *   buildDisplayName projection the UI uses.
  *
+ * On delete it also cancels the persona's upcoming registrations
+ * (releaseDeletedPersonSeats) — here rather than in a trigger of its own.
+ *
  * The trigger fires on every write to a person doc (create, update, delete).
  * The event decides which half to sync — the displayName when the projected
  * name changed, the title when the sex did — so unrelated person mutations
@@ -26,7 +31,8 @@ const db = admin.firestore();
  */
 export const syncPersonDenormalization = defineDocumentTrigger(
   'syncPersonDenormalization',
-  { kind: 'written', document: 'persons/{personId}' },
+  // RESEND_API_KEY: the delete branch cancels registrations, which mails a receipt.
+  { kind: 'written', document: 'persons/{personId}', secrets: [RESEND_API_KEY] },
   async (event) => {
     const handler = 'syncPersonDenormalization';
     const before = event.data?.before.data();
@@ -34,8 +40,12 @@ export const syncPersonDenormalization = defineDocumentTrigger(
 
     // Delete: leave the user doc alone. The displayName is a snapshot — it
     // stays valid even if the source persona is removed. Reads downstream can
-    // decide whether to clear it via a separate flow.
-    if (!after) return;
+    // decide whether to clear it via a separate flow. Its seats on upcoming
+    // events, though, are cancelled: nobody is left to fill them.
+    if (!after) {
+      if (before) await releaseDeletedPersonSeats(event.params.personId, handler);
+      return;
+    }
     const nameChanged = !before || projectName(before) !== projectName(after);
     const sexChanged = !before || normalizeSex(before['sex']) !== normalizeSex(after['sex']);
     if (!nameChanged && !sexChanged) return;

@@ -1,0 +1,1 @@
+- Fix: deleting a persona now cancels its sign-ups to upcoming events, as if you had cancelled them yourself — the seat frees up and the next person on the waitlist moves in. Past events keep it on their roster. **Migration:** none (the five existing prod leftovers are a separate data repair).
