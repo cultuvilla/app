@@ -36,6 +36,8 @@ describe('more count copy agrees in number', () => {
     ['groups.tasks.form.slotsBelowClaimed', { count: 1 }, 'Ya hay 1 apuntado:', { count: 3 }, 'Ya hay 3 apuntados:'],
     ['groups.tasks.checklists.progress', { done: 0, total: 1 }, '0 de 1 hecha', { done: 1, total: 3 }, '1 de 3 hechas'],
     ['groups.messages.whatsappCount', { sent: 1, total: 1 }, '1 de 1 enviado', { sent: 1, total: 3 }, '1 de 3 enviados'],
+    ['village.vocabulary.seeAll', { count: 1 }, 'Ver la palabra', { count: 3 }, 'Ver las 3'],
+    ['groups.tasks.filter.allWithCount', { count: 1 }, '(1 activo)', { count: 3 }, '(3 activos)'],
   ] as const)('%s', (key, oneVars, one, otherVars, other) => {
     const single = t(key, oneVars);
     expect(single).toContain(one);

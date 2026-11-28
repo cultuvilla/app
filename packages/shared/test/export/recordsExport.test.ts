@@ -40,9 +40,21 @@ describe('buildYearSummaryExport', () => {
     const model = buildYearSummaryExport({ orgName: 'La Anduela', summary, generatedAt });
     expect(model.title).toBe('Cuentas 2026 — La Anduela');
     const csv = toCsv(model, { bom: false }).split('\r\n');
-    expect(csv[1]).toMatch(/^;Ingreso;Cuotas de socios 2026 \(1 pagos\);Cuotas;30,00\s€;$/);
+    expect(csv[1]).toMatch(/^;Ingreso;Cuotas de socios 2026 \(1 pago\);Cuotas;30,00\s€;$/);
     expect(csv[2]).toMatch(/^01\/08\/2026;Gasto;Orquesta;Fiestas;;120,50\s€$/);
     expect(model.summary).toMatch(/Ingresos: 30,00\s€ {3}· {3}Gastos: 120,50\s€ {3}· {3}Saldo: -90,50\s€/);
+  });
+});
+
+describe('cuota row count', () => {
+  it('says pagos for more than one payment', () => {
+    const payment = (id: string, socioId: string) => ({
+      id,
+      ...buildCuotaPaymentData({ socioId, periodKey: '2026', amountCents: 3000, method: 'bizum', paidOn: '2026-02-01', recordedBy: 'a' }),
+    });
+    const summary = buildYearSummary({ year: '2026', cuotaPayments: [payment('c1', 's1'), payment('c2', 's2')], ledgerEntries: [] });
+    const csv = toCsv(buildYearSummaryExport({ orgName: 'La Anduela', summary, generatedAt }), { bom: false }).split('\r\n');
+    expect(csv[1]).toContain('Cuotas de socios 2026 (2 pagos)');
   });
 });
 

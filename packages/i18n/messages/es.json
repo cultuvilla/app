@@ -311,7 +311,7 @@
         "mote": "Mote del día",
         "toponimo": "Topónimo del día"
       },
-      "seeAll": "Ver las {count}",
+      "seeAll": "{count, plural, one {Ver la palabra} other {Ver las #}}",
       "search": "Busca en el diccionario",
       "empty": "Todavía no hay ninguna palabra recogida. Añade la primera.",
       "noMatches": "Ninguna palabra coincide con esa búsqueda.",
@@ -682,6 +682,8 @@
     "wrapped": {
       "entry": "Resumen de fiestas",
       "title": "Resumen de Fiestas {year}",
+      "eventCount": "{count, plural, one {# evento} other {# eventos}}",
+      "personCount": "{count, plural, one {# persona apuntada} other {# personas apuntadas}}",
       "formHelp": "Elige las fechas en que se celebró cada fiesta este año. Aparecen en la portada del resumen.",
       "blockDates": "Fechas de este año",
       "blockSkipped": "No se incluye en el resumen de este año.",
@@ -2274,7 +2276,7 @@
         "shiftOpen": "Turnos con hueco",
         "done": "Hechas",
         "all": "Filtros",
-        "allWithCount": "Filtros ({count} activos)",
+        "allWithCount": "Filtros ({count, plural, one {# activo} other {# activos}})",
         "sheetTitle": "Filtrar tareas",
         "clear": "Quitar filtros"
       },

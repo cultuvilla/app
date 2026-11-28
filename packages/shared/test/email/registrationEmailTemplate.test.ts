@@ -34,6 +34,10 @@ describe('capacityLabel', () => {
     expect(capacityLabel(7, null)).toBe('7 personas apuntadas');
   });
 
+  it('uses the singular for a one-slot cap', () => {
+    expect(capacityLabel(1, 1)).toBe('1 de 1 plaza ocupada');
+  });
+
   it('uses the singular for a single uncapped attendee', () => {
     expect(capacityLabel(1, null)).toBe('1 persona apuntada');
   });

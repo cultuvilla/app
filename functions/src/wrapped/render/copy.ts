@@ -11,8 +11,8 @@ export const copy = {
   fiestas: 'Fiestas',
   fiestasYear: (year: number) => `Fiestas ${String(year)}`,
   peopleKicker: 'Todo el pueblo',
-  peopleTitle: (n: number) => `${String(n)} vecinos`,
-  peopleSubtitle: (n: number) => `${String(n)} se apuntaron a algo`,
+  peopleTitle: (n: number) => (n === 1 ? '1 vecino' : `${String(n)} vecinos`),
+  peopleSubtitle: (n: number) => (n === 1 ? '1 se apuntó a algo' : `${String(n)} se apuntaron a algo`),
   peopleLegendIn: 'Se apuntó',
   peopleLegendOut: 'Aún no',
   eventsKicker: 'Lo que se hizo',
@@ -26,7 +26,8 @@ export const copy = {
   organizersPeople: 'Organizaron',
   eventCount: (n: number) => (n === 1 ? '1 evento' : `${String(n)} eventos`),
   postersKicker: 'El archivo del pueblo',
-  postersTitle: (span: number) => (span > 0 ? `${String(span)} años de carteles` : 'Los carteles'),
+  postersTitle: (span: number) =>
+    span === 1 ? '1 año de carteles' : span > 0 ? `${String(span)} años de carteles` : 'Los carteles',
   postersAdded: (n: number) =>
     n === 0 ? 'Este año aún no se ha sumado ninguno' : n === 1 ? 'Este año se sumó 1' : `Este año se sumaron ${String(n)}`,
   statsKicker: 'En números',
@@ -37,5 +38,9 @@ export const copy = {
   statsPerEvent: 'media de personas por evento',
   statsFullest: 'El evento más lleno',
   statsFullestCount: (n: number, cap: number | null) =>
-    cap ? `${String(n)} de ${String(cap)} plazas` : `${String(n)} apuntados`,
+    cap
+      ? `${String(n)} de ${String(cap)} ${cap === 1 ? 'plaza' : 'plazas'}`
+      : n === 1
+        ? '1 apuntado'
+        : `${String(n)} apuntados`,
 };
