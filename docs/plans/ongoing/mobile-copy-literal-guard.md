@@ -2,6 +2,10 @@
 
 **Priority:** low — AGENTS.md lists "Spanish strings that escaped the i18n message catalog" as a PR flag, but nothing fails on one, and about twenty have escaped, most into shared primitives
 
+**Landed:** none
+**Gate:** none
+**Next:** add the jest AST scan for hard-coded visible copy and move the 14 strays into es.json with the same wording
+
 **Goal:** a jest scan fails when a screen, component or hook in `apps/mobile` shows the user a hard-coded string (JSX text, or an `accessibilityLabel` / `accessibilityHint` / `placeholder` / `title` / `label` literal) instead of a `t()` key, and the strays it finds today move into `packages/i18n/messages/es.json` with the same wording.
 
 ## Context

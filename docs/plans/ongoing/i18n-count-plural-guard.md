@@ -2,9 +2,9 @@
 
 **Priority:** high — the same defect has been fixed three times in three days (2ac91cfd, e9e7f697, b353cf3a), key by key, after the fact (the first after a QA pass), and one catalog straggler plus a handful of server-side strings still read «1 …» in the plural
 
-**Landed:** none
-**Gate:** none
-**Next:** add the packages/i18n catalog test for counts outside an ICU plural, then fix the stragglers it finds
+**Landed:** dev
+**Gate:** release:1.14.0
+**Next:** once 1.14.0 is live, confirm on prod that the fixed strings (Ver todas, member and resident counts, Wrapped, emails) read in the singular for 1, then retire
 
 **Goal:** a `packages/i18n` test fails whenever a catalog message puts a count next to a plural word outside an ICU plural (or writes a plural the formatter cannot parse), so the next «1 personas» fails CI instead of reaching testers; and the stragglers it and the past fixes left behind read in the singular.
 
