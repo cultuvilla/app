@@ -4,7 +4,11 @@ import { useGroupChatUnread } from '../useGroupChatUnread';
 
 jest.mock('@cultuvilla/shared/services/groupChatService', () => {
   const { mockWatcher } = jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers');
-  return { watchGroupChatThreads: mockWatcher('threads'), watchMyGroupChatReads: mockWatcher('reads') };
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/groupChatService')>(
+    '@cultuvilla/shared/services/groupChatService',
+    () => ({ watchGroupChatThreads: mockWatcher('threads'), watchMyGroupChatReads: mockWatcher('reads') }),
+  );
 });
 jest.mock('../../firestoreErrorLog', () => ({ reportWatchError: jest.fn(), reportWatchStall: jest.fn() }));
 

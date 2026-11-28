@@ -1,12 +1,19 @@
 import { router } from 'expo-router';
 import { openOwner } from '../ownerRoute';
 import { getOrganization } from '@cultuvilla/shared/services/organizationService';
+import { partialOf } from '../../../test/fakeModule';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({ getOrganization: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+    ),
+);
 
-const push = router.push as jest.Mock;
-const getOrg = getOrganization as jest.Mock;
+const push = jest.mocked(router.push);
+const getOrg = jest.mocked(getOrganization);
 
 describe('openOwner', () => {
   beforeEach(() => {
@@ -25,7 +32,13 @@ describe('openOwner', () => {
   });
 
   it('resolves an organization to its pueblo-first path', async () => {
-    getOrg.mockResolvedValue({ id: 'o1', name: 'Peña El Roble', villageSlug: 'matabuena' });
+    getOrg.mockResolvedValue(
+      partialOf<NonNullable<Awaited<ReturnType<typeof getOrganization>>>>({
+        id: 'o1',
+        name: 'Peña El Roble',
+        villageSlug: 'matabuena',
+      }),
+    );
     await openOwner('organization', 'o1');
     expect(push).toHaveBeenCalledWith('/matabuena/entidad/pena-el-roble_o1');
   });

@@ -1,16 +1,27 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { VillageWrappedStrip } from '../VillageWrappedStrip';
-import { getPublishedVillageWrapped } from '@cultuvilla/shared/services/villageWrappedService';
+import { getPublishedVillageWrapped, type VillageWrapped } from '@cultuvilla/shared/services/villageWrappedService';
+import { partialOf } from '../../../../test/fakeModule';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({ getPublishedVillageWrapped: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/villageWrappedService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageWrappedService')>(
+      '@cultuvilla/shared/services/villageWrappedService',
+    ),
+);
 
-const mockPublished = getPublishedVillageWrapped as jest.Mock;
+const mockPublished = jest.mocked(getPublishedVillageWrapped);
 
 function wrapped(year: number) {
-  return { id: `m1_${String(year)}`, year, images: { cover: 'https://x/cover.png', stats: 'https://x/stats.png' } };
+  return partialOf<VillageWrapped>({
+    id: `m1_${String(year)}`,
+    year,
+    images: { cover: 'https://x/cover.png', stats: 'https://x/stats.png' },
+  });
 }
 
 beforeEach(() => jest.clearAllMocks());
