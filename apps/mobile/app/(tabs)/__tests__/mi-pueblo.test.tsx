@@ -53,8 +53,7 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => {
 });
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
   ensureVillageMembership: jest.fn().mockResolvedValue(undefined),
-  isVillageAdmin: jest.fn().mockResolvedValue(false),
-  getVillageMembers: jest.fn().mockResolvedValue([]),
+  getVillageMemberRole: jest.fn().mockResolvedValue(null),
 }));
 jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
   getMunicipalityPeople: jest.fn().mockResolvedValue([]),

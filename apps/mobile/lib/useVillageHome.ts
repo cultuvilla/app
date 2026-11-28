@@ -4,10 +4,7 @@ import { useAuth } from './auth/useAuth';
 import { useMyOrgIds } from './orgs/useMyOrgIds';
 import { withFirestoreErrorLog } from './firestoreErrorLog';
 import { useWatch, type WatchStatus } from './hooks/useWatch';
-import {
-  isVillageAdmin,
-  getVillageMembers,
-} from '@cultuvilla/shared/services/villageMemberService';
+import { getVillageMemberRole } from '@cultuvilla/shared/services/villageMemberService';
 import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
 import { getMyOrganizerRequests } from '@cultuvilla/shared/services/organizerRequestService';
 import type { FestivalPosterWithId } from '@cultuvilla/shared/services/festivalPosterService';
@@ -263,16 +260,20 @@ function useChrome(municipalityId: string | null, uid: string | null) {
       if (runId.current === myRun) setValue(next);
     };
     try {
-      const [isAdmin, myReqs, members] = await Promise.all([
+      // The viewer's own member doc answers both halves; reading the whole
+      // roster cost a read per villager and let one stale member doc drop a
+      // member to the guest view.
+      const [role, myReqs] = await Promise.all([
         uid
-          ? withFirestoreErrorLog('villageHome:isVillageAdmin', () => isVillageAdmin(municipalityId, uid))
-          : Promise.resolve(false),
+          ? withFirestoreErrorLog('villageHome:getVillageMemberRole', () =>
+              getVillageMemberRole(municipalityId, uid),
+            )
+          : Promise.resolve(null),
         uid
           ? withFirestoreErrorLog('villageHome:getMyOrganizerRequests', () => getMyOrganizerRequests(uid))
           : Promise.resolve([]),
-        withFirestoreErrorLog('villageHome:getVillageMembers', () => getVillageMembers(municipalityId)),
       ]);
-      const isMember = uid != null && members.some((m) => m.userId === uid);
+      const isMember = role !== null;
       // Answers are private (censoAnswers/), so only a member's own are fetched.
       const myCensoAnswers =
         uid != null && isMember
@@ -281,7 +282,7 @@ function useChrome(municipalityId: string | null, uid: string | null) {
             ).catch(() => ({}))
           : {};
       commit({
-        villageAdmin: isAdmin,
+        villageAdmin: role === 'admin',
         isMember,
         membershipKnown: true,
         pendingOrganizerRequest: myReqs.some(
