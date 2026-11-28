@@ -21,6 +21,7 @@ interface MockAuthUser {
   uid: string;
   email: string | null;
   delete?: jest.Mock;
+  getIdToken?: jest.Mock;
 }
 
 let mockAuthUser: MockAuthUser | null = { uid: FAKE_UID, email: 'a@b.com' };
@@ -625,5 +626,98 @@ describe('signOut', () => {
     const [signOutOrder] = (fbSignOut as jest.Mock).mock.invocationCallOrder;
     const [clearOrder] = (clearLocalCacheAndRestart as jest.Mock).mock.invocationCallOrder;
     expect(signOutOrder).toBeLessThan(clearOrder ?? -1);
+  });
+});
+
+describe('a session restored for an account gone elsewhere', () => {
+  const restoredWith = (refresh: jest.Mock): MockAuthUser => ({
+    uid: FAKE_UID,
+    email: 'a@b.com',
+    getIdToken: refresh,
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+    (getUserProfile as jest.Mock).mockResolvedValue({ activeMunicipalityId: 'm1' });
+  });
+
+  it.each([
+    ['auth/user-not-found', 'accountGone'],
+    ['auth/user-disabled', 'accountGone'],
+    ['auth/user-token-expired', 'sessionExpired'],
+  ])('signs the device out on %s and leaves the %s notice', async (code, reason) => {
+    const refresh = jest.fn().mockRejectedValue(Object.assign(new Error(code), { code }));
+    mockAuthUser = restoredWith(refresh);
+    renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(clearLocalCacheAndRestart).toHaveBeenCalledTimes(1));
+    expect(refresh).toHaveBeenCalledWith(true);
+    expect(fbSignOut).toHaveBeenCalledTimes(1);
+    expect(await AsyncStorage.getItem('cultuvilla.orphanedSessionNotice')).toBe(reason);
+    expect(observability.captureError).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'OrphanedSession' }),
+      { operation: 'auth:orphanedSession' },
+    );
+  });
+
+  it('still closes it when the native SDK already signed out by itself', async () => {
+    const refresh = jest.fn().mockImplementation(async () => {
+      mockAuthUser = null;
+      throw Object.assign(new Error('gone'), { code: 'auth/user-not-found' });
+    });
+    mockAuthUser = restoredWith(refresh);
+    renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(clearLocalCacheAndRestart).toHaveBeenCalledTimes(1));
+    expect(await AsyncStorage.getItem('cultuvilla.orphanedSessionNotice')).toBe('accountGone');
+  });
+
+  it('keeps the session of someone who opened the app offline', async () => {
+    const refresh = jest
+      .fn()
+      .mockRejectedValue(Object.assign(new Error('offline'), { code: 'auth/network-request-failed' }));
+    mockAuthUser = restoredWith(refresh);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(result.current.profile).not.toBeNull());
+    await act(async () => undefined);
+    expect(refresh).toHaveBeenCalled();
+    expect(fbSignOut).not.toHaveBeenCalled();
+    expect(await AsyncStorage.getItem('cultuvilla.orphanedSessionNotice')).toBeNull();
+  });
+
+  it('keeps a session that refreshes', async () => {
+    const refresh = jest.fn().mockResolvedValue('token');
+    mockAuthUser = restoredWith(refresh);
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(result.current.profile).not.toBeNull());
+    await act(async () => undefined);
+    expect(refresh).toHaveBeenCalledWith(true);
+    expect(fbSignOut).not.toHaveBeenCalled();
+  });
+
+  it('leaves alone an account that signed in while the check was in flight', async () => {
+    const refresh = jest.fn().mockImplementation(async () => {
+      mockAuthUser = { uid: 'someone-else', email: 'c@d.com' };
+      throw Object.assign(new Error('gone'), { code: 'auth/user-not-found' });
+    });
+    mockAuthUser = restoredWith(refresh);
+    renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(fbSignOut).not.toHaveBeenCalled();
+  });
+
+  it('does not check a sign-in made on this device', async () => {
+    mockAuthUser = null;
+    renderHook(() => useAuth(), { wrapper: AuthProvider });
+    const refresh = jest.fn().mockRejectedValue(Object.assign(new Error('x'), { code: 'auth/user-not-found' }));
+
+    await act(async () => mockAuthListener?.(restoredWith(refresh)));
+
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

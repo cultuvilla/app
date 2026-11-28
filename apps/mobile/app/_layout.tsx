@@ -20,6 +20,7 @@ import { I18nProvider } from '../lib/i18n';
 import { useAuth } from '../lib/auth/useAuth';
 import { resolveAuthRoute, resolveIntentResume } from '../lib/auth/authRoute';
 import { RegisterGateProvider, useRegisterGate } from '../lib/auth/RegisterGateContext';
+import { OrphanedSessionNotice } from '../lib/auth/OrphanedSessionNotice';
 import { GuestActiveVillageProvider } from '../lib/village/GuestActiveVillageContext';
 import { MyRegistrationsProvider } from '../lib/registrations/MyRegistrationsContext';
 import { PushProvider } from '../lib/push/PushProvider';
@@ -75,6 +76,7 @@ function AppTree() {
                           <OfflineBanner />
                           <VillageSync />
                           <CopiedToast />
+                          <OrphanedSessionNotice />
                         </RegisterGateProvider>
                       </PushProvider>
                     </AnalyticsConsentProvider>
