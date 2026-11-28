@@ -17,18 +17,39 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
 jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getBarrio: jest.fn(),
-  updateBarrio: jest.fn(),
-  deleteBarrio: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/moderationService', () => ({
-  hideContent: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getBarrio: jest.fn(),
+        updateBarrio: jest.fn(),
+        deleteBarrio: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/moderationService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/moderationService')>(
+      '@cultuvilla/shared/services/moderationService',
+      () => ({
+        hideContent: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadBarrioImage: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadBarrioImage: jest.fn(),
+      }),
+    ),
+);
 
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
 import { getBarrio, updateBarrio } from '@cultuvilla/shared/services/municipalityService';

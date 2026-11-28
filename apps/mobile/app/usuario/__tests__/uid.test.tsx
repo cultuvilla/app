@@ -29,38 +29,101 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getPublicProfile: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  watchPersonByUserId: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('person'),
-  watchPersonsByCreator: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('personas'),
-  // The screen's own header name.
-  getPersonByUserId: jest.fn().mockResolvedValue(null),
-  updatePerson: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  watchEventsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('events'),
-}));
-jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  watchNewsPostsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('news'),
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  watchOrganizationsByMunicipality: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('villageOrgs'),
-}));
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  watchOrgMembershipsByUser: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('orgMemberships'),
-}));
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  watchUserMemberships: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('memberships'),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  watchMunicipalitiesByIds: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('municipalities'),
-  getVillagesWhereAmbassador: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadUserPhoto: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({
+        getPublicProfile: jest.fn(),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        watchPersonByUserId: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('person'),
+        watchPersonsByCreator: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('personas'),
+        // The screen's own header name.
+        getPersonByUserId: jest.fn().mockResolvedValue(null),
+        updatePerson: jest.fn(),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => ({
+        watchEventsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('events'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/newsService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/newsService')>(
+      '@cultuvilla/shared/services/newsService',
+      () => ({
+        watchNewsPostsByOrganizer: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('news'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+      () => ({
+        watchOrganizationsByMunicipality: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('villageOrgs'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/orgMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>(
+      '@cultuvilla/shared/services/orgMemberService',
+      () => ({
+        watchOrgMembershipsByUser: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('orgMemberships'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        watchUserMemberships: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('memberships'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        watchMunicipalitiesByIds: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('municipalities'),
+        getVillagesWhereAmbassador: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadUserPhoto: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
 jest.mock('../../../lib/firestoreErrorLog', () => ({
   withFirestoreErrorLog: (_label: string, fn: () => unknown) => fn(),

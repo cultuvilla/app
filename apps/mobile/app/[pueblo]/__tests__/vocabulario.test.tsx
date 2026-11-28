@@ -13,10 +13,17 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
-  watchVocabularyTerms: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('terms'),
-  watchVillageVocabularyDefinitions: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('definitions'),
-}));
+jest.mock('@cultuvilla/shared/services/vocabularyService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/vocabularyService')>(
+      '@cultuvilla/shared/services/vocabularyService',
+      () => ({
+        watchVocabularyTerms: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('terms'),
+        watchVillageVocabularyDefinitions: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('definitions'),
+      }),
+    ),
+);
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));

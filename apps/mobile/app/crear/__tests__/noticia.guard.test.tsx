@@ -21,34 +21,55 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
-jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  createNewsPost: jest.fn(),
-  updateNewsPost: jest.fn(),
-  deleteNewsPost: jest.fn(),
-  getNewsPost: jest.fn().mockResolvedValue({
-    id: 'n1',
-    title: 'Gran noticia',
-    category: 'general',
-    municipalityId: 'm-1',
-    villageSlug: 'villa',
-    images: [],
-    coverImage: null,
-    content: [],
-    body: 'Cuerpo',
-    organizerUserIds: ['author'],
-    organizerOrgIds: [],
-    createdBy: 'author',
-    publishedAt: null,
-    createdAt: null,
-    status: 'active',
-  }),
-}));
+jest.mock('@cultuvilla/shared/services/newsService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/newsService')>(
+      '@cultuvilla/shared/services/newsService',
+      () => ({
+        createNewsPost: jest.fn(),
+        updateNewsPost: jest.fn(),
+        deleteNewsPost: jest.fn(),
+        getNewsPost: jest.fn().mockResolvedValue({
+          id: 'n1',
+          title: 'Gran noticia',
+          category: 'general',
+          municipalityId: 'm-1',
+          villageSlug: 'villa',
+          images: [],
+          coverImage: null,
+          content: [],
+          body: 'Cuerpo',
+          organizerUserIds: ['author'],
+          organizerOrgIds: [],
+          createdBy: 'author',
+          publishedAt: null,
+          createdAt: null,
+          status: 'active',
+        }),
+      }),
+    ),
+);
 // Edit mode takes the pueblo slug off the loaded post; it never looks it up.
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({ getVillageSlug: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadNewsImage: jest.fn(),
-  newsImageDownloadURL: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({ getVillageSlug: jest.fn() }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadNewsImage: jest.fn(),
+        newsImageDownloadURL: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../lib/images', () => ({ pickImageWithSize: jest.fn() }));
 jest.mock('../../../lib/useMentionSources', () => ({
   useMentionSources: () => ({ candidates: [], loading: false }),

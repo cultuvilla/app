@@ -13,24 +13,52 @@ jest.mock('expo-router', () => ({
 jest.mock('../../../../lib/auth/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'uid-1' }, profile: mockProfile }),
 }));
-jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
-  requestOrganizeVillage: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  patchUserProfile: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  watchPersonByUserId: jest.fn((_uid: string, _viewer: string, onNext: (p: unknown) => void) => {
-    onNext(mockPerson);
-    return () => {};
-  }),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  watchMunicipality: jest.fn((_id: string, onNext: (m: unknown) => void) => {
-    onNext(mockMunicipality);
-    return () => {};
-  }),
-}));
+jest.mock('@cultuvilla/shared/services/organizerRequestService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizerRequestService')>(
+      '@cultuvilla/shared/services/organizerRequestService',
+      () => ({
+        requestOrganizeVillage: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({
+        patchUserProfile: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        watchPersonByUserId: jest.fn((_uid: string, _viewer: string | null, onNext: (p: never) => void) => {
+          onNext(mockPerson as never);
+          return () => {};
+        }),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        watchMunicipality: jest.fn((_id: string, onNext: (m: never) => void) => {
+          onNext(mockMunicipality as never);
+          return () => {};
+        }),
+      }),
+    ),
+);
 // Thin useCallable so the real submit callable runs and we can assert on the services.
 jest.mock('../../../../lib/useCallable', () => ({
   useCallable: (opts: { callable: (...a: unknown[]) => Promise<unknown>; onSuccess?: (r: unknown) => void }) => ({

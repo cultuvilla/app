@@ -35,55 +35,118 @@ jest.mock('expo-router', () => {
 
 const mockGetOpenReports = jest.fn();
 const mockGetReportsByMunicipality = jest.fn();
-jest.mock('@cultuvilla/shared/services/contentReportService', () => ({
-  getOpenReports: () => mockGetOpenReports(),
-  getReportsByMunicipality: (id: string, options: unknown) => mockGetReportsByMunicipality(id, options),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: async (id: string) =>
-    ({ m1: { name: 'Anaya', slug: 'anaya' }, m2: { name: 'Pedraza', slug: 'pedraza' } })[id] ?? null,
-}));
+jest.mock('@cultuvilla/shared/services/contentReportService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/contentReportService')>(
+      '@cultuvilla/shared/services/contentReportService',
+      () => ({
+        getOpenReports: () => mockGetOpenReports(),
+        getReportsByMunicipality: (id: string, options: unknown) => mockGetReportsByMunicipality(id, options),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getMunicipality: async (id: string) =>
+          (({ m1: { name: 'Anaya', slug: 'anaya' }, m2: { name: 'Pedraza', slug: 'pedraza' } })[id] ?? null) as never,
+      }),
+    ),
+);
 let mockPendingOrganizer: unknown[] = [];
 let mockPendingOrgs: unknown[] = [];
-jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
-  getPendingOrganizerRequests: async () => mockPendingOrganizer,
-  respondToOrganizerRequest: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({ getPersonByUserId: async () => null }));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getPendingOrganizations: async () => mockPendingOrgs,
-  getOrganizationsByMunicipality: async () => [],
-  getOrganization: async () => null,
-  approveOrganization: jest.fn(),
-  rejectOrganization: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/notificationService', () => ({
-  getNotifications: async () => [],
-  markAllAsRead: async () => undefined,
-}));
+jest.mock('@cultuvilla/shared/services/organizerRequestService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizerRequestService')>(
+      '@cultuvilla/shared/services/organizerRequestService',
+      () => ({
+        getPendingOrganizerRequests: async () => mockPendingOrganizer as never,
+        respondToOrganizerRequest: jest.fn(),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({ getPersonByUserId: async () => null }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+      () => ({
+        getPendingOrganizations: async () => mockPendingOrgs as never,
+        getOrganizationsByMunicipality: async () => [],
+        getOrganization: async () => null,
+        approveOrganization: jest.fn(),
+        rejectOrganization: jest.fn(),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/notificationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/notificationService')>(
+      '@cultuvilla/shared/services/notificationService',
+      () => ({
+        getNotifications: async () => [],
+        markAllAsRead: async () => undefined,
+      }),
+    ),
+);
 let mockActivity: unknown[] = [];
 // The actionable queues come from the real getActionableRequests, over the
 // service mocks above and below.
-jest.mock('@cultuvilla/shared/services/inboxService', () => ({
-  ...jest.requireActual('@cultuvilla/shared/services/inboxService'),
-  getMyPendingRequests: async () => [],
-  buildActivityFeed: () => mockActivity,
-}));
+jest.mock('@cultuvilla/shared/services/inboxService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/inboxService')>(
+      '@cultuvilla/shared/services/inboxService',
+      () => ({
+        ...jest.requireActual('@cultuvilla/shared/services/inboxService'),
+        getMyPendingRequests: async () => [],
+        buildActivityFeed: () => mockActivity as never,
+      }),
+    ),
+);
 let mockGroups: { org: { id: string }; role: string }[] = [];
 jest.mock('../../../lib/orgs/useMyGroups', () => ({ useMyGroups: () => ({ groups: mockGroups, status: 'ready' }) }));
 let mockCosaRows: unknown[] = [];
 const mockWatchCosaRequestsToAnswer = jest.fn();
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
-  watchCosaRequestsToAnswer: (uid: string, orgIds: string[], onNext: (rows: unknown[]) => void) => {
-    mockWatchCosaRequestsToAnswer(uid, orgIds);
-    onNext(mockCosaRows);
-    return () => undefined;
-  },
-}));
-jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
-  getPendingOrgJoinRequests: async () => [],
-  respondToOrgJoinRequest: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>(
+      '@cultuvilla/shared/services/cosatecaService',
+      () => ({
+        watchCosaRequestsToAnswer: (uid: string, orgIds: readonly string[], onNext: (rows: never[]) => void) => {
+          mockWatchCosaRequestsToAnswer(uid, orgIds);
+          onNext(mockCosaRows as never[]);
+          return () => undefined;
+        },
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgJoinRequestService')>(
+      '@cultuvilla/shared/services/orgJoinRequestService',
+      () => ({
+        getPendingOrgJoinRequests: async () => [],
+        respondToOrgJoinRequest: jest.fn(),
+      }),
+    ),
+);
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),

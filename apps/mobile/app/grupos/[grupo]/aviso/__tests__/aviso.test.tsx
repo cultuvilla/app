@@ -14,13 +14,27 @@ jest.mock('../../../../../lib/orgs/useMyGroups', () => ({ useMyGroups: () => ({ 
 jest.mock('../../../../../lib/orgs/useMyMessageValues', () => ({
   useMyMessageValues: () => ({ nombre: 'Ana', numero: null, cuotaCents: null }),
 }));
-jest.mock('@cultuvilla/shared/services/groupChatService', () => {
-  const { mockWatcher } = jest.requireActual<typeof import('../../../../../test/watchers')>('../../../../../test/watchers');
-  return { watchGroupAviso: mockWatcher('aviso') };
-});
+jest.mock('@cultuvilla/shared/services/groupChatService', () =>
+  jest
+    .requireActual<typeof import('../../../../../test/fakeModule')>('../../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupChatService')>(
+      '@cultuvilla/shared/services/groupChatService',
+      () => {
+        const { mockWatcher } = jest.requireActual<typeof import('../../../../../test/watchers')>('../../../../../test/watchers');
+        return { watchGroupAviso: mockWatcher('aviso') };
+      },
+    ),
+);
 let mockNotices = { notices: [] as { id: string; sentBy: string }[], readIds: new Set<string>(), readsStatus: 'ready' };
 jest.mock('../../../../../lib/orgs/useGroupNotices', () => ({ useGroupNotices: () => mockNotices }));
-jest.mock('@cultuvilla/shared/services/groupMessageService', () => ({ markGroupMessageRead: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/groupMessageService', () =>
+  jest
+    .requireActual<typeof import('../../../../../test/fakeModule')>('../../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupMessageService')>(
+      '@cultuvilla/shared/services/groupMessageService',
+      () => ({ markGroupMessageRead: jest.fn().mockResolvedValue(undefined) }),
+    ),
+);
 const mockChatProps = jest.fn();
 jest.mock('../../../../../components/feature/groups/GroupChat', () => {
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');

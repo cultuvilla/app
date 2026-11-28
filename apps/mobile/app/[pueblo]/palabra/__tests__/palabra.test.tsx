@@ -41,19 +41,33 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => {
     }),
   };
 });
-jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
-  watchVocabularyTerm: jest
-    .requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers')
-    .mockWatcher('term'),
-  watchVocabularyDefinitions: jest
-    .requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers')
-    .mockWatcher('definitions'),
-  deleteVocabularyDefinition: jest.fn(),
-  deleteVocabularyTerm: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({
-  recordEntityView: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/vocabularyService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/vocabularyService')>(
+      '@cultuvilla/shared/services/vocabularyService',
+      () => ({
+        watchVocabularyTerm: jest
+          .requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers')
+          .mockWatcher('term'),
+        watchVocabularyDefinitions: jest
+          .requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers')
+          .mockWatcher('definitions'),
+        deleteVocabularyDefinition: jest.fn(),
+        deleteVocabularyTerm: jest.fn(),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>(
+      '@cultuvilla/shared/services/commentsService',
+      () => ({
+        recordEntityView: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
 jest.mock('../../../../components/feature/EntityContributors', () => ({ EntityContributors: () => null }));
 jest.mock('../../../../components/feature/vocabulary/OtherVillagesSaying', () => ({

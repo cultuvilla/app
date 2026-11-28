@@ -19,9 +19,16 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({ useEntityCapabilities: jest.fn() }));
 jest.mock('../../../lib/auth/useIsAppAdmin', () => ({ useIsAppAdmin: () => ({ isAppAdmin: false, loading: false }) }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  isVillageMember: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        isVillageMember: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../components/feature/MembersList', () => ({
   MembersList: () => {
     const { Text } = require('react-native');

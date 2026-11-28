@@ -22,11 +22,18 @@ jest.mock('../../../lib/auth/useAuth', () => ({
 
 const mockCheckAccountDeletable = jest.fn();
 const mockDeleteAccount = jest.fn();
-jest.mock('@cultuvilla/shared/services/accountService', () => ({
-  checkAccountDeletable: (...args: unknown[]) => mockCheckAccountDeletable(...args),
-  deleteAccount: (...args: unknown[]) => mockDeleteAccount(...args),
-  isReauthRequiredError: (e: unknown) => (e as { reauth?: boolean } | null)?.reauth === true,
-}));
+jest.mock('@cultuvilla/shared/services/accountService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/accountService')>(
+      '@cultuvilla/shared/services/accountService',
+      () => ({
+        checkAccountDeletable: (...args: unknown[]) => mockCheckAccountDeletable(...args),
+        deleteAccount: (...args: unknown[]) => mockDeleteAccount(...args),
+        isReauthRequiredError: (e: unknown) => (e as { reauth?: boolean } | null)?.reauth === true,
+      }),
+    ),
+);
 jest.mock('../../../lib/auth/reportAuthError', () => ({
   reportAuthError: jest.fn(),
   isCancelledAuthError: (e: unknown) => (e as { code?: string } | null)?.code === 'auth/cancelled',

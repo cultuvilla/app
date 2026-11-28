@@ -210,7 +210,7 @@ describe('app lint gate: hand-written service factories', () => {
   const ratchet = mobile.HAND_WRITTEN_FACTORY_RATCHET ?? {};
 
   // Lower this with every file you convert; it may never go up.
-  const CEILING = 341;
+  const CEILING = 189;
 
   it.each([
     ['an object factory', `jest.mock('${SERVICE}', () => ({ getOrganization: jest.fn() }));\n`],
@@ -237,9 +237,9 @@ describe('app lint gate: hand-written service factories', () => {
   });
 
   it('keeps the bare error-code ban on the files the ratchet exempts', async () => {
-    // A bracketed Expo Router path, so the glob escaping is exercised too.
-    const file = Object.keys(ratchet).find((path) => path.includes('['));
-    if (!file) throw new Error('expected a bracketed path in the ratchet');
+    // A bracketed Expo Router path while one is left, so the glob escaping is exercised too.
+    const file = Object.keys(ratchet).find((path) => path.includes('[')) ?? Object.keys(ratchet)[0];
+    if (!file) throw new Error('expected a file in the ratchet');
     expect(await lint('mobile', file, `jest.mock('${SERVICE}', () => ({}));\n`)).toEqual([]);
     expect(await lint('mobile', file, "declare const e: { code: string };\nif (e.code === 'permission-denied') {}\n")).toEqual([BAN]);
   });

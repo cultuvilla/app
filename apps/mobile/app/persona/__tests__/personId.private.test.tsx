@@ -6,15 +6,29 @@ import PersonDetailScreen from '../[personId]';
 // the 404 branch would tell a neighbour the person doesn't exist, when the
 // village roster is listing them by name two screens away.
 
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  createPerson: jest.fn(),
-  getPerson: jest.fn(),
-  updatePerson: jest.fn(),
-  deletePerson: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadUserPhoto: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        createPerson: jest.fn(),
+        getPerson: jest.fn(),
+        updatePerson: jest.fn(),
+        deletePerson: jest.fn(),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadUserPhoto: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../lib/auth/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'uid-2', email: 'b@b.test', displayName: null } }),
 }));

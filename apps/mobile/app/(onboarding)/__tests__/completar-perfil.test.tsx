@@ -6,29 +6,71 @@ jest.mock('@cultuvilla/shared', () => ({
   ...jest.requireActual('@cultuvilla/shared'),
   observability: { trackEvent: jest.fn() },
 }));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  createPerson: jest.fn().mockResolvedValue('person-1'),
-  updatePerson: jest.fn().mockResolvedValue(undefined),
-  getPersonByUserId: jest.fn().mockResolvedValue(null),
-  updateResidenceBarrio: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  createUserProfile: jest.fn().mockResolvedValue(undefined),
-  patchUserProfile: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  ensureVillageMembership: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/occupationService', () => ({
-  recordOccupation: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadUserPhoto: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: jest.fn().mockResolvedValue(null),
-  getBarrios: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        createPerson: jest.fn().mockResolvedValue('person-1'),
+        updatePerson: jest.fn().mockResolvedValue(undefined),
+        getPersonByUserId: jest.fn().mockResolvedValue(null),
+        updateResidenceBarrio: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({
+        createUserProfile: jest.fn().mockResolvedValue(undefined),
+        patchUserProfile: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        ensureVillageMembership: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/occupationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/occupationService')>(
+      '@cultuvilla/shared/services/occupationService',
+      () => ({
+        recordOccupation: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadUserPhoto: jest.fn(),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getMunicipality: jest.fn().mockResolvedValue(null),
+        getBarrios: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
 jest.mock('../../../lib/auth/pendingVillage', () => ({
   readPendingVillage: jest.fn().mockResolvedValue(null),
   clearPendingVillage: jest.fn().mockResolvedValue(undefined),

@@ -18,11 +18,18 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ grupo: 'Anduela', tarea: 't1' }),
   Redirect: (props: { href: string }) => mockRedirect(props),
 }));
-jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
-  setGroupTaskDone: jest.fn().mockResolvedValue(undefined),
-  deleteGroupTask: jest.fn().mockResolvedValue(undefined),
-  watchGroupTask: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupTaskService')>(
+      '@cultuvilla/shared/services/groupTaskService',
+      () => ({
+        setGroupTaskDone: jest.fn().mockResolvedValue(undefined),
+        deleteGroupTask: jest.fn().mockResolvedValue(undefined),
+        watchGroupTask: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../lib/auth/useAuth', () => ({ useAuth: () => ({ user: { uid: 'u1' } }) }));
 jest.mock('../../../lib/orgs/useMyGroups', () => ({ useMyGroups: () => ({ groups: mockGroups, status: 'ready' }) }));

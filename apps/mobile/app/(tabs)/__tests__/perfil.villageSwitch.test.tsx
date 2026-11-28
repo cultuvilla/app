@@ -24,9 +24,16 @@ jest.mock('../../../lib/auth/useAuth', () => ({
   }),
 }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ t: (k: string) => k }) }));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  setActiveMunicipality: jest.fn(() => new Promise(() => {})),
-}));
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({
+        setActiveMunicipality: jest.fn(() => new Promise(() => {})),
+      }),
+    ),
+);
 jest.mock('../../../components/layout/AppHeader', () => ({ AppHeader: () => null }));
 
 let mockOnSelectVillage: ((id: string) => unknown) | undefined;
