@@ -12,7 +12,7 @@
  *              Manager names, Auth configuration, Artifact Registry
  *              cleanup policies, and every data store with its retention
  *              (Firestore databases and backup schedules, Storage buckets,
- *              Cloud Logging buckets and sinks). It must equal the
+ *              Cloud Logging buckets and sinks, BigQuery datasets). It must equal the
  *              committed baseline (infra/env-parity.json) plus that env's
  *              declared exceptions, each of which carries its reason. Every
  *              env is checked against the same baseline, so passing here
@@ -461,6 +461,25 @@ export function logSinkLine(sink) {
   return `log-sink ${sink.name} -> ${sink.destination} filter=${sink.filter ? sha(sink.filter) : 'none'}${state}`;
 }
 
+/** `86400000` ms → `1d`; absent means tables never expire. */
+function msText(ms) {
+  return ms == null ? 'none' : durationText(`${Math.round(Number(ms) / 1000)}s`);
+}
+
+/**
+ * A BigQuery dataset: where it lives and how long its tables, partitions and
+ * time-travel history are kept. The list call (no `all=true`) leaves out the
+ * hidden `_…` datasets BigQuery makes for anonymous query results.
+ */
+export function bigQueryDatasetLine(dataset) {
+  return (
+    `bigquery-dataset ${dataset.datasetReference?.datasetId} ${dataset.location}` +
+    ` tableExpiration=${msText(dataset.defaultTableExpirationMs)}` +
+    ` partitionExpiration=${msText(dataset.defaultPartitionExpirationMs)}` +
+    ` timeTravel=${dataset.maxTimeTravelHours ? `${dataset.maxTimeTravelHours}h` : 'default'}`
+  );
+}
+
 export async function dataStoreLines(api, project) {
   const databases = await paged(api, `https://firestore.googleapis.com/v1/projects/${project}/databases`, 'databases');
   const lines = [];
@@ -478,6 +497,13 @@ export async function dataStoreLines(api, project) {
   lines.push(...logBuckets.filter((b) => b.lifecycleState !== 'DELETE_REQUESTED').map(logBucketLine));
   const sinks = await paged(api, `https://logging.googleapis.com/v2/projects/${project}/sinks?pageSize=100`, 'sinks');
   lines.push(...sinks.map(logSinkLine));
+  // Listing gives no retention, so each dataset is read too (needs
+  // roles/bigquery.metadataViewer, granted by setup-ci-deploy-wif.sh).
+  const datasets = await paged(api, `https://bigquery.googleapis.com/bigquery/v2/projects/${project}/datasets?maxResults=100`, 'datasets');
+  for (const d of datasets) {
+    const id = d.datasetReference.datasetId;
+    lines.push(bigQueryDatasetLine(await api(`https://bigquery.googleapis.com/bigquery/v2/projects/${project}/datasets/${encodeURIComponent(id)}`)));
+  }
   return lines.sort();
 }
 
@@ -698,8 +724,8 @@ export async function checkEnv(env, scope, baseline, api, { readFile, alsoBaseli
 function permissionHint(err) {
   if (err?.status !== 403) return '';
   return (
-    '\n  The reader needs roles/iam.securityReviewer and roles/serviceusage.serviceUsageViewer' +
-    '\n  on the project (scripts/setup-ci-deploy-wif.sh grants both to gha-deployer).'
+    '\n  The reader needs roles/iam.securityReviewer, roles/serviceusage.serviceUsageViewer and' +
+    '\n  roles/bigquery.metadataViewer on the project (scripts/setup-ci-deploy-wif.sh grants them to gha-deployer).'
   );
 }
 

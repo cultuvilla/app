@@ -46,6 +46,14 @@ const pages = (key: string, first: unknown[], second: unknown[]) => (url: string
   url.includes('pageToken=p2') ? { [key]: second } : { [key]: first, nextPageToken: 'p2' };
 
 const configRoutes = (over: Partial<Record<string, unknown>> = {}): Route[] => [
+  [/bigquery.*\/datasets\?/, pages('datasets', [{ datasetReference: { datasetId: 'analytics_1' }, location: 'europe-west1' }], [
+    { datasetReference: { datasetId: 'scratch' }, location: 'EU' },
+  ])],
+  [/bigquery.*\/datasets\/analytics_1$/, () => ({ datasetReference: { datasetId: 'analytics_1' }, location: 'europe-west1', maxTimeTravelHours: '168' })],
+  [/bigquery.*\/datasets\/scratch$/, () => ({
+    datasetReference: { datasetId: 'scratch' }, location: 'EU',
+    defaultTableExpirationMs: '86400000', defaultPartitionExpirationMs: '5400000', maxTimeTravelHours: '48',
+  })],
   [/cloudresourcemanager.*projects\/cultuvilla-beta$/, () => ({ projectNumber: NUMBER })],
   [/:getIamPolicy$/, () => over.iam ?? {
     bindings: [
@@ -132,6 +140,8 @@ const EXPECTED = {
     'us-east1/web none',
   ],
   dataStores: [
+    'bigquery-dataset analytics_1 europe-west1 tableExpiration=none partitionExpiration=none timeTravel=168h',
+    'bigquery-dataset scratch EU tableExpiration=1d partitionExpiration=5400s timeTravel=48h',
     'firestore-backup (default) daily retention=7d',
     'firestore-backup (default) weekly:SUNDAY retention=98d',
     'firestore-database (default) europe-southwest1',
