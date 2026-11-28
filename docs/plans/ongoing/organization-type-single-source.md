@@ -2,6 +2,10 @@
 
 **Priority:** low — no defect has come from it yet; the cost shows up when a type is added, as `comisión` showed (two commits, seventeen files, thirteen of them code or tests)
 
+**Landed:** none
+**Gate:** none
+**Next:** add the parity test for the rules and backfill type lists, then the display helpers in OrganizationDataModel.ts
+
 **Goal:** keep the organization-type facts the app, the read site, the rules and one backfill each copy in one place in `packages/shared`, with a test that fails when `firestore.rules` disagrees. Then the next type is one enum edit plus whatever the tests name, not a hunt through the code.
 
 ## Context
