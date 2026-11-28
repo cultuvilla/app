@@ -26,19 +26,40 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  createNewsPost: jest.fn(),
-  updateNewsPost: jest.fn(),
-  getNewsPost: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/newsService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/newsService')>(
+      '@cultuvilla/shared/services/newsService',
+      () => ({
+        createNewsPost: jest.fn(),
+        updateNewsPost: jest.fn(),
+        getNewsPost: jest.fn(),
+      }),
+    ),
+);
 // Create mode resolves the target pueblo's slug to build the article's URL.
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getVillageSlug: jest.fn().mockResolvedValue('villa'),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadNewsImage: jest.fn(),
-  newsImageDownloadURL: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getVillageSlug: jest.fn().mockResolvedValue('villa'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadNewsImage: jest.fn(),
+        newsImageDownloadURL: jest.fn(),
+      }),
+    ),
+);
 // The block editor / cover pick images through this helper (which internally
 // reads via lib/images.uriToBlob — covered by lib/__tests__/images.test.ts).
 jest.mock('../../../lib/images', () => ({

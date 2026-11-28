@@ -38,86 +38,191 @@ jest.mock('../../../lib/push/PushProvider', () => ({
     requestPermission: jest.fn(),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => {
-  const getMunicipality = jest.fn();
-  const getBarrios = jest.fn().mockResolvedValue([]);
-  const getPlaces = jest.fn().mockResolvedValue([]);
-  return {
-    getMunicipality,
-    getBarrios,
-    getPlaces,
-    watchMunicipality: mockWatchFrom(getMunicipality),
-    watchBarrios: mockWatchFrom(getBarrios),
-    watchPlaces: mockWatchFrom(getPlaces),
-  };
-});
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  ensureVillageMembership: jest.fn().mockResolvedValue(undefined),
-  getVillageMemberRole: jest.fn().mockResolvedValue(null),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
-  getMunicipalityPeople: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => {
-  const getOrganizationsByMunicipality = jest.fn().mockResolvedValue([]);
-  return {
-    getOrganizationsByMunicipality,
-    watchOrganizationsByMunicipality: mockWatchFrom(getOrganizationsByMunicipality),
-  };
-});
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  getUserOrgIds: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn().mockResolvedValue(null),
-}));
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: jest.fn().mockResolvedValue(null),
-  getPublicProfile: jest.fn().mockResolvedValue(null),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => {
+        const getMunicipality = jest.fn();
+        const getBarrios = jest.fn().mockResolvedValue([]);
+        const getPlaces = jest.fn().mockResolvedValue([]);
+        return {
+          getMunicipality,
+          getBarrios,
+          getPlaces,
+          watchMunicipality: mockWatchFrom(getMunicipality),
+          watchBarrios: mockWatchFrom(getBarrios),
+          watchPlaces: mockWatchFrom(getPlaces),
+        };
+      },
+    ),
+);
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        ensureVillageMembership: jest.fn().mockResolvedValue(undefined),
+        getVillageMemberRole: jest.fn().mockResolvedValue(null),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityPersonService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityPersonService')>(
+      '@cultuvilla/shared/services/municipalityPersonService',
+      () => ({
+        getMunicipalityPeople: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+      () => {
+        const getOrganizationsByMunicipality = jest.fn().mockResolvedValue([]);
+        return {
+          getOrganizationsByMunicipality,
+          watchOrganizationsByMunicipality: mockWatchFrom(getOrganizationsByMunicipality),
+        };
+      },
+    ),
+);
+jest.mock('@cultuvilla/shared/services/orgMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>(
+      '@cultuvilla/shared/services/orgMemberService',
+      () => ({
+        getUserOrgIds: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        getPersonByUserId: jest.fn().mockResolvedValue(null),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({
+        getUserProfile: jest.fn().mockResolvedValue(null),
+        getPublicProfile: jest.fn().mockResolvedValue(null),
+      }),
+    ),
+);
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/eventService', () => {
-  const getEventsByMunicipality = jest.fn().mockResolvedValue([]);
-  const getPrivateEventsByMunicipality = jest.fn().mockResolvedValue([]);
-  return {
-    getEventsByMunicipality,
-    getPrivateEventsByMunicipality,
-    watchEventsByMunicipality: mockWatchFrom(getEventsByMunicipality),
-    watchPrivateEventsByMunicipality: mockWatchFrom(getPrivateEventsByMunicipality),
-  };
-});
-jest.mock('@cultuvilla/shared/services/newsService', () => {
-  const getHomeFeed = jest.fn().mockResolvedValue([]);
-  return { getHomeFeed, watchHomeFeed: mockWatchFrom(getHomeFeed) };
-});
-jest.mock('@cultuvilla/shared/services/festivalPosterService', () => {
-  const getFestivalPosters = jest.fn().mockResolvedValue([]);
-  return { getFestivalPosters, watchFestivalPosters: mockWatchFrom(getFestivalPosters) };
-});
-jest.mock('@cultuvilla/shared/services/villageRankingService', () => ({
-  watchRankedVillages: (next: (rows: unknown[]) => void) => {
-    next([]);
-    return () => undefined;
-  },
-}));
-jest.mock('@cultuvilla/shared/services/historyService', () => ({
-  watchHistoryEntries: mockWatchFrom(() => []),
-}));
-jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
-  watchVocabularyTerms: mockWatchFrom(() => []),
-  watchVocabularyDefinitions: mockWatchFrom(() => []),
-}));
-jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
-  getMyOrganizerRequests: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => {
+        const getEventsByMunicipality = jest.fn().mockResolvedValue([]);
+        const getPrivateEventsByMunicipality = jest.fn().mockResolvedValue([]);
+        return {
+          getEventsByMunicipality,
+          getPrivateEventsByMunicipality,
+          watchEventsByMunicipality: mockWatchFrom(getEventsByMunicipality),
+          watchPrivateEventsByMunicipality: mockWatchFrom(getPrivateEventsByMunicipality),
+        };
+      },
+    ),
+);
+jest.mock('@cultuvilla/shared/services/newsService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/newsService')>(
+      '@cultuvilla/shared/services/newsService',
+      () => {
+        const getHomeFeed = jest.fn().mockResolvedValue([]);
+        return { getHomeFeed, watchHomeFeed: mockWatchFrom(getHomeFeed) };
+      },
+    ),
+);
+jest.mock('@cultuvilla/shared/services/festivalPosterService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/festivalPosterService')>(
+      '@cultuvilla/shared/services/festivalPosterService',
+      () => {
+        const getFestivalPosters = jest.fn().mockResolvedValue([]);
+        return { getFestivalPosters, watchFestivalPosters: mockWatchFrom(getFestivalPosters) };
+      },
+    ),
+);
+jest.mock('@cultuvilla/shared/services/villageRankingService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageRankingService')>(
+      '@cultuvilla/shared/services/villageRankingService',
+      () => ({
+        watchRankedVillages: (next: (rows: never[]) => void) => {
+          next([]);
+          return () => undefined;
+        },
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/historyService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/historyService')>(
+      '@cultuvilla/shared/services/historyService',
+      () => ({
+        watchHistoryEntries: mockWatchFrom(() => []),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/vocabularyService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/vocabularyService')>(
+      '@cultuvilla/shared/services/vocabularyService',
+      () => ({
+        watchVocabularyTerms: mockWatchFrom(() => []),
+        watchVocabularyDefinitions: mockWatchFrom(() => []),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/organizerRequestService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizerRequestService')>(
+      '@cultuvilla/shared/services/organizerRequestService',
+      () => ({
+        getMyOrganizerRequests: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
 // The fiestas card watches its own data; FiestasHomeCard's own tests cover it.
 jest.mock('../../../components/feature/fiestas/FiestasHomeCard', () => ({ FiestasHomeCard: () => null }));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getVillageViewLink: jest.fn().mockReturnValue('https://example.test'),
-}));
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getVillageViewLink: jest.fn().mockReturnValue('https://example.test'),
+      }),
+    ),
+);
 jest.mock('../../../lib/deeplink/useShareDeepLink', () => ({
   useShareDeepLink: () => jest.fn(),
 }));

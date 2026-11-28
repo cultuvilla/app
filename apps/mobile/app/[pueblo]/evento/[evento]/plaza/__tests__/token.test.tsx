@@ -22,21 +22,49 @@ jest.mock('../../../../../../lib/auth/useAuth', () => ({ useAuth: () => mockAuth
 jest.mock('../../../../../../lib/auth/RegisterGateContext', () => ({
   useRegisterGate: () => ({ requireAuth: jest.fn() }),
 }));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  getEvent: jest.fn().mockResolvedValue({
-    id: 'ev1',
-    title: 'Concurso de parejas',
-    startDate: new Date('2026-08-15T18:00:00Z'),
-    signupGroupSize: 2,
-    telephoneRequired: true,
-    signupFields: [],
-  }),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn().mockResolvedValue({ id: 'p1', name: 'Ana', middleNames: [], surname1: 'García', surname2: null, nickname: null }),
-}));
-jest.mock('@cultuvilla/shared/services/registrationService', () => ({ claimEventSeat: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/userService', () => ({ patchUserProfile: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../../../../test/fakeModule')>('../../../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => ({
+        getEvent: jest.fn().mockResolvedValue({
+          id: 'ev1',
+          title: 'Concurso de parejas',
+          startDate: new Date('2026-08-15T18:00:00Z'),
+          signupGroupSize: 2,
+          telephoneRequired: true,
+          signupFields: [],
+        }),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../../../../test/fakeModule')>('../../../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        getPersonByUserId: jest.fn().mockResolvedValue({ id: 'p1', name: 'Ana', middleNames: [], surname1: 'García', surname2: null, nickname: null }),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/registrationService', () =>
+  jest
+    .requireActual<typeof import('../../../../../../test/fakeModule')>('../../../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/registrationService')>(
+      '@cultuvilla/shared/services/registrationService',
+      () => ({ claimEventSeat: jest.fn() }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/userService', () =>
+  jest
+    .requireActual<typeof import('../../../../../../test/fakeModule')>('../../../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+      '@cultuvilla/shared/services/userService',
+      () => ({ patchUserProfile: jest.fn() }),
+    ),
+);
 
 const mockClaim = claimEventSeat as jest.Mock;
 const mockPatch = patchUserProfile as jest.Mock;

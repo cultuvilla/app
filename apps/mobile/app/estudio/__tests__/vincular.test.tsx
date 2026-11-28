@@ -17,10 +17,17 @@ const mockRequireAuth = jest.fn();
 jest.mock('../../../lib/auth/RegisterGateContext', () => ({
   useRegisterGate: () => ({ requireAuth: mockRequireAuth }),
 }));
-jest.mock('@cultuvilla/shared/services/studioService', () => ({
-  inspectStudioPairing: jest.fn(),
-  approveStudioPairing: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/studioService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/studioService')>(
+      '@cultuvilla/shared/services/studioService',
+      () => ({
+        inspectStudioPairing: jest.fn(),
+        approveStudioPairing: jest.fn(),
+      }),
+    ),
+);
 
 const inspect = inspectStudioPairing as jest.Mock;
 const approve = approveStudioPairing as jest.Mock;

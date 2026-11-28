@@ -43,44 +43,91 @@ jest.mock('../../../lib/fiestas/useVillageFiestas', () => ({ useVillageFiestas: 
 jest.mock('../../../lib/dialogs', () => ({ showConfirm: jest.fn() }));
 
 // The event's village now comes from the user's joined villages.
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: jest.fn().mockResolvedValue([
-    { municipalityId: 'm-1', role: 'user', joinedAt: new Date(), profileCompletedAt: null },
-  ]),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getMunicipality: jest.fn().mockResolvedValue({
-    id: 'm-1', slug: 'pueblo', name: 'Pueblo', province: 'Prov', coordinates: { lat: 1, lng: 2 },
-  }),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+      '@cultuvilla/shared/services/villageMemberService',
+      () => ({
+        getUserMemberships: jest.fn().mockResolvedValue([
+          { municipalityId: 'm-1', role: 'user', joinedAt: new Date(), profileCompletedAt: null },
+        ]),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getMunicipality: jest.fn().mockResolvedValue({
+          id: 'm-1', slug: 'pueblo', name: 'Pueblo', province: 'Prov', coordinates: { lat: 1, lng: 2 },
+        }),
+      }),
+    ),
+);
 jest.mock('@cultuvilla/shared/models/municipality', () => ({
   escudoThumbDisplayUrl: () => null,
 }));
-jest.mock('@cultuvilla/shared/services/feedService', () => ({
-  haversineKm: () => 0,
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-}));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  createEvent: jest.fn().mockResolvedValue('e-1'),
-  createEventSeries: jest.fn().mockResolvedValue(['s-0', 's-1', 's-2']),
-  setEventsImage: jest.fn(),
-  cancelSeriesFrom: jest.fn().mockResolvedValue(2),
-  updateEventStatus: jest.fn().mockResolvedValue(undefined),
-  updateEvent: jest.fn(),
-  getEvent: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/feedService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/feedService')>(
+      '@cultuvilla/shared/services/feedService',
+      () => ({
+        haversineKm: () => 0,
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+    ),
+);
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => ({
+        createEvent: jest.fn().mockResolvedValue('e-1'),
+        createEventSeries: jest.fn().mockResolvedValue(['s-0', 's-1', 's-2']),
+        setEventsImage: jest.fn(),
+        cancelSeriesFrom: jest.fn().mockResolvedValue(2),
+        updateEventStatus: jest.fn().mockResolvedValue(undefined),
+        updateEvent: jest.fn(),
+        getEvent: jest.fn(),
+      }),
+    ),
+);
 // The groups the creator administers decide whether a checklist is offered.
 const mockMyGroups: { current: { org: { id: string; name: string }; role: 'admin' | 'member' }[] } = { current: [] };
 jest.mock('../../../lib/orgs/useMyGroups', () => ({
   useMyGroups: () => ({ groups: mockMyGroups.current, status: 'ready' }),
 }));
-jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({
-  createGroupTasks: jest.fn().mockResolvedValue(['t-1']),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadEventImage: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupTaskService')>(
+      '@cultuvilla/shared/services/groupTaskService',
+      () => ({
+        createGroupTasks: jest.fn().mockResolvedValue(['t-1']),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadEventImage: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: () => ({
     canManage: true,

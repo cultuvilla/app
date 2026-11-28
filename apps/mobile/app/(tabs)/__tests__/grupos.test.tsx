@@ -55,15 +55,36 @@ jest.mock('../../../lib/hooks/useWatch', () => ({
     error: null,
   }),
 }));
-jest.mock('@cultuvilla/shared/services/groupTaskService', () => ({ watchOpenGroupTasks: jest.fn(), watchGroupTasksDoneSince: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/groupTaskService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupTaskService')>(
+      '@cultuvilla/shared/services/groupTaskService',
+      () => ({ watchOpenGroupTasks: jest.fn(), watchGroupTasksDoneSince: jest.fn() }),
+    ),
+);
 jest.mock('../../../lib/orgs/useOrgMembers', () => ({
   useMemberFaces: () => ({ a1: { name: 'Ana', photoURL: null }, a2: { name: 'Blas', photoURL: null } }),
 }));
 const NO_CUOTA = { cuota: null, periodKey: null as string | null, rows: [] as { id: string; kind: string }[], payments: [], statuses: [] as { socioId: string; status: string }[], settled: true };
 let mockCuota = NO_CUOTA;
 jest.mock('../../../lib/orgs/useMyCuota', () => ({ useMyCuota: () => mockCuota }));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({ watchEventsByOrganization: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/socioService', () => ({ watchOrgSocios: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => ({ watchEventsByOrganization: jest.fn() }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/socioService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/socioService')>(
+      '@cultuvilla/shared/services/socioService',
+      () => ({ watchOrgSocios: jest.fn() }),
+    ),
+);
 const mockPush = jest.fn();
 const mockSetParams = jest.fn();
 let mockParams: { grupo?: string; aviso?: string } = {};

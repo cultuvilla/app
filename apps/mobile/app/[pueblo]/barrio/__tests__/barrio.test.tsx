@@ -26,15 +26,50 @@ jest.mock('../../../../lib/useOwnerSummary', () => ({
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  watchBarrio: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('barrio'),
-}));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({ getBarrioViewLink: () => 'https://x' }));
-jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
-  getMunicipalityPeopleByBarrio: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        watchBarrio: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('barrio'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getBarrioViewLink: (target) =>
+          jest
+            .requireActual<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+              '@cultuvilla/shared/services/deepLinkService',
+            )
+            .getBarrioViewLink(target),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityPersonService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityPersonService')>(
+      '@cultuvilla/shared/services/municipalityPersonService',
+      () => ({
+        getMunicipalityPeopleByBarrio: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>(
+      '@cultuvilla/shared/services/commentsService',
+      () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }),
+    ),
+);
 
 const BARRIO = {
   id: 'b1',

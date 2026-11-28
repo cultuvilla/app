@@ -15,9 +15,16 @@ jest.mock('../../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: s
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
-jest.mock('@cultuvilla/shared/services/festivalPosterService', () => ({
-  watchFestivalPoster: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('poster'),
-}));
+jest.mock('@cultuvilla/shared/services/festivalPosterService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/festivalPosterService')>(
+      '@cultuvilla/shared/services/festivalPosterService',
+      () => ({
+        watchFestivalPoster: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('poster'),
+      }),
+    ),
+);
 jest.mock('@cultuvilla/shared/utils', () => ({
   ...jest.requireActual('@cultuvilla/shared/utils'),
   formatFestivalPosterDates: () => 'del 1 al 5',
@@ -27,7 +34,14 @@ jest.mock('@cultuvilla/shared/utils', () => ({
 jest.mock('../../../../components/primitives/NaturalImage', () => ({ NaturalImage: () => null }));
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
 jest.mock('../../../../components/feature/EntityContributors', () => ({ EntityContributors: () => null }));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>(
+      '@cultuvilla/shared/services/commentsService',
+      () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }),
+    ),
+);
 
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
 import { recordEntityView } from '@cultuvilla/shared/services/commentsService';

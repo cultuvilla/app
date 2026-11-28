@@ -38,13 +38,34 @@ jest.mock('../../../lib/useCallable', () => ({
     },
   }),
 }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({ getMunicipality: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/fiestaEditionService', () => ({ getFiestaEditions: jest.fn(() => Promise.resolve([])) }));
-jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
-  getVillageWrappedForYear: jest.fn(),
-  buildVillageWrapped: jest.fn(),
-  respondToVillageWrapped: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({ getMunicipality: jest.fn() }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/fiestaEditionService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/fiestaEditionService')>(
+      '@cultuvilla/shared/services/fiestaEditionService',
+      () => ({ getFiestaEditions: jest.fn(() => Promise.resolve([])) }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/villageWrappedService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageWrappedService')>(
+      '@cultuvilla/shared/services/villageWrappedService',
+      () => ({
+        getVillageWrappedForYear: jest.fn(),
+        buildVillageWrapped: jest.fn(),
+        respondToVillageWrapped: jest.fn(),
+      }),
+    ),
+);
 
 const mockCaps = useEntityCapabilities as jest.Mock;
 const mockMunicipality = getMunicipality as jest.Mock;

@@ -13,9 +13,16 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
-  addVocabularyEntry: jest.fn().mockResolvedValue('m1__esbardo'),
-}));
+jest.mock('@cultuvilla/shared/services/vocabularyService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/vocabularyService')>(
+      '@cultuvilla/shared/services/vocabularyService',
+      () => ({
+        addVocabularyEntry: jest.fn().mockResolvedValue('m1__esbardo'),
+      }),
+    ),
+);
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));

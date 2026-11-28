@@ -19,15 +19,22 @@ jest.mock('expo-router', () => ({
   router: { push: (href: unknown) => mockPush(href), back: () => mockBack() },
   useLocalSearchParams: () => ({ grupo: 'ayto', cosa: 'c1' }),
 }));
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
-  deleteCosa: jest.fn().mockResolvedValue(undefined),
-  respondToCosaRequest: jest.fn().mockResolvedValue('returned'),
-  updateCosa: jest.fn().mockResolvedValue(undefined),
-  watchCosa: jest.fn(),
-  watchCosaRequestsToMe: jest.fn(),
-  watchGroupCosaRequests: jest.fn(),
-  watchMyCosaRequests: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>(
+      '@cultuvilla/shared/services/cosatecaService',
+      () => ({
+        deleteCosa: jest.fn().mockResolvedValue(undefined),
+        respondToCosaRequest: jest.fn().mockResolvedValue('returned'),
+        updateCosa: jest.fn().mockResolvedValue(undefined),
+        watchCosa: jest.fn(),
+        watchCosaRequestsToMe: jest.fn(),
+        watchGroupCosaRequests: jest.fn(),
+        watchMyCosaRequests: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../lib/auth/useAuth', () => ({ useAuth: () => ({ user: { uid: 'u1' }, profile: { displayName: 'Ana' } }) }));
 jest.mock('../../../lib/orgs/useMyGroups', () => ({ useMyGroups: () => ({ groups: mockGroups, status: 'ready' }) }));

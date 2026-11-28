@@ -34,21 +34,42 @@ jest.mock('../../../../lib/auth/useAuth', () => {
 jest.mock('../../../../lib/auth/RegisterGateContext', () => ({ useRegisterGate: () => ({ requireAuth: jest.fn() }) }));
 jest.mock('../../../../lib/auth/useOrgCapabilities', () => ({ useOrgCapabilities: () => ({ canManage: false }) }));
 jest.mock('../../../../lib/deeplink/useShareDeepLink', () => ({ useShareDeepLink: () => jest.fn() }));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  watchOrganization: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('org'),
-}));
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  isOrgMember: jest.fn().mockResolvedValue(false),
-  addOrgMember: jest.fn().mockResolvedValue(undefined),
-  removeOrgMember: jest.fn().mockResolvedValue(undefined),
-  getOrgMembers: jest.fn().mockResolvedValue([]),
-  getUserOrgIds: jest.fn().mockResolvedValue([]),
-}));
-jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () => ({
-  hasPendingOrgJoinRequest: jest.fn().mockResolvedValue(false),
-  requestToJoinOrganization: jest.fn().mockResolvedValue(undefined),
-  cancelOrgJoinRequest: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+      () => ({
+        watchOrganization: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('org'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/orgMemberService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>(
+      '@cultuvilla/shared/services/orgMemberService',
+      () => ({
+        isOrgMember: jest.fn().mockResolvedValue(false),
+        addOrgMember: jest.fn().mockResolvedValue(undefined),
+        removeOrgMember: jest.fn().mockResolvedValue(undefined),
+        getOrgMembers: jest.fn().mockResolvedValue([]),
+        getUserOrgIds: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/orgJoinRequestService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/orgJoinRequestService')>(
+      '@cultuvilla/shared/services/orgJoinRequestService',
+      () => ({
+        hasPendingOrgJoinRequest: jest.fn().mockResolvedValue(false),
+        requestToJoinOrganization: jest.fn().mockResolvedValue(undefined),
+        cancelOrgJoinRequest: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 jest.mock('../../../../components/feature/OrgJoinRequests', () => ({ OrgJoinRequests: () => null }));
 jest.mock('../../../../components/feature/OrgMembersList', () => ({ OrgMembersList: () => null }));
 jest.mock('../../../../components/feature/groups/SocioConsentCard', () => ({
@@ -57,20 +78,34 @@ jest.mock('../../../../components/feature/groups/SocioConsentCard', () => ({
     return <RNText testID="stub-socio-consent">consent</RNText>;
   },
 }));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getOrgViewLink: () => ({
-    url: 'https://x/villa/entidad/pena-la-union_o1',
-    path: '/villa/entidad/pena-la-union_o1',
-    kind: 'content',
-    resource: 'organization',
-  }),
-}));
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getOrgViewLink: () => ({
+          url: 'https://x/villa/entidad/pena-la-union_o1',
+          path: '/villa/entidad/pena-la-union_o1',
+          kind: 'content',
+          resource: 'organization',
+        }),
+      }),
+    ),
+);
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
 const mockOrgEventsSection = jest.fn((_props: { orgId: string; includePrivate: boolean }) => null);
 jest.mock('../../../../components/feature/OrgEventsSection', () => ({
   OrgEventsSection: (props: { orgId: string; includePrivate: boolean }) => mockOrgEventsSection(props),
 }));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>(
+      '@cultuvilla/shared/services/commentsService',
+      () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }),
+    ),
+);
 
 const OPEN_ORG = {
   id: 'o1',

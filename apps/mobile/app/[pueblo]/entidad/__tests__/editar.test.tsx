@@ -13,16 +13,30 @@ jest.mock('../../../../components/layout/ScreenHeader', () => ({ ScreenHeader: (
 jest.mock('../../../../lib/auth/useOrgCapabilities', () => ({
   useOrgCapabilities: jest.fn(),
 }));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganization: jest.fn().mockResolvedValue({
-    id: 'org1', name: 'Peña', description: null, type: 'peña', images: [], municipalityId: 'm1', villageSlug: 'villa',
-  }),
-  updateOrganization: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+      () => ({
+        getOrganization: jest.fn().mockResolvedValue({
+          id: 'org1', name: 'Peña', description: null, type: 'peña', images: [], municipalityId: 'm1', villageSlug: 'villa',
+        }),
+        updateOrganization: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../../lib/images', () => ({ pickImageAsBlob: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadOrganizationImage: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadOrganizationImage: jest.fn(),
+      }),
+    ),
+);
 
 import { useOrgCapabilities } from '../../../../lib/auth/useOrgCapabilities';
 import { getOrganization, updateOrganization } from '@cultuvilla/shared/services/organizationService';

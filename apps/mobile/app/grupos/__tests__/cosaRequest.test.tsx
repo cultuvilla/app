@@ -17,10 +17,17 @@ jest.mock('expo-router', () => ({
   router: { push: (href: unknown) => mockPush(href) },
   useLocalSearchParams: () => ({ grupo: 'pena', solicitud: 'r1' }),
 }));
-jest.mock('@cultuvilla/shared/services/cosatecaService', () => ({
-  respondToCosaRequest: jest.fn().mockResolvedValue('accepted'),
-  watchCosaRequest: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/cosatecaService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/cosatecaService')>(
+      '@cultuvilla/shared/services/cosatecaService',
+      () => ({
+        respondToCosaRequest: jest.fn().mockResolvedValue('accepted'),
+        watchCosaRequest: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../lib/dialogs', () => ({ showAlert: jest.fn() }));
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../lib/auth/useAuth', () => ({ useAuth: () => ({ user: { uid: mockUid } }) }));

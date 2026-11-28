@@ -14,6 +14,18 @@ describe('fakeModule', () => {
     expect(fake.PAGE_SIZE).toBe(20);
   });
 
+  it('uses a default that is already a mock as the export, so programming one programs both', () => {
+    const greet = jest.fn<string, [string]>();
+    const fake = fakeModule(
+      () => actual,
+      () => ({ greet }),
+    );
+
+    expect(fake.greet).toBe(greet);
+    jest.mocked(fake.greet).mockReturnValue('programmed');
+    expect(greet('x')).toBe('programmed');
+  });
+
   it('refuses a default for an export the module does not have', () => {
     const fake = fakeModule(
       () => actual,

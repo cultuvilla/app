@@ -21,18 +21,46 @@ jest.mock('expo-router', () => ({
 jest.mock('../../../lib/navigation/VillageRouteGate');
 jest.mock('../../../lib/i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../../lib/wrapped/useWrappedShare', () => ({ useWrappedShare: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({ getReadableWrapped: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({ watchFiestaProgrammeEvents: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/fiestaEditionService', () => ({
-  saveFiestaEdition: jest.fn(() => Promise.resolve('m1_carmen_2026')),
-  deleteFiestaEdition: jest.fn(() => Promise.resolve()),
-}));
+jest.mock('@cultuvilla/shared/services/villageWrappedService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/villageWrappedService')>(
+      '@cultuvilla/shared/services/villageWrappedService',
+      () => ({ getReadableWrapped: jest.fn() }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => ({ watchFiestaProgrammeEvents: jest.fn() }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/fiestaEditionService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/fiestaEditionService')>(
+      '@cultuvilla/shared/services/fiestaEditionService',
+      () => ({
+        saveFiestaEdition: jest.fn(() => Promise.resolve('m1_carmen_2026')),
+        deleteFiestaEdition: jest.fn(() => Promise.resolve()),
+      }),
+    ),
+);
 jest.mock('../../../lib/fiestas/useVillageFiestas', () => ({ useVillageFiestas: jest.fn() }));
 jest.mock('../../../lib/auth/useAuth', () => ({ useAuth: jest.fn() }));
 jest.mock('../../../lib/auth/useEntityCapabilities', () => ({ useEntityCapabilities: jest.fn() }));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getWrappedLink: (slug: string, year: number) => ({ path: `/${slug}/fiestas/${String(year)}` }),
-}));
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getWrappedLink: (slug: string, year: number) => ({ path: `/${slug}/fiestas/${String(year)}` }) as never,
+      }),
+    ),
+);
 jest.mock('../../../lib/deeplink/useShareDeepLink', () => ({ useShareDeepLink: () => mockShareDeepLink }));
 
 const mockShareDeepLink = jest.fn(() => Promise.resolve());

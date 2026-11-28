@@ -32,26 +32,61 @@ jest.mock('../../../../components/feature/LiveOwnerChip', () => ({
   },
 }));
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>(
+      '@cultuvilla/shared/services/commentsService',
+      () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }),
+    ),
+);
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getNewsLink: () => ({
-    url: 'https://x/villa/noticia/gran-noticia_n1',
-    path: '/villa/noticia/gran-noticia_n1',
-    kind: 'content',
-    resource: 'news',
-  }),
-}));
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getNewsLink: () => ({
+          url: 'https://x/villa/noticia/gran-noticia_n1',
+          path: '/villa/noticia/gran-noticia_n1',
+          kind: 'content',
+          resource: 'news',
+        }),
+      }),
+    ),
+);
 // An organization chip resolves the org to learn its pueblo and name slug.
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganization: jest.fn().mockResolvedValue({ id: 'o1', name: 'Peña El Roble', villageSlug: 'villa' }),
-}));
-jest.mock('@cultuvilla/shared/services/newsService', () => ({
-  watchNewsPost: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('post'),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({ newsImageDownloadURL: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/organizationService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+      '@cultuvilla/shared/services/organizationService',
+      () => ({
+        getOrganization: jest.fn().mockResolvedValue({ id: 'o1', name: 'Peña El Roble', villageSlug: 'villa' }),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/newsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/newsService')>(
+      '@cultuvilla/shared/services/newsService',
+      () => ({
+        watchNewsPost: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('post'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({ newsImageDownloadURL: jest.fn() }),
+    ),
+);
 jest.mock('@cultuvilla/shared/utils', () => ({
   ...jest.requireActual('@cultuvilla/shared/utils'),
   formatDate: () => '',

@@ -24,15 +24,29 @@ const EXISTING_PERSON = {
   photoURL: null,
 };
 
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  createPerson: jest.fn().mockResolvedValue('p-new'),
-  getPerson: jest.fn(),
-  updatePerson: jest.fn().mockResolvedValue(undefined),
-  deletePerson: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadUserPhoto: jest.fn().mockResolvedValue('https://photo.test/new.jpg'),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        createPerson: jest.fn().mockResolvedValue('p-new'),
+        getPerson: jest.fn(),
+        updatePerson: jest.fn().mockResolvedValue(undefined),
+        deletePerson: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadUserPhoto: jest.fn().mockResolvedValue('https://photo.test/new.jpg'),
+      }),
+    ),
+);
 jest.mock('../../../lib/auth/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'uid-1', email: 'a@b.test', displayName: null } }),
 }));

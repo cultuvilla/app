@@ -27,15 +27,29 @@ const mockDependent = {
 
 let mockSearchParams: { personId: string; edit?: string } = { personId: 'p-1' };
 
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  createPerson: jest.fn(),
-  getPerson: jest.fn(async () => mockDependent),
-  updatePerson: jest.fn(),
-  deletePerson: jest.fn(),
-}));
-jest.mock('@cultuvilla/shared/services/imageService', () => ({
-  uploadUserPhoto: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        createPerson: jest.fn(),
+        getPerson: jest.fn(async () => mockDependent as never),
+        updatePerson: jest.fn(),
+        deletePerson: jest.fn(),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/imageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/imageService')>(
+      '@cultuvilla/shared/services/imageService',
+      () => ({
+        uploadUserPhoto: jest.fn(),
+      }),
+    ),
+);
 jest.mock('../../../lib/auth/useAuth', () => ({
   // The creator of the dependent — the case that must NOT auto-open the form.
   useAuth: () => ({ user: { uid: 'uid-1' }, profile: null }),

@@ -24,30 +24,65 @@ jest.mock('../../../../lib/deeplink/useShareDeepLink', () => ({ useShareDeepLink
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  watchPlace: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('place'),
-}));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getPlaceViewLink: () => ({
-    url: 'https://x/villa/lugar/la-plaza_pl1',
-    path: '/villa/lugar/la-plaza_pl1',
-    kind: 'content',
-    resource: 'place',
-  }),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonsByBurialPlace: jest.fn().mockResolvedValue([]),
-  updatePerson: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        watchPlace: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('place'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getPlaceViewLink: () => ({
+          url: 'https://x/villa/lugar/la-plaza_pl1',
+          path: '/villa/lugar/la-plaza_pl1',
+          kind: 'content',
+          resource: 'place',
+        }),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({
+        getPersonsByBurialPlace: jest.fn().mockResolvedValue([]),
+        updatePerson: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
 jest.mock('../../../../components/feature/EntityContributors', () => ({ EntityContributors: () => null }));
 jest.mock('../../../../components/feature/BuryFab', () => ({ BuryFab: () => null }));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>(
+      '@cultuvilla/shared/services/commentsService',
+      () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }),
+    ),
+);
 // staticMapUrl reads the initialized Firebase app for its project id.
-jest.mock('@cultuvilla/shared/services/mapsService', () => ({
-  staticMapUrl: (lat: number, lng: number) => `https://maps.test/${lat},${lng}`,
-  MAP_ZOOM_DEFAULT: 13,
-}));
+jest.mock('@cultuvilla/shared/services/mapsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/mapsService')>(
+      '@cultuvilla/shared/services/mapsService',
+      () => ({
+        staticMapUrl: (lat: number, lng: number) => `https://maps.test/${lat},${lng}`,
+        MAP_ZOOM_DEFAULT: 13,
+      }),
+    ),
+);
 
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';
 

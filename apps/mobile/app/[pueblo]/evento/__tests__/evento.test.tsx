@@ -27,7 +27,14 @@ jest.mock('../../../../components/feature/RegisterFab', () => ({ RegisterFab: ()
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
 jest.mock('../../../../components/feature/EventAttendees', () => ({ EventAttendees: () => null }));
 jest.mock('../../../../components/feature/RegistrationHistory', () => ({ RegistrationHistory: () => null }));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>(
+      '@cultuvilla/shared/services/commentsService',
+      () => ({ recordEntityView: jest.fn().mockResolvedValue(undefined) }),
+    ),
+);
 jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: () => ({
     canManage: false,
@@ -37,21 +44,49 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
     can: (action: string) => (action === 'edit' ? mockCanEdit.current : false),
   }),
 }));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  watchEvent: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('event'),
-}));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({
-  getEventLink: () => ({
-    url: 'https://x/villa/evento/verbena_e1',
-    path: '/villa/evento/verbena_e1',
-    kind: 'content',
-    resource: 'event',
-  }),
-}));
-jest.mock('@cultuvilla/shared/services/personService', () => ({ getPersonByUserId: jest.fn().mockResolvedValue(null) }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  watchMunicipality: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('village'),
-}));
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => ({
+        watchEvent: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('event'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/deepLinkService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+      '@cultuvilla/shared/services/deepLinkService',
+      () => ({
+        getEventLink: () => ({
+          url: 'https://x/villa/evento/verbena_e1',
+          path: '/villa/evento/verbena_e1',
+          kind: 'content',
+          resource: 'event',
+        }),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/personService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+      '@cultuvilla/shared/services/personService',
+      () => ({ getPersonByUserId: jest.fn().mockResolvedValue(null) }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        watchMunicipality: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('village'),
+      }),
+    ),
+);
 jest.mock('@cultuvilla/shared/models/person/PersonDataModel', () => ({ buildNameWithNickname: () => 'N' }));
 jest.mock('@cultuvilla/shared/utils', () => ({
   ...jest.requireActual('@cultuvilla/shared/utils'),

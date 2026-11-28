@@ -26,26 +26,47 @@ function mockWatchFrom(get: (...args: unknown[]) => unknown, pick = (v: unknown)
     return () => undefined;
   };
 }
-jest.mock('@cultuvilla/shared/services/feedService', () => {
-  const getUpcomingFeed = jest.fn().mockResolvedValue({ events: [] });
-  const getPrivateUpcomingFeed = jest.fn().mockResolvedValue([]);
-  return {
-    getUpcomingFeed,
-    getPrivateUpcomingFeed,
-    watchUpcomingFeed: jest.fn(
-      mockWatchFrom(getUpcomingFeed, (page) => (page as { events: unknown[] }).events),
+jest.mock('@cultuvilla/shared/services/feedService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/feedService')>(
+      '@cultuvilla/shared/services/feedService',
+      () => {
+        const getUpcomingFeed = jest.fn().mockResolvedValue({ events: [] });
+        const getPrivateUpcomingFeed = jest.fn().mockResolvedValue([]);
+        return {
+          getUpcomingFeed,
+          getPrivateUpcomingFeed,
+          watchUpcomingFeed: jest.fn(
+            mockWatchFrom(getUpcomingFeed, (page) => (page as { events: unknown[] }).events),
+          ),
+          watchPrivateUpcomingFeed: mockWatchFrom(getPrivateUpcomingFeed),
+          haversineKm: jest.fn().mockReturnValue(0),
+        };
+      },
     ),
-    watchPrivateUpcomingFeed: mockWatchFrom(getPrivateUpcomingFeed),
-    haversineKm: jest.fn().mockReturnValue(0),
-  };
-});
-jest.mock('@cultuvilla/shared/services/newsService', () => {
-  const getAllVillagesFeed = jest.fn().mockResolvedValue([]);
-  return { getAllVillagesFeed, watchAllVillagesFeed: mockWatchFrom(getAllVillagesFeed) };
-});
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  getActiveCommunities: jest.fn().mockResolvedValue([]),
-}));
+);
+jest.mock('@cultuvilla/shared/services/newsService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/newsService')>(
+      '@cultuvilla/shared/services/newsService',
+      () => {
+        const getAllVillagesFeed = jest.fn().mockResolvedValue([]);
+        return { getAllVillagesFeed, watchAllVillagesFeed: mockWatchFrom(getAllVillagesFeed) };
+      },
+    ),
+);
+jest.mock('@cultuvilla/shared/services/municipalityService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+      '@cultuvilla/shared/services/municipalityService',
+      () => ({
+        getActiveCommunities: jest.fn().mockResolvedValue([]),
+      }),
+    ),
+);
 jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),

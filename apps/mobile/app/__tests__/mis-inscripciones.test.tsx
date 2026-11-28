@@ -17,16 +17,30 @@ jest.mock('../../components/feature/EventCard', () => {
   const { Text } = require('react-native');
   return { EventCard: ({ event }: { event: { title: string } }) => <Text>{event.title}</Text> };
 });
-jest.mock('@cultuvilla/shared/services/registrationService', () => ({
-  watchUserRegistrationsAcrossEvents: jest
-    .requireActual<typeof import('../../test/watchers')>('../../test/watchers')
-    .mockWatcher('registrations'),
-}));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  watchEventsByIds: jest
-    .requireActual<typeof import('../../test/watchers')>('../../test/watchers')
-    .mockWatcher('events'),
-}));
+jest.mock('@cultuvilla/shared/services/registrationService', () =>
+  jest
+    .requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/registrationService')>(
+      '@cultuvilla/shared/services/registrationService',
+      () => ({
+        watchUserRegistrationsAcrossEvents: jest
+          .requireActual<typeof import('../../test/watchers')>('../../test/watchers')
+          .mockWatcher('registrations'),
+      }),
+    ),
+);
+jest.mock('@cultuvilla/shared/services/eventService', () =>
+  jest
+    .requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+      '@cultuvilla/shared/services/eventService',
+      () => ({
+        watchEventsByIds: jest
+          .requireActual<typeof import('../../test/watchers')>('../../test/watchers')
+          .mockWatcher('events'),
+      }),
+    ),
+);
 
 const DAY = 24 * 60 * 60 * 1000;
 

@@ -16,9 +16,16 @@ jest.mock('../../../../lib/auth/useEntityCapabilities', () => ({
   useEntityCapabilities: jest.fn(),
 }));
 jest.mock('../../../../lib/deeplink/useShareDeepLink', () => ({ useShareDeepLink: () => jest.fn() }));
-jest.mock('@cultuvilla/shared/services/historyService', () => ({
-  watchHistoryEntry: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('entry'),
-}));
+jest.mock('@cultuvilla/shared/services/historyService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/historyService')>(
+      '@cultuvilla/shared/services/historyService',
+      () => ({
+        watchHistoryEntry: jest.requireActual<typeof import('../../../../test/watchers')>('../../../../test/watchers').mockWatcher('entry'),
+      }),
+    ),
+);
 jest.mock('../../../../components/primitives/NaturalImage', () => ({ NaturalImage: () => null }));
 jest.mock('../../../../components/feature/EntityComments', () => ({ EntityComments: () => null }));
 jest.mock('../../../../components/feature/RichText', () => ({
@@ -27,9 +34,16 @@ jest.mock('../../../../components/feature/RichText', () => ({
     return <Text>{text}</Text>;
   }),
 }));
-jest.mock('@cultuvilla/shared/services/commentsService', () => ({
-  recordEntityView: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@cultuvilla/shared/services/commentsService', () =>
+  jest
+    .requireActual<typeof import('../../../../test/fakeModule')>('../../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/commentsService')>(
+      '@cultuvilla/shared/services/commentsService',
+      () => ({
+        recordEntityView: jest.fn().mockResolvedValue(undefined),
+      }),
+    ),
+);
 
 import { RichText } from '../../../../components/feature/RichText';
 import { useEntityCapabilities } from '../../../../lib/auth/useEntityCapabilities';

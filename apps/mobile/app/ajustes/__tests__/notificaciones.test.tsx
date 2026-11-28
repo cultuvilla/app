@@ -30,16 +30,30 @@ jest.mock('../../../lib/push/PushProvider', () => ({
 jest.mock('../../../lib/push/pushClient', () => ({ openPushSettings: jest.fn() }));
 
 const mockSave = jest.fn((..._args: unknown[]) => Promise.resolve());
-jest.mock('@cultuvilla/shared/services/notificationService', () => ({
-  watchNotificationSettings: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('settings'),
-  saveNotificationSettings: (...args: unknown[]) => mockSave(...args),
-}));
+jest.mock('@cultuvilla/shared/services/notificationService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/notificationService')>(
+      '@cultuvilla/shared/services/notificationService',
+      () => ({
+        watchNotificationSettings: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('settings'),
+        saveNotificationSettings: (...args: unknown[]) => mockSave(...args),
+      }),
+    ),
+);
 
 const mockSetLevel = jest.fn((..._args: unknown[]) => Promise.resolve());
-jest.mock('@cultuvilla/shared/services/groupMessageService', () => ({
-  watchGroupNotificationPrefs: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('groupPrefs'),
-  setGroupNotifyLevel: (...args: unknown[]) => mockSetLevel(...args),
-}));
+jest.mock('@cultuvilla/shared/services/groupMessageService', () =>
+  jest
+    .requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule')
+    .fakeService<typeof import('@cultuvilla/shared/services/groupMessageService')>(
+      '@cultuvilla/shared/services/groupMessageService',
+      () => ({
+        watchGroupNotificationPrefs: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('groupPrefs'),
+        setGroupNotifyLevel: (...args: unknown[]) => mockSetLevel(...args),
+      }),
+    ),
+);
 
 const mockConfirm = jest.fn();
 jest.mock('../../../lib/dialogs', () => ({
