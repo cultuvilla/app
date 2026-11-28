@@ -20,6 +20,15 @@ export type MessageVars = Record<string, string | number>;
 // never nest braces, so a single regex pass is enough; `#` is replaced with n.
 const PLURAL_RE = /\{(\w+),\s*plural,\s*one\s*\{([^{}]*)\}\s*other\s*\{([^{}]*)\}\s*\}/g;
 
+/**
+ * A template with every plural `format` understands removed. Any `plural,`
+ * still in the result is one the formatter would print as raw ICU text; the
+ * catalog test `countPlurals.test.ts` reads plurals through this, not a copy.
+ */
+export function stripPlurals(tpl: string): string {
+  return tpl.replace(PLURAL_RE, '');
+}
+
 function applyPlurals(tpl: string, vars: MessageVars): string {
   return tpl.replace(PLURAL_RE, (_match, name: string, one: string, other: string) => {
     const n = Number(vars[name]);
