@@ -1,0 +1,5 @@
+{
+  "$comment": "Unmodeled fields per env, recorded by scripts/audit-firestore-schemas.mjs. May only shrink (CI: audit-firestore-schemas-ratchet.mjs).",
+  "beta": ["municipalities/*/members :: trustedNewsAuthor"],
+  "prod": []
+}

@@ -32,7 +32,7 @@
  *   (→ schema.parse) runs per doc in a try/catch, so every bad doc is collected
  *   instead of the first one aborting the run.
  *
- * ONE QUERY PER COLLECTION ID, CLASSIFIED BY PATH
+ * ONE QUERY PER COLLECTION ID, CLASSIFIED BY PATH (scripts/lib/conformance-walk.mjs)
  *   Each collection id is streamed once as a collection group, and each doc is
  *   matched to the target whose path template fits its path. Ids collide —
  *   municipalities/{}/members (VillageMember) and organizations/{}/members
@@ -47,6 +47,10 @@
  *   gate: no reader reaches it by path, and failing on it would gate
  *   promotions on data the gate had never walked before.
  *
+ * UNMODELED FIELDS (warnings)
+ *   Keys a stored doc carries that the schema drops on parse. Listed here; the
+ *   weekly audit (scripts/audit-firestore-schemas.mjs) ratchets them.
+ *
  * DRIFT GUARDS (warnings)
  *   - a live root collection the table does not declare;
  *   - a doc, under a walked collection id, at a path no template matches —
@@ -56,6 +60,7 @@
 import admin from 'firebase-admin';
 import { initAdminForEnv } from './lib/env-credentials.mjs';
 import { conformanceTargets, collectionPaths } from '@cultuvilla/shared/firebase/refs/admin';
+import { display, walkConformance } from './lib/conformance-walk.mjs';
 
 // `--env dev|beta|prod` (default dev). Read-only check — safe against any env,
 // so no `--yes` gate. For --env beta/prod, unset GOOGLE_APPLICATION_CREDENTIALS
@@ -71,90 +76,45 @@ const { env, projectId } = initAdminForEnv(envArg);
 console.log(`Conformance target: ${env} (${projectId})\n`);
 const db = admin.firestore();
 
-/** Format a caught converter error into `path: message` lines, one per zod issue. */
-function formatIssues(err) {
-  if (err && Array.isArray(err.issues)) {
-    return err.issues.map((i) => `${i.path.join('.') || '<root>'}: ${i.message}`);
-  }
-  return [String(err?.message ?? err)];
-}
-
-/** `a/{x}/b` → a regex matching a document path directly under that collection. */
-function templateRegex(path) {
-  const segments = path.split('/').map((s) => (s.startsWith('{') ? '[^/]+' : s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  return new RegExp(`^${segments.join('/')}/[^/]+$`);
-}
-
-/** True when every ancestor doc of `ref` exists. Read only for docs that fail to parse. */
-async function ancestorsExist(ref) {
-  for (let parent = ref.parent.parent; parent; parent = parent.parent.parent) {
-    if (!(await parent.get()).exists) return false;
-  }
-  return true;
-}
-
-const display = (path) => path.replace(/\{[^}]+\}/g, '*');
-
 function report(label, result) {
   const status = result.bad.length === 0 ? 'OK' : `${result.bad.length} NONCONFORMING`;
   console.log(`  ${label}: ${result.total} docs — ${status}`);
   for (const { id, issues } of result.bad) {
     console.log(`    ✗ ${id}`);
-    for (const issue of issues) console.log(`        ${issue}`);
+    for (const issue of issues) console.log(`        ${issue.path}: ${issue.message}`);
   }
 }
 
 async function main() {
   console.log(`Conformance check against ${projectId}\n`);
+  const walk = await walkConformance(db, { targets: conformanceTargets, collectionPaths });
+
   let totalBad = 0;
-
-  const byId = new Map();
-  for (const target of conformanceTargets) {
-    const id = target.path.slice(target.path.lastIndexOf('/') + 1);
-    if (!byId.has(id)) byId.set(id, []);
-    byId.get(id).push({ ...target, regex: templateRegex(target.path), total: 0, bad: [] });
+  for (const target of walk.targets) {
+    report(display(target.path), target);
+    totalBad += target.bad.length;
   }
 
-  const unmatched = new Set();
-  const orphans = [];
-  for (const [id, targets] of byId) {
-    for await (const doc of db.collectionGroup(id).stream()) {
-      const target = targets.find((t) => t.regex.test(doc.ref.path));
-      if (!target) {
-        unmatched.add(doc.ref.parent.path.replace(/\/[^/]+\//g, '/*/'));
-        continue;
-      }
-      target.total += 1;
-      try {
-        target.converter.fromFirestore(doc);
-      } catch (err) {
-        const finding = { id: doc.ref.path, issues: formatIssues(err) };
-        if (await ancestorsExist(doc.ref)) target.bad.push(finding);
-        else orphans.push(finding);
-      }
-    }
-    for (const target of targets) {
-      report(display(target.path), target);
-      totalBad += target.bad.length;
+  if (walk.orphans.length > 0) {
+    console.log(`\n⚠ ${walk.orphans.length} nonconforming doc(s) under a deleted parent (not counted):`);
+    for (const { id, issues } of walk.orphans) {
+      console.log(`    ✗ ${id}\n        ${issues.map((i) => `${i.path}: ${i.message}`).join('\n        ')}`);
     }
   }
 
-  if (orphans.length > 0) {
-    console.log(`\n⚠ ${orphans.length} nonconforming doc(s) under a deleted parent (not counted):`);
-    for (const { id, issues } of orphans) console.log(`    ✗ ${id}\n        ${issues.join('\n        ')}`);
+  if (walk.unmatched.length > 0) {
+    console.log(`\n⚠ Docs at paths no collection declares (add to refs/collections.ts): ${walk.unmatched.join(', ')}`);
   }
 
-  if (unmatched.size > 0) {
-    console.log(`\n⚠ Docs at paths no collection declares (add to refs/collections.ts): ${[...unmatched].join(', ')}`);
+  if (walk.undeclared.length > 0) {
+    console.log(`\n⚠ Undeclared root collections (add to refs/collections.ts): ${walk.undeclared.join(', ')}`);
   }
 
-  // `_admin` is server-only operational state (backfill completion markers —
-  // see scripts/lib/backfill-registry.mjs), not domain data.
-  const declaredRoots = new Set([...collectionPaths.map((p) => p.split('/')[0]), '_admin']);
-  const liveRoots = await db.listCollections();
-  const undeclared = liveRoots.map((c) => c.id).filter((id) => !declaredRoots.has(id));
-  if (undeclared.length > 0) {
-    console.log(`\n⚠ Undeclared root collections (add to refs/collections.ts): ${undeclared.join(', ')}`);
+  // Reported, never failed on here: the weekly schema audit
+  // (audit-firestore-schemas.mjs) holds these at a baseline that may only shrink.
+  if (walk.unmodeled.size > 0) {
+    console.log(`\n⚠ ${walk.unmodeled.size} unmodeled field path(s) — stored, but dropped by the schema:`);
+    for (const [signature, { count }] of [...walk.unmodeled].sort()) console.log(`    ${signature} (${count})`);
   }
 
   console.log(`\n${totalBad === 0 ? 'PASS' : `FAIL: ${totalBad} nonconforming docs`}`);
