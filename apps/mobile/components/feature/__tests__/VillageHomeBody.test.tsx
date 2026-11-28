@@ -83,18 +83,12 @@ jest.mock('@cultuvilla/shared/services/villageWrappedService', () => ({
 }));
 // Real Spanish catalog so we can assert on the visible strings.
 jest.mock('../../../lib/i18n', () => {
-  const { getMessages } = jest.requireActual('@cultuvilla/i18n');
+  const { getMessages, translate } = jest.requireActual('@cultuvilla/i18n');
   const es = getMessages('es');
-  const resolve = (k: string): unknown =>
-    k.split('.').reduce<unknown>((o, seg) => (o == null ? undefined : (o as Record<string, unknown>)[seg]), es);
   return {
     useT: () => ({
       locale: 'es',
-      t: (k: string, vars?: Record<string, string | number>) => {
-        const tpl = resolve(k);
-        if (typeof tpl !== 'string') return k;
-        return vars ? tpl.replace(/\{(\w+)\}/g, (_: string, kk: string) => String(vars[kk] ?? `{${kk}}`)) : tpl;
-      },
+      t: (k: string, vars?: Record<string, string | number>) => translate(es, k, vars),
     }),
   };
 });
