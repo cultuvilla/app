@@ -2,7 +2,12 @@
 
 **Priority:** low
 
-**Next:** decide the maximum font multiplier
+**Landed:** none
+**Gate:** none
+**Next:** cap the font multiplier at 1.5 through a preset on the Text primitive, with tests
+
+Decided 2026-11-28 (Álvaro, `go` to all picks): maximum font multiplier 1.5.
+
 
 **Needs Álvaro's yes** — third Órdago harvest run, 2026-11-27. It changes how text renders for users with large fonts.
 

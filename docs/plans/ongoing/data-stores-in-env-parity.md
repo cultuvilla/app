@@ -2,8 +2,8 @@
 
 **Priority:** low
 **Landed:** dev
-**Gate:** decision:grant roles/bigquery.metadataViewer to gha-deployer in all three envs so the check can see BigQuery (prod holds the GA4 export dataset analytics_546204987)
-**Next:** on a yes, grant the role in dev, beta and prod, record it in infra/env-parity.json, and add BigQuery datasets to the dataStores check; #782 shipped the rest (dev deploy 46044439593 green)
+**Gate:** none
+**Next:** grant roles/bigquery.metadataViewer to gha-deployer in dev, beta and prod (Álvaro said go 2026-11-28), record it in infra/env-parity.json, and add BigQuery datasets to the dataStores check
 
 **Pre-approved** under AGENTS.md § Approval — second Órdago harvest run, 2026-11-27 (`_workspace/docs/plans/ideas/harvest-across-repos.md`); Álvaro asked to keep porting in parallel. Verify the gap against the code before building.
 

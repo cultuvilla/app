@@ -2,7 +2,12 @@
 
 **Priority:** medium
 
-**Next:** decide the copy and whether to sign out automatically
+**Landed:** none
+**Gate:** none
+**Next:** detect a deleted or disabled account on launch and sign the device out with a short notice; draft the copy and send it to the leader for Álvaro before landing
+
+Decided 2026-11-28 (Álvaro, `go` to all picks): sign out automatically, with a short notice whose wording Álvaro approves before it ships.
+
 
 **Needs Álvaro's yes** — third Órdago harvest run, 2026-11-27. It signs a device out and shows a notice.
 

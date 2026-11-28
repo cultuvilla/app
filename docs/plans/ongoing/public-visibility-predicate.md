@@ -3,8 +3,8 @@
 **Priority:** medium — privacy is re-decided by hand in ten places that bypass firestore.rules; they agree today only because the rules forbid the shapes where they differ, and one copy (the sitemap's status gate) is already wrong
 
 **Landed:** dev
-**Gate:** decision:widen the sitemap from published to completed events too, handing search engines past-event URLs (Álvaro)
-**Next:** on a yes, switch the sitemap event gate to the shared predicate's completed-event rule (#799 kept 'published')
+**Gate:** none
+**Next:** switch the sitemap event gate to the shared predicate's completed-event rule (Álvaro said go 2026-11-28)
 
 **Goal:** give the server's anonymous readers (read site, sitemap, village broadcasts, Wrapped) one pure, raw-data answer to "may an anonymous visitor see this doc?" in `packages/shared/src/policy/`, checked against the `events` read rule in the emulator, so the next reader cannot forget or misspell it.
 

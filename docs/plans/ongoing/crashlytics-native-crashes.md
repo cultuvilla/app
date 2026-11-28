@@ -2,7 +2,12 @@
 
 **Priority:** medium
 
-**Next:** decide: add the native module (store binary, Play data-safety and App Store privacy updates)
+**Landed:** none
+**Gate:** none
+**Next:** add the Crashlytics native module behind captureError, update Play data-safety and App Store privacy docs in the repo; native, so it ships with the next store build
+
+Decided 2026-11-28 (Álvaro, `go` to all picks): add the native module; no running cost.
+
 
 **Needs Álvaro's yes** — third Órdago harvest run, 2026-11-27. A native module needs a store binary, and both stores' privacy declarations change. No running cost.
 

@@ -2,6 +2,12 @@
 
 **Priority:** medium
 
+**Landed:** none
+**Gate:** none
+**Next:** triage Dependabot alerts runtime-first, critical first, landing each update on a green full gate; fold in Dependabot PRs #774 and #762
+
+Decided 2026-11-28 (Álvaro, `go` to all picks): go on alert triage; close the public Firebase Android key alerts without restricting the key.
+
 **Goal:** a GitHub security tab with no stale alerts, so a real one stands out.
 
 ## Context

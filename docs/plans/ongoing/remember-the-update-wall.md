@@ -2,7 +2,12 @@
 
 **Priority:** medium
 
-**Next:** decide whether a walled binary blocks from its cached wall at cold start
+**Landed:** none
+**Gate:** none
+**Next:** cache the last minSupported on device and block from it at cold start before the network answers
+
+Decided 2026-11-28 (Álvaro, `go` to all picks): a walled binary blocks from its cached wall at cold start, even offline.
+
 
 **Needs Álvaro's yes** — third Órdago harvest run, 2026-11-27. It changes when walled users see the blocker.
 
