@@ -34,7 +34,7 @@ describe('sitemap', () => {
     expect(xml).not.toContain('_n2');
   });
 
-  it('lists a public published event, and leaves out private, past-tail and non-published ones', async () => {
+  it('lists public published and completed events, and leaves out private, past-tail, draft and cancelled ones', async () => {
     const db = admin.firestore();
     const at = (daysAgo: number) => admin.firestore.Timestamp.fromDate(new Date(Date.now() - daysAgo * 86_400_000));
     const base = { villageSlug: 'matabuena', visibility: 'public', visibilityOrgId: null, endBoundary: at(1) };
@@ -45,12 +45,15 @@ describe('sitemap', () => {
     await db.doc('events/e4').set({ ...base, title: 'Fiestas de antaño', status: 'published', endBoundary: at(400) });
     await db.doc('events/e5').set({ ...base, title: 'Borrador', status: 'draft' });
     await db.doc('events/e6').set({ ...base, title: 'Merienda', status: 'cancelled' });
-    // Narrower than the read site on purpose, until listing completed events is decided.
-    await db.doc('events/e7').set({ ...base, title: 'Romería', status: 'completed' });
+    // Ended inside the tail: `completeExpiredEvents` has already flipped it.
+    await db.doc('events/e7').set({ ...base, title: 'Romería', status: 'completed', endBoundary: at(30) });
+    await db.doc('events/e8').set({ ...base, title: 'Fiestas viejas', status: 'completed', endBoundary: at(400) });
+    await db.doc('events/e9').set({ ...base, title: 'Cena cerrada', status: 'completed', visibility: 'organization', visibilityOrgId: 'o1' });
     const xml = await fetchSitemap();
     expect(xml).toContain('/matabuena/evento/verbena_e1');
-    for (const id of ['e2', 'e3', 'e4', 'e5', 'e6', 'e7']) expect(xml).not.toContain(`_${id}<`);
-    expect(xml).not.toMatch(/secreta|oculta/i);
+    expect(xml).toContain('/matabuena/evento/romeria_e7');
+    for (const id of ['e2', 'e3', 'e4', 'e5', 'e6', 'e8', 'e9']) expect(xml).not.toContain(`_${id}<`);
+    expect(xml).not.toMatch(/secreta|oculta|cerrada/i);
   });
 
   it('lists approved organizations only', async () => {
