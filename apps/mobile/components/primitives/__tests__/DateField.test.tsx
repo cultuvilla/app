@@ -1,6 +1,14 @@
 import { render, fireEvent } from '@testing-library/react-native';
 import { DateField } from '../DateField';
 
+// The primitive reads its copy through useT(); serve the real catalog.
+jest.mock('../../../lib/i18n', () => {
+  const actual = jest.requireActual('../../../lib/i18n');
+  const { getMessages } = jest.requireActual('@cultuvilla/i18n');
+  const i18n = actual.createI18n({ es: getMessages('es') }, 'es');
+  return { ...actual, useT: () => i18n };
+});
+
 describe('DateField (calendar)', () => {
   it('shows the label placeholder when empty', () => {
     const { getByText } = render(<DateField label="Cumpleaños" value={null} onChange={() => {}} />);

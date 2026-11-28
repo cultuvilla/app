@@ -9,6 +9,7 @@ import { Text } from './Text';
 import { FieldLabel } from './FieldLabel';
 import { Button } from './Button';
 import { CalendarDatePicker } from './CalendarDatePicker';
+import { useT } from '../../lib/i18n';
 
 const ACCENT = colors.light.fg.accent;
 
@@ -29,6 +30,7 @@ export function DateField({
   maximumDate,
   testID,
 }: DateFieldProps) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
 
   function pickDay(day: Date) {
@@ -67,7 +69,7 @@ export function DateField({
           />
           <View style={styles.modalActions}>
             <Button variant="secondary" onPress={() => setOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
           </View>
         </SafeAreaView>

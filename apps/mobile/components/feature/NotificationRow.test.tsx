@@ -1,6 +1,14 @@
 import { fireEvent, render } from '@testing-library/react-native';
 import { NotificationRow } from './NotificationRow';
 
+// The row reads its copy through useT(); serve the real catalog.
+jest.mock('../../lib/i18n', () => {
+  const actual = jest.requireActual('../../lib/i18n');
+  const { getMessages } = jest.requireActual('@cultuvilla/i18n');
+  const i18n = actual.createI18n({ es: getMessages('es') }, 'es');
+  return { ...actual, useT: () => i18n };
+});
+
 describe('<NotificationRow>', () => {
   it('renders the title and body', () => {
     const { getByText } = render(

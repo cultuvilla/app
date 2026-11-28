@@ -1,4 +1,5 @@
 import type ExcelJS from 'exceljs';
+import { getMessages, lookup } from '@cultuvilla/i18n';
 import { palette } from '@cultuvilla/shared/design-system';
 import type { RosterExportModel } from '@cultuvilla/shared/export/rosterExport';
 import { CULTUVILLA_LOGO_PNG_BASE64 } from './cultuvillaLogo';
@@ -8,6 +9,11 @@ export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsh
 
 /** ExcelJS wants `FFRRGGBB`, the design tokens are `#rrggbb`. */
 const argb = (hex: string): string => `FF${hex.replace('#', '').toUpperCase()}`;
+
+// A plain builder, called from hooks and from plain functions alike, so it
+// reads the catalog itself instead of taking t() from every caller.
+const catalog = getMessages('es');
+const t = (key: string): string => lookup(catalog, key) ?? key;
 
 const HEADER_FILL = argb(palette.olive);
 const TITLE_COLOR = argb(palette.terracotta);
@@ -87,7 +93,7 @@ function addSheet(workbook: ExcelJS.Workbook, model: RosterExportModel, logoId: 
   model.rows.forEach((cells, index) => {
     const row = sheet.getRow(HEADER_ROW + 1 + index);
     row.values = cells.map((cell, i) =>
-      model.columns[i]!.type === 'boolean' ? (cell ? 'Sí' : 'No') : (cell ?? null),
+      model.columns[i]!.type === 'boolean' ? (cell ? t('common.yes') : t('common.no')) : (cell ?? null),
     );
     row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
       const column = model.columns[columnNumber - 1];

@@ -1,6 +1,14 @@
 import { render, fireEvent } from '@testing-library/react-native';
 import { DateRangeField } from '../DateRangeField';
 
+// The primitive reads its copy through useT(); serve the real catalog.
+jest.mock('../../../lib/i18n', () => {
+  const actual = jest.requireActual('../../../lib/i18n');
+  const { getMessages } = jest.requireActual('@cultuvilla/i18n');
+  const i18n = actual.createI18n({ es: getMessages('es') }, 'es');
+  return { ...actual, useT: () => i18n };
+});
+
 describe('DateRangeField', () => {
   it('shows the placeholder, then the picked range', () => {
     const { getByText, rerender } = render(<DateRangeField label="Santiago" value={null} onChange={() => {}} />);

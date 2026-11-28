@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { monthShortLabels } from '@cultuvilla/shared/utils/format';
+import { monthShortLabels, weekdayShortLabels } from '@cultuvilla/shared/utils/format';
 import { iconSizes } from '@cultuvilla/shared/design-system';
 import { Pressable } from './Pressable';
 import { Text } from './Text';
@@ -12,7 +12,7 @@ import {
   clampMonth,
 } from '../../lib/date/calendarGrid';
 
-const WEEKDAYS_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const WEEKDAYS = weekdayShortLabels();
 const MONTHS = monthShortLabels(); // es-ES, single locale source
 
 function iso(d: Date): string {
@@ -103,7 +103,7 @@ export function CalendarDatePicker({
       </View>
 
       <View className="flex-row">
-        {WEEKDAYS_ES.map((w) => (
+        {WEEKDAYS.map((w) => (
           <Text key={w} className="flex-1 text-center" tone="muted">
             {w}
           </Text>

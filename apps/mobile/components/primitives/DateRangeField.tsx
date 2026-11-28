@@ -10,6 +10,7 @@ import { Button } from './Button';
 import { HStack } from './HStack';
 import { CalendarDatePicker } from './CalendarDatePicker';
 import { dateOfKey, dayKeyOf, formatDayRange, nextRangeSelection, type DayRange } from '../../lib/date/dayRange';
+import { useT } from '../../lib/i18n';
 
 const ACCENT = colors.light.fg.accent;
 
@@ -43,6 +44,7 @@ export function DateRangeField({
   disabled = false,
   testID,
 }: DateRangeFieldProps) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<{ startDay: string | null; endDay: string | null }>({ startDay: null, endDay: null });
 
@@ -58,7 +60,7 @@ export function DateRangeField({
   }
 
   const hint =
-    draft.startDay === null ? 'Toca el primer día' : draft.endDay === null ? 'Ahora toca el último día' : formatDayRange({ startDay: draft.startDay, endDay: draft.endDay });
+    draft.startDay === null ? t('common.dateRange.pickFirstDay') : draft.endDay === null ? t('common.dateRange.pickLastDay') : formatDayRange({ startDay: draft.startDay, endDay: draft.endDay });
 
   return (
     <View testID={testID}>
@@ -95,14 +97,14 @@ export function DateRangeField({
           />
           <HStack gap={2} justify="end" className="pt-3">
             <Button variant="secondary" onPress={() => setOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button
               onPress={confirm}
               disabled={draft.startDay === null || draft.endDay === null}
               testID={testID ? `${testID}-confirm` : undefined}
             >
-              Listo
+              {t('common.done')}
             </Button>
           </HStack>
         </SafeAreaView>

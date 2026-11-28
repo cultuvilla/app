@@ -7,6 +7,7 @@ import {
   formatRelativeTime,
   monthLongLabels,
   monthShortLabels,
+  weekdayShortLabels,
 } from '../../src/utils/format';
 
 describe('formatDate', () => {
@@ -67,6 +68,14 @@ describe('formatPrice', () => {
 
   it('honors a custom currency', () => {
     expect(formatPrice(10, 'USD')).toMatch(/10,00/);
+  });
+});
+
+describe('weekdayShortLabels', () => {
+  // The calendar header shipped this exact array by hand; an ICU difference
+  // (Hermes vs Node) that changes it must show here, not on a device.
+  it('returns the Monday-first es-ES abbreviations the calendar shows', () => {
+    expect(weekdayShortLabels()).toEqual(['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']);
   });
 });
 
