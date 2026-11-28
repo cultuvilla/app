@@ -3040,5 +3040,16 @@
       "yes": "Sí, claro",
       "no": "No, gracias"
     }
+  },
+  "orphanedSession": {
+    "accountGone": {
+      "title": "Tu cuenta ya no está disponible",
+      "body": "Hemos cerrado la sesión en este dispositivo."
+    },
+    "sessionExpired": {
+      "title": "Tu sesión ha caducado",
+      "body": "Vuelve a iniciar sesión para seguir."
+    },
+    "ok": "Entendido"
   }
 }

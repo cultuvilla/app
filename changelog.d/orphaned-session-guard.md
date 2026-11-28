@@ -1,0 +1,1 @@
+- Si tu cuenta se borra o se desactiva en otro sitio, o tu sesión se revoca, la app cierra la sesión en ese móvil al abrirse y te dice por qué, en vez de quedarse como si siguieras dentro sin poder cargar nada. **Migration:** none.

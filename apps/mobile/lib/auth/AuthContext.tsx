@@ -59,6 +59,7 @@ import {
   type Profile,
 } from './authSession';
 import { customTokenUid, reauthMethodFor, type ReauthMethod } from './reauth';
+import { checkRestoredSession, rememberOrphanedNotice } from './orphanedSession';
 
 /** How long the launch waits for a pre-native session before showing the app signed out. */
 const LEGACY_RESTORE_TIMEOUT_MS = 8000;
@@ -257,14 +258,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, dispatch] = useReducer(authSessionReducer<User>, undefined, initialSessionState<User>);
   const { user, loading, profile, profileLoading, profileChecked } = session;
   const googleConfigured = useRef(false);
+  // The listener is subscribed once; this keeps it calling the current signOut.
+  const signOutRef = useRef<() => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     const auth = getAuth();
     let launchResolved = false;
+    // Only the session restored from disk at launch can belong to an account
+    // deleted or disabled elsewhere; a sign-in on this device just proved it.
+    // The native SDK may sign out by itself on those codes before the refresh
+    // rejects, so a null live user is still this session and still closed.
+    const closeIfOrphaned = async (restored: User): Promise<void> => {
+      const verdict = await checkRestoredSession(restored);
+      if (!verdict) return;
+      const liveUid = getAuth().currentUser?.uid;
+      if (liveUid && liveUid !== restored.uid) return;
+      const orphaned = new Error(`orphaned session: ${verdict.code}`);
+      orphaned.name = 'OrphanedSession';
+      observability.captureError(orphaned, { operation: 'auth:orphanedSession' });
+      await rememberOrphanedNotice(verdict.reason);
+      await signOutRef.current();
+    };
     return onAuthStateChanged(auth, (u) => {
       const firstAnswer = !launchResolved;
       launchResolved = true;
       dispatch({ type: 'authChanged', user: u, holdForRestore: !u && firstAnswer });
+      if (u && firstAnswer) {
+        void closeIfOrphaned(u).catch((err: unknown) => {
+          observability.captureError(err, { operation: 'auth:orphanedSession' });
+        });
+      }
       void (u
         ? markSessionOpen((u.providerData ?? []).map((p) => p.providerId))
         : reportIfSessionLost()
@@ -710,6 +733,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fbSignOut(getAuth());
     await clearLocalCacheAndRestart();
   };
+  signOutRef.current = signOut;
 
   // Signing in with the wrong address used to be a one-way door: AuthGate
   // redirects a user with no personId to /(onboarding)/completar-perfil and
