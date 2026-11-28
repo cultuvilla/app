@@ -62,6 +62,7 @@ import { MAP_ZOOM_DEFAULT } from '@cultuvilla/shared/services/mapsService';
 import { useScrollEnabledWhileZooming } from '../primitives/ImageZoomOverlay';
 import { newsImageDownloadURL } from '@cultuvilla/shared/services/imageService';
 import type { NewsPostData } from '@cultuvilla/shared/models/news/NewsPostDataModel';
+import { orgHubRow, showsTypeInsteadOfCount } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { formatDate, formatFestivalPosterDates } from '@cultuvilla/shared/utils';
 import {
   escudoFullUrl,
@@ -198,8 +199,8 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
   // pending state left to filter here. Organizations keep the real
   // pending/approved/rejected review flow, so they still need the filter.
   const visibleOrgs = organizations.filter((o) => isProposalVisible(o.status, o.requestedBy, caps));
-  const penas = visibleOrgs.filter((o) => o.type === 'peña');
-  const agrupaciones = visibleOrgs.filter((o) => o.type !== 'peña');
+  const penas = visibleOrgs.filter((o) => orgHubRow(o.type) === 'peñas');
+  const agrupaciones = visibleOrgs.filter((o) => orgHubRow(o.type) === 'grupos');
 
   // Censo CTA label: "Editar censo" once every current question has a non-empty
   // answer; "Rellenar censo" otherwise. A newly-added (still-unanswered)
@@ -383,8 +384,8 @@ export function VillageHomeBody({ data, reload }: VillageHomeBodyProps) {
               key={o.id}
               label={o.name}
               sub={
-                o.type === 'comisión'
-                  ? t('organization.comisión')
+                showsTypeInsteadOfCount(o.type)
+                  ? t(`organization.${o.type}`)
                   : t('village.hub.memberCount', { count: o.memberCount })
               }
               icon={o.type === 'comisión' ? 'sparkles-outline' : 'business-outline'}

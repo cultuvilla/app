@@ -8,6 +8,7 @@ import {
 import { Pressable as RNPressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@cultuvilla/shared/design-system';
+import { ORG_TYPE_QUERY } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 import { router } from 'expo-router';
 import { BottomSheet, Text, HStack } from '../primitives';
 import { ACCENT } from './VillageSections';
@@ -43,8 +44,8 @@ function optionsFor(villageId: string, villageSlug: string, canManage: boolean):
       : []),
     { key: 'evento', icon: 'calendar-outline', href: createEventHref({ villageId }) },
     { key: 'articulo', icon: 'newspaper-outline', href: createNewsHref({ villageId }) },
-    { key: 'agrupacion', icon: 'business-outline', href: villageSectionHref(villageSlug, 'entidades', 'type=asociacion') },
-    { key: 'pena', icon: 'people-circle-outline', href: villageSectionHref(villageSlug, 'entidades', 'type=pena') },
+    { key: 'agrupacion', icon: 'business-outline', href: villageSectionHref(villageSlug, 'entidades', `type=${ORG_TYPE_QUERY['asociación']}`) },
+    { key: 'pena', icon: 'people-circle-outline', href: villageSectionHref(villageSlug, 'entidades', `type=${ORG_TYPE_QUERY['peña']}`) },
     { key: 'barrio', icon: 'map-outline', href: villageSectionHref(villageSlug, 'barrios') },
     { key: 'lugar', icon: 'location-outline', href: villageSectionHref(villageSlug, 'lugares') },
     { key: 'cartel', icon: 'image-outline', href: villageSectionHref(villageSlug, 'carteles') },

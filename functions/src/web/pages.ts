@@ -10,7 +10,6 @@ import {
   type AmbassadorView,
   type Card,
   type DefinitionView,
-  COMISION_LABEL,
   type EventView,
   type HistoryView,
   type NewsView,
@@ -33,8 +32,9 @@ import { richText } from './richText';
 import type { AmbassadorForm, AmbassadorFormErrors, AmbassadorFormField } from './ambassadorLead';
 
 // The read site is Spanish-only server output. Enum labels the app shares come
-// from its catalog (./copy); these have no catalog entry the web can use —
-// ORG_TYPE's `otros` reads «Entidad» here and «Otros» in the app.
+// from its catalog (./copy); BARRIO_KIND has no catalog entry the web can use,
+// and ORG_TYPE takes the catalog's labels except `otros`, which reads «Entidad»
+// here and «Otros» in the app.
 const NEWS_CATEGORY = 'news.compose.category';
 const PLACE_KIND = 'village.admin.places.kind';
 const TERM_KIND = 'village.vocabulary.kind';
@@ -45,11 +45,11 @@ const BARRIO_KIND: Readonly<Partial<Record<string, string>>> = {
   parroquia: 'Parroquia',
 };
 const ORG_TYPE: Readonly<Partial<Record<string, string>>> = {
-  ayuntamiento: 'Ayuntamiento',
-  peña: 'Peña',
-  asociación: 'Asociación',
+  ayuntamiento: msg('organization.ayuntamiento'),
+  peña: msg('organization.peña'),
+  asociación: msg('organization.asociación'),
   otros: 'Entidad',
-  comisión: COMISION_LABEL,
+  comisión: msg('organization.comisión'),
 };
 const SECTION_TITLE: Readonly<Record<PublicSection, string>> = {
   carteles: 'Carteles de fiestas',

@@ -4,16 +4,18 @@ import { Screen } from '../../components/primitives';
 import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { useT } from '../../lib/i18n';
 import { OrganizationsManager } from '../../components/feature/proposable/OrganizationsManager';
-import type { OrganizationType } from '@cultuvilla/shared/models/organization/OrganizationDataModel';
+import {
+  PROPOSABLE_ORGANIZATION_TYPES,
+  orgTypeFromQuery,
+  type OrganizationType,
+} from '@cultuvilla/shared/models/organization/OrganizationDataModel';
 
-// ASCII query aliases: the add-content sheet can't safely pass the accented type
-// names through a URL, so it sends these; anything else leaves the picker default.
-const TYPE_ALIASES: Record<string, OrganizationType> = {
-  pena: 'peña',
-  asociacion: 'asociación',
-  comision: 'comisión',
-  otros: 'otros',
-};
+// The `type` query preselects the picker; a type nobody may propose (or an
+// unknown value) leaves the picker default.
+function proposableTypeFromQuery(value: string | undefined): OrganizationType | undefined {
+  const parsed = orgTypeFromQuery(value);
+  return parsed && PROPOSABLE_ORGANIZATION_TYPES.includes(parsed) ? parsed : undefined;
+}
 
 // Agrupaciones create surface: any member proposes a peña/comisión/asociación/otros;
 // organizers create (auto-approved). After submit we return to the pueblo tab.
@@ -21,7 +23,7 @@ function VillageOrganizations() {
   const { municipalityId: villageId, slug: villageSlug } = useVillageRoute();
   const { type } = useLocalSearchParams<{ type?: string }>();
   const { t } = useT();
-  const initialType = type ? TYPE_ALIASES[type] : undefined;
+  const initialType = proposableTypeFromQuery(type);
   return (
     <Screen padded={false}>
       <ScreenHeader title={t('village.admin.organizations.add')} />

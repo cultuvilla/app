@@ -23,11 +23,40 @@ export const PROPOSABLE_ORGANIZATION_TYPES: readonly OrganizationType[] = [
 ] as const;
 
 /**
- * Every org admits its members, so this is always `approval` and nothing here
- * reads it. It stays written for installed binaries, which offer an instant join
- * on `open` and treat a missing value as `open`: it goes once `minSupported`
- * passes the release that stopped reading it. See docs/decisions/org-join-policy.md.
+ * How someone becomes an integrante, picked by the group's admin: `approval`
+ * (a join request an admin accepts — the default, and the only way into an
+ * ayuntamiento) or `open` (joining on the spot). See
+ * docs/decisions/org-join-policy.md.
  */
+/** The village home and the profile give peñas their own row; every other type goes under Grupos. */
+export type OrgHubRow = 'peñas' | 'grupos';
+
+export function orgHubRow(type: OrganizationType): OrgHubRow {
+  return type === 'peña' ? 'peñas' : 'grupos';
+}
+
+/**
+ * ASCII spelling of each type for a URL query (`entidades?type=pena`): the
+ * stored ids are accented, which a link can't carry safely.
+ */
+export const ORG_TYPE_QUERY: Readonly<Record<OrganizationType, string>> = {
+  ayuntamiento: 'ayuntamiento',
+  peña: 'pena',
+  asociación: 'asociacion',
+  otros: 'otros',
+  comisión: 'comision',
+};
+
+export function orgTypeFromQuery(value: string | null | undefined): OrganizationType | undefined {
+  if (!value) return undefined;
+  return OrganizationTypeSchema.options.find((t) => ORG_TYPE_QUERY[t] === value);
+}
+
+/** A card for this type shows the type's label as its subtitle, not the member count. */
+export function showsTypeInsteadOfCount(type: string | null | undefined): type is 'comisión' {
+  return type === 'comisión';
+}
+
 export const OrgJoinPolicySchema = z.enum(['open', 'approval']);
 export type OrgJoinPolicy = z.infer<typeof OrgJoinPolicySchema>;
 
