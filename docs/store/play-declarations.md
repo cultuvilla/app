@@ -138,6 +138,10 @@ Recogida y **no compartida** en todos los casos: los datos viven en Firebase
 (Google Cloud, encargado del tratamiento), no se venden ni se ceden a terceros
 con fines propios.
 
+**Desde 2026-11-28 la app lleva Firebase Crashlytics** (filas de diagnóstico e
+identificadores). El formulario de la consola se actualiza antes de enviar a
+revisión la primera build que lo incluye.
+
 | Tipo (categoría Play) | Recogido | Obligatorio | Finalidad | Origen en el código |
 |---|---|---|---|---|
 | Personal info → Name | Sí | Sí | App functionality, Account management | `persons` (nombre y apellidos) |
@@ -147,8 +151,9 @@ con fines propios.
 | Photos and videos → Photos | Sí | No | App functionality | foto de perfil, escudo, imágenes de evento/noticia, foto de lo que se ofrece en una cosateca (de la galería o hecha con la cámara) |
 | Location → Approximate + Precise | Sí | No | App functionality | `expo-location`, una sola vez, para el pin del pueblo |
 | App activity → Other actions | Sí | No | App functionality | inscripciones, pertenencias, solicitudes |
-| App info and performance → Crash logs | Sí | No | Diagnóstico | `captureError` → Cloud Logging |
-| App info and performance → Diagnostics | Sí | No | Diagnóstico | mismo puente de errores |
+| App info and performance → Crash logs | Sí | Sí | Diagnóstico | Firebase Crashlytics (fallos nativos, ANR y errores JS vía `captureError`) y `captureError` → Cloud Logging |
+| App info and performance → Diagnostics | Sí | Sí | Diagnóstico | Crashlytics (modelo, versión del sistema, memoria y disco libres al fallar) y el mismo puente de errores |
+| Device or other IDs | Sí | Sí | Diagnóstico, Analytics | identificador de instalación de Crashlytics; app instance ID de Analytics (solo con consentimiento) |
 
 Prácticas de seguridad a declarar:
 
@@ -156,10 +161,13 @@ Prácticas de seguridad a declarar:
 - **Se puede solicitar la eliminación de los datos**: sí — Ajustes → Eliminar
   cuenta (callable `deleteAccount`, borrado RGPD).
 - **URL de solicitud de eliminación**: `https://cultuvilla.es/legal/eliminar-cuenta`.
-- **Sin SDK de analítica de terceros en nativo**: el backend de analítica de
-  `apps/mobile/lib/observability/analytics.ts` es hoy un no-op; los errores van
-  a Cloud Logging propio. Si se activa `@react-native-firebase/analytics`,
-  esta tabla cambia (Device or other IDs pasa a recogerse).
+- **SDKs nativos de Google, ninguno de terceros**: `@react-native-firebase/analytics`
+  (solo con el consentimiento de *Estadísticas de uso*) y
+  `@react-native-firebase/crashlytics` (diagnóstico, interés legítimo, siempre
+  activo en las builds de tienda). Crashlytics recoge los fallos por sí mismo
+  aunque la persona no haya iniciado sesión, de ahí *Obligatorio: Sí* en las
+  filas de diagnóstico; el id de persona que le llega es el hash del uid
+  (`fetchUserIdHash`), nunca el uid.
 
 ### Permisos del manifiesto
 

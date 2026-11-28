@@ -13,6 +13,10 @@ de la persona? ¿se usa para *tracking* (seguimiento entre apps/webs de terceros
 transparency`, no hay SDK publicitario ni data broker. Por tanto **no** procede
 el prompt de App Tracking Transparency.
 
+**Desde 2026-11-28 la app lleva Firebase Crashlytics** (filas de diagnóstico e
+identificadores). El formulario de la consola se actualiza antes de enviar a
+revisión la primera build que lo incluye.
+
 | Tipo de dato | Recogido | Enlazado a la identidad | Uso |
 |---|---|---|---|
 | Contact Info → Name | Sí | Sí | App Functionality |
@@ -23,7 +27,8 @@ el prompt de App Tracking Transparency.
 | Identifiers → User ID | Sí | Sí | App Functionality (uid de Firebase Auth) |
 | Location → Coarse + Precise Location | Sí | Sí | App Functionality (pin del pueblo, uso puntual) |
 | Usage Data → Product Interaction | Sí | Sí | App Functionality |
-| Diagnostics → Crash Data, Other Diagnostic Data | Sí | Sí | App Functionality |
+| Identifiers → Device ID | Sí | Sí | App Functionality, Analytics (identificador de instalación de Crashlytics; app instance ID de Analytics, solo con consentimiento) |
+| Diagnostics → Crash Data, Other Diagnostic Data | Sí | Sí | App Functionality (Firebase Crashlytics: fallos nativos y errores JS; y el puente de errores a Cloud Logging) |
 | Sensitive Info | **No** | — | la política de privacidad pide expresamente no volcar categorías especiales en texto libre |
 
 La foto que se hace con la cámara al ofrecer algo en una cosateca se sube como

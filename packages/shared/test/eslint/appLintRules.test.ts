@@ -58,6 +58,8 @@ describe('app lint gate: exemption lists', () => {
       'lib/appCheck.ts',
       'lib/observability/analytics.ts',
       'lib/observability/__tests__/analytics.native.test.ts',
+      'lib/observability/crashlytics.ts',
+      'lib/observability/__tests__/crashlytics.native.test.ts',
     ]);
     expect(mobile.SEAM_ALLOWLIST).toEqual([
       'lib/auth/**',

@@ -55,6 +55,25 @@ describe('native Firebase on iOS', () => {
   });
 });
 
+describe('native crash reporting', () => {
+  // Without the Gradle plugin Android still links the SDK but ships no build id,
+  // and the app aborts at launch (expo-native-rebuild skill, symptom 4).
+  it('wires the Crashlytics Gradle plugin alongside the Android Firebase config', () => {
+    expect(config.android?.googleServicesFile).toBeDefined();
+    expect(config.plugins).toContain('@react-native-firebase/crashlytics');
+  });
+
+  // globalHandlers reports every uncaught JS error through captureError; the
+  // SDK's own report would file it twice and log analytics outside consent.
+  it("leaves uncaught JS errors to captureError, not the SDK's own handler", () => {
+    const firebaseJson = JSON.parse(readFileSync(join(__dirname, '../firebase.json'), 'utf8'));
+    expect(firebaseJson['react-native']).toMatchObject({
+      crashlytics_is_error_generation_on_js_crash_enabled: false,
+      analytics_auto_collection_enabled: false,
+    });
+  });
+});
+
 describe('apple-app-site-association', () => {
   const envs = ['dev', 'beta', 'prod'] as const;
   const bundleIdPerEnv = {

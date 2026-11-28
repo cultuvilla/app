@@ -44,6 +44,14 @@ jest.mock('@react-native-firebase/analytics', () => ({
   setUserId: jest.fn(async () => undefined),
 }));
 
+// Same for Crashlytics; its own suite overrides these per test.
+jest.mock('@react-native-firebase/crashlytics', () => ({
+  getCrashlytics: jest.fn(() => ({})),
+  log: jest.fn(),
+  recordError: jest.fn(),
+  setUserId: jest.fn(async () => null),
+}));
+
 jest.mock('expo-apple-authentication', () => ({
   signInAsync: jest.fn(async () => ({ identityToken: 'test-identity-token' })),
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
