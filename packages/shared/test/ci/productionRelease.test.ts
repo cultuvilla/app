@@ -10,6 +10,7 @@ import { resolve } from 'node:path';
 
 const repoRoot = resolve(__dirname, '../../../..');
 const wf = readFileSync(resolve(repoRoot, '.github/workflows/production-release.yml'), 'utf8');
+const script = readFileSync(resolve(repoRoot, 'scripts/production-release-plan.mjs'), 'utf8');
 const deployProd = readFileSync(resolve(repoRoot, '.github/workflows/deploy-prod.yml'), 'utf8');
 const appConfig = readFileSync(resolve(repoRoot, 'apps/mobile/app.config.ts'), 'utf8');
 const mobilePackage = JSON.parse(
@@ -44,88 +45,52 @@ describe('production-release workflow', () => {
     }
   });
 
-  // A re-deploy, or a hotfix merge without a bump, must never build a binary.
-  it('ships binaries only when the app version changed since the previous main tip', () => {
+  // The decisions themselves — version change, preconditions, every kill-switch,
+  // the Play freeze, the OTA paths — are scripts/production-release-plan.mjs,
+  // and its case table (scripts/__tests__/production-release-plan.test.mjs) is
+  // what pins each branch. Here: that the workflow hands it the facts and
+  // exposes what it decides.
+  it('plans with the tested script, fed every fact and switch through env', () => {
     const plan = job('plan');
     expect(plan).toContain('fetch-depth: 0');
-    expect(plan).toContain('github.event.before');
-    expect(plan).toContain('apps/mobile/package.json');
-    expect(plan).toMatch(/if \[ "\$\{version\}" = "\$\{previous\}" \]/);
+    expect(plan).toContain('run: node scripts/production-release-plan.mjs plan');
+    expect(plan).toContain('BEFORE: ${{ github.event.before }}');
+    expect(plan).toContain('COMMIT_MESSAGE: ${{ github.event.head_commit.message }}');
+    for (const v of ['STORE_RELEASE_PAUSED', 'PROD_OTA_PAUSED', 'PLAY_SUBMIT_PAUSED']) {
+      expect(plan).toContain(`${v}: \${{ vars.${v} }}`);
+    }
+    // A dropped output would skip that job on every release, silently.
+    for (const out of ['store', 'android', 'ota']) {
+      expect(plan).toContain(`${out}: \${{ steps.plan.outputs.${out} }}`);
+    }
+    // The jobs install nothing, so the script may import only Node built-ins
+    // and scripts/lib/.
+    const imports = [...script.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]);
+    expect(imports.length).toBeGreaterThan(0);
+    for (const from of imports) expect(from).toMatch(/^(node:|\.\/lib\/)/);
   });
 
   // The plan decides on package.json; the iOS submit picks its build by
   // app.config.ts. If they ever disagree, Android and iOS release different
-  // versions — so the workflow refuses, and this keeps the repo from getting there.
+  // versions — so the plan refuses, and this keeps the repo from getting there.
   it('reads the same version the iOS submit will use', () => {
     const configVersion = /^ {2}version: '([^']+)',$/m.exec(appConfig)?.[1];
     expect(configVersion).toBe(mobilePackage.version);
-    expect(job('plan')).toContain('apps/mobile/app.config.ts');
-    expect(job('plan')).toMatch(/if \[ "\$\{config_version\}" != "\$\{version\}" \]/);
+    expect(script).toContain("readFileSync('apps/mobile/app.config.ts'");
+    expect(script).toContain('`${rev}:apps/mobile/package.json`');
   });
 
-  // Everything the store jobs would otherwise find out only after a release
-  // began is checked in `plan`: a fix commit does not bump the version, so a
-  // half-shipped release would never re-run. Inside the store branch only, so a
-  // kill-switch still lands a fix on main without a red run.
-  it('checks store preconditions before anything ships, and only when binaries would', () => {
-    const plan = job('plan');
-    const gate = plan.indexOf('if [ "${store}" = "true" ]; then');
-    expect(gate).toBeGreaterThan(-1);
-    expect(plan.indexOf('config_version=')).toBeGreaterThan(gate);
-    expect(plan.indexOf('extractReleaseNotes(')).toBeGreaterThan(gate);
-    expect(plan).toContain('./scripts/lib/changelog-notes.mjs');
-  });
-
-  // [skip-deploy] means the prod backend for this commit was never deployed, so
-  // no client may ship against it — and the backend wait would otherwise poll a
-  // job that never runs.
-  it('ships nothing on a [skip-deploy] merge, and never counts a skipped deploy as green', () => {
-    expect(job('plan')).toContain('[skip-deploy]');
+  it('waits for the backend with the tested script', () => {
     const backend = job('backend');
-    expect(backend).toContain('all(.conclusion == "success")');
-    // A skipped deploy JOB is not green. (A skipped functions STEP inside a
-    // green job is the held backend — announceWhenLive.test.ts.)
-    expect(backend).not.toMatch(/\.conclusion == "skipped"|conclusion == \\"skipped\\"/);
-    expect(backend).not.toMatch(/all\(\.conclusion == "success" or/);
+    expect(backend).toContain('uses: actions/checkout@v5');
+    expect(backend).toContain('run: node scripts/production-release-plan.mjs wait-backend');
+    expect(backend).toContain('GH_TOKEN: ${{ github.token }}');
+    expect(backend.indexOf('actions/checkout')).toBeLessThan(backend.indexOf('wait-backend'));
   });
 
-  it('honours every kill-switch', () => {
-    const plan = job('plan');
-    expect(plan).toContain('[skip-store]');
-    expect(plan).toContain('[skip-ota]');
-    expect(plan).toContain('vars.STORE_RELEASE_PAUSED');
-    expect(plan).toContain('vars.PROD_OTA_PAUSED');
-    // Each switch must sit in its own decision, or a swap would make
-    // STORE_RELEASE_PAUSED stop OTAs and leave binaries shipping.
-    const storeOut = plan.indexOf('echo "store=${store}"');
-    const otaOut = plan.indexOf('echo "ota=${ota}"');
-    const storeSwitch = plan.indexOf('"${STORE_RELEASE_PAUSED}" = "true"');
-    const otaSwitch = plan.indexOf('"${PROD_OTA_PAUSED}" = "true"');
-    expect(storeSwitch).toBeGreaterThan(-1);
-    expect(storeSwitch).toBeLessThan(storeOut);
-    expect(otaSwitch).toBeGreaterThan(storeOut);
-    expect(otaSwitch).toBeLessThan(otaOut);
-    expect(plan.indexOf('[skip-store]')).toBeLessThan(storeOut);
-    expect(plan.indexOf('[skip-ota]')).toBeGreaterThan(storeOut);
-    // The Play freeze is decided in `plan`, so a release iOS ships alone is
-    // reported (summary + warning) on the run that split the stores.
-    expect(plan).toContain('PLAY_SUBMIT_PAUSED: ${{ vars.PLAY_SUBMIT_PAUSED }}');
-    // Android inherits every store decision ([skip-deploy], [skip-store],
-    // STORE_RELEASE_PAUSED, an unchanged version) and only then the Play
-    // freeze; a dropped output would skip Android on every release, silently.
-    expect(plan).toContain('android: ${{ steps.plan.outputs.android }}');
-    expect(plan).toMatch(/^\s*android="\$\{store\}"$/m);
-    expect(plan).toContain('echo "android=${android}" >> "$GITHUB_OUTPUT"');
-    expect(plan.indexOf('android="${store}"')).toBeGreaterThan(storeOut);
-    expect(plan).toMatch(/::warning::PLAY_SUBMIT_PAUSED=true/);
-    // The plan's line is a plan: the freeze is re-read later, so it must not
-    // read as an outcome.
-    expect(plan).toContain('echo "- Android (planned): **${android}**');
-    expect(plan).not.toContain('echo "- Android: **');
-    // Warn only when binaries would ship at all, or every hotfix push cries wolf.
-    expect(plan).toContain('if [ "${store}" = "true" ] && [ "${PLAY_SUBMIT_PAUSED}" = "true" ]; then');
-    // …and the freeze is read again when the job starts, up to two hours later,
-    // so flipping it mid-run still holds Play.
+  it('honours the Play freeze again when the android job starts', () => {
+    // The freeze is read again when the job starts, up to two hours after the
+    // plan, so flipping it mid-run still holds Play.
     expect(job('android')).toContain(
       "if: ${{ needs.plan.outputs.android == 'true' && vars.PLAY_SUBMIT_PAUSED != 'true' }}",
     );
@@ -150,9 +115,6 @@ describe('production-release workflow', () => {
   // An app talking to a callable the prod deploy has not shipped — or that a
   // conformance/backfill gate blocked — is broken, not early.
   it('ships nothing to users before the prod backend deploy is green', () => {
-    const backend = job('backend');
-    expect(backend).toContain('select(.name == "Deploy prod")');
-    expect(backend).toContain('startswith("deploy / ")');
     for (const name of ['ota', 'ios']) {
       expect(job(name)).toMatch(/needs:\s*\[plan, backend\]/);
     }
@@ -165,11 +127,13 @@ describe('production-release workflow', () => {
     expect(job('android')).toMatch(/needs:\s*\[plan, backend, ios\]/);
   });
 
-  // The wait above keys off these names; renaming either one silently turns it
+  // The wait keys off these names; renaming either one silently turns it
   // into a 60-minute timeout on every release.
   it('matches the names Deploy prod actually uses', () => {
     expect(deployProd).toMatch(/^name: Deploy prod$/m);
     expect(deployProd).toMatch(/\n {2}deploy:\n/);
+    expect(script).toContain("export const DEPLOY_WORKFLOW = 'Deploy prod';");
+    expect(script).toContain("export const DEPLOY_JOB_PREFIX = 'deploy / ';");
   });
 
   it('builds the production package and submits it to the Play production track', () => {

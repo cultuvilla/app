@@ -20,6 +20,13 @@ All three wait until the prod backend deploy (*Deploy prod*'s `deploy / …` job
 is green. A bundle that calls a callable prod has not deployed yet — or that the
 conformance or backfill gate blocked — is a broken app, not an early one.
 
+What ships, and whether that backend is green (or held), is decided by
+[production-release-plan.mjs](../../scripts/production-release-plan.mjs) —
+`decideProductionRelease` and `readDeployState` — not by shell in the
+workflow, so each branch below is a row in its case table
+([production-release-plan.test.mjs](../../scripts/__tests__/production-release-plan.test.mjs)).
+Change a rule there and in that table together.
+
 **A breaking release is the exception.** A breaking release has a
 `Breaking-Client:` trailer since the previous release tag. Its deploy holds the
 functions and rules until both stores serve the release, and holding them still

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { FUNCTIONS_STEP } from '../../../../scripts/production-release-plan.mjs';
 
 // Announce-when-live (docs/decisions/announce-when-live-poller.md): a production
 // release reaches installed apps only once the stores serve it, and a breaking
@@ -104,16 +105,17 @@ describe('production-release does not deadlock on a held backend', () => {
   // The held backend waits for these very binaries; if the stores waited for
   // the backend, neither would ever move.
   it('treats a held deploy as green and reports it', () => {
+    // readDeployState judges the skipped step (production-release-plan.test.mjs);
+    // here, that the job exposes it.
     const backend = job(release, 'backend');
     expect(backend).toContain('held: ${{ steps.wait.outputs.held }}');
-    expect(backend).toContain('select(.name == "Deploy Cloud Functions")');
-    expect(backend).toContain('any(. == "skipped")');
-    expect(backend).toContain('echo "held=${held}" >> "$GITHUB_OUTPUT"');
+    expect(backend).toMatch(/id: wait\n[\s\S]*run: node scripts\/production-release-plan\.mjs wait-backend/);
   });
 
   // The step name is the contract between the two workflows.
   it('reads the step deploy-firebase.yml actually names', () => {
     expect(deploy).toMatch(/^ {6}- name: Deploy Cloud Functions$/m);
+    expect(FUNCTIONS_STEP).toBe('Deploy Cloud Functions');
   });
 
   it('still ships the store binaries, but no OTA, while the backend is held', () => {
