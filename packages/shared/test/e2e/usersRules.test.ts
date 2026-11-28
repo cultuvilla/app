@@ -8,7 +8,7 @@
 // contexts.
 import { describe, it } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
 import { asAdmin, asAnon, asUser, asUserWithEmail, seed } from '../helpers/roles';
 
@@ -283,5 +283,59 @@ describe('firestore.rules — /publicProfiles/{userId}', () => {
         activeMunicipalityId: null,
       }),
     );
+  });
+});
+
+// The admins/ marker is what isAppAdmin() reads; a client may learn only its own.
+describe('firestore.rules — /admins/{userId}', () => {
+  it('lets a user read their own marker, and an app admin read anyone’s', async () => {
+    await seed(getEnv(), async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `admins/${OWNER}`), { grantedAt: new Date() });
+    });
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), OWNER), `admins/${OWNER}`)));
+    const admin = await asAdmin(getEnv(), 'sadmin');
+    await assertSucceeds(getDoc(doc(admin, `admins/${OWNER}`)));
+  });
+
+  it('refuses another user’s marker', async () => {
+    await seed(getEnv(), async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `admins/${OWNER}`), { grantedAt: new Date() });
+    });
+    await assertFails(getDoc(doc(asUser(getEnv(), OTHER), `admins/${OWNER}`)));
+  });
+});
+
+// Notifications are written by functions; the owner reads them and only flips `read`.
+describe('firestore.rules — /users/{userId}/notifications/{notifId}', () => {
+  const path = `users/${OWNER}/notifications/n1`;
+  async function seedNotification() {
+    await seed(getEnv(), async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), { type: 'event_update', read: false, createdAt: new Date() });
+    });
+  }
+
+  it('lets the owner read their notification', async () => {
+    await seedNotification();
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), OWNER), path)));
+  });
+
+  it('refuses anyone else’s read', async () => {
+    await seedNotification();
+    await assertFails(getDoc(doc(asUser(getEnv(), OTHER), path)));
+  });
+
+  it('lets the owner mark it read', async () => {
+    await seedNotification();
+    await assertSucceeds(updateDoc(doc(asUser(getEnv(), OWNER), path), { read: true }));
+  });
+
+  it('refuses the owner editing anything but `read`', async () => {
+    await seedNotification();
+    await assertFails(updateDoc(doc(asUser(getEnv(), OWNER), path), { type: 'other' }));
+  });
+
+  it('refuses another user marking it read', async () => {
+    await seedNotification();
+    await assertFails(updateDoc(doc(asUser(getEnv(), OTHER), path), { read: true }));
   });
 });

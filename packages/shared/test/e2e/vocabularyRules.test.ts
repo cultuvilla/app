@@ -525,3 +525,27 @@ describe('firestore.rules — /vocabularyDefinitions', () => {
     await assertFails(deleteDoc(doc(asUser(getEnv(), 'carol'), 'vocabularyDefinitions/d1')));
   });
 });
+
+// A hidden word or meaning leaves the open feed: only its pueblo's members and
+// its author still read it.
+describe('firestore.rules — reading a hidden word or meaning', () => {
+  const hidden = { status: 'hidden', hiddenBy: 'vadmin', hiddenAt: new Date(), hiddenReason: 'spam' };
+
+  it('refuses a stranger a hidden term, and lets its pueblo and its author read it', async () => {
+    await seedMember('bob');
+    await seedTerm('alice', hidden);
+    await assertFails(getDoc(doc(asAnon(getEnv()), `vocabularyTerms/${TERM_ID}`)));
+    await assertFails(getDoc(doc(asUser(getEnv(), 'carol'), `vocabularyTerms/${TERM_ID}`)));
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'bob'), `vocabularyTerms/${TERM_ID}`)));
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'alice'), `vocabularyTerms/${TERM_ID}`)));
+  });
+
+  it('refuses a stranger a hidden definition, and lets its pueblo and its author read it', async () => {
+    await seedMember('bob');
+    await seedTerm('alice');
+    await seedDefinition('d1', 'alice', hidden);
+    await assertFails(getDoc(doc(asUser(getEnv(), 'carol'), 'vocabularyDefinitions/d1')));
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'bob'), 'vocabularyDefinitions/d1')));
+    await assertSucceeds(getDoc(doc(asUser(getEnv(), 'alice'), 'vocabularyDefinitions/d1')));
+  });
+});

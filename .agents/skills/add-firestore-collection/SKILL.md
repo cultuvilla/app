@@ -188,7 +188,7 @@ Shape (in `shapeRules.test.ts`):
 - A payload with the wrong type on a critical field is REJECTED.
 - A payload with an unknown enum value is REJECTED.
 
-Run: `pnpm test:rules` — should pass.
+Run: `pnpm test:rules` — should pass. It ends with the **rules coverage ratchet** (`scripts/check-rules-coverage.mjs`): every `allow` condition you add must be seen by a test both granting and returning `false` (an evaluation error does not count as a refusal). If one genuinely cannot be, list its key (`/<match path> <ops>`, as the check prints it) in `packages/shared/test/e2e/rules-uncovered.json` with a `never-…: <why>` reason. Must use `useRulesTestEnv()` — that harness is what collects the coverage.
 
 ### 11. The conformance gate — nothing to do
 

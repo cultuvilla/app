@@ -7,7 +7,7 @@
 // contexts.
 import { describe, it } from 'vitest';
 import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { useRulesTestEnv } from '../helpers/rulesTestEnv';
 import { asUser, asAnon, asAdmin, seed } from '../helpers/roles';
 
@@ -121,5 +121,27 @@ describe('firestore.rules — /municipalities/{municipalityId}', () => {
 
     const bob = asUser(getEnv(), 'bob');
     await assertFails(updateDoc(doc(bob, 'municipalities/m1'), { name: 'Hacked' }));
+  });
+});
+
+// A municipality is INE data: only an app admin may remove one.
+describe('firestore.rules — municipalities/{id} delete', () => {
+  async function seedVillage() {
+    await seed(getEnv(), async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'municipalities/m1'), { name: 'Salamanca', communityActive: true });
+      await setDoc(doc(db, 'municipalities/m1/members/vadmin'), { userId: 'vadmin', role: 'admin', joinedAt: new Date() });
+    });
+  }
+
+  it('lets an app admin delete it', async () => {
+    await seedVillage();
+    const admin = await asAdmin(getEnv(), 'admin-1');
+    await assertSucceeds(deleteDoc(doc(admin, 'municipalities/m1')));
+  });
+
+  it('refuses its village admin', async () => {
+    await seedVillage();
+    await assertFails(deleteDoc(doc(asUser(getEnv(), 'vadmin'), 'municipalities/m1')));
   });
 });
