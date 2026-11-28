@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { LocationDataSchema, LatLngSchema, type LatLng } from '../core/LocationDataModel';
 import { SignupFieldsSchema, type SignupFieldSpec } from './SignupFieldModel';
 import { EventSeriesSchema, type EventSeries } from './EventSeriesModel';
+import { isOrgPrivateEvent } from '../../policy/eventPrivacy';
 
 /**
  * Upper bound on `signupGroupSize`. Groups are seated atomically, so a large
@@ -268,14 +269,12 @@ export function buildEventData(input: EventDataInput): EventData {
 
 /**
  * True when the event is restricted to one organization's members.
- * Reads `visibilityOrgId`, not the enum: a doc that somehow carries
- * `visibility: 'organization'` with no org id is unreadable by anyone, so
- * treating it as public would be the only failure mode worse than hiding it.
+ * Reads `visibilityOrgId`, not the enum, exactly as the `events` read rule
+ * does (`isOrgPrivateEvent`): a doc carrying an org id is private whatever its
+ * `visibility` says, so a half-written doc fails closed.
  */
-export function isPrivateEvent(
-  event: Pick<EventData, 'visibility' | 'visibilityOrgId'>,
-): boolean {
-  return event.visibility === 'organization' && event.visibilityOrgId !== null;
+export function isPrivateEvent(event: Pick<EventData, 'visibilityOrgId'>): boolean {
+  return isOrgPrivateEvent(event);
 }
 
 /** Everything about a viewer that decides whether a private event is theirs to see. */
