@@ -1,4 +1,4 @@
-// Handler tests for onPersonDeleted: a deleted persona gives up its seats on
+// Handler tests for syncPersonDenormalization's delete branch: a deleted persona gives up its seats on
 // upcoming events through the same cancellation a holder's own cancel runs.
 // Runs against the Firestore + Auth emulators via firebase-admin; the trigger
 // is invoked in-process through firebase-functions-test's wrap().
@@ -17,7 +17,7 @@ vi.mock('resend', () => ({
   }),
 }));
 
-import { onPersonDeleted } from '../../events/onPersonDeleted';
+import { syncPersonDenormalization } from '../../users/syncPersonDenormalization';
 
 const ft = functionsTestFactory({
   projectId: process.env.GCLOUD_PROJECT || 'cultuvilla-test',
@@ -105,14 +105,19 @@ async function seatExists(eventId: string, id: string): Promise<boolean> {
 }
 
 async function deletePersona(personId: string) {
-  const snap = ft.firestore.makeDocumentSnapshot(
+  const before = ft.firestore.makeDocumentSnapshot(
     { createdBy: OWNER, userId: null, givenName: 'Ana' },
     `persons/${personId}`,
   );
-  await ft.wrap(onPersonDeleted)({ data: snap, params: { personId } });
+  // An empty payload is a snapshot that does not exist: the delete's `after`.
+  const after = ft.firestore.makeDocumentSnapshot({}, `persons/${personId}`);
+  await ft.wrap(syncPersonDenormalization)({
+    data: ft.makeChange(before, after),
+    params: { personId },
+  });
 }
 
-describe('onPersonDeleted', () => {
+describe('persona delete releases its upcoming seats', () => {
   beforeAll(async () => {
     await resetEmulators();
   });
