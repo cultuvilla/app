@@ -35,9 +35,15 @@ jest.mock('@cultuvilla/shared/firebase', () => ({
   getAuth: () => mockFirebaseAuth,
 }));
 
-jest.mock('@cultuvilla/shared/services/authEmailService', () => ({
-  sendAuthSignInEmail: (...args: unknown[]) => mockSendAuthSignInEmail(...args),
-}));
+jest.mock('@cultuvilla/shared/services/authEmailService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/authEmailService')>(
+    '@cultuvilla/shared/services/authEmailService',
+    () => ({
+      sendAuthSignInEmail: (...args: unknown[]) => mockSendAuthSignInEmail(...args),
+    }),
+  );
+});
 
 jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
   onAuthStateChanged: (_auth: unknown, cb: (u: unknown) => void) => {
@@ -61,15 +67,25 @@ jest.mock('@cultuvilla/shared/firebase/sdk/auth', () => ({
   signOut: jest.fn(),
 }));
 
-jest.mock('@cultuvilla/shared/services/userService', () => ({
-  getUserProfile: jest.fn().mockResolvedValue({ id: 'user-1', email: 'old@example.com' }),
-  patchUserProfile: jest.fn(),
-  setActiveMunicipality: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/userService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/userService')>(
+    '@cultuvilla/shared/services/userService',
+    () => ({
+      getUserProfile: jest.fn().mockResolvedValue({ id: 'user-1', email: 'old@example.com' }),
+    }),
+  );
+});
 
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+    '@cultuvilla/shared/services/villageMemberService',
+    () => ({
+      getUserMemberships: jest.fn().mockResolvedValue([]),
+    }),
+  );
+});
 
 jest.mock('expo-constants', () => ({
   expoConfig: {

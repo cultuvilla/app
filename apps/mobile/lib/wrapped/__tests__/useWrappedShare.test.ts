@@ -11,7 +11,12 @@ jest.mock('../shareCardImage', () => ({
 jest.mock('../../dialogs', () => ({ showAlert: jest.fn() }));
 jest.mock('../../i18n', () => ({ useT: () => ({ locale: 'es', t: (k: string) => k }) }));
 jest.mock('../../deeplink/useShareDeepLink', () => ({ useShareDeepLink: () => jest.fn() }));
-jest.mock('@cultuvilla/shared/services/deepLinkService', () => ({ getWrappedLink: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/deepLinkService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/deepLinkService')>(
+    '@cultuvilla/shared/services/deepLinkService',
+  );
+});
 
 const mockSave = saveCardImage as jest.Mock;
 const mockShare = shareCardImage as jest.Mock;

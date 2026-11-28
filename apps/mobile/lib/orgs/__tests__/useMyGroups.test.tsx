@@ -3,12 +3,24 @@ import { buildOrganizationData } from '@cultuvilla/shared/models/organization/Or
 import { emitWatched, resetWatchers, setWatched, watchersOf } from '../../../test/watchers';
 import { useMyGroups } from '../useMyGroups';
 
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  watchUserOrgMemberships: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('memberships'),
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  watchOrganizationsByIds: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('orgs'),
-}));
+jest.mock('@cultuvilla/shared/services/orgMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>(
+    '@cultuvilla/shared/services/orgMemberService',
+    () => ({
+      watchUserOrgMemberships: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('memberships'),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/organizationService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+    '@cultuvilla/shared/services/organizationService',
+    () => ({
+      watchOrganizationsByIds: jest.requireActual<typeof import('../../../test/watchers')>('../../../test/watchers').mockWatcher('orgs'),
+    }),
+  );
+});
 
 function org(id: string, name: string) {
   return { id, ...buildOrganizationData({ name, type: 'asociación', municipalityId: 'm', villageSlug: 'v', requestedBy: 'x' }) };

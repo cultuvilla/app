@@ -30,9 +30,15 @@ jest.mock('@cultuvilla/shared/firebase/refs/client', () => ({
   organizationDoc: jest.fn(),
 }));
 
-jest.mock('@cultuvilla/shared/services/personService', () => ({
-  getPersonByUserId: jest.fn().mockResolvedValue(null),
-}));
+jest.mock('@cultuvilla/shared/services/personService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/personService')>(
+    '@cultuvilla/shared/services/personService',
+    () => ({
+      getPersonByUserId: jest.fn().mockResolvedValue(null),
+    }),
+  );
+});
 
 const mockUseFirestoreDoc = useFirestoreDoc as jest.Mock;
 

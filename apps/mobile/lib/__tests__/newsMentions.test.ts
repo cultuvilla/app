@@ -4,7 +4,12 @@ import { getMunicipality } from '@cultuvilla/shared/services/municipalityService
 import type { NewsMention } from '@cultuvilla/shared/models/news/NewsPostDataModel';
 
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({ getMunicipality: jest.fn() }));
+jest.mock('@cultuvilla/shared/services/municipalityService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+    '@cultuvilla/shared/services/municipalityService',
+  );
+});
 
 const push = router.push as jest.Mock;
 const getMuni = getMunicipality as jest.Mock;

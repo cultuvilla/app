@@ -15,9 +15,12 @@ jest.mock('react-native-safe-area-context', () => ({
   ...jest.requireActual('react-native-safe-area-context'),
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  resolveVillageRoute: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+    '@cultuvilla/shared/services/municipalityService',
+  );
+});
 jest.mock('../../i18n', () => ({ useT: () => ({ locale: 'es', t: (key: string) => key }) }));
 
 const resolve = resolveVillageRoute as jest.Mock;

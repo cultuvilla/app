@@ -4,9 +4,12 @@ import { useEntityCapabilities } from '../useEntityCapabilities';
 import { useAuth } from '../useAuth';
 import { useIsAppAdmin } from '../useIsAppAdmin';
 
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getVillageMemberRole: jest.fn(),
-}));
+jest.mock('@cultuvilla/shared/services/villageMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+    '@cultuvilla/shared/services/villageMemberService',
+  );
+});
 jest.mock('../useAuth', () => ({ useAuth: jest.fn() }));
 jest.mock('../useIsAppAdmin', () => ({ useIsAppAdmin: jest.fn() }));
 

@@ -55,41 +55,107 @@ jest.mock('../firestoreErrorLog', () => ({
 }));
 const mockFocusEffects: (() => void)[] = [];
 jest.mock('expo-router', () => ({ useFocusEffect: (fn: () => void) => mockFocusEffects.push(fn) }));
-jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
-  watchMunicipality: mockWatcher('municipality'),
-  watchBarrios: mockWatcher('barrios'),
-  watchPlaces: mockWatcher('places'),
-}));
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getVillageMemberRole: jest.fn(async () => 'user'),
-}));
-jest.mock('@cultuvilla/shared/services/membershipProfileService', () => ({
-  getMyCensoAnswers: jest.fn(async () => ({ hijos: true })),
-}));
-jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => ({
-  getMunicipalityPeople: jest.fn(async () => []),
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  watchOrganizationsByMunicipality: mockWatcher('orgs'),
-}));
-jest.mock('@cultuvilla/shared/services/organizerRequestService', () => ({
-  getMyOrganizerRequests: jest.fn(async () => []),
-}));
-jest.mock('@cultuvilla/shared/services/eventService', () => ({
-  watchEventsByMunicipality: mockWatcher('events'),
-  watchPrivateEventsByMunicipality: mockWatcher('privateEvents'),
-}));
-jest.mock('@cultuvilla/shared/services/newsService', () => ({ watchHomeFeed: mockWatcher('news') }));
-jest.mock('@cultuvilla/shared/services/festivalPosterService', () => ({
-  watchFestivalPosters: mockWatcher('posters'),
-}));
-jest.mock('@cultuvilla/shared/services/historyService', () => ({
-  watchHistoryEntries: mockWatcher('history'),
-}));
-jest.mock('@cultuvilla/shared/services/vocabularyService', () => ({
-  watchVocabularyTerms: mockWatcher('terms'),
-  watchVocabularyDefinitions: mockWatcher('definitions'),
-}));
+jest.mock('@cultuvilla/shared/services/municipalityService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/municipalityService')>(
+    '@cultuvilla/shared/services/municipalityService',
+    () => ({
+      watchMunicipality: mockWatcher('municipality'),
+      watchBarrios: mockWatcher('barrios'),
+      watchPlaces: mockWatcher('places'),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/villageMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+    '@cultuvilla/shared/services/villageMemberService',
+    () => ({
+      getVillageMemberRole: jest.fn(async () => 'user'),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/membershipProfileService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/membershipProfileService')>(
+    '@cultuvilla/shared/services/membershipProfileService',
+    () => ({
+      getMyCensoAnswers: jest.fn(async () => ({ hijos: true })),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/municipalityPersonService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/municipalityPersonService')>(
+    '@cultuvilla/shared/services/municipalityPersonService',
+    () => ({
+      getMunicipalityPeople: jest.fn(async () => []),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/organizationService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+    '@cultuvilla/shared/services/organizationService',
+    () => ({
+      watchOrganizationsByMunicipality: mockWatcher('orgs'),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/organizerRequestService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/organizerRequestService')>(
+    '@cultuvilla/shared/services/organizerRequestService',
+    () => ({
+      getMyOrganizerRequests: jest.fn(async () => []),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/eventService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/eventService')>(
+    '@cultuvilla/shared/services/eventService',
+    () => ({
+      watchEventsByMunicipality: mockWatcher('events'),
+      watchPrivateEventsByMunicipality: mockWatcher('privateEvents'),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/newsService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/newsService')>(
+    '@cultuvilla/shared/services/newsService',
+    () => ({ watchHomeFeed: mockWatcher('news') }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/festivalPosterService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/festivalPosterService')>(
+    '@cultuvilla/shared/services/festivalPosterService',
+    () => ({
+      watchFestivalPosters: mockWatcher('posters'),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/historyService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/historyService')>(
+    '@cultuvilla/shared/services/historyService',
+    () => ({
+      watchHistoryEntries: mockWatcher('history'),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/vocabularyService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../test/fakeModule')>('../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/vocabularyService')>(
+    '@cultuvilla/shared/services/vocabularyService',
+    () => ({
+      watchVocabularyTerms: mockWatcher('terms'),
+      watchVocabularyDefinitions: mockWatcher('definitions'),
+    }),
+  );
+});
 
 const VILLAGE = {
   id: 'm1',

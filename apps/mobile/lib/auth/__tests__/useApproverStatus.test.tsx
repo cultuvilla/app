@@ -6,23 +6,47 @@ const mockGetUserMemberships = jest.fn();
 const mockGetOrgMembershipsByUserInMunicipality = jest.fn();
 const mockGetOrganizationsByMunicipality = jest.fn();
 
-jest.mock('@cultuvilla/shared/services/adminService', () => ({
-  isAppAdmin: (uid: string) => mockIsAppAdmin(uid),
-}));
-jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  getUserMemberships: (uid: string) => mockGetUserMemberships(uid),
-}));
-jest.mock('@cultuvilla/shared/services/orgMemberService', () => ({
-  getOrgMembershipsByUserInMunicipality: (
-    uid: string,
-    municipalityId: string,
-    orgIds: string[],
-  ) => mockGetOrgMembershipsByUserInMunicipality(uid, municipalityId, orgIds),
-}));
-jest.mock('@cultuvilla/shared/services/organizationService', () => ({
-  getOrganizationsByMunicipality: (municipalityId: string, status?: string) =>
-    mockGetOrganizationsByMunicipality(municipalityId, status),
-}));
+jest.mock('@cultuvilla/shared/services/adminService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/adminService')>(
+    '@cultuvilla/shared/services/adminService',
+    () => ({
+      isAppAdmin: (uid: string) => mockIsAppAdmin(uid),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/villageMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/villageMemberService')>(
+    '@cultuvilla/shared/services/villageMemberService',
+    () => ({
+      getUserMemberships: (uid: string) => mockGetUserMemberships(uid),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/orgMemberService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/orgMemberService')>(
+    '@cultuvilla/shared/services/orgMemberService',
+    () => ({
+      getOrgMembershipsByUserInMunicipality: (
+        uid: string,
+        municipalityId: string,
+        orgIds: string[],
+      ) => mockGetOrgMembershipsByUserInMunicipality(uid, municipalityId, orgIds),
+    }),
+  );
+});
+jest.mock('@cultuvilla/shared/services/organizationService', () => {
+  const { fakeService } = jest.requireActual<typeof import('../../../test/fakeModule')>('../../../test/fakeModule');
+  return fakeService<typeof import('@cultuvilla/shared/services/organizationService')>(
+    '@cultuvilla/shared/services/organizationService',
+    () => ({
+      getOrganizationsByMunicipality: (municipalityId: string, status?: string) =>
+        mockGetOrganizationsByMunicipality(municipalityId, status),
+    }),
+  );
+});
 
 const mockUseAuth = jest.fn();
 jest.mock('../useAuth', () => ({
