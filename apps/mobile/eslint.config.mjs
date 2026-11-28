@@ -32,13 +32,15 @@ const seamPattern = {
 
 // Own both the raw SDKs and the seam: the auth boundary and the bootstrap.
 export const BOUNDARY = ['lib/auth/AuthContext.tsx', 'lib/firebaseInit.ts'];
-// May import a raw SDK: build config, App Check, and native analytics, which
-// has no seam twin.
+// May import a raw SDK: build config, App Check, and native analytics and crash
+// reporting, which have no seam twin.
 export const RAW_SDK_EXEMPT = [
   'app.config.ts',
   'lib/appCheck.ts',
   'lib/observability/analytics.ts',
   'lib/observability/__tests__/analytics.native.test.ts',
+  'lib/observability/crashlytics.ts',
+  'lib/observability/__tests__/crashlytics.native.test.ts',
 ];
 // Today's importers of seam internals. Moving errorBridge and useOwnerSummary
 // behind a service is a follow-up; a new entry here is a visible diff.

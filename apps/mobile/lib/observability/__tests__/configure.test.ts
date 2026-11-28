@@ -3,6 +3,10 @@ const mockTrackEvent = jest.fn();
 const mockBackendSetConsent = jest.fn();
 const mockSendClientError = jest.fn().mockResolvedValue(undefined);
 const mockAttachGlobalHandlers = jest.fn();
+const mockCrashRecordError = jest.fn();
+const mockCrashLog = jest.fn();
+const mockCrashSetUserId = jest.fn();
+const mockAnalyticsSetUserId = jest.fn();
 
 jest.mock('@cultuvilla/shared', () => ({
   configureObservability: (...a: unknown[]) => mockConfigureObservability(...a),
@@ -12,7 +16,14 @@ jest.mock('../analytics', () => ({
   createAnalyticsBackend: () => ({
     trackEvent: mockTrackEvent,
     setConsent: (...a: unknown[]) => mockBackendSetConsent(...a),
-    setUserId: jest.fn(),
+    setUserId: (...a: unknown[]) => mockAnalyticsSetUserId(...a),
+  }),
+}));
+jest.mock('../crashlytics', () => ({
+  createCrashlyticsBackend: () => ({
+    recordError: (...a: unknown[]) => mockCrashRecordError(...a),
+    log: (...a: unknown[]) => mockCrashLog(...a),
+    setUserId: (...a: unknown[]) => mockCrashSetUserId(...a),
   }),
 }));
 jest.mock('../errorBridge', () => ({
@@ -80,5 +91,38 @@ describe('bootstrapObservability', () => {
     const adapter = mockConfigureObservability.mock.calls[0][0];
     adapter.captureError(new Error('boom'), { route: '/explicit' });
     expect(mockSendClientError.mock.calls[0][0].route).toBe('/explicit');
+  });
+
+  // Crash reporting is diagnosis, like Cloud Logging: it goes without consent.
+  it('records every error in Crashlytics, consent or not, without repeating its message and stack', () => {
+    mockCrashRecordError.mockClear();
+    bootstrapObservability();
+    const adapter = mockConfigureObservability.mock.calls[0][0];
+    adapter.setConsent({ analytics: false });
+    const err = Object.assign(new Error('boom'), { code: 'unavailable' });
+    adapter.captureError(err, { operation: 'feed:load' });
+    expect(mockCrashRecordError).toHaveBeenCalledTimes(1);
+    const [recorded, context] = mockCrashRecordError.mock.calls[0];
+    expect(recorded).toBe(err);
+    expect(context).toMatchObject({ code: 'unavailable', operation: 'feed:load', route: '/village/abc', appVersion: '0.19.0' });
+    expect(context).not.toHaveProperty('message');
+    expect(context).not.toHaveProperty('stack');
+    expect(context).not.toHaveProperty('name');
+  });
+
+  it('sends structured logs to Crashlytics as breadcrumbs', () => {
+    bootstrapObservability();
+    const adapter = mockConfigureObservability.mock.calls[0][0];
+    adapter.log('warn', 'slow', { ms: 900 });
+    expect(mockCrashLog).toHaveBeenCalledWith('warn', 'slow', { ms: 900 });
+  });
+
+  it('gives Crashlytics the same hashed user id as analytics', () => {
+    bootstrapObservability();
+    const adapter = mockConfigureObservability.mock.calls[0][0];
+    adapter.setUserContext({ uid: 'hash1' });
+    adapter.setUserContext(null);
+    expect(mockCrashSetUserId.mock.calls).toEqual([['hash1'], [null]]);
+    expect(mockAnalyticsSetUserId.mock.calls).toEqual([['hash1'], [null]]);
   });
 });

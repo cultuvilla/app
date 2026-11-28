@@ -6,6 +6,7 @@ import {
   type UserContext,
 } from '@cultuvilla/shared';
 import { createAnalyticsBackend } from './analytics';
+import { createCrashlyticsBackend } from './crashlytics';
 import { sendClientError } from './errorBridge';
 import { attachGlobalHandlers } from './globalHandlers';
 import { getCurrentRoute } from './currentRoute';
@@ -35,6 +36,15 @@ function toErrorPayload(error: unknown, context: Record<string, unknown>): Recor
   };
 }
 
+// The report already carries the error's own message, name and stack.
+function withoutErrorFields(payload: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...payload };
+  delete out['message'];
+  delete out['name'];
+  delete out['stack'];
+  return out;
+}
+
 // The analytics user id is the (later hashed) uid; AuthContext supplies the hash
 // via setUserContext once fetchUserIdHash resolves.
 function userIdOf(user: UserContext): string {
@@ -46,6 +56,7 @@ export function bootstrapObservability(): void {
   booted = true;
 
   const analytics = createAnalyticsBackend();
+  const crashlytics = createCrashlyticsBackend();
   // Mirrors the port's consent so the exception event below, which the adapter
   // fires itself rather than through the port's gated trackEvent, obeys it too.
   let analyticsGranted = false;
@@ -53,17 +64,24 @@ export function bootstrapObservability(): void {
   const adapter: ObservabilityAdapter = {
     trackEvent: (name, params, user) => analytics.trackEvent(name, params, user ? userIdOf(user) : null),
     captureError: (error, context) => {
-      // Both sinks (design decision): Cloud Logging for diagnosis, which is
-      // legitimate interest and always goes, and an analytics event for
-      // funnel/impact correlation, which is usage analytics and needs consent.
-      void sendClientError(toErrorPayload(error, context));
+      // Three sinks (design decision): Cloud Logging and Crashlytics for
+      // diagnosis, which is legitimate interest and always goes, and an
+      // analytics event for funnel/impact correlation, which is usage analytics
+      // and needs consent. Crashlytics keeps the report next to the native
+      // crashes it may precede; Cloud Logging joins it to the server's logs.
+      const payload = toErrorPayload(error, context);
+      void sendClientError(payload);
+      crashlytics.recordError(error, withoutErrorFields(payload));
       if (analyticsGranted) analytics.trackEvent(OBSERVABILITY_EVENTS.APP_EXCEPTION, context, null);
     },
-    log: (_level, _msg, _fields) => {
-      // Client structured logs currently ride the error bridge only for errors;
-      // info/warn are dev-console today. Native Crashlytics breadcrumbs later.
+    // Client structured logs are Crashlytics breadcrumbs: they leave the device
+    // only inside a crash or error report, as the steps that led to it.
+    log: (level, msg, fields) => crashlytics.log(level, msg, fields),
+    setUserContext: (user) => {
+      const id = user ? userIdOf(user) : null;
+      analytics.setUserId(id);
+      crashlytics.setUserId(id);
     },
-    setUserContext: (user) => analytics.setUserId(user ? userIdOf(user) : null),
     setConsent: (consent) => {
       analyticsGranted = consent.analytics;
       analytics.setConsent(consent.analytics);

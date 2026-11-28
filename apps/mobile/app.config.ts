@@ -341,6 +341,12 @@ const config: ExpoConfig = {
           '@react-native-firebase/app-check',
         ]
       : []),
+    // Crashlytics' plugin only patches Gradle (its classpath and the
+    // com.google.firebase.crashlytics plugin, which uploads the mapping file).
+    // That Gradle plugin needs the google-services one, which Expo applies
+    // only when the Android file is wired, so it follows that gate. iOS needs
+    // no plugin: the pod is autolinked and records crashes on its own.
+    ...(hasGoogleServicesFile ? ['@react-native-firebase/crashlytics'] : []),
     // RNFirebase's pods are Swift and need static framework linkage. Always on,
     // not gated with the plist: the pods are autolinked either way.
     ['expo-build-properties', { ios: { useFrameworks: 'static' } }],
