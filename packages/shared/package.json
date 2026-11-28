@@ -92,8 +92,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.config.integration.ts",
-    "test:rules": "vitest run --config vitest.config.e2e.ts",
-    "test:all": "vitest run --config vitest.config.all.ts",
+    "test:rules": "rm -rf .rules-coverage && RULES_COVERAGE_DIR=.rules-coverage vitest run --config vitest.config.e2e.ts && node ../../scripts/check-rules-coverage.mjs .rules-coverage",
+    "test:all": "rm -rf .rules-coverage && RULES_COVERAGE_DIR=.rules-coverage vitest run --config vitest.config.all.ts && node ../../scripts/check-rules-coverage.mjs .rules-coverage",
     "test:coverage": "vitest run --coverage",
     "test:coverage:all": "vitest run --config vitest.config.all.ts --coverage",
     "lint": "eslint . --max-warnings 0"

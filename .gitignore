@@ -56,3 +56,6 @@ firebase.agent.json
 # Placeholder secrets for the Functions emulator, written per run by
 # scripts/run-tests-with-emulators.mjs (and a developer's own overrides)
 functions/.secret.local
+
+# Rule coverage reports, one per rules test file (scripts/check-rules-coverage.mjs)
+.rules-coverage/
