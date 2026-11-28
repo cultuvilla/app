@@ -20,7 +20,6 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [ios-e2e-emulator-watch-keepalive](ongoing/ios-e2e-emulator-watch-keepalive.md) | medium | dev | this cycle | classify ios-e2e gate run 2 (44927921605 on b2c4ab83: shards 1 and 2 red, shard 4 cancelled); check the cancelled-listener probe line and that the 499 count is 0 (#746). Then get 3 fully green develop runs, drop flow 13's re-sign-in fallback (#662), and settle the contact-gate question (diag 13). Worker w18-ios-keepalive may still be on it: read ~/.claude/orchestrator/cultuvilla-cultu-upgrade/reports/w18-ios-keepalive.log first |
 | [production-release-decisions-script](ongoing/production-release-decisions-script.md) | medium | none | this cycle | move production-release.yml's store/Android/OTA decision shell into a table-tested scripts/production-release-plan.mjs |
 | [rules-coverage-ratchet](ongoing/rules-coverage-ratchet.md) | medium | none | this cycle | collect the emulator rule-coverage report per test file, add the ratchet check, and write the 13 missing tests |
-| [village-home-own-membership-read](ongoing/village-home-own-membership-read.md) | medium | none | this cycle | replace useChrome's roster read with one getVillageMemberRole read, with a test |
 | [mobile-copy-literal-guard](ongoing/mobile-copy-literal-guard.md) | low | none | this cycle | add the jest AST scan for hard-coded visible copy and move the 14 strays into es.json with the same wording |
 | [organization-type-single-source](ongoing/organization-type-single-source.md) | low | none | this cycle | add the parity test for the rules and backfill type lists, then the display helpers in OrganizationDataModel.ts |
 | [read-site-section-route-tests](ongoing/read-site-section-route-tests.md) | low | none | this cycle | add functions/src/__tests__/handlers/web/readSiteSections.test.ts covering the six section routes, detail pages and pueblo scoping |
@@ -52,6 +51,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [scheduled-schema-audit](ongoing/scheduled-schema-audit.md) | medium | dev | this cycle | after the release brings firestore-schema-audit.yml to beta and main, dispatch "Firestore schema audit" on beta and on main once and confirm both legs authenticate via WIF and pass |
 | [trigger-retry-window](ongoing/trigger-retry-window.md) | medium | dev | this cycle \* | once a release carrying #776 is live in prod, confirm no trigger logs a redelivery older than the window, then retire (dev deploy green) |
 | [verify-deployed-functions](ongoing/verify-deployed-functions.md) | medium | dev | this cycle | on the next beta deploy, confirm the "Parity check — live rules, indexes and functions are this commit's" step is green with no function-health findings, then retire this plan (#772 shipped it; dev green in run 46006747833) |
+| [village-home-own-membership-read](ongoing/village-home-own-membership-read.md) | medium | dev | this cycle | once 1.14.0 is live, confirm a member with a stale roster doc in their village still sees the member home, then retire |
 
 ## Soaking
 
