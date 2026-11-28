@@ -1,7 +1,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { getMunicipalityPeople } from '@cultuvilla/shared/services/municipalityPersonService';
 import { getMyCensoAnswers } from '@cultuvilla/shared/services/membershipProfileService';
-import { getVillageMembers } from '@cultuvilla/shared/services/villageMemberService';
+import { getVillageMemberRole } from '@cultuvilla/shared/services/villageMemberService';
 import { useVillageHome } from '../useVillageHome';
 
 /**
@@ -39,10 +39,12 @@ function emit(name: string, value: unknown) {
   act(() => latest(name).onNext(value));
 }
 
-jest.mock('../auth/useAuth', () => {
-  const value = { user: { uid: 'u1' }, profile: null, profileChecked: true };
-  return { useAuth: () => value };
-});
+const mockAuth: { user: { uid: string } | null; profile: null; profileChecked: boolean } = {
+  user: { uid: 'u1' },
+  profile: null,
+  profileChecked: true,
+};
+jest.mock('../auth/useAuth', () => ({ useAuth: () => mockAuth }));
 jest.mock('../orgs/useMyOrgIds', () => {
   const value = { orgIds: ['o1'] };
   return { useMyOrgIds: () => value };
@@ -59,8 +61,7 @@ jest.mock('@cultuvilla/shared/services/municipalityService', () => ({
   watchPlaces: mockWatcher('places'),
 }));
 jest.mock('@cultuvilla/shared/services/villageMemberService', () => ({
-  isVillageAdmin: jest.fn(async () => false),
-  getVillageMembers: jest.fn(async () => [{ userId: 'u1' }, { userId: 'u2' }]),
+  getVillageMemberRole: jest.fn(async () => 'user'),
 }));
 jest.mock('@cultuvilla/shared/services/membershipProfileService', () => ({
   getMyCensoAnswers: jest.fn(async () => ({ hijos: true })),
@@ -103,7 +104,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   for (const key of Object.keys(mockListeners)) delete mockListeners[key];
   mockFocusEffects.length = 0;
-  (getVillageMembers as jest.Mock).mockImplementation(async () => [{ userId: 'u1' }, { userId: 'u2' }]);
+  mockAuth.user = { uid: 'u1' };
+  (getVillageMemberRole as jest.Mock).mockImplementation(async () => 'user');
   Object.assign(mockInitial, {
     municipality: VILLAGE,
     barrios: [{ id: 'b1', name: 'Centro', status: 'active', residentCount: 0 }],
@@ -181,16 +183,43 @@ describe('useVillageHome', () => {
   });
 
   // The people directory is member-only, so the count comes off the public
-  // village doc — a visitor sees it too, and the home never reads the roster.
+  // village doc — a visitor sees it too, and the home never reads the people directory.
   it('shows a non-member the people count from the village doc', async () => {
-    (getVillageMembers as jest.Mock).mockResolvedValue([{ userId: 'u2' }]);
+    (getVillageMemberRole as jest.Mock).mockResolvedValue(null);
     const { result } = renderHook(() => useVillageHome('m1'));
-    await waitFor(() => expect(getVillageMembers).toHaveBeenCalled());
+    await waitFor(() => expect(getVillageMemberRole).toHaveBeenCalled());
     expect(result.current.isMember).toBe(false);
     expect(result.current.peopleCount).toBe(3);
     emit('municipality', { ...VILLAGE, peopleCount: 4 });
     expect(result.current.peopleCount).toBe(4);
     expect(getMunicipalityPeople).not.toHaveBeenCalled();
+  });
+
+  // One read of the viewer's own member doc answers "member?" and "admin?";
+  // the home never lists the village's members.
+  it('reads only the viewer’s own member doc for membership', async () => {
+    const { result } = renderHook(() => useVillageHome('m1'));
+    await waitFor(() => expect(result.current.membershipKnown).toBe(true));
+    expect(getVillageMemberRole).toHaveBeenCalledWith('m1', 'u1');
+    expect(result.current.isMember).toBe(true);
+    expect(result.current.villageAdmin).toBe(false);
+  });
+
+  it('makes a village admin a member and an admin', async () => {
+    (getVillageMemberRole as jest.Mock).mockResolvedValue('admin');
+    const { result } = renderHook(() => useVillageHome('m1'));
+    await waitFor(() => expect(result.current.villageAdmin).toBe(true));
+    expect(result.current.isMember).toBe(true);
+  });
+
+  it('makes no membership read for a signed-out guest', async () => {
+    mockAuth.user = null;
+    const { result } = renderHook(() => useVillageHome('m1'));
+    await waitFor(() => expect(result.current.membershipKnown).toBe(true));
+    expect(getVillageMemberRole).not.toHaveBeenCalled();
+    expect(getMyCensoAnswers).not.toHaveBeenCalled();
+    expect(result.current.isMember).toBe(false);
+    expect(result.current.villageAdmin).toBe(false);
   });
 
   it('renders the people count as unknown while the village doc loads', () => {
@@ -207,9 +236,9 @@ describe('useVillageHome', () => {
   });
 
   it('does not read censo answers for a non-member', async () => {
-    (getVillageMembers as jest.Mock).mockResolvedValue([{ userId: 'u2' }]);
+    (getVillageMemberRole as jest.Mock).mockResolvedValue(null);
     const { result } = renderHook(() => useVillageHome('m1'));
-    await waitFor(() => expect(getVillageMembers).toHaveBeenCalled());
+    await waitFor(() => expect(getVillageMemberRole).toHaveBeenCalled());
     expect(result.current.isMember).toBe(false);
     expect(getMyCensoAnswers).not.toHaveBeenCalled();
     expect(result.current.myCensoAnswers).toEqual({});
@@ -223,9 +252,9 @@ describe('useVillageHome', () => {
     await waitFor(() => expect(member.result.current.isMember).toBe(true));
     expect(member.result.current.peopleCount).toBe(3);
 
-    (getVillageMembers as jest.Mock).mockResolvedValue([{ userId: 'u2' }]);
+    (getVillageMemberRole as jest.Mock).mockResolvedValue(null);
     const visitor = renderHook(() => useVillageHome('m1'));
-    await waitFor(() => expect(getVillageMembers).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getVillageMemberRole).toHaveBeenCalledTimes(2));
     expect(visitor.result.current.peopleCount).toBe(3);
     expect(getMunicipalityPeople).not.toHaveBeenCalled();
   });
