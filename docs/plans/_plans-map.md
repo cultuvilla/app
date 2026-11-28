@@ -87,6 +87,7 @@ Read this top-down: **Actionable now** is what a batch can pick up today; the re
 | [mobile-neutral-grey-tokens](ongoing/mobile-neutral-grey-tokens.md) | low | none | 1 cycle ago | the first release carrying #729 is live in prod | confirm Deploy dev of e0878359 went green (then Landed: dev); the QA pass witnesses docs/qa/pending/neutral-grey-tokens.md; retire once a release carrying #729 is live in prod |
 | [mobile-raw-hex-to-tokens](ongoing/mobile-raw-hex-to-tokens.md) | low | dev | 1 cycle ago | the first release carrying #725 is live in prod | byte-identical refactor guarded by noTokenHexLiterals.test.ts; retire once a release carrying #725 is live in prod |
 | [non-prod-delivery-guard](ongoing/non-prod-delivery-guard.md) | high | beta | this cycle | first `Delivery withheld outside production` log line on dev and on beta (no probe write; decided by the leader 2026-11-27 pending Álvaro) | read Cloud Logging on villa-events and cultuvilla-beta for `Delivery withheld outside production`; one line from each env retires this plan |
+| [multi-village-groups](ongoing/multi-village-groups.md) | medium | none | this cycle | the first release carrying this is live in prod | once merged, witness docs/qa/pending/multi-village-groups.md on dev; after the release, check on prod that `org-municipality-ids` ran and every approved group still shows in its own pueblo, then retire this plan |
 
 ## Waiting on you
 
