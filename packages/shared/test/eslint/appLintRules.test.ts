@@ -16,6 +16,8 @@ interface AppConfig {
   RAW_SDK_EXEMPT?: string[];
   SEAM_ALLOWLIST?: string[];
   TEST_FILES?: string[];
+  SERVICE_HAND_WRITTEN_FACTORY?: { selector: string; message: string };
+  HAND_WRITTEN_FACTORY_RATCHET?: Record<string, number>;
 }
 const mobile = mobileConfig as AppConfig;
 const studio = studioConfig as AppConfig;
@@ -196,4 +198,70 @@ describe('app lint gate: mobile tests', () => {
   it('leaves app code alone', async () => {
     expect(await lint('mobile', 'components/Probe.tsx', "it.only('x', () => {});\n")).toEqual([]);
   });
+});
+
+// A hand-written jest.mock factory for a shared service hides every export it
+// does not list. New ones are built by fakeService (apps/mobile/test/fakeModule.ts);
+// the ones that predate the rule are a ratchet that only goes down.
+describe('app lint gate: hand-written service factories', () => {
+  const TEST = 'components/__tests__/Probe.test.tsx';
+  const SERVICE = '@cultuvilla/shared/services/organizationService';
+  const BAN = 'no-restricted-syntax';
+  const ratchet = mobile.HAND_WRITTEN_FACTORY_RATCHET ?? {};
+
+  // Lower this with every file you convert; it may never go up.
+  const CEILING = 341;
+
+  it.each([
+    ['an object factory', `jest.mock('${SERVICE}', () => ({ getOrganization: jest.fn() }));\n`],
+    ['a block factory', `jest.mock('${SERVICE}', () => { return { getOrganization: jest.fn() }; });\n`],
+    ['a doMock factory', `jest.doMock('${SERVICE}', () => ({}));\n`],
+    ['a factory for the services barrel', "jest.mock('@cultuvilla/shared/services', () => ({}));\n"],
+  ])('rejects %s', async (_label, code) => {
+    expect(await lint('mobile', TEST, code)).toEqual([BAN]);
+  });
+
+  it.each([
+    [
+      'a factory built by fakeService',
+      `jest.mock('${SERVICE}', () => jest.requireActual('../../test/fakeModule').fakeService('${SERVICE}'));\n`,
+    ],
+    [
+      'a factory built by fakeModule',
+      `jest.mock('${SERVICE}', () => { const { fakeModule } = jest.requireActual('../../test/fakeModule'); return fakeModule(() => jest.requireActual('${SERVICE}')); });\n`,
+    ],
+    ['a bare automock', `jest.mock('${SERVICE}');\n`],
+    ['a factory for a module that is not a service', "jest.mock('expo-router', () => ({ router: {} }));\n"],
+  ])('accepts %s', async (_label, code) => {
+    expect(await lint('mobile', TEST, code)).toEqual([]);
+  });
+
+  it('keeps the bare error-code ban on the files the ratchet exempts', async () => {
+    // A bracketed Expo Router path, so the glob escaping is exercised too.
+    const file = Object.keys(ratchet).find((path) => path.includes('['));
+    if (!file) throw new Error('expected a bracketed path in the ratchet');
+    expect(await lint('mobile', file, `jest.mock('${SERVICE}', () => ({}));\n`)).toEqual([]);
+    expect(await lint('mobile', file, "declare const e: { code: string };\nif (e.code === 'permission-denied') {}\n")).toEqual([BAN]);
+  });
+
+  it('pins every exempt file to the factories it holds, and the total to the ceiling', async () => {
+    const cwd = workspaceDir.mobile;
+    const eslint = new ESLint({
+      cwd,
+      overrideConfigFile: resolve(cwd, 'eslint.config.mjs'),
+      overrideConfig: [{ files: ['**/*.{ts,tsx}'], rules: { [BAN]: ['error', mobile.SERVICE_HAND_WRITTEN_FACTORY] } }],
+    });
+    const results = await eslint.lintFiles(Object.keys(ratchet));
+    const actual = Object.fromEntries(
+      results.map((r) => [
+        r.filePath.slice(cwd.length + 1),
+        r.messages.filter((m) => m.message === mobile.SERVICE_HAND_WRITTEN_FACTORY?.message).length,
+      ]),
+    );
+    // A converted file drops out of apps/mobile/test/handWrittenServiceFactories.json;
+    // a lower count is written there, and CEILING above comes down with it.
+    expect(actual).toEqual(ratchet);
+    expect(Object.values(ratchet).every((count) => count > 0)).toBe(true);
+    expect(Object.values(ratchet).reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(CEILING);
+  }, 120_000);
 });
