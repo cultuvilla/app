@@ -2,6 +2,10 @@
 
 **Priority:** medium — the service is among the hottest shared files (churn 15, 4 fixes in 90 days), and 16 of its exports, including the village search, are on the untested list
 
+**Landed:** none
+**Gate:** none
+**Next:** add the emulator suite for municipalityService village search, barrios and places
+
 **Goal:** Test the municipality queries and the barrio/place lifecycle against the Firestore emulator. A wrong field name, filter or write shape in village search or in user-made barrios and places then fails a test, not a phone.
 
 ## Context

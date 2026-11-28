@@ -2,6 +2,10 @@
 
 **Priority:** medium — privacy is re-decided by hand in ten places that bypass firestore.rules; they agree today only because the rules forbid the shapes where they differ, and one copy (the sitemap's status gate) is already wrong
 
+**Landed:** none
+**Gate:** none
+**Next:** add the public-read predicate in packages/shared/src/policy/ with an emulator check against the events read rule, then move the Admin-SDK readers onto it
+
 **Goal:** give the server's anonymous readers (read site, sitemap, village broadcasts, Wrapped) one pure, raw-data answer to "may an anonymous visitor see this doc?" in `packages/shared/src/policy/`, checked against the `events` read rule in the emulator, so the next reader cannot forget or misspell it.
 
 ## Context
